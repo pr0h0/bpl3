@@ -21,28 +21,22 @@ describe("Lexer - Extended Tests", () => {
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
         "utf8",
       );
-      const keywordSetMatch = genericParserSource.match(
-        /const KEYWORDS = new Set\(\[([\s\S]*?)\]\);/,
-      );
       const keywordMapMatch = grammarLexerSource.match(
         /const keywordMap:[\s\S]*?= \{([\s\S]*?)\};/,
       );
 
-      expect(keywordSetMatch).not.toBeNull();
       expect(keywordMapMatch).not.toBeNull();
 
-      const genericKeywords = new Set(
-        [...keywordSetMatch![1]!.matchAll(/"([^"]+)"/g)].map(
-          (match) => match[1],
-        ),
-      );
       const converterKeywords = [
         ...keywordMapMatch![1]!.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*):/gm),
-      ].map((match) => match[1]);
+      ].map((match) => match[1]!);
 
-      expect(
-        converterKeywords.filter((name) => !genericKeywords.has(name)),
-      ).toEqual([]);
+      for (const keyword of converterKeywords) {
+        const tokens = tokenize(keyword);
+        expect(tokens[0]!.type).not.toBe(TokenType.Identifier);
+        expect(tokens[0]!.lexeme).toBe(keyword);
+      }
+      expect(genericParserSource).toContain("function classifyIdentifierLike");
     });
 
     it("checks identifier literal and keyword candidates by first character", () => {
@@ -57,17 +51,15 @@ describe("Lexer - Extended Tests", () => {
       expect(end).toBeGreaterThan(start);
 
       const matcherSource = source.slice(start, end);
-      expect(source).toContain("const KEYWORDS = new Set");
-      expect(source).toContain("const KEYWORD_START_CODES");
+      expect(source).toContain("function classifyIdentifierLike");
+      expect(source).not.toContain("const KEYWORDS = new Set");
+      expect(source).not.toContain("const KEYWORD_START_CODES");
       expect(source).not.toContain("function canStartKeyword");
       expect(matcherSource).toContain("const firstCode =");
       expect(matcherSource).toContain("this.source.charCodeAt(start)");
-      expect(matcherSource).toContain("firstCode === 116");
-      expect(matcherSource).toContain("firstCode === 102");
-      expect(matcherSource).toContain("firstCode === 110");
-      expect(matcherSource).toContain(
-        "KEYWORD_START_CODES[firstCode] === true && KEYWORDS.has(value)",
-      );
+      expect(matcherSource).toContain("classifyIdentifierLike(firstCode, value)");
+      expect(matcherSource).not.toContain("KEYWORDS.has(value)");
+      expect(matcherSource).not.toContain("KEYWORD_START_CODES");
     });
 
     it("should tokenize 'frame' keyword", () => {

@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Identifier Keyword Classifier Fast Path** - `GenericParser` now classifies
+  identifier-like tokens through a direct first-character switch instead of a
+  keyword `Set` lookup, preserving `true`/`false` and `null`/`nullptr` literal
+  handling while keeping keyword coverage aligned with `GrammarLexer`. Against
+  `e41aad6`, a 101-round isolated 5k lex probe preserved token count and
+  signature while improving median lex time from ~42.33ms to ~39.70ms. A
+  matched phase benchmark preserved token signature and LLVM IR hash and
+  improved phase lex median from ~42.33ms to ~41.13ms; full median remained
+  noisy because untouched parse/typecheck/codegen medians varied in the same
+  window. Reproduce the guard with
+  `bun test tests/Lexer.test.ts -t "keyword"` and the phase benchmark with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json`.
 - **Punctuator Lexer Direct Dispatch Fast Path** - `GenericParser` now lexes
   punctuators through a direct first-character char-code switch instead of a
   grouped `Map` lookup and candidate `startsWith` loop, and removes the unused

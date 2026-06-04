@@ -28,40 +28,6 @@ export interface GenericParseResult<T> {
 
 export interface ParseResult extends GenericParseResult<TokenNode> {}
 
-const KEYWORDS = new Set([
-  "global",
-  "local",
-  "const",
-  "type",
-  "frame",
-  "static",
-  "ret",
-  "struct",
-  "enum",
-  "import",
-  "from",
-  "export",
-  "extern",
-  "asm",
-  "as",
-  "this",
-  "loop",
-  "if",
-  "else",
-  "break",
-  "continue",
-  "try",
-  "catch",
-  "return",
-  "throw",
-  "switch",
-  "case",
-  "default",
-  "cast",
-  "sizeof",
-  "match",
-  "Func",
-]);
 const STRING_LITERAL_PATTERN = /"(?:(?:\\.)|[^"\n\r])*"/y;
 const CHAR_LITERAL_PATTERN = /'(?:\\.|[^'\n\r])'/y;
 const HEX_NUMBER_LITERAL_PATTERN = /0[xX][0-9a-fA-F]+/y;
@@ -70,17 +36,76 @@ const OCTAL_NUMBER_LITERAL_PATTERN = /0[oO][0-7]+/y;
 const DECIMAL_NUMBER_LITERAL_PATTERN =
   /[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?/y;
 
-function createKeywordStartCodeTable(
-  keywords: Set<string>,
-): Record<number, true> {
-  const table: Record<number, true> = Object.create(null);
-  for (const keyword of keywords) {
-    table[keyword.charCodeAt(0)] = true;
-  }
-  return table;
-}
+type IdentifierLikeTokenType =
+  | "Identifier"
+  | "Keyword"
+  | "BoolLiteral"
+  | "NullptrLiteral";
 
-const KEYWORD_START_CODES = createKeywordStartCodeTable(KEYWORDS);
+function classifyIdentifierLike(
+  firstCode: number,
+  value: string,
+): IdentifierLikeTokenType {
+  switch (firstCode) {
+    case 70:
+      return value === "Func" ? "Keyword" : "Identifier";
+    case 97:
+      return value === "asm" || value === "as" ? "Keyword" : "Identifier";
+    case 98:
+      return value === "break" ? "Keyword" : "Identifier";
+    case 99:
+      return value === "const" ||
+        value === "continue" ||
+        value === "catch" ||
+        value === "case" ||
+        value === "cast"
+        ? "Keyword"
+        : "Identifier";
+    case 100:
+      return value === "default" ? "Keyword" : "Identifier";
+    case 101:
+      return value === "enum" ||
+        value === "else" ||
+        value === "export" ||
+        value === "extern"
+        ? "Keyword"
+        : "Identifier";
+    case 102:
+      if (value === "false") return "BoolLiteral";
+      return value === "frame" || value === "from" ? "Keyword" : "Identifier";
+    case 103:
+      return value === "global" ? "Keyword" : "Identifier";
+    case 105:
+      return value === "if" || value === "import" ? "Keyword" : "Identifier";
+    case 108:
+      return value === "local" || value === "loop" ? "Keyword" : "Identifier";
+    case 109:
+      return value === "match" ? "Keyword" : "Identifier";
+    case 110:
+      return value === "null" || value === "nullptr"
+        ? "NullptrLiteral"
+        : "Identifier";
+    case 114:
+      return value === "ret" || value === "return" ? "Keyword" : "Identifier";
+    case 115:
+      return value === "struct" ||
+        value === "static" ||
+        value === "switch" ||
+        value === "sizeof"
+        ? "Keyword"
+        : "Identifier";
+    case 116:
+      if (value === "true") return "BoolLiteral";
+      return value === "type" ||
+        value === "this" ||
+        value === "try" ||
+        value === "throw"
+        ? "Keyword"
+        : "Identifier";
+    default:
+      return "Identifier";
+  }
+}
 
 function isAsciiDigit(ch: string | undefined): ch is string {
   if (ch === undefined) return false;
@@ -349,42 +374,9 @@ export class GenericParser {
 
     const end = this.scanIdentifierEnd(start + 1);
     const value = this.source.slice(start, end);
-    if (
-      (firstCode === 116 && value === "true") ||
-      (firstCode === 102 && value === "false")
-    ) {
-      return this.createTokenFromRange(
-        "BoolLiteral",
-        value,
-        start,
-        end,
-        emitToken,
-      );
-    }
-    if (
-      firstCode === 110 &&
-      (value === "null" || value === "nullptr")
-    ) {
-      return this.createTokenFromRange(
-        "NullptrLiteral",
-        value,
-        start,
-        end,
-        emitToken,
-      );
-    }
-
-    if (KEYWORD_START_CODES[firstCode] === true && KEYWORDS.has(value)) {
-      return this.createTokenFromRange(
-        "Keyword",
-        value,
-        start,
-        end,
-        emitToken,
-      );
-    }
+    const tokenType = classifyIdentifierLike(firstCode, value);
     return this.createTokenFromRange(
-      "Identifier",
+      tokenType,
       value,
       start,
       end,
