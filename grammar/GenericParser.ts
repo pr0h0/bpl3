@@ -28,74 +28,6 @@ export interface GenericParseResult<T> {
 
 export interface ParseResult extends GenericParseResult<TokenNode> {}
 
-// Ordered to preserve existing tokenization behavior for overlapping prefixes.
-const PUNCTUATORS = [
-  "...",
-  "==",
-  "!=",
-  ">=",
-  "<=",
-  "<<",
-  ">>",
-  "&&",
-  "||",
-  "++",
-  "--",
-  "+=",
-  "-=",
-  "*=",
-  "/=",
-  "%=",
-  "&=",
-  "|=",
-  "^=",
-  "?",
-  ":",
-  "::",
-  "=>",
-  ",",
-  ";",
-  "{",
-  "}",
-  "(",
-  ")",
-  "[",
-  "]",
-  ".",
-  "=",
-  "+",
-  "-",
-  "*",
-  "/",
-  "%",
-  "&",
-  "|",
-  "^",
-  "!",
-  "~",
-  "<",
-  ">",
-  "@",
-  "$",
-];
-
-function groupPunctuatorsByFirstChar(
-  punctuators: string[],
-): Map<string, string[]> {
-  const groups = new Map<string, string[]>();
-  for (const punctuator of punctuators) {
-    const firstChar = punctuator[0]!;
-    const group = groups.get(firstChar);
-    if (group === undefined) {
-      groups.set(firstChar, [punctuator]);
-    } else {
-      group.push(punctuator);
-    }
-  }
-  return groups;
-}
-
-const PUNCTUATORS_BY_FIRST_CHAR = groupPunctuatorsByFirstChar(PUNCTUATORS);
 const KEYWORDS = new Set([
   "global",
   "local",
@@ -471,18 +403,140 @@ export class GenericParser {
   }
 
   private matchPunctuator<T>(emitToken: TokenEmitter<T>): T | null {
-    const firstChar = this.source[this.position];
-    if (firstChar === undefined) return null;
+    const firstCode = this.source.charCodeAt(this.position);
+    const secondCode = this.source.charCodeAt(this.position + 1);
 
-    const candidates = PUNCTUATORS_BY_FIRST_CHAR.get(firstChar);
-    if (candidates === undefined) return null;
-
-    for (const punct of candidates) {
-      if (this.source.startsWith(punct, this.position)) {
-        return this.createToken("Punctuator", punct, emitToken);
-      }
+    switch (firstCode) {
+      case 33:
+        return this.createToken(
+          "Punctuator",
+          secondCode === 61 ? "!=" : "!",
+          emitToken,
+        );
+      case 36:
+        return this.createToken("Punctuator", "$", emitToken);
+      case 37:
+        return this.createToken(
+          "Punctuator",
+          secondCode === 61 ? "%=" : "%",
+          emitToken,
+        );
+      case 38:
+        if (secondCode === 38) {
+          return this.createToken("Punctuator", "&&", emitToken);
+        }
+        return this.createToken(
+          "Punctuator",
+          secondCode === 61 ? "&=" : "&",
+          emitToken,
+        );
+      case 40:
+        return this.createToken("Punctuator", "(", emitToken);
+      case 41:
+        return this.createToken("Punctuator", ")", emitToken);
+      case 42:
+        return this.createToken(
+          "Punctuator",
+          secondCode === 61 ? "*=" : "*",
+          emitToken,
+        );
+      case 43:
+        if (secondCode === 43) {
+          return this.createToken("Punctuator", "++", emitToken);
+        }
+        return this.createToken(
+          "Punctuator",
+          secondCode === 61 ? "+=" : "+",
+          emitToken,
+        );
+      case 44:
+        return this.createToken("Punctuator", ",", emitToken);
+      case 45:
+        if (secondCode === 45) {
+          return this.createToken("Punctuator", "--", emitToken);
+        }
+        return this.createToken(
+          "Punctuator",
+          secondCode === 61 ? "-=" : "-",
+          emitToken,
+        );
+      case 46:
+        if (
+          secondCode === 46 &&
+          this.source.charCodeAt(this.position + 2) === 46
+        ) {
+          return this.createToken("Punctuator", "...", emitToken);
+        }
+        return this.createToken("Punctuator", ".", emitToken);
+      case 47:
+        return this.createToken(
+          "Punctuator",
+          secondCode === 61 ? "/=" : "/",
+          emitToken,
+        );
+      case 58:
+        return this.createToken("Punctuator", ":", emitToken);
+      case 59:
+        return this.createToken("Punctuator", ";", emitToken);
+      case 60:
+        if (secondCode === 61) {
+          return this.createToken("Punctuator", "<=", emitToken);
+        }
+        return this.createToken(
+          "Punctuator",
+          secondCode === 60 ? "<<" : "<",
+          emitToken,
+        );
+      case 61:
+        if (secondCode === 61) {
+          return this.createToken("Punctuator", "==", emitToken);
+        }
+        return this.createToken(
+          "Punctuator",
+          secondCode === 62 ? "=>" : "=",
+          emitToken,
+        );
+      case 62:
+        if (secondCode === 61) {
+          return this.createToken("Punctuator", ">=", emitToken);
+        }
+        return this.createToken(
+          "Punctuator",
+          secondCode === 62 ? ">>" : ">",
+          emitToken,
+        );
+      case 63:
+        return this.createToken("Punctuator", "?", emitToken);
+      case 64:
+        return this.createToken("Punctuator", "@", emitToken);
+      case 91:
+        return this.createToken("Punctuator", "[", emitToken);
+      case 93:
+        return this.createToken("Punctuator", "]", emitToken);
+      case 94:
+        return this.createToken(
+          "Punctuator",
+          secondCode === 61 ? "^=" : "^",
+          emitToken,
+        );
+      case 123:
+        return this.createToken("Punctuator", "{", emitToken);
+      case 124:
+        if (secondCode === 124) {
+          return this.createToken("Punctuator", "||", emitToken);
+        }
+        return this.createToken(
+          "Punctuator",
+          secondCode === 61 ? "|=" : "|",
+          emitToken,
+        );
+      case 125:
+        return this.createToken("Punctuator", "}", emitToken);
+      case 126:
+        return this.createToken("Punctuator", "~", emitToken);
+      default:
+        return null;
     }
-    return null;
   }
 
   private execAt(regex: RegExp, index: number): RegExpExecArray | null {

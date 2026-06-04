@@ -202,7 +202,7 @@ describe("Lexer - Extended Tests", () => {
   });
 
   describe("Operators", () => {
-    it("keeps punctuator lexing on a first-character candidate path", () => {
+    it("keeps punctuator lexing on a direct first-character dispatch path", () => {
       const source = readFileSync(
         join(process.cwd(), "grammar/GenericParser.ts"),
         "utf8",
@@ -214,8 +214,12 @@ describe("Lexer - Extended Tests", () => {
       expect(end).toBeGreaterThan(start);
 
       const methodSource = source.slice(start, end);
-      expect(source).toContain("PUNCTUATORS_BY_FIRST_CHAR");
-      expect(methodSource).toContain("PUNCTUATORS_BY_FIRST_CHAR.get");
+      expect(source).not.toContain("const PUNCTUATORS =");
+      expect(source).not.toContain("PUNCTUATORS_BY_FIRST_CHAR");
+      expect(source).not.toContain("groupPunctuatorsByFirstChar");
+      expect(methodSource).toContain("const firstCode =");
+      expect(methodSource).toContain("switch (firstCode)");
+      expect(methodSource).not.toContain("PUNCTUATORS_BY_FIRST_CHAR.get");
       expect(methodSource).not.toContain("for (const punct of this.punctuators)");
     });
 

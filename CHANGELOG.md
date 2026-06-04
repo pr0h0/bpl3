@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Punctuator Lexer Direct Dispatch Fast Path** - `GenericParser` now lexes
+  punctuators through a direct first-character char-code switch instead of a
+  grouped `Map` lookup and candidate `startsWith` loop, and removes the unused
+  punctuator table from module initialization. Against `fbf8fea`, a matched 5k
+  phase benchmark preserved the token signature and LLVM IR hash while full
+  median improved from ~573.00ms to ~542.83ms; the phase lex median was noisy
+  at ~44.40ms to ~45.28ms. A same-window 201-round isolated lex probe preserved
+  token count and signature while improving median lex time from ~44.13ms to
+  ~39.74ms. Reproduce the guard with
+  `bun test tests/Lexer.test.ts -t "punctuator lexing"` and the phase benchmark
+  with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json`.
 - **Function-Local Codegen State Swap Fast Path** - Function code generation
   now swaps in fresh local-state collections for each function body and restores
   the previous collection references in `finally`, instead of cloning the
