@@ -74,6 +74,15 @@ export interface ModuleInfo {
 const PRIMITIVE_WRAPPER_TYPE_NAMES = new Set(
   Object.values(PRIMITIVE_STRUCT_MAP),
 );
+const PRIMITIVE_BASIC_TYPE_NAMES = new Set(Object.keys(PRIMITIVE_STRUCT_MAP));
+const PRIMITIVE_WRAPPER_METHOD_NAMES = new Set([
+  "toString",
+  "popCount",
+  "leadingZeros",
+  "trailingZeros",
+  "byteSwap",
+  "reverseBits",
+]);
 
 export class ModuleResolver {
   /** Cache of loaded modules by absolute path */
@@ -726,6 +735,9 @@ export class ModuleResolver {
 }
 
 function moduleMentionsPrimitiveWrapper(program: AST.Program): boolean {
+  const primitiveValueNames = collectPrimitiveValueNames(program);
+  const primitiveReturningFunctions = collectPrimitiveReturningFunctions(program);
+
   let found = false;
   walkAST(program, (node) => {
     if (
@@ -743,9 +755,179 @@ function moduleMentionsPrimitiveWrapper(program: AST.Program): boolean {
       found = true;
       return false;
     }
+
+    if (node.kind === "Member") {
+      const member = node as AST.MemberExpr;
+      if (
+        PRIMITIVE_WRAPPER_METHOD_NAMES.has(member.property) &&
+        expressionMayBePrimitiveValue(
+          member.object,
+          primitiveValueNames,
+          primitiveReturningFunctions,
+        )
+      ) {
+        found = true;
+        return false;
+      }
+    }
+
+    if (node.kind === "InterpolatedString") {
+      const interpolated = node as AST.InterpolatedStringExpr;
+      if (
+        interpolated.parts.some((part) =>
+          expressionMayBePrimitiveValue(
+            part,
+            primitiveValueNames,
+            primitiveReturningFunctions,
+          ),
+        )
+      ) {
+        found = true;
+        return false;
+      }
+    }
   });
 
   return found;
+}
+
+function collectPrimitiveValueNames(program: AST.Program): Set<string> {
+  const names = new Set<string>();
+  const primitiveReturningFunctions = collectPrimitiveReturningFunctions(program);
+
+  walkAST(program, (node) => {
+    if (node.kind === "FunctionDecl") {
+      const decl = node as AST.FunctionDecl;
+      for (const param of decl.params) {
+        if (isPrimitiveValueType(param.type)) {
+          names.add(param.name);
+        }
+      }
+      return;
+    }
+
+    if (node.kind !== "VariableDecl") {
+      return;
+    }
+
+    const decl = node as AST.VariableDecl;
+    if (typeof decl.name !== "string") {
+      return;
+    }
+
+    if (
+      (decl.typeAnnotation && isPrimitiveValueType(decl.typeAnnotation)) ||
+      (!decl.typeAnnotation &&
+        decl.initializer &&
+        expressionMayBePrimitiveValue(
+          decl.initializer,
+          names,
+          primitiveReturningFunctions,
+        ))
+    ) {
+      names.add(decl.name);
+    }
+  });
+
+  return names;
+}
+
+function collectPrimitiveReturningFunctions(program: AST.Program): Set<string> {
+  const names = new Set<string>();
+
+  walkAST(program, (node) => {
+    if (node.kind !== "FunctionDecl") {
+      return;
+    }
+
+    const decl = node as AST.FunctionDecl;
+    if (isPrimitiveValueType(decl.returnType)) {
+      names.add(decl.name);
+    }
+  });
+
+  return names;
+}
+
+function expressionMayBePrimitiveValue(
+  expr: AST.Expression,
+  primitiveValueNames: Set<string>,
+  primitiveReturningFunctions: Set<string>,
+): boolean {
+  switch (expr.kind) {
+    case "Literal": {
+      const literal = expr as AST.LiteralExpr;
+      return (
+        literal.type === "number" ||
+        literal.type === "bool" ||
+        literal.type === "char"
+      );
+    }
+    case "Identifier":
+      return primitiveValueNames.has((expr as AST.IdentifierExpr).name);
+    case "Cast":
+      return isPrimitiveValueType((expr as AST.CastExpr).targetType);
+    case "Call": {
+      const call = expr as AST.CallExpr;
+      if (
+        call.callee.kind === "Identifier" &&
+        primitiveReturningFunctions.has((call.callee as AST.IdentifierExpr).name)
+      ) {
+        return true;
+      }
+
+      return false;
+    }
+    case "Unary":
+      return expressionMayBePrimitiveValue(
+        (expr as AST.UnaryExpr).operand,
+        primitiveValueNames,
+        primitiveReturningFunctions,
+      );
+    case "Binary": {
+      const binary = expr as AST.BinaryExpr;
+      return (
+        expressionMayBePrimitiveValue(
+          binary.left,
+          primitiveValueNames,
+          primitiveReturningFunctions,
+        ) ||
+        expressionMayBePrimitiveValue(
+          binary.right,
+          primitiveValueNames,
+          primitiveReturningFunctions,
+        )
+      );
+    }
+    case "Ternary": {
+      const ternary = expr as AST.TernaryExpr;
+      return (
+        expressionMayBePrimitiveValue(
+          ternary.trueExpr,
+          primitiveValueNames,
+          primitiveReturningFunctions,
+        ) ||
+        expressionMayBePrimitiveValue(
+          ternary.falseExpr,
+          primitiveValueNames,
+          primitiveReturningFunctions,
+        )
+      );
+    }
+    case "Sizeof":
+      return true;
+    default:
+      return false;
+  }
+}
+
+function isPrimitiveValueType(type: AST.TypeNode | undefined): boolean {
+  return (
+    type?.kind === "BasicType" &&
+    type.pointerDepth === 0 &&
+    type.arrayDimensions.length === 0 &&
+    PRIMITIVE_BASIC_TYPE_NAMES.has(type.name)
+  );
 }
 
 function isTerminalPackageResolutionFailure(

@@ -134,4 +134,19 @@ describe("TypeChecker member access misuse diagnostics", () => {
 
     expect(errors).toEqual([]);
   });
+
+  test("loads primitive wrappers for scalar member methods on demand", () => {
+    const errors = collectErrors(`
+      import [String] from "std/string.bpl";
+
+      frame main() ret int {
+        local value: int = 7;
+        local text: String = value.toString();
+        text.destroy();
+        return 0;
+      }
+    `);
+
+    expect(errors).toEqual([]);
+  });
 });

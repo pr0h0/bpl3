@@ -563,12 +563,9 @@ export abstract class TypeCheckerBase {
         return type;
       }
 
-      this.ensureImplicitPrimitiveWrappersLoaded(type.name);
+      let resolvedSymbol = this.currentScope.resolve(type.name);
 
-      const symbol = this.currentScope.resolve(type.name);
-      let resolvedSymbol = symbol;
-
-      if (!resolvedSymbol && type.name.includes(".")) {
+      const resolveQualifiedSymbol = (): Symbol | undefined => {
         const parts = type.name.split(".");
         let currentScope = this.currentScope;
         let currentSymbol: Symbol | undefined;
@@ -589,7 +586,20 @@ export abstract class TypeCheckerBase {
             }
           }
         }
-        resolvedSymbol = currentSymbol;
+
+        return currentSymbol;
+      };
+
+      if (!resolvedSymbol && type.name.includes(".")) {
+        resolvedSymbol = resolveQualifiedSymbol();
+      }
+
+      if (!resolvedSymbol) {
+        this.ensureImplicitPrimitiveWrappersLoaded(type.name);
+        resolvedSymbol = this.currentScope.resolve(type.name);
+        if (!resolvedSymbol && type.name.includes(".")) {
+          resolvedSymbol = resolveQualifiedSymbol();
+        }
       }
 
       if (
