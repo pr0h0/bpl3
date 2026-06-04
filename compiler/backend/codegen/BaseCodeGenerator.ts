@@ -471,6 +471,33 @@ export class BaseCodeGenerator {
     );
   }
 
+  protected markBasicBlockPointerExpressionsNonNull(
+    expressionKeys: readonly string[],
+  ): void {
+    if (expressionKeys.length === 0) return;
+    const proofIndex = this.output.length;
+    for (const expressionKey of expressionKeys) {
+      this.basicBlockNonNullPointerExpressions.set(expressionKey, proofIndex);
+    }
+  }
+
+  protected getValidBasicBlockPointerExpressionProofKeys(): string[] {
+    if (this.basicBlockNonNullPointerExpressions.size === 0) return [];
+
+    const validKeys: string[] = [];
+    for (const [
+      expressionKey,
+      proofIndex,
+    ] of this.basicBlockNonNullPointerExpressions) {
+      if (!this.hasBasicBlockPointerBoundarySince(proofIndex)) {
+        validKeys.push(expressionKey);
+      } else {
+        this.basicBlockNonNullPointerExpressions.delete(expressionKey);
+      }
+    }
+    return validKeys;
+  }
+
   private hasBasicBlockPointerBoundarySince(startIndex: number): boolean {
     for (let i = startIndex; i < this.output.length; i++) {
       if (this.isBasicBlockPointerBoundaryLine(this.output[i]!)) {

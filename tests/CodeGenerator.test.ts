@@ -1067,6 +1067,63 @@ describe("CodeGenerator", () => {
     ).toBe(1);
   });
 
+  it("carries terminating nullptr guard proofs through branch labels without calls", () => {
+    const ir = compile(
+      `
+        struct Node {
+          value: int,
+        }
+
+        frame value_after_guard_branch(root: *Node, use_first: bool) ret int {
+          if (root == nullptr) {
+            return 0;
+          }
+          if (use_first) {
+            return root.value;
+          }
+          return root.value + 1;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    const valueAfterGuardBranch = ir.match(
+      /define dso_local i32 @value_after_guard_branch_Node_ptr_i1[\s\S]*?\n}\n/,
+    )?.[0];
+    expect(valueAfterGuardBranch).toBeDefined();
+    expect(
+      valueAfterGuardBranch!.match(/@__bpl_check_null/g)?.length ?? 0,
+    ).toBe(0);
+  });
+
+  it("does not leak nested null guard proofs through unrelated predecessors", () => {
+    const ir = compile(
+      `
+        struct Node {
+          value: int,
+        }
+
+        frame value_after_nested_guard(root: *Node, guard: bool) ret int {
+          if (guard) {
+            if (root == nullptr) {
+              return 0;
+            }
+          }
+          return root.value;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    const valueAfterNestedGuard = ir.match(
+      /define dso_local i32 @value_after_nested_guard_Node_ptr_i1[\s\S]*?\n}\n/,
+    )?.[0];
+    expect(valueAfterNestedGuard).toBeDefined();
+    expect(
+      valueAfterNestedGuard!.match(/@__bpl_check_null/g)?.length ?? 0,
+    ).toBe(1);
+  });
+
   it("keeps pointer-proof boundary detection off allocation-heavy string trimming", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),

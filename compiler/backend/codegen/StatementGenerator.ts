@@ -1493,6 +1493,9 @@ export abstract class StatementGenerator extends AsmGenerator {
     const thenLabel = this.newLabel("then");
     const elseLabel = this.newLabel("else");
     const mergeLabel = this.newLabel("merge");
+    const incomingPointerExpressionProofs =
+      this.getValidBasicBlockPointerExpressionProofKeys();
+    const fallthroughPointerExpressionProofs: string[][] = [];
 
     const hasElse = !!stmt.elseBranch;
     const targetElse = hasElse ? elseLabel : mergeLabel;
@@ -1500,6 +1503,9 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.emit(`  br i1 ${cond}, label %${thenLabel}, label %${targetElse}`);
 
     this.emit(`${thenLabel}:`);
+    this.markBasicBlockPointerExpressionsNonNull(
+      incomingPointerExpressionProofs,
+    );
     if (stmt.thenBranch.kind === "Block") {
       this.generateBlock(stmt.thenBranch as AST.BlockStmt);
     } else {
@@ -1515,12 +1521,18 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.output[this.output.length - 1] || "",
     );
     if (!thenTerminates) {
+      fallthroughPointerExpressionProofs.push(
+        this.getValidBasicBlockPointerExpressionProofKeys(),
+      );
       this.emit(`  br label %${mergeLabel}`);
     }
 
     let elseTerminates = false;
     if (hasElse) {
       this.emit(`${elseLabel}:`);
+      this.markBasicBlockPointerExpressionsNonNull(
+        incomingPointerExpressionProofs,
+      );
       if (stmt.elseBranch!.kind === "Block") {
         this.generateBlock(stmt.elseBranch as AST.BlockStmt);
       } else if (stmt.elseBranch!.kind === "If") {
@@ -1538,11 +1550,19 @@ export abstract class StatementGenerator extends AsmGenerator {
         this.output[this.output.length - 1] || "",
       );
       if (!elseTerminates) {
+        fallthroughPointerExpressionProofs.push(
+          this.getValidBasicBlockPointerExpressionProofKeys(),
+        );
         this.emit(`  br label %${mergeLabel}`);
       }
+    } else {
+      fallthroughPointerExpressionProofs.push(incomingPointerExpressionProofs);
     }
 
     this.emit(`${mergeLabel}:`);
+    this.markBasicBlockPointerExpressionsNonNull(
+      this.intersectPointerExpressionProofs(fallthroughPointerExpressionProofs),
+    );
     if (
       nullGuardProof &&
       this.nullGuardProvesNonNullAtMerge(
@@ -1553,6 +1573,18 @@ export abstract class StatementGenerator extends AsmGenerator {
     ) {
       this.markBasicBlockPointerExpressionNonNull(nullGuardProof.expressionKey);
     }
+  }
+
+  private intersectPointerExpressionProofs(proofSets: string[][]): string[] {
+    if (proofSets.length === 0) return [];
+    if (proofSets.length === 1) return proofSets[0]!;
+
+    const remainingSets = proofSets
+      .slice(1)
+      .map((proofSet) => new Set(proofSet));
+    return proofSets[0]!.filter((proof) =>
+      remainingSets.every((proofSet) => proofSet.has(proof)),
+    );
   }
 
   private getTerminatingNullGuardProof(

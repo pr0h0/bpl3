@@ -34,6 +34,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/CodeGenerator.test.ts -t "uses terminating nullptr guards"`
   and the runtime sample with
   `bun benchmark/run_benchmark.ts --runs 15 --warmups 3 --language bpl,c --json binary_tree`.
+- **Branch-Safe Null-Proof Propagation** -
+  `if` codegen now snapshots valid source-expression non-null proofs at branch
+  boundaries, reapplies them inside branch labels, and keeps only proofs shared
+  by every fallthrough predecessor at the merge. This lets early null guards
+  suppress redundant member checks across ordinary branch labels while avoiding
+  leaks from nested guards or branches that assign/call before merging. In
+  `binary_tree`, raw `__bpl_check_null` references dropped from 6 to 4 after
+  the terminating-guard optimization. A same-load 15-run comparison against a
+  clean `7f0ea02` worktree moved `binary_tree` BPL median from ~39.28ms to
+  ~37.38ms and ratio from ~1.12x to ~1.04x. Reproduce the branch contracts
+  with
+  `bun test tests/CodeGenerator.test.ts -t "branch labels without calls|nested null guard"`
+  and the same-load 5k compile gate with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 15 --warmups 3 --compare /tmp/bpl3-guard-baseline-sameload-5k.json --gate-phases codegen,full --max-phase-regression 5 --max-full-regression 5 --json`.
 - **Allocation-Free Parser Function Declaration Helpers** -
   the Peggy grammar helper for `FunctionDecl` now returns the AST node directly
   instead of allocating a temporary `node` binding in every function declaration
