@@ -39,6 +39,65 @@ const DWARF_BASIC_TYPES: Record<string, [string, number, number]> = {
   float: ["float", 64, 4],
 };
 
+function resolveSimpleBuiltinLlvmType(
+  type: AST.TypeNode | undefined,
+): string | undefined {
+  if (!type || type.kind !== "BasicType") return undefined;
+
+  const basicType = type as AST.BasicTypeNode;
+  if (
+    basicType.pointerDepth !== 0 ||
+    basicType.arrayDimensions.length !== 0 ||
+    basicType.genericArgs.length !== 0 ||
+    basicType.variableDeclaration ||
+    basicType.aliasDeclaration ||
+    basicType.isPointerToArray
+  ) {
+    return undefined;
+  }
+
+  switch (basicType.name) {
+    case "i32":
+    case "u32":
+    case "int":
+    case "uint":
+      return "i32";
+    case "i8":
+    case "u8":
+    case "char":
+    case "uchar":
+      return "i8";
+    case "i16":
+    case "u16":
+    case "short":
+    case "ushort":
+      return "i16";
+    case "i64":
+    case "u64":
+    case "long":
+    case "ulong":
+      return "i64";
+    case "float":
+    case "double":
+    case "f64":
+      return "double";
+    case "f32":
+      return "float";
+    case "bool":
+    case "i1":
+      return "i1";
+    case "void":
+      return "void";
+    case "string":
+      return "i8*";
+    case "null":
+    case "nullptr":
+      return "i8*";
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Handles AST TypeNode to LLVM type conversions.
  *
@@ -1311,6 +1370,14 @@ export abstract class TypeGenerator extends StructEnumGenerator {
   }
 
   protected resolveType(type: AST.TypeNode): string {
+    const simpleBuiltinLlvmType =
+      this.currentTypeMap.size === 0 &&
+      type?.kind === "BasicType" &&
+      !this.typeAliasMap.has(type.name)
+        ? resolveSimpleBuiltinLlvmType(type)
+        : undefined;
+    if (simpleBuiltinLlvmType) return simpleBuiltinLlvmType;
+
     if (this.resolveTypeDepth > 200) {
       throw new CompilerError(
         "resolveType recursion limit",

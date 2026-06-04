@@ -76,6 +76,24 @@ class InspectableCodeGenerator extends CodeGenerator {
 }
 
 describe("CodeGenerator", () => {
+  it("keeps primitive LLVM type resolution on a no-recursion fast path", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/TypeGenerator.ts"),
+      "utf8",
+    );
+    const helperStart = source.indexOf("function resolveSimpleBuiltinLlvmType");
+    const methodStart = source.indexOf("protected resolveType");
+    const depthStart = source.indexOf("this.resolveTypeDepth++", methodStart);
+
+    expect(helperStart).toBeGreaterThanOrEqual(0);
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(depthStart).toBeGreaterThan(methodStart);
+
+    const methodPrefix = source.slice(methodStart, depthStart);
+    expect(methodPrefix).toContain("resolveSimpleBuiltinLlvmType(type)");
+    expect(methodPrefix).toContain("if (simpleBuiltinLlvmType)");
+  });
+
   it("reuses simple struct field lists during repeated codegen lookups", () => {
     const program = parseAndCheck([
       "struct Point {",
