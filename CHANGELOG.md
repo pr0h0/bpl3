@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Compile Phase Benchmark Final-Round Hashing** - The in-process compile
+  phase benchmark now computes `tokenSignature` and `irHash` only on the final
+  measured round instead of recomputing and overwriting them after every
+  measured round. Reported token count, signature, IR hash, and phase timing
+  schema are unchanged, but 5k profiling runs spend much less time in benchmark
+  hashing. A 5-round/1-warmup sample improved wall time from ~8.14s to ~5.76s,
+  and CPU profile `update` self-time dropped from ~35.7% to ~9.5%, making
+  compiler-owned hotspots easier to see. Reproduce with
+  `bun test tests/BenchmarkRunner.test.ts -t "final measured round"`.
 - **Identifier Token Conversion Fast Path** - `convertTokenNodeToToken` now
   trusts the grammar-backed lexer's `Identifier` invariant and skips a
   defensive `keywordMap` lookup for identifier token nodes. Keywords, booleans,

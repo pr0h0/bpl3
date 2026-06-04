@@ -135,6 +135,7 @@ export async function measureCompilePhases(options: {
   let tokenCount = 0;
   let tokenSignature = "";
   let irHash = "";
+  const finalMeasuredRound = warmups + rounds - 1;
 
   for (let i = 0; i < warmups + rounds; i++) {
     const fullStart = performance.now();
@@ -168,9 +169,11 @@ export async function measureCompilePhases(options: {
       typecheckTimings.push(typecheckMs);
       codegenTimings.push(codegenMs);
       fullTimings.push(fullMs);
-      tokenCount = tokens.length;
-      tokenSignature = hashTokens(tokens);
-      irHash = hashString(ir);
+      if (i === finalMeasuredRound) {
+        tokenCount = tokens.length;
+        tokenSignature = hashTokens(tokens);
+        irHash = hashString(ir);
+      }
     }
   }
 

@@ -97,6 +97,24 @@ describe("Benchmark runner helpers", () => {
     expect(result.full.medianMs).toBeGreaterThan(0);
   });
 
+  it("hashes compile phase signatures only on the final measured round", () => {
+    const source = readFileSync(
+      join(process.cwd(), "benchmark", "measure_compilation.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("for (let i = 0; i < warmups + rounds; i++)");
+    const end = source.indexOf("return {", start);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const loopSource = source.slice(start, end);
+    expect(source).toContain("const finalMeasuredRound = warmups + rounds - 1");
+    expect(loopSource).toContain("if (i === finalMeasuredRound)");
+    expect(loopSource).toContain("tokenSignature = hashTokens(tokens)");
+    expect(loopSource).toContain("irHash = hashString(ir)");
+  });
+
   it("calculates sorted min, median, and average timings", () => {
     const stats = calculateStats([30, 10, 20, 40]);
 
