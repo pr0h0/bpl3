@@ -45,6 +45,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/CodeGenerator.test.ts -t "top-level codegen declarations"`
   and the phase compare with
   `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-752c417-phases.json --max-phase-regression 3 --max-full-regression 2 --json`.
+- **Lazy Codegen Block Scope Snapshots** -
+  `StatementGenerator.generateBlock` now allocates block declaration tracking
+  and saved local-state maps only when a block declares variables, preserving
+  the same scoped shadowing restore semantics while avoiding avoidable
+  declaration-free block allocations. Against `d87d8a0`, a passing 31-round 5k
+  phase compare preserved token count, token signature, and LLVM IR hash while
+  improving median codegen time from ~136.70ms to ~135.05ms and full median
+  from ~523.85ms to ~510.02ms. Reproduce the guard with
+  `bun test tests/CodeGenerator.test.ts -t "block scope snapshots"` and the
+  phase compare with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-d87d8a0-phases.json --max-phase-regression 3 --max-full-regression 2 --json`.
 - **Playground No-Import Native Compile Fast Path** -
   artifact-free playground native requests now skip full module resolution when
   the submitted source does not contain an `import` keyword, while import-using

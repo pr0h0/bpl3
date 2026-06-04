@@ -252,6 +252,33 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("keeps block scope snapshots lazy for declaration-free blocks", () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/StatementGenerator.ts",
+      ),
+      "utf8",
+    );
+    const start = source.indexOf("  protected generateBlock(");
+    const end = source.indexOf("  protected generateStatement", start);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const methodSource = source.slice(start, end);
+    expect(methodSource).toContain(
+      "let declaredInBlock: Set<string> | undefined;",
+    );
+    expect(methodSource).toContain(
+      "const declaredNames = (declaredInBlock ??= new Set<string>());",
+    );
+    expect(methodSource).toContain("if (declaredInBlock) {");
+    expect(methodSource).not.toContain(
+      "const declaredInBlock = new Set<string>();",
+    );
+  });
+
   it("detects LLVM terminators without trimming generated lines", () => {
     const generator = new InspectableCodeGenerator();
     expect(generator.isIrTerminator("  ret i32 0")).toBe(true);

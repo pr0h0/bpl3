@@ -559,19 +559,21 @@ export abstract class StatementGenerator extends AsmGenerator {
     // Push scope for defer
     this.scopeStack.push({ deferred: [], isLoop, isFunction, isSwitch });
 
-    const declaredInBlock = new Set<string>();
+    let declaredInBlock: Set<string> | undefined;
 
     const collectDeclaredNames = (
       name: string | any[] | { name: string; type?: AST.TypeNode }[],
     ) => {
       if (typeof name === "string") {
-        declaredInBlock.add(name);
+        const declaredNames = (declaredInBlock ??= new Set<string>());
+        declaredNames.add(name);
       } else if (Array.isArray(name)) {
         for (const item of name) {
           if (Array.isArray(item)) {
             collectDeclaredNames(item);
           } else if (item && typeof item.name === "string") {
-            declaredInBlock.add(item.name);
+            const declaredNames = (declaredInBlock ??= new Set<string>());
+            declaredNames.add(item.name);
           }
         }
       }
@@ -586,15 +588,20 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
 
     // Save state of variables that will be modified
-    const savedPointers = new Map<string, string>();
-    const savedTypes = new Map<string, AST.TypeNode>();
+    let savedPointers: Map<string, string> | undefined;
+    let savedTypes: Map<string, AST.TypeNode> | undefined;
 
-    for (const name of declaredInBlock) {
-      if (this.localPointers.has(name)) {
-        savedPointers.set(name, this.localPointers.get(name)!);
-      }
-      if (this.localTypes.has(name)) {
-        savedTypes.set(name, this.localTypes.get(name)!);
+    if (declaredInBlock) {
+      savedPointers = new Map<string, string>();
+      savedTypes = new Map<string, AST.TypeNode>();
+
+      for (const name of declaredInBlock) {
+        if (this.localPointers.has(name)) {
+          savedPointers.set(name, this.localPointers.get(name)!);
+        }
+        if (this.localTypes.has(name)) {
+          savedTypes.set(name, this.localTypes.get(name)!);
+        }
       }
     }
 
@@ -611,19 +618,24 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
 
     // Restore state
-    for (const name of declaredInBlock) {
-      // Restore pointer
-      if (savedPointers.has(name)) {
-        this.localPointers.set(name, savedPointers.get(name)!);
-      } else {
-        this.localPointers.delete(name);
-      }
+    if (declaredInBlock) {
+      const blockSavedPointers = savedPointers!;
+      const blockSavedTypes = savedTypes!;
 
-      // Restore type
-      if (savedTypes.has(name)) {
-        this.localTypes.set(name, savedTypes.get(name)!);
-      } else {
-        this.localTypes.delete(name);
+      for (const name of declaredInBlock) {
+        // Restore pointer
+        if (blockSavedPointers.has(name)) {
+          this.localPointers.set(name, blockSavedPointers.get(name)!);
+        } else {
+          this.localPointers.delete(name);
+        }
+
+        // Restore type
+        if (blockSavedTypes.has(name)) {
+          this.localTypes.set(name, blockSavedTypes.get(name)!);
+        } else {
+          this.localTypes.delete(name);
+        }
       }
     }
 
