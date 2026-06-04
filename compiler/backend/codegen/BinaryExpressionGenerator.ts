@@ -1456,18 +1456,24 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
     const constantLeft = this.getConstantIntegerValue(expr.left);
     const constantRight = this.getConstantIntegerValue(expr.right);
-    if (constantRight === undefined || constantRight === 0n) {
-      this.emitDivisionByZeroCheck(right, valueType);
-    }
-    if (
+    const nonZeroDivisorKey = this.emitDivisionByZeroCheckIfNeeded(
+      expr.right,
+      right,
+      valueType,
+      constantRight,
+    );
+    const emitsSignedOverflowCheck =
       !isUnsigned &&
       this.shouldEmitSignedDivisionOverflowCheck(
         constantLeft,
         constantRight,
         valueType,
-      )
-    ) {
+      );
+    if (emitsSignedOverflowCheck) {
       this.emitSignedDivisionOverflowCheck(left, right, valueType);
+      if (nonZeroDivisorKey !== undefined) {
+        this.markBasicBlockIntegerExpressionNonZero(nonZeroDivisorKey);
+      }
     }
     return isUnsigned ? "udiv" : "sdiv";
   }
@@ -1489,20 +1495,68 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
     const constantLeft = this.getConstantIntegerValue(expr.left);
     const constantRight = this.getConstantIntegerValue(expr.right);
-    if (constantRight === undefined || constantRight === 0n) {
-      this.emitDivisionByZeroCheck(right, valueType);
-    }
-    if (
+    const nonZeroDivisorKey = this.emitDivisionByZeroCheckIfNeeded(
+      expr.right,
+      right,
+      valueType,
+      constantRight,
+    );
+    const emitsSignedOverflowCheck =
       !isUnsigned &&
       this.shouldEmitSignedDivisionOverflowCheck(
         constantLeft,
         constantRight,
         valueType,
-      )
-    ) {
+      );
+    if (emitsSignedOverflowCheck) {
       this.emitSignedDivisionOverflowCheck(left, right, valueType);
+      if (nonZeroDivisorKey !== undefined) {
+        this.markBasicBlockIntegerExpressionNonZero(nonZeroDivisorKey);
+      }
     }
     return isUnsigned ? "urem" : "srem";
+  }
+
+  private emitDivisionByZeroCheckIfNeeded(
+    divisorExpr: AST.Expression,
+    divisorValue: string,
+    divisorType: string,
+    constantDivisor: bigint | undefined,
+  ): string | undefined {
+    if (constantDivisor !== undefined && constantDivisor !== 0n) {
+      return undefined;
+    }
+
+    const expressionKey =
+      constantDivisor === undefined
+        ? this.getBasicBlockNonZeroIntegerExpressionKey(divisorExpr)
+        : undefined;
+    if (
+      expressionKey !== undefined &&
+      this.isBasicBlockIntegerExpressionProvenNonZero(expressionKey)
+    ) {
+      return expressionKey;
+    }
+
+    this.emitDivisionByZeroCheck(divisorValue, divisorType);
+    if (expressionKey !== undefined) {
+      this.markBasicBlockIntegerExpressionNonZero(expressionKey);
+    }
+    return expressionKey;
+  }
+
+  private getBasicBlockNonZeroIntegerExpressionKey(
+    expr: AST.Expression,
+  ): string | undefined {
+    if (expr.kind === "Group") {
+      return this.getBasicBlockNonZeroIntegerExpressionKey(
+        (expr as AST.GroupExpr).expression,
+      );
+    }
+    if (expr.kind === "Identifier") {
+      return this.exprToDescription(expr);
+    }
+    return undefined;
   }
 
   private getConstantIntegerValue(expr: AST.Expression): bigint | undefined {

@@ -72,6 +72,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/CodeGenerator.test.ts -t "implicit C prelude|allocator facts|prefix-like symbols"`
   and the 5k gate with
   `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 15 --warmups 3 --compare /tmp/bpl3-emptyproof-5k-compare.json --gate-phases codegen,full --max-phase-regression 5 --max-full-regression 5 --json`.
+- **Nonzero Divisor Proofs for Checked Division** -
+  codegen now remembers grouped identifier divisors that have passed a
+  generated divide-by-zero guard, so repeated `/ denom` and `% denom` pairs
+  keep one checked BPL failure path instead of emitting duplicate zero checks.
+  The proof stays scoped to the generated basic block, is invalidated by
+  assignment/control-flow/call boundaries, and is re-established after the
+  compiler-generated signed `INT_MIN / -1` overflow guard's ok label so
+  overflow checks remain intact. In `constant_numerator_division`, raw IR
+  dropped from 3427 bytes / 96 lines / 2 zero-check calls to 3186 bytes / 90
+  lines / 1 zero-check call while preserving both overflow checks. A same-load
+  20-run sample moved BPL median from ~17.60ms to ~17.23ms, and a 31-round 5k
+  phase gate preserved token/IR signatures with codegen +2.08% and full
+  +2.91%, both under the 5% gate. Reproduce the IR guard with
+  `bun test tests/CodeGen_DivZero.test.ts -t "nonzero divisor|overflow guards"`
+  and the compile gate with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-divproof-overflow-baseline-5k-31.json --gate-phases codegen,full --max-phase-regression 5 --max-full-regression 5 --json`.
 - **Allocation-Free Parser Function Declaration Helpers** -
   the Peggy grammar helper for `FunctionDecl` now returns the AST node directly
   instead of allocating a temporary `node` binding in every function declaration

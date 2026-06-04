@@ -17,6 +17,10 @@ function generate(
   return codeGenerator.generate(program);
 }
 
+function countOccurrences(source: string, needle: string): number {
+  return source.split(needle).length - 1;
+}
+
 describe("CodeGen - Division By Zero", () => {
   it("should generate zero check for division", () => {
     const source = `
@@ -106,6 +110,50 @@ describe("CodeGen - Division By Zero", () => {
     expect(ir).toContain("div_err");
     expect(ir).not.toContain("call void @__bpl_throw_integer_overflow");
     expect(ir).not.toContain("div_overflow_err");
+  });
+
+  it("reuses nonzero divisor proofs for repeated simple divisors", () => {
+    const source = `
+      frame main(b: i32) ret i32 {
+        return (42 / b) + (42 % b);
+      }
+    `;
+    const ir = generate(source, { optimizationLevel: 3 });
+
+    expect(
+      countOccurrences(ir, "call void @__bpl_throw_division_by_zero"),
+    ).toBe(1);
+  });
+
+  it("carries nonzero divisor proofs through generated overflow guards", () => {
+    const source = `
+      frame main(a: i64, b: i64) ret i64 {
+        return (a / b) + (a % b);
+      }
+    `;
+    const ir = generate(source, { optimizationLevel: 3 });
+
+    expect(
+      countOccurrences(ir, "call void @__bpl_throw_division_by_zero"),
+    ).toBe(1);
+    expect(
+      countOccurrences(ir, "call void @__bpl_throw_integer_overflow"),
+    ).toBe(2);
+  });
+
+  it("invalidates nonzero divisor proofs after assignment", () => {
+    const source = `
+      frame main(b: i32) ret i32 {
+        local result: i32 = 42 / b;
+        b = b - b;
+        return result + (42 % b);
+      }
+    `;
+    const ir = generate(source, { optimizationLevel: 3 });
+
+    expect(
+      countOccurrences(ir, "call void @__bpl_throw_division_by_zero"),
+    ).toBe(2);
   });
 
   it("preserves signed division overflow checks when numerator can be INT_MIN", () => {

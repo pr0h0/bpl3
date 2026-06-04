@@ -1168,6 +1168,33 @@ describe("CodeGenerator", () => {
     expect(methodSource).toContain("charCodeAt");
   });
 
+  it("keeps nonzero divisor proof tracking lazy for division-free codegen", () => {
+    const baseSource = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
+      "utf8",
+    );
+    const statementSource = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
+      "utf8",
+    );
+
+    expect(baseSource).toContain(
+      "protected basicBlockNonZeroIntegerExpressions?: Map<string, number>;",
+    );
+    expect(baseSource).toContain(
+      "this.basicBlockNonZeroIntegerExpressions ??= new Map();",
+    );
+    expect(baseSource).not.toContain(
+      "protected basicBlockNonZeroIntegerExpressions: Map<string, number> =",
+    );
+    expect(statementSource).toContain(
+      "this.basicBlockNonZeroIntegerExpressions = undefined;",
+    );
+    expect(statementSource).not.toContain(
+      "this.basicBlockNonZeroIntegerExpressions = new Map();",
+    );
+  });
+
   it("keeps empty branch proof propagation off per-if allocation paths", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),

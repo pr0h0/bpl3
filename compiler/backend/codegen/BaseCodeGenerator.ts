@@ -270,6 +270,7 @@ export class BaseCodeGenerator {
   protected basicBlockNonNullPointers: Map<string, number> = new Map();
   protected basicBlockNonNullPointerExpressions: Map<string, number> =
     new Map();
+  protected basicBlockNonZeroIntegerExpressions?: Map<string, number>;
   protected pointerToLocal: Map<string, string> = new Map(); // Track pointer variable -> source local for null checking
   protected movedAutoDestroyAddresses?: Set<string>; // Locals returned by move should not be auto-destroyed
   protected generatedStructs: Set<string> = new Set(); // Track generated monomorphized structs
@@ -403,20 +404,37 @@ export class BaseCodeGenerator {
   protected clearBasicBlockPointerFacts(): void {
     this.basicBlockNonNullPointers.clear();
     this.basicBlockNonNullPointerExpressions.clear();
+    this.basicBlockNonZeroIntegerExpressions?.clear();
   }
 
   protected clearBasicBlockPointerExpressionFact(expressionKey: string): void {
+    this.clearBasicBlockExpressionFact(
+      this.basicBlockNonNullPointerExpressions,
+      expressionKey,
+    );
+  }
+
+  protected clearBasicBlockIntegerExpressionFact(expressionKey: string): void {
+    if (this.basicBlockNonZeroIntegerExpressions === undefined) return;
+    this.clearBasicBlockExpressionFact(
+      this.basicBlockNonZeroIntegerExpressions,
+      expressionKey,
+    );
+  }
+
+  private clearBasicBlockExpressionFact(
+    facts: Map<string, number>,
+    expressionKey: string,
+  ): void {
     const prefix = `${expressionKey}.`;
     const indexPrefix = `${expressionKey}[`;
-    for (const key of Array.from(
-      this.basicBlockNonNullPointerExpressions.keys(),
-    )) {
+    for (const key of Array.from(facts.keys())) {
       if (
         key === expressionKey ||
         key.startsWith(prefix) ||
         key.startsWith(indexPrefix)
       ) {
-        this.basicBlockNonNullPointerExpressions.delete(key);
+        facts.delete(key);
       }
     }
   }
@@ -496,6 +514,35 @@ export class BaseCodeGenerator {
       }
     }
     return validKeys;
+  }
+
+  protected isBasicBlockIntegerExpressionProvenNonZero(
+    expressionKey: string,
+  ): boolean {
+    const facts = this.basicBlockNonZeroIntegerExpressions;
+    if (facts === undefined) return false;
+
+    const proofIndex = facts.get(expressionKey);
+    if (
+      proofIndex !== undefined &&
+      !this.hasBasicBlockPointerBoundarySince(proofIndex)
+    ) {
+      return true;
+    }
+    if (proofIndex !== undefined) {
+      facts.delete(expressionKey);
+    }
+    return false;
+  }
+
+  protected markBasicBlockIntegerExpressionNonZero(
+    expressionKey: string,
+  ): void {
+    this.basicBlockNonZeroIntegerExpressions ??= new Map();
+    this.basicBlockNonZeroIntegerExpressions.set(
+      expressionKey,
+      this.output.length,
+    );
   }
 
   private hasBasicBlockPointerBoundarySince(startIndex: number): boolean {

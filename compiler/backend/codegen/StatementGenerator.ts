@@ -1988,6 +1988,8 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevBasicBlockNonNullPointers = this.basicBlockNonNullPointers;
     const prevBasicBlockNonNullPointerExpressions =
       this.basicBlockNonNullPointerExpressions;
+    const prevBasicBlockNonZeroIntegerExpressions =
+      this.basicBlockNonZeroIntegerExpressions;
     const prevPointerToLocal = this.pointerToLocal;
     const prevMovedAutoDestroyAddresses = this.movedAutoDestroyAddresses;
     const prevOnReturn = this.onReturn;
@@ -2009,6 +2011,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.localNullFlags = new Map();
     this.basicBlockNonNullPointers = new Map();
     this.basicBlockNonNullPointerExpressions = new Map();
+    this.basicBlockNonZeroIntegerExpressions = undefined;
     this.pointerToLocal = new Map();
     this.movedAutoDestroyAddresses = undefined;
     this.generatingFunctionBody = true;
@@ -2415,6 +2418,8 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.basicBlockNonNullPointers = prevBasicBlockNonNullPointers;
       this.basicBlockNonNullPointerExpressions =
         prevBasicBlockNonNullPointerExpressions;
+      this.basicBlockNonZeroIntegerExpressions =
+        prevBasicBlockNonZeroIntegerExpressions;
       this.pointerToLocal = prevPointerToLocal;
       this.movedAutoDestroyAddresses = prevMovedAutoDestroyAddresses;
       this.onReturn = prevOnReturn;

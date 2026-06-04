@@ -611,6 +611,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
               destTypeNode,
             );
       this.emit(`  store ${destType} ${castVal}, ${destType}* ${addr}`);
+      this.clearBasicBlockIntegerExpressionFact(
+        this.exprToDescription(expr.assignee),
+      );
       this.clearBasicBlockPointerExpressionFact(
         this.exprToDescription(expr.assignee),
       );
@@ -709,6 +712,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     const result = this.newRegister();
     this.emit(`  ${result} = ${op} ${destType} ${currentValue}, ${castVal}`);
     this.emit(`  store ${destType} ${result}, ${destType}* ${addr}`);
+    this.clearBasicBlockIntegerExpressionFact(
+      this.exprToDescription(expr.assignee),
+    );
     this.clearBasicBlockPointerExpressionFact(
       this.exprToDescription(expr.assignee),
     );
