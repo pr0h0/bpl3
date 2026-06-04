@@ -571,7 +571,6 @@ TopLevelErrorRecovery
 
 Statement
   = Block
-  / ExpressionStatement
   / VariableDeclaration
   / ReturnStatement
   / FunctionDeclaration
@@ -592,6 +591,7 @@ Statement
   / ContinueStatement
   / FallthroughStatement
   / DeferStatement
+  / ExpressionStatement
   / ErrorRecovery
 
 ErrorRecovery

@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Parser Declaration Dispatch Fast Path** - The Peggy grammar now tries
+  concrete declaration and statement forms before the expression-statement
+  fallback, avoiding repeated negative expression dispatch for function-heavy
+  sources. On the 5k synthetic compile benchmark, phase median improved from
+  ~755.58ms to ~736.72ms and parser median improved from ~347.33ms to
+  ~331.48ms. Reproduce with `bun test tests/Parser.test.ts` and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 7 --warmups 2 --json`.
 - **Lazy Runtime Stack-Frame Storage** - Native runtime support now allocates
   optional named BPL stack-frame metadata lazily instead of reserving three
   `BPL_MAX_STACK_DEPTH` arrays in every executable. A hello-world native build

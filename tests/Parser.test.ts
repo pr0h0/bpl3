@@ -677,6 +677,47 @@ describe("Parser", () => {
     expect(failHelper).toContain("peg$maxFailExpected.push(expected);");
   });
 
+  it("dispatches declaration statements before the expression fallback", () => {
+    const grammarSource = readFileSync(
+      join(process.cwd(), "grammar", "bpl.peggy"),
+      "utf8",
+    );
+    const statementStart = grammarSource.indexOf("\nStatement\n");
+    const statementEnd = grammarSource.indexOf("\n\nErrorRecovery\n");
+
+    expect(statementStart).toBeGreaterThanOrEqual(0);
+    expect(statementEnd).toBeGreaterThan(statementStart);
+
+    const statementSource = grammarSource.slice(statementStart, statementEnd);
+    const expressionIndex = statementSource.indexOf("/ ExpressionStatement");
+
+    expect(statementSource.indexOf("/ FunctionDeclaration")).toBeLessThan(
+      expressionIndex,
+    );
+    expect(statementSource.indexOf("/ StructDeclaration")).toBeLessThan(
+      expressionIndex,
+    );
+    expect(statementSource.indexOf("/ EnumDeclaration")).toBeLessThan(
+      expressionIndex,
+    );
+    expect(statementSource.indexOf("/ SpecDeclaration")).toBeLessThan(
+      expressionIndex,
+    );
+    expect(statementSource.indexOf("/ TypeAlias")).toBeLessThan(
+      expressionIndex,
+    );
+    expect(statementSource.indexOf("/ ImportStatement")).toBeLessThan(
+      expressionIndex,
+    );
+    expect(statementSource.indexOf("/ ExportStatement")).toBeLessThan(
+      expressionIndex,
+    );
+    expect(statementSource.indexOf("/ ExternDeclaration")).toBeLessThan(
+      expressionIndex,
+    );
+    expect(statementSource.indexOf("/ AsmBlock")).toBeLessThan(expressionIndex);
+  });
+
   it("keeps comment-free parser passes off token comment filtering", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler", "frontend", "Parser.ts"),
