@@ -90,6 +90,11 @@ const PRUNABLE_BUILTIN_PRIMITIVE_DECLARATIONS = new Set([
 
 const PRUNABLE_BUILTIN_PRIMITIVE_GLOBALS = new Set(["Type_vtable"]);
 
+type LlvmReferences = {
+  symbols: Set<string>;
+  structs: Set<string>;
+};
+
 /**
  * Main entry point for LLVM IR code generation.
  *
@@ -472,8 +477,10 @@ export class CodeGenerator extends StatementGenerator {
     this.pruneUnusedRuntimeArgStores();
     this.output = this.compactBlankLines(this.output);
     const generatedBody = this.output.join("\n");
-    this.pruneUnusedInternalRuntimeDeclarations(generatedBody);
-    this.pruneUnusedBuiltinPrimitiveMetadata(generatedBody);
+    const generatedBodyReferences =
+      this.collectLlvmReferences(generatedBody);
+    this.pruneUnusedInternalRuntimeDeclarations(generatedBodyReferences);
+    this.pruneUnusedBuiltinPrimitiveMetadata(generatedBodyReferences);
     this.declarationsOutput = this.compactBlankLines(this.declarationsOutput);
 
     const resultSections: string[] = [];
@@ -527,7 +534,9 @@ export class CodeGenerator extends StatementGenerator {
     }
   }
 
-  private pruneUnusedInternalRuntimeDeclarations(generatedBody: string): void {
+  private pruneUnusedInternalRuntimeDeclarations(
+    generatedBodyReferences: LlvmReferences,
+  ): void {
     this.declarationsOutput = this.declarationsOutput.filter((line) => {
       const name = this.getDeclaredFunctionName(line);
       if (
@@ -536,7 +545,7 @@ export class CodeGenerator extends StatementGenerator {
       ) {
         return true;
       }
-      return this.referencesLlvmSymbol(generatedBody, name);
+      return generatedBodyReferences.symbols.has(name);
     });
     this.declarationsOutput = this.declarationsOutput.filter((line) => {
       if (!this.prunableImplicitCDeclarations.has(line)) {
@@ -546,14 +555,14 @@ export class CodeGenerator extends StatementGenerator {
       if (name === null) {
         return true;
       }
-      return this.referencesLlvmSymbol(generatedBody, name);
+      return generatedBodyReferences.symbols.has(name);
     });
     this.declarationsOutput = this.declarationsOutput.filter((line) => {
       const name = this.getDeclaredGlobalName(line);
       if (name === null || !PRUNABLE_INTERNAL_RUNTIME_GLOBALS.has(name)) {
         return true;
       }
-      return this.referencesLlvmSymbol(generatedBody, name);
+      return generatedBodyReferences.symbols.has(name);
     });
     this.declarationsOutput = this.declarationsOutput.filter((line) => {
       if (!this.prunableImplicitCDeclarations.has(line)) {
@@ -563,11 +572,11 @@ export class CodeGenerator extends StatementGenerator {
       if (name === null) {
         return true;
       }
-      return this.referencesLlvmSymbol(generatedBody, name);
+      return generatedBodyReferences.symbols.has(name);
     });
 
-    this.pruneUnusedInternalRuntimeStructs(generatedBody);
-    this.pruneUnusedImplicitCStructs(generatedBody);
+    this.pruneUnusedInternalRuntimeStructs(generatedBodyReferences);
+    this.pruneUnusedImplicitCStructs(generatedBodyReferences);
   }
 
   private emitPrunableImplicitCDeclaration(line: string): void {
@@ -591,7 +600,9 @@ export class CodeGenerator extends StatementGenerator {
     return line.match(/^%struct\.([A-Za-z0-9_]+) = type\b/)?.[1] ?? null;
   }
 
-  private pruneUnusedInternalRuntimeStructs(generatedBody: string): void {
+  private pruneUnusedInternalRuntimeStructs(
+    generatedBodyReferences: LlvmReferences,
+  ): void {
     const structDeclarations = new Map<string, string>();
     for (const line of this.declarationsOutput) {
       const name = this.getDeclaredStructName(line);
@@ -604,17 +615,22 @@ export class CodeGenerator extends StatementGenerator {
       return;
     }
 
-    const nonStructDeclarations = this.declarationsOutput
-      .filter((line) => {
-        const name = this.getDeclaredStructName(line);
-        return name === null || !PRUNABLE_INTERNAL_RUNTIME_STRUCTS.has(name);
-      })
-      .join("\n");
-    const roots = `${generatedBody}\n${nonStructDeclarations}`;
+    const rootReferences =
+      this.cloneLlvmReferences(generatedBodyReferences);
     const retained = new Set<string>();
+    const declarationReferences = new Map<string, LlvmReferences>();
+
+    for (const line of this.declarationsOutput) {
+      const name = this.getDeclaredStructName(line);
+      if (name === null || !PRUNABLE_INTERNAL_RUNTIME_STRUCTS.has(name)) {
+        this.addLlvmReferencesFromText(rootReferences, line);
+      } else {
+        declarationReferences.set(name, this.collectLlvmReferences(line));
+      }
+    }
 
     for (const name of structDeclarations.keys()) {
-      if (this.referencesLlvmStruct(roots, name)) {
+      if (rootReferences.structs.has(name)) {
         retained.add(name);
       }
     }
@@ -623,13 +639,11 @@ export class CodeGenerator extends StatementGenerator {
     while (changed) {
       changed = false;
       for (const name of [...retained]) {
-        const declaration = structDeclarations.get(name);
-        if (declaration === undefined) continue;
+        if (!structDeclarations.has(name)) continue;
+        const references = declarationReferences.get(name);
+        if (references === undefined) continue;
         for (const dependency of structDeclarations.keys()) {
-          if (
-            !retained.has(dependency) &&
-            this.referencesLlvmStruct(declaration, dependency)
-          ) {
+          if (!retained.has(dependency) && references.structs.has(dependency)) {
             retained.add(dependency);
             changed = true;
           }
@@ -647,18 +661,23 @@ export class CodeGenerator extends StatementGenerator {
     });
   }
 
-  private pruneUnusedImplicitCStructs(generatedBody: string): void {
-    const remainingDeclarations = this.declarationsOutput
-      .filter((line) => {
-        const name = this.getDeclaredStructName(line);
-        return (
-          name === null ||
-          !this.prunableImplicitCDeclarations.has(line) ||
-          !PRUNABLE_IMPLICIT_C_STRUCTS.has(name)
-        );
-      })
-      .join("\n");
-    const roots = `${generatedBody}\n${remainingDeclarations}`;
+  private pruneUnusedImplicitCStructs(
+    generatedBodyReferences: LlvmReferences,
+  ): void {
+    const rootReferences =
+      this.cloneLlvmReferences(generatedBodyReferences);
+
+    for (const line of this.declarationsOutput) {
+      const name = this.getDeclaredStructName(line);
+      if (
+        name === null ||
+        !this.prunableImplicitCDeclarations.has(line) ||
+        !PRUNABLE_IMPLICIT_C_STRUCTS.has(name)
+      ) {
+        this.addLlvmReferencesFromText(rootReferences, line);
+      }
+    }
+
     this.declarationsOutput = this.declarationsOutput.filter((line) => {
       if (!this.prunableImplicitCDeclarations.has(line)) {
         return true;
@@ -668,12 +687,14 @@ export class CodeGenerator extends StatementGenerator {
       return (
         name === null ||
         !PRUNABLE_IMPLICIT_C_STRUCTS.has(name) ||
-        this.referencesLlvmStruct(roots, name)
+        rootReferences.structs.has(name)
       );
     });
   }
 
-  private pruneUnusedBuiltinPrimitiveMetadata(generatedBody: string): void {
+  private pruneUnusedBuiltinPrimitiveMetadata(
+    generatedBodyReferences: LlvmReferences,
+  ): void {
     const candidateDeclarations = this.declarationsOutput.filter((line) =>
       this.isPrunableBuiltinPrimitiveMetadata(line),
     );
@@ -682,20 +703,40 @@ export class CodeGenerator extends StatementGenerator {
       return;
     }
 
-    const nonCandidateDeclarations = this.declarationsOutput
-      .filter((line) => !this.isPrunableBuiltinPrimitiveMetadata(line))
-      .join("\n");
-    const roots = `${generatedBody}\n${nonCandidateDeclarations}`;
+    const rootReferences =
+      this.cloneLlvmReferences(generatedBodyReferences);
+    const retainedReferences = this.createLlvmReferences();
     const retained = new Set<string>();
+    const candidateReferences = new Map<string, LlvmReferences>();
 
-    const retainCandidateIfReferencedBy = (line: string, haystack: string) => {
+    for (const line of this.declarationsOutput) {
+      if (this.isPrunableBuiltinPrimitiveMetadata(line)) {
+        candidateReferences.set(line, this.collectLlvmReferences(line));
+      } else {
+        this.addLlvmReferencesFromText(rootReferences, line);
+      }
+    }
+
+    const markRetained = (line: string): void => {
+      if (retained.has(line)) return;
+      retained.add(line);
+      const references = candidateReferences.get(line);
+      if (references !== undefined) {
+        this.addLlvmReferences(retainedReferences, references);
+      }
+    };
+
+    const retainCandidateIfReferencedBy = (
+      line: string,
+      references: LlvmReferences,
+    ) => {
       const structName = this.getDeclaredStructName(line);
       if (
         structName !== null &&
         PRUNABLE_BUILTIN_PRIMITIVE_STRUCTS.has(structName) &&
-        this.referencesLlvmStruct(haystack, structName)
+        references.structs.has(structName)
       ) {
-        retained.add(line);
+        markRetained(line);
         return;
       }
 
@@ -703,9 +744,9 @@ export class CodeGenerator extends StatementGenerator {
       if (
         declarationName !== null &&
         PRUNABLE_BUILTIN_PRIMITIVE_DECLARATIONS.has(declarationName) &&
-        this.referencesLlvmSymbol(haystack, declarationName)
+        references.symbols.has(declarationName)
       ) {
-        retained.add(line);
+        markRetained(line);
         return;
       }
 
@@ -713,27 +754,24 @@ export class CodeGenerator extends StatementGenerator {
       if (
         globalName !== null &&
         PRUNABLE_BUILTIN_PRIMITIVE_GLOBALS.has(globalName) &&
-        this.referencesLlvmSymbol(haystack, globalName)
+        references.symbols.has(globalName)
       ) {
-        retained.add(line);
+        markRetained(line);
       }
     };
 
     for (const line of candidateDeclarations) {
-      retainCandidateIfReferencedBy(line, roots);
+      retainCandidateIfReferencedBy(line, rootReferences);
     }
 
     let changed = true;
     while (changed) {
       changed = false;
-      const retainedDeclarations = candidateDeclarations
-        .filter((line) => retained.has(line))
-        .join("\n");
       const retainedBefore = retained.size;
 
       for (const line of candidateDeclarations) {
         if (!retained.has(line)) {
-          retainCandidateIfReferencedBy(line, retainedDeclarations);
+          retainCandidateIfReferencedBy(line, retainedReferences);
         }
       }
 
@@ -801,38 +839,75 @@ export class CodeGenerator extends StatementGenerator {
     }
   }
 
-  private referencesLlvmSymbol(llvmBody: string, name: string): boolean {
-    return this.referencesLlvmName(llvmBody, "@", name);
+  private createLlvmReferences(): LlvmReferences {
+    return {
+      symbols: new Set(),
+      structs: new Set(),
+    };
   }
 
-  private referencesLlvmStruct(llvmBody: string, name: string): boolean {
-    return this.referencesLlvmName(llvmBody, "%struct.", name);
+  private cloneLlvmReferences(references: LlvmReferences): LlvmReferences {
+    return {
+      symbols: new Set(references.symbols),
+      structs: new Set(references.structs),
+    };
   }
 
-  private referencesLlvmName(
-    llvmBody: string,
-    prefix: string,
-    name: string,
-  ): boolean {
-    const needle = `${prefix}${name}`;
-    let start = 0;
-
-    while (true) {
-      const index = llvmBody.indexOf(needle, start);
-      if (index === -1) {
-        return false;
-      }
-
-      const nextCharacter = llvmBody[index + needle.length];
-      if (
-        nextCharacter === undefined ||
-        !this.isLlvmReferenceNameCharacter(nextCharacter)
-      ) {
-        return true;
-      }
-
-      start = index + needle.length;
+  private addLlvmReferences(
+    target: LlvmReferences,
+    source: LlvmReferences,
+  ): void {
+    for (const symbol of source.symbols) {
+      target.symbols.add(symbol);
     }
+    for (const struct of source.structs) {
+      target.structs.add(struct);
+    }
+  }
+
+  private collectLlvmReferences(llvmBody: string): LlvmReferences {
+    const references = this.createLlvmReferences();
+    this.addLlvmReferencesFromText(references, llvmBody);
+    return references;
+  }
+
+  private addLlvmReferencesFromText(
+    references: LlvmReferences,
+    llvmBody: string,
+  ): void {
+    for (let index = 0; index < llvmBody.length; index++) {
+      const character = llvmBody[index];
+
+      if (character === "@") {
+        const start = index + 1;
+        const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
+        if (end > start) {
+          references.symbols.add(llvmBody.slice(start, end));
+          index = end - 1;
+        }
+        continue;
+      }
+
+      if (character === "%" && llvmBody.startsWith("struct.", index + 1)) {
+        const start = index + "%struct.".length;
+        const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
+        if (end > start) {
+          references.structs.add(llvmBody.slice(start, end));
+          index = end - 1;
+        }
+      }
+    }
+  }
+
+  private scanLlvmReferenceNameEnd(llvmBody: string, start: number): number {
+    let end = start;
+    while (
+      end < llvmBody.length &&
+      this.isLlvmReferenceNameCharacter(llvmBody[end]!)
+    ) {
+      end++;
+    }
+    return end;
   }
 
   private isLlvmReferenceNameCharacter(character: string): boolean {

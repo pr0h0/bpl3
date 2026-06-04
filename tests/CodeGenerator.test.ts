@@ -821,7 +821,7 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain("this.output.join");
   });
 
-  it("reuses the generated body string across final runtime pruning passes", () => {
+  it("reuses generated body references across final runtime pruning passes", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
@@ -829,11 +829,14 @@ describe("CodeGenerator", () => {
     const outputJoinCount =
       source.match(/this\.output\.join\("\\n"\)/g)?.length ?? 0;
 
-    expect(source).toContain(
-      "this.pruneUnusedInternalRuntimeDeclarations(generatedBody)",
+    expect(source).toMatch(
+      /const generatedBodyReferences\s*=\s*this\.collectLlvmReferences\(generatedBody\)/,
     );
     expect(source).toContain(
-      "this.pruneUnusedBuiltinPrimitiveMetadata(generatedBody)",
+      "this.pruneUnusedInternalRuntimeDeclarations(generatedBodyReferences)",
+    );
+    expect(source).toContain(
+      "this.pruneUnusedBuiltinPrimitiveMetadata(generatedBodyReferences)",
     );
     expect(source).toContain(
       "this.appendResultSection(resultSections, generatedBody)",
@@ -869,7 +872,7 @@ describe("CodeGenerator", () => {
       "utf8",
     );
     const start = source.indexOf("private compactBlankLines");
-    const end = source.indexOf("private referencesLlvmSymbol", start);
+    const end = source.indexOf("private createLlvmReferences", start);
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
@@ -879,31 +882,45 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain("line.trim()");
   });
 
-  it("uses direct LLVM reference boundary scans during final pruning", () => {
+  it("uses direct LLVM reference collection during final pruning", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
     );
-    const symbolStart = source.indexOf("private referencesLlvmSymbol");
-    const structStart = source.indexOf("private referencesLlvmStruct");
-    const boundaryStart = source.indexOf(
-      "private referencesLlvmName",
-      structStart,
-    );
-    const structEnd = source.indexOf("private writeDebugIr", structStart);
+    const collectStart = source.indexOf("private collectLlvmReferences");
+    const collectEnd = source.indexOf("private writeDebugIr", collectStart);
 
-    expect(symbolStart).toBeGreaterThanOrEqual(0);
-    expect(structStart).toBeGreaterThan(symbolStart);
-    expect(boundaryStart).toBeGreaterThan(structStart);
-    expect(structEnd).toBeGreaterThan(structStart);
+    expect(collectStart).toBeGreaterThanOrEqual(0);
+    expect(collectEnd).toBeGreaterThan(collectStart);
 
-    const referenceSource = source.slice(symbolStart, structEnd);
+    const referenceSource = source.slice(collectStart, collectEnd);
     expect(source).not.toContain("llvmSymbolReferencePatterns");
     expect(source).not.toContain("llvmStructReferencePatterns");
-    expect(referenceSource).toContain("const needle = `${prefix}${name}`");
-    expect(referenceSource).toContain("llvmBody.indexOf(needle, start)");
+    expect(referenceSource).toContain("references.symbols.add");
+    expect(referenceSource).toContain("references.structs.add");
     expect(referenceSource).toContain("this.isLlvmReferenceNameCharacter");
     expect(referenceSource).not.toContain("RegExp");
+  });
+
+  it("keeps LLVM reference collection exact for prefix-like symbols", () => {
+    const ir = compile(
+      `
+        extern malloc_extra(size: long) ret *void;
+
+        frame main() ret int {
+          local ptr: *void = malloc_extra(8);
+          if (ptr == nullptr) {
+            return 1;
+          }
+          return 0;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    expect(ir).toContain("call i8* @malloc_extra");
+    expect(ir).toContain("declare i8* @malloc_extra(i64)");
+    expect(ir).not.toContain("declare i8* @malloc(i64)");
   });
 
   it("keeps explicit main argc argv parameters without runtime helper globals", () => {
