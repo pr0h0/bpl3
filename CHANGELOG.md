@@ -45,6 +45,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/CodeGenerator.test.ts -t "top-level codegen declarations"`
   and the phase compare with
   `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-752c417-phases.json --max-phase-regression 3 --max-full-regression 2 --json`.
+- **Playground No-Import Native Compile Fast Path** -
+  artifact-free playground native requests now skip full module resolution when
+  the submitted source does not contain an `import` keyword, while import-using
+  requests and artifact/debug requests keep the conservative module-resolution
+  path. A local hello-world compiler-only probe moved median compile time from
+  ~71.62ms with module resolution to ~3.28ms without it. Reproduce the guards
+  with `bun test tests/PlaygroundCompileContract.test.ts`.
 - **Generated Parser Statement Keyword Char Checks** -
   `optimizeGeneratedStatementStartKeywordScanning` now emits direct char-code
   checks for statement-start keyword lookahead instead of routing each

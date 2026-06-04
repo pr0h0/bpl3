@@ -246,6 +246,10 @@ function getNativeBinaryCacheKey(code: string): string {
     .digest("hex");
 }
 
+function sourceMayUseBplImport(source: string): boolean {
+  return /\bimport\b/.test(source);
+}
+
 function getCachedNativeBinary(
   key: string,
 ): NativeBinaryCacheEntry | undefined {
@@ -534,6 +538,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
   const includeArtifacts = req.includeArtifacts === true;
   const execute = req.execute !== false;
   const treeShakeTopLevelFunctions = execute && !includeArtifacts;
+  const resolveImports = includeArtifacts || sourceMayUseBplImport(req.code);
 
   logger.info(`[${requestId}] Starting compilation`, {
     codeLength: req.code.length,
@@ -541,6 +546,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
     argsCount: req.args?.length || 0,
     includeArtifacts,
     execute,
+    resolveImports,
   });
 
   const nativeBinaryCacheKey =
@@ -608,7 +614,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
         filePath: sourceFile,
         outputPath: irFile,
         emitType: "llvm",
-        resolveImports: true,
+        resolveImports,
         verbose: false,
         treeShakeTopLevelFunctions,
       });

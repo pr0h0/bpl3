@@ -16,6 +16,10 @@ const API_BASE = `http://127.0.0.1:${PORT}`;
 const HELLO_WORLD_SOURCE = JSON.parse(
   readFileSync("playground/examples/01-hello-world.json", "utf8"),
 ).code.join("\n");
+const IMPORTED_PRINTF_SOURCE = [
+  'import [printf] from "std/c.bpl";',
+  'frame main() ret int { printf("Imported printf\\n"); return 0; }',
+].join("\n");
 const COMMAND_ARGS_SOURCE = JSON.parse(
   readFileSync("playground/examples/20-command-args.json", "utf8"),
 ).code.join("\n");
@@ -135,6 +139,18 @@ describe("Playground compile API contract", () => {
     expect(threeArgs.json.ir).toBeUndefined();
   });
 
+  test("keeps import-using artifact-free native runs on module resolution", async () => {
+    const response = await compile({
+      code: IMPORTED_PRINTF_SOURCE,
+      includeArtifacts: false,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.json.success).toBe(true);
+    expect(response.json.output).toBe("Imported printf\n");
+    expect(response.json.ir).toBeUndefined();
+  });
+
   test("rejects malformed compile payloads with client errors", async () => {
     const missingCode = await compile({});
 
@@ -183,6 +199,30 @@ describe("Playground compile API contract", () => {
     expect(serverSource).toContain("resolvePlaygroundNativeRuntimeFiles");
     expect(serverSource).not.toContain("const runtimeFiles: string[] = []");
     expect(serverSource).not.toContain('"runtime.ll");\n      if (fs.existsSync');
+  });
+
+  test("fast-paths no-import artifact-free native compiles", () => {
+    const serverSource = readFileSync("playground/backend/server.ts", "utf8");
+    const compileStart = serverSource.indexOf("async function compileAndRun");
+    const compileEnd = serverSource.indexOf(
+      "async function compileToWasm",
+      compileStart,
+    );
+
+    expect(compileStart).toBeGreaterThanOrEqual(0);
+    expect(compileEnd).toBeGreaterThan(compileStart);
+
+    const compileSource = serverSource.slice(compileStart, compileEnd);
+    expect(serverSource).toContain("function sourceMayUseBplImport");
+    expect(serverSource).toContain("/\\bimport\\b/.test(source)");
+    expect(compileSource).toContain(
+      "const resolveImports = includeArtifacts || sourceMayUseBplImport(req.code);",
+    );
+    expect(compileSource.indexOf("const resolveImports")).toBeLessThan(
+      compileSource.indexOf("new Compiler"),
+    );
+    expect(compileSource).toContain("resolveImports,");
+    expect(compileSource).not.toContain("resolveImports: true");
   });
 
   test("caches artifact-free native binaries before creating request temp dirs", () => {
