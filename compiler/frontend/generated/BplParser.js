@@ -670,54 +670,46 @@ function peg$parse(input, options) {
     return ternary(cond, trueExpr, falseExpr, makeLoc(mergeLoc(cond.location, falseExpr.location)));
   }
   function peg$f92(left, tail) {
-    return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+    return foldBinaryTail(left, tail);
   }
   function peg$f93(op) {    return { op, loc: location() };  }
   function peg$f94(left, tail) {
-    return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+    return foldBinaryTail(left, tail);
   }
   function peg$f95(op) {    return { op, loc: location() };  }
   function peg$f96(left, tail) {
-    return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+    return foldBinaryTail(left, tail);
   }
   function peg$f97(op) {    return { op, loc: location() };  }
   function peg$f98(left, tail) {
-    return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+    return foldBinaryTail(left, tail);
   }
   function peg$f99(op) {    return { op, loc: location() };  }
   function peg$f100(left, tail) {
-    return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+    return foldBinaryTail(left, tail);
   }
   function peg$f101(op) {    return { op, loc: location() };  }
   function peg$f102(left, tail) {
-    return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+    return foldBinaryTail(left, tail);
   }
   function peg$f103(op) {    return { op, loc: location() };  }
   function peg$f104(head, tail) {
-    return tail.reduce((expr, [, op, , type]) => {
-      const opStr = op[0];
-      const loc = makeLoc(mergeLoc(expr.location, type.location));
-      if (opStr === "is") {
-        return isNode(expr, type, loc);
-      } else {
-        return asNode(expr, type, loc);
-      }
-    }, head);
+    return foldTypeCheckTail(head, tail);
   }
   function peg$f105(left, tail) {
-    return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+    return foldBinaryTail(left, tail);
   }
   function peg$f106(op) {    return { op, loc: location() };  }
   function peg$f107(left, tail) {
-    return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+    return foldBinaryTail(left, tail);
   }
   function peg$f108(op) {    return { op, loc: location() };  }
   function peg$f109(left, tail) {
-    return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+    return foldBinaryTail(left, tail);
   }
   function peg$f110(op) {    return { op, loc: location() };  }
   function peg$f111(left, tail) {
-    return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+    return foldBinaryTail(left, tail);
   }
   function peg$f112(op) {    return { op, loc: location() };  }
   function peg$f113(op, expr) {
@@ -13401,6 +13393,34 @@ function peg$parse(input, options) {
         endLine,
         endColumn
     };
+  }
+
+  function foldBinaryTail(left, tail) {
+    let result = left;
+    for (let i = 0; i < tail.length; i++) {
+      const entry = tail[i];
+      const op = entry[1];
+      const right = entry[3];
+      result = binary(
+        result,
+        makeOperatorToken(op.op, op.loc),
+        right,
+        makeLoc(mergeLoc(result.location, right.location))
+      );
+    }
+    return result;
+  }
+
+  function foldTypeCheckTail(head, tail) {
+    let expr = head;
+    for (let i = 0; i < tail.length; i++) {
+      const entry = tail[i];
+      const opStr = entry[1][0];
+      const type = entry[3];
+      const loc = makeLoc(mergeLoc(expr.location, type.location));
+      expr = opStr === "is" ? isNode(expr, type, loc) : asNode(expr, type, loc);
+    }
+    return expr;
   }
 
   function parseChar(raw) {

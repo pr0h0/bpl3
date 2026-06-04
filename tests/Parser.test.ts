@@ -98,6 +98,37 @@ describe("Parser", () => {
     expect(generatorSource).not.toContain("cache: true");
   });
 
+  it("keeps generated binary expression folding off reduce callback actions", () => {
+    const grammarSource = readFileSync(
+      join(process.cwd(), "grammar", "bpl.peggy"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const expressionStart = grammarSource.indexOf("\nLogicalOr\n");
+    const expressionEnd = grammarSource.indexOf("\nUnary\n", expressionStart);
+
+    expect(expressionStart).toBeGreaterThanOrEqual(0);
+    expect(expressionEnd).toBeGreaterThan(expressionStart);
+
+    const expressionGrammar = grammarSource.slice(expressionStart, expressionEnd);
+    expect(grammarSource).toContain("function foldBinaryTail");
+    expect(grammarSource).toContain("function foldTypeCheckTail");
+    expect(expressionGrammar).not.toContain("tail.reduce");
+    expect(generatedSource).toContain("function foldBinaryTail");
+    expect(generatedSource).toContain("function foldTypeCheckTail");
+    expect(generatedSource).not.toContain("tail.reduce((acc");
+    expect(generatedSource).not.toContain("tail.reduce((expr");
+  });
+
   it("keeps generated parser action locations flat for large translation-unit throughput", () => {
     const generatorSource = readFileSync(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

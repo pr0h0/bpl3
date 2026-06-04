@@ -501,6 +501,34 @@
     };
   }
 
+  function foldBinaryTail(left, tail) {
+    let result = left;
+    for (let i = 0; i < tail.length; i++) {
+      const entry = tail[i];
+      const op = entry[1];
+      const right = entry[3];
+      result = binary(
+        result,
+        makeOperatorToken(op.op, op.loc),
+        right,
+        makeLoc(mergeLoc(result.location, right.location))
+      );
+    }
+    return result;
+  }
+
+  function foldTypeCheckTail(head, tail) {
+    let expr = head;
+    for (let i = 0; i < tail.length; i++) {
+      const entry = tail[i];
+      const opStr = entry[1][0];
+      const type = entry[3];
+      const loc = makeLoc(mergeLoc(expr.location, type.location));
+      expr = opStr === "is" ? isNode(expr, type, loc) : asNode(expr, type, loc);
+    }
+    return expr;
+  }
+
   function parseChar(raw) {
     const inner = raw.slice(1, -1);
     if (inner.startsWith("\\")) {
@@ -977,7 +1005,7 @@ Ternary
 
 LogicalOr
   = left:LogicalAnd tail:(_ op:LogicalOrOperator _ right:LogicalAnd)* {
-      return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+      return foldBinaryTail(left, tail);
     }
 
 LogicalOrOperator
@@ -985,7 +1013,7 @@ LogicalOrOperator
 
 LogicalAnd
   = left:BitwiseOr tail:(_ op:LogicalAndOperator _ right:BitwiseOr)* {
-      return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+      return foldBinaryTail(left, tail);
     }
 
 LogicalAndOperator
@@ -993,7 +1021,7 @@ LogicalAndOperator
 
 BitwiseOr
   = left:BitwiseXor tail:(_ op:BitwiseOrOperator _ right:BitwiseXor)* {
-      return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+      return foldBinaryTail(left, tail);
     }
 
 BitwiseOrOperator
@@ -1001,7 +1029,7 @@ BitwiseOrOperator
 
 BitwiseXor
   = left:BitwiseAnd tail:(_ op:BitwiseXorOperator _ right:BitwiseAnd)* {
-      return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+      return foldBinaryTail(left, tail);
     }
 
 BitwiseXorOperator
@@ -1009,7 +1037,7 @@ BitwiseXorOperator
 
 BitwiseAnd
   = left:Equality tail:(_ op:BitwiseAndOperator _ right:Equality)* {
-      return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+      return foldBinaryTail(left, tail);
     }
 
 BitwiseAndOperator
@@ -1017,7 +1045,7 @@ BitwiseAndOperator
 
 Equality
   = left:TypeCheck tail:(_ op:EqualityOperator _ right:TypeCheck)* {
-      return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+      return foldBinaryTail(left, tail);
     }
 
 EqualityOperator
@@ -1025,20 +1053,12 @@ EqualityOperator
 
 TypeCheck
   = head:Relational tail:(_ (K_is / K_as) _ Type)* {
-      return tail.reduce((expr, [, op, , type]) => {
-        const opStr = op[0];
-        const loc = makeLoc(mergeLoc(expr.location, type.location));
-        if (opStr === "is") {
-          return isNode(expr, type, loc);
-        } else {
-          return asNode(expr, type, loc);
-        }
-      }, head);
+      return foldTypeCheckTail(head, tail);
     }
 
 Relational
   = left:Shift tail:(_ op:RelationalOperator _ right:Shift)* {
-      return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+      return foldBinaryTail(left, tail);
     }
 
 RelationalOperator
@@ -1046,7 +1066,7 @@ RelationalOperator
 
 Shift
   = left:Additive tail:(_ op:ShiftOperator _ right:Additive)* {
-      return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+      return foldBinaryTail(left, tail);
     }
 
 ShiftOperator
@@ -1054,7 +1074,7 @@ ShiftOperator
 
 Additive
   = left:Multiplicative tail:(_ op:AdditiveOperator _ right:Multiplicative)* {
-      return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+      return foldBinaryTail(left, tail);
     }
 
 AdditiveOperator
@@ -1062,7 +1082,7 @@ AdditiveOperator
 
 Multiplicative
   = left:Unary tail:(_ op:MultiplicativeOperator _ right:Unary)* {
-      return tail.reduce((acc, [, op, , r]) => binary(acc, makeOperatorToken(op.op, op.loc), r, makeLoc(mergeLoc(acc.location, r.location))), left);
+      return foldBinaryTail(left, tail);
     }
 
 MultiplicativeOperator
