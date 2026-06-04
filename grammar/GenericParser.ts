@@ -84,6 +84,40 @@ function groupPunctuatorsByFirstChar(
 }
 
 const PUNCTUATORS_BY_FIRST_CHAR = groupPunctuatorsByFirstChar(PUNCTUATORS);
+const KEYWORDS = new Set([
+  "global",
+  "local",
+  "const",
+  "type",
+  "frame",
+  "static",
+  "ret",
+  "struct",
+  "enum",
+  "import",
+  "from",
+  "export",
+  "extern",
+  "asm",
+  "as",
+  "this",
+  "loop",
+  "if",
+  "else",
+  "break",
+  "continue",
+  "try",
+  "catch",
+  "return",
+  "throw",
+  "switch",
+  "case",
+  "default",
+  "cast",
+  "sizeof",
+  "match",
+  "Func",
+]);
 const STRING_LITERAL_PATTERN = /"(?:(?:\\.)|[^"\n\r])*"/y;
 const CHAR_LITERAL_PATTERN = /'(?:\\.|[^'\n\r])'/y;
 const HEX_NUMBER_LITERAL_PATTERN = /0[xX][0-9a-fA-F]+/y;
@@ -91,6 +125,22 @@ const BINARY_NUMBER_LITERAL_PATTERN = /0[bB][01]+/y;
 const OCTAL_NUMBER_LITERAL_PATTERN = /0[oO][0-7]+/y;
 const DECIMAL_NUMBER_LITERAL_PATTERN =
   /[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?/y;
+
+function createKeywordStartCodeTable(
+  keywords: Set<string>,
+): Record<number, true> {
+  const table: Record<number, true> = Object.create(null);
+  for (const keyword of keywords) {
+    table[keyword.charCodeAt(0)] = true;
+  }
+  return table;
+}
+
+const KEYWORD_START_CODES = createKeywordStartCodeTable(KEYWORDS);
+
+function canStartKeyword(ch: string): boolean {
+  return KEYWORD_START_CODES[ch.charCodeAt(0)] === true;
+}
 
 function isAsciiDigit(ch: string | undefined): ch is string {
   if (ch === undefined) return false;
@@ -138,41 +188,6 @@ export class GenericParser {
   ) {
     this.hasCommentMarker = source.includes("#");
   }
-
-  private readonly keywords = new Set([
-    "global",
-    "local",
-    "const",
-    "type",
-    "frame",
-    "static",
-    "ret",
-    "struct",
-    "enum",
-    "import",
-    "from",
-    "export",
-    "extern",
-    "asm",
-    "as",
-    "this",
-    "loop",
-    "if",
-    "else",
-    "break",
-    "continue",
-    "try",
-    "catch",
-    "return",
-    "throw",
-    "switch",
-    "case",
-    "default",
-    "cast",
-    "sizeof",
-    "match",
-    "Func",
-  ]);
 
   parse(): ParseResult {
     const tokens: TokenNode[] = [];
@@ -392,13 +407,22 @@ export class GenericParser {
     const start = this.position;
     const end = this.scanIdentifierEnd(start + 1);
     const value = this.source.slice(start, end);
-    if (value === "true" || value === "false")
+    if (
+      (firstChar === "t" && value === "true") ||
+      (firstChar === "f" && value === "false")
+    ) {
       return this.createTokenFromRange("BoolLiteral", value, start, end);
-    if (value === "null" || value === "nullptr")
+    }
+    if (
+      firstChar === "n" &&
+      (value === "null" || value === "nullptr")
+    ) {
       return this.createTokenFromRange("NullptrLiteral", value, start, end);
+    }
 
-    if (this.keywords.has(value))
+    if (canStartKeyword(firstChar) && KEYWORDS.has(value)) {
       return this.createTokenFromRange("Keyword", value, start, end);
+    }
     return this.createTokenFromRange("Identifier", value, start, end);
   }
 

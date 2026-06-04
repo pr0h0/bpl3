@@ -22,7 +22,7 @@ describe("Lexer - Extended Tests", () => {
         "utf8",
       );
       const keywordSetMatch = genericParserSource.match(
-        /private readonly keywords = new Set\(\[([\s\S]*?)\]\);/,
+        /const KEYWORDS = new Set\(\[([\s\S]*?)\]\);/,
       );
       const keywordMapMatch = grammarLexerSource.match(
         /const keywordMap:[\s\S]*?= \{([\s\S]*?)\};/,
@@ -43,6 +43,29 @@ describe("Lexer - Extended Tests", () => {
       expect(
         converterKeywords.filter((name) => !genericKeywords.has(name)),
       ).toEqual([]);
+    });
+
+    it("checks identifier literal and keyword candidates by first character", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("private matchIdentifierOrKeyword");
+      const end = source.indexOf("private scanIdentifierEnd", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const matcherSource = source.slice(start, end);
+      expect(source).toContain("const KEYWORDS = new Set");
+      expect(source).toContain("const KEYWORD_START_CODES");
+      expect(source).toContain("function canStartKeyword");
+      expect(matcherSource).toContain('firstChar === "t"');
+      expect(matcherSource).toContain('firstChar === "f"');
+      expect(matcherSource).toContain('firstChar === "n"');
+      expect(matcherSource).toContain(
+        "canStartKeyword(firstChar) && KEYWORDS.has(value)",
+      );
     });
 
     it("should tokenize 'frame' keyword", () => {
