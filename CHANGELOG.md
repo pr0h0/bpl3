@@ -17,6 +17,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `codegen`, and `full`, and exits non-zero on signature drift or configured
   regression-threshold failures. Reproduce the guard with
   `bun test tests/BenchmarkRunner.test.ts`.
+- **Phase-Scoped Compile Benchmark Gates** -
+  `benchmark/measure_compilation.ts --mode phases --compare` now accepts
+  `--gate-phases` to apply regression thresholds only to selected phases while
+  still reporting every phase delta and always validating token count, token
+  signature, and LLVM IR hash. This lets codegen-only candidates gate
+  `codegen,full` without failing on unrelated lex/parse noise. Reproduce the
+  guard with `bun test tests/BenchmarkRunner.test.ts`.
 - **Playground Execute-Only Native Tree Shaking** -
   artifact-free playground native runs now pass
   `treeShakeTopLevelFunctions` through the compiler so browser Run Code avoids

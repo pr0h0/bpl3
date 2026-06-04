@@ -44,6 +44,7 @@ describe("Benchmark runner helpers", () => {
     expect(readme).toContain("tokenSignature");
     expect(readme).toContain("irHash");
     expect(readme).toContain("--compare");
+    expect(readme).toContain("--gate-phases");
     expect(readme).toContain("--max-full-regression");
   });
 
@@ -103,6 +104,36 @@ describe("Benchmark runner helpers", () => {
     });
   });
 
+  it("parses compile phase benchmark gate phase options", () => {
+    expect(
+      parseCompilationBenchmarkArgs([
+        "--mode",
+        "phases",
+        "--compare",
+        "/tmp/baseline.json",
+        "--gate-phases",
+        "codegen,full",
+      ]),
+    ).toEqual({
+      mode: "phases",
+      functions: 5000,
+      rounds: 31,
+      warmups: 5,
+      json: false,
+      compare: "/tmp/baseline.json",
+      gatePhases: ["codegen", "full"],
+    });
+
+    expect(() =>
+      parseCompilationBenchmarkArgs([
+        "--mode",
+        "phases",
+        "--gate-phases",
+        "codegen,unknown",
+      ]),
+    ).toThrow("--gate-phases contains unknown phase: unknown");
+  });
+
   it("compares compile phase benchmark medians and threshold failures", () => {
     const baseline = createPhaseBenchmarkFixture({
       full: 100,
@@ -136,6 +167,59 @@ describe("Benchmark runner helpers", () => {
     ]);
   });
 
+  it("limits compile phase benchmark threshold failures to selected gate phases", () => {
+    const baseline = createPhaseBenchmarkFixture({
+      lex: 10,
+      parse: 100,
+      full: 100,
+      codegen: 40,
+    });
+    const candidate = createPhaseBenchmarkFixture({
+      lex: 20,
+      parse: 120,
+      full: 101,
+      codegen: 40.4,
+    });
+
+    const comparison = compareCompilePhaseBenchmarkResults(
+      baseline,
+      candidate,
+      {
+        gatePhases: ["codegen", "full"],
+        maxPhaseRegressionPercent: 2,
+        maxFullRegressionPercent: 2,
+      },
+    );
+
+    expect(comparison.ok).toBe(true);
+    expect(comparison.phaseDeltas.map((delta) => delta.phase)).toEqual([
+      "lex",
+      "parse",
+      "typecheck",
+      "codegen",
+      "full",
+    ]);
+    expect(comparison.failures).toEqual([]);
+  });
+
+  it("keeps compile phase benchmark comparison defaults gating every phase", () => {
+    const baseline = createPhaseBenchmarkFixture({ lex: 10 });
+    const candidate = createPhaseBenchmarkFixture({ lex: 20 });
+
+    const comparison = compareCompilePhaseBenchmarkResults(
+      baseline,
+      candidate,
+      {
+        maxPhaseRegressionPercent: 2,
+      },
+    );
+
+    expect(comparison.ok).toBe(false);
+    expect(comparison.failures).toContain(
+      "lex median regressed by 100.00% (limit 2.00%)",
+    );
+  });
+
   it("fails compile phase benchmark comparisons on signature drift", () => {
     const baseline = createPhaseBenchmarkFixture({});
     const candidate = createPhaseBenchmarkFixture({
@@ -146,6 +230,9 @@ describe("Benchmark runner helpers", () => {
     const comparison = compareCompilePhaseBenchmarkResults(
       baseline,
       candidate,
+      {
+        gatePhases: ["codegen"],
+      },
     );
 
     expect(comparison.ok).toBe(false);

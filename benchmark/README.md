@@ -91,6 +91,16 @@ signatures drift, when any of `lex`, `parse`, `typecheck`, or `codegen`
 regresses beyond `--max-phase-regression`, or when `full` regresses beyond
 `--max-full-regression`.
 
+For phase-specific compiler work, keep all reporting and signature validation
+but gate only the affected phase plus `full`:
+
+```bash
+bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-baseline-phases.json --gate-phases codegen,full --max-phase-regression 2 --max-full-regression 1
+```
+
+When `--gate-phases` is provided, ungated phase deltas are still printed but do
+not fail the run. Signature drift always fails the comparison.
+
 ## Requirements
 
 - `bun` (for running the BPL compiler)

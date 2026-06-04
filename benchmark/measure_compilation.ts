@@ -12,6 +12,12 @@ import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import type { Token } from "../compiler/frontend/Token";
 
 export type CompilationBenchmarkMode = "cli" | "phases";
+export type CompilePhaseName =
+  | "lex"
+  | "parse"
+  | "typecheck"
+  | "codegen"
+  | "full";
 
 export interface CompilationBenchmarkArgs {
   mode: CompilationBenchmarkMode;
@@ -20,6 +26,7 @@ export interface CompilationBenchmarkArgs {
   warmups: number;
   json: boolean;
   compare?: string;
+  gatePhases?: CompilePhaseName[];
   maxPhaseRegressionPercent?: number;
   maxFullRegressionPercent?: number;
 }
@@ -45,9 +52,8 @@ export interface CompilePhaseBenchmarkResult {
   full: CompilePhaseStats;
 }
 
-type CompilePhaseName = "lex" | "parse" | "typecheck" | "codegen" | "full";
-
 export interface CompilePhaseBenchmarkComparisonOptions {
+  gatePhases?: CompilePhaseName[];
   maxPhaseRegressionPercent?: number;
   maxFullRegressionPercent?: number;
 }
@@ -143,6 +149,8 @@ export function parseCompilationBenchmarkArgs(
       if (options.compare === undefined || options.compare.length === 0) {
         throw new Error("--compare expects a baseline phase JSON file");
       }
+    } else if (arg === "--gate-phases") {
+      options.gatePhases = parseGatePhases(args[++i]);
     } else if (arg === "--max-phase-regression") {
       options.maxPhaseRegressionPercent = parseNonNegativeNumber(
         args[++i],
@@ -201,6 +209,13 @@ export function compareCompilePhaseBenchmarkResults(
   });
 
   for (const delta of phaseDeltas) {
+    if (
+      options.gatePhases !== undefined &&
+      !options.gatePhases.includes(delta.phase)
+    ) {
+      continue;
+    }
+
     const maxRegression =
       delta.phase === "full"
         ? options.maxFullRegressionPercent
@@ -409,6 +424,7 @@ async function main(): Promise<void> {
               maxPhaseRegressionPercent:
                 options.maxPhaseRegressionPercent,
               maxFullRegressionPercent: options.maxFullRegressionPercent,
+              gatePhases: options.gatePhases,
             },
           )
         : undefined;
@@ -556,6 +572,29 @@ function parseNonNegativeNumber(
   return parsed;
 }
 
+function parseGatePhases(value: string | undefined): CompilePhaseName[] {
+  if (value === undefined || value.length === 0) {
+    throw new Error("--gate-phases expects a comma-separated phase list");
+  }
+
+  const phases: CompilePhaseName[] = [];
+  for (const rawPhase of value.split(",")) {
+    const phase = rawPhase.trim();
+    if (!isCompilePhaseName(phase)) {
+      throw new Error(`--gate-phases contains unknown phase: ${phase}`);
+    }
+    if (!phases.includes(phase)) {
+      phases.push(phase);
+    }
+  }
+
+  return phases;
+}
+
+function isCompilePhaseName(value: string): value is CompilePhaseName {
+  return COMPILE_PHASE_NAMES.includes(value as CompilePhaseName);
+}
+
 function printUsage(): void {
   console.log(`Usage: bun benchmark/measure_compilation.ts [options]
 
@@ -565,6 +604,8 @@ Options:
   --rounds N            measured rounds for --mode phases
   --warmups N           warmup rounds for --mode phases
   --compare FILE        compare phase results against a baseline JSON file
+  --gate-phases LIST    only apply threshold gates to comma-separated phases
+                         while still reporting all phase deltas and validating signatures
   --max-phase-regression P
                          fail when lex/parse/typecheck/codegen median regresses by more than P percent
   --max-full-regression P
