@@ -117,6 +117,22 @@ describe("Playground compile API contract", () => {
     );
   });
 
+  test("keeps debug AST artifacts compact and free of resolved backreferences", async () => {
+    const debugResponse = await compile({
+      code: HELLO_WORLD_SOURCE,
+      includeArtifacts: true,
+      execute: false,
+    });
+
+    expect(debugResponse.status).toBe(200);
+    expect(debugResponse.json.success).toBe(true);
+    expect(typeof debugResponse.json.ast).toBe("string");
+    expect(debugResponse.json.ast).toContain('"kind": "Program"');
+    expect(debugResponse.json.ast).not.toContain("resolvedDeclaration");
+    expect(debugResponse.json.ast).not.toContain("resolvedType");
+    expect(Buffer.byteLength(debugResponse.raw)).toBeLessThan(1024 * 1024);
+  });
+
   test("reuses cached compile-only debug artifacts for unchanged source", async () => {
     await fetch(`${API_BASE}/logs/clear`, { method: "POST" });
 

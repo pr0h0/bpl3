@@ -17,6 +17,7 @@ import {
   createPlaygroundWasmBuildEnv,
   resolvePlaygroundWasmLinker,
 } from "./wasmToolchain";
+import { stringifyPlaygroundAstArtifact } from "./artifactStringify";
 import { runPlaygroundNativeBinary } from "./nativeExecution";
 import { formatProcessCommand } from "./processRunner";
 import { resolvePlaygroundNativeRuntimeFiles } from "./runtimeFiles";
@@ -164,28 +165,6 @@ const diagnosticFormatter = new DiagnosticFormatter({
   showCodeSnippets: true,
 });
 
-// Helper to stringify AST avoiding circular references
-function safeStringify(obj: any): string {
-  const seen = new WeakSet();
-  return JSON.stringify(
-    obj,
-    (key, value) => {
-      if (typeof value === "bigint") {
-        return value.toString();
-      }
-
-      if (typeof value === "object" && value !== null) {
-        if (seen.has(value)) {
-          return "[Circular]";
-        }
-        seen.add(value);
-      }
-      return value;
-    },
-    2,
-  );
-}
-
 interface CompileRequest {
   code: string;
   input?: string;
@@ -234,6 +213,7 @@ function maybeCompileArtifacts(
   ir: string,
   ast: AST.Program | undefined,
   tokens: any[],
+  sourceFile?: string,
 ): Pick<CompileResponse, "ir" | "ast" | "tokens"> {
   if (!includeArtifacts) {
     return {};
@@ -241,7 +221,7 @@ function maybeCompileArtifacts(
 
   return {
     ir,
-    ast: safeStringify(ast),
+    ast: stringifyPlaygroundAstArtifact(ast, { sourceFile }),
     tokens: JSON.stringify(tokens, null, 2),
   };
 }
@@ -416,6 +396,7 @@ async function runCompiledNativeBinary(options: {
   ir: string;
   ast: AST.Program | undefined;
   tokens: any[];
+  sourceFile?: string;
   cacheHit: boolean;
 }): Promise<CompileResponse> {
   const execStart = Date.now();
@@ -465,6 +446,7 @@ async function runCompiledNativeBinary(options: {
         options.ir,
         options.ast,
         options.tokens,
+        options.sourceFile,
       ),
     };
   }
@@ -489,6 +471,7 @@ async function runCompiledNativeBinary(options: {
       options.ir,
       options.ast,
       options.tokens,
+      options.sourceFile,
     ),
   };
 }
@@ -675,7 +658,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
         return {
           success: false,
           error: errorMsg,
-          ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
+          ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens, sourceFile),
         };
       }
 
@@ -695,7 +678,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
       return {
         success: false,
         error: e instanceof CompilerError ? e.message : String(e),
-        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
+        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens, sourceFile),
       };
     }
 
@@ -714,7 +697,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
       const response: CompileResponse = {
         success: true,
         warnings,
-        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
+        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens, sourceFile),
       };
       if (compileOnlyResponseCacheKey !== undefined) {
         compileOnlyResponseCache.remember(compileOnlyResponseCacheKey, response);
@@ -765,7 +748,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
       return {
         success: false,
         error: `LLVM compilation failed: ${e.stderr || e.message}`,
-        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
+        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens, sourceFile),
       };
     }
 
@@ -779,6 +762,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
       ir,
       ast,
       tokens,
+      sourceFile,
       cacheHit: false,
     });
   } finally {
