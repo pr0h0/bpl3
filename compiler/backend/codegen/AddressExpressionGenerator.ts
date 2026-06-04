@@ -170,21 +170,21 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     }
 
     const directStructName = this.getDirectStructMemberAddressName(objType);
-    const llvmType =
-      directStructName !== undefined
-        ? `%struct.${directStructName}`
-        : this.resolveType(objType);
+    let llvmType: string | undefined = undefined;
+    let structName = directStructName ?? objType.name;
+
+    if (directStructName === undefined) {
+      llvmType = this.resolveType(objType);
+      if (llvmType.startsWith("%struct.")) {
+        structName = llvmType.substring(8);
+        while (structName.endsWith("*")) structName = structName.slice(0, -1);
+      }
+    }
 
     // Force generation of struct layout if it's a pointer
     if (objType.pointerDepth > 0) {
       const underlying = { ...objType, pointerDepth: 0 };
       this.resolveType(underlying);
-    }
-
-    let structName = directStructName ?? objType.name;
-    if (llvmType.startsWith("%struct.")) {
-      structName = llvmType.substring(8);
-      while (structName.endsWith("*")) structName = structName.slice(0, -1);
     }
 
     let layout = this.structLayouts.get(structName);
@@ -216,7 +216,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
         baseAddr = objectAddr;
       }
     } else if (objType.pointerDepth > 0) {
-      const ptrType = llvmType;
+      const ptrType = llvmType ?? this.resolveType(objType);
       if (memberExpr.object.kind === "Identifier") {
         const identifier = memberExpr.object as AST.IdentifierExpr;
         const declaredType = this.localTypes.get(identifier.name);
@@ -246,7 +246,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     if (objType.pointerDepth > 0 && !skipNullObjectCheck) {
       this.emitNullPointerCheck(
         baseAddr,
-        llvmType,
+        llvmType ?? this.resolveType(objType),
         memberExpr.location,
         this.exprToDescription(memberExpr),
         "Attempted to access member of nullptr",

@@ -175,7 +175,7 @@ describe("CodeGenerator", () => {
     expect(methodSource).toContain(
       "const directStructName = this.getDirectStructMemberAddressName(objType)",
     );
-    expect(methodSource).toContain("directStructName !== undefined");
+    expect(methodSource).toContain("if (directStructName === undefined)");
 
     const ir = compile(`
       struct Point {
@@ -191,6 +191,47 @@ describe("CodeGenerator", () => {
     `);
     expect(ir).toMatch(
       /getelementptr inbounds %struct\.Point, %struct\.Point\* %p_ptr(?:\.\d+)?, i32 0, i32 0/,
+    );
+  });
+
+  it("keeps direct struct member address lookup off LLVM type string parsing", () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/AddressExpressionGenerator.ts",
+      ),
+      "utf8",
+    );
+    const methodStart = source.indexOf("private generateMemberAddress");
+    const methodEnd = source.indexOf(
+      "private generateIndexAddress",
+      methodStart,
+    );
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+
+    const methodSource = source.slice(methodStart, methodEnd);
+    expect(methodSource).toContain(
+      "let llvmType: string | undefined = undefined",
+    );
+    expect(methodSource).toContain("if (directStructName === undefined)");
+    expect(methodSource).toContain(
+      "let structName = directStructName ?? objType.name",
+    );
+
+    const directStart = methodSource.indexOf(
+      "let structName = directStructName ?? objType.name",
+    );
+    const fallbackStart = methodSource.indexOf(
+      "if (directStructName === undefined)",
+    );
+    const fallbackEnd = methodSource.indexOf("}", fallbackStart);
+
+    expect(fallbackStart).toBeGreaterThan(directStart);
+    expect(fallbackEnd).toBeGreaterThan(fallbackStart);
+    expect(methodSource.slice(directStart, fallbackStart)).not.toContain(
+      "llvmType.startsWith",
     );
   });
 
