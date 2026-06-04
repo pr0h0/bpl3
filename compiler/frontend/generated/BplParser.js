@@ -12327,7 +12327,26 @@ function peg$parse(input, options) {
   const peg$emptyTrivia = [];
   const peg$hasBplCommentMarker = options.bplHasCommentMarker ?? input.indexOf("#") !== -1;
 
+  function peg$parseWhitespaceOnly() {
+    while (peg$currPos < input.length) {
+      const currentCode = input.charCodeAt(peg$currPos);
+      if (currentCode !== 32 && currentCode !== 9 && currentCode !== 10 && currentCode !== 13) {
+        break;
+      }
+      peg$currPos++;
+      while (peg$currPos < input.length) {
+        const code = input.charCodeAt(peg$currPos);
+        if (code !== 32 && code !== 9 && code !== 10 && code !== 13) break;
+        peg$currPos++;
+      }
+    }
+
+    return peg$emptyTrivia;
+  }
+
   function peg$parse_() {
+    if (!peg$hasBplCommentMarker) return peg$parseWhitespaceOnly();
+
     while (peg$currPos < input.length) {
       const currentCode = input.charCodeAt(peg$currPos);
 
@@ -12340,8 +12359,6 @@ function peg$parse(input, options) {
         }
         continue;
       }
-
-      if (!peg$hasBplCommentMarker) break;
 
       if (currentCode === 35) {
         const commentStart = peg$currPos++;

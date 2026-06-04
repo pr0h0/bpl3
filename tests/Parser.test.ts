@@ -1026,17 +1026,29 @@ describe("Parser", () => {
     const triviaHelper = generatedSource.match(
       /function peg\$parse_\(\)[\s\S]*?\n  }/,
     )?.[0];
+    const whitespaceHelper = generatedSource.match(
+      /function peg\$parseWhitespaceOnly\(\)[\s\S]*?\n  }/,
+    )?.[0];
 
     expect(generatedSource).toContain("const peg$emptyTrivia = [];");
     expect(generatedSource).toContain(
       'const peg$hasBplCommentMarker = options.bplHasCommentMarker ?? input.indexOf("#") !== -1;',
     );
+    expect(generatedSource).toContain("function peg$parseWhitespaceOnly()");
+    expect(whitespaceHelper).toContain("while (peg$currPos < input.length)");
+    expect(whitespaceHelper).toContain(
+      "currentCode !== 32 && currentCode !== 9",
+    );
+    expect(whitespaceHelper).not.toContain("pushCommentToken");
     expect(triviaHelper).toContain("while (peg$currPos < input.length)");
     expect(triviaHelper).toContain("pushCommentToken");
     expect(triviaHelper).toContain(
       "currentCode === 32 || currentCode === 9",
     );
-    expect(triviaHelper).toContain("if (!peg$hasBplCommentMarker) break;");
+    expect(triviaHelper).toContain(
+      "if (!peg$hasBplCommentMarker) return peg$parseWhitespaceOnly();",
+    );
+    expect(triviaHelper).not.toContain("if (!peg$hasBplCommentMarker) break;");
     expect(triviaHelper).toContain("return peg$emptyTrivia;");
     expect(triviaHelper).not.toContain("return [];");
     expect(triviaHelper).not.toContain("peg$parseWhitespace()");
