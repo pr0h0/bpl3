@@ -233,6 +233,10 @@ describe("CodeGenerator", () => {
     );
     const start = source.indexOf("protected generateFunction");
     const end = source.indexOf("  protected generateArrayInitialization", start);
+    const baseSource = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
+      "utf8",
+    );
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
@@ -243,7 +247,16 @@ describe("CodeGenerator", () => {
     expect(methodSource).toContain("const prevLocalTypes = this.localTypes");
     expect(methodSource).toContain("this.locals = new Set()");
     expect(methodSource).toContain("this.localPointers = new Map()");
-    expect(methodSource).toContain("this.movedAutoDestroyAddresses = new Set()");
+    expect(baseSource).toContain("movedAutoDestroyAddresses?: Set<string>");
+    expect(methodSource).toContain(
+      "this.movedAutoDestroyAddresses = undefined",
+    );
+    expect(source).toContain(
+      "(this.movedAutoDestroyAddresses ??= new Set<string>()).add",
+    );
+    expect(methodSource).not.toContain(
+      "this.movedAutoDestroyAddresses = new Set()",
+    );
     expect(methodSource).not.toContain("new Set(this.locals)");
     expect(methodSource).not.toContain("new Map(this.localPointers)");
     expect(methodSource).not.toContain("this.locals.clear()");

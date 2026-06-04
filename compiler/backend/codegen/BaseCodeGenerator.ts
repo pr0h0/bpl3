@@ -268,7 +268,7 @@ export class BaseCodeGenerator {
   protected localTypes: Map<string, AST.TypeNode> = new Map(); // Track variable name -> declared type
   protected localNullFlags: Map<string, string> = new Map(); // Track struct locals -> null-flag pointer
   protected pointerToLocal: Map<string, string> = new Map(); // Track pointer variable -> source local for null checking
-  protected movedAutoDestroyAddresses: Set<string> = new Set(); // Locals returned by move should not be auto-destroyed
+  protected movedAutoDestroyAddresses?: Set<string>; // Locals returned by move should not be auto-destroyed
   protected generatedStructs: Set<string> = new Set(); // Track generated monomorphized structs
   protected skippedStructs: Set<string> = new Set(); // Track structs that were skipped during generation (e.g. pointers)
   protected onReturn?: () => void;

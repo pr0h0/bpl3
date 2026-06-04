@@ -758,7 +758,7 @@ export abstract class StatementGenerator extends AsmGenerator {
   }
 
   protected generateAutoDestroy(stmt: AST.AutoDestroyStmt) {
-    if (this.movedAutoDestroyAddresses.has(stmt.address)) {
+    if (this.movedAutoDestroyAddresses?.has(stmt.address)) {
       return;
     }
 
@@ -1443,7 +1443,9 @@ export abstract class StatementGenerator extends AsmGenerator {
     // Only trigger function-level return hooks (like destructors) if not yielding from a match
     if (!isMatchYield) {
       if (movedAddress) {
-        this.movedAutoDestroyAddresses.add(movedAddress);
+        (this.movedAutoDestroyAddresses ??= new Set<string>()).add(
+          movedAddress,
+        );
       }
 
       // Run defers (LIFO)
@@ -1855,7 +1857,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.localTypes = new Map();
     this.localNullFlags = new Map();
     this.pointerToLocal = new Map();
-    this.movedAutoDestroyAddresses = new Set();
+    this.movedAutoDestroyAddresses = undefined;
     this.generatingFunctionBody = true;
 
     let name = decl.name;

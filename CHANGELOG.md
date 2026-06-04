@@ -63,6 +63,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/CodeGenerator.test.ts -t "block scope snapshots"` and the
   phase compare with
   `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-d87d8a0-phases.json --max-phase-regression 3 --max-full-regression 2 --json`.
+- **Lazy Move-Return Auto-Destroy Tracking** -
+  function code generation now leaves `movedAutoDestroyAddresses` unallocated
+  until a move-return path records an address, while auto-destroy cleanup checks
+  the set only when it exists. Against `207d37e`, a 31-round 5k phase compare
+  gated on `codegen,full` preserved token count, token signature, and LLVM IR
+  hash while moving median codegen from ~135.77ms to ~135.66ms and full median
+  from ~540.90ms to ~538.36ms. Reproduce the guard with
+  `bun test tests/RAIIAutoDestroy.test.ts tests/FunctionAttributes.test.ts tests/CodeGenerator.test.ts tests/ZeroCostLLVM.test.ts tests/GoldenLLVMShapes.test.ts`
+  and the phase compare with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-207d37e-phases.json --gate-phases codegen,full --max-phase-regression 3 --max-full-regression 2 --json`.
 - **Playground No-Import Native Compile Fast Path** -
   artifact-free playground native requests now skip full module resolution when
   the submitted source does not contain an `import` keyword, while import-using
