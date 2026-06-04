@@ -65,6 +65,13 @@ describe("Playground wasm toolchain", () => {
     expect(serverSource).not.toContain('"wasm-ld-18"');
   });
 
+  test("keeps the playground wasm endpoint wired to the hosted wasm response cache", () => {
+    expect(serverSource).toContain("HostedWasmResponseCache");
+    expect(serverSource).toContain("getHostedWasmCacheKey");
+    expect(serverSource).toContain("hostedWasmResponseCache.get");
+    expect(serverSource).toContain("hostedWasmResponseCache.remember");
+  });
+
   test("reports checked candidates when playground wasm linking is unavailable", () => {
     const missingLinker = path.join(
       os.tmpdir(),

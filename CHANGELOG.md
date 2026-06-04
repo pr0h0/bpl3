@@ -16,6 +16,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   playground backend probe, repeated native runs improved from a ~326ms median
   baseline to ~4.95ms after the first cached build. Reproduce with
   `bun test tests/PlaygroundCompileContract.test.ts -t "cached native binaries"`.
+- **Playground Hosted Wasm Response Cache** - Playground `/wasm` requests now
+  cache successful hosted-wasm responses for unchanged source, BPL home, and
+  resolved wasm linker, returning immutable response copies on warm hits without
+  rerunning the compiler or linker. The same work normalizes `WASM_LD=wasm-ld`
+  to a clang-safe resolved linker path, fixing browsers and local playground
+  runs on clang versions that reject `-fuse-ld=wasm-ld`. On the browser wasm
+  showcase probe, fixed-baseline repeated builds were ~660.65ms median, while a
+  cached run produced one ~602.83ms cold build followed by 9.63-12.12ms warm
+  hits. Reproduce with
+  `bun test tests/BinaryRunner.test.ts tests/PlaygroundWasmResponseCache.test.ts tests/PlaygroundWasmToolchain.test.ts`
+  and `bun run test:wasm`.
 - **Compile Phase Benchmark Final-Round Hashing** - The in-process compile
   phase benchmark now computes `tokenSignature` and `irHash` only on the final
   measured round instead of recomputing and overwriting them after every

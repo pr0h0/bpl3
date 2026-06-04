@@ -74,6 +74,47 @@ function isEnvFlagEnabled(value: string | undefined): boolean {
   return !["0", "false", "no", "off"].includes(value.toLowerCase());
 }
 
+function isExecutableFile(filePath: string): boolean {
+  try {
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile()) return false;
+    fs.accessSync(filePath, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveExecutablePath(command: string): string | undefined {
+  if (path.isAbsolute(command) || command.includes(path.sep)) {
+    const resolved = path.resolve(command);
+    return isExecutableFile(resolved) ? resolved : undefined;
+  }
+
+  const pathEnv = process.env.PATH;
+  if (!pathEnv) return undefined;
+
+  for (const entry of pathEnv.split(path.delimiter)) {
+    if (!entry) continue;
+    const candidate = path.join(entry, command);
+    if (isExecutableFile(candidate)) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
+function getWasmClangFuseLdArg(wasmLinker: string | undefined): string | undefined {
+  if (!wasmLinker) return undefined;
+  if (wasmLinker === "ld.lld") return "-fuse-ld=lld";
+
+  const resolvedLinker = resolveExecutablePath(wasmLinker);
+  if (resolvedLinker) return `-fuse-ld=${resolvedLinker}`;
+
+  return "-fuse-ld=lld";
+}
+
 /**
  * Result of binary compilation
  */
@@ -340,10 +381,9 @@ function buildClangArgs(
     args.push("-target", target);
   }
 
-  if (wasmLinker === "ld.lld") {
-    args.push("-fuse-ld=lld");
-  } else if (wasmLinker && wasmLinker === process.env.WASM_LD) {
-    args.push(`-fuse-ld=${wasmLinker}`);
+  const wasmFuseLdArg = getWasmClangFuseLdArg(wasmLinker);
+  if (wasmFuseLdArg) {
+    args.push(wasmFuseLdArg);
   }
 
   if (wasmTarget) {

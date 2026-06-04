@@ -20,6 +20,11 @@ import {
 import { runPlaygroundNativeBinary } from "./nativeExecution";
 import { formatProcessCommand } from "./processRunner";
 import { resolvePlaygroundNativeRuntimeFiles } from "./runtimeFiles";
+import {
+  getHostedWasmCacheKey,
+  HostedWasmResponseCache,
+  type HostedWasmCompileResponse,
+} from "./wasmResponseCache";
 
 const execFileAsync = promisify(execFile);
 
@@ -202,19 +207,17 @@ interface NativeBinaryCacheEntry {
   lastUsedAt: number;
 }
 
-interface WasmCompileResponse {
-  success: boolean;
-  error?: string;
-  wasmBase64?: string;
-  wasmBytes?: number;
-  ir?: string;
-  imports?: Array<{ module: string; name: string; kind: string }>;
-  warnings?: string[];
-}
+type WasmCompileResponse = HostedWasmCompileResponse;
 
 const NATIVE_BINARY_CACHE_MAX_ENTRIES = 16;
 const NATIVE_BINARY_CACHE_TTL_MS = 10 * 60 * 1000;
+const HOSTED_WASM_CACHE_MAX_ENTRIES = 16;
+const HOSTED_WASM_CACHE_TTL_MS = 10 * 60 * 1000;
 const nativeBinaryCache = new Map<string, NativeBinaryCacheEntry>();
+const hostedWasmResponseCache = new HostedWasmResponseCache({
+  maxEntries: HOSTED_WASM_CACHE_MAX_ENTRIES,
+  ttlMs: HOSTED_WASM_CACHE_TTL_MS,
+});
 
 function maybeCompileArtifacts(
   includeArtifacts: boolean,
@@ -756,6 +759,22 @@ async function compileToWasm(req: CompileRequest): Promise<WasmCompileResponse> 
     };
   }
   const linker = linkerResult.linker;
+  const wasmCacheKey = getHostedWasmCacheKey({
+    code: req.code,
+    bplHome: getBplHome(),
+    linker,
+  });
+  const cachedWasmResponse = hostedWasmResponseCache.get(wasmCacheKey);
+  if (cachedWasmResponse !== undefined) {
+    const duration = Date.now() - startTime;
+    logger.info(`[${requestId}] Reusing cached hosted wasm response`, {
+      wasmBytes: cachedWasmResponse.wasmBytes,
+      importCount: cachedWasmResponse.imports?.length ?? 0,
+      duration,
+    });
+    updateStats(true, duration);
+    return cachedWasmResponse;
+  }
 
   const tempDir = fs.mkdtempSync(
     path.join(os.tmpdir(), "bpl-playground-wasm-"),
@@ -807,8 +826,7 @@ async function compileToWasm(req: CompileRequest): Promise<WasmCompileResponse> 
       kind: entry.kind,
     }));
 
-    updateStats(true, Date.now() - startTime);
-    return {
+    const response: WasmCompileResponse = {
       success: true,
       wasmBase64: wasm.toString("base64"),
       wasmBytes: wasm.byteLength,
@@ -816,6 +834,9 @@ async function compileToWasm(req: CompileRequest): Promise<WasmCompileResponse> 
       imports,
       warnings: [stdout, stderr].filter(Boolean),
     };
+    hostedWasmResponseCache.remember(wasmCacheKey, response);
+    updateStats(true, Date.now() - startTime);
+    return response;
   } catch (e: any) {
     logger.error(`[${requestId}] Wasm compilation failed`, {
       stderr: e.stderr,

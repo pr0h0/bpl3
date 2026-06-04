@@ -604,6 +604,51 @@ describe("BinaryRunner", () => {
     }
   });
 
+  test("normalizes PATH-resolved wasm linker names for clang fuse-ld", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-wasm-fuse-ld-"),
+    );
+    const irPath = path.join(tempDir, "program.ll");
+    const outputPath = path.join(tempDir, "program.wasm");
+    const argsLogPath = path.join(tempDir, "wasm-cc-args.log");
+
+    try {
+      const fakeWasmLd = writeNodeCommandShim(path.join(tempDir, "wasm-ld"), [
+        "console.log('LLD 18.0.0');",
+      ]);
+      const fakeWasmCompiler = writeNodeCommandShim(
+        path.join(tempDir, "fake-wasm-cc"),
+        [
+          'const fs = require("fs");',
+          "const args = process.argv.slice(2);",
+          `fs.writeFileSync(${JSON.stringify(argsLogPath)}, args.join("\\n"));`,
+          'const outputIndex = args.lastIndexOf("-o") + 1;',
+          "if (outputIndex <= 0 || !args[outputIndex]) process.exit(2);",
+          'fs.writeFileSync(args[outputIndex], "wasm-bytes\\n");',
+        ],
+      );
+      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      process.env.PATH = [tempDir, originalPath ?? ""].filter(Boolean).join(
+        path.delimiter,
+      );
+      process.env.WASM_LD = "wasm-ld";
+      process.env.BPL_WASM_CC = fakeWasmCompiler;
+
+      const result = compileToBinary(irPath, {
+        skipRuntime: true,
+        target: "wasm32-unknown-unknown",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.executablePath).toBe(outputPath);
+      const args = fs.readFileSync(argsLogPath, "utf-8").split("\n");
+      expect(args).toContain(`-fuse-ld=${fakeWasmLd}`);
+      expect(args).not.toContain("-fuse-ld=wasm-ld");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("links hosted wasm runtime only when target defaults or options require it", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-binary-wasm-runtime-mode-"),
