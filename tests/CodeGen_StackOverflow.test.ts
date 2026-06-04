@@ -70,4 +70,22 @@ describe("CodeGen - Stack Overflow", () => {
     expect(recurBody).toBeDefined();
     expect(recurBody!).not.toMatch(/br label %stack\.limit\.check/);
   });
+
+  it("omits optimized stack-limit probes for runtime-free main bodies", () => {
+    const source = `
+      extern printf(fmt: string, value: int);
+
+      frame main() ret int {
+        printf("hello %d\\n", 42);
+        return 0;
+      }
+    `;
+    const ir = generateOptimized(source);
+
+    expect(ir).not.toContain("@__bpl_stack_limit = external global i8*");
+    expect(ir).not.toContain("declare void @__bpl_throw_stack_overflow()");
+    expect(ir).not.toContain("call void @__bpl_throw_stack_overflow()");
+    expect(ir).not.toContain("alloca i8");
+    expect(ir).toContain("call void @printf");
+  });
 });

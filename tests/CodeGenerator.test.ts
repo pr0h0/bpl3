@@ -800,9 +800,10 @@ describe("CodeGenerator", () => {
       optimizationLevel: 3,
     });
 
-    expect(ir).toContain("@__bpl_stack_limit = external global i8*");
-    expect(ir).toContain("declare void @__bpl_throw_stack_overflow()");
-    expect(ir).toContain("call void @__bpl_throw_stack_overflow()");
+    expect(ir).not.toContain("@__bpl_stack_limit = external global i8*");
+    expect(ir).not.toContain("declare void @__bpl_throw_stack_overflow()");
+    expect(ir).not.toContain("call void @__bpl_throw_stack_overflow()");
+    expect(ir).not.toContain("alloca i8");
     expect(ir).not.toContain("call void @__bpl_enter_stack_frame()");
     expect(ir).not.toContain("call void @__bpl_exit_stack_frame()");
     expect(ir).not.toContain("declare void @__bpl_enter_stack_frame()");
@@ -829,7 +830,7 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("@exception_value = external global");
     expect(ir).not.toContain("@exception_type = external global");
     expect(ir).not.toContain("@__bpl_stack_depth = external global i32");
-    expect(ir).toContain("@__bpl_stack_limit = external global i8*");
+    expect(ir).not.toContain("@__bpl_stack_limit = external global i8*");
     expect(ir).not.toContain("declare i8* @malloc(i64)");
     expect(ir).not.toContain("declare void @free(i8*)");
     expect(ir).not.toContain("declare void @exit(i32)");
@@ -850,12 +851,7 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("%struct.Double = type");
     expect(ir).not.toContain("%struct.String = type");
     expect(ir).not.toMatch(/\n{3,}/);
-    expect(ir).toContain(
-      'source_filename = "unknown"\n\n@__bpl_stack_limit = external global i8*',
-    );
-    expect(ir).toContain(
-      "declare void @__bpl_throw_stack_overflow()\n\ndefine dso_local i32 @main",
-    );
+    expect(ir).toContain('source_filename = "unknown"\n\ndefine dso_local i32 @main');
   });
 
   it("keeps builtin-named struct declarations when generated IR references them", () => {

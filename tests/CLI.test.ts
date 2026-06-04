@@ -1003,7 +1003,7 @@ describe("CLI Tests", () => {
     }
   });
 
-  it("should link runtime stack helpers for optimized emitted LLVM builds", () => {
+  it("should link runtime stack helpers for optimized emitted LLVM builds that need runtime", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-emit-link-"));
     const sourceFile = path.join(tempDir, "main.bpl");
     const llvmFile = path.join(tempDir, "main-O3.ll");
@@ -1012,9 +1012,12 @@ describe("CLI Tests", () => {
       sourceFile,
       [
         "extern printf(fmt: string, ...);",
+        "frame helper() ret int {",
+        "    return 0;",
+        "}",
         "frame main() ret int {",
         '    printf("runtime-linked\\n");',
-        "    return 0;",
+        "    return helper();",
         "}",
       ].join("\n"),
     );
@@ -1034,6 +1037,9 @@ describe("CLI Tests", () => {
       expect(result.status).toBe(0);
       expect(fs.existsSync(llvmFile)).toBe(true);
       expect(fs.existsSync(executableFile)).toBe(true);
+      expect(fs.readFileSync(llvmFile, "utf-8")).toContain(
+        "@__bpl_throw_stack_overflow",
+      );
       expect(result.stderr).not.toContain("__bpl_enter_stack_frame");
       expect(result.stderr).not.toContain("undefined reference");
     } finally {

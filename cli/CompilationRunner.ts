@@ -418,12 +418,14 @@ function processCodeInternal(
   options: CompileOptions,
   programArgs?: string[],
 ): void {
-  injectRuntimeObjects(options);
-
   // Check if file has imports - if so, use module resolution
   const hasImports =
     shouldResolveImportsForCompilation(options) &&
     sourceContainsImportDeclaration(content, filePath);
+
+  if (shouldInjectNativeRuntimeObjects(options, hasImports)) {
+    injectRuntimeObjects(options);
+  }
 
   if (hasImports) {
     compileWithModules(content, filePath, options, programArgs);
@@ -441,11 +443,13 @@ async function processCodeInternalAsync(
   options: CompileOptions,
   programArgs?: string[],
 ): Promise<void> {
-  injectRuntimeObjects(options);
-
   const hasImports =
     shouldResolveImportsForCompilation(options) &&
     sourceContainsImportDeclaration(content, filePath);
+
+  if (shouldInjectNativeRuntimeObjects(options, hasImports)) {
+    injectRuntimeObjects(options);
+  }
 
   if (hasImports) {
     await compileWithModulesAsync(content, filePath, options, programArgs);
@@ -482,6 +486,13 @@ function injectRuntimeObjects(options: CompileOptions): void {
   }
 
   options.object = objects;
+}
+
+export function shouldInjectNativeRuntimeObjects(
+  options: CompileOptions,
+  hasImports: boolean,
+): boolean {
+  return Boolean(options.cache) && hasImports && needsNativeRuntimeObjects(options);
 }
 
 function needsNativeRuntimeObjects(options: CompileOptions): boolean {

@@ -165,9 +165,48 @@ export abstract class StatementGenerator extends AsmGenerator {
     decl: AST.FunctionDecl,
     emittedName: string,
   ): boolean {
-    if (decl.name === "main" || emittedName === "main") return true;
+    if (decl.name === "main" || emittedName === "main") {
+      return !this.isRuntimeFreeOptimizedNativeMain(decl);
+    }
 
     return !this.isTrivialLeafReturnFunction(decl);
+  }
+
+  private isRuntimeFreeOptimizedNativeMain(decl: AST.FunctionDecl): boolean {
+    if (!this.shouldUseStackLimitProbe()) return false;
+
+    return decl.body.statements.every((stmt) =>
+      this.isRuntimeFreeMainStatement(stmt),
+    );
+  }
+
+  private isRuntimeFreeMainStatement(stmt: AST.Statement): boolean {
+    if (stmt.kind === "Return") {
+      const value = (stmt as AST.ReturnStmt).value;
+      return !value || this.isLeafExpression(value);
+    }
+
+    if (stmt.kind === "ExpressionStmt") {
+      return this.isRuntimeFreeExternCallExpression(
+        (stmt as AST.ExpressionStmt).expression,
+      );
+    }
+
+    return false;
+  }
+
+  private isRuntimeFreeExternCallExpression(expr: AST.Expression): boolean {
+    if (expr.kind === "Group") {
+      return this.isRuntimeFreeExternCallExpression(
+        (expr as AST.GroupExpr).expression,
+      );
+    }
+    if (expr.kind !== "Call") return false;
+
+    const call = expr as AST.CallExpr;
+    if (call.operatorOverload) return false;
+    if (call.resolvedDeclaration?.kind !== "Extern") return false;
+    return call.args.every((arg) => this.isLeafExpression(arg));
   }
 
   private shouldInlineStackFrameChecks(): boolean {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import {
+  shouldInjectNativeRuntimeObjects,
   sourceContainsImportDeclaration,
   sourceMightContainImportDeclaration,
 } from "../cli/CompilationRunner";
@@ -32,5 +33,22 @@ describe("Compilation runner", () => {
         "test.bpl",
       ),
     ).toBe(true);
+  });
+
+  it("pre-injects native runtime objects only for cached module links", () => {
+    expect(shouldInjectNativeRuntimeObjects({ O: "3" }, false)).toBe(false);
+    expect(shouldInjectNativeRuntimeObjects({ O: "3" }, true)).toBe(false);
+    expect(
+      shouldInjectNativeRuntimeObjects({ O: "3", cache: true }, false),
+    ).toBe(false);
+    expect(
+      shouldInjectNativeRuntimeObjects({ O: "3", cache: true }, true),
+    ).toBe(true);
+    expect(
+      shouldInjectNativeRuntimeObjects(
+        { O: "3", cache: true, emit: "ast" },
+        true,
+      ),
+    ).toBe(false);
   });
 });

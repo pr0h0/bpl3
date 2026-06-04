@@ -444,6 +444,7 @@ function buildClangArgs(
   // Link runtime logic unless skipped
   if (!options.skipRuntime && !wasmTarget) {
     for (const runtimeFile of resolveNativeRuntimeFiles({
+      irPath,
       target,
       compileOptions: options,
       warn: (message) => log.warn(message),

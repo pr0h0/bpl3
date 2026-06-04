@@ -137,7 +137,18 @@ describe("BinaryRunner", () => {
 
     try {
       fs.mkdirSync(path.join(libDir, "runtime.ll"), { recursive: true });
-      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      fs.writeFileSync(
+        irPath,
+        [
+          "declare void @__bpl_throw_stack_overflow()",
+          "define i32 @main() {",
+          "entry:",
+          "  call void @__bpl_throw_stack_overflow()",
+          "  ret i32 0",
+          "}",
+          "",
+        ].join("\n"),
+      );
       process.env.BPL_HOME = bplHome;
 
       const result = compileToBinary(irPath, {});
@@ -153,6 +164,64 @@ describe("BinaryRunner", () => {
   test("links native builds with a cached runtime object instead of recompiling runtime.ll", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-binary-runtime-cache-"),
+    );
+    const bplHome = path.join(tempDir, "bpl-home");
+    const libDir = path.join(bplHome, "lib");
+    const irPath = path.join(tempDir, "main.ll");
+    const compilerLogPath = path.join(tempDir, "compiler.log");
+    const fakeCompiler = path.join(tempDir, "fake-cc.js");
+
+    try {
+      fs.mkdirSync(libDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(libDir, "runtime.ll"),
+        "define void @__bpl_runtime_stub() { ret void }\n",
+      );
+      fs.writeFileSync(path.join(libDir, "runtime_support.o"), "obj\n");
+      fs.writeFileSync(
+        irPath,
+        [
+          "declare void @__bpl_throw_stack_overflow()",
+          "define i32 @main() {",
+          "entry:",
+          "  call void @__bpl_throw_stack_overflow()",
+          "  ret i32 0",
+          "}",
+          "",
+        ].join("\n"),
+      );
+      writeNodeCommandShim(fakeCompiler, [
+        "const fs = require('fs');",
+        "const args = process.argv.slice(2);",
+        `fs.appendFileSync(${JSON.stringify(compilerLogPath)}, args.join(' ') + '\\n');`,
+        "const outputIndex = args.indexOf('-o');",
+        "if (outputIndex >= 0) fs.writeFileSync(args[outputIndex + 1], 'out\\n');",
+      ]);
+      process.env.BPL_HOME = bplHome;
+      process.env.BPL_CC = fakeCompiler;
+
+      const result = compileToBinary(irPath, {});
+
+      expect(result.success).toBe(true);
+      const invocations = fs
+        .readFileSync(compilerLogPath, "utf8")
+        .trim()
+        .split("\n");
+      const runtimeCompileArgs = invocations[0]!;
+      const finalLinkArgs = invocations.at(-1)!;
+      expect(runtimeCompileArgs).toContain("-ffunction-sections");
+      expect(runtimeCompileArgs).toContain("-fdata-sections");
+      expect(finalLinkArgs).not.toContain(path.join(libDir, "runtime.ll"));
+      expect(finalLinkArgs).toContain(".o");
+      expect(finalLinkArgs).toContain(path.join(libDir, "runtime_support.o"));
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("skips native runtime files when IR has no BPL runtime references", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-runtime-skip-"),
     );
     const bplHome = path.join(tempDir, "bpl-home");
     const libDir = path.join(bplHome, "lib");
@@ -185,10 +254,63 @@ describe("BinaryRunner", () => {
         .readFileSync(compilerLogPath, "utf8")
         .trim()
         .split("\n");
-      const runtimeCompileArgs = invocations[0]!;
-      const finalLinkArgs = invocations.at(-1)!;
-      expect(runtimeCompileArgs).toContain("-ffunction-sections");
-      expect(runtimeCompileArgs).toContain("-fdata-sections");
+      expect(invocations).toHaveLength(1);
+      const finalLinkArgs = invocations[0]!;
+      expect(finalLinkArgs).not.toContain(path.join(libDir, "runtime.ll"));
+      expect(finalLinkArgs).not.toContain(".o");
+      expect(finalLinkArgs).not.toContain(path.join(libDir, "runtime_support.o"));
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("keeps native runtime files when IR references BPL runtime helpers", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-runtime-keep-"),
+    );
+    const bplHome = path.join(tempDir, "bpl-home");
+    const libDir = path.join(bplHome, "lib");
+    const irPath = path.join(tempDir, "main.ll");
+    const compilerLogPath = path.join(tempDir, "compiler.log");
+    const fakeCompiler = path.join(tempDir, "fake-cc.js");
+
+    try {
+      fs.mkdirSync(libDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(libDir, "runtime.ll"),
+        "define void @__bpl_runtime_stub() { ret void }\n",
+      );
+      fs.writeFileSync(path.join(libDir, "runtime_support.o"), "obj\n");
+      fs.writeFileSync(
+        irPath,
+        [
+          "declare void @__bpl_throw_stack_overflow()",
+          "define i32 @main() {",
+          "entry:",
+          "  call void @__bpl_throw_stack_overflow()",
+          "  ret i32 0",
+          "}",
+          "",
+        ].join("\n"),
+      );
+      writeNodeCommandShim(fakeCompiler, [
+        "const fs = require('fs');",
+        "const args = process.argv.slice(2);",
+        `fs.appendFileSync(${JSON.stringify(compilerLogPath)}, args.join(' ') + '\\n');`,
+        "const outputIndex = args.indexOf('-o');",
+        "if (outputIndex >= 0) fs.writeFileSync(args[outputIndex + 1], 'out\\n');",
+      ]);
+      process.env.BPL_HOME = bplHome;
+      process.env.BPL_CC = fakeCompiler;
+
+      const result = compileToBinary(irPath, {});
+
+      expect(result.success).toBe(true);
+      const finalLinkArgs = fs
+        .readFileSync(compilerLogPath, "utf8")
+        .trim()
+        .split("\n")
+        .at(-1)!;
       expect(finalLinkArgs).not.toContain(path.join(libDir, "runtime.ll"));
       expect(finalLinkArgs).toContain(".o");
       expect(finalLinkArgs).toContain(path.join(libDir, "runtime_support.o"));
@@ -215,7 +337,18 @@ describe("BinaryRunner", () => {
         "define void @__bpl_runtime_stub() { ret void }\n",
       );
       fs.writeFileSync(path.join(runtimeTarget, "runtime_support.o"), "obj\n");
-      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      fs.writeFileSync(
+        irPath,
+        [
+          "declare void @__bpl_throw_stack_overflow()",
+          "define i32 @main() {",
+          "entry:",
+          "  call void @__bpl_throw_stack_overflow()",
+          "  ret i32 0",
+          "}",
+          "",
+        ].join("\n"),
+      );
       process.env.BPL_HOME = bplHome;
       process.env.BPL_CC = path.join(tempDir, "missing-cc");
 
@@ -247,7 +380,18 @@ describe("BinaryRunner", () => {
         "file",
       );
       fs.writeFileSync(path.join(libDir, "runtime_support.o"), "obj\n");
-      fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
+      fs.writeFileSync(
+        irPath,
+        [
+          "declare void @__bpl_throw_stack_overflow()",
+          "define i32 @main() {",
+          "entry:",
+          "  call void @__bpl_throw_stack_overflow()",
+          "  ret i32 0",
+          "}",
+          "",
+        ].join("\n"),
+      );
       process.env.BPL_HOME = bplHome;
       process.env.BPL_CC = path.join(tempDir, "missing-cc");
 

@@ -4,6 +4,7 @@ import {
   existsSync,
   lstatSync,
   mkdirSync,
+  readFileSync,
   renameSync,
   statSync,
   unlinkSync,
@@ -28,8 +29,11 @@ const log = new Logger("NativeRuntimeFiles");
 type RuntimeObjectCacheEntry = string | undefined;
 
 const runtimeObjectCache = new Map<string, RuntimeObjectCacheEntry>();
+const BPL_NATIVE_RUNTIME_SYMBOL_PATTERN =
+  /@(?:__bpl_[A-Za-z0-9_]+|defer_top|exception_top|exception_value|exception_type)\b/;
 
 export interface NativeRuntimeFileOptions {
+  irPath?: string;
   bplHome?: string;
   cacheDir?: string;
   compiler?: string;
@@ -41,6 +45,13 @@ export interface NativeRuntimeFileOptions {
 export function resolveNativeRuntimeFiles(
   options: NativeRuntimeFileOptions = {},
 ): string[] {
+  if (
+    options.irPath !== undefined &&
+    !nativeIrNeedsBplRuntime(options.irPath)
+  ) {
+    return [];
+  }
+
   const bplHome = options.bplHome ?? getBplHome();
   const runtimeFiles: string[] = [];
 
@@ -54,6 +65,10 @@ export function resolveNativeRuntimeFiles(
   runtimeFiles.push(runtimeSupportPath);
 
   return runtimeFiles;
+}
+
+export function nativeIrNeedsBplRuntime(irPath: string): boolean {
+  return BPL_NATIVE_RUNTIME_SYMBOL_PATTERN.test(readFileSync(irPath, "utf8"));
 }
 
 export function resetNativeRuntimeFileCacheForTests(): void {
