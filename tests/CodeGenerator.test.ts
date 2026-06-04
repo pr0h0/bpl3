@@ -167,6 +167,37 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain("baseStructDef.members.find");
   });
 
+  it("keeps function header generation off avoidable allocation paths", () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/StatementGenerator.ts",
+      ),
+      "utf8",
+    );
+    const start = source.indexOf("protected generateFunction");
+    const end = source.indexOf("    } finally {", start);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const methodSource = source.slice(start, end);
+    const initStart = methodSource.indexOf("const isInitMethod");
+    const initEnd = methodSource.indexOf("if (isInitMethod)", initStart);
+    const initSource = methodSource.slice(initStart, initEnd);
+
+    expect(source).toContain("private buildFunctionParameterList");
+    expect(source).toContain("private getMethodBaseName");
+    expect(methodSource).toContain("this.buildFunctionParameterList(");
+    expect(methodSource).not.toContain("decl.params\n          .map");
+    expect(methodSource).not.toContain(".join(\", \")");
+    expect(initStart).toBeGreaterThanOrEqual(0);
+    expect(initEnd).toBeGreaterThan(initStart);
+    expect(initSource).toContain("parentStruct &&");
+    expect(initSource).toContain('this.getMethodBaseName(decl.name) === "init"');
+    expect(methodSource).not.toContain('decl.name.split("_")');
+  });
+
   it("detects LLVM terminators without trimming generated lines", () => {
     const generator = new InspectableCodeGenerator();
     expect(generator.isIrTerminator("  ret i32 0")).toBe(true);

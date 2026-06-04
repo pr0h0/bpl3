@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Function Header Codegen Allocation Fast Path** - Function code generation
+  now builds LLVM parameter lists with a single loop and only extracts method
+  basenames when generating struct methods that can be `init`. This removes
+  avoidable `map(...).join(...)` and `split("_")` allocations from large
+  top-level function batches while preserving emitted IR. Against `ab4d50e`, a
+  matched 5k phase benchmark kept the token signature and LLVM IR hash
+  unchanged while codegen median improved from ~197.42ms to ~190.52ms; an
+  isolated codegen-only probe improved from ~197.76ms to ~167.93ms with the
+  same IR hash
+  (`c579f6868c8d3de52eab8f7fae86e30480adac92db1747f069c4bd8fc8d9b9cd`).
+  Reproduce the guard with
+  `bun test tests/CodeGenerator.test.ts -t "function header generation"` and
+  the phase benchmark with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 21 --warmups 5 --json`.
 - **Comment-Free Lexer Direct Token Emission** - `lexWithGrammar` now routes
   comment-free sources through `GenericParser.parseWithTokenEmitter`, emitting
   frontend `Token` objects directly instead of allocating generic `TokenNode`

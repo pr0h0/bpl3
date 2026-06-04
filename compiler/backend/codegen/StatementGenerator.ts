@@ -1749,6 +1749,31 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.emit(`${endLabel}:`);
   }
 
+  private buildFunctionParameterList(
+    params: AST.Parameter[],
+    paramTypes: AST.TypeNode[],
+  ): string {
+    let result = "";
+
+    for (let i = 0; i < params.length; i++) {
+      const param = params[i]!;
+      const type = this.resolveType(paramTypes[i]!);
+      if (result.length > 0) {
+        result += ", ";
+      }
+      result += `${type} %${param.name}`;
+    }
+
+    return result;
+  }
+
+  private getMethodBaseName(functionName: string): string {
+    const lastUnderscore = functionName.lastIndexOf("_");
+    return lastUnderscore === -1
+      ? functionName
+      : functionName.slice(lastUnderscore + 1);
+  }
+
   protected generateFunction(
     decl: AST.FunctionDecl,
     parentStruct?: AST.StructDecl | AST.EnumDecl,
@@ -1942,19 +1967,10 @@ export abstract class StatementGenerator extends AsmGenerator {
           ctxParam = "i8* %__closure_ctx";
         }
 
-        const userParams = decl.params
-          .map((p, i) => {
-            const type = this.resolveType(funcType.paramTypes[i]!);
-            const paramName = `%${p.name}`;
-
-            if (p.isVariadic) {
-              // Variadic parameter: pass as pointer to array AND count
-              return `${type} ${paramName}`;
-            }
-
-            return `${type} ${paramName}`;
-          })
-          .join(", ");
+        const userParams = this.buildFunctionParameterList(
+          decl.params,
+          funcType.paramTypes,
+        );
 
         if (isLambda) {
           params = userParams ? `${ctxParam}, ${userParams}` : ctxParam;
@@ -2117,15 +2133,12 @@ export abstract class StatementGenerator extends AsmGenerator {
       // This is different from `new()` which is a static factory method.
       // When methods are generated, their name is mangled to `StructName_methodName`,
       // so we need to check if the name ends with `_init` rather than equals `init`.
-      const methodBaseName = decl.name.includes("_")
-        ? decl.name.split("_").pop()
-        : decl.name;
       const isInitMethod =
         parentStruct &&
         parentStruct.kind === "StructDecl" &&
-        methodBaseName === "init" &&
         decl.params.length > 0 &&
-        decl.params[0]!.name === "this";
+        decl.params[0]!.name === "this" &&
+        this.getMethodBaseName(decl.name) === "init";
 
       if (isInitMethod) {
         // Get the struct name (may be mangled for generics)
