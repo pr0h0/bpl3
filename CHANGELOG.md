@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Generated Parser Location Line-Membership Fast Path** -
+  `optimizeGeneratedBplLocationLines` now emits direct line-membership checks
+  in `peg$findBplLineIndex` and `peg$computeBplLocation` instead of a generated
+  `peg$isBplPosInLine` helper call on the parser location path. Against
+  `69019ba`, a 101-round 5k phase benchmark preserved token count, token
+  signature, and LLVM IR hash while improving median parse time from ~242.11ms
+  to ~236.67ms and full median from ~525.88ms to ~519.74ms. Reproduce the
+  guard with
+  `bun test tests/Parser.test.ts -t "BPL AST locations on the generated line-start fast path"`
+  and the phase benchmark with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json`.
 - **Resolved Nominal Type Reuse Fast Path** - `TypeCheckerBase.resolveType`
   now reuses already-resolved non-generic struct, enum, and spec `BasicType`
   nodes before implicit primitive imports and scope lookup, while excluding

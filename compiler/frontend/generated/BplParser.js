@@ -1130,13 +1130,9 @@ function peg$parse(input, options) {
 
   let peg$lastBplLineIndex = 0;
 
-  function peg$isBplPosInLine(pos, lineIndex) {
-    return pos >= peg$bplLineStarts[lineIndex] &&
-      (lineIndex + 1 === peg$bplLineStarts.length || pos < peg$bplLineStarts[lineIndex + 1]);
-  }
-
   function peg$findBplLineIndex(pos) {
-    if (peg$isBplPosInLine(pos, peg$lastBplLineIndex)) {
+    if (pos >= peg$bplLineStarts[peg$lastBplLineIndex] &&
+      (peg$lastBplLineIndex + 1 === peg$bplLineStarts.length || pos < peg$bplLineStarts[peg$lastBplLineIndex + 1])) {
       return peg$lastBplLineIndex;
     }
 
@@ -1168,7 +1164,10 @@ function peg$parse(input, options) {
 
   function peg$computeBplLocation(startPos, endPos) {
     const startLineIndex = peg$findBplLineIndex(startPos);
-    const endLineIndex = peg$isBplPosInLine(endPos, startLineIndex) ? startLineIndex : peg$findBplLineIndex(endPos);
+    const endLineIndex = endPos >= peg$bplLineStarts[startLineIndex] &&
+      (startLineIndex + 1 === peg$bplLineStarts.length || endPos < peg$bplLineStarts[startLineIndex + 1])
+      ? startLineIndex
+      : peg$findBplLineIndex(endPos);
 
     return {
       file: parserFilePath,

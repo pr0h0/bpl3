@@ -335,9 +335,9 @@ describe("Parser", () => {
     expect(generatedSource).toContain("const peg$bplLineStarts = [0];");
     expect(generatedSource).toContain("let peg$lastBplLineIndex = 0;");
     expect(generatedSource).toContain("function peg$findBplLineIndex(pos)");
-    expect(generatedSource).toContain("function peg$isBplPosInLine(pos, lineIndex)");
+    expect(generatedSource).not.toContain("function peg$isBplPosInLine");
     expect(generatedSource).toContain(
-      "if (pos >= peg$bplLineStarts[peg$lastBplLineIndex])",
+      "if (pos >= peg$bplLineStarts[peg$lastBplLineIndex] &&",
     );
     expect(generatedSource).toContain(
       "peg$lastBplLineIndex + 1 < peg$bplLineStarts.length",
@@ -346,7 +346,10 @@ describe("Parser", () => {
       "pos >= peg$bplLineStarts[peg$lastBplLineIndex + 1]",
     );
     expect(locationHelper).toContain("peg$findBplLineIndex(startPos)");
-    expect(locationHelper).toContain("peg$isBplPosInLine(endPos, startLineIndex)");
+    expect(locationHelper).toContain(
+      "endPos >= peg$bplLineStarts[startLineIndex]",
+    );
+    expect(locationHelper).not.toContain("peg$isBplPosInLine");
     expect(locationHelper).not.toContain("peg$computePosDetails");
   });
 
