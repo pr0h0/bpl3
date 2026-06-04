@@ -878,29 +878,38 @@ export class CodeGenerator extends StatementGenerator {
     references: LlvmReferences,
     llvmBody: string,
   ): void {
+    this.addLlvmSymbolReferencesFromText(references, llvmBody);
+    this.addLlvmStructReferencesFromText(references, llvmBody);
+  }
+
+  private addLlvmSymbolReferencesFromText(
+    references: LlvmReferences,
+    llvmBody: string,
+  ): void {
     let index = 0;
-    while (index < llvmBody.length) {
+    while (true) {
       const symbolIndex = llvmBody.indexOf("@", index);
+      if (symbolIndex === -1) break;
+
+      const start = symbolIndex + 1;
+      const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
+      if (end > start) {
+        references.symbols.add(llvmBody.slice(start, end));
+        index = end;
+      } else {
+        index = start;
+      }
+    }
+  }
+
+  private addLlvmStructReferencesFromText(
+    references: LlvmReferences,
+    llvmBody: string,
+  ): void {
+    let index = 0;
+    while (true) {
       const structIndex = llvmBody.indexOf("%struct.", index);
-
-      if (symbolIndex === -1 && structIndex === -1) {
-        break;
-      }
-
-      if (
-        symbolIndex !== -1 &&
-        (structIndex === -1 || symbolIndex < structIndex)
-      ) {
-        const start = symbolIndex + 1;
-        const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
-        if (end > start) {
-          references.symbols.add(llvmBody.slice(start, end));
-          index = end;
-        } else {
-          index = start;
-        }
-        continue;
-      }
+      if (structIndex === -1) break;
 
       const start = structIndex + "%struct.".length;
       const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
@@ -908,7 +917,7 @@ export class CodeGenerator extends StatementGenerator {
         references.structs.add(llvmBody.slice(start, end));
         index = end;
       } else {
-        index = start;
+        index = start + 1;
       }
     }
   }

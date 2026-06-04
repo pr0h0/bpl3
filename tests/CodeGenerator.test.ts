@@ -1009,11 +1009,14 @@ describe("CodeGenerator", () => {
     const referenceSource = source.slice(collectStart, collectEnd);
     expect(source).not.toContain("llvmSymbolReferencePatterns");
     expect(source).not.toContain("llvmStructReferencePatterns");
+    expect(referenceSource).toContain("addLlvmSymbolReferencesFromText");
+    expect(referenceSource).toContain("addLlvmStructReferencesFromText");
     expect(referenceSource).toContain("references.symbols.add");
     expect(referenceSource).toContain("references.structs.add");
     expect(referenceSource).toContain('llvmBody.indexOf("@", index)');
     expect(referenceSource).toContain('llvmBody.indexOf("%struct.", index)');
     expect(referenceSource).toContain("llvmBody.charCodeAt(end)");
+    expect(referenceSource).not.toContain("symbolIndex < structIndex");
     expect(referenceSource).not.toContain(
       "for (let index = 0; index < llvmBody.length; index++)",
     );
