@@ -161,6 +161,8 @@ export class CodeGenerator extends StatementGenerator {
     this.structLayouts.clear();
     this.structMap.clear();
     this.structFieldListCache.clear();
+    this.sortedStructLayoutEntriesCache.clear();
+    this.structFieldByNameCache.clear();
     this.clearDefaultValueCaches();
     this.registerBuiltinLayouts();
     this.loopStack = [];

@@ -20,6 +20,8 @@ import { TokenType } from "../../frontend/TokenType";
 import { UnaryExpressionGenerator } from "./UnaryExpressionGenerator";
 import { getIntegerBitWidth } from "./utils";
 
+const STRUCT_LITERAL_FIELD_MAP_THRESHOLD = 4;
+
 export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
   protected abstract generateBlock(block: AST.BlockStmt): void;
 
@@ -1137,18 +1139,27 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       );
     }
 
-    const fieldValues = new Map<string, AST.Expression>();
-    for (const field of expr.fields) {
-      fieldValues.set(field.name, field.value);
+    let fieldValues: Map<string, AST.Expression> | undefined = undefined;
+    if (expr.fields.length > STRUCT_LITERAL_FIELD_MAP_THRESHOLD) {
+      fieldValues = new Map<string, AST.Expression>();
+      for (const field of expr.fields) {
+        fieldValues.set(field.name, field.value);
+      }
     }
 
-    const sortedFields = Array.from(layout.entries()).sort(
-      (a, b) => a[1] - b[1],
-    );
+    const sortedFields = this.getSortedStructLayoutEntries(structName, layout);
 
     // Get struct definition for field type info
     const baseStructName = expr.structName;
     const baseStructDef = this.structMap.get(baseStructName);
+    let genericContextMap: Map<string, AST.TypeNode> | undefined = undefined;
+    if (baseStructDef && basicType.genericArgs.length > 0) {
+      genericContextMap = new Map<string, AST.TypeNode>();
+      const typeParams = baseStructDef.genericParams || [];
+      for (let i = 0; i < typeParams.length; i++) {
+        genericContextMap.set(typeParams[i]!.name, basicType.genericArgs[i]!);
+      }
+    }
 
     for (const [fieldName, fieldIndex] of sortedFields) {
       if (fieldName === "__vtable__") {
@@ -1165,7 +1176,15 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         continue;
       }
 
-      const valExpr = fieldValues.get(fieldName);
+      let valExpr = fieldValues?.get(fieldName);
+      if (!fieldValues) {
+        for (const field of expr.fields) {
+          if (field.name === fieldName) {
+            valExpr = field.value;
+            break;
+          }
+        }
+      }
       if (valExpr) {
         let val = this.generateExpression(valExpr);
         const fieldType = this.resolveType(valExpr.resolvedType!);
@@ -1182,22 +1201,20 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         // Get expected field type from struct definition for type checking
         let expectedFieldType = fieldType; // Default to expression type
         if (baseStructDef) {
-          const fieldDef = baseStructDef.members.find(
-            (m): m is AST.StructField =>
-              m.kind === "StructField" && m.name === fieldName,
+          const fieldDef = this.getStructFieldByName(
+            baseStructDef,
+            fieldName,
           );
           if (fieldDef) {
             // Resolve the field's declared type (may be generic)
             let fieldTypeNode = fieldDef.type;
 
             // Handle generic type substitution
-            if (basicType.genericArgs && basicType.genericArgs.length > 0) {
-              const typeParams = baseStructDef.genericParams || [];
-              const contextMap = new Map<string, AST.TypeNode>();
-              for (let i = 0; i < typeParams.length; i++) {
-                contextMap.set(typeParams[i]!.name, basicType.genericArgs[i]!);
-              }
-              fieldTypeNode = this.substituteType(fieldTypeNode, contextMap);
+            if (genericContextMap) {
+              fieldTypeNode = this.substituteType(
+                fieldTypeNode,
+                genericContextMap,
+              );
             }
 
             expectedFieldType = this.resolveType(fieldTypeNode);

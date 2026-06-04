@@ -118,6 +118,55 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("caches struct literal layout and field metadata for repeated codegen", () => {
+    const baseSource = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
+      "utf8",
+    );
+    const generatorSource = readFileSync(
+      join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
+      "utf8",
+    );
+    const expressionSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/ExpressionGenerator.ts",
+      ),
+      "utf8",
+    );
+
+    expect(baseSource).toContain("sortedStructLayoutEntriesCache");
+    expect(baseSource).toContain("structFieldByNameCache");
+    expect(generatorSource).toContain(
+      "this.sortedStructLayoutEntriesCache.clear()",
+    );
+    expect(generatorSource).toContain("this.structFieldByNameCache.clear()");
+
+    const methodStart = expressionSource.indexOf(
+      "protected generateStructLiteral",
+    );
+    const methodEnd = expressionSource.indexOf(
+      "protected generateTupleLiteral",
+      methodStart,
+    );
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+
+    const methodSource = expressionSource.slice(methodStart, methodEnd);
+    expect(methodSource).toContain(
+      "this.getSortedStructLayoutEntries(structName, layout)",
+    );
+    expect(methodSource).toContain("this.getStructFieldByName(");
+    expect(methodSource).toContain("baseStructDef,");
+    expect(methodSource).toContain("fieldName,");
+    expect(methodSource).toContain("STRUCT_LITERAL_FIELD_MAP_THRESHOLD");
+    expect(methodSource).toContain("expr.fields.length >");
+    expect(methodSource).toContain("for (const field of expr.fields)");
+    expect(methodSource).not.toContain("Array.from(layout.entries()).sort");
+    expect(methodSource).not.toContain("baseStructDef.members.find");
+  });
+
   it("detects LLVM terminators without trimming generated lines", () => {
     const generator = new InspectableCodeGenerator();
     expect(generator.isIrTerminator("  ret i32 0")).toBe(true);

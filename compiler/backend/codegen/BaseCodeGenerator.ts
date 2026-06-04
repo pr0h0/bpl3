@@ -246,6 +246,12 @@ export class BaseCodeGenerator {
   protected structMap: Map<string, AST.StructDecl> = new Map();
   protected structFieldListCache: Map<AST.StructDecl, AST.StructField[]> =
     new Map();
+  protected sortedStructLayoutEntriesCache: Map<string, [string, number][]> =
+    new Map();
+  protected structFieldByNameCache: Map<
+    AST.StructDecl,
+    Map<string, AST.StructField>
+  > = new Map();
   protected specMap: Map<string, AST.SpecDecl> = new Map();
   protected thunks: Set<string> = new Set();
   protected loopStack: { continueLabel: string; breakLabel: string }[] = [];
@@ -398,6 +404,41 @@ export class BaseCodeGenerator {
   // Add a method to register external layouts (to be called by the driver/compiler)
   public registerStructLayout(name: string, layout: Map<string, number>) {
     this.structLayouts.set(name, layout);
+    this.sortedStructLayoutEntriesCache.delete(name);
+  }
+
+  protected getSortedStructLayoutEntries(
+    structName: string,
+    layout: Map<string, number>,
+  ): [string, number][] {
+    const cached = this.sortedStructLayoutEntriesCache.get(structName);
+    if (cached) {
+      return cached;
+    }
+
+    const sortedEntries = Array.from(layout.entries()).sort(
+      (a, b) => a[1] - b[1],
+    );
+    this.sortedStructLayoutEntriesCache.set(structName, sortedEntries);
+    return sortedEntries;
+  }
+
+  protected getStructFieldByName(
+    decl: AST.StructDecl,
+    fieldName: string,
+  ): AST.StructField | undefined {
+    let fieldByName = this.structFieldByNameCache.get(decl);
+    if (!fieldByName) {
+      fieldByName = new Map<string, AST.StructField>();
+      for (const member of decl.members) {
+        if (member.kind === "StructField") {
+          fieldByName.set(member.name, member);
+        }
+      }
+      this.structFieldByNameCache.set(decl, fieldByName);
+    }
+
+    return fieldByName.get(fieldName);
   }
 
   protected newRegister(): string {
