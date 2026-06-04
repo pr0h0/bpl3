@@ -102,6 +102,43 @@ describe("CodeGenerator", () => {
     expect(methodPrefix).toContain("if (simpleBuiltinLlvmType)");
   });
 
+  it("keeps hot type mangling list construction allocation-conscious", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/TypeGenerator.ts"),
+      "utf8",
+    );
+    const getMangledNameStart = source.indexOf("protected getMangledName");
+    const getDwarfTypeIdStart = source.indexOf("protected getDwarfTypeId");
+    const getMangledNameSource = source.slice(
+      getMangledNameStart,
+      getDwarfTypeIdStart,
+    );
+    const mangleCallableStart = source.indexOf("private mangleCallableType");
+    const mangleArraySuffixStart = source.indexOf("private mangleArraySuffix");
+    const mangleCallableSource = source.slice(
+      mangleCallableStart,
+      mangleArraySuffixStart,
+    );
+    const mangleArraySuffixEnd = source.indexOf(
+      "\n\n  protected checkInheritance",
+      mangleArraySuffixStart,
+    );
+    const mangleArraySuffixSource = source.slice(
+      mangleArraySuffixStart,
+      mangleArraySuffixEnd,
+    );
+
+    expect(source).toContain("private mangleTypeList");
+    expect(getMangledNameSource).toContain("this.mangleTypeList");
+    expect(mangleCallableSource).toContain("this.mangleTypeList");
+    expect(getMangledNameSource).not.toContain(".map((t) => this.mangleType(t))");
+    expect(mangleCallableSource).not.toContain(
+      ".map((t) => this.mangleType(t))",
+    );
+    expect(mangleArraySuffixSource).toContain("if (dimensions.length === 0)");
+    expect(mangleArraySuffixSource).not.toContain("dimensions.map");
+  });
+
   it("reuses simple struct field lists during repeated codegen lookups", () => {
     const program = parseAndCheck([
       "struct Point {",

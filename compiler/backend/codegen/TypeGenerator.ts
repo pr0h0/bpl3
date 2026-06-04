@@ -219,11 +219,21 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     genericArgs: AST.TypeNode[] = [],
   ): string {
     if (name === "main" || isExtern) return name;
-    let mangled = `${name}_${type.paramTypes.map((t) => this.mangleType(t)).join("_")}`;
+    let mangled = `${name}_${this.mangleTypeList(type.paramTypes)}`;
     if (genericArgs.length > 0) {
-      mangled += "_" + genericArgs.map((t) => this.mangleType(t)).join("_");
+      mangled += "_" + this.mangleTypeList(genericArgs);
     }
     return mangled;
+  }
+
+  private mangleTypeList(types: AST.TypeNode[], emptyValue: string = ""): string {
+    if (types.length === 0) return emptyValue;
+
+    let result = this.mangleType(types[0]!);
+    for (let i = 1; i < types.length; i++) {
+      result += "_" + this.mangleType(types[i]!);
+    }
+    return result;
   }
 
   protected getDwarfTypeId(type: AST.TypeNode, depth: number = 0): number {
@@ -1071,7 +1081,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
       // Handle generic args in mangling
       if (type.genericArgs.length > 0) {
-        const args = type.genericArgs.map((t) => this.mangleType(t)).join("_");
+        const args = this.mangleTypeList(type.genericArgs);
         name = `${name}_${args}`;
       }
 
@@ -1089,7 +1099,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     } else if (type.kind === "LambdaType") {
       return this.mangleCallableType("lambda", type);
     } else if (type.kind === "TupleType") {
-      const members = type.types.map((t) => this.mangleType(t)).join("_");
+      const members = this.mangleTypeList(type.types);
       return `tuple_${members}${this.mangleArraySuffix(type.arrayDimensions)}`;
     } else if (type.kind === "MetaType") {
       return `meta_${this.mangleType(type.type)}`;
@@ -1106,16 +1116,19 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     prefix: string,
     type: AST.FunctionTypeNode | AST.LambdaTypeNode,
   ): string {
-    const params =
-      type.paramTypes.length === 0
-        ? "void"
-        : type.paramTypes.map((t) => this.mangleType(t)).join("_");
+    const params = this.mangleTypeList(type.paramTypes, "void");
     const variadic = type.isVariadic ? "_variadic" : "";
     return `${prefix}_${params}_ret_${this.mangleType(type.returnType)}${variadic}${this.mangleArraySuffix(type.arrayDimensions)}`;
   }
 
   private mangleArraySuffix(dimensions: (number | null)[] = []): string {
-    return dimensions.map((d) => `_arr_${d}_`).join("");
+    if (dimensions.length === 0) return "";
+
+    let suffix = "";
+    for (let i = 0; i < dimensions.length; i++) {
+      suffix += `_arr_${dimensions[i]}_`;
+    }
+    return suffix;
   }
 
   protected checkInheritance(childName: string, parentName: string): boolean {
@@ -2280,7 +2293,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
   ): string {
     if (genericArgs.length === 0) return baseName;
 
-    const argNames = genericArgs.map((arg) => this.mangleType(arg)).join("_");
+    const argNames = this.mangleTypeList(genericArgs);
 
     return `${baseName}_${argNames}`;
   }
