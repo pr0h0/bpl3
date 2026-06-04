@@ -12334,11 +12334,6 @@ function peg$parse(input, options) {
         break;
       }
       peg$currPos++;
-      while (peg$currPos < input.length) {
-        const code = input.charCodeAt(peg$currPos);
-        if (code !== 32 && code !== 9 && code !== 10 && code !== 13) break;
-        peg$currPos++;
-      }
     }
 
     return peg$emptyTrivia;

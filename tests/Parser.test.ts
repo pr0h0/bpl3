@@ -1036,6 +1036,10 @@ describe("Parser", () => {
     );
     expect(generatedSource).toContain("function peg$parseWhitespaceOnly()");
     expect(whitespaceHelper).toContain("while (peg$currPos < input.length)");
+    expect(
+      whitespaceHelper?.match(/while \(peg\$currPos < input\.length\)/g)
+        ?.length ?? 0,
+    ).toBe(1);
     expect(whitespaceHelper).toContain(
       "currentCode !== 32 && currentCode !== 9",
     );
