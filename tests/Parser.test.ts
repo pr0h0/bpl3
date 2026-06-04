@@ -328,6 +328,30 @@ describe("Parser", () => {
     expect(generatedSource).not.toContain("loc && loc.start && loc.end");
   });
 
+  it("keeps generated block statement collection off the map/filter allocation path", () => {
+    const grammarSource = readFileSync(
+      join(process.cwd(), "grammar", "bpl.peggy"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+
+    expect(grammarSource).toContain("const statements = []");
+    expect(generatedSource).toContain("const statements = []");
+    expect(generatedSource).toContain("statements.push(statement)");
+    expect(generatedSource).not.toContain(
+      "stmts.map(s => s[0]).filter(s => s !== null)",
+    );
+  });
+
   it("keeps generated operator and merged locations on the direct SourceLocation fast path", () => {
     const generatedSource = readFileSync(
       join(

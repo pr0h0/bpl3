@@ -571,7 +571,13 @@ function peg$parse(input, options) {
     return [extract(head), ...tail.map(t => extract(t[3]))];
   }
   function peg$f54(stmts) {
-    const statements = stmts.map(s => s[0]).filter(s => s !== null);
+    const statements = [];
+    for (let i = 0; i < stmts.length; i++) {
+      const statement = stmts[i][0];
+      if (statement !== null) {
+        statements.push(statement);
+      }
+    }
     return block(statements, location());
   }
   function peg$f55(p) {    return p;  }

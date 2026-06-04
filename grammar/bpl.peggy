@@ -809,7 +809,13 @@ AsmClobbers
 
 Block
   = "{" _ stmts:(Statement _)* "}" {
-      const statements = stmts.map(s => s[0]).filter(s => s !== null);
+      const statements = [];
+      for (let i = 0; i < stmts.length; i++) {
+        const statement = stmts[i][0];
+        if (statement !== null) {
+          statements.push(statement);
+        }
+      }
       return block(statements, location());
     }
 
