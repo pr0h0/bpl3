@@ -285,9 +285,9 @@ describe("Parser", () => {
     expect(generatedSource).toContain("function peg$isBplIdentStartCode(code)");
     expect(generatedSource).toContain("function peg$isBplIdentPartCode(code)");
     expect(generatedSource).toContain("const peg$bplReservedKeywords = new Set");
-    expect(identifierHelper).toContain("peg$scanBplIdentToken()");
+    expect(identifierHelper).toContain("peg$scanBplIdentTokenEnd()");
     expect(identifierHelper).not.toContain("peg$parseKeywordReserved()");
-    expect(identScanner).toContain("input.substring(startPos, peg$currPos)");
+    expect(identScanner).toContain("input.substring(startPos, endPos)");
     expect(identHelper).toContain("return peg$scanBplIdentToken();");
     expect(identHelper).not.toContain("s3.push");
     expect(keywordHelper).toContain("peg$bplReservedKeywords.has(word)");
@@ -342,6 +342,55 @@ describe("Parser", () => {
     expect(returnStatement.value?.location.file).toBe("identifier-location.bpl");
     expect(returnStatement.value?.location.startLine).toBe(1);
     expect(returnStatement.value?.location.startColumn).toBeGreaterThan(0);
+  });
+
+  it("rejects reserved words in Identifier without slicing a token name first", () => {
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const identifierHelper = generatedSource.match(
+      /function peg\$parseIdentifier\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+    const identTokenHelper = generatedSource.match(
+      /function peg\$parseIdentToken\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+    const identScanner = generatedSource.match(
+      /function peg\$scanBplIdentToken\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+    const identEndScanner = generatedSource.match(
+      /function peg\$scanBplIdentTokenEnd\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+    const reservedRangeHelper = generatedSource.match(
+      /function peg\$isBplReservedKeywordRange\(startPos, endPos\)[\s\S]*?\n  \}/,
+    )?.[0];
+
+    expect(identEndScanner).toBeDefined();
+    expect(reservedRangeHelper).toBeDefined();
+    expect(identifierHelper).toContain(
+      "const endPos = peg$scanBplIdentTokenEnd()",
+    );
+    expect(identifierHelper).toContain(
+      "peg$isBplReservedKeywordRange(startPos, endPos)",
+    );
+    expect(identifierHelper).toContain("input.substring(startPos, endPos)");
+    expect(identifierHelper).not.toContain("peg$bplReservedKeywords.has(name)");
+    expect(identScanner).toContain(
+      "const endPos = peg$scanBplIdentTokenEnd()",
+    );
+    expect(identScanner).toContain("input.substring(startPos, endPos)");
+    expect(identTokenHelper).toContain("return peg$scanBplIdentToken();");
+
+    expect(() => new Parser("local frame: int = 1;", "reserved.bpl").parse())
+      .toThrow(CompilerError);
+    expect(() => new Parser("local framex: int = 1;", "reserved.bpl").parse())
+      .not.toThrow();
   });
 
   it("keeps generated number-token parsing on the direct scanner fast path", () => {

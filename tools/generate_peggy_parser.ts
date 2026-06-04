@@ -281,17 +281,18 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
   const identifierReplacement = [
     "  function peg$parseIdentifier() {",
     "    const startPos = peg$currPos;",
-    "    const name = peg$scanBplIdentToken();",
+    "    const endPos = peg$scanBplIdentTokenEnd();",
     "",
-    "    if (name === peg$FAILED) {",
+    "    if (endPos === peg$FAILED) {",
     "      return peg$FAILED;",
     "    }",
-    "    if (peg$bplReservedKeywords.has(name)) {",
+    "    if (peg$isBplReservedKeywordRange(startPos, endPos)) {",
     "      peg$currPos = startPos;",
     "      return peg$FAILED;",
     "    }",
     "",
     "    peg$savedPos = startPos;",
+    "    const name = input.substring(startPos, endPos);",
     `    return ${identifierActionName}(name);`,
     "  }",
     "",
@@ -306,8 +307,7 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     "    return peg$isBplIdentStartCode(code) || (code >= 48 && code <= 57);",
     "  }",
     "",
-    "  function peg$scanBplIdentToken() {",
-    "    const startPos = peg$currPos;",
+    "  function peg$scanBplIdentTokenEnd() {",
     "    const firstCode = input.charCodeAt(peg$currPos);",
     "",
     "    if (!peg$isBplIdentStartCode(firstCode)) {",
@@ -321,7 +321,16 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     "    }",
     "    if (peg$silentFails === 0) { peg$fail(peg$e79); }",
     "",
-    "    return input.substring(startPos, peg$currPos);",
+    "    return peg$currPos;",
+    "  }",
+    "",
+    "  function peg$scanBplIdentToken() {",
+    "    const startPos = peg$currPos;",
+    "    const endPos = peg$scanBplIdentTokenEnd();",
+    "    if (endPos === peg$FAILED) {",
+    "      return peg$FAILED;",
+    "    }",
+    "    return input.substring(startPos, endPos);",
     "  }",
     "",
     "  function peg$parseIdentToken() {",
@@ -375,6 +384,8 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     "false",
   ];
   const keywordReservedReplacement = [
+    ...buildReservedKeywordRangeHelper(reservedKeywords),
+    "",
     `  const peg$bplReservedKeywords = new Set(${JSON.stringify(reservedKeywords)});`,
     "",
     "  function peg$parseKeywordReserved() {",
@@ -417,6 +428,57 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     .replace(identifierPattern, identifierReplacement)
     .replace(identTokenPattern, identTokenReplacement)
     .replace(keywordReservedPattern, keywordReservedReplacement);
+}
+
+function buildReservedKeywordRangeHelper(reservedKeywords: string[]): string[] {
+  const byLength = new Map<number, Map<number, string[]>>();
+  for (const keyword of reservedKeywords) {
+    const firstCode = keyword.charCodeAt(0);
+    let byFirstCode = byLength.get(keyword.length);
+    if (!byFirstCode) {
+      byFirstCode = new Map();
+      byLength.set(keyword.length, byFirstCode);
+    }
+    const bucket = byFirstCode.get(firstCode) ?? [];
+    bucket.push(keyword);
+    byFirstCode.set(firstCode, bucket);
+  }
+
+  const lines = [
+    "  function peg$isBplReservedKeywordRange(startPos, endPos) {",
+    "    switch (endPos - startPos) {",
+  ];
+  for (const [length, byFirstCode] of [...byLength.entries()].sort(
+    (a, b) => a[0] - b[0],
+  )) {
+    lines.push(`      case ${length}:`);
+    lines.push("        switch (input.charCodeAt(startPos)) {");
+    for (const [firstCode, keywords] of [...byFirstCode.entries()].sort(
+      (a, b) => a[0] - b[0],
+    )) {
+      const checks = keywords
+        .sort()
+        .map((keyword) =>
+          keyword
+            .split("")
+            .slice(1)
+            .map(
+              (char, index) =>
+                `input.charCodeAt(startPos + ${index + 1}) === ${char.charCodeAt(0)}`,
+            )
+            .join(" && "),
+        );
+      lines.push(`          case ${firstCode}:`);
+      lines.push(`            return ${checks.join(" || ")};`);
+    }
+    lines.push("        }");
+    lines.push("        return false;");
+  }
+  lines.push("      default:");
+  lines.push("        return false;");
+  lines.push("    }");
+  lines.push("  }");
+  return lines;
 }
 
 function optimizeGeneratedNumberScanning(parserSource: string): string {

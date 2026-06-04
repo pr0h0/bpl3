@@ -9675,17 +9675,18 @@ function peg$parse(input, options) {
 
   function peg$parseIdentifier() {
     const startPos = peg$currPos;
-    const name = peg$scanBplIdentToken();
+    const endPos = peg$scanBplIdentTokenEnd();
 
-    if (name === peg$FAILED) {
+    if (endPos === peg$FAILED) {
       return peg$FAILED;
     }
-    if (peg$bplReservedKeywords.has(name)) {
+    if (peg$isBplReservedKeywordRange(startPos, endPos)) {
       peg$currPos = startPos;
       return peg$FAILED;
     }
 
     peg$savedPos = startPos;
+    const name = input.substring(startPos, endPos);
     return peg$f163(name);
   }
 
@@ -9697,8 +9698,7 @@ function peg$parse(input, options) {
     return peg$isBplIdentStartCode(code) || (code >= 48 && code <= 57);
   }
 
-  function peg$scanBplIdentToken() {
-    const startPos = peg$currPos;
+  function peg$scanBplIdentTokenEnd() {
     const firstCode = input.charCodeAt(peg$currPos);
 
     if (!peg$isBplIdentStartCode(firstCode)) {
@@ -9712,7 +9712,16 @@ function peg$parse(input, options) {
     }
     if (peg$silentFails === 0) { peg$fail(peg$e79); }
 
-    return input.substring(startPos, peg$currPos);
+    return peg$currPos;
+  }
+
+  function peg$scanBplIdentToken() {
+    const startPos = peg$currPos;
+    const endPos = peg$scanBplIdentTokenEnd();
+    if (endPos === peg$FAILED) {
+      return peg$FAILED;
+    }
+    return input.substring(startPos, endPos);
   }
 
   function peg$parseIdentToken() {
@@ -12374,6 +12383,109 @@ function peg$parse(input, options) {
     }
 
     return s0;
+  }
+
+  function peg$isBplReservedKeywordRange(startPos, endPos) {
+    switch (endPos - startPos) {
+      case 2:
+        switch (input.charCodeAt(startPos)) {
+          case 97:
+            return input.charCodeAt(startPos + 1) === 115;
+          case 105:
+            return input.charCodeAt(startPos + 1) === 102 || input.charCodeAt(startPos + 1) === 115;
+        }
+        return false;
+      case 3:
+        switch (input.charCodeAt(startPos)) {
+          case 97:
+            return input.charCodeAt(startPos + 1) === 115 && input.charCodeAt(startPos + 2) === 109;
+          case 114:
+            return input.charCodeAt(startPos + 1) === 101 && input.charCodeAt(startPos + 2) === 116;
+          case 116:
+            return input.charCodeAt(startPos + 1) === 114 && input.charCodeAt(startPos + 2) === 121;
+        }
+        return false;
+      case 4:
+        switch (input.charCodeAt(startPos)) {
+          case 70:
+            return input.charCodeAt(startPos + 1) === 117 && input.charCodeAt(startPos + 2) === 110 && input.charCodeAt(startPos + 3) === 99;
+          case 83:
+            return input.charCodeAt(startPos + 1) === 101 && input.charCodeAt(startPos + 2) === 108 && input.charCodeAt(startPos + 3) === 102;
+          case 99:
+            return input.charCodeAt(startPos + 1) === 97 && input.charCodeAt(startPos + 2) === 115 && input.charCodeAt(startPos + 3) === 101 || input.charCodeAt(startPos + 1) === 97 && input.charCodeAt(startPos + 2) === 115 && input.charCodeAt(startPos + 3) === 116;
+          case 101:
+            return input.charCodeAt(startPos + 1) === 108 && input.charCodeAt(startPos + 2) === 115 && input.charCodeAt(startPos + 3) === 101 || input.charCodeAt(startPos + 1) === 110 && input.charCodeAt(startPos + 2) === 117 && input.charCodeAt(startPos + 3) === 109;
+          case 102:
+            return input.charCodeAt(startPos + 1) === 114 && input.charCodeAt(startPos + 2) === 111 && input.charCodeAt(startPos + 3) === 109;
+          case 108:
+            return input.charCodeAt(startPos + 1) === 111 && input.charCodeAt(startPos + 2) === 111 && input.charCodeAt(startPos + 3) === 112;
+          case 110:
+            return input.charCodeAt(startPos + 1) === 117 && input.charCodeAt(startPos + 2) === 108 && input.charCodeAt(startPos + 3) === 108;
+          case 115:
+            return input.charCodeAt(startPos + 1) === 112 && input.charCodeAt(startPos + 2) === 101 && input.charCodeAt(startPos + 3) === 99;
+          case 116:
+            return input.charCodeAt(startPos + 1) === 114 && input.charCodeAt(startPos + 2) === 117 && input.charCodeAt(startPos + 3) === 101 || input.charCodeAt(startPos + 1) === 121 && input.charCodeAt(startPos + 2) === 112 && input.charCodeAt(startPos + 3) === 101;
+        }
+        return false;
+      case 5:
+        switch (input.charCodeAt(startPos)) {
+          case 98:
+            return input.charCodeAt(startPos + 1) === 114 && input.charCodeAt(startPos + 2) === 101 && input.charCodeAt(startPos + 3) === 97 && input.charCodeAt(startPos + 4) === 107;
+          case 99:
+            return input.charCodeAt(startPos + 1) === 97 && input.charCodeAt(startPos + 2) === 116 && input.charCodeAt(startPos + 3) === 99 && input.charCodeAt(startPos + 4) === 104 || input.charCodeAt(startPos + 1) === 111 && input.charCodeAt(startPos + 2) === 110 && input.charCodeAt(startPos + 3) === 115 && input.charCodeAt(startPos + 4) === 116;
+          case 102:
+            return input.charCodeAt(startPos + 1) === 97 && input.charCodeAt(startPos + 2) === 108 && input.charCodeAt(startPos + 3) === 115 && input.charCodeAt(startPos + 4) === 101 || input.charCodeAt(startPos + 1) === 114 && input.charCodeAt(startPos + 2) === 97 && input.charCodeAt(startPos + 3) === 109 && input.charCodeAt(startPos + 4) === 101;
+          case 108:
+            return input.charCodeAt(startPos + 1) === 111 && input.charCodeAt(startPos + 2) === 99 && input.charCodeAt(startPos + 3) === 97 && input.charCodeAt(startPos + 4) === 108;
+          case 109:
+            return input.charCodeAt(startPos + 1) === 97 && input.charCodeAt(startPos + 2) === 116 && input.charCodeAt(startPos + 3) === 99 && input.charCodeAt(startPos + 4) === 104;
+          case 116:
+            return input.charCodeAt(startPos + 1) === 104 && input.charCodeAt(startPos + 2) === 114 && input.charCodeAt(startPos + 3) === 111 && input.charCodeAt(startPos + 4) === 119;
+        }
+        return false;
+      case 6:
+        switch (input.charCodeAt(startPos)) {
+          case 76:
+            return input.charCodeAt(startPos + 1) === 97 && input.charCodeAt(startPos + 2) === 109 && input.charCodeAt(startPos + 3) === 98 && input.charCodeAt(startPos + 4) === 100 && input.charCodeAt(startPos + 5) === 97;
+          case 101:
+            return input.charCodeAt(startPos + 1) === 120 && input.charCodeAt(startPos + 2) === 112 && input.charCodeAt(startPos + 3) === 111 && input.charCodeAt(startPos + 4) === 114 && input.charCodeAt(startPos + 5) === 116 || input.charCodeAt(startPos + 1) === 120 && input.charCodeAt(startPos + 2) === 116 && input.charCodeAt(startPos + 3) === 101 && input.charCodeAt(startPos + 4) === 114 && input.charCodeAt(startPos + 5) === 110;
+          case 103:
+            return input.charCodeAt(startPos + 1) === 108 && input.charCodeAt(startPos + 2) === 111 && input.charCodeAt(startPos + 3) === 98 && input.charCodeAt(startPos + 4) === 97 && input.charCodeAt(startPos + 5) === 108;
+          case 105:
+            return input.charCodeAt(startPos + 1) === 109 && input.charCodeAt(startPos + 2) === 112 && input.charCodeAt(startPos + 3) === 111 && input.charCodeAt(startPos + 4) === 114 && input.charCodeAt(startPos + 5) === 116;
+          case 114:
+            return input.charCodeAt(startPos + 1) === 101 && input.charCodeAt(startPos + 2) === 116 && input.charCodeAt(startPos + 3) === 117 && input.charCodeAt(startPos + 4) === 114 && input.charCodeAt(startPos + 5) === 110;
+          case 115:
+            return input.charCodeAt(startPos + 1) === 105 && input.charCodeAt(startPos + 2) === 122 && input.charCodeAt(startPos + 3) === 101 && input.charCodeAt(startPos + 4) === 111 && input.charCodeAt(startPos + 5) === 102 || input.charCodeAt(startPos + 1) === 116 && input.charCodeAt(startPos + 2) === 97 && input.charCodeAt(startPos + 3) === 116 && input.charCodeAt(startPos + 4) === 105 && input.charCodeAt(startPos + 5) === 99 || input.charCodeAt(startPos + 1) === 116 && input.charCodeAt(startPos + 2) === 114 && input.charCodeAt(startPos + 3) === 117 && input.charCodeAt(startPos + 4) === 99 && input.charCodeAt(startPos + 5) === 116 || input.charCodeAt(startPos + 1) === 119 && input.charCodeAt(startPos + 2) === 105 && input.charCodeAt(startPos + 3) === 116 && input.charCodeAt(startPos + 4) === 99 && input.charCodeAt(startPos + 5) === 104;
+          case 116:
+            return input.charCodeAt(startPos + 1) === 121 && input.charCodeAt(startPos + 2) === 112 && input.charCodeAt(startPos + 3) === 101 && input.charCodeAt(startPos + 4) === 111 && input.charCodeAt(startPos + 5) === 102;
+        }
+        return false;
+      case 7:
+        switch (input.charCodeAt(startPos)) {
+          case 100:
+            return input.charCodeAt(startPos + 1) === 101 && input.charCodeAt(startPos + 2) === 102 && input.charCodeAt(startPos + 3) === 97 && input.charCodeAt(startPos + 4) === 117 && input.charCodeAt(startPos + 5) === 108 && input.charCodeAt(startPos + 6) === 116;
+          case 110:
+            return input.charCodeAt(startPos + 1) === 117 && input.charCodeAt(startPos + 2) === 108 && input.charCodeAt(startPos + 3) === 108 && input.charCodeAt(startPos + 4) === 112 && input.charCodeAt(startPos + 5) === 116 && input.charCodeAt(startPos + 6) === 114;
+        }
+        return false;
+      case 8:
+        switch (input.charCodeAt(startPos)) {
+          case 99:
+            return input.charCodeAt(startPos + 1) === 111 && input.charCodeAt(startPos + 2) === 110 && input.charCodeAt(startPos + 3) === 116 && input.charCodeAt(startPos + 4) === 105 && input.charCodeAt(startPos + 5) === 110 && input.charCodeAt(startPos + 6) === 117 && input.charCodeAt(startPos + 7) === 101;
+          case 111:
+            return input.charCodeAt(startPos + 1) === 102 && input.charCodeAt(startPos + 2) === 102 && input.charCodeAt(startPos + 3) === 115 && input.charCodeAt(startPos + 4) === 101 && input.charCodeAt(startPos + 5) === 116 && input.charCodeAt(startPos + 6) === 111 && input.charCodeAt(startPos + 7) === 102;
+        }
+        return false;
+      case 11:
+        switch (input.charCodeAt(startPos)) {
+          case 102:
+            return input.charCodeAt(startPos + 1) === 97 && input.charCodeAt(startPos + 2) === 108 && input.charCodeAt(startPos + 3) === 108 && input.charCodeAt(startPos + 4) === 116 && input.charCodeAt(startPos + 5) === 104 && input.charCodeAt(startPos + 6) === 114 && input.charCodeAt(startPos + 7) === 111 && input.charCodeAt(startPos + 8) === 117 && input.charCodeAt(startPos + 9) === 103 && input.charCodeAt(startPos + 10) === 104;
+        }
+        return false;
+      default:
+        return false;
+    }
   }
 
   const peg$bplReservedKeywords = new Set(["global","local","const","type","frame","static","ret","struct","enum","spec","Self","import","from","as","export","extern","asm","loop","if","else","break","continue","try","catch","return","throw","switch","case","default","fallthrough","cast","sizeof","typeof","offsetof","match","is","Func","Lambda","null","nullptr","true","false"]);
