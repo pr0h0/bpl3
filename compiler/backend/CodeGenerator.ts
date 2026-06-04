@@ -913,25 +913,23 @@ export class CodeGenerator extends StatementGenerator {
 
   private scanLlvmReferenceNameEnd(llvmBody: string, start: number): number {
     let end = start;
-    while (
-      end < llvmBody.length &&
-      this.isLlvmReferenceNameCharacter(llvmBody[end]!)
-    ) {
+    while (end < llvmBody.length) {
+      const code = llvmBody.charCodeAt(end);
+      if (
+        !(
+          (code >= 48 && code <= 57) ||
+          (code >= 65 && code <= 90) ||
+          (code >= 97 && code <= 122) ||
+          code === 95 ||
+          code === 46 ||
+          code === 36
+        )
+      ) {
+        break;
+      }
       end++;
     }
     return end;
-  }
-
-  private isLlvmReferenceNameCharacter(character: string): boolean {
-    const code = character.charCodeAt(0);
-    return (
-      (code >= 48 && code <= 57) ||
-      (code >= 65 && code <= 90) ||
-      (code >= 97 && code <= 122) ||
-      character === "_" ||
-      character === "." ||
-      character === "$"
-    );
   }
 
   private writeDebugIr(result: string): void {
