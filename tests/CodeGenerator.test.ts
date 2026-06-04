@@ -986,6 +986,59 @@ describe("CodeGenerator", () => {
     expect(ir).toContain("declare i8* @malloc(i64)");
   });
 
+  it("omits repeated null checks for the same pointer inside one basic block", () => {
+    const ir = compile(
+      `
+        extern malloc(size: int) ret *void;
+
+        struct Node {
+          value: int,
+          left: *Node,
+          right: *Node,
+        }
+
+        frame create_node(value: int) ret *Node {
+          local node: *Node = cast<*Node>(malloc(sizeof(Node)));
+          node.value = value;
+          node.left = nullptr;
+          node.right = nullptr;
+          return node;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    const createNode = ir.match(
+      /define dso_local %struct\.Node\* @create_node_i32[\s\S]*?\n}\n/,
+    )?.[0];
+    expect(createNode).toBeDefined();
+    expect(createNode!.match(/@__bpl_check_null/g)?.length ?? 0).toBe(1);
+  });
+
+  it("keeps pointer-proof boundary detection off allocation-heavy string trimming", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("private isBasicBlockPointerBoundaryLine");
+    const end = source.indexOf("\n  protected emitDeclaration", start);
+    const emitStart = source.indexOf("protected emit(line: string");
+    const emitEnd = source.indexOf(
+      "\n\n  protected currentStatementLocation",
+      emitStart,
+    );
+    const methodSource = source.slice(start, end);
+    const emitSource = source.slice(emitStart, emitEnd);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(emitStart).toBeGreaterThanOrEqual(0);
+    expect(emitEnd).toBeGreaterThan(emitStart);
+    expect(emitSource).not.toContain("PointerFacts");
+    expect(methodSource).not.toContain(".trim()");
+    expect(methodSource).toContain("charCodeAt");
+  });
+
   it("omits dead stack_ok branch scaffolding from multi-function IR", () => {
     const ir = compile(
       `

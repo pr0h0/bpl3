@@ -250,6 +250,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
         memberExpr.location,
         this.exprToDescription(memberExpr),
         "Attempted to access member of nullptr",
+        this.getBasicBlockPointerExpressionKey(memberExpr.object),
       );
     }
 
@@ -462,6 +463,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
         indexExpr.location,
         this.exprToDescription(indexExpr),
         "Attempted to index null pointer",
+        this.getBasicBlockPointerExpressionKey(indexExpr.object),
       );
     }
 
@@ -494,6 +496,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
         indexExpr.location,
         this.exprToDescription(indexExpr),
         "Attempted to index null pointer",
+        this.getBasicBlockPointerExpressionKey(indexExpr.object),
       );
     }
 
@@ -636,7 +639,12 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     location: SourceLocation,
     exprStr: string,
     _msg: string,
+    expressionKey?: string,
   ): void {
+    if (this.isBasicBlockPointerProvenNonNull(ptrVal, expressionKey)) {
+      return;
+    }
+
     const ptrAsI8 = this.newRegister();
     this.emit(`  ${ptrAsI8} = bitcast ${ptrType} ${ptrVal} to i8*`);
     const funcNameStr = this.currentFunctionName || "unknown";
@@ -647,6 +655,24 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     this.emit(
       `  call void @__bpl_check_null(i8* ${ptrAsI8}, i8* ${funcNamePtr}, i8* ${exprStrPtr}, i32 ${line}, i32 ${col})`,
     );
+    this.markBasicBlockPointerNonNull(ptrVal, expressionKey);
+  }
+
+  private getBasicBlockPointerExpressionKey(
+    expr: AST.Expression,
+  ): string | undefined {
+    switch (expr.kind) {
+      case "Identifier":
+      case "Member":
+      case "Index":
+        return this.exprToDescription(expr);
+      case "Group":
+        return this.getBasicBlockPointerExpressionKey(
+          (expr as AST.GroupExpr).expression,
+        );
+      default:
+        return undefined;
+    }
   }
 
   /**

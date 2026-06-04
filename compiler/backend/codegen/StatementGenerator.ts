@@ -1623,6 +1623,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
 
     // Use raw output push to avoid attaching !dbg to the middle of the instruction
+    this.clearBasicBlockPointerFacts();
     this.output.push(`  switch ${condType} ${cond}, label %${defaultLabel} [`);
     for (const c of caseLabels) {
       this.output.push(`    ${condType} ${c.value}, label %${c.label}`);
@@ -1837,6 +1838,9 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevLocalPointers = this.localPointers;
     const prevLocalTypes = this.localTypes;
     const prevLocalNullFlags = this.localNullFlags;
+    const prevBasicBlockNonNullPointers = this.basicBlockNonNullPointers;
+    const prevBasicBlockNonNullPointerExpressions =
+      this.basicBlockNonNullPointerExpressions;
     const prevPointerToLocal = this.pointerToLocal;
     const prevMovedAutoDestroyAddresses = this.movedAutoDestroyAddresses;
     const prevOnReturn = this.onReturn;
@@ -1856,6 +1860,8 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.localPointers = new Map();
     this.localTypes = new Map();
     this.localNullFlags = new Map();
+    this.basicBlockNonNullPointers = new Map();
+    this.basicBlockNonNullPointerExpressions = new Map();
     this.pointerToLocal = new Map();
     this.movedAutoDestroyAddresses = undefined;
     this.generatingFunctionBody = true;
@@ -2259,6 +2265,9 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.localPointers = prevLocalPointers;
       this.localTypes = prevLocalTypes;
       this.localNullFlags = prevLocalNullFlags;
+      this.basicBlockNonNullPointers = prevBasicBlockNonNullPointers;
+      this.basicBlockNonNullPointerExpressions =
+        prevBasicBlockNonNullPointerExpressions;
       this.pointerToLocal = prevPointerToLocal;
       this.movedAutoDestroyAddresses = prevMovedAutoDestroyAddresses;
       this.onReturn = prevOnReturn;

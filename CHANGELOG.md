@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Basic-Block Redundant Null-Check Elimination** -
+  codegen now remembers pointer values proven non-null by `__bpl_check_null`
+  within the current generated basic block, so repeated member/index accesses
+  to the same pointer keep the first checked runtime failure path but skip
+  duplicate checks until a branch, label, call, or direct assignment can
+  invalidate the proof. The hot `emit` path stays free of pointer-proof
+  bookkeeping; boundary scans run only when a later null check asks whether an
+  existing proof is still valid. A 15-run `binary_tree` sample moved BPL median
+  runtime to ~45.96ms versus the saved pre-change ~62.70ms baseline, with the
+  BPL/C ratio down to ~1.31x. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "omits repeated null checks|pointer-proof boundary"`
+  and
+  `bun benchmark/run_benchmark.ts --language bpl,c --runs 15 --warmups 2 --json binary_tree`.
 - **Allocation-Free Parser Function Declaration Helpers** -
   the Peggy grammar helper for `FunctionDecl` now returns the AST node directly
   instead of allocating a temporary `node` binding in every function declaration

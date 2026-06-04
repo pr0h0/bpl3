@@ -267,6 +267,9 @@ export class BaseCodeGenerator {
   protected localPointers: Map<string, string> = new Map(); // Track variable name -> pointer name mapping
   protected localTypes: Map<string, AST.TypeNode> = new Map(); // Track variable name -> declared type
   protected localNullFlags: Map<string, string> = new Map(); // Track struct locals -> null-flag pointer
+  protected basicBlockNonNullPointers: Map<string, number> = new Map();
+  protected basicBlockNonNullPointerExpressions: Map<string, number> =
+    new Map();
   protected pointerToLocal: Map<string, string> = new Map(); // Track pointer variable -> source local for null checking
   protected movedAutoDestroyAddresses?: Set<string>; // Locals returned by move should not be auto-destroyed
   protected generatedStructs: Set<string> = new Set(); // Track generated monomorphized structs
@@ -396,6 +399,105 @@ export class BaseCodeGenerator {
   }
 
   protected currentStatementLocation: SourceLocation | null = null;
+
+  protected clearBasicBlockPointerFacts(): void {
+    this.basicBlockNonNullPointers.clear();
+    this.basicBlockNonNullPointerExpressions.clear();
+  }
+
+  protected clearBasicBlockPointerExpressionFact(expressionKey: string): void {
+    const prefix = `${expressionKey}.`;
+    const indexPrefix = `${expressionKey}[`;
+    for (const key of Array.from(
+      this.basicBlockNonNullPointerExpressions.keys(),
+    )) {
+      if (
+        key === expressionKey ||
+        key.startsWith(prefix) ||
+        key.startsWith(indexPrefix)
+      ) {
+        this.basicBlockNonNullPointerExpressions.delete(key);
+      }
+    }
+  }
+
+  protected isBasicBlockPointerProvenNonNull(
+    ptrVal: string,
+    expressionKey?: string,
+  ): boolean {
+    const ptrProofIndex = this.basicBlockNonNullPointers.get(ptrVal);
+    if (
+      ptrProofIndex !== undefined &&
+      !this.hasBasicBlockPointerBoundarySince(ptrProofIndex)
+    ) {
+      return true;
+    }
+    if (ptrProofIndex !== undefined) {
+      this.basicBlockNonNullPointers.delete(ptrVal);
+    }
+
+    if (expressionKey === undefined) return false;
+    const exprProofIndex =
+      this.basicBlockNonNullPointerExpressions.get(expressionKey);
+    if (
+      exprProofIndex !== undefined &&
+      !this.hasBasicBlockPointerBoundarySince(exprProofIndex)
+    ) {
+      return true;
+    }
+    if (exprProofIndex !== undefined) {
+      this.basicBlockNonNullPointerExpressions.delete(expressionKey);
+    }
+    return false;
+  }
+
+  protected markBasicBlockPointerNonNull(
+    ptrVal: string,
+    expressionKey?: string,
+  ): void {
+    const proofIndex = this.output.length;
+    this.basicBlockNonNullPointers.set(ptrVal, proofIndex);
+    if (expressionKey !== undefined) {
+      this.basicBlockNonNullPointerExpressions.set(expressionKey, proofIndex);
+    }
+  }
+
+  private hasBasicBlockPointerBoundarySince(startIndex: number): boolean {
+    for (let i = startIndex; i < this.output.length; i++) {
+      if (this.isBasicBlockPointerBoundaryLine(this.output[i]!)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private isBasicBlockPointerBoundaryLine(line: string): boolean {
+    const length = line.length;
+    if (length === 0) return false;
+
+    const first = line.charCodeAt(0);
+    if (first !== 32 && first !== 9) {
+      return line.charCodeAt(length - 1) === 58;
+    }
+
+    let index = 0;
+    while (index < length) {
+      const code = line.charCodeAt(index);
+      if (code !== 32 && code !== 9) break;
+      index++;
+    }
+    if (index >= length) return false;
+
+    const code = line.charCodeAt(index);
+    return (
+      (code === 98 && line.startsWith("br ", index)) ||
+      (code === 114 && line.startsWith("ret ", index)) ||
+      (code === 115 && line.startsWith("switch ", index)) ||
+      (code === 99 && line.startsWith("call ", index)) ||
+      (code === 117 && line.startsWith("unreachable", index)) ||
+      (code === 37 && line.indexOf(" call ", index + 1) !== -1)
+    );
+  }
 
   protected emitDeclaration(line: string) {
     this.declarationsOutput.push(line);
