@@ -1333,6 +1333,31 @@ describe("CodeGenerator", () => {
     expect(methodSource).toContain("charCodeAt");
   });
 
+  it("keeps address-escape tracking off eager function-body AST walks", () => {
+    const statementSource = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
+      "utf8",
+    );
+    const unarySource = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/UnaryExpressionGenerator.ts"),
+      "utf8",
+    );
+    const functionStart = statementSource.indexOf(
+      "protected generateFunction(",
+    );
+    const functionEnd = statementSource.indexOf(
+      "\n  protected generateArrayInitialization",
+      functionStart,
+    );
+    const functionSource = statementSource.slice(functionStart, functionEnd);
+
+    expect(functionStart).toBeGreaterThanOrEqual(0);
+    expect(functionEnd).toBeGreaterThan(functionStart);
+    expect(statementSource).not.toContain("collectAddressEscapedLocalNames");
+    expect(functionSource).not.toContain("walkAST");
+    expect(unarySource).toContain("noteAddressEscapedLocalPointer");
+  });
+
   it("keeps nonzero divisor proof tracking lazy for division-free codegen", () => {
     const baseSource = readFileSync(
       join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),

@@ -134,6 +134,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     }
 
     if (expr.operator.type === TokenType.Ampersand) {
+      this.noteAddressEscapedIdentifier(expr.operand);
       return this.generateAddress(expr.operand);
     } else if (expr.operator.type === TokenType.Star) {
       const ptr = this.generateExpression(expr.operand);
@@ -169,6 +170,17 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       expr,
       "This is an internal compiler error. The type checker should reject unsupported unary operators before code generation.",
     );
+  }
+
+  private noteAddressEscapedIdentifier(expr: AST.Expression): void {
+    let current = expr;
+    while (current.kind === "Group") {
+      current = (current as AST.GroupExpr).expression;
+    }
+
+    if (current.kind === "Identifier") {
+      this.noteAddressEscapedLocalPointer((current as AST.IdentifierExpr).name);
+    }
   }
 
   protected getAllSpecMethods(specDecl: AST.SpecDecl): AST.SpecMethod[] {

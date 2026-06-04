@@ -669,6 +669,16 @@ export class BaseCodeGenerator {
     return type?.kind === "BasicType" && type.pointerDepth > 0;
   }
 
+  protected noteAddressEscapedLocalPointer(name: string): void {
+    if (!this.locals.has(name)) return;
+
+    const type = this.localTypes.get(name);
+    if (type?.kind !== "BasicType" || type.pointerDepth === 0) return;
+
+    this.currentFunctionAddressEscapedLocals.add(name);
+    this.clearBasicBlockPointerExpressionFact(name);
+  }
+
   private isSimpleIdentifierExpressionKey(expressionKey: string): boolean {
     if (expressionKey.length === 0) return false;
 
