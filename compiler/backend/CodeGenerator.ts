@@ -875,26 +875,37 @@ export class CodeGenerator extends StatementGenerator {
     references: LlvmReferences,
     llvmBody: string,
   ): void {
-    for (let index = 0; index < llvmBody.length; index++) {
-      const character = llvmBody[index];
+    let index = 0;
+    while (index < llvmBody.length) {
+      const symbolIndex = llvmBody.indexOf("@", index);
+      const structIndex = llvmBody.indexOf("%struct.", index);
 
-      if (character === "@") {
-        const start = index + 1;
+      if (symbolIndex === -1 && structIndex === -1) {
+        break;
+      }
+
+      if (
+        symbolIndex !== -1 &&
+        (structIndex === -1 || symbolIndex < structIndex)
+      ) {
+        const start = symbolIndex + 1;
         const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
         if (end > start) {
           references.symbols.add(llvmBody.slice(start, end));
-          index = end - 1;
+          index = end;
+        } else {
+          index = start;
         }
         continue;
       }
 
-      if (character === "%" && llvmBody.startsWith("struct.", index + 1)) {
-        const start = index + "%struct.".length;
-        const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
-        if (end > start) {
-          references.structs.add(llvmBody.slice(start, end));
-          index = end - 1;
-        }
+      const start = structIndex + "%struct.".length;
+      const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
+      if (end > start) {
+        references.structs.add(llvmBody.slice(start, end));
+        index = end;
+      } else {
+        index = start;
       }
     }
   }

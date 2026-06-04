@@ -898,7 +898,12 @@ describe("CodeGenerator", () => {
     expect(source).not.toContain("llvmStructReferencePatterns");
     expect(referenceSource).toContain("references.symbols.add");
     expect(referenceSource).toContain("references.structs.add");
+    expect(referenceSource).toContain('llvmBody.indexOf("@", index)');
+    expect(referenceSource).toContain('llvmBody.indexOf("%struct.", index)');
     expect(referenceSource).toContain("this.isLlvmReferenceNameCharacter");
+    expect(referenceSource).not.toContain(
+      "for (let index = 0; index < llvmBody.length; index++)",
+    );
     expect(referenceSource).not.toContain("RegExp");
   });
 
