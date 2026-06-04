@@ -1014,9 +1014,7 @@ function shouldCompileExecutable(options: CompileOptions): boolean {
 }
 
 function shouldTreeShakeTopLevelFunctions(options: CompileOptions): boolean {
-  const optimizationLevel = parseInt(options.O ?? "0", 10);
   return (
-    optimizationLevel >= 2 &&
     shouldCompileExecutable(options) &&
     options.emit !== "llvm" &&
     !options.cache &&

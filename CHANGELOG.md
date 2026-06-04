@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Lazy Module Primitive Wrapper Loading** -
+  module resolution now loads `std/primitives.bpl` only when a loaded module
+  actually mentions primitive wrapper types such as `Int`, while explicit
+  imports and wrapper-using modules keep the existing behavior. This keeps
+  `std/c.bpl`-only programs on a much smaller IR path: local hello-world native
+  build output dropped from ~372.8KB LLVM IR / 32.8KB binary / ~0.60s elapsed
+  to ~27.7KB LLVM IR / 28.7KB binary / ~0.28s elapsed. Default executable
+  builds also enable the existing top-level function tree shaker outside
+  explicit LLVM/debug/DWARF/cache modes. Reproduce the guards with
+  `bun test tests/ModuleResolver.test.ts tests/ImportIdempotency.test.ts tests/ModuleCacheKey.test.ts`
+  and
+  `bun test tests/CLI.test.ts -t "tree-shake default executable|tree-shake optimized executable|inherited optimization"`.
 - **Compile Phase Benchmark Comparison Gate** -
   `benchmark/measure_compilation.ts --mode phases` now accepts `--compare`,
   `--max-phase-regression`, and `--max-full-regression` so local performance

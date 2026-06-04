@@ -1095,6 +1095,53 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should tree-shake default executable IR without pruning explicit LLVM emission", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-ir-shake-default-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    const binaryFile = path.join(tempDir, "main");
+    const binaryIrFile = `${binaryFile}.ll`;
+    const emittedIrFile = path.join(tempDir, "explicit.ll");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "frame used() ret int {",
+        "    return 2;",
+        "}",
+        "frame dead() ret int {",
+        "    return 99;",
+        "}",
+        "frame main() ret int {",
+        "    return used();",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const binaryResult = runCLI(["build", sourceFile, "-o", binaryFile]);
+      expect(binaryResult.status).toBe(0);
+      expect(fs.readFileSync(binaryIrFile, "utf-8")).not.toMatch(
+        /define .* @dead_/,
+      );
+
+      const emitResult = runCLI([
+        "build",
+        "--emit",
+        "llvm",
+        sourceFile,
+        "-o",
+        emittedIrFile,
+      ]);
+      expect(emitResult.status).toBe(0);
+      expect(fs.readFileSync(emittedIrFile, "utf-8")).toMatch(
+        /define .* @dead_/,
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should let inherited optimization reach the run subcommand", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-opt-"));
     const sourceFile = path.join(tempDir, "main.bpl");

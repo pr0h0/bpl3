@@ -19,8 +19,10 @@ import { getLibPath } from "../common/PathResolver";
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 import { findCaseMismatchPath } from "../common/PathSafety";
+import { walkAST } from "../common/ASTTraversal";
 import { Parser } from "../frontend/Parser";
 import { PackageManager, type PackageManagerOptions } from "./PackageManager";
+import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import {
   formatPackageResolutionHint,
   getPackageResolutionFailureCode,
@@ -68,6 +70,10 @@ export interface ModuleInfo {
   /** Exported symbols from this module */
   exports: Map<string, { kind: string; type?: AST.TypeNode }>;
 }
+
+const PRIMITIVE_WRAPPER_TYPE_NAMES = new Set(
+  Object.values(PRIMITIVE_STRUCT_MAP),
+);
 
 export class ModuleResolver {
   /** Cache of loaded modules by absolute path */
@@ -615,11 +621,14 @@ export class ModuleResolver {
     // Load entry module recursively
     this.loadModule(entryPath);
 
-    // Ensure primitives.bpl is loaded
     const primitivesPath = this.normalizePath(
       path.join(this.stdLibPath, "primitives.bpl"),
     );
-    if (fs.existsSync(primitivesPath)) {
+    if (
+      fs.existsSync(primitivesPath) &&
+      (this.modules.has(primitivesPath) ||
+        this.loadedModulesMentionPrimitiveWrappers())
+    ) {
       this.loadModule(primitivesPath);
     }
 
@@ -704,6 +713,39 @@ export class ModuleResolver {
   getAllModules(): ModuleInfo[] {
     return Array.from(this.modules.values());
   }
+
+  private loadedModulesMentionPrimitiveWrappers(): boolean {
+    for (const module of this.modules.values()) {
+      if (moduleMentionsPrimitiveWrapper(module.ast)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+}
+
+function moduleMentionsPrimitiveWrapper(program: AST.Program): boolean {
+  let found = false;
+  walkAST(program, (node) => {
+    if (
+      node.kind === "BasicType" &&
+      PRIMITIVE_WRAPPER_TYPE_NAMES.has((node as AST.BasicTypeNode).name)
+    ) {
+      found = true;
+      return false;
+    }
+
+    if (
+      node.kind === "Identifier" &&
+      PRIMITIVE_WRAPPER_TYPE_NAMES.has((node as AST.IdentifierExpr).name)
+    ) {
+      found = true;
+      return false;
+    }
+  });
+
+  return found;
 }
 
 function isTerminalPackageResolutionFailure(

@@ -74,6 +74,116 @@ describe("ModuleResolver", () => {
     expect(modules[1]!.dependencies.size).toBe(1);
   });
 
+  it("does not load primitive wrappers for modules that only import C extern declarations", () => {
+    const scopedStdLib = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-module-c-externs-"),
+    );
+    const mainPath = path.join(scopedStdLib, "main.bpl");
+    const stdDir = path.join(scopedStdLib, "std");
+
+    fs.mkdirSync(stdDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(stdDir, "errors.bpl"),
+      [
+        "struct Error {",
+        "  message: string,",
+        "}",
+        "export [Error];",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      path.join(stdDir, "c.bpl"),
+      [
+        "export [printf];",
+        "extern printf(fmt: string, ...) ret int;",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      path.join(stdDir, "primitives.bpl"),
+      [
+        "export [Int];",
+        "struct Int {",
+        "  value: int,",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      mainPath,
+      [
+        'import [printf] from "std/c.bpl";',
+        "frame main() ret int {",
+        '  printf("hello\\n");',
+        "  return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const modules = new ModuleResolver({ stdLibPath: stdDir }).resolveModules(
+        mainPath,
+      );
+      const moduleNames = modules.map((module) => path.basename(module.path));
+
+      expect(moduleNames).toContain("errors.bpl");
+      expect(moduleNames).toContain("c.bpl");
+      expect(moduleNames).toContain("main.bpl");
+      expect(moduleNames).not.toContain("primitives.bpl");
+    } finally {
+      fs.rmSync(scopedStdLib, { recursive: true, force: true });
+    }
+  });
+
+  it("loads primitive wrappers when a module mentions a wrapper type", () => {
+    const scopedStdLib = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-module-primitive-wrapper-"),
+    );
+    const mainPath = path.join(scopedStdLib, "main.bpl");
+    const stdDir = path.join(scopedStdLib, "std");
+
+    fs.mkdirSync(stdDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(stdDir, "errors.bpl"),
+      [
+        "struct Error {",
+        "  message: string,",
+        "}",
+        "export [Error];",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      path.join(stdDir, "primitives.bpl"),
+      [
+        "export [Int];",
+        "struct Int {",
+        "  value: int,",
+        "}",
+      ].join("\n"),
+    );
+    fs.writeFileSync(
+      mainPath,
+      [
+        "frame main() ret int {",
+        "  local boxed: Int;",
+        "  boxed.value = 42;",
+        "  return boxed.value;",
+        "}",
+      ].join("\n"),
+    );
+
+    try {
+      const modules = new ModuleResolver({ stdLibPath: stdDir }).resolveModules(
+        mainPath,
+      );
+      const moduleNames = modules.map((module) => path.basename(module.path));
+
+      expect(moduleNames).toContain("errors.bpl");
+      expect(moduleNames).toContain("primitives.bpl");
+      expect(moduleNames).toContain("main.bpl");
+    } finally {
+      fs.rmSync(scopedStdLib, { recursive: true, force: true });
+    }
+  });
+
   it("preserves module doc comments without pre-lexing tokens", () => {
     const mainPath = path.join(tempDir, "documented_module.bpl");
     fs.writeFileSync(
