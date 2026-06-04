@@ -39,6 +39,35 @@ const DWARF_BASIC_TYPES: Record<string, [string, number, number]> = {
   float: ["float", 64, 4],
 };
 
+const SIMPLE_BUILTIN_LLVM_TYPES: Record<string, string> = {
+  i32: "i32",
+  u32: "i32",
+  int: "i32",
+  uint: "i32",
+  i8: "i8",
+  u8: "i8",
+  char: "i8",
+  uchar: "i8",
+  i16: "i16",
+  u16: "i16",
+  short: "i16",
+  ushort: "i16",
+  i64: "i64",
+  u64: "i64",
+  long: "i64",
+  ulong: "i64",
+  float: "double",
+  double: "double",
+  f64: "double",
+  f32: "float",
+  bool: "i1",
+  i1: "i1",
+  void: "void",
+  string: "i8*",
+  null: "i8*",
+  nullptr: "i8*",
+};
+
 function resolveSimpleBuiltinLlvmType(
   type: AST.TypeNode | undefined,
 ): string | undefined {
@@ -56,46 +85,7 @@ function resolveSimpleBuiltinLlvmType(
     return undefined;
   }
 
-  switch (basicType.name) {
-    case "i32":
-    case "u32":
-    case "int":
-    case "uint":
-      return "i32";
-    case "i8":
-    case "u8":
-    case "char":
-    case "uchar":
-      return "i8";
-    case "i16":
-    case "u16":
-    case "short":
-    case "ushort":
-      return "i16";
-    case "i64":
-    case "u64":
-    case "long":
-    case "ulong":
-      return "i64";
-    case "float":
-    case "double":
-    case "f64":
-      return "double";
-    case "f32":
-      return "float";
-    case "bool":
-    case "i1":
-      return "i1";
-    case "void":
-      return "void";
-    case "string":
-      return "i8*";
-    case "null":
-    case "nullptr":
-      return "i8*";
-    default:
-      return undefined;
-  }
+  return SIMPLE_BUILTIN_LLVM_TYPES[basicType.name];
 }
 
 /**

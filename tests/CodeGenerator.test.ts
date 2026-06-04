@@ -90,6 +90,14 @@ describe("CodeGenerator", () => {
     expect(depthStart).toBeGreaterThan(methodStart);
 
     const methodPrefix = source.slice(methodStart, depthStart);
+    const helperEnd = source.indexOf("\n/**", helperStart);
+    const helperSource = source.slice(helperStart, helperEnd);
+
+    expect(source).toContain("const SIMPLE_BUILTIN_LLVM_TYPES");
+    expect(helperSource).toContain(
+      "return SIMPLE_BUILTIN_LLVM_TYPES[basicType.name]",
+    );
+    expect(helperSource).not.toContain("switch (basicType.name)");
     expect(methodPrefix).toContain("resolveSimpleBuiltinLlvmType(type)");
     expect(methodPrefix).toContain("if (simpleBuiltinLlvmType)");
   });
