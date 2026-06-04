@@ -21,6 +21,7 @@ import { stringifyPlaygroundAstArtifact } from "./artifactStringify";
 import { runPlaygroundNativeBinary } from "./nativeExecution";
 import { formatProcessCommand } from "./processRunner";
 import { resolvePlaygroundNativeRuntimeFiles } from "./runtimeFiles";
+import { StaticTextFileCache } from "./staticTextFileCache";
 import {
   CompileOnlyResponseCache,
   getCompileOnlyResponseCacheKey,
@@ -199,6 +200,7 @@ const COMPILE_ONLY_RESPONSE_CACHE_TTL_MS = 10 * 60 * 1000;
 const HOSTED_WASM_CACHE_MAX_ENTRIES = 16;
 const HOSTED_WASM_CACHE_TTL_MS = 10 * 60 * 1000;
 const nativeBinaryCache = new Map<string, NativeBinaryCacheEntry>();
+const staticTextFileCache = new StaticTextFileCache();
 const compileOnlyResponseCache = new CompileOnlyResponseCache({
   maxEntries: COMPILE_ONLY_RESPONSE_CACHE_MAX_ENTRIES,
   ttlMs: COMPILE_ONLY_RESPONSE_CACHE_TTL_MS,
@@ -238,6 +240,10 @@ function getNativeBinaryCacheKey(code: string): string {
 
 function sourceMayUseBplImport(source: string): boolean {
   return /\bimport\b/.test(source);
+}
+
+function readStaticTextFile(filePath: string): string {
+  return staticTextFileCache.read(filePath);
 }
 
 function getCachedNativeBinary(
@@ -1079,9 +1085,8 @@ const server = Bun.serve({
 
     // Static files
     if (url.pathname === "/" || url.pathname === "/index.html") {
-      const html = fs.readFileSync(
+      const html = readStaticTextFile(
         path.join(__dirname, "../frontend/index.html"),
-        "utf-8",
       );
       return new Response(html, {
         headers: { ...headers, "Content-Type": "text/html" },
@@ -1089,9 +1094,8 @@ const server = Bun.serve({
     }
 
     if (url.pathname === "/tutorial.html") {
-      const html = fs.readFileSync(
+      const html = readStaticTextFile(
         path.join(__dirname, "../frontend/tutorial.html"),
-        "utf-8",
       );
       return new Response(html, {
         headers: { ...headers, "Content-Type": "text/html" },
@@ -1099,9 +1103,8 @@ const server = Bun.serve({
     }
 
     if (url.pathname === "/style.css") {
-      const css = fs.readFileSync(
+      const css = readStaticTextFile(
         path.join(__dirname, "../frontend/style.css"),
-        "utf-8",
       );
       return new Response(css, {
         headers: { ...headers, "Content-Type": "text/css" },
@@ -1109,9 +1112,8 @@ const server = Bun.serve({
     }
 
     if (url.pathname === "/tutorial.css") {
-      const css = fs.readFileSync(
+      const css = readStaticTextFile(
         path.join(__dirname, "../frontend/tutorial.css"),
-        "utf-8",
       );
       return new Response(css, {
         headers: { ...headers, "Content-Type": "text/css" },
@@ -1119,9 +1121,8 @@ const server = Bun.serve({
     }
 
     if (url.pathname === "/app.js") {
-      const js = fs.readFileSync(
+      const js = readStaticTextFile(
         path.join(__dirname, "../frontend/app.js"),
-        "utf-8",
       );
       return new Response(js, {
         headers: { ...headers, "Content-Type": "application/javascript" },
@@ -1129,9 +1130,8 @@ const server = Bun.serve({
     }
 
     if (url.pathname === "/wasmHostAdapter.js") {
-      const js = fs.readFileSync(
+      const js = readStaticTextFile(
         path.join(__dirname, "../frontend/wasmHostAdapter.js"),
-        "utf-8",
       );
       return new Response(js, {
         headers: { ...headers, "Content-Type": "application/javascript" },
@@ -1139,9 +1139,8 @@ const server = Bun.serve({
     }
 
     if (url.pathname === "/browserWasmRuntime.js") {
-      const js = fs.readFileSync(
+      const js = readStaticTextFile(
         path.join(__dirname, "../frontend/browserWasmRuntime.js"),
-        "utf-8",
       );
       return new Response(js, {
         headers: { ...headers, "Content-Type": "application/javascript" },
@@ -1149,9 +1148,8 @@ const server = Bun.serve({
     }
 
     if (url.pathname === "/tutorial.js") {
-      const js = fs.readFileSync(
+      const js = readStaticTextFile(
         path.join(__dirname, "../frontend/tutorial.js"),
-        "utf-8",
       );
       return new Response(js, {
         headers: { ...headers, "Content-Type": "application/javascript" },

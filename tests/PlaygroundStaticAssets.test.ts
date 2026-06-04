@@ -85,4 +85,21 @@ describe("Playground frontend static assets", () => {
       false,
     );
   });
+
+  test("serves frontend static text assets through the cache helper", () => {
+    const serverSource = readFileSync(SERVER_SOURCE, "utf8");
+    const staticStart = serverSource.indexOf("// Static files");
+    const staticEnd = serverSource.indexOf(
+      "return new Response(\"Not Found\"",
+      staticStart,
+    );
+
+    expect(staticStart).toBeGreaterThanOrEqual(0);
+    expect(staticEnd).toBeGreaterThan(staticStart);
+
+    const staticSource = serverSource.slice(staticStart, staticEnd);
+    expect(serverSource).toContain("StaticTextFileCache");
+    expect(staticSource).toContain("readStaticTextFile(");
+    expect(staticSource).not.toContain("fs.readFileSync(");
+  });
 });
