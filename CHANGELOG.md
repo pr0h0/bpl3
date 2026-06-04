@@ -72,6 +72,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (`c579f6868c8d3de52eab8f7fae86e30480adac92db1747f069c4bd8fc8d9b9cd`).
   Reproduce with
   `bun test tests/Parser.test.ts -t "binary expression folding"`.
+- **Reusable Compile Phase Benchmark** - `benchmark/measure_compilation.ts` is
+  now import-safe and supports `--mode phases` for in-process lex, parse,
+  typecheck, codegen, and full compile timing on the synthetic 5k compile
+  fixture. JSON output includes `tokenSignature` and `irHash` so performance
+  experiments can verify behavior preservation without relying on temporary
+  probes. Reproduce with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json`.
 - **Generated No-Comment Trivia Fast Path** - The checked-in Peggy parser now
   records whether the input contains `#` once and skips comment-branch checks in
   `peg$parse_` for comment-free files. On the direct 5k compile probe, parse

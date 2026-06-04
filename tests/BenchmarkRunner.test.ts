@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 
 import {
@@ -10,8 +10,93 @@ import {
   findBplVsCRegressions,
   formatBplVsCSummary,
 } from "../benchmark/run_benchmark";
+import {
+  calculateCompilePhaseStats,
+  generateSyntheticCompileSource,
+  measureCompilePhases,
+  parseCompilationBenchmarkArgs,
+} from "../benchmark/measure_compilation";
 
 describe("Benchmark runner helpers", () => {
+  it("keeps compile measurement tooling import-safe with phase exports", () => {
+    const source = readFileSync(
+      join(process.cwd(), "benchmark", "measure_compilation.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain("export function generateSyntheticCompileSource");
+    expect(source).toContain("export async function measureCompilePhases");
+    expect(source).toContain("export function parseCompilationBenchmarkArgs");
+    expect(source).toContain("if (import.meta.main)");
+    expect(source).not.toContain("\nmain();");
+  });
+
+  it("documents the compile phase benchmark mode", () => {
+    const readme = readFileSync(
+      join(process.cwd(), "benchmark", "README.md"),
+      "utf8",
+    );
+
+    expect(readme).toContain("measure_compilation.ts --mode phases");
+    expect(readme).toContain("--functions 5000");
+    expect(readme).toContain("tokenSignature");
+    expect(readme).toContain("irHash");
+  });
+
+  it("generates configurable synthetic compile sources", () => {
+    const source = generateSyntheticCompileSource(3);
+
+    expect(source).toContain("struct Pair");
+    expect(source).toContain("frame helper_0(value: int) ret int");
+    expect(source).toContain("frame helper_2(value: int) ret int");
+    expect(source).not.toContain("frame helper_3(value: int) ret int");
+    expect(source).toContain("total = total + helper_0(0);");
+  });
+
+  it("parses compile phase benchmark CLI options", () => {
+    expect(
+      parseCompilationBenchmarkArgs([
+        "--mode",
+        "phases",
+        "--functions",
+        "17",
+        "--rounds",
+        "3",
+        "--warmups",
+        "1",
+        "--json",
+      ]),
+    ).toEqual({
+      mode: "phases",
+      functions: 17,
+      rounds: 3,
+      warmups: 1,
+      json: true,
+    });
+  });
+
+  it("calculates compile phase stats", () => {
+    expect(calculateCompilePhaseStats([9, 3, 6])).toEqual({
+      medianMs: 6,
+      averageMs: 6,
+    });
+  });
+
+  it("measures a tiny in-process compile phase probe", async () => {
+    const result = await measureCompilePhases({
+      functionCount: 1,
+      rounds: 1,
+      warmups: 0,
+    });
+
+    expect(result.mode).toBe("phases");
+    expect(result.functionCount).toBe(1);
+    expect(result.tokenCount).toBeGreaterThan(0);
+    expect(result.tokenSignature).toHaveLength(64);
+    expect(result.irHash).toHaveLength(64);
+    expect(result.full.medianMs).toBeGreaterThan(0);
+  });
+
   it("calculates sorted min, median, and average timings", () => {
     const stats = calculateStats([30, 10, 20, 40]);
 

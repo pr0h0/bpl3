@@ -63,6 +63,22 @@ Fail the run when BPL is more than 5% slower than C on any benchmark:
 ./benchmark/run_all.sh --language bpl,c --runs 5 --max-bpl-slower 5
 ```
 
+Measure compiler phase timings for the synthetic 5k compile fixture:
+
+```bash
+bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5
+```
+
+Write machine-readable phase results:
+
+```bash
+bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json
+```
+
+The phase JSON includes `lex`, `parse`, `typecheck`, `codegen`, and `full`
+median/average timings plus `tokenSignature` and `irHash`, which makes local
+performance changes easier to compare without accepting behavior drift.
+
 ## Requirements
 
 - `bun` (for running the BPL compiler)
