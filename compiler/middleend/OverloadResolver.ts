@@ -445,6 +445,18 @@ export class OverloadResolver {
 
     if (!decl) return undefined;
 
+    if (
+      decl.kind === "StructDecl" &&
+      decl.inheritanceList.length === 0 &&
+      !decl.members.some((member) => member.kind === "FunctionDecl")
+    ) {
+      return undefined;
+    }
+
+    if (decl.kind === "EnumDecl" && decl.methods.length === 0) {
+      return undefined;
+    }
+
     // Build type substitution map for generic parameters
     const typeSubstitutionMap = new Map<string, AST.TypeNode>();
     if (basicType.genericArgs.length > 0 && decl.genericParams.length > 0) {

@@ -144,6 +144,30 @@ describe("TypeChecker", () => {
     expect(resolverSource).not.toContain("...type");
   });
 
+  it("skips operator overload member resolution for methodless structs", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/OverloadResolver.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("findOperatorOverload(");
+    const memberLookup = source.indexOf(
+      "resolveMemberWithContext(basicType, methodName)",
+      methodStart,
+    );
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(memberLookup).toBeGreaterThan(methodStart);
+
+    const methodPrefix = source.slice(methodStart, memberLookup);
+    expect(methodPrefix).toContain('decl.kind === "StructDecl"');
+    expect(methodPrefix).toContain("decl.inheritanceList.length === 0");
+    expect(methodPrefix).toContain(
+      '!decl.members.some((member) => member.kind === "FunctionDecl")',
+    );
+    expect(methodPrefix).toContain('decl.kind === "EnumDecl"');
+    expect(methodPrefix).toContain("decl.methods.length === 0");
+  });
+
   it("should clear failed import recovery state when reusing a checker", () => {
     const checker = new TypeChecker({ collectAllErrors: true });
     const failedImportSource = [

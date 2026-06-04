@@ -50,6 +50,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (`c579f6868c8d3de52eab8f7fae86e30480adac92db1747f069c4bd8fc8d9b9cd`).
   Reproduce with
   `bun test tests/Parser.test.ts -t "comment-free parser passes|syntax diagnostics|simple function declaration|struct declaration"`.
+- **Methodless Operator-Overload Fast Path** - Type checking now skips operator
+  overload member resolution for plain structs with no methods and no
+  inheritance, and for enums with no methods. On a matched 5k synthetic compile
+  probe, typecheck median improved from ~125.05ms to ~121.05ms and full
+  in-process compile median improved from ~768.01ms to ~751.49ms while
+  preserving the same 265,230 tokens, token signature
+  (`0900c2024fca2824345874aadd6b27e0a9805c61fdf67ad1dd5e6699cf0caf93`), and
+  LLVM IR hash
+  (`c579f6868c8d3de52eab8f7fae86e30480adac92db1747f069c4bd8fc8d9b9cd`).
+  Reproduce with
+  `bun test tests/TypeChecker.test.ts -t "methodless structs"`.
 - **Generated No-Comment Trivia Fast Path** - The checked-in Peggy parser now
   records whether the input contains `#` once and skips comment-branch checks in
   `peg$parse_` for comment-free files. On the direct 5k compile probe, parse
