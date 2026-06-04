@@ -433,6 +433,44 @@ describe("Parser", () => {
       .not.toThrow();
   });
 
+  it("keeps generated qualified identifier parsing off tail tuple arrays", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const qualifiedHelper = generatedSource.match(
+      /function peg\$parseQualifiedIdentifier\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedQualifiedIdentifierScanning",
+    );
+    expect(qualifiedHelper).toContain("let qualifiedName = head");
+    expect(qualifiedHelper).toContain('qualifiedName += "." + tailPart');
+    expect(qualifiedHelper).toContain("peg$scanBplIdentToken()");
+    expect(qualifiedHelper).not.toContain("s2.push");
+    expect(qualifiedHelper).not.toContain(
+      'return [head, ...tail.map(t => t[3])].join(".");',
+    );
+
+    expect(() =>
+      new Parser(
+        "frame use(value: Some . Nested . Type) ret int { return 0; }",
+        "qualified-type.bpl",
+      ).parse(),
+    ).not.toThrow();
+  });
+
   it("keeps generated postfix-tail parsing gated by starter characters", () => {
     const generatorSource = readFileSync(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

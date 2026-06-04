@@ -82,10 +82,12 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
         optimizeGeneratedAssignmentOperatorScanning(
           optimizeGeneratedExpressionOperatorScanning(
             optimizeGeneratedPostfixTailScanning(
-              optimizeGeneratedIdentifierScanning(
-                optimizeGeneratedFailureTracking(
-                  optimizeGeneratedLiteralMatches(
-                    optimizeGeneratedMakeLoc(withBplLocation),
+              optimizeGeneratedQualifiedIdentifierScanning(
+                optimizeGeneratedIdentifierScanning(
+                  optimizeGeneratedFailureTracking(
+                    optimizeGeneratedLiteralMatches(
+                      optimizeGeneratedMakeLoc(withBplLocation),
+                    ),
                   ),
                 ),
               ),
@@ -440,6 +442,60 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     .replace(identifierPattern, identifierReplacement)
     .replace(identTokenPattern, identTokenReplacement)
     .replace(keywordReservedPattern, keywordReservedReplacement);
+}
+
+function optimizeGeneratedQualifiedIdentifierScanning(
+  parserSource: string,
+): string {
+  const qualifiedIdentifierPattern =
+    /  function peg\$parseQualifiedIdentifier\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseArraySuffix\(\)/;
+  const match = parserSource.match(qualifiedIdentifierPattern);
+  const dotExpectationName = match?.[1]?.match(/peg\$fail\((peg\$e\d+)\)/)?.[1];
+
+  if (!match || dotExpectationName === undefined) {
+    throw new Error(
+      "Generated Peggy parser qualified identifier helper shape changed; update the BPL parser qualified identifier optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parseQualifiedIdentifier() {",
+    "    const startPos = peg$currPos;",
+    "    const head = peg$scanBplIdentToken();",
+    "",
+    "    if (head === peg$FAILED) {",
+    "      peg$currPos = startPos;",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    let qualifiedName = head;",
+    "    while (true) {",
+    "      const tailStartPos = peg$currPos;",
+    "      peg$parse_();",
+    "      if (input.charCodeAt(peg$currPos) !== 46) {",
+    `        if (peg$silentFails === 0) { peg$fail(${dotExpectationName}); }`,
+    "        peg$currPos = tailStartPos;",
+    "        break;",
+    "      }",
+    "",
+    "      peg$currPos++;",
+    "      peg$parse_();",
+    "      const tailPart = peg$scanBplIdentToken();",
+    "      if (tailPart === peg$FAILED) {",
+    "        peg$currPos = tailStartPos;",
+    "        break;",
+    "      }",
+    "",
+    '      qualifiedName += "." + tailPart;',
+    "    }",
+    "",
+    "    return qualifiedName;",
+    "  }",
+    "",
+    "  function peg$parseArraySuffix()",
+  ].join("\n");
+
+  return parserSource.replace(qualifiedIdentifierPattern, replacement);
 }
 
 function buildReservedKeywordRangeHelper(reservedKeywords: string[]): string[] {

@@ -11067,69 +11067,36 @@ function peg$parse(input, options) {
   }
 
   function peg$parseQualifiedIdentifier() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
+    const startPos = peg$currPos;
+    const head = peg$scanBplIdentToken();
 
-    s0 = peg$currPos;
-    s1 = peg$parseIdentToken();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      if (input.charCodeAt(peg$currPos) === 46) {
-        s5 = peg$c62;
-        peg$currPos++;
-      } else {
-        s5 = peg$FAILED;
-        if (peg$silentFails === 0) { peg$fail(peg$e72); }
-      }
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseIdentToken();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        if (input.charCodeAt(peg$currPos) === 46) {
-          s5 = peg$c62;
-          peg$currPos++;
-        } else {
-          s5 = peg$FAILED;
-          if (peg$silentFails === 0) { peg$fail(peg$e72); }
-        }
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseIdentToken();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f184(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    if (head === peg$FAILED) {
+      peg$currPos = startPos;
+      return peg$FAILED;
     }
 
-    return s0;
+    let qualifiedName = head;
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      if (input.charCodeAt(peg$currPos) !== 46) {
+        if (peg$silentFails === 0) { peg$fail(peg$e72); }
+        peg$currPos = tailStartPos;
+        break;
+      }
+
+      peg$currPos++;
+      peg$parse_();
+      const tailPart = peg$scanBplIdentToken();
+      if (tailPart === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        break;
+      }
+
+      qualifiedName += "." + tailPart;
+    }
+
+    return qualifiedName;
   }
 
   function peg$parseArraySuffix() {
