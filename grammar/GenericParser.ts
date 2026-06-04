@@ -138,24 +138,10 @@ function createKeywordStartCodeTable(
 
 const KEYWORD_START_CODES = createKeywordStartCodeTable(KEYWORDS);
 
-function canStartKeyword(ch: string): boolean {
-  return KEYWORD_START_CODES[ch.charCodeAt(0)] === true;
-}
-
 function isAsciiDigit(ch: string | undefined): ch is string {
   if (ch === undefined) return false;
   const code = ch.charCodeAt(0);
   return code >= 48 && code <= 57;
-}
-
-function isIdentifierStart(ch: string | undefined): ch is string {
-  if (ch === undefined) return false;
-  return isIdentifierStartCode(ch.charCodeAt(0));
-}
-
-function isIdentifierPart(ch: string | undefined): ch is string {
-  if (ch === undefined) return false;
-  return isIdentifierPartCode(ch.charCodeAt(0));
 }
 
 function isIdentifierStartCode(code: number): boolean {
@@ -401,33 +387,36 @@ export class GenericParser {
   }
 
   private matchIdentifierOrKeyword(): TokenNode | null {
-    const firstChar = this.source[this.position];
-    if (!isIdentifierStart(firstChar)) return null;
-
     const start = this.position;
+    const firstCode = this.source.charCodeAt(start);
+    if (!isIdentifierStartCode(firstCode)) return null;
+
     const end = this.scanIdentifierEnd(start + 1);
     const value = this.source.slice(start, end);
     if (
-      (firstChar === "t" && value === "true") ||
-      (firstChar === "f" && value === "false")
+      (firstCode === 116 && value === "true") ||
+      (firstCode === 102 && value === "false")
     ) {
       return this.createTokenFromRange("BoolLiteral", value, start, end);
     }
     if (
-      firstChar === "n" &&
+      firstCode === 110 &&
       (value === "null" || value === "nullptr")
     ) {
       return this.createTokenFromRange("NullptrLiteral", value, start, end);
     }
 
-    if (canStartKeyword(firstChar) && KEYWORDS.has(value)) {
+    if (KEYWORD_START_CODES[firstCode] === true && KEYWORDS.has(value)) {
       return this.createTokenFromRange("Keyword", value, start, end);
     }
     return this.createTokenFromRange("Identifier", value, start, end);
   }
 
   private scanIdentifierEnd(index: number): number {
-    while (index < this.source.length && isIdentifierPart(this.source[index])) {
+    while (
+      index < this.source.length &&
+      isIdentifierPartCode(this.source.charCodeAt(index))
+    ) {
       index += 1;
     }
     return index;

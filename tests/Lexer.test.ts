@@ -59,12 +59,14 @@ describe("Lexer - Extended Tests", () => {
       const matcherSource = source.slice(start, end);
       expect(source).toContain("const KEYWORDS = new Set");
       expect(source).toContain("const KEYWORD_START_CODES");
-      expect(source).toContain("function canStartKeyword");
-      expect(matcherSource).toContain('firstChar === "t"');
-      expect(matcherSource).toContain('firstChar === "f"');
-      expect(matcherSource).toContain('firstChar === "n"');
+      expect(source).not.toContain("function canStartKeyword");
+      expect(matcherSource).toContain("const firstCode =");
+      expect(matcherSource).toContain("this.source.charCodeAt(start)");
+      expect(matcherSource).toContain("firstCode === 116");
+      expect(matcherSource).toContain("firstCode === 102");
+      expect(matcherSource).toContain("firstCode === 110");
       expect(matcherSource).toContain(
-        "canStartKeyword(firstChar) && KEYWORDS.has(value)",
+        "KEYWORD_START_CODES[firstCode] === true && KEYWORDS.has(value)",
       );
     });
 
@@ -430,12 +432,12 @@ describe("Lexer - Extended Tests", () => {
 
       const matcherSource = source.slice(matcherStart, matcherEnd);
       expect(source).toContain("isAsciiDigit");
-      expect(source).toContain("isIdentifierStart");
+      expect(source).toContain("isIdentifierStartCode");
       expect(matcherSource).toContain('if (firstChar === "\\"")');
       expect(matcherSource).toContain("if (firstChar !== \"'\") return null");
       expect(matcherSource).toContain("if (!isAsciiDigit(firstChar)) return null");
       expect(matcherSource).toContain(
-        "if (!isIdentifierStart(firstChar)) return null",
+        "if (!isIdentifierStartCode(firstCode)) return null",
       );
     });
 
