@@ -184,6 +184,37 @@ describe("Parser", () => {
     expect(generatedSource).not.toContain("loc && loc.start && loc.end");
   });
 
+  it("keeps generated operator and merged locations on the direct SourceLocation fast path", () => {
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const makeOperatorTokenHelper = generatedSource.match(
+      /function makeOperatorToken\(op, loc\) \{[\s\S]*?\n  \}/,
+    )?.[0];
+    const mergeLocHelper = generatedSource.match(
+      /function mergeLoc\(startLoc, endLoc\) \{[\s\S]*?\n  \}/,
+    )?.[0];
+
+    expect(makeOperatorTokenHelper).toContain("line: loc.startLine,");
+    expect(makeOperatorTokenHelper).toContain("column: loc.startColumn,");
+    expect(makeOperatorTokenHelper).not.toContain("loc &&");
+    expect(makeOperatorTokenHelper).not.toContain("let line = 1");
+    expect(mergeLocHelper).toContain("startLine: startLoc.startLine,");
+    expect(mergeLocHelper).toContain("startColumn: startLoc.startColumn,");
+    expect(mergeLocHelper).toContain("endLine: endLoc.endLine,");
+    expect(mergeLocHelper).toContain("endColumn: endLoc.endColumn,");
+    expect(mergeLocHelper).not.toContain("startLoc &&");
+    expect(mergeLocHelper).not.toContain("endLoc &&");
+    expect(mergeLocHelper).not.toContain("let startLine = 1");
+  });
+
   it("keeps normalized parser locations off the identity makeLoc path", () => {
     const grammarSource = readFileSync(
       join(process.cwd(), "grammar", "bpl.peggy"),

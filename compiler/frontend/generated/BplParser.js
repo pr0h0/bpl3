@@ -13488,41 +13488,23 @@ function peg$parse(input, options) {
   function makeOperatorToken(op, loc) {
     const type = operatorTypeMap[op] || "Unknown";
 
-    let line = 1, column = 1;
-    if (loc && loc.startLine !== undefined) {
-        line = loc.startLine;
-        column = loc.startColumn;
-    }
-
     return {
       type,
       lexeme: op,
       literal: null,
-      line,
-      column,
+      line: loc.startLine,
+      column: loc.startColumn,
       file: parserFilePath,
     };
   }
 
   function mergeLoc(startLoc, endLoc) {
-    let startLine = 1, startColumn = 1;
-    if (startLoc && startLoc.startLine !== undefined) {
-        startLine = startLoc.startLine;
-        startColumn = startLoc.startColumn;
-    }
-
-    let endLine = 1, endColumn = 1;
-    if (endLoc && endLoc.endLine !== undefined) {
-        endLine = endLoc.endLine;
-        endColumn = endLoc.endColumn;
-    }
-
     return {
-        file: parserFilePath,
-        startLine,
-        startColumn,
-        endLine,
-        endColumn
+      file: parserFilePath,
+      startLine: startLoc.startLine,
+      startColumn: startLoc.startColumn,
+      endLine: endLoc.endLine,
+      endColumn: endLoc.endColumn,
     };
   }
 
