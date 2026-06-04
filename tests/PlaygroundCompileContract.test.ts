@@ -117,6 +117,35 @@ describe("Playground compile API contract", () => {
     );
   });
 
+  test("reuses cached compile-only debug artifacts for unchanged source", async () => {
+    await fetch(`${API_BASE}/logs/clear`, { method: "POST" });
+
+    const firstDebugResponse = await compile({
+      code: HELLO_WORLD_SOURCE,
+      includeArtifacts: true,
+      execute: false,
+    });
+    const secondDebugResponse = await compile({
+      code: HELLO_WORLD_SOURCE,
+      includeArtifacts: true,
+      execute: false,
+    });
+
+    expect(firstDebugResponse.status).toBe(200);
+    expect(firstDebugResponse.json.success).toBe(true);
+    expect(secondDebugResponse.status).toBe(200);
+    expect(secondDebugResponse.json).toEqual(firstDebugResponse.json);
+
+    const logsResponse = await fetch(`${API_BASE}/logs?limit=200`);
+    const logs = (await logsResponse.json()) as {
+      logs: Array<{ message?: string }>;
+    };
+    const cacheHitLogs = logs.logs.filter((entry) =>
+      entry.message?.includes("Reusing cached compile-only response"),
+    );
+    expect(cacheHitLogs.length).toBeGreaterThanOrEqual(1);
+  });
+
   test("reruns cached native binaries with current request argv", async () => {
     const oneArg = await compile({
       code: COMMAND_ARGS_SOURCE,

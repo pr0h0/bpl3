@@ -21,6 +21,10 @@ import { runPlaygroundNativeBinary } from "./nativeExecution";
 import { formatProcessCommand } from "./processRunner";
 import { resolvePlaygroundNativeRuntimeFiles } from "./runtimeFiles";
 import {
+  CompileOnlyResponseCache,
+  getCompileOnlyResponseCacheKey,
+} from "./compileResponseCache";
+import {
   getHostedWasmCacheKey,
   HostedWasmResponseCache,
   type HostedWasmCompileResponse,
@@ -211,9 +215,15 @@ type WasmCompileResponse = HostedWasmCompileResponse;
 
 const NATIVE_BINARY_CACHE_MAX_ENTRIES = 16;
 const NATIVE_BINARY_CACHE_TTL_MS = 10 * 60 * 1000;
+const COMPILE_ONLY_RESPONSE_CACHE_MAX_ENTRIES = 16;
+const COMPILE_ONLY_RESPONSE_CACHE_TTL_MS = 10 * 60 * 1000;
 const HOSTED_WASM_CACHE_MAX_ENTRIES = 16;
 const HOSTED_WASM_CACHE_TTL_MS = 10 * 60 * 1000;
 const nativeBinaryCache = new Map<string, NativeBinaryCacheEntry>();
+const compileOnlyResponseCache = new CompileOnlyResponseCache({
+  maxEntries: COMPILE_ONLY_RESPONSE_CACHE_MAX_ENTRIES,
+  ttlMs: COMPILE_ONLY_RESPONSE_CACHE_TTL_MS,
+});
 const hostedWasmResponseCache = new HostedWasmResponseCache({
   maxEntries: HOSTED_WASM_CACHE_MAX_ENTRIES,
   ttlMs: HOSTED_WASM_CACHE_TTL_MS,
@@ -539,6 +549,11 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
   const execute = req.execute !== false;
   const treeShakeTopLevelFunctions = execute && !includeArtifacts;
   const resolveImports = includeArtifacts || sourceMayUseBplImport(req.code);
+  let bplHome: string | undefined;
+  const getRequestBplHome = () => {
+    bplHome ??= getBplHome();
+    return bplHome;
+  };
 
   logger.info(`[${requestId}] Starting compilation`, {
     codeLength: req.code.length,
@@ -548,6 +563,27 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
     execute,
     resolveImports,
   });
+
+  const compileOnlyResponseCacheKey = !execute
+    ? getCompileOnlyResponseCacheKey({
+        code: req.code,
+        bplHome: getRequestBplHome(),
+        includeArtifacts,
+      })
+    : undefined;
+  const cachedCompileOnlyResponse =
+    compileOnlyResponseCacheKey !== undefined
+      ? compileOnlyResponseCache.get(compileOnlyResponseCacheKey)
+      : undefined;
+  if (cachedCompileOnlyResponse) {
+    const duration = Date.now() - startTime;
+    logger.info(`[${requestId}] Reusing cached compile-only response`, {
+      includeArtifacts,
+      duration,
+    });
+    updateStats(true, duration);
+    return cachedCompileOnlyResponse;
+  }
 
   const nativeBinaryCacheKey =
     execute && !includeArtifacts ? getNativeBinaryCacheKey(req.code) : undefined;
@@ -675,18 +711,22 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
       );
       updateStats(true, totalDuration);
 
-      return {
+      const response: CompileResponse = {
         success: true,
         warnings,
         ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
       };
+      if (compileOnlyResponseCacheKey !== undefined) {
+        compileOnlyResponseCache.remember(compileOnlyResponseCacheKey, response);
+      }
+      return response;
     }
 
     // Compile IR to binary using clang with runtime library
     try {
       const clangStart = Date.now();
       const runtimeFiles = await resolvePlaygroundNativeRuntimeFiles({
-        bplHome: getBplHome(),
+        bplHome: getRequestBplHome(),
         warn: (message) => logger.warn(`[${requestId}] ${message}`),
       });
 
