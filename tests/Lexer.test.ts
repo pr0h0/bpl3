@@ -12,6 +12,39 @@ function tokenize(source: string): Token[] {
 
 describe("Lexer - Extended Tests", () => {
   describe("Keywords", () => {
+    it("keeps GenericParser keyword recognition aligned with GrammarLexer keyword tokens", () => {
+      const genericParserSource = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const grammarLexerSource = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const keywordSetMatch = genericParserSource.match(
+        /private readonly keywords = new Set\(\[([\s\S]*?)\]\);/,
+      );
+      const keywordMapMatch = grammarLexerSource.match(
+        /const keywordMap:[\s\S]*?= \{([\s\S]*?)\};/,
+      );
+
+      expect(keywordSetMatch).not.toBeNull();
+      expect(keywordMapMatch).not.toBeNull();
+
+      const genericKeywords = new Set(
+        [...keywordSetMatch![1]!.matchAll(/"([^"]+)"/g)].map(
+          (match) => match[1],
+        ),
+      );
+      const converterKeywords = [
+        ...keywordMapMatch![1]!.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*):/gm),
+      ].map((match) => match[1]);
+
+      expect(
+        converterKeywords.filter((name) => !genericKeywords.has(name)),
+      ).toEqual([]);
+    });
+
     it("should tokenize 'frame' keyword", () => {
       const tokens = tokenize("frame");
       expect(tokens[0]!.type).toBe(TokenType.Frame);
@@ -20,6 +53,11 @@ describe("Lexer - Extended Tests", () => {
     it("should tokenize 'struct' keyword", () => {
       const tokens = tokenize("struct");
       expect(tokens[0]!.type).toBe(TokenType.Struct);
+    });
+
+    it("should tokenize 'enum' keyword", () => {
+      const tokens = tokenize("enum");
+      expect(tokens[0]!.type).toBe(TokenType.Enum);
     });
 
     it("should tokenize 'if' keyword", () => {
@@ -376,6 +414,22 @@ describe("Lexer - Extended Tests", () => {
       expect(matcherSource).toContain(
         "if (!isIdentifierStart(firstChar)) return null",
       );
+    });
+
+    it("converts identifier token nodes without a defensive keyword lookup", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const start = source.indexOf('if (type === "Identifier")');
+      const end = source.indexOf('if (type === "StringLiteral")', start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const identifierSource = source.slice(start, end);
+      expect(identifierSource).toContain("TokenType.Identifier");
+      expect(identifierSource).not.toContain("keywordMap");
     });
 
     it("should tokenize simple identifier", () => {

@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Identifier Token Conversion Fast Path** - `convertTokenNodeToToken` now
+  trusts the grammar-backed lexer's `Identifier` invariant and skips a
+  defensive `keywordMap` lookup for identifier token nodes. Keywords, booleans,
+  and null literals continue through their dedicated token-node branches. On a
+  matched 5k synthetic compile probe after the preallocated grammar token
+  conversion, lex median improved from ~97.28ms to ~70.64ms and full
+  in-process compile median improved from ~763.38ms to ~725.65ms while
+  preserving the same 265,230 tokens, token signature
+  (`0900c2024fca2824345874aadd6b27e0a9805c61fdf67ad1dd5e6699cf0caf93`), and
+  LLVM IR hash
+  (`c579f6868c8d3de52eab8f7fae86e30480adac92db1747f069c4bd8fc8d9b9cd`).
+  Reproduce with
+  `bun test tests/Lexer.test.ts -t "aligned with GrammarLexer keyword tokens|defensive keyword lookup|should tokenize 'enum' keyword|should tokenize 'as' keyword|should tokenize 'this' keyword"`.
 - **Preallocated Grammar Token Conversion** - `lexWithGrammar` now converts
   grammar token nodes through a preallocated indexed loop instead of
   `tokens.map(...)`, avoiding callback overhead on large token streams. On the

@@ -200,9 +200,6 @@ function convertTokenNodeToToken(node: TokenNode): Token {
   const { type, value, line, column, file } = node;
 
   if (type === "Identifier") {
-    if (keywordMap[value]) {
-      return new Token(keywordMap[value], value, null, line, column, file);
-    }
     return new Token(TokenType.Identifier, value, null, line, column, file);
   }
 
