@@ -8,7 +8,7 @@ import { CompilerError } from "../common/CompilerError";
 import { typeCheckerLog } from "../common/Logger";
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
-import { TypeUtils, KNOWN_TYPES } from "./TypeUtils";
+import { TypeUtils, KNOWN_TYPES, NUMERIC_TYPES } from "./TypeUtils";
 import { OPERATOR_METHOD_MAP } from "./OverloadResolver";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import type { CheckerContext } from "./CheckerContext";
@@ -71,6 +71,21 @@ function isArithmeticOperandType(
   type: AST.TypeNode,
 ): boolean {
   return TypeUtils.isNumericType(type) || isGenericParameterType(context, type);
+}
+
+const OPERATOR_OVERLOAD_FREE_BASIC_TYPES = new Set([
+  ...KNOWN_TYPES,
+  ...NUMERIC_TYPES,
+  "null",
+  "nullptr",
+]);
+
+function canHaveOperatorOverload(type: AST.TypeNode): boolean {
+  if (type.kind !== "BasicType") return false;
+  if (type.arrayDimensions.length > 0) return false;
+  if (type.resolvedDeclaration) return true;
+  if (type.genericArgs.length > 0) return true;
+  return !OPERATOR_OVERLOAD_FREE_BASIC_TYPES.has(type.name);
 }
 
 /**
@@ -477,18 +492,23 @@ export function checkBinary(
   // Try operator overload first (for user-defined types), but not for pointer comparisons
   const methodName = OPERATOR_METHOD_MAP[expr.operator.lexeme];
   if (methodName && !isPointerComparison) {
-    let method = this.findOperatorOverload(leftType, methodName, [rightType]);
+    let method = canHaveOperatorOverload(leftType)
+      ? this.findOperatorOverload(leftType, methodName, [rightType])
+      : undefined;
     let swapOperands = false;
     let negateResult = false;
     let targetType = leftType;
 
     // Synthesis logic for missing operators
     if (!method) {
-      if (op === TokenType.BangEqual) {
+      if (op === TokenType.BangEqual && canHaveOperatorOverload(leftType)) {
         // != -> !(__eq__)
         method = this.findOperatorOverload(leftType, "__eq__", [rightType]);
         if (method) negateResult = true;
-      } else if (op === TokenType.Greater) {
+      } else if (
+        op === TokenType.Greater &&
+        canHaveOperatorOverload(rightType)
+      ) {
         // > -> < (swapped)
         method = this.findOperatorOverload(rightType, "__lt__", [leftType]);
         if (method) {
@@ -799,7 +819,7 @@ export function checkUnary(
     lookupKey = "unary" + lookupKey;
   }
   const methodName = OPERATOR_METHOD_MAP[lookupKey];
-  if (methodName) {
+  if (methodName && canHaveOperatorOverload(operandType)) {
     const method = this.findOperatorOverload(operandType, methodName, []);
 
     if (method) {

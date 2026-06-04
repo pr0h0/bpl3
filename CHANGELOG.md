@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Builtin Operand Operator-Overload Fast Path** - `ExpressionChecker` now
+  skips operator-overload resolver calls for known builtin operand types that
+  cannot define overload methods, while preserving user-defined overloads and
+  the existing swapped-right `>` lookup. Against detached `9a032ba`, a
+  101-round 5k phase benchmark preserved token count, token signature, and
+  LLVM IR hash while improving median typecheck time from ~117.15ms to
+  ~115.52ms and full median from ~554.19ms to ~549.86ms. Reproduce the guards
+  with `bun test tests/TypeChecker.test.ts -t "builtin operand"` and
+  `bun test tests/OperatorOverloadingUser.test.ts -t "Builtin-left"`.
 - **Generated Parser Comment-Marker Fast Path** - `Parser` now computes the
   BPL comment-marker state once and passes it through `parseWithPeggy` so the
   generated trivia skipper can skip its own full-source `#` scan on

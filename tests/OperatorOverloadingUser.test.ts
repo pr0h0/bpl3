@@ -129,4 +129,29 @@ describe("User Operator Overloading", () => {
     expect(output).toContain("b1 < b3");
     expect(output).toContain("b3 > b1");
   });
+
+  test("Builtin-left greater-than keeps swapped right-operand overload", () => {
+    const output = compileAndRun(`
+      extern printf(fmt: *i8, ...) ret i32;
+
+      struct Threshold {
+        val: i32,
+
+        frame __lt__(this: *Threshold, other: i32) ret bool {
+            return this.val < other;
+        }
+      }
+
+      frame main() {
+        local threshold: Threshold;
+        threshold.val = 5;
+
+        if (7 > threshold) {
+            printf("swapped overload\\n");
+        }
+      }
+    `);
+
+    expect(output).toContain("swapped overload");
+  });
 });

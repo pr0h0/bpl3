@@ -168,6 +168,39 @@ describe("TypeChecker", () => {
     expect(methodPrefix).toContain("decl.methods.length === 0");
   });
 
+  it("skips operator overload resolution for builtin operand types", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler", "middleend", "ExpressionChecker.ts"),
+      "utf8",
+    );
+    const helperStart = source.indexOf("function canHaveOperatorOverload");
+    const binaryStart = source.indexOf("export function checkBinary");
+    const firstResolverCall = source.indexOf(
+      "this.findOperatorOverload(leftType, methodName, [rightType])",
+      binaryStart,
+    );
+    const binaryGuard = source.indexOf(
+      "canHaveOperatorOverload(leftType)",
+      binaryStart,
+    );
+    const swappedGuard = source.indexOf(
+      "canHaveOperatorOverload(rightType)",
+      binaryStart,
+    );
+    const unaryStart = source.indexOf("export function checkUnary");
+    const unaryGuard = source.indexOf(
+      "canHaveOperatorOverload(operandType)",
+      unaryStart,
+    );
+
+    expect(helperStart).toBeGreaterThanOrEqual(0);
+    expect(source).toContain("OPERATOR_OVERLOAD_FREE_BASIC_TYPES.has");
+    expect(binaryGuard).toBeGreaterThan(binaryStart);
+    expect(binaryGuard).toBeLessThan(firstResolverCall);
+    expect(swappedGuard).toBeGreaterThan(firstResolverCall);
+    expect(unaryGuard).toBeGreaterThan(unaryStart);
+  });
+
   it("should clear failed import recovery state when reusing a checker", () => {
     const checker = new TypeChecker({ collectAllErrors: true });
     const failedImportSource = [
