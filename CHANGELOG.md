@@ -35,6 +35,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   to ~488.22ms while preserving the same 120,043-line LLVM IR
   (`3494f8c270b2562b7a0365cf7b148a58f2e583600bf37a2683dbd189a560e486`).
   Reproduce with `bun test tests/Parser.test.ts -t "trivia skipping"`.
+- **Factored Postfix Trivia Parsing** - The BPL grammar now factors the leading
+  postfix-tail trivia parse once before dispatching to call, index, member,
+  generic, and postfix-unary alternatives. On a matched 5k parse-only probe,
+  median improved from ~184.73ms to ~175.82ms and average from ~202.24ms to
+  ~183.74ms while preserving the same 5,002 top-level statements. The full
+  compile split preserved identical LLVM IR
+  (`65606e11ff5aaf2b92b95b9021a27f68c05546dead03407a16d59704694b99ed`).
+  Reproduce with
+  `bun test tests/Parser.test.ts -t "postfix tail trivia|checked-in generated Peggy parser"`.
 - **Primitive-Only Struct Default Fast Path** - Codegen now caches whether a
   by-value struct needs generated default initialization and returns `undef`
   immediately for primitive-only structs, while still preserving vtable pointer

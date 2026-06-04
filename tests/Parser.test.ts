@@ -567,6 +567,28 @@ describe("Parser", () => {
     expect(generatedSource).not.toContain("function peg$isBplWhitespaceCode");
   });
 
+  it("keeps postfix tail trivia factored once for parser throughput", () => {
+    const grammarSource = readFileSync(
+      join(process.cwd(), "grammar", "bpl.peggy"),
+      "utf8",
+    );
+    const postfixStart = grammarSource.indexOf("\nPostfixTail\n");
+    const argumentListStart = grammarSource.indexOf(
+      "\nArgumentList\n",
+      postfixStart,
+    );
+
+    expect(postfixStart).toBeGreaterThanOrEqual(0);
+    expect(argumentListStart).toBeGreaterThan(postfixStart);
+
+    const postfixSource = grammarSource.slice(postfixStart, argumentListStart);
+    expect(postfixSource).toContain("tail:PostfixTailAfterTrivia");
+    expect(postfixSource).toContain("tail.loc = location();");
+    expect(postfixSource).toContain("PostfixTailAfterTrivia");
+    expect(postfixSource).not.toContain('/ _ "("');
+    expect(postfixSource).not.toContain('/ _ "."');
+  });
+
   it("keeps valid parses off the detailed Peggy failure collection path", () => {
     const generatorSource = readFileSync(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

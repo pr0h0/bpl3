@@ -1107,33 +1107,32 @@ Postfix
     }
 
 PostfixTail
-  = _ "<" _ args:GenericArgList _ ">" {
-      const loc = location();
-      return { type: "generic", genericArgs: args, loc: loc };
+  = _ tail:PostfixTailAfterTrivia {
+      tail.loc = location();
+      return tail;
     }
-  / _ "(" _ args:ArgumentList? _ ")" {
-      const loc = location();
-      return { type: "call", args: args || [], loc: loc };
+
+PostfixTailAfterTrivia
+  = "<" _ args:GenericArgList _ ">" {
+      return { type: "generic", genericArgs: args };
     }
-  / _ "[" _ idx:Expression _ "]" {
-      const loc = location();
-      return { type: "index", index: idx, loc: loc };
+  / "(" _ args:ArgumentList? _ ")" {
+      return { type: "call", args: args || [] };
     }
-  / _ "." _ prop:Identifier _ "{" _ fields:StructLiteralFields? _ "}" {
-      const loc = location();
-      return { type: "enumStructVariant", property: prop.name, fields: fields || [], loc: loc };
+  / "[" _ idx:Expression _ "]" {
+      return { type: "index", index: idx };
     }
-  / _ "." _ prop:Identifier {
-      const loc = location();
-      return { type: "member", property: prop.name, loc: loc };
+  / "." _ prop:Identifier _ "{" _ fields:StructLiteralFields? _ "}" {
+      return { type: "enumStructVariant", property: prop.name, fields: fields || [] };
     }
-  / _ "." _ num:[0-9]+ {
-      const loc = location();
-      return { type: "member", property: num.join(""), loc: loc };
+  / "." _ prop:Identifier {
+      return { type: "member", property: prop.name };
     }
-  / _ op:("++" / "--") {
-      const loc = location();
-      return { type: "postfixUnary", operator: op, loc: loc };
+  / "." _ num:[0-9]+ {
+      return { type: "member", property: num.join("") };
+    }
+  / op:("++" / "--") {
+      return { type: "postfixUnary", operator: op };
     }
 
 ArgumentList
