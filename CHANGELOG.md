@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Generated Parser Comment-Marker Fast Path** - `Parser` now computes the
+  BPL comment-marker state once and passes it through `parseWithPeggy` so the
+  generated trivia skipper can skip its own full-source `#` scan on
+  comment-free parser passes. Against `ed9dd2a`, a 101-round isolated 5k
+  parse-only probe preserved statement count and AST hash while improving
+  median parse time from ~255.26ms to ~238.36ms. A matched phase benchmark
+  preserved token signature and LLVM IR hash and improved full median from
+  ~561.36ms to ~555.80ms. Reproduce the guard with
+  `bun test tests/Parser.test.ts -t "precomputed comment-marker"` and the
+  phase benchmark with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json`.
 - **Identifier Keyword Classifier Fast Path** - `GenericParser` now classifies
   identifier-like tokens through a direct first-character switch instead of a
   keyword `Set` lookup, preserving `true`/`false` and `null`/`nullptr` literal

@@ -862,7 +862,7 @@ describe("Parser", () => {
 
     expect(generatedSource).toContain("const peg$emptyTrivia = [];");
     expect(generatedSource).toContain(
-      'const peg$hasBplCommentMarker = input.indexOf("#") !== -1;',
+      'const peg$hasBplCommentMarker = options.bplHasCommentMarker ?? input.indexOf("#") !== -1;',
     );
     expect(triviaHelper).toContain("while (peg$currPos < input.length)");
     expect(triviaHelper).toContain("pushCommentToken");
@@ -997,6 +997,47 @@ describe("Parser", () => {
     expect(parseSource).toContain("? this.tokens.filter");
     expect(parseSource).toContain("else if (hasCommentMarker)");
     expect(parseSource).toContain("comments = ast.comments || []");
+  });
+
+  it("threads precomputed comment-marker state into the generated parser", () => {
+    const parserSource = readFileSync(
+      join(process.cwd(), "compiler", "frontend", "Parser.ts"),
+      "utf8",
+    );
+    const wrapperSource = readFileSync(
+      join(process.cwd(), "compiler", "frontend", "PeggyParser.ts"),
+      "utf8",
+    );
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+
+    expect(parserSource).toMatch(
+      /parseWithPeggy\(\s*this\.source,\s*this\.filePath,\s*\{\s*hasCommentMarker,\s*\}\s*\)/,
+    );
+    expect(wrapperSource).toContain(
+      "options: { hasCommentMarker?: boolean } = {}",
+    );
+    expect(wrapperSource).toContain(
+      "bplHasCommentMarker: options.hasCommentMarker,",
+    );
+    expect(generatorSource).toContain(
+      'options.bplHasCommentMarker ?? input.indexOf("#") !== -1',
+    );
+    expect(generatedSource).toContain(
+      'options.bplHasCommentMarker ?? input.indexOf("#") !== -1',
+    );
   });
 
   it("preserves syntax diagnostics through the fast parser retry", () => {

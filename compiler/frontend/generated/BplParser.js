@@ -12269,7 +12269,7 @@ function peg$parse(input, options) {
   }
 
   const peg$emptyTrivia = [];
-  const peg$hasBplCommentMarker = input.indexOf("#") !== -1;
+  const peg$hasBplCommentMarker = options.bplHasCommentMarker ?? input.indexOf("#") !== -1;
 
   function peg$parse_() {
     while (peg$currPos < input.length) {

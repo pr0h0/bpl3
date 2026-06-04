@@ -28,7 +28,11 @@ function toSourceLocation(
   };
 }
 
-export function parseWithPeggy(source: string, filePath: string): AST.Program {
+export function parseWithPeggy(
+  source: string,
+  filePath: string,
+  options: { hasCommentMarker?: boolean } = {},
+): AST.Program {
   const parser: peggy.Parser = loadParser();
 
   const parseOnce = (bplCollectExpected: boolean): AST.Program => {
@@ -39,6 +43,7 @@ export function parseWithPeggy(source: string, filePath: string): AST.Program {
       comments,
       errors,
       bplCollectExpected,
+      bplHasCommentMarker: options.hasCommentMarker,
     }) as AST.Program;
     program.comments = comments;
     if (errors.length > 0) {

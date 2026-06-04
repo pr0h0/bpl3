@@ -18,7 +18,10 @@ export class Parser {
     injectImplicitImports: boolean = false,
     throwOnError: boolean = true,
   ): AST.Program {
-    const ast = parseWithPeggy(this.source, this.filePath);
+    const hasCommentMarker = this.source.includes("#");
+    const ast = parseWithPeggy(this.source, this.filePath, {
+      hasCommentMarker,
+    });
 
     // Implicitly import Error from std/errors.bpl if not already in errors.bpl
     const isErrorsBpl =
@@ -43,7 +46,6 @@ export class Parser {
       ast.statements.unshift(errorImport);
     }
 
-    const hasCommentMarker = this.source.includes("#");
     const tokenComments =
       this.tokens.length > 0 && hasCommentMarker
         ? this.tokens.filter((t) => t.type === TokenType.Comment)
