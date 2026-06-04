@@ -9,7 +9,6 @@ import * as path from "path";
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 
-import { lexWithGrammar } from "../frontend/GrammarLexer";
 import { Parser } from "../frontend/Parser";
 import { type Symbol, type SymbolKind, SymbolTable } from "./SymbolTable";
 import { initializeBuiltinsInScope } from "./BuiltinTypes";
@@ -297,8 +296,7 @@ export class ImportHandler {
       }
 
       const content = fs.readFileSync(importPath, "utf-8");
-      const tokens = lexWithGrammar(content, importPath);
-      const parser = new Parser(content, importPath, tokens);
+      const parser = new Parser(content, importPath);
       moduleAst = parser.parse(true);
       this.ctx.preLoadedModules.set(importPath, moduleAst);
     }

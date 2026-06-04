@@ -6,6 +6,8 @@ import * as path from "path";
 import { CompilerError } from "../compiler/common/CompilerError";
 import { ModuleResolver } from "../compiler/middleend/ModuleResolver";
 
+import type * as AST from "../compiler/common/AST";
+
 describe("ModuleResolver", () => {
   // Create temp directory for test files
   const tempDir = path.join(os.tmpdir(), `bpl-test-${Date.now()}`);
@@ -30,6 +32,26 @@ describe("ModuleResolver", () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
+  it("keeps module parsing off the separate grammar lexer hot path", () => {
+    const moduleResolverSource = fs.readFileSync(
+      path.join(process.cwd(), "compiler/middleend/ModuleResolver.ts"),
+      "utf8",
+    );
+    const importHandlerSource = fs.readFileSync(
+      path.join(process.cwd(), "compiler/middleend/ImportHandler.ts"),
+      "utf8",
+    );
+
+    expect(moduleResolverSource).not.toContain("lexWithGrammar(content");
+    expect(moduleResolverSource).not.toContain(
+      "new Parser(content, modulePath, tokens)",
+    );
+    expect(importHandlerSource).not.toContain("lexWithGrammar(content");
+    expect(importHandlerSource).not.toContain(
+      "new Parser(content, importPath, tokens)",
+    );
+  });
+
   it("should resolve a single module without imports", () => {
     const mainPath = path.join(tempDir, "main.bpl");
     fs.writeFileSync(
@@ -50,6 +72,33 @@ describe("ModuleResolver", () => {
     expect(modules[1]!.path).toBe(mainPath);
     // main depends on errors.bpl
     expect(modules[1]!.dependencies.size).toBe(1);
+  });
+
+  it("preserves module doc comments without pre-lexing tokens", () => {
+    const mainPath = path.join(tempDir, "documented_module.bpl");
+    fs.writeFileSync(
+      mainPath,
+      `
+      /#
+      Adds one to the provided value.
+      #/
+      frame documented(value: int) ret int {
+        return value + 1;
+      }
+    `,
+    );
+
+    const resolver = new ModuleResolver({ stdLibPath: tempDir });
+    const modules = resolver.resolveModules(mainPath);
+    const mainModule = modules.find((module) => module.path === mainPath);
+    const documentedFunction = mainModule?.ast.statements.find(
+      (statement): statement is AST.FunctionDecl =>
+        statement.kind === "FunctionDecl" && statement.name === "documented",
+    );
+
+    expect(documentedFunction?.documentation).toBe(
+      "Adds one to the provided value.",
+    );
   });
 
   it("should resolve modules with linear dependencies", () => {

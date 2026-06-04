@@ -19,7 +19,6 @@ import { getLibPath } from "../common/PathResolver";
 import { CompilerError } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 import { findCaseMismatchPath } from "../common/PathSafety";
-import { lexWithGrammar } from "../frontend/GrammarLexer";
 import { Parser } from "../frontend/Parser";
 import { PackageManager, type PackageManagerOptions } from "./PackageManager";
 import {
@@ -448,8 +447,7 @@ export class ModuleResolver {
 
     // Read and parse
     const content = fs.readFileSync(modulePath, "utf-8");
-    const tokens = lexWithGrammar(content, modulePath);
-    const parser = new Parser(content, modulePath, tokens);
+    const parser = new Parser(content, modulePath);
     const ast = parser.parse(true);
 
     // Create module info
