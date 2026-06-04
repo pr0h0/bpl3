@@ -471,12 +471,18 @@ export class BaseCodeGenerator {
   }
 
   protected isTerminator(line: string): boolean {
-    line = line.trim();
+    let index = 0;
+    while (index < line.length) {
+      const code = line.charCodeAt(index);
+      if (code !== 32 && code !== 9 && code !== 10 && code !== 13) break;
+      index++;
+    }
+
     return (
-      line.startsWith("ret ") ||
-      line.startsWith("br ") ||
-      line.startsWith("switch ") ||
-      line.startsWith("unreachable")
+      line.startsWith("ret ", index) ||
+      line.startsWith("br ", index) ||
+      line.startsWith("switch ", index) ||
+      line.startsWith("unreachable", index)
     );
   }
 }

@@ -69,6 +69,10 @@ class InspectableCodeGenerator extends CodeGenerator {
   public allStructFields(decl: AST.StructDecl): AST.StructField[] {
     return this.getAllStructFields(decl);
   }
+
+  public isIrTerminator(line: string): boolean {
+    return this.isTerminator(line);
+  }
 }
 
 describe("CodeGenerator", () => {
@@ -94,6 +98,30 @@ describe("CodeGenerator", () => {
     expect(generator.allStructFields(point!)).toBe(
       generator.allStructFields(point!),
     );
+  });
+
+  it("detects LLVM terminators without trimming generated lines", () => {
+    const generator = new InspectableCodeGenerator();
+    expect(generator.isIrTerminator("  ret i32 0")).toBe(true);
+    expect(generator.isIrTerminator("\tbr label %done")).toBe(true);
+    expect(generator.isIrTerminator("  switch i32 %x, label %d []")).toBe(true);
+    expect(generator.isIrTerminator("  unreachable")).toBe(true);
+    expect(generator.isIrTerminator("  %x = add i32 1, 2")).toBe(false);
+    expect(generator.isIrTerminator("  ret")).toBe(false);
+
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("protected isTerminator");
+    const end = source.indexOf("\n}", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const methodSource = source.slice(start, end);
+    expect(methodSource).toContain("line.charCodeAt(index)");
+    expect(methodSource).toContain('line.startsWith("ret ", index)');
+    expect(methodSource).not.toContain(".trim()");
   });
 
   it("keeps primitive-only struct defaults on a cached undef fast path", () => {

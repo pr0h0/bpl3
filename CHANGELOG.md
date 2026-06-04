@@ -44,6 +44,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (`418485e59754bb5bd879f85d43d448216b3bf486ba2a419a92c30cb9c9f08ad0`).
   Reproduce with
   `bun test tests/CodeGenerator.test.ts -t "primitive-only struct defaults|preserves required struct default"`.
+- **No-Trim LLVM Terminator Detection** - Codegen block finalization now checks
+  generated LLVM terminator lines with a leading-whitespace scan instead of
+  allocating through `trim()` for every block. On the post-struct-default 5k
+  typed-AST codegen probe, median improved from ~135.22ms to ~125.36ms and
+  average from ~134.14ms to ~127.43ms while preserving identical 135,029-line
+  LLVM IR
+  (`418485e59754bb5bd879f85d43d448216b3bf486ba2a419a92c30cb9c9f08ad0`).
+  Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "terminators without trimming"`.
 - **Generated Trivia Whitespace Fast Path** - The checked-in Peggy parser
   postprocessor now inlines whitespace char-code checks inside the manual trivia
   skipper instead of calling a helper on every whitespace probe. On the same 5k
