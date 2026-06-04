@@ -1140,6 +1140,16 @@ function peg$parse(input, options) {
       return peg$lastBplLineIndex;
     }
 
+    if (pos >= peg$bplLineStarts[peg$lastBplLineIndex]) {
+      while (
+        peg$lastBplLineIndex + 1 < peg$bplLineStarts.length &&
+        pos >= peg$bplLineStarts[peg$lastBplLineIndex + 1]
+      ) {
+        peg$lastBplLineIndex++;
+      }
+      return peg$lastBplLineIndex;
+    }
+
     let low = 0;
     let high = peg$bplLineStarts.length - 1;
 
