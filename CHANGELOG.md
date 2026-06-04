@@ -88,6 +88,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/CodeGen_DivZero.test.ts -t "nonzero divisor|overflow guards"`
   and the compile gate with
   `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-divproof-overflow-baseline-5k-31.json --gate-phases codegen,full --max-phase-regression 5 --max-full-regression 5 --json`.
+- **Grouped LLVM Reference Scans** -
+  final IR pruning now collects `@symbol` references and `%struct.*`
+  references in separate direct scanner loops instead of interleaving both
+  searches. This keeps the scanner allocation-free while avoiding redundant
+  cross-probe comparisons in the pruning path. On the actual 5k generated IR,
+  an isolated scanner probe moved from ~10.94ms to ~10.40ms median. A
+  31-round 5k phase gate preserved token/IR signatures, with codegen +0.11%
+  and full +2.50% under the 5% gate. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "grouped direct LLVM reference|prefix-like symbols|runtime helper declarations"`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-5k-profile-after-ef8c69c.json --gate-phases codegen,full --max-phase-regression 5 --max-full-regression 5 --json`.
 - **Allocation-Free Parser Function Declaration Helpers** -
   the Peggy grammar helper for `FunctionDecl` now returns the AST node directly
   instead of allocating a temporary `node` binding in every function declaration

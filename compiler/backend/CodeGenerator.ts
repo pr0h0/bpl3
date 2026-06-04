@@ -862,31 +862,29 @@ export class CodeGenerator extends StatementGenerator {
     references: LlvmReferences,
     llvmBody: string,
   ): void {
-    let symbolIndex = llvmBody.indexOf("@");
-    let structIndex = llvmBody.indexOf("%struct.");
-
-    while (symbolIndex !== -1 || structIndex !== -1) {
-      if (
-        symbolIndex !== -1 &&
-        (structIndex === -1 || symbolIndex < structIndex)
-      ) {
-        const start = symbolIndex + 1;
-        const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
-        if (end > start) {
-          references.symbols.add(llvmBody.slice(start, end));
-          symbolIndex = llvmBody.indexOf("@", end);
-        } else {
-          symbolIndex = llvmBody.indexOf("@", start);
-        }
+    let symbolIndex = 0;
+    while ((symbolIndex = llvmBody.indexOf("@", symbolIndex)) !== -1) {
+      const start = symbolIndex + 1;
+      const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
+      if (end > start) {
+        references.symbols.add(llvmBody.slice(start, end));
+        symbolIndex = end;
       } else {
-        const start = structIndex + "%struct.".length;
-        const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
-        if (end > start) {
-          references.structs.add(llvmBody.slice(start, end));
-          structIndex = llvmBody.indexOf("%struct.", end);
-        } else {
-          structIndex = llvmBody.indexOf("%struct.", start + 1);
-        }
+        symbolIndex = start;
+      }
+    }
+
+    let structIndex = 0;
+    while (
+      (structIndex = llvmBody.indexOf("%struct.", structIndex)) !== -1
+    ) {
+      const start = structIndex + "%struct.".length;
+      const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
+      if (end > start) {
+        references.structs.add(llvmBody.slice(start, end));
+        structIndex = end;
+      } else {
+        structIndex = start + 1;
       }
     }
   }
