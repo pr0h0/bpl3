@@ -511,6 +511,28 @@ describe("Lexer - Extended Tests", () => {
   });
 
   describe("Comments", () => {
+    it("keeps GenericParser comment-free whitespace scanning off comment branches", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const methodStart = source.indexOf("private skipWhitespaceAndComments");
+      const methodEnd = source.indexOf("private matchStringLiteral", methodStart);
+
+      expect(methodStart).toBeGreaterThanOrEqual(0);
+      expect(methodEnd).toBeGreaterThan(methodStart);
+
+      const methodSource = source.slice(methodStart, methodEnd);
+      expect(source).toContain("private readonly hasCommentMarker: boolean");
+      expect(source).toContain('this.hasCommentMarker = source.includes("#")');
+      expect(source).toContain("private skipWhitespaceOnly");
+      expect(methodSource).toContain("if (!this.hasCommentMarker)");
+      expect(methodSource).toContain("this.skipWhitespaceOnly()");
+      expect(methodSource.indexOf("skipWhitespaceOnly")).toBeLessThan(
+        methodSource.indexOf("startsWith(\"/#\""),
+      );
+    });
+
     it("keeps comment-free lexing off the comment extraction path", () => {
       const source = readFileSync(
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),

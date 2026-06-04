@@ -129,12 +129,15 @@ export class GenericParser {
   private position = 0;
   private line = 1;
   private column = 1;
+  private readonly hasCommentMarker: boolean;
 
   constructor(
     private readonly grammar: Grammar,
     private readonly source: string,
     private readonly filePath: string = "<memory>",
-  ) {}
+  ) {
+    this.hasCommentMarker = source.includes("#");
+  }
 
   private readonly keywords = new Set([
     "global",
@@ -200,25 +203,16 @@ export class GenericParser {
   }
 
   private skipWhitespaceAndComments(): void {
+    if (!this.hasCommentMarker) {
+      this.skipWhitespaceOnly();
+      return;
+    }
+
     let advanced = true;
     while (advanced) {
       advanced = false;
 
-      // whitespace and newlines
-      while (this.position < this.source.length) {
-        const ch = this.source[this.position]!;
-        if (ch === " " || ch === "\t" || ch === "\r") {
-          this.advance(ch);
-          advanced = true;
-          continue;
-        }
-        if (ch === "\n") {
-          this.advance(ch);
-          advanced = true;
-          continue;
-        }
-        break;
-      }
+      if (this.skipWhitespaceOnly()) advanced = true;
 
       // multiline comment /# ... #/
       if (this.source.startsWith("/#", this.position)) {
@@ -243,6 +237,28 @@ export class GenericParser {
         advanced = true;
       }
     }
+  }
+
+  private skipWhitespaceOnly(): boolean {
+    const start = this.position;
+
+    while (this.position < this.source.length) {
+      const ch = this.source[this.position]!;
+      if (ch === " " || ch === "\t" || ch === "\r") {
+        this.position += 1;
+        this.column += 1;
+        continue;
+      }
+      if (ch === "\n") {
+        this.position += 1;
+        this.line += 1;
+        this.column = 1;
+        continue;
+      }
+      break;
+    }
+
+    return this.position !== start;
   }
 
   private matchStringLiteral(): TokenNode | null {

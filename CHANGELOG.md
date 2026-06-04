@@ -28,6 +28,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (`0b8c49ae14d139a930c47165d8605d20a7d986e4ea3a267ffb6e31329848a6b7`).
   Reproduce with
   `bun test tests/Lexer.test.ts tests/Parser.test.ts tests/ParserExtended.test.ts`.
+- **Generic Parser No-Comment Whitespace Fast Path** - The grammar-backed lexer
+  now records whether the source contains `#` once and routes comment-free
+  files through a whitespace-only scanner that updates positions directly. On a
+  matched 5k synthetic compile probe, lex median improved from ~119.11ms to
+  ~93.98ms and full in-process compile median improved from ~782.61ms to
+  ~756.89ms while preserving the same 265,230 tokens, token signature
+  (`0900c2024fca2824345874aadd6b27e0a9805c61fdf67ad1dd5e6699cf0caf93`), and
+  LLVM IR hash
+  (`c579f6868c8d3de52eab8f7fae86e30480adac92db1747f069c4bd8fc8d9b9cd`).
+  Reproduce with
+  `bun test tests/Lexer.test.ts -t "GenericParser comment-free whitespace|skip single-line comments|skip multi-line comments|comment-free lexing"`.
 - **Generated No-Comment Trivia Fast Path** - The checked-in Peggy parser now
   records whether the input contains `#` once and skips comment-branch checks in
   `peg$parse_` for comment-free files. On the direct 5k compile probe, parse
