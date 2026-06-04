@@ -6,6 +6,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @__bpl_argc_value = weak global i32 0
 @__bpl_argv_value = weak global i8** null
 @__bpl_stack_depth = weak global i32 0
+@__bpl_stack_limit = weak global i8* null
 @defer_top = weak global %struct.DeferNode* null
 @exception_top = weak global %struct.ExceptionFrame* null
 @exception_value = weak global i64 0

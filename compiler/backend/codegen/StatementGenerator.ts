@@ -21,6 +21,8 @@ import { TokenType } from "../../frontend/TokenType";
 import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConversions";
 import { AsmGenerator } from "./AsmGenerator";
 
+const OPTIMIZED_NATIVE_STACK_LIMIT_BYTES = 1024 * 1024;
+
 export abstract class StatementGenerator extends AsmGenerator {
   protected switchStack: { labels: string[]; activeIndex: number }[] = [];
   protected currentFunctionEmitsStackFrameHooks = true;
@@ -154,6 +156,110 @@ export abstract class StatementGenerator extends AsmGenerator {
     if (decl.name === "main" || emittedName === "main") return true;
 
     return !this.isTrivialLeafReturnFunction(decl);
+  }
+
+  private shouldInlineStackFrameChecks(): boolean {
+    if (this.generateDwarf || this.optimizationLevel < 2) return false;
+    return !this.target?.toLowerCase().includes("wasm");
+  }
+
+  private shouldUseStackLimitProbe(): boolean {
+    return (
+      this.shouldInlineStackFrameChecks() && this.optimizationLevel >= 3
+    );
+  }
+
+  private emitStackFrameEnter(): void {
+    if (!this.currentFunctionEmitsStackFrameHooks) return;
+
+    if (this.shouldUseStackLimitProbe()) {
+      this.emitStackLimitProbe();
+      return;
+    }
+
+    if (!this.shouldInlineStackFrameChecks()) {
+      this.emit(`  call void @__bpl_enter_stack_frame()`);
+      return;
+    }
+
+    const depth = this.newRegister();
+    const nextDepth = this.newRegister();
+    const overflow = this.newRegister();
+    const overflowLabel = this.newLabel("stack.check.overflow");
+    const continueLabel = this.newLabel("stack.check.cont");
+    this.emit(`  ${depth} = load i32, i32* @__bpl_stack_depth`);
+    this.emit(`  ${nextDepth} = add i32 ${depth}, 1`);
+    this.emit(`  store i32 ${nextDepth}, i32* @__bpl_stack_depth`);
+    this.emit(`  ${overflow} = icmp ugt i32 ${nextDepth}, 10000`);
+    this.emit(
+      `  br i1 ${overflow}, label %${overflowLabel}, label %${continueLabel}`,
+    );
+    this.emit(`${overflowLabel}:`);
+    this.emit(`  call void @__bpl_throw_stack_overflow()`);
+    this.emit(`  unreachable`);
+    this.emit(`${continueLabel}:`);
+  }
+
+  private emitStackLimitProbe(): void {
+    const probe = this.newRegister();
+    const limit = this.newRegister();
+    const checkLabel = this.newLabel("stack.limit.check");
+    const overflowLabel = this.newLabel("stack.limit.overflow");
+    const continueLabel = this.newLabel("stack.limit.cont");
+
+    this.emit(`  ${probe} = alloca i8`);
+    this.emit(`  ${limit} = load i8*, i8** @__bpl_stack_limit`);
+
+    let effectiveLimit = limit;
+    if (this.currentFunctionName === "main") {
+      const computedLimit = this.newRegister();
+      const limitUnset = this.newRegister();
+      const initLimitLabel = this.newLabel("stack.limit.init");
+      effectiveLimit = this.newRegister();
+      this.emit(
+        `  ${computedLimit} = getelementptr i8, i8* ${probe}, i64 -${OPTIMIZED_NATIVE_STACK_LIMIT_BYTES}`,
+      );
+      this.emit(`  ${limitUnset} = icmp eq i8* ${limit}, null`);
+      this.emit(
+        `  ${effectiveLimit} = select i1 ${limitUnset}, i8* ${computedLimit}, i8* ${limit}`,
+      );
+      this.emit(
+        `  br i1 ${limitUnset}, label %${initLimitLabel}, label %${checkLabel}`,
+      );
+      this.emit(`${initLimitLabel}:`);
+      this.emit(`  store i8* ${computedLimit}, i8** @__bpl_stack_limit`);
+      this.emit(`  br label %${checkLabel}`);
+      this.emit(`${checkLabel}:`);
+    }
+
+    // Supported native targets use downward-growing stacks, so crossing the
+    // cached lower-limit pointer means the stack guard has been exhausted.
+    const overflow = this.newRegister();
+    this.emit(`  ${overflow} = icmp ult i8* ${probe}, ${effectiveLimit}`);
+    this.emit(
+      `  br i1 ${overflow}, label %${overflowLabel}, label %${continueLabel}`,
+    );
+    this.emit(`${overflowLabel}:`);
+    this.emit(`  call void @__bpl_throw_stack_overflow()`);
+    this.emit(`  unreachable`);
+    this.emit(`${continueLabel}:`);
+  }
+
+  private emitStackFrameExit(): void {
+    if (!this.currentFunctionEmitsStackFrameHooks) return;
+
+    if (this.shouldUseStackLimitProbe()) return;
+
+    if (!this.shouldInlineStackFrameChecks()) {
+      this.emit(`  call void @__bpl_exit_stack_frame()`);
+      return;
+    }
+
+    const depth = this.newRegister();
+    const nextDepth = this.newRegister();
+    this.emit(`  ${depth} = load i32, i32* @__bpl_stack_depth`);
+    this.emit(`  ${nextDepth} = sub i32 ${depth}, 1`);
+    this.emit(`  store i32 ${nextDepth}, i32* @__bpl_stack_depth`);
   }
 
   private isTrivialLeafReturnFunction(decl: AST.FunctionDecl): boolean {
@@ -1284,9 +1390,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
 
       // Decrement stack depth
-      if (this.currentFunctionEmitsStackFrameHooks) {
-        this.emit(`  call void @__bpl_exit_stack_frame()`);
-      }
+      this.emitStackFrameExit();
 
       if (this.onReturn) this.onReturn();
     }
@@ -1867,9 +1971,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
 
       // Stack overflow check
-      if (this.currentFunctionEmitsStackFrameHooks) {
-        this.emit(`  call void @__bpl_enter_stack_frame()`);
-      }
+      this.emitStackFrameEnter();
 
       // Store argc/argv in global variables for main function
       if (name === "main") {
@@ -2044,9 +2146,7 @@ export abstract class StatementGenerator extends AsmGenerator {
 
       if (!isTerminator) {
         // Decrement stack depth
-        if (this.currentFunctionEmitsStackFrameHooks) {
-          this.emit(`  call void @__bpl_exit_stack_frame()`);
-        }
+        this.emitStackFrameExit();
 
         if (this.onReturn) this.onReturn();
 

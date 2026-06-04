@@ -38,7 +38,7 @@ describe("CodeGen - Stack Overflow", () => {
     expect(ir).toContain("call void @__bpl_exit_stack_frame()");
   });
 
-  it("should preserve stack depth checks for optimized builds", () => {
+  it("should use stack-limit probes for optimized native builds", () => {
     const source = `
       frame recur(n: int) ret int {
         return recur(n + 1);
@@ -50,7 +50,24 @@ describe("CodeGen - Stack Overflow", () => {
     `;
     const ir = generateOptimized(source);
 
-    expect(ir).toContain("call void @__bpl_enter_stack_frame()");
-    expect(ir).toContain("call void @__bpl_exit_stack_frame()");
+    expect(ir).toContain("@__bpl_stack_limit = external global i8*");
+    expect(ir).toContain("declare void @__bpl_throw_stack_overflow()");
+    expect(ir).toContain("alloca i8");
+    expect(ir).toContain("load i8*, i8** @__bpl_stack_limit");
+    expect(ir).toContain("store i8*");
+    expect(ir).toContain("i8** @__bpl_stack_limit");
+    expect(ir).toContain("getelementptr i8, i8*");
+    expect(ir).toContain("icmp ult i8*");
+    expect(ir).toContain("call void @__bpl_throw_stack_overflow()");
+    expect(ir).not.toContain("@__bpl_stack_depth = external global i32");
+    expect(ir).not.toContain("@__bpl_stack_base = external global i8*");
+    expect(ir).not.toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).not.toContain("call void @__bpl_exit_stack_frame()");
+
+    const recurBody = ir.match(
+      /define dso_local i32 @recur_i32[\s\S]*?\n}\n/,
+    )?.[0];
+    expect(recurBody).toBeDefined();
+    expect(recurBody!).not.toMatch(/br label %stack\.limit\.check/);
   });
 });

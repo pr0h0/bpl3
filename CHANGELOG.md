@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Optimized Native Stack Overflow Probes** - O3 native codegen now
+  initializes a stack-limit pointer in `main` and emits a cheap stack probe in
+  checked functions instead of calling the runtime enter/exit helpers or
+  updating global stack depth on every recursive call. O0, O2, DWARF, and wasm
+  builds keep depth-tracking paths for debug-oriented behavior. Local
+  BPL-vs-C samples improved `fibonacci_recursive` from ~1505ms median to
+  ~620-675ms median and `binary_tree` from ~79ms median to ~50-57ms median while
+  `tests/CompilerRuntimeFailureSemantics.test.ts` still verifies O3 stack
+  overflow routes through the BPL `STACK OVERFLOW` error. Reproduce with
+  `bun test tests/CodeGen_StackOverflow.test.ts tests/CodeGenerator.test.ts tests/CompilerRuntimeFailureSemantics.test.ts`
+  and `bun benchmark/run_benchmark.ts --language bpl,c --runs 5 --warmups 2 fibonacci_recursive binary_tree`.
 - **Generated Trivia Whitespace Fast Path** - The checked-in Peggy parser
   postprocessor now inlines whitespace char-code checks inside the manual trivia
   skipper instead of calling a helper on every whitespace probe. On the same 5k

@@ -391,8 +391,13 @@ describe("CodeGenerator", () => {
       optimizationLevel: 3,
     });
 
-    expect(ir).toContain("call void @__bpl_enter_stack_frame()");
-    expect(ir).toContain("declare void @__bpl_enter_stack_frame()");
+    expect(ir).toContain("@__bpl_stack_limit = external global i8*");
+    expect(ir).toContain("declare void @__bpl_throw_stack_overflow()");
+    expect(ir).toContain("call void @__bpl_throw_stack_overflow()");
+    expect(ir).not.toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).not.toContain("call void @__bpl_exit_stack_frame()");
+    expect(ir).not.toContain("declare void @__bpl_enter_stack_frame()");
+    expect(ir).not.toContain("declare void @__bpl_exit_stack_frame()");
     expect(ir).not.toContain("stack_ok");
     expect(ir).not.toMatch(/br label %stack_ok/);
     expect(ir).not.toContain("declare i32 @__bpl_argc()");
@@ -414,7 +419,8 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("@exception_top = external global");
     expect(ir).not.toContain("@exception_value = external global");
     expect(ir).not.toContain("@exception_type = external global");
-    expect(ir).not.toContain("@__bpl_stack_depth = external global");
+    expect(ir).not.toContain("@__bpl_stack_depth = external global i32");
+    expect(ir).toContain("@__bpl_stack_limit = external global i8*");
     expect(ir).not.toContain("declare i8* @malloc(i64)");
     expect(ir).not.toContain("declare void @free(i8*)");
     expect(ir).not.toContain("declare void @exit(i32)");
@@ -436,10 +442,10 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("%struct.String = type");
     expect(ir).not.toMatch(/\n{3,}/);
     expect(ir).toContain(
-      'source_filename = "unknown"\n\ndeclare void @__bpl_enter_stack_frame()',
+      'source_filename = "unknown"\n\n@__bpl_stack_limit = external global i8*',
     );
     expect(ir).toContain(
-      "declare void @__bpl_exit_stack_frame()\n\ndefine dso_local i32 @main",
+      "declare void @__bpl_throw_stack_overflow()\n\ndefine dso_local i32 @main",
     );
   });
 
@@ -585,7 +591,10 @@ describe("CodeGenerator", () => {
       { optimizationLevel: 3 },
     );
 
-    expect(ir).toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).toContain("@__bpl_stack_limit = external global i8*");
+    expect(ir).toContain("call void @__bpl_throw_stack_overflow()");
+    expect(ir).not.toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).not.toContain("call void @__bpl_exit_stack_frame()");
     expect(ir).toContain("define dso_local i32 @helper_i32");
     expect(ir).toContain("define dso_local i32 @main");
     expect(ir).not.toContain("stack_ok");

@@ -110,7 +110,11 @@ Location: line 2, column 12
 
 ### 4. Stack Overflow
 
-Triggered when the call stack exceeds the maximum depth (10,000 frames).
+Triggered when the call stack exceeds the active stack guard. O0, DWARF, and
+wasm builds use the runtime depth counter with a 10,000-frame native limit. O3
+native builds use a generated stack-limit probe to avoid per-call runtime
+helper overhead while still routing failures through the same `STACK OVERFLOW`
+runtime error.
 
 ```bpl
 frame recursiveCall(n: int) {
@@ -174,11 +178,15 @@ The runtime uses platform-specific APIs to generate native stack traces:
 
 ### BPL Call Stack
 
-The compiler emits calls to `__bpl_enter_stack_frame()` and `__bpl_leave_stack_frame()` at function entry/exit. This enables:
+The O0, DWARF, and wasm codegen paths emit calls to
+`__bpl_enter_stack_frame()` and `__bpl_exit_stack_frame()` at function
+entry/exit. O3 native codegen
+initializes `@__bpl_stack_limit` in `main` and emits inline probes instead of
+per-call runtime helper calls. These paths enable:
 
-- Tracking the current call depth
+- Tracking the current call depth in debug/depth-tracked builds
 - Detecting stack overflow before it crashes
-- Enhanced stack traces with BPL function names
+- Enhanced stack traces with BPL function names where depth tracking is active
 
 ## Error Output Formatting
 
@@ -203,7 +211,10 @@ The formatting degrades gracefully on terminals without color support.
 declare void @__bpl_enter_stack_frame()
 
 ; Leave a stack frame (call at function exit)
-declare void @__bpl_leave_stack_frame()
+declare void @__bpl_exit_stack_frame()
+
+; Optimized native stack-limit probe state
+@__bpl_stack_limit = external global i8*
 
 ; Throw null pointer access error
 declare void @__bpl_throw_null_access(i8* %func, i8* %expr, i32 %line, i32 %col)

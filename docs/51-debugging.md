@@ -25,7 +25,8 @@ The runtime detects:
 - **NULL pointer access** - with expression and location info
 - **Index out of bounds** - with index and array size
 - **Division by zero** - with function context
-- **Stack overflow** - when call stack exceeds 10,000 frames
+- **Stack overflow** - when debug/depth-tracked builds exceed 10,000 BPL
+  frames, or O3 native builds cross their generated stack-limit probe
 
 See [Runtime Library](66-runtime-library.md) for complete details.
 

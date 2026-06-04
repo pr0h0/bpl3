@@ -59,6 +59,7 @@ const PRUNABLE_INTERNAL_RUNTIME_GLOBALS = new Set([
   "exception_value",
   "exception_type",
   "__bpl_stack_depth",
+  "__bpl_stack_limit",
   "__bpl_argc_value",
   "__bpl_argv_value",
 ]);
@@ -316,6 +317,7 @@ export class CodeGenerator extends StatementGenerator {
     this.emitDeclaration(`@exception_value = external global i64`);
     this.emitDeclaration(`@exception_type = external global i32`);
     this.emitDeclaration(`@__bpl_stack_depth = external global i32`);
+    this.emitDeclaration(`@__bpl_stack_limit = external global i8*`);
 
     // Global argc/argv for Args library
     this.emitDeclaration(`@__bpl_argc_value = external global i32`);
