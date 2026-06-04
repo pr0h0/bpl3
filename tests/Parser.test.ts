@@ -498,7 +498,7 @@ describe("Parser", () => {
     expect(keywordHelper).not.toContain("input.startsWith(peg$c17");
   });
 
-  it("keeps generated identifier token actions off the location path", () => {
+  it("keeps generated identifier parsing off Peggy action dispatch", () => {
     const generatedSource = readFileSync(
       join(
         process.cwd(),
@@ -512,24 +512,13 @@ describe("Parser", () => {
     const identifierHelper = generatedSource.match(
       /function peg\$parseIdentifier\(\)[\s\S]*?\n  \}/,
     )?.[0];
-    const identifierActionName = identifierHelper?.match(
-      /return (peg\$f\d+)\(name\);/,
-    )?.[1];
-    expect(identifierActionName).toBeDefined();
-    if (!identifierActionName) {
-      throw new Error("Expected generated Identifier action reference");
-    }
-    const escapedIdentifierActionName = identifierActionName.replace("$", "\\$");
-    const identifierTokenAction = generatedSource.match(
-      new RegExp(
-        `function ${escapedIdentifierActionName}\\(name\\) \\{[\\s\\S]*?\\n  \\}`,
-      ),
-    )?.[0];
 
-    expect(identifierTokenAction).toContain("return { name };");
-    expect(identifierTokenAction).not.toContain("location()");
-    expect(identifierTokenAction).not.toContain("start: {");
-    expect(identifierTokenAction).not.toContain("end: {");
+    expect(identifierHelper).toContain("return { name };");
+    expect(identifierHelper).not.toMatch(/return peg\$f\d+\(name\);/);
+    expect(identifierHelper).not.toContain("peg$savedPos = startPos;");
+    expect(identifierHelper).not.toContain("location()");
+    expect(identifierHelper).not.toContain("start: {");
+    expect(identifierHelper).not.toContain("end: {");
 
     const program = new Parser(
       "frame main() ret int { local value: int = 1; return value; }",

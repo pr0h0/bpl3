@@ -284,9 +284,6 @@ function optimizeGeneratedFailureTracking(parserSource: string): string {
 }
 
 function optimizeGeneratedIdentifierScanning(parserSource: string): string {
-  const identifierActionName = parserSource.match(
-    /  function (peg\$f\d+)\(name\) \{\s*return \{ name \};\s*\n  \}/,
-  )?.[1];
   const identifierPattern =
     /  function peg\$parseIdentifier\(\) \{[\s\S]*?\n  \}\n\n  function peg\$parseIdentToken\(\)/;
   const identTokenPattern =
@@ -306,9 +303,8 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     "      return peg$FAILED;",
     "    }",
     "",
-    "    peg$savedPos = startPos;",
     "    const name = input.substring(startPos, endPos);",
-    `    return ${identifierActionName}(name);`,
+    "    return { name };",
     "  }",
     "",
     "  function peg$parseIdentToken()",
@@ -429,7 +425,6 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
   ].join("\n");
 
   if (
-    identifierActionName === undefined ||
     !identifierPattern.test(parserSource) ||
     !identTokenPattern.test(parserSource) ||
     !keywordReservedPattern.test(parserSource)

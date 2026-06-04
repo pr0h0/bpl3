@@ -9521,9 +9521,8 @@ function peg$parse(input, options) {
       return peg$FAILED;
     }
 
-    peg$savedPos = startPos;
     const name = input.substring(startPos, endPos);
-    return peg$f163(name);
+    return { name };
   }
 
   function peg$isBplIdentStartCode(code) {
