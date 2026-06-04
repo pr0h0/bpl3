@@ -34,6 +34,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/Parser.test.ts -t "comment-free parser passes|precomputed comment-marker|syntax diagnostics"`
   and the phase compare with
   `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-e530278-phases.json --max-phase-regression 3 --max-full-regression 2 --json`.
+- **Codegen Top-Level Indexing Pass Fusion** -
+  `CodeGenerator.generate` now indexes structs, enums, specs, and type aliases
+  in one pre-layout pass and emits spec opaque declarations from that pass,
+  removing two redundant full-program scans before layout generation. Against
+  `752c417`, a 31-round 5k phase compare preserved token count, token
+  signature, and LLVM IR hash while improving median codegen time from
+  ~139.88ms to ~136.38ms and full median from ~525.44ms to ~521.28ms.
+  Reproduce the guard with
+  `bun test tests/CodeGenerator.test.ts -t "top-level codegen declarations"`
+  and the phase compare with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-752c417-phases.json --max-phase-regression 3 --max-full-regression 2 --json`.
 - **Generated Parser Statement Keyword Char Checks** -
   `optimizeGeneratedStatementStartKeywordScanning` now emits direct char-code
   checks for statement-start keyword lookahead instead of routing each

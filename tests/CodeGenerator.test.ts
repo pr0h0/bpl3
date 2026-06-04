@@ -167,6 +167,31 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain("baseStructDef.members.find");
   });
 
+  it("indexes top-level codegen declarations in a single pre-layout pass", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
+      "utf8",
+    );
+    const generateStart = source.indexOf("  generate(program:");
+    const layoutStart = source.indexOf("// Emitting layouts", generateStart);
+
+    expect(generateStart).toBeGreaterThanOrEqual(0);
+    expect(layoutStart).toBeGreaterThan(generateStart);
+
+    const preLayoutSource = source.slice(generateStart, layoutStart);
+    const statementPasses = preLayoutSource.match(
+      /for \(const stmt of program\.statements\)/g,
+    ) ?? [];
+
+    expect(statementPasses.length).toBe(1);
+    expect(preLayoutSource).toContain("this.specMap.set");
+    expect(preLayoutSource).toContain(
+      'this.emitDeclaration(`%struct.${spec.name} = type opaque`)',
+    );
+    expect(preLayoutSource).not.toContain("Collect defined functions");
+    expect(preLayoutSource).not.toContain("Index Structs for inheritance lookup");
+  });
+
   it("keeps function header generation off avoidable allocation paths", () => {
     const source = readFileSync(
       join(

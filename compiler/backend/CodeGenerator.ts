@@ -194,33 +194,14 @@ export class CodeGenerator extends StatementGenerator {
       } else if (stmt.kind === "EnumDecl") {
         this.enumDeclMap.set((stmt as AST.EnumDecl).name, stmt as AST.EnumDecl);
       } else if (stmt.kind === "SpecDecl") {
-        this.specMap.set((stmt as AST.SpecDecl).name, stmt as AST.SpecDecl);
+        const spec = stmt as AST.SpecDecl;
+        this.specMap.set(spec.name, spec);
+        this.emitDeclaration(`%struct.${spec.name} = type opaque`);
       } else if (stmt.kind === "TypeAlias") {
         this.typeAliasMap.set(
           (stmt as AST.TypeAliasDecl).name,
           stmt as AST.TypeAliasDecl,
         );
-      }
-    }
-
-    // Collect defined functions to avoid unnecessary declarations
-    for (const stmt of program.statements) {
-      if (stmt.kind === "TypeAlias") {
-        const decl = stmt as AST.TypeAliasDecl;
-        this.typeAliasMap.set(decl.name, decl);
-      }
-    }
-
-    // Index Structs for inheritance lookup
-    for (const stmt of program.statements) {
-      if (stmt.kind === "StructDecl") {
-        this.structMap.set(
-          (stmt as AST.StructDecl).name,
-          stmt as AST.StructDecl,
-        );
-      } else if (stmt.kind === "SpecDecl") {
-        const spec = stmt as AST.SpecDecl;
-        this.emitDeclaration(`%struct.${spec.name} = type opaque`);
       }
     }
 
