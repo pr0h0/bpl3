@@ -938,6 +938,9 @@ describe("CodeGenerator", () => {
       source.match(/this\.output\.join\("\\n"\)/g)?.length ?? 0;
 
     expect(source).toMatch(
+      /const generatedBody\s*=\s*this\.joinCompactedLines\(this\.output\)/,
+    );
+    expect(source).toMatch(
       /const generatedBodyReferences\s*=\s*this\.collectLlvmReferences\(generatedBody\)/,
     );
     expect(source).toContain(
@@ -949,7 +952,7 @@ describe("CodeGenerator", () => {
     expect(source).toContain(
       "this.appendResultSection(resultSections, generatedBody)",
     );
-    expect(outputJoinCount).toBe(1);
+    expect(outputJoinCount).toBe(0);
   });
 
   it("keeps final IR section assembly off the map/filter allocation path", () => {
@@ -974,25 +977,25 @@ describe("CodeGenerator", () => {
     );
   });
 
-  it("keeps generated blank-line compaction on an exact-empty fast path", () => {
+  it("keeps generated blank-line joining on a single-pass exact-empty fast path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
     );
-    const start = source.indexOf("private compactBlankLines");
-    const end = source.indexOf("private createLlvmReferences", start);
+    const start = source.indexOf("private joinCompactedLines");
+    const end = source.indexOf("private appendResultSection", start);
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
 
     const methodSource = source.slice(start, end);
     expect(methodSource).toContain("line.length === 0");
-    expect(methodSource).toContain("let writeIndex = 0");
-    expect(methodSource).toContain("lines[writeIndex++] = line");
-    expect(methodSource).toContain("lines.length = writeIndex");
+    expect(methodSource).toContain('result += "\\n"');
+    expect(methodSource).toContain("result = result.slice(0, -1)");
     expect(methodSource).not.toContain("const compacted: string[] = []");
     expect(methodSource).not.toContain("compacted.push");
     expect(methodSource).not.toContain("line.trim()");
+    expect(methodSource).not.toContain("lines.length =");
   });
 
   it("uses direct LLVM reference collection during final pruning", () => {

@@ -477,17 +477,18 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     this.pruneUnusedRuntimeArgStores();
-    this.output = this.compactBlankLines(this.output);
-    const generatedBody = this.output.join("\n");
+    const generatedBody = this.joinCompactedLines(this.output);
     const generatedBodyReferences =
       this.collectLlvmReferences(generatedBody);
     this.pruneUnusedInternalRuntimeDeclarations(generatedBodyReferences);
     this.pruneUnusedBuiltinPrimitiveMetadata(generatedBodyReferences);
-    this.declarationsOutput = this.compactBlankLines(this.declarationsOutput);
 
     const resultSections: string[] = [];
     this.appendResultSection(resultSections, header);
-    this.appendResultSection(resultSections, this.declarationsOutput.join("\n"));
+    this.appendResultSection(
+      resultSections,
+      this.joinCompactedLines(this.declarationsOutput),
+    );
     this.appendResultSection(resultSections, generatedBody);
     this.appendResultSection(
       resultSections,
@@ -809,9 +810,10 @@ export class CodeGenerator extends StatementGenerator {
     );
   }
 
-  private compactBlankLines(lines: string[]): string[] {
-    let writeIndex = 0;
+  private joinCompactedLines(lines: string[]): string {
+    let result = "";
     let previousWasBlank = true;
+    let hasOutput = false;
 
     for (const line of lines) {
       const isBlank = line.length === 0;
@@ -819,20 +821,19 @@ export class CodeGenerator extends StatementGenerator {
         continue;
       }
 
-      lines[writeIndex++] = line;
+      if (hasOutput) {
+        result += "\n";
+      }
+      result += line;
+      hasOutput = true;
       previousWasBlank = isBlank;
     }
 
-    while (writeIndex > 0) {
-      const lastLine = lines[writeIndex - 1];
-      if (lastLine === undefined || lastLine.length > 0) {
-        break;
-      }
-      writeIndex--;
+    if (previousWasBlank && hasOutput) {
+      result = result.slice(0, -1);
     }
 
-    lines.length = writeIndex;
-    return lines;
+    return result;
   }
 
   private appendResultSection(sections: string[], section: string): void {
