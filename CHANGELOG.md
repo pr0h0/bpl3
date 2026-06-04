@@ -24,6 +24,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   signature, and LLVM IR hash. This lets codegen-only candidates gate
   `codegen,full` without failing on unrelated lex/parse noise. Reproduce the
   guard with `bun test tests/BenchmarkRunner.test.ts`.
+- **Reusable Wrapped Compile Benchmark Baselines** -
+  `benchmark/measure_compilation.ts --mode phases --compare` can now read both
+  raw phase-result JSON and the wrapped `{ result, comparison }` JSON emitted by
+  previous comparison runs, so follow-up benchmark gates no longer need manual
+  `.result` extraction. Reproduce the guard with
+  `bun test tests/BenchmarkRunner.test.ts -t "raw and wrapped"`.
 - **Playground Execute-Only Native Tree Shaking** -
   artifact-free playground native runs now pass
   `treeShakeTopLevelFunctions` through the compiler so browser Run Code avoids

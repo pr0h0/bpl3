@@ -527,12 +527,21 @@ function printPhaseComparison(
   }
 }
 
-function readCompilePhaseBenchmarkResult(
+export function readCompilePhaseBenchmarkResult(
   filePath: string,
 ): CompilePhaseBenchmarkResult {
-  return JSON.parse(
-    fs.readFileSync(path.resolve(filePath), "utf8"),
-  ) as CompilePhaseBenchmarkResult;
+  const parsed = JSON.parse(fs.readFileSync(path.resolve(filePath), "utf8"));
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "result" in parsed &&
+    parsed.result &&
+    typeof parsed.result === "object"
+  ) {
+    return parsed.result as CompilePhaseBenchmarkResult;
+  }
+
+  return parsed as CompilePhaseBenchmarkResult;
 }
 
 function roundTo(value: number, digits: number): number {

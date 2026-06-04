@@ -91,6 +91,11 @@ signatures drift, when any of `lex`, `parse`, `typecheck`, or `codegen`
 regresses beyond `--max-phase-regression`, or when `full` regresses beyond
 `--max-full-regression`.
 
+The baseline file passed to `--compare` may be either a raw phase JSON result
+from `--json` or the wrapped `{ result, comparison }` JSON emitted by a previous
+comparison run. This lets you re-run a candidate against the last accepted
+comparison output without manually extracting `.result`.
+
 For phase-specific compiler work, keep all reporting and signature validation
 but gate only the affected phase plus `full`:
 

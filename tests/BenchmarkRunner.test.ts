@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, readFileSync } from "fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
+import { tmpdir } from "os";
 import { join } from "path";
 
 import {
@@ -16,6 +23,7 @@ import {
   generateSyntheticCompileSource,
   measureCompilePhases,
   parseCompilationBenchmarkArgs,
+  readCompilePhaseBenchmarkResult,
   type CompilePhaseBenchmarkResult,
 } from "../benchmark/measure_compilation";
 
@@ -241,6 +249,30 @@ describe("Benchmark runner helpers", () => {
       "tokenSignature changed",
       "irHash changed",
     ]);
+  });
+
+  it("reads raw and wrapped compile phase benchmark result files", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-phase-baseline-"));
+    try {
+      const rawPath = join(dir, "raw.json");
+      const wrappedPath = join(dir, "wrapped.json");
+      const result = createPhaseBenchmarkFixture({ full: 123 });
+      writeFileSync(rawPath, JSON.stringify(result));
+      writeFileSync(
+        wrappedPath,
+        JSON.stringify({
+          result,
+          comparison: compareCompilePhaseBenchmarkResults(result, result),
+        }),
+      );
+
+      expect(readCompilePhaseBenchmarkResult(rawPath).full.medianMs).toBe(123);
+      expect(readCompilePhaseBenchmarkResult(wrappedPath).full.medianMs).toBe(
+        123,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("calculates compile phase stats", () => {
