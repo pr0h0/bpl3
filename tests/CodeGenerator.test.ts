@@ -1149,6 +1149,138 @@ describe("CodeGenerator", () => {
     ).toBe(0);
   });
 
+  it("retains local pointer null guard proofs across intervening calls", () => {
+    const ir = compile(
+      `
+        struct Node {
+          value: int,
+          left: *Node,
+        }
+
+        frame touch(node: *Node) ret int {
+          return 1;
+        }
+
+        frame value_after_guard_call(root: *Node) ret int {
+          if (root == nullptr) {
+            return 0;
+          }
+          local seen: int = touch(root.left);
+          return seen + root.value;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    const valueAfterGuardCall = ir.match(
+      /define dso_local i32 @value_after_guard_call_Node_ptr[\s\S]*?\n}\n/,
+    )?.[0];
+    expect(valueAfterGuardCall).toBeDefined();
+    expect(
+      valueAfterGuardCall!.match(/@__bpl_check_null/g)?.length ?? 0,
+    ).toBe(0);
+  });
+
+  it("does not retain global pointer null guard proofs across intervening calls", () => {
+    const ir = compile(
+      `
+        struct Node {
+          value: int,
+        }
+
+        global current: *Node = nullptr;
+
+        frame clear_current() {
+          current = nullptr;
+        }
+
+        frame value_after_global_guard_call() ret int {
+          if (current == nullptr) {
+            return 0;
+          }
+          clear_current();
+          return current.value;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    const valueAfterGlobalGuardCall = ir.match(
+      /define dso_local i32 @value_after_global_guard_call[\s\S]*?\n}\n/,
+    )?.[0];
+    expect(valueAfterGlobalGuardCall).toBeDefined();
+    expect(
+      valueAfterGlobalGuardCall!.match(/@__bpl_check_null/g)?.length ?? 0,
+    ).toBe(1);
+  });
+
+  it("does not retain address-escaped local pointer null guard proofs across intervening calls", () => {
+    const ir = compile(
+      `
+        struct Node {
+          value: int,
+        }
+
+        frame clear_slot(slot: **Node) {
+          *slot = nullptr;
+        }
+
+        frame value_after_escaped_guard_call(root: *Node) ret int {
+          if (root == nullptr) {
+            return 0;
+          }
+          clear_slot(&root);
+          return root.value;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    const valueAfterEscapedGuardCall = ir.match(
+      /define dso_local i32 @value_after_escaped_guard_call_Node_ptr[\s\S]*?\n}\n/,
+    )?.[0];
+    expect(valueAfterEscapedGuardCall).toBeDefined();
+    expect(
+      valueAfterEscapedGuardCall!.match(/@__bpl_check_null/g)?.length ?? 0,
+    ).toBe(1);
+  });
+
+  it("does not retain member pointer null proofs across intervening calls", () => {
+    const ir = compile(
+      `
+        struct Node {
+          value: int,
+        }
+
+        struct Holder {
+          node: *Node,
+        }
+
+        frame touch(holder: *Holder) ret int {
+          return 1;
+        }
+
+        frame value_after_member_guard_call(holder: *Holder) ret int {
+          if (holder == nullptr) {
+            return 0;
+          }
+          local first: int = holder.node.value;
+          touch(holder);
+          return first + holder.node.value;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    const valueAfterMemberGuardCall = ir.match(
+      /define dso_local i32 @value_after_member_guard_call_Holder_ptr[\s\S]*?\n}\n/,
+    )?.[0];
+    expect(valueAfterMemberGuardCall).toBeDefined();
+    expect(
+      valueAfterMemberGuardCall!.match(/@__bpl_check_null/g)?.length ?? 0,
+    ).toBe(2);
+  });
+
   it("does not leak nested null guard proofs through unrelated predecessors", () => {
     const ir = compile(
       `

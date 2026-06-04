@@ -1805,6 +1805,22 @@ export abstract class StatementGenerator extends AsmGenerator {
     return type?.kind === "BasicType" && type.pointerDepth > 0;
   }
 
+  private collectAddressEscapedLocalNames(body: AST.BlockStmt): Set<string> {
+    const escaped = new Set<string>();
+    walkAST(body, (node) => {
+      if (node.kind !== "Unary") return;
+
+      const unary = node as AST.UnaryExpr;
+      if (unary.operator.type !== TokenType.Ampersand) return;
+
+      const operand = this.unwrapGroupExpression(unary.operand);
+      if (operand.kind === "Identifier") {
+        escaped.add((operand as AST.IdentifierExpr).name);
+      }
+    });
+    return escaped;
+  }
+
   private isNullptrLiteral(expr: AST.Expression): boolean {
     const unwrapped = this.unwrapGroupExpression(expr);
     return (
@@ -2130,9 +2146,13 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevBasicBlockNonNullPointers = this.basicBlockNonNullPointers;
     const prevBasicBlockNonNullPointerExpressions =
       this.basicBlockNonNullPointerExpressions;
+    const prevBasicBlockCallStableNonNullPointerExpressions =
+      this.basicBlockCallStableNonNullPointerExpressions;
     const prevBasicBlockNonZeroIntegerExpressions =
       this.basicBlockNonZeroIntegerExpressions;
     const prevPointerToLocal = this.pointerToLocal;
+    const prevCurrentFunctionAddressEscapedLocals =
+      this.currentFunctionAddressEscapedLocals;
     const prevMovedAutoDestroyAddresses = this.movedAutoDestroyAddresses;
     const prevOnReturn = this.onReturn;
     const prevIsMainWithVoidReturn = this.isMainWithVoidReturn;
@@ -2155,8 +2175,11 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.localNullFlags = new Map();
     this.basicBlockNonNullPointers = new Map();
     this.basicBlockNonNullPointerExpressions = new Map();
+    this.basicBlockCallStableNonNullPointerExpressions = new Map();
     this.basicBlockNonZeroIntegerExpressions = undefined;
     this.pointerToLocal = new Map();
+    this.currentFunctionAddressEscapedLocals =
+      this.collectAddressEscapedLocalNames(decl.body);
     this.movedAutoDestroyAddresses = undefined;
     this.generatingFunctionBody = true;
 
@@ -2566,9 +2589,13 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.basicBlockNonNullPointers = prevBasicBlockNonNullPointers;
       this.basicBlockNonNullPointerExpressions =
         prevBasicBlockNonNullPointerExpressions;
+      this.basicBlockCallStableNonNullPointerExpressions =
+        prevBasicBlockCallStableNonNullPointerExpressions;
       this.basicBlockNonZeroIntegerExpressions =
         prevBasicBlockNonZeroIntegerExpressions;
       this.pointerToLocal = prevPointerToLocal;
+      this.currentFunctionAddressEscapedLocals =
+        prevCurrentFunctionAddressEscapedLocals;
       this.movedAutoDestroyAddresses = prevMovedAutoDestroyAddresses;
       this.onReturn = prevOnReturn;
       this.isMainWithVoidReturn = prevIsMainWithVoidReturn;

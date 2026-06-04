@@ -270,8 +270,13 @@ export class BaseCodeGenerator {
   protected basicBlockNonNullPointers: Map<string, number> = new Map();
   protected basicBlockNonNullPointerExpressions: Map<string, number> =
     new Map();
+  protected basicBlockCallStableNonNullPointerExpressions: Map<
+    string,
+    number
+  > = new Map();
   protected basicBlockNonZeroIntegerExpressions?: Map<string, number>;
   protected pointerToLocal: Map<string, string> = new Map(); // Track pointer variable -> source local for null checking
+  protected currentFunctionAddressEscapedLocals: Set<string> = new Set();
   protected movedAutoDestroyAddresses?: Set<string>; // Locals returned by move should not be auto-destroyed
   protected generatedStructs: Set<string> = new Set(); // Track generated monomorphized structs
   protected skippedStructs: Set<string> = new Set(); // Track structs that were skipped during generation (e.g. pointers)
@@ -404,12 +409,17 @@ export class BaseCodeGenerator {
   protected clearBasicBlockPointerFacts(): void {
     this.basicBlockNonNullPointers.clear();
     this.basicBlockNonNullPointerExpressions.clear();
+    this.basicBlockCallStableNonNullPointerExpressions.clear();
     this.basicBlockNonZeroIntegerExpressions?.clear();
   }
 
   protected clearBasicBlockPointerExpressionFact(expressionKey: string): void {
     this.clearBasicBlockExpressionFact(
       this.basicBlockNonNullPointerExpressions,
+      expressionKey,
+    );
+    this.clearBasicBlockExpressionFact(
+      this.basicBlockCallStableNonNullPointerExpressions,
       expressionKey,
     );
   }
@@ -466,6 +476,18 @@ export class BaseCodeGenerator {
     if (exprProofIndex !== undefined) {
       this.basicBlockNonNullPointerExpressions.delete(expressionKey);
     }
+
+    const stableExprProofIndex =
+      this.basicBlockCallStableNonNullPointerExpressions.get(expressionKey);
+    if (
+      stableExprProofIndex !== undefined &&
+      !this.hasBasicBlockPointerBoundarySince(stableExprProofIndex, true)
+    ) {
+      return true;
+    }
+    if (stableExprProofIndex !== undefined) {
+      this.basicBlockCallStableNonNullPointerExpressions.delete(expressionKey);
+    }
     return false;
   }
 
@@ -477,16 +499,19 @@ export class BaseCodeGenerator {
     this.basicBlockNonNullPointers.set(ptrVal, proofIndex);
     if (expressionKey !== undefined) {
       this.basicBlockNonNullPointerExpressions.set(expressionKey, proofIndex);
+      this.markCallStablePointerExpressionIfEligible(
+        expressionKey,
+        proofIndex,
+      );
     }
   }
 
   protected markBasicBlockPointerExpressionNonNull(
     expressionKey: string,
   ): void {
-    this.basicBlockNonNullPointerExpressions.set(
-      expressionKey,
-      this.output.length,
-    );
+    const proofIndex = this.output.length;
+    this.basicBlockNonNullPointerExpressions.set(expressionKey, proofIndex);
+    this.markCallStablePointerExpressionIfEligible(expressionKey, proofIndex);
   }
 
   protected markBasicBlockPointerExpressionsNonNull(
@@ -496,21 +521,46 @@ export class BaseCodeGenerator {
     const proofIndex = this.output.length;
     for (const expressionKey of expressionKeys) {
       this.basicBlockNonNullPointerExpressions.set(expressionKey, proofIndex);
+      this.markCallStablePointerExpressionIfEligible(
+        expressionKey,
+        proofIndex,
+      );
     }
   }
 
   protected getValidBasicBlockPointerExpressionProofKeys(): string[] {
-    if (this.basicBlockNonNullPointerExpressions.size === 0) return [];
+    if (
+      this.basicBlockNonNullPointerExpressions.size === 0 &&
+      this.basicBlockCallStableNonNullPointerExpressions.size === 0
+    ) {
+      return [];
+    }
 
     const validKeys: string[] = [];
+    const seenKeys = new Set<string>();
     for (const [
       expressionKey,
       proofIndex,
     ] of this.basicBlockNonNullPointerExpressions) {
       if (!this.hasBasicBlockPointerBoundarySince(proofIndex)) {
         validKeys.push(expressionKey);
+        seenKeys.add(expressionKey);
       } else {
         this.basicBlockNonNullPointerExpressions.delete(expressionKey);
+      }
+    }
+    for (const [
+      expressionKey,
+      proofIndex,
+    ] of this.basicBlockCallStableNonNullPointerExpressions) {
+      if (!this.hasBasicBlockPointerBoundarySince(proofIndex, true)) {
+        if (!seenKeys.has(expressionKey)) {
+          validKeys.push(expressionKey);
+        }
+      } else {
+        this.basicBlockCallStableNonNullPointerExpressions.delete(
+          expressionKey,
+        );
       }
     }
     return validKeys;
@@ -545,16 +595,27 @@ export class BaseCodeGenerator {
     );
   }
 
-  private hasBasicBlockPointerBoundarySince(startIndex: number): boolean {
+  private hasBasicBlockPointerBoundarySince(
+    startIndex: number,
+    ignoreCallBoundaries = false,
+  ): boolean {
     for (let i = startIndex; i < this.output.length; i++) {
-      if (this.isBasicBlockPointerBoundaryLine(this.output[i]!)) {
+      if (
+        this.isBasicBlockPointerBoundaryLine(
+          this.output[i]!,
+          ignoreCallBoundaries,
+        )
+      ) {
         return true;
       }
     }
     return false;
   }
 
-  private isBasicBlockPointerBoundaryLine(line: string): boolean {
+  private isBasicBlockPointerBoundaryLine(
+    line: string,
+    ignoreCallBoundaries = false,
+  ): boolean {
     const length = line.length;
     if (length === 0) return false;
 
@@ -572,13 +633,68 @@ export class BaseCodeGenerator {
     if (index >= length) return false;
 
     const code = line.charCodeAt(index);
+    const isCallBoundary =
+      (code === 99 && line.startsWith("call ", index)) ||
+      (code === 37 && line.indexOf(" call ", index + 1) !== -1);
     return (
       (code === 98 && line.startsWith("br ", index)) ||
       (code === 114 && line.startsWith("ret ", index)) ||
       (code === 115 && line.startsWith("switch ", index)) ||
-      (code === 99 && line.startsWith("call ", index)) ||
       (code === 117 && line.startsWith("unreachable", index)) ||
-      (code === 37 && line.indexOf(" call ", index + 1) !== -1)
+      (!ignoreCallBoundaries && isCallBoundary)
+    );
+  }
+
+  private markCallStablePointerExpressionIfEligible(
+    expressionKey: string,
+    proofIndex: number,
+  ): void {
+    if (this.isCallStableLocalPointerExpressionKey(expressionKey)) {
+      this.basicBlockCallStableNonNullPointerExpressions.set(
+        expressionKey,
+        proofIndex,
+      );
+    }
+  }
+
+  private isCallStableLocalPointerExpressionKey(expressionKey: string): boolean {
+    if (!this.isSimpleIdentifierExpressionKey(expressionKey)) return false;
+    if (!this.locals.has(expressionKey)) return false;
+    if (this.globals.has(expressionKey)) return false;
+    if (this.currentFunctionAddressEscapedLocals.has(expressionKey)) {
+      return false;
+    }
+
+    const type = this.localTypes.get(expressionKey);
+    return type?.kind === "BasicType" && type.pointerDepth > 0;
+  }
+
+  private isSimpleIdentifierExpressionKey(expressionKey: string): boolean {
+    if (expressionKey.length === 0) return false;
+
+    const first = expressionKey.charCodeAt(0);
+    if (!this.isIdentifierStartCode(first)) return false;
+
+    for (let i = 1; i < expressionKey.length; i++) {
+      if (!this.isIdentifierPartCode(expressionKey.charCodeAt(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private isIdentifierStartCode(code: number): boolean {
+    return (
+      code === 95 ||
+      (code >= 65 && code <= 90) ||
+      (code >= 97 && code <= 122)
+    );
+  }
+
+  private isIdentifierPartCode(code: number): boolean {
+    return (
+      this.isIdentifierStartCode(code) ||
+      (code >= 48 && code <= 57)
     );
   }
 
