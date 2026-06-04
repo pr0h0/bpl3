@@ -12,9 +12,11 @@ import {
 } from "../benchmark/run_benchmark";
 import {
   calculateCompilePhaseStats,
+  compareCompilePhaseBenchmarkResults,
   generateSyntheticCompileSource,
   measureCompilePhases,
   parseCompilationBenchmarkArgs,
+  type CompilePhaseBenchmarkResult,
 } from "../benchmark/measure_compilation";
 
 describe("Benchmark runner helpers", () => {
@@ -41,6 +43,8 @@ describe("Benchmark runner helpers", () => {
     expect(readme).toContain("--functions 5000");
     expect(readme).toContain("tokenSignature");
     expect(readme).toContain("irHash");
+    expect(readme).toContain("--compare");
+    expect(readme).toContain("--max-full-regression");
   });
 
   it("generates configurable synthetic compile sources", () => {
@@ -73,6 +77,83 @@ describe("Benchmark runner helpers", () => {
       warmups: 1,
       json: true,
     });
+  });
+
+  it("parses compile phase benchmark comparison options", () => {
+    expect(
+      parseCompilationBenchmarkArgs([
+        "--mode",
+        "phases",
+        "--compare",
+        "/tmp/baseline.json",
+        "--max-phase-regression",
+        "2.5",
+        "--max-full-regression",
+        "1",
+      ]),
+    ).toEqual({
+      mode: "phases",
+      functions: 5000,
+      rounds: 31,
+      warmups: 5,
+      json: false,
+      compare: "/tmp/baseline.json",
+      maxPhaseRegressionPercent: 2.5,
+      maxFullRegressionPercent: 1,
+    });
+  });
+
+  it("compares compile phase benchmark medians and threshold failures", () => {
+    const baseline = createPhaseBenchmarkFixture({
+      full: 100,
+      codegen: 40,
+    });
+    const candidate = createPhaseBenchmarkFixture({
+      full: 104,
+      codegen: 41.4,
+    });
+
+    const comparison = compareCompilePhaseBenchmarkResults(
+      baseline,
+      candidate,
+      {
+        maxPhaseRegressionPercent: 2,
+        maxFullRegressionPercent: 5,
+      },
+    );
+
+    expect(comparison.ok).toBe(false);
+    expect(comparison.signaturesMatch).toBe(true);
+    expect(comparison.phaseDeltas.find((delta) => delta.phase === "codegen"))
+      .toMatchObject({
+        baselineMedianMs: 40,
+        candidateMedianMs: 41.4,
+        deltaMs: 1.4,
+        deltaPercent: 3.5,
+      });
+    expect(comparison.failures).toEqual([
+      "codegen median regressed by 3.50% (limit 2.00%)",
+    ]);
+  });
+
+  it("fails compile phase benchmark comparisons on signature drift", () => {
+    const baseline = createPhaseBenchmarkFixture({});
+    const candidate = createPhaseBenchmarkFixture({
+      tokenSignature: "b".repeat(64),
+      irHash: "c".repeat(64),
+    });
+
+    const comparison = compareCompilePhaseBenchmarkResults(
+      baseline,
+      candidate,
+    );
+
+    expect(comparison.ok).toBe(false);
+    expect(comparison.signaturesMatch).toBe(false);
+    expect(comparison.failures).toEqual([
+      "tokenSignature changed",
+      "irHash changed",
+    ]);
   });
 
   it("calculates compile phase stats", () => {
@@ -256,3 +337,39 @@ describe("Benchmark runner helpers", () => {
     );
   });
 });
+
+function createPhaseBenchmarkFixture(
+  overrides: Partial<
+    Pick<CompilePhaseBenchmarkResult, "tokenSignature" | "irHash"> & {
+      tokenCount: number;
+      lex: number;
+      parse: number;
+      typecheck: number;
+      codegen: number;
+      full: number;
+    }
+  >,
+): CompilePhaseBenchmarkResult {
+  return {
+    mode: "phases",
+    rounds: 31,
+    warmups: 5,
+    functionCount: 5000,
+    sourceLength: 987569,
+    tokenCount: overrides.tokenCount ?? 265230,
+    tokenSignature: overrides.tokenSignature ?? "a".repeat(64),
+    irHash: overrides.irHash ?? "d".repeat(64),
+    lex: createPhaseStats(overrides.lex ?? 40),
+    parse: createPhaseStats(overrides.parse ?? 240),
+    typecheck: createPhaseStats(overrides.typecheck ?? 100),
+    codegen: createPhaseStats(overrides.codegen ?? 40),
+    full: createPhaseStats(overrides.full ?? 100),
+  };
+}
+
+function createPhaseStats(medianMs: number) {
+  return {
+    medianMs,
+    averageMs: medianMs,
+  };
+}

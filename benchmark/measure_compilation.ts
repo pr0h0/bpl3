@@ -19,6 +19,9 @@ export interface CompilationBenchmarkArgs {
   rounds: number;
   warmups: number;
   json: boolean;
+  compare?: string;
+  maxPhaseRegressionPercent?: number;
+  maxFullRegressionPercent?: number;
 }
 
 export interface CompilePhaseStats {
@@ -41,6 +44,39 @@ export interface CompilePhaseBenchmarkResult {
   codegen: CompilePhaseStats;
   full: CompilePhaseStats;
 }
+
+type CompilePhaseName = "lex" | "parse" | "typecheck" | "codegen" | "full";
+
+export interface CompilePhaseBenchmarkComparisonOptions {
+  maxPhaseRegressionPercent?: number;
+  maxFullRegressionPercent?: number;
+}
+
+export interface CompilePhaseBenchmarkDelta {
+  phase: CompilePhaseName;
+  baselineMedianMs: number;
+  candidateMedianMs: number;
+  deltaMs: number;
+  deltaPercent: number;
+}
+
+export interface CompilePhaseBenchmarkComparison {
+  ok: boolean;
+  tokenCountMatches: boolean;
+  tokenSignatureMatches: boolean;
+  irHashMatches: boolean;
+  signaturesMatch: boolean;
+  failures: string[];
+  phaseDeltas: CompilePhaseBenchmarkDelta[];
+}
+
+const COMPILE_PHASE_NAMES: CompilePhaseName[] = [
+  "lex",
+  "parse",
+  "typecheck",
+  "codegen",
+  "full",
+];
 
 const COMPILER_PATH = path.join(__dirname, "../index.ts");
 const TEMP_DIR = path.join(os.tmpdir(), "bpl_bench");
@@ -102,6 +138,21 @@ export function parseCompilationBenchmarkArgs(
       options.warmups = parseNonNegativeInteger(args[++i], "--warmups");
     } else if (arg === "--json") {
       options.json = true;
+    } else if (arg === "--compare") {
+      options.compare = args[++i];
+      if (options.compare === undefined || options.compare.length === 0) {
+        throw new Error("--compare expects a baseline phase JSON file");
+      }
+    } else if (arg === "--max-phase-regression") {
+      options.maxPhaseRegressionPercent = parseNonNegativeNumber(
+        args[++i],
+        "--max-phase-regression",
+      );
+    } else if (arg === "--max-full-regression") {
+      options.maxFullRegressionPercent = parseNonNegativeNumber(
+        args[++i],
+        "--max-full-regression",
+      );
     } else if (arg === "--help" || arg === "-h") {
       printUsage();
       process.exit(0);
@@ -111,6 +162,70 @@ export function parseCompilationBenchmarkArgs(
   }
 
   return options;
+}
+
+export function compareCompilePhaseBenchmarkResults(
+  baseline: CompilePhaseBenchmarkResult,
+  candidate: CompilePhaseBenchmarkResult,
+  options: CompilePhaseBenchmarkComparisonOptions = {},
+): CompilePhaseBenchmarkComparison {
+  const failures: string[] = [];
+  const tokenCountMatches = baseline.tokenCount === candidate.tokenCount;
+  const tokenSignatureMatches =
+    baseline.tokenSignature === candidate.tokenSignature;
+  const irHashMatches = baseline.irHash === candidate.irHash;
+
+  if (!tokenCountMatches) {
+    failures.push("tokenCount changed");
+  }
+  if (!tokenSignatureMatches) {
+    failures.push("tokenSignature changed");
+  }
+  if (!irHashMatches) {
+    failures.push("irHash changed");
+  }
+
+  const phaseDeltas = COMPILE_PHASE_NAMES.map((phase) => {
+    const baselineMedianMs = baseline[phase].medianMs;
+    const candidateMedianMs = candidate[phase].medianMs;
+    const deltaMs = candidateMedianMs - baselineMedianMs;
+    const deltaPercent =
+      baselineMedianMs === 0 ? 0 : (deltaMs / baselineMedianMs) * 100;
+    return {
+      phase,
+      baselineMedianMs,
+      candidateMedianMs,
+      deltaMs: roundTo(deltaMs, 6),
+      deltaPercent: roundTo(deltaPercent, 6),
+    };
+  });
+
+  for (const delta of phaseDeltas) {
+    const maxRegression =
+      delta.phase === "full"
+        ? options.maxFullRegressionPercent
+        : options.maxPhaseRegressionPercent;
+    if (
+      maxRegression !== undefined &&
+      delta.deltaPercent > maxRegression
+    ) {
+      failures.push(
+        `${delta.phase} median regressed by ${delta.deltaPercent.toFixed(2)}% (limit ${maxRegression.toFixed(2)}%)`,
+      );
+    }
+  }
+
+  const signaturesMatch =
+    tokenCountMatches && tokenSignatureMatches && irHashMatches;
+  return {
+    ok: signaturesMatch && failures.length === 0,
+    tokenCountMatches,
+    tokenSignatureMatches,
+    irHashMatches,
+    signaturesMatch,
+    failures,
+    phaseDeltas,
+  };
 }
 
 export async function measureCompilePhases(options: {
@@ -285,12 +400,40 @@ async function main(): Promise<void> {
       rounds: options.rounds,
       warmups: options.warmups,
     });
+    const comparison =
+      options.compare !== undefined
+        ? compareCompilePhaseBenchmarkResults(
+            readCompilePhaseBenchmarkResult(options.compare),
+            result,
+            {
+              maxPhaseRegressionPercent:
+                options.maxPhaseRegressionPercent,
+              maxFullRegressionPercent: options.maxFullRegressionPercent,
+            },
+          )
+        : undefined;
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      console.log(
+        JSON.stringify(
+          comparison === undefined ? result : { result, comparison },
+          null,
+          2,
+        ),
+      );
     } else {
       printPhaseResult(result);
+      if (comparison !== undefined) {
+        printPhaseComparison(comparison);
+      }
+    }
+    if (comparison !== undefined && !comparison.ok) {
+      process.exitCode = 1;
     }
     return;
+  }
+
+  if (options.compare !== undefined) {
+    throw new Error("--compare is only supported with --mode phases");
   }
 
   runLegacyCompilationBenchmark();
@@ -346,6 +489,41 @@ function printPhase(name: string, stats: CompilePhaseStats): void {
   );
 }
 
+function printPhaseComparison(
+  comparison: CompilePhaseBenchmarkComparison,
+): void {
+  console.log("");
+  console.log("BPL compile phase comparison");
+  console.log(
+    `  signatures: ${comparison.signaturesMatch ? "unchanged" : "changed"}`,
+  );
+  for (const delta of comparison.phaseDeltas) {
+    const sign = delta.deltaMs >= 0 ? "+" : "";
+    console.log(
+      `  ${delta.phase.padEnd(9)} ${delta.baselineMedianMs.toFixed(2)} ms -> ${delta.candidateMedianMs.toFixed(2)} ms  ${sign}${delta.deltaMs.toFixed(2)} ms  ${sign}${delta.deltaPercent.toFixed(2)}%`,
+    );
+  }
+  if (comparison.failures.length > 0) {
+    console.log("  failures:");
+    for (const failure of comparison.failures) {
+      console.log(`    - ${failure}`);
+    }
+  }
+}
+
+function readCompilePhaseBenchmarkResult(
+  filePath: string,
+): CompilePhaseBenchmarkResult {
+  return JSON.parse(
+    fs.readFileSync(path.resolve(filePath), "utf8"),
+  ) as CompilePhaseBenchmarkResult;
+}
+
+function roundTo(value: number, digits: number): number {
+  const scale = 10 ** digits;
+  return Math.round(value * scale) / scale;
+}
+
 function parsePositiveInteger(
   value: string | undefined,
   optionName: string,
@@ -367,6 +545,17 @@ function parseNonNegativeInteger(
   return Number(value);
 }
 
+function parseNonNegativeNumber(
+  value: string | undefined,
+  optionName: string,
+): number {
+  const parsed = Number(value);
+  if (value === undefined || !Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${optionName} must be a non-negative number`);
+  }
+  return parsed;
+}
+
 function printUsage(): void {
   console.log(`Usage: bun benchmark/measure_compilation.ts [options]
 
@@ -375,6 +564,11 @@ Options:
   --functions N         synthetic helper function count for --mode phases
   --rounds N            measured rounds for --mode phases
   --warmups N           warmup rounds for --mode phases
+  --compare FILE        compare phase results against a baseline JSON file
+  --max-phase-regression P
+                         fail when lex/parse/typecheck/codegen median regresses by more than P percent
+  --max-full-regression P
+                         fail when full median regresses by more than P percent
   --json                print structured JSON for --mode phases
   --help                show this help
 `);

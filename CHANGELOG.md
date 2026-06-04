@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Compile Phase Benchmark Comparison Gate** -
+  `benchmark/measure_compilation.ts --mode phases` now accepts `--compare`,
+  `--max-phase-regression`, and `--max-full-regression` so local performance
+  candidates can be checked against a saved phase JSON with token count,
+  token-signature, and LLVM IR hash validation before accepting timing deltas.
+  The comparison output reports median deltas for `lex`, `parse`, `typecheck`,
+  `codegen`, and `full`, and exits non-zero on signature drift or configured
+  regression-threshold failures. Reproduce the guard with
+  `bun test tests/BenchmarkRunner.test.ts`.
 - **Generated Parser Location Line-Membership Fast Path** -
   `optimizeGeneratedBplLocationLines` now emits direct line-membership checks
   in `peg$findBplLineIndex` and `peg$computeBplLocation` instead of a generated

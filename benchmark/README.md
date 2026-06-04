@@ -79,6 +79,18 @@ The phase JSON includes `lex`, `parse`, `typecheck`, `codegen`, and `full`
 median/average timings plus `tokenSignature` and `irHash`, which makes local
 performance changes easier to compare without accepting behavior drift.
 
+Compare a candidate run against a saved phase baseline:
+
+```bash
+bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-baseline-phases.json --max-phase-regression 2 --max-full-regression 1
+```
+
+The compare mode validates `tokenCount`, `tokenSignature`, and `irHash` before
+reporting median deltas for every phase. It exits non-zero when output
+signatures drift, when any of `lex`, `parse`, `typecheck`, or `codegen`
+regresses beyond `--max-phase-regression`, or when `full` regresses beyond
+`--max-full-regression`.
+
 ## Requirements
 
 - `bun` (for running the BPL compiler)
