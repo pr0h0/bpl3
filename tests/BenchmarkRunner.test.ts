@@ -21,11 +21,13 @@ import {
   calculateCompilePhaseStats,
   compareCompilePhaseBenchmarkResults,
   generateSyntheticCompileSource,
+  hashTokensForBenchmark,
   measureCompilePhases,
   parseCompilationBenchmarkArgs,
   readCompilePhaseBenchmarkResult,
   type CompilePhaseBenchmarkResult,
 } from "../benchmark/measure_compilation";
+import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 
 describe("Benchmark runner helpers", () => {
   it("keeps compile measurement tooling import-safe with phase exports", () => {
@@ -313,6 +315,15 @@ describe("Benchmark runner helpers", () => {
     expect(loopSource).toContain("if (i === finalMeasuredRound)");
     expect(loopSource).toContain("tokenSignature = hashTokens(tokens)");
     expect(loopSource).toContain("irHash = hashString(ir)");
+  });
+
+  it("preserves the benchmark token signature contract", () => {
+    const source = generateSyntheticCompileSource(3);
+    const tokens = lexWithGrammar(source, "perf_3.bpl");
+
+    expect(hashTokensForBenchmark(tokens)).toBe(
+      "83df85f5af58c819b94c3641583201a31148d3f74da40043654f2964f76f5db3",
+    );
   });
 
   it("calculates sorted min, median, and average timings", () => {

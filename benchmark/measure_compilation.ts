@@ -84,6 +84,7 @@ const COMPILE_PHASE_NAMES: CompilePhaseName[] = [
   "full",
 ];
 
+const TOKEN_HASH_CHUNK_CHAR_LIMIT = 64 * 1024;
 const COMPILER_PATH = path.join(__dirname, "../index.ts");
 const TEMP_DIR = path.join(os.tmpdir(), "bpl_bench");
 
@@ -343,17 +344,25 @@ function hashString(value: string): string {
 }
 
 function hashTokens(tokens: Token[]): string {
+  return hashTokensForBenchmark(tokens);
+}
+
+export function hashTokensForBenchmark(tokens: Token[]): string {
   const hash = createHash("sha256");
+  let chunk = "";
+
   for (const token of tokens) {
-    hash.update(String(token.type));
-    hash.update("\0");
-    hash.update(token.lexeme);
-    hash.update("\0");
-    hash.update(String(token.line));
-    hash.update(":");
-    hash.update(String(token.column));
-    hash.update("\n");
+    chunk += `${String(token.type)}\0${token.lexeme}\0${String(token.line)}:${String(token.column)}\n`;
+    if (chunk.length >= TOKEN_HASH_CHUNK_CHAR_LIMIT) {
+      hash.update(chunk);
+      chunk = "";
+    }
   }
+
+  if (chunk.length > 0) {
+    hash.update(chunk);
+  }
+
   return hash.digest("hex");
 }
 

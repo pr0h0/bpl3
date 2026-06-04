@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Chunked Compile Benchmark Token Hashing** -
+  `benchmark/measure_compilation.ts` now exposes and uses
+  `hashTokensForBenchmark`, which batches token-signature input into chunks
+  before calling `Hash.update`. This preserves the exact existing token
+  signature contract while making repeated 5k phase gates cheaper: local 5k
+  token hashing moved from ~544.30ms median with the old per-field update loop
+  to ~28.32ms median with identical digest
+  `0900c2024fca2824345874aadd6b27e0a9805c61fdf67ad1dd5e6699cf0caf93`.
+  Reproduce the behavior guard with `bun test tests/BenchmarkRunner.test.ts`
+  and the 5k signature comparison with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 3 --warmups 1 --compare /tmp/bpl3-5k-profile-restored.json --json`.
 - **Iterative Symbol Resolution** -
   `SymbolTable.resolve` now walks parent scopes iteratively instead of
   recursing through `parent.resolve`, preserving symbol usage tracking while
