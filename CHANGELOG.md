@@ -19,6 +19,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/Parser.test.ts -t "function declaration helpers allocation-free|checked-in generated Peggy parser|simple function declaration"`
   and the phase gate with
   `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 15 --warmups 3 --compare /tmp/bpl3-post-hash-5k-baseline.json --gate-phases parse,full --max-phase-regression 2 --max-full-regression 2 --json`.
+- **Identifier-First Primary Parser Dispatch** -
+  `Primary` parsing now tries `StructLiteral` and `IdentifierExpr` before
+  bool/null/string literal fallbacks, while preserving keyword literal behavior
+  through the existing reserved-keyword guard. This keeps identifier-heavy 5k
+  synthetic programs off several failed literal branches per expression. A
+  source-order contract pins both grammar and generated parser order, and a
+  15-round 5k phase comparison preserved token count, token signature, and LLVM
+  IR hash while moving median parse time from ~249.84ms to ~219.58ms and full
+  median from ~568.76ms to ~525.44ms. Reproduce the guard with
+  `bun test tests/Parser.test.ts -t "identifier-heavy primary parsing|checked-in generated Peggy parser"`
+  and the phase gate with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 15 --warmups 3 --compare /tmp/bpl3-post-function-helper-5k-baseline.json --gate-phases parse,full --max-phase-regression 2 --max-full-regression 2 --json`.
 - **Chunked Compile Benchmark Token Hashing** -
   `benchmark/measure_compilation.ts` now exposes and uses
   `hashTokensForBenchmark`, which batches token-signature input into chunks
@@ -2198,6 +2210,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Tree-Shaking Traversal for Nested Calls** - `walkAST` now descends through
+  plain syntactic wrapper objects such as struct and enum-struct literal field
+  entries while still skipping semantic overload metadata and guarding against
+  traversal cycles. Top-level tree shaking also scans generated struct and enum
+  method bodies as roots for helper reachability, so wasm artifact builds keep
+  functions referenced only inside aggregate literal values or generated method
+  bodies. This fixes pruning of `fib(5)` in `examples/wasm_control_flow/main.bpl`
+  and `executeRequest` from the hosted HTTP client example. Reproduce with
+  `bun test tests/ASTTraversal.test.ts tests/CodeGenerator.test.ts tests/WasmRuntime.test.ts -t "literal field wrapper|semantic overload metadata|top-level helpers called from generated methods|wasm_control_flow"`.
 - **Lambda Capture Traversal** - Lambda capture analysis now visits `match`
   expressions, `switch` cases, deferred statements, throws, loop init/step
   expressions, and aggregate literal children so closure contexts include

@@ -1161,14 +1161,14 @@ GenericArgList
     }
 
 Primary
-  = BoolLiteral
+  = StructLiteral
+  / IdentifierExpr
+  / BoolLiteral
   / NullptrLiteral
   / NumberLiteral
   / InterpolatedStringLiteral
   / StringLiteral
   / CharLiteral
-  / StructLiteral
-  / IdentifierExpr
   / TupleOrGrouped
   / CastExpression
   / SizeofExpression

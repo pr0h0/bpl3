@@ -80,6 +80,59 @@ describe("Parser", () => {
     );
   });
 
+  it("keeps identifier-heavy primary parsing ahead of literal keyword fallbacks", () => {
+    const grammarSource = readFileSync(
+      join(process.cwd(), "grammar", "bpl.peggy"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const grammarStart = grammarSource.indexOf("Primary\n  =");
+    const grammarEnd = grammarSource.indexOf("\n\nTupleOrGrouped", grammarStart);
+    const generatedStart = generatedSource.indexOf(
+      "function peg$parsePrimary()",
+    );
+    const generatedEnd = generatedSource.indexOf(
+      "function peg$parseTupleOrGrouped()",
+      generatedStart,
+    );
+
+    expect(grammarStart).toBeGreaterThanOrEqual(0);
+    expect(grammarEnd).toBeGreaterThan(grammarStart);
+    expect(generatedStart).toBeGreaterThanOrEqual(0);
+    expect(generatedEnd).toBeGreaterThan(generatedStart);
+
+    const primaryGrammar = grammarSource.slice(grammarStart, grammarEnd);
+    const primaryParser = generatedSource.slice(generatedStart, generatedEnd);
+
+    expect(primaryGrammar.indexOf("StructLiteral")).toBeLessThan(
+      primaryGrammar.indexOf("IdentifierExpr"),
+    );
+    expect(primaryGrammar.indexOf("IdentifierExpr")).toBeLessThan(
+      primaryGrammar.indexOf("BoolLiteral"),
+    );
+    expect(primaryGrammar.indexOf("IdentifierExpr")).toBeLessThan(
+      primaryGrammar.indexOf("NullptrLiteral"),
+    );
+    expect(primaryParser.indexOf("peg$parseStructLiteral()")).toBeLessThan(
+      primaryParser.indexOf("peg$parseIdentifierExpr()"),
+    );
+    expect(primaryParser.indexOf("peg$parseIdentifierExpr()")).toBeLessThan(
+      primaryParser.indexOf("peg$parseBoolLiteral()"),
+    );
+    expect(primaryParser.indexOf("peg$parseIdentifierExpr()")).toBeLessThan(
+      primaryParser.indexOf("peg$parseNullptrLiteral()"),
+    );
+  });
+
   it("should parse a struct declaration", () => {
     const source = "struct Point { x: int, y: int, }";
     const tokens = lexWithGrammar(source, "test.bpl");

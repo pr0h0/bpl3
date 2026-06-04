@@ -1284,6 +1284,38 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("ret i32 99");
   });
 
+  it("keeps top-level helpers called from generated methods during tree shaking", () => {
+    const ir = compile(
+      `
+        struct Runner {
+          frame run(this: *Runner) ret int {
+            return helper();
+          }
+        }
+
+        frame helper() ret int {
+          return 42;
+        }
+
+        frame dead() ret int {
+          return 99;
+        }
+
+        frame main() ret int {
+          local runner: Runner = Runner {};
+          return runner.run();
+        }
+      `,
+      { optimizationLevel: 3, treeShakeTopLevelFunctions: true },
+    );
+
+    expect(ir).toMatch(/define .* @main\(/);
+    expect(ir).toMatch(/define .* @Runner_run_/);
+    expect(ir).toMatch(/define .* @helper_/);
+    expect(ir).not.toMatch(/define .* @dead_/);
+    expect(ir).not.toContain("ret i32 99");
+  });
+
   it("rejects unsupported memory intrinsic return types", () => {
     expect(() =>
       compile(`

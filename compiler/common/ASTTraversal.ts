@@ -30,6 +30,11 @@ const DEFAULT_SKIP_PROPERTIES = [
   "variableDeclaration",
   "declaration",
   "bindingDeclaration",
+  "operatorOverload",
+  "overloads",
+  "captures",
+  "genericMap",
+  "methodDeclaration",
 ];
 
 /**
@@ -67,6 +72,51 @@ export function walkAST(
   const skipProps = new Set(options.skipProperties ?? DEFAULT_SKIP_PROPERTIES);
   const maxDepth = options.maxDepth ?? Infinity;
   const traverseArrays = options.traverseArrays ?? true;
+  const activeObjects = new WeakSet<object>();
+
+  function walkValue(
+    value: unknown,
+    path: AST.ASTNode[],
+    depth: number,
+  ): boolean {
+    if (value === null || value === undefined) return true;
+
+    if (Array.isArray(value)) {
+      if (!traverseArrays) return true;
+      if (activeObjects.has(value)) return true;
+
+      activeObjects.add(value);
+      try {
+        for (const item of value) {
+          if (!walkValue(item, path, depth)) return false;
+        }
+      } finally {
+        activeObjects.delete(value);
+      }
+      return true;
+    }
+
+    if (isASTNode(value)) {
+      return walk(value, path, depth);
+    }
+
+    if (typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      if (activeObjects.has(record)) return true;
+
+      activeObjects.add(record);
+      try {
+        for (const key of Object.keys(record)) {
+          if (skipProps.has(key)) continue;
+          if (!walkValue(record[key], path, depth)) return false;
+        }
+      } finally {
+        activeObjects.delete(record);
+      }
+    }
+
+    return true;
+  }
 
   function walk(
     current: AST.ASTNode,
@@ -74,31 +124,28 @@ export function walkAST(
     depth: number,
   ): boolean {
     if (depth > maxDepth) return true;
+    if (activeObjects.has(current)) return true;
 
-    // Visit current node
-    const result = visitor(current, path, depth);
-    if (result === false) return false;
+    activeObjects.add(current);
+    try {
+      // Visit current node
+      const result = visitor(current, path, depth);
+      if (result === false) return false;
 
-    // Traverse children
-    const newPath = [...path, current];
-    for (const key of Object.keys(current)) {
-      if (skipProps.has(key)) continue;
+      // Traverse children
+      const newPath = [...path, current];
+      for (const key of Object.keys(current)) {
+        if (skipProps.has(key)) continue;
 
-      const child = (current as any)[key];
-      if (child === null || child === undefined) continue;
-
-      if (traverseArrays && Array.isArray(child)) {
-        for (const item of child) {
-          if (isASTNode(item)) {
-            if (!walk(item, newPath, depth + 1)) return false;
-          }
+        if (!walkValue((current as any)[key], newPath, depth + 1)) {
+          return false;
         }
-      } else if (isASTNode(child)) {
-        if (!walk(child, newPath, depth + 1)) return false;
       }
-    }
 
-    return true;
+      return true;
+    } finally {
+      activeObjects.delete(current);
+    }
   }
 
   walk(node, [], 0);

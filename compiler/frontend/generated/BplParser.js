@@ -7403,21 +7403,21 @@ function peg$parse(input, options) {
   function peg$parsePrimary() {
     let s0;
 
-    s0 = peg$parseBoolLiteral();
+    s0 = peg$parseStructLiteral();
     if (s0 === peg$FAILED) {
-      s0 = peg$parseNullptrLiteral();
+      s0 = peg$parseIdentifierExpr();
       if (s0 === peg$FAILED) {
-        s0 = peg$parseNumberLiteral();
+        s0 = peg$parseBoolLiteral();
         if (s0 === peg$FAILED) {
-          s0 = peg$parseInterpolatedStringLiteral();
+          s0 = peg$parseNullptrLiteral();
           if (s0 === peg$FAILED) {
-            s0 = peg$parseStringLiteral();
+            s0 = peg$parseNumberLiteral();
             if (s0 === peg$FAILED) {
-              s0 = peg$parseCharLiteral();
+              s0 = peg$parseInterpolatedStringLiteral();
               if (s0 === peg$FAILED) {
-                s0 = peg$parseStructLiteral();
+                s0 = peg$parseStringLiteral();
                 if (s0 === peg$FAILED) {
-                  s0 = peg$parseIdentifierExpr();
+                  s0 = peg$parseCharLiteral();
                   if (s0 === peg$FAILED) {
                     s0 = peg$parseTupleOrGrouped();
                     if (s0 === peg$FAILED) {

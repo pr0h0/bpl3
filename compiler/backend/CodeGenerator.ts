@@ -1052,8 +1052,23 @@ export class CodeGenerator extends StatementGenerator {
 
     const topLevelFunctions = new Set<AST.FunctionDecl>();
     const functionsByName = new Map<string, AST.FunctionDecl[]>();
+    const generatedMethodRoots: AST.FunctionDecl[] = [];
 
     for (const stmt of program.statements) {
+      if (stmt.kind === "StructDecl") {
+        for (const member of (stmt as AST.StructDecl).members) {
+          if (member.kind === "FunctionDecl") {
+            generatedMethodRoots.push(member);
+          }
+        }
+        continue;
+      }
+
+      if (stmt.kind === "EnumDecl") {
+        generatedMethodRoots.push(...(stmt as AST.EnumDecl).methods);
+        continue;
+      }
+
       if (stmt.kind !== "FunctionDecl") continue;
 
       const decl = stmt as AST.FunctionDecl;
@@ -1125,8 +1140,7 @@ export class CodeGenerator extends StatementGenerator {
       }
     };
 
-    while (queue.length > 0) {
-      const decl = queue.shift()!;
+    const scanReachableFunctionBody = (decl: AST.FunctionDecl): void => {
       walkAST(decl.body, (node) => {
         switch (node.kind) {
           case "Identifier":
@@ -1158,6 +1172,15 @@ export class CodeGenerator extends StatementGenerator {
             break;
         }
       });
+    };
+
+    for (const method of generatedMethodRoots) {
+      scanReachableFunctionBody(method);
+    }
+
+    while (queue.length > 0) {
+      const decl = queue.shift()!;
+      scanReachableFunctionBody(decl);
     }
 
     return reachable;
