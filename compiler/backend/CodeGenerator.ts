@@ -116,8 +116,6 @@ export class CodeGenerator extends StatementGenerator {
   private generatedBodyUsesArgvRuntimeHelper = false;
   private generatedArgcStoreOutputIndex: number | undefined;
   private generatedArgvStoreOutputIndex: number | undefined;
-  private llvmSymbolReferencePatterns: Map<string, RegExp> = new Map();
-  private llvmStructReferencePatterns: Map<string, RegExp> = new Map();
 
   constructor(
     options: {
@@ -803,32 +801,50 @@ export class CodeGenerator extends StatementGenerator {
     }
   }
 
-  private getLlvmSymbolReferencePattern(name: string): RegExp {
-    let pattern = this.llvmSymbolReferencePatterns.get(name);
-    if (pattern === undefined) {
-      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      pattern = new RegExp(`@${escapedName}(?![A-Za-z0-9_.$])`);
-      this.llvmSymbolReferencePatterns.set(name, pattern);
-    }
-    return pattern;
-  }
-
-  private getLlvmStructReferencePattern(name: string): RegExp {
-    let pattern = this.llvmStructReferencePatterns.get(name);
-    if (pattern === undefined) {
-      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      pattern = new RegExp(`%struct\\.${escapedName}(?![A-Za-z0-9_.$])`);
-      this.llvmStructReferencePatterns.set(name, pattern);
-    }
-    return pattern;
-  }
-
   private referencesLlvmSymbol(llvmBody: string, name: string): boolean {
-    return this.getLlvmSymbolReferencePattern(name).test(llvmBody);
+    return this.referencesLlvmName(llvmBody, "@", name);
   }
 
   private referencesLlvmStruct(llvmBody: string, name: string): boolean {
-    return this.getLlvmStructReferencePattern(name).test(llvmBody);
+    return this.referencesLlvmName(llvmBody, "%struct.", name);
+  }
+
+  private referencesLlvmName(
+    llvmBody: string,
+    prefix: string,
+    name: string,
+  ): boolean {
+    const needle = `${prefix}${name}`;
+    let start = 0;
+
+    while (true) {
+      const index = llvmBody.indexOf(needle, start);
+      if (index === -1) {
+        return false;
+      }
+
+      const nextCharacter = llvmBody[index + needle.length];
+      if (
+        nextCharacter === undefined ||
+        !this.isLlvmReferenceNameCharacter(nextCharacter)
+      ) {
+        return true;
+      }
+
+      start = index + needle.length;
+    }
+  }
+
+  private isLlvmReferenceNameCharacter(character: string): boolean {
+    const code = character.charCodeAt(0);
+    return (
+      (code >= 48 && code <= 57) ||
+      (code >= 65 && code <= 90) ||
+      (code >= 97 && code <= 122) ||
+      character === "_" ||
+      character === "." ||
+      character === "$"
+    );
   }
 
   private writeDebugIr(result: string): void {

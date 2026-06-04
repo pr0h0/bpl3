@@ -879,25 +879,31 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain("line.trim()");
   });
 
-  it("reuses compiled LLVM reference regexes during final pruning", () => {
+  it("uses direct LLVM reference boundary scans during final pruning", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
     );
     const symbolStart = source.indexOf("private referencesLlvmSymbol");
     const structStart = source.indexOf("private referencesLlvmStruct");
+    const boundaryStart = source.indexOf(
+      "private referencesLlvmName",
+      structStart,
+    );
     const structEnd = source.indexOf("private writeDebugIr", structStart);
 
     expect(symbolStart).toBeGreaterThanOrEqual(0);
     expect(structStart).toBeGreaterThan(symbolStart);
+    expect(boundaryStart).toBeGreaterThan(structStart);
     expect(structEnd).toBeGreaterThan(structStart);
 
     const referenceSource = source.slice(symbolStart, structEnd);
-    expect(source).toContain("private llvmSymbolReferencePatterns");
-    expect(source).toContain("private llvmStructReferencePatterns");
-    expect(referenceSource).toContain("this.getLlvmSymbolReferencePattern");
-    expect(referenceSource).toContain("this.getLlvmStructReferencePattern");
-    expect(referenceSource).not.toContain("new RegExp");
+    expect(source).not.toContain("llvmSymbolReferencePatterns");
+    expect(source).not.toContain("llvmStructReferencePatterns");
+    expect(referenceSource).toContain("const needle = `${prefix}${name}`");
+    expect(referenceSource).toContain("llvmBody.indexOf(needle, start)");
+    expect(referenceSource).toContain("this.isLlvmReferenceNameCharacter");
+    expect(referenceSource).not.toContain("RegExp");
   });
 
   it("keeps explicit main argc argv parameters without runtime helper globals", () => {

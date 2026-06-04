@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Codegen LLVM Reference Boundary Lookup** - Final codegen pruning now checks
+  LLVM symbol and struct references with direct `indexOf` boundary scans instead
+  of cached regular-expression tests. This keeps the same generated IR while
+  reducing repeated runtime-declaration pruning overhead on large outputs. On a
+  same-machine 5k synthetic compile comparison against `48345ca`, codegen median
+  improved from ~209.91ms to ~206.32ms and full phase median improved from
+  ~755.15ms to ~751.12ms with unchanged IR hash
+  (`c579f6868c8d3de52eab8f7fae86e30480adac92db1747f069c4bd8fc8d9b9cd`).
+  Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "uses direct LLVM reference boundary scans|prunes unused internal runtime helper declarations|keeps Type vtable metadata|keeps internal runtime helper declarations|keeps internal runtime state declarations|keeps implicit C prelude declarations"`
+  and `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 7 --warmups 2 --json`.
 - **Parser Declaration Dispatch Fast Path** - The Peggy grammar now tries
   concrete declaration and statement forms before the expression-statement
   fallback, avoiding repeated negative expression dispatch for function-heavy
