@@ -37,9 +37,9 @@
 extern int32_t __bpl_stack_depth;
 
 /* ============ Local State for BPL Stack Trace ============ */
-static const char *__bpl_frame_names[BPL_MAX_STACK_DEPTH];
-static const char *__bpl_frame_files[BPL_MAX_STACK_DEPTH];
-static int32_t __bpl_frame_lines[BPL_MAX_STACK_DEPTH];
+static const char **__bpl_frame_names;
+static const char **__bpl_frame_files;
+static int32_t *__bpl_frame_lines;
 
 /* Color codes for terminal output */
 #define COLOR_RESET   "\033[0m"
@@ -50,6 +50,28 @@ static int32_t __bpl_frame_lines[BPL_MAX_STACK_DEPTH];
 #define COLOR_BOLD    "\033[1m"
 
 /* ============ Stack Trace Printing ============ */
+
+static int __bpl_ensure_frame_storage(void) {
+    if (__bpl_frame_names && __bpl_frame_files && __bpl_frame_lines) {
+        return 1;
+    }
+
+    const char **names = (const char **)calloc(BPL_MAX_STACK_DEPTH, sizeof(*names));
+    const char **files = (const char **)calloc(BPL_MAX_STACK_DEPTH, sizeof(*files));
+    int32_t *lines = (int32_t *)calloc(BPL_MAX_STACK_DEPTH, sizeof(*lines));
+
+    if (!names || !files || !lines) {
+        free((void *)names);
+        free((void *)files);
+        free(lines);
+        return 0;
+    }
+
+    __bpl_frame_names = names;
+    __bpl_frame_files = files;
+    __bpl_frame_lines = lines;
+    return 1;
+}
 
 /**
  * Print native stack trace using backtrace()
@@ -103,9 +125,9 @@ void __bpl_print_bpl_stack_trace(void) {
     if (depth > BPL_MAX_STACK_DEPTH) depth = BPL_MAX_STACK_DEPTH;
     
     for (int i = depth - 1; i >= 0 && i >= depth - 20; i--) {
-        const char *name = __bpl_frame_names[i];
-        const char *file = __bpl_frame_files[i];
-        int32_t line = __bpl_frame_lines[i];
+        const char *name = __bpl_frame_names ? __bpl_frame_names[i] : NULL;
+        const char *file = __bpl_frame_files ? __bpl_frame_files[i] : NULL;
+        int32_t line = __bpl_frame_lines ? __bpl_frame_lines[i] : 0;
         
         if (name) {
             if (file && line > 0) {
@@ -162,7 +184,7 @@ void **__bpl_capture_stack_frames(int *out_depth) {
  */
 void __bpl_enter_stack_frame_named(const char *name, const char *file, int32_t line) {
     int idx = __bpl_stack_depth;
-    if (idx < BPL_MAX_STACK_DEPTH) {
+    if (idx < BPL_MAX_STACK_DEPTH && __bpl_ensure_frame_storage()) {
         __bpl_frame_names[idx] = name;
         __bpl_frame_files[idx] = file;
         __bpl_frame_lines[idx] = line;
@@ -174,7 +196,13 @@ void __bpl_enter_stack_frame_named(const char *name, const char *file, int32_t l
  */
 void __bpl_clear_frame_info(void) {
     int idx = __bpl_stack_depth;
-    if (idx >= 0 && idx < BPL_MAX_STACK_DEPTH) {
+    if (
+        idx >= 0 &&
+        idx < BPL_MAX_STACK_DEPTH &&
+        __bpl_frame_names &&
+        __bpl_frame_files &&
+        __bpl_frame_lines
+    ) {
         __bpl_frame_names[idx] = NULL;
         __bpl_frame_files[idx] = NULL;
         __bpl_frame_lines[idx] = 0;

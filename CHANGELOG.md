@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Lazy Runtime Stack-Frame Storage** - Native runtime support now allocates
+  optional named BPL stack-frame metadata lazily instead of reserving three
+  `BPL_MAX_STACK_DEPTH` arrays in every executable. A hello-world native build
+  dropped from 200,048 bytes of BSS to 64 bytes while preserving normal output
+  and stack-trace runtime integration coverage. Reproduce with
+  `bun test tests/RuntimeBuildScript.test.ts tests/BinaryRunner.test.ts` and
+  `bun test tests/Integration.test.ts -t "stack_trace_error|stack_trace_uncaught|test_zero_comprehensive"`.
 - **Playground Native Binary Rerun Cache** - Artifact-free playground
   `/compile` requests now cache the linked native binary for unchanged source
   code and rerun that binary with each request's current stdin and argv. This
