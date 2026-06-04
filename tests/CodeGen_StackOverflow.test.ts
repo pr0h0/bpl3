@@ -4,24 +4,34 @@ import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 
-function generate(source: string) {
+function generateWithOptions(
+  source: string,
+  options: ConstructorParameters<typeof CodeGenerator>[0] = {},
+) {
   const tokens = lexWithGrammar(source, "test.bpl");
   const parser = new Parser(source, "test.bpl", tokens);
   const program = parser.parse();
   const typeChecker = new TypeChecker();
   typeChecker.checkProgram(program);
-  const codeGenerator = new CodeGenerator();
+  const codeGenerator = new CodeGenerator(options);
   return codeGenerator.generate(program);
 }
 
+function generate(source: string) {
+  return generateWithOptions(source);
+}
+
 function generateOptimized(source: string) {
-  const tokens = lexWithGrammar(source, "test.bpl");
-  const parser = new Parser(source, "test.bpl", tokens);
-  const program = parser.parse();
-  const typeChecker = new TypeChecker();
-  typeChecker.checkProgram(program);
-  const codeGenerator = new CodeGenerator({ optimizationLevel: 3 });
-  return codeGenerator.generate(program);
+  return generateWithOptions(source, { optimizationLevel: 3 });
+}
+
+function functionBody(ir: string, name: string): string {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = ir.match(
+    new RegExp(`define [^{]+ @${escapedName}[^\\n]*\\{[\\s\\S]*?\\n}\\n`),
+  );
+  expect(match).toBeDefined();
+  return match![0];
 }
 
 describe("CodeGen - Stack Overflow", () => {
@@ -126,6 +136,148 @@ describe("CodeGen - Stack Overflow", () => {
     expect(sumBody!).not.toContain(
       "call i8* @llvm.frameaddress.p0i8(i32 0)",
     );
+  });
+
+  it("omits optimized stack-limit probes for call-free bounded helper bodies", () => {
+    const source = `
+      struct Pair {
+        left: int,
+        right: int,
+      }
+
+      frame helper(value: int) ret int {
+        local pair: Pair = Pair { left: value + 1, right: value - 1 };
+        if (pair.left > pair.right) {
+          return pair.left - pair.right;
+        }
+        return pair.right - pair.left;
+      }
+
+      frame main() ret int {
+        return helper(10);
+      }
+    `;
+    const ir = generateOptimized(source);
+
+    const helperBody = functionBody(ir, "helper_i32");
+    expect(helperBody).not.toContain("alloca i8");
+    expect(helperBody).not.toContain("load i8*, i8** @__bpl_stack_limit");
+    expect(helperBody).not.toContain(
+      "call i8* @llvm.frameaddress.p0i8(i32 0)",
+    );
+    expect(helperBody).not.toContain("call void @__bpl_throw_stack_overflow()");
+
+    const mainBody = functionBody(ir, "main");
+    expect(mainBody).toContain("load i8*, i8** @__bpl_stack_limit");
+    expect(mainBody).toContain("call void @__bpl_throw_stack_overflow()");
+  });
+
+  it("keeps optimized stack-limit probes for non-recursive functions with calls", () => {
+    const source = `
+      frame leaf(value: int) ret int {
+        return value + 1;
+      }
+
+      frame wrapper(value: int) ret int {
+        local next: int = leaf(value);
+        return next + 1;
+      }
+
+      frame main() ret int {
+        return wrapper(10);
+      }
+    `;
+    const ir = generateOptimized(source);
+
+    const wrapperBody = functionBody(ir, "wrapper_i32");
+    expect(wrapperBody).toContain("alloca i8");
+    expect(wrapperBody).toContain("load i8*, i8** @__bpl_stack_limit");
+    expect(wrapperBody).toContain("call void @__bpl_throw_stack_overflow()");
+  });
+
+  it("omits default stack depth hooks for runtime-check-free bounded helper bodies", () => {
+    const source = `
+      frame helper(value: int) ret int {
+        if (value > 0) {
+          return value;
+        }
+        return 0 - value;
+      }
+
+      frame main() ret int {
+        return helper(10);
+      }
+    `;
+    const ir = generate(source);
+
+    const helperBody = functionBody(ir, "helper_i32");
+    expect(helperBody).not.toContain("call void @__bpl_enter_stack_frame()");
+    expect(helperBody).not.toContain("call void @__bpl_exit_stack_frame()");
+
+    const mainBody = functionBody(ir, "main");
+    expect(mainBody).toContain("call void @__bpl_enter_stack_frame()");
+    expect(mainBody).toContain("call void @__bpl_exit_stack_frame()");
+  });
+
+  it("keeps default stack depth hooks for bounded helpers with checked runtime failures", () => {
+    const source = `
+      frame helper(value: int) ret int {
+        return 10 / value;
+      }
+
+      frame main() ret int {
+        return helper(2);
+      }
+    `;
+    const ir = generate(source);
+
+    const helperBody = functionBody(ir, "helper_i32");
+    expect(helperBody).toContain("call void @__bpl_enter_stack_frame()");
+    expect(helperBody).toContain("call void @__bpl_exit_stack_frame()");
+    expect(helperBody).toContain("call void @__bpl_throw_division_by_zero");
+  });
+
+  it("keeps wasm stack depth hooks for runtime-check-free bounded helper bodies", () => {
+    const source = `
+      frame helper(value: int) ret int {
+        if (value > 0) {
+          return value;
+        }
+        return 0 - value;
+      }
+
+      frame main() ret int {
+        return helper(10);
+      }
+    `;
+    const ir = generateWithOptions(source, {
+      optimizationLevel: 3,
+      target: "wasm32-unknown-unknown",
+    });
+
+    const helperBody = functionBody(ir, "helper_i32");
+    expect(helperBody).toContain("call void @__bpl_enter_stack_frame()");
+    expect(helperBody).toContain("call void @__bpl_exit_stack_frame()");
+  });
+
+  it("keeps DWARF stack depth hooks for runtime-check-free bounded helper bodies", () => {
+    const source = `
+      frame helper(value: int) ret int {
+        if (value > 0) {
+          return value;
+        }
+        return 0 - value;
+      }
+
+      frame main() ret int {
+        return helper(10);
+      }
+    `;
+    const ir = generateWithOptions(source, { dwarf: true });
+
+    const helperBody = functionBody(ir, "helper_i32");
+    expect(helperBody).toContain("call void @__bpl_enter_stack_frame()");
+    expect(helperBody).toContain("call void @__bpl_exit_stack_frame()");
   });
 
   it("omits optimized stack-limit probes for runtime-free main bodies", () => {
