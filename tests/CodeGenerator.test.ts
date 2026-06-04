@@ -1148,6 +1148,32 @@ describe("CodeGenerator", () => {
     expect(methodSource).toContain("charCodeAt");
   });
 
+  it("keeps empty branch proof propagation off per-if allocation paths", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("protected generateIf");
+    const end = source.indexOf(
+      "\n\n  private intersectPointerExpressionProofs",
+      start,
+    );
+    const generateIfSource = source.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(source).toContain(
+      "const EMPTY_POINTER_EXPRESSION_PROOFS: readonly string[] = [];",
+    );
+    expect(generateIfSource).toContain(
+      "this.basicBlockNonNullPointerExpressions.size === 0",
+    );
+    expect(generateIfSource).toContain("tracksPointerExpressionProofs");
+    expect(generateIfSource).not.toContain(
+      "const fallthroughPointerExpressionProofs: string[][] = [];",
+    );
+  });
+
   it("omits dead stack_ok branch scaffolding from multi-function IR", () => {
     const ir = compile(
       `

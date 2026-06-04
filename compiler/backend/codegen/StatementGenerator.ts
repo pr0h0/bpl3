@@ -22,6 +22,7 @@ import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConver
 import { AsmGenerator } from "./AsmGenerator";
 
 const OPTIMIZED_NATIVE_STACK_LIMIT_BYTES = 1024 * 1024;
+const EMPTY_POINTER_EXPRESSION_PROOFS: readonly string[] = [];
 
 type NullGuardProof = {
   expressionKey: string;
@@ -1494,8 +1495,14 @@ export abstract class StatementGenerator extends AsmGenerator {
     const elseLabel = this.newLabel("else");
     const mergeLabel = this.newLabel("merge");
     const incomingPointerExpressionProofs =
-      this.getValidBasicBlockPointerExpressionProofKeys();
-    const fallthroughPointerExpressionProofs: string[][] = [];
+      this.basicBlockNonNullPointerExpressions.size === 0
+        ? EMPTY_POINTER_EXPRESSION_PROOFS
+        : this.getValidBasicBlockPointerExpressionProofKeys();
+    const tracksPointerExpressionProofs =
+      incomingPointerExpressionProofs.length > 0;
+    const fallthroughPointerExpressionProofs:
+      | (readonly string[])[]
+      | undefined = tracksPointerExpressionProofs ? [] : undefined;
 
     const hasElse = !!stmt.elseBranch;
     const targetElse = hasElse ? elseLabel : mergeLabel;
@@ -1503,9 +1510,11 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.emit(`  br i1 ${cond}, label %${thenLabel}, label %${targetElse}`);
 
     this.emit(`${thenLabel}:`);
-    this.markBasicBlockPointerExpressionsNonNull(
-      incomingPointerExpressionProofs,
-    );
+    if (tracksPointerExpressionProofs) {
+      this.markBasicBlockPointerExpressionsNonNull(
+        incomingPointerExpressionProofs,
+      );
+    }
     if (stmt.thenBranch.kind === "Block") {
       this.generateBlock(stmt.thenBranch as AST.BlockStmt);
     } else {
@@ -1521,18 +1530,22 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.output[this.output.length - 1] || "",
     );
     if (!thenTerminates) {
-      fallthroughPointerExpressionProofs.push(
-        this.getValidBasicBlockPointerExpressionProofKeys(),
-      );
+      if (tracksPointerExpressionProofs) {
+        fallthroughPointerExpressionProofs!.push(
+          this.getValidBasicBlockPointerExpressionProofKeys(),
+        );
+      }
       this.emit(`  br label %${mergeLabel}`);
     }
 
     let elseTerminates = false;
     if (hasElse) {
       this.emit(`${elseLabel}:`);
-      this.markBasicBlockPointerExpressionsNonNull(
-        incomingPointerExpressionProofs,
-      );
+      if (tracksPointerExpressionProofs) {
+        this.markBasicBlockPointerExpressionsNonNull(
+          incomingPointerExpressionProofs,
+        );
+      }
       if (stmt.elseBranch!.kind === "Block") {
         this.generateBlock(stmt.elseBranch as AST.BlockStmt);
       } else if (stmt.elseBranch!.kind === "If") {
@@ -1550,19 +1563,25 @@ export abstract class StatementGenerator extends AsmGenerator {
         this.output[this.output.length - 1] || "",
       );
       if (!elseTerminates) {
-        fallthroughPointerExpressionProofs.push(
-          this.getValidBasicBlockPointerExpressionProofKeys(),
-        );
+        if (tracksPointerExpressionProofs) {
+          fallthroughPointerExpressionProofs!.push(
+            this.getValidBasicBlockPointerExpressionProofKeys(),
+          );
+        }
         this.emit(`  br label %${mergeLabel}`);
       }
-    } else {
-      fallthroughPointerExpressionProofs.push(incomingPointerExpressionProofs);
+    } else if (tracksPointerExpressionProofs) {
+      fallthroughPointerExpressionProofs!.push(incomingPointerExpressionProofs);
     }
 
     this.emit(`${mergeLabel}:`);
-    this.markBasicBlockPointerExpressionsNonNull(
-      this.intersectPointerExpressionProofs(fallthroughPointerExpressionProofs),
-    );
+    if (tracksPointerExpressionProofs) {
+      this.markBasicBlockPointerExpressionsNonNull(
+        this.intersectPointerExpressionProofs(
+          fallthroughPointerExpressionProofs!,
+        ),
+      );
+    }
     if (
       nullGuardProof &&
       this.nullGuardProvesNonNullAtMerge(
@@ -1575,9 +1594,11 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
   }
 
-  private intersectPointerExpressionProofs(proofSets: string[][]): string[] {
+  private intersectPointerExpressionProofs(
+    proofSets: readonly (readonly string[])[],
+  ): string[] {
     if (proofSets.length === 0) return [];
-    if (proofSets.length === 1) return proofSets[0]!;
+    if (proofSets.length === 1) return [...proofSets[0]!];
 
     const remainingSets = proofSets
       .slice(1)

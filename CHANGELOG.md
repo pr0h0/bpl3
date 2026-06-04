@@ -48,6 +48,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/CodeGenerator.test.ts -t "branch labels without calls|nested null guard"`
   and the same-load 5k compile gate with
   `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 15 --warmups 3 --compare /tmp/bpl3-guard-baseline-sameload-5k.json --gate-phases codegen,full --max-phase-regression 5 --max-full-regression 5 --json`.
+- **Empty Null-Proof Branch Fast Path** -
+  `if` codegen now uses a shared empty proof list and skips branch-proof
+  snapshot/intersection bookkeeping when no source-expression pointer facts are
+  active. This preserves the branch-safe null-proof optimization while keeping
+  pointer-free sources off the per-`if` allocation path. A 15-round 5k phase
+  comparison against the branch-proof baseline preserved token/IR signatures,
+  improved codegen median by ~2.89%, and kept full median within the gate at
+  +0.81%. Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "empty branch proof propagation|branch labels without calls|nested null guard"`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 15 --warmups 3 --compare /tmp/bpl3-branchproof-sameload-5k-compare.json --gate-phases codegen,full --max-phase-regression 5 --max-full-regression 5 --json`.
 - **Allocation-Free Parser Function Declaration Helpers** -
   the Peggy grammar helper for `FunctionDecl` now returns the AST node directly
   instead of allocating a temporary `node` binding in every function declaration
