@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Resolved Nominal Type Reuse Fast Path** - `TypeCheckerBase.resolveType`
+  now reuses already-resolved non-generic struct, enum, and spec `BasicType`
+  nodes before implicit primitive imports and scope lookup, while excluding
+  aliases, variable/parameter metadata, generic arguments, generic
+  declarations, and mismatched declaration names. Against detached `e601b81`,
+  a 101-round 5k phase benchmark preserved token count, token signature, and
+  LLVM IR hash while improving median typecheck time from ~109.77ms to
+  ~100.99ms and full median from ~534.38ms to ~527.94ms. Reproduce the guard
+  with
+  `bun test tests/TypeChecker.test.ts -t "already-resolved nominal"` and the
+  phase benchmark with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json`.
 - **Builtin Operand Operator-Overload Fast Path** - `ExpressionChecker` now
   skips operator-overload resolver calls for known builtin operand types that
   cannot define overload methods, while preserving user-defined overloads and

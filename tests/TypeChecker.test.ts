@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
 
+import type * as AST from "../compiler/common/AST";
 import { CompilerError } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
@@ -142,6 +143,79 @@ describe("TypeChecker", () => {
       "cloneSimpleBuiltinAliasType(type, canonicalName)",
     );
     expect(resolverSource).not.toContain("...type");
+  });
+
+  it("resolves already-resolved nominal basic types without scope lookup", () => {
+    const location = {
+      file: "test.bpl",
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 12,
+    };
+    const declaration: AST.StructDecl = {
+      kind: "StructDecl",
+      name: "ResolvedBox",
+      genericParams: [],
+      inheritanceList: [],
+      members: [],
+      location,
+    };
+    const resolvedType: AST.BasicTypeNode = {
+      kind: "BasicType",
+      name: "ResolvedBox",
+      genericArgs: [],
+      pointerDepth: 0,
+      arrayDimensions: [],
+      location,
+      resolvedDeclaration: declaration,
+    };
+    const checker = new TypeChecker({ skipImportResolution: true });
+    const originalResolve = checker.currentScope.resolve;
+    checker.currentScope.resolve = () => {
+      throw new Error("resolved type should not consult current scope");
+    };
+
+    try {
+      expect(checker.resolveType(resolvedType)).toBe(resolvedType);
+    } finally {
+      checker.currentScope.resolve = originalResolve;
+    }
+  });
+
+  it("keeps already-resolved nominal type reuse before implicit imports and scope lookup", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const helperStart = source.indexOf("function canReuseResolvedBasicType");
+    const resolveType = source.indexOf("public resolveType");
+    const reuseCheck = source.indexOf(
+      "canReuseResolvedBasicType(type)",
+      resolveType,
+    );
+    const primitiveImport = source.indexOf(
+      "this.ensureImplicitPrimitiveWrappersLoaded(type.name)",
+      resolveType,
+    );
+    const firstScopeLookup = source.indexOf(
+      "this.currentScope.resolve(type.name)",
+      resolveType,
+    );
+
+    expect(helperStart).toBeGreaterThanOrEqual(0);
+    expect(reuseCheck).toBeGreaterThan(resolveType);
+    expect(reuseCheck).toBeLessThan(primitiveImport);
+    expect(reuseCheck).toBeLessThan(firstScopeLookup);
+
+    const helperSource = source.slice(helperStart, resolveType);
+    expect(helperSource).toContain("type.genericArgs.length !== 0");
+    expect(helperSource).toContain("type.aliasDeclaration");
+    expect(helperSource).toContain("type.variableDeclaration");
+    expect(helperSource).toContain('decl.kind !== "StructDecl"');
+    expect(helperSource).toContain('decl.kind !== "EnumDecl"');
+    expect(helperSource).toContain('decl.kind !== "SpecDecl"');
+    expect(helperSource).toContain("decl.genericParams.length === 0");
   });
 
   it("skips operator overload member resolution for methodless structs", () => {

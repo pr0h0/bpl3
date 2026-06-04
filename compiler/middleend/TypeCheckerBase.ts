@@ -349,6 +349,28 @@ function resolveSimpleBuiltinBasicType(
   return SIMPLE_BUILTIN_BASIC_TYPE_NAMES[type.name] ? type : undefined;
 }
 
+function canReuseResolvedBasicType(type: AST.BasicTypeNode): boolean {
+  if (
+    type.genericArgs.length !== 0 ||
+    type.aliasDeclaration ||
+    type.variableDeclaration
+  ) {
+    return false;
+  }
+
+  const decl = type.resolvedDeclaration;
+  if (
+    !decl ||
+    (decl.kind !== "StructDecl" &&
+      decl.kind !== "EnumDecl" &&
+      decl.kind !== "SpecDecl")
+  ) {
+    return false;
+  }
+
+  return type.name === decl.name && decl.genericParams.length === 0;
+}
+
 /**
  * Base class for TypeChecker with shared state and utility methods
  */
@@ -479,6 +501,10 @@ export abstract class TypeCheckerBase {
       const simpleBuiltin = resolveSimpleBuiltinBasicType(type);
       if (simpleBuiltin) {
         return simpleBuiltin;
+      }
+
+      if (canReuseResolvedBasicType(type)) {
+        return type;
       }
 
       this.ensureImplicitPrimitiveWrappersLoaded(type.name);
