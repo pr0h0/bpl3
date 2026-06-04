@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Function-Local Codegen State Swap Fast Path** - Function code generation
+  now swaps in fresh local-state collections for each function body and restores
+  the previous collection references in `finally`, instead of cloning the
+  current local maps and sets before clearing them. This keeps re-entrant
+  function generation state isolated, restores state across early returns, and
+  avoids per-function copies on nested or populated local state. Against
+  `b7966bf`, the matched 5k phase benchmark preserved the token signature and
+  LLVM IR hash while codegen median improved from ~155.97ms to ~152.98ms; full
+  median was effectively flat/noisy at ~597.88ms to ~600.20ms. A same-window
+  isolated 101-round codegen probe preserved the IR hash and improved median
+  codegen time from ~133.24ms to ~128.50ms. Reproduce the guard with
+  `bun test tests/CodeGenerator.test.ts -t "function-local codegen state"` and
+  the phase benchmark with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json`.
 - **Identifier Scanner Predicate Inline Fast Path** - Generated parser
   identifier scanning now inlines the identifier-continuation predicate instead
   of calling the identifier-start helper for every scanned character. Against

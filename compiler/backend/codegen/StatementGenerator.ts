@@ -1819,14 +1819,12 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevStackAllocCount = this.stackAllocCount;
     const prevCurrentFunctionReturnType = this.currentFunctionReturnType;
     const prevCurrentFunctionName = this.currentFunctionName;
-    const prevLocals = new Set(this.locals);
-    const prevLocalPointers = new Map(this.localPointers);
-    const prevLocalTypes = new Map(this.localTypes);
-    const prevLocalNullFlags = new Map(this.localNullFlags);
-    const prevPointerToLocal = new Map(this.pointerToLocal);
-    const prevMovedAutoDestroyAddresses = new Set(
-      this.movedAutoDestroyAddresses,
-    );
+    const prevLocals = this.locals;
+    const prevLocalPointers = this.localPointers;
+    const prevLocalTypes = this.localTypes;
+    const prevLocalNullFlags = this.localNullFlags;
+    const prevPointerToLocal = this.pointerToLocal;
+    const prevMovedAutoDestroyAddresses = this.movedAutoDestroyAddresses;
     const prevOnReturn = this.onReturn;
     const prevIsMainWithVoidReturn = this.isMainWithVoidReturn;
     const prevGeneratingFunctionBody = this.generatingFunctionBody;
@@ -1834,17 +1832,18 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevCurrentFunctionEmitsStackFrameHooks =
       this.currentFunctionEmitsStackFrameHooks;
 
+    try {
     this.registerCount = 0;
     this.labelCount = 0;
     this.stackAllocCount = 0;
     this.currentFunctionReturnType = decl.returnType;
     this.currentFunctionName = decl.name;
-    this.locals.clear();
-    this.localPointers.clear();
-    this.localTypes.clear();
-    this.localNullFlags.clear();
-    this.pointerToLocal.clear();
-    this.movedAutoDestroyAddresses.clear();
+    this.locals = new Set();
+    this.localPointers = new Map();
+    this.localTypes = new Map();
+    this.localNullFlags = new Map();
+    this.pointerToLocal = new Map();
+    this.movedAutoDestroyAddresses = new Set();
     this.generatingFunctionBody = true;
 
     let name = decl.name;
@@ -1905,7 +1904,6 @@ export abstract class StatementGenerator extends AsmGenerator {
       );
     }
 
-    try {
       // Setup destructor chaining
       let parentStructType: AST.TypeNode | undefined;
       if (

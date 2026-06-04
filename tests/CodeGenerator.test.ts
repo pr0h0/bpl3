@@ -198,6 +198,35 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain('decl.name.split("_")');
   });
 
+  it("swaps function-local codegen state instead of cloning it per function", () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/StatementGenerator.ts",
+      ),
+      "utf8",
+    );
+    const start = source.indexOf("protected generateFunction");
+    const end = source.indexOf("  protected generateArrayInitialization", start);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const methodSource = source.slice(start, end);
+    expect(methodSource).toContain("const prevLocals = this.locals");
+    expect(methodSource).toContain("const prevLocalPointers = this.localPointers");
+    expect(methodSource).toContain("const prevLocalTypes = this.localTypes");
+    expect(methodSource).toContain("this.locals = new Set()");
+    expect(methodSource).toContain("this.localPointers = new Map()");
+    expect(methodSource).toContain("this.movedAutoDestroyAddresses = new Set()");
+    expect(methodSource).not.toContain("new Set(this.locals)");
+    expect(methodSource).not.toContain("new Map(this.localPointers)");
+    expect(methodSource).not.toContain("this.locals.clear()");
+    expect(methodSource.indexOf("try {")).toBeLessThan(
+      methodSource.indexOf("if (this.definedFunctions.has(name))"),
+    );
+  });
+
   it("detects LLVM terminators without trimming generated lines", () => {
     const generator = new InspectableCodeGenerator();
     expect(generator.isIrTerminator("  ret i32 0")).toBe(true);
