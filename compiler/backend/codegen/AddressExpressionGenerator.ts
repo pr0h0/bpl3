@@ -658,7 +658,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     this.markBasicBlockPointerNonNull(ptrVal, expressionKey);
   }
 
-  private getBasicBlockPointerExpressionKey(
+  protected getBasicBlockPointerExpressionKey(
     expr: AST.Expression,
   ): string | undefined {
     switch (expr.kind) {

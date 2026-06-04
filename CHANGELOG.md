@@ -21,6 +21,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/CodeGenerator.test.ts -t "omits repeated null checks|pointer-proof boundary"`
   and
   `bun benchmark/run_benchmark.ts --language bpl,c --runs 15 --warmups 2 --json binary_tree`.
+- **Terminating Null-Guard Proofs** -
+  codegen now treats `if (ptr == nullptr) return`-style guards as a non-null
+  proof for later member/index accesses that can only be reached from the
+  non-null branch. The proof is source-expression based and still expires at
+  assignments, calls, branches, and labels, preserving checked null-access
+  failures where control flow or aliasing can invalidate the fact. On top of
+  same-block null-check elimination, raw `binary_tree` IR now emits 6
+  `__bpl_check_null` calls instead of 9. A final 15-run sample recorded
+  ~57.07ms BPL versus ~47.57ms C, improving the saved post-nullcheck BPL/C
+  ratio from ~1.31x to ~1.20x. Reproduce the guard with
+  `bun test tests/CodeGenerator.test.ts -t "uses terminating nullptr guards"`
+  and the runtime sample with
+  `bun benchmark/run_benchmark.ts --runs 15 --warmups 3 --language bpl,c --json binary_tree`.
 - **Allocation-Free Parser Function Declaration Helpers** -
   the Peggy grammar helper for `FunctionDecl` now returns the AST node directly
   instead of allocating a temporary `node` binding in every function declaration

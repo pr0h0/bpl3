@@ -1015,6 +1015,58 @@ describe("CodeGenerator", () => {
     expect(createNode!.match(/@__bpl_check_null/g)?.length ?? 0).toBe(1);
   });
 
+  it("uses terminating nullptr guards to skip later member null checks", () => {
+    const ir = compile(
+      `
+        struct Node {
+          value: int,
+        }
+
+        frame value_after_guard(root: *Node) ret int {
+          if (root == nullptr) {
+            return 0;
+          }
+          return root.value;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    const valueAfterGuard = ir.match(
+      /define dso_local i32 @value_after_guard_Node_ptr[\s\S]*?\n}\n/,
+    )?.[0];
+    expect(valueAfterGuard).toBeDefined();
+    expect(valueAfterGuard!.match(/@__bpl_check_null/g)?.length ?? 0).toBe(0);
+  });
+
+  it("keeps null checks when an else branch can invalidate a guarded pointer", () => {
+    const ir = compile(
+      `
+        struct Node {
+          value: int,
+        }
+
+        frame value_after_else_assignment(root: *Node) ret int {
+          if (root == nullptr) {
+            return 0;
+          } else {
+            root = nullptr;
+          }
+          return root.value;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    const valueAfterElseAssignment = ir.match(
+      /define dso_local i32 @value_after_else_assignment_Node_ptr[\s\S]*?\n}\n/,
+    )?.[0];
+    expect(valueAfterElseAssignment).toBeDefined();
+    expect(
+      valueAfterElseAssignment!.match(/@__bpl_check_null/g)?.length ?? 0,
+    ).toBe(1);
+  });
+
   it("keeps pointer-proof boundary detection off allocation-heavy string trimming", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),

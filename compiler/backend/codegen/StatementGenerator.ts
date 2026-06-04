@@ -23,6 +23,11 @@ import { AsmGenerator } from "./AsmGenerator";
 
 const OPTIMIZED_NATIVE_STACK_LIMIT_BYTES = 1024 * 1024;
 
+type NullGuardProof = {
+  expressionKey: string;
+  nonNullWhenCondition: boolean;
+};
+
 export abstract class StatementGenerator extends AsmGenerator {
   protected switchStack: { labels: string[]; activeIndex: number }[] = [];
   protected currentFunctionEmitsStackFrameHooks = true;
@@ -1483,6 +1488,7 @@ export abstract class StatementGenerator extends AsmGenerator {
   }
 
   protected generateIf(stmt: AST.IfStmt) {
+    const nullGuardProof = this.getTerminatingNullGuardProof(stmt.condition);
     const cond = this.generateExpression(stmt.condition);
     const thenLabel = this.newLabel("then");
     const elseLabel = this.newLabel("else");
@@ -1505,10 +1511,14 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.generateBlock(block);
     }
 
-    if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
+    const thenTerminates = this.isTerminator(
+      this.output[this.output.length - 1] || "",
+    );
+    if (!thenTerminates) {
       this.emit(`  br label %${mergeLabel}`);
     }
 
+    let elseTerminates = false;
     if (hasElse) {
       this.emit(`${elseLabel}:`);
       if (stmt.elseBranch!.kind === "Block") {
@@ -1524,12 +1534,96 @@ export abstract class StatementGenerator extends AsmGenerator {
         this.generateBlock(block);
       }
 
-      if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
+      elseTerminates = this.isTerminator(
+        this.output[this.output.length - 1] || "",
+      );
+      if (!elseTerminates) {
         this.emit(`  br label %${mergeLabel}`);
       }
     }
 
     this.emit(`${mergeLabel}:`);
+    if (
+      nullGuardProof &&
+      this.nullGuardProvesNonNullAtMerge(
+        nullGuardProof,
+        thenTerminates,
+        hasElse,
+      )
+    ) {
+      this.markBasicBlockPointerExpressionNonNull(nullGuardProof.expressionKey);
+    }
+  }
+
+  private getTerminatingNullGuardProof(
+    condition: AST.Expression,
+  ): NullGuardProof | undefined {
+    const expr = this.unwrapGroupExpression(condition);
+    if (expr.kind !== "Binary") return undefined;
+
+    const binary = expr as AST.BinaryExpr;
+    if (binary.operatorOverload) return undefined;
+    if (
+      binary.operator.type !== TokenType.EqualEqual &&
+      binary.operator.type !== TokenType.BangEqual
+    ) {
+      return undefined;
+    }
+
+    const leftKey = this.getGuardablePointerExpressionKey(binary.left);
+    if (leftKey !== undefined && this.isNullptrLiteral(binary.right)) {
+      return {
+        expressionKey: leftKey,
+        nonNullWhenCondition: binary.operator.type === TokenType.BangEqual,
+      };
+    }
+
+    const rightKey = this.getGuardablePointerExpressionKey(binary.right);
+    if (rightKey !== undefined && this.isNullptrLiteral(binary.left)) {
+      return {
+        expressionKey: rightKey,
+        nonNullWhenCondition: binary.operator.type === TokenType.BangEqual,
+      };
+    }
+
+    return undefined;
+  }
+
+  private nullGuardProvesNonNullAtMerge(
+    proof: NullGuardProof,
+    thenTerminates: boolean,
+    hasElse: boolean,
+  ): boolean {
+    return !hasElse && !proof.nonNullWhenCondition && thenTerminates;
+  }
+
+  private getGuardablePointerExpressionKey(
+    expr: AST.Expression,
+  ): string | undefined {
+    const unwrapped = this.unwrapGroupExpression(expr);
+    if (unwrapped.kind !== "Identifier") return undefined;
+    if (!this.isPointerTypeNode(unwrapped.resolvedType)) return undefined;
+    return this.getBasicBlockPointerExpressionKey(unwrapped);
+  }
+
+  private isPointerTypeNode(type: AST.TypeNode | undefined): boolean {
+    return type?.kind === "BasicType" && type.pointerDepth > 0;
+  }
+
+  private isNullptrLiteral(expr: AST.Expression): boolean {
+    const unwrapped = this.unwrapGroupExpression(expr);
+    return (
+      unwrapped.kind === "Literal" &&
+      (unwrapped as AST.LiteralExpr).type === "nullptr"
+    );
+  }
+
+  private unwrapGroupExpression(expr: AST.Expression): AST.Expression {
+    let current = expr;
+    while (current.kind === "Group") {
+      current = (current as AST.GroupExpr).expression;
+    }
+    return current;
   }
 
   protected generateLoop(stmt: AST.LoopStmt) {

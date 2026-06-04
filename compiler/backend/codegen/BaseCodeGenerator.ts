@@ -462,6 +462,15 @@ export class BaseCodeGenerator {
     }
   }
 
+  protected markBasicBlockPointerExpressionNonNull(
+    expressionKey: string,
+  ): void {
+    this.basicBlockNonNullPointerExpressions.set(
+      expressionKey,
+      this.output.length,
+    );
+  }
+
   private hasBasicBlockPointerBoundarySince(startIndex: number): boolean {
     for (let i = startIndex; i < this.output.length; i++) {
       if (this.isBasicBlockPointerBoundaryLine(this.output[i]!)) {
