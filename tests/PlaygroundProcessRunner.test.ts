@@ -198,7 +198,10 @@ describe("Playground process runner", () => {
       "utf8",
     );
 
-    expect(serverSource).toContain("runPlaygroundNativeBinary(binFile");
+    expect(serverSource).toContain("async function runCompiledNativeBinary");
+    expect(serverSource).toContain(
+      "runPlaygroundNativeBinary(options.binFile",
+    );
     expect(serverSource).not.toContain("const argsStr =");
     expect(serverSource).not.toContain("execAsync(cmd");
   });

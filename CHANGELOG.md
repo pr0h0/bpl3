@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Playground Native Binary Rerun Cache** - Artifact-free playground
+  `/compile` requests now cache the linked native binary for unchanged source
+  code and rerun that binary with each request's current stdin and argv. This
+  preserves Run Code response shape while avoiding repeated LLVM/native links
+  when users rerun the same example. On the current-checkout hello-world
+  playground backend probe, repeated native runs improved from a ~326ms median
+  baseline to ~4.95ms after the first cached build. Reproduce with
+  `bun test tests/PlaygroundCompileContract.test.ts -t "cached native binaries"`.
 - **Compile Phase Benchmark Final-Round Hashing** - The in-process compile
   phase benchmark now computes `tokenSignature` and `irHash` only on the final
   measured round instead of recomputing and overwriting them after every

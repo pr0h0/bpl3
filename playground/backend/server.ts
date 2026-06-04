@@ -1,4 +1,5 @@
 import { execFile } from "child_process";
+import { createHash } from "crypto";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -194,6 +195,13 @@ interface CompileResponse {
   tokens?: string;
 }
 
+interface NativeBinaryCacheEntry {
+  tempDir: string;
+  binFile: string;
+  createdAt: number;
+  lastUsedAt: number;
+}
+
 interface WasmCompileResponse {
   success: boolean;
   error?: string;
@@ -203,6 +211,10 @@ interface WasmCompileResponse {
   imports?: Array<{ module: string; name: string; kind: string }>;
   warnings?: string[];
 }
+
+const NATIVE_BINARY_CACHE_MAX_ENTRIES = 16;
+const NATIVE_BINARY_CACHE_TTL_MS = 10 * 60 * 1000;
+const nativeBinaryCache = new Map<string, NativeBinaryCacheEntry>();
 
 function maybeCompileArtifacts(
   includeArtifacts: boolean,
@@ -219,6 +231,84 @@ function maybeCompileArtifacts(
     ast: safeStringify(ast),
     tokens: JSON.stringify(tokens, null, 2),
   };
+}
+
+function getNativeBinaryCacheKey(code: string): string {
+  return createHash("sha256")
+    .update("bpl-playground-native-v1")
+    .update("\0")
+    .update(getBplHome())
+    .update("\0")
+    .update(code)
+    .digest("hex");
+}
+
+function getCachedNativeBinary(
+  key: string,
+): NativeBinaryCacheEntry | undefined {
+  const entry = nativeBinaryCache.get(key);
+  if (entry === undefined) return undefined;
+
+  const expired = Date.now() - entry.createdAt > NATIVE_BINARY_CACHE_TTL_MS;
+  if (expired || !fs.existsSync(entry.binFile)) {
+    nativeBinaryCache.delete(key);
+    cleanupNativeBinaryCacheEntry(entry);
+    return undefined;
+  }
+
+  entry.lastUsedAt = Date.now();
+  return entry;
+}
+
+function rememberNativeBinary(
+  key: string,
+  tempDir: string,
+  binFile: string,
+): boolean {
+  if (NATIVE_BINARY_CACHE_MAX_ENTRIES <= 0) return false;
+
+  const existing = nativeBinaryCache.get(key);
+  if (existing !== undefined) {
+    cleanupNativeBinaryCacheEntry(existing);
+  }
+
+  const now = Date.now();
+  nativeBinaryCache.set(key, {
+    tempDir,
+    binFile,
+    createdAt: now,
+    lastUsedAt: now,
+  });
+  evictNativeBinaryCacheEntries();
+  return nativeBinaryCache.get(key)?.tempDir === tempDir;
+}
+
+function evictNativeBinaryCacheEntries(): void {
+  while (nativeBinaryCache.size > NATIVE_BINARY_CACHE_MAX_ENTRIES) {
+    let oldestKey: string | undefined;
+    let oldestUsedAt = Number.POSITIVE_INFINITY;
+    for (const [key, entry] of nativeBinaryCache) {
+      if (entry.lastUsedAt < oldestUsedAt) {
+        oldestKey = key;
+        oldestUsedAt = entry.lastUsedAt;
+      }
+    }
+
+    if (oldestKey === undefined) return;
+    const oldest = nativeBinaryCache.get(oldestKey);
+    nativeBinaryCache.delete(oldestKey);
+    if (oldest !== undefined) {
+      cleanupNativeBinaryCacheEntry(oldest);
+    }
+  }
+}
+
+function cleanupNativeBinaryCacheEntry(entry: NativeBinaryCacheEntry): void {
+  try {
+    fs.rmSync(entry.tempDir, { recursive: true, force: true });
+  } catch {
+    // Best-effort cleanup. The cache entry has already been dropped.
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -299,6 +389,93 @@ function invalidRequestResponse(
   });
 }
 
+async function runCompiledNativeBinary(options: {
+  requestId: string;
+  startTime: number;
+  binFile: string;
+  req: CompileRequest;
+  warnings: string[];
+  includeArtifacts: boolean;
+  ir: string;
+  ast: AST.Program | undefined;
+  tokens: any[];
+  cacheHit: boolean;
+}): Promise<CompileResponse> {
+  const execStart = Date.now();
+  const args = options.req.args || [];
+
+  logger.debug(
+    `[${options.requestId}] Executing binary: ${formatProcessCommand(
+      options.binFile,
+      args,
+    )}`,
+    { cacheHit: options.cacheHit },
+  );
+
+  const execution = await runPlaygroundNativeBinary(options.binFile, {
+    args,
+    input: options.req.input,
+    timeoutMs: 5000,
+    maxBuffer: 1024 * 1024,
+  });
+
+  const execDuration = Date.now() - execStart;
+  const totalDuration = Date.now() - options.startTime;
+
+  if (!execution.success) {
+    if (execution.error.startsWith("Execution timeout")) {
+      logger.warn(
+        `[${options.requestId}] Execution timeout after ${totalDuration}ms`,
+      );
+    } else {
+      logger.error(
+        `[${options.requestId}] Runtime error after ${totalDuration}ms`,
+        {
+          error: execution.error,
+          output: execution.output,
+          cacheHit: options.cacheHit,
+        },
+      );
+    }
+    updateStats(false, totalDuration);
+
+    return {
+      success: false,
+      error: execution.error,
+      output: execution.output,
+      ...maybeCompileArtifacts(
+        options.includeArtifacts,
+        options.ir,
+        options.ast,
+        options.tokens,
+      ),
+    };
+  }
+
+  logger.info(
+    `[${options.requestId}] Execution succeeded in ${execDuration}ms (total: ${totalDuration}ms)`,
+    {
+      outputLength: execution.output.length,
+      hasStderr: execution.output.includes("\nSTDERR:\n"),
+      cacheHit: options.cacheHit,
+    },
+  );
+
+  updateStats(true, totalDuration);
+
+  return {
+    success: true,
+    output: execution.output,
+    warnings: options.warnings,
+    ...maybeCompileArtifacts(
+      options.includeArtifacts,
+      options.ir,
+      options.ast,
+      options.tokens,
+    ),
+  };
+}
+
 // Get examples
 function getExamples() {
   const examplesDir = path.join(__dirname, "../examples");
@@ -362,7 +539,32 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
     execute,
   });
 
+  const nativeBinaryCacheKey =
+    execute && !includeArtifacts ? getNativeBinaryCacheKey(req.code) : undefined;
+  const cachedNativeBinary =
+    nativeBinaryCacheKey !== undefined
+      ? getCachedNativeBinary(nativeBinaryCacheKey)
+      : undefined;
+  if (cachedNativeBinary) {
+    logger.info(`[${requestId}] Reusing cached native binary`, {
+      binFile: cachedNativeBinary.binFile,
+    });
+    return await runCompiledNativeBinary({
+      requestId,
+      startTime,
+      binFile: cachedNativeBinary.binFile,
+      req,
+      warnings: [],
+      includeArtifacts,
+      ir: "",
+      ast: undefined,
+      tokens: [],
+      cacheHit: true,
+    });
+  }
+
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-playground-"));
+  let preserveTempDir = false;
 
   const sourceFile = path.join(tempDir, "main.bpl");
   const irFile = path.join(tempDir, "main.ll");
@@ -493,6 +695,16 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
       logger.debug(
         `[${requestId}] LLVM compilation completed in ${Date.now() - clangStart}ms`,
       );
+      if (nativeBinaryCacheKey !== undefined) {
+        preserveTempDir = rememberNativeBinary(
+          nativeBinaryCacheKey,
+          tempDir,
+          binFile,
+        );
+        if (preserveTempDir) {
+          logger.debug(`[${requestId}] Cached native binary`, { binFile });
+        }
+      }
     } catch (e: any) {
       logger.error(`[${requestId}] LLVM compilation failed`, {
         stderr: e.stderr,
@@ -506,98 +718,27 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
       };
     }
 
-    // Run the binary
-    try {
-      const execStart = Date.now();
-      const args = req.args || [];
-
-      logger.debug(
-        `[${requestId}] Executing binary: ${formatProcessCommand(binFile, args)}`,
-      );
-
-      const execution = await runPlaygroundNativeBinary(binFile, {
-        args,
-        input: req.input,
-        timeoutMs: 5000, // 5 second timeout
-        maxBuffer: 1024 * 1024, // 1MB buffer
-      });
-
-      const execDuration = Date.now() - execStart;
-      const totalDuration = Date.now() - startTime;
-
-      if (!execution.success) {
-        if (execution.error.startsWith("Execution timeout")) {
-          logger.warn(
-            `[${requestId}] Execution timeout after ${totalDuration}ms`,
-          );
-        } else {
-          logger.error(`[${requestId}] Runtime error after ${totalDuration}ms`, {
-            error: execution.error,
-            output: execution.output,
-          });
-        }
-        updateStats(false, totalDuration);
-
-        return {
-          success: false,
-          error: execution.error,
-          output: execution.output,
-          ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
-        };
-      }
-
-      logger.info(
-        `[${requestId}] Execution succeeded in ${execDuration}ms (total: ${totalDuration}ms)`,
-        {
-          outputLength: execution.output.length,
-          hasStderr: execution.output.includes("\nSTDERR:\n"),
-        },
-      );
-
-      updateStats(true, totalDuration);
-
-      return {
-        success: true,
-        output: execution.output,
-        warnings,
-        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
-      };
-    } catch (e: any) {
-      const totalDuration = Date.now() - startTime;
-
-      if (e.killed) {
-        logger.warn(
-          `[${requestId}] Execution timeout after ${totalDuration}ms`,
-        );
-        updateStats(false, totalDuration);
-
-        return {
-          success: false,
-          error: "Execution timeout (5 seconds)",
-          ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
-        };
-      }
-
-      logger.error(`[${requestId}] Runtime error after ${totalDuration}ms`, {
-        stderr: e.stderr,
-        stdout: e.stdout,
-      });
-      updateStats(false, totalDuration);
-
-      return {
-        success: false,
-        error: `Runtime error: ${e.stderr || e.message}`,
-        output: e.stdout || "",
-        ...maybeCompileArtifacts(includeArtifacts, ir, ast, tokens),
-      };
-    }
+    return await runCompiledNativeBinary({
+      requestId,
+      startTime,
+      binFile,
+      req,
+      warnings,
+      includeArtifacts,
+      ir,
+      ast,
+      tokens,
+      cacheHit: false,
+    });
   } finally {
-    // Cleanup
-    try {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-      logger.debug(`[${requestId}] Cleanup completed`);
-    } catch (e) {
-      logger.error(`[${requestId}] Cleanup failed`, { error: String(e) });
+    if (!preserveTempDir) {
+      // Cleanup
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+        logger.debug(`[${requestId}] Cleanup completed`);
+      } catch (e) {
+        logger.error(`[${requestId}] Cleanup failed`, { error: String(e) });
+      }
     }
   }
 }

@@ -16,6 +16,9 @@ const API_BASE = `http://127.0.0.1:${PORT}`;
 const HELLO_WORLD_SOURCE = JSON.parse(
   readFileSync("playground/examples/01-hello-world.json", "utf8"),
 ).code.join("\n");
+const COMMAND_ARGS_SOURCE = JSON.parse(
+  readFileSync("playground/examples/20-command-args.json", "utf8"),
+).code.join("\n");
 
 async function waitForServer(): Promise<void> {
   const deadline = Date.now() + 10_000;
@@ -110,6 +113,28 @@ describe("Playground compile API contract", () => {
     );
   });
 
+  test("reruns cached native binaries with current request argv", async () => {
+    const oneArg = await compile({
+      code: COMMAND_ARGS_SOURCE,
+      args: ["one"],
+      includeArtifacts: false,
+    });
+    const threeArgs = await compile({
+      code: COMMAND_ARGS_SOURCE,
+      args: ["one", "two", "three"],
+      includeArtifacts: false,
+    });
+
+    expect(oneArg.status).toBe(200);
+    expect(oneArg.json.success).toBe(true);
+    expect(oneArg.json.output).toContain("Current argument count: 2\n");
+    expect(oneArg.json.ir).toBeUndefined();
+    expect(threeArgs.status).toBe(200);
+    expect(threeArgs.json.success).toBe(true);
+    expect(threeArgs.json.output).toContain("Current argument count: 4\n");
+    expect(threeArgs.json.ir).toBeUndefined();
+  });
+
   test("rejects malformed compile payloads with client errors", async () => {
     const missingCode = await compile({});
 
@@ -158,5 +183,28 @@ describe("Playground compile API contract", () => {
     expect(serverSource).toContain("resolvePlaygroundNativeRuntimeFiles");
     expect(serverSource).not.toContain("const runtimeFiles: string[] = []");
     expect(serverSource).not.toContain('"runtime.ll");\n      if (fs.existsSync');
+  });
+
+  test("caches artifact-free native binaries before creating request temp dirs", () => {
+    const serverSource = readFileSync("playground/backend/server.ts", "utf8");
+    const compileStart = serverSource.indexOf("async function compileAndRun");
+    const compileEnd = serverSource.indexOf(
+      "async function compileToWasm",
+      compileStart,
+    );
+
+    expect(compileStart).toBeGreaterThanOrEqual(0);
+    expect(compileEnd).toBeGreaterThan(compileStart);
+
+    const compileSource = serverSource.slice(compileStart, compileEnd);
+    expect(serverSource).toContain("NATIVE_BINARY_CACHE_MAX_ENTRIES");
+    expect(serverSource).toContain("getNativeBinaryCacheKey(req.code)");
+    expect(serverSource).toContain("rememberNativeBinary");
+    expect(serverSource).toContain("runCompiledNativeBinary");
+    expect(compileSource.indexOf("getCachedNativeBinary")).toBeLessThan(
+      compileSource.indexOf("fs.mkdtempSync"),
+    );
+    expect(compileSource).toContain("if (cachedNativeBinary)");
+    expect(compileSource).toContain("!includeArtifacts");
   });
 });
