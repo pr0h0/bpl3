@@ -60,12 +60,15 @@ export class SymbolTable {
   }
 
   public resolve(name: string): Symbol | undefined {
-    const symbol = this.symbols.get(name);
-    if (symbol) {
-      symbol.used = true;
-      return symbol;
+    let scope: SymbolTable | undefined = this;
+    while (scope) {
+      const symbol = scope.symbols.get(name);
+      if (symbol) {
+        symbol.used = true;
+        return symbol;
+      }
+      scope = scope.parent;
     }
-    if (this.parent) return this.parent.resolve(name);
     return undefined;
   }
 

@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Iterative Symbol Resolution** -
+  `SymbolTable.resolve` now walks parent scopes iteratively instead of
+  recursing through `parent.resolve`, preserving symbol usage tracking while
+  removing recursive hot-path calls from type checking. A 15-round 5k phase
+  compare preserved token count, token signature, and LLVM IR hash while moving
+  median typecheck time from ~108.40ms to ~102.60ms and full median from
+  ~533.78ms to ~529.00ms. Reproduce the guard with
+  `bun test tests/SymbolTable.test.ts` and the phase compare with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 15 --warmups 3 --compare /tmp/bpl3-5k-profile-restored.json --gate-phases typecheck,full --max-phase-regression 2 --max-full-regression 2 --json`.
 - **Lazy Module Primitive Wrapper Loading** -
   module resolution now loads `std/primitives.bpl` only when a loaded module
   actually mentions primitive wrapper types such as `Int`, while explicit
