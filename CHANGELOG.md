@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Parser Operator Token Start-Position Fast Path** - Generated parser
+  operator scanners now carry the operator start offset and build binary and
+  prefix operator tokens from that offset, avoiding full `location()` objects
+  when only token line and column are needed. Against `e184b1b`, a matched 5k
+  phase benchmark kept the token signature and LLVM IR hash unchanged while
+  parse median improved from ~306.06ms to ~289.16ms and full median improved
+  from ~707.87ms to ~688.14ms. An isolated 101-round parse-only probe improved
+  median parse time from ~327.05ms to ~322.97ms. Reproduce the guard with
+  `bun test tests/Parser.test.ts -t "binary expression tail"` and the phase
+  benchmark with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json`.
 - **Function Header Codegen Allocation Fast Path** - Function code generation
   now builds LLVM parameter lists with a single loop and only extracts method
   basenames when generating struct methods that can be `init`. This removes

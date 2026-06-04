@@ -169,7 +169,7 @@ describe("Parser", () => {
       expect(helper).toContain(`let result = peg$parse${nextLevelName}();`);
       expect(helper).toContain(`peg$scanBpl${operatorName}()`);
       expect(helper).toContain(
-        "makeOperatorToken(operator.op, operator.loc)",
+        "makeOperatorTokenFromPos(operator.op, operator.pos)",
       );
       expect(helper).not.toContain("s2 = []");
       expect(helper).not.toContain("s2.push");
@@ -261,6 +261,9 @@ describe("Parser", () => {
     const makeOperatorTokenHelper = generatedSource.match(
       /function makeOperatorToken\(op, loc\) \{[\s\S]*?\n  \}/,
     )?.[0];
+    const makeOperatorTokenFromPosHelper = generatedSource.match(
+      /function makeOperatorTokenFromPos\(op, startPos\) \{[\s\S]*?\n  \}/,
+    )?.[0];
     const mergeLocHelper = generatedSource.match(
       /function mergeLoc\(startLoc, endLoc\) \{[\s\S]*?\n  \}/,
     )?.[0];
@@ -269,6 +272,14 @@ describe("Parser", () => {
     expect(makeOperatorTokenHelper).toContain("column: loc.startColumn,");
     expect(makeOperatorTokenHelper).not.toContain("loc &&");
     expect(makeOperatorTokenHelper).not.toContain("let line = 1");
+    expect(makeOperatorTokenFromPosHelper).toContain(
+      "const lineIndex = peg$findBplLineIndex(startPos);",
+    );
+    expect(makeOperatorTokenFromPosHelper).toContain("line: lineIndex + 1,");
+    expect(makeOperatorTokenFromPosHelper).toContain(
+      "column: startPos - peg$bplLineStarts[lineIndex] + 1,",
+    );
+    expect(makeOperatorTokenFromPosHelper).not.toContain("location()");
     expect(mergeLocHelper).toContain("startLine: startLoc.startLine,");
     expect(mergeLocHelper).toContain("startColumn: startLoc.startColumn,");
     expect(mergeLocHelper).toContain("endLine: endLoc.endLine,");

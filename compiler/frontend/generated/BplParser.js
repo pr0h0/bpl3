@@ -660,63 +660,63 @@ function peg$parse(input, options) {
     if (tail.length === 0) return head;
     let result = head;
     for (const [, op, , right] of tail) {
-      const opToken = makeOperatorToken(op.op, op.loc);
+      const opToken = makeOperatorTokenFromPos(op.op, op.pos);
       result = assignment(result, opToken, right, mergeLoc(result.location, right.location));
     }
     return result;
   }
-  function peg$f90(op) {    return { op, loc: location() };  }
+  function peg$f90(op) {    return { op, pos: offset() };  }
   function peg$f91(cond, trueExpr, falseExpr) {
     return ternary(cond, trueExpr, falseExpr, mergeLoc(cond.location, falseExpr.location));
   }
   function peg$f92(left, tail) {
     return foldBinaryTail(left, tail);
   }
-  function peg$f93(op) {    return { op, loc: location() };  }
+  function peg$f93(op) {    return { op, pos: offset() };  }
   function peg$f94(left, tail) {
     return foldBinaryTail(left, tail);
   }
-  function peg$f95(op) {    return { op, loc: location() };  }
+  function peg$f95(op) {    return { op, pos: offset() };  }
   function peg$f96(left, tail) {
     return foldBinaryTail(left, tail);
   }
-  function peg$f97(op) {    return { op, loc: location() };  }
+  function peg$f97(op) {    return { op, pos: offset() };  }
   function peg$f98(left, tail) {
     return foldBinaryTail(left, tail);
   }
-  function peg$f99(op) {    return { op, loc: location() };  }
+  function peg$f99(op) {    return { op, pos: offset() };  }
   function peg$f100(left, tail) {
     return foldBinaryTail(left, tail);
   }
-  function peg$f101(op) {    return { op, loc: location() };  }
+  function peg$f101(op) {    return { op, pos: offset() };  }
   function peg$f102(left, tail) {
     return foldBinaryTail(left, tail);
   }
-  function peg$f103(op) {    return { op, loc: location() };  }
+  function peg$f103(op) {    return { op, pos: offset() };  }
   function peg$f104(head, tail) {
     return foldTypeCheckTail(head, tail);
   }
   function peg$f105(left, tail) {
     return foldBinaryTail(left, tail);
   }
-  function peg$f106(op) {    return { op, loc: location() };  }
+  function peg$f106(op) {    return { op, pos: offset() };  }
   function peg$f107(left, tail) {
     return foldBinaryTail(left, tail);
   }
-  function peg$f108(op) {    return { op, loc: location() };  }
+  function peg$f108(op) {    return { op, pos: offset() };  }
   function peg$f109(left, tail) {
     return foldBinaryTail(left, tail);
   }
-  function peg$f110(op) {    return { op, loc: location() };  }
+  function peg$f110(op) {    return { op, pos: offset() };  }
   function peg$f111(left, tail) {
     return foldBinaryTail(left, tail);
   }
-  function peg$f112(op) {    return { op, loc: location() };  }
+  function peg$f112(op) {    return { op, pos: offset() };  }
   function peg$f113(op, expr) {
-    const opToken = makeOperatorToken(op.op, op.loc);
+    const opToken = makeOperatorTokenFromPos(op.op, op.pos);
     return unary(opToken, expr, true, location());
   }
-  function peg$f114(op) {    return { op, loc: location() };  }
+  function peg$f114(op) {    return { op, pos: offset() };  }
   function peg$f115(primary, postfixes) {
     let expr = primary;
     for (const post of postfixes) {
@@ -6232,7 +6232,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorToken(operator.op, operator.loc),
+        makeOperatorTokenFromPos(operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6285,7 +6285,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorToken(operator.op, operator.loc),
+        makeOperatorTokenFromPos(operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6338,7 +6338,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorToken(operator.op, operator.loc),
+        makeOperatorTokenFromPos(operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6391,7 +6391,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorToken(operator.op, operator.loc),
+        makeOperatorTokenFromPos(operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6444,7 +6444,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorToken(operator.op, operator.loc),
+        makeOperatorTokenFromPos(operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6497,7 +6497,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorToken(operator.op, operator.loc),
+        makeOperatorTokenFromPos(operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6614,7 +6614,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorToken(operator.op, operator.loc),
+        makeOperatorTokenFromPos(operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6674,7 +6674,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorToken(operator.op, operator.loc),
+        makeOperatorTokenFromPos(operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6731,7 +6731,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorToken(operator.op, operator.loc),
+        makeOperatorTokenFromPos(operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6787,7 +6787,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorToken(operator.op, operator.loc),
+        makeOperatorTokenFromPos(operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -13235,6 +13235,20 @@ function peg$parse(input, options) {
     };
   }
 
+  function makeOperatorTokenFromPos(op, startPos) {
+    const type = operatorTypeMap[op] || "Unknown";
+    const lineIndex = peg$findBplLineIndex(startPos);
+
+    return {
+      type,
+      lexeme: op,
+      literal: null,
+      line: lineIndex + 1,
+      column: startPos - peg$bplLineStarts[lineIndex] + 1,
+      file: parserFilePath,
+    };
+  }
+
   function mergeLoc(startLoc, endLoc) {
     return {
       file: parserFilePath,
@@ -13253,7 +13267,7 @@ function peg$parse(input, options) {
       const right = entry[3];
       result = binary(
         result,
-        makeOperatorToken(op.op, op.loc),
+        makeOperatorTokenFromPos(op.op, op.pos),
         right,
         mergeLoc(result.location, right.location)
       );

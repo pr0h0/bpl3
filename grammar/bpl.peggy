@@ -473,6 +473,20 @@
     };
   }
 
+  function makeOperatorTokenFromPos(op, startPos) {
+    const type = operatorTypeMap[op] || "Unknown";
+    const lineIndex = peg$findBplLineIndex(startPos);
+
+    return {
+      type,
+      lexeme: op,
+      literal: null,
+      line: lineIndex + 1,
+      column: startPos - peg$bplLineStarts[lineIndex] + 1,
+      file: parserFilePath,
+    };
+  }
+
   function mergeLoc(startLoc, endLoc) {
     return {
       file: parserFilePath,
@@ -491,7 +505,7 @@
       const right = entry[3];
       result = binary(
         result,
-        makeOperatorToken(op.op, op.loc),
+        makeOperatorTokenFromPos(op.op, op.pos),
         right,
         mergeLoc(result.location, right.location)
       );
@@ -970,14 +984,14 @@ Assignment
       if (tail.length === 0) return head;
       let result = head;
       for (const [, op, , right] of tail) {
-        const opToken = makeOperatorToken(op.op, op.loc);
+        const opToken = makeOperatorTokenFromPos(op.op, op.pos);
         result = assignment(result, opToken, right, mergeLoc(result.location, right.location));
       }
       return result;
     }
 
 AssignmentOperator
-  = op:("+=" / "-=" / "*=" / "/=" / "%=" / "&=" / "|=" / "^=" / "=") { return { op, loc: location() }; }
+  = op:("+=" / "-=" / "*=" / "/=" / "%=" / "&=" / "|=" / "^=" / "=") { return { op, pos: offset() }; }
 
 Ternary
   = cond:LogicalOr _ "?" _ trueExpr:Ternary _ ":" _ falseExpr:Ternary {
@@ -991,7 +1005,7 @@ LogicalOr
     }
 
 LogicalOrOperator
-  = op:"||" { return { op, loc: location() }; }
+  = op:"||" { return { op, pos: offset() }; }
 
 LogicalAnd
   = left:BitwiseOr tail:(_ op:LogicalAndOperator _ right:BitwiseOr)* {
@@ -999,7 +1013,7 @@ LogicalAnd
     }
 
 LogicalAndOperator
-  = op:"&&" { return { op, loc: location() }; }
+  = op:"&&" { return { op, pos: offset() }; }
 
 BitwiseOr
   = left:BitwiseXor tail:(_ op:BitwiseOrOperator _ right:BitwiseXor)* {
@@ -1007,7 +1021,7 @@ BitwiseOr
     }
 
 BitwiseOrOperator
-  = op:"|" !"|" { return { op, loc: location() }; }
+  = op:"|" !"|" { return { op, pos: offset() }; }
 
 BitwiseXor
   = left:BitwiseAnd tail:(_ op:BitwiseXorOperator _ right:BitwiseAnd)* {
@@ -1015,7 +1029,7 @@ BitwiseXor
     }
 
 BitwiseXorOperator
-  = op:"^" { return { op, loc: location() }; }
+  = op:"^" { return { op, pos: offset() }; }
 
 BitwiseAnd
   = left:Equality tail:(_ op:BitwiseAndOperator _ right:Equality)* {
@@ -1023,7 +1037,7 @@ BitwiseAnd
     }
 
 BitwiseAndOperator
-  = op:"&" !"&" { return { op, loc: location() }; }
+  = op:"&" !"&" { return { op, pos: offset() }; }
 
 Equality
   = left:TypeCheck tail:(_ op:EqualityOperator _ right:TypeCheck)* {
@@ -1031,7 +1045,7 @@ Equality
     }
 
 EqualityOperator
-  = op:("==" / "!=") { return { op, loc: location() }; }
+  = op:("==" / "!=") { return { op, pos: offset() }; }
 
 TypeCheck
   = head:Relational tail:(_ (K_is / K_as) _ Type)* {
@@ -1044,7 +1058,7 @@ Relational
     }
 
 RelationalOperator
-  = op:(">="/ "<=" / "<" / ">") { return { op, loc: location() }; }
+  = op:(">="/ "<=" / "<" / ">") { return { op, pos: offset() }; }
 
 Shift
   = left:Additive tail:(_ op:ShiftOperator _ right:Additive)* {
@@ -1052,7 +1066,7 @@ Shift
     }
 
 ShiftOperator
-  = op:("<<" / ">>") { return { op, loc: location() }; }
+  = op:("<<" / ">>") { return { op, pos: offset() }; }
 
 Additive
   = left:Multiplicative tail:(_ op:AdditiveOperator _ right:Multiplicative)* {
@@ -1060,7 +1074,7 @@ Additive
     }
 
 AdditiveOperator
-  = op:("+" / "-") { return { op, loc: location() }; }
+  = op:("+" / "-") { return { op, pos: offset() }; }
 
 Multiplicative
   = left:Unary tail:(_ op:MultiplicativeOperator _ right:Unary)* {
@@ -1068,17 +1082,17 @@ Multiplicative
     }
 
 MultiplicativeOperator
-  = op:("*" / "/" / "%") { return { op, loc: location() }; }
+  = op:("*" / "/" / "%") { return { op, pos: offset() }; }
 
 Unary
   = op:UnaryOperator _ expr:Unary {
-      const opToken = makeOperatorToken(op.op, op.loc);
+      const opToken = makeOperatorTokenFromPos(op.op, op.pos);
       return unary(opToken, expr, true, location());
     }
   / Postfix
 
 UnaryOperator
-  = op:("++" / "--" / "!" / "~" / "*" / "&" / "-" / "+") { return { op, loc: location() }; }
+  = op:("++" / "--" / "!" / "~" / "*" / "&" / "-" / "+") { return { op, pos: offset() }; }
 
 Postfix
   = primary:Primary postfixes:PostfixTail* {
