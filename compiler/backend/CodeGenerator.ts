@@ -808,7 +808,7 @@ export class CodeGenerator extends StatementGenerator {
   }
 
   private compactBlankLines(lines: string[]): string[] {
-    const compacted: string[] = [];
+    let writeIndex = 0;
     let previousWasBlank = true;
 
     for (const line of lines) {
@@ -817,19 +817,20 @@ export class CodeGenerator extends StatementGenerator {
         continue;
       }
 
-      compacted.push(line);
+      lines[writeIndex++] = line;
       previousWasBlank = isBlank;
     }
 
-    while (compacted.length > 0) {
-      const lastLine = compacted[compacted.length - 1];
+    while (writeIndex > 0) {
+      const lastLine = lines[writeIndex - 1];
       if (lastLine === undefined || lastLine.length > 0) {
         break;
       }
-      compacted.pop();
+      writeIndex--;
     }
 
-    return compacted;
+    lines.length = writeIndex;
+    return lines;
   }
 
   private appendResultSection(sections: string[], section: string): void {

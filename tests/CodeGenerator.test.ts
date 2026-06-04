@@ -879,6 +879,11 @@ describe("CodeGenerator", () => {
 
     const methodSource = source.slice(start, end);
     expect(methodSource).toContain("line.length === 0");
+    expect(methodSource).toContain("let writeIndex = 0");
+    expect(methodSource).toContain("lines[writeIndex++] = line");
+    expect(methodSource).toContain("lines.length = writeIndex");
+    expect(methodSource).not.toContain("const compacted: string[] = []");
+    expect(methodSource).not.toContain("compacted.push");
     expect(methodSource).not.toContain("line.trim()");
   });
 
