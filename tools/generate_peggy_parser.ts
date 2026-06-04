@@ -320,7 +320,7 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     "  }",
     "",
     "  function peg$isBplIdentPartCode(code) {",
-    "    return peg$isBplIdentStartCode(code) || (code >= 48 && code <= 57);",
+    "    return (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95 || (code >= 48 && code <= 57);",
     "  }",
     "",
     "  function peg$scanBplIdentTokenEnd() {",

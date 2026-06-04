@@ -404,6 +404,12 @@ describe("Parser", () => {
     expect(identScanner).toContain("input.substring(startPos, endPos)");
     expect(identHelper).toContain("return peg$scanBplIdentToken();");
     expect(identHelper).not.toContain("s3.push");
+    const identPartHelper = generatedSource.match(
+      /function peg\$isBplIdentPartCode\(code\) \{[\s\S]*?\n  \}/,
+    )?.[0];
+    expect(identPartHelper).toContain("code >= 65 && code <= 90");
+    expect(identPartHelper).toContain("code >= 48 && code <= 57");
+    expect(identPartHelper).not.toContain("peg$isBplIdentStartCode(code)");
     expect(keywordHelper).toContain("peg$bplReservedKeywords.has(word)");
     expect(keywordHelper).not.toContain("input.startsWith(peg$c17");
   });

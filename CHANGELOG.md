@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Identifier Scanner Predicate Inline Fast Path** - Generated parser
+  identifier scanning now inlines the identifier-continuation predicate instead
+  of calling the identifier-start helper for every scanned character. Against
+  `5110961`, a matched 5k phase benchmark preserved the token signature and
+  LLVM IR hash while parse median improved from ~258.57ms to ~253.28ms and
+  full median improved from ~581.17ms to ~562.78ms. An isolated 101-round
+  parse-only probe preserved the AST hash and improved median parse time from
+  ~254.25ms to ~241.85ms. Reproduce the guard with
+  `bun test tests/Parser.test.ts -t "identifier and reserved-keyword"` and the
+  phase benchmark with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json`.
 - **Parser Operator Token Start-Position Fast Path** - Generated parser
   operator scanners now carry the operator start offset and build binary and
   prefix operator tokens from that offset, avoiding full `location()` objects
