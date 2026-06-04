@@ -319,6 +319,31 @@ describe("TypeChecker", () => {
     expect(unaryGuard).toBeGreaterThan(unaryStart);
   });
 
+  it("skips failed-import cleanup scans when no recovery state exists", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf(
+      "public clearFailedImportSymbolsForProgram",
+    );
+    const methodEnd = source.indexOf(
+      "  public shouldSuppressUndefinedIdentifier",
+      methodStart,
+    );
+    const methodSource = source.slice(methodStart, methodEnd);
+    const emptyStateGuard = methodSource.indexOf(
+      "this.failedImportSymbolsByFile.size === 0",
+    );
+    const statementScan = methodSource.indexOf(
+      "for (const stmt of program.statements)",
+    );
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(emptyStateGuard).toBeGreaterThanOrEqual(0);
+    expect(emptyStateGuard).toBeLessThan(statementScan);
+  });
+
   it("should clear failed import recovery state when reusing a checker", () => {
     const checker = new TypeChecker({ collectAllErrors: true });
     const failedImportSource = [

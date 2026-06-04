@@ -84,6 +84,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/TypeChecker.test.ts tests/TypeCheckerStructLiteralDiagnostics.test.ts tests/TypeCheckerMemberAccessMisuse.test.ts tests/StructEquality.test.ts tests/BugFix_StructLiteral.test.ts tests/Struct.runtime.test.ts`
   and the phase compare with
   `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-51475fa-phases.json --gate-phases typecheck,full --max-phase-regression 3 --max-full-regression 2 --json`.
+- **No-State Failed-Import Cleanup Fast Path** -
+  `TypeCheckerBase.clearFailedImportSymbolsForProgram` now returns immediately
+  when no failed-import recovery state exists, avoiding a full top-level
+  statement scan on fresh checkers while preserving cleanup behavior when a
+  checker is reused after an import failure. Against the cached-struct baseline,
+  a 31-round 5k phase compare gated on `typecheck,full` preserved token count,
+  token signature, and LLVM IR hash while improving median typecheck time from
+  ~101.07ms to ~99.87ms and full median from ~527.81ms to ~515.49ms. Reproduce
+  the guard with
+  `bun test tests/TypeChecker.test.ts -t "failed-import cleanup scans|clear failed import recovery"`
+  and the phase compare with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --compare /tmp/bpl3-post-cached-struct-member-result.json --gate-phases typecheck,full --max-phase-regression 3 --max-full-regression 2 --json`.
 - **Playground No-Import Native Compile Fast Path** -
   artifact-free playground native requests now skip full module resolution when
   the submitted source does not contain an `import` keyword, while import-using

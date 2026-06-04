@@ -1889,6 +1889,10 @@ export abstract class TypeCheckerBase {
   }
 
   public clearFailedImportSymbolsForProgram(program: AST.Program): void {
+    if (this.failedImportSymbolsByFile.size === 0) {
+      return;
+    }
+
     const files = new Set<string>();
     for (const stmt of program.statements) {
       files.add(stmt.location.file);
