@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Allocation-Free Parser Function Declaration Helpers** -
+  the Peggy grammar helper for `FunctionDecl` now returns the AST node directly
+  instead of allocating a temporary `node` binding in every function declaration
+  parse action. A focused parser source contract keeps the checked-in generated
+  parser on the direct-return path, and a 15-round 5k phase comparison
+  preserved token count, token signature, and LLVM IR hash while moving median
+  parse time from ~246.92ms to ~239.22ms and full median from ~542.59ms to
+  ~530.10ms. Reproduce the guard with
+  `bun test tests/Parser.test.ts -t "function declaration helpers allocation-free|checked-in generated Peggy parser|simple function declaration"`
+  and the phase gate with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 15 --warmups 3 --compare /tmp/bpl3-post-hash-5k-baseline.json --gate-phases parse,full --max-phase-regression 2 --max-full-regression 2 --json`.
 - **Chunked Compile Benchmark Token Hashing** -
   `benchmark/measure_compilation.ts` now exposes and uses
   `hashTokensForBenchmark`, which batches token-signature input into chunks

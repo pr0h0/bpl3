@@ -52,6 +52,34 @@ describe("Parser", () => {
     }
   });
 
+  it("keeps generated function declaration helpers allocation-free", () => {
+    const grammarSource = readFileSync(
+      join(process.cwd(), "grammar", "bpl.peggy"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const directFunctionDeclReturn =
+      /function functionDecl\([^)]*\) {\s+return { kind: "FunctionDecl",/;
+
+    expect(grammarSource).toMatch(directFunctionDeclReturn);
+    expect(generatedSource).toMatch(directFunctionDeclReturn);
+    expect(grammarSource).not.toContain(
+      'const node = { kind: "FunctionDecl"',
+    );
+    expect(generatedSource).not.toContain(
+      'const node = { kind: "FunctionDecl"',
+    );
+  });
+
   it("should parse a struct declaration", () => {
     const source = "struct Point { x: int, y: int, }";
     const tokens = lexWithGrammar(source, "test.bpl");

@@ -197,8 +197,7 @@
   }
 
   function functionDecl(isFrame, isStatic, name, genericParams, params, returnType, body, loc, attributes) {
-    const node = { kind: "FunctionDecl", isFrame, isStatic, name, genericParams, params, returnType, body, attributes: attributes || [], location: loc };
-    return node;
+    return { kind: "FunctionDecl", isFrame, isStatic, name, genericParams, params, returnType, body, attributes: attributes || [], location: loc };
   }
 
   function structDecl(name, genericParams, inheritanceList, members, loc) {
