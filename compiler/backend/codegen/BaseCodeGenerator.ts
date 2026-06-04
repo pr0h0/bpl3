@@ -539,6 +539,74 @@ export class BaseCodeGenerator {
     this.declarationsOutput.push(line);
   }
 
+  protected formatFunctionDeclarationParameters(
+    paramTypes: string[],
+    isVariadic: boolean,
+  ): string {
+    if (!isVariadic) return paramTypes.join(", ");
+    if (paramTypes.length === 0) return "...";
+    return `${paramTypes.join(", ")}, ...`;
+  }
+
+  protected getKnownExternReturnAttributes(
+    targetName: string,
+    retTypeStr: string,
+    paramTypes: string[],
+    funcType: AST.FunctionTypeNode,
+    isExtern: boolean,
+  ): string {
+    if (
+      this.isCompatibleMallocExtern(
+        targetName,
+        retTypeStr,
+        paramTypes,
+        funcType,
+        isExtern,
+      )
+    ) {
+      return "noalias ";
+    }
+    return "";
+  }
+
+  protected getKnownExternFunctionAttributes(
+    targetName: string,
+    retTypeStr: string,
+    paramTypes: string[],
+    funcType: AST.FunctionTypeNode,
+    isExtern: boolean,
+  ): string {
+    if (
+      this.isCompatibleMallocExtern(
+        targetName,
+        retTypeStr,
+        paramTypes,
+        funcType,
+        isExtern,
+      )
+    ) {
+      return " allocsize(0)";
+    }
+    return "";
+  }
+
+  private isCompatibleMallocExtern(
+    targetName: string,
+    retTypeStr: string,
+    paramTypes: string[],
+    funcType: AST.FunctionTypeNode,
+    isExtern: boolean,
+  ): boolean {
+    return (
+      isExtern &&
+      targetName === "malloc" &&
+      !funcType.isVariadic &&
+      retTypeStr.endsWith("*") &&
+      paramTypes.length === 1 &&
+      /^i\d+$/.test(paramTypes[0]!)
+    );
+  }
+
   // Add a method to register external layouts (to be called by the driver/compiler)
   public registerStructLayout(name: string, layout: Map<string, number>) {
     this.structLayouts.set(name, layout);

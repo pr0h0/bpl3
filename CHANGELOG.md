@@ -59,6 +59,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `bun test tests/CodeGenerator.test.ts -t "empty branch proof propagation|branch labels without calls|nested null guard"`
   and
   `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 15 --warmups 3 --compare /tmp/bpl3-branchproof-sameload-5k-compare.json --gate-phases codegen,full --max-phase-regression 5 --max-full-regression 5 --json`.
+- **Malloc Allocator Facts in LLVM IR** -
+  compatible `malloc` extern declarations and the implicit C prelude now emit
+  LLVM allocator facts as `noalias` plus `allocsize(0)`, while similarly named
+  user externs such as `malloc_extra` stay plain. This gives LLVM the same
+  high-level allocation facts it expects from C headers without changing call
+  signatures or BPL source semantics. A same-load `vector_dot_product` sample
+  moved BPL median from ~58.21ms to ~57.54ms; C variance moved the ratio from
+  ~1.01x to ~1.02x, so the retained evidence is the BPL median improvement,
+  green IR contracts, and a 15-round 5k phase gate with matching token/IR
+  signatures, codegen -5.75%, and full -5.26%. Reproduce the IR guard with
+  `bun test tests/CodeGenerator.test.ts -t "implicit C prelude|allocator facts|prefix-like symbols"`
+  and the 5k gate with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 15 --warmups 3 --compare /tmp/bpl3-emptyproof-5k-compare.json --gate-phases codegen,full --max-phase-regression 5 --max-full-regression 5 --json`.
 - **Allocation-Free Parser Function Declaration Helpers** -
   the Peggy grammar helper for `FunctionDecl` now returns the AST node directly
   instead of allocating a temporary `node` binding in every function declaration

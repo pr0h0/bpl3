@@ -1933,8 +1933,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
     let args: string;
     const isVariadic = funcType.isVariadic === true;
-    const isExtern =
-      expr.resolvedDeclaration && expr.resolvedDeclaration.kind === "Extern";
+    const isExtern = expr.resolvedDeclaration?.kind === "Extern";
 
     // Check if this is a module function call (namespace import)
     const isModuleFunction =
@@ -2192,12 +2191,25 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           !this.declaredFunctions.has(targetName) &&
           !this.definedFunctions.has(targetName)
         ) {
-          let funcDecl = `declare ${retTypeStr} @${targetName}(${paramTypes.join(", ")}`;
-          if (funcType.isVariadic && isExtern) {
-            if (paramTypes.length > 0) funcDecl += ", ...";
-            else funcDecl += "...";
-          }
-          funcDecl += ")";
+          const declarationParams = this.formatFunctionDeclarationParameters(
+            paramTypes,
+            funcType.isVariadic === true && isExtern,
+          );
+          const returnAttributes = this.getKnownExternReturnAttributes(
+            targetName,
+            retTypeStr,
+            paramTypes,
+            funcType,
+            isExtern,
+          );
+          const functionAttributes = this.getKnownExternFunctionAttributes(
+            targetName,
+            retTypeStr,
+            paramTypes,
+            funcType,
+            isExtern,
+          );
+          const funcDecl = `declare ${returnAttributes}${retTypeStr} @${targetName}(${declarationParams})${functionAttributes}`;
 
           // Check if this is a method of Type struct, which is defined internally
           if (!targetName.startsWith("Type_")) {
@@ -2266,4 +2278,5 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     }
     return reg;
   }
+
 }

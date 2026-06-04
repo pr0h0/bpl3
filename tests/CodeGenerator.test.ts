@@ -983,7 +983,27 @@ describe("CodeGenerator", () => {
     );
 
     expect(ir).toContain("call i8* @malloc");
-    expect(ir).toContain("declare i8* @malloc(i64)");
+    expect(ir).toContain("declare noalias i8* @malloc(i64) allocsize(0)");
+  });
+
+  it("adds allocator facts to compatible malloc extern declarations", () => {
+    const ir = compile(
+      `
+        extern malloc(size: long) ret *void;
+
+        frame main() ret int {
+          local ptr: *void = malloc(8);
+          if (ptr == nullptr) {
+            return 1;
+          }
+          return 0;
+        }
+      `,
+      { optimizationLevel: 3 },
+    );
+
+    expect(ir).toContain("call i8* @malloc");
+    expect(ir).toContain("declare noalias i8* @malloc(i64) allocsize(0)");
   });
 
   it("omits repeated null checks for the same pointer inside one basic block", () => {

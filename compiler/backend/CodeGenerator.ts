@@ -254,7 +254,9 @@ export class CodeGenerator extends StatementGenerator {
 
     // Standard library declarations - Emitted AFTER user code to avoid collisions
     if (!this.declaredFunctions.has("malloc")) {
-      this.emitPrunableImplicitCDeclaration("declare i8* @malloc(i64)");
+      this.emitPrunableImplicitCDeclaration(
+        "declare noalias i8* @malloc(i64) allocsize(0)",
+      );
       this.declaredFunctions.add("malloc");
     }
     if (!this.declaredFunctions.has("free")) {
@@ -1241,12 +1243,27 @@ export class CodeGenerator extends StatementGenerator {
     const retType = this.resolveType(funcType.returnType);
 
     const params = funcType.paramTypes.map((p) => this.resolveType(p));
-    if (decl.isVariadic) {
-      params.push("...");
-    }
-
-    const paramStr = params.join(", ");
-    this.emitDeclaration(`declare ${retType} @${name}(${paramStr})`);
+    const paramStr = this.formatFunctionDeclarationParameters(
+      params,
+      decl.isVariadic,
+    );
+    const returnAttributes = this.getKnownExternReturnAttributes(
+      name,
+      retType,
+      params,
+      funcType,
+      true,
+    );
+    const functionAttributes = this.getKnownExternFunctionAttributes(
+      name,
+      retType,
+      params,
+      funcType,
+      true,
+    );
+    this.emitDeclaration(
+      `declare ${returnAttributes}${retType} @${name}(${paramStr})${functionAttributes}`,
+    );
     this.emitDeclaration("");
   }
 
