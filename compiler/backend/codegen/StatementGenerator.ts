@@ -26,6 +26,12 @@ const OPTIMIZED_NATIVE_STACK_LIMIT_BYTES = 1024 * 1024;
 export abstract class StatementGenerator extends AsmGenerator {
   protected switchStack: { labels: string[]; activeIndex: number }[] = [];
   protected currentFunctionEmitsStackFrameHooks = true;
+  private structDefaultInitializationRequiredCache: Map<string, boolean> =
+    new Map();
+
+  protected clearDefaultValueCaches(): void {
+    this.structDefaultInitializationRequiredCache.clear();
+  }
 
   protected noteGeneratedMainArgcStore(): void {}
 
@@ -849,6 +855,53 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.emit(`  br label %${continueLabel}`);
   }
 
+  private structNeedsDefaultInitialization(
+    structName: string,
+    seen: Set<string> = new Set(),
+  ): boolean {
+    const cached = this.structDefaultInitializationRequiredCache.get(structName);
+    if (cached !== undefined) return cached;
+
+    const layout = this.structLayouts.get(structName);
+    if (!layout) return false;
+
+    if (layout.has("__vtable__")) {
+      this.structDefaultInitializationRequiredCache.set(structName, true);
+      return true;
+    }
+
+    if (seen.has(structName)) return false;
+
+    const decl = this.structMap.get(structName);
+    if (!decl) return false;
+
+    seen.add(structName);
+    for (const field of this.getAllStructFields(decl)) {
+      const fieldType = field.resolvedType || field.type;
+      const fieldLlvmType = this.resolveType(fieldType);
+
+      if (fieldLlvmType.startsWith("%enum.") && !fieldLlvmType.endsWith("*")) {
+        seen.delete(structName);
+        this.structDefaultInitializationRequiredCache.set(structName, true);
+        return true;
+      }
+
+      if (
+        fieldLlvmType.startsWith("%struct.") &&
+        !fieldLlvmType.endsWith("*") &&
+        this.structNeedsDefaultInitialization(fieldLlvmType.substring(8), seen)
+      ) {
+        seen.delete(structName);
+        this.structDefaultInitializationRequiredCache.set(structName, true);
+        return true;
+      }
+    }
+    seen.delete(structName);
+
+    this.structDefaultInitializationRequiredCache.set(structName, false);
+    return false;
+  }
+
   protected generateDefaultValue(type: AST.TypeNode): string {
     const llvmType = this.resolveType(type);
 
@@ -856,6 +909,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       const structName = llvmType.substring(8);
       const layout = this.structLayouts.get(structName);
       if (!layout) return "undef";
+      if (!this.structNeedsDefaultInitialization(structName)) return "undef";
 
       let val = "undef";
       let hasInit = false;

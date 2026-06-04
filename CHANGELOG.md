@@ -35,6 +35,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   to ~488.22ms while preserving the same 120,043-line LLVM IR
   (`3494f8c270b2562b7a0365cf7b148a58f2e583600bf37a2683dbd189a560e486`).
   Reproduce with `bun test tests/Parser.test.ts -t "trivia skipping"`.
+- **Primitive-Only Struct Default Fast Path** - Codegen now caches whether a
+  by-value struct needs generated default initialization and returns `undef`
+  immediately for primitive-only structs, while still preserving vtable pointer
+  insertion and enum-field zero initialization. On a matched 5k typed-AST
+  codegen probe, median improved from ~133.86ms to ~127.44ms and average from
+  ~134.35ms to ~128.97ms while preserving identical 135,029-line LLVM IR
+  (`418485e59754bb5bd879f85d43d448216b3bf486ba2a419a92c30cb9c9f08ad0`).
+  Reproduce with
+  `bun test tests/CodeGenerator.test.ts -t "primitive-only struct defaults|preserves required struct default"`.
 - **Generated Trivia Whitespace Fast Path** - The checked-in Peggy parser
   postprocessor now inlines whitespace char-code checks inside the manual trivia
   skipper instead of calling a helper on every whitespace probe. On the same 5k

@@ -96,6 +96,94 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("keeps primitive-only struct defaults on a cached undef fast path", () => {
+    const statementGeneratorSource = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
+      "utf8",
+    );
+    const codeGeneratorSource = readFileSync(
+      join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
+      "utf8",
+    );
+    const helperStart = statementGeneratorSource.indexOf(
+      "private structNeedsDefaultInitialization",
+    );
+    const helperEnd = statementGeneratorSource.indexOf(
+      "protected generateDefaultValue",
+      helperStart,
+    );
+
+    expect(helperStart).toBeGreaterThanOrEqual(0);
+    expect(helperEnd).toBeGreaterThan(helperStart);
+
+    const helperSource = statementGeneratorSource.slice(
+      helperStart,
+      helperEnd,
+    );
+    const defaultStart = statementGeneratorSource.indexOf(
+      "protected generateDefaultValue",
+    );
+    const defaultEnd = statementGeneratorSource.indexOf(
+      "protected generateVariableDecl",
+      defaultStart,
+    );
+    const defaultSource = statementGeneratorSource.slice(
+      defaultStart,
+      defaultEnd,
+    );
+
+    expect(statementGeneratorSource).toContain(
+      "private structDefaultInitializationRequiredCache",
+    );
+    expect(statementGeneratorSource).toContain(
+      "protected clearDefaultValueCaches",
+    );
+    expect(codeGeneratorSource).toContain("this.clearDefaultValueCaches()");
+    expect(helperSource).toContain('layout.has("__vtable__")');
+    expect(helperSource).toContain('fieldLlvmType.startsWith("%enum.")');
+    expect(defaultSource).toContain(
+      "if (!this.structNeedsDefaultInitialization(structName))",
+    );
+    expect(defaultSource.indexOf("structNeedsDefaultInitialization")).toBeLessThan(
+      defaultSource.indexOf("Array.from(layout.entries())"),
+    );
+  });
+
+  it("preserves required struct default initialization values", () => {
+    const vtableIr = compile(`
+      struct Animal {
+        frame speak(this: Animal) ret int { return 1; }
+      }
+
+      frame main() ret int {
+        local animal: Animal;
+        return 0;
+      }
+    `);
+    expect(vtableIr).toMatch(
+      /insertvalue %struct\.Animal undef, i8\* bitcast \(\[4 x i8\*\]\* @Animal_vtable to i8\*\), 0/,
+    );
+
+    const enumFieldIr = compile(`
+      enum Color {
+        Red,
+        Green,
+      }
+
+      struct Paint {
+        color: Color,
+      }
+
+      frame main() ret int {
+        local paint: Paint;
+        return 0;
+      }
+    `);
+    expect(enumFieldIr).toContain(
+      "insertvalue %struct.Paint undef, %enum.Color zeroinitializer, 0",
+    );
+  });
+
   it("does not write debug IR files by default", () => {
     const cwd = process.cwd();
     const dir = mkdtempSync(join(tmpdir(), "bpl-codegen-"));
