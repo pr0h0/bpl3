@@ -1358,6 +1358,23 @@ describe("CodeGenerator", () => {
     expect(unarySource).toContain("noteAddressEscapedLocalPointer");
   });
 
+  it("keeps direct recursion detection off generic AST traversal", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("private hasDirectRecursiveCall(");
+    const methodEnd = source.indexOf(
+      "\n  private isDirectSelfCallExpression",
+      methodStart,
+    );
+    const methodSource = source.slice(methodStart, methodEnd);
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(methodSource).not.toContain("walkAST");
+  });
+
   it("keeps nonzero divisor proof tracking lazy for division-free codegen", () => {
     const baseSource = readFileSync(
       join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),

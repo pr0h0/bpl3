@@ -15,7 +15,6 @@
  * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
 import * as AST from "../../common/AST";
-import { walkAST } from "../../common/ASTTraversal";
 import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
 import { TokenType } from "../../frontend/TokenType";
@@ -391,17 +390,231 @@ export abstract class StatementGenerator extends AsmGenerator {
   }
 
   private hasDirectRecursiveCall(decl: AST.FunctionDecl): boolean {
-    let found = false;
-    walkAST(decl.body, (node) => {
-      if (
-        node.kind === "Call" &&
-        this.isDirectSelfCallExpression(node as AST.CallExpr, decl)
-      ) {
-        found = true;
-        return false;
+    return this.blockContainsDirectSelfCall(decl.body, decl);
+  }
+
+  private blockContainsDirectSelfCall(
+    block: AST.BlockStmt,
+    decl: AST.FunctionDecl,
+  ): boolean {
+    return block.statements.some((stmt) =>
+      this.statementContainsDirectSelfCall(stmt, decl),
+    );
+  }
+
+  private statementContainsDirectSelfCall(
+    stmt: AST.Statement,
+    decl: AST.FunctionDecl,
+  ): boolean {
+    switch (stmt.kind) {
+      case "VariableDecl":
+        return this.expressionContainsDirectSelfCall(
+          (stmt as AST.VariableDecl).initializer,
+          decl,
+        );
+      case "Block":
+        return this.blockContainsDirectSelfCall(stmt as AST.BlockStmt, decl);
+      case "If": {
+        const ifStmt = stmt as AST.IfStmt;
+        return (
+          this.expressionContainsDirectSelfCall(ifStmt.condition, decl) ||
+          this.statementContainsDirectSelfCall(ifStmt.thenBranch, decl) ||
+          (ifStmt.elseBranch
+            ? this.statementContainsDirectSelfCall(ifStmt.elseBranch, decl)
+            : false)
+        );
       }
-    });
-    return found;
+      case "Loop": {
+        const loop = stmt as AST.LoopStmt;
+        return (
+          (loop.init
+            ? this.statementContainsDirectSelfCall(loop.init, decl)
+            : false) ||
+          this.expressionContainsDirectSelfCall(loop.condition, decl) ||
+          this.expressionContainsDirectSelfCall(loop.step, decl) ||
+          this.statementContainsDirectSelfCall(loop.body, decl)
+        );
+      }
+      case "Return":
+        return this.expressionContainsDirectSelfCall(
+          (stmt as AST.ReturnStmt).value,
+          decl,
+        );
+      case "Defer":
+        return this.statementContainsDirectSelfCall(
+          (stmt as AST.DeferStmt).statement,
+          decl,
+        );
+      case "ExpressionStmt":
+        return this.expressionContainsDirectSelfCall(
+          (stmt as AST.ExpressionStmt).expression,
+          decl,
+        );
+      case "Try": {
+        const tryStmt = stmt as AST.TryStmt;
+        return (
+          this.blockContainsDirectSelfCall(tryStmt.tryBlock, decl) ||
+          tryStmt.catchClauses.some((clause) =>
+            this.blockContainsDirectSelfCall(clause.body, decl),
+          )
+        );
+      }
+      case "Throw":
+        return this.expressionContainsDirectSelfCall(
+          (stmt as AST.ThrowStmt).expression,
+          decl,
+        );
+      case "Switch": {
+        const switchStmt = stmt as AST.SwitchStmt;
+        return (
+          this.expressionContainsDirectSelfCall(switchStmt.expression, decl) ||
+          switchStmt.cases.some(
+            (switchCase) =>
+              this.expressionContainsDirectSelfCall(switchCase.value, decl) ||
+              this.blockContainsDirectSelfCall(switchCase.body, decl),
+          ) ||
+          (switchStmt.defaultCase
+            ? this.blockContainsDirectSelfCall(switchStmt.defaultCase, decl)
+            : false)
+        );
+      }
+      default:
+        return false;
+    }
+  }
+
+  private expressionContainsDirectSelfCall(
+    expr: AST.Expression | AST.TypeNode | undefined,
+    decl: AST.FunctionDecl,
+  ): boolean {
+    if (!expr) return false;
+
+    switch (expr.kind) {
+      case "Call": {
+        const call = expr as AST.CallExpr;
+        return (
+          this.isDirectSelfCallExpression(call, decl) ||
+          this.expressionContainsDirectSelfCall(call.callee, decl) ||
+          call.args.some((arg) =>
+            this.expressionContainsDirectSelfCall(arg, decl),
+          )
+        );
+      }
+      case "InterpolatedString":
+        return (expr as AST.InterpolatedStringExpr).parts.some((part) =>
+          this.expressionContainsDirectSelfCall(part, decl),
+        );
+      case "Binary": {
+        const binary = expr as AST.BinaryExpr;
+        return (
+          this.expressionContainsDirectSelfCall(binary.left, decl) ||
+          this.expressionContainsDirectSelfCall(binary.right, decl)
+        );
+      }
+      case "Unary":
+        return this.expressionContainsDirectSelfCall(
+          (expr as AST.UnaryExpr).operand,
+          decl,
+        );
+      case "Member":
+        return this.expressionContainsDirectSelfCall(
+          (expr as AST.MemberExpr).object,
+          decl,
+        );
+      case "Index": {
+        const index = expr as AST.IndexExpr;
+        return (
+          this.expressionContainsDirectSelfCall(index.object, decl) ||
+          this.expressionContainsDirectSelfCall(index.index, decl)
+        );
+      }
+      case "ArrayLiteral":
+        return (expr as AST.ArrayLiteralExpr).elements.some((element) =>
+          this.expressionContainsDirectSelfCall(element, decl),
+        );
+      case "StructLiteral":
+        return (expr as AST.StructLiteralExpr).fields.some((field) =>
+          this.expressionContainsDirectSelfCall(field.value, decl),
+        );
+      case "TupleLiteral":
+        return (expr as AST.TupleLiteralExpr).elements.some((element) =>
+          this.expressionContainsDirectSelfCall(element, decl),
+        );
+      case "EnumStructVariant":
+        return (expr as AST.EnumStructVariantExpr).fields.some((field) =>
+          this.expressionContainsDirectSelfCall(field.value, decl),
+        );
+      case "Cast":
+        return this.expressionContainsDirectSelfCall(
+          (expr as AST.CastExpr).expression,
+          decl,
+        );
+      case "Sizeof":
+        return this.expressionContainsDirectSelfCall(
+          (expr as AST.SizeofExpr).target,
+          decl,
+        );
+      case "TypeOf":
+        return this.expressionContainsDirectSelfCall(
+          (expr as AST.TypeOfExpr).target,
+          decl,
+        );
+      case "TypeMatch":
+        return this.expressionContainsDirectSelfCall(
+          (expr as AST.TypeMatchExpr).value,
+          decl,
+        );
+      case "Match": {
+        const match = expr as AST.MatchExpr;
+        return (
+          this.expressionContainsDirectSelfCall(match.value, decl) ||
+          match.arms.some(
+            (arm) =>
+              this.expressionContainsDirectSelfCall(arm.guard, decl) ||
+              (arm.body.kind === "Block"
+                ? this.blockContainsDirectSelfCall(arm.body, decl)
+                : this.expressionContainsDirectSelfCall(arm.body, decl)),
+          )
+        );
+      }
+      case "Assignment": {
+        const assignment = expr as AST.AssignmentExpr;
+        return (
+          this.expressionContainsDirectSelfCall(assignment.assignee, decl) ||
+          this.expressionContainsDirectSelfCall(assignment.value, decl)
+        );
+      }
+      case "Ternary": {
+        const ternary = expr as AST.TernaryExpr;
+        return (
+          this.expressionContainsDirectSelfCall(ternary.condition, decl) ||
+          this.expressionContainsDirectSelfCall(ternary.trueExpr, decl) ||
+          this.expressionContainsDirectSelfCall(ternary.falseExpr, decl)
+        );
+      }
+      case "GenericInstantiation":
+        return this.expressionContainsDirectSelfCall(
+          (expr as AST.GenericInstantiationExpr).base,
+          decl,
+        );
+      case "Is":
+        return this.expressionContainsDirectSelfCall(
+          (expr as AST.IsExpr).expression,
+          decl,
+        );
+      case "As":
+        return this.expressionContainsDirectSelfCall(
+          (expr as AST.AsExpr).expression,
+          decl,
+        );
+      case "Group":
+        return this.expressionContainsDirectSelfCall(
+          (expr as AST.GroupExpr).expression,
+          decl,
+        );
+      default:
+        return false;
+    }
   }
 
   private isDirectSelfCallExpression(
