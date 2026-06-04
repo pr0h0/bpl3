@@ -264,12 +264,12 @@ function convertTokenNodeToToken(node: TokenNode): Token {
   }
 
   if (type === "Keyword") {
-    const tokenType = keywordToTokenType(value);
+    const tokenType = keywordMap[value] ?? TokenType.Identifier;
     return new Token(tokenType, value, null, line, column, file);
   }
 
   if (type === "Punctuator") {
-    const tokenType = punctuatorToTokenType(value);
+    const tokenType = punctuatorMap[value] ?? TokenType.Unknown;
     return new Token(tokenType, value, null, line, column, file);
   }
 
@@ -310,10 +310,6 @@ const keywordMap: Record<string, TokenType> = {
   match: TokenType.Match,
   Func: TokenType.Func,
 };
-
-function keywordToTokenType(keyword: string): TokenType {
-  return keywordMap[keyword] ?? TokenType.Identifier;
-}
 
 const punctuatorMap: Record<string, TokenType> = {
   "{": TokenType.LeftBrace,
@@ -360,10 +356,6 @@ const punctuatorMap: Record<string, TokenType> = {
   "<": TokenType.Less,
   ">": TokenType.Greater,
 };
-
-function punctuatorToTokenType(value: string): TokenType {
-  return punctuatorMap[value] ?? TokenType.Unknown;
-}
 
 function parseNumber(raw: string): number {
   const cleaned = raw.replace(/_/g, "");

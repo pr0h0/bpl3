@@ -432,6 +432,28 @@ describe("Lexer - Extended Tests", () => {
       expect(identifierSource).not.toContain("keywordMap");
     });
 
+    it("converts keyword and punctuator token nodes through direct map lookups", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("function convertTokenNodeToToken");
+      const end = source.indexOf("const keywordMap", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const converterSource = source.slice(start, end);
+      expect(converterSource).toContain(
+        "keywordMap[value] ?? TokenType.Identifier",
+      );
+      expect(converterSource).toContain(
+        "punctuatorMap[value] ?? TokenType.Unknown",
+      );
+      expect(converterSource).not.toContain("keywordToTokenType(value)");
+      expect(converterSource).not.toContain("punctuatorToTokenType(value)");
+    });
+
     it("should tokenize simple identifier", () => {
       const tokens = tokenize("myVariable");
       expect(tokens[0]!.type).toBe(TokenType.Identifier);
