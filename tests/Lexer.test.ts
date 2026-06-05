@@ -544,7 +544,7 @@ describe("Lexer - Extended Tests", () => {
         "utf8",
       );
       const start = source.indexOf('if (type === "Identifier")');
-      const end = source.indexOf('if (type === "StringLiteral")', start);
+      const end = source.indexOf('if (type === "Keyword")', start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);
@@ -552,6 +552,39 @@ describe("Lexer - Extended Tests", () => {
       const identifierSource = source.slice(start, end);
       expect(identifierSource).toContain("TokenType.Identifier");
       expect(identifierSource).not.toContain("keywordMap");
+    });
+
+    it("orders frontend token conversion by hot token frequency", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("function createFrontendTokenFromParts");
+      const end = source.indexOf("const keywordMap", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const converterSource = source.slice(start, end);
+      const punctuatorBranch = converterSource.indexOf(
+        'if (type === "Punctuator")',
+      );
+      const identifierBranch = converterSource.indexOf(
+        'if (type === "Identifier")',
+      );
+      const keywordBranch = converterSource.indexOf('if (type === "Keyword")');
+      const numberBranch = converterSource.indexOf(
+        'if (type === "NumberLiteral")',
+      );
+      const stringBranch = converterSource.indexOf(
+        'if (type === "StringLiteral")',
+      );
+
+      expect(punctuatorBranch).toBeGreaterThanOrEqual(0);
+      expect(identifierBranch).toBeGreaterThan(punctuatorBranch);
+      expect(keywordBranch).toBeGreaterThan(identifierBranch);
+      expect(numberBranch).toBeGreaterThan(keywordBranch);
+      expect(stringBranch).toBeGreaterThan(numberBranch);
     });
 
     it("converts keyword and punctuator token nodes through direct map lookups", () => {

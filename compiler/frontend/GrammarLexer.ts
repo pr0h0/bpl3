@@ -237,11 +237,44 @@ function createFrontendTokenFromParts(
   column: number,
   file: string,
 ): Token {
+  if (type === "Punctuator") {
+    return {
+      type: punctuatorMap[value] ?? TokenType.Unknown,
+      lexeme: value,
+      literal: null,
+      line,
+      column,
+      file,
+    } as Token;
+  }
+
   if (type === "Identifier") {
     return {
       type: TokenType.Identifier,
       lexeme: value,
       literal: null,
+      line,
+      column,
+      file,
+    } as Token;
+  }
+
+  if (type === "Keyword") {
+    return {
+      type: keywordMap[value] ?? TokenType.Identifier,
+      lexeme: value,
+      literal: null,
+      line,
+      column,
+      file,
+    } as Token;
+  }
+
+  if (type === "NumberLiteral") {
+    return {
+      type: TokenType.NumberLiteral,
+      lexeme: value,
+      literal: parseNumber(value),
       line,
       column,
       file,
@@ -281,17 +314,6 @@ function createFrontendTokenFromParts(
     } as Token;
   }
 
-  if (type === "NumberLiteral") {
-    return {
-      type: TokenType.NumberLiteral,
-      lexeme: value,
-      literal: parseNumber(value),
-      line,
-      column,
-      file,
-    } as Token;
-  }
-
   if (type === "BoolLiteral") {
     const literal = value === "true";
     return {
@@ -307,28 +329,6 @@ function createFrontendTokenFromParts(
   if (type === "NullLiteral" || type === "NullptrLiteral") {
     return {
       type: TokenType.Nullptr,
-      lexeme: value,
-      literal: null,
-      line,
-      column,
-      file,
-    } as Token;
-  }
-
-  if (type === "Keyword") {
-    return {
-      type: keywordMap[value] ?? TokenType.Identifier,
-      lexeme: value,
-      literal: null,
-      line,
-      column,
-      file,
-    } as Token;
-  }
-
-  if (type === "Punctuator") {
-    return {
-      type: punctuatorMap[value] ?? TokenType.Unknown,
       lexeme: value,
       literal: null,
       line,
