@@ -598,7 +598,8 @@ describe("Parser", () => {
       /function peg\$parseIdentifier\(\)[\s\S]*?\n  \}/,
     )?.[0];
 
-    expect(identifierHelper).toContain("return { name };");
+    expect(identifierHelper).toContain("return name;");
+    expect(identifierHelper).not.toContain("return { name };");
     expect(identifierHelper).not.toMatch(/return peg\$f\d+\(name\);/);
     expect(identifierHelper).not.toContain("peg$savedPos = startPos;");
     expect(identifierHelper).not.toContain("location()");

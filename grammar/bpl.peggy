@@ -619,10 +619,10 @@ ErrorRecovery
 
 VariableDeclaration
   = K_global _ K_const _ name:Identifier _ ":" _ type:Type _ "=" _ init:Expression _ ";" {
-      return variableDecl(true, true, name.name, type, init, location());
+      return variableDecl(true, true, name, type, init, location());
     }
   / K_local _ K_const _ name:Identifier _ ":" _ type:Type _ "=" _ init:Expression _ ";" {
-      return variableDecl(false, true, name.name, type, init, location());
+      return variableDecl(false, true, name, type, init, location());
     }
   / K_global _ "(" _ targets:DestructTargetList _ ")" _ "=" _ init:Expression _ ";" {
       return variableDecl(true, false, targets, undefined, init, location());
@@ -632,17 +632,17 @@ VariableDeclaration
     }
   / K_global _ name:Identifier _ ":" _ type:Type _ init:(_ "=" _ Expression)? _ ";" {
       const initializer = init ? init[3] : undefined;
-      return variableDecl(true, false, name.name, type, initializer, location());
+      return variableDecl(true, false, name, type, initializer, location());
     }
   / K_local _ name:Identifier _ ":" _ type:Type _ init:(_ "=" _ Expression)? _ ";" {
       const initializer = init ? init[3] : undefined;
-      return variableDecl(false, false, name.name, type, initializer, location());
+      return variableDecl(false, false, name, type, initializer, location());
     }
   / K_global _ name:Identifier _ "=" _ init:Expression _ ";" {
-      return variableDecl(true, false, name.name, undefined, init, location());
+      return variableDecl(true, false, name, undefined, init, location());
     }
   / K_local _ name:Identifier _ "=" _ init:Expression _ ";" {
-      return variableDecl(false, false, name.name, undefined, init, location());
+      return variableDecl(false, false, name, undefined, init, location());
     }
 
 DestructTargetList
@@ -651,8 +651,8 @@ DestructTargetList
     }
 
 DestructTarget
-  = name:Identifier _ ":" _ type:Type { return { name: name.name, type }; }
-  / name:Identifier { return { name: name.name }; }
+  = name:Identifier _ ":" _ type:Type { return { name, type }; }
+  / name:Identifier { return { name }; }
   / "(" _ targets:DestructTargetList _ ")" { return targets; }
 
 AttributeList
@@ -662,7 +662,7 @@ AttributeList
 
 FunctionAttribute
   = name:Identifier {
-      return { kind: "FunctionAttribute", name: name.name, location: location() };
+      return { kind: "FunctionAttribute", name, location: location() };
     }
 
 FunctionDeclaration
@@ -672,7 +672,7 @@ FunctionDeclaration
       const returnType = ret ? ret.returnType : voidType(location());
       const isStatic = !(paramList.length > 0 && paramList[0] && paramList[0].name === "this");
       const attributes = attrs ? attrs[1] : [];
-      return functionDecl(true, isStatic, name.name, genericParams, paramList, returnType, body, location(), attributes);
+      return functionDecl(true, isStatic, name, genericParams, paramList, returnType, body, location(), attributes);
     }
 
 StructDeclaration
@@ -680,7 +680,7 @@ StructDeclaration
       const genericParams = gen ? gen : [];
       const inheritanceList = inheritance ? inheritance[3] : [];
       const memberList = members ? members : [];
-      return structDecl(name.name, genericParams, inheritanceList, memberList, location());
+      return structDecl(name, genericParams, inheritanceList, memberList, location());
     }
 
 EnumDeclaration
@@ -689,7 +689,7 @@ EnumDeclaration
       const implementsList = ext ? ext[3] : [];
       const variantList = content ? content.variants : [];
       const methods = content ? content.methods : [];
-      return enumDecl(name.name, genericParams, variantList, methods, location(), implementsList);
+      return enumDecl(name, genericParams, variantList, methods, location(), implementsList);
     }
 
 EnumContent
@@ -712,7 +712,7 @@ EnumMethodList
 
 EnumVariant
   = name:Identifier _ data:EnumVariantData? {
-      return enumVariant(name.name, data, location());
+      return enumVariant(name, data, location());
     }
 
 EnumVariantData
@@ -730,7 +730,7 @@ StructFieldList
 
 StructField
   = name:Identifier _ ":" _ type:Type { 
-      return { name: name.name, type }; 
+      return { name, type };
     }
 
 SpecDeclaration
@@ -738,7 +738,7 @@ SpecDeclaration
       const genericParams = gen ? gen : [];
       const extendsList = ext ? ext[3] : [];
       const methodList = methods ? methods : [];
-      return specDecl(name.name, genericParams, extendsList, methodList, location());
+      return specDecl(name, genericParams, extendsList, methodList, location());
     }
 
 SpecMethodList
@@ -751,7 +751,7 @@ SpecMethod
       const genericParams = gen ? gen : [];
       const paramList = params ? params : [];
       const returnType = ret ? ret[3] : undefined;
-      return { kind: "SpecMethod", name: name.name, genericParams, params: paramList, returnType, location: location() };
+      return { kind: "SpecMethod", name, genericParams, params: paramList, returnType, location: location() };
     }
 
 StructMemberList
@@ -761,13 +761,13 @@ StructMemberList
 
 StructMember
   = fd:FunctionDeclaration { return fd; }
-  / name:Identifier _ ":" _ type:Type _ "," { return { kind: "StructField", name: name.name, type, location: location() }; }
-  / name:Identifier _ ":" _ type:Type &(_ "}") { return { kind: "StructField", name: name.name, type, location: location() }; }
+  / name:Identifier _ ":" _ type:Type _ "," { return { kind: "StructField", name, type, location: location() }; }
+  / name:Identifier _ ":" _ type:Type &(_ "}") { return { kind: "StructField", name, type, location: location() }; }
 
 TypeAlias
   = K_type _ name:Identifier _ gen:GenericParamList? _ "=" _ type:Type _ ";" {
       const genericParams = gen ? gen : [];
-      return typeAlias(name.name, genericParams, type, location());
+      return typeAlias(name, genericParams, type, location());
     }
 
 ImportStatement
@@ -776,7 +776,7 @@ ImportStatement
       return importStmt(normalized, src.value, false, undefined, location());
     }
   / K_import _ "*" _ K_as _ ns:Identifier _ K_from _ src:StringLiteral _ ";" {
-      return importStmt([], src.value, true, ns.name, location());
+      return importStmt([], src.value, true, ns, location());
     }
   / K_import _ src:StringLiteral _ ";" { return importStmt([], src.value, true, undefined, location()); }
 
@@ -786,10 +786,10 @@ ImportList
     }
 
 ImportItem
-  = "[" _ name:Identifier _ "]" { return { name: name.name, isType: true, isWrapped: false }; }
-  / "{" _ name:Identifier _ "}" { return { name: name.name, isType: false, isWrapped: true }; }
+  = "[" _ name:Identifier _ "]" { return { name, isType: true, isWrapped: false }; }
+  / "{" _ name:Identifier _ "}" { return { name, isType: false, isWrapped: true }; }
   / name:Identifier _ alias:(_ K_as _ Identifier)? {
-      return { name: name.name, alias: alias ? alias[3].name : undefined, isType: false, isWrapped: false };
+      return { name, alias: alias ? alias[3] : undefined, isType: false, isWrapped: false };
     }
 
 ExportStatement
@@ -798,15 +798,15 @@ ExportStatement
     }
 
 ExportItem
-  = "[" _ name:Identifier _ "]" { return { name: name.name, isType: true, isWrapped: false }; }
-  / "{" _ name:Identifier _ "}" { return { name: name.name, isType: false, isWrapped: true }; }
-  / name:Identifier { return { name: name.name, isType: false, isWrapped: false }; }
+  = "[" _ name:Identifier _ "]" { return { name, isType: true, isWrapped: false }; }
+  / "{" _ name:Identifier _ "}" { return { name, isType: false, isWrapped: true }; }
+  / name:Identifier { return { name, isType: false, isWrapped: false }; }
 
 ExternDeclaration
   = K_extern _ name:Identifier _ "(" _ params:ExternParameterList? _ ")" _ ret:ReturnType? _ ";" {
       const paramList = params ? params.params : [];
       const isVariadic = params ? params.isVariadic : false;
-      return externDecl(name.name, paramList, isVariadic, ret ? ret.returnType : undefined, location());
+      return externDecl(name, paramList, isVariadic, ret ? ret.returnType : undefined, location());
     }
 
 ExternParameterList
@@ -915,7 +915,7 @@ TryStatement
 
 CatchClause
   = K_catch _ "(" _ name:Identifier _ ":" _ type:Type _ ")" _ body:Block {
-      return catchClause(name.name, type, body, location());
+      return catchClause(name, type, body, location());
     }
   / K_catch _ body:Block {
       // Catch-all: no variable, no type
@@ -1165,10 +1165,10 @@ PostfixTailAfterTrivia
       return { type: "index", index: idx };
     }
   / "." _ prop:Identifier _ "{" _ fields:StructLiteralFields? _ "}" {
-      return { type: "enumStructVariant", property: prop.name, fields: fields || [] };
+      return { type: "enumStructVariant", property: prop, fields: fields || [] };
     }
   / "." _ prop:Identifier {
-      return { type: "member", property: prop.name };
+      return { type: "member", property: prop };
     }
   / "." _ num:[0-9]+ {
       return { type: "member", property: num.join("") };
@@ -1240,7 +1240,7 @@ TypeOfExpression
   / K_typeof _ "(" _ arg:(Expression / Type) _ ")" { return typeOfNode(arg, location()); }
 
 OffsetOfExpression
-  = K_offsetof _ "(" _ type:Type _ "," _ member:Identifier _ ")" { return offsetofNode(type, member.name, location()); }
+  = K_offsetof _ "(" _ type:Type _ "," _ member:Identifier _ ")" { return offsetofNode(type, member, location()); }
 
 TypeMatchExpression
   = K_match _ "<" _ type:Type _ ">" _ "(" _ val:(Expression / Type) _ ")" { return matchNode(type, val, location()); }
@@ -1302,7 +1302,7 @@ LambdaParams
 
 LambdaParam
   = name:Identifier _ type:(":" _ Type)? {
-      return { name: name.name, type: type ? type[2] : null, location: location() };
+      return { name, type: type ? type[2] : null, location: location() };
     }
 
 LambdaBody
@@ -1318,7 +1318,7 @@ PatternLiteral
     }
 
 PatternIdentifier
-  = name:Identifier { return patternIdentifier(name.name, location()); }
+  = name:Identifier { return patternIdentifier(name, location()); }
 
 EnumName
   = name:QualifiedIdentifier gen:GenericArgs? {
@@ -1339,10 +1339,10 @@ PatternEnum
       if (generics.length > 0) {
         // Generic enums require explicit dot: Option<T>.Some
         if (!rest) error("Expected '.' and variant name after generic enum");
-        variant = rest[3].name;
+        variant = rest[3];
       } else if (rest) {
         // Explicit dot after EnumName
-        variant = rest[3].name;
+        variant = rest[3];
       } else {
         // No explicit dot - split the qualified identifier
         const parts = name.split(".");
@@ -1361,10 +1361,10 @@ PatternEnumTuple
 
       if (generics.length > 0) {
           if (!rest) error("Expected '.' and variant name after generic enum");
-          variant = rest[3].name;
+          variant = rest[3];
       } else {
           if (rest) {
-             variant = rest[3].name;
+             variant = rest[3];
           } else {
              const parts = name.split(".");
              if (parts.length < 2) {
@@ -1388,10 +1388,10 @@ PatternEnumStruct
 
       if (generics.length > 0) {
           if (!rest) error("Expected '.' and variant name after generic enum");
-          variant = rest[3].name;
+          variant = rest[3];
       } else {
           if (rest) {
-             variant = rest[3].name;
+             variant = rest[3];
           } else {
              const parts = name.split(".");
              if (parts.length < 2) {
@@ -1422,7 +1422,7 @@ PatternFieldList
 
 PatternField
   = fieldName:Identifier _ ":" _ binding:Identifier {
-      return { fieldName: fieldName.name, binding: binding.name };
+      return { fieldName, binding };
     }
 
 ArrayLiteral
@@ -1435,7 +1435,7 @@ ArrayElements
 
 StructLiteral
   = name:Identifier _ gen:GenericArgs? _ "{" _ fields:StructLiteralFields? _ "}" {
-      return structLiteral(name.name, fields || [], location(), gen || []);
+      return structLiteral(name, fields || [], location(), gen || []);
     }
 
 StructLiteralFields
@@ -1444,14 +1444,14 @@ StructLiteralFields
     }
 
 StructLiteralField
-  = key:Identifier _ ":" _ value:Expression { return { name: key.name, value }; }
+  = key:Identifier _ ":" _ value:Expression { return { name: key, value }; }
 
 IdentifierExpr
-  = id:Identifier { return identifier(id.name, location()); }
+  = id:Identifier { return identifier(id, location()); }
 
 Identifier
   = !(KeywordReserved) name:IdentToken {
-      return { name };
+      return name;
     }
 
 IdentToken
@@ -1501,7 +1501,7 @@ Parameter
          // We treat this as Any
          return {
             kind: "Parameter",
-            name: name.name,
+            name,
             type: { kind: "BasicType", name: "Any", genericArgs: [], pointerDepth: 0, arrayDimensions: [], location: location() },
             isConst: !!isConstPrefix || !!isConstType,
             isVariadic: true,
@@ -1510,12 +1510,12 @@ Parameter
       }
       
       if (!type) {
-          error("Missing type for parameter " + name.name);
+          error("Missing type for parameter " + name);
       }
 
       return {
         kind: "Parameter",
-        name: name.name,
+        name,
         type,
         isConst: !!isConstPrefix || !!isConstType,
         isVariadic: isVariadic,
@@ -1530,7 +1530,7 @@ GenericParamList
 
 GenericParam
   = name:Identifier constraint:(_ ":" _ Type)? {
-      return { name: name.name, constraint: constraint ? constraint[3] : undefined };
+      return { name, constraint: constraint ? constraint[3] : undefined };
     }
 
 GenericArgs

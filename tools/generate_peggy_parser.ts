@@ -317,7 +317,7 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     "    }",
     "",
     "    const name = input.substring(startPos, endPos);",
-    "    return { name };",
+    "    return name;",
     "  }",
     "",
     "  function peg$parseIdentToken()",

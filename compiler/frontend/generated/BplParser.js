@@ -420,10 +420,10 @@ function peg$parse(input, options) {
     return null;
   }
   function peg$f3(name, type, init) {
-    return variableDecl(true, true, name.name, type, init, location());
+    return variableDecl(true, true, name, type, init, location());
   }
   function peg$f4(name, type, init) {
-    return variableDecl(false, true, name.name, type, init, location());
+    return variableDecl(false, true, name, type, init, location());
   }
   function peg$f5(targets, init) {
     return variableDecl(true, false, targets, undefined, init, location());
@@ -433,29 +433,29 @@ function peg$parse(input, options) {
   }
   function peg$f7(name, type, init) {
     const initializer = init ? init[3] : undefined;
-    return variableDecl(true, false, name.name, type, initializer, location());
+    return variableDecl(true, false, name, type, initializer, location());
   }
   function peg$f8(name, type, init) {
     const initializer = init ? init[3] : undefined;
-    return variableDecl(false, false, name.name, type, initializer, location());
+    return variableDecl(false, false, name, type, initializer, location());
   }
   function peg$f9(name, init) {
-    return variableDecl(true, false, name.name, undefined, init, location());
+    return variableDecl(true, false, name, undefined, init, location());
   }
   function peg$f10(name, init) {
-    return variableDecl(false, false, name.name, undefined, init, location());
+    return variableDecl(false, false, name, undefined, init, location());
   }
   function peg$f11(head, tail) {
     return [head, ...tail.map(t => t[3])];
   }
-  function peg$f12(name, type) {    return { name: name.name, type };  }
-  function peg$f13(name) {    return { name: name.name };  }
+  function peg$f12(name, type) {    return { name, type };  }
+  function peg$f13(name) {    return { name };  }
   function peg$f14(targets) {    return targets;  }
   function peg$f15(head, tail) {
     return [head, ...tail.map(t => t[3])];
   }
   function peg$f16(name) {
-    return { kind: "FunctionAttribute", name: name.name, location: location() };
+    return { kind: "FunctionAttribute", name, location: location() };
   }
   function peg$f17(attrs, name, gen, params, ret, body) {
     const genericParams = gen ? gen : [];
@@ -463,20 +463,20 @@ function peg$parse(input, options) {
     const returnType = ret ? ret.returnType : voidType(location());
     const isStatic = !(paramList.length > 0 && paramList[0] && paramList[0].name === "this");
     const attributes = attrs ? attrs[1] : [];
-    return functionDecl(true, isStatic, name.name, genericParams, paramList, returnType, body, location(), attributes);
+    return functionDecl(true, isStatic, name, genericParams, paramList, returnType, body, location(), attributes);
   }
   function peg$f18(name, gen, inheritance, members) {
     const genericParams = gen ? gen : [];
     const inheritanceList = inheritance ? inheritance[3] : [];
     const memberList = members ? members : [];
-    return structDecl(name.name, genericParams, inheritanceList, memberList, location());
+    return structDecl(name, genericParams, inheritanceList, memberList, location());
   }
   function peg$f19(name, gen, ext, content) {
     const genericParams = gen ? gen : [];
     const implementsList = ext ? ext[3] : [];
     const variantList = content ? content.variants : [];
     const methods = content ? content.methods : [];
-    return enumDecl(name.name, genericParams, variantList, methods, location(), implementsList);
+    return enumDecl(name, genericParams, variantList, methods, location(), implementsList);
   }
   function peg$f20(variants, methods) {
     return { variants, methods: methods || [] };
@@ -491,7 +491,7 @@ function peg$parse(input, options) {
     return [head, ...tail.map(t => t[1])];
   }
   function peg$f24(name, data) {
-    return enumVariant(name.name, data, location());
+    return enumVariant(name, data, location());
   }
   function peg$f25(types) {
          return { kind: "EnumVariantTuple", types, location: location() };
@@ -503,13 +503,13 @@ function peg$parse(input, options) {
     return [head, ...tail.map(t => t[3])];
   }
   function peg$f28(name, type) {
-         return { name: name.name, type };
+         return { name, type };
   }
   function peg$f29(name, gen, ext, methods) {
     const genericParams = gen ? gen : [];
     const extendsList = ext ? ext[3] : [];
     const methodList = methods ? methods : [];
-    return specDecl(name.name, genericParams, extendsList, methodList, location());
+    return specDecl(name, genericParams, extendsList, methodList, location());
   }
   function peg$f30(head, tail) {
     return [head, ...tail.map(t => t[1])];
@@ -518,44 +518,44 @@ function peg$parse(input, options) {
     const genericParams = gen ? gen : [];
     const paramList = params ? params : [];
     const returnType = ret ? ret[3] : undefined;
-    return { kind: "SpecMethod", name: name.name, genericParams, params: paramList, returnType, location: location() };
+    return { kind: "SpecMethod", name, genericParams, params: paramList, returnType, location: location() };
   }
   function peg$f32(head, tail) {
     return [head, ...tail.map(t => t[1])];
   }
   function peg$f33(fd) {    return fd;  }
-  function peg$f34(name, type) {    return { kind: "StructField", name: name.name, type, location: location() };  }
-  function peg$f35(name, type) {    return { kind: "StructField", name: name.name, type, location: location() };  }
+  function peg$f34(name, type) {    return { kind: "StructField", name, type, location: location() };  }
+  function peg$f35(name, type) {    return { kind: "StructField", name, type, location: location() };  }
   function peg$f36(name, gen, type) {
     const genericParams = gen ? gen : [];
-    return typeAlias(name.name, genericParams, type, location());
+    return typeAlias(name, genericParams, type, location());
   }
   function peg$f37(items, src) {
     const normalized = items.map(it => ({ name: it.name, alias: it.alias, isType: it.isType || false, isWrapped: it.isWrapped }));
     return importStmt(normalized, src.value, false, undefined, location());
   }
   function peg$f38(ns, src) {
-    return importStmt([], src.value, true, ns.name, location());
+    return importStmt([], src.value, true, ns, location());
   }
   function peg$f39(src) {    return importStmt([], src.value, true, undefined, location());  }
   function peg$f40(head, tail) {
     return [head, ...tail.map(t => t[3])];
   }
-  function peg$f41(name) {    return { name: name.name, isType: true, isWrapped: false };  }
-  function peg$f42(name) {    return { name: name.name, isType: false, isWrapped: true };  }
+  function peg$f41(name) {    return { name, isType: true, isWrapped: false };  }
+  function peg$f42(name) {    return { name, isType: false, isWrapped: true };  }
   function peg$f43(name, alias) {
-    return { name: name.name, alias: alias ? alias[3].name : undefined, isType: false, isWrapped: false };
+    return { name, alias: alias ? alias[3] : undefined, isType: false, isWrapped: false };
   }
   function peg$f44(item) {
     return exportStmt([item], location());
   }
-  function peg$f45(name) {    return { name: name.name, isType: true, isWrapped: false };  }
-  function peg$f46(name) {    return { name: name.name, isType: false, isWrapped: true };  }
-  function peg$f47(name) {    return { name: name.name, isType: false, isWrapped: false };  }
+  function peg$f45(name) {    return { name, isType: true, isWrapped: false };  }
+  function peg$f46(name) {    return { name, isType: false, isWrapped: true };  }
+  function peg$f47(name) {    return { name, isType: false, isWrapped: false };  }
   function peg$f48(name, params, ret) {
     const paramList = params ? params.params : [];
     const isVariadic = params ? params.isVariadic : false;
-    return externDecl(name.name, paramList, isVariadic, ret ? ret.returnType : undefined, location());
+    return externDecl(name, paramList, isVariadic, ret ? ret.returnType : undefined, location());
   }
   function peg$f49() {    return { params: [], isVariadic: true };  }
   function peg$f50(first, tail, variadic) {
@@ -615,7 +615,7 @@ function peg$parse(input, options) {
     return tryStmt(tryBlock, catchList, location());
   }
   function peg$f75(name, type, body) {
-    return catchClause(name.name, type, body, location());
+    return catchClause(name, type, body, location());
   }
   function peg$f76(body) {
     // Catch-all: no variable, no type
@@ -764,10 +764,10 @@ function peg$parse(input, options) {
     return { type: "index", index: idx };
   }
   function peg$f120(prop, fields) {
-    return { type: "enumStructVariant", property: prop.name, fields: fields || [] };
+    return { type: "enumStructVariant", property: prop, fields: fields || [] };
   }
   function peg$f121(prop) {
-    return { type: "member", property: prop.name };
+    return { type: "member", property: prop };
   }
   function peg$f122(num) {
     return { type: "member", property: num.join("") };
@@ -804,7 +804,7 @@ function peg$parse(input, options) {
   function peg$f131(expr) {    return sizeofNode(expr, location());  }
   function peg$f132(type) {    return typeOfNode(type, location());  }
   function peg$f133(arg) {    return typeOfNode(arg, location());  }
-  function peg$f134(type, member) {    return offsetofNode(type, member.name, location());  }
+  function peg$f134(type, member) {    return offsetofNode(type, member, location());  }
   function peg$f135(type, val) {    return matchNode(type, val, location());  }
   function peg$f136(value, arms) {
     return matchExpr(value, arms || [], location());
@@ -833,7 +833,7 @@ function peg$parse(input, options) {
     return [head, ...tail.map(t => t[3])];
   }
   function peg$f145(name, type) {
-    return { name: name.name, type: type ? type[2] : null, location: location() };
+    return { name, type: type ? type[2] : null, location: location() };
   }
   function peg$f146(expr) {
     // Wrap expression in a block with return statement
@@ -842,7 +842,7 @@ function peg$parse(input, options) {
   function peg$f147(lit) {
          return patternLiteral(lit, location());
   }
-  function peg$f148(name) {    return patternIdentifier(name.name, location());  }
+  function peg$f148(name) {    return patternIdentifier(name, location());  }
   function peg$f149(name, gen) {
     return { name: name, genericArgs: gen || [] };
   }
@@ -860,10 +860,10 @@ function peg$parse(input, options) {
     if (generics.length > 0) {
       // Generic enums require explicit dot: Option<T>.Some
       if (!rest) error("Expected '.' and variant name after generic enum");
-      variant = rest[3].name;
+      variant = rest[3];
     } else if (rest) {
       // Explicit dot after EnumName
-      variant = rest[3].name;
+      variant = rest[3];
     } else {
       // No explicit dot - split the qualified identifier
       const parts = name.split(".");
@@ -880,10 +880,10 @@ function peg$parse(input, options) {
 
     if (generics.length > 0) {
         if (!rest) error("Expected '.' and variant name after generic enum");
-        variant = rest[3].name;
+        variant = rest[3];
     } else {
         if (rest) {
-           variant = rest[3].name;
+           variant = rest[3];
         } else {
            const parts = name.split(".");
            if (parts.length < 2) {
@@ -905,10 +905,10 @@ function peg$parse(input, options) {
 
     if (generics.length > 0) {
         if (!rest) error("Expected '.' and variant name after generic enum");
-        variant = rest[3].name;
+        variant = rest[3];
     } else {
         if (rest) {
-           variant = rest[3].name;
+           variant = rest[3];
         } else {
            const parts = name.split(".");
            if (parts.length < 2) {
@@ -930,22 +930,22 @@ function peg$parse(input, options) {
     return [head, ...tail.map(t => t[3])];
   }
   function peg$f156(fieldName, binding) {
-    return { fieldName: fieldName.name, binding: binding.name };
+    return { fieldName, binding };
   }
   function peg$f157(elems) {
     return arrayLiteral(elems || [], location());
   }
   function peg$f158(head, tail) {    return [head, ...tail.map(t => t[3])];  }
   function peg$f159(name, gen, fields) {
-    return structLiteral(name.name, fields || [], location(), gen || []);
+    return structLiteral(name, fields || [], location(), gen || []);
   }
   function peg$f160(head, tail) {
     return collectTailIndex(head, tail, 3);
   }
-  function peg$f161(key, value) {    return { name: key.name, value };  }
-  function peg$f162(id) {    return identifier(id.name, location());  }
+  function peg$f161(key, value) {    return { name: key, value };  }
+  function peg$f162(id) {    return identifier(id, location());  }
   function peg$f163(name) {
-    return { name };
+    return name;
   }
   function peg$f164() {    return literal(true, "true", "bool", location());  }
   function peg$f165() {    return literal(false, "false", "bool", location());  }
@@ -972,7 +972,7 @@ function peg$parse(input, options) {
        // We treat this as Any
        return {
           kind: "Parameter",
-          name: name.name,
+          name,
           type: { kind: "BasicType", name: "Any", genericArgs: [], pointerDepth: 0, arrayDimensions: [], location: location() },
           isConst: !!isConstPrefix || !!isConstType,
           isVariadic: true,
@@ -981,12 +981,12 @@ function peg$parse(input, options) {
     }
 
     if (!type) {
-        error("Missing type for parameter " + name.name);
+        error("Missing type for parameter " + name);
     }
 
     return {
       kind: "Parameter",
-      name: name.name,
+      name,
       type,
       isConst: !!isConstPrefix || !!isConstType,
       isVariadic: isVariadic,
@@ -997,7 +997,7 @@ function peg$parse(input, options) {
     return [head, ...tail.map(t => t[3])];
   }
   function peg$f173(name, constraint) {
-    return { name: name.name, constraint: constraint ? constraint[3] : undefined };
+    return { name, constraint: constraint ? constraint[3] : undefined };
   }
   function peg$f174(head, tail) {
     return [head, ...tail.map(t => t[3])];
@@ -9542,7 +9542,7 @@ function peg$parse(input, options) {
     }
 
     const name = input.substring(startPos, endPos);
-    return { name };
+    return name;
   }
 
   function peg$isBplIdentStartCode(code) {
