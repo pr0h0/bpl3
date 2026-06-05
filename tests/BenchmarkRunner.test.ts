@@ -56,6 +56,7 @@ describe("Benchmark runner helpers", () => {
     expect(readme).toContain("--compare");
     expect(readme).toContain("--gate-phases");
     expect(readme).toContain("--max-full-regression");
+    expect(readme).toContain("--tree-shake-top-level-functions");
   });
 
   it("generates configurable synthetic compile sources", () => {
@@ -111,6 +112,19 @@ describe("Benchmark runner helpers", () => {
       compare: "/tmp/baseline.json",
       maxPhaseRegressionPercent: 2.5,
       maxFullRegressionPercent: 1,
+    });
+  });
+
+  it("parses compile phase benchmark top-level tree-shake option", () => {
+    expect(
+      parseCompilationBenchmarkArgs([
+        "--mode",
+        "phases",
+        "--tree-shake-top-level-functions",
+      ]),
+    ).toMatchObject({
+      mode: "phases",
+      treeShakeTopLevelFunctions: true,
     });
   });
 
@@ -297,6 +311,28 @@ describe("Benchmark runner helpers", () => {
     expect(result.tokenSignature).toHaveLength(64);
     expect(result.irHash).toHaveLength(64);
     expect(result.full.medianMs).toBeGreaterThan(0);
+    expect(result.treeShakeTopLevelFunctions).toBe(false);
+  });
+
+  it("can measure compile phases with top-level tree shaking enabled", async () => {
+    const defaultResult = await measureCompilePhases({
+      functionCount: 3,
+      rounds: 1,
+      warmups: 0,
+    });
+    const treeShakenResult = await measureCompilePhases({
+      functionCount: 3,
+      rounds: 1,
+      warmups: 0,
+      treeShakeTopLevelFunctions: true,
+    });
+
+    expect(treeShakenResult.treeShakeTopLevelFunctions).toBe(true);
+    expect(defaultResult.treeShakeTopLevelFunctions).toBe(false);
+    expect(treeShakenResult.tokenSignature).toBe(
+      defaultResult.tokenSignature,
+    );
+    expect(treeShakenResult.irHash).not.toBe(defaultResult.irHash);
   });
 
   it("hashes compile phase signatures only on the final measured round", () => {
@@ -486,6 +522,7 @@ function createPhaseBenchmarkFixture(
     warmups: 5,
     functionCount: 5000,
     sourceLength: 987569,
+    treeShakeTopLevelFunctions: false,
     tokenCount: overrides.tokenCount ?? 265230,
     tokenSignature: overrides.tokenSignature ?? "a".repeat(64),
     irHash: overrides.irHash ?? "d".repeat(64),

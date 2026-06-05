@@ -75,6 +75,13 @@ Write machine-readable phase results:
 bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json
 ```
 
+Measure the same synthetic fixture with the existing executable-style top-level
+function tree shaker enabled:
+
+```bash
+bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --tree-shake-top-level-functions
+```
+
 The phase JSON includes `lex`, `parse`, `typecheck`, `codegen`, and `full`
 median/average timings plus `tokenSignature` and `irHash`, which makes local
 performance changes easier to compare without accepting behavior drift.

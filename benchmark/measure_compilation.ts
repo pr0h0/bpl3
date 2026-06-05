@@ -25,6 +25,7 @@ export interface CompilationBenchmarkArgs {
   rounds: number;
   warmups: number;
   json: boolean;
+  treeShakeTopLevelFunctions?: boolean;
   compare?: string;
   gatePhases?: CompilePhaseName[];
   maxPhaseRegressionPercent?: number;
@@ -42,6 +43,7 @@ export interface CompilePhaseBenchmarkResult {
   warmups: number;
   functionCount: number;
   sourceLength: number;
+  treeShakeTopLevelFunctions: boolean;
   tokenCount: number;
   tokenSignature: string;
   irHash: string;
@@ -145,6 +147,8 @@ export function parseCompilationBenchmarkArgs(
       options.warmups = parseNonNegativeInteger(args[++i], "--warmups");
     } else if (arg === "--json") {
       options.json = true;
+    } else if (arg === "--tree-shake-top-level-functions") {
+      options.treeShakeTopLevelFunctions = true;
     } else if (arg === "--compare") {
       options.compare = args[++i];
       if (options.compare === undefined || options.compare.length === 0) {
@@ -250,6 +254,7 @@ export async function measureCompilePhases(options: {
   warmups?: number;
   source?: string;
   fileName?: string;
+  treeShakeTopLevelFunctions?: boolean;
 } = {}): Promise<CompilePhaseBenchmarkResult> {
   const functionCount = options.functionCount ?? 5000;
   const rounds = options.rounds ?? 31;
@@ -257,6 +262,8 @@ export async function measureCompilePhases(options: {
   const source =
     options.source ?? generateSyntheticCompileSource(functionCount);
   const fileName = options.fileName ?? "perf_5k.bpl";
+  const treeShakeTopLevelFunctions =
+    options.treeShakeTopLevelFunctions === true;
 
   const lexTimings: number[] = [];
   const parseTimings: number[] = [];
@@ -289,7 +296,7 @@ export async function measureCompilePhases(options: {
     const typecheckMs = performance.now() - typecheckStart;
 
     const codegenStart = performance.now();
-    const generator = new CodeGenerator();
+    const generator = new CodeGenerator({ treeShakeTopLevelFunctions });
     const ir = generator.generate(program, fileName);
     const codegenMs = performance.now() - codegenStart;
     const fullMs = performance.now() - fullStart;
@@ -314,6 +321,7 @@ export async function measureCompilePhases(options: {
     warmups,
     functionCount,
     sourceLength: source.length,
+    treeShakeTopLevelFunctions,
     tokenCount,
     tokenSignature,
     irHash,
@@ -423,6 +431,7 @@ async function main(): Promise<void> {
       functionCount: options.functions,
       rounds: options.rounds,
       warmups: options.warmups,
+      treeShakeTopLevelFunctions: options.treeShakeTopLevelFunctions,
     });
     const comparison =
       options.compare !== undefined
@@ -498,6 +507,9 @@ function printPhaseResult(result: CompilePhaseBenchmarkResult): void {
     `BPL compile phases (${result.functionCount} functions, ${result.rounds} rounds, ${result.warmups} warmups)`,
   );
   console.log(`  source: ${result.sourceLength} bytes`);
+  console.log(
+    `  treeShakeTopLevelFunctions: ${result.treeShakeTopLevelFunctions}`,
+  );
   console.log(`  tokens: ${result.tokenCount}`);
   console.log(`  tokenSignature: ${result.tokenSignature}`);
   console.log(`  irHash: ${result.irHash}`);
@@ -621,6 +633,8 @@ Options:
   --functions N         synthetic helper function count for --mode phases
   --rounds N            measured rounds for --mode phases
   --warmups N           warmup rounds for --mode phases
+  --tree-shake-top-level-functions
+                         measure codegen with opt-in top-level function tree shaking
   --compare FILE        compare phase results against a baseline JSON file
   --gate-phases LIST    only apply threshold gates to comma-separated phases
                          while still reporting all phase deltas and validating signatures
