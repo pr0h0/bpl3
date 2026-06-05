@@ -16,6 +16,51 @@ const dummyLocation = {
 };
 
 describe("SymbolTable", () => {
+  it("keeps hierarchical resolution cache invalidated through child scopes", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),
+      "utf8",
+    );
+    const resolveStart = source.indexOf("  public resolve(");
+    const nextMethodStart = source.indexOf(
+      "  public getUnusedVariables",
+      resolveStart,
+    );
+
+    expect(resolveStart).toBeGreaterThanOrEqual(0);
+    expect(nextMethodStart).toBeGreaterThan(resolveStart);
+
+    const resolveSource = source.slice(resolveStart, nextMethodStart);
+    expect(source).toContain("const UNRESOLVED_SYMBOL");
+    expect(source).toContain("private resolutionCache");
+    expect(source).toContain("private childScopes");
+    expect(source).toContain("private invalidateResolutionCache");
+    expect(source).toContain("child.invalidateResolutionCache()");
+    expect(resolveSource).toContain("this.resolutionCache");
+    expect(resolveSource).toContain("UNRESOLVED_SYMBOL");
+  });
+
+  it("invalidates cached child misses when parent scopes define later symbols", () => {
+    const root = new SymbolTable();
+    const child = root.enterScope();
+
+    expect(child.resolve("late_value")).toBeUndefined();
+
+    const symbol: Symbol = {
+      name: "late_value",
+      kind: "Variable",
+      declaration: {
+        kind: "VariableDecl",
+        location: dummyLocation,
+      },
+      used: false,
+    };
+    root.define(symbol);
+
+    expect(child.resolve("late_value")).toBe(symbol);
+    expect(symbol.used).toBe(true);
+  });
+
   it("keeps parent scope resolution iterative on the hot path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),

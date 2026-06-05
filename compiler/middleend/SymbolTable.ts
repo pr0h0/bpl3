@@ -21,12 +21,21 @@ export interface Symbol {
   isConst?: boolean;
 }
 
+const UNRESOLVED_SYMBOL = Symbol("unresolved-symbol");
+
+type ResolutionCacheValue = Symbol | typeof UNRESOLVED_SYMBOL;
+
 export class SymbolTable {
   private symbols: Map<string, Symbol> = new Map();
   private parent?: SymbolTable;
+  private resolutionCache?: Map<string, ResolutionCacheValue>;
+  private childScopes?: Set<SymbolTable>;
 
   constructor(parent?: SymbolTable) {
     this.parent = parent;
+    if (parent) {
+      parent.registerChildScope(this);
+    }
   }
 
   public define(symbol: Symbol): void {
@@ -43,6 +52,7 @@ export class SymbolTable {
     } else {
       this.symbols.set(symbol.name, symbol);
     }
+    this.invalidateResolutionCache();
   }
 
   public getInCurrentScope(name: string): Symbol | undefined {
@@ -60,6 +70,18 @@ export class SymbolTable {
   }
 
   public resolve(name: string): Symbol | undefined {
+    const cache = this.resolutionCache;
+    const cached = cache?.get(name);
+    if (cached !== undefined) {
+      if (cached === UNRESOLVED_SYMBOL) {
+        return undefined;
+      }
+      if (cached.kind === "Variable" && cached.used !== true) {
+        cached.used = true;
+      }
+      return cached;
+    }
+
     let scope: SymbolTable | undefined = this;
     while (scope) {
       const symbol = scope.symbols.get(name);
@@ -67,10 +89,12 @@ export class SymbolTable {
         if (symbol.kind === "Variable" && symbol.used !== true) {
           symbol.used = true;
         }
+        (this.resolutionCache ??= new Map()).set(name, symbol);
         return symbol;
       }
       scope = scope.parent;
     }
+    (this.resolutionCache ??= new Map()).set(name, UNRESOLVED_SYMBOL);
     return undefined;
   }
 
@@ -152,5 +176,17 @@ export class SymbolTable {
     }
 
     return matrix[b.length]![a.length]!;
+  }
+
+  private registerChildScope(child: SymbolTable): void {
+    (this.childScopes ??= new Set()).add(child);
+  }
+
+  private invalidateResolutionCache(): void {
+    this.resolutionCache?.clear();
+    if (!this.childScopes) return;
+    for (const child of this.childScopes) {
+      child.invalidateResolutionCache();
+    }
   }
 }
