@@ -376,14 +376,15 @@ export class GenericParser {
   private parseCommentFreeWithTokenEmitter<T>(
     emitToken: TokenEmitter<T>,
   ): GenericParseResult<T> {
-    const sourceLength = this.source.length;
+    const source = this.source;
+    const sourceLength = source.length;
     const estimatedTokenCapacity = Math.max(16, sourceLength >>> 1);
     const tokens: T[] = new Array<T>(estimatedTokenCapacity);
     let tokenCount = 0;
 
     while (this.position < sourceLength) {
       while (this.position < sourceLength) {
-        const ch = this.source[this.position]!;
+        const ch = source[this.position]!;
         if (ch === " " || ch === "\t" || ch === "\r") {
           this.position += 1;
           this.column += 1;
@@ -402,7 +403,7 @@ export class GenericParser {
       const token = this.matchNextToken(emitToken);
 
       if (!token) {
-        const snippet = this.source.slice(this.position, this.position + 25);
+        const snippet = source.slice(this.position, this.position + 25);
         throw new Error(
           `Unrecognized token at ${this.line}:${this.column}: ${snippet}`,
         );

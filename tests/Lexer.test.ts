@@ -1224,6 +1224,9 @@ describe("Lexer - Extended Tests", () => {
       );
       expect(helperSource).not.toContain("this.skipWhitespaceOnly();");
       expect(helperSource).not.toContain("this.skipWhitespaceAndComments();");
+      expect(helperSource).toContain("const source = this.source;");
+      expect(helperSource).toContain("const sourceLength = source.length;");
+      expect(helperSource).toContain("const ch = source[this.position]!");
       expect(helperSource).toContain('if (ch === " " || ch === "\\t" || ch === "\\r")');
       expect(helperSource).toContain('if (ch === "\\n")');
       expect(helperSource).toContain("tokens[tokenCount++] = token;");
