@@ -64,7 +64,9 @@ export class SymbolTable {
     while (scope) {
       const symbol = scope.symbols.get(name);
       if (symbol) {
-        symbol.used = true;
+        if (symbol.kind === "Variable") {
+          symbol.used = true;
+        }
         return symbol;
       }
       scope = scope.parent;

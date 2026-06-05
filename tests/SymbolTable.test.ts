@@ -52,4 +52,34 @@ describe("SymbolTable", () => {
     expect(scope.resolve("root_value")).toBe(symbol);
     expect(symbol.used).toBe(true);
   });
+
+  it("marks only variable symbols as used during resolution", () => {
+    const scope = new SymbolTable();
+    const variable: Symbol = {
+      name: "value",
+      kind: "Variable",
+      declaration: {
+        kind: "VariableDecl",
+        location: dummyLocation,
+      },
+      used: false,
+    };
+    const functionSymbol: Symbol = {
+      name: "helper",
+      kind: "Function",
+      declaration: {
+        kind: "FunctionDecl",
+        location: dummyLocation,
+      },
+      used: false,
+    };
+
+    scope.define(variable);
+    scope.define(functionSymbol);
+
+    expect(scope.resolve("value")).toBe(variable);
+    expect(scope.resolve("helper")).toBe(functionSymbol);
+    expect(variable.used).toBe(true);
+    expect(functionSymbol.used).toBe(false);
+  });
 });
