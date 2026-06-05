@@ -1039,15 +1039,28 @@ describe("Parser", () => {
     const smallDecimalCall = parseNumberHelper?.indexOf(
       "parseSmallBplDecimalNumber",
     );
+    const twoDigitCase = parseNumberHelper?.indexOf("if (rawLength === 2 &&");
+    const fourDigitCase = parseNumberHelper?.indexOf("if (rawLength === 4 &&");
     const decimalCall = parseNumberHelper?.indexOf("parseBplDecimalNumber(raw)");
 
     expect(parseReturnedNumberLiteral("12345").value).toBe(12345);
+    expect(parseReturnedNumberLiteral("42").value).toBe(42);
+    expect(parseReturnedNumberLiteral("999").value).toBe(999);
+    expect(parseReturnedNumberLiteral("4999").value).toBe(4999);
     expect(generatedSource).toContain("function parseBplDecimalNumber(raw)");
     expect(generatedSource).toContain("function parseSmallBplDecimalNumber(");
     expect(generatedSource).toContain("function parseBplPrefixedNumber");
     expect(parseNumberHelper).toContain("const rawLength = raw.length");
     expect(parseNumberHelper).toContain("if (rawLength === 1)");
     expect(parseNumberHelper).toContain("return firstCode - 48");
+    expect(parseNumberHelper).toContain("const secondCode = raw.charCodeAt(1)");
+    expect(parseNumberHelper).toContain(
+      "return (firstCode - 48) * 10 + secondCode - 48",
+    );
+    expect(twoDigitCase).toBeGreaterThanOrEqual(0);
+    expect(twoDigitCase).toBeLessThan(smallDecimalCall ?? -1);
+    expect(fourDigitCase).toBeGreaterThanOrEqual(0);
+    expect(fourDigitCase).toBeLessThan(smallDecimalCall ?? -1);
     expect(smallDecimalCall).toBeGreaterThanOrEqual(0);
     expect(smallDecimalCall).toBeLessThan(decimalCall ?? -1);
     expect(parseNumberHelper).not.toContain("raw.replace");
