@@ -154,6 +154,25 @@ describe("TypeChecker", () => {
     );
   });
 
+  it("keeps scalar basic types off empty array-dimension iteration", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const resolveType = source.indexOf("public resolveType");
+    const simpleBuiltin = source.indexOf(
+      "const simpleBuiltin = resolveSimpleBuiltinBasicType(type)",
+      resolveType,
+    );
+
+    expect(resolveType).toBeGreaterThanOrEqual(0);
+    expect(simpleBuiltin).toBeGreaterThan(resolveType);
+
+    const basicTypePrefix = source.slice(resolveType, simpleBuiltin);
+    expect(basicTypePrefix).toContain("type.arrayDimensions.length !== 0");
+    expect(basicTypePrefix).not.toContain("if (type.arrayDimensions) {");
+  });
+
   it("keeps simple builtin type resolution on direct dispatch", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

@@ -724,7 +724,7 @@ export abstract class TypeCheckerBase {
     checkConstraints: boolean = true,
   ): AST.TypeNode {
     if (type.kind === "BasicType") {
-      if (type.arrayDimensions) {
+      if (type.arrayDimensions.length !== 0) {
         for (const dim of type.arrayDimensions) {
           if (dim !== null && dim <= 0) {
             throw new CompilerError(
