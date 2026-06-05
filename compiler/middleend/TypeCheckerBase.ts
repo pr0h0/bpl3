@@ -354,6 +354,10 @@ function hasSameBasicShape(
     return false;
   }
 
+  if (type.arrayDimensions === resolved.arrayDimensions) {
+    return true;
+  }
+
   const dimensionCount = type.arrayDimensions.length;
   if (dimensionCount === 0) {
     return resolved.arrayDimensions.length === 0;

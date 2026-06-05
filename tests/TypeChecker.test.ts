@@ -434,6 +434,38 @@ describe("TypeChecker", () => {
     expect(loopLimit).toBeGreaterThan(lengthMismatch);
   });
 
+  it("keeps cached basic type shape checks on the shared array-dimension fast path", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const shapeHelper = source.indexOf("function hasSameBasicShape");
+    const shapeHelperEnd = source.indexOf(
+      "\nfunction resolveSimpleBuiltinTypeName",
+      shapeHelper,
+    );
+
+    expect(shapeHelper).toBeGreaterThanOrEqual(0);
+    expect(shapeHelperEnd).toBeGreaterThan(shapeHelper);
+
+    const shapeSource = source.slice(shapeHelper, shapeHelperEnd);
+    const pointerCheck = shapeSource.indexOf(
+      "type.pointerDepth !== resolved.pointerDepth",
+    );
+    const sharedDimensions = shapeSource.indexOf(
+      "type.arrayDimensions === resolved.arrayDimensions",
+      pointerCheck,
+    );
+    const dimensionCount = shapeSource.indexOf(
+      "const dimensionCount = type.arrayDimensions.length;",
+      sharedDimensions,
+    );
+
+    expect(pointerCheck).toBeGreaterThanOrEqual(0);
+    expect(sharedDimensions).toBeGreaterThan(pointerCheck);
+    expect(dimensionCount).toBeGreaterThan(sharedDimensions);
+  });
+
   it("reuses the builtin basic type name across the hot simple resolver", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
