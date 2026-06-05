@@ -437,6 +437,36 @@ describe("Lexer - Extended Tests", () => {
       );
     });
 
+    it("dispatches token matching by first character before fallback matchers", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const parseStart = source.indexOf("parseWithTokenEmitter");
+      const parseEnd = source.indexOf(
+        "private skipWhitespaceAndComments",
+        parseStart,
+      );
+      const helperStart = source.indexOf("private matchNextToken");
+      const helperEnd = source.indexOf("private matchStringLiteral", helperStart);
+
+      expect(parseStart).toBeGreaterThanOrEqual(0);
+      expect(parseEnd).toBeGreaterThan(parseStart);
+      expect(helperStart).toBeGreaterThan(parseEnd);
+      expect(helperEnd).toBeGreaterThan(helperStart);
+
+      const parseSource = source.slice(parseStart, parseEnd);
+      const helperSource = source.slice(helperStart, helperEnd);
+      expect(parseSource).toContain("this.matchNextToken(emitToken)");
+      expect(parseSource).not.toContain("this.matchStringLiteral(emitToken) ||");
+      expect(helperSource).toContain(
+        "const firstCode = this.source.charCodeAt(this.position);",
+      );
+      expect(helperSource).toContain("case 34:");
+      expect(helperSource).toContain("case 39:");
+      expect(helperSource).toContain("isIdentifierStartCode(firstCode)");
+    });
+
     it("converts identifier token nodes without a defensive keyword lookup", () => {
       const source = readFileSync(
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),

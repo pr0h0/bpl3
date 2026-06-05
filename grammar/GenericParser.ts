@@ -156,12 +156,7 @@ export class GenericParser {
       this.skipWhitespaceAndComments();
       if (this.position >= this.source.length) break;
 
-      const token =
-        this.matchStringLiteral(emitToken) ||
-        this.matchCharLiteral(emitToken) ||
-        this.matchNumberLiteral(emitToken) ||
-        this.matchIdentifierOrKeyword(emitToken) ||
-        this.matchPunctuator(emitToken);
+      const token = this.matchNextToken(emitToken);
 
       if (!token) {
         const snippet = this.source.slice(this.position, this.position + 25);
@@ -237,6 +232,25 @@ export class GenericParser {
     }
 
     return this.position !== start;
+  }
+
+  private matchNextToken<T>(emitToken: TokenEmitter<T>): T | null {
+    const firstCode = this.source.charCodeAt(this.position);
+
+    switch (firstCode) {
+      case 34:
+        return this.matchStringLiteral(emitToken);
+      case 39:
+        return this.matchCharLiteral(emitToken);
+      default:
+        if (firstCode >= 48 && firstCode <= 57) {
+          return this.matchNumberLiteral(emitToken);
+        }
+        if (isIdentifierStartCode(firstCode)) {
+          return this.matchIdentifierOrKeyword(emitToken);
+        }
+        return this.matchPunctuator(emitToken);
+    }
   }
 
   private matchStringLiteral<T>(emitToken: TokenEmitter<T>): T | null {
