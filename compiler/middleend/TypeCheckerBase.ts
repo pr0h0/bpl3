@@ -509,22 +509,6 @@ function resolveSimpleBuiltinBasicType(
   }
 
   const name = type.name;
-  switch (name.charCodeAt(0)) {
-    case 98: // b
-    case 99: // c
-    case 100: // d
-    case 102: // f
-    case 105: // i
-    case 108: // l
-    case 110: // n
-    case 115: // s
-    case 117: // u
-    case 118: // v
-      break;
-    default:
-      return undefined;
-  }
-
   const resolvedName = resolveSimpleBuiltinTypeName(name);
   if (resolvedName === undefined) {
     return undefined;

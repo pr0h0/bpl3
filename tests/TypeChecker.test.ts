@@ -300,7 +300,7 @@ describe("TypeChecker", () => {
       .toBe(-1);
   });
 
-  it("inlines simple builtin type guard before direct dispatch", () => {
+  it("keeps simple builtin resolver on a single direct dispatch", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
@@ -308,15 +308,17 @@ describe("TypeChecker", () => {
     const resolver = source.indexOf("function resolveSimpleBuiltinBasicType");
     const resolverEnd = source.indexOf("\n}", resolver);
     const resolverSource = source.slice(resolver, resolverEnd);
-    const guardSwitch = resolverSource.indexOf("switch (name.charCodeAt(0))");
     const dispatchCall = resolverSource.indexOf(
       "resolveSimpleBuiltinTypeName(name)",
     );
+    const cloneCall = resolverSource.indexOf(
+      "cloneSimpleBuiltinAliasType(type, resolvedName)",
+    );
 
     expect(source).not.toContain("function isPotentialSimpleBuiltinTypeName");
-    expect(guardSwitch).toBeGreaterThanOrEqual(0);
     expect(dispatchCall).toBeGreaterThanOrEqual(0);
-    expect(guardSwitch).toBeLessThan(dispatchCall);
+    expect(cloneCall).toBeGreaterThan(dispatchCall);
+    expect(resolverSource).not.toContain("switch (name.charCodeAt(0))");
     expect(resolverSource).not.toContain("TYPE_ALIASES[type.name]");
     expect(resolverSource).not.toContain(
       "SIMPLE_BUILTIN_BASIC_TYPE_NAMES[type.name]",
@@ -392,8 +394,8 @@ describe("TypeChecker", () => {
 
     const resolverSource = source.slice(resolver, resolverEnd);
     expect(resolverSource).toContain("const name = type.name;");
-    expect(resolverSource).toContain("switch (name.charCodeAt(0))");
     expect(resolverSource).toContain("resolveSimpleBuiltinTypeName(name)");
+    expect(resolverSource).not.toContain("switch (name.charCodeAt(0))");
     expect(resolverSource).not.toContain(
       "isPotentialSimpleBuiltinTypeName(type.name)",
     );
