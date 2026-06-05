@@ -651,6 +651,26 @@ describe("Lexer - Extended Tests", () => {
       );
     });
 
+    it("parses separator-free numeric literals without replace", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("function parseNumber");
+      const end = source.indexOf("function decodeString", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const parseNumberSource = source.slice(start, end);
+      expect(tokenize("123")[0]!.literal).toBe(123);
+      expect(tokenize("1_2_3")[0]!.literal).toBe(123);
+      expect(parseNumberSource).toContain('raw.indexOf("_") === -1');
+      expect(parseNumberSource.indexOf("Number(raw)")).toBeLessThan(
+        parseNumberSource.indexOf('raw.replace(/_/g, "")'),
+      );
+    });
+
     it("should tokenize decimal integer", () => {
       const tokens = tokenize("123");
       expect(tokens[0]!.type).toBe(TokenType.NumberLiteral);

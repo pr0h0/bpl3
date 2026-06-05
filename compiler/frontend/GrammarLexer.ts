@@ -429,8 +429,10 @@ const punctuatorMap: Record<string, TokenType> = {
 };
 
 function parseNumber(raw: string): number {
-  const cleaned = raw.replace(/_/g, "");
-  return Number(cleaned);
+  if (raw.indexOf("_") === -1) {
+    return Number(raw);
+  }
+  return Number(raw.replace(/_/g, ""));
 }
 
 function decodeString(raw: string): string {
