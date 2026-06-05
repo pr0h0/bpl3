@@ -9577,7 +9577,7 @@ function peg$parse(input, options) {
       pos++;
     }
     peg$currPos = pos;
-    if (peg$silentFails === 0) { peg$fail(peg$e79); }
+    if (peg$collectExpected && peg$silentFails === 0) { peg$fail(peg$e79); }
 
     return pos;
   }

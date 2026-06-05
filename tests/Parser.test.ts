@@ -721,6 +721,46 @@ describe("Parser", () => {
       .not.toThrow();
   });
 
+  it("keeps generated identifier scanner fail recording behind expected collection", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const identEndStart = generatedSource.indexOf(
+      "function peg$scanBplIdentTokenEnd()",
+    );
+    const identEndEnd = generatedSource.indexOf(
+      "function peg$scanBplIdentToken()",
+      identEndStart,
+    );
+
+    expect(identEndStart).toBeGreaterThanOrEqual(0);
+    expect(identEndEnd).toBeGreaterThan(identEndStart);
+
+    const identEndScanner = generatedSource.slice(identEndStart, identEndEnd);
+    const successPosition = identEndScanner.indexOf("peg$currPos = pos;");
+    const guardedFail = identEndScanner.indexOf(
+      "if (peg$collectExpected && peg$silentFails === 0)",
+      successPosition,
+    );
+    const successFail = identEndScanner.indexOf("peg$fail(peg$e79);");
+
+    expect(generatorSource).toContain("peg$collectExpected && peg$silentFails");
+    expect(successPosition).toBeGreaterThanOrEqual(0);
+    expect(guardedFail).toBeGreaterThan(successPosition);
+    expect(successFail).toBeGreaterThan(guardedFail);
+  });
+
   it("keeps generated identifier scanning on a local cursor", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
