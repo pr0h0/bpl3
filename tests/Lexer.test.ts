@@ -517,6 +517,27 @@ describe("Lexer - Extended Tests", () => {
       );
     });
 
+    it("fast-forwards newline-free token positions without advance loop", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("private createToken<T>");
+      const end = source.indexOf("private createTokenFromRange", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const createTokenSource = source.slice(start, end);
+      expect(createTokenSource).toContain('value.indexOf("\\n") === -1');
+      expect(createTokenSource).toContain("this.position += value.length;");
+      expect(createTokenSource).toContain("this.column += value.length;");
+      expect(createTokenSource).toContain("this.advance(value);");
+      expect(
+        createTokenSource.indexOf("this.position += value.length;"),
+      ).toBeLessThan(createTokenSource.indexOf("this.advance(value);"));
+    });
+
     it("converts identifier token nodes without a defensive keyword lookup", () => {
       const source = readFileSync(
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),

@@ -564,7 +564,12 @@ export class GenericParser {
     const start = this.position;
     const line = this.line;
     const column = this.column;
-    this.advance(value);
+    if (value.indexOf("\n") === -1) {
+      this.position += value.length;
+      this.column += value.length;
+    } else {
+      this.advance(value);
+    }
     const end = this.position;
     return emitToken(type, value, start, end, line, column, this.filePath);
   }
