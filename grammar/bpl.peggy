@@ -324,18 +324,37 @@
     return value;
   }
 
+  function parseSmallBplDecimalNumber(raw, rawLength, firstDigit) {
+    let value = firstDigit;
+    for (let i = 1; i < rawLength; i++) {
+      const code = raw.charCodeAt(i);
+      if (code < 48 || code > 57) {
+        return null;
+      }
+      value = value * 10 + code - 48;
+    }
+    return value;
+  }
+
   function parseNumber(raw) {
-    if (raw.length === 1) {
-      const firstCode = raw.charCodeAt(0);
+    const rawLength = raw.length;
+    const firstCode = raw.charCodeAt(0);
+    if (rawLength === 1) {
       if (firstCode >= 48 && firstCode <= 57) {
         return firstCode - 48;
       }
     }
-    if (raw.length > 2 && raw.charCodeAt(0) === 48) {
+    if (rawLength > 2 && firstCode === 48) {
       const prefix = raw.charCodeAt(1) | 32;
       if (prefix === 120) return parseBplPrefixedNumber(raw, 2, 16);
       if (prefix === 98) return parseBplPrefixedNumber(raw, 2, 2);
       if (prefix === 111) return parseBplPrefixedNumber(raw, 2, 8);
+    }
+    if (rawLength <= 15 && firstCode >= 48 && firstCode <= 57) {
+      const smallDecimal = parseSmallBplDecimalNumber(raw, rawLength, firstCode - 48);
+      if (smallDecimal !== null) {
+        return smallDecimal;
+      }
     }
     return parseBplDecimalNumber(raw);
   }

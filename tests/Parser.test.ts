@@ -982,11 +982,20 @@ describe("Parser", () => {
     const parseNumberHelper = generatedSource.match(
       /function parseNumber\(raw\) \{[\s\S]*?\n  \}/,
     )?.[0];
+    const smallDecimalCall = parseNumberHelper?.indexOf(
+      "parseSmallBplDecimalNumber",
+    );
+    const decimalCall = parseNumberHelper?.indexOf("parseBplDecimalNumber(raw)");
 
+    expect(parseReturnedNumberLiteral("12345").value).toBe(12345);
     expect(generatedSource).toContain("function parseBplDecimalNumber(raw)");
+    expect(generatedSource).toContain("function parseSmallBplDecimalNumber(");
     expect(generatedSource).toContain("function parseBplPrefixedNumber");
-    expect(parseNumberHelper).toContain("if (raw.length === 1)");
+    expect(parseNumberHelper).toContain("const rawLength = raw.length");
+    expect(parseNumberHelper).toContain("if (rawLength === 1)");
     expect(parseNumberHelper).toContain("return firstCode - 48");
+    expect(smallDecimalCall).toBeGreaterThanOrEqual(0);
+    expect(smallDecimalCall).toBeLessThan(decimalCall ?? -1);
     expect(parseNumberHelper).not.toContain("raw.replace");
     expect(parseNumberHelper).not.toContain("/^0x/i.test");
     expect(parseNumberHelper).not.toContain("/^0b/i.test");
