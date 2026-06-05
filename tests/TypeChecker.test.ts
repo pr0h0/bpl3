@@ -342,6 +342,40 @@ describe("TypeChecker", () => {
     expect(basicTypePrefix).not.toContain("if (type.arrayDimensions) {");
   });
 
+  it("keeps resolved basic type cache shape checks scalar-first", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const shapeHelper = source.indexOf("function hasSameBasicShape");
+    const shapeHelperEnd = source.indexOf(
+      "\nfunction resolveSimpleBuiltinTypeName",
+      shapeHelper,
+    );
+
+    expect(shapeHelper).toBeGreaterThanOrEqual(0);
+    expect(shapeHelperEnd).toBeGreaterThan(shapeHelper);
+
+    const shapeSource = source.slice(shapeHelper, shapeHelperEnd);
+    const pointerCheck = shapeSource.indexOf(
+      "type.pointerDepth !== resolved.pointerDepth",
+    );
+    const dimensionCount = shapeSource.indexOf(
+      "const dimensionCount = type.arrayDimensions.length;",
+    );
+    const scalarFastPath = shapeSource.indexOf("dimensionCount === 0");
+    const lengthMismatch = shapeSource.indexOf(
+      "dimensionCount !== resolved.arrayDimensions.length",
+    );
+    const loopLimit = shapeSource.indexOf("i < dimensionCount");
+
+    expect(pointerCheck).toBeGreaterThanOrEqual(0);
+    expect(dimensionCount).toBeGreaterThan(pointerCheck);
+    expect(scalarFastPath).toBeGreaterThan(dimensionCount);
+    expect(lengthMismatch).toBeGreaterThan(scalarFastPath);
+    expect(loopLimit).toBeGreaterThan(lengthMismatch);
+  });
+
   it("reuses the builtin basic type name across the hot simple resolver", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

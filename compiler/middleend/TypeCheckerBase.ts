@@ -344,11 +344,16 @@ function hasSameBasicShape(
     return false;
   }
 
-  if (type.arrayDimensions.length !== resolved.arrayDimensions.length) {
+  const dimensionCount = type.arrayDimensions.length;
+  if (dimensionCount === 0) {
+    return resolved.arrayDimensions.length === 0;
+  }
+
+  if (dimensionCount !== resolved.arrayDimensions.length) {
     return false;
   }
 
-  for (let i = 0; i < type.arrayDimensions.length; i++) {
+  for (let i = 0; i < dimensionCount; i++) {
     if (type.arrayDimensions[i] !== resolved.arrayDimensions[i]) {
       return false;
     }
