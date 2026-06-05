@@ -947,6 +947,51 @@ describe("Parser", () => {
     ).not.toThrow();
   });
 
+  it("keeps generated postfix parsing allocation-free when no tail exists", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const postfixHelper = generatedSource.match(
+      /function peg\$parsePostfix\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedPostfixParsing");
+    expect(postfixHelper).toContain(
+      "const firstPostfix = peg$parsePostfixTail()",
+    );
+    expect(postfixHelper).toContain(
+      "if (firstPostfix === peg$FAILED) { return primary; }",
+    );
+    expect(postfixHelper).toContain("const postfixes = [firstPostfix];");
+    expect(postfixHelper).not.toContain("s2 = []");
+
+    expect(() =>
+      new Parser(
+        [
+          "struct Box { value: int }",
+          "frame id(value: int) ret int { return value; }",
+          "frame main() ret int {",
+          "  local box: Box = Box { value: 2 };",
+          "  local x: int = id(box.value);",
+          "  return x;",
+          "}",
+        ].join("\n"),
+        "postfix-fast-path.bpl",
+      ).parse(),
+    ).not.toThrow();
+  });
+
   it("keeps generated number-token parsing on the direct scanner fast path", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

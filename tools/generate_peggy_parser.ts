@@ -83,6 +83,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedIdBoundary(optimized);
   optimized = optimizeGeneratedQualifiedIdentifierScanning(optimized);
   optimized = optimizeGeneratedPostfixTailScanning(optimized);
+  optimized = optimizeGeneratedPostfixParsing(optimized);
   optimized = optimizeGeneratedExpressionOperatorScanning(optimized);
   optimized = optimizeGeneratedBinaryExpressionTailParsing(optimized);
   optimized = optimizeGeneratedAssignmentOperatorScanning(optimized);
@@ -676,6 +677,59 @@ function optimizeGeneratedPostfixTailScanning(parserSource: string): string {
   ].join("\n");
 
   return parserSource.replace(postfixTailPattern, replacement);
+}
+
+function optimizeGeneratedPostfixParsing(parserSource: string): string {
+  const postfixPattern =
+    /  function peg\$parsePostfix\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parsePostfixTail\(\)/;
+  const match = parserSource.match(postfixPattern);
+  const actionName = match?.[1]?.match(/s0 = (peg\$f\d+)\(s1, s2\);/)?.[1];
+
+  if (!match || !actionName) {
+    throw new Error(
+      "Generated Peggy parser postfix helper shape changed; update the BPL parser postfix optimizer.",
+    );
+  }
+
+  const expectedFragments = [
+    "s1 = peg$parsePrimary();",
+    "s2 = [];",
+    "s3 = peg$parsePostfixTail();",
+    "s2.push(s3);",
+  ];
+  if (!expectedFragments.every((fragment) => match[1]!.includes(fragment))) {
+    throw new Error(
+      "Generated Peggy parser postfix tail loop changed; update the BPL parser postfix optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parsePostfix() {",
+    "    const startPos = peg$currPos;",
+    "    const primary = peg$parsePrimary();",
+    "    if (primary === peg$FAILED) {",
+    "      peg$currPos = startPos;",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    const firstPostfix = peg$parsePostfixTail();",
+    "    if (firstPostfix === peg$FAILED) { return primary; }",
+    "",
+    "    const postfixes = [firstPostfix];",
+    "    let postfix = peg$parsePostfixTail();",
+    "    while (postfix !== peg$FAILED) {",
+    "      postfixes.push(postfix);",
+    "      postfix = peg$parsePostfixTail();",
+    "    }",
+    "",
+    "    peg$savedPos = startPos;",
+    `    return ${actionName}(primary, postfixes);`,
+    "  }",
+    "",
+    "  function peg$parsePostfixTail()",
+  ].join("\n");
+
+  return parserSource.replace(postfixPattern, replacement);
 }
 
 function optimizeGeneratedNumberScanning(parserSource: string): string {

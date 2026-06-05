@@ -6959,25 +6959,25 @@ function peg$parse(input, options) {
     return peg$scanBplUnaryOperator();
   }
   function peg$parsePostfix() {
-    let s0, s1, s2, s3;
-
-    s0 = peg$currPos;
-    s1 = peg$parsePrimary();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$parsePostfixTail();
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$parsePostfixTail();
-      }
-      peg$savedPos = s0;
-      s0 = peg$f115(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    const startPos = peg$currPos;
+    const primary = peg$parsePrimary();
+    if (primary === peg$FAILED) {
+      peg$currPos = startPos;
+      return peg$FAILED;
     }
 
-    return s0;
+    const firstPostfix = peg$parsePostfixTail();
+    if (firstPostfix === peg$FAILED) { return primary; }
+
+    const postfixes = [firstPostfix];
+    let postfix = peg$parsePostfixTail();
+    while (postfix !== peg$FAILED) {
+      postfixes.push(postfix);
+      postfix = peg$parsePostfixTail();
+    }
+
+    peg$savedPos = startPos;
+    return peg$f115(primary, postfixes);
   }
 
   function peg$parsePostfixTail() {
