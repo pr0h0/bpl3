@@ -512,10 +512,14 @@ describe("Parser", () => {
 
     expect(generatorSource).toContain("optimizeGeneratedBplLocationLines");
     expect(generatedSource).toContain("const peg$bplLineStarts = [0];");
+    expect(generatedSource).toContain("const peg$bplInputLength = input.length;");
     expect(generatedSource).toContain("let peg$lastBplLineIndex = 0;");
     expect(generatedSource).toContain("let peg$lastBplLinePos = 0;");
     expect(generatedSource).toContain("function peg$findBplLineIndex(pos)");
     expect(generatedSource).toContain("if (pos === peg$lastBplLinePos)");
+    expect(generatedSource).toContain(
+      "for (let peg$bplLinePos = 0; peg$bplLinePos < peg$bplInputLength; peg$bplLinePos++)",
+    );
     expect(generatedSource).not.toContain("function peg$isBplPosInLine");
     expect(generatedSource).toContain(
       "if (pos >= peg$bplLineStarts[peg$lastBplLineIndex] &&",
@@ -756,6 +760,8 @@ describe("Parser", () => {
     const successFail = identEndScanner.indexOf("peg$fail(peg$e79);");
 
     expect(generatorSource).toContain("peg$collectExpected && peg$silentFails");
+    expect(identEndScanner).toContain("while (pos < peg$bplInputLength)");
+    expect(identEndScanner).not.toContain("const inputLength = input.length;");
     expect(successPosition).toBeGreaterThanOrEqual(0);
     expect(guardedFail).toBeGreaterThan(successPosition);
     expect(successFail).toBeGreaterThan(guardedFail);
@@ -790,7 +796,9 @@ describe("Parser", () => {
     const identEndScanner = generatedSource.slice(identEndStart, identEndEnd);
     expect(generatorSource).toContain("let pos = peg$currPos;");
     expect(identEndScanner).toContain("let pos = peg$currPos;");
-    expect(identEndScanner).toContain("const inputLength = input.length;");
+    expect(generatedSource).toContain("const peg$bplInputLength = input.length;");
+    expect(identEndScanner).toContain("while (pos < peg$bplInputLength)");
+    expect(identEndScanner).not.toContain("const inputLength = input.length;");
     expect(identEndScanner).toContain("peg$currPos = pos;");
     expect(identEndScanner).toContain("return pos;");
     expect(identEndScanner).not.toContain("peg$currPos++");

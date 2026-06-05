@@ -117,8 +117,10 @@ function optimizeGeneratedBplLocationLines(parserSource: string): string {
     "  }",
   ].join("\n");
   const replacement = [
+    "  const peg$bplInputLength = input.length;",
+    "",
     "  const peg$bplLineStarts = [0];",
-    "  for (let peg$bplLinePos = 0; peg$bplLinePos < input.length; peg$bplLinePos++) {",
+    "  for (let peg$bplLinePos = 0; peg$bplLinePos < peg$bplInputLength; peg$bplLinePos++) {",
     "    if (input.charCodeAt(peg$bplLinePos) === 10) {",
     "      peg$bplLineStarts.push(peg$bplLinePos + 1);",
     "    }",
@@ -347,8 +349,7 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     "    }",
     "",
     "    pos++;",
-    "    const inputLength = input.length;",
-    "    while (pos < inputLength) {",
+    "    while (pos < peg$bplInputLength) {",
     "      const code = input.charCodeAt(pos);",
     "      if (!((code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95 || (code >= 48 && code <= 57))) {",
     "        break;",
