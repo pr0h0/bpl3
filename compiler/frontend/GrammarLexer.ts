@@ -272,7 +272,7 @@ function createFrontendTokenFromParts(
       break;
     case 75:
       return {
-        type: keywordMap[value] ?? TokenType.Identifier,
+        type: keywordTokenType(value),
         lexeme: value,
         literal: null,
         line,
@@ -342,40 +342,107 @@ function createFrontendTokenFromParts(
   } as Token;
 }
 
-const keywordMap: Record<string, TokenType> = {
-  global: TokenType.Global,
-  local: TokenType.Local,
-  const: TokenType.Const,
-  type: TokenType.Type,
-  frame: TokenType.Frame,
-  static: TokenType.Static,
-  ret: TokenType.Ret,
-  struct: TokenType.Struct,
-  enum: TokenType.Enum,
-  import: TokenType.Import,
-  from: TokenType.From,
-  export: TokenType.Export,
-  extern: TokenType.Extern,
-  asm: TokenType.Asm,
-  as: TokenType.As,
-  this: TokenType.This,
-  loop: TokenType.Loop,
-  if: TokenType.If,
-  else: TokenType.Else,
-  break: TokenType.Break,
-  continue: TokenType.Continue,
-  try: TokenType.Try,
-  catch: TokenType.Catch,
-  return: TokenType.Return,
-  throw: TokenType.Throw,
-  switch: TokenType.Switch,
-  case: TokenType.Case,
-  default: TokenType.Default,
-  cast: TokenType.Cast,
-  sizeof: TokenType.Sizeof,
-  match: TokenType.Match,
-  Func: TokenType.Func,
-};
+function keywordTokenType(value: string): TokenType {
+  switch (value.charCodeAt(0)) {
+    case 70:
+      return value === "Func" ? TokenType.Func : TokenType.Identifier;
+    case 97:
+      switch (value.length) {
+        case 2:
+          return value === "as" ? TokenType.As : TokenType.Identifier;
+        case 3:
+          return value === "asm" ? TokenType.Asm : TokenType.Identifier;
+      }
+      return TokenType.Identifier;
+    case 98:
+      return value === "break" ? TokenType.Break : TokenType.Identifier;
+    case 99:
+      switch (value.length) {
+        case 4:
+          if (value === "case") return TokenType.Case;
+          return value === "cast" ? TokenType.Cast : TokenType.Identifier;
+        case 5:
+          if (value === "catch") return TokenType.Catch;
+          return value === "const" ? TokenType.Const : TokenType.Identifier;
+        case 8:
+          return value === "continue"
+            ? TokenType.Continue
+            : TokenType.Identifier;
+      }
+      return TokenType.Identifier;
+    case 100:
+      return value === "default" ? TokenType.Default : TokenType.Identifier;
+    case 101:
+      switch (value.length) {
+        case 4:
+          if (value === "else") return TokenType.Else;
+          return value === "enum" ? TokenType.Enum : TokenType.Identifier;
+        case 6:
+          if (value === "export") return TokenType.Export;
+          return value === "extern" ? TokenType.Extern : TokenType.Identifier;
+      }
+      return TokenType.Identifier;
+    case 102:
+      switch (value.length) {
+        case 4:
+          return value === "from" ? TokenType.From : TokenType.Identifier;
+        case 5:
+          return value === "frame" ? TokenType.Frame : TokenType.Identifier;
+      }
+      return TokenType.Identifier;
+    case 103:
+      return value === "global" ? TokenType.Global : TokenType.Identifier;
+    case 105:
+      switch (value.length) {
+        case 2:
+          return value === "if" ? TokenType.If : TokenType.Identifier;
+        case 6:
+          return value === "import" ? TokenType.Import : TokenType.Identifier;
+      }
+      return TokenType.Identifier;
+    case 108:
+      switch (value.length) {
+        case 4:
+          return value === "loop" ? TokenType.Loop : TokenType.Identifier;
+        case 5:
+          return value === "local" ? TokenType.Local : TokenType.Identifier;
+      }
+      return TokenType.Identifier;
+    case 109:
+      return value === "match" ? TokenType.Match : TokenType.Identifier;
+    case 114:
+      switch (value.length) {
+        case 3:
+          return value === "ret" ? TokenType.Ret : TokenType.Identifier;
+        case 6:
+          return value === "return" ? TokenType.Return : TokenType.Identifier;
+      }
+      return TokenType.Identifier;
+    case 115:
+      switch (value.length) {
+        case 6:
+          if (value === "static") return TokenType.Static;
+          if (value === "struct") return TokenType.Struct;
+          if (value === "switch") return TokenType.Switch;
+          return value === "sizeof" ? TokenType.Sizeof : TokenType.Identifier;
+      }
+      return TokenType.Identifier;
+    case 116:
+      switch (value.length) {
+        case 3:
+          return value === "try" ? TokenType.Try : TokenType.Identifier;
+        case 4:
+          if (value === "this") return TokenType.This;
+          if (value === "type") return TokenType.Type;
+          return TokenType.Identifier;
+        case 5:
+          return value === "throw" ? TokenType.Throw : TokenType.Identifier;
+      }
+      return TokenType.Identifier;
+  }
+
+  return TokenType.Identifier;
+}
 
 function punctuatorTokenType(value: string): TokenType {
   switch (value.charCodeAt(0)) {

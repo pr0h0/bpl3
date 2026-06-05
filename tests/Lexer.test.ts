@@ -40,15 +40,40 @@ describe("Lexer - Extended Tests", () => {
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
         "utf8",
       );
-      const keywordMapMatch = grammarLexerSource.match(
-        /const keywordMap:[\s\S]*?= \{([\s\S]*?)\};/,
-      );
-
-      expect(keywordMapMatch).not.toBeNull();
-
       const converterKeywords = [
-        ...keywordMapMatch![1]!.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*):/gm),
-      ].map((match) => match[1]!);
+        "Func",
+        "as",
+        "asm",
+        "break",
+        "case",
+        "cast",
+        "catch",
+        "const",
+        "continue",
+        "default",
+        "else",
+        "enum",
+        "export",
+        "extern",
+        "frame",
+        "from",
+        "global",
+        "if",
+        "import",
+        "local",
+        "loop",
+        "match",
+        "ret",
+        "return",
+        "sizeof",
+        "static",
+        "struct",
+        "switch",
+        "this",
+        "throw",
+        "try",
+        "type",
+      ];
 
       for (const keyword of converterKeywords) {
         const tokens = tokenize(keyword);
@@ -56,6 +81,7 @@ describe("Lexer - Extended Tests", () => {
         expect(tokens[0]!.lexeme).toBe(keyword);
       }
       expect(genericParserSource).toContain("function classifyIdentifierLike");
+      expect(grammarLexerSource).toContain("function keywordTokenType");
     });
 
     it("checks identifier literal and keyword candidates by first character", () => {
@@ -621,7 +647,7 @@ describe("Lexer - Extended Tests", () => {
         "utf8",
       );
       const start = source.indexOf("function createFrontendTokenFromParts");
-      const end = source.indexOf("const keywordMap", start);
+      const end = source.indexOf("function keywordTokenType", start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);
@@ -680,7 +706,10 @@ describe("Lexer - Extended Tests", () => {
       const converterStart = source.indexOf(
         "function createFrontendTokenFromParts",
       );
-      const converterEnd = source.indexOf("const keywordMap", converterStart);
+      const converterEnd = source.indexOf(
+        "function keywordTokenType",
+        converterStart,
+      );
       const helperStart = source.indexOf("function punctuatorTokenType");
       const helperEnd = source.indexOf("function parseNumber", helperStart);
 
@@ -699,23 +728,22 @@ describe("Lexer - Extended Tests", () => {
       expect(helperSource).toContain("return TokenType.Unknown;");
     });
 
-    it("converts keyword token nodes through direct map lookups", () => {
+    it("converts keyword token nodes through direct keyword dispatch", () => {
       const source = readFileSync(
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
         "utf8",
       );
       const start = source.indexOf("function convertTokenNodeToToken");
-      const end = source.indexOf("const keywordMap", start);
+      const end = source.indexOf("function keywordTokenType", start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);
 
       const converterSource = source.slice(start, end);
-      expect(converterSource).toContain(
-        "keywordMap[value] ?? TokenType.Identifier",
-      );
-      expect(converterSource).not.toContain("keywordToTokenType(value)");
+      expect(converterSource).toContain("keywordTokenType(value)");
+      expect(converterSource).not.toContain("keywordMap[value]");
       expect(converterSource).not.toContain("punctuatorToTokenType(value)");
+      expect(source).not.toContain("const keywordMap");
     });
 
     it("keeps comment-free frontend token construction inline and off helper dispatch", () => {
@@ -724,7 +752,7 @@ describe("Lexer - Extended Tests", () => {
         "utf8",
       );
       const start = source.indexOf("function createFrontendTokenFromParts");
-      const end = source.indexOf("const keywordMap", start);
+      const end = source.indexOf("function keywordTokenType", start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);
