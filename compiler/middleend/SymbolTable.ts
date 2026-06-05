@@ -64,7 +64,7 @@ export class SymbolTable {
     while (scope) {
       const symbol = scope.symbols.get(name);
       if (symbol) {
-        if (symbol.kind === "Variable") {
+        if (symbol.kind === "Variable" && symbol.used !== true) {
           symbol.used = true;
         }
         return symbol;

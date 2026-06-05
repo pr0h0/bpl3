@@ -82,4 +82,28 @@ describe("SymbolTable", () => {
     expect(variable.used).toBe(true);
     expect(functionSymbol.used).toBe(false);
   });
+
+  it("keeps repeated variable resolution off redundant used writes", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),
+      "utf8",
+    );
+    const resolveStart = source.indexOf("  public resolve(");
+    const nextMethodStart = source.indexOf(
+      "  public getUnusedVariables",
+      resolveStart,
+    );
+
+    expect(resolveStart).toBeGreaterThanOrEqual(0);
+    expect(nextMethodStart).toBeGreaterThan(resolveStart);
+
+    const resolveSource = source.slice(resolveStart, nextMethodStart);
+    const variableKind = resolveSource.indexOf('symbol.kind === "Variable"');
+    const usedGuard = resolveSource.indexOf("symbol.used !== true");
+    const usedWrite = resolveSource.indexOf("symbol.used = true");
+
+    expect(variableKind).toBeGreaterThanOrEqual(0);
+    expect(usedGuard).toBeGreaterThan(variableKind);
+    expect(usedWrite).toBeGreaterThan(usedGuard);
+  });
 });
