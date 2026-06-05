@@ -489,6 +489,30 @@ describe("Lexer - Extended Tests", () => {
       expect(helperSource).toContain("isIdentifierStartCode(firstCode)");
     });
 
+    it("caches source length inside the token emitter loop", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const parseStart = source.indexOf("parseWithTokenEmitter");
+      const parseEnd = source.indexOf(
+        "private skipWhitespaceAndComments",
+        parseStart,
+      );
+
+      expect(parseStart).toBeGreaterThanOrEqual(0);
+      expect(parseEnd).toBeGreaterThan(parseStart);
+
+      const parseSource = source.slice(parseStart, parseEnd);
+      const sourceLength = parseSource.indexOf(
+        "const sourceLength = this.source.length;",
+      );
+      const loop = parseSource.indexOf("while (this.position < sourceLength)");
+
+      expect(sourceLength).toBeGreaterThanOrEqual(0);
+      expect(loop).toBeGreaterThan(sourceLength);
+    });
+
     it("threads first character codes into hot token matchers", () => {
       const source = readFileSync(
         join(process.cwd(), "grammar/GenericParser.ts"),

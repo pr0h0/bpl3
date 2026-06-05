@@ -151,10 +151,11 @@ export class GenericParser {
 
   parseWithTokenEmitter<T>(emitToken: TokenEmitter<T>): GenericParseResult<T> {
     const tokens: T[] = [];
+    const sourceLength = this.source.length;
 
-    while (this.position < this.source.length) {
+    while (this.position < sourceLength) {
       this.skipWhitespaceAndComments();
-      if (this.position >= this.source.length) break;
+      if (this.position >= sourceLength) break;
 
       const token = this.matchNextToken(emitToken);
 
