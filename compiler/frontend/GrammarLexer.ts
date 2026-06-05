@@ -249,25 +249,25 @@ function createFrontendTokenFromParts(
         file,
       } as Token;
     case 73:
-      if (type === "Identifier") {
-        return {
-          type: TokenType.Identifier,
-          lexeme: value,
-          literal: null,
-          line,
-          column,
-          file,
-        } as Token;
-      }
-      if (type === "InterpolatedStringLiteral") {
-        return {
-          type: TokenType.InterpolatedStringLiteral,
-          lexeme: value,
-          literal: value,
-          line,
-          column,
-          file,
-        } as Token;
+      switch (type.length) {
+        case 10:
+          return {
+            type: TokenType.Identifier,
+            lexeme: value,
+            literal: null,
+            line,
+            column,
+            file,
+          } as Token;
+        case 25:
+          return {
+            type: TokenType.InterpolatedStringLiteral,
+            lexeme: value,
+            literal: value,
+            line,
+            column,
+            file,
+          } as Token;
       }
       break;
     case 75:
@@ -280,25 +280,26 @@ function createFrontendTokenFromParts(
         file,
       } as Token;
     case 78:
-      if (type === "NumberLiteral") {
-        return {
-          type: TokenType.NumberLiteral,
-          lexeme: value,
-          literal: parseNumber(value),
-          line,
-          column,
-          file,
-        } as Token;
-      }
-      if (type === "NullLiteral" || type === "NullptrLiteral") {
-        return {
-          type: TokenType.Nullptr,
-          lexeme: value,
-          literal: null,
-          line,
-          column,
-          file,
-        } as Token;
+      switch (type.length) {
+        case 13:
+          return {
+            type: TokenType.NumberLiteral,
+            lexeme: value,
+            literal: parseNumber(value),
+            line,
+            column,
+            file,
+          } as Token;
+        case 11:
+        case 14:
+          return {
+            type: TokenType.Nullptr,
+            lexeme: value,
+            literal: null,
+            line,
+            column,
+            file,
+          } as Token;
       }
       break;
     case 83:

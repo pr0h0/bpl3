@@ -607,10 +607,24 @@ describe("Lexer - Extended Tests", () => {
         punctuatorCase,
         identifierCase,
       );
+      const identifierSource = converterSource.slice(
+        identifierCase,
+        keywordCase,
+      );
       const keywordSource = converterSource.slice(keywordCase, numberCase);
+      const numberSource = converterSource.slice(numberCase, stringCase);
       const stringSource = converterSource.slice(stringCase);
       expect(punctuatorSource).not.toContain('type === "Punctuator"');
+      expect(identifierSource).toContain("switch (type.length)");
+      expect(identifierSource).not.toContain('type === "Identifier"');
+      expect(identifierSource).not.toContain(
+        'type === "InterpolatedStringLiteral"',
+      );
       expect(keywordSource).not.toContain('type === "Keyword"');
+      expect(numberSource).toContain("switch (type.length)");
+      expect(numberSource).not.toContain('type === "NumberLiteral"');
+      expect(numberSource).not.toContain('type === "NullLiteral"');
+      expect(numberSource).not.toContain('type === "NullptrLiteral"');
       expect(stringSource).not.toContain('type === "StringLiteral"');
       expect(stringSource).not.toContain('type === "CharLiteral"');
       expect(stringSource).not.toContain('type === "BoolLiteral"');
