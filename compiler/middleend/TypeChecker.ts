@@ -713,19 +713,21 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     // Check for duplicate generic parameter names
-    const genericParamNames = new Set<string>();
-    for (const gp of decl.genericParams) {
-      if (genericParamNames.has(gp.name)) {
-        this.addError(
-          new CompilerError(
-            `Duplicate generic type parameter '${gp.name}'`,
-            `The generic type parameter '${gp.name}' is declared multiple times in function '${decl.name}'.`,
-            gp.location || decl.location,
-            SYMBOL_ALREADY_DEFINED_CODE,
-          ),
-        );
+    if (decl.genericParams.length > 1) {
+      const genericParamNames = new Set<string>();
+      for (const gp of decl.genericParams) {
+        if (genericParamNames.has(gp.name)) {
+          this.addError(
+            new CompilerError(
+              `Duplicate generic type parameter '${gp.name}'`,
+              `The generic type parameter '${gp.name}' is declared multiple times in function '${decl.name}'.`,
+              gp.location || decl.location,
+              SYMBOL_ALREADY_DEFINED_CODE,
+            ),
+          );
+        }
+        genericParamNames.add(gp.name);
       }
-      genericParamNames.add(gp.name);
     }
 
     // Add generic params to scope
@@ -752,20 +754,23 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     this.checkFunctionAttributes(decl, parentStruct);
 
     // Add params to scope
-    const paramNames = new Set<string>();
+    const paramNames =
+      decl.params.length > 1 ? new Set<string>() : undefined;
     for (let i = 0; i < decl.params.length; i++) {
       const param = decl.params[i]!;
-      if (paramNames.has(param.name)) {
-        this.addError(
-          new CompilerError(
-            `Duplicate parameter name '${param.name}'`,
-            `The parameter '${param.name}' is declared multiple times in function '${decl.name}'.`,
-            param.location,
-            SYMBOL_ALREADY_DEFINED_CODE,
-          ),
-        );
+      if (paramNames !== undefined) {
+        if (paramNames.has(param.name)) {
+          this.addError(
+            new CompilerError(
+              `Duplicate parameter name '${param.name}'`,
+              `The parameter '${param.name}' is declared multiple times in function '${decl.name}'.`,
+              param.location,
+              SYMBOL_ALREADY_DEFINED_CODE,
+            ),
+          );
+        }
+        paramNames.add(param.name);
       }
-      paramNames.add(param.name);
 
       let paramType = this.resolveType(param.type);
 

@@ -806,6 +806,40 @@ describe("TypeChecker", () => {
     expect(conflictGroups).toBeGreaterThan(seen);
   });
 
+  it("allocates function duplicate-name sets only when duplicates are possible", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
+      "utf8",
+    );
+    const bodyStart = source.indexOf("private checkFunctionBody");
+    const bodyEnd = source.indexOf("private checkStructBody", bodyStart);
+
+    expect(bodyStart).toBeGreaterThanOrEqual(0);
+    expect(bodyEnd).toBeGreaterThan(bodyStart);
+
+    const bodySource = source.slice(bodyStart, bodyEnd);
+    const genericLengthGuard = bodySource.indexOf(
+      "if (decl.genericParams.length > 1)",
+    );
+    const genericSet = bodySource.indexOf(
+      "const genericParamNames = new Set<string>()",
+      genericLengthGuard,
+    );
+    const paramNamesInit = bodySource.indexOf("const paramNames =");
+    const paramsLengthGuard = bodySource.indexOf(
+      "decl.params.length > 1",
+      paramNamesInit,
+    );
+    const paramSet = bodySource.indexOf("new Set<string>()", paramsLengthGuard);
+
+    expect(genericLengthGuard).toBeGreaterThanOrEqual(0);
+    expect(genericSet).toBeGreaterThan(genericLengthGuard);
+    expect(paramNamesInit).toBeGreaterThan(genericSet);
+    expect(paramsLengthGuard).toBeGreaterThan(paramNamesInit);
+    expect(paramSet).toBeGreaterThan(paramsLengthGuard);
+    expect(bodySource).toContain("if (paramNames !== undefined)");
+  });
+
   it("keeps direct struct member lookups on cached maps", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
