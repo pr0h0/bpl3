@@ -85,7 +85,7 @@ describe("Lexer - Extended Tests", () => {
       expect(grammarLexerSource).toContain("case GENERIC_TOKEN_KEYWORD:");
     });
 
-    it("checks identifier literal and keyword candidates by first character", () => {
+    it("checks identifier keyword candidates only for possible keyword starts", () => {
       const source = readFileSync(
         join(process.cwd(), "grammar/GenericParser.ts"),
         "utf8",
@@ -99,15 +99,20 @@ describe("Lexer - Extended Tests", () => {
       const matcherSource = source.slice(start, end);
       expect(source).toContain("function classifyIdentifierLike");
       expect(source).not.toContain("const KEYWORDS = new Set");
-      expect(source).not.toContain("const KEYWORD_START_CODES");
       expect(source).not.toContain("function canStartKeyword");
+      expect(source).not.toContain("KEYWORD_START_CODE_MASK");
       expect(matcherSource).toContain("firstCode: number");
       expect(matcherSource).not.toContain("this.source.charCodeAt(start)");
+      expect(matcherSource).toContain("switch (firstCode)");
+      expect(matcherSource).toContain("case 70:");
+      expect(matcherSource).toContain("case 116:");
       expect(matcherSource).toContain(
         "classifyIdentifierLike(firstCode, value)",
       );
+      expect(matcherSource.indexOf("switch (firstCode)")).toBeLessThan(
+        matcherSource.indexOf("classifyIdentifierLike(firstCode, value)"),
+      );
       expect(matcherSource).not.toContain("KEYWORDS.has(value)");
-      expect(matcherSource).not.toContain("KEYWORD_START_CODES");
     });
 
     it("classifies keyword candidates by length before literal comparisons", () => {

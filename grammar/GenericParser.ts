@@ -689,7 +689,26 @@ export class GenericParser {
 
     const end = this.scanIdentifierEnd(start + 1);
     const value = this.source.slice(start, end);
-    const tokenKind = classifyIdentifierLike(firstCode, value);
+    let tokenKind = IDENTIFIER_TOKEN_KIND;
+    switch (firstCode) {
+      case 70:
+      case 83:
+      case 97:
+      case 98:
+      case 99:
+      case 100:
+      case 101:
+      case 102:
+      case 103:
+      case 105:
+      case 108:
+      case 109:
+      case 110:
+      case 114:
+      case 115:
+      case 116:
+        tokenKind = classifyIdentifierLike(firstCode, value);
+    }
     const line = this.line;
     const column = this.column;
     this.position = end;
