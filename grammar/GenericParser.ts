@@ -339,6 +339,10 @@ export class GenericParser {
   }
 
   parseWithTokenEmitter<T>(emitToken: TokenEmitter<T>): GenericParseResult<T> {
+    if (!this.hasCommentMarker) {
+      return this.parseCommentFreeWithTokenEmitter(emitToken);
+    }
+
     const sourceLength = this.source.length;
     const estimatedTokenCapacity = Math.max(16, sourceLength >>> 1);
     const tokens: T[] = new Array<T>(estimatedTokenCapacity);
@@ -346,6 +350,39 @@ export class GenericParser {
 
     while (this.position < sourceLength) {
       this.skipWhitespaceAndComments();
+      if (this.position >= sourceLength) break;
+
+      const token = this.matchNextToken(emitToken);
+
+      if (!token) {
+        const snippet = this.source.slice(this.position, this.position + 25);
+        throw new Error(
+          `Unrecognized token at ${this.line}:${this.column}: ${snippet}`,
+        );
+      }
+
+      tokens[tokenCount++] = token;
+    }
+
+    tokens.length = tokenCount;
+
+    return {
+      type: "Program",
+      tokens,
+      startRule: this.grammar.startRule,
+    };
+  }
+
+  private parseCommentFreeWithTokenEmitter<T>(
+    emitToken: TokenEmitter<T>,
+  ): GenericParseResult<T> {
+    const sourceLength = this.source.length;
+    const estimatedTokenCapacity = Math.max(16, sourceLength >>> 1);
+    const tokens: T[] = new Array<T>(estimatedTokenCapacity);
+    let tokenCount = 0;
+
+    while (this.position < sourceLength) {
+      this.skipWhitespaceOnly();
       if (this.position >= sourceLength) break;
 
       const token = this.matchNextToken(emitToken);

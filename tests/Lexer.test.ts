@@ -1157,6 +1157,45 @@ describe("Lexer - Extended Tests", () => {
       );
     });
 
+    it("dispatches comment-free token collection to a whitespace-only loop", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const parseStart = source.indexOf("parseWithTokenEmitter");
+      const helperStart = source.indexOf(
+        "private parseCommentFreeWithTokenEmitter",
+        parseStart,
+      );
+      const helperEnd = source.indexOf(
+        "private skipWhitespaceAndComments",
+        helperStart,
+      );
+
+      expect(parseStart).toBeGreaterThanOrEqual(0);
+      expect(helperStart).toBeGreaterThan(parseStart);
+      expect(helperEnd).toBeGreaterThan(helperStart);
+
+      const parseSource = source.slice(parseStart, helperStart);
+      const helperSource = source.slice(helperStart, helperEnd);
+      expect(parseSource).toContain("if (!this.hasCommentMarker)");
+      expect(parseSource).toContain(
+        "return this.parseCommentFreeWithTokenEmitter(emitToken);",
+      );
+      expect(helperSource).toContain("this.skipWhitespaceOnly();");
+      expect(helperSource).not.toContain("this.skipWhitespaceAndComments();");
+      expect(helperSource).toContain("tokens[tokenCount++] = token;");
+
+      expect(
+        tokenize(" \n\tlocal x: int = 1;").map((token) => token.lexeme),
+      ).toEqual(["local", "x", ":", "int", "=", "1", ";", ""]);
+      expect(
+        tokenize("# keep me\nlocal")
+          .slice(0, 2)
+          .map((token) => token.type),
+      ).toEqual([TokenType.Comment, TokenType.Local]);
+    });
+
     it("keeps comment-free lexing off the comment extraction path", () => {
       const source = readFileSync(
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
