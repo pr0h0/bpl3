@@ -437,6 +437,24 @@ describe("Lexer - Extended Tests", () => {
       expect(matcherSource).not.toContain("IDENTIFIER_PATTERN");
     });
 
+    it("reuses source and length while scanning identifier ends", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("private scanIdentifierEnd");
+      const end = source.indexOf("private matchPunctuator", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const scannerSource = source.slice(start, end);
+      expect(scannerSource).toContain("const source = this.source;");
+      expect(scannerSource).toContain("const sourceLength = source.length;");
+      expect(scannerSource).toContain("index < sourceLength");
+      expect(scannerSource).toContain("source.charCodeAt(index)");
+    });
+
     it("guards hot token regexes by first character before execAt", () => {
       const source = readFileSync(
         join(process.cwd(), "grammar/GenericParser.ts"),

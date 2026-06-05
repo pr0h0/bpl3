@@ -403,9 +403,11 @@ export class GenericParser {
   }
 
   private scanIdentifierEnd(index: number): number {
+    const source = this.source;
+    const sourceLength = source.length;
     while (
-      index < this.source.length &&
-      isIdentifierPartCode(this.source.charCodeAt(index))
+      index < sourceLength &&
+      isIdentifierPartCode(source.charCodeAt(index))
     ) {
       index += 1;
     }
