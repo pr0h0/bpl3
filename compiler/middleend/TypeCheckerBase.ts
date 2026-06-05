@@ -747,23 +747,24 @@ export abstract class TypeCheckerBase {
         return type;
       }
 
-      let resolvedSymbol = this.currentScope.resolve(type.name);
-      const isQualifiedTypeName = type.name.includes(".");
+      const name = type.name;
+      let resolvedSymbol = this.currentScope.resolve(name);
+      const isQualifiedTypeName = name.includes(".");
 
       if (!resolvedSymbol && isQualifiedTypeName) {
         resolvedSymbol = resolveQualifiedTypeSymbol(
           this.currentScope,
-          type.name,
+          name,
         );
       }
 
       if (!resolvedSymbol) {
-        this.ensureImplicitPrimitiveWrappersLoaded(type.name);
-        resolvedSymbol = this.currentScope.resolve(type.name);
+        this.ensureImplicitPrimitiveWrappersLoaded(name);
+        resolvedSymbol = this.currentScope.resolve(name);
         if (!resolvedSymbol && isQualifiedTypeName) {
           resolvedSymbol = resolveQualifiedTypeSymbol(
             this.currentScope,
-            type.name,
+            name,
           );
         }
       }
@@ -797,7 +798,7 @@ export abstract class TypeCheckerBase {
             // Allow raw enum type for now, assuming it will be inferred or is used as namespace
           } else {
             throw new CompilerError(
-              `Generic type '${type.name}' expects ${genericParams.length} type arguments, but got ${type.genericArgs.length}.`,
+              `Generic type '${name}' expects ${genericParams.length} type arguments, but got ${type.genericArgs.length}.`,
               "Check generic argument count.",
               type.location,
               GENERIC_ARITY_MISMATCH_CODE,
@@ -908,7 +909,7 @@ export abstract class TypeCheckerBase {
         // If the alias points to itself (base type definition), return it
         if (
           resolvedSymbol.type.kind === "BasicType" &&
-          resolvedSymbol.type.name === type.name
+          resolvedSymbol.type.name === name
         ) {
           // Attach declaration if available (e.g. for GenericParam)
           if (resolvedSymbol.declaration) {
@@ -923,23 +924,23 @@ export abstract class TypeCheckerBase {
         }
 
         // Detect recursive type alias cycles
-        if (this.typeAliasResolutionStack.has(type.name)) {
+        if (this.typeAliasResolutionStack.has(name)) {
           const cycle = Array.from(this.typeAliasResolutionStack).join(" -> ");
           throw new CompilerError(
-            `Recursive type alias '${type.name}' detected`,
-            `Cycle: ${cycle} -> ${type.name}. Type aliases cannot reference themselves directly or indirectly without a pointer indirection.`,
+            `Recursive type alias '${name}' detected`,
+            `Cycle: ${cycle} -> ${name}. Type aliases cannot reference themselves directly or indirectly without a pointer indirection.`,
             type.location,
           );
         }
 
-        this.typeAliasResolutionStack.add(type.name);
+        this.typeAliasResolutionStack.add(name);
         try {
           const decl = resolvedSymbol.declaration as AST.TypeAliasDecl;
           if (decl && decl.genericParams && decl.genericParams.length > 0) {
             // Generic Alias Substitution
             if (type.genericArgs.length !== decl.genericParams.length) {
               throw new CompilerError(
-                `Generic alias '${type.name}' expects ${decl.genericParams.length} type arguments, but got ${type.genericArgs.length}.`,
+                `Generic alias '${name}' expects ${decl.genericParams.length} type arguments, but got ${type.genericArgs.length}.`,
                 "Check generic argument count.",
                 type.location,
                 GENERIC_ARITY_MISMATCH_CODE,
@@ -1030,7 +1031,7 @@ export abstract class TypeCheckerBase {
           }
           return resolvedBase;
         } finally {
-          this.typeAliasResolutionStack.delete(type.name);
+          this.typeAliasResolutionStack.delete(name);
         }
       }
 

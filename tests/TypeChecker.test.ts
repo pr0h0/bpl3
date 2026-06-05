@@ -113,7 +113,7 @@ describe("TypeChecker", () => {
     const aliasHelper = source.indexOf("resolveSimpleBuiltinBasicType");
     const resolveType = source.indexOf("public resolveType");
     const firstScopeLookup = source.indexOf(
-      "this.currentScope.resolve(type.name)",
+      "this.currentScope.resolve(name)",
       resolveType,
     );
 
@@ -293,11 +293,11 @@ describe("TypeChecker", () => {
       resolveType,
     );
     const primitiveImport = source.indexOf(
-      "this.ensureImplicitPrimitiveWrappersLoaded(type.name)",
+      "this.ensureImplicitPrimitiveWrappersLoaded(name)",
       resolveType,
     );
     const firstScopeLookup = source.indexOf(
-      "this.currentScope.resolve(type.name)",
+      "this.currentScope.resolve(name)",
       resolveType,
     );
 
@@ -316,6 +316,31 @@ describe("TypeChecker", () => {
     expect(helperSource).toContain("decl.genericParams.length === 0");
   });
 
+  it("reuses the basic type name across resolveType lookup branches", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const resolveType = source.indexOf("public resolveType");
+    const nextMethod = source.indexOf("\n  protected", resolveType);
+
+    expect(resolveType).toBeGreaterThanOrEqual(0);
+    expect(nextMethod).toBeGreaterThan(resolveType);
+
+    const resolveTypeSource = source.slice(resolveType, nextMethod);
+    expect(resolveTypeSource).toContain("const name = type.name;");
+    expect(resolveTypeSource).toContain("this.currentScope.resolve(name)");
+    expect(resolveTypeSource).toContain(
+      'const isQualifiedTypeName = name.includes(".");',
+    );
+    expect(resolveTypeSource).toContain(
+      "this.ensureImplicitPrimitiveWrappersLoaded(name)",
+    );
+    expect(resolveTypeSource).toMatch(
+      /resolveQualifiedTypeSymbol\(\s*this\.currentScope,\s*name,\s*\)/,
+    );
+  });
+
   it("keeps qualified type lookup lazy on the unqualified type fast path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
@@ -329,10 +354,10 @@ describe("TypeChecker", () => {
     expect(nextMethod).toBeGreaterThan(resolveType);
     expect(resolveTypeSource).not.toContain("const resolveQualifiedSymbol =");
     expect(resolveTypeSource).toContain(
-      'const isQualifiedTypeName = type.name.includes(".");',
+      'const isQualifiedTypeName = name.includes(".");',
     );
     expect(resolveTypeSource).toMatch(
-      /resolveQualifiedTypeSymbol\(\s*this\.currentScope,\s*type\.name,\s*\)/,
+      /resolveQualifiedTypeSymbol\(\s*this\.currentScope,\s*name,\s*\)/,
     );
   });
 
