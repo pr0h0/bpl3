@@ -383,22 +383,30 @@ export class GenericParser {
     let tokenCount = 0;
 
     while (this.position < sourceLength) {
-      while (this.position < sourceLength) {
-        const ch = source[this.position]!;
+      let position = this.position;
+      let line = this.line;
+      let column = this.column;
+
+      while (position < sourceLength) {
+        const ch = source[position]!;
         if (ch === " " || ch === "\t" || ch === "\r") {
-          this.position += 1;
-          this.column += 1;
+          position += 1;
+          column += 1;
           continue;
         }
         if (ch === "\n") {
-          this.position += 1;
-          this.line += 1;
-          this.column = 1;
+          position += 1;
+          line += 1;
+          column = 1;
           continue;
         }
         break;
       }
-      if (this.position >= sourceLength) break;
+
+      this.position = position;
+      this.line = line;
+      this.column = column;
+      if (position >= sourceLength) break;
 
       const token = this.matchNextToken(emitToken);
 

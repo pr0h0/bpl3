@@ -1226,7 +1226,14 @@ describe("Lexer - Extended Tests", () => {
       expect(helperSource).not.toContain("this.skipWhitespaceAndComments();");
       expect(helperSource).toContain("const source = this.source;");
       expect(helperSource).toContain("const sourceLength = source.length;");
-      expect(helperSource).toContain("const ch = source[this.position]!");
+      expect(helperSource).toContain("let position = this.position;");
+      expect(helperSource).toContain("let line = this.line;");
+      expect(helperSource).toContain("let column = this.column;");
+      expect(helperSource).toContain("const ch = source[position]!");
+      expect(helperSource).toContain("this.position = position;");
+      expect(helperSource).toContain("this.line = line;");
+      expect(helperSource).toContain("this.column = column;");
+      expect(helperSource).not.toContain("this.position += 1;");
       expect(helperSource).toContain('if (ch === " " || ch === "\\t" || ch === "\\r")');
       expect(helperSource).toContain('if (ch === "\\n")');
       expect(helperSource).toContain("tokens[tokenCount++] = token;");
