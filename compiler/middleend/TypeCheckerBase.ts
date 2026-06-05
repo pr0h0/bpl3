@@ -10,7 +10,6 @@ import { TokenType } from "../frontend/TokenType";
 import { LinkerSymbolTable } from "./LinkerSymbolTable";
 import { type Symbol, type SymbolKind, SymbolTable } from "./SymbolTable";
 import {
-  BASE_TYPES,
   initializeBuiltinsInScope,
   PRIMITIVE_STRUCT_MAP,
 } from "./BuiltinTypes";
@@ -293,13 +292,6 @@ const STANDARD_LIBRARY_PRIMITIVE_WRAPPER_TYPES = new Set(
   Object.values(PRIMITIVE_STRUCT_MAP),
 );
 
-const SIMPLE_BUILTIN_BASIC_TYPE_NAMES = Object.freeze(
-  BASE_TYPES.reduce<Record<string, true>>((names, name) => {
-    names[name] = true;
-    return names;
-  }, {}),
-);
-
 function hasExtendedBasicTypeMetadata(type: AST.BasicTypeNode): boolean {
   return (
     type.resolvedType !== undefined ||
@@ -334,6 +326,145 @@ function cloneSimpleBuiltinAliasType(
   };
 }
 
+function resolveSimpleBuiltinTypeName(name: string): string | true | undefined {
+  switch (name.length) {
+    case 2: {
+      const c0 = name.charCodeAt(0);
+      const c1 = name.charCodeAt(1);
+      if (c0 === 105) {
+        return c1 === 49 || c1 === 56 ? true : undefined;
+      }
+      return c0 === 117 && c1 === 56 ? true : undefined;
+    }
+    case 3: {
+      const c0 = name.charCodeAt(0);
+      const c1 = name.charCodeAt(1);
+      const c2 = name.charCodeAt(2);
+      if (c0 === 105) {
+        if (c1 === 110 && c2 === 116) {
+          return "i32";
+        }
+        return (c1 === 49 && c2 === 54) ||
+          (c1 === 51 && c2 === 50) ||
+          (c1 === 54 && c2 === 52)
+          ? true
+          : undefined;
+      }
+      return c0 === 117 &&
+        ((c1 === 49 && c2 === 54) ||
+          (c1 === 51 && c2 === 50) ||
+          (c1 === 54 && c2 === 52))
+        ? true
+        : undefined;
+    }
+    case 4: {
+      switch (name.charCodeAt(0)) {
+        case 98:
+          return name.charCodeAt(1) === 111 &&
+            name.charCodeAt(2) === 111 &&
+            name.charCodeAt(3) === 108
+            ? "i1"
+            : undefined;
+        case 99:
+          return name.charCodeAt(1) === 104 &&
+            name.charCodeAt(2) === 97 &&
+            name.charCodeAt(3) === 114
+            ? "i8"
+            : undefined;
+        case 108:
+          return name.charCodeAt(1) === 111 &&
+            name.charCodeAt(2) === 110 &&
+            name.charCodeAt(3) === 103
+            ? "i64"
+            : undefined;
+        case 110:
+          return name.charCodeAt(1) === 117 &&
+            name.charCodeAt(2) === 108 &&
+            name.charCodeAt(3) === 108
+            ? true
+            : undefined;
+        case 117:
+          return name.charCodeAt(1) === 105 &&
+            name.charCodeAt(2) === 110 &&
+            name.charCodeAt(3) === 116
+            ? "u32"
+            : undefined;
+        case 118:
+          return name.charCodeAt(1) === 111 &&
+            name.charCodeAt(2) === 105 &&
+            name.charCodeAt(3) === 100
+            ? true
+            : undefined;
+        default:
+          return undefined;
+      }
+    }
+    case 5: {
+      switch (name.charCodeAt(0)) {
+        case 115:
+          return name.charCodeAt(1) === 104 &&
+            name.charCodeAt(2) === 111 &&
+            name.charCodeAt(3) === 114 &&
+            name.charCodeAt(4) === 116
+            ? "i16"
+            : undefined;
+        case 117: {
+          const c1 = name.charCodeAt(1);
+          if (c1 === 99) {
+            return name.charCodeAt(2) === 104 &&
+              name.charCodeAt(3) === 97 &&
+              name.charCodeAt(4) === 114
+              ? "u8"
+              : undefined;
+          }
+          return c1 === 108 &&
+            name.charCodeAt(2) === 111 &&
+            name.charCodeAt(3) === 110 &&
+            name.charCodeAt(4) === 103
+            ? "u64"
+            : undefined;
+        }
+        default:
+          return undefined;
+      }
+    }
+    case 6: {
+      switch (name.charCodeAt(0)) {
+        case 100:
+          return name.charCodeAt(1) === 111 &&
+            name.charCodeAt(2) === 117 &&
+            name.charCodeAt(3) === 98 &&
+            name.charCodeAt(4) === 108 &&
+            name.charCodeAt(5) === 101
+            ? true
+            : undefined;
+        case 117:
+          return name.charCodeAt(1) === 115 &&
+            name.charCodeAt(2) === 104 &&
+            name.charCodeAt(3) === 111 &&
+            name.charCodeAt(4) === 114 &&
+            name.charCodeAt(5) === 116
+            ? "u16"
+            : undefined;
+        default:
+          return undefined;
+      }
+    }
+    case 7:
+      return name.charCodeAt(0) === 110 &&
+        name.charCodeAt(1) === 117 &&
+        name.charCodeAt(2) === 108 &&
+        name.charCodeAt(3) === 108 &&
+        name.charCodeAt(4) === 112 &&
+        name.charCodeAt(5) === 116 &&
+        name.charCodeAt(6) === 114
+        ? true
+        : undefined;
+    default:
+      return undefined;
+  }
+}
+
 function isPotentialSimpleBuiltinTypeName(name: string): boolean {
   switch (name.charCodeAt(0)) {
     case 98: // b
@@ -363,12 +494,16 @@ function resolveSimpleBuiltinBasicType(
     return undefined;
   }
 
-  const canonicalName = TYPE_ALIASES[type.name];
-  if (canonicalName) {
-    return cloneSimpleBuiltinAliasType(type, canonicalName);
+  const resolvedName = resolveSimpleBuiltinTypeName(type.name);
+  if (resolvedName === undefined) {
+    return undefined;
   }
 
-  return SIMPLE_BUILTIN_BASIC_TYPE_NAMES[type.name] ? type : undefined;
+  if (resolvedName !== true) {
+    return cloneSimpleBuiltinAliasType(type, resolvedName);
+  }
+
+  return type;
 }
 
 function canReuseResolvedBasicType(type: AST.BasicTypeNode): boolean {

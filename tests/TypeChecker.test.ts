@@ -127,7 +127,7 @@ describe("TypeChecker", () => {
       .toBe(-1);
   });
 
-  it("guards simple builtin type resolution before map lookups", () => {
+  it("guards simple builtin type resolution before direct dispatch", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
@@ -139,16 +139,45 @@ describe("TypeChecker", () => {
     const guardCall = resolverSource.indexOf(
       "isPotentialSimpleBuiltinTypeName(type.name)",
     );
-    const aliasLookup = resolverSource.indexOf("TYPE_ALIASES[type.name]");
-    const builtinLookup = resolverSource.indexOf(
-      "SIMPLE_BUILTIN_BASIC_TYPE_NAMES[type.name]",
+    const dispatchCall = resolverSource.indexOf(
+      "resolveSimpleBuiltinTypeName(type.name)",
     );
 
     expect(guard).toBeGreaterThanOrEqual(0);
     expect(guard).toBeLessThan(resolver);
     expect(guardCall).toBeGreaterThanOrEqual(0);
-    expect(guardCall).toBeLessThan(aliasLookup);
-    expect(guardCall).toBeLessThan(builtinLookup);
+    expect(dispatchCall).toBeGreaterThanOrEqual(0);
+    expect(guardCall).toBeLessThan(dispatchCall);
+    expect(resolverSource).not.toContain("TYPE_ALIASES[type.name]");
+    expect(resolverSource).not.toContain(
+      "SIMPLE_BUILTIN_BASIC_TYPE_NAMES[type.name]",
+    );
+  });
+
+  it("keeps simple builtin type resolution on direct dispatch", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const dispatch = source.indexOf("function resolveSimpleBuiltinTypeName");
+    const resolver = source.indexOf("function resolveSimpleBuiltinBasicType");
+    const dispatchEnd = source.indexOf(
+      "\nfunction isPotentialSimpleBuiltinTypeName",
+      dispatch,
+    );
+    const dispatchSource = source.slice(dispatch, dispatchEnd);
+    const resolverEnd = source.indexOf("\n}", resolver);
+    const resolverSource = source.slice(resolver, resolverEnd);
+
+    expect(dispatch).toBeGreaterThanOrEqual(0);
+    expect(dispatch).toBeLessThan(resolver);
+    expect(dispatchSource).toContain("switch (name.length)");
+    expect(dispatchSource).not.toContain('case "int"');
+    expect(resolverSource).toContain("resolveSimpleBuiltinTypeName(type.name)");
+    expect(resolverSource).not.toContain("TYPE_ALIASES[type.name]");
+    expect(resolverSource).not.toContain(
+      "SIMPLE_BUILTIN_BASIC_TYPE_NAMES[type.name]",
+    );
   });
 
   it("keeps simple builtin alias cloning off the spread fast path", () => {
@@ -164,7 +193,7 @@ describe("TypeChecker", () => {
     expect(cloneHelper).toBeGreaterThanOrEqual(0);
     expect(cloneHelper).toBeLessThan(resolver);
     expect(resolverSource).toContain(
-      "cloneSimpleBuiltinAliasType(type, canonicalName)",
+      "cloneSimpleBuiltinAliasType(type, resolvedName)",
     );
     expect(resolverSource).not.toContain("...type");
   });
