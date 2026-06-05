@@ -601,6 +601,46 @@ describe("Lexer - Extended Tests", () => {
       expect(loop).toBeGreaterThan(sourceLength);
     });
 
+    it("keeps generic token collection on a preallocated index cursor", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const parseStart = source.indexOf("parseWithTokenEmitter");
+      const parseEnd = source.indexOf(
+        "private skipWhitespaceAndComments",
+        parseStart,
+      );
+
+      expect(parseStart).toBeGreaterThanOrEqual(0);
+      expect(parseEnd).toBeGreaterThan(parseStart);
+
+      const parseSource = source.slice(parseStart, parseEnd);
+      expect(parseSource).toContain("const estimatedTokenCapacity =");
+      expect(parseSource).toContain(
+        "const tokens: T[] = new Array<T>(estimatedTokenCapacity);",
+      );
+      expect(parseSource).toContain("let tokenCount = 0;");
+      expect(parseSource).toContain("tokens[tokenCount++] = token;");
+      expect(parseSource).toContain("tokens.length = tokenCount;");
+      expect(parseSource).not.toContain("tokens.push(token)");
+
+      const tokens = tokenize("local x: int = 1; return x;");
+      expect(tokens.map((token) => token.lexeme)).toEqual([
+        "local",
+        "x",
+        ":",
+        "int",
+        "=",
+        "1",
+        ";",
+        "return",
+        "x",
+        ";",
+        "",
+      ]);
+    });
+
     it("threads first character codes into hot token matchers", () => {
       const source = readFileSync(
         join(process.cwd(), "grammar/GenericParser.ts"),

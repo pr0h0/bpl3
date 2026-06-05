@@ -339,8 +339,10 @@ export class GenericParser {
   }
 
   parseWithTokenEmitter<T>(emitToken: TokenEmitter<T>): GenericParseResult<T> {
-    const tokens: T[] = [];
     const sourceLength = this.source.length;
+    const estimatedTokenCapacity = Math.max(16, sourceLength >>> 1);
+    const tokens: T[] = new Array<T>(estimatedTokenCapacity);
+    let tokenCount = 0;
 
     while (this.position < sourceLength) {
       this.skipWhitespaceAndComments();
@@ -355,8 +357,10 @@ export class GenericParser {
         );
       }
 
-      tokens.push(token);
+      tokens[tokenCount++] = token;
     }
+
+    tokens.length = tokenCount;
 
     return {
       type: "Program",
