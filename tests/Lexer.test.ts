@@ -1197,7 +1197,7 @@ describe("Lexer - Extended Tests", () => {
       );
     });
 
-    it("dispatches comment-free token collection to a whitespace-only loop", () => {
+    it("inlines comment-free whitespace scanning inside the token loop", () => {
       const source = readFileSync(
         join(process.cwd(), "grammar/GenericParser.ts"),
         "utf8",
@@ -1222,8 +1222,10 @@ describe("Lexer - Extended Tests", () => {
       expect(parseSource).toContain(
         "return this.parseCommentFreeWithTokenEmitter(emitToken);",
       );
-      expect(helperSource).toContain("this.skipWhitespaceOnly();");
+      expect(helperSource).not.toContain("this.skipWhitespaceOnly();");
       expect(helperSource).not.toContain("this.skipWhitespaceAndComments();");
+      expect(helperSource).toContain('if (ch === " " || ch === "\\t" || ch === "\\r")');
+      expect(helperSource).toContain('if (ch === "\\n")');
       expect(helperSource).toContain("tokens[tokenCount++] = token;");
 
       expect(

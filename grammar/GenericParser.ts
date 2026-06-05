@@ -382,7 +382,21 @@ export class GenericParser {
     let tokenCount = 0;
 
     while (this.position < sourceLength) {
-      this.skipWhitespaceOnly();
+      while (this.position < sourceLength) {
+        const ch = this.source[this.position]!;
+        if (ch === " " || ch === "\t" || ch === "\r") {
+          this.position += 1;
+          this.column += 1;
+          continue;
+        }
+        if (ch === "\n") {
+          this.position += 1;
+          this.line += 1;
+          this.column = 1;
+          continue;
+        }
+        break;
+      }
       if (this.position >= sourceLength) break;
 
       const token = this.matchNextToken(emitToken);
