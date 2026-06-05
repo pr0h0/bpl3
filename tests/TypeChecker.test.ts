@@ -386,6 +386,27 @@ describe("TypeChecker", () => {
     }
   });
 
+  it("keeps non-generic nominal type caching inline in resolveType", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const resolveType = source.indexOf("public resolveType");
+    const nextMethod = source.indexOf("\n  public substituteType", resolveType);
+
+    expect(resolveType).toBeGreaterThanOrEqual(0);
+    expect(nextMethod).toBeGreaterThan(resolveType);
+
+    const resolveTypeSource = source.slice(resolveType, nextMethod);
+    expect(source).not.toContain("function cacheNonGenericNominalBasicType");
+    expect(resolveTypeSource).not.toContain(
+      "cacheNonGenericNominalBasicType(",
+    );
+    expect(resolveTypeSource).toContain(
+      "declaration.genericParams.length === 0",
+    );
+  });
+
   it("keeps already-resolved nominal type reuse before implicit imports and scope lookup", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
