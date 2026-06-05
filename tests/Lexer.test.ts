@@ -135,6 +135,37 @@ describe("Lexer - Extended Tests", () => {
       expect(tokenize("nullish")[0]!.type).toBe(TokenType.Identifier);
     });
 
+    it("emits identifier range tokens inline without a range helper call", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("private matchIdentifierOrKeyword");
+      const end = source.indexOf("private scanIdentifierEnd", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const matcherSource = source.slice(start, end);
+      expect(source).not.toContain("private createTokenFromRange");
+      expect(matcherSource).not.toContain("this.createTokenFromRange(");
+      expect(matcherSource).toContain("const line = this.line;");
+      expect(matcherSource).toContain("const column = this.column;");
+      expect(matcherSource).toContain("this.position = end;");
+      expect(matcherSource).toContain("this.column += end - start;");
+      expect(matcherSource).toContain("return emitToken(");
+
+      const tokens = tokenize("local value_1: int;");
+      expect(tokens.slice(0, 4).map((token) => token.lexeme)).toEqual([
+        "local",
+        "value_1",
+        ":",
+        "int",
+      ]);
+      expect(tokens[0]!.type).toBe(TokenType.Local);
+      expect(tokens[1]!.type).toBe(TokenType.Identifier);
+    });
+
     it("should tokenize 'frame' keyword", () => {
       const tokens = tokenize("frame");
       expect(tokens[0]!.type).toBe(TokenType.Frame);
@@ -696,7 +727,7 @@ describe("Lexer - Extended Tests", () => {
         "utf8",
       );
       const start = source.indexOf("private createToken<T>");
-      const end = source.indexOf("private createTokenFromRange", start);
+      const end = source.indexOf("private advance", start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);

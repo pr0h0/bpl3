@@ -642,13 +642,19 @@ export class GenericParser {
     const end = this.scanIdentifierEnd(start + 1);
     const value = this.source.slice(start, end);
     const tokenKind = classifyIdentifierLike(firstCode, value);
-    return this.createTokenFromRange(
+    const line = this.line;
+    const column = this.column;
+    this.position = end;
+    this.column += end - start;
+    return emitToken(
       tokenKind.typeCode,
       tokenKind.type,
       value,
       start,
       end,
-      emitToken,
+      line,
+      column,
+      this.filePath,
     );
   }
 
@@ -947,30 +953,6 @@ export class GenericParser {
       this.advance(value);
     }
     const end = this.position;
-    return emitToken(
-      typeCode,
-      type,
-      value,
-      start,
-      end,
-      line,
-      column,
-      this.filePath,
-    );
-  }
-
-  private createTokenFromRange<T>(
-    typeCode: GenericTokenKindCode,
-    type: string,
-    value: string,
-    start: number,
-    end: number,
-    emitToken: TokenEmitter<T>,
-  ): T {
-    const line = this.line;
-    const column = this.column;
-    this.position = end;
-    this.column += end - start;
     return emitToken(
       typeCode,
       type,
