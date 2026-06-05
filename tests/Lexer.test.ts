@@ -605,6 +605,7 @@ describe("Lexer - Extended Tests", () => {
       );
       expect(helperSource).toContain("case 34:");
       expect(helperSource).toContain("case 39:");
+      expect(helperSource).toContain("case 96:");
       expect(helperSource).toContain("isIdentifierStartCode(firstCode)");
     });
 
@@ -1136,6 +1137,14 @@ describe("Lexer - Extended Tests", () => {
       const tokens = tokenize('""');
       expect(tokens[0]!.type).toBe(TokenType.StringLiteral);
       expect(tokens[0]!.lexeme).toBe('""');
+    });
+
+    it("dispatches backtick strings to the interpolated string matcher", () => {
+      const tokens = tokenize("`Hello ${name}!`");
+
+      expect(tokens[0]!.type).toBe(TokenType.InterpolatedStringLiteral);
+      expect(tokens[0]!.lexeme).toBe("`Hello ${name}!`");
+      expect(tokens[0]!.literal).toBe("`Hello ${name}!`");
     });
   });
 

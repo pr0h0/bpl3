@@ -473,6 +473,8 @@ export class GenericParser {
         return this.matchStringLiteral(emitToken);
       case 39:
         return this.matchCharLiteral(emitToken);
+      case 96:
+        return this.matchStringLiteral(emitToken);
       default:
         if (firstCode >= 48 && firstCode <= 57) {
           return this.matchNumberLiteral(emitToken);
