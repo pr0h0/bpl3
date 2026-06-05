@@ -93,70 +93,131 @@ function classifyIdentifierLike(
 ): IdentifierLikeTokenKind {
   switch (firstCode) {
     case 70:
-      return value === "Func" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+      return value.length === 4 && value === "Func"
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 97:
-      return value === "asm" || value === "as"
-        ? KEYWORD_TOKEN_KIND
-        : IDENTIFIER_TOKEN_KIND;
+      switch (value.length) {
+        case 2:
+          return value === "as" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+        case 3:
+          return value === "asm" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+      }
+      return IDENTIFIER_TOKEN_KIND;
     case 98:
-      return value === "break" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+      return value.length === 5 && value === "break"
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 99:
-      return value === "const" ||
-        value === "continue" ||
-        value === "catch" ||
-        value === "case" ||
-        value === "cast"
-        ? KEYWORD_TOKEN_KIND
-        : IDENTIFIER_TOKEN_KIND;
+      switch (value.length) {
+        case 4:
+          return value === "case" || value === "cast"
+            ? KEYWORD_TOKEN_KIND
+            : IDENTIFIER_TOKEN_KIND;
+        case 5:
+          return value === "const" || value === "catch"
+            ? KEYWORD_TOKEN_KIND
+            : IDENTIFIER_TOKEN_KIND;
+        case 8:
+          return value === "continue"
+            ? KEYWORD_TOKEN_KIND
+            : IDENTIFIER_TOKEN_KIND;
+      }
+      return IDENTIFIER_TOKEN_KIND;
     case 100:
-      return value === "default" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+      return value.length === 7 && value === "default"
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 101:
-      return value === "enum" ||
-        value === "else" ||
-        value === "export" ||
-        value === "extern"
-        ? KEYWORD_TOKEN_KIND
-        : IDENTIFIER_TOKEN_KIND;
+      switch (value.length) {
+        case 4:
+          return value === "enum" || value === "else"
+            ? KEYWORD_TOKEN_KIND
+            : IDENTIFIER_TOKEN_KIND;
+        case 6:
+          return value === "export" || value === "extern"
+            ? KEYWORD_TOKEN_KIND
+            : IDENTIFIER_TOKEN_KIND;
+      }
+      return IDENTIFIER_TOKEN_KIND;
     case 102:
-      if (value === "false") return BOOL_TOKEN_KIND;
-      return value === "frame" || value === "from"
-        ? KEYWORD_TOKEN_KIND
-        : IDENTIFIER_TOKEN_KIND;
+      switch (value.length) {
+        case 4:
+          return value === "from" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+        case 5:
+          if (value === "false") return BOOL_TOKEN_KIND;
+          return value === "frame" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+      }
+      return IDENTIFIER_TOKEN_KIND;
     case 103:
-      return value === "global" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+      return value.length === 6 && value === "global"
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 105:
-      return value === "if" || value === "import"
-        ? KEYWORD_TOKEN_KIND
-        : IDENTIFIER_TOKEN_KIND;
+      switch (value.length) {
+        case 2:
+          return value === "if" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+        case 6:
+          return value === "import"
+            ? KEYWORD_TOKEN_KIND
+            : IDENTIFIER_TOKEN_KIND;
+      }
+      return IDENTIFIER_TOKEN_KIND;
     case 108:
-      return value === "local" || value === "loop"
-        ? KEYWORD_TOKEN_KIND
-        : IDENTIFIER_TOKEN_KIND;
+      switch (value.length) {
+        case 4:
+          return value === "loop" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+        case 5:
+          return value === "local" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+      }
+      return IDENTIFIER_TOKEN_KIND;
     case 109:
-      return value === "match" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+      return value.length === 5 && value === "match"
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 110:
-      return value === "null" || value === "nullptr"
-        ? NULLPTR_TOKEN_KIND
-        : IDENTIFIER_TOKEN_KIND;
+      switch (value.length) {
+        case 4:
+          return value === "null" ? NULLPTR_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+        case 7:
+          return value === "nullptr"
+            ? NULLPTR_TOKEN_KIND
+            : IDENTIFIER_TOKEN_KIND;
+      }
+      return IDENTIFIER_TOKEN_KIND;
     case 114:
-      return value === "ret" || value === "return"
-        ? KEYWORD_TOKEN_KIND
-        : IDENTIFIER_TOKEN_KIND;
+      switch (value.length) {
+        case 3:
+          return value === "ret" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+        case 6:
+          return value === "return"
+            ? KEYWORD_TOKEN_KIND
+            : IDENTIFIER_TOKEN_KIND;
+      }
+      return IDENTIFIER_TOKEN_KIND;
     case 115:
-      return value === "struct" ||
-        value === "static" ||
-        value === "switch" ||
-        value === "sizeof"
-        ? KEYWORD_TOKEN_KIND
-        : IDENTIFIER_TOKEN_KIND;
+      if (value.length === 6) {
+        return value === "struct" ||
+          value === "static" ||
+          value === "switch" ||
+          value === "sizeof"
+          ? KEYWORD_TOKEN_KIND
+          : IDENTIFIER_TOKEN_KIND;
+      }
+      return IDENTIFIER_TOKEN_KIND;
     case 116:
-      if (value === "true") return BOOL_TOKEN_KIND;
-      return value === "type" ||
-        value === "this" ||
-        value === "try" ||
-        value === "throw"
-        ? KEYWORD_TOKEN_KIND
-        : IDENTIFIER_TOKEN_KIND;
+      switch (value.length) {
+        case 3:
+          return value === "try" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+        case 4:
+          if (value === "true") return BOOL_TOKEN_KIND;
+          return value === "type" || value === "this"
+            ? KEYWORD_TOKEN_KIND
+            : IDENTIFIER_TOKEN_KIND;
+        case 5:
+          return value === "throw" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+      }
+      return IDENTIFIER_TOKEN_KIND;
     default:
       return IDENTIFIER_TOKEN_KIND;
   }

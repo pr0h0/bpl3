@@ -110,6 +110,31 @@ describe("Lexer - Extended Tests", () => {
       expect(matcherSource).not.toContain("KEYWORD_START_CODES");
     });
 
+    it("classifies keyword candidates by length before literal comparisons", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("function classifyIdentifierLike");
+      const end = source.indexOf("function isAsciiDigit", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const classifierSource = source.slice(start, end);
+      expect(classifierSource).toContain("switch (value.length)");
+      expect(classifierSource.indexOf("switch (value.length)")).toBeLessThan(
+        classifierSource.indexOf('value === "continue"'),
+      );
+      expect(classifierSource.indexOf("switch (value.length)")).toBeLessThan(
+        classifierSource.indexOf('value === "nullptr"'),
+      );
+      expect(tokenize("continue")[0]!.type).toBe(TokenType.Continue);
+      expect(tokenize("constant")[0]!.type).toBe(TokenType.Identifier);
+      expect(tokenize("nullptr")[0]!.type).toBe(TokenType.Nullptr);
+      expect(tokenize("nullish")[0]!.type).toBe(TokenType.Identifier);
+    });
+
     it("should tokenize 'frame' keyword", () => {
       const tokens = tokenize("frame");
       expect(tokens[0]!.type).toBe(TokenType.Frame);
