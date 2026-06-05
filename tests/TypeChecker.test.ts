@@ -153,6 +153,33 @@ describe("TypeChecker", () => {
     expect(prefix).toContain('cachedResolvedType.kind === "BasicType"');
   });
 
+  it("reuses cached expression basic type resolutions before resolveType", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
+      "utf8",
+    );
+    const checkExpression = source.indexOf("public checkExpression");
+    const resolvedAssignment = source.indexOf(
+      "expr.resolvedType = resolved;",
+      checkExpression,
+    );
+
+    expect(checkExpression).toBeGreaterThanOrEqual(0);
+    expect(resolvedAssignment).toBeGreaterThan(checkExpression);
+
+    const checkExpressionSource = source.slice(
+      checkExpression,
+      resolvedAssignment,
+    );
+    const cached = checkExpressionSource.indexOf(
+      "const cachedResolvedType = type.resolvedType;",
+    );
+    const resolveCall = checkExpressionSource.indexOf("this.resolveType(type)");
+
+    expect(cached).toBeGreaterThanOrEqual(0);
+    expect(resolveCall).toBeGreaterThan(cached);
+  });
+
   it("keeps simple builtin aliases before the scope lookup path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

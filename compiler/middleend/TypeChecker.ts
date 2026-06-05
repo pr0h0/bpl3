@@ -622,7 +622,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     if (type) {
-      const resolved = this.resolveType(type);
+      let resolved: AST.TypeNode;
+      if (type.kind === "BasicType") {
+        const cachedResolvedType = type.resolvedType;
+        resolved =
+          cachedResolvedType !== undefined &&
+          cachedResolvedType.kind === "BasicType"
+            ? cachedResolvedType
+            : this.resolveType(type);
+      } else {
+        resolved = this.resolveType(type);
+      }
       expr.resolvedType = resolved;
     }
     return type;
