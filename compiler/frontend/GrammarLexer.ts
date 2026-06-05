@@ -2,7 +2,20 @@ import { existsSync } from "fs";
 
 import { resolveBplPath, getBplHome } from "../common/PathResolver";
 import { CompilerError } from "../common/CompilerError";
-import { GenericParser, type TokenNode } from "../../grammar/GenericParser";
+import {
+  GENERIC_TOKEN_BOOL,
+  GENERIC_TOKEN_CHAR,
+  GENERIC_TOKEN_IDENTIFIER,
+  GENERIC_TOKEN_INTERPOLATED_STRING,
+  GENERIC_TOKEN_KEYWORD,
+  GENERIC_TOKEN_NULLPTR,
+  GENERIC_TOKEN_NUMBER,
+  GENERIC_TOKEN_PUNCTUATOR,
+  GENERIC_TOKEN_STRING,
+  GenericParser,
+  type GenericTokenKindCode,
+  type TokenNode,
+} from "../../grammar/GenericParser";
 import { GrammarParser } from "../../grammar/GrammarParser";
 import { Token } from "./Token";
 import { TokenType } from "./TokenType";
@@ -215,8 +228,9 @@ function extractComments(
 }
 
 function convertTokenNodeToToken(node: TokenNode): Token {
-  const { type, value, start, end, line, column, file } = node;
+  const { typeCode, type, value, start, end, line, column, file } = node;
   return createFrontendTokenFromParts(
+    typeCode,
     type,
     value,
     start,
@@ -229,7 +243,8 @@ function convertTokenNodeToToken(node: TokenNode): Token {
 
 // eslint-disable-next-line max-params -- hot lexer path passes primitives to avoid per-token part objects.
 function createFrontendTokenFromParts(
-  type: string,
+  typeCode: GenericTokenKindCode,
+  _type: string,
   value: string,
   _start: number,
   _end: number,
@@ -237,9 +252,8 @@ function createFrontendTokenFromParts(
   column: number,
   file: string,
 ): Token {
-  const typeCode = type.charCodeAt(0);
   switch (typeCode) {
-    case 80:
+    case GENERIC_TOKEN_PUNCTUATOR:
       return {
         type: punctuatorTokenType(value),
         lexeme: value,
@@ -248,29 +262,25 @@ function createFrontendTokenFromParts(
         column,
         file,
       } as Token;
-    case 73:
-      switch (type.length) {
-        case 10:
-          return {
-            type: TokenType.Identifier,
-            lexeme: value,
-            literal: null,
-            line,
-            column,
-            file,
-          } as Token;
-        case 25:
-          return {
-            type: TokenType.InterpolatedStringLiteral,
-            lexeme: value,
-            literal: value,
-            line,
-            column,
-            file,
-          } as Token;
-      }
-      break;
-    case 75:
+    case GENERIC_TOKEN_IDENTIFIER:
+      return {
+        type: TokenType.Identifier,
+        lexeme: value,
+        literal: null,
+        line,
+        column,
+        file,
+      } as Token;
+    case GENERIC_TOKEN_INTERPOLATED_STRING:
+      return {
+        type: TokenType.InterpolatedStringLiteral,
+        lexeme: value,
+        literal: value,
+        line,
+        column,
+        file,
+      } as Token;
+    case GENERIC_TOKEN_KEYWORD:
       return {
         type: keywordTokenType(value),
         lexeme: value,
@@ -279,30 +289,25 @@ function createFrontendTokenFromParts(
         column,
         file,
       } as Token;
-    case 78:
-      switch (type.length) {
-        case 13:
-          return {
-            type: TokenType.NumberLiteral,
-            lexeme: value,
-            literal: parseNumber(value),
-            line,
-            column,
-            file,
-          } as Token;
-        case 11:
-        case 14:
-          return {
-            type: TokenType.Nullptr,
-            lexeme: value,
-            literal: null,
-            line,
-            column,
-            file,
-          } as Token;
-      }
-      break;
-    case 83:
+    case GENERIC_TOKEN_NUMBER:
+      return {
+        type: TokenType.NumberLiteral,
+        lexeme: value,
+        literal: parseNumber(value),
+        line,
+        column,
+        file,
+      } as Token;
+    case GENERIC_TOKEN_NULLPTR:
+      return {
+        type: TokenType.Nullptr,
+        lexeme: value,
+        literal: null,
+        line,
+        column,
+        file,
+      } as Token;
+    case GENERIC_TOKEN_STRING:
       return {
         type: TokenType.StringLiteral,
         lexeme: value,
@@ -311,7 +316,7 @@ function createFrontendTokenFromParts(
         column,
         file,
       } as Token;
-    case 67:
+    case GENERIC_TOKEN_CHAR:
       return {
         type: TokenType.CharLiteral,
         lexeme: value,
@@ -320,7 +325,7 @@ function createFrontendTokenFromParts(
         column,
         file,
       } as Token;
-    case 66:
+    case GENERIC_TOKEN_BOOL:
       const literal = value === "true";
       return {
         type: literal ? TokenType.True : TokenType.False,

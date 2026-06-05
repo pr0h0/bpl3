@@ -1,6 +1,28 @@
 import type { Grammar } from "./types";
 
+export const GENERIC_TOKEN_PUNCTUATOR = 1;
+export const GENERIC_TOKEN_IDENTIFIER = 2;
+export const GENERIC_TOKEN_KEYWORD = 3;
+export const GENERIC_TOKEN_NUMBER = 4;
+export const GENERIC_TOKEN_STRING = 5;
+export const GENERIC_TOKEN_INTERPOLATED_STRING = 6;
+export const GENERIC_TOKEN_CHAR = 7;
+export const GENERIC_TOKEN_BOOL = 8;
+export const GENERIC_TOKEN_NULLPTR = 9;
+
+export type GenericTokenKindCode =
+  | typeof GENERIC_TOKEN_PUNCTUATOR
+  | typeof GENERIC_TOKEN_IDENTIFIER
+  | typeof GENERIC_TOKEN_KEYWORD
+  | typeof GENERIC_TOKEN_NUMBER
+  | typeof GENERIC_TOKEN_STRING
+  | typeof GENERIC_TOKEN_INTERPOLATED_STRING
+  | typeof GENERIC_TOKEN_CHAR
+  | typeof GENERIC_TOKEN_BOOL
+  | typeof GENERIC_TOKEN_NULLPTR;
+
 export interface TokenNode {
+  typeCode: GenericTokenKindCode;
   type: string;
   value: string;
   start: number;
@@ -11,6 +33,7 @@ export interface TokenNode {
 }
 
 export type TokenEmitter<T> = (
+  typeCode: GenericTokenKindCode,
   type: string,
   value: string,
   start: number,
@@ -42,68 +65,100 @@ type IdentifierLikeTokenType =
   | "BoolLiteral"
   | "NullptrLiteral";
 
+interface IdentifierLikeTokenKind {
+  typeCode: GenericTokenKindCode;
+  type: IdentifierLikeTokenType;
+}
+
+const IDENTIFIER_TOKEN_KIND: IdentifierLikeTokenKind = {
+  typeCode: GENERIC_TOKEN_IDENTIFIER,
+  type: "Identifier",
+};
+const KEYWORD_TOKEN_KIND: IdentifierLikeTokenKind = {
+  typeCode: GENERIC_TOKEN_KEYWORD,
+  type: "Keyword",
+};
+const BOOL_TOKEN_KIND: IdentifierLikeTokenKind = {
+  typeCode: GENERIC_TOKEN_BOOL,
+  type: "BoolLiteral",
+};
+const NULLPTR_TOKEN_KIND: IdentifierLikeTokenKind = {
+  typeCode: GENERIC_TOKEN_NULLPTR,
+  type: "NullptrLiteral",
+};
+
 function classifyIdentifierLike(
   firstCode: number,
   value: string,
-): IdentifierLikeTokenType {
+): IdentifierLikeTokenKind {
   switch (firstCode) {
     case 70:
-      return value === "Func" ? "Keyword" : "Identifier";
+      return value === "Func" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
     case 97:
-      return value === "asm" || value === "as" ? "Keyword" : "Identifier";
+      return value === "asm" || value === "as"
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 98:
-      return value === "break" ? "Keyword" : "Identifier";
+      return value === "break" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
     case 99:
       return value === "const" ||
         value === "continue" ||
         value === "catch" ||
         value === "case" ||
         value === "cast"
-        ? "Keyword"
-        : "Identifier";
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 100:
-      return value === "default" ? "Keyword" : "Identifier";
+      return value === "default" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
     case 101:
       return value === "enum" ||
         value === "else" ||
         value === "export" ||
         value === "extern"
-        ? "Keyword"
-        : "Identifier";
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 102:
-      if (value === "false") return "BoolLiteral";
-      return value === "frame" || value === "from" ? "Keyword" : "Identifier";
+      if (value === "false") return BOOL_TOKEN_KIND;
+      return value === "frame" || value === "from"
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 103:
-      return value === "global" ? "Keyword" : "Identifier";
+      return value === "global" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
     case 105:
-      return value === "if" || value === "import" ? "Keyword" : "Identifier";
+      return value === "if" || value === "import"
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 108:
-      return value === "local" || value === "loop" ? "Keyword" : "Identifier";
+      return value === "local" || value === "loop"
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 109:
-      return value === "match" ? "Keyword" : "Identifier";
+      return value === "match" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
     case 110:
       return value === "null" || value === "nullptr"
-        ? "NullptrLiteral"
-        : "Identifier";
+        ? NULLPTR_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 114:
-      return value === "ret" || value === "return" ? "Keyword" : "Identifier";
+      return value === "ret" || value === "return"
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 115:
       return value === "struct" ||
         value === "static" ||
         value === "switch" ||
         value === "sizeof"
-        ? "Keyword"
-        : "Identifier";
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 116:
-      if (value === "true") return "BoolLiteral";
+      if (value === "true") return BOOL_TOKEN_KIND;
       return value === "type" ||
         value === "this" ||
         value === "try" ||
         value === "throw"
-        ? "Keyword"
-        : "Identifier";
+        ? KEYWORD_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     default:
-      return "Identifier";
+      return IDENTIFIER_TOKEN_KIND;
   }
 }
 
@@ -115,9 +170,7 @@ function isAsciiDigit(ch: string | undefined): ch is string {
 
 function isIdentifierStartCode(code: number): boolean {
   return (
-    code === 95 ||
-    (code >= 65 && code <= 90) ||
-    (code >= 97 && code <= 122)
+    code === 95 || (code >= 65 && code <= 90) || (code >= 97 && code <= 122)
   );
 }
 
@@ -258,10 +311,15 @@ export class GenericParser {
     const firstChar = this.source[this.position];
 
     // Standard string literal
-    if (firstChar === "\"") {
+    if (firstChar === '"') {
       const match = this.execAt(STRING_LITERAL_PATTERN, this.position);
       if (match) {
-        return this.createToken("StringLiteral", match[0]!, emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_STRING,
+          "StringLiteral",
+          match[0]!,
+          emitToken,
+        );
       }
       return null;
     }
@@ -273,6 +331,7 @@ export class GenericParser {
       if (end !== -1) {
         const value = this.source.slice(this.position, end);
         return this.createToken(
+          GENERIC_TOKEN_INTERPOLATED_STRING,
           "InterpolatedStringLiteral",
           value,
           emitToken,
@@ -343,7 +402,12 @@ export class GenericParser {
 
     const match = this.execAt(CHAR_LITERAL_PATTERN, this.position);
     if (!match) return null;
-    return this.createToken("CharLiteral", match[0]!, emitToken);
+    return this.createToken(
+      GENERIC_TOKEN_CHAR,
+      "CharLiteral",
+      match[0]!,
+      emitToken,
+    );
   }
 
   private matchNumberLiteral<T>(emitToken: TokenEmitter<T>): T | null {
@@ -364,7 +428,14 @@ export class GenericParser {
     }
 
     const match = this.execAt(pattern, this.position);
-    if (match) return this.createToken("NumberLiteral", match[0]!, emitToken);
+    if (match) {
+      return this.createToken(
+        GENERIC_TOKEN_NUMBER,
+        "NumberLiteral",
+        match[0]!,
+        emitToken,
+      );
+    }
 
     if (pattern !== DECIMAL_NUMBER_LITERAL_PATTERN) {
       const decimalFallback = this.execAt(
@@ -373,6 +444,7 @@ export class GenericParser {
       );
       if (decimalFallback) {
         return this.createToken(
+          GENERIC_TOKEN_NUMBER,
           "NumberLiteral",
           decimalFallback[0]!,
           emitToken,
@@ -392,9 +464,10 @@ export class GenericParser {
 
     const end = this.scanIdentifierEnd(start + 1);
     const value = this.source.slice(start, end);
-    const tokenType = classifyIdentifierLike(firstCode, value);
+    const tokenKind = classifyIdentifierLike(firstCode, value);
     return this.createTokenFromRange(
-      tokenType,
+      tokenKind.typeCode,
+      tokenKind.type,
       value,
       start,
       end,
@@ -423,53 +496,94 @@ export class GenericParser {
     switch (firstCode) {
       case 33:
         return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
           "Punctuator",
           secondCode === 61 ? "!=" : "!",
           emitToken,
         );
       case 36:
-        return this.createToken("Punctuator", "$", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          "$",
+          emitToken,
+        );
       case 37:
         return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
           "Punctuator",
           secondCode === 61 ? "%=" : "%",
           emitToken,
         );
       case 38:
         if (secondCode === 38) {
-          return this.createToken("Punctuator", "&&", emitToken);
+          return this.createToken(
+            GENERIC_TOKEN_PUNCTUATOR,
+            "Punctuator",
+            "&&",
+            emitToken,
+          );
         }
         return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
           "Punctuator",
           secondCode === 61 ? "&=" : "&",
           emitToken,
         );
       case 40:
-        return this.createToken("Punctuator", "(", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          "(",
+          emitToken,
+        );
       case 41:
-        return this.createToken("Punctuator", ")", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          ")",
+          emitToken,
+        );
       case 42:
         return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
           "Punctuator",
           secondCode === 61 ? "*=" : "*",
           emitToken,
         );
       case 43:
         if (secondCode === 43) {
-          return this.createToken("Punctuator", "++", emitToken);
+          return this.createToken(
+            GENERIC_TOKEN_PUNCTUATOR,
+            "Punctuator",
+            "++",
+            emitToken,
+          );
         }
         return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
           "Punctuator",
           secondCode === 61 ? "+=" : "+",
           emitToken,
         );
       case 44:
-        return this.createToken("Punctuator", ",", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          ",",
+          emitToken,
+        );
       case 45:
         if (secondCode === 45) {
-          return this.createToken("Punctuator", "--", emitToken);
+          return this.createToken(
+            GENERIC_TOKEN_PUNCTUATOR,
+            "Punctuator",
+            "--",
+            emitToken,
+          );
         }
         return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
           "Punctuator",
           secondCode === 61 ? "-=" : "-",
           emitToken,
@@ -479,75 +593,156 @@ export class GenericParser {
           secondCode === 46 &&
           this.source.charCodeAt(this.position + 2) === 46
         ) {
-          return this.createToken("Punctuator", "...", emitToken);
+          return this.createToken(
+            GENERIC_TOKEN_PUNCTUATOR,
+            "Punctuator",
+            "...",
+            emitToken,
+          );
         }
-        return this.createToken("Punctuator", ".", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          ".",
+          emitToken,
+        );
       case 47:
         return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
           "Punctuator",
           secondCode === 61 ? "/=" : "/",
           emitToken,
         );
       case 58:
-        return this.createToken("Punctuator", ":", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          ":",
+          emitToken,
+        );
       case 59:
-        return this.createToken("Punctuator", ";", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          ";",
+          emitToken,
+        );
       case 60:
         if (secondCode === 61) {
-          return this.createToken("Punctuator", "<=", emitToken);
+          return this.createToken(
+            GENERIC_TOKEN_PUNCTUATOR,
+            "Punctuator",
+            "<=",
+            emitToken,
+          );
         }
         return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
           "Punctuator",
           secondCode === 60 ? "<<" : "<",
           emitToken,
         );
       case 61:
         if (secondCode === 61) {
-          return this.createToken("Punctuator", "==", emitToken);
+          return this.createToken(
+            GENERIC_TOKEN_PUNCTUATOR,
+            "Punctuator",
+            "==",
+            emitToken,
+          );
         }
         return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
           "Punctuator",
           secondCode === 62 ? "=>" : "=",
           emitToken,
         );
       case 62:
         if (secondCode === 61) {
-          return this.createToken("Punctuator", ">=", emitToken);
+          return this.createToken(
+            GENERIC_TOKEN_PUNCTUATOR,
+            "Punctuator",
+            ">=",
+            emitToken,
+          );
         }
         return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
           "Punctuator",
           secondCode === 62 ? ">>" : ">",
           emitToken,
         );
       case 63:
-        return this.createToken("Punctuator", "?", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          "?",
+          emitToken,
+        );
       case 64:
-        return this.createToken("Punctuator", "@", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          "@",
+          emitToken,
+        );
       case 91:
-        return this.createToken("Punctuator", "[", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          "[",
+          emitToken,
+        );
       case 93:
-        return this.createToken("Punctuator", "]", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          "]",
+          emitToken,
+        );
       case 94:
         return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
           "Punctuator",
           secondCode === 61 ? "^=" : "^",
           emitToken,
         );
       case 123:
-        return this.createToken("Punctuator", "{", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          "{",
+          emitToken,
+        );
       case 124:
         if (secondCode === 124) {
-          return this.createToken("Punctuator", "||", emitToken);
+          return this.createToken(
+            GENERIC_TOKEN_PUNCTUATOR,
+            "Punctuator",
+            "||",
+            emitToken,
+          );
         }
         return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
           "Punctuator",
           secondCode === 61 ? "|=" : "|",
           emitToken,
         );
       case 125:
-        return this.createToken("Punctuator", "}", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          "}",
+          emitToken,
+        );
       case 126:
-        return this.createToken("Punctuator", "~", emitToken);
+        return this.createToken(
+          GENERIC_TOKEN_PUNCTUATOR,
+          "Punctuator",
+          "~",
+          emitToken,
+        );
       default:
         return null;
     }
@@ -560,6 +755,7 @@ export class GenericParser {
   }
 
   private createToken<T>(
+    typeCode: GenericTokenKindCode,
     type: string,
     value: string,
     emitToken: TokenEmitter<T>,
@@ -574,10 +770,20 @@ export class GenericParser {
       this.advance(value);
     }
     const end = this.position;
-    return emitToken(type, value, start, end, line, column, this.filePath);
+    return emitToken(
+      typeCode,
+      type,
+      value,
+      start,
+      end,
+      line,
+      column,
+      this.filePath,
+    );
   }
 
   private createTokenFromRange<T>(
+    typeCode: GenericTokenKindCode,
     type: string,
     value: string,
     start: number,
@@ -588,7 +794,16 @@ export class GenericParser {
     const column = this.column;
     this.position = end;
     this.column += end - start;
-    return emitToken(type, value, start, end, line, column, this.filePath);
+    return emitToken(
+      typeCode,
+      type,
+      value,
+      start,
+      end,
+      line,
+      column,
+      this.filePath,
+    );
   }
 
   private advance(text: string): void {
@@ -605,6 +820,7 @@ export class GenericParser {
 }
 
 const createTokenNode: TokenEmitter<TokenNode> = (
+  typeCode,
   type,
   value,
   start,
@@ -612,6 +828,6 @@ const createTokenNode: TokenEmitter<TokenNode> = (
   line,
   column,
   file,
-) => ({ type, value, start, end, line, column, file });
+) => ({ typeCode, type, value, start, end, line, column, file });
 
 export default GenericParser;
