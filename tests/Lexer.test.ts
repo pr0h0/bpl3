@@ -22,9 +22,10 @@ describe("Lexer - Extended Tests", () => {
       const helperSource = source.slice(start, end);
 
       expect(tokenize("7")[0]!.literal).toBe(7);
-      expect(helperSource).toContain("if (raw.length === 1)");
+      expect(helperSource).toContain("const rawLength = raw.length;");
+      expect(helperSource).toContain("if (rawLength === 1)");
       expect(helperSource).toContain("return firstCode - 48");
-      expect(helperSource.indexOf("raw.length === 1")).toBeLessThan(
+      expect(helperSource.indexOf("rawLength === 1")).toBeLessThan(
         helperSource.indexOf("Number(raw)"),
       );
     });
@@ -839,6 +840,31 @@ describe("Lexer - Extended Tests", () => {
       expect(parseNumberSource.indexOf("Number(raw)")).toBeLessThan(
         parseNumberSource.indexOf('raw.replace(/_/g, "")'),
       );
+    });
+
+    it("parses small plain decimal integers before generic Number conversion", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("function parseNumber");
+      const end = source.indexOf("function decodeString", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const parseNumberSource = source.slice(start, end);
+      const decimalHelper = parseNumberSource.indexOf(
+        "parseSmallPlainDecimalInteger",
+      );
+      const genericNumber = parseNumberSource.indexOf("Number(raw)");
+
+      expect(tokenize("12345")[0]!.literal).toBe(12345);
+      expect(tokenize("3.14")[0]!.literal).toBe(3.14);
+      expect(tokenize("0xFF")[0]!.literal).toBe(255);
+      expect(tokenize("1_2_3")[0]!.literal).toBe(123);
+      expect(decimalHelper).toBeGreaterThanOrEqual(0);
+      expect(decimalHelper).toBeLessThan(genericNumber);
     });
 
     it("should tokenize decimal integer", () => {

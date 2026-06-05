@@ -561,16 +561,39 @@ function punctuatorTokenType(value: string): TokenType {
 }
 
 function parseNumber(raw: string): number {
-  if (raw.length === 1) {
-    const firstCode = raw.charCodeAt(0);
+  const rawLength = raw.length;
+  const firstCode = raw.charCodeAt(0);
+  if (rawLength === 1) {
     if (firstCode >= 48 && firstCode <= 57) {
       return firstCode - 48;
     }
+  }
+  if (rawLength <= 15 && firstCode >= 48 && firstCode <= 57) {
+    const plainDecimal = parseSmallPlainDecimalInteger(
+      raw,
+      rawLength,
+      firstCode - 48,
+    );
+    if (plainDecimal !== null) return plainDecimal;
   }
   if (raw.indexOf("_") === -1) {
     return Number(raw);
   }
   return Number(raw.replace(/_/g, ""));
+}
+
+function parseSmallPlainDecimalInteger(
+  raw: string,
+  rawLength: number,
+  firstDigit: number,
+): number | null {
+  let value = firstDigit;
+  for (let index = 1; index < rawLength; index++) {
+    const code = raw.charCodeAt(index);
+    if (code < 48 || code > 57) return null;
+    value = value * 10 + code - 48;
+  }
+  return value;
 }
 
 function decodeString(raw: string): string {
