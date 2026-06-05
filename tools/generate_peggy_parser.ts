@@ -311,7 +311,10 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     "    if (endPos === peg$FAILED) {",
     "      return peg$FAILED;",
     "    }",
-    "    if (peg$isBplReservedKeywordRange(startPos, endPos)) {",
+    "    if (",
+    "      peg$isBplReservedKeywordStartCode(input.charCodeAt(startPos)) &&",
+    "      peg$isBplReservedKeywordRange(startPos, endPos)",
+    "    ) {",
     "      peg$currPos = startPos;",
     "      return peg$FAILED;",
     "    }",
@@ -515,6 +518,9 @@ function optimizeGeneratedQualifiedIdentifierScanning(
 }
 
 function buildReservedKeywordRangeHelper(reservedKeywords: string[]): string[] {
+  const firstCodes = [
+    ...new Set(reservedKeywords.map((keyword) => keyword.charCodeAt(0))),
+  ].sort((a, b) => a - b);
   const byLength = new Map<number, Map<number, string[]>>();
   for (const keyword of reservedKeywords) {
     const firstCode = keyword.charCodeAt(0);
@@ -529,6 +535,17 @@ function buildReservedKeywordRangeHelper(reservedKeywords: string[]): string[] {
   }
 
   const lines = [
+    "  function peg$isBplReservedKeywordStartCode(code) {",
+    "    switch (code) {",
+    ...firstCodes.flatMap((code) => [
+      `      case ${code}:`,
+      "        return true;",
+    ]),
+    "      default:",
+    "        return false;",
+    "    }",
+    "  }",
+    "",
     "  function peg$isBplReservedKeywordRange(startPos, endPos) {",
     "    switch (endPos - startPos) {",
   ];

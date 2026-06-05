@@ -9535,7 +9535,10 @@ function peg$parse(input, options) {
     if (endPos === peg$FAILED) {
       return peg$FAILED;
     }
-    if (peg$isBplReservedKeywordRange(startPos, endPos)) {
+    if (
+      peg$isBplReservedKeywordStartCode(input.charCodeAt(startPos)) &&
+      peg$isBplReservedKeywordRange(startPos, endPos)
+    ) {
       peg$currPos = startPos;
       return peg$FAILED;
     }
@@ -12211,6 +12214,49 @@ function peg$parse(input, options) {
     }
 
     return s0;
+  }
+
+  function peg$isBplReservedKeywordStartCode(code) {
+    switch (code) {
+      case 70:
+        return true;
+      case 76:
+        return true;
+      case 83:
+        return true;
+      case 97:
+        return true;
+      case 98:
+        return true;
+      case 99:
+        return true;
+      case 100:
+        return true;
+      case 101:
+        return true;
+      case 102:
+        return true;
+      case 103:
+        return true;
+      case 105:
+        return true;
+      case 108:
+        return true;
+      case 109:
+        return true;
+      case 110:
+        return true;
+      case 111:
+        return true;
+      case 114:
+        return true;
+      case 115:
+        return true;
+      case 116:
+        return true;
+      default:
+        return false;
+    }
   }
 
   function peg$isBplReservedKeywordRange(startPos, endPos) {
