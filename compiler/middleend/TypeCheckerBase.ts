@@ -292,28 +292,31 @@ const STANDARD_LIBRARY_PRIMITIVE_WRAPPER_TYPES = new Set(
   Object.values(PRIMITIVE_STRUCT_MAP),
 );
 
-function hasExtendedBasicTypeMetadata(type: AST.BasicTypeNode): boolean {
-  return (
-    type.resolvedType !== undefined ||
+function cloneSimpleBuiltinAliasType(
+  type: AST.BasicTypeNode,
+  canonicalName: string,
+): AST.BasicTypeNode {
+  const cached = type.resolvedType;
+  if (cached !== undefined) {
+    if (cached.kind === "BasicType") {
+      return cached;
+    }
+
+    return {
+      ...type,
+      name: canonicalName,
+      genericArgs: [],
+    };
+  }
+
+  if (
     type.documentation !== undefined ||
     type.resolvedDeclaration !== undefined ||
     type.aliasDeclaration !== undefined ||
     type.variableDeclaration !== undefined ||
     type.isConst !== undefined ||
     type.isPointerToArray !== undefined
-  );
-}
-
-function cloneSimpleBuiltinAliasType(
-  type: AST.BasicTypeNode,
-  canonicalName: string,
-): AST.BasicTypeNode {
-  const cached = type.resolvedType;
-  if (cached?.kind === "BasicType") {
-    return cached;
-  }
-
-  if (hasExtendedBasicTypeMetadata(type)) {
+  ) {
     return {
       ...type,
       name: canonicalName,

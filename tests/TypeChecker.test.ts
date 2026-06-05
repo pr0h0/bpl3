@@ -259,16 +259,26 @@ describe("TypeChecker", () => {
       "utf8",
     );
     const cloneHelper = source.indexOf("function cloneSimpleBuiltinAliasType");
+    const cloneHelperEnd = source.indexOf(
+      "\nfunction resolveSimpleBuiltinTypeName",
+      cloneHelper,
+    );
     const resolver = source.indexOf("function resolveSimpleBuiltinBasicType");
     const resolverEnd = source.indexOf("\n/**", resolver);
+    const cloneSource = source.slice(cloneHelper, cloneHelperEnd);
     const resolverSource = source.slice(resolver, resolverEnd);
 
     expect(cloneHelper).toBeGreaterThanOrEqual(0);
+    expect(cloneHelperEnd).toBeGreaterThan(cloneHelper);
     expect(cloneHelper).toBeLessThan(resolver);
     expect(resolverSource).toContain(
       "cloneSimpleBuiltinAliasType(type, resolvedName)",
     );
     expect(resolverSource).not.toContain("...type");
+    expect(source).not.toContain("function hasExtendedBasicTypeMetadata");
+    expect(cloneSource).toContain("cached !== undefined");
+    expect(cloneSource).not.toContain("cached?.kind");
+    expect(cloneSource).not.toContain("hasExtendedBasicTypeMetadata(type)");
   });
 
   it("resolves already-resolved nominal basic types without scope lookup", () => {
