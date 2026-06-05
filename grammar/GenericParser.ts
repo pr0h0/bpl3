@@ -560,6 +560,7 @@ export class GenericParser {
           "InterpolatedStringLiteral",
           value,
           emitToken,
+          true,
         );
       }
     }
@@ -989,11 +990,12 @@ export class GenericParser {
     type: string,
     value: string,
     emitToken: AnyTokenEmitter<T>,
+    canContainNewline = false,
   ): T {
     const start = this.position;
     const line = this.line;
     const column = this.column;
-    if (value.indexOf("\n") === -1) {
+    if (!canContainNewline || value.indexOf("\n") === -1) {
       this.position += value.length;
       this.column += value.length;
     } else {

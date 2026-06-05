@@ -753,7 +753,7 @@ describe("Lexer - Extended Tests", () => {
       );
     });
 
-    it("fast-forwards newline-free token positions without advance loop", () => {
+    it("fast-forwards known newline-free token positions without scanning token text", () => {
       const source = readFileSync(
         join(process.cwd(), "grammar/GenericParser.ts"),
         "utf8",
@@ -765,13 +765,31 @@ describe("Lexer - Extended Tests", () => {
       expect(end).toBeGreaterThan(start);
 
       const createTokenSource = source.slice(start, end);
-      expect(createTokenSource).toContain('value.indexOf("\\n") === -1');
+      expect(createTokenSource).toContain("canContainNewline = false");
+      expect(createTokenSource).toContain(
+        'if (!canContainNewline || value.indexOf("\\n") === -1)',
+      );
       expect(createTokenSource).toContain("this.position += value.length;");
       expect(createTokenSource).toContain("this.column += value.length;");
       expect(createTokenSource).toContain("this.advance(value);");
       expect(
         createTokenSource.indexOf("this.position += value.length;"),
       ).toBeLessThan(createTokenSource.indexOf("this.advance(value);"));
+
+      const stringMatcherStart = source.indexOf(
+        "private matchStringLiteral<T>",
+      );
+      const interpolatedStart = source.indexOf(
+        "GENERIC_TOKEN_INTERPOLATED_STRING",
+        stringMatcherStart,
+      );
+      const interpolatedEnd = source.indexOf("return null;", interpolatedStart);
+      expect(stringMatcherStart).toBeGreaterThanOrEqual(0);
+      expect(interpolatedStart).toBeGreaterThanOrEqual(0);
+      expect(interpolatedEnd).toBeGreaterThan(interpolatedStart);
+      expect(source.slice(interpolatedStart, interpolatedEnd)).toContain(
+        "true,",
+      );
     });
 
     it("converts identifier token nodes without a defensive keyword lookup", () => {
