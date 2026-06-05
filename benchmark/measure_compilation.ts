@@ -28,6 +28,7 @@ export interface CompilationBenchmarkArgs {
   treeShakeTopLevelFunctions?: boolean;
   compare?: string;
   timingBaseline?: string;
+  noiseControl?: string;
   gatePhases?: CompilePhaseName[];
   maxPhaseRegressionPercent?: number;
   maxFullRegressionPercent?: number;
@@ -60,6 +61,7 @@ export interface CompilePhaseBenchmarkComparisonOptions {
   maxPhaseRegressionPercent?: number;
   maxFullRegressionPercent?: number;
   timingBaseline?: CompilePhaseBenchmarkResult;
+  noiseControl?: CompilePhaseBenchmarkResult;
 }
 
 export interface CompilePhaseBenchmarkDelta {
@@ -68,6 +70,11 @@ export interface CompilePhaseBenchmarkDelta {
   candidateMedianMs: number;
   deltaMs: number;
   deltaPercent: number;
+  noiseControlMedianMs?: number;
+  noiseControlDeltaMs?: number;
+  noiseControlDeltaPercent?: number;
+  normalizedDeltaMs?: number;
+  normalizedDeltaPercent?: number;
 }
 
 export interface CompilePhaseBenchmarkComparison {
@@ -77,6 +84,7 @@ export interface CompilePhaseBenchmarkComparison {
   irHashMatches: boolean;
   signaturesMatch: boolean;
   timingBaselineMatches: boolean;
+  noiseControlMatches: boolean;
   failures: string[];
   phaseDeltas: CompilePhaseBenchmarkDelta[];
 }
@@ -165,6 +173,14 @@ export function parseCompilationBenchmarkArgs(
       ) {
         throw new Error("--timing-baseline expects a phase JSON file");
       }
+    } else if (arg === "--noise-control") {
+      options.noiseControl = args[++i];
+      if (
+        options.noiseControl === undefined ||
+        options.noiseControl.length === 0
+      ) {
+        throw new Error("--noise-control expects a phase JSON file");
+      }
     } else if (arg === "--gate-phases") {
       options.gatePhases = parseGatePhases(args[++i]);
     } else if (arg === "--max-phase-regression") {
@@ -188,6 +204,9 @@ export function parseCompilationBenchmarkArgs(
   if (options.timingBaseline !== undefined && options.compare === undefined) {
     throw new Error("--timing-baseline requires --compare");
   }
+  if (options.noiseControl !== undefined && options.compare === undefined) {
+    throw new Error("--noise-control requires --compare");
+  }
 
   return options;
 }
@@ -199,6 +218,7 @@ export function compareCompilePhaseBenchmarkResults(
 ): CompilePhaseBenchmarkComparison {
   const failures: string[] = [];
   const timingBaseline = options.timingBaseline ?? baseline;
+  const noiseControl = options.noiseControl;
   const tokenCountMatches = baseline.tokenCount === candidate.tokenCount;
   const tokenSignatureMatches =
     baseline.tokenSignature === candidate.tokenSignature;
@@ -209,6 +229,14 @@ export function compareCompilePhaseBenchmarkResults(
     baseline.tokenSignature === timingBaseline.tokenSignature;
   const timingBaselineIrHashMatches =
     baseline.irHash === timingBaseline.irHash;
+  const noiseControlTokenCountMatches =
+    noiseControl === undefined ||
+    baseline.tokenCount === noiseControl.tokenCount;
+  const noiseControlTokenSignatureMatches =
+    noiseControl === undefined ||
+    baseline.tokenSignature === noiseControl.tokenSignature;
+  const noiseControlIrHashMatches =
+    noiseControl === undefined || baseline.irHash === noiseControl.irHash;
 
   if (!tokenCountMatches) {
     failures.push("tokenCount changed");
@@ -230,6 +258,17 @@ export function compareCompilePhaseBenchmarkResults(
       failures.push("timingBaseline irHash changed");
     }
   }
+  if (noiseControl !== undefined) {
+    if (!noiseControlTokenCountMatches) {
+      failures.push("noiseControl tokenCount changed");
+    }
+    if (!noiseControlTokenSignatureMatches) {
+      failures.push("noiseControl tokenSignature changed");
+    }
+    if (!noiseControlIrHashMatches) {
+      failures.push("noiseControl irHash changed");
+    }
+  }
 
   const phaseDeltas = COMPILE_PHASE_NAMES.map((phase) => {
     const baselineMedianMs = timingBaseline[phase].medianMs;
@@ -237,13 +276,33 @@ export function compareCompilePhaseBenchmarkResults(
     const deltaMs = candidateMedianMs - baselineMedianMs;
     const deltaPercent =
       baselineMedianMs === 0 ? 0 : (deltaMs / baselineMedianMs) * 100;
-    return {
+    const delta: CompilePhaseBenchmarkDelta = {
       phase,
       baselineMedianMs,
       candidateMedianMs,
       deltaMs: roundTo(deltaMs, 6),
       deltaPercent: roundTo(deltaPercent, 6),
     };
+
+    if (noiseControl !== undefined) {
+      const noiseControlMedianMs = noiseControl[phase].medianMs;
+      const noiseControlDeltaMs = noiseControlMedianMs - baselineMedianMs;
+      const noiseControlDeltaPercent =
+        baselineMedianMs === 0
+          ? 0
+          : (noiseControlDeltaMs / baselineMedianMs) * 100;
+      const normalizedDeltaMs =
+        deltaMs - Math.max(0, noiseControlDeltaMs);
+      const normalizedDeltaPercent =
+        deltaPercent - Math.max(0, noiseControlDeltaPercent);
+      delta.noiseControlMedianMs = noiseControlMedianMs;
+      delta.noiseControlDeltaMs = roundTo(noiseControlDeltaMs, 6);
+      delta.noiseControlDeltaPercent = roundTo(noiseControlDeltaPercent, 6);
+      delta.normalizedDeltaMs = roundTo(normalizedDeltaMs, 6);
+      delta.normalizedDeltaPercent = roundTo(normalizedDeltaPercent, 6);
+    }
+
+    return delta;
   });
 
   for (const delta of phaseDeltas) {
@@ -260,11 +319,17 @@ export function compareCompilePhaseBenchmarkResults(
         : options.maxPhaseRegressionPercent;
     if (
       maxRegression !== undefined &&
-      delta.deltaPercent > maxRegression
+      (delta.normalizedDeltaPercent ?? delta.deltaPercent) > maxRegression
     ) {
-      failures.push(
-        `${delta.phase} median regressed by ${delta.deltaPercent.toFixed(2)}% (limit ${maxRegression.toFixed(2)}%)`,
-      );
+      if (delta.normalizedDeltaPercent !== undefined) {
+        failures.push(
+          `${delta.phase} median regressed by ${delta.deltaPercent.toFixed(2)}% normalized to ${delta.normalizedDeltaPercent.toFixed(2)}% after noise control (limit ${maxRegression.toFixed(2)}%)`,
+        );
+      } else {
+        failures.push(
+          `${delta.phase} median regressed by ${delta.deltaPercent.toFixed(2)}% (limit ${maxRegression.toFixed(2)}%)`,
+        );
+      }
     }
   }
 
@@ -274,13 +339,22 @@ export function compareCompilePhaseBenchmarkResults(
     timingBaselineTokenCountMatches &&
     timingBaselineTokenSignatureMatches &&
     timingBaselineIrHashMatches;
+  const noiseControlMatches =
+    noiseControlTokenCountMatches &&
+    noiseControlTokenSignatureMatches &&
+    noiseControlIrHashMatches;
   return {
-    ok: signaturesMatch && timingBaselineMatches && failures.length === 0,
+    ok:
+      signaturesMatch &&
+      timingBaselineMatches &&
+      noiseControlMatches &&
+      failures.length === 0,
     tokenCountMatches,
     tokenSignatureMatches,
     irHashMatches,
     signaturesMatch,
     timingBaselineMatches,
+    noiseControlMatches,
     failures,
     phaseDeltas,
   };
@@ -481,6 +555,10 @@ async function main(): Promise<void> {
                 options.timingBaseline !== undefined
                   ? readCompilePhaseBenchmarkResult(options.timingBaseline)
                   : undefined,
+              noiseControl:
+                options.noiseControl !== undefined
+                  ? readCompilePhaseBenchmarkResult(options.noiseControl)
+                  : undefined,
               maxPhaseRegressionPercent:
                 options.maxPhaseRegressionPercent,
               maxFullRegressionPercent: options.maxFullRegressionPercent,
@@ -514,6 +592,11 @@ async function main(): Promise<void> {
   if (options.timingBaseline !== undefined) {
     throw new Error(
       "--timing-baseline is only supported with --mode phases and --compare",
+    );
+  }
+  if (options.noiseControl !== undefined) {
+    throw new Error(
+      "--noise-control is only supported with --mode phases and --compare",
     );
   }
 
@@ -581,10 +664,23 @@ function printPhaseComparison(
   console.log(
     `  signatures: ${comparison.signaturesMatch ? "unchanged" : "changed"}`,
   );
+  const hasNoiseControl = comparison.phaseDeltas.some(
+    (delta) => delta.noiseControlDeltaPercent !== undefined,
+  );
+  if (hasNoiseControl) {
+    console.log(
+      `  noise control: ${comparison.noiseControlMatches ? "unchanged signatures" : "changed signatures"}`,
+    );
+  }
   for (const delta of comparison.phaseDeltas) {
     const sign = delta.deltaMs >= 0 ? "+" : "";
+    const normalizedSuffix =
+      delta.noiseControlDeltaPercent !== undefined &&
+      delta.normalizedDeltaPercent !== undefined
+        ? `  noise ${delta.noiseControlDeltaPercent >= 0 ? "+" : ""}${delta.noiseControlDeltaPercent.toFixed(2)}%  normalized ${delta.normalizedDeltaPercent >= 0 ? "+" : ""}${delta.normalizedDeltaPercent.toFixed(2)}%`
+        : "";
     console.log(
-      `  ${delta.phase.padEnd(9)} ${delta.baselineMedianMs.toFixed(2)} ms -> ${delta.candidateMedianMs.toFixed(2)} ms  ${sign}${delta.deltaMs.toFixed(2)} ms  ${sign}${delta.deltaPercent.toFixed(2)}%`,
+      `  ${delta.phase.padEnd(9)} ${delta.baselineMedianMs.toFixed(2)} ms -> ${delta.candidateMedianMs.toFixed(2)} ms  ${sign}${delta.deltaMs.toFixed(2)} ms  ${sign}${delta.deltaPercent.toFixed(2)}%${normalizedSuffix}`,
     );
   }
   if (comparison.failures.length > 0) {
@@ -685,6 +781,7 @@ Options:
   --compare FILE        compare phase results against a baseline JSON file
   --timing-baseline FILE
                          use a same-environment phase JSON file for timing deltas
+  --noise-control FILE   normalize positive same-environment control drift out of timing gates
   --gate-phases LIST    only apply threshold gates to comma-separated phases
                          while still reporting all phase deltas and validating signatures
   --max-phase-regression P

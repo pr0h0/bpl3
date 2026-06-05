@@ -55,6 +55,7 @@ describe("Benchmark runner helpers", () => {
     expect(readme).toContain("irHash");
     expect(readme).toContain("--compare");
     expect(readme).toContain("--timing-baseline");
+    expect(readme).toContain("--noise-control");
     expect(readme).toContain("--gate-phases");
     expect(readme).toContain("--max-full-regression");
     expect(readme).toContain("--tree-shake-top-level-functions");
@@ -101,6 +102,8 @@ describe("Benchmark runner helpers", () => {
         "/tmp/baseline.json",
         "--timing-baseline",
         "/tmp/control.json",
+        "--noise-control",
+        "/tmp/noise-control.json",
         "--max-phase-regression",
         "2.5",
         "--max-full-regression",
@@ -114,6 +117,7 @@ describe("Benchmark runner helpers", () => {
       json: false,
       compare: "/tmp/baseline.json",
       timingBaseline: "/tmp/control.json",
+      noiseControl: "/tmp/noise-control.json",
       maxPhaseRegressionPercent: 2.5,
       maxFullRegressionPercent: 1,
     });
@@ -128,6 +132,17 @@ describe("Benchmark runner helpers", () => {
         "/tmp/control.json",
       ]),
     ).toThrow("--timing-baseline requires --compare");
+  });
+
+  it("rejects noise control without a comparison baseline", () => {
+    expect(() =>
+      parseCompilationBenchmarkArgs([
+        "--mode",
+        "phases",
+        "--noise-control",
+        "/tmp/control.json",
+      ]),
+    ).toThrow("--noise-control requires --compare");
   });
 
   it("parses compile phase benchmark top-level tree-shake option", () => {
@@ -305,6 +320,95 @@ describe("Benchmark runner helpers", () => {
     expect(comparison.failures).toContain(
       "timingBaseline tokenSignature changed",
     );
+  });
+
+  it("normalizes compile phase benchmark gates with clean-control drift", () => {
+    const baseline = createPhaseBenchmarkFixture({
+      full: 100,
+      codegen: 40,
+    });
+    const noiseControl = createPhaseBenchmarkFixture({
+      full: 106,
+      codegen: 41,
+    });
+    const candidate = createPhaseBenchmarkFixture({
+      full: 106.5,
+      codegen: 41.4,
+    });
+
+    const comparison = compareCompilePhaseBenchmarkResults(
+      baseline,
+      candidate,
+      {
+        noiseControl,
+        gatePhases: ["codegen", "full"],
+        maxPhaseRegressionPercent: 2,
+        maxFullRegressionPercent: 1,
+      },
+    );
+
+    expect(comparison.ok).toBe(true);
+    expect(comparison.noiseControlMatches).toBe(true);
+    expect(comparison.failures).toEqual([]);
+    expect(comparison.phaseDeltas.find((delta) => delta.phase === "full"))
+      .toMatchObject({
+        baselineMedianMs: 100,
+        candidateMedianMs: 106.5,
+        noiseControlMedianMs: 106,
+        deltaPercent: 6.5,
+        noiseControlDeltaPercent: 6,
+        normalizedDeltaPercent: 0.5,
+      });
+    expect(comparison.phaseDeltas.find((delta) => delta.phase === "codegen"))
+      .toMatchObject({
+        deltaPercent: 3.5,
+        noiseControlDeltaPercent: 2.5,
+        normalizedDeltaPercent: 1,
+      });
+  });
+
+  it("still fails compile phase benchmark gates when drift exceeds noise control", () => {
+    const baseline = createPhaseBenchmarkFixture({ full: 100 });
+    const noiseControl = createPhaseBenchmarkFixture({ full: 105 });
+    const candidate = createPhaseBenchmarkFixture({ full: 108 });
+
+    const comparison = compareCompilePhaseBenchmarkResults(
+      baseline,
+      candidate,
+      {
+        noiseControl,
+        gatePhases: ["full"],
+        maxFullRegressionPercent: 1,
+      },
+    );
+
+    expect(comparison.ok).toBe(false);
+    expect(comparison.failures).toEqual([
+      "full median regressed by 8.00% normalized to 3.00% after noise control (limit 1.00%)",
+    ]);
+  });
+
+  it("fails compile phase benchmark comparisons when noise control signatures drift", () => {
+    const baseline = createPhaseBenchmarkFixture({});
+    const noiseControl = createPhaseBenchmarkFixture({
+      irHash: "c".repeat(64),
+    });
+    const candidate = createPhaseBenchmarkFixture({});
+
+    const comparison = compareCompilePhaseBenchmarkResults(
+      baseline,
+      candidate,
+      {
+        noiseControl,
+        gatePhases: ["full"],
+        maxFullRegressionPercent: 2,
+      },
+    );
+
+    expect(comparison.ok).toBe(false);
+    expect(comparison.signaturesMatch).toBe(true);
+    expect(comparison.noiseControlMatches).toBe(false);
+    expect(comparison.failures).toContain("noiseControl irHash changed");
   });
 
   it("keeps compile phase benchmark comparison defaults gating every phase", () => {

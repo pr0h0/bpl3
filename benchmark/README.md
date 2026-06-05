@@ -118,6 +118,21 @@ thresholds. This prevents local CPU load or runner drift from hiding behavior
 changes while still allowing phase gates to compare candidate timings against a
 same-environment control.
 
+When a candidate is phase-local but unrelated phases have also drifted, add a
+separate clean-control result with `--noise-control`. The control must match the
+saved behavior baseline signatures. Positive control drift is subtracted from
+candidate timing deltas for threshold checks, while raw deltas and normalized
+deltas are both reported:
+
+```bash
+bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --tree-shake-top-level-functions --json > /tmp/bpl3-clean-control-phases.json
+bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --tree-shake-top-level-functions --compare /tmp/bpl3-baseline-phases.json --timing-baseline /tmp/bpl3-control-phases.json --noise-control /tmp/bpl3-clean-control-phases.json --gate-phases codegen,full --max-phase-regression 2 --max-full-regression 1
+```
+
+`--noise-control` does not relax signature validation. It only prevents broad
+same-run host drift from failing a phase gate when a matching clean-control run
+already shows that drift without the candidate change.
+
 For phase-specific compiler work, keep all reporting and signature validation
 but gate only the affected phase plus `full`:
 
