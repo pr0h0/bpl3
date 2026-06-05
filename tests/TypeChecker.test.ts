@@ -670,6 +670,36 @@ describe("TypeChecker", () => {
     expect(branchSource).not.toContain("stmt.params.map");
   });
 
+  it("skips function attribute validation allocations for attribute-free functions", () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "compiler/middleend/validators/FunctionAttributeValidator.ts",
+      ),
+      "utf8",
+    );
+    const validator = source.indexOf("export function validateFunctionAttributes");
+    const validatorEnd = source.indexOf("\nfunction isVoidType", validator);
+
+    expect(validator).toBeGreaterThanOrEqual(0);
+    expect(validatorEnd).toBeGreaterThan(validator);
+
+    const validatorSource = source.slice(validator, validatorEnd);
+    const attributes = validatorSource.indexOf("const attributes =");
+    const emptyReturn = validatorSource.indexOf(
+      "if (attributes.length === 0) return;",
+    );
+    const seen = validatorSource.indexOf("const seen = new Set");
+    const conflictGroups = validatorSource.indexOf(
+      "FUNCTION_ATTRIBUTE_CONFLICT_GROUPS",
+    );
+
+    expect(attributes).toBeGreaterThanOrEqual(0);
+    expect(emptyReturn).toBeGreaterThan(attributes);
+    expect(seen).toBeGreaterThan(emptyReturn);
+    expect(conflictGroups).toBeGreaterThan(seen);
+  });
+
   it("keeps direct struct member lookups on cached maps", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

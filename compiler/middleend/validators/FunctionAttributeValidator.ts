@@ -51,6 +51,8 @@ export function validateFunctionAttributes(
   options: FunctionAttributeValidationOptions = {},
 ): void {
   const attributes = decl.attributes ?? [];
+  if (attributes.length === 0) return;
+
   const seen = new Set<string>();
 
   for (const attr of attributes) {
