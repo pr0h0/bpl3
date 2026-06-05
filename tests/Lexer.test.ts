@@ -672,7 +672,34 @@ describe("Lexer - Extended Tests", () => {
       expect(stringSource).not.toContain('type === "BoolLiteral"');
     });
 
-    it("converts keyword and punctuator token nodes through direct map lookups", () => {
+    it("keeps punctuator token conversion on direct character dispatch", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const converterStart = source.indexOf(
+        "function createFrontendTokenFromParts",
+      );
+      const converterEnd = source.indexOf("const keywordMap", converterStart);
+      const helperStart = source.indexOf("function punctuatorTokenType");
+      const helperEnd = source.indexOf("function parseNumber", helperStart);
+
+      expect(converterStart).toBeGreaterThanOrEqual(0);
+      expect(converterEnd).toBeGreaterThan(converterStart);
+      expect(helperStart).toBeGreaterThanOrEqual(0);
+      expect(helperEnd).toBeGreaterThan(helperStart);
+
+      const converterSource = source.slice(converterStart, converterEnd);
+      const helperSource = source.slice(helperStart, helperEnd);
+      expect(converterSource).toContain("punctuatorTokenType(value)");
+      expect(converterSource).not.toContain("punctuatorMap[value]");
+      expect(helperSource).toContain("switch (value.charCodeAt(0))");
+      expect(helperSource).toContain("case 40:");
+      expect(helperSource).toContain("case 123:");
+      expect(helperSource).toContain("return TokenType.Unknown;");
+    });
+
+    it("converts keyword token nodes through direct map lookups", () => {
       const source = readFileSync(
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
         "utf8",
@@ -686,9 +713,6 @@ describe("Lexer - Extended Tests", () => {
       const converterSource = source.slice(start, end);
       expect(converterSource).toContain(
         "keywordMap[value] ?? TokenType.Identifier",
-      );
-      expect(converterSource).toContain(
-        "punctuatorMap[value] ?? TokenType.Unknown",
       );
       expect(converterSource).not.toContain("keywordToTokenType(value)");
       expect(converterSource).not.toContain("punctuatorToTokenType(value)");
