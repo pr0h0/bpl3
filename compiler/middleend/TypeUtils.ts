@@ -108,11 +108,31 @@ export class TypeUtils {
   static isNumericType(type: AST.TypeNode): boolean {
     if (type.kind !== "BasicType") return false;
     if (type.pointerDepth > 0 || type.arrayDimensions.length > 0) return false;
-    const canonicalName = TYPE_ALIASES[type.name] || type.name;
-    return (
-      NUMERIC_TYPES.includes(type.name) ||
-      NUMERIC_TYPES.includes(canonicalName)
-    );
+    switch (type.name) {
+      case "int":
+      case "uint":
+      case "float":
+      case "double":
+      case "bool":
+      case "i1":
+      case "char":
+      case "uchar":
+      case "short":
+      case "ushort":
+      case "long":
+      case "ulong":
+      case "i8":
+      case "u8":
+      case "i16":
+      case "u16":
+      case "i32":
+      case "u32":
+      case "i64":
+      case "u64":
+        return true;
+      default:
+        return false;
+    }
   }
 
   /**
