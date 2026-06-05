@@ -1073,12 +1073,25 @@ describe("Lexer - Extended Tests", () => {
       const decimalHelper = parseNumberSource.indexOf(
         "parseSmallPlainDecimalInteger",
       );
+      const twoDigitCase = parseNumberSource.indexOf("rawLength === 2");
+      const fourDigitCase = parseNumberSource.indexOf("rawLength === 4");
       const genericNumber = parseNumberSource.indexOf("Number(raw)");
 
       expect(tokenize("12345")[0]!.literal).toBe(12345);
+      expect(tokenize("42")[0]!.literal).toBe(42);
+      expect(tokenize("999")[0]!.literal).toBe(999);
+      expect(tokenize("4999")[0]!.literal).toBe(4999);
       expect(tokenize("3.14")[0]!.literal).toBe(3.14);
       expect(tokenize("0xFF")[0]!.literal).toBe(255);
       expect(tokenize("1_2_3")[0]!.literal).toBe(123);
+      expect(parseNumberSource).toContain("const secondCode = raw.charCodeAt(1)");
+      expect(parseNumberSource).toContain(
+        "return (firstCode - 48) * 10 + secondCode - 48",
+      );
+      expect(twoDigitCase).toBeGreaterThanOrEqual(0);
+      expect(twoDigitCase).toBeLessThan(decimalHelper);
+      expect(fourDigitCase).toBeGreaterThanOrEqual(0);
+      expect(fourDigitCase).toBeLessThan(decimalHelper);
       expect(decimalHelper).toBeGreaterThanOrEqual(0);
       expect(decimalHelper).toBeLessThan(genericNumber);
     });

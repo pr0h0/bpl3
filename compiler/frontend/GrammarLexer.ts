@@ -471,6 +471,44 @@ function parseNumber(raw: string): number {
       return firstCode - 48;
     }
   }
+  if (rawLength === 2 && firstCode >= 48 && firstCode <= 57) {
+    const secondCode = raw.charCodeAt(1);
+    if (secondCode >= 48 && secondCode <= 57) {
+      return (firstCode - 48) * 10 + secondCode - 48;
+    }
+  }
+  if (rawLength === 3 && firstCode >= 48 && firstCode <= 57) {
+    const secondCode = raw.charCodeAt(1);
+    const thirdCode = raw.charCodeAt(2);
+    if (
+      secondCode >= 48 &&
+      secondCode <= 57 &&
+      thirdCode >= 48 &&
+      thirdCode <= 57
+    ) {
+      return ((firstCode - 48) * 10 + secondCode - 48) * 10 + thirdCode - 48;
+    }
+  }
+  if (rawLength === 4 && firstCode >= 48 && firstCode <= 57) {
+    const secondCode = raw.charCodeAt(1);
+    const thirdCode = raw.charCodeAt(2);
+    const fourthCode = raw.charCodeAt(3);
+    if (
+      secondCode >= 48 &&
+      secondCode <= 57 &&
+      thirdCode >= 48 &&
+      thirdCode <= 57 &&
+      fourthCode >= 48 &&
+      fourthCode <= 57
+    ) {
+      return (
+        (((firstCode - 48) * 10 + secondCode - 48) * 10 + thirdCode - 48) *
+          10 +
+        fourthCode -
+        48
+      );
+    }
+  }
   if (rawLength <= 15 && firstCode >= 48 && firstCode <= 57) {
     const plainDecimal = parseSmallPlainDecimalInteger(
       raw,
