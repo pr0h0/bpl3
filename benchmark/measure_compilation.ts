@@ -30,6 +30,7 @@ export interface CompilationBenchmarkArgs {
   timingBaseline?: string;
   noiseControl?: string;
   gatePhases?: CompilePhaseName[];
+  maxNoiseControlRegressionPercent?: number;
   maxPhaseRegressionPercent?: number;
   maxFullRegressionPercent?: number;
 }
@@ -60,6 +61,7 @@ export interface CompilePhaseBenchmarkComparisonOptions {
   gatePhases?: CompilePhaseName[];
   maxPhaseRegressionPercent?: number;
   maxFullRegressionPercent?: number;
+  maxNoiseControlRegressionPercent?: number;
   timingBaseline?: CompilePhaseBenchmarkResult;
   noiseControl?: CompilePhaseBenchmarkResult;
 }
@@ -188,6 +190,11 @@ export function parseCompilationBenchmarkArgs(
         args[++i],
         "--max-phase-regression",
       );
+    } else if (arg === "--max-noise-control-regression") {
+      options.maxNoiseControlRegressionPercent = parseNonNegativeNumber(
+        args[++i],
+        "--max-noise-control-regression",
+      );
     } else if (arg === "--max-full-regression") {
       options.maxFullRegressionPercent = parseNonNegativeNumber(
         args[++i],
@@ -206,6 +213,12 @@ export function parseCompilationBenchmarkArgs(
   }
   if (options.noiseControl !== undefined && options.compare === undefined) {
     throw new Error("--noise-control requires --compare");
+  }
+  if (
+    options.maxNoiseControlRegressionPercent !== undefined &&
+    options.noiseControl === undefined
+  ) {
+    throw new Error("--max-noise-control-regression requires --noise-control");
   }
 
   return options;
@@ -330,6 +343,18 @@ export function compareCompilePhaseBenchmarkResults(
           `${delta.phase} median regressed by ${delta.deltaPercent.toFixed(2)}% (limit ${maxRegression.toFixed(2)}%)`,
         );
       }
+    }
+
+    if (
+      noiseControl !== undefined &&
+      options.maxNoiseControlRegressionPercent !== undefined &&
+      delta.noiseControlDeltaPercent !== undefined &&
+      delta.noiseControlDeltaPercent >
+        options.maxNoiseControlRegressionPercent
+    ) {
+      failures.push(
+        `${delta.phase} noise-control median drifted by ${delta.noiseControlDeltaPercent.toFixed(2)}% (limit ${options.maxNoiseControlRegressionPercent.toFixed(2)}%)`,
+      );
     }
   }
 
@@ -561,6 +586,8 @@ async function main(): Promise<void> {
                 options.noiseControl !== undefined
                   ? readCompilePhaseBenchmarkResult(options.noiseControl)
                   : undefined,
+              maxNoiseControlRegressionPercent:
+                options.maxNoiseControlRegressionPercent,
               maxPhaseRegressionPercent:
                 options.maxPhaseRegressionPercent,
               maxFullRegressionPercent: options.maxFullRegressionPercent,
@@ -784,6 +811,8 @@ Options:
   --timing-baseline FILE
                          use a same-environment phase JSON file for timing deltas
   --noise-control FILE   normalize positive same-environment control drift out of timing gates
+  --max-noise-control-regression P
+                         fail when a noise-control median drifts by more than P percent
   --gate-phases LIST    only apply threshold gates to comma-separated phases
                          while still reporting all phase deltas and validating signatures
   --max-phase-regression P

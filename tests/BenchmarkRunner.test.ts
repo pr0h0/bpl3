@@ -56,6 +56,7 @@ describe("Benchmark runner helpers", () => {
     expect(readme).toContain("--compare");
     expect(readme).toContain("--timing-baseline");
     expect(readme).toContain("--noise-control");
+    expect(readme).toContain("--max-noise-control-regression");
     expect(readme).toContain("--gate-phases");
     expect(readme).toContain("--max-full-regression");
     expect(readme).toContain("--tree-shake-top-level-functions");
@@ -104,6 +105,8 @@ describe("Benchmark runner helpers", () => {
         "/tmp/control.json",
         "--noise-control",
         "/tmp/noise-control.json",
+        "--max-noise-control-regression",
+        "2",
         "--max-phase-regression",
         "2.5",
         "--max-full-regression",
@@ -118,6 +121,7 @@ describe("Benchmark runner helpers", () => {
       compare: "/tmp/baseline.json",
       timingBaseline: "/tmp/control.json",
       noiseControl: "/tmp/noise-control.json",
+      maxNoiseControlRegressionPercent: 2,
       maxPhaseRegressionPercent: 2.5,
       maxFullRegressionPercent: 1,
     });
@@ -143,6 +147,19 @@ describe("Benchmark runner helpers", () => {
         "/tmp/control.json",
       ]),
     ).toThrow("--noise-control requires --compare");
+  });
+
+  it("rejects max noise-control regression without a noise-control file", () => {
+    expect(() =>
+      parseCompilationBenchmarkArgs([
+        "--mode",
+        "phases",
+        "--compare",
+        "/tmp/baseline.json",
+        "--max-noise-control-regression",
+        "2",
+      ]),
+    ).toThrow("--max-noise-control-regression requires --noise-control");
   });
 
   it("parses compile phase benchmark top-level tree-shake option", () => {
@@ -365,6 +382,41 @@ describe("Benchmark runner helpers", () => {
         noiseControlDeltaPercent: 2.5,
         normalizedDeltaPercent: 1,
       });
+  });
+
+  it("fails compile phase benchmark comparisons when clean-control drift exceeds the explicit noise threshold", () => {
+    const baseline = createPhaseBenchmarkFixture({
+      full: 100,
+      codegen: 40,
+    });
+    const noiseControl = createPhaseBenchmarkFixture({
+      full: 104,
+      codegen: 40.6,
+    });
+    const candidate = createPhaseBenchmarkFixture({
+      full: 104.5,
+      codegen: 41,
+    });
+
+    const comparison = compareCompilePhaseBenchmarkResults(
+      baseline,
+      candidate,
+      {
+        noiseControl,
+        gatePhases: ["codegen", "full"],
+        maxNoiseControlRegressionPercent: 2,
+        maxPhaseRegressionPercent: 2,
+        maxFullRegressionPercent: 1,
+      },
+    );
+
+    expect(comparison.ok).toBe(false);
+    expect(comparison.failures).toContain(
+      "full noise-control median drifted by 4.00% (limit 2.00%)",
+    );
+    expect(comparison.failures).not.toContain(
+      "codegen noise-control median drifted by 1.50% (limit 2.00%)",
+    );
   });
 
   it("still fails compile phase benchmark gates when drift exceeds noise control", () => {
