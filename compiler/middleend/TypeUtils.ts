@@ -195,14 +195,17 @@ export class TypeUtils {
    * Check if a token type represents a comparison operator
    */
   static isComparisonOperator(op: TokenType): boolean {
-    return [
-      TokenType.EqualEqual,
-      TokenType.BangEqual,
-      TokenType.Less,
-      TokenType.LessEqual,
-      TokenType.Greater,
-      TokenType.GreaterEqual,
-    ].includes(op);
+    switch (op) {
+      case TokenType.EqualEqual:
+      case TokenType.BangEqual:
+      case TokenType.Less:
+      case TokenType.LessEqual:
+      case TokenType.Greater:
+      case TokenType.GreaterEqual:
+        return true;
+      default:
+        return false;
+    }
   }
 
   /**
