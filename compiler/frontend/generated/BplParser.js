@@ -9545,8 +9545,7 @@ function peg$parse(input, options) {
       return peg$FAILED;
     }
 
-    const name = input.slice(startPos, endPos);
-    return name;
+    return input.slice(startPos, endPos);
   }
 
   let peg$bplLastIdentStartCode = 0;
