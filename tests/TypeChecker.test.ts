@@ -463,6 +463,32 @@ describe("TypeChecker", () => {
     expect(resolverSource).toContain('cloneSimpleBuiltinAliasType(type, "i32")');
   });
 
+  it("skips uppercase nominal basic names before generic builtin dispatch", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const resolver = source.indexOf("function resolveSimpleBuiltinBasicType");
+    const resolverEnd = source.indexOf(
+      "\nfunction canReuseResolvedBasicType",
+      resolver,
+    );
+
+    expect(resolver).toBeGreaterThanOrEqual(0);
+    expect(resolverEnd).toBeGreaterThan(resolver);
+
+    const resolverSource = source.slice(resolver, resolverEnd);
+    const uppercaseFastMiss = resolverSource.indexOf(
+      "firstCode < 97 || firstCode > 122",
+    );
+    const dispatchCall = resolverSource.indexOf(
+      "resolveSimpleBuiltinTypeName(name)",
+    );
+
+    expect(uppercaseFastMiss).toBeGreaterThanOrEqual(0);
+    expect(dispatchCall).toBeGreaterThan(uppercaseFastMiss);
+  });
+
   it("keeps simple builtin type resolution on direct dispatch", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
