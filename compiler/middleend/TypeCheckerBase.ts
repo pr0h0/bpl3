@@ -490,11 +490,12 @@ function resolveSimpleBuiltinBasicType(
     return undefined;
   }
 
-  if (!isPotentialSimpleBuiltinTypeName(type.name)) {
+  const name = type.name;
+  if (!isPotentialSimpleBuiltinTypeName(name)) {
     return undefined;
   }
 
-  const resolvedName = resolveSimpleBuiltinTypeName(type.name);
+  const resolvedName = resolveSimpleBuiltinTypeName(name);
   if (resolvedName === undefined) {
     return undefined;
   }

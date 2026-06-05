@@ -137,10 +137,10 @@ describe("TypeChecker", () => {
     const resolverEnd = source.indexOf("\n}", resolver);
     const resolverSource = source.slice(resolver, resolverEnd);
     const guardCall = resolverSource.indexOf(
-      "isPotentialSimpleBuiltinTypeName(type.name)",
+      "isPotentialSimpleBuiltinTypeName(name)",
     );
     const dispatchCall = resolverSource.indexOf(
-      "resolveSimpleBuiltinTypeName(type.name)",
+      "resolveSimpleBuiltinTypeName(name)",
     );
 
     expect(guard).toBeGreaterThanOrEqual(0);
@@ -173,6 +173,32 @@ describe("TypeChecker", () => {
     expect(basicTypePrefix).not.toContain("if (type.arrayDimensions) {");
   });
 
+  it("reuses the builtin basic type name across the hot simple resolver", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const resolver = source.indexOf("function resolveSimpleBuiltinBasicType");
+    const resolverEnd = source.indexOf(
+      "\nfunction canReuseResolvedBasicType",
+      resolver,
+    );
+
+    expect(resolver).toBeGreaterThanOrEqual(0);
+    expect(resolverEnd).toBeGreaterThan(resolver);
+
+    const resolverSource = source.slice(resolver, resolverEnd);
+    expect(resolverSource).toContain("const name = type.name;");
+    expect(resolverSource).toContain("isPotentialSimpleBuiltinTypeName(name)");
+    expect(resolverSource).toContain("resolveSimpleBuiltinTypeName(name)");
+    expect(resolverSource).not.toContain(
+      "isPotentialSimpleBuiltinTypeName(type.name)",
+    );
+    expect(resolverSource).not.toContain(
+      "resolveSimpleBuiltinTypeName(type.name)",
+    );
+  });
+
   it("keeps simple builtin type resolution on direct dispatch", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
@@ -192,7 +218,7 @@ describe("TypeChecker", () => {
     expect(dispatch).toBeLessThan(resolver);
     expect(dispatchSource).toContain("switch (name.length)");
     expect(dispatchSource).not.toContain('case "int"');
-    expect(resolverSource).toContain("resolveSimpleBuiltinTypeName(type.name)");
+    expect(resolverSource).toContain("resolveSimpleBuiltinTypeName(name)");
     expect(resolverSource).not.toContain("TYPE_ALIASES[type.name]");
     expect(resolverSource).not.toContain(
       "SIMPLE_BUILTIN_BASIC_TYPE_NAMES[type.name]",
