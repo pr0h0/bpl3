@@ -334,10 +334,32 @@ function cloneSimpleBuiltinAliasType(
   };
 }
 
+function isPotentialSimpleBuiltinTypeName(name: string): boolean {
+  switch (name.charCodeAt(0)) {
+    case 98: // b
+    case 99: // c
+    case 100: // d
+    case 102: // f
+    case 105: // i
+    case 108: // l
+    case 110: // n
+    case 115: // s
+    case 117: // u
+    case 118: // v
+      return true;
+    default:
+      return false;
+  }
+}
+
 function resolveSimpleBuiltinBasicType(
   type: AST.BasicTypeNode,
 ): AST.BasicTypeNode | undefined {
   if (type.genericArgs.length !== 0) {
+    return undefined;
+  }
+
+  if (!isPotentialSimpleBuiltinTypeName(type.name)) {
     return undefined;
   }
 

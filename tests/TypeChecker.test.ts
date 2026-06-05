@@ -127,6 +127,30 @@ describe("TypeChecker", () => {
       .toBe(-1);
   });
 
+  it("guards simple builtin type resolution before map lookups", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const guard = source.indexOf("function isPotentialSimpleBuiltinTypeName");
+    const resolver = source.indexOf("function resolveSimpleBuiltinBasicType");
+    const resolverEnd = source.indexOf("\n}", resolver);
+    const resolverSource = source.slice(resolver, resolverEnd);
+    const guardCall = resolverSource.indexOf(
+      "isPotentialSimpleBuiltinTypeName(type.name)",
+    );
+    const aliasLookup = resolverSource.indexOf("TYPE_ALIASES[type.name]");
+    const builtinLookup = resolverSource.indexOf(
+      "SIMPLE_BUILTIN_BASIC_TYPE_NAMES[type.name]",
+    );
+
+    expect(guard).toBeGreaterThanOrEqual(0);
+    expect(guard).toBeLessThan(resolver);
+    expect(guardCall).toBeGreaterThanOrEqual(0);
+    expect(guardCall).toBeLessThan(aliasLookup);
+    expect(guardCall).toBeLessThan(builtinLookup);
+  });
+
   it("keeps simple builtin alias cloning off the spread fast path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
