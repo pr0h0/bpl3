@@ -1058,6 +1058,43 @@ describe("Parser", () => {
     expect(statementStartHelper).not.toContain("input.startsWith(peg$c17");
   });
 
+  it("keeps generated identifier boundary checks off regex dispatch", () => {
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const boundaryHelper = generatedSource.match(
+      /function peg\$parseIdBoundary\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+
+    expect(boundaryHelper).toContain(
+      "const code = input.charCodeAt(peg$currPos);",
+    );
+    expect(boundaryHelper).toContain("code >= 48 && code <= 57");
+    expect(boundaryHelper).toContain("return undefined;");
+    expect(boundaryHelper).not.toContain("peg$r12.test");
+    expect(boundaryHelper).not.toContain("input.charAt");
+
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return 0; }",
+        "boundary.bpl",
+      ).parse(),
+    ).not.toThrow();
+    expect(() =>
+      new Parser(
+        "framex main() ret int { return 0; }",
+        "boundary.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("keeps generated assignment-operator parsing on the direct scanner fast path", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

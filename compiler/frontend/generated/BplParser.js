@@ -11021,26 +11021,17 @@ function peg$parse(input, options) {
   }
 
   function peg$parseIdBoundary() {
-    let s0, s1;
-
-    s0 = peg$currPos;
-    peg$silentFails++;
-    s1 = input.charAt(peg$currPos);
-    if (peg$r12.test(s1)) {
-      peg$currPos++;
-    } else {
-      s1 = peg$FAILED;
-      if (peg$silentFails === 0) { peg$fail(peg$e79); }
-    }
-    peg$silentFails--;
-    if (s1 === peg$FAILED) {
-      s0 = undefined;
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    const code = input.charCodeAt(peg$currPos);
+    if (
+      code === 95 ||
+      (code >= 48 && code <= 57) ||
+      (code >= 65 && code <= 90) ||
+      (code >= 97 && code <= 122)
+    ) {
+      return peg$FAILED;
     }
 
-    return s0;
+    return undefined;
   }
 
   function peg$parseK_global() {

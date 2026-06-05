@@ -76,29 +76,19 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
     parserSource.replace(original, replacement),
   );
 
-  return optimizeGeneratedTriviaSkipping(
-    optimizeGeneratedNumberScanning(
-      optimizeGeneratedStatementStartKeywordScanning(
-        optimizeGeneratedAssignmentOperatorScanning(
-          optimizeGeneratedBinaryExpressionTailParsing(
-            optimizeGeneratedExpressionOperatorScanning(
-              optimizeGeneratedPostfixTailScanning(
-                optimizeGeneratedQualifiedIdentifierScanning(
-                  optimizeGeneratedIdentifierScanning(
-                    optimizeGeneratedFailureTracking(
-                      optimizeGeneratedLiteralMatches(
-                        optimizeGeneratedMakeLoc(withBplLocation),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
+  let optimized = optimizeGeneratedMakeLoc(withBplLocation);
+  optimized = optimizeGeneratedLiteralMatches(optimized);
+  optimized = optimizeGeneratedFailureTracking(optimized);
+  optimized = optimizeGeneratedIdentifierScanning(optimized);
+  optimized = optimizeGeneratedIdBoundary(optimized);
+  optimized = optimizeGeneratedQualifiedIdentifierScanning(optimized);
+  optimized = optimizeGeneratedPostfixTailScanning(optimized);
+  optimized = optimizeGeneratedExpressionOperatorScanning(optimized);
+  optimized = optimizeGeneratedBinaryExpressionTailParsing(optimized);
+  optimized = optimizeGeneratedAssignmentOperatorScanning(optimized);
+  optimized = optimizeGeneratedStatementStartKeywordScanning(optimized);
+  optimized = optimizeGeneratedNumberScanning(optimized);
+  return optimizeGeneratedTriviaSkipping(optimized);
 }
 
 function optimizeGeneratedBplLocationLines(parserSource: string): string {
@@ -464,6 +454,56 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     .replace(identifierPattern, identifierReplacement)
     .replace(identTokenPattern, identTokenReplacement)
     .replace(keywordReservedPattern, keywordReservedReplacement);
+}
+
+function optimizeGeneratedIdBoundary(parserSource: string): string {
+  const original = [
+    "  function peg$parseIdBoundary() {",
+    "    let s0, s1;",
+    "",
+    "    s0 = peg$currPos;",
+    "    peg$silentFails++;",
+    "    s1 = input.charAt(peg$currPos);",
+    "    if (peg$r12.test(s1)) {",
+    "      peg$currPos++;",
+    "    } else {",
+    "      s1 = peg$FAILED;",
+    "      if (peg$silentFails === 0) { peg$fail(peg$e79); }",
+    "    }",
+    "    peg$silentFails--;",
+    "    if (s1 === peg$FAILED) {",
+    "      s0 = undefined;",
+    "    } else {",
+    "      peg$currPos = s0;",
+    "      s0 = peg$FAILED;",
+    "    }",
+    "",
+    "    return s0;",
+    "  }",
+  ].join("\n");
+  const replacement = [
+    "  function peg$parseIdBoundary() {",
+    "    const code = input.charCodeAt(peg$currPos);",
+    "    if (",
+    "      code === 95 ||",
+    "      (code >= 48 && code <= 57) ||",
+    "      (code >= 65 && code <= 90) ||",
+    "      (code >= 97 && code <= 122)",
+    "    ) {",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    return undefined;",
+    "  }",
+  ].join("\n");
+
+  if (!parserSource.includes(original)) {
+    throw new Error(
+      "Generated Peggy parser IdBoundary shape changed; update the BPL parser boundary optimizer.",
+    );
+  }
+
+  return parserSource.replace(original, replacement);
 }
 
 function optimizeGeneratedQualifiedIdentifierScanning(
