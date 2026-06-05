@@ -488,6 +488,10 @@
 
   function makeOperatorTokenFromPos(op, startPos, type) {
     const resolvedType = type || operatorTypeMap[op] || "Unknown";
+    return makeTypedOperatorTokenFromPos(resolvedType, op, startPos);
+  }
+
+  function makeTypedOperatorTokenFromPos(type, op, startPos) {
     let lineIndex = peg$lastBplLineIndex;
     let lineStart = peg$bplLineStarts[lineIndex];
     const nextLineStart = peg$bplLineStarts[lineIndex + 1];
@@ -503,7 +507,7 @@
     }
 
     return {
-      type: resolvedType,
+      type,
       lexeme: op,
       literal: null,
       line: lineIndex + 1,

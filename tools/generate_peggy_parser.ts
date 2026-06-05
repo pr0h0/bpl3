@@ -1298,7 +1298,7 @@ function optimizeGeneratedBinaryExpressionTailParsingForConfig(
     "",
     "      result = binary(",
     "        result,",
-    "        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),",
+    "        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),",
     "        right,",
     "        mergeLoc(result.location, right.location),",
     "      );",

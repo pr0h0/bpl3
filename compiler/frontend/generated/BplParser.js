@@ -6298,7 +6298,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
+        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6351,7 +6351,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
+        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6404,7 +6404,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
+        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6457,7 +6457,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
+        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6510,7 +6510,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
+        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6563,7 +6563,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
+        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6680,7 +6680,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
+        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6740,7 +6740,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
+        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6797,7 +6797,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
+        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6853,7 +6853,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
+        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -13383,6 +13383,10 @@ function peg$parse(input, options) {
 
   function makeOperatorTokenFromPos(op, startPos, type) {
     const resolvedType = type || operatorTypeMap[op] || "Unknown";
+    return makeTypedOperatorTokenFromPos(resolvedType, op, startPos);
+  }
+
+  function makeTypedOperatorTokenFromPos(type, op, startPos) {
     let lineIndex = peg$lastBplLineIndex;
     let lineStart = peg$bplLineStarts[lineIndex];
     const nextLineStart = peg$bplLineStarts[lineIndex + 1];
@@ -13398,7 +13402,7 @@ function peg$parse(input, options) {
     }
 
     return {
-      type: resolvedType,
+      type,
       lexeme: op,
       literal: null,
       line: lineIndex + 1,
