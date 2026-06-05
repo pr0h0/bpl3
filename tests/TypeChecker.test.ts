@@ -134,6 +134,25 @@ describe("TypeChecker", () => {
     }
   });
 
+  it("returns cached simple builtin aliases before name dispatch", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const resolveType = source.indexOf("public resolveType");
+    const simpleBuiltin = source.indexOf(
+      "const simpleBuiltin = resolveSimpleBuiltinBasicType(type)",
+      resolveType,
+    );
+
+    expect(resolveType).toBeGreaterThanOrEqual(0);
+    expect(simpleBuiltin).toBeGreaterThan(resolveType);
+
+    const prefix = source.slice(resolveType, simpleBuiltin);
+    expect(prefix).toContain("const cachedResolvedType = type.resolvedType;");
+    expect(prefix).toContain('cachedResolvedType.kind === "BasicType"');
+  });
+
   it("keeps simple builtin aliases before the scope lookup path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

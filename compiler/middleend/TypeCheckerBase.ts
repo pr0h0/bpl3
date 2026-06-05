@@ -759,6 +759,14 @@ export abstract class TypeCheckerBase {
         }
       }
 
+      const cachedResolvedType = type.resolvedType;
+      if (
+        cachedResolvedType !== undefined &&
+        cachedResolvedType.kind === "BasicType"
+      ) {
+        return cachedResolvedType;
+      }
+
       const simpleBuiltin = resolveSimpleBuiltinBasicType(type);
       if (simpleBuiltin) {
         return simpleBuiltin;
