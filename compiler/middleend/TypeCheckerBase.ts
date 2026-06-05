@@ -519,6 +519,15 @@ function resolveSimpleBuiltinBasicType(
   }
 
   const name = type.name;
+  if (
+    name.length === 3 &&
+    name.charCodeAt(0) === 105 &&
+    name.charCodeAt(1) === 110 &&
+    name.charCodeAt(2) === 116
+  ) {
+    return cloneSimpleBuiltinAliasType(type, "i32");
+  }
+
   const resolvedName = resolveSimpleBuiltinTypeName(name);
   if (resolvedName === undefined) {
     return undefined;

@@ -439,6 +439,30 @@ describe("TypeChecker", () => {
     );
   });
 
+  it("keeps hot int alias resolution before generic builtin dispatch", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const resolver = source.indexOf("function resolveSimpleBuiltinBasicType");
+    const resolverEnd = source.indexOf(
+      "\nfunction canReuseResolvedBasicType",
+      resolver,
+    );
+
+    expect(resolver).toBeGreaterThanOrEqual(0);
+    expect(resolverEnd).toBeGreaterThan(resolver);
+
+    const resolverSource = source.slice(resolver, resolverEnd);
+    const hotIntFastPath = resolverSource.indexOf("name.length === 3");
+    const dispatchCall = resolverSource.indexOf(
+      "resolveSimpleBuiltinTypeName(name)",
+    );
+    expect(hotIntFastPath).toBeGreaterThanOrEqual(0);
+    expect(dispatchCall).toBeGreaterThan(hotIntFastPath);
+    expect(resolverSource).toContain('cloneSimpleBuiltinAliasType(type, "i32")');
+  });
+
   it("keeps simple builtin type resolution on direct dispatch", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
