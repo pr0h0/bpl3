@@ -9532,13 +9532,14 @@ function peg$parse(input, options) {
 
   function peg$parseIdentifier() {
     const startPos = peg$currPos;
-    const endPos = peg$scanBplIdentTokenEnd();
+    const firstCode = input.charCodeAt(startPos);
+    const endPos = peg$scanBplIdentTokenEnd(firstCode);
 
     if (endPos === peg$FAILED) {
       return peg$FAILED;
     }
     if (
-      peg$isBplReservedKeywordStartCode(peg$bplLastIdentStartCode) &&
+      peg$isBplReservedKeywordStartCode(firstCode) &&
       peg$isBplReservedKeywordRange(startPos, endPos)
     ) {
       peg$currPos = startPos;
@@ -9548,8 +9549,6 @@ function peg$parse(input, options) {
     return input.slice(startPos, endPos);
   }
 
-  let peg$bplLastIdentStartCode = 0;
-
   function peg$isBplIdentStartCode(code) {
     return (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;
   }
@@ -9558,10 +9557,8 @@ function peg$parse(input, options) {
     return (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95 || (code >= 48 && code <= 57);
   }
 
-  function peg$scanBplIdentTokenEnd() {
+  function peg$scanBplIdentTokenEnd(firstCode) {
     let pos = peg$currPos;
-    const firstCode = input.charCodeAt(pos);
-    peg$bplLastIdentStartCode = firstCode;
 
     if (!((firstCode >= 65 && firstCode <= 90) || (firstCode >= 97 && firstCode <= 122) || firstCode === 95)) {
       if (peg$silentFails === 0) { peg$fail(peg$e78); }
@@ -9584,7 +9581,8 @@ function peg$parse(input, options) {
 
   function peg$scanBplIdentToken() {
     const startPos = peg$currPos;
-    const endPos = peg$scanBplIdentTokenEnd();
+    const firstCode = input.charCodeAt(startPos);
+    const endPos = peg$scanBplIdentTokenEnd(firstCode);
     if (endPos === peg$FAILED) {
       return peg$FAILED;
     }
