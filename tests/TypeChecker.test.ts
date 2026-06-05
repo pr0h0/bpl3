@@ -319,6 +319,54 @@ describe("TypeChecker", () => {
     }
   });
 
+  it("caches non-generic nominal type resolution on the BasicType node", () => {
+    const location = {
+      file: "test.bpl",
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 12,
+    };
+    const declaration: AST.StructDecl = {
+      kind: "StructDecl",
+      name: "ResolvedBox",
+      genericParams: [],
+      inheritanceList: [],
+      members: [],
+      location,
+    };
+    const unresolvedType: AST.BasicTypeNode = {
+      kind: "BasicType",
+      name: "ResolvedBox",
+      genericArgs: [],
+      pointerDepth: 0,
+      arrayDimensions: [],
+      location,
+    };
+    const checker = new TypeChecker({ skipImportResolution: true });
+    checker.currentScope.define({
+      name: "ResolvedBox",
+      kind: "Struct",
+      declaration,
+    });
+
+    const first = checker.resolveType(unresolvedType);
+
+    expect(first).toBe(unresolvedType);
+    expect(unresolvedType.resolvedDeclaration).toBe(declaration);
+
+    const originalResolve = checker.currentScope.resolve;
+    checker.currentScope.resolve = () => {
+      throw new Error("cached non-generic nominal type should not resolve");
+    };
+
+    try {
+      expect(checker.resolveType(unresolvedType)).toBe(unresolvedType);
+    } finally {
+      checker.currentScope.resolve = originalResolve;
+    }
+  });
+
   it("keeps already-resolved nominal type reuse before implicit imports and scope lookup", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

@@ -533,6 +533,23 @@ function canReuseResolvedBasicType(type: AST.BasicTypeNode): boolean {
   return type.name === decl.name && decl.genericParams.length === 0;
 }
 
+function cacheNonGenericNominalBasicType(
+  type: AST.BasicTypeNode,
+  name: string,
+  declaration: AST.StructDecl | AST.EnumDecl | AST.SpecDecl,
+): AST.BasicTypeNode | undefined {
+  if (
+    type.genericArgs.length !== 0 ||
+    declaration.genericParams.length !== 0
+  ) {
+    return undefined;
+  }
+
+  type.name = name;
+  type.resolvedDeclaration = declaration;
+  return type;
+}
+
 function resolveQualifiedTypeSymbol(
   scope: SymbolTable,
   name: string,
@@ -864,42 +881,69 @@ export abstract class TypeCheckerBase {
       }
 
       if (resolvedSymbol && resolvedSymbol.kind === "Struct") {
+        const declaration = resolvedSymbol.declaration as AST.StructDecl;
+        const cached = cacheNonGenericNominalBasicType(
+          type,
+          resolvedSymbol.name,
+          declaration,
+        );
+        if (cached !== undefined) {
+          return cached;
+        }
+
         const resolvedArgs = type.genericArgs.map((t) =>
           this.resolveType(t, checkConstraints),
         );
 
         const basicType = { ...type } as AST.BasicTypeNode;
         basicType.name = resolvedSymbol.name;
-        basicType.resolvedDeclaration =
-          resolvedSymbol.declaration as AST.StructDecl;
+        basicType.resolvedDeclaration = declaration;
         basicType.genericArgs = resolvedArgs;
 
         return basicType;
       }
 
       if (resolvedSymbol && resolvedSymbol.kind === "Enum") {
+        const declaration = resolvedSymbol.declaration as AST.EnumDecl;
+        const cached = cacheNonGenericNominalBasicType(
+          type,
+          resolvedSymbol.name,
+          declaration,
+        );
+        if (cached !== undefined) {
+          return cached;
+        }
+
         const resolvedArgs = type.genericArgs.map((t) =>
           this.resolveType(t, checkConstraints),
         );
 
         const basicType = { ...type } as AST.BasicTypeNode;
         basicType.name = resolvedSymbol.name;
-        basicType.resolvedDeclaration =
-          resolvedSymbol.declaration as AST.EnumDecl;
+        basicType.resolvedDeclaration = declaration;
         basicType.genericArgs = resolvedArgs;
 
         return basicType;
       }
 
       if (resolvedSymbol && resolvedSymbol.kind === "Spec") {
+        const declaration = resolvedSymbol.declaration as AST.SpecDecl;
+        const cached = cacheNonGenericNominalBasicType(
+          type,
+          resolvedSymbol.name,
+          declaration,
+        );
+        if (cached !== undefined) {
+          return cached;
+        }
+
         const resolvedArgs = type.genericArgs.map((t) =>
           this.resolveType(t, checkConstraints),
         );
 
         const basicType = { ...type } as AST.BasicTypeNode;
         basicType.name = resolvedSymbol.name;
-        basicType.resolvedDeclaration =
-          resolvedSymbol.declaration as AST.SpecDecl;
+        basicType.resolvedDeclaration = declaration;
         basicType.genericArgs = resolvedArgs;
 
         return basicType;
