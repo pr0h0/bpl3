@@ -36,12 +36,23 @@ export type TokenEmitter<T> = (
   typeCode: GenericTokenKindCode,
   type: string,
   value: string,
+  line: number,
+  column: number,
+  file: string,
+) => T;
+
+type RangeTokenEmitter<T> = (
+  typeCode: GenericTokenKindCode,
+  type: string,
+  value: string,
   start: number,
   end: number,
   line: number,
   column: number,
   file: string,
 ) => T;
+
+type AnyTokenEmitter<T> = TokenEmitter<T> | RangeTokenEmitter<T>;
 
 export interface GenericParseResult<T> {
   type: "Program";
@@ -335,10 +346,22 @@ export class GenericParser {
   }
 
   parse(): ParseResult {
-    return this.parseWithTokenEmitter(createTokenNode);
+    return this.parseWithRangeTokenEmitter(createTokenNode);
   }
 
   parseWithTokenEmitter<T>(emitToken: TokenEmitter<T>): GenericParseResult<T> {
+    return this.parseWithAnyTokenEmitter(emitToken);
+  }
+
+  private parseWithRangeTokenEmitter<T>(
+    emitToken: RangeTokenEmitter<T>,
+  ): GenericParseResult<T> {
+    return this.parseWithAnyTokenEmitter(emitToken);
+  }
+
+  private parseWithAnyTokenEmitter<T>(
+    emitToken: AnyTokenEmitter<T>,
+  ): GenericParseResult<T> {
     if (!this.hasCommentMarker) {
       return this.parseCommentFreeWithTokenEmitter(emitToken);
     }
@@ -374,7 +397,7 @@ export class GenericParser {
   }
 
   private parseCommentFreeWithTokenEmitter<T>(
-    emitToken: TokenEmitter<T>,
+    emitToken: AnyTokenEmitter<T>,
   ): GenericParseResult<T> {
     const source = this.source;
     const sourceLength = source.length;
@@ -488,7 +511,7 @@ export class GenericParser {
     return this.position !== start;
   }
 
-  private matchNextToken<T>(emitToken: TokenEmitter<T>): T | null {
+  private matchNextToken<T>(emitToken: AnyTokenEmitter<T>): T | null {
     const firstCode = this.source.charCodeAt(this.position);
 
     switch (firstCode) {
@@ -509,7 +532,7 @@ export class GenericParser {
     }
   }
 
-  private matchStringLiteral<T>(emitToken: TokenEmitter<T>): T | null {
+  private matchStringLiteral<T>(emitToken: AnyTokenEmitter<T>): T | null {
     const firstChar = this.source[this.position];
 
     // Standard string literal
@@ -598,7 +621,7 @@ export class GenericParser {
     return -1;
   }
 
-  private matchCharLiteral<T>(emitToken: TokenEmitter<T>): T | null {
+  private matchCharLiteral<T>(emitToken: AnyTokenEmitter<T>): T | null {
     const firstChar = this.source[this.position];
     if (firstChar !== "'") return null;
 
@@ -612,7 +635,7 @@ export class GenericParser {
     );
   }
 
-  private matchNumberLiteral<T>(emitToken: TokenEmitter<T>): T | null {
+  private matchNumberLiteral<T>(emitToken: AnyTokenEmitter<T>): T | null {
     const firstChar = this.source[this.position];
     if (!isAsciiDigit(firstChar)) return null;
 
@@ -658,7 +681,7 @@ export class GenericParser {
   }
 
   private matchIdentifierOrKeyword<T>(
-    emitToken: TokenEmitter<T>,
+    emitToken: AnyTokenEmitter<T>,
     firstCode: number,
   ): T | null {
     const start = this.position;
@@ -671,7 +694,8 @@ export class GenericParser {
     const column = this.column;
     this.position = end;
     this.column += end - start;
-    return emitToken(
+    return this.emitToken(
+      emitToken,
       tokenKind.typeCode,
       tokenKind.type,
       value,
@@ -679,7 +703,6 @@ export class GenericParser {
       end,
       line,
       column,
-      this.filePath,
     );
   }
 
@@ -696,7 +719,7 @@ export class GenericParser {
   }
 
   private matchPunctuator<T>(
-    emitToken: TokenEmitter<T>,
+    emitToken: AnyTokenEmitter<T>,
     firstCode: number,
   ): T | null {
     const secondCode = this.source.charCodeAt(this.position + 1);
@@ -966,7 +989,7 @@ export class GenericParser {
     typeCode: GenericTokenKindCode,
     type: string,
     value: string,
-    emitToken: TokenEmitter<T>,
+    emitToken: AnyTokenEmitter<T>,
   ): T {
     const start = this.position;
     const line = this.line;
@@ -978,12 +1001,44 @@ export class GenericParser {
       this.advance(value);
     }
     const end = this.position;
-    return emitToken(
+    return this.emitToken(
+      emitToken,
       typeCode,
       type,
       value,
       start,
       end,
+      line,
+      column,
+    );
+  }
+
+  private emitToken<T>(
+    emitToken: AnyTokenEmitter<T>,
+    typeCode: GenericTokenKindCode,
+    type: string,
+    value: string,
+    start: number,
+    end: number,
+    line: number,
+    column: number,
+  ): T {
+    if (emitToken.length > 6) {
+      return (emitToken as RangeTokenEmitter<T>)(
+        typeCode,
+        type,
+        value,
+        start,
+        end,
+        line,
+        column,
+        this.filePath,
+      );
+    }
+    return (emitToken as TokenEmitter<T>)(
+      typeCode,
+      type,
+      value,
       line,
       column,
       this.filePath,
@@ -1003,7 +1058,7 @@ export class GenericParser {
   }
 }
 
-const createTokenNode: TokenEmitter<TokenNode> = (
+const createTokenNode: RangeTokenEmitter<TokenNode> = (
   typeCode,
   type,
   value,

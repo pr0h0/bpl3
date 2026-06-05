@@ -228,26 +228,21 @@ function extractComments(
 }
 
 function convertTokenNodeToToken(node: TokenNode): Token {
-  const { typeCode, type, value, start, end, line, column, file } = node;
+  const { typeCode, type, value, line, column, file } = node;
   return createFrontendTokenFromParts(
     typeCode,
     type,
     value,
-    start,
-    end,
     line,
     column,
     file,
   );
 }
 
-// eslint-disable-next-line max-params -- hot lexer path passes primitives to avoid per-token part objects.
 function createFrontendTokenFromParts(
   typeCode: GenericTokenKindCode,
   _type: string,
   value: string,
-  _start: number,
-  _end: number,
   line: number,
   column: number,
   file: string,

@@ -135,7 +135,7 @@ describe("Lexer - Extended Tests", () => {
       expect(tokenize("nullish")[0]!.type).toBe(TokenType.Identifier);
     });
 
-    it("emits identifier range tokens inline without a range helper call", () => {
+    it("emits identifier range tokens through the split emitter helper", () => {
       const source = readFileSync(
         join(process.cwd(), "grammar/GenericParser.ts"),
         "utf8",
@@ -153,7 +153,7 @@ describe("Lexer - Extended Tests", () => {
       expect(matcherSource).toContain("const column = this.column;");
       expect(matcherSource).toContain("this.position = end;");
       expect(matcherSource).toContain("this.column += end - start;");
-      expect(matcherSource).toContain("return emitToken(");
+      expect(matcherSource).toContain("return this.emitToken(");
 
       const tokens = tokenize("local value_1: int;");
       expect(tokens.slice(0, 4).map((token) => token.lexeme)).toEqual([
@@ -828,6 +828,37 @@ describe("Lexer - Extended Tests", () => {
       expect(stringSource).not.toContain('type === "BoolLiteral"');
     });
 
+    it("keeps unused token range fields out of frontend token conversion", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const converterStart = source.indexOf(
+        "function createFrontendTokenFromParts",
+      );
+      const converterEnd = source.indexOf(
+        "function punctuatorTokenType",
+        converterStart,
+      );
+      const convertNodeStart = source.indexOf("function convertTokenNodeToToken");
+      const convertNodeEnd = source.indexOf(
+        "function createFrontendTokenFromParts",
+        convertNodeStart,
+      );
+
+      expect(converterStart).toBeGreaterThanOrEqual(0);
+      expect(converterEnd).toBeGreaterThan(converterStart);
+      expect(convertNodeStart).toBeGreaterThanOrEqual(0);
+      expect(convertNodeEnd).toBeGreaterThan(convertNodeStart);
+
+      const converterSource = source.slice(converterStart, converterEnd);
+      const convertNodeSource = source.slice(convertNodeStart, convertNodeEnd);
+      expect(converterSource).not.toContain("_start");
+      expect(converterSource).not.toContain("_end");
+      expect(convertNodeSource).not.toMatch(/\bstart\b/);
+      expect(convertNodeSource).not.toMatch(/\bend\b/);
+    });
+
     it("carries generic token kind codes into frontend token conversion", () => {
       const genericSource = readFileSync(
         join(process.cwd(), "grammar/GenericParser.ts"),
@@ -852,7 +883,11 @@ describe("Lexer - Extended Tests", () => {
       expect(genericSource).toContain("export type GenericTokenKindCode");
       expect(genericSource).toContain("GENERIC_TOKEN_IDENTIFIER");
       expect(genericSource).toContain("typeCode: GenericTokenKindCode");
-      expect(genericSource).toMatch(/emitToken\(\s*typeCode,\s*type,\s*value,/);
+      expect(genericSource).toContain("type RangeTokenEmitter<T>");
+      expect(genericSource).toContain("if (emitToken.length > 6)");
+      expect(genericSource).toMatch(
+        /\(emitToken as TokenEmitter<T>\)\(\s*typeCode,\s*type,\s*value,\s*line,\s*column,\s*this\.filePath,/,
+      );
       expect(converterSource).toContain("typeCode: GenericTokenKindCode");
       expect(converterSource).toContain("switch (typeCode)");
       expect(converterSource).toContain("case GENERIC_TOKEN_IDENTIFIER:");
