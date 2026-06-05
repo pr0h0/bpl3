@@ -475,7 +475,7 @@ describe("Lexer - Extended Tests", () => {
       expect(converterSource).not.toContain("punctuatorToTokenType(value)");
     });
 
-    it("keeps comment-free frontend token construction off Token constructor dispatch", () => {
+    it("keeps comment-free frontend token construction inline and off helper dispatch", () => {
       const source = readFileSync(
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
         "utf8",
@@ -487,8 +487,11 @@ describe("Lexer - Extended Tests", () => {
       expect(end).toBeGreaterThan(start);
 
       const converterSource = source.slice(start, end);
-      expect(source).toContain("function createPlainFrontendToken");
-      expect(converterSource).toContain("createPlainFrontendToken(");
+      expect(source).not.toContain("function createPlainFrontendToken");
+      expect(converterSource).toContain("type: TokenType.Identifier,");
+      expect(converterSource).toContain("lexeme: value,");
+      expect(converterSource).not.toContain("let tokenType: TokenType;");
+      expect(converterSource).not.toContain("createPlainFrontendToken(");
       expect(converterSource).not.toContain("new Token(");
     });
 

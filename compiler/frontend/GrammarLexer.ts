@@ -227,18 +227,6 @@ function convertTokenNodeToToken(node: TokenNode): Token {
   );
 }
 
-// eslint-disable-next-line max-params -- hot lexer path passes primitives to avoid Token constructor dispatch.
-function createPlainFrontendToken(
-  type: TokenType,
-  lexeme: string,
-  literal: Token["literal"],
-  line: number,
-  column: number,
-  file: string,
-): Token {
-  return { type, lexeme, literal, line, column, file } as Token;
-}
-
 // eslint-disable-next-line max-params -- hot lexer path passes primitives to avoid per-token part objects.
 function createFrontendTokenFromParts(
   type: string,
@@ -250,101 +238,113 @@ function createFrontendTokenFromParts(
   file: string,
 ): Token {
   if (type === "Identifier") {
-    return createPlainFrontendToken(
-      TokenType.Identifier,
-      value,
-      null,
+    return {
+      type: TokenType.Identifier,
+      lexeme: value,
+      literal: null,
       line,
       column,
       file,
-    );
+    } as Token;
   }
 
   if (type === "StringLiteral") {
-    return createPlainFrontendToken(
-      TokenType.StringLiteral,
-      value,
-      decodeString(value),
+    return {
+      type: TokenType.StringLiteral,
+      lexeme: value,
+      literal: decodeString(value),
       line,
       column,
       file,
-    );
+    } as Token;
   }
 
   if (type === "InterpolatedStringLiteral") {
-    return createPlainFrontendToken(
-      TokenType.InterpolatedStringLiteral,
-      value,
-      value, // Keep raw value
+    return {
+      type: TokenType.InterpolatedStringLiteral,
+      lexeme: value,
+      literal: value, // Keep raw value
       line,
       column,
       file,
-    );
+    } as Token;
   }
 
   if (type === "CharLiteral") {
-    return createPlainFrontendToken(
-      TokenType.CharLiteral,
-      value,
-      decodeChar(value),
+    return {
+      type: TokenType.CharLiteral,
+      lexeme: value,
+      literal: decodeChar(value),
       line,
       column,
       file,
-    );
+    } as Token;
   }
 
   if (type === "NumberLiteral") {
-    return createPlainFrontendToken(
-      TokenType.NumberLiteral,
-      value,
-      parseNumber(value),
+    return {
+      type: TokenType.NumberLiteral,
+      lexeme: value,
+      literal: parseNumber(value),
       line,
       column,
       file,
-    );
+    } as Token;
   }
 
   if (type === "BoolLiteral") {
     const literal = value === "true";
-    return createPlainFrontendToken(
-      literal ? TokenType.True : TokenType.False,
-      value,
+    return {
+      type: literal ? TokenType.True : TokenType.False,
+      lexeme: value,
       literal,
       line,
       column,
       file,
-    );
+    } as Token;
   }
 
   if (type === "NullLiteral" || type === "NullptrLiteral") {
-    return createPlainFrontendToken(
-      TokenType.Nullptr,
-      value,
-      null,
+    return {
+      type: TokenType.Nullptr,
+      lexeme: value,
+      literal: null,
       line,
       column,
       file,
-    );
+    } as Token;
   }
 
   if (type === "Keyword") {
-    const tokenType = keywordMap[value] ?? TokenType.Identifier;
-    return createPlainFrontendToken(tokenType, value, null, line, column, file);
+    return {
+      type: keywordMap[value] ?? TokenType.Identifier,
+      lexeme: value,
+      literal: null,
+      line,
+      column,
+      file,
+    } as Token;
   }
 
   if (type === "Punctuator") {
-    const tokenType = punctuatorMap[value] ?? TokenType.Unknown;
-    return createPlainFrontendToken(tokenType, value, null, line, column, file);
+    return {
+      type: punctuatorMap[value] ?? TokenType.Unknown,
+      lexeme: value,
+      literal: null,
+      line,
+      column,
+      file,
+    } as Token;
   }
 
-  return createPlainFrontendToken(
-    TokenType.Unknown,
-    value,
-    null,
+  return {
+    type: TokenType.Unknown,
+    lexeme: value,
+    literal: null,
     line,
     column,
     file,
-  );
+  } as Token;
 }
 
 const keywordMap: Record<string, TokenType> = {
