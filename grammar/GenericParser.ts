@@ -61,9 +61,43 @@ const DECIMAL_NUMBER_LITERAL_PATTERN =
 
 type IdentifierLikeTokenType =
   | "Identifier"
-  | "Keyword"
-  | "BoolLiteral"
-  | "NullptrLiteral";
+  | "As"
+  | "Asm"
+  | "Break"
+  | "Case"
+  | "Cast"
+  | "Catch"
+  | "Const"
+  | "Continue"
+  | "Default"
+  | "Else"
+  | "Enum"
+  | "Export"
+  | "Extern"
+  | "False"
+  | "Frame"
+  | "From"
+  | "Func"
+  | "Global"
+  | "If"
+  | "Import"
+  | "Local"
+  | "Loop"
+  | "Match"
+  | "Nullptr"
+  | "Ret"
+  | "Return"
+  | "Self"
+  | "Sizeof"
+  | "Spec"
+  | "Static"
+  | "Struct"
+  | "Switch"
+  | "This"
+  | "Throw"
+  | "True"
+  | "Try"
+  | "Type";
 
 interface IdentifierLikeTokenKind {
   typeCode: GenericTokenKindCode;
@@ -74,17 +108,58 @@ const IDENTIFIER_TOKEN_KIND: IdentifierLikeTokenKind = {
   typeCode: GENERIC_TOKEN_IDENTIFIER,
   type: "Identifier",
 };
-const KEYWORD_TOKEN_KIND: IdentifierLikeTokenKind = {
-  typeCode: GENERIC_TOKEN_KEYWORD,
-  type: "Keyword",
-};
-const BOOL_TOKEN_KIND: IdentifierLikeTokenKind = {
+function keywordKind(type: IdentifierLikeTokenType): IdentifierLikeTokenKind {
+  return {
+    typeCode: GENERIC_TOKEN_KEYWORD,
+    type,
+  };
+}
+
+const AS_TOKEN_KIND = keywordKind("As");
+const ASM_TOKEN_KIND = keywordKind("Asm");
+const BREAK_TOKEN_KIND = keywordKind("Break");
+const CASE_TOKEN_KIND = keywordKind("Case");
+const CAST_TOKEN_KIND = keywordKind("Cast");
+const CATCH_TOKEN_KIND = keywordKind("Catch");
+const CONST_TOKEN_KIND = keywordKind("Const");
+const CONTINUE_TOKEN_KIND = keywordKind("Continue");
+const DEFAULT_TOKEN_KIND = keywordKind("Default");
+const ELSE_TOKEN_KIND = keywordKind("Else");
+const ENUM_TOKEN_KIND = keywordKind("Enum");
+const EXPORT_TOKEN_KIND = keywordKind("Export");
+const EXTERN_TOKEN_KIND = keywordKind("Extern");
+const FRAME_TOKEN_KIND = keywordKind("Frame");
+const FROM_TOKEN_KIND = keywordKind("From");
+const FUNC_TOKEN_KIND = keywordKind("Func");
+const GLOBAL_TOKEN_KIND = keywordKind("Global");
+const IF_TOKEN_KIND = keywordKind("If");
+const IMPORT_TOKEN_KIND = keywordKind("Import");
+const LOCAL_TOKEN_KIND = keywordKind("Local");
+const LOOP_TOKEN_KIND = keywordKind("Loop");
+const MATCH_TOKEN_KIND = keywordKind("Match");
+const RET_TOKEN_KIND = keywordKind("Ret");
+const RETURN_TOKEN_KIND = keywordKind("Return");
+const SELF_TOKEN_KIND = keywordKind("Self");
+const SIZEOF_TOKEN_KIND = keywordKind("Sizeof");
+const SPEC_TOKEN_KIND = keywordKind("Spec");
+const STATIC_TOKEN_KIND = keywordKind("Static");
+const STRUCT_TOKEN_KIND = keywordKind("Struct");
+const SWITCH_TOKEN_KIND = keywordKind("Switch");
+const THIS_TOKEN_KIND = keywordKind("This");
+const THROW_TOKEN_KIND = keywordKind("Throw");
+const TRY_TOKEN_KIND = keywordKind("Try");
+const TYPE_TOKEN_KIND = keywordKind("Type");
+const TRUE_TOKEN_KIND: IdentifierLikeTokenKind = {
   typeCode: GENERIC_TOKEN_BOOL,
-  type: "BoolLiteral",
+  type: "True",
+};
+const FALSE_TOKEN_KIND: IdentifierLikeTokenKind = {
+  typeCode: GENERIC_TOKEN_BOOL,
+  type: "False",
 };
 const NULLPTR_TOKEN_KIND: IdentifierLikeTokenKind = {
   typeCode: GENERIC_TOKEN_NULLPTR,
-  type: "NullptrLiteral",
+  type: "Nullptr",
 };
 
 function classifyIdentifierLike(
@@ -92,88 +167,88 @@ function classifyIdentifierLike(
   value: string,
 ): IdentifierLikeTokenKind {
   switch (firstCode) {
+    case 83:
+      return value.length === 4 && value === "Self"
+        ? SELF_TOKEN_KIND
+        : IDENTIFIER_TOKEN_KIND;
     case 70:
       return value.length === 4 && value === "Func"
-        ? KEYWORD_TOKEN_KIND
+        ? FUNC_TOKEN_KIND
         : IDENTIFIER_TOKEN_KIND;
     case 97:
       switch (value.length) {
         case 2:
-          return value === "as" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+          return value === "as" ? AS_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 3:
-          return value === "asm" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+          return value === "asm" ? ASM_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     case 98:
       return value.length === 5 && value === "break"
-        ? KEYWORD_TOKEN_KIND
+        ? BREAK_TOKEN_KIND
         : IDENTIFIER_TOKEN_KIND;
     case 99:
       switch (value.length) {
         case 4:
-          return value === "case" || value === "cast"
-            ? KEYWORD_TOKEN_KIND
-            : IDENTIFIER_TOKEN_KIND;
+          if (value === "case") return CASE_TOKEN_KIND;
+          return value === "cast" ? CAST_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 5:
-          return value === "const" || value === "catch"
-            ? KEYWORD_TOKEN_KIND
-            : IDENTIFIER_TOKEN_KIND;
+          if (value === "const") return CONST_TOKEN_KIND;
+          return value === "catch" ? CATCH_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 8:
           return value === "continue"
-            ? KEYWORD_TOKEN_KIND
+            ? CONTINUE_TOKEN_KIND
             : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     case 100:
       return value.length === 7 && value === "default"
-        ? KEYWORD_TOKEN_KIND
+        ? DEFAULT_TOKEN_KIND
         : IDENTIFIER_TOKEN_KIND;
     case 101:
       switch (value.length) {
         case 4:
-          return value === "enum" || value === "else"
-            ? KEYWORD_TOKEN_KIND
-            : IDENTIFIER_TOKEN_KIND;
+          if (value === "enum") return ENUM_TOKEN_KIND;
+          return value === "else" ? ELSE_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 6:
-          return value === "export" || value === "extern"
-            ? KEYWORD_TOKEN_KIND
-            : IDENTIFIER_TOKEN_KIND;
+          if (value === "export") return EXPORT_TOKEN_KIND;
+          return value === "extern" ? EXTERN_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     case 102:
       switch (value.length) {
         case 4:
-          return value === "from" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+          return value === "from" ? FROM_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 5:
-          if (value === "false") return BOOL_TOKEN_KIND;
-          return value === "frame" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+          if (value === "false") return FALSE_TOKEN_KIND;
+          return value === "frame" ? FRAME_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     case 103:
       return value.length === 6 && value === "global"
-        ? KEYWORD_TOKEN_KIND
+        ? GLOBAL_TOKEN_KIND
         : IDENTIFIER_TOKEN_KIND;
     case 105:
       switch (value.length) {
         case 2:
-          return value === "if" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+          return value === "if" ? IF_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 6:
           return value === "import"
-            ? KEYWORD_TOKEN_KIND
+            ? IMPORT_TOKEN_KIND
             : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     case 108:
       switch (value.length) {
         case 4:
-          return value === "loop" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+          return value === "loop" ? LOOP_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 5:
-          return value === "local" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+          return value === "local" ? LOCAL_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     case 109:
       return value.length === 5 && value === "match"
-        ? KEYWORD_TOKEN_KIND
+        ? MATCH_TOKEN_KIND
         : IDENTIFIER_TOKEN_KIND;
     case 110:
       switch (value.length) {
@@ -188,34 +263,34 @@ function classifyIdentifierLike(
     case 114:
       switch (value.length) {
         case 3:
-          return value === "ret" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+          return value === "ret" ? RET_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 6:
           return value === "return"
-            ? KEYWORD_TOKEN_KIND
+            ? RETURN_TOKEN_KIND
             : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     case 115:
-      if (value.length === 6) {
-        return value === "struct" ||
-          value === "static" ||
-          value === "switch" ||
-          value === "sizeof"
-          ? KEYWORD_TOKEN_KIND
-          : IDENTIFIER_TOKEN_KIND;
+      switch (value.length) {
+        case 4:
+          return value === "spec" ? SPEC_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+        case 6:
+          if (value === "struct") return STRUCT_TOKEN_KIND;
+          if (value === "static") return STATIC_TOKEN_KIND;
+          if (value === "switch") return SWITCH_TOKEN_KIND;
+          return value === "sizeof" ? SIZEOF_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     case 116:
       switch (value.length) {
         case 3:
-          return value === "try" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+          return value === "try" ? TRY_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 4:
-          if (value === "true") return BOOL_TOKEN_KIND;
-          return value === "type" || value === "this"
-            ? KEYWORD_TOKEN_KIND
-            : IDENTIFIER_TOKEN_KIND;
+          if (value === "true") return TRUE_TOKEN_KIND;
+          if (value === "type") return TYPE_TOKEN_KIND;
+          return value === "this" ? THIS_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 5:
-          return value === "throw" ? KEYWORD_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
+          return value === "throw" ? THROW_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     default:

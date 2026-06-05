@@ -82,7 +82,7 @@ describe("Lexer - Extended Tests", () => {
         expect(tokens[0]!.lexeme).toBe(keyword);
       }
       expect(genericParserSource).toContain("function classifyIdentifierLike");
-      expect(grammarLexerSource).toContain("function keywordTokenType");
+      expect(grammarLexerSource).toContain("case GENERIC_TOKEN_KEYWORD:");
     });
 
     it("checks identifier literal and keyword candidates by first character", () => {
@@ -696,7 +696,7 @@ describe("Lexer - Extended Tests", () => {
         "utf8",
       );
       const start = source.indexOf("function createFrontendTokenFromParts");
-      const end = source.indexOf("function keywordTokenType", start);
+      const end = source.indexOf("function punctuatorTokenType", start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);
@@ -769,7 +769,7 @@ describe("Lexer - Extended Tests", () => {
         "function createFrontendTokenFromParts",
       );
       const converterEnd = lexerSource.indexOf(
-        "function keywordTokenType",
+        "function punctuatorTokenType",
         converterStart,
       );
 
@@ -789,6 +789,59 @@ describe("Lexer - Extended Tests", () => {
       );
     });
 
+    it("carries exact keyword token names through generic lexing without frontend reclassification", () => {
+      const genericSource = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const lexerSource = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const classifierStart = genericSource.indexOf(
+        "function classifyIdentifierLike",
+      );
+      const classifierEnd = genericSource.indexOf(
+        "function isAsciiDigit",
+        classifierStart,
+      );
+      const converterStart = lexerSource.indexOf(
+        "function createFrontendTokenFromParts",
+      );
+      const keywordCase = lexerSource.indexOf(
+        "case GENERIC_TOKEN_KEYWORD:",
+        converterStart,
+      );
+      const numberCase = lexerSource.indexOf(
+        "case GENERIC_TOKEN_NUMBER:",
+        keywordCase,
+      );
+
+      expect(classifierStart).toBeGreaterThanOrEqual(0);
+      expect(classifierEnd).toBeGreaterThan(classifierStart);
+      expect(keywordCase).toBeGreaterThan(converterStart);
+      expect(numberCase).toBeGreaterThan(keywordCase);
+
+      const classifierSource = genericSource.slice(
+        classifierStart,
+        classifierEnd,
+      );
+      const keywordSource = lexerSource.slice(keywordCase, numberCase);
+      expect(genericSource).toContain('keywordKind("Frame")');
+      expect(genericSource).toContain('keywordKind("Continue")');
+      expect(genericSource).toContain('type: "Nullptr"');
+      expect(classifierSource).toContain("FRAME_TOKEN_KIND");
+      expect(classifierSource).toContain("CONTINUE_TOKEN_KIND");
+      expect(classifierSource).toContain("NULLPTR_TOKEN_KIND");
+      expect(keywordSource).toContain("type: _type as TokenType");
+      expect(keywordSource).not.toContain("keywordTokenType(value)");
+      expect(
+        tokenize("frame continue nullptr")
+          .slice(0, 3)
+          .map((token) => token.type),
+      ).toEqual([TokenType.Frame, TokenType.Continue, TokenType.Nullptr]);
+    });
+
     it("keeps punctuator token conversion on direct character dispatch", () => {
       const source = readFileSync(
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
@@ -798,7 +851,7 @@ describe("Lexer - Extended Tests", () => {
         "function createFrontendTokenFromParts",
       );
       const converterEnd = source.indexOf(
-        "function keywordTokenType",
+        "function punctuatorTokenType",
         converterStart,
       );
       const helperStart = source.indexOf("function punctuatorTokenType");
@@ -819,19 +872,20 @@ describe("Lexer - Extended Tests", () => {
       expect(helperSource).toContain("return TokenType.Unknown;");
     });
 
-    it("converts keyword token nodes through direct keyword dispatch", () => {
+    it("converts keyword token nodes through exact generic token names", () => {
       const source = readFileSync(
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
         "utf8",
       );
       const start = source.indexOf("function convertTokenNodeToToken");
-      const end = source.indexOf("function keywordTokenType", start);
+      const end = source.indexOf("function punctuatorTokenType", start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);
 
       const converterSource = source.slice(start, end);
-      expect(converterSource).toContain("keywordTokenType(value)");
+      expect(converterSource).toContain("type: _type as TokenType");
+      expect(converterSource).not.toContain("keywordTokenType(value)");
       expect(converterSource).not.toContain("keywordMap[value]");
       expect(converterSource).not.toContain("punctuatorToTokenType(value)");
       expect(source).not.toContain("const keywordMap");
@@ -843,7 +897,7 @@ describe("Lexer - Extended Tests", () => {
         "utf8",
       );
       const start = source.indexOf("function createFrontendTokenFromParts");
-      const end = source.indexOf("function keywordTokenType", start);
+      const end = source.indexOf("function punctuatorTokenType", start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);
