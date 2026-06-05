@@ -562,8 +562,8 @@ describe("Lexer - Extended Tests", () => {
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
         "utf8",
       );
-      const start = source.indexOf('if (type === "Identifier")');
-      const end = source.indexOf('if (type === "Keyword")', start);
+      const start = source.indexOf("case 73:");
+      const end = source.indexOf("case 75:", start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);
@@ -602,6 +602,18 @@ describe("Lexer - Extended Tests", () => {
       expect(keywordCase).toBeGreaterThan(identifierCase);
       expect(numberCase).toBeGreaterThan(keywordCase);
       expect(stringCase).toBeGreaterThan(numberCase);
+
+      const punctuatorSource = converterSource.slice(
+        punctuatorCase,
+        identifierCase,
+      );
+      const keywordSource = converterSource.slice(keywordCase, numberCase);
+      const stringSource = converterSource.slice(stringCase);
+      expect(punctuatorSource).not.toContain('type === "Punctuator"');
+      expect(keywordSource).not.toContain('type === "Keyword"');
+      expect(stringSource).not.toContain('type === "StringLiteral"');
+      expect(stringSource).not.toContain('type === "CharLiteral"');
+      expect(stringSource).not.toContain('type === "BoolLiteral"');
     });
 
     it("converts keyword and punctuator token nodes through direct map lookups", () => {

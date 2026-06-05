@@ -240,17 +240,14 @@ function createFrontendTokenFromParts(
   const typeCode = type.charCodeAt(0);
   switch (typeCode) {
     case 80:
-      if (type === "Punctuator") {
-        return {
-          type: punctuatorMap[value] ?? TokenType.Unknown,
-          lexeme: value,
-          literal: null,
-          line,
-          column,
-          file,
-        } as Token;
-      }
-      break;
+      return {
+        type: punctuatorMap[value] ?? TokenType.Unknown,
+        lexeme: value,
+        literal: null,
+        line,
+        column,
+        file,
+      } as Token;
     case 73:
       if (type === "Identifier") {
         return {
@@ -274,17 +271,14 @@ function createFrontendTokenFromParts(
       }
       break;
     case 75:
-      if (type === "Keyword") {
-        return {
-          type: keywordMap[value] ?? TokenType.Identifier,
-          lexeme: value,
-          literal: null,
-          line,
-          column,
-          file,
-        } as Token;
-      }
-      break;
+      return {
+        type: keywordMap[value] ?? TokenType.Identifier,
+        lexeme: value,
+        literal: null,
+        line,
+        column,
+        file,
+      } as Token;
     case 78:
       if (type === "NumberLiteral") {
         return {
@@ -308,42 +302,33 @@ function createFrontendTokenFromParts(
       }
       break;
     case 83:
-      if (type === "StringLiteral") {
-        return {
-          type: TokenType.StringLiteral,
-          lexeme: value,
-          literal: decodeString(value),
-          line,
-          column,
-          file,
-        } as Token;
-      }
-      break;
+      return {
+        type: TokenType.StringLiteral,
+        lexeme: value,
+        literal: decodeString(value),
+        line,
+        column,
+        file,
+      } as Token;
     case 67:
-      if (type === "CharLiteral") {
-        return {
-          type: TokenType.CharLiteral,
-          lexeme: value,
-          literal: decodeChar(value),
-          line,
-          column,
-          file,
-        } as Token;
-      }
-      break;
+      return {
+        type: TokenType.CharLiteral,
+        lexeme: value,
+        literal: decodeChar(value),
+        line,
+        column,
+        file,
+      } as Token;
     case 66:
-      if (type === "BoolLiteral") {
-        const literal = value === "true";
-        return {
-          type: literal ? TokenType.True : TokenType.False,
-          lexeme: value,
-          literal,
-          line,
-          column,
-          file,
-        } as Token;
-      }
-      break;
+      const literal = value === "true";
+      return {
+        type: literal ? TokenType.True : TokenType.False,
+        lexeme: value,
+        literal,
+        line,
+        column,
+        file,
+      } as Token;
   }
 
   return {
