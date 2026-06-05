@@ -488,7 +488,9 @@ describe("Parser", () => {
     expect(generatorSource).toContain("optimizeGeneratedBplLocationLines");
     expect(generatedSource).toContain("const peg$bplLineStarts = [0];");
     expect(generatedSource).toContain("let peg$lastBplLineIndex = 0;");
+    expect(generatedSource).toContain("let peg$lastBplLinePos = 0;");
     expect(generatedSource).toContain("function peg$findBplLineIndex(pos)");
+    expect(generatedSource).toContain("if (pos === peg$lastBplLinePos)");
     expect(generatedSource).not.toContain("function peg$isBplPosInLine");
     expect(generatedSource).toContain(
       "if (pos >= peg$bplLineStarts[peg$lastBplLineIndex] &&",

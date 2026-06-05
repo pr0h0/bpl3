@@ -1136,10 +1136,16 @@ function peg$parse(input, options) {
   }
 
   let peg$lastBplLineIndex = 0;
+  let peg$lastBplLinePos = 0;
 
   function peg$findBplLineIndex(pos) {
+    if (pos === peg$lastBplLinePos) {
+      return peg$lastBplLineIndex;
+    }
+
     if (pos >= peg$bplLineStarts[peg$lastBplLineIndex] &&
       (peg$lastBplLineIndex + 1 === peg$bplLineStarts.length || pos < peg$bplLineStarts[peg$lastBplLineIndex + 1])) {
+      peg$lastBplLinePos = pos;
       return peg$lastBplLineIndex;
     }
 
@@ -1150,6 +1156,7 @@ function peg$parse(input, options) {
       ) {
         peg$lastBplLineIndex++;
       }
+      peg$lastBplLinePos = pos;
       return peg$lastBplLineIndex;
     }
 
@@ -1166,6 +1173,7 @@ function peg$parse(input, options) {
     }
 
     peg$lastBplLineIndex = high;
+    peg$lastBplLinePos = pos;
     return high;
   }
 
