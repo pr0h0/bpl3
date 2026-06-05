@@ -9554,24 +9554,27 @@ function peg$parse(input, options) {
   }
 
   function peg$scanBplIdentTokenEnd() {
-    const firstCode = input.charCodeAt(peg$currPos);
+    let pos = peg$currPos;
+    const firstCode = input.charCodeAt(pos);
 
     if (!((firstCode >= 65 && firstCode <= 90) || (firstCode >= 97 && firstCode <= 122) || firstCode === 95)) {
       if (peg$silentFails === 0) { peg$fail(peg$e78); }
       return peg$FAILED;
     }
 
-    peg$currPos++;
-    while (peg$currPos < input.length) {
-      const code = input.charCodeAt(peg$currPos);
+    pos++;
+    const inputLength = input.length;
+    while (pos < inputLength) {
+      const code = input.charCodeAt(pos);
       if (!((code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95 || (code >= 48 && code <= 57))) {
         break;
       }
-      peg$currPos++;
+      pos++;
     }
+    peg$currPos = pos;
     if (peg$silentFails === 0) { peg$fail(peg$e79); }
 
-    return peg$currPos;
+    return pos;
   }
 
   function peg$scanBplIdentToken() {

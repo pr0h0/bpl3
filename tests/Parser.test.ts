@@ -660,7 +660,8 @@ describe("Parser", () => {
     expect(identEndScanner).toBeDefined();
     expect(reservedRangeHelper).toBeDefined();
     expect(identEndScanner).toContain("const firstCode =");
-    expect(identEndScanner).toContain("const code = input.charCodeAt(peg$currPos)");
+    expect(identEndScanner).toContain("const code = input.charCodeAt(pos)");
+    expect(identEndScanner).not.toContain("input.charCodeAt(peg$currPos)");
     expect(identEndScanner).not.toContain("peg$isBplIdentStartCode(firstCode)");
     expect(identEndScanner).not.toContain("peg$isBplIdentPartCode(");
     expect(identifierHelper).toContain(
@@ -681,6 +682,42 @@ describe("Parser", () => {
       .toThrow(CompilerError);
     expect(() => new Parser("local framex: int = 1;", "reserved.bpl").parse())
       .not.toThrow();
+  });
+
+  it("keeps generated identifier scanning on a local cursor", () => {
+    const generatorSource = readFileSync(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readFileSync(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const identEndStart = generatedSource.indexOf(
+      "function peg$scanBplIdentTokenEnd()",
+    );
+    const identEndEnd = generatedSource.indexOf(
+      "function peg$scanBplIdentToken()",
+      identEndStart,
+    );
+
+    expect(identEndStart).toBeGreaterThanOrEqual(0);
+    expect(identEndEnd).toBeGreaterThan(identEndStart);
+
+    const identEndScanner = generatedSource.slice(identEndStart, identEndEnd);
+    expect(generatorSource).toContain("let pos = peg$currPos;");
+    expect(identEndScanner).toContain("let pos = peg$currPos;");
+    expect(identEndScanner).toContain("const inputLength = input.length;");
+    expect(identEndScanner).toContain("peg$currPos = pos;");
+    expect(identEndScanner).toContain("return pos;");
+    expect(identEndScanner).not.toContain("peg$currPos++");
+    expect(identEndScanner).not.toContain("peg$currPos < input.length");
   });
 
   it("keeps generated qualified identifier parsing off tail tuple arrays", () => {
