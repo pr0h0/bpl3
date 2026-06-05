@@ -106,7 +106,8 @@ export function checkLiteral(
     } else {
       try {
         // Remove underscores which are allowed in BPL but not in JS BigInt constructor
-        const cleanRaw = expr.raw.replace(/_/g, "");
+        const cleanRaw =
+          expr.raw.indexOf("_") === -1 ? expr.raw : expr.raw.replace(/_/g, "");
         const val = BigInt(cleanRaw);
         const INT32_MIN = -2147483648n;
         const INT32_MAX = 2147483647n;

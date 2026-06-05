@@ -229,6 +229,27 @@ describe("TypeChecker", () => {
     expect(resolveCall).toBeGreaterThan(directResolvedType);
   });
 
+  it("keeps integer literal underscore replacement behind a guard", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
+      "utf8",
+    );
+    const checkLiteral = source.indexOf("export function checkLiteral");
+    const checkLiteralEnd = source.indexOf("\n}\n\n/**", checkLiteral);
+
+    expect(checkLiteral).toBeGreaterThanOrEqual(0);
+    expect(checkLiteralEnd).toBeGreaterThan(checkLiteral);
+
+    const literalSource = source.slice(checkLiteral, checkLiteralEnd);
+    const underscoreCheck = literalSource.indexOf('expr.raw.indexOf("_")');
+    const replace = literalSource.indexOf('expr.raw.replace(/_/g, "")');
+    const bigint = literalSource.indexOf("BigInt(cleanRaw)");
+
+    expect(underscoreCheck).toBeGreaterThanOrEqual(0);
+    expect(replace).toBeGreaterThan(underscoreCheck);
+    expect(bigint).toBeGreaterThan(replace);
+  });
+
   it("keeps simple builtin aliases before the scope lookup path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
