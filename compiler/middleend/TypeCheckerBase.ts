@@ -472,7 +472,14 @@ function resolveSimpleBuiltinTypeName(name: string): string | true | undefined {
   }
 }
 
-function isPotentialSimpleBuiltinTypeName(name: string): boolean {
+function resolveSimpleBuiltinBasicType(
+  type: AST.BasicTypeNode,
+): AST.BasicTypeNode | undefined {
+  if (type.genericArgs.length !== 0) {
+    return undefined;
+  }
+
+  const name = type.name;
   switch (name.charCodeAt(0)) {
     case 98: // b
     case 99: // c
@@ -484,22 +491,9 @@ function isPotentialSimpleBuiltinTypeName(name: string): boolean {
     case 115: // s
     case 117: // u
     case 118: // v
-      return true;
+      break;
     default:
-      return false;
-  }
-}
-
-function resolveSimpleBuiltinBasicType(
-  type: AST.BasicTypeNode,
-): AST.BasicTypeNode | undefined {
-  if (type.genericArgs.length !== 0) {
-    return undefined;
-  }
-
-  const name = type.name;
-  if (!isPotentialSimpleBuiltinTypeName(name)) {
-    return undefined;
+      return undefined;
   }
 
   const resolvedName = resolveSimpleBuiltinTypeName(name);
