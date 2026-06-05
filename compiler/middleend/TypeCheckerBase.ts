@@ -528,6 +528,32 @@ function canReuseResolvedBasicType(type: AST.BasicTypeNode): boolean {
   return type.name === decl.name && decl.genericParams.length === 0;
 }
 
+function resolveQualifiedTypeSymbol(
+  scope: SymbolTable,
+  name: string,
+): Symbol | undefined {
+  const parts = name.split(".");
+  let currentScope = scope;
+  let currentSymbol: Symbol | undefined;
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]!;
+    currentSymbol = currentScope.resolve(part);
+    if (!currentSymbol) {
+      return undefined;
+    }
+
+    if (i < parts.length - 1) {
+      if (!currentSymbol.moduleScope) {
+        return undefined;
+      }
+      currentScope = currentSymbol.moduleScope;
+    }
+  }
+
+  return currentSymbol;
+}
+
 const EMPTY_DIRECT_STRUCT_MEMBERS: (AST.StructField | AST.FunctionDecl)[] = [];
 
 /**
@@ -721,41 +747,23 @@ export abstract class TypeCheckerBase {
       }
 
       let resolvedSymbol = this.currentScope.resolve(type.name);
+      const isQualifiedTypeName = type.name.includes(".");
 
-      const resolveQualifiedSymbol = (): Symbol | undefined => {
-        const parts = type.name.split(".");
-        let currentScope = this.currentScope;
-        let currentSymbol: Symbol | undefined;
-
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i]!;
-          currentSymbol = currentScope.resolve(part);
-          if (!currentSymbol) {
-            break;
-          }
-
-          if (i < parts.length - 1) {
-            if (currentSymbol.moduleScope) {
-              currentScope = currentSymbol.moduleScope;
-            } else {
-              currentSymbol = undefined;
-              break;
-            }
-          }
-        }
-
-        return currentSymbol;
-      };
-
-      if (!resolvedSymbol && type.name.includes(".")) {
-        resolvedSymbol = resolveQualifiedSymbol();
+      if (!resolvedSymbol && isQualifiedTypeName) {
+        resolvedSymbol = resolveQualifiedTypeSymbol(
+          this.currentScope,
+          type.name,
+        );
       }
 
       if (!resolvedSymbol) {
         this.ensureImplicitPrimitiveWrappersLoaded(type.name);
         resolvedSymbol = this.currentScope.resolve(type.name);
-        if (!resolvedSymbol && type.name.includes(".")) {
-          resolvedSymbol = resolveQualifiedSymbol();
+        if (!resolvedSymbol && isQualifiedTypeName) {
+          resolvedSymbol = resolveQualifiedTypeSymbol(
+            this.currentScope,
+            type.name,
+          );
         }
       }
 

@@ -271,6 +271,26 @@ describe("TypeChecker", () => {
     expect(helperSource).toContain("decl.genericParams.length === 0");
   });
 
+  it("keeps qualified type lookup lazy on the unqualified type fast path", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const resolveType = source.indexOf("public resolveType");
+    const nextMethod = source.indexOf("\n  protected", resolveType);
+    const resolveTypeSource = source.slice(resolveType, nextMethod);
+
+    expect(resolveType).toBeGreaterThanOrEqual(0);
+    expect(nextMethod).toBeGreaterThan(resolveType);
+    expect(resolveTypeSource).not.toContain("const resolveQualifiedSymbol =");
+    expect(resolveTypeSource).toContain(
+      'const isQualifiedTypeName = type.name.includes(".");',
+    );
+    expect(resolveTypeSource).toMatch(
+      /resolveQualifiedTypeSymbol\(\s*this\.currentScope,\s*type\.name,\s*\)/,
+    );
+  });
+
   it("keeps direct struct member lookups on cached maps", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
