@@ -180,6 +180,55 @@ describe("TypeChecker", () => {
     expect(resolveCall).toBeGreaterThan(cached);
   });
 
+  it("reuses expression checker resolved types before resolving again", () => {
+    const typeCheckerSource = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
+      "utf8",
+    );
+    const expressionCheckerSource = readFileSync(
+      join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
+      "utf8",
+    );
+    const checkExpression = typeCheckerSource.indexOf("public checkExpression");
+    const resolvedAssignment = typeCheckerSource.indexOf(
+      "expr.resolvedType = resolved;",
+      checkExpression,
+    );
+    const checkIdentifier = expressionCheckerSource.indexOf(
+      "export function checkIdentifier",
+    );
+    const checkIdentifierEnd = expressionCheckerSource.indexOf(
+      "\n}",
+      checkIdentifier,
+    );
+
+    expect(checkExpression).toBeGreaterThanOrEqual(0);
+    expect(resolvedAssignment).toBeGreaterThan(checkExpression);
+    expect(checkIdentifier).toBeGreaterThanOrEqual(0);
+    expect(checkIdentifierEnd).toBeGreaterThan(checkIdentifier);
+
+    const checkExpressionSource = typeCheckerSource.slice(
+      checkExpression,
+      resolvedAssignment,
+    );
+    const checkIdentifierSource = expressionCheckerSource.slice(
+      checkIdentifier,
+      checkIdentifierEnd,
+    );
+    const previousResolvedType = checkExpressionSource.indexOf(
+      "const previousResolvedType = expr.resolvedType;",
+    );
+    const directResolvedType = checkExpressionSource.indexOf(
+      "const directResolvedType = expr.resolvedType;",
+    );
+    const resolveCall = checkExpressionSource.indexOf("this.resolveType(type)");
+
+    expect(checkIdentifierSource).toContain("expr.resolvedType = type;");
+    expect(previousResolvedType).toBeGreaterThanOrEqual(0);
+    expect(directResolvedType).toBeGreaterThan(previousResolvedType);
+    expect(resolveCall).toBeGreaterThan(directResolvedType);
+  });
+
   it("keeps simple builtin aliases before the scope lookup path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

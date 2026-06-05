@@ -542,6 +542,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Expression Checking ==========
 
   public checkExpression(expr: AST.Expression): AST.TypeNode | undefined {
+    const previousResolvedType = expr.resolvedType;
     let type: AST.TypeNode | undefined;
     switch (expr.kind) {
       case "Literal":
@@ -622,8 +623,14 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     if (type) {
+      const directResolvedType = expr.resolvedType;
       let resolved: AST.TypeNode;
-      if (type.kind === "BasicType") {
+      if (
+        directResolvedType !== undefined &&
+        directResolvedType !== previousResolvedType
+      ) {
+        resolved = directResolvedType;
+      } else if (type.kind === "BasicType") {
         const cachedResolvedType = type.resolvedType;
         resolved =
           cachedResolvedType !== undefined &&

@@ -446,8 +446,11 @@ export function checkIdentifier(
   if (symbol.type) {
     const type = this.resolveType(symbol.type, false);
     if (symbol.isConst && type.kind === "BasicType") {
-      return { ...type, isConst: true };
+      const constType = { ...type, isConst: true };
+      expr.resolvedType = constType;
+      return constType;
     }
+    expr.resolvedType = type;
     return type;
   }
 
