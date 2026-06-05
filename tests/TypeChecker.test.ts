@@ -105,6 +105,35 @@ describe("TypeChecker", () => {
     }
   });
 
+  it("caches simple builtin alias resolution on the BasicType node", () => {
+    const location = {
+      file: "test.bpl",
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 4,
+    };
+    const checker = new TypeChecker({ skipImportResolution: true });
+    const alias: AST.BasicTypeNode = {
+      kind: "BasicType",
+      name: "int",
+      genericArgs: [],
+      pointerDepth: 0,
+      arrayDimensions: [],
+      location,
+    };
+
+    const first = checker.resolveType(alias);
+    const second = checker.resolveType(alias);
+
+    expect(first.kind).toBe("BasicType");
+    expect(second).toBe(first);
+    expect(alias.resolvedType).toBe(first);
+    if (first.kind === "BasicType") {
+      expect(first.name).toBe("i32");
+    }
+  });
+
   it("keeps simple builtin aliases before the scope lookup path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

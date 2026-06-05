@@ -308,6 +308,11 @@ function cloneSimpleBuiltinAliasType(
   type: AST.BasicTypeNode,
   canonicalName: string,
 ): AST.BasicTypeNode {
+  const cached = type.resolvedType;
+  if (cached?.kind === "BasicType") {
+    return cached;
+  }
+
   if (hasExtendedBasicTypeMetadata(type)) {
     return {
       ...type,
@@ -316,7 +321,7 @@ function cloneSimpleBuiltinAliasType(
     };
   }
 
-  return {
+  const resolved: AST.BasicTypeNode = {
     kind: "BasicType",
     name: canonicalName,
     genericArgs: [],
@@ -324,6 +329,8 @@ function cloneSimpleBuiltinAliasType(
     arrayDimensions: type.arrayDimensions,
     location: type.location,
   };
+  type.resolvedType = resolved;
+  return resolved;
 }
 
 function resolveSimpleBuiltinTypeName(name: string): string | true | undefined {
