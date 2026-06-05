@@ -16,26 +16,36 @@ const dummyLocation = {
 };
 
 describe("SymbolTable", () => {
-  it("keeps hierarchical resolution cache invalidated through child scopes", () => {
+  it("keeps resolution cache invalidation lazy and scoped to missed names", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),
       "utf8",
     );
+    const constructorStart = source.indexOf("  constructor(");
+    const constructorEnd = source.indexOf("  public define", constructorStart);
     const resolveStart = source.indexOf("  public resolve(");
     const nextMethodStart = source.indexOf(
       "  public getUnusedVariables",
       resolveStart,
     );
 
+    expect(constructorStart).toBeGreaterThanOrEqual(0);
+    expect(constructorEnd).toBeGreaterThan(constructorStart);
     expect(resolveStart).toBeGreaterThanOrEqual(0);
     expect(nextMethodStart).toBeGreaterThan(resolveStart);
 
+    const constructorSource = source.slice(constructorStart, constructorEnd);
     const resolveSource = source.slice(resolveStart, nextMethodStart);
     expect(source).toContain("const UNRESOLVED_SYMBOL");
     expect(source).toContain("private resolutionCache");
-    expect(source).toContain("private childScopes");
-    expect(source).toContain("private invalidateResolutionCache");
-    expect(source).toContain("child.invalidateResolutionCache()");
+    expect(source).toContain("private missDependentsByName");
+    expect(source).toContain("registerMissWithAncestors(name)");
+    expect(source).toContain("private invalidateResolutionCacheFor");
+    expect(source).toContain("this.invalidateResolutionCacheFor(symbol.name)");
+    expect(source).not.toContain("private childScopes");
+    expect(source).not.toContain("private registerChildScope");
+    expect(source).not.toContain("child.invalidateResolutionCache()");
+    expect(constructorSource).not.toContain("registerChildScope");
     expect(resolveSource).toContain("this.resolutionCache");
     expect(resolveSource).toContain("UNRESOLVED_SYMBOL");
   });

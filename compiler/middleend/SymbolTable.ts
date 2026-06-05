@@ -29,13 +29,10 @@ export class SymbolTable {
   private symbols: Map<string, Symbol> = new Map();
   private parent?: SymbolTable;
   private resolutionCache?: Map<string, ResolutionCacheValue>;
-  private childScopes?: Set<SymbolTable>;
+  private missDependentsByName?: Map<string, Set<SymbolTable>>;
 
   constructor(parent?: SymbolTable) {
     this.parent = parent;
-    if (parent) {
-      parent.registerChildScope(this);
-    }
   }
 
   public define(symbol: Symbol): void {
@@ -52,7 +49,7 @@ export class SymbolTable {
     } else {
       this.symbols.set(symbol.name, symbol);
     }
-    this.invalidateResolutionCache();
+    this.invalidateResolutionCacheFor(symbol.name);
   }
 
   public getInCurrentScope(name: string): Symbol | undefined {
@@ -95,6 +92,7 @@ export class SymbolTable {
       scope = scope.parent;
     }
     (this.resolutionCache ??= new Map()).set(name, UNRESOLVED_SYMBOL);
+    this.registerMissWithAncestors(name);
     return undefined;
   }
 
@@ -178,15 +176,32 @@ export class SymbolTable {
     return matrix[b.length]![a.length]!;
   }
 
-  private registerChildScope(child: SymbolTable): void {
-    (this.childScopes ??= new Set()).add(child);
+  private registerMissWithAncestors(name: string): void {
+    let scope = this.parent;
+    while (scope) {
+      scope.registerMissDependent(name, this);
+      scope = scope.parent;
+    }
   }
 
-  private invalidateResolutionCache(): void {
-    this.resolutionCache?.clear();
-    if (!this.childScopes) return;
-    for (const child of this.childScopes) {
-      child.invalidateResolutionCache();
+  private registerMissDependent(name: string, dependent: SymbolTable): void {
+    const dependentsByName =
+      this.missDependentsByName ??= new Map<string, Set<SymbolTable>>();
+    const dependents = dependentsByName.get(name);
+    if (dependents) {
+      dependents.add(dependent);
+      return;
+    }
+    dependentsByName.set(name, new Set([dependent]));
+  }
+
+  private invalidateResolutionCacheFor(name: string): void {
+    this.resolutionCache?.delete(name);
+    const dependents = this.missDependentsByName?.get(name);
+    if (!dependents) return;
+    this.missDependentsByName?.delete(name);
+    for (const dependent of dependents) {
+      dependent.resolutionCache?.delete(name);
     }
   }
 }
