@@ -8,7 +8,7 @@ import { CompilerError } from "../common/CompilerError";
 import { typeCheckerLog } from "../common/Logger";
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
-import { TypeUtils, KNOWN_TYPES, NUMERIC_TYPES } from "./TypeUtils";
+import { TypeUtils, KNOWN_TYPES } from "./TypeUtils";
 import { OPERATOR_METHOD_MAP } from "./OverloadResolver";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import type { CheckerContext } from "./CheckerContext";
@@ -73,19 +73,56 @@ function isArithmeticOperandType(
   return TypeUtils.isNumericType(type) || isGenericParameterType(context, type);
 }
 
-const OPERATOR_OVERLOAD_FREE_BASIC_TYPES = new Set([
-  ...KNOWN_TYPES,
-  ...NUMERIC_TYPES,
-  "null",
-  "nullptr",
-]);
+function isOperatorOverloadFreeBasicTypeName(name: string): boolean {
+  switch (name.charCodeAt(0)) {
+    case 98:
+      return name === "bool";
+    case 99:
+      return name === "char";
+    case 100:
+      return name === "double";
+    case 102:
+      return name === "float";
+    case 105:
+      switch (name.length) {
+        case 2:
+          return name === "i1" || name === "i8";
+        case 3:
+          return name === "i16" || name === "i32" || name === "i64";
+      }
+      return name === "int";
+    case 108:
+      return name === "long";
+    case 110:
+      return name === "null" || name === "nullptr";
+    case 115:
+      return name === "short" || name === "string";
+    case 117:
+      switch (name.length) {
+        case 2:
+          return name === "u8";
+        case 3:
+          return name === "u16" || name === "u32" || name === "u64";
+        case 4:
+          return name === "uint";
+        case 5:
+          return name === "uchar" || name === "ulong";
+        case 6:
+          return name === "ushort";
+      }
+      return false;
+    case 118:
+      return name === "void";
+  }
+  return false;
+}
 
 function canHaveOperatorOverload(type: AST.TypeNode): boolean {
   if (type.kind !== "BasicType") return false;
   if (type.arrayDimensions.length > 0) return false;
   if (type.resolvedDeclaration) return true;
   if (type.genericArgs.length > 0) return true;
-  return !OPERATOR_OVERLOAD_FREE_BASIC_TYPES.has(type.name);
+  return !isOperatorOverloadFreeBasicTypeName(type.name);
 }
 
 /**

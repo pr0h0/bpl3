@@ -744,6 +744,9 @@ describe("TypeChecker", () => {
       "utf8",
     );
     const helperStart = source.indexOf("function canHaveOperatorOverload");
+    const directNameHelper = source.indexOf(
+      "function isOperatorOverloadFreeBasicTypeName",
+    );
     const binaryStart = source.indexOf("export function checkBinary");
     const firstResolverCall = source.indexOf(
       "this.findOperatorOverload(leftType, methodName, [rightType])",
@@ -764,7 +767,10 @@ describe("TypeChecker", () => {
     );
 
     expect(helperStart).toBeGreaterThanOrEqual(0);
-    expect(source).toContain("OPERATOR_OVERLOAD_FREE_BASIC_TYPES.has");
+    expect(directNameHelper).toBeGreaterThanOrEqual(0);
+    expect(directNameHelper).toBeLessThan(helperStart);
+    expect(source).not.toContain("OPERATOR_OVERLOAD_FREE_BASIC_TYPES.has");
+    expect(source).not.toContain("new Set([");
     expect(binaryGuard).toBeGreaterThan(binaryStart);
     expect(binaryGuard).toBeLessThan(firstResolverCall);
     expect(swappedGuard).toBeGreaterThan(firstResolverCall);
