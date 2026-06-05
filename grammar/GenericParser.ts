@@ -247,9 +247,9 @@ export class GenericParser {
           return this.matchNumberLiteral(emitToken);
         }
         if (isIdentifierStartCode(firstCode)) {
-          return this.matchIdentifierOrKeyword(emitToken);
+          return this.matchIdentifierOrKeyword(emitToken, firstCode);
         }
-        return this.matchPunctuator(emitToken);
+        return this.matchPunctuator(emitToken, firstCode);
     }
   }
 
@@ -382,9 +382,11 @@ export class GenericParser {
     return null;
   }
 
-  private matchIdentifierOrKeyword<T>(emitToken: TokenEmitter<T>): T | null {
+  private matchIdentifierOrKeyword<T>(
+    emitToken: TokenEmitter<T>,
+    firstCode: number,
+  ): T | null {
     const start = this.position;
-    const firstCode = this.source.charCodeAt(start);
     if (!isIdentifierStartCode(firstCode)) return null;
 
     const end = this.scanIdentifierEnd(start + 1);
@@ -409,8 +411,10 @@ export class GenericParser {
     return index;
   }
 
-  private matchPunctuator<T>(emitToken: TokenEmitter<T>): T | null {
-    const firstCode = this.source.charCodeAt(this.position);
+  private matchPunctuator<T>(
+    emitToken: TokenEmitter<T>,
+    firstCode: number,
+  ): T | null {
     const secondCode = this.source.charCodeAt(this.position + 1);
 
     switch (firstCode) {

@@ -55,8 +55,8 @@ describe("Lexer - Extended Tests", () => {
       expect(source).not.toContain("const KEYWORDS = new Set");
       expect(source).not.toContain("const KEYWORD_START_CODES");
       expect(source).not.toContain("function canStartKeyword");
-      expect(matcherSource).toContain("const firstCode =");
-      expect(matcherSource).toContain("this.source.charCodeAt(start)");
+      expect(matcherSource).toContain("firstCode: number");
+      expect(matcherSource).not.toContain("this.source.charCodeAt(start)");
       expect(matcherSource).toContain("classifyIdentifierLike(firstCode, value)");
       expect(matcherSource).not.toContain("KEYWORDS.has(value)");
       expect(matcherSource).not.toContain("KEYWORD_START_CODES");
@@ -209,7 +209,10 @@ describe("Lexer - Extended Tests", () => {
       expect(source).not.toContain("const PUNCTUATORS =");
       expect(source).not.toContain("PUNCTUATORS_BY_FIRST_CHAR");
       expect(source).not.toContain("groupPunctuatorsByFirstChar");
-      expect(methodSource).toContain("const firstCode =");
+      expect(methodSource).toContain("firstCode: number");
+      expect(methodSource).not.toContain(
+        "const firstCode = this.source.charCodeAt(this.position);",
+      );
       expect(methodSource).toContain("switch (firstCode)");
       expect(methodSource).not.toContain("PUNCTUATORS_BY_FIRST_CHAR.get");
       expect(methodSource).not.toContain("for (const punct of this.punctuators)");
@@ -465,6 +468,53 @@ describe("Lexer - Extended Tests", () => {
       expect(helperSource).toContain("case 34:");
       expect(helperSource).toContain("case 39:");
       expect(helperSource).toContain("isIdentifierStartCode(firstCode)");
+    });
+
+    it("threads first character codes into hot token matchers", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const dispatchStart = source.indexOf("private matchNextToken");
+      const dispatchEnd = source.indexOf(
+        "private matchStringLiteral",
+        dispatchStart,
+      );
+      const identifierStart = source.indexOf("private matchIdentifierOrKeyword");
+      const identifierEnd = source.indexOf(
+        "private scanIdentifierEnd",
+        identifierStart,
+      );
+      const punctuatorStart = source.indexOf("private matchPunctuator");
+      const punctuatorEnd = source.indexOf(
+        "private createToken",
+        punctuatorStart,
+      );
+
+      expect(dispatchStart).toBeGreaterThanOrEqual(0);
+      expect(dispatchEnd).toBeGreaterThan(dispatchStart);
+      expect(identifierStart).toBeGreaterThan(dispatchEnd);
+      expect(identifierEnd).toBeGreaterThan(identifierStart);
+      expect(punctuatorStart).toBeGreaterThan(identifierEnd);
+      expect(punctuatorEnd).toBeGreaterThan(punctuatorStart);
+
+      const dispatchSource = source.slice(dispatchStart, dispatchEnd);
+      const identifierSource = source.slice(identifierStart, identifierEnd);
+      const punctuatorSource = source.slice(punctuatorStart, punctuatorEnd);
+      expect(dispatchSource).toContain(
+        "this.matchIdentifierOrKeyword(emitToken, firstCode)",
+      );
+      expect(dispatchSource).toContain(
+        "this.matchPunctuator(emitToken, firstCode)",
+      );
+      expect(identifierSource).toContain("firstCode: number");
+      expect(identifierSource).not.toContain(
+        "const firstCode = this.source.charCodeAt(start);",
+      );
+      expect(punctuatorSource).toContain("firstCode: number");
+      expect(punctuatorSource).not.toContain(
+        "const firstCode = this.source.charCodeAt(this.position);",
+      );
     });
 
     it("converts identifier token nodes without a defensive keyword lookup", () => {
