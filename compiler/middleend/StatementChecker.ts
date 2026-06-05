@@ -906,8 +906,9 @@ export function checkVariableDecl(
           }
         }
 
-        const resolvedInit = this.resolveType(initType);
-        const resolvedDecl = this.resolveType(declaredType);
+        const resolvedInit =
+          decl.initializer.resolvedType ?? this.resolveType(initType);
+        const resolvedDecl = declaredType;
 
         // Check for integer constant compatibility
         const constVal = this.getIntegerConstantValue(decl.initializer);

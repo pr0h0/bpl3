@@ -289,6 +289,30 @@ describe("TypeChecker", () => {
     expect(resolveCall).toBeGreaterThan(directResolvedType);
   });
 
+  it("reuses resolved initializer types during variable declaration checks", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/StatementChecker.ts"),
+      "utf8",
+    );
+    const checkVariableDecl = source.indexOf("export function checkVariableDecl");
+    const constValueCheck = source.indexOf(
+      "const constVal = this.getIntegerConstantValue",
+      checkVariableDecl,
+    );
+
+    expect(checkVariableDecl).toBeGreaterThanOrEqual(0);
+    expect(constValueCheck).toBeGreaterThan(checkVariableDecl);
+
+    const compatibilityPrefix = source.slice(checkVariableDecl, constValueCheck);
+    expect(compatibilityPrefix).toContain(
+      "const resolvedInit =\n          decl.initializer.resolvedType ?? this.resolveType(initType);",
+    );
+    expect(compatibilityPrefix).toContain("const resolvedDecl = declaredType;");
+    expect(compatibilityPrefix).not.toContain(
+      "this.resolveType(declaredType)",
+    );
+  });
+
   it("keeps integer literal underscore replacement behind a guard", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
