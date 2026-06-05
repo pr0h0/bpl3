@@ -503,7 +503,17 @@ describe("Parser", () => {
     );
     expect(locationHelper).toContain("peg$findBplLineIndex(startPos)");
     expect(locationHelper).toContain(
-      "endPos >= peg$bplLineStarts[startLineIndex]",
+      "const startLineStart = peg$bplLineStarts[startLineIndex];",
+    );
+    expect(locationHelper).toContain("const endLineStart =");
+    expect(locationHelper).toContain(
+      "endPos >= startLineStart",
+    );
+    expect(locationHelper).toContain(
+      "startColumn: startPos - startLineStart + 1,",
+    );
+    expect(locationHelper).toContain(
+      "endColumn: endPos - endLineStart + 1,",
     );
     expect(locationHelper).not.toContain("peg$isBplPosInLine");
     expect(locationHelper).not.toContain("peg$computePosDetails");
