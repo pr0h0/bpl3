@@ -685,7 +685,6 @@ export class GenericParser {
     firstCode: number,
   ): T | null {
     const start = this.position;
-    if (!isIdentifierStartCode(firstCode)) return null;
 
     const end = this.scanIdentifierEnd(start + 1);
     const value = this.source.slice(start, end);

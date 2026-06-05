@@ -568,7 +568,7 @@ describe("Lexer - Extended Tests", () => {
       expect(matcherSource).toContain(
         "if (!isAsciiDigit(firstChar)) return null",
       );
-      expect(matcherSource).toContain(
+      expect(matcherSource).not.toContain(
         "if (!isIdentifierStartCode(firstCode)) return null",
       );
     });
@@ -719,6 +719,37 @@ describe("Lexer - Extended Tests", () => {
       expect(punctuatorSource).toContain("firstCode: number");
       expect(punctuatorSource).not.toContain(
         "const firstCode = this.source.charCodeAt(this.position);",
+      );
+    });
+
+    it("keeps identifier-start validation in the token dispatch layer", () => {
+      const source = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const dispatchStart = source.indexOf("private matchNextToken");
+      const dispatchEnd = source.indexOf(
+        "private matchStringLiteral",
+        dispatchStart,
+      );
+      const identifierStart = source.indexOf(
+        "private matchIdentifierOrKeyword",
+      );
+      const identifierEnd = source.indexOf(
+        "private scanIdentifierEnd",
+        identifierStart,
+      );
+
+      expect(dispatchStart).toBeGreaterThanOrEqual(0);
+      expect(dispatchEnd).toBeGreaterThan(dispatchStart);
+      expect(identifierStart).toBeGreaterThan(dispatchEnd);
+      expect(identifierEnd).toBeGreaterThan(identifierStart);
+
+      const dispatchSource = source.slice(dispatchStart, dispatchEnd);
+      const identifierSource = source.slice(identifierStart, identifierEnd);
+      expect(dispatchSource).toContain("isIdentifierStartCode(firstCode)");
+      expect(identifierSource).not.toContain(
+        "if (!isIdentifierStartCode(firstCode))",
       );
     });
 
