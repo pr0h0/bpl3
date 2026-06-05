@@ -312,7 +312,7 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     "      return peg$FAILED;",
     "    }",
     "    if (",
-    "      peg$isBplReservedKeywordStartCode(input.charCodeAt(startPos)) &&",
+    "      peg$isBplReservedKeywordStartCode(peg$bplLastIdentStartCode) &&",
     "      peg$isBplReservedKeywordRange(startPos, endPos)",
     "    ) {",
     "      peg$currPos = startPos;",
@@ -326,6 +326,8 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     "  function peg$parseIdentToken()",
   ].join("\n");
   const identTokenReplacement = [
+    "  let peg$bplLastIdentStartCode = 0;",
+    "",
     "  function peg$isBplIdentStartCode(code) {",
     "    return (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
     "  }",
@@ -337,6 +339,7 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     "  function peg$scanBplIdentTokenEnd() {",
     "    let pos = peg$currPos;",
     "    const firstCode = input.charCodeAt(pos);",
+    "    peg$bplLastIdentStartCode = firstCode;",
     "",
     "    if (!((firstCode >= 65 && firstCode <= 90) || (firstCode >= 97 && firstCode <= 122) || firstCode === 95)) {",
     "      if (peg$silentFails === 0) { peg$fail(peg$e78); }",

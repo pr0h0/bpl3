@@ -667,7 +667,11 @@ describe("Parser", () => {
     expect(generatedSource).toContain(
       "function peg$isBplReservedKeywordStartCode(code)",
     );
+    expect(generatedSource).toContain("let peg$bplLastIdentStartCode = 0;");
     expect(identEndScanner).toContain("const firstCode =");
+    expect(identEndScanner).toContain(
+      "peg$bplLastIdentStartCode = firstCode;",
+    );
     expect(identEndScanner).toContain("const code = input.charCodeAt(pos)");
     expect(identEndScanner).not.toContain("input.charCodeAt(peg$currPos)");
     expect(identEndScanner).not.toContain("peg$isBplIdentStartCode(firstCode)");
@@ -676,8 +680,9 @@ describe("Parser", () => {
       "const endPos = peg$scanBplIdentTokenEnd()",
     );
     expect(identifierHelper).toContain(
-      "peg$isBplReservedKeywordStartCode(input.charCodeAt(startPos)) &&",
+      "peg$isBplReservedKeywordStartCode(peg$bplLastIdentStartCode) &&",
     );
+    expect(identifierHelper).not.toContain("input.charCodeAt(startPos)");
     expect(identifierHelper).toContain(
       "peg$isBplReservedKeywordRange(startPos, endPos)",
     );
