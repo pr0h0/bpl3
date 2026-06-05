@@ -727,30 +727,31 @@ function peg$parse(input, options) {
     let expr = primary;
     for (const post of postfixes) {
       if (post.type === "call") {
-        expr = call(expr, post.args, mergeLoc(expr.location, post.loc));
+        expr = call(expr, post.args, mergeLocToEndPos(expr.location, post.endPos));
       } else if (post.type === "index") {
-        expr = index(expr, post.index, mergeLoc(expr.location, post.loc));
+        expr = index(expr, post.index, mergeLocToEndPos(expr.location, post.endPos));
       } else if (post.type === "member") {
-        expr = member(expr, post.property, mergeLoc(expr.location, post.loc));
+        expr = member(expr, post.property, mergeLocToEndPos(expr.location, post.endPos));
       } else if (post.type === "enumStructVariant") {
         // For enum struct variant like Shape.Circle { radius: 5.0 }
         // expr should be an Identifier (enum name)
         if (expr.kind === "Identifier") {
-          expr = enumStructVariant(expr.name, post.property, post.fields, mergeLoc(expr.location, post.loc));
+          expr = enumStructVariant(expr.name, post.property, post.fields, mergeLocToEndPos(expr.location, post.endPos));
         } else {
           error("Enum struct variant construction requires an identifier before '.'");
         }
       } else if (post.type === "generic") {
-        expr = genericInstantiation(expr, post.genericArgs, mergeLoc(expr.location, post.loc));
+        expr = genericInstantiation(expr, post.genericArgs, mergeLocToEndPos(expr.location, post.endPos));
       } else if (post.type === "postfixUnary") {
-        const opToken = makeOperatorToken(post.operator, post.loc);
-        expr = unary(opToken, expr, false, mergeLoc(expr.location, post.loc));
+        const opToken = makeOperatorTokenFromPos(post.operator, post.startPos);
+        expr = unary(opToken, expr, false, mergeLocToEndPos(expr.location, post.endPos));
       }
     }
     return expr;
   }
   function peg$f116(tail) {
-    tail.loc = location();
+    tail.startPos = peg$savedPos;
+    tail.endPos = offset();
     return tail;
   }
   function peg$f117(args) {
@@ -13331,6 +13332,18 @@ function peg$parse(input, options) {
       startColumn: startLoc.startColumn,
       endLine: endLoc.endLine,
       endColumn: endLoc.endColumn,
+    };
+  }
+
+  function mergeLocToEndPos(startLoc, endPos) {
+    const endLineIndex = peg$findBplLineIndex(endPos);
+
+    return {
+      file: parserFilePath,
+      startLine: startLoc.startLine,
+      startColumn: startLoc.startColumn,
+      endLine: endLineIndex + 1,
+      endColumn: endPos - peg$bplLineStarts[endLineIndex] + 1,
     };
   }
 

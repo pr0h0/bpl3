@@ -410,6 +410,9 @@ describe("Parser", () => {
     const mergeLocHelper = generatedSource.match(
       /function mergeLoc\(startLoc, endLoc\) \{[\s\S]*?\n  \}/,
     )?.[0];
+    const mergeLocToEndPosHelper = generatedSource.match(
+      /function mergeLocToEndPos\(startLoc, endPos\) \{[\s\S]*?\n  \}/,
+    )?.[0];
 
     expect(makeOperatorTokenHelper).toContain("line: loc.startLine,");
     expect(makeOperatorTokenHelper).toContain("column: loc.startColumn,");
@@ -430,6 +433,14 @@ describe("Parser", () => {
     expect(mergeLocHelper).not.toContain("startLoc &&");
     expect(mergeLocHelper).not.toContain("endLoc &&");
     expect(mergeLocHelper).not.toContain("let startLine = 1");
+    expect(mergeLocToEndPosHelper).toContain(
+      "const endLineIndex = peg$findBplLineIndex(endPos);",
+    );
+    expect(mergeLocToEndPosHelper).toContain("startLine: startLoc.startLine,");
+    expect(mergeLocToEndPosHelper).toContain(
+      "endColumn: endPos - peg$bplLineStarts[endLineIndex] + 1,",
+    );
+    expect(mergeLocToEndPosHelper).not.toContain("location()");
   });
 
   it("keeps normalized parser locations off the identity makeLoc path", () => {
@@ -1066,21 +1077,38 @@ describe("Parser", () => {
       join(process.cwd(), "grammar", "bpl.peggy"),
       "utf8",
     );
-    const postfixStart = grammarSource.indexOf("\nPostfixTail\n");
+    const postfixStart = grammarSource.indexOf("\nPostfix\n");
+    const postfixTailStart = grammarSource.indexOf("\nPostfixTail\n");
     const argumentListStart = grammarSource.indexOf(
       "\nArgumentList\n",
       postfixStart,
     );
 
     expect(postfixStart).toBeGreaterThanOrEqual(0);
+    expect(postfixTailStart).toBeGreaterThan(postfixStart);
     expect(argumentListStart).toBeGreaterThan(postfixStart);
 
-    const postfixSource = grammarSource.slice(postfixStart, argumentListStart);
-    expect(postfixSource).toContain("tail:PostfixTailAfterTrivia");
-    expect(postfixSource).toContain("tail.loc = location();");
-    expect(postfixSource).toContain("PostfixTailAfterTrivia");
-    expect(postfixSource).not.toContain('/ _ "("');
-    expect(postfixSource).not.toContain('/ _ "."');
+    const postfixSectionSource = grammarSource.slice(
+      postfixStart,
+      argumentListStart,
+    );
+    const postfixTailSource = grammarSource.slice(
+      postfixTailStart,
+      argumentListStart,
+    );
+    expect(postfixTailSource).toContain("tail:PostfixTailAfterTrivia");
+    expect(postfixTailSource).toContain("tail.startPos = peg$savedPos;");
+    expect(postfixTailSource).toContain("tail.endPos = offset();");
+    expect(postfixTailSource).not.toContain("tail.loc = location();");
+    expect(postfixSectionSource).toContain(
+      "mergeLocToEndPos(expr.location, post.endPos)",
+    );
+    expect(postfixSectionSource).not.toContain(
+      "mergeLoc(expr.location, post.loc)",
+    );
+    expect(postfixTailSource).toContain("PostfixTailAfterTrivia");
+    expect(postfixTailSource).not.toContain('/ _ "("');
+    expect(postfixTailSource).not.toContain('/ _ "."');
   });
 
   it("keeps valid parses off the detailed Peggy failure collection path", () => {
