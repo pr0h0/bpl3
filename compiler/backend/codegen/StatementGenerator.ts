@@ -2651,10 +2651,15 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
       this.currentFunctionEmitsStackFrameHooks =
         this.shouldEmitStackFrameHooksForFunction(decl, name);
-      const hasDirectRecursiveCall = this.hasDirectRecursiveCall(decl);
-      this.currentFunctionUsesAllocaStackLimitProbe =
-        this.shouldUseStackLimitProbe() &&
-        (!hasDirectRecursiveCall || this.hasDirectTailRecursiveReturn(decl));
+      this.currentFunctionUsesAllocaStackLimitProbe = false;
+      if (
+        this.currentFunctionEmitsStackFrameHooks &&
+        this.shouldUseStackLimitProbe()
+      ) {
+        const hasDirectRecursiveCall = this.hasDirectRecursiveCall(decl);
+        this.currentFunctionUsesAllocaStackLimitProbe =
+          !hasDirectRecursiveCall || this.hasDirectTailRecursiveReturn(decl);
+      }
 
       // Special handling for main function to accept argc/argv
       let params: string;

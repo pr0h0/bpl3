@@ -1379,6 +1379,33 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain("walkAST");
   });
 
+  it("keeps direct recursion stack-probe scans behind hook emission gates", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("protected generateFunction");
+    const end = source.indexOf("      // Special handling for main function", start);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const functionSource = source.slice(start, end);
+    const hookAssignment = functionSource.indexOf(
+      "this.currentFunctionEmitsStackFrameHooks =",
+    );
+    const probeGate = functionSource.indexOf(
+      "this.currentFunctionEmitsStackFrameHooks &&\n        this.shouldUseStackLimitProbe()",
+    );
+    const recursionScan = functionSource.indexOf(
+      "const hasDirectRecursiveCall = this.hasDirectRecursiveCall(decl);",
+    );
+
+    expect(hookAssignment).toBeGreaterThanOrEqual(0);
+    expect(probeGate).toBeGreaterThan(hookAssignment);
+    expect(recursionScan).toBeGreaterThan(probeGate);
+  });
+
   it("keeps nonzero divisor proof tracking lazy for division-free codegen", () => {
     const baseSource = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
