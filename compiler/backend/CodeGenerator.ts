@@ -1311,8 +1311,9 @@ export class CodeGenerator extends StatementGenerator {
       scanReachableFunctionBody(method);
     }
 
-    while (queue.length > 0) {
-      const decl = queue.shift()!;
+    let queueIndex = 0;
+    while (queueIndex < queue.length) {
+      const decl = queue[queueIndex++]!;
       scanReachableFunctionBody(decl);
     }
 

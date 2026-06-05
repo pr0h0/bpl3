@@ -1838,6 +1838,23 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("ret i32 99");
   });
 
+  it("uses an index cursor for tree-shake reachability queues", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
+      "utf-8",
+    );
+    const collectorSource =
+      source.match(
+        /private collectReachableTopLevelFunctions[\s\S]*?\n  private generateTopLevel/,
+      )?.[0] ?? "";
+
+    expect(collectorSource).not.toContain("queue.shift()");
+    expect(collectorSource).toMatch(/let queueIndex = 0;/);
+    expect(collectorSource).toMatch(
+      /while \(queueIndex < queue\.length\) \{\s+const decl = queue\[queueIndex\+\+\]!;/,
+    );
+  });
+
   it("rejects unsupported memory intrinsic return types", () => {
     expect(() =>
       compile(`
