@@ -377,18 +377,28 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         this.registerLinkerSymbol(stmt.name, "type", undefined, stmt);
         break;
       case "FunctionDecl":
-        const isVariadic = stmt.params.some((p) => p.isVariadic);
+        const paramTypes: AST.TypeNode[] = new Array(stmt.params.length);
+        let isVariadic = false;
+        for (let i = 0; i < stmt.params.length; i++) {
+          const param = stmt.params[i]!;
+          const resolved = this.resolveType(param.type);
+          if (param.isVariadic) {
+            isVariadic = true;
+            if (resolved.kind === "BasicType") {
+              paramTypes[i] = {
+                ...resolved,
+                pointerDepth: resolved.pointerDepth + 1,
+              };
+              continue;
+            }
+          }
+          paramTypes[i] = resolved;
+        }
+
         const functionType: AST.FunctionTypeNode = {
           kind: "FunctionType",
           returnType: this.resolveType(stmt.returnType),
-          paramTypes: stmt.params.map((p) => {
-            const resolved = this.resolveType(p.type);
-            if (p.isVariadic && resolved.kind === "BasicType") {
-              // Variadic parameters are passed as pointers (arrays)
-              return { ...resolved, pointerDepth: resolved.pointerDepth + 1 };
-            }
-            return resolved;
-          }),
+          paramTypes,
           isVariadic: isVariadic,
           location: stmt.location,
           declaration: stmt,

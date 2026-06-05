@@ -447,6 +447,28 @@ describe("TypeChecker", () => {
     );
   });
 
+  it("keeps function declaration hoisting on a single parameter scan", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
+      "utf8",
+    );
+    const functionCase = source.indexOf('case "FunctionDecl":');
+    const typeAliasCase = source.indexOf('case "TypeAlias":', functionCase);
+
+    expect(functionCase).toBeGreaterThanOrEqual(0);
+    expect(typeAliasCase).toBeGreaterThan(functionCase);
+
+    const branchSource = source.slice(functionCase, typeAliasCase);
+    expect(branchSource).toContain(
+      "const paramTypes: AST.TypeNode[] = new Array(stmt.params.length)",
+    );
+    expect(branchSource).toContain(
+      "for (let i = 0; i < stmt.params.length; i++)",
+    );
+    expect(branchSource).not.toContain("stmt.params.some");
+    expect(branchSource).not.toContain("stmt.params.map");
+  });
+
   it("keeps direct struct member lookups on cached maps", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
