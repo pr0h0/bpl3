@@ -74,6 +74,38 @@ describe("TypeChecker", () => {
     ).toBe(true);
   });
 
+  it("checks standard library runtime type declarations by name before path suffix", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const start = source.indexOf(
+      "protected isStandardLibraryRuntimeTypeDeclaration",
+    );
+    const end = source.indexOf(
+      "protected initializeBuiltins",
+      start,
+    );
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const methodSource = source.slice(start, end);
+    expect(source).toContain("function isBplStandardLibraryModuleFile");
+    expect(methodSource).toContain("switch (name)");
+    expect(methodSource).toContain('case "TypeInfo":');
+    expect(methodSource).toContain('case "Type":');
+    expect(methodSource).toContain('case "Any":');
+    expect(methodSource).toContain(
+      'isBplStandardLibraryModuleFile(location.file, "type")',
+    );
+    expect(methodSource).not.toContain("const isTypeModule");
+    expect(methodSource).not.toContain("const isReflectionModule");
+    expect(methodSource).not.toContain("const isErrorsModule");
+    expect(methodSource).not.toContain("const isPrimitivesModule");
+    expect(methodSource).not.toContain(".test(sourceFile)");
+  });
+
   it("keeps canonical primitive type resolution on the no-op fast path", () => {
     const location = {
       file: "test.bpl",

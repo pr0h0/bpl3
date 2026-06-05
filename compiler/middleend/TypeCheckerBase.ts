@@ -292,6 +292,16 @@ const STANDARD_LIBRARY_PRIMITIVE_WRAPPER_TYPES = new Set(
   Object.values(PRIMITIVE_STRUCT_MAP),
 );
 
+function isBplStandardLibraryModuleFile(
+  filePath: string,
+  moduleName: string,
+): boolean {
+  const sourceFile =
+    filePath.indexOf("\\") === -1 ? filePath : filePath.replace(/\\/g, "/");
+  const suffix = `/lib/${moduleName}.bpl`;
+  return sourceFile.endsWith(suffix) || sourceFile === suffix.slice(1);
+}
+
 function cloneSimpleBuiltinAliasType(
   type: AST.BasicTypeNode,
   canonicalName: string,
@@ -1155,19 +1165,21 @@ export abstract class TypeCheckerBase {
   ): boolean {
     if (!location) return false;
 
-    const sourceFile = location.file.replace(/\\/g, "/");
-    const isTypeModule = /(^|\/)lib\/type\.bpl$/.test(sourceFile);
-    const isReflectionModule = /(^|\/)lib\/reflection\.bpl$/.test(sourceFile);
-    const isErrorsModule = /(^|\/)lib\/errors\.bpl$/.test(sourceFile);
-    const isPrimitivesModule = /(^|\/)lib\/primitives\.bpl$/.test(sourceFile);
-
-    return (
-      (name === "TypeInfo" && isReflectionModule) ||
-      ((name === "Type" || name === "Any") && isTypeModule) ||
-      (STANDARD_LIBRARY_RUNTIME_ERROR_TYPES.has(name) && isErrorsModule) ||
-      (STANDARD_LIBRARY_PRIMITIVE_WRAPPER_TYPES.has(name) &&
-        isPrimitivesModule)
-    );
+    switch (name) {
+      case "TypeInfo":
+        return isBplStandardLibraryModuleFile(location.file, "reflection");
+      case "Type":
+      case "Any":
+        return isBplStandardLibraryModuleFile(location.file, "type");
+      default:
+        if (STANDARD_LIBRARY_RUNTIME_ERROR_TYPES.has(name)) {
+          return isBplStandardLibraryModuleFile(location.file, "errors");
+        }
+        if (STANDARD_LIBRARY_PRIMITIVE_WRAPPER_TYPES.has(name)) {
+          return isBplStandardLibraryModuleFile(location.file, "primitives");
+        }
+        return false;
+    }
   }
 
   // ========== Initialization ==========

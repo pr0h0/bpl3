@@ -5,9 +5,12 @@ import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
 
-function collectErrors(source: string): CompilerError[] {
-  const tokens = lexWithGrammar(source, "test.bpl");
-  const parser = new Parser(source, "test.bpl", tokens);
+function collectErrors(
+  source: string,
+  filePath: string = "test.bpl",
+): CompilerError[] {
+  const tokens = lexWithGrammar(source, filePath);
+  const parser = new Parser(source, filePath, tokens);
   const program = parser.parse();
   const typeChecker = new TypeChecker({ collectAllErrors: true });
   typeChecker.checkProgram(program);
@@ -17,8 +20,9 @@ function collectErrors(source: string): CompilerError[] {
 function expectBuiltinRedefinitionError(
   source: string,
   builtinName: string,
+  filePath: string = "test.bpl",
 ): CompilerError {
-  const error = collectErrors(source).find((candidate) =>
+  const error = collectErrors(source, filePath).find((candidate) =>
     candidate.message.includes(`Cannot redefine builtin type '${builtinName}'`),
   );
 
@@ -87,5 +91,26 @@ describe("TypeChecker builtin type redefinition diagnostics", () => {
     `;
 
     expect(collectErrors(source)).toEqual([]);
+  });
+
+  test("allows reserved runtime type declarations in their stdlib owner modules", () => {
+    const allowedCases = [
+      ["/tmp/lib/type.bpl", "type Any = int;"],
+      ["/tmp/lib/type.bpl", "type Type = int;"],
+      ["/tmp/lib/reflection.bpl", "type TypeInfo = int;"],
+      ["/tmp/lib/errors.bpl", "struct NullAccessError { value: int, }"],
+      ["/tmp/lib/primitives.bpl", "struct Int { value: int, }"],
+    ] as const;
+
+    for (const [filePath, source] of allowedCases) {
+      expect(collectErrors(source, filePath)).toEqual([]);
+    }
+
+    expectBuiltinRedefinitionError("type Any = int;", "Any", "/tmp/app.bpl");
+    expectBuiltinRedefinitionError(
+      "type TypeInfo = int;",
+      "TypeInfo",
+      "/tmp/lib/type.bpl",
+    );
   });
 });
