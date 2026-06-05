@@ -419,7 +419,13 @@ describe("Parser", () => {
     expect(makeOperatorTokenHelper).not.toContain("loc &&");
     expect(makeOperatorTokenHelper).not.toContain("let line = 1");
     expect(makeOperatorTokenFromPosHelper).toContain(
-      "const lineIndex = peg$findBplLineIndex(startPos);",
+      "let lineIndex = peg$lastBplLineIndex;",
+    );
+    expect(makeOperatorTokenFromPosHelper).toContain(
+      "lineIndex = peg$findBplLineIndex(startPos);",
+    );
+    expect(makeOperatorTokenFromPosHelper).toContain(
+      "peg$lastBplLinePos = startPos;",
     );
     expect(makeOperatorTokenFromPosHelper).toContain(
       'const resolvedType = type || operatorTypeMap[op] || "Unknown";',
@@ -427,7 +433,7 @@ describe("Parser", () => {
     expect(makeOperatorTokenFromPosHelper).toContain("type: resolvedType,");
     expect(makeOperatorTokenFromPosHelper).toContain("line: lineIndex + 1,");
     expect(makeOperatorTokenFromPosHelper).toContain(
-      "column: startPos - peg$bplLineStarts[lineIndex] + 1,",
+      "column: startPos - lineStart + 1,",
     );
     expect(makeOperatorTokenFromPosHelper).not.toContain("location()");
     expect(mergeLocHelper).toContain("startLine: startLoc.startLine,");

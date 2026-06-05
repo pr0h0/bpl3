@@ -482,14 +482,26 @@
 
   function makeOperatorTokenFromPos(op, startPos, type) {
     const resolvedType = type || operatorTypeMap[op] || "Unknown";
-    const lineIndex = peg$findBplLineIndex(startPos);
+    let lineIndex = peg$lastBplLineIndex;
+    let lineStart = peg$bplLineStarts[lineIndex];
+    const nextLineStart = peg$bplLineStarts[lineIndex + 1];
+
+    if (
+      startPos < lineStart ||
+      (nextLineStart !== undefined && startPos >= nextLineStart)
+    ) {
+      lineIndex = peg$findBplLineIndex(startPos);
+      lineStart = peg$bplLineStarts[lineIndex];
+    } else {
+      peg$lastBplLinePos = startPos;
+    }
 
     return {
       type: resolvedType,
       lexeme: op,
       literal: null,
       line: lineIndex + 1,
-      column: startPos - peg$bplLineStarts[lineIndex] + 1,
+      column: startPos - lineStart + 1,
       file: parserFilePath,
     };
   }
