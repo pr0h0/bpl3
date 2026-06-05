@@ -1191,6 +1191,9 @@ describe("Parser", () => {
       "const peg$collectExpected = options.bplCollectExpected !== false;",
     );
     expect(failHelper).toContain("if (!peg$collectExpected) { return; }");
+    expect(
+      failHelper!.indexOf("if (!peg$collectExpected) { return; }"),
+    ).toBeLessThan(failHelper!.indexOf("peg$currPos < peg$maxFailPos"));
     expect(failHelper).toContain("peg$maxFailExpected.push(expected);");
   });
 

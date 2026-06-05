@@ -267,6 +267,8 @@ function optimizeGeneratedFailureTracking(parserSource: string): string {
   ].join("\n");
   const replacementFailHelper = [
     "  function peg$fail(expected) {",
+    "    if (!peg$collectExpected) { return; }",
+    "",
     "    if (peg$currPos < peg$maxFailPos) { return; }",
     "",
     "    if (peg$currPos > peg$maxFailPos) {",
@@ -275,8 +277,6 @@ function optimizeGeneratedFailureTracking(parserSource: string): string {
     "        peg$maxFailExpected = [];",
     "      }",
     "    }",
-    "",
-    "    if (!peg$collectExpected) { return; }",
     "",
     "    peg$maxFailExpected.push(expected);",
     "  }",
