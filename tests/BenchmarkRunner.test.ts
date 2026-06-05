@@ -547,6 +547,24 @@ describe("Benchmark runner helpers", () => {
     );
   });
 
+  it("keeps token signature hashing off per-token template coercion", () => {
+    const source = readFileSync(
+      join(process.cwd(), "benchmark", "measure_compilation.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("export function hashTokensForBenchmark");
+    const end = source.indexOf("\n}\n\nfunction generateLegacyHugeFile", start);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const helperSource = source.slice(start, end);
+    expect(helperSource).toContain('token.type + "\\0"');
+    expect(helperSource).not.toContain("String(token.type)");
+    expect(helperSource).not.toContain("String(token.line)");
+    expect(helperSource).not.toContain("String(token.column)");
+  });
+
   it("calculates sorted min, median, and average timings", () => {
     const stats = calculateStats([30, 10, 20, 40]);
 

@@ -472,7 +472,9 @@ export function hashTokensForBenchmark(tokens: Token[]): string {
   let chunk = "";
 
   for (const token of tokens) {
-    chunk += `${String(token.type)}\0${token.lexeme}\0${String(token.line)}:${String(token.column)}\n`;
+    chunk +=
+      token.type + "\0" + token.lexeme + "\0" + token.line + ":" +
+      token.column + "\n";
     if (chunk.length >= TOKEN_HASH_CHUNK_CHAR_LIMIT) {
       hash.update(chunk);
       chunk = "";
