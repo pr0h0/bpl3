@@ -27,6 +27,7 @@ export interface CompilationBenchmarkArgs {
   json: boolean;
   treeShakeTopLevelFunctions?: boolean;
   compare?: string;
+  timingBaseline?: string;
   gatePhases?: CompilePhaseName[];
   maxPhaseRegressionPercent?: number;
   maxFullRegressionPercent?: number;
@@ -58,6 +59,7 @@ export interface CompilePhaseBenchmarkComparisonOptions {
   gatePhases?: CompilePhaseName[];
   maxPhaseRegressionPercent?: number;
   maxFullRegressionPercent?: number;
+  timingBaseline?: CompilePhaseBenchmarkResult;
 }
 
 export interface CompilePhaseBenchmarkDelta {
@@ -74,6 +76,7 @@ export interface CompilePhaseBenchmarkComparison {
   tokenSignatureMatches: boolean;
   irHashMatches: boolean;
   signaturesMatch: boolean;
+  timingBaselineMatches: boolean;
   failures: string[];
   phaseDeltas: CompilePhaseBenchmarkDelta[];
 }
@@ -154,6 +157,14 @@ export function parseCompilationBenchmarkArgs(
       if (options.compare === undefined || options.compare.length === 0) {
         throw new Error("--compare expects a baseline phase JSON file");
       }
+    } else if (arg === "--timing-baseline") {
+      options.timingBaseline = args[++i];
+      if (
+        options.timingBaseline === undefined ||
+        options.timingBaseline.length === 0
+      ) {
+        throw new Error("--timing-baseline expects a phase JSON file");
+      }
     } else if (arg === "--gate-phases") {
       options.gatePhases = parseGatePhases(args[++i]);
     } else if (arg === "--max-phase-regression") {
@@ -174,6 +185,10 @@ export function parseCompilationBenchmarkArgs(
     }
   }
 
+  if (options.timingBaseline !== undefined && options.compare === undefined) {
+    throw new Error("--timing-baseline requires --compare");
+  }
+
   return options;
 }
 
@@ -183,10 +198,17 @@ export function compareCompilePhaseBenchmarkResults(
   options: CompilePhaseBenchmarkComparisonOptions = {},
 ): CompilePhaseBenchmarkComparison {
   const failures: string[] = [];
+  const timingBaseline = options.timingBaseline ?? baseline;
   const tokenCountMatches = baseline.tokenCount === candidate.tokenCount;
   const tokenSignatureMatches =
     baseline.tokenSignature === candidate.tokenSignature;
   const irHashMatches = baseline.irHash === candidate.irHash;
+  const timingBaselineTokenCountMatches =
+    baseline.tokenCount === timingBaseline.tokenCount;
+  const timingBaselineTokenSignatureMatches =
+    baseline.tokenSignature === timingBaseline.tokenSignature;
+  const timingBaselineIrHashMatches =
+    baseline.irHash === timingBaseline.irHash;
 
   if (!tokenCountMatches) {
     failures.push("tokenCount changed");
@@ -197,9 +219,20 @@ export function compareCompilePhaseBenchmarkResults(
   if (!irHashMatches) {
     failures.push("irHash changed");
   }
+  if (options.timingBaseline !== undefined) {
+    if (!timingBaselineTokenCountMatches) {
+      failures.push("timingBaseline tokenCount changed");
+    }
+    if (!timingBaselineTokenSignatureMatches) {
+      failures.push("timingBaseline tokenSignature changed");
+    }
+    if (!timingBaselineIrHashMatches) {
+      failures.push("timingBaseline irHash changed");
+    }
+  }
 
   const phaseDeltas = COMPILE_PHASE_NAMES.map((phase) => {
-    const baselineMedianMs = baseline[phase].medianMs;
+    const baselineMedianMs = timingBaseline[phase].medianMs;
     const candidateMedianMs = candidate[phase].medianMs;
     const deltaMs = candidateMedianMs - baselineMedianMs;
     const deltaPercent =
@@ -237,12 +270,17 @@ export function compareCompilePhaseBenchmarkResults(
 
   const signaturesMatch =
     tokenCountMatches && tokenSignatureMatches && irHashMatches;
+  const timingBaselineMatches =
+    timingBaselineTokenCountMatches &&
+    timingBaselineTokenSignatureMatches &&
+    timingBaselineIrHashMatches;
   return {
-    ok: signaturesMatch && failures.length === 0,
+    ok: signaturesMatch && timingBaselineMatches && failures.length === 0,
     tokenCountMatches,
     tokenSignatureMatches,
     irHashMatches,
     signaturesMatch,
+    timingBaselineMatches,
     failures,
     phaseDeltas,
   };
@@ -439,6 +477,10 @@ async function main(): Promise<void> {
             readCompilePhaseBenchmarkResult(options.compare),
             result,
             {
+              timingBaseline:
+                options.timingBaseline !== undefined
+                  ? readCompilePhaseBenchmarkResult(options.timingBaseline)
+                  : undefined,
               maxPhaseRegressionPercent:
                 options.maxPhaseRegressionPercent,
               maxFullRegressionPercent: options.maxFullRegressionPercent,
@@ -468,6 +510,11 @@ async function main(): Promise<void> {
 
   if (options.compare !== undefined) {
     throw new Error("--compare is only supported with --mode phases");
+  }
+  if (options.timingBaseline !== undefined) {
+    throw new Error(
+      "--timing-baseline is only supported with --mode phases and --compare",
+    );
   }
 
   runLegacyCompilationBenchmark();
@@ -636,6 +683,8 @@ Options:
   --tree-shake-top-level-functions
                          measure codegen with opt-in top-level function tree shaking
   --compare FILE        compare phase results against a baseline JSON file
+  --timing-baseline FILE
+                         use a same-environment phase JSON file for timing deltas
   --gate-phases LIST    only apply threshold gates to comma-separated phases
                          while still reporting all phase deltas and validating signatures
   --max-phase-regression P

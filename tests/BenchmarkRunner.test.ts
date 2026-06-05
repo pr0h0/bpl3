@@ -54,6 +54,7 @@ describe("Benchmark runner helpers", () => {
     expect(readme).toContain("tokenSignature");
     expect(readme).toContain("irHash");
     expect(readme).toContain("--compare");
+    expect(readme).toContain("--timing-baseline");
     expect(readme).toContain("--gate-phases");
     expect(readme).toContain("--max-full-regression");
     expect(readme).toContain("--tree-shake-top-level-functions");
@@ -98,6 +99,8 @@ describe("Benchmark runner helpers", () => {
         "phases",
         "--compare",
         "/tmp/baseline.json",
+        "--timing-baseline",
+        "/tmp/control.json",
         "--max-phase-regression",
         "2.5",
         "--max-full-regression",
@@ -110,9 +113,21 @@ describe("Benchmark runner helpers", () => {
       warmups: 5,
       json: false,
       compare: "/tmp/baseline.json",
+      timingBaseline: "/tmp/control.json",
       maxPhaseRegressionPercent: 2.5,
       maxFullRegressionPercent: 1,
     });
+  });
+
+  it("rejects timing baseline without a comparison baseline", () => {
+    expect(() =>
+      parseCompilationBenchmarkArgs([
+        "--mode",
+        "phases",
+        "--timing-baseline",
+        "/tmp/control.json",
+      ]),
+    ).toThrow("--timing-baseline requires --compare");
   });
 
   it("parses compile phase benchmark top-level tree-shake option", () => {
@@ -224,6 +239,72 @@ describe("Benchmark runner helpers", () => {
       "full",
     ]);
     expect(comparison.failures).toEqual([]);
+  });
+
+  it("uses timing baseline medians while validating candidate signatures against the behavior baseline", () => {
+    const baseline = createPhaseBenchmarkFixture({
+      full: 100,
+      codegen: 40,
+    });
+    const timingBaseline = createPhaseBenchmarkFixture({
+      full: 140,
+      codegen: 70,
+    });
+    const candidate = createPhaseBenchmarkFixture({
+      full: 141,
+      codegen: 70.7,
+    });
+
+    const comparison = compareCompilePhaseBenchmarkResults(
+      baseline,
+      candidate,
+      {
+        timingBaseline,
+        gatePhases: ["codegen", "full"],
+        maxPhaseRegressionPercent: 2,
+        maxFullRegressionPercent: 2,
+      },
+    );
+
+    expect(comparison.ok).toBe(true);
+    expect(comparison.signaturesMatch).toBe(true);
+    expect(comparison.timingBaselineMatches).toBe(true);
+    expect(comparison.phaseDeltas.find((delta) => delta.phase === "codegen"))
+      .toMatchObject({
+        baselineMedianMs: 70,
+        candidateMedianMs: 70.7,
+        deltaPercent: 1,
+      });
+    expect(comparison.phaseDeltas.find((delta) => delta.phase === "full"))
+      .toMatchObject({
+        baselineMedianMs: 140,
+        candidateMedianMs: 141,
+      });
+  });
+
+  it("fails compile phase benchmark comparisons when timing baseline signatures drift", () => {
+    const baseline = createPhaseBenchmarkFixture({});
+    const timingBaseline = createPhaseBenchmarkFixture({
+      tokenSignature: "b".repeat(64),
+    });
+    const candidate = createPhaseBenchmarkFixture({});
+
+    const comparison = compareCompilePhaseBenchmarkResults(
+      baseline,
+      candidate,
+      {
+        timingBaseline,
+        gatePhases: ["full"],
+        maxFullRegressionPercent: 2,
+      },
+    );
+
+    expect(comparison.ok).toBe(false);
+    expect(comparison.signaturesMatch).toBe(true);
+    expect(comparison.timingBaselineMatches).toBe(false);
+    expect(comparison.failures).toContain(
+      "timingBaseline tokenSignature changed",
+    );
   });
 
   it("keeps compile phase benchmark comparison defaults gating every phase", () => {

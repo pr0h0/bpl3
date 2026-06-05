@@ -103,6 +103,21 @@ from `--json` or the wrapped `{ result, comparison }` JSON emitted by a previous
 comparison run. This lets you re-run a candidate against the last accepted
 comparison output without manually extracting `.result`.
 
+If a clean control run on the current machine is slower than the saved baseline,
+keep the saved baseline for `tokenSignature` and `irHash` validation but gate
+timings against a fresh same-environment control result:
+
+```bash
+bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --tree-shake-top-level-functions --json > /tmp/bpl3-control-phases.json
+bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --tree-shake-top-level-functions --compare /tmp/bpl3-baseline-phases.json --timing-baseline /tmp/bpl3-control-phases.json --gate-phases codegen,full --max-phase-regression 2 --max-full-regression 1
+```
+
+`--timing-baseline` must have the same `tokenCount`, `tokenSignature`, and
+`irHash` as `--compare`; otherwise the comparison fails before applying timing
+thresholds. This prevents local CPU load or runner drift from hiding behavior
+changes while still allowing phase gates to compare candidate timings against a
+same-environment control.
+
 For phase-specific compiler work, keep all reporting and signature validation
 but gate only the affected phase plus `full`:
 
