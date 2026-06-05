@@ -67,7 +67,7 @@ export class SymbolTable {
   }
 
   public resolve(name: string): Symbol | undefined {
-    const cache = this.resolutionCache;
+    let cache = this.resolutionCache;
     const cached = cache?.get(name);
     if (cached !== undefined) {
       if (cached === UNRESOLVED_SYMBOL) {
@@ -86,12 +86,20 @@ export class SymbolTable {
         if (symbol.kind === "Variable" && symbol.used !== true) {
           symbol.used = true;
         }
-        (this.resolutionCache ??= new Map()).set(name, symbol);
+        if (!cache) {
+          cache = new Map();
+          this.resolutionCache = cache;
+        }
+        cache.set(name, symbol);
         return symbol;
       }
       scope = scope.parent;
     }
-    (this.resolutionCache ??= new Map()).set(name, UNRESOLVED_SYMBOL);
+    if (!cache) {
+      cache = new Map();
+      this.resolutionCache = cache;
+    }
+    cache.set(name, UNRESOLVED_SYMBOL);
     this.registerMissWithAncestors(name);
     return undefined;
   }

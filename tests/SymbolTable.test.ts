@@ -108,6 +108,31 @@ describe("SymbolTable", () => {
     );
   });
 
+  it("reuses the local resolution cache when populating resolve results", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),
+      "utf8",
+    );
+    const resolveStart = source.indexOf("  public resolve(");
+    const nextMethodStart = source.indexOf(
+      "  public getUnusedVariables",
+      resolveStart,
+    );
+
+    expect(resolveStart).toBeGreaterThanOrEqual(0);
+    expect(nextMethodStart).toBeGreaterThan(resolveStart);
+
+    const resolveSource = source.slice(resolveStart, nextMethodStart);
+    expect(resolveSource).toContain("let cache = this.resolutionCache;");
+    expect(resolveSource).toContain("cache = new Map();");
+    expect(resolveSource).toContain("this.resolutionCache = cache;");
+    expect(resolveSource).toContain("cache.set(name, symbol);");
+    expect(resolveSource).toContain("cache.set(name, UNRESOLVED_SYMBOL);");
+    expect(resolveSource).not.toContain(
+      "(this.resolutionCache ??= new Map()).set",
+    );
+  });
+
   it("resolves root symbols through very deep scope chains without overflowing", () => {
     const root = new SymbolTable();
     const symbol: Symbol = {
