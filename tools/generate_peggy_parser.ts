@@ -845,14 +845,11 @@ function optimizeGeneratedAssignmentOperatorScanning(
   }
 
   const helperBody = match[1]!;
-  const actionName = helperBody.match(
-    /peg\$savedPos = s0;\n\s+s1 = (peg\$f\d+)\(s1\);/,
-  )?.[1];
   const expectedNames = [...helperBody.matchAll(/peg\$fail\((peg\$e\d+)\)/g)].map(
     ([, expectedName]) => expectedName,
   );
 
-  if (!actionName || expectedNames.length !== 9) {
+  if (expectedNames.length !== 9) {
     throw new Error(
       "Generated Peggy parser assignment-operator action or expectations changed; update the BPL parser assignment-operator optimizer.",
     );
@@ -874,33 +871,32 @@ function optimizeGeneratedAssignmentOperatorScanning(
     "",
     "    switch (input.charCodeAt(startPos)) {",
     "      case 43:",
-    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("+="); }`,
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return ${buildGeneratedOperatorScannerResult("+=")}; }`,
     "        break;",
     "      case 45:",
-    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("-="); }`,
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return ${buildGeneratedOperatorScannerResult("-=")}; }`,
     "        break;",
     "      case 42:",
-    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("*="); }`,
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return ${buildGeneratedOperatorScannerResult("*=")}; }`,
     "        break;",
     "      case 47:",
-    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("/="); }`,
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return ${buildGeneratedOperatorScannerResult("/=")}; }`,
     "        break;",
     "      case 37:",
-    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("%="); }`,
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return ${buildGeneratedOperatorScannerResult("%=")}; }`,
     "        break;",
     "      case 38:",
-    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("&="); }`,
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return ${buildGeneratedOperatorScannerResult("&=")}; }`,
     "        break;",
     "      case 124:",
-    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("|="); }`,
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return ${buildGeneratedOperatorScannerResult("|=")}; }`,
     "        break;",
     "      case 94:",
-    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return ${actionName}("^="); }`,
+    `        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return ${buildGeneratedOperatorScannerResult("^=")}; }`,
     "        break;",
     "      case 61:",
     "        peg$currPos = startPos + 1;",
-    "        peg$savedPos = startPos;",
-    `        return ${actionName}("=");`,
+    `        return ${buildGeneratedOperatorScannerResult("=")};`,
     "    }",
     "",
     "    peg$failBplAssignmentOperatorExpectation();",
@@ -939,6 +935,40 @@ type GeneratedBinaryExpressionTailConfig = {
   name: string;
   operatorName: string;
   nextParserName: string;
+};
+
+const GENERATED_OPERATOR_TOKEN_TYPES: Record<string, string> = {
+  "||": "OrOr",
+  "&&": "AndAnd",
+  "|": "Pipe",
+  "^": "Caret",
+  "&": "Ampersand",
+  "==": "EqualEqual",
+  "!=": "BangEqual",
+  "<": "Less",
+  "<=": "LessEqual",
+  ">": "Greater",
+  ">=": "GreaterEqual",
+  "<<": "LessLess",
+  ">>": "GreaterGreater",
+  "+": "Plus",
+  "-": "Minus",
+  "*": "Star",
+  "/": "Slash",
+  "%": "Percent",
+  "!": "Bang",
+  "~": "Tilde",
+  "++": "PlusPlus",
+  "--": "MinusMinus",
+  "=": "Equal",
+  "+=": "PlusEqual",
+  "-=": "MinusEqual",
+  "*=": "StarEqual",
+  "/=": "SlashEqual",
+  "%=": "PercentEqual",
+  "&=": "AmpersandEqual",
+  "|=": "PipeEqual",
+  "^=": "CaretEqual",
 };
 
 const EXPRESSION_OPERATOR_SCAN_CONFIGS: GeneratedOperatorScanConfig[] = [
@@ -1103,9 +1133,6 @@ function optimizeGeneratedExpressionOperatorScanningForConfig(
   }
 
   const helperBody = match[1]!;
-  const actionName = helperBody.match(
-    /peg\$savedPos = s0;\n\s+s\d+ = (peg\$f\d+)\(s\d+\);/,
-  )?.[1];
   const expectedNames = Array.from(
     new Set(
       [...helperBody.matchAll(/peg\$fail\((peg\$e\d+)\)/g)].map(
@@ -1114,7 +1141,7 @@ function optimizeGeneratedExpressionOperatorScanningForConfig(
     ),
   );
 
-  if (!actionName || expectedNames.length === 0) {
+  if (expectedNames.length === 0) {
     throw new Error(
       `Generated Peggy parser ${config.name} action or expectations changed; update the BPL parser expression-operator optimizer.`,
     );
@@ -1126,7 +1153,7 @@ function optimizeGeneratedExpressionOperatorScanningForConfig(
   const scannerLines = config.cases.flatMap(({ code, branches }) => [
     `      case ${code}:`,
     ...branches.map(branch =>
-      buildGeneratedOperatorScannerBranchLine(branch, actionName),
+      buildGeneratedOperatorScannerBranchLine(branch),
     ),
     "        break;",
   ]);
@@ -1161,10 +1188,9 @@ function optimizeGeneratedExpressionOperatorScanningForConfig(
 
 function buildGeneratedOperatorScannerBranchLine(
   branch: GeneratedOperatorScanBranch,
-  actionName: string,
 ): string {
   const endPos = `startPos + ${branch.op.length}`;
-  const success = `peg$currPos = ${endPos}; peg$savedPos = startPos; return ${actionName}(${JSON.stringify(branch.op)});`;
+  const success = `peg$currPos = ${endPos}; return ${buildGeneratedOperatorScannerResult(branch.op)};`;
 
   if (branch.nextCode !== undefined) {
     return `        if (input.charCodeAt(startPos + 1) === ${branch.nextCode}) { ${success} }`;
@@ -1175,6 +1201,14 @@ function buildGeneratedOperatorScannerBranchLine(
   }
 
   return `        { ${success} }`;
+}
+
+function buildGeneratedOperatorScannerResult(op: string): string {
+  const type = GENERATED_OPERATOR_TOKEN_TYPES[op];
+  if (type === undefined) {
+    throw new Error(`Missing generated operator token type for ${op}`);
+  }
+  return `{ op: ${JSON.stringify(op)}, type: ${JSON.stringify(type)}, pos: startPos }`;
 }
 
 function optimizeGeneratedBinaryExpressionTailParsing(
@@ -1244,7 +1278,7 @@ function optimizeGeneratedBinaryExpressionTailParsingForConfig(
     "",
     "      result = binary(",
     "        result,",
-    "        makeOperatorTokenFromPos(operator.op, operator.pos),",
+    "        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),",
     "        right,",
     "        mergeLoc(result.location, right.location),",
     "      );",

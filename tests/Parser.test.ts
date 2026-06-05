@@ -260,7 +260,7 @@ describe("Parser", () => {
       expect(helper).toContain(`let result = peg$parse${nextLevelName}();`);
       expect(helper).toContain(`peg$scanBpl${operatorName}()`);
       expect(helper).toContain(
-        "makeOperatorTokenFromPos(operator.op, operator.pos)",
+        "makeOperatorTokenFromPos(operator.op, operator.pos, operator.type)",
       );
       expect(helper).not.toContain("s2 = []");
       expect(helper).not.toContain("s2.push");
@@ -405,7 +405,7 @@ describe("Parser", () => {
       /function makeOperatorToken\(op, loc\) \{[\s\S]*?\n  \}/,
     )?.[0];
     const makeOperatorTokenFromPosHelper = generatedSource.match(
-      /function makeOperatorTokenFromPos\(op, startPos\) \{[\s\S]*?\n  \}/,
+      /function makeOperatorTokenFromPos\(op, startPos, type\) \{[\s\S]*?\n  \}/,
     )?.[0];
     const mergeLocHelper = generatedSource.match(
       /function mergeLoc\(startLoc, endLoc\) \{[\s\S]*?\n  \}/,
@@ -421,6 +421,10 @@ describe("Parser", () => {
     expect(makeOperatorTokenFromPosHelper).toContain(
       "const lineIndex = peg$findBplLineIndex(startPos);",
     );
+    expect(makeOperatorTokenFromPosHelper).toContain(
+      'const resolvedType = type || operatorTypeMap[op] || "Unknown";',
+    );
+    expect(makeOperatorTokenFromPosHelper).toContain("type: resolvedType,");
     expect(makeOperatorTokenFromPosHelper).toContain("line: lineIndex + 1,");
     expect(makeOperatorTokenFromPosHelper).toContain(
       "column: startPos - peg$bplLineStarts[lineIndex] + 1,",
@@ -999,6 +1003,10 @@ describe("Parser", () => {
     expect(assignmentOperatorHelper).not.toContain("let s0, s1");
     expect(assignmentOperatorHelper).not.toContain("input.startsWith(peg$c38");
     expect(assignmentOperatorScanner).toContain("input.charCodeAt(startPos)");
+    expect(assignmentOperatorScanner).toContain(
+      'return { op: "+=", type: "PlusEqual", pos: startPos };',
+    );
+    expect(assignmentOperatorScanner).not.toContain("peg$savedPos = startPos");
   });
 
   it("keeps generated expression-operator parsing on direct scanner fast paths", () => {
@@ -1051,6 +1059,9 @@ describe("Parser", () => {
       expect(helper).not.toContain("let s0, s1");
       expect(helper).not.toContain("input.startsWith");
       expect(scanner).toContain("input.charCodeAt(startPos)");
+      expect(scanner).toContain("pos: startPos");
+      expect(scanner).toContain("type:");
+      expect(scanner).not.toContain("peg$savedPos = startPos");
     }
   });
 

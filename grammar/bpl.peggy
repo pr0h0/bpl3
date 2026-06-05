@@ -480,12 +480,12 @@
     };
   }
 
-  function makeOperatorTokenFromPos(op, startPos) {
-    const type = operatorTypeMap[op] || "Unknown";
+  function makeOperatorTokenFromPos(op, startPos, type) {
+    const resolvedType = type || operatorTypeMap[op] || "Unknown";
     const lineIndex = peg$findBplLineIndex(startPos);
 
     return {
-      type,
+      type: resolvedType,
       lexeme: op,
       literal: null,
       line: lineIndex + 1,
@@ -524,7 +524,7 @@
       const right = entry[3];
       result = binary(
         result,
-        makeOperatorTokenFromPos(op.op, op.pos),
+        makeOperatorTokenFromPos(op.op, op.pos, op.type),
         right,
         mergeLoc(result.location, right.location)
       );
@@ -1009,7 +1009,7 @@ Assignment
       if (tail.length === 0) return head;
       let result = head;
       for (const [, op, , right] of tail) {
-        const opToken = makeOperatorTokenFromPos(op.op, op.pos);
+        const opToken = makeOperatorTokenFromPos(op.op, op.pos, op.type);
         result = assignment(result, opToken, right, mergeLoc(result.location, right.location));
       }
       return result;
@@ -1111,7 +1111,7 @@ MultiplicativeOperator
 
 Unary
   = op:UnaryOperator _ expr:Unary {
-      const opToken = makeOperatorTokenFromPos(op.op, op.pos);
+      const opToken = makeOperatorTokenFromPos(op.op, op.pos, op.type);
       return unary(opToken, expr, true, location());
     }
   / Postfix
@@ -1140,7 +1140,7 @@ Postfix
         } else if (post.type === "generic") {
           expr = genericInstantiation(expr, post.genericArgs, mergeLocToEndPos(expr.location, post.endPos));
         } else if (post.type === "postfixUnary") {
-          const opToken = makeOperatorTokenFromPos(post.operator, post.startPos);
+          const opToken = makeOperatorTokenFromPos(post.operator, post.startPos, post.operatorType);
           expr = unary(opToken, expr, false, mergeLocToEndPos(expr.location, post.endPos));
         }
       }
@@ -1174,7 +1174,7 @@ PostfixTailAfterTrivia
       return { type: "member", property: num.join("") };
     }
   / op:("++" / "--") {
-      return { type: "postfixUnary", operator: op };
+      return { type: "postfixUnary", operator: op, operatorType: operatorTypeMap[op] || "Unknown" };
     }
 
 ArgumentList

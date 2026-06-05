@@ -666,7 +666,7 @@ function peg$parse(input, options) {
     if (tail.length === 0) return head;
     let result = head;
     for (const [, op, , right] of tail) {
-      const opToken = makeOperatorTokenFromPos(op.op, op.pos);
+      const opToken = makeOperatorTokenFromPos(op.op, op.pos, op.type);
       result = assignment(result, opToken, right, mergeLoc(result.location, right.location));
     }
     return result;
@@ -719,7 +719,7 @@ function peg$parse(input, options) {
   }
   function peg$f112(op) {    return { op, pos: offset() };  }
   function peg$f113(op, expr) {
-    const opToken = makeOperatorTokenFromPos(op.op, op.pos);
+    const opToken = makeOperatorTokenFromPos(op.op, op.pos, op.type);
     return unary(opToken, expr, true, location());
   }
   function peg$f114(op) {    return { op, pos: offset() };  }
@@ -743,7 +743,7 @@ function peg$parse(input, options) {
       } else if (post.type === "generic") {
         expr = genericInstantiation(expr, post.genericArgs, mergeLocToEndPos(expr.location, post.endPos));
       } else if (post.type === "postfixUnary") {
-        const opToken = makeOperatorTokenFromPos(post.operator, post.startPos);
+        const opToken = makeOperatorTokenFromPos(post.operator, post.startPos, post.operatorType);
         expr = unary(opToken, expr, false, mergeLocToEndPos(expr.location, post.endPos));
       }
     }
@@ -773,7 +773,7 @@ function peg$parse(input, options) {
     return { type: "member", property: num.join("") };
   }
   function peg$f123(op) {
-    return { type: "postfixUnary", operator: op };
+    return { type: "postfixUnary", operator: op, operatorType: operatorTypeMap[op] || "Unknown" };
   }
   function peg$f124(head, tail) {
     return [head, ...tail.map(t => t[3])];
@@ -6179,33 +6179,32 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 43:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f90("+="); }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: "+=", type: "PlusEqual", pos: startPos }; }
         break;
       case 45:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f90("-="); }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: "-=", type: "MinusEqual", pos: startPos }; }
         break;
       case 42:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f90("*="); }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: "*=", type: "StarEqual", pos: startPos }; }
         break;
       case 47:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f90("/="); }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: "/=", type: "SlashEqual", pos: startPos }; }
         break;
       case 37:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f90("%="); }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: "%=", type: "PercentEqual", pos: startPos }; }
         break;
       case 38:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f90("&="); }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: "&=", type: "AmpersandEqual", pos: startPos }; }
         break;
       case 124:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f90("|="); }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: "|=", type: "PipeEqual", pos: startPos }; }
         break;
       case 94:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f90("^="); }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: "^=", type: "CaretEqual", pos: startPos }; }
         break;
       case 61:
         peg$currPos = startPos + 1;
-        peg$savedPos = startPos;
-        return peg$f90("=");
+        return { op: "=", type: "Equal", pos: startPos };
     }
 
     peg$failBplAssignmentOperatorExpectation();
@@ -6299,7 +6298,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos),
+        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6317,7 +6316,7 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 124:
-        if (input.charCodeAt(startPos + 1) === 124) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f93("||"); }
+        if (input.charCodeAt(startPos + 1) === 124) { peg$currPos = startPos + 2; return { op: "||", type: "OrOr", pos: startPos }; }
         break;
     }
 
@@ -6352,7 +6351,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos),
+        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6370,7 +6369,7 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 38:
-        if (input.charCodeAt(startPos + 1) === 38) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f95("&&"); }
+        if (input.charCodeAt(startPos + 1) === 38) { peg$currPos = startPos + 2; return { op: "&&", type: "AndAnd", pos: startPos }; }
         break;
     }
 
@@ -6405,7 +6404,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos),
+        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6423,7 +6422,7 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 124:
-        if (input.charCodeAt(startPos + 1) !== 124) { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f97("|"); }
+        if (input.charCodeAt(startPos + 1) !== 124) { peg$currPos = startPos + 1; return { op: "|", type: "Pipe", pos: startPos }; }
         break;
     }
 
@@ -6458,7 +6457,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos),
+        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6476,7 +6475,7 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 94:
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f99("^"); }
+        { peg$currPos = startPos + 1; return { op: "^", type: "Caret", pos: startPos }; }
         break;
     }
 
@@ -6511,7 +6510,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos),
+        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6529,7 +6528,7 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 38:
-        if (input.charCodeAt(startPos + 1) !== 38) { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f101("&"); }
+        if (input.charCodeAt(startPos + 1) !== 38) { peg$currPos = startPos + 1; return { op: "&", type: "Ampersand", pos: startPos }; }
         break;
     }
 
@@ -6564,7 +6563,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos),
+        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6583,10 +6582,10 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 61:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f103("=="); }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: "==", type: "EqualEqual", pos: startPos }; }
         break;
       case 33:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f103("!="); }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: "!=", type: "BangEqual", pos: startPos }; }
         break;
     }
 
@@ -6681,7 +6680,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos),
+        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6701,12 +6700,12 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 62:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f106(">="); }
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f106(">"); }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: ">=", type: "GreaterEqual", pos: startPos }; }
+        { peg$currPos = startPos + 1; return { op: ">", type: "Greater", pos: startPos }; }
         break;
       case 60:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f106("<="); }
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f106("<"); }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: "<=", type: "LessEqual", pos: startPos }; }
+        { peg$currPos = startPos + 1; return { op: "<", type: "Less", pos: startPos }; }
         break;
     }
 
@@ -6741,7 +6740,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos),
+        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6760,10 +6759,10 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 60:
-        if (input.charCodeAt(startPos + 1) === 60) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f108("<<"); }
+        if (input.charCodeAt(startPos + 1) === 60) { peg$currPos = startPos + 2; return { op: "<<", type: "LessLess", pos: startPos }; }
         break;
       case 62:
-        if (input.charCodeAt(startPos + 1) === 62) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f108(">>"); }
+        if (input.charCodeAt(startPos + 1) === 62) { peg$currPos = startPos + 2; return { op: ">>", type: "GreaterGreater", pos: startPos }; }
         break;
     }
 
@@ -6798,7 +6797,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos),
+        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6816,10 +6815,10 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 43:
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f110("+"); }
+        { peg$currPos = startPos + 1; return { op: "+", type: "Plus", pos: startPos }; }
         break;
       case 45:
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f110("-"); }
+        { peg$currPos = startPos + 1; return { op: "-", type: "Minus", pos: startPos }; }
         break;
     }
 
@@ -6854,7 +6853,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeOperatorTokenFromPos(operator.op, operator.pos),
+        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6872,13 +6871,13 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 42:
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f112("*"); }
+        { peg$currPos = startPos + 1; return { op: "*", type: "Star", pos: startPos }; }
         break;
       case 47:
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f112("/"); }
+        { peg$currPos = startPos + 1; return { op: "/", type: "Slash", pos: startPos }; }
         break;
       case 37:
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f112("%"); }
+        { peg$currPos = startPos + 1; return { op: "%", type: "Percent", pos: startPos }; }
         break;
     }
 
@@ -6929,24 +6928,24 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 43:
-        if (input.charCodeAt(startPos + 1) === 43) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f114("++"); }
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f114("+"); }
+        if (input.charCodeAt(startPos + 1) === 43) { peg$currPos = startPos + 2; return { op: "++", type: "PlusPlus", pos: startPos }; }
+        { peg$currPos = startPos + 1; return { op: "+", type: "Plus", pos: startPos }; }
         break;
       case 45:
-        if (input.charCodeAt(startPos + 1) === 45) { peg$currPos = startPos + 2; peg$savedPos = startPos; return peg$f114("--"); }
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f114("-"); }
+        if (input.charCodeAt(startPos + 1) === 45) { peg$currPos = startPos + 2; return { op: "--", type: "MinusMinus", pos: startPos }; }
+        { peg$currPos = startPos + 1; return { op: "-", type: "Minus", pos: startPos }; }
         break;
       case 33:
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f114("!"); }
+        { peg$currPos = startPos + 1; return { op: "!", type: "Bang", pos: startPos }; }
         break;
       case 126:
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f114("~"); }
+        { peg$currPos = startPos + 1; return { op: "~", type: "Tilde", pos: startPos }; }
         break;
       case 42:
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f114("*"); }
+        { peg$currPos = startPos + 1; return { op: "*", type: "Star", pos: startPos }; }
         break;
       case 38:
-        { peg$currPos = startPos + 1; peg$savedPos = startPos; return peg$f114("&"); }
+        { peg$currPos = startPos + 1; return { op: "&", type: "Ampersand", pos: startPos }; }
         break;
     }
 
@@ -13327,12 +13326,12 @@ function peg$parse(input, options) {
     };
   }
 
-  function makeOperatorTokenFromPos(op, startPos) {
-    const type = operatorTypeMap[op] || "Unknown";
+  function makeOperatorTokenFromPos(op, startPos, type) {
+    const resolvedType = type || operatorTypeMap[op] || "Unknown";
     const lineIndex = peg$findBplLineIndex(startPos);
 
     return {
-      type,
+      type: resolvedType,
       lexeme: op,
       literal: null,
       line: lineIndex + 1,
@@ -13371,7 +13370,7 @@ function peg$parse(input, options) {
       const right = entry[3];
       result = binary(
         result,
-        makeOperatorTokenFromPos(op.op, op.pos),
+        makeOperatorTokenFromPos(op.op, op.pos, op.type),
         right,
         mergeLoc(result.location, right.location)
       );
