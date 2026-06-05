@@ -573,7 +573,7 @@ describe("Lexer - Extended Tests", () => {
       expect(identifierSource).not.toContain("keywordMap");
     });
 
-    it("orders frontend token conversion by hot token frequency", () => {
+    it("dispatches frontend token conversion by hot token type prefix", () => {
       const source = readFileSync(
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
         "utf8",
@@ -585,25 +585,23 @@ describe("Lexer - Extended Tests", () => {
       expect(end).toBeGreaterThan(start);
 
       const converterSource = source.slice(start, end);
-      const punctuatorBranch = converterSource.indexOf(
-        'if (type === "Punctuator")',
+      const typeCode = converterSource.indexOf(
+        "const typeCode = type.charCodeAt(0);",
       );
-      const identifierBranch = converterSource.indexOf(
-        'if (type === "Identifier")',
-      );
-      const keywordBranch = converterSource.indexOf('if (type === "Keyword")');
-      const numberBranch = converterSource.indexOf(
-        'if (type === "NumberLiteral")',
-      );
-      const stringBranch = converterSource.indexOf(
-        'if (type === "StringLiteral")',
-      );
+      const dispatch = converterSource.indexOf("switch (typeCode)");
+      const punctuatorCase = converterSource.indexOf("case 80:");
+      const identifierCase = converterSource.indexOf("case 73:");
+      const keywordCase = converterSource.indexOf("case 75:");
+      const numberCase = converterSource.indexOf("case 78:");
+      const stringCase = converterSource.indexOf("case 83:");
 
-      expect(punctuatorBranch).toBeGreaterThanOrEqual(0);
-      expect(identifierBranch).toBeGreaterThan(punctuatorBranch);
-      expect(keywordBranch).toBeGreaterThan(identifierBranch);
-      expect(numberBranch).toBeGreaterThan(keywordBranch);
-      expect(stringBranch).toBeGreaterThan(numberBranch);
+      expect(typeCode).toBeGreaterThanOrEqual(0);
+      expect(dispatch).toBeGreaterThan(typeCode);
+      expect(punctuatorCase).toBeGreaterThan(dispatch);
+      expect(identifierCase).toBeGreaterThan(punctuatorCase);
+      expect(keywordCase).toBeGreaterThan(identifierCase);
+      expect(numberCase).toBeGreaterThan(keywordCase);
+      expect(stringCase).toBeGreaterThan(numberCase);
     });
 
     it("converts keyword and punctuator token nodes through direct map lookups", () => {
