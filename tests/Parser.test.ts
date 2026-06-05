@@ -580,7 +580,7 @@ describe("Parser", () => {
     expect(generatedSource).toContain("const peg$bplReservedKeywords = new Set");
     expect(identifierHelper).toContain("peg$scanBplIdentTokenEnd()");
     expect(identifierHelper).not.toContain("peg$parseKeywordReserved()");
-    expect(identScanner).toContain("input.substring(startPos, endPos)");
+    expect(identScanner).toContain("input.slice(startPos, endPos)");
     expect(identHelper).toContain("return peg$scanBplIdentToken();");
     expect(identHelper).not.toContain("s3.push");
     const identPartHelper = generatedSource.match(
@@ -692,12 +692,12 @@ describe("Parser", () => {
     expect(identifierHelper).toContain(
       "peg$isBplReservedKeywordRange(startPos, endPos)",
     );
-    expect(identifierHelper).toContain("input.substring(startPos, endPos)");
+    expect(identifierHelper).toContain("input.slice(startPos, endPos)");
     expect(identifierHelper).not.toContain("peg$bplReservedKeywords.has(name)");
     expect(identScanner).toContain(
       "const endPos = peg$scanBplIdentTokenEnd()",
     );
-    expect(identScanner).toContain("input.substring(startPos, endPos)");
+    expect(identScanner).toContain("input.slice(startPos, endPos)");
     expect(identTokenHelper).toContain("return peg$scanBplIdentToken();");
 
     expect(() => new Parser("local frame: int = 1;", "reserved.bpl").parse())

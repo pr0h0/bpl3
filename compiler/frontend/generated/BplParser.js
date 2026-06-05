@@ -9543,7 +9543,7 @@ function peg$parse(input, options) {
       return peg$FAILED;
     }
 
-    const name = input.substring(startPos, endPos);
+    const name = input.slice(startPos, endPos);
     return name;
   }
 
@@ -9588,7 +9588,7 @@ function peg$parse(input, options) {
     if (endPos === peg$FAILED) {
       return peg$FAILED;
     }
-    return input.substring(startPos, endPos);
+    return input.slice(startPos, endPos);
   }
 
   function peg$parseIdentToken() {
