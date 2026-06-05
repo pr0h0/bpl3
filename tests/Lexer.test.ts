@@ -799,7 +799,7 @@ describe("Lexer - Extended Tests", () => {
         "utf8",
       );
       const start = source.indexOf("function createFrontendTokenFromParts");
-      const end = source.indexOf("function punctuatorTokenType", start);
+      const end = source.indexOf("function parseNumber", start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);
@@ -868,7 +868,7 @@ describe("Lexer - Extended Tests", () => {
         "function createFrontendTokenFromParts",
       );
       const converterEnd = source.indexOf(
-        "function punctuatorTokenType",
+        "function parseNumber",
         converterStart,
       );
       const convertNodeStart = source.indexOf("function convertTokenNodeToToken");
@@ -903,7 +903,7 @@ describe("Lexer - Extended Tests", () => {
         "function createFrontendTokenFromParts",
       );
       const converterEnd = lexerSource.indexOf(
-        "function punctuatorTokenType",
+        "function parseNumber",
         converterStart,
       );
 
@@ -989,11 +989,15 @@ describe("Lexer - Extended Tests", () => {
         "function createFrontendTokenFromParts",
       );
       const converterEnd = source.indexOf(
-        "function punctuatorTokenType",
+        "function parseNumber",
         converterStart,
       );
-      const helperStart = source.indexOf("function punctuatorTokenType");
-      const helperEnd = source.indexOf("function parseNumber", helperStart);
+      const genericSource = readFileSync(
+        join(process.cwd(), "grammar/GenericParser.ts"),
+        "utf8",
+      );
+      const helperStart = genericSource.indexOf("private matchPunctuator");
+      const helperEnd = genericSource.indexOf("private execAt", helperStart);
 
       expect(converterStart).toBeGreaterThanOrEqual(0);
       expect(converterEnd).toBeGreaterThan(converterStart);
@@ -1001,13 +1005,22 @@ describe("Lexer - Extended Tests", () => {
       expect(helperEnd).toBeGreaterThan(helperStart);
 
       const converterSource = source.slice(converterStart, converterEnd);
-      const helperSource = source.slice(helperStart, helperEnd);
-      expect(converterSource).toContain("punctuatorTokenType(value)");
+      const helperSource = genericSource.slice(helperStart, helperEnd);
+      const punctuatorCase = converterSource.slice(
+        converterSource.indexOf("case GENERIC_TOKEN_PUNCTUATOR:"),
+        converterSource.indexOf("case GENERIC_TOKEN_IDENTIFIER:"),
+      );
+      expect(source).not.toContain("function punctuatorTokenType");
+      expect(helperSource).not.toContain('"Punctuator"');
+      expect(helperSource).toContain('"LeftParen"');
+      expect(helperSource).toContain('"PlusEqual"');
+      expect(helperSource).toContain('"EqualEqual"');
+      expect(punctuatorCase).toContain("type: _type as TokenType");
+      expect(punctuatorCase).not.toContain("punctuatorTokenType");
       expect(converterSource).not.toContain("punctuatorMap[value]");
-      expect(helperSource).toContain("switch (value.charCodeAt(0))");
+      expect(helperSource).toContain("switch (firstCode)");
       expect(helperSource).toContain("case 40:");
       expect(helperSource).toContain("case 123:");
-      expect(helperSource).toContain("return TokenType.Unknown;");
     });
 
     it("converts keyword token nodes through exact generic token names", () => {
@@ -1016,7 +1029,7 @@ describe("Lexer - Extended Tests", () => {
         "utf8",
       );
       const start = source.indexOf("function convertTokenNodeToToken");
-      const end = source.indexOf("function punctuatorTokenType", start);
+      const end = source.indexOf("function parseNumber", start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);
@@ -1035,7 +1048,7 @@ describe("Lexer - Extended Tests", () => {
         "utf8",
       );
       const start = source.indexOf("function createFrontendTokenFromParts");
-      const end = source.indexOf("function punctuatorTokenType", start);
+      const end = source.indexOf("function parseNumber", start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);

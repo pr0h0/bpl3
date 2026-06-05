@@ -250,7 +250,7 @@ function createFrontendTokenFromParts(
   switch (typeCode) {
     case GENERIC_TOKEN_PUNCTUATOR:
       return {
-        type: punctuatorTokenType(value),
+        type: _type as TokenType,
         lexeme: value,
         literal: null,
         line,
@@ -340,122 +340,6 @@ function createFrontendTokenFromParts(
     column,
     file,
   } as Token;
-}
-
-function punctuatorTokenType(value: string): TokenType {
-  switch (value.charCodeAt(0)) {
-    case 33:
-      if (value.length === 1) return TokenType.Bang;
-      return value.charCodeAt(1) === 61
-        ? TokenType.BangEqual
-        : TokenType.Unknown;
-    case 37:
-      if (value.length === 1) return TokenType.Percent;
-      return value.charCodeAt(1) === 61
-        ? TokenType.PercentEqual
-        : TokenType.Unknown;
-    case 38:
-      if (value.length === 1) return TokenType.Ampersand;
-      switch (value.charCodeAt(1)) {
-        case 38:
-          return TokenType.AndAnd;
-        case 61:
-          return TokenType.AmpersandEqual;
-      }
-      return TokenType.Unknown;
-    case 40:
-      return TokenType.LeftParen;
-    case 41:
-      return TokenType.RightParen;
-    case 42:
-      if (value.length === 1) return TokenType.Star;
-      return value.charCodeAt(1) === 61
-        ? TokenType.StarEqual
-        : TokenType.Unknown;
-    case 43:
-      if (value.length === 1) return TokenType.Plus;
-      switch (value.charCodeAt(1)) {
-        case 43:
-          return TokenType.PlusPlus;
-        case 61:
-          return TokenType.PlusEqual;
-      }
-      return TokenType.Unknown;
-    case 44:
-      return TokenType.Comma;
-    case 45:
-      if (value.length === 1) return TokenType.Minus;
-      switch (value.charCodeAt(1)) {
-        case 45:
-          return TokenType.MinusMinus;
-        case 61:
-          return TokenType.MinusEqual;
-      }
-      return TokenType.Unknown;
-    case 46:
-      if (value.length === 1) return TokenType.Dot;
-      return value.length === 3 ? TokenType.Ellipsis : TokenType.Unknown;
-    case 47:
-      if (value.length === 1) return TokenType.Slash;
-      return value.charCodeAt(1) === 61
-        ? TokenType.SlashEqual
-        : TokenType.Unknown;
-    case 58:
-      return TokenType.Colon;
-    case 59:
-      return TokenType.Semicolon;
-    case 60:
-      if (value.length === 1) return TokenType.Less;
-      switch (value.charCodeAt(1)) {
-        case 60:
-          return TokenType.LessLess;
-        case 61:
-          return TokenType.LessEqual;
-      }
-      return TokenType.Unknown;
-    case 61:
-      if (value.length === 1) return TokenType.Equal;
-      return value.charCodeAt(1) === 61
-        ? TokenType.EqualEqual
-        : TokenType.Unknown;
-    case 62:
-      if (value.length === 1) return TokenType.Greater;
-      switch (value.charCodeAt(1)) {
-        case 61:
-          return TokenType.GreaterEqual;
-        case 62:
-          return TokenType.GreaterGreater;
-      }
-      return TokenType.Unknown;
-    case 63:
-      return TokenType.Question;
-    case 91:
-      return TokenType.LeftBracket;
-    case 93:
-      return TokenType.RightBracket;
-    case 94:
-      if (value.length === 1) return TokenType.Caret;
-      return value.charCodeAt(1) === 61
-        ? TokenType.CaretEqual
-        : TokenType.Unknown;
-    case 123:
-      return TokenType.LeftBrace;
-    case 124:
-      if (value.length === 1) return TokenType.Pipe;
-      switch (value.charCodeAt(1)) {
-        case 61:
-          return TokenType.PipeEqual;
-        case 124:
-          return TokenType.OrOr;
-      }
-      return TokenType.Unknown;
-    case 125:
-      return TokenType.RightBrace;
-    case 126:
-      return TokenType.Tilde;
-  }
-
-  return TokenType.Unknown;
 }
 
 function parseNumber(raw: string): number {

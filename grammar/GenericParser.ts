@@ -727,21 +727,21 @@ export class GenericParser {
       case 33:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          secondCode === 61 ? "BangEqual" : "Bang",
           secondCode === 61 ? "!=" : "!",
           emitToken,
         );
       case 36:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "Unknown",
           "$",
           emitToken,
         );
       case 37:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          secondCode === 61 ? "PercentEqual" : "Percent",
           secondCode === 61 ? "%=" : "%",
           emitToken,
         );
@@ -749,35 +749,35 @@ export class GenericParser {
         if (secondCode === 38) {
           return this.createToken(
             GENERIC_TOKEN_PUNCTUATOR,
-            "Punctuator",
+            "AndAnd",
             "&&",
             emitToken,
           );
         }
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          secondCode === 61 ? "AmpersandEqual" : "Ampersand",
           secondCode === 61 ? "&=" : "&",
           emitToken,
         );
       case 40:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "LeftParen",
           "(",
           emitToken,
         );
       case 41:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "RightParen",
           ")",
           emitToken,
         );
       case 42:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          secondCode === 61 ? "StarEqual" : "Star",
           secondCode === 61 ? "*=" : "*",
           emitToken,
         );
@@ -785,21 +785,21 @@ export class GenericParser {
         if (secondCode === 43) {
           return this.createToken(
             GENERIC_TOKEN_PUNCTUATOR,
-            "Punctuator",
+            "PlusPlus",
             "++",
             emitToken,
           );
         }
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          secondCode === 61 ? "PlusEqual" : "Plus",
           secondCode === 61 ? "+=" : "+",
           emitToken,
         );
       case 44:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "Comma",
           ",",
           emitToken,
         );
@@ -807,14 +807,14 @@ export class GenericParser {
         if (secondCode === 45) {
           return this.createToken(
             GENERIC_TOKEN_PUNCTUATOR,
-            "Punctuator",
+            "MinusMinus",
             "--",
             emitToken,
           );
         }
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          secondCode === 61 ? "MinusEqual" : "Minus",
           secondCode === 61 ? "-=" : "-",
           emitToken,
         );
@@ -825,35 +825,35 @@ export class GenericParser {
         ) {
           return this.createToken(
             GENERIC_TOKEN_PUNCTUATOR,
-            "Punctuator",
+            "Ellipsis",
             "...",
             emitToken,
           );
         }
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "Dot",
           ".",
           emitToken,
         );
       case 47:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          secondCode === 61 ? "SlashEqual" : "Slash",
           secondCode === 61 ? "/=" : "/",
           emitToken,
         );
       case 58:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "Colon",
           ":",
           emitToken,
         );
       case 59:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "Semicolon",
           ";",
           emitToken,
         );
@@ -861,14 +861,14 @@ export class GenericParser {
         if (secondCode === 61) {
           return this.createToken(
             GENERIC_TOKEN_PUNCTUATOR,
-            "Punctuator",
+            "LessEqual",
             "<=",
             emitToken,
           );
         }
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          secondCode === 60 ? "LessLess" : "Less",
           secondCode === 60 ? "<<" : "<",
           emitToken,
         );
@@ -876,14 +876,14 @@ export class GenericParser {
         if (secondCode === 61) {
           return this.createToken(
             GENERIC_TOKEN_PUNCTUATOR,
-            "Punctuator",
+            "EqualEqual",
             "==",
             emitToken,
           );
         }
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          secondCode === 62 ? "Unknown" : "Equal",
           secondCode === 62 ? "=>" : "=",
           emitToken,
         );
@@ -891,56 +891,56 @@ export class GenericParser {
         if (secondCode === 61) {
           return this.createToken(
             GENERIC_TOKEN_PUNCTUATOR,
-            "Punctuator",
+            "GreaterEqual",
             ">=",
             emitToken,
           );
         }
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          secondCode === 62 ? "GreaterGreater" : "Greater",
           secondCode === 62 ? ">>" : ">",
           emitToken,
         );
       case 63:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "Question",
           "?",
           emitToken,
         );
       case 64:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "Unknown",
           "@",
           emitToken,
         );
       case 91:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "LeftBracket",
           "[",
           emitToken,
         );
       case 93:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "RightBracket",
           "]",
           emitToken,
         );
       case 94:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          secondCode === 61 ? "CaretEqual" : "Caret",
           secondCode === 61 ? "^=" : "^",
           emitToken,
         );
       case 123:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "LeftBrace",
           "{",
           emitToken,
         );
@@ -948,28 +948,28 @@ export class GenericParser {
         if (secondCode === 124) {
           return this.createToken(
             GENERIC_TOKEN_PUNCTUATOR,
-            "Punctuator",
+            "OrOr",
             "||",
             emitToken,
           );
         }
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          secondCode === 61 ? "PipeEqual" : "Pipe",
           secondCode === 61 ? "|=" : "|",
           emitToken,
         );
       case 125:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "RightBrace",
           "}",
           emitToken,
         );
       case 126:
         return this.createToken(
           GENERIC_TOKEN_PUNCTUATOR,
-          "Punctuator",
+          "Tilde",
           "~",
           emitToken,
         );
