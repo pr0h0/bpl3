@@ -71,6 +71,28 @@ describe("SymbolTable", () => {
     expect(symbol.used).toBe(true);
   });
 
+  it("skips define invalidation work before caches or miss dependents exist", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),
+      "utf8",
+    );
+    const invalidateStart = source.indexOf(
+      "  private invalidateResolutionCacheFor",
+    );
+    const invalidateEnd = source.indexOf("\n  }\n}", invalidateStart);
+
+    expect(invalidateStart).toBeGreaterThanOrEqual(0);
+    expect(invalidateEnd).toBeGreaterThan(invalidateStart);
+
+    const invalidateSource = source.slice(invalidateStart, invalidateEnd);
+    expect(invalidateSource).toContain(
+      "if (!this.resolutionCache && !this.missDependentsByName) return;",
+    );
+    expect(invalidateSource.indexOf("return;")).toBeLessThan(
+      invalidateSource.indexOf("this.resolutionCache?.delete(name)"),
+    );
+  });
+
   it("keeps parent scope resolution iterative on the hot path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),

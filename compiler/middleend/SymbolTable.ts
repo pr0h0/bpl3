@@ -196,6 +196,7 @@ export class SymbolTable {
   }
 
   private invalidateResolutionCacheFor(name: string): void {
+    if (!this.resolutionCache && !this.missDependentsByName) return;
     this.resolutionCache?.delete(name);
     const dependents = this.missDependentsByName?.get(name);
     if (!dependents) return;
