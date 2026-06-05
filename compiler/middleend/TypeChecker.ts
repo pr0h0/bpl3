@@ -634,7 +634,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         const cachedResolvedType = type.resolvedType;
         resolved =
           cachedResolvedType !== undefined &&
-          cachedResolvedType.kind === "BasicType"
+          cachedResolvedType.kind === "BasicType" &&
+          this.canUseResolvedBasicTypeCache(type, cachedResolvedType)
             ? cachedResolvedType
             : this.resolveType(type);
       } else {

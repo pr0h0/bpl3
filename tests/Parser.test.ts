@@ -13,6 +13,10 @@ function sha256(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
+function readTextFile(path: string, encoding: BufferEncoding = "utf8"): string {
+  return readFileSync(path, encoding).replace(/\r\n?/g, "\n");
+}
+
 function parseReturnedNumberLiteral(source: string): LiteralExpr {
   const program = new Parser(
     `frame main() ret int { return ${source}; }`,
@@ -63,11 +67,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated function declaration helpers allocation-free", () => {
-    const grammarSource = readFileSync(
+    const grammarSource = readTextFile(
       join(process.cwd(), "grammar", "bpl.peggy"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -91,11 +95,11 @@ describe("Parser", () => {
   });
 
   it("keeps identifier-heavy primary parsing ahead of literal keyword fallbacks", () => {
-    const grammarSource = readFileSync(
+    const grammarSource = readTextFile(
       join(process.cwd(), "grammar", "bpl.peggy"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -180,7 +184,7 @@ describe("Parser", () => {
   });
 
   it("keeps Peggy packrat caching disabled for large translation-unit throughput", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
@@ -190,11 +194,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated binary expression folding off reduce callback actions", () => {
-    const grammarSource = readFileSync(
+    const grammarSource = readTextFile(
       join(process.cwd(), "grammar", "bpl.peggy"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -221,11 +225,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated binary expression tail parsing off Peggy tuple arrays", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -284,11 +288,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated parser action locations flat for large translation-unit throughput", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -310,7 +314,7 @@ describe("Parser", () => {
   });
 
   it("keeps generated parser location helper on the BPL SourceLocation fast path", () => {
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -339,11 +343,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated block statement collection off the map/filter allocation path", () => {
-    const grammarSource = readFileSync(
+    const grammarSource = readTextFile(
       join(process.cwd(), "grammar", "bpl.peggy"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -363,11 +367,11 @@ describe("Parser", () => {
   });
 
   it("keeps hot generated parser list actions off tail map/spread allocation", () => {
-    const grammarSource = readFileSync(
+    const grammarSource = readTextFile(
       join(process.cwd(), "grammar", "bpl.peggy"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -391,7 +395,7 @@ describe("Parser", () => {
   });
 
   it("keeps generated operator and merged locations on the direct SourceLocation fast path", () => {
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -465,11 +469,11 @@ describe("Parser", () => {
   });
 
   it("keeps normalized parser locations off the identity makeLoc path", () => {
-    const grammarSource = readFileSync(
+    const grammarSource = readTextFile(
       join(process.cwd(), "grammar", "bpl.peggy"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -488,11 +492,11 @@ describe("Parser", () => {
   });
 
   it("keeps BPL AST locations on the generated line-start fast path", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -541,7 +545,7 @@ describe("Parser", () => {
   });
 
   it("keeps generated parser literal matches allocation-free", () => {
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -557,11 +561,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated identifier and reserved-keyword parsing on the direct scanner fast path", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -605,7 +609,7 @@ describe("Parser", () => {
   });
 
   it("keeps generated identifier parsing off Peggy action dispatch", () => {
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -645,7 +649,7 @@ describe("Parser", () => {
   });
 
   it("rejects reserved words in Identifier without slicing a token name first", () => {
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -718,11 +722,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated identifier scanning on a local cursor", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -754,11 +758,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated qualified identifier parsing off tail tuple arrays", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -792,11 +796,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated postfix-tail parsing gated by starter characters", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -842,11 +846,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated number-token parsing on the direct scanner fast path", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -917,7 +921,7 @@ describe("Parser", () => {
   });
 
   it("keeps generated number literal conversion on the direct parser fast path", () => {
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -942,11 +946,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated statement-start keyword lookahead on the direct scanner fast path", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -997,11 +1001,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated assignment-operator parsing on the direct scanner fast path", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -1040,11 +1044,11 @@ describe("Parser", () => {
   });
 
   it("keeps generated expression-operator parsing on direct scanner fast paths", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -1115,7 +1119,7 @@ describe("Parser", () => {
   });
 
   it("keeps generated parser trivia skipping on the manual fast path", () => {
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -1164,7 +1168,7 @@ describe("Parser", () => {
   });
 
   it("keeps postfix tail trivia factored once for parser throughput", () => {
-    const grammarSource = readFileSync(
+    const grammarSource = readTextFile(
       join(process.cwd(), "grammar", "bpl.peggy"),
       "utf8",
     );
@@ -1203,15 +1207,15 @@ describe("Parser", () => {
   });
 
   it("keeps valid parses off the detailed Peggy failure collection path", () => {
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const wrapperSource = readFileSync(
+    const wrapperSource = readTextFile(
       join(process.cwd(), "compiler", "frontend", "PeggyParser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -1240,7 +1244,7 @@ describe("Parser", () => {
   });
 
   it("dispatches declaration statements before the expression fallback", () => {
-    const grammarSource = readFileSync(
+    const grammarSource = readTextFile(
       join(process.cwd(), "grammar", "bpl.peggy"),
       "utf8",
     );
@@ -1281,7 +1285,7 @@ describe("Parser", () => {
   });
 
   it("keeps comment-free parser passes off token comment filtering", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler", "frontend", "Parser.ts"),
       "utf8",
     );
@@ -1308,19 +1312,19 @@ describe("Parser", () => {
   });
 
   it("threads precomputed comment-marker state into the generated parser", () => {
-    const parserSource = readFileSync(
+    const parserSource = readTextFile(
       join(process.cwd(), "compiler", "frontend", "Parser.ts"),
       "utf8",
     );
-    const wrapperSource = readFileSync(
+    const wrapperSource = readTextFile(
       join(process.cwd(), "compiler", "frontend", "PeggyParser.ts"),
       "utf8",
     );
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
     );
-    const generatedSource = readFileSync(
+    const generatedSource = readTextFile(
       join(
         process.cwd(),
         "compiler",
@@ -1381,9 +1385,9 @@ describe("Parser", () => {
       throw new Error(`Generated Peggy parser is missing: ${generatedPath}`);
     }
 
-    const grammarSource = readFileSync(grammarPath, "utf8");
+    const grammarSource = readTextFile(grammarPath, "utf8");
     const expectedSource = generateBplParserSource(grammarSource);
-    const actualSource = readFileSync(generatedPath, "utf8");
+    const actualSource = readTextFile(generatedPath, "utf8");
 
     expect(sha256(actualSource)).toBe(sha256(expectedSource));
   });

@@ -134,6 +134,34 @@ describe("TypeChecker", () => {
     }
   });
 
+  it("does not reuse scalar builtin alias cache for fixed array literals", () => {
+    const program = check(
+      [
+        "frame main() ret int {",
+        "  local scalar: int = 1;",
+        "  local values: int[2] = [10, 20];",
+        "  return scalar + values[1];",
+        "}",
+      ].join("\n"),
+    );
+    expect(program.statements.length).toBe(1);
+    const main = program.statements[0]!;
+    expect(main.kind).toBe("FunctionDecl");
+    if (main.kind !== "FunctionDecl") {
+      return;
+    }
+    const declaration = main.body.statements[1];
+    expect(declaration?.kind).toBe("VariableDecl");
+    if (declaration?.kind === "VariableDecl") {
+      expect(declaration.initializer?.resolvedType?.kind).toBe("BasicType");
+      if (declaration.initializer?.resolvedType?.kind === "BasicType") {
+        expect(declaration.initializer.resolvedType.arrayDimensions).toEqual([
+          2,
+        ]);
+      }
+    }
+  });
+
   it("returns cached simple builtin aliases before name dispatch", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

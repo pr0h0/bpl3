@@ -27,6 +27,10 @@ function parseAndCheck(source: string): AST.Program {
   return program;
 }
 
+function readTextFile(path: string, encoding: BufferEncoding = "utf8"): string {
+  return readFileSync(path, encoding).replace(/\r\n?/g, "\n");
+}
+
 function compile(
   source: string,
   options: ConstructorParameters<typeof CodeGenerator>[0] = {},
@@ -77,7 +81,7 @@ class InspectableCodeGenerator extends CodeGenerator {
 
 describe("CodeGenerator", () => {
   it("keeps primitive LLVM type resolution on a no-recursion fast path", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/TypeGenerator.ts"),
       "utf8",
     );
@@ -103,7 +107,7 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps hot type mangling list construction allocation-conscious", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/TypeGenerator.ts"),
       "utf8",
     );
@@ -164,15 +168,15 @@ describe("CodeGenerator", () => {
   });
 
   it("caches struct literal layout and field metadata for repeated codegen", () => {
-    const baseSource = readFileSync(
+    const baseSource = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
       "utf8",
     );
-    const generatorSource = readFileSync(
+    const generatorSource = readTextFile(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
     );
-    const expressionSource = readFileSync(
+    const expressionSource = readTextFile(
       join(
         process.cwd(),
         "compiler/backend/codegen/ExpressionGenerator.ts",
@@ -213,7 +217,7 @@ describe("CodeGenerator", () => {
   });
 
   it("indexes top-level codegen declarations in a single pre-layout pass", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
     );
@@ -238,7 +242,7 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps function header generation off avoidable allocation paths", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(
         process.cwd(),
         "compiler/backend/codegen/StatementGenerator.ts",
@@ -269,7 +273,7 @@ describe("CodeGenerator", () => {
   });
 
   it("swaps function-local codegen state instead of cloning it per function", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(
         process.cwd(),
         "compiler/backend/codegen/StatementGenerator.ts",
@@ -278,7 +282,7 @@ describe("CodeGenerator", () => {
     );
     const start = source.indexOf("protected generateFunction");
     const end = source.indexOf("  protected generateArrayInitialization", start);
-    const baseSource = readFileSync(
+    const baseSource = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
       "utf8",
     );
@@ -311,7 +315,7 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps block scope snapshots lazy for declaration-free blocks", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(
         process.cwd(),
         "compiler/backend/codegen/StatementGenerator.ts",
@@ -346,7 +350,7 @@ describe("CodeGenerator", () => {
     expect(generator.isIrTerminator("  %x = add i32 1, 2")).toBe(false);
     expect(generator.isIrTerminator("  ret")).toBe(false);
 
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
       "utf8",
     );
@@ -362,7 +366,7 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps simple struct member address generation on a direct layout path", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(
         process.cwd(),
         "compiler/backend/codegen/AddressExpressionGenerator.ts",
@@ -414,7 +418,7 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps direct struct member address lookup off LLVM type string parsing", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(
         process.cwd(),
         "compiler/backend/codegen/AddressExpressionGenerator.ts",
@@ -455,11 +459,11 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps primitive-only struct defaults on a cached undef fast path", () => {
-    const statementGeneratorSource = readFileSync(
+    const statementGeneratorSource = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
-    const codeGeneratorSource = readFileSync(
+    const codeGeneratorSource = readTextFile(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
     );
@@ -617,7 +621,7 @@ describe("CodeGenerator", () => {
         /Debug IR path is a symbolic link/,
       );
 
-      expect(readFileSync(targetPath, "utf8")).toBe("original\n");
+      expect(readTextFile(targetPath, "utf8")).toBe("original\n");
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });
@@ -1310,7 +1314,7 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps pointer-proof boundary detection off allocation-heavy string trimming", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
       "utf8",
     );
@@ -1334,11 +1338,11 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps address-escape tracking off eager function-body AST walks", () => {
-    const statementSource = readFileSync(
+    const statementSource = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
-    const unarySource = readFileSync(
+    const unarySource = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/UnaryExpressionGenerator.ts"),
       "utf8",
     );
@@ -1359,7 +1363,7 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps direct recursion detection off generic AST traversal", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
@@ -1376,11 +1380,11 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps nonzero divisor proof tracking lazy for division-free codegen", () => {
-    const baseSource = readFileSync(
+    const baseSource = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
       "utf8",
     );
-    const statementSource = readFileSync(
+    const statementSource = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
@@ -1403,7 +1407,7 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps empty branch proof propagation off per-if allocation paths", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
@@ -1429,7 +1433,7 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps bounded stack-hook elision expression analysis single-pass", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
@@ -1496,7 +1500,7 @@ describe("CodeGenerator", () => {
   });
 
   it("tracks runtime arg helper usage before final pruning scans output", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
     );
@@ -1523,7 +1527,7 @@ describe("CodeGenerator", () => {
   });
 
   it("reuses generated body references across final runtime pruning passes", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
     );
@@ -1549,7 +1553,7 @@ describe("CodeGenerator", () => {
   });
 
   it("uses targeted LLVM reference collection for final pruning roots", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
     );
@@ -1594,7 +1598,7 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps final IR section assembly off the map/filter allocation path", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
     );
@@ -1616,7 +1620,7 @@ describe("CodeGenerator", () => {
   });
 
   it("keeps generated blank-line joining on a single-pass exact-empty fast path", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
     );
@@ -1637,7 +1641,7 @@ describe("CodeGenerator", () => {
   });
 
   it("uses grouped direct LLVM reference scanners during final pruning", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf8",
     );
@@ -1839,7 +1843,7 @@ describe("CodeGenerator", () => {
   });
 
   it("uses an index cursor for tree-shake reachability queues", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
       "utf-8",
     );

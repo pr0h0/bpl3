@@ -298,7 +298,7 @@ function cloneSimpleBuiltinAliasType(
 ): AST.BasicTypeNode {
   const cached = type.resolvedType;
   if (cached !== undefined) {
-    if (cached.kind === "BasicType") {
+    if (cached.kind === "BasicType" && hasSameBasicShape(type, cached)) {
       return cached;
     }
 
@@ -334,6 +334,27 @@ function cloneSimpleBuiltinAliasType(
   };
   type.resolvedType = resolved;
   return resolved;
+}
+
+function hasSameBasicShape(
+  type: AST.BasicTypeNode,
+  resolved: AST.BasicTypeNode,
+): boolean {
+  if (type.pointerDepth !== resolved.pointerDepth) {
+    return false;
+  }
+
+  if (type.arrayDimensions.length !== resolved.arrayDimensions.length) {
+    return false;
+  }
+
+  for (let i = 0; i < type.arrayDimensions.length; i++) {
+    if (type.arrayDimensions[i] !== resolved.arrayDimensions[i]) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function resolveSimpleBuiltinTypeName(name: string): string | true | undefined {
@@ -722,6 +743,13 @@ export abstract class TypeCheckerBase {
   abstract checkExpression(expr: AST.Expression): AST.TypeNode | undefined;
   abstract checkStatement(stmt: AST.Statement): void;
 
+  protected canUseResolvedBasicTypeCache(
+    type: AST.BasicTypeNode,
+    resolved: AST.BasicTypeNode,
+  ): boolean {
+    return hasSameBasicShape(type, resolved);
+  }
+
   // ========== Type Resolution ==========
 
   public resolveType(
@@ -745,7 +773,8 @@ export abstract class TypeCheckerBase {
       const cachedResolvedType = type.resolvedType;
       if (
         cachedResolvedType !== undefined &&
-        cachedResolvedType.kind === "BasicType"
+        cachedResolvedType.kind === "BasicType" &&
+        hasSameBasicShape(type, cachedResolvedType)
       ) {
         return cachedResolvedType;
       }
