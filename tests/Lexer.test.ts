@@ -11,6 +11,25 @@ function tokenize(source: string): Token[] {
 }
 
 describe("Lexer - Extended Tests", () => {
+  describe("Numbers", () => {
+    it("keeps single-digit number conversion before generic Number parsing", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("function parseNumber");
+      const end = source.indexOf("\nfunction decodeString", start);
+      const helperSource = source.slice(start, end);
+
+      expect(tokenize("7")[0]!.literal).toBe(7);
+      expect(helperSource).toContain("if (raw.length === 1)");
+      expect(helperSource).toContain("return firstCode - 48");
+      expect(helperSource.indexOf("raw.length === 1")).toBeLessThan(
+        helperSource.indexOf("Number(raw)"),
+      );
+    });
+  });
+
   describe("Keywords", () => {
     it("keeps GenericParser keyword recognition aligned with GrammarLexer keyword tokens", () => {
       const genericParserSource = readFileSync(

@@ -922,6 +922,8 @@ describe("Parser", () => {
 
     expect(generatedSource).toContain("function parseBplDecimalNumber(raw)");
     expect(generatedSource).toContain("function parseBplPrefixedNumber");
+    expect(parseNumberHelper).toContain("if (raw.length === 1)");
+    expect(parseNumberHelper).toContain("return firstCode - 48");
     expect(parseNumberHelper).not.toContain("raw.replace");
     expect(parseNumberHelper).not.toContain("/^0x/i.test");
     expect(parseNumberHelper).not.toContain("/^0b/i.test");

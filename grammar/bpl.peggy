@@ -325,6 +325,12 @@
   }
 
   function parseNumber(raw) {
+    if (raw.length === 1) {
+      const firstCode = raw.charCodeAt(0);
+      if (firstCode >= 48 && firstCode <= 57) {
+        return firstCode - 48;
+      }
+    }
     if (raw.length > 2 && raw.charCodeAt(0) === 48) {
       const prefix = raw.charCodeAt(1) | 32;
       if (prefix === 120) return parseBplPrefixedNumber(raw, 2, 16);

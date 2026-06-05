@@ -429,6 +429,12 @@ const punctuatorMap: Record<string, TokenType> = {
 };
 
 function parseNumber(raw: string): number {
+  if (raw.length === 1) {
+    const firstCode = raw.charCodeAt(0);
+    if (firstCode >= 48 && firstCode <= 57) {
+      return firstCode - 48;
+    }
+  }
   if (raw.indexOf("_") === -1) {
     return Number(raw);
   }
