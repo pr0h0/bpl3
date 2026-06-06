@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Concurrent On-Demand Lint Actions** -
+  the `lint` command now keeps filesystem, diagnostics, logging, and JSON
+  dependencies out of help startup, then loads them concurrently with the
+  already-required compiler barrel for real lint actions. Existing lint
+  error-code exports remain available from `cli/commands/lint.ts`, and
+  controlled help, text, JSON, parser diagnostics, validation, stderr, and exit
+  behavior remain byte-for-byte stable. In a 201-round selected-help
+  comparison against `fe6f15a0`, normalized `lint --help` median startup
+  improved by ~6.8% while root help stayed within +1.7% raw. In an alternating
+  101-round action comparison, successful, missing-input, and diagnostic lint
+  actions improved by ~2.2% to ~3.3% raw, while no-input error paths stayed
+  within +1.4% raw. A fresh 21-round 5k compiler comparison preserved token and
+  IR signatures; clean-control normalization put codegen at -0.06% and full
+  compilation at +0.08%. Reproduce the loading and behavior contracts with
+  `bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/CLIJsonParseability.test.ts tests/JsonContracts.test.ts tests/JsonErrorCodeLists.test.ts tests/MarkdownDocs.test.ts`.
 - **Concurrent On-Demand Check Actions** -
   the `check` command now registers help and option metadata through a
   lightweight registrar, then loads analysis dependencies on demand while

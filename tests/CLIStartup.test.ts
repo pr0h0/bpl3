@@ -131,6 +131,21 @@ describe("CLI startup command registration", () => {
     expect(source).toContain('from "./commands/CheckContracts"');
   });
 
+  test("keeps lint registration off action-only analysis dependencies", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "commands", "lint.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain('import("./lintAction")');
+    expect(source).toContain("Promise.all");
+    expect(source).not.toContain('from "fs"');
+    expect(source).not.toContain('from "../DiagnosticFormatter"');
+    expect(source).not.toContain('from "../utils"');
+    expect(source).not.toContain('from "../../compiler/common/JsonContracts"');
+    expect(source).not.toContain('from "../../compiler/common/Logger"');
+  });
+
   test("keeps the shared CLI diagnostic formatter off the compiler barrel", () => {
     const source = readFileSync(
       join(process.cwd(), "cli", "DiagnosticFormatter.ts"),
