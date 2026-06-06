@@ -620,7 +620,13 @@ describe("Parser", () => {
     expect(generatedSource).toContain("function peg$findBplLineIndex(pos)");
     expect(generatedSource).toContain("if (pos === peg$lastBplLinePos)");
     expect(generatedSource).toContain(
-      "for (let peg$bplLinePos = 0; peg$bplLinePos < peg$bplInputLength; peg$bplLinePos++)",
+      'let peg$bplLinePos = input.indexOf("\\n");',
+    );
+    expect(generatedSource).toContain(
+      'peg$bplLinePos = input.indexOf("\\n", peg$bplLinePos + 1);',
+    );
+    expect(generatedSource).not.toContain(
+      "input.charCodeAt(peg$bplLinePos) === 10",
     );
     expect(generatedSource).not.toContain("function peg$isBplPosInLine");
     expect(generatedSource).toContain(

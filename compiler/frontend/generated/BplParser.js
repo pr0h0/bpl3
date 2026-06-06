@@ -1132,10 +1132,10 @@ function peg$parse(input, options) {
   const peg$bplInputLength = input.length;
 
   const peg$bplLineStarts = [0];
-  for (let peg$bplLinePos = 0; peg$bplLinePos < peg$bplInputLength; peg$bplLinePos++) {
-    if (input.charCodeAt(peg$bplLinePos) === 10) {
-      peg$bplLineStarts.push(peg$bplLinePos + 1);
-    }
+  let peg$bplLinePos = input.indexOf("\n");
+  while (peg$bplLinePos !== -1) {
+    peg$bplLineStarts.push(peg$bplLinePos + 1);
+    peg$bplLinePos = input.indexOf("\n", peg$bplLinePos + 1);
   }
 
   let peg$lastBplLineIndex = 0;

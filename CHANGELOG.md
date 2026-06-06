@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Native Generated-Parser Line Indexing** -
+  the generated Peggy parser now builds its source line-start index with
+  native newline searches instead of a JavaScript per-character scan. Parser
+  locations, syntax-retry diagnostics, token signatures, and emitted LLVM
+  remain unchanged. Across four alternating 31-round isolated clean-HEAD
+  comparisons on the 5k-function workload, median parse time improved from
+  ~158.40ms to ~155.62ms (~1.76%) and median full compilation improved from
+  ~363.05ms to ~357.48ms (~1.53%). Reproduce with
+  `bun test tests/Parser.test.ts -t "line-start fast path|location helper|syntax diagnostics"`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 31 --warmups 5 --json`.
 - **Direct Cached Symbol Resolution** -
   symbol-table cache hits now return already-resolved symbols directly instead
   of repeating variable-kind and used-state checks. Variables are still marked
