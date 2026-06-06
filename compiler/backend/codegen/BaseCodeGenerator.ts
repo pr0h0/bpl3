@@ -890,6 +890,9 @@ export class BaseCodeGenerator {
 
   protected isTerminator(line: string): boolean {
     let index = 0;
+    if (line.charCodeAt(0) === 32 && line.charCodeAt(1) === 32) {
+      index = 2;
+    }
     while (index < line.length) {
       const code = line.charCodeAt(index);
       if (code !== 32 && code !== 9 && code !== 10 && code !== 13) break;

@@ -451,6 +451,7 @@ describe("CodeGenerator", () => {
   it("detects LLVM terminators without trimming generated lines", () => {
     const generator = new InspectableCodeGenerator();
     expect(generator.isIrTerminator("  ret i32 0")).toBe(true);
+    expect(generator.isIrTerminator("    ret i32 0")).toBe(true);
     expect(generator.isIrTerminator("\tbr label %done")).toBe(true);
     expect(generator.isIrTerminator("  switch i32 %x, label %d []")).toBe(true);
     expect(generator.isIrTerminator("  unreachable")).toBe(true);
@@ -469,6 +470,9 @@ describe("CodeGenerator", () => {
     expect(end).toBeGreaterThan(start);
 
     const methodSource = source.slice(start, end);
+    expect(methodSource).toContain("line.charCodeAt(0) === 32");
+    expect(methodSource).toContain("line.charCodeAt(1) === 32");
+    expect(methodSource).toContain("index = 2;");
     expect(methodSource).toContain("line.charCodeAt(index)");
     expect(methodSource).toContain("switch (line.charCodeAt(index))");
     expect(methodSource).toContain("case 114:");

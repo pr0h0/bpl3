@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Standard-Indent LLVM Terminator Fast Path** -
+  code generation now starts terminator whitespace scanning after the standard
+  two-space LLVM instruction indent while retaining the generic scanner for
+  longer or non-space indentation. Alternating 61-round and 101-round
+  control/candidate comparisons preserved token signatures and LLVM hashes
+  while median codegen improved by ~2.93% and ~1.48%; median full compilation
+  improved by ~1.32% and ~3.56%. Reproduce with
+  `bun test tests/CodeGenerator.test.ts` and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 11 --json`.
 - **Allocation-Free Function Linkage Assembly** -
   function code generation now appends LLVM linkage modifiers directly instead
   of allocating a temporary array and joining it for every emitted function.
