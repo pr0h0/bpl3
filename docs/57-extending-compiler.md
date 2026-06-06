@@ -96,8 +96,9 @@ When adding a command:
 5. Keep action-only compiler, watcher, package-manager, and filesystem-heavy
    dependencies behind dynamic imports inside the action callback. When shared
    action formatting needs a dependency during registration, import its focused
-   module directly instead of a broad compiler barrel. Registration modules
-   must stay cheap enough to load for command-specific help.
+   contracts module directly instead of its implementation module or a broad
+   compiler barrel. Registration modules must stay cheap enough to load for
+   command-specific help.
 6. Add selector and CLI behavior coverage. Keep `index.ts` free of eager
    imports from `cli/commands` and `cli/CompilationRunner`.
 

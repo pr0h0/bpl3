@@ -128,7 +128,7 @@ describe("CLI startup command registration", () => {
     );
   });
 
-  test("keeps package registration off the broad compiler barrel", () => {
+  test("keeps package registration off broad and action-only compiler modules", () => {
     const source = readFileSync(
       join(process.cwd(), "cli", "commands", "package.ts"),
       "utf8",
@@ -136,8 +136,26 @@ describe("CLI startup command registration", () => {
 
     expect(source).not.toContain('from "../../compiler"');
     expect(source).toContain('import("../../compiler")');
-    expect(source).toContain(
+    expect(source).not.toContain(
       'from "../../compiler/middleend/PackageManager"',
+    );
+    expect(source).toContain(
+      'import("../../compiler/middleend/PackageManager")',
+    );
+    expect(source).toContain('from "../../compiler/middleend/PackageContracts"');
+  });
+
+  test("keeps package error class identity across focused and manager exports", async () => {
+    const contracts = await import(
+      "../compiler/middleend/PackageContracts"
+    );
+    const manager = await import("../compiler/middleend/PackageManager");
+
+    expect(manager.PackageInstalledNameError).toBe(
+      contracts.PackageInstalledNameError,
+    );
+    expect(manager.PackageLockVerificationError).toBe(
+      contracts.PackageLockVerificationError,
     );
   });
 });

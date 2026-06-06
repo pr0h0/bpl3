@@ -10,7 +10,6 @@ import { spawnSync } from "child_process";
 import type { Command } from "commander";
 import { CompilerError } from "../../compiler/common/CompilerError";
 import {
-  PackageManager,
   PackageInstalledNameError,
   PackageLockVerificationError,
   type PackageCacheEntry,
@@ -20,7 +19,7 @@ import {
   type PackageDependencyTreeNode,
   type PackageProjectInstallResult,
   PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE_CODE,
-} from "../../compiler/middleend/PackageManager";
+} from "../../compiler/middleend/PackageContracts";
 import type {
   PackageOptionsGlobal,
   PackageOptionsOutput,
@@ -48,6 +47,17 @@ const log = new Logger("Package");
 const PACKAGE_IR_VERIFY_TIMEOUT_MS =
   TIMEOUT_ENV_DEFAULTS.BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS;
 const ANSI_ESCAPE_PATTERN = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
+type PackageManagerConstructor =
+  typeof import("../../compiler/middleend/PackageManager")["PackageManager"];
+
+async function createPackageManager(
+  ...args: ConstructorParameters<PackageManagerConstructor>
+): Promise<InstanceType<PackageManagerConstructor>> {
+  const { PackageManager } = await import(
+    "../../compiler/middleend/PackageManager"
+  );
+  return new PackageManager(...args);
+}
 
 /**
  * Register all package management commands
@@ -59,107 +69,115 @@ export function registerPackageCommands(program: Command): void {
     .description("Create a distributable package from a BPL project")
     .option("-o, --output <dir>", "output directory for the package")
     .option("--json", "output machine-readable pack result")
-    .action(async (dir: string | undefined, options: PackageOptionsOutput, command: Command) => {
-      const globalOpts = command.parent?.opts() || {};
-      const outputJson = Boolean(options.json || globalOpts.json);
-      if (outputJson) {
-        setLogLevel(LogLevel.SILENT);
-      }
-      const packageDir = dir ? path.resolve(dir) : process.cwd();
-      const outputDir = options.output || globalOpts.output || packageDir;
-      try {
-        const pm = new PackageManager();
+    .action(
+      async (
+        dir: string | undefined,
+        options: PackageOptionsOutput,
+        command: Command,
+      ) => {
+        const globalOpts = command.parent?.opts() || {};
+        const outputJson = Boolean(options.json || globalOpts.json);
+        if (outputJson) {
+          setLogLevel(LogLevel.SILENT);
+        }
+        const packageDir = dir ? path.resolve(dir) : process.cwd();
+        const outputDir = options.output || globalOpts.output || packageDir;
+        try {
+          const pm = await createPackageManager();
 
-        // Check if code compiles before packing
-        const manifest = pm.loadManifest(packageDir);
-        const mainFile = manifest.main || "index.bpl";
-        const entryPath = path.join(packageDir, mainFile);
+          // Check if code compiles before packing
+          const manifest = pm.loadManifest(packageDir);
+          const mainFile = manifest.main || "index.bpl";
+          const entryPath = path.join(packageDir, mainFile);
 
-        const entryStats = tryLstat(entryPath);
-        if (entryStats) {
-          if (entryStats.isSymbolicLink()) {
-            throw new Error(
-              `Package entry point is a symbolic link: ${entryPath}`,
-            );
-          }
-          if (!entryStats.isFile()) {
-            throw new Error(`Package entry point is not a file: ${entryPath}`);
-          }
-
-          log.info(`Verifying package integrity: ${mainFile}`);
-          const content = fs.readFileSync(entryPath, "utf-8");
-
-          const { Compiler } = await import("../../compiler");
-          const compiler = new Compiler({
-            filePath: entryPath,
-            resolveImports: true,
-            emitType: "llvm",
-            verbose: false,
-          });
-
-          const result = compiler.compile(content);
-
-          if (!result.success) {
-            log.error(
-              "Package verification failed - compilation errors detected:",
-            );
-            if (result.errors) {
-              console.error(diagnosticFormatter.formatErrors(result.errors));
+          const entryStats = tryLstat(entryPath);
+          if (entryStats) {
+            if (entryStats.isSymbolicLink()) {
+              throw new Error(
+                `Package entry point is a symbolic link: ${entryPath}`,
+              );
             }
+            if (!entryStats.isFile()) {
+              throw new Error(
+                `Package entry point is not a file: ${entryPath}`,
+              );
+            }
+
+            log.info(`Verifying package integrity: ${mainFile}`);
+            const content = fs.readFileSync(entryPath, "utf-8");
+
+            const { Compiler } = await import("../../compiler");
+            const compiler = new Compiler({
+              filePath: entryPath,
+              resolveImports: true,
+              emitType: "llvm",
+              verbose: false,
+            });
+
+            const result = compiler.compile(content);
+
+            if (!result.success) {
+              log.error(
+                "Package verification failed - compilation errors detected:",
+              );
+              if (result.errors) {
+                console.error(diagnosticFormatter.formatErrors(result.errors));
+              }
+              process.exit(1);
+            }
+
+            // Verify LLVM IR validity with the selected compiler driver.
+            // This catches CodeGen errors like invalid instructions that TypeChecker missed
+            if (result.output) {
+              verifyPackageLLVMIR(result.output);
+            }
+          } else {
+            log.warn(`Warning: Package entry point '${mainFile}' not found.`);
+          }
+
+          const tarball = pm.pack(packageDir, outputDir);
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packagePack, true, {
+                  package: manifest.name,
+                  version: manifest.version,
+                  packageDir,
+                  outputDir,
+                  archivePath: tarball,
+                }),
+                null,
+                2,
+              ),
+            );
+            return;
+          }
+          log.info(`Package ready: ${tarball}`);
+        } catch (e) {
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packagePack, false, {
+                  packageDir,
+                  outputDir,
+                  error: formatPackageCommandJsonError(e),
+                  ...formatPackageCommandErrorCode(e),
+                }),
+                null,
+                2,
+              ),
+            );
             process.exit(1);
           }
-
-          // Verify LLVM IR validity with the selected compiler driver.
-          // This catches CodeGen errors like invalid instructions that TypeChecker missed
-          if (result.output) {
-            verifyPackageLLVMIR(result.output);
-          }
-        } else {
-          log.warn(`Warning: Package entry point '${mainFile}' not found.`);
-        }
-
-        const tarball = pm.pack(packageDir, outputDir);
-        if (outputJson) {
-          console.log(
-            JSON.stringify(
-              createJsonReport(CLI_JSON_CHECKS.packagePack, true, {
-                package: manifest.name,
-                version: manifest.version,
-                packageDir,
-                outputDir,
-                archivePath: tarball,
-              }),
-              null,
-              2,
-            ),
-          );
-          return;
-        }
-        log.info(`Package ready: ${tarball}`);
-      } catch (e) {
-        if (outputJson) {
-          console.log(
-            JSON.stringify(
-              createJsonReport(CLI_JSON_CHECKS.packagePack, false, {
-                packageDir,
-                outputDir,
-                error: formatPackageCommandJsonError(e),
-                ...formatPackageCommandErrorCode(e),
-              }),
-              null,
-              2,
-            ),
-          );
+          log.error(formatPackageCommandError(e));
           process.exit(1);
+        } finally {
+          if (outputJson) {
+            resetLogLevel();
+          }
         }
-        log.error(formatPackageCommandError(e));
-        process.exit(1);
-      } finally {
-        if (outputJson) {
-          resetLogLevel();
-        }
-      }
-    });
+      },
+    );
 
   // Install command
   program
@@ -175,7 +193,7 @@ export function registerPackageCommands(program: Command): void {
     )
     .option("--json", "output machine-readable install result")
     .action(
-      (
+      async (
         pkg: string | undefined,
         options: PackageOptionsVerbose,
         command: Command,
@@ -186,7 +204,7 @@ export function registerPackageCommands(program: Command): void {
           setLogLevel(LogLevel.SILENT);
         }
         try {
-          const pm = new PackageManager(undefined, {
+          const pm = await createPackageManager(undefined, {
             ensureDirectories: false,
           });
 
@@ -260,7 +278,7 @@ export function registerPackageCommands(program: Command): void {
     .option("-v, --verbose", "verbose output")
     .option("--json", "output machine-readable lock result")
     .action(
-      (
+      async (
         options: Pick<PackageOptionsVerbose, "verbose" | "json">,
         command: Command,
       ) => {
@@ -276,7 +294,7 @@ export function registerPackageCommands(program: Command): void {
           setLogLevel(LogLevel.SILENT);
         }
         try {
-          const pm = new PackageManager(undefined, {
+          const pm = await createPackageManager(undefined, {
             ensureDirectories: false,
           });
           const projectInstallResult = pm.installProject(installOptions);
@@ -331,12 +349,12 @@ export function registerPackageCommands(program: Command): void {
     .option("-g, --global", "list global packages")
     .option("--tree", "show dependency tree")
     .option("--json", "output machine-readable installed package data")
-    .action((options: PackageOptionsGlobal, command: Command) => {
+    .action(async (options: PackageOptionsGlobal, command: Command) => {
       const globalOpts = command.parent?.opts() || {};
       const outputJson = options.json || globalOpts.json;
       const scope = options.global ? "global" : "local";
       try {
-        const pm = new PackageManager();
+        const pm = await createPackageManager();
 
         if (options.tree) {
           const tree = pm.getDependencyTree(options);
@@ -446,7 +464,7 @@ export function registerPackageCommands(program: Command): void {
     .description("Initialize a new BPL project")
     .option("--json", "output machine-readable init result")
     .action(
-      (
+      async (
         name: string | undefined,
         options: { json?: boolean },
         command: Command,
@@ -458,7 +476,7 @@ export function registerPackageCommands(program: Command): void {
         }
         const manifestPath = path.join(process.cwd(), "bpl.json");
         try {
-          const pm = new PackageManager();
+          const pm = await createPackageManager();
           const result = pm.init(process.cwd(), name);
           if (outputJson) {
             console.log(
@@ -508,54 +526,56 @@ export function registerPackageCommands(program: Command): void {
     .description("Uninstall a package")
     .option("-g, --global", "uninstall global package")
     .option("--json", "output machine-readable uninstall result")
-    .action((pkg: string, options: PackageOptionsGlobal, command: Command) => {
-      const globalOpts = command.parent?.opts() || {};
-      const outputJson = Boolean(options.json || globalOpts.json);
-      if (outputJson) {
-        setLogLevel(LogLevel.SILENT);
-      }
-      try {
-        const pm = new PackageManager();
-        const result = pm.uninstall(pkg, options);
+    .action(
+      async (pkg: string, options: PackageOptionsGlobal, command: Command) => {
+        const globalOpts = command.parent?.opts() || {};
+        const outputJson = Boolean(options.json || globalOpts.json);
         if (outputJson) {
-          console.log(
-            JSON.stringify(
-              createJsonReport(CLI_JSON_CHECKS.packageUninstall, true, {
-                package: result.name,
-                version: result.version,
-                global: result.global,
-              }),
-              null,
-              2,
-            ),
-          );
-          return;
+          setLogLevel(LogLevel.SILENT);
         }
-        log.info(`Uninstalled ${pkg}`);
-      } catch (e) {
-        if (outputJson) {
-          console.log(
-            JSON.stringify(
-              createJsonReport(CLI_JSON_CHECKS.packageUninstall, false, {
-                package: pkg,
-                global: Boolean(options.global),
-                error: formatPackageCommandJsonError(e),
-                ...formatPackageCommandErrorCode(e),
-              }),
-              null,
-              2,
-            ),
-          );
+        try {
+          const pm = await createPackageManager();
+          const result = pm.uninstall(pkg, options);
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packageUninstall, true, {
+                  package: result.name,
+                  version: result.version,
+                  global: result.global,
+                }),
+                null,
+                2,
+              ),
+            );
+            return;
+          }
+          log.info(`Uninstalled ${pkg}`);
+        } catch (e) {
+          if (outputJson) {
+            console.log(
+              JSON.stringify(
+                createJsonReport(CLI_JSON_CHECKS.packageUninstall, false, {
+                  package: pkg,
+                  global: Boolean(options.global),
+                  error: formatPackageCommandJsonError(e),
+                  ...formatPackageCommandErrorCode(e),
+                }),
+                null,
+                2,
+              ),
+            );
+            process.exit(1);
+          }
+          log.error(formatPackageCommandError(e));
           process.exit(1);
+        } finally {
+          if (outputJson) {
+            resetLogLevel();
+          }
         }
-        log.error(formatPackageCommandError(e));
-        process.exit(1);
-      } finally {
-        if (outputJson) {
-          resetLogLevel();
-        }
-      }
-    });
+      },
+    );
 
   const packageCache = program
     .command("package-cache")
@@ -566,7 +586,7 @@ export function registerPackageCommands(program: Command): void {
     .description("List cached package archives")
     .option("--json", "output machine-readable cache entries")
     .action(
-      (
+      async (
         packageName: string | undefined,
         options: { json?: boolean },
         command: Command,
@@ -574,7 +594,7 @@ export function registerPackageCommands(program: Command): void {
         const globalOpts = command.parent?.parent?.opts() || {};
         const outputJson = options.json || globalOpts.json;
         try {
-          const pm = new PackageManager();
+          const pm = await createPackageManager();
           const entries = pm.listPackageCache(packageName);
 
           if (outputJson) {
@@ -625,7 +645,7 @@ export function registerPackageCommands(program: Command): void {
     .description("Verify cached package archive provenance")
     .option("--json", "output machine-readable verification report")
     .action(
-      (
+      async (
         packageName: string | undefined,
         options: { json?: boolean },
         command: Command,
@@ -633,7 +653,7 @@ export function registerPackageCommands(program: Command): void {
         const globalOpts = command.parent?.parent?.opts() || {};
         const outputJson = options.json || globalOpts.json;
         try {
-          const pm = new PackageManager();
+          const pm = await createPackageManager();
           const report = pm.verifyPackageCache(packageName);
 
           if (outputJson) {
@@ -678,7 +698,7 @@ export function registerPackageCommands(program: Command): void {
     .option("--dry-run", "show what would be removed without deleting files")
     .option("--json", "output machine-readable clean result")
     .action(
-      (
+      async (
         packageName: string | undefined,
         options: { packageVersion?: string; dryRun?: boolean; json?: boolean },
         command: Command,
@@ -686,7 +706,7 @@ export function registerPackageCommands(program: Command): void {
         const globalOpts = command.parent?.parent?.opts() || {};
         const outputJson = options.json || globalOpts.json;
         try {
-          const pm = new PackageManager();
+          const pm = await createPackageManager();
           const result = pm.cleanPackageCache({
             packageName,
             version: options.packageVersion,
@@ -743,7 +763,7 @@ export function registerPackageCommands(program: Command): void {
     .option("--dry-run", "show what would be repaired without writing files")
     .option("--json", "output machine-readable repair result")
     .action(
-      (
+      async (
         packageName: string | undefined,
         options: {
           packageVersion?: string;
@@ -755,7 +775,7 @@ export function registerPackageCommands(program: Command): void {
         const globalOpts = command.parent?.parent?.opts() || {};
         const outputJson = options.json || globalOpts.json;
         try {
-          const pm = new PackageManager();
+          const pm = await createPackageManager();
           const result = pm.repairPackageCache(packageName, {
             version: options.packageVersion,
             dryRun: options.dryRun,

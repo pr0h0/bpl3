@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **On-Demand Package Manager Actions** -
+  package command registration now imports a lightweight package contracts
+  module and loads the full package manager only when an action executes.
+  Existing package-manager exports retain the same error-class identity and
+  public type surface. In an alternating 41-round comparison against
+  `1f61ef3c`, package help medians improved by ~6.9% to ~10.8%, while the
+  missing-manifest `pack --json` action improved by ~1.5%. `list --json` was
+  effectively flat after normalizing its +2.2% raw delta against +2.0% version
+  control drift. Reproduce with
+  `bun test tests/CLIStartup.test.ts tests/PackageManagerCLI.test.ts tests/PackageManager.test.ts tests/PackageJsonFailureContracts.test.ts`.
 - **Focused Package Command Registration** -
   package command help and validation paths now import the focused package
   manager module directly instead of evaluating the broad compiler barrel.
