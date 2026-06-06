@@ -358,8 +358,16 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
       // Use raw value for integers to preserve precision
       if (expr.raw) {
+        const raw = expr.raw;
+        if (
+          (raw.length === 1 || raw.charCodeAt(0) !== 48) &&
+          raw.indexOf("_") === -1 &&
+          raw.indexOf(".") === -1
+        ) {
+          return raw;
+        }
         try {
-          const cleaned = expr.raw.replace(/_/g, "");
+          const cleaned = raw.replace(/_/g, "");
           // Only use BigInt if it doesn't look like a float
           if (!cleaned.includes(".")) {
             return BigInt(cleaned).toString();

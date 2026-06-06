@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Plain Decimal Literal Codegen Fast Path** -
+  codegen now emits parser-validated separator-free decimal integer text
+  directly instead of normalizing every ordinary integer through `BigInt`.
+  Prefixed, separator-bearing, leading-zero, and floating-point literals keep
+  the existing normalization paths, while emitted LLVM and token signatures
+  remain unchanged. In isolated 101-round comparisons, median codegen improved
+  by ~8.93% and ~3.98% across opposite execution orders, with median full
+  compilation improving by ~2.12% and ~1.29%. Reproduce with
+  `bun test tests/CodeGenerator.test.ts tests/Lexer.test.ts tests/Parser.test.ts tests/AdvancedRuntime.test.ts tests/CompilerCorrectnessCorpus.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Inline Simple Block Declaration Collection** -
   codegen now records ordinary string-named block declarations directly and
   reserves recursive name collection for tuple destructuring patterns. Block

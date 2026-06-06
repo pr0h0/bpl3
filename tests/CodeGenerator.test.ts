@@ -943,6 +943,31 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("emits separator-free decimal integers before BigInt normalization", () => {
+    const source = readTextFile(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/ExpressionGenerator.ts",
+      ),
+      "utf8",
+    );
+    const start = source.indexOf("  protected generateLiteral(");
+    const end = source.indexOf("  protected generateIdentifier(", start);
+    const methodSource = source.slice(start, end);
+    const decimalFastPath = methodSource.indexOf(
+      'raw.indexOf("_") === -1',
+    );
+    const bigintNormalization = methodSource.indexOf("BigInt(cleaned)");
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(decimalFastPath).toBeGreaterThanOrEqual(0);
+    expect(bigintNormalization).toBeGreaterThan(decimalFastPath);
+    expect(compile("frame main() ret int { return 2147483647; }")).toContain(
+      "ret i32 2147483647",
+    );
+  });
+
   it("prunes unused internal runtime helper declarations from simple IR", () => {
     const ir = compile("frame main() ret int { return 0; }", {
       optimizationLevel: 3,
