@@ -184,6 +184,32 @@ describe("CLI startup command registration", () => {
     expect(source).toContain('from "./commands/DoctorContracts"');
   });
 
+  test("keeps clean registration off action-only cleanup dependencies", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "commands", "clean.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain('import("./cleanAction")');
+    expect(source).not.toContain('from "child_process"');
+    expect(source).not.toContain('from "fs"');
+    expect(source).not.toContain('from "path"');
+    expect(source).not.toContain('from "../../compiler/common/Env"');
+    expect(source).not.toContain('from "../../compiler/common/JsonContracts"');
+    expect(source).not.toContain('from "../../compiler/common/Logger"');
+    expect(source).not.toContain('from "../../compiler/common/PathSafety"');
+  });
+
+  test("keeps the JSON error registry on focused clean contracts", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "JsonErrorCodes.ts"),
+      "utf8",
+    );
+
+    expect(source).not.toContain('from "./commands/clean"');
+    expect(source).toContain('from "./commands/CleanContracts"');
+  });
+
   test("keeps package registration off broad and action-only compiler modules", () => {
     const source = readFileSync(
       join(process.cwd(), "cli", "commands", "package.ts"),

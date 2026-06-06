@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **On-Demand Clean Actions** -
+  the `clean` command now registers help and option metadata through a
+  lightweight registrar, then loads filesystem traversal, git probing,
+  path-safety, logging, and JSON-reporting dependencies only when cleanup
+  executes. Existing clean error-code exports remain available from
+  `cli/commands/clean.ts`, and controlled help and dry-run JSON outputs remain
+  byte-for-byte stable. In an alternating 101-round comparison against
+  `907bcdb3`, `clean --help` median startup improved from ~49.01ms to ~46.99ms
+  (~4.1%), while dry-run JSON and version startup stayed within +0.3% control
+  noise. A direct 5k compiler comparison preserved token and IR signatures
+  with full compilation at -1.11%. Reproduce the loading and behavior
+  contracts with
+  `bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/CLIJsonParseability.test.ts tests/JsonContracts.test.ts tests/MarkdownDocs.test.ts`.
 - **On-Demand Doctor Diagnostics** -
   the `doctor` command now registers its help and option metadata through a
   lightweight registrar, then loads filesystem, process, LLVM, sanitizer,

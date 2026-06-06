@@ -2,7 +2,7 @@ import { BUILD_JSON_ERROR_CODES } from "./CompilationRunner";
 import { BINDGEN_JSON_ERROR_CODES } from "./commands/bindgen";
 import { CODEGEN_JSON_ERROR_CODES } from "../compiler/backend/CodeGenerator";
 import { CHECK_JSON_ERROR_CODES } from "./commands/check";
-import { CLEAN_JSON_ERROR_CODES } from "./commands/clean";
+import { CLEAN_JSON_ERROR_CODES } from "./commands/CleanContracts";
 import { COMPLETION_SHELL_UNSUPPORTED_CODE } from "./commands/completion";
 import { DOCS_JSON_ERROR_CODES } from "./commands/docs";
 import {
