@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Allocation-Free Struct Literal Field Collection** -
+  type checking now fills the provided-field set directly instead of first
+  allocating and discarding a mapped field-name array for every struct
+  literal. Missing-field diagnostics, token signatures, and emitted LLVM
+  remain unchanged. In isolated 101-round comparisons, median typecheck
+  improved by ~4.62% and ~1.46% across opposite execution orders; median full
+  compilation improved by ~1.70% in the reverse ordering while the first
+  ordering drifted by ~0.75%. Reproduce with
+  `bun test tests/TypeChecker.test.ts tests/TypeCheckerExtended.test.ts tests/CompilerCorrectnessCorpus.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Plain Decimal Literal Codegen Fast Path** -
   codegen now emits parser-validated separator-free decimal integer text
   directly instead of normalizing every ordinary integer through `BigInt`.

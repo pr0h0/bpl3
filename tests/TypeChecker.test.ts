@@ -334,6 +334,26 @@ describe("TypeChecker", () => {
     expect(bigint).toBeGreaterThan(replace);
   });
 
+  it("collects provided struct literal fields without an intermediate array", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("export function checkStructLiteral");
+    const end = source.indexOf("export function checkTupleLiteral", start);
+    const methodSource = source.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(methodSource).toContain(
+      "const providedFields = new Set<string>();",
+    );
+    expect(methodSource).toContain("providedFields.add(field.name);");
+    expect(methodSource).not.toContain(
+      "new Set(expr.fields.map((f) => f.name))",
+    );
+  });
+
   it("keeps simple builtin aliases before the scope lookup path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

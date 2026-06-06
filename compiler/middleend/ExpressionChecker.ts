@@ -1154,7 +1154,10 @@ export function checkStructLiteral(
   }
 
   // Check for missing fields
-  const providedFields = new Set(expr.fields.map((f) => f.name));
+  const providedFields = new Set<string>();
+  for (const field of expr.fields) {
+    providedFields.add(field.name);
+  }
   for (const member of decl.members) {
     if (member.kind === "StructField") {
       if (!providedFields.has(member.name)) {
