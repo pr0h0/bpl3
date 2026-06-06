@@ -296,6 +296,26 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain('decl.name.split("_")');
   });
 
+  it("builds nonempty function parameter lists without separator branches", () => {
+    const source = readTextFile(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/StatementGenerator.ts",
+      ),
+      "utf8",
+    );
+    const methodStart = source.indexOf("private buildFunctionParameterList");
+    const methodEnd = source.indexOf("private getMethodBaseName", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(methodSource).toContain('if (params.length === 0) return ""');
+    expect(methodSource).toContain("const firstParam = params[0]!");
+    expect(methodSource).toContain("for (let i = 1; i < params.length; i++)");
+    expect(methodSource).not.toContain("if (result.length > 0)");
+  });
+
   it("swaps function-local codegen state instead of cloning it per function", () => {
     const source = readTextFile(
       join(

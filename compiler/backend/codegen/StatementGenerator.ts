@@ -2499,15 +2499,16 @@ export abstract class StatementGenerator extends AsmGenerator {
     params: AST.Parameter[],
     paramTypes: AST.TypeNode[],
   ): string {
-    let result = "";
+    if (params.length === 0) return "";
 
-    for (let i = 0; i < params.length; i++) {
+    const firstParam = params[0]!;
+    const firstType = this.resolveType(paramTypes[0]!);
+    let result = `${firstType} %${firstParam.name}`;
+
+    for (let i = 1; i < params.length; i++) {
       const param = params[i]!;
       const type = this.resolveType(paramTypes[i]!);
-      if (result.length > 0) {
-        result += ", ";
-      }
-      result += `${type} %${param.name}`;
+      result += `, ${type} %${param.name}`;
     }
 
     return result;

@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Seeded Function Parameter-List Codegen** -
+  function header generation now returns immediately for empty parameter lists,
+  seeds nonempty lists from the first parameter, and appends later parameters
+  without a per-parameter separator branch. Empty, single, multi-parameter,
+  variadic, and function-pointer signatures emit unchanged LLVM. Isolated
+  51-round and reverse-order 101-round comparisons on the 5k-function workload
+  preserved token signatures and emitted LLVM while median codegen improved by
+  ~2.45% and ~0.58%, respectively; the reverse codegen average and full
+  compilation stayed effectively flat. Reproduce with
+  `bun test tests/CodeGenerator.test.ts tests/CodeGeneratorExtended.test.ts tests/FunctionAttributes.test.ts tests/FunctionPointers.test.ts tests/GoldenLLVMShapes.test.ts tests/AdvancedRuntime.test.ts tests/EdgeCases.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Caller-Boundary Empty Function-Attribute Fast Path** -
   type checking now skips the function-attribute wrapper before constructing
   validation options when a function has no attributes. The validator retains
