@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Leading-Import Cold Compile Fast Path** -
+  CLI compilation now recognizes files whose first significant token is an
+  exact `import` keyword before invoking the full grammar lexer solely to
+  decide whether module resolution is required. Comment-prefixed, string,
+  identifier-prefix, and later-import layouts retain the existing exact lexer
+  fallback. On `examples/hello-world/main.bpl`, the import decision dropped
+  from 49.11 ms per 10,000 warm checks to about 0.42 ms. Opposite-order
+  41-round cold CLI comparisons preserved identical LLVM output while median
+  compile-and-link time improved by ~3.48% and ~6.78%. Reproduce focused
+  behavior checks with
+  `bun test tests/CompilationRunner.test.ts tests/CLIStartup.test.ts`.
 - **Single-Pass Comment Extraction** -
   comment-bearing lexing now scans the source once while using ordered
   string, character, and interpolated-string ranges to ignore embedded comment

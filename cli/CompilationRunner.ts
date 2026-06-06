@@ -536,6 +536,25 @@ function tryLstat(filePath: string): fs.Stats | null {
 
 const IMPORT_DECLARATION_CANDIDATE = /\bimport\b/;
 
+export function sourceStartsWithImportDeclaration(content: string): boolean {
+  let index = 0;
+  while (index < content.length) {
+    const code = content.charCodeAt(index);
+    if (code !== 9 && code !== 10 && code !== 13 && code !== 32) break;
+    index++;
+  }
+
+  if (!content.startsWith("import", index)) return false;
+
+  const boundary = content.charCodeAt(index + 6);
+  return !(
+    boundary === 95 ||
+    (boundary >= 48 && boundary <= 57) ||
+    (boundary >= 65 && boundary <= 90) ||
+    (boundary >= 97 && boundary <= 122)
+  );
+}
+
 export function sourceMightContainImportDeclaration(content: string): boolean {
   return IMPORT_DECLARATION_CANDIDATE.test(content);
 }
@@ -544,6 +563,7 @@ export function sourceContainsImportDeclaration(
   content: string,
   filePath: string,
 ): boolean {
+  if (sourceStartsWithImportDeclaration(content)) return true;
   if (!sourceMightContainImportDeclaration(content)) {
     return false;
   }

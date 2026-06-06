@@ -1,9 +1,12 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 import {
   shouldInjectNativeRuntimeObjects,
   sourceContainsImportDeclaration,
   sourceMightContainImportDeclaration,
+  sourceStartsWithImportDeclaration,
 } from "../cli/CompilationRunner";
 
 describe("Compilation runner", () => {
@@ -33,6 +36,31 @@ describe("Compilation runner", () => {
         "test.bpl",
       ),
     ).toBe(true);
+  });
+
+  it("recognizes a leading import before falling back to the grammar lexer", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "CompilationRunner.ts"),
+      "utf8",
+    );
+
+    expect(sourceStartsWithImportDeclaration).toBeFunction();
+    expect(
+      sourceStartsWithImportDeclaration(
+        " \n\timport [printf] from \"std/c.bpl\";",
+      ),
+    ).toBe(true);
+    expect(sourceStartsWithImportDeclaration("important_value")).toBe(false);
+    expect(sourceStartsWithImportDeclaration("import_thing")).toBe(false);
+    expect(sourceStartsWithImportDeclaration("import2")).toBe(false);
+    expect(
+      sourceStartsWithImportDeclaration(
+        "# import [printf] from \"std/c.bpl\";",
+      ),
+    ).toBe(false);
+    expect(source).toContain(
+      "if (sourceStartsWithImportDeclaration(content)) return true;",
+    );
   });
 
   it("pre-injects native runtime objects only for cached module links", () => {
