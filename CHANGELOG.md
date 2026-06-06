@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Direct Local Value-Struct Member Loads** -
+  codegen now emits member GEP/load instructions directly for exact-layout,
+  non-generic, non-pointer local value-struct identifiers, avoiding the generic
+  address-generation dispatch and pointer/null fallback branches. Aliased,
+  generic, pointer, call-result, and unresolved-layout member accesses retain
+  the existing path, while emitted LLVM remains unchanged. In isolated
+  101-round comparisons, median codegen improved by ~6.26% and ~2.54% across
+  opposite execution orders, with median full compilation improving by ~0.56%
+  and ~1.65%. Reproduce with
+  `bun test tests/CodeGenerator.test.ts tests/CodeGeneratorExtended.test.ts tests/AdvancedRuntime.test.ts tests/CompilerCorrectnessCorpus.test.ts tests/GoldenLLVMShapes.test.ts tests/PointerEdgeCases.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Allocation-Free Binary Operator Classification** -
   binary type checking now classifies bitwise and arithmetic operators with
   direct token comparisons instead of constructing temporary operator arrays

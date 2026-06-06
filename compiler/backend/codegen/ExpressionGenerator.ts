@@ -803,6 +803,36 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       );
     }
 
+    if (expr.object.kind === "Identifier") {
+      const objectType = expr.object.resolvedType;
+      if (
+        objectType?.kind === "BasicType" &&
+        objectType.pointerDepth === 0 &&
+        objectType.arrayDimensions.length === 0 &&
+        objectType.genericArgs.length === 0 &&
+        !objectType.aliasDeclaration &&
+        !objectType.variableDeclaration &&
+        !objectType.isPointerToArray
+      ) {
+        const identifier = expr.object as AST.IdentifierExpr;
+        const basePtr = this.localPointers.get(identifier.name);
+        const fieldIndex = this.structLayouts
+          .get(objectType.name)
+          ?.get(expr.property);
+        if (basePtr !== undefined && fieldIndex !== undefined) {
+          const structBase = `%struct.${objectType.name}`;
+          const addr = this.newRegister();
+          this.emit(
+            `  ${addr} = getelementptr inbounds ${structBase}, ${structBase}* ${basePtr}, i32 0, i32 ${fieldIndex}`,
+          );
+          const type = this.resolveType(expr.resolvedType!);
+          const reg = this.newRegister();
+          this.emit(`  ${reg} = load ${type}, ${type}* ${addr}`);
+          return reg;
+        }
+      }
+    }
+
     const addr = this.generateAddress(expr);
     const type = this.resolveType(expr.resolvedType!);
     const reg = this.newRegister();

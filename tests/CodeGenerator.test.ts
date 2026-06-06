@@ -553,6 +553,27 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("loads direct local value-struct members before generic address generation", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/backend/codegen/ExpressionGenerator.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("protected generateMember");
+    const methodEnd = source.indexOf("protected generateBoundMethod", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+    const localPointerLookup = methodSource.indexOf(
+      "this.localPointers.get(identifier.name)",
+    );
+    const genericAddress = methodSource.indexOf("this.generateAddress(expr)");
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(localPointerLookup).toBeGreaterThanOrEqual(0);
+    expect(genericAddress).toBeGreaterThan(localPointerLookup);
+    expect(methodSource).toContain("objectType.pointerDepth === 0");
+    expect(methodSource).toContain("objectType.genericArgs.length === 0");
+  });
+
   it("keeps primitive-only struct defaults on a cached undef fast path", () => {
     const statementGeneratorSource = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
