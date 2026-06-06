@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Regex-Free LLVM Integer Type Classification** -
+  code generation now recognizes scalar LLVM integer type names with an exact
+  ASCII digit scan instead of invoking a regular expression on every hot-path
+  classification. Pointer, malformed, empty, and non-integer type names retain
+  the existing results, while token signatures and emitted LLVM remain
+  unchanged. In alternating 101-round control/candidate comparisons, median
+  codegen improved by ~6.86% and ~3.11%, with median full compilation improving
+  by ~1.30% and ~1.22%. Reproduce with
+  `bun test tests/CodegenUtils.test.ts tests/CodeGenerator.test.ts tests/CodeGeneratorExtended.test.ts tests/GoldenLLVMShapes.test.ts tests/Lowering.test.ts tests/CompilerCorrectnessCorpus.test.ts tests/CompilerCorrectnessSeededFuzz.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Standard-Indent LLVM Terminator Fast Path** -
   code generation now starts terminator whitespace scanning after the standard
   two-space LLVM instruction indent while retaining the generic scanner for

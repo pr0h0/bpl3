@@ -82,7 +82,13 @@ export function isFloatType(llvmType: string): boolean {
  * Check if a type is an integer type
  */
 export function isIntegerType(llvmType: string): boolean {
-  return /^i\d+$/.test(llvmType);
+  if (llvmType.length < 2 || llvmType.charCodeAt(0) !== 105) return false;
+
+  for (let i = 1; i < llvmType.length; i++) {
+    const code = llvmType.charCodeAt(i);
+    if (code < 48 || code > 57) return false;
+  }
+  return true;
 }
 
 /**
