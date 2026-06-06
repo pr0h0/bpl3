@@ -2918,7 +2918,13 @@ export abstract class StatementGenerator extends AsmGenerator {
 
       if (preStackLimitBaseCase) {
         this.generateIf(preStackLimitBaseCase);
+        // The probe's overflow edge terminates, so base-case facts survive.
+        const nonNullPointerExpressions =
+          this.getValidBasicBlockPointerExpressionProofKeys();
         this.emitStackFrameEnter();
+        this.markBasicBlockPointerExpressionsNonNull(
+          nonNullPointerExpressions,
+        );
         this.generateBlock(
           {
             ...decl.body,

@@ -137,6 +137,30 @@ describe("CodeGen - Stack Overflow", () => {
     expect(baseCheckIndex).toBeLessThan(stackProbeIndex);
   });
 
+  it("preserves terminating null guard proofs across deferred stack-limit probes", () => {
+    const source = `
+      struct Node {
+        left: *Node,
+      }
+
+      frame visit(node: *Node) ret int {
+        if (node == nullptr) {
+          return 0;
+        }
+        return 1 + visit(node.left);
+      }
+
+      frame main() ret int {
+        return visit(nullptr);
+      }
+    `;
+    const ir = generateOptimized(source);
+
+    const visitBody = functionBody(ir, "visit_Node_ptr");
+    expect(visitBody).toContain("call i8* @llvm.stacksave()");
+    expect(visitBody).not.toContain("call void @__bpl_check_null");
+  });
+
   it("keeps alloca stack-limit probes for optimized native direct tail recursion", () => {
     const source = `
       frame recur(n: int) ret int {
