@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **On-Demand Doctor Diagnostics** -
+  the `doctor` command now registers its help and option metadata through a
+  lightweight registrar, then loads filesystem, process, LLVM, sanitizer,
+  package, and wasm diagnostics only when a doctor action executes. Existing
+  error-code exports remain available from `cli/commands/doctor.ts`, and
+  same-environment unknown-scope, package, sanitizer, and full doctor JSON
+  outputs remain byte-for-byte stable. In an alternating 101-round comparison
+  against `0bb23c53`, `doctor --help` median startup improved from ~52.83ms to
+  ~46.96ms (~11.1% raw, ~3.0% after normalizing against version control
+  drift), while root help stayed flat after normalization because registrars
+  load in parallel. A direct 5k compiler comparison preserved token and IR
+  signatures with full compilation at -2.01%. Reproduce the loading and
+  behavior contracts with
+  `bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/CLIJsonParseability.test.ts tests/PackageManagerCLI.test.ts`.
 - **On-Demand Documentation Generator** -
   the `docs` command now loads its parser-backed documentation generator only
   when documentation generation executes, keeping root and selected-command

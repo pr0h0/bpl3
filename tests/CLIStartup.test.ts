@@ -140,15 +140,48 @@ describe("CLI startup command registration", () => {
   });
 
   test("keeps doctor registration off eager package-manager loading", () => {
+    const registrarSource = readFileSync(
+      join(process.cwd(), "cli", "commands", "doctor.ts"),
+      "utf8",
+    );
+    const actionSource = readFileSync(
+      join(process.cwd(), "cli", "commands", "doctorAction.ts"),
+      "utf8",
+    );
+
+    expect(registrarSource).not.toContain('from "../../compiler"');
+    expect(actionSource).toContain(
+      'import("../../compiler/middleend/PackageManager")',
+    );
+  });
+
+  test("keeps doctor registration off action-only diagnostics", () => {
     const source = readFileSync(
       join(process.cwd(), "cli", "commands", "doctor.ts"),
       "utf8",
     );
 
-    expect(source).not.toContain('from "../../compiler"');
-    expect(source).toContain(
-      'import("../../compiler/middleend/PackageManager")',
+    expect(source).toContain('import("./doctorAction")');
+    expect(source).not.toContain('from "child_process"');
+    expect(source).not.toContain('from "fs"');
+    expect(source).not.toContain('from "../../compiler/common/LlvmVerifier"');
+    expect(source).not.toContain(
+      'from "../../compiler/common/SanitizerSupport"',
     );
+    expect(source).not.toContain(
+      'from "../../compiler/middleend/ObjectFileParser"',
+    );
+    expect(source).not.toContain('from "../WasmToolchain"');
+  });
+
+  test("keeps the JSON error registry on focused doctor contracts", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "JsonErrorCodes.ts"),
+      "utf8",
+    );
+
+    expect(source).not.toContain('from "./commands/doctor"');
+    expect(source).toContain('from "./commands/DoctorContracts"');
   });
 
   test("keeps package registration off broad and action-only compiler modules", () => {

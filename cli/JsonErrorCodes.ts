@@ -8,7 +8,7 @@ import { DOCS_JSON_ERROR_CODES } from "./commands/docs";
 import {
   DOCTOR_SCOPE_UNKNOWN_CODE,
   WASM_LINKER_UNAVAILABLE_CODE,
-} from "./commands/doctor";
+} from "./commands/DoctorContracts";
 import { FORMAT_JSON_ERROR_CODES } from "./commands/format";
 import { LINT_JSON_ERROR_CODES } from "./commands/lint";
 import { NEW_PROJECT_JSON_ERROR_CODES } from "./commands/new";

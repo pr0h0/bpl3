@@ -99,7 +99,10 @@ When adding a command:
    callback. When shared action formatting needs a dependency during
    registration, import its focused contracts module directly instead of its
    implementation module or a broad compiler barrel. Registration modules must
-   stay cheap enough to load for command-specific help.
+   stay cheap enough to load for command-specific help. Larger actions can live
+   in a sibling action module, as `doctor.ts` and `doctorAction.ts` do; keep
+   public constants in a focused contracts module and re-export them from the
+   established public path when compatibility requires it.
 6. Add selector and CLI behavior coverage. Keep `index.ts` free of eager
    imports from `cli/commands` and `cli/CompilationRunner`.
 
