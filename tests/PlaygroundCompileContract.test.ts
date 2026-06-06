@@ -11,7 +11,7 @@ import { readFileSync } from "fs";
 
 setDefaultTimeout(20_000);
 
-const PORT = 10137;
+const PORT = 20_000 + (process.pid % 20_000);
 const API_BASE = `http://127.0.0.1:${PORT}`;
 const HELLO_WORLD_SOURCE = JSON.parse(
   readFileSync("playground/examples/01-hello-world.json", "utf8"),

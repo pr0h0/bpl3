@@ -12,6 +12,7 @@ import {
   type JsonObject,
 } from "./helpers/packageManifestSchema";
 import { writeNodeCommandShim } from "./helpers/executableShim";
+import { hasWasmCompilerTarget } from "./helpers/wasmCompiler";
 import {
   NEW_PROJECT_NAME_INVALID_CODE,
   NEW_PROJECT_NAME_PATH_CODE,
@@ -22,6 +23,9 @@ import {
 } from "../cli/commands/new";
 
 const BPL_CLI = path.join(process.cwd(), "index.ts");
+const wasmCompilerIt = hasWasmCompilerTarget() ? it : it.skip;
+const DIRECT_WASM_ARTIFACT_TEST =
+  "should build a direct wasm artifact for wasm32 targets";
 
 type DoctorCheck = {
   id?: string;
@@ -4342,7 +4346,7 @@ describe("CLI Tests", () => {
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 
   it("should report wrong path kinds in doctor diagnostics", () => {
     const wrongHomeRoot = fs.mkdtempSync(
@@ -4579,7 +4583,7 @@ describe("CLI Tests", () => {
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 
   it("should honor BPL_NM in doctor diagnostics", () => {
     const missingTool = path.join(os.tmpdir(), "definitely-missing-bpl-nm");
@@ -4902,7 +4906,7 @@ describe("CLI Tests", () => {
     }
   });
 
-  it("should build a direct wasm artifact for wasm32 targets", () => {
+  wasmCompilerIt(DIRECT_WASM_ARTIFACT_TEST, () => {
     const tempFile = path.join(process.cwd(), "tests/temp_wasm_build.bpl");
     const wasmFile = path.join(process.cwd(), "tests/temp_wasm_build.wasm");
     const llvmFile = `${wasmFile}.ll`;

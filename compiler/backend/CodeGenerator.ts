@@ -51,6 +51,7 @@ const PRUNABLE_INTERNAL_RUNTIME_DECLARATIONS = new Set([
   "__bpl_check_null",
   "__bpl_mem_is_zero",
   "__bpl_strlen",
+  "__bpl_write_stderr",
 ]);
 
 const PRUNABLE_INTERNAL_RUNTIME_GLOBALS = new Set([
@@ -284,18 +285,6 @@ export class CodeGenerator extends StatementGenerator {
       this.declaredFunctions.add("strcmp");
     }
 
-    // fprintf and stderr for null trap error messages (kept for backward compatibility)
-    this.emitPrunableImplicitCDeclaration("%struct._IO_FILE = type opaque");
-    this.emitPrunableImplicitCDeclaration(
-      "@stderr = external global %struct._IO_FILE*",
-    );
-    if (!this.declaredFunctions.has("fprintf")) {
-      this.emitPrunableImplicitCDeclaration(
-        "declare i32 @fprintf(%struct._IO_FILE*, i8*, ...)",
-      );
-      this.declaredFunctions.add("fprintf");
-    }
-
     // Exception Handling Primitives
     // Defer Node
     this.emitDeclaration(
@@ -374,6 +363,7 @@ export class CodeGenerator extends StatementGenerator {
     this.emitDeclaration(
       `declare void @__bpl_check_null(i8*, i8*, i8*, i32, i32)`,
     );
+    this.emitDeclaration(`declare void @__bpl_write_stderr(i8*)`);
     this.declaredFunctions.add("__bpl_check_null");
 
     this.emitDeclaration("");

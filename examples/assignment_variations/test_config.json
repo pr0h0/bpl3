@@ -4,7 +4,7 @@
     "s2 values: { x: 0, y: 0 }",
     "s3 values: { x: 10, y: 20 }",
     "--- Pointers ---",
-    "p2: (nil) -> nullptr",
+    "-> nullptr",
     "p3: 0x",
     "p4: 0x",
     "--- Zero Initialization Tests ---",

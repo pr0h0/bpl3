@@ -534,14 +534,15 @@ function runTinyProgramSmoke(
 function runPackedPackageSmoke(): void {
   const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-pack-"));
   const installDir = join(tempDir, "installed");
+  const npmCacheDir = join(tempDir, "npm-cache");
 
   try {
-    const pack = runStep("pack npm tarball", "npm", [
-      "pack",
-      "--json",
-      "--pack-destination",
-      tempDir,
-    ]);
+    const pack = runStep(
+      "pack npm tarball",
+      "npm",
+      ["pack", "--json", "--pack-destination", tempDir],
+      { env: { npm_config_cache: npmCacheDir } },
+    );
     const packEntry = parseNpmPackEntry(pack.stdout);
     const packageHelperFiles = discoverPackageScriptHelperFiles(repoRoot);
     const packageHelperDependencyFiles = discoverPackageHelperDependencyFiles(
@@ -614,7 +615,11 @@ function runPackedPackageSmoke(): void {
       "install packed npm CLI",
       "npm",
       ["install", "--no-audit", "--ignore-scripts", tarballPath],
-      { cwd: installDir, bplHome: null },
+      {
+        cwd: installDir,
+        bplHome: null,
+        env: { npm_config_cache: npmCacheDir },
+      },
     );
 
     const installedBpl =
@@ -4398,19 +4403,48 @@ function runPackedWasmSmoke(installedBpl: string): void {
       "frame main() ret int { return 7; }\n",
     );
 
-    runStep(
-      "build packed npm CLI wasm artifact",
-      installedBpl,
-      [
-        "build",
-        "wasm.bpl",
-        "--target",
-        "wasm32-unknown-unknown",
-        "-o",
-        wasmPath,
-      ],
-      { cwd: tempDir, bplHome: null },
+    const label = "build packed npm CLI wasm artifact";
+    const args = [
+      "build",
+      "wasm.bpl",
+      "--target",
+      "wasm32-unknown-unknown",
+      "-o",
+      wasmPath,
+    ];
+    console.log(`release smoke: ${label}`);
+    const result = spawnSync(installedBpl, args, {
+      cwd: tempDir,
+      encoding: "utf-8",
+      env: buildStepEnv({ bplHome: null }),
+      timeout: smokeTimeoutMs,
+    });
+    const wasmTargetUnavailable =
+      result.status !== 0 &&
+      /No available targets are compatible with triple "wasm32-unknown-unknown"/.test(
+        result.stderr,
+      );
+    const requireWasm = /^(1|true)$/i.test(
+      process.env.BPL_REQUIRE_WASM_LD ?? "",
     );
+    if (wasmTargetUnavailable && !requireWasm) {
+      console.log(
+        "release smoke: skip packed npm CLI wasm artifact (wasm compiler target unavailable)",
+      );
+      return;
+    }
+    if (result.error || result.status !== 0) {
+      throw new Error(
+        [
+          `Release smoke step failed: ${label}`,
+          `command: ${[installedBpl, ...args].join(" ")}`,
+          `cwd: ${tempDir}`,
+          `exit: ${result.status ?? "unknown"}`,
+          `stdout:\n${result.stdout}`,
+          `stderr:\n${result.stderr}`,
+        ].join("\n"),
+      );
+    }
 
     if (readFileSync(wasmPath).subarray(0, 4).toString("binary") !== "\0asm") {
       throw new Error(`Packed npm CLI did not emit a valid wasm artifact.`);
@@ -6583,7 +6617,7 @@ function writeNodeCommandShim(basePath: string, sourceLines: string[]): string {
     return commandPath;
   }
 
-  writeFileSync(basePath, ["#!/usr/bin/env node", ...sourceLines].join("\n"));
+  writeFileSync(basePath, [`#!${process.execPath}`, ...sourceLines].join("\n"));
   chmodSync(basePath, 0o755);
   return basePath;
 }

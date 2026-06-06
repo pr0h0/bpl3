@@ -28,6 +28,16 @@ const INTEGRATION_RUN_ARTIFACTS_DIR = path.join(
   `run-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
 );
 const PACKAGE_DEPENDENCY_EXAMPLE = "package_transitive_dependency/app";
+const X86_ONLY_EXAMPLES = new Set([
+  "asm_clobbers",
+  "asm_flavors",
+  "asm_flavors_test",
+  "asm_test",
+  "asm_x86_test",
+  "bug111_asm_underscore",
+  "feature_showcase",
+]);
+const LINUX_ONLY_EXAMPLES = new Set(["memory_allocators"]);
 const PACKAGE_DEPENDENCY_FIXTURE_FILES = [
   "examples/package_transitive_dependency/app/main.bpl",
   "examples/package_transitive_dependency/app/bpl.json",
@@ -285,6 +295,8 @@ describe("Integration Tests", () => {
 
       const shouldSkip =
         config.skipCompilation ||
+        (process.arch !== "x64" && X86_ONLY_EXAMPLES.has(example)) ||
+        (process.platform !== "linux" && LINUX_ONLY_EXAMPLES.has(example)) ||
         (testOnly.length > 0 && !testOnly.includes(example));
 
       if (shouldSkip) {

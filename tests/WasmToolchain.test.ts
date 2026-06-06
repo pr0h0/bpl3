@@ -15,6 +15,7 @@ import { writeNodeCommandShim } from "./helpers/executableShim";
 
 describe("Wasm toolchain helpers", () => {
   const originalWasmLd = process.env.WASM_LD;
+  const originalPath = process.env.PATH;
   const originalProbeTimeout = process.env.BPL_WASM_LINKER_PROBE_TIMEOUT_MS;
 
   afterEach(() => {
@@ -22,6 +23,12 @@ describe("Wasm toolchain helpers", () => {
       delete process.env.WASM_LD;
     } else {
       process.env.WASM_LD = originalWasmLd;
+    }
+
+    if (originalPath === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = originalPath;
     }
 
     if (originalProbeTimeout === undefined) {
@@ -123,6 +130,22 @@ describe("Wasm toolchain helpers", () => {
           workingLinker,
         ]),
       ).toBe(workingLinker);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("finds bare wasm linker names through PATH", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-wasm-path-"));
+    try {
+      writeNodeCommandShim(path.join(tempDir, "wasm-ld"), [
+        "console.log('LLD 18.0.0');",
+      ]);
+      process.env.PATH = [tempDir, originalPath ?? ""]
+        .filter(Boolean)
+        .join(path.delimiter);
+
+      expect(findWasmLinker(["wasm-ld"])).toBe("wasm-ld");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

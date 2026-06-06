@@ -8,6 +8,7 @@ import {
   getWasmRuntimeMode,
   runExecutable,
 } from "../cli/BinaryRunner";
+import { getNativeCodegenFlags } from "../compiler/common/NativeLinkerFlags";
 import { writeNodeCommandShim } from "./helpers/executableShim";
 
 describe("BinaryRunner", () => {
@@ -209,8 +210,9 @@ describe("BinaryRunner", () => {
         .split("\n");
       const runtimeCompileArgs = invocations[0]!;
       const finalLinkArgs = invocations.at(-1)!;
-      expect(runtimeCompileArgs).toContain("-ffunction-sections");
-      expect(runtimeCompileArgs).toContain("-fdata-sections");
+      for (const flag of getNativeCodegenFlags()) {
+        expect(runtimeCompileArgs).toContain(flag);
+      }
       expect(finalLinkArgs).not.toContain(path.join(libDir, "runtime.ll"));
       expect(finalLinkArgs).toContain(".o");
       expect(finalLinkArgs).toContain(path.join(libDir, "runtime_support.o"));

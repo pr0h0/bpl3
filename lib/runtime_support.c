@@ -283,6 +283,12 @@ static void __bpl_install_signal_handlers(void) {
 
 /* ============ Formatted Error Printing ============ */
 
+void __bpl_write_stderr(const char *message) {
+    if (message) {
+        fputs(message, stderr);
+    }
+}
+
 /**
  * Print a formatted error box with title
  */

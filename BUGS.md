@@ -171,6 +171,15 @@ This file tracks bugs and edge cases found during comprehensive testing.
 | BUG-162 | Package Manager     | Broken symlink package `bin` entries are reported as missing files during pack.                                             | Fixed    | `validatePackageBinFile()` now uses `lstat` before missing-file classification so broken symlink bin entries are rejected as unsupported symlinks. Regression: `tests/PackageManager.test.ts`.                                                                                              |
 | BUG-163 | Module Resolver     | Broken symlink entry modules are reported as missing files.                                                                | Fixed    | `assertReadableModuleFile()` now uses `lstat` before missing-file classification, so broken entry symlinks get symbolic-link diagnostics while valid symlink entries still normalize to their real paths. Regression: `tests/ModuleResolver.test.ts`.                                      |
 | BUG-164 | Module Resolver     | Broken symlink import candidates are skipped during extension fallback.                                                     | Fixed    | `tryResolveWithExtensions()` now classifies candidates with `lstat`, rejects broken symlinks before lower-priority extension fallback, and still normalizes valid import symlinks to their real paths. Regression: `tests/ModuleResolver.test.ts`.                                           |
+| BUG-217 | macOS Runtime Build | Runtime support builds only for the shell architecture under Rosetta.                                                       | Fixed    | macOS runtime builds now compile x86_64 and arm64 objects and combine them into a universal object before archiving. Linux keeps its native single-architecture build. Regression: `tests/RuntimeBuildScript.test.ts`.                                                                         |
+| BUG-218 | macOS Tests         | Temporary paths compare `/var` aliases with canonical `/private/var` paths.                                                  | Fixed    | Bun tests now canonicalize macOS temporary-directory environment variables before loading test files. Linux test environments are unchanged.                                                                                                                                                |
+| BUG-219 | macOS Runtime Cache | Cached module builds can mix Bun's arm64 host target with Rosetta's default x86_64 compiler target.                          | Fixed    | Module compilation now resolves the same explicit host target used by runtime-object injection. Linux keeps its existing native target behavior.                                                                                                                                              |
+| BUG-220 | Test Infrastructure | Command shims require `node` to be available through `PATH` even when tests run with Bun.                                    | Fixed    | Non-Windows command shims now use the active runtime executable in their shebang, remaining portable across Bun-based Linux and macOS test environments.                                                                                                                                       |
+| BUG-221 | WebAssembly Tooling | Bare wasm linker candidates can fail probing when the runtime does not resolve modified `PATH` entries for `spawnSync`.     | Fixed    | Wasm linker probes now resolve executable candidates explicitly before spawning them, preserving bare-name and absolute-path behavior on Linux and macOS.                                                                                                                                       |
+| BUG-222 | Playground Runtime  | Playground native builds can mix runtime-object and final-link architectures under Rosetta.                                | Fixed    | Playground codegen, runtime-object caching, and final native links now share one explicit host target. Linux keeps its explicit native host target.                                                                                                                                               |
+| BUG-223 | Release Smoke       | Release smoke inherits a polluted user npm cache and requires an optional wasm backend.                                    | Fixed    | Packed npm smoke uses an isolated temporary npm cache and skips an unavailable wasm compiler target unless CI explicitly requires wasm.                                                                                                                                                           |
+| BUG-224 | Cross-Platform Tests| macOS runs Linux/x86/GNU-tar-specific integration contracts as universal tests.                                            | Fixed    | Platform-specific examples and GNU-tar security fixtures are capability-gated, while portable pointer and temporary-directory expectations remain active everywhere. Linux retains the full Linux/x86/GNU coverage.                                                                           |
+| BUG-225 | Runtime Diagnostics | Generated runtime diagnostics reference glibc's `stderr` global directly.                                                   | Fixed    | Generated IR now calls a runtime-support stderr helper instead of depending on a host libc's private `stderr` ABI. Regression: `tests/CodeGenerator.test.ts`.                                                                                                                                      |
 | BUG-165 | Package Manager     | Broken symlink package manifests are reported as missing during uninstall.                                                  | Fixed    | `uninstall()` now uses `lstat` before its missing-manifest branch, so broken symlink `bpl.json` paths are rejected by `loadManifest()` as manifest symlinks. Regression: `tests/PackageManager.test.ts`.                                                                                     |
 | BUG-167 | Package Manager     | Exact cached `.tgz` archive names skip broken symlink archive validation.                                                   | Fixed    | Exact global cache archive lookup now uses `lstat`, so broken symlink cache entries are passed to `ensurePackageArchiveFile()` and rejected as archive symlinks. Regression: `tests/PackageManager.test.ts`.                                                                                 |
 | BUG-168 | Package Manager     | Broken symlink `file:` dependency archives fall back to package-name lookup.                                                | Fixed    | Dependency source resolution now uses `lstat` for file/path archive specs, so broken symlink dependency archives are passed to archive validation and rejected as archive symlinks. Regression: `tests/PackageManager.test.ts`.                                                               |
@@ -2613,3 +2622,173 @@ bpl check linked-main.bpl
 missing-file classification. Valid symlink entries still normalize to their
 real file path before this preflight runs, while broken symlink entries keep the
 original path and get a symbolic-link diagnostic.
+
+---
+
+### BUG-217: macOS Runtime Support Builds Only for the Shell Architecture
+
+**Status**: Fixed
+
+**Category**: Runtime Build/macOS
+
+**Description**: `lib/build_runtime.sh` compiled `runtime_support.o` only for
+the architecture reported by the shell process. Under Rosetta, the shell can be
+x86_64 while Bun and the BPL compiler target arm64, causing native links to
+reject the runtime support object.
+
+**Expected**: A macOS runtime build links with both x86_64 and arm64 BPL
+programs.
+
+**Actual**: Programs targeting the architecture different from the shell failed
+to link with an incompatible runtime support object.
+
+**Resolution**: macOS runtime builds now compile x86_64 and arm64 objects and
+combine them with `lipo`. Linux keeps the existing native single-architecture
+build.
+
+---
+
+### BUG-218: macOS Tests Mix `/var` and `/private/var` Temporary Paths
+
+**Status**: Fixed
+
+**Category**: Tests/macOS
+
+**Description**: macOS exposes `/var` as a symlink to `/private/var`.
+Temporary test fixtures were created from the non-canonical `/var` alias while
+compiler safety code correctly returned canonical `/private/var` paths, causing
+path equality assertions to fail.
+
+**Expected**: Tests compare a consistent temporary-path representation without
+weakening production path canonicalization.
+
+**Actual**: Tests compared `/var/...` fixture paths against canonical
+`/private/var/...` compiler results.
+
+**Resolution**: The Bun test preload canonicalizes temporary-directory
+environment variables on macOS before test files load. Linux is unchanged.
+
+---
+
+### BUG-219: Cached macOS Module Builds Mix Architectures
+
+**Status**: Fixed
+
+**Category**: Runtime Cache/macOS
+
+**Description**: Cached module compilation left its target undefined while
+runtime-object injection resolved Bun's explicit host target. Under Rosetta,
+the default `clang` invocation could produce x86_64 module objects while the
+runtime cache produced arm64 objects.
+
+**Expected**: Unqualified native builds always link runtime code matching the
+architecture selected by the active compiler.
+
+**Actual**: Cached module builds could fail with an incompatible architecture
+warning and undefined BPL runtime symbols.
+
+**Resolution**: Module compilation now resolves the same explicit host target
+used by runtime-object injection. Linux keeps its existing native target
+behavior.
+
+---
+
+### BUG-220: Test Command Shims Require `node` Through `PATH`
+
+**Status**: Fixed
+
+**Category**: Tests/Portability
+
+**Description**: Non-Windows command shims used `#!/usr/bin/env node`, even
+though the test suite runs with Bun. Tests that intentionally replaced `PATH`
+could make otherwise valid shims unavailable.
+
+**Expected**: Test command shims execute with the runtime running the tests.
+
+**Actual**: Shim probes failed when `node` was unavailable through the modified
+`PATH`.
+
+**Resolution**: Non-Windows command shims now use `process.execPath` in their
+shebang. This works with Bun on both Linux and macOS.
+
+---
+
+### BUG-221: Bare Wasm Linker Probes Depend on Runtime PATH Resolution
+
+**Status**: Fixed
+
+**Category**: WebAssembly Tooling/Portability
+
+**Description**: Wasm linker probes passed bare candidate names directly to
+`spawnSync`. Some Bun/macOS environments did not resolve recently modified
+`PATH` entries for those calls.
+
+**Expected**: Bare linker names such as `wasm-ld` resolve consistently through
+`PATH`.
+
+**Actual**: Valid linker candidates were treated as unavailable.
+
+**Resolution**: Wasm linker probes now resolve executable candidates
+explicitly before spawning them. Absolute paths and Linux behavior remain
+supported.
+
+---
+
+### BUG-222: Playground Native Builds Mix Architectures Under Rosetta
+
+**Status**: Fixed
+
+**Category**: Playground Runtime/macOS
+
+**Description**: Playground code generation, cached runtime IR compilation,
+and the final clang link did not share an explicit host target. Under Rosetta,
+they could produce incompatible arm64 and x86_64 objects.
+
+**Resolution**: All three playground native-build stages now use the same
+explicit host target. Linux keeps its explicit native host target.
+
+---
+
+### BUG-223: Release Smoke Inherits User npm State and Requires Optional Wasm
+
+**Status**: Fixed
+
+**Category**: Release Smoke/Portability
+
+**Description**: Release smoke inherited the user's npm cache and always
+required a wasm-capable compiler backend, causing unrelated local environment
+state or an optional toolchain capability to fail the packed CLI smoke test.
+
+**Resolution**: Packed npm smoke uses a temporary isolated npm cache. An
+unavailable wasm compiler target is skipped unless `BPL_REQUIRE_WASM_LD=1`
+makes wasm toolchain coverage mandatory.
+
+---
+
+### BUG-224: Cross-Platform Tests Assume Linux, x86, and GNU tar
+
+**Status**: Fixed
+
+**Category**: Tests/Portability
+
+**Description**: The full suite ran x86 inline assembly, Linux mmap allocator
+examples, GNU-tar-only archive construction, and Linux-specific output
+expectations on macOS.
+
+**Resolution**: Platform-specific examples and GNU-tar fixtures are
+capability-gated. Portable output assertions remain active on every platform,
+and Linux retains the full Linux/x86/GNU coverage.
+
+---
+
+### BUG-225: Runtime Diagnostics Depend on glibc `stderr` ABI
+
+**Status**: Fixed
+
+**Category**: Runtime Diagnostics/Portability
+
+**Description**: Generated LLVM IR declared and loaded glibc's private
+`stderr` global directly, which fails to link against macOS libc.
+
+**Resolution**: Generated IR calls `__bpl_write_stderr`, implemented by the C
+runtime support layer using the host libc's public `stderr` interface.

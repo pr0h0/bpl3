@@ -3,6 +3,7 @@ import { spawnSync } from "child_process";
 import { mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
+import { hasWasmCompilerTarget } from "./helpers/wasmCompiler";
 
 const RUNTIME_WASM_HOST = resolve(
   import.meta.dir,
@@ -14,6 +15,7 @@ const COMPILER_OPTIONS_DOC = resolve(
 );
 
 describe("Hosted wasm printf runtime IR", () => {
+  const wasmCompilerTest = hasWasmCompilerTarget() ? test : test.skip;
   test("contains the hosted formatting helpers for the supported subset", () => {
     const runtime = readFileSync(RUNTIME_WASM_HOST, "utf8");
 
@@ -30,7 +32,7 @@ describe("Hosted wasm printf runtime IR", () => {
     expect(runtime).toContain("declare void @llvm.va_end(i8*)");
   });
 
-  test("compiles the hosted runtime IR to a wasm object", () => {
+  wasmCompilerTest("compiles the hosted runtime IR to a wasm object", () => {
     const dir = mkdtempSync(join(tmpdir(), "bpl-hosted-runtime-ir-"));
     const objectPath = join(dir, "runtime_wasm_host.o");
 

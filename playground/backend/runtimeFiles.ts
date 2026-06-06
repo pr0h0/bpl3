@@ -1,4 +1,5 @@
 import { execFile } from "child_process";
+import { createHash } from "crypto";
 import { mkdirSync, renameSync, statSync, unlinkSync, existsSync } from "fs";
 import { tmpdir } from "os";
 import { basename, dirname, join } from "path";
@@ -16,6 +17,7 @@ export interface PlaygroundRuntimeFileOptions {
   bplHome?: string;
   cacheDir?: string;
   compiler?: string;
+  target?: string;
   warn?: (message: string) => void;
 }
 
@@ -23,14 +25,22 @@ function runtimeObjectCacheKey(
   runtimeLLPath: string,
   cacheDir: string,
   compiler: string,
+  target: string | undefined,
 ): { key: string; objectPath: string } {
   const stats = statSync(runtimeLLPath);
   const fingerprint = `${stats.size}-${Math.floor(stats.mtimeMs)}`;
-  const objectName = `${basename(runtimeLLPath, ".ll")}-${fingerprint}.o`;
+  const targetFingerprint = createHash("sha256")
+    .update(target ?? "")
+    .digest("hex")
+    .slice(0, 12);
+  const objectName = `${basename(
+    runtimeLLPath,
+    ".ll",
+  )}-${fingerprint}-${targetFingerprint}.o`;
   const objectPath = join(cacheDir, objectName);
 
   return {
-    key: [runtimeLLPath, objectPath, compiler].join("\0"),
+    key: [runtimeLLPath, objectPath, compiler, target ?? ""].join("\0"),
     objectPath,
   };
 }
@@ -39,6 +49,7 @@ async function compileRuntimeObject(
   runtimeLLPath: string,
   objectPath: string,
   compiler: string,
+  target: string | undefined,
 ): Promise<string> {
   if (existsSync(objectPath)) {
     return objectPath;
@@ -48,13 +59,17 @@ async function compileRuntimeObject(
   const tempObjectPath = `${objectPath}.${process.pid}.${Date.now()}.tmp`;
 
   try {
-    await execFileAsync(compiler, [
+    const args = [
       "-c",
       runtimeLLPath,
       "-Wno-override-module",
       "-o",
       tempObjectPath,
-    ]);
+    ];
+    if (target) {
+      args.push("-target", target);
+    }
+    await execFileAsync(compiler, args);
     renameSync(tempObjectPath, objectPath);
   } catch (error) {
     try {
@@ -73,12 +88,13 @@ async function getCachedRuntimeObject(
   options: Required<
     Pick<PlaygroundRuntimeFileOptions, "cacheDir" | "compiler">
   > &
-    Pick<PlaygroundRuntimeFileOptions, "warn">,
+    Pick<PlaygroundRuntimeFileOptions, "target" | "warn">,
 ): Promise<string | undefined> {
   const { key, objectPath } = runtimeObjectCacheKey(
     runtimeLLPath,
     options.cacheDir,
     options.compiler,
+    options.target,
   );
 
   let entry = runtimeObjectCache.get(key);
@@ -87,6 +103,7 @@ async function getCachedRuntimeObject(
       runtimeLLPath,
       objectPath,
       options.compiler,
+      options.target,
     ).catch((error) => {
       const stderr = (error as { stderr?: string }).stderr;
       const message = stderr || (error as Error).message || String(error);
@@ -115,6 +132,7 @@ export async function resolvePlaygroundNativeRuntimeFiles(
     const runtimeObjectPath = await getCachedRuntimeObject(runtimeLLPath, {
       cacheDir,
       compiler,
+      target: options.target,
       warn: options.warn,
     });
     runtimeFiles.push(runtimeObjectPath ?? runtimeLLPath);

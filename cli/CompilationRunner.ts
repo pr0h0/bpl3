@@ -588,6 +588,7 @@ function compileWithModules(
   options: CompileOptions,
   programArgs?: string[],
 ): void {
+  const hostDefaults = getHostDefaults();
   const compiler = new Compiler({
     filePath,
     outputPath: options.output,
@@ -598,7 +599,7 @@ function compileWithModules(
     objectFiles: options.object ? normalizeArray(options.object) : undefined,
     libraries: options.lib ? normalizeArray(options.lib) : undefined,
     libraryPaths: options.libPath ? normalizeArray(options.libPath) : undefined,
-    target: options.target,
+    target: options.target || hostDefaults.target,
     sysroot: options.sysroot,
     clangFlags: getCompilerDriverFlags(options),
     dwarf: options.dwarf,
@@ -678,6 +679,7 @@ async function compileWithModulesAsync(
   options: CompileOptions,
   programArgs?: string[],
 ): Promise<void> {
+  const hostDefaults = getHostDefaults();
   const compiler = new Compiler({
     filePath,
     outputPath: options.output,
@@ -688,7 +690,7 @@ async function compileWithModulesAsync(
     objectFiles: options.object ? normalizeArray(options.object) : undefined,
     libraries: options.lib ? normalizeArray(options.lib) : undefined,
     libraryPaths: options.libPath ? normalizeArray(options.libPath) : undefined,
-    target: options.target,
+    target: options.target || hostDefaults.target,
     sysroot: options.sysroot,
     clangFlags: getCompilerDriverFlags(options),
     dwarf: options.dwarf,

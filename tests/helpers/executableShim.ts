@@ -15,7 +15,7 @@ export function writeNodeCommandShim(
     return commandPath;
   }
 
-  writeFileSync(basePath, ["#!/usr/bin/env node", ...sourceLines].join("\n"));
+  writeFileSync(basePath, [`#!${process.execPath}`, ...sourceLines].join("\n"));
   chmodSync(basePath, 0o755);
   return basePath;
 }
