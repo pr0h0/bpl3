@@ -249,6 +249,66 @@ describe("CodeGen - Stack Overflow", () => {
     expect(mainBody).toContain("call void @__bpl_throw_stack_overflow()");
   });
 
+  it("omits optimized stack-limit probes for extern-only leaf helpers", () => {
+    const source = `
+      extern malloc(size: int) ret *void;
+
+      struct Node {
+        value: int,
+      }
+
+      frame create_node(value: int) ret *Node {
+        local node: *Node = cast<*Node>(malloc(sizeof(Node)));
+        node.value = value;
+        return node;
+      }
+
+      frame main() ret int {
+        local node: *Node = create_node(42);
+        return node.value;
+      }
+    `;
+    const ir = generateOptimized(source);
+
+    const createNodeBody = functionBody(ir, "create_node_i32");
+    expect(createNodeBody).not.toContain("alloca i8");
+    expect(createNodeBody).not.toContain("load i8*, i8** @__bpl_stack_limit");
+    expect(createNodeBody).not.toContain(
+      "call void @__bpl_throw_stack_overflow()",
+    );
+    expect(createNodeBody).toContain("call i8* @malloc");
+    expect(createNodeBody).toContain("call void @__bpl_check_null");
+  });
+
+  it("keeps extern-only leaf helper hooks for wasm and DWARF builds", () => {
+    const source = `
+      extern printf(fmt: string, value: int);
+
+      frame print_value(value: int) {
+        printf("%d\\n", value);
+      }
+
+      frame main() ret int {
+        print_value(42);
+        return 0;
+      }
+    `;
+    const wasmIr = generateWithOptions(source, {
+      optimizationLevel: 3,
+      target: "wasm32-unknown-unknown",
+    });
+    const dwarfIr = generateWithOptions(source, {
+      optimizationLevel: 3,
+      dwarf: true,
+    });
+
+    for (const ir of [wasmIr, dwarfIr]) {
+      const printValueBody = functionBody(ir, "print_value_i32");
+      expect(printValueBody).toContain("call void @__bpl_enter_stack_frame()");
+      expect(printValueBody).toContain("call void @__bpl_exit_stack_frame()");
+    }
+  });
+
   it("keeps optimized stack-limit probes for non-recursive functions with calls", () => {
     const source = `
       frame leaf(value: int) ret int {

@@ -183,7 +183,8 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     return (
       !this.isTrivialLeafReturnFunction(decl) &&
-      !this.isBoundedCallFreeStackHookElisionCandidate(decl)
+      !this.isBoundedCallFreeStackHookElisionCandidate(decl) &&
+      !this.isOptimizedNativeExternOnlyLeafStackHookElisionCandidate(decl)
     );
   }
 
@@ -365,6 +366,156 @@ export abstract class StatementGenerator extends AsmGenerator {
   private canElideBoundedCallFreeStackHooks(): boolean {
     if (this.generateDwarf) return false;
     return !this.target?.toLowerCase().includes("wasm");
+  }
+
+  private isOptimizedNativeExternOnlyLeafStackHookElisionCandidate(
+    decl: AST.FunctionDecl,
+  ): boolean {
+    if (!this.shouldUseStackLimitProbe()) return false;
+    return decl.body.statements.every((stmt) =>
+      this.isExternOnlyLeafStatement(stmt),
+    );
+  }
+
+  private isExternOnlyLeafStatement(stmt: AST.Statement): boolean {
+    switch (stmt.kind) {
+      case "VariableDecl": {
+        const decl = stmt as AST.VariableDecl;
+        return (
+          !this.variableDeclMayEmitAutoDestroy(decl) &&
+          this.isExternOnlyLeafExpression(decl.initializer)
+        );
+      }
+      case "Block":
+        return (stmt as AST.BlockStmt).statements.every((child) =>
+          this.isExternOnlyLeafStatement(child),
+        );
+      case "If": {
+        const ifStmt = stmt as AST.IfStmt;
+        return (
+          this.isExternOnlyLeafExpression(ifStmt.condition) &&
+          this.isExternOnlyLeafStatement(ifStmt.thenBranch) &&
+          (!ifStmt.elseBranch ||
+            this.isExternOnlyLeafStatement(ifStmt.elseBranch))
+        );
+      }
+      case "Return":
+        return this.isExternOnlyLeafExpression((stmt as AST.ReturnStmt).value);
+      case "ExpressionStmt":
+        return this.isExternOnlyLeafExpression(
+          (stmt as AST.ExpressionStmt).expression,
+        );
+      default:
+        return false;
+    }
+  }
+
+  private isExternOnlyLeafExpression(
+    expr: AST.Expression | AST.TypeNode | undefined,
+  ): boolean {
+    if (!expr) return true;
+
+    switch (expr.kind) {
+      case "Call": {
+        const call = expr as AST.CallExpr;
+        return (
+          !call.operatorOverload &&
+          call.resolvedDeclaration?.kind === "Extern" &&
+          call.args.every((arg) => this.isExternOnlyLeafExpression(arg))
+        );
+      }
+      case "Binary": {
+        const binary = expr as AST.BinaryExpr;
+        return (
+          !binary.operatorOverload &&
+          this.isExternOnlyLeafExpression(binary.left) &&
+          this.isExternOnlyLeafExpression(binary.right)
+        );
+      }
+      case "Unary": {
+        const unary = expr as AST.UnaryExpr;
+        return (
+          !unary.operatorOverload &&
+          this.isExternOnlyLeafExpression(unary.operand)
+        );
+      }
+      case "Member":
+        return this.isExternOnlyLeafExpression((expr as AST.MemberExpr).object);
+      case "Index": {
+        const index = expr as AST.IndexExpr;
+        return (
+          !index.operatorOverload &&
+          this.isExternOnlyLeafExpression(index.object) &&
+          this.isExternOnlyLeafExpression(index.index)
+        );
+      }
+      case "ArrayLiteral":
+        return (expr as AST.ArrayLiteralExpr).elements.every((element) =>
+          this.isExternOnlyLeafExpression(element),
+        );
+      case "StructLiteral":
+        return (expr as AST.StructLiteralExpr).fields.every((field) =>
+          this.isExternOnlyLeafExpression(field.value),
+        );
+      case "TupleLiteral":
+        return (expr as AST.TupleLiteralExpr).elements.every((element) =>
+          this.isExternOnlyLeafExpression(element),
+        );
+      case "EnumStructVariant":
+        return (expr as AST.EnumStructVariantExpr).fields.every((field) =>
+          this.isExternOnlyLeafExpression(field.value),
+        );
+      case "Cast":
+        return this.isExternOnlyLeafExpression(
+          (expr as AST.CastExpr).expression,
+        );
+      case "Sizeof":
+        return this.isExternOnlyLeafExpression((expr as AST.SizeofExpr).target);
+      case "TypeOf":
+        return this.isExternOnlyLeafExpression((expr as AST.TypeOfExpr).target);
+      case "Assignment": {
+        const assignment = expr as AST.AssignmentExpr;
+        return (
+          this.isExternOnlyLeafExpression(assignment.assignee) &&
+          this.isExternOnlyLeafExpression(assignment.value)
+        );
+      }
+      case "Ternary": {
+        const ternary = expr as AST.TernaryExpr;
+        return (
+          this.isExternOnlyLeafExpression(ternary.condition) &&
+          this.isExternOnlyLeafExpression(ternary.trueExpr) &&
+          this.isExternOnlyLeafExpression(ternary.falseExpr)
+        );
+      }
+      case "GenericInstantiation":
+        return this.isExternOnlyLeafExpression(
+          (expr as AST.GenericInstantiationExpr).base,
+        );
+      case "Is":
+        return this.isExternOnlyLeafExpression((expr as AST.IsExpr).expression);
+      case "Group":
+        return this.isExternOnlyLeafExpression(
+          (expr as AST.GroupExpr).expression,
+        );
+      case "InterpolatedString":
+      case "LambdaExpression":
+      case "Match":
+      case "As":
+      case "TypeMatch":
+        return false;
+      case "Literal":
+      case "Identifier":
+      case "OffsetOf":
+      case "BasicType":
+      case "TupleType":
+      case "FunctionType":
+      case "LambdaType":
+      case "MetaType":
+        return true;
+      default:
+        return false;
+    }
   }
 
   private isBoundedCallFreeBlock(block: AST.BlockStmt): boolean {
