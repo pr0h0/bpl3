@@ -838,6 +838,25 @@ describe("TypeChecker", () => {
     expect(conflictGroups).toBeGreaterThan(seen);
   });
 
+  it("skips attribute-free function validation before allocating options", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("private checkFunctionAttributes");
+    const methodEnd = source.indexOf("private checkFunctionBody", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+    const emptyReturn = methodSource.indexOf(
+      "if (decl.attributes.length === 0) return;",
+    );
+    const validation = methodSource.indexOf("validateFunctionAttributes(");
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(emptyReturn).toBeGreaterThanOrEqual(0);
+    expect(validation).toBeGreaterThan(emptyReturn);
+  });
+
   it("allocates function duplicate-name sets only when duplicates are possible", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),

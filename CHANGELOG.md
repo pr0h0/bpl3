@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Caller-Boundary Empty Function-Attribute Fast Path** -
+  type checking now skips the function-attribute wrapper before constructing
+  validation options when a function has no attributes. The validator retains
+  its own defensive empty-list guard, while attributed-function diagnostics
+  and codegen remain unchanged. Isolated 51-round and reverse-order 101-round
+  comparisons on the 5k-function workload preserved token signatures and
+  emitted LLVM while median typecheck time improved by ~4.50% and ~0.62%,
+  respectively; the reverse full-compilation result remained effectively flat
+  within ~0.05%. Reproduce with
+  `bun test tests/TypeChecker.test.ts tests/FunctionAttributes.test.ts tests/RAIIAutoDestroy.test.ts tests/TypeCheckerFunctionAttributeDiagnostics.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Lazy Standard-Binary Right-Type Resolution** -
   codegen now resolves the right operand's LLVM type only for shift operations,
   where width masking consumes it, instead of resolving it for every ordinary

@@ -658,6 +658,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     decl: AST.FunctionDecl,
     parentType?: AST.StructDecl | AST.EnumDecl,
   ): void {
+    if (decl.attributes.length === 0) return;
     validateFunctionAttributes(this, decl, { parentType });
   }
 
