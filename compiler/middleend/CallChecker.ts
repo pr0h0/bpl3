@@ -914,6 +914,24 @@ export function checkMember(
           }
         : effectiveObjectType;
 
+    const resolvedStruct = baseType.resolvedDeclaration;
+    if (
+      resolvedStruct?.kind === "StructDecl" &&
+      resolvedStruct.genericParams.length === 0
+    ) {
+      const directField = this.resolveStructField(
+        resolvedStruct,
+        expr.property,
+      );
+      if (directField) {
+        let resultType = this.resolveType(directField.type);
+        if (effectiveObjectType.isConst && resultType.kind === "BasicType") {
+          resultType = { ...resultType, isConst: true };
+        }
+        return resultType;
+      }
+    }
+
     // Check if it's an enum and look for methods - DELEGATE TO resolveMemberWithContext
     // const symbol = this.currentScope.resolve(baseType.name);
     // if (symbol && symbol.kind === "Enum") { ... } removed

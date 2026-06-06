@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Direct Known-Struct Field Resolution** -
+  type checking now resolves fields on already-known, non-generic struct
+  declarations before entering the general member-context path used by methods,
+  generics, enums, specs, and unresolved types. In isolated 101-round
+  comparisons, median type checking improved by ~0.86% and ~0.20% across
+  opposite execution orders, while average type checking improved by ~1.17%
+  and ~1.47%, with unchanged token and LLVM signatures. Reproduce with
+  `bun test tests/TypeChecker.test.ts tests/TypeCheckerExtended.test.ts tests/TypeCheckerMemberAccessMisuse.test.ts tests/ModuleResolver.test.ts tests/OOP.test.ts tests/GenericsConstraints.test.ts tests/TypeReflection.test.ts tests/CompilerCorrectnessCorpus.test.ts tests/CodeGenerator.test.ts tests/CodeGeneratorExtended.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Known-Struct Member Wrapper Fast Path** -
   type checking now skips primitive-wrapper name classification when a member
   receiver already resolves to a concrete struct declaration. Primitive,

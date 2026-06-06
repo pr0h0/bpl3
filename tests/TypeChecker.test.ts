@@ -1021,6 +1021,23 @@ describe("TypeChecker", () => {
     expect(primitiveSwitch).toBeGreaterThan(knownStructGuard);
   });
 
+  it("resolves known struct fields before general member contexts", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/CallChecker.ts"),
+      "utf8",
+    );
+    const branchStart = source.indexOf("// Handle struct/enum member access");
+    const directField = source.indexOf("this.resolveStructField(", branchStart);
+    const generalContext = source.indexOf(
+      "this.resolveMemberWithContext(",
+      branchStart,
+    );
+
+    expect(branchStart).toBeGreaterThanOrEqual(0);
+    expect(directField).toBeGreaterThan(branchStart);
+    expect(generalContext).toBeGreaterThan(directField);
+  });
+
   it("keeps direct struct field resolution off empty generic maps", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
