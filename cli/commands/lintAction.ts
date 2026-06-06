@@ -22,16 +22,10 @@ import {
 
 const log = new Logger("Lint");
 
-type LintCompilerModule = Pick<
-  typeof import("../../compiler"),
-  "CompilerError" | "Linter" | "Parser" | "lexWithGrammar"
->;
-
 export async function runLintCommand(
   files: string[],
   rawOptions: LintOptions,
   command: Command,
-  compilerModule?: LintCompilerModule,
 ): Promise<void> {
   const inheritedOptions =
     typeof command.optsWithGlobals === "function"
@@ -65,9 +59,8 @@ export async function runLintCommand(
     process.exit(1);
   }
 
-  const { Parser, Linter, CompilerError, lexWithGrammar } =
-    compilerModule ?? (await import("../../compiler"));
-  const linter = new Linter();
+  const { CompilerError, createLintEngine } = await import("./lintEngine");
+  const lintSource = createLintEngine();
   let hasErrors = false;
   const results: Array<{
     file: string;
@@ -96,11 +89,7 @@ export async function runLintCommand(
       }
 
       const content = fs.readFileSync(file, "utf-8");
-      const tokens = lexWithGrammar(content, file);
-      const parser = new Parser(content, file, tokens);
-      const ast = parser.parse(true);
-
-      const errors = linter.lint(ast);
+      const errors = lintSource(content, file);
       if (errors.length > 0) {
         hasErrors = true;
         if (options.json) {

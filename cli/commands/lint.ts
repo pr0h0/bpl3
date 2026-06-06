@@ -25,17 +25,8 @@ export function registerLintCommand(program: Command): void {
     .option("--json", "output lint diagnostics in JSON format")
     .action(
       async (files: string[], rawOptions: LintOptions, command: Command) => {
-        if (!files || files.length === 0) {
-          const { runLintCommand } = await import("./lintAction");
-          await runLintCommand(files, rawOptions, command);
-          return;
-        }
-
-        const [{ runLintCommand }, compilerModule] = await Promise.all([
-          import("./lintAction"),
-          import("../../compiler"),
-        ]);
-        await runLintCommand(files, rawOptions, command, compilerModule);
+        const { runLintCommand } = await import("./lintAction");
+        await runLintCommand(files, rawOptions, command);
       },
     );
 }

@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Focused On-Demand Lint Engine** -
+  real `lint` actions now load a focused parser/linter engine instead of the
+  full compiler barrel, while command registration and no-input validation
+  remain on lightweight deferred paths. Existing lint error-code exports and
+  controlled help, no-input, successful, missing-input, diagnostic, text,
+  JSON, stderr, and exit-status behavior remain stable. In an alternating
+  101-round comparison against `d1c679a5`, normalized median startup improved
+  by ~1.2% for `lint --help`, ~29.2% to ~30.5% for successful and diagnostic
+  lint actions, and ~37.4% for missing-input JSON; no-input JSON improved
+  ~0.8%, while no-input text improved ~2.7% raw. A fresh 21-round 5k compiler
+  comparison preserved token and IR signatures with codegen at -7.85% and
+  full compilation at +0.19%. Reproduce the loading and behavior contracts
+  with
+  `bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/CLIJsonParseability.test.ts tests/JsonContracts.test.ts tests/JsonErrorCodeLists.test.ts tests/MarkdownDocs.test.ts`.
 - **Focused On-Demand Format Engine** -
   the `format` command now keeps filesystem, logging, JSON-reporting, and
   formatting dependencies out of command registration, then loads a focused
