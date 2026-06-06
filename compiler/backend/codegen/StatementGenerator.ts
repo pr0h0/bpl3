@@ -22,7 +22,7 @@ import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConver
 import { AsmGenerator } from "./AsmGenerator";
 
 const OPTIMIZED_NATIVE_STACK_LIMIT_BYTES = 1024 * 1024;
-const LLVM_FRAME_ADDRESS_INTRINSIC = "llvm.frameaddress.p0i8";
+const LLVM_STACKSAVE_INTRINSIC = "llvm.stacksave";
 const EMPTY_POINTER_EXPRESSION_PROOFS: readonly string[] = [];
 
 type NullGuardProof = {
@@ -266,15 +266,11 @@ export abstract class StatementGenerator extends AsmGenerator {
     if (this.currentFunctionUsesAllocaStackLimitProbe) {
       this.emit(`  ${probe} = alloca i8`);
     } else {
-      if (!this.declaredFunctions.has(LLVM_FRAME_ADDRESS_INTRINSIC)) {
-        this.emitDeclaration(
-          `declare i8* @${LLVM_FRAME_ADDRESS_INTRINSIC}(i32)`,
-        );
-        this.declaredFunctions.add(LLVM_FRAME_ADDRESS_INTRINSIC);
+      if (!this.declaredFunctions.has(LLVM_STACKSAVE_INTRINSIC)) {
+        this.emitDeclaration(`declare i8* @${LLVM_STACKSAVE_INTRINSIC}()`);
+        this.declaredFunctions.add(LLVM_STACKSAVE_INTRINSIC);
       }
-      this.emit(
-        `  ${probe} = call i8* @${LLVM_FRAME_ADDRESS_INTRINSIC}(i32 0)`,
-      );
+      this.emit(`  ${probe} = call i8* @${LLVM_STACKSAVE_INTRINSIC}()`);
     }
     this.emit(`  ${limit} = load i8*, i8** @__bpl_stack_limit`);
 

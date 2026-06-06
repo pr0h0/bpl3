@@ -48,7 +48,7 @@ describe("CodeGen - Stack Overflow", () => {
     expect(ir).toContain("call void @__bpl_exit_stack_frame()");
   });
 
-  it("should use frameaddress stack-limit probes for optimized native non-tail recursion", () => {
+  it("should use stacksave stack-limit probes for optimized native non-tail recursion", () => {
     const source = `
       frame fib(n: int) ret int {
         if (n < 2) {
@@ -65,8 +65,10 @@ describe("CodeGen - Stack Overflow", () => {
 
     expect(ir).toContain("@__bpl_stack_limit = external global i8*");
     expect(ir).toContain("declare void @__bpl_throw_stack_overflow()");
-    expect(ir).toContain("call i8* @llvm.frameaddress.p0i8(i32 0)");
-    expect(ir).toContain("declare i8* @llvm.frameaddress.p0i8(i32)");
+    expect(ir).toContain("call i8* @llvm.stacksave()");
+    expect(ir).toContain("declare i8* @llvm.stacksave()");
+    expect(ir).not.toContain("call i8* @llvm.frameaddress.p0i8(i32 0)");
+    expect(ir).not.toContain("declare i8* @llvm.frameaddress.p0i8(i32)");
     expect(ir).toContain("load i8*, i8** @__bpl_stack_limit");
     expect(ir).toContain("store i8*");
     expect(ir).toContain("i8** @__bpl_stack_limit");
