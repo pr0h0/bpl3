@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Allocation-Free Function Parameter Symbols** -
+  function-body type checking now registers each parsed `AST.Parameter`
+  declaration directly instead of cloning it solely to reassert its existing
+  `Parameter` kind. Symbol identity, diagnostics, generic/variadic behavior,
+  token signatures, and emitted LLVM remain unchanged. Across six alternating
+  41-round control/candidate pairs, median paired type checking improved by
+  ~2.38% and median paired full compilation improved by ~0.95%, with typecheck
+  wins in five pairs and full-compile wins in four. Reproduce with
+  `bun test tests/TypeChecker.test.ts tests/TypeCheckerExtended.test.ts tests/Generics.frontend.test.ts tests/CompilerCorrectnessCorpus.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 41 --warmups 7 --json`.
 - **Direct Integer-Width Dispatch** -
   integer compatibility checks now resolve canonical and aliased integer widths
   with direct exhaustive dispatch instead of probing the shared type-alias

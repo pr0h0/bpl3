@@ -955,6 +955,23 @@ describe("TypeChecker", () => {
     expect(bodySource).toContain("if (paramNames !== undefined)");
   });
 
+  it("defines function parameters without cloning their declarations", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
+      "utf8",
+    );
+    const bodyStart = source.indexOf("private checkFunctionBody");
+    const bodyEnd = source.indexOf("private checkStructBody", bodyStart);
+    const bodySource = source.slice(bodyStart, bodyEnd);
+
+    expect(bodyStart).toBeGreaterThanOrEqual(0);
+    expect(bodyEnd).toBeGreaterThan(bodyStart);
+    expect(bodySource).toContain(
+      'this.defineSymbol(\n        param.name,\n        "Variable",\n        paramType,\n        param,',
+    );
+    expect(bodySource).not.toContain('{ ...param, kind: "Parameter" }');
+  });
+
   it("keeps direct struct member lookups on cached maps", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

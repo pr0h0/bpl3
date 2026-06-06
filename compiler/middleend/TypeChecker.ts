@@ -830,7 +830,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         param.name,
         "Variable",
         paramType,
-        { ...param, kind: "Parameter" } as AST.ASTNode,
+        param,
         undefined,
         param.isConst,
       );
