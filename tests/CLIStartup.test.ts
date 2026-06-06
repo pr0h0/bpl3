@@ -127,4 +127,17 @@ describe("CLI startup command registration", () => {
       'import("../../compiler/middleend/PackageManager")',
     );
   });
+
+  test("keeps package registration off the broad compiler barrel", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "commands", "package.ts"),
+      "utf8",
+    );
+
+    expect(source).not.toContain('from "../../compiler"');
+    expect(source).toContain('import("../../compiler")');
+    expect(source).toContain(
+      'from "../../compiler/middleend/PackageManager"',
+    );
+  });
 });

@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Focused Package Command Registration** -
+  package command help and validation paths now import the focused package
+  manager module directly instead of evaluating the broad compiler barrel.
+  `pack` loads the compiler only when an existing entrypoint needs integrity
+  verification. In an alternating 41-round comparison against `400183e4`,
+  package help medians improved by ~38.5% to ~41.2%, `list --json` by ~42.0%,
+  and the missing-manifest `pack --json` validation path by ~39.1%. Version
+  startup stayed within +0.7% control noise. Reproduce the loading and behavior
+  contracts with
+  `bun test tests/CLIStartup.test.ts tests/PackageManagerCLI.test.ts tests/PackageJsonFailureContracts.test.ts tests/CLIJsonParseability.test.ts`.
 - **Lazy Selected-Command Action Dependencies** -
   `build`, `run`, `dev`, `check`, `format`, `lint`, `doctor`, and
   `completion` now register their help and option metadata without eagerly

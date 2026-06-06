@@ -7,11 +7,10 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { spawnSync } from "child_process";
-import { Command } from "commander";
+import type { Command } from "commander";
+import { CompilerError } from "../../compiler/common/CompilerError";
 import {
   PackageManager,
-  Compiler,
-  CompilerError,
   PackageInstalledNameError,
   PackageLockVerificationError,
   type PackageCacheEntry,
@@ -20,7 +19,8 @@ import {
   type PackageCacheVerificationReport,
   type PackageDependencyTreeNode,
   type PackageProjectInstallResult,
-} from "../../compiler";
+  PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE_CODE,
+} from "../../compiler/middleend/PackageManager";
 import type {
   PackageOptionsGlobal,
   PackageOptionsOutput,
@@ -43,7 +43,6 @@ import {
   createJsonReport,
 } from "../../compiler/common/JsonContracts";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
-import { PACKAGE_INSTALL_PROJECT_OPTION_WITH_PACKAGE_CODE } from "../../compiler/middleend/PackageManager";
 
 const log = new Logger("Package");
 const PACKAGE_IR_VERIFY_TIMEOUT_MS =
@@ -60,7 +59,7 @@ export function registerPackageCommands(program: Command): void {
     .description("Create a distributable package from a BPL project")
     .option("-o, --output <dir>", "output directory for the package")
     .option("--json", "output machine-readable pack result")
-    .action((dir: string | undefined, options: PackageOptionsOutput, command: Command) => {
+    .action(async (dir: string | undefined, options: PackageOptionsOutput, command: Command) => {
       const globalOpts = command.parent?.opts() || {};
       const outputJson = Boolean(options.json || globalOpts.json);
       if (outputJson) {
@@ -90,6 +89,7 @@ export function registerPackageCommands(program: Command): void {
           log.info(`Verifying package integrity: ${mainFile}`);
           const content = fs.readFileSync(entryPath, "utf-8");
 
+          const { Compiler } = await import("../../compiler");
           const compiler = new Compiler({
             filePath: entryPath,
             resolveImports: true,
