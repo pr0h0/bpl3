@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Direct Root-Help Registrar Loading** -
+  root CLI help now loads the existing ordered subcommand registrar groups
+  directly instead of evaluating the public command barrel and its unused
+  legacy compile registrar. Root help output and command ordering remain
+  byte-for-byte stable. In an alternating 51-round comparison against
+  `d7baf288`, root help median startup improved from ~104.14ms to ~67.19ms
+  (~35.5% raw, ~30.7% after normalizing against version control drift).
+  Selected help, JSON, and version output hashes matched, and a direct 5k
+  compiler control preserved token and IR signatures with full compilation at
+  +0.20%. Reproduce the behavior contracts with
+  `bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/CLIJsonParseability.test.ts tests/CompletionTargets.test.ts`.
 - **On-Demand Package Manager Actions** -
   package command registration now imports a lightweight package contracts
   module and loads the full package manager only when an action executes.

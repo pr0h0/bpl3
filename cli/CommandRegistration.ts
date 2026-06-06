@@ -106,6 +106,23 @@ const REGISTRAR_LOADERS: Readonly<Record<CliSubcommandGroup, RegistrarLoader>> =
     },
   };
 
+const ROOT_HELP_GROUPS: readonly CliSubcommandGroup[] = [
+  "run",
+  "runScript",
+  "dev",
+  "build",
+  "check",
+  "format",
+  "lint",
+  "package",
+  "completion",
+  "docs",
+  "new",
+  "clean",
+  "bindgen",
+  "doctor",
+];
+
 export function selectCliSubcommandGroup(
   program: Command,
   userArgs: string[],
@@ -136,19 +153,10 @@ export async function registerRequestedCliSubcommands(
     return;
   }
 
-  const commands = await import("./commands");
-  commands.registerRunCommand(program);
-  commands.registerRunScriptCommand(program);
-  commands.registerDevCommand(program);
-  commands.registerBuildCommand(program);
-  commands.registerCheckCommand(program);
-  commands.registerFormatCommand(program);
-  commands.registerLintCommand(program);
-  commands.registerPackageCommands(program);
-  commands.registerCompletionCommand(program);
-  commands.registerDocsCommand(program);
-  commands.registerNewCommand(program);
-  commands.registerCleanCommand(program);
-  commands.registerBindgenCommand(program);
-  commands.registerDoctorCommand(program, version);
+  const registrars = await Promise.all(
+    ROOT_HELP_GROUPS.map((rootHelpGroup) => REGISTRAR_LOADERS[rootHelpGroup]()),
+  );
+  for (const register of registrars) {
+    register(program, version);
+  }
 }

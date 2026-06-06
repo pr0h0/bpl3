@@ -91,8 +91,9 @@ When adding a command:
    `cli/CommandRegistration.ts`.
 3. Add a dynamic registrar loader for its group. Commands that share
    implementation, such as package operations, should share one group.
-4. Register it in the root-help branch so `bpl --help` keeps advertising the
-   full command inventory.
+4. Add its group to the ordered root-help group list so `bpl --help` keeps
+   advertising the full command inventory without loading the public command
+   barrel or unrelated action dependencies.
 5. Keep action-only compiler, watcher, package-manager, and filesystem-heavy
    dependencies behind dynamic imports inside the action callback. When shared
    action formatting needs a dependency during registration, import its focused

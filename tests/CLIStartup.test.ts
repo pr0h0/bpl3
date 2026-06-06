@@ -68,6 +68,15 @@ describe("CLI startup command registration", () => {
     expect(registrationSource).toContain('import("./commands/doctor")');
   });
 
+  test("keeps root help off the legacy command barrel", () => {
+    const registrationSource = readFileSync(
+      join(process.cwd(), "cli", "CommandRegistration.ts"),
+      "utf8",
+    );
+
+    expect(registrationSource).not.toContain('import("./commands")');
+  });
+
   test("keeps compile-backed command registration off eager action imports", () => {
     const commandSources = ["build", "run", "dev"].map((name) =>
       readFileSync(
