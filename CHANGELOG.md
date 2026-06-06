@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Exact LLVM Unreachable Terminator Boundaries** -
+  code generation now recognizes `unreachable` as a terminator only when the
+  keyword ends or is followed by LLVM metadata, instead of accepting arbitrary
+  prefixes such as `unreachablex`. The profile-backed experiment also rejected
+  a larger character-by-character terminator classifier after order-dependent
+  results, retaining the smaller boundary fix. Two opposite-order 61-round
+  comparisons preserved token signatures and LLVM hashes while median codegen
+  improved by ~0.92% and ~0.59%, with median full compilation improving by
+  ~1.24% and ~0.56%. Reproduce with
+  `bun test tests/CodeGenerator.test.ts tests/CodeGeneratorExtended.test.ts tests/GoldenLLVMShapes.test.ts tests/CompilerCorrectnessCorpus.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 61 --warmups 7 --json`.
 - **Regex-Free LLVM Integer Type Classification** -
   code generation now recognizes scalar LLVM integer type names with an exact
   ASCII digit scan instead of invoking a regular expression on every hot-path

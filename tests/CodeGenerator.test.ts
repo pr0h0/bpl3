@@ -455,10 +455,14 @@ describe("CodeGenerator", () => {
     expect(generator.isIrTerminator("\tbr label %done")).toBe(true);
     expect(generator.isIrTerminator("  switch i32 %x, label %d []")).toBe(true);
     expect(generator.isIrTerminator("  unreachable")).toBe(true);
+    expect(generator.isIrTerminator("  unreachable, !dbg !1")).toBe(true);
     expect(generator.isIrTerminator("  %x = add i32 1, 2")).toBe(false);
     expect(generator.isIrTerminator("  ret")).toBe(false);
+    expect(generator.isIrTerminator("  retx i32 0")).toBe(false);
     expect(generator.isIrTerminator("  break")).toBe(false);
+    expect(generator.isIrTerminator("  brx label %done")).toBe(false);
     expect(generator.isIrTerminator("  switcheroo")).toBe(false);
+    expect(generator.isIrTerminator("  unreachablex")).toBe(false);
 
     const source = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
@@ -480,7 +484,9 @@ describe("CodeGenerator", () => {
     expect(methodSource).toContain("case 115:");
     expect(methodSource).toContain("case 117:");
     expect(methodSource).toContain('line.startsWith("ret ", index)');
-    expect(methodSource).not.toContain('line.startsWith("ret ", index) ||');
+    expect(methodSource).toContain('line.startsWith("unreachable", index)');
+    expect(methodSource).toContain("line.length === index + 11");
+    expect(methodSource).toContain("line.charCodeAt(index + 11) === 44");
     expect(methodSource).not.toContain(".trim()");
   });
 

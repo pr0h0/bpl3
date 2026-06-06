@@ -907,7 +907,11 @@ export class BaseCodeGenerator {
       case 115:
         return line.startsWith("switch ", index);
       case 117:
-        return line.startsWith("unreachable", index);
+        return (
+          line.startsWith("unreachable", index) &&
+          (line.length === index + 11 ||
+            line.charCodeAt(index + 11) === 44)
+        );
       default:
         return false;
     }
