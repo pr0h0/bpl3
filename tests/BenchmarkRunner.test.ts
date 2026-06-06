@@ -57,9 +57,32 @@ describe("Benchmark runner helpers", () => {
     expect(readme).toContain("--timing-baseline");
     expect(readme).toContain("--noise-control");
     expect(readme).toContain("--max-noise-control-regression");
+    expect(readme).toContain("--candidate-result");
     expect(readme).toContain("--gate-phases");
     expect(readme).toContain("--max-full-regression");
     expect(readme).toContain("--tree-shake-top-level-functions");
+  });
+
+  it("compares saved compile phase candidate results without remeasuring", () => {
+    const source = readFileSync(
+      join(process.cwd(), "benchmark", "measure_compilation.ts"),
+      "utf8",
+    );
+    const phaseBranch = source.indexOf('if (options.mode === "phases")');
+    const comparisonBranch = source.indexOf(
+      "const comparison =",
+      phaseBranch,
+    );
+
+    expect(phaseBranch).toBeGreaterThanOrEqual(0);
+    expect(comparisonBranch).toBeGreaterThan(phaseBranch);
+
+    const resultPrefix = source.slice(phaseBranch, comparisonBranch);
+    expect(resultPrefix).toContain("options.candidateResult !== undefined");
+    expect(resultPrefix).toContain(
+      "readCompilePhaseBenchmarkResult(options.candidateResult)",
+    );
+    expect(resultPrefix).toContain("measureCompilePhases");
   });
 
   it("generates configurable synthetic compile sources", () => {
@@ -105,6 +128,8 @@ describe("Benchmark runner helpers", () => {
         "/tmp/control.json",
         "--noise-control",
         "/tmp/noise-control.json",
+        "--candidate-result",
+        "/tmp/candidate.json",
         "--max-noise-control-regression",
         "2",
         "--max-phase-regression",
@@ -121,6 +146,7 @@ describe("Benchmark runner helpers", () => {
       compare: "/tmp/baseline.json",
       timingBaseline: "/tmp/control.json",
       noiseControl: "/tmp/noise-control.json",
+      candidateResult: "/tmp/candidate.json",
       maxNoiseControlRegressionPercent: 2,
       maxPhaseRegressionPercent: 2.5,
       maxFullRegressionPercent: 1,
@@ -147,6 +173,17 @@ describe("Benchmark runner helpers", () => {
         "/tmp/control.json",
       ]),
     ).toThrow("--noise-control requires --compare");
+  });
+
+  it("rejects saved candidate results without a comparison baseline", () => {
+    expect(() =>
+      parseCompilationBenchmarkArgs([
+        "--mode",
+        "phases",
+        "--candidate-result",
+        "/tmp/candidate.json",
+      ]),
+    ).toThrow("--candidate-result requires --compare");
   });
 
   it("rejects max noise-control regression without a noise-control file", () => {

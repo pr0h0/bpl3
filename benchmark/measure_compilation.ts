@@ -29,6 +29,7 @@ export interface CompilationBenchmarkArgs {
   compare?: string;
   timingBaseline?: string;
   noiseControl?: string;
+  candidateResult?: string;
   gatePhases?: CompilePhaseName[];
   maxNoiseControlRegressionPercent?: number;
   maxPhaseRegressionPercent?: number;
@@ -183,6 +184,14 @@ export function parseCompilationBenchmarkArgs(
       ) {
         throw new Error("--noise-control expects a phase JSON file");
       }
+    } else if (arg === "--candidate-result") {
+      options.candidateResult = args[++i];
+      if (
+        options.candidateResult === undefined ||
+        options.candidateResult.length === 0
+      ) {
+        throw new Error("--candidate-result expects a phase JSON file");
+      }
     } else if (arg === "--gate-phases") {
       options.gatePhases = parseGatePhases(args[++i]);
     } else if (arg === "--max-phase-regression") {
@@ -213,6 +222,9 @@ export function parseCompilationBenchmarkArgs(
   }
   if (options.noiseControl !== undefined && options.compare === undefined) {
     throw new Error("--noise-control requires --compare");
+  }
+  if (options.candidateResult !== undefined && options.compare === undefined) {
+    throw new Error("--candidate-result requires --compare");
   }
   if (
     options.maxNoiseControlRegressionPercent !== undefined &&
@@ -566,12 +578,15 @@ function measureCliCompilation(name: string, filePath: string): void {
 async function main(): Promise<void> {
   const options = parseCompilationBenchmarkArgs(process.argv.slice(2));
   if (options.mode === "phases") {
-    const result = await measureCompilePhases({
-      functionCount: options.functions,
-      rounds: options.rounds,
-      warmups: options.warmups,
-      treeShakeTopLevelFunctions: options.treeShakeTopLevelFunctions,
-    });
+    const result =
+      options.candidateResult !== undefined
+        ? readCompilePhaseBenchmarkResult(options.candidateResult)
+        : await measureCompilePhases({
+            functionCount: options.functions,
+            rounds: options.rounds,
+            warmups: options.warmups,
+            treeShakeTopLevelFunctions: options.treeShakeTopLevelFunctions,
+          });
     const comparison =
       options.compare !== undefined
         ? compareCompilePhaseBenchmarkResults(
@@ -626,6 +641,11 @@ async function main(): Promise<void> {
   if (options.noiseControl !== undefined) {
     throw new Error(
       "--noise-control is only supported with --mode phases and --compare",
+    );
+  }
+  if (options.candidateResult !== undefined) {
+    throw new Error(
+      "--candidate-result is only supported with --mode phases and --compare",
     );
   }
 
@@ -811,6 +831,8 @@ Options:
   --timing-baseline FILE
                          use a same-environment phase JSON file for timing deltas
   --noise-control FILE   normalize positive same-environment control drift out of timing gates
+  --candidate-result FILE
+                         compare an existing candidate phase JSON instead of remeasuring
   --max-noise-control-regression P
                          fail when a noise-control median drifts by more than P percent
   --gate-phases LIST    only apply threshold gates to comma-separated phases

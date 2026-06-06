@@ -136,6 +136,21 @@ already shows that drift without the candidate change. Add
 clean control fails the run instead of normalizing away an unreliable
 measurement.
 
+If a candidate comparison already wrote a JSON artifact and later clean-control
+evidence shows broad host drift, re-check the saved candidate without
+remeasuring it:
+
+```bash
+bun benchmark/measure_compilation.ts --mode phases --compare /tmp/bpl3-baseline-phases.json --timing-baseline /tmp/bpl3-control-phases.json --noise-control /tmp/bpl3-late-clean-control-phases.json --candidate-result /tmp/bpl3-candidate-phases.json --gate-phases typecheck,full --max-phase-regression 2 --max-full-regression 1 --max-noise-control-regression 3 --json
+```
+
+`--candidate-result` accepts either raw phase JSON or the wrapped
+`{ result, comparison }` JSON emitted by compare mode. This is useful after
+reverting a noisy candidate: keep the candidate artifact, capture a fresh clean
+control from the reverted tree, then compare the saved candidate against that
+control to decide whether the full-phase failure was broad host drift or a real
+candidate regression.
+
 For phase-specific compiler work, keep all reporting and signature validation
 but gate only the affected phase plus `full`:
 
