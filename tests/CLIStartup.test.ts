@@ -93,16 +93,6 @@ describe("CLI startup command registration", () => {
     expect(commandSources[2]).toContain('import("../Watcher")');
   });
 
-  test("keeps check registration off eager compiler barrel imports", () => {
-    const source = readFileSync(
-      join(process.cwd(), "cli", "commands", "check.ts"),
-      "utf8",
-    );
-
-    expect(source).not.toContain('from "../../compiler"');
-    expect(source).toContain('import("../../compiler")');
-  });
-
   test("keeps check registration off action-only analysis dependencies", () => {
     const source = readFileSync(
       join(process.cwd(), "cli", "commands", "check.ts"),
@@ -110,13 +100,35 @@ describe("CLI startup command registration", () => {
     );
 
     expect(source).toContain('import("./checkAction")');
-    expect(source).toContain("Promise.all");
+    expect(source).not.toContain('import("../../compiler")');
     expect(source).not.toContain('from "fs"');
     expect(source).not.toContain('from "../DiagnosticFormatter"');
     expect(source).not.toContain('from "../utils"');
     expect(source).not.toContain('from "../../compiler/common/Config"');
     expect(source).not.toContain('from "../../compiler/common/JsonContracts"');
     expect(source).not.toContain('from "../../compiler/common/Logger"');
+  });
+
+  test("keeps the deferred check engine on focused compiler imports", () => {
+    const actionSource = readFileSync(
+      join(process.cwd(), "cli", "commands", "checkAction.ts"),
+      "utf8",
+    );
+    const engineSource = readFileSync(
+      join(process.cwd(), "cli", "commands", "checkEngine.ts"),
+      "utf8",
+    );
+
+    expect(actionSource).toContain('import("./checkEngine")');
+    expect(actionSource).not.toContain('import("../../compiler")');
+    expect(engineSource).toContain('from "../../compiler/common/CompilerError"');
+    expect(engineSource).toContain(
+      'from "../../compiler/frontend/GrammarLexer"',
+    );
+    expect(engineSource).toContain('from "../../compiler/frontend/Parser"');
+    expect(engineSource).toContain(
+      'from "../../compiler/middleend/TypeChecker"',
+    );
   });
 
   test("keeps the JSON error registry on focused check contracts", () => {

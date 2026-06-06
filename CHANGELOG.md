@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Focused On-Demand Check Engine** -
+  real `check` actions now load focused lexer, parser, and type-checker modules
+  instead of the full compiler barrel, while command registration and no-input
+  validation remain on lightweight deferred paths. Existing check help,
+  no-input, successful, `--no-prelude`, missing-input, diagnostic, text, JSON,
+  stderr, and exit-status behavior remain stable. In an alternating 101-round
+  comparison against `b297feee`, normalized median startup improved by ~12.0%
+  to ~13.9% for successful and diagnostic check actions and ~18.3% for
+  missing-input JSON; help and no-input paths stayed within ~2.1% normalized
+  process noise. A refreshed same-load 31-round 5k compiler comparison
+  preserved token and IR signatures, with codegen at -2.82% and full
+  compilation within +0.20%. Reproduce the loading and behavior contracts with
+  `bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/CLIJsonParseability.test.ts tests/JsonContracts.test.ts tests/JsonErrorCodeLists.test.ts tests/MarkdownDocs.test.ts`.
 - **Focused On-Demand Lint Engine** -
   real `lint` actions now load a focused parser/linter engine instead of the
   full compiler barrel, while command registration and no-input validation

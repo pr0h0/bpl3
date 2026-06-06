@@ -31,16 +31,7 @@ export function registerCheckCommand(program: Command): void {
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")
     .action(async (files: string[], rawOptions: any, command: Command) => {
-      if (!files || files.length === 0) {
-        const { runCheckCommand } = await import("./checkAction");
-        await runCheckCommand(files, rawOptions, command);
-        return;
-      }
-
-      const [{ runCheckCommand }, compilerModule] = await Promise.all([
-        import("./checkAction"),
-        import("../../compiler"),
-      ]);
-      await runCheckCommand(files, rawOptions, command, compilerModule);
+      const { runCheckCommand } = await import("./checkAction");
+      await runCheckCommand(files, rawOptions, command);
     });
 }

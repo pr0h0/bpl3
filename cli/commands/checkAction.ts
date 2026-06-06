@@ -22,16 +22,10 @@ import {
 
 const log = new Logger("Check");
 
-type CheckCompilerModule = Pick<
-  typeof import("../../compiler"),
-  "CompilerError" | "Parser" | "TypeChecker" | "lexWithGrammar"
->;
-
 export async function runCheckCommand(
   files: string[],
   rawOptions: any,
   command: Command,
-  compilerModule?: CheckCompilerModule,
 ): Promise<void> {
   const inheritedOptions =
     typeof command.optsWithGlobals === "function"
@@ -78,8 +72,7 @@ export async function runCheckCommand(
     process.exit(1);
   }
 
-  const { Parser, TypeChecker, CompilerError, lexWithGrammar } =
-    compilerModule ?? (await import("../../compiler"));
+  const { checkSource, CompilerError } = await import("./checkEngine");
   const startTime = Date.now();
   let totalFiles = 0;
   let errorCount = 0;
@@ -106,22 +99,11 @@ export async function runCheckCommand(
 
       const fileStartTime = Date.now();
 
-      // Read and lex
       const content = fs.readFileSync(filePath, "utf-8");
-      const tokens = lexWithGrammar(content, filePath);
-
-      // Parse
-      const parser = new Parser(content, filePath, tokens);
-      const ast = parser.parse(false);
 
       // Type check (with modules if not --no-prelude)
       if (options.prelude !== false) {
-        const typeChecker = new TypeChecker({
-          skipImportResolution: false,
-          collectAllErrors: true,
-        });
-        typeChecker.checkProgram(ast);
-        const typeErrors = typeChecker.getErrors();
+        const typeErrors = checkSource(content, filePath, false);
 
         if (typeErrors.length > 0) {
           if (options.json) {
@@ -153,12 +135,7 @@ export async function runCheckCommand(
         }
       } else {
         // Basic type check without modules
-        const typeChecker = new TypeChecker({
-          skipImportResolution: true,
-          collectAllErrors: true,
-        });
-        typeChecker.checkProgram(ast);
-        const typeErrors = typeChecker.getErrors();
+        const typeErrors = checkSource(content, filePath, true);
 
         if (typeErrors.length > 0) {
           if (options.json) {
