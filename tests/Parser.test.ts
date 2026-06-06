@@ -627,7 +627,9 @@ describe("Parser", () => {
     expect(generatedSource).toContain("function peg$isBplIdentStartCode(code)");
     expect(generatedSource).toContain("function peg$isBplIdentPartCode(code)");
     expect(generatedSource).toContain("const peg$bplReservedKeywords = new Set");
-    expect(identifierHelper).toContain("peg$scanBplIdentTokenEnd(firstCode)");
+    expect(identifierHelper).toContain("let endPos = startPos + 1;");
+    expect(identifierHelper).toContain("while (endPos < peg$bplInputLength)");
+    expect(identifierHelper).not.toContain("peg$scanBplIdentTokenEnd(firstCode)");
     expect(identifierHelper).not.toContain("peg$parseKeywordReserved()");
     expect(identScanner).toContain("input.slice(startPos, endPos)");
     expect(identHelper).toContain("return peg$scanBplIdentToken();");
@@ -732,8 +734,12 @@ describe("Parser", () => {
     expect(identEndScanner).not.toContain("input.charCodeAt(peg$currPos)");
     expect(identEndScanner).not.toContain("peg$isBplIdentStartCode(firstCode)");
     expect(identEndScanner).not.toContain("peg$isBplIdentPartCode(");
+    expect(identifierHelper).toContain("let endPos = startPos + 1;");
     expect(identifierHelper).toContain(
-      "const endPos = peg$scanBplIdentTokenEnd(firstCode)",
+      "const code = input.charCodeAt(endPos);",
+    );
+    expect(identifierHelper).not.toContain(
+      "peg$scanBplIdentTokenEnd(firstCode)",
     );
     expect(identifierHelper).toContain(
       "peg$isBplReservedKeywordStartCode(firstCode) &&",
@@ -755,7 +761,7 @@ describe("Parser", () => {
       .not.toThrow();
   });
 
-  it("passes identifier start codes through scanners without global parser state", () => {
+  it("keeps the identifier fast path independent from the shared token scanner", () => {
     const generatedSource = readTextFile(
       join(
         process.cwd(),
@@ -791,8 +797,10 @@ describe("Parser", () => {
     expect(identifierHelper).toContain(
       "const firstCode = input.charCodeAt(startPos);",
     );
-    expect(identifierHelper).toContain(
-      "const endPos = peg$scanBplIdentTokenEnd(firstCode);",
+    expect(identifierHelper).toContain("let endPos = startPos + 1;");
+    expect(identifierHelper).toContain("while (endPos < peg$bplInputLength)");
+    expect(identifierHelper).not.toContain(
+      "peg$scanBplIdentTokenEnd(firstCode)",
     );
     expect(identifierHelper).toContain(
       "peg$isBplReservedKeywordStartCode(firstCode) &&",
