@@ -210,6 +210,29 @@ describe("CLI startup command registration", () => {
     expect(source).toContain('from "./commands/CleanContracts"');
   });
 
+  test("keeps bindgen registration off action-only parser dependencies", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "commands", "bindgen.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain('import("./bindgenAction")');
+    expect(source).not.toContain('from "../../compiler/tools/CBindgen"');
+    expect(source).not.toContain('from "../../compiler/common/JsonContracts"');
+    expect(source).not.toContain('from "../../compiler/common/Logger"');
+    expect(source).not.toContain('from "../utils"');
+  });
+
+  test("keeps the JSON error registry on focused bindgen contracts", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "JsonErrorCodes.ts"),
+      "utf8",
+    );
+
+    expect(source).not.toContain('from "./commands/bindgen"');
+    expect(source).toContain('from "./commands/BindgenContracts"');
+  });
+
   test("keeps package registration off broad and action-only compiler modules", () => {
     const source = readFileSync(
       join(process.cwd(), "cli", "commands", "package.ts"),

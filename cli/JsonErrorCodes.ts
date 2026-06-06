@@ -1,5 +1,5 @@
 import { BUILD_JSON_ERROR_CODES } from "./CompilationRunner";
-import { BINDGEN_JSON_ERROR_CODES } from "./commands/bindgen";
+import { BINDGEN_JSON_ERROR_CODES } from "./commands/BindgenContracts";
 import { CODEGEN_JSON_ERROR_CODES } from "../compiler/backend/CodeGenerator";
 import { CHECK_JSON_ERROR_CODES } from "./commands/check";
 import { CLEAN_JSON_ERROR_CODES } from "./commands/CleanContracts";

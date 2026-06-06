@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **On-Demand Bindgen Parser** -
+  the `bindgen` command now registers help and option metadata through a
+  lightweight registrar, then loads its C header parser, output safety,
+  logging, and JSON-reporting dependencies only when generation executes.
+  Existing bindgen error-code exports remain available from
+  `cli/commands/bindgen.ts`, and controlled help, successful JSON, and
+  validation-error JSON outputs remain byte-for-byte stable. In an alternating
+  101-round comparison against `fb1a4e83`, `bindgen --help` median startup
+  improved from ~51.09ms to ~48.07ms (~5.9%); root help and version stayed
+  within +0.6% control noise, while a tiny successful bindgen JSON action moved
+  +2.9% raw. A direct 5k compiler comparison preserved token and IR signatures
+  with full compilation at -1.76%. Reproduce the loading and behavior
+  contracts with
+  `bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/JsonContracts.test.ts tests/JsonErrorCodeLists.test.ts tests/MarkdownDocs.test.ts`.
 - **On-Demand Clean Actions** -
   the `clean` command now registers help and option metadata through a
   lightweight registrar, then loads filesystem traversal, git probing,
