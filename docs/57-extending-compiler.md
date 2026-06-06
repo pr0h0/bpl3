@@ -94,12 +94,12 @@ When adding a command:
 4. Add its group to the ordered root-help group list so `bpl --help` keeps
    advertising the full command inventory without loading the public command
    barrel or unrelated action dependencies.
-5. Keep action-only compiler, watcher, package-manager, and filesystem-heavy
-   dependencies behind dynamic imports inside the action callback. When shared
-   action formatting needs a dependency during registration, import its focused
-   contracts module directly instead of its implementation module or a broad
-   compiler barrel. Registration modules must stay cheap enough to load for
-   command-specific help.
+5. Keep action-only compiler, watcher, package-manager, documentation-parser,
+   and filesystem-heavy dependencies behind dynamic imports inside the action
+   callback. When shared action formatting needs a dependency during
+   registration, import its focused contracts module directly instead of its
+   implementation module or a broad compiler barrel. Registration modules must
+   stay cheap enough to load for command-specific help.
 6. Add selector and CLI behavior coverage. Keep `index.ts` free of eager
    imports from `cli/commands` and `cli/CompilationRunner`.
 

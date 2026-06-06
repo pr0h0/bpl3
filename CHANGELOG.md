@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **On-Demand Documentation Generator** -
+  the `docs` command now loads its parser-backed documentation generator only
+  when documentation generation executes, keeping root and selected-command
+  help off that action-only module graph. In an alternating 51-round comparison
+  against `f12a8a8b`, root help median startup improved from ~70.50ms to
+  ~56.84ms (~19.4% raw, ~10.7% after normalizing against version control
+  drift), while `docs --help` improved from ~59.53ms to ~45.43ms (~23.7% raw,
+  ~15.5% normalized). Version, help, and JSON output hashes matched;
+  successful documentation generation improved by ~4.0% raw; and a direct 5k
+  compiler comparison preserved token and IR signatures. Reproduce the
+  behavior contracts with
+  `bun test tests/CLIStartup.test.ts tests/DocumentationGenerator.test.ts tests/CLI.test.ts tests/CLIJsonParseability.test.ts`.
 - **Direct Root-Help Registrar Loading** -
   root CLI help now loads the existing ordered subcommand registrar groups
   directly instead of evaluating the public command barrel and its unused

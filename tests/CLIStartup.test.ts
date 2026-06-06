@@ -125,6 +125,20 @@ describe("CLI startup command registration", () => {
     expect(source).toContain('from "../../compiler/common/PathResolver"');
   });
 
+  test("keeps docs registration off eager documentation generator loading", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "commands", "docs.ts"),
+      "utf8",
+    );
+
+    expect(source).not.toContain(
+      'from "../../compiler/docs/DocumentationGenerator"',
+    );
+    expect(source).toMatch(
+      /await import\(\s*"\.\.\/\.\.\/compiler\/docs\/DocumentationGenerator"\s*\)/,
+    );
+  });
+
   test("keeps doctor registration off eager package-manager loading", () => {
     const source = readFileSync(
       join(process.cwd(), "cli", "commands", "doctor.ts"),

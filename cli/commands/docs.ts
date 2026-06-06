@@ -4,7 +4,6 @@
  */
 
 import { Command } from "commander";
-import { DocumentationGenerator } from "../../compiler/docs/DocumentationGenerator";
 import { Logger } from "../../compiler/common/Logger";
 import { assertWritableFileOutputPath, writeFileAtomically } from "../utils";
 import {
@@ -60,12 +59,15 @@ export function registerDocsCommand(program: Command): void {
     )
     .option("-o, --output <file>", "Output file path (default: docs.md)")
     .option("--json", "output a machine-readable documentation report")
-    .action((file: string, options: DocsOptions, command: Command) => {
+    .action(async (file: string, options: DocsOptions, command: Command) => {
       const globalOpts = command.parent?.opts() || {};
       const outputJson = Boolean(options.json || globalOpts.json);
       const outputPath = options.output || globalOpts.output || "docs.md";
 
       try {
+        const { DocumentationGenerator } = await import(
+          "../../compiler/docs/DocumentationGenerator"
+        );
         const generator = new DocumentationGenerator();
         const markdown = generator.generate(file);
 
