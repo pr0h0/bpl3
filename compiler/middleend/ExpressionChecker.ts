@@ -1134,7 +1134,7 @@ export function checkStructLiteral(
   const decl = symbol.declaration as AST.StructDecl;
 
   // Handle generics
-  const genericMap = new Map<string, AST.TypeNode>();
+  let genericMap: Map<string, AST.TypeNode> | undefined;
   if (decl.genericParams.length > 0) {
     const providedArgs = expr.genericArgs || [];
     // If args are provided, check count
@@ -1147,6 +1147,7 @@ export function checkStructLiteral(
           GENERIC_ARITY_MISMATCH_CODE,
         );
       }
+      genericMap = new Map<string, AST.TypeNode>();
       for (let i = 0; i < decl.genericParams.length; i++) {
         genericMap.set(decl.genericParams[i]!.name, providedArgs[i]!);
       }
@@ -1187,7 +1188,7 @@ export function checkStructLiteral(
     const valueType = this.checkExpression(field.value);
     if (valueType) {
       let resolvedMemberType = this.resolveType(memberType);
-      if (genericMap.size > 0) {
+      if (genericMap) {
         resolvedMemberType = this.substituteType(
           resolvedMemberType,
           genericMap,

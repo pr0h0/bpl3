@@ -354,6 +354,30 @@ describe("TypeChecker", () => {
     );
   });
 
+  it("allocates struct literal generic maps only when arguments are provided", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("export function checkStructLiteral");
+    const end = source.indexOf("export function checkTupleLiteral", start);
+    const methodSource = source.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(methodSource).toContain(
+      "let genericMap: Map<string, AST.TypeNode> | undefined;",
+    );
+    expect(methodSource).toContain(
+      "genericMap = new Map<string, AST.TypeNode>();",
+    );
+    expect(methodSource).toContain("if (genericMap) {");
+    expect(methodSource).not.toContain(
+      "const genericMap = new Map<string, AST.TypeNode>();",
+    );
+    expect(methodSource).not.toContain("if (genericMap.size > 0)");
+  });
+
   it("keeps simple builtin aliases before the scope lookup path", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

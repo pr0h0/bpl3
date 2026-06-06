@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Lazy Struct Literal Generic Maps** -
+  type checking now allocates a struct literal's generic substitution map only
+  when concrete generic arguments are present. Non-generic and argument-free
+  struct literals avoid the empty map while generic substitution behavior,
+  diagnostics, token signatures, and emitted LLVM remain unchanged. In
+  isolated 101-round comparisons, median typecheck improved by ~4.46% and
+  ~2.26% across opposite execution orders, while median full compilation
+  improved by ~0.42% and ~0.30%. Reproduce with
+  `bun test tests/TypeChecker.test.ts tests/TypeCheckerExtended.test.ts tests/CompilerCorrectnessCorpus.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Allocation-Free Struct Literal Field Collection** -
   type checking now fills the provided-field set directly instead of first
   allocating and discarding a mapped field-name array for every struct
