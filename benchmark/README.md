@@ -14,7 +14,7 @@ Inside each directory, you will find:
 - `loop.js`: The JavaScript implementation
 - `run.sh`: A legacy per-benchmark script for the original benchmarks.
 
-The recommended runner is `run_benchmark.ts`. It compiles available languages, validates output against BPL, runs warmups/repeated timings, and reports min/median/average wall-clock time.
+The recommended runner is `run_benchmark.ts`. It compiles available languages, validates output against BPL, runs warmups, rotates language order across timed rounds to limit position bias, and reports min/median/average wall-clock time.
 
 ## Benchmark Coverage
 

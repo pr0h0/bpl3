@@ -95,6 +95,19 @@ export function calculateStats(samples: number[]): Stats {
   };
 }
 
+export function buildBalancedRunSchedule<T>(
+  items: readonly T[],
+  rounds: number,
+): T[] {
+  const schedule: T[] = [];
+  for (let round = 0; round < rounds; round++) {
+    for (let position = 0; position < items.length; position++) {
+      schedule.push(items[(round + position) % items.length]!);
+    }
+  }
+  return schedule;
+}
+
 export function compareBenchmarkOutputs(
   expected: string,
   actual: string,
@@ -479,18 +492,27 @@ function runBenchmark(
     expectedOutput = validation.stdout ?? "";
   }
 
+  const terminalResults = new Map<LanguageKey, BenchmarkResult>();
+  const samplesByLanguage = new Map<LanguageKey, number[]>();
+
   for (const language of prepared) {
+    let warmupFailure: string | undefined;
     for (let i = 0; i < options.warmups; i++) {
       const warmup = runCommand(language.run, dir);
       if (warmup.status !== 0) {
-        results.push({
-          benchmark: benchmarkName,
-          language: language.label,
-          status: "failed",
-          message: warmup.stderr || warmup.stdout,
-        });
-        continue;
+        warmupFailure = warmup.stderr || warmup.stdout;
+        break;
       }
+    }
+
+    if (warmupFailure !== undefined) {
+      terminalResults.set(language.key, {
+        benchmark: benchmarkName,
+        language: language.label,
+        status: "failed",
+        message: warmupFailure,
+      });
+      continue;
     }
 
     if (expectedOutput !== undefined && language.key !== "bpl") {
@@ -499,7 +521,7 @@ function runBenchmark(
         validation.status !== 0 ||
         !compareBenchmarkOutputs(expectedOutput, validation.stdout ?? "")
       ) {
-        results.push({
+        terminalResults.set(language.key, {
           benchmark: benchmarkName,
           language: language.label,
           status: "mismatch",
@@ -510,27 +532,41 @@ function runBenchmark(
       }
     }
 
-    const samples: number[] = [];
-    let failedRun: string | undefined;
-    for (let i = 0; i < options.runs; i++) {
-      const timed = timeCommand(language.run, dir);
-      if (timed.status !== 0) {
-        failedRun = timed.stderr || timed.stdout;
-        break;
-      }
-      samples.push(timed.ms);
-    }
+    samplesByLanguage.set(language.key, []);
+  }
 
-    if (failedRun !== undefined) {
-      results.push({
-        benchmark: benchmarkName,
-        language: language.label,
-        status: "failed",
-        message: failedRun,
-      });
+  const eligibleLanguages = prepared.filter((language) =>
+    samplesByLanguage.has(language.key),
+  );
+  for (const language of buildBalancedRunSchedule(
+    eligibleLanguages,
+    options.runs,
+  )) {
+    if (terminalResults.has(language.key)) {
       continue;
     }
 
+    const timed = timeCommand(language.run, dir);
+    if (timed.status !== 0) {
+      terminalResults.set(language.key, {
+        benchmark: benchmarkName,
+        language: language.label,
+        status: "failed",
+        message: timed.stderr || timed.stdout,
+      });
+      continue;
+    }
+    samplesByLanguage.get(language.key)!.push(timed.ms);
+  }
+
+  for (const language of prepared) {
+    const terminalResult = terminalResults.get(language.key);
+    if (terminalResult !== undefined) {
+      results.push(terminalResult);
+      continue;
+    }
+
+    const samples = samplesByLanguage.get(language.key)!;
     const stats = calculateStats(samples);
     results.push({
       benchmark: benchmarkName,

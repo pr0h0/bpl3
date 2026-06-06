@@ -11,6 +11,7 @@ import { join } from "path";
 
 import {
   buildBplVsCComparisons,
+  buildBalancedRunSchedule,
   calculateStats,
   compareBenchmarkOutputs,
   discoverBenchmarkSources,
@@ -660,6 +661,37 @@ describe("Benchmark runner helpers", () => {
     expect(stats.minMs).toBe(10);
     expect(stats.medianMs).toBe(25);
     expect(stats.averageMs).toBe(25);
+  });
+
+  it("balances benchmark language positions across timed rounds", () => {
+    expect(buildBalancedRunSchedule(["bpl", "c", "go"], 4)).toEqual([
+      "bpl",
+      "c",
+      "go",
+      "c",
+      "go",
+      "bpl",
+      "go",
+      "bpl",
+      "c",
+      "bpl",
+      "c",
+      "go",
+    ]);
+    expect(buildBalancedRunSchedule(["bpl", "c"], 0)).toEqual([]);
+    expect(buildBalancedRunSchedule([], 3)).toEqual([]);
+  });
+
+  it("uses the balanced schedule for runtime benchmark timings", () => {
+    const source = readFileSync(
+      join(process.cwd(), "benchmark", "run_benchmark.ts"),
+      "utf8",
+    );
+    const runBenchmark = source.slice(source.indexOf("function runBenchmark"));
+
+    expect(runBenchmark).toMatch(
+      /buildBalancedRunSchedule\(\s*eligibleLanguages,\s*options\.runs,\s*\)/,
+    );
   });
 
   it("normalizes benchmark output before comparison", () => {
