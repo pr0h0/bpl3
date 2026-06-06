@@ -4,13 +4,7 @@
  */
 
 import * as fs from "fs";
-import { Command } from "commander";
-import {
-  Parser,
-  TypeChecker,
-  CompilerError,
-  lexWithGrammar,
-} from "../../compiler";
+import type { Command } from "commander";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 import { getInputFilePathError } from "../utils";
 import { Logger, LogLevel, setLogLevel } from "../../compiler/common/Logger";
@@ -59,7 +53,7 @@ export function registerCheckCommand(program: Command): void {
     .option("--no-prelude", "do not load implicit primitives")
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")
-    .action((files: string[], rawOptions: any, command: Command) => {
+    .action(async (files: string[], rawOptions: any, command: Command) => {
       const inheritedOptions =
         typeof command.optsWithGlobals === "function"
           ? command.optsWithGlobals()
@@ -105,6 +99,8 @@ export function registerCheckCommand(program: Command): void {
         process.exit(1);
       }
 
+      const { Parser, TypeChecker, CompilerError, lexWithGrammar } =
+        await import("../../compiler");
       const startTime = Date.now();
       let totalFiles = 0;
       let errorCount = 0;

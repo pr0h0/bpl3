@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Lazy Selected-Command Action Dependencies** -
+  `build`, `run`, `dev`, `check`, `format`, `lint`, `doctor`, and
+  `completion` now register their help and option metadata without eagerly
+  evaluating compiler, watcher, package-manager, or broad compiler-barrel
+  dependencies used only by command actions. The shared CLI diagnostic
+  formatter also imports its focused compiler module directly. In an
+  alternating 41-round comparison against `3bd334a7`, selected help medians
+  improved by ~50.3% to ~53.6%, no-input `check`/`lint` JSON diagnostics by
+  ~49.0% to ~50.2%, unknown-scope doctor JSON by ~49.1%, and completion
+  execution by ~53.7%. Root help stayed flat at -0.4%; real tiny check and AST
+  build actions improved by ~1.7% and ~3.8%. Reproduce the contracts with
+  `bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/CLIJsonParseability.test.ts tests/CompletionTargets.test.ts`.
 - **Lazy CLI Command Registration** -
   the root entrypoint now loads only the requested subcommand group and delays
   the compilation runner until a source compile actually starts. Root help

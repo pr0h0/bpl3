@@ -3,8 +3,7 @@
  * Watch mode with automatic execution - perfect for rapid development
  */
 
-import { Command } from "commander";
-import { watchMode } from "../Watcher";
+import type { Command } from "commander";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
 import { getExplicitParentCompileOptions } from "./compileOptions";
@@ -46,13 +45,14 @@ export function registerDevCommand(program: Command): void {
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")
     .action(
-      (
+      async (
         file: string,
         args: string[],
         _options: CompileOptions,
         command: Command,
       ) => {
         try {
+          const { watchMode } = await import("../Watcher");
           // Merge parent options if any
           const globalOpts = getExplicitParentCompileOptions(command);
           const localOpts = command.opts<CompileOptions>();

@@ -93,7 +93,10 @@ When adding a command:
    implementation, such as package operations, should share one group.
 4. Register it in the root-help branch so `bpl --help` keeps advertising the
    full command inventory.
-5. Add selector and CLI behavior coverage. Keep `index.ts` free of eager
+5. Keep action-only compiler, watcher, package-manager, and filesystem-heavy
+   dependencies behind dynamic imports inside the action callback. Registration
+   modules must stay cheap enough to load for command-specific help.
+6. Add selector and CLI behavior coverage. Keep `index.ts` free of eager
    imports from `cli/commands` and `cli/CompilationRunner`.
 
 Run the focused startup and command contracts with:

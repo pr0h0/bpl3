@@ -4,8 +4,7 @@
  */
 
 import * as fs from "fs";
-import { Command } from "commander";
-import { Parser, Formatter, lexWithGrammar } from "../../compiler";
+import type { Command } from "commander";
 import type { FormatOptions } from "../types";
 import {
   Logger,
@@ -60,7 +59,7 @@ export function registerFormatCommand(program: Command): void {
     .option("--check", "check whether files are formatted without writing")
     .option("-v, --verbose", "enable verbose output")
     .option("--json", "output machine-readable format check result")
-    .action((files: string[], options: FormatOptions, command: Command) => {
+    .action(async (files: string[], options: FormatOptions, command: Command) => {
       const globalOpts = command.parent?.opts() || {};
       const outputJson = Boolean(options.json || globalOpts.json);
       if (outputJson) {
@@ -120,6 +119,8 @@ export function registerFormatCommand(program: Command): void {
           process.exit(1);
         }
 
+        const { Parser, Formatter, lexWithGrammar } =
+          await import("../../compiler");
         let totalFiles = 0;
         let updatedFiles = 0;
         let hasError = false;

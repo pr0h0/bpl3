@@ -4,8 +4,7 @@
  */
 
 import * as fs from "fs";
-import { Command } from "commander";
-import { Parser, Linter, CompilerError, lexWithGrammar } from "../../compiler";
+import type { Command } from "commander";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 import type { LintOptions } from "../types";
 import { getInputFilePathError } from "../utils";
@@ -37,7 +36,7 @@ export function registerLintCommand(program: Command): void {
     .description("Lint BPL source files")
     .option("-v, --verbose", "enable verbose output")
     .option("--json", "output lint diagnostics in JSON format")
-    .action((files: string[], rawOptions: LintOptions, command: Command) => {
+    .action(async (files: string[], rawOptions: LintOptions, command: Command) => {
       const inheritedOptions =
         typeof command.optsWithGlobals === "function"
           ? (command.optsWithGlobals() as LintOptions)
@@ -70,6 +69,8 @@ export function registerLintCommand(program: Command): void {
         process.exit(1);
       }
 
+      const { Parser, Linter, CompilerError, lexWithGrammar } =
+        await import("../../compiler");
       const linter = new Linter();
       let hasErrors = false;
       const results: Array<{

@@ -7,7 +7,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { spawnSync } from "child_process";
-import { Command } from "commander";
+import type { Command } from "commander";
 import { getLlvmVerifierCandidates } from "../../compiler/common/LlvmVerifier";
 import { getBplHome } from "../../compiler/common/PathResolver";
 import { findSymlinkedParentPath } from "../../compiler/common/PathSafety";
@@ -26,12 +26,10 @@ import {
   SANITIZER_RUNTIME_UNAVAILABLE_CODE,
 } from "../../compiler/common/SanitizerSupport";
 import { getObjectSymbolTool } from "../../compiler/middleend/ObjectFileParser";
-import {
-  getPackageArchiveTool,
-  PackageManager,
-  type PackageDependencyTreeNode,
-  type PackageDoctorReport,
-} from "../../compiler";
+import type {
+  PackageDependencyTreeNode,
+  PackageDoctorReport,
+} from "../../compiler/middleend/PackageManager";
 import { getWasmLinkerCandidates } from "../WasmToolchain";
 import {
   CLI_JSON_CHECKS,
@@ -87,12 +85,14 @@ export function registerDoctorCommand(program: Command, version: string): void {
     .command("doctor [scope]")
     .description("Check local BPL toolchain and runtime setup")
     .option("--json", "output machine-readable diagnostics")
-    .action((scope: string | undefined, options: { json?: boolean }, command: Command) => {
+    .action(async (scope: string | undefined, options: { json?: boolean }, command: Command) => {
       const globalOpts = command.parent?.opts() || {};
       const outputJson = options.json || globalOpts.json;
 
       try {
         if (scope === "packages") {
+          const { PackageManager } =
+            await import("../../compiler/middleend/PackageManager");
           const report = new PackageManager(undefined, {
             ensureDirectories: false,
           }).doctorPackages();
@@ -140,7 +140,9 @@ export function registerDoctorCommand(program: Command, version: string): void {
           throw new Error(message);
         }
 
-        const report = createDoctorReport(version);
+        const { getPackageArchiveTool } =
+          await import("../../compiler/middleend/PackageManager");
+        const report = createDoctorReport(version, getPackageArchiveTool());
 
         if (outputJson) {
           console.log(JSON.stringify(report, null, 2));
@@ -171,7 +173,10 @@ export function registerDoctorCommand(program: Command, version: string): void {
     });
 }
 
-function createDoctorReport(version: string): DoctorReport {
+function createDoctorReport(
+  version: string,
+  packageArchiveTool: string,
+): DoctorReport {
   const bplHome = getBplHome();
   const checks: DoctorCheck[] = [
     checkDirectory(
@@ -227,7 +232,7 @@ function createDoctorReport(version: string): DoctorReport {
     ),
     checkCommand(
       "package archive tool",
-      getPackageArchiveTool(),
+      packageArchiveTool,
       ["--version"],
       "Install tar, or set BPL_TAR/TAR to a working package archive tool.",
       false,

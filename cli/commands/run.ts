@@ -3,8 +3,7 @@
  * Compiles and executes a BPL program in one step
  */
 
-import { Command } from "commander";
-import { processFileAsync } from "../CompilationRunner";
+import type { Command } from "commander";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
 import { getExplicitParentCompileOptions } from "./compileOptions";
@@ -53,6 +52,7 @@ export function registerRunCommand(program: Command): void {
         command: Command,
       ) => {
         try {
+          const { processFileAsync } = await import("../CompilationRunner");
           // Merge parent options if any
           const globalOpts = getExplicitParentCompileOptions(command);
           const localOpts = command.opts<CompileOptions>();

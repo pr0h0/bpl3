@@ -4,8 +4,8 @@
  */
 
 import * as fs from "fs";
-import { Command } from "commander";
-import { resolveBplPath } from "../../compiler";
+import type { Command } from "commander";
+import { resolveBplPath } from "../../compiler/common/PathResolver";
 import {
   getBashCompletionScript,
   getZshCompletionScript,

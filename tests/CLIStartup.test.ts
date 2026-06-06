@@ -67,4 +67,64 @@ describe("CLI startup command registration", () => {
     expect(registrationSource).toContain('import("./commands/package")');
     expect(registrationSource).toContain('import("./commands/doctor")');
   });
+
+  test("keeps compile-backed command registration off eager action imports", () => {
+    const commandSources = ["build", "run", "dev"].map((name) =>
+      readFileSync(
+        join(process.cwd(), "cli", "commands", `${name}.ts`),
+        "utf8",
+      ),
+    );
+
+    expect(commandSources[0]).not.toContain('from "../CompilationRunner"');
+    expect(commandSources[0]).toContain('import("../CompilationRunner")');
+    expect(commandSources[1]).not.toContain('from "../CompilationRunner"');
+    expect(commandSources[1]).toContain('import("../CompilationRunner")');
+    expect(commandSources[2]).not.toContain('from "../Watcher"');
+    expect(commandSources[2]).toContain('import("../Watcher")');
+  });
+
+  test("keeps source-analysis command registration off the compiler barrel", () => {
+    for (const name of ["check", "format", "lint"]) {
+      const source = readFileSync(
+        join(process.cwd(), "cli", "commands", `${name}.ts`),
+        "utf8",
+      );
+
+      expect(source).not.toContain('from "../../compiler"');
+      expect(source).toContain('import("../../compiler")');
+    }
+  });
+
+  test("keeps the shared CLI diagnostic formatter off the compiler barrel", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "DiagnosticFormatter.ts"),
+      "utf8",
+    );
+
+    expect(source).not.toContain('from "../compiler"');
+    expect(source).toContain('from "../compiler/common/DiagnosticFormatter"');
+  });
+
+  test("keeps completion registration on the focused path resolver import", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "commands", "completion.ts"),
+      "utf8",
+    );
+
+    expect(source).not.toContain('from "../../compiler"');
+    expect(source).toContain('from "../../compiler/common/PathResolver"');
+  });
+
+  test("keeps doctor registration off eager package-manager loading", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "commands", "doctor.ts"),
+      "utf8",
+    );
+
+    expect(source).not.toContain('from "../../compiler"');
+    expect(source).toContain(
+      'import("../../compiler/middleend/PackageManager")',
+    );
+  });
 });

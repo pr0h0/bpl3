@@ -3,8 +3,7 @@
  * Explicit compilation command for building BPL programs
  */
 
-import { Command } from "commander";
-import { processFileAsync } from "../CompilationRunner";
+import type { Command } from "commander";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
 import { getExplicitParentCompileOptions } from "./compileOptions";
@@ -67,6 +66,7 @@ export function registerBuildCommand(program: Command): void {
     .option("--json", "output in JSON format")
     .action(async (file: string, _options: CompileOptions, command: Command) => {
       try {
+        const { processFileAsync } = await import("../CompilationRunner");
         // Merge parent options if any
         const globalOpts = getExplicitParentCompileOptions(command);
         const localOpts = command.opts<CompileOptions>();
