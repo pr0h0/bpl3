@@ -8,32 +8,14 @@
  */
 
 import { Command } from "commander";
-import {
-  processFile,
-  processFileAsync,
-  processCode,
-  registerFormatCommand,
-  registerLintCommand,
-  registerPackageCommands,
-  registerCompletionCommand,
-  registerDocsCommand,
-  registerRunCommand,
-  registerDevCommand,
-  registerBuildCommand,
-  registerCheckCommand,
-  registerNewCommand,
-  registerCleanCommand,
-  registerRunScriptCommand,
-  registerBindgenCommand,
-  registerDoctorCommand,
-} from "./cli";
 import type { CompileOptions } from "./cli/types";
 import {
   CLI_JSON_CHECKS,
   createJsonReport,
 } from "./compiler/common/JsonContracts";
 import { Logger } from "./compiler/common/Logger";
-import { BUILD_NO_INPUTS_CODE } from "./cli/CompilationRunner";
+import { BUILD_NO_INPUTS_CODE } from "./cli/BuildErrorCodes";
+import { registerRequestedCliSubcommands } from "./cli/CommandRegistration";
 
 const log = new Logger("CLI");
 
@@ -136,12 +118,14 @@ program
   .action(async (files: string[] | undefined, options: CompileOptions) => {
     // Handle --eval flag
     if (options.eval) {
+      const { processCode } = await import("./cli/CompilationRunner");
       processCode(options.eval, "<eval>", options);
       return;
     }
 
     // Handle --stdin flag
     if (options.stdin) {
+      const { processCode } = await import("./cli/CompilationRunner");
       const chunks: Buffer[] = [];
       process.stdin.on("data", (chunk) => chunks.push(chunk));
       process.stdin.on("end", () => {
@@ -169,6 +153,7 @@ program
 
     // Handle multiple files for formatting
     if (options.emit === "formatted") {
+      const { processFile } = await import("./cli/CompilationRunner");
       let hasError = false;
       for (const filePath of fileList) {
         try {
@@ -183,6 +168,7 @@ program
     }
 
     // For non-formatting, extra files are program arguments
+    const { processFileAsync } = await import("./cli/CompilationRunner");
     if (fileList.length > 1) {
       const programArgs = fileList.slice(1);
       await processFileAsync(fileList[0], options, programArgs);
@@ -196,27 +182,15 @@ program
 // Subcommands
 // ============================================================================
 
-// Register all subcommands from cli/commands/
-registerRunCommand(program);
-registerRunScriptCommand(program);
-registerDevCommand(program);
-registerBuildCommand(program);
-registerCheckCommand(program);
-registerFormatCommand(program);
-registerLintCommand(program);
-registerPackageCommands(program);
-registerCompletionCommand(program);
-registerDocsCommand(program);
-registerNewCommand(program);
-registerCleanCommand(program);
-registerBindgenCommand(program);
-registerDoctorCommand(program, packageJson.version);
-
-// ============================================================================
-// Parse and Execute
-// ============================================================================
-
-program.parseAsync(process.argv).catch((error: unknown) => {
-  log.error(`${error instanceof Error ? error.message : String(error)}`);
-  process.exit(1);
-});
+// Register only the requested subcommand group. Root help loads all groups so
+// its command inventory and ordering remain stable.
+registerRequestedCliSubcommands(
+  program,
+  process.argv.slice(2),
+  packageJson.version,
+)
+  .then(() => program.parseAsync(process.argv))
+  .catch((error: unknown) => {
+    log.error(`${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  });

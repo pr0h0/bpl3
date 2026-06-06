@@ -1,0 +1,1 @@
+export const BUILD_NO_INPUTS_CODE = "BPL_BUILD_NO_INPUTS";

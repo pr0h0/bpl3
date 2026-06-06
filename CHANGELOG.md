@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Lazy CLI Command Registration** -
+  the root entrypoint now loads only the requested subcommand group and delays
+  the compilation runner until a source compile actually starts. Root help
+  still loads the complete command inventory, while version and no-input JSON
+  paths avoid compiler and command-module evaluation. In an alternating
+  fresh-process comparison against `0bfaa90a`, median version startup improved by
+  ~59.1%, no-input JSON startup by ~58.6%, and AST frontend compilation by
+  ~8.4%; root help stayed within ~2.0% process noise. A 5k direct-compiler
+  control preserved token and IR signatures with full-phase normalized drift
+  at +1.83%. Reproduce the command contracts with
+  `bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/CLIJsonParseability.test.ts tests/CompletionTargets.test.ts`.
 - **On-Demand Implicit Error Prelude** -
   normal modules still receive the implicit `Error` declaration from
   `std/errors.bpl` when their source mentions `Error`, while sources that

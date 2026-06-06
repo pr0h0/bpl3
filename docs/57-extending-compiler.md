@@ -79,6 +79,29 @@ If the standard library is pre-compiled, you may need to rebuild it. In the curr
 - **Modifying Code Generation**:
   1.  Look at `compiler/backend/codegen/StatementGenerator.ts` or `ExpressionGenerator.ts`.
 
+### Adding a CLI Command
+
+CLI commands are registered lazily so `bpl --version`, no-input diagnostics,
+and default source compilation do not evaluate every command module.
+
+When adding a command:
+
+1. Export its registrar from `cli/commands/index.ts`.
+2. Add the command or alias to `GROUP_BY_COMMAND` in
+   `cli/CommandRegistration.ts`.
+3. Add a dynamic registrar loader for its group. Commands that share
+   implementation, such as package operations, should share one group.
+4. Register it in the root-help branch so `bpl --help` keeps advertising the
+   full command inventory.
+5. Add selector and CLI behavior coverage. Keep `index.ts` free of eager
+   imports from `cli/commands` and `cli/CompilationRunner`.
+
+Run the focused startup and command contracts with:
+
+```bash
+bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/CLIJsonParseability.test.ts tests/CompletionTargets.test.ts
+```
+
 ## Testing Your Changes
 
 Always run the relevant test suite after making changes:

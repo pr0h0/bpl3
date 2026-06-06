@@ -43,6 +43,9 @@ import {
 import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
 import { updateConfig } from "../compiler/common/Config";
 import { resolveNativeRuntimeFiles } from "./NativeRuntimeFiles";
+import { BUILD_NO_INPUTS_CODE } from "./BuildErrorCodes";
+
+export { BUILD_NO_INPUTS_CODE } from "./BuildErrorCodes";
 
 const log = new Logger("CompilationRunner");
 
@@ -55,7 +58,6 @@ type BuildJsonOutput = {
 
 const ANSI_ESCAPE_PATTERN = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 
-export const BUILD_NO_INPUTS_CODE = "BPL_BUILD_NO_INPUTS";
 export const BUILD_INVALID_OPTIMIZATION_CODE =
   "BPL_BUILD_INVALID_OPTIMIZATION";
 export const BUILD_INVALID_EMIT_CODE = "BPL_BUILD_INVALID_EMIT";
