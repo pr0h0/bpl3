@@ -1659,9 +1659,12 @@ describe("CodeGenerator", () => {
 
     const methodSource = source.slice(start, end);
     expect(methodSource).toContain("line.length === 0");
+    expect(methodSource).toContain("for (let index = 0; index < lines.length; index++)");
+    expect(methodSource).toContain("const line = lines[index]!");
     expect(methodSource).toContain('result += "\\n" + line');
     expect(methodSource).toContain("result = line");
     expect(methodSource).toContain("result = result.slice(0, -1)");
+    expect(methodSource).not.toContain("for (const line of lines)");
     expect(methodSource).not.toContain("result += line;");
     expect(methodSource).not.toContain("const compacted: string[] = []");
     expect(methodSource).not.toContain("compacted.push");

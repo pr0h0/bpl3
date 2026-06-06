@@ -805,7 +805,8 @@ export class CodeGenerator extends StatementGenerator {
     let previousWasBlank = true;
     let hasOutput = false;
 
-    for (const line of lines) {
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index]!;
       const isBlank = line.length === 0;
       if (isBlank && previousWasBlank) {
         continue;
