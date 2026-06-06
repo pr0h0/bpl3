@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Cached Auto-Destroy Method Discovery** -
+  codegen now caches both positive and negative `@[auto_destroy]` method
+  lookups by resolved struct declaration for the duration of one generation.
+  Repeated locals of the same struct no longer rescan immutable members during
+  stack-hook analysis and variable generation, while reused compiler instances,
+  RAII behavior, token signatures, and emitted LLVM remain unchanged. In
+  isolated 51-round and reverse-order 101-round comparisons on the 5k-function
+  workload, median codegen improved by ~0.96% and ~0.84%, respectively; full
+  compilation remained within ~0.52%. Reproduce with
+  `bun test tests/RAIIAutoDestroy.test.ts tests/CodeGenerator.test.ts tests/CodeGeneratorExtended.test.ts tests/CompilerCorrectnessCorpus.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 7 --json`.
 - **Native Generated-Parser Line Indexing** -
   the generated Peggy parser now builds its source line-start index with
   native newline searches instead of a JavaScript per-character scan. Parser

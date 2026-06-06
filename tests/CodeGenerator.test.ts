@@ -506,7 +506,19 @@ describe("CodeGenerator", () => {
       "private structDefaultInitializationRequiredCache",
     );
     expect(statementGeneratorSource).toContain(
+      "private autoDestroyMethodCache",
+    );
+    expect(statementGeneratorSource).toContain(
       "protected clearDefaultValueCaches",
+    );
+    expect(statementGeneratorSource).toContain(
+      "this.autoDestroyMethodCache.clear()",
+    );
+    expect(statementGeneratorSource).toContain(
+      "this.autoDestroyMethodCache.get(structDecl)",
+    );
+    expect(statementGeneratorSource).toContain(
+      "this.autoDestroyMethodCache.set(structDecl, method ?? null)",
     );
     expect(codeGeneratorSource).toContain("this.clearDefaultValueCaches()");
     expect(helperSource).toContain('layout.has("__vtable__")');

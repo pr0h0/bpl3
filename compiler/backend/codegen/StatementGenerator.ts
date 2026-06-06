@@ -36,9 +36,14 @@ export abstract class StatementGenerator extends AsmGenerator {
   protected currentFunctionUsesAllocaStackLimitProbe = false;
   private structDefaultInitializationRequiredCache: Map<string, boolean> =
     new Map();
+  private autoDestroyMethodCache: Map<
+    AST.StructDecl,
+    AST.FunctionDecl | null
+  > = new Map();
 
   protected clearDefaultValueCaches(): void {
     this.structDefaultInitializationRequiredCache.clear();
+    this.autoDestroyMethodCache.clear();
   }
 
   protected noteGeneratedMainArgcStore(): void {}
@@ -69,7 +74,10 @@ export abstract class StatementGenerator extends AsmGenerator {
     const structDecl = this.getStructDeclForAutoDestroy(typeNode);
     if (!structDecl) return undefined;
 
-    return structDecl.members.find((member): member is AST.FunctionDecl => {
+    const cached = this.autoDestroyMethodCache.get(structDecl);
+    if (cached !== undefined) return cached ?? undefined;
+
+    const method = structDecl.members.find((member): member is AST.FunctionDecl => {
       if (member.kind !== "FunctionDecl" || member.name !== "destroy") {
         return false;
       }
@@ -84,6 +92,8 @@ export abstract class StatementGenerator extends AsmGenerator {
         thisParam.type.pointerDepth === 1
       );
     });
+    this.autoDestroyMethodCache.set(structDecl, method ?? null);
+    return method;
   }
 
   private getAutoDestroyMethodType(
