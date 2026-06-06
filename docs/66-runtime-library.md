@@ -180,9 +180,10 @@ The runtime uses platform-specific APIs to generate native stack traces:
 
 The O0, DWARF, and wasm codegen paths emit calls to
 `__bpl_enter_stack_frame()` and `__bpl_exit_stack_frame()` at function
-entry/exit. O3 native codegen
-initializes `@__bpl_stack_limit` in `main` and emits inline probes instead of
-per-call runtime helper calls. These paths enable:
+entry/exit. A runtime-free native `main` can omit these hooks when it cannot
+recurse or raise a checked BPL runtime failure; DWARF and wasm builds retain
+them. O3 native codegen initializes `@__bpl_stack_limit` in `main` and emits
+inline probes instead of per-call runtime helper calls. These paths enable:
 
 - Tracking the current call depth in debug/depth-tracked builds
 - Detecting stack overflow before it crashes

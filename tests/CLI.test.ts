@@ -1433,7 +1433,10 @@ describe("CLI Tests", () => {
         fs.statSync(realPath).isDirectory() ? "dir" : "file",
       );
     }
-    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
+    fs.writeFileSync(
+      sourceFile,
+      "frame main() ret int { local zero: int = 0; return 1 / zero; }\n",
+    );
 
     try {
       const astOnly = spawnSync(

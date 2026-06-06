@@ -66,12 +66,9 @@ describe("ModuleResolver", () => {
     const resolver = new ModuleResolver({ stdLibPath: tempDir });
     const modules = resolver.resolveModules(mainPath);
 
-    // Expect 2 modules: errors.bpl (implicit) and main.bpl
-    expect(modules.length).toBe(2);
-    expect(path.basename(modules[0]!.path)).toBe("errors.bpl");
-    expect(modules[1]!.path).toBe(mainPath);
-    // main depends on errors.bpl
-    expect(modules[1]!.dependencies.size).toBe(1);
+    expect(modules).toHaveLength(1);
+    expect(modules[0]!.path).toBe(mainPath);
+    expect(modules[0]!.dependencies.size).toBe(0);
   });
 
   it("does not load primitive wrappers for modules that only import C extern declarations", () => {
@@ -124,9 +121,9 @@ describe("ModuleResolver", () => {
       );
       const moduleNames = modules.map((module) => path.basename(module.path));
 
-      expect(moduleNames).toContain("errors.bpl");
       expect(moduleNames).toContain("c.bpl");
       expect(moduleNames).toContain("main.bpl");
+      expect(moduleNames).not.toContain("errors.bpl");
       expect(moduleNames).not.toContain("primitives.bpl");
     } finally {
       fs.rmSync(scopedStdLib, { recursive: true, force: true });
@@ -176,9 +173,9 @@ describe("ModuleResolver", () => {
       );
       const moduleNames = modules.map((module) => path.basename(module.path));
 
-      expect(moduleNames).toContain("errors.bpl");
       expect(moduleNames).toContain("primitives.bpl");
       expect(moduleNames).toContain("main.bpl");
+      expect(moduleNames).not.toContain("errors.bpl");
     } finally {
       fs.rmSync(scopedStdLib, { recursive: true, force: true });
     }
@@ -227,9 +224,9 @@ describe("ModuleResolver", () => {
       );
       const moduleNames = modules.map((module) => path.basename(module.path));
 
-      expect(moduleNames).toContain("errors.bpl");
       expect(moduleNames).toContain("primitives.bpl");
       expect(moduleNames).toContain("main.bpl");
+      expect(moduleNames).not.toContain("errors.bpl");
     } finally {
       fs.rmSync(scopedStdLib, { recursive: true, force: true });
     }
@@ -305,12 +302,10 @@ describe("ModuleResolver", () => {
     const resolver = new ModuleResolver({ stdLibPath: tempDir });
     const modules = resolver.resolveModules(mainPath);
 
-    // Should be in order: errors.bpl, A, B, main
-    expect(modules.length).toBe(4);
-    expect(path.basename(modules[0]!.path)).toBe("errors.bpl");
-    expect(path.basename(modules[1]!.path)).toBe("moduleA.bpl");
-    expect(path.basename(modules[2]!.path)).toBe("moduleB.bpl");
-    expect(path.basename(modules[3]!.path)).toBe("main2.bpl");
+    expect(modules).toHaveLength(3);
+    expect(path.basename(modules[0]!.path)).toBe("moduleA.bpl");
+    expect(path.basename(modules[1]!.path)).toBe("moduleB.bpl");
+    expect(path.basename(modules[2]!.path)).toBe("main2.bpl");
   });
 
   it("should detect circular dependencies", () => {
@@ -404,11 +399,9 @@ describe("ModuleResolver", () => {
     const resolver = new ModuleResolver({ stdLibPath: tempDir });
     const modules = resolver.resolveModules(mainPath);
 
-    // Common should appear first, then left and right, then main
-    // Plus errors.bpl at the very beginning
-    expect(modules.length).toBe(5);
-    expect(path.basename(modules[0]!.path)).toBe("errors.bpl");
-    expect(path.basename(modules[1]!.path)).toBe("common.bpl");
+    // Common should appear first, then left and right, then main.
+    expect(modules).toHaveLength(4);
+    expect(path.basename(modules[0]!.path)).toBe("common.bpl");
     // Left and right can be in either order
     const lastModule = path.basename(modules[modules.length - 1]!.path);
     expect(lastModule).toBe("diamond_main.bpl");

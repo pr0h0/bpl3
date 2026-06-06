@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **On-Demand Implicit Error Prelude** -
+  normal modules still receive the implicit `Error` declaration from
+  `std/errors.bpl` when their source mentions `Error`, while sources that
+  cannot reference it now skip parsing and type-checking the error module.
+  Combined with runtime-free native `main` stack-hook elision, a 31-process
+  default tiny-build sample moved from ~0.22s to ~0.19s median (~13.6%
+  faster), and the executable shrank from 28,680 to 15,664 bytes. DWARF,
+  wasm, recursive, calling, and checked-runtime-failure paths retain stack
+  hooks. Reproduce with
+  `bun test tests/Parser.test.ts tests/ModuleResolver.test.ts tests/CodeGen_StackOverflow.test.ts tests/CompilerRuntimeFailureSemantics.test.ts`
+  and repeated
+  `bun index.ts --eval 'frame main() ret int { return 0; }' --emit llvm --quiet`.
 - **Direct Native Stack-Limit Global Access** -
   optimized native IR now declares the runtime-owned `__bpl_stack_limit`
   global as `dso_local`, allowing LLVM to lower recursive stack probes to a

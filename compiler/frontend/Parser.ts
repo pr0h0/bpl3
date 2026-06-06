@@ -23,12 +23,16 @@ export class Parser {
       hasCommentMarker,
     });
 
-    // Implicitly import Error from std/errors.bpl if not already in errors.bpl
+    // Import Error on demand; sources that cannot reference it skip stdlib work.
     const isErrorsBpl =
       this.filePath.endsWith("errors.bpl") ||
       this.filePath.endsWith("errors.x") ||
       this.filePath.endsWith("intrinsics.bpl");
-    if (injectImplicitImports && !isErrorsBpl) {
+    if (
+      injectImplicitImports &&
+      !isErrorsBpl &&
+      this.source.includes("Error")
+    ) {
       const errorImport: AST.ImportStmt = {
         kind: "Import",
         items: [{ name: "Error", isType: true, isWrapped: false }],

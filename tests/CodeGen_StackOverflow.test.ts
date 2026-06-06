@@ -37,8 +37,12 @@ function functionBody(ir: string, name: string): string {
 describe("CodeGen - Stack Overflow", () => {
   it("should generate stack depth check", () => {
     const source = `
-      frame main() {
-        return;
+      frame helper() ret int {
+        return 0;
+      }
+
+      frame main() ret int {
+        return helper();
       }
     `;
     const ir = generate(source);
@@ -46,6 +50,24 @@ describe("CodeGen - Stack Overflow", () => {
     // Check for runtime calls
     expect(ir).toContain("call void @__bpl_enter_stack_frame()");
     expect(ir).toContain("call void @__bpl_exit_stack_frame()");
+  });
+
+  it("omits default native stack depth hooks for runtime-free main bodies", () => {
+    const source = `
+      extern printf(fmt: string, value: int);
+
+      frame main() ret int {
+        printf("hello %d\\n", 42);
+        return 0;
+      }
+    `;
+    const ir = generate(source);
+
+    expect(ir).not.toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).not.toContain("call void @__bpl_exit_stack_frame()");
+    expect(ir).not.toContain("declare void @__bpl_enter_stack_frame()");
+    expect(ir).not.toContain("declare void @__bpl_exit_stack_frame()");
+    expect(ir).toContain("call void @printf");
   });
 
   it("should use stacksave stack-limit probes for optimized native non-tail recursion", () => {

@@ -66,6 +66,29 @@ describe("Parser", () => {
     }
   });
 
+  it("defers the implicit Error import for sources that cannot reference Error", () => {
+    const program = new Parser(
+      "frame main() ret int { return 0; }",
+      "test.bpl",
+    ).parse(true);
+
+    expect(program.statements).toHaveLength(1);
+    expect(program.statements[0]!.kind).toBe("FunctionDecl");
+  });
+
+  it("keeps the implicit Error import when a source references Error", () => {
+    const program = new Parser(
+      "frame make(message: string) ret Error { return Error.new(message); }",
+      "test.bpl",
+    ).parse(true);
+
+    expect(program.statements[0]).toMatchObject({
+      kind: "Import",
+      source: "std/errors.bpl",
+      isImplicit: true,
+    });
+  });
+
   it("keeps generated function declaration helpers allocation-free", () => {
     const grammarSource = readTextFile(
       join(process.cwd(), "grammar", "bpl.peggy"),

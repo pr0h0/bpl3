@@ -33,7 +33,10 @@ repeated `import * as namespace` imports of the same module. The compiler
 implicitly makes `Error` from `std/errors.bpl` available to normal modules, so
 an explicit `import [Error] from "std/errors.bpl";` is accepted and resolves to
 the same declaration instead of reporting a duplicate symbol. Duplicate names
-from different declarations still report `BPL_SYMBOL_ALREADY_DEFINED`.
+from different declarations still report `BPL_SYMBOL_ALREADY_DEFINED`. The
+implicit module is loaded on demand only when the source mentions `Error`;
+ordinary modules that cannot reference it skip parsing and checking
+`std/errors.bpl`.
 
 Aliases are supported for bare value imports:
 

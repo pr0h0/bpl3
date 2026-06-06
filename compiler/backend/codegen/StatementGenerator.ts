@@ -168,7 +168,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     emittedName: string,
   ): boolean {
     if (decl.name === "main" || emittedName === "main") {
-      return !this.isRuntimeFreeOptimizedNativeMain(decl);
+      return !this.isRuntimeFreeNativeMain(decl);
     }
 
     return (
@@ -177,8 +177,10 @@ export abstract class StatementGenerator extends AsmGenerator {
     );
   }
 
-  private isRuntimeFreeOptimizedNativeMain(decl: AST.FunctionDecl): boolean {
-    if (!this.shouldUseStackLimitProbe()) return false;
+  private isRuntimeFreeNativeMain(decl: AST.FunctionDecl): boolean {
+    if (this.generateDwarf || this.target?.toLowerCase().includes("wasm")) {
+      return false;
+    }
 
     return decl.body.statements.every((stmt) =>
       this.isRuntimeFreeMainStatement(stmt),

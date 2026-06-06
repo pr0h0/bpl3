@@ -1978,6 +1978,8 @@ describe("Markdown documentation", () => {
       "including repeated `import * as namespace` imports of the same module",
       "The compiler implicitly makes `Error` from `std/errors.bpl` available to normal modules",
       'an explicit `import [Error] from "std/errors.bpl";` is accepted',
+      "The implicit module is loaded on demand only when the source mentions `Error`",
+      "ordinary modules that cannot reference it skip parsing and checking `std/errors.bpl`",
       "Duplicate names from different declarations still report `BPL_SYMBOL_ALREADY_DEFINED`",
     ]);
     expectDocsContainSnippets(changelog, [
