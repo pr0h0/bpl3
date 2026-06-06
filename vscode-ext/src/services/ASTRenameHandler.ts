@@ -1536,16 +1536,15 @@ export class ASTRenameHandler {
     let targetNode: AST.ASTNode | null = null;
 
     const traverse = (node: AST.ASTNode, depth: number = 0) => {
-      if (!node.location) return;
-
       const loc = node.location;
       const inRange =
+        !!loc &&
         (line > loc.startLine ||
           (line === loc.startLine && character >= loc.startColumn - 1)) &&
         (line < loc.endLine ||
           (line === loc.endLine && character <= loc.endColumn - 1));
 
-      if (inRange) {
+      if (inRange && loc) {
         const currentSize =
           (loc.endLine - loc.startLine) * 1000 +
           (loc.endColumn - loc.startColumn);
@@ -1561,7 +1560,7 @@ export class ASTRenameHandler {
             (targetNode.location.endColumn - targetNode.location.startColumn);
 
           // If current node is smaller, it's more specific
-          if (currentSize < targetSize) {
+          if (currentSize <= targetSize) {
             targetNode = node;
           }
         }
@@ -1610,9 +1609,12 @@ export class ASTRenameHandler {
           }
         }
 
-        // Always continue searching children for more specific nodes
-        this.traverseNode(node, (child) => traverse(child, depth + 1));
       }
+
+      // Always continue searching children for more specific nodes. Aggregate
+      // expression ranges can be stale or narrower than their children, but the
+      // child token locations are still precise enough for rename.
+      this.traverseNode(node, (child) => traverse(child, depth + 1));
     };
 
     for (const stmt of ast.statements) {

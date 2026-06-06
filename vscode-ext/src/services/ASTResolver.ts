@@ -202,25 +202,26 @@ export class ASTResolver {
   ): AST.ASTNode | null {
     if (!node || typeof node !== "object") return null;
 
-    // Check if this node has location information
+    // Check if this node has location information. Some aggregate expression
+    // locations can lag behind child token locations after parser fast paths, so
+    // an out-of-range parent must not stop us from inspecting children.
     const loc = node.location;
+    let inRange = false;
     if (loc) {
-      const inRange =
+      inRange =
         (line > loc.startLine ||
           (line === loc.startLine && col >= loc.startColumn)) &&
         (line < loc.endLine || (line === loc.endLine && col <= loc.endColumn));
-
-      if (!inRange) {
-        return null; // Position is outside this node
-      }
     }
 
-    // This node contains the position, check children for more specific match
+    // This node may contain the position; always check children for more
+    // specific matches because child locations are the authoritative token
+    // spans for editor features.
     let bestMatch: AST.ASTNode | null = null;
     let bestMatchSize = Infinity;
 
     // Calculate size of current node
-    if (loc && node.kind) {
+    if (loc && inRange && node.kind) {
       const currentSize =
         (loc.endLine - loc.startLine) * 1000 +
         (loc.endColumn - loc.startColumn);
@@ -240,7 +241,7 @@ export class ASTResolver {
             const matchSize =
               (match.location.endLine - match.location.startLine) * 1000 +
               (match.location.endColumn - match.location.startColumn);
-            if (matchSize < bestMatchSize) {
+            if (matchSize <= bestMatchSize) {
               bestMatch = match;
               bestMatchSize = matchSize;
             }
@@ -253,7 +254,7 @@ export class ASTResolver {
           const matchSize =
             (match.location.endLine - match.location.startLine) * 1000 +
             (match.location.endColumn - match.location.startColumn);
-          if (matchSize < bestMatchSize) {
+          if (matchSize <= bestMatchSize) {
             bestMatch = match;
             bestMatchSize = matchSize;
           }
