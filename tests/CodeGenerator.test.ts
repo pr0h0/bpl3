@@ -358,6 +358,24 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("does not allocate write-only local null tracking state", () => {
+    const sources = [
+      "AddressExpressionGenerator.ts",
+      "BaseCodeGenerator.ts",
+      "ExpressionGenerator.ts",
+      "StatementGenerator.ts",
+    ].map((file) =>
+      readTextFile(
+        join(process.cwd(), "compiler/backend/codegen", file),
+        "utf8",
+      ),
+    );
+    const combinedSource = sources.join("\n");
+
+    expect(combinedSource).not.toContain("localNullFlags");
+    expect(combinedSource).not.toContain("pointerToLocal");
+  });
+
   it("keeps block scope snapshots lazy for declaration-free blocks", () => {
     const source = readTextFile(
       join(

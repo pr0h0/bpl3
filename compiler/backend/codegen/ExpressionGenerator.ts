@@ -618,51 +618,6 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         this.exprToDescription(expr.assignee),
       );
 
-      // Update null flag for struct locals
-      if (expr.assignee.kind === "Identifier") {
-        const id = expr.assignee as AST.IdentifierExpr;
-        const flagPtr = this.localNullFlags.get(id.name);
-        if (flagPtr) {
-          let flagVal = "1"; // Default: struct is not null (valid)
-
-          // If assigning a null literal, set flag to 0
-          if (
-            expr.value.kind === "Literal" &&
-            (expr.value as AST.LiteralExpr).type === "null"
-          ) {
-            flagVal = "0"; // null means the struct is null
-          }
-          // If assigning from another struct local with a flag, propagate
-          else if (expr.value.kind === "Identifier") {
-            const srcId = expr.value as AST.IdentifierExpr;
-            const srcFlag = this.localNullFlags.get(srcId.name);
-            if (srcFlag) {
-              const loaded = this.newRegister();
-              this.emit(`  ${loaded} = load i1, i1* ${srcFlag}`);
-              flagVal = loaded;
-            }
-          }
-          // For all other cases (struct literals, function calls, etc), assume not null (1)
-          // Zero values in fields are valid data, not null
-
-          this.emit(`  store i1 ${flagVal}, i1* ${flagPtr}`);
-        }
-
-        // Track pointer-to-local in variable declarations: e.g., local y: *X = &x;
-        // This allows us to check the null flag when dereferencing the pointer
-        if (
-          expr.value.kind === "Unary" &&
-          (expr.value as AST.UnaryExpr).operator.type === TokenType.Ampersand
-        ) {
-          const unaryExpr = expr.value as AST.UnaryExpr;
-          if (unaryExpr.operand.kind === "Identifier") {
-            const sourceLocal = (unaryExpr.operand as AST.IdentifierExpr).name;
-            // Track that this pointer points to sourceLocal
-            this.pointerToLocal.set(id.name, sourceLocal);
-          }
-        }
-      }
-
       return castVal;
     }
 

@@ -375,16 +375,6 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       );
     }
 
-    // Runtime null-object guard for struct locals being indexed
-    if (
-      objType.kind === "BasicType" &&
-      objType.pointerDepth === 0 &&
-      indexExpr.object.kind === "Identifier" &&
-      !skipNullObjectCheck
-    ) {
-      this.checkLocalNullFlag(indexExpr);
-    }
-
     return addr;
   }
 
@@ -549,50 +539,6 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       "This unary expression does not yield an lvalue.",
       expr.location,
     );
-  }
-
-  private checkLocalNullFlag(indexExpr: AST.IndexExpr): void {
-    const idName = (indexExpr.object as AST.IdentifierExpr).name;
-    const flagPtr = this.localNullFlags.get(idName);
-    if (!flagPtr) return;
-
-    const flagVal = this.newRegister();
-    this.emit(`  ${flagVal} = load i1, i1* ${flagPtr}`);
-
-    const negFlag = this.newRegister();
-    this.emit(`  ${negFlag} = xor i1 ${flagVal}, 1`);
-
-    const funcName = this.currentFunctionName || "unknown";
-    const exprStr = `${idName}[...]`;
-    const msg = "Attempted to access index of null object";
-
-    this.registerStringLiteral(msg);
-    this.registerStringLiteral(funcName);
-    this.registerStringLiteral(exprStr);
-
-    const throwLabel = this.newLabel("nullobj.throw");
-    const passLabel = this.newLabel("nullobj.pass");
-    this.emit(`  br i1 ${negFlag}, label %${throwLabel}, label %${passLabel}`);
-
-    this.emit(`${throwLabel}:`);
-    const errorStruct = this.buildNullAccessError(
-      msg,
-      funcName,
-      exprStr,
-      indexExpr.location,
-    );
-    this.emitThrow(errorStruct, "%struct.NullAccessError");
-
-    this.emit(`${passLabel}:`);
-  }
-
-  /**
-   * Register a string literal for later emission
-   */
-  private registerStringLiteral(content: string): void {
-    if (!this.stringLiterals.has(content)) {
-      this.stringLiterals.set(content, `@.str.${this.stringLiterals.size}`);
-    }
   }
 
   protected exprToDescription(expr: AST.Expression): string {

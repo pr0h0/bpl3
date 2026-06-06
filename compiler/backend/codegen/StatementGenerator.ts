@@ -1944,47 +1944,6 @@ export abstract class StatementGenerator extends AsmGenerator {
         );
       }
       this.emit(`  store ${type} ${castVal}, ${type}* ${addr}`);
-
-      // Update null flag for struct locals
-      const flagPtr = this.localNullFlags.get(decl.name as string);
-      if (flagPtr) {
-        let flagVal = "1"; // Default: struct is not null (valid)
-
-        // If assigning a null literal, set flag to 0
-        if (
-          decl.initializer.kind === "Literal" &&
-          (decl.initializer as AST.LiteralExpr).type === "null"
-        ) {
-          flagVal = "0"; // null means the struct is null
-        }
-        // If assigning from another struct local with a flag, propagate
-        else if (decl.initializer.kind === "Identifier") {
-          const srcId = decl.initializer as AST.IdentifierExpr;
-          const srcFlag = this.localNullFlags.get(srcId.name);
-          if (srcFlag) {
-            const loaded = this.newRegister();
-            this.emit(`  ${loaded} = load i1, i1* ${srcFlag}`);
-            flagVal = loaded;
-          }
-        }
-        // For all other cases (struct literals, function calls, etc), assume not null (1)
-        // Zero values in fields are valid data, not null
-
-        this.emit(`  store i1 ${flagVal}, i1* ${flagPtr}`);
-      }
-
-      // Track pointer-to-local in variable declarations: e.g., local y: *X = &x;
-      if (
-        decl.initializer.kind === "Unary" &&
-        (decl.initializer as AST.UnaryExpr).operator.type ===
-          TokenType.Ampersand
-      ) {
-        const unaryExpr = decl.initializer as AST.UnaryExpr;
-        if (unaryExpr.operand.kind === "Identifier") {
-          const sourceLocal = (unaryExpr.operand as AST.IdentifierExpr).name;
-          this.pointerToLocal.set(decl.name as string, sourceLocal);
-        }
-      }
     }
 
     this.registerAutoDestroy(
@@ -2569,7 +2528,6 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevLocals = this.locals;
     const prevLocalPointers = this.localPointers;
     const prevLocalTypes = this.localTypes;
-    const prevLocalNullFlags = this.localNullFlags;
     const prevBasicBlockNonNullPointers = this.basicBlockNonNullPointers;
     const prevBasicBlockNonNullPointerExpressions =
       this.basicBlockNonNullPointerExpressions;
@@ -2577,7 +2535,6 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.basicBlockCallStableNonNullPointerExpressions;
     const prevBasicBlockNonZeroIntegerExpressions =
       this.basicBlockNonZeroIntegerExpressions;
-    const prevPointerToLocal = this.pointerToLocal;
     const prevCurrentFunctionAddressEscapedLocals =
       this.currentFunctionAddressEscapedLocals;
     const prevMovedAutoDestroyAddresses = this.movedAutoDestroyAddresses;
@@ -2599,12 +2556,10 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.locals = new Set();
     this.localPointers = new Map();
     this.localTypes = new Map();
-    this.localNullFlags = new Map();
     this.basicBlockNonNullPointers = new Map();
     this.basicBlockNonNullPointerExpressions = new Map();
     this.basicBlockCallStableNonNullPointerExpressions = new Map();
     this.basicBlockNonZeroIntegerExpressions = undefined;
-    this.pointerToLocal = new Map();
     this.currentFunctionAddressEscapedLocals = new Set();
     this.movedAutoDestroyAddresses = undefined;
     this.generatingFunctionBody = true;
@@ -3036,7 +2991,6 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.currentSubprogramId = prevSubprogramId;
       this.localPointers = prevLocalPointers;
       this.localTypes = prevLocalTypes;
-      this.localNullFlags = prevLocalNullFlags;
       this.basicBlockNonNullPointers = prevBasicBlockNonNullPointers;
       this.basicBlockNonNullPointerExpressions =
         prevBasicBlockNonNullPointerExpressions;
@@ -3044,7 +2998,6 @@ export abstract class StatementGenerator extends AsmGenerator {
         prevBasicBlockCallStableNonNullPointerExpressions;
       this.basicBlockNonZeroIntegerExpressions =
         prevBasicBlockNonZeroIntegerExpressions;
-      this.pointerToLocal = prevPointerToLocal;
       this.currentFunctionAddressEscapedLocals =
         prevCurrentFunctionAddressEscapedLocals;
       this.movedAutoDestroyAddresses = prevMovedAutoDestroyAddresses;

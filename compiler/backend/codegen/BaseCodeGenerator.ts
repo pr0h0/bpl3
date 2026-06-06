@@ -266,7 +266,6 @@ export class BaseCodeGenerator {
   protected locals: Set<string> = new Set();
   protected localPointers: Map<string, string> = new Map(); // Track variable name -> pointer name mapping
   protected localTypes: Map<string, AST.TypeNode> = new Map(); // Track variable name -> declared type
-  protected localNullFlags: Map<string, string> = new Map(); // Track struct locals -> null-flag pointer
   protected basicBlockNonNullPointers: Map<string, number> = new Map();
   protected basicBlockNonNullPointerExpressions: Map<string, number> =
     new Map();
@@ -275,7 +274,6 @@ export class BaseCodeGenerator {
     number
   > = new Map();
   protected basicBlockNonZeroIntegerExpressions?: Map<string, number>;
-  protected pointerToLocal: Map<string, string> = new Map(); // Track pointer variable -> source local for null checking
   protected currentFunctionAddressEscapedLocals: Set<string> = new Set();
   protected movedAutoDestroyAddresses?: Set<string>; // Locals returned by move should not be auto-destroyed
   protected generatedStructs: Set<string> = new Set(); // Track generated monomorphized structs

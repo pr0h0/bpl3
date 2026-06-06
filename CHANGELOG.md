@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Removed Write-Only Local Null Tracking** -
+  codegen no longer allocates per-function `localNullFlags` and
+  `pointerToLocal` maps or executes branches reachable only through those
+  permanently empty/write-only structures. Active pointer proof tracking,
+  checked null access failures, native runtime behavior, and WebAssembly
+  runtime behavior remain unchanged. An isolated 51-round comparison
+  preserved token signatures and emitted LLVM while median codegen improved
+  by ~0.65%; a reverse-order 101-round comparison confirmed median codegen
+  improved by ~2.59%, average codegen by ~4.62%, and median full compilation
+  by ~1.36%. Reproduce with
+  `bun test tests/CodeGenerator.test.ts tests/CodeGeneratorExtended.test.ts tests/NullHandling.test.ts tests/CompilerRuntimeFailureSemantics.test.ts tests/CompilerSanitizerRuntime.test.ts tests/PointerEdgeCases.test.ts tests/Memory.test.ts tests/WasmRuntime.test.ts tests/CompilerCorrectnessCorpus.test.ts tests/AdvancedRuntime.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Seeded Function Parameter-List Codegen** -
   function header generation now returns immediately for empty parameter lists,
   seeds nonempty lists from the first parameter, and appends later parameters
