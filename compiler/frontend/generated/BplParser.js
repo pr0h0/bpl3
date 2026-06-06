@@ -6599,66 +6599,68 @@ function peg$parse(input, options) {
   function peg$parseEqualityOperator() {
     return peg$scanBplEqualityOperator();
   }
-  function peg$parseTypeCheck() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
-
-    s0 = peg$currPos;
-    s1 = peg$parseRelational();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      s5 = peg$parseK_is();
-      if (s5 === peg$FAILED) {
-        s5 = peg$parseK_as();
-      }
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseType();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        s5 = peg$parseK_is();
-        if (s5 === peg$FAILED) {
-          s5 = peg$parseK_as();
-        }
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseType();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f104(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+  function peg$failBplTypeCheckOperatorExpectation() {
+    if (peg$silentFails !== 0) {
+      return;
     }
-
-    return s0;
+    peg$fail(peg$e103);
+    peg$fail(peg$e93);
   }
 
+  function peg$scanBplTypeCheckOperator() {
+    const startPos = peg$currPos;
+
+    switch (input.charCodeAt(startPos)) {
+      case 105:
+        if (
+          input.charCodeAt(startPos + 1) === 115 &&
+          !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 2))
+        ) {
+          peg$currPos = startPos + 2;
+          return 1;
+        }
+        break;
+      case 97:
+        if (
+          input.charCodeAt(startPos + 1) === 115 &&
+          !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 2))
+        ) {
+          peg$currPos = startPos + 2;
+          return 2;
+        }
+        break;
+    }
+
+    peg$failBplTypeCheckOperatorExpectation();
+    return peg$FAILED;
+  }
+
+  function peg$parseTypeCheck() {
+    let result = peg$parseRelational();
+    if (result === peg$FAILED) {
+      return peg$FAILED;
+    }
+
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      const operator = peg$scanBplTypeCheckOperator();
+      if (operator === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      peg$parse_();
+      const type = peg$parseType();
+      if (type === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      const location = mergeLoc(result.location, type.location);
+      result = operator === 1 ? isNode(result, type, location) : asNode(result, type, location);
+    }
+  }
   function peg$parseRelational() {
     let result = peg$parseShift();
     if (result === peg$FAILED) {

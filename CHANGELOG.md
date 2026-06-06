@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Generated Parser Type-Check Lookahead Scanner** -
+  the Peggy parser post-processor now replaces `is` / `as` expression-tail
+  tuple parsing with a direct, diagnostic-aware operator scanner and
+  allocation-free folding loop. Keyword boundaries, comments, chained
+  type checks, malformed-tail diagnostics, AST shape, and emitted LLVM remain
+  stable. Against the pre-change parser, a 51-round isolated 5k parse
+  comparison preserved the AST hash while improving median parse time from
+  ~176.37ms to ~167.94ms. A same-load 51-round compiler comparison preserved
+  token and IR signatures, improving parse median by ~4.26% and full
+  compilation by ~2.10% after clean-control normalization. The follow-up CPU
+  profile removes `peg$parseK_is` and `peg$parseK_as` from sampled hot rows.
+  Reproduce with
+  `bun test tests/Parser.test.ts tests/ParserExtended.test.ts tests/TypeNarrowing.test.ts tests/ComplexTypeNarrowing.test.ts tests/TypeCheckerTypeQueryDiagnostics.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 51 --warmups 5 --json`.
 - **Focused On-Demand Check Engine** -
   real `check` actions now load focused lexer, parser, and type-checker modules
   instead of the full compiler barrel, while command registration and no-input

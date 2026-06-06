@@ -310,6 +310,55 @@ describe("Parser", () => {
     ).not.toThrow();
   });
 
+  it("keeps generated type-check lookahead on the direct scanner fast path", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const helper = generatedSource.match(
+      /function peg\$parseTypeCheck\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const scanner = generatedSource.match(
+      /function peg\$scanBplTypeCheckOperator\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedTypeCheckTailParsing");
+    expect(helper).toContain("peg$scanBplTypeCheckOperator()");
+    expect(helper).toContain("operator === 1 ? isNode");
+    expect(helper).not.toContain("peg$parseK_is()");
+    expect(helper).not.toContain("peg$parseK_as()");
+    expect(helper).not.toContain("s2 = []");
+    expect(helper).not.toContain("s2.push");
+    expect(scanner).toContain("switch (input.charCodeAt(startPos))");
+    expect(scanner).toContain("peg$isBplIdentifierContinuationCode");
+    expect(scanner).toContain("return 1;");
+    expect(scanner).toContain("return 2;");
+
+    expect(() =>
+      new Parser(
+        [
+          "frame main() ret int {",
+          "  local value: int = 1;",
+          "  local same: bool = value is int;",
+          "  local casted: int = value as int;",
+          "  return casted;",
+          "}",
+        ].join("\n"),
+        "type-check-lookahead-fast-path.bpl",
+      ).parse(),
+    ).not.toThrow();
+  });
+
   it("keeps generated parser action locations flat for large translation-unit throughput", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

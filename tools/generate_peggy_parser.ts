@@ -86,6 +86,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedPostfixParsing(optimized);
   optimized = optimizeGeneratedExpressionOperatorScanning(optimized);
   optimized = optimizeGeneratedBinaryExpressionTailParsing(optimized);
+  optimized = optimizeGeneratedTypeCheckTailParsing(optimized);
   optimized = optimizeGeneratedAssignmentOperatorScanning(optimized);
   optimized = optimizeGeneratedStatementStartKeywordScanning(optimized);
   optimized = optimizeGeneratedNumberScanning(optimized);
@@ -1433,6 +1434,113 @@ function optimizeGeneratedBinaryExpressionTailParsingForConfig(
     "        right,",
     "        mergeLoc(result.location, right.location),",
     "      );",
+    "    }",
+    "  }",
+    "",
+  ].join("\n");
+
+  return parserSource.replace(parserPattern, replacement);
+}
+
+function optimizeGeneratedTypeCheckTailParsing(parserSource: string): string {
+  const parserPattern =
+    /  function peg\$parseTypeCheck\(\) \{([\s\S]*?)\n  \}\n\n(?=  function peg\$parseRelational\(\))/;
+  const parserMatch = parserSource.match(parserPattern);
+  const isKeywordMatch = parserSource.match(
+    /  function peg\$parseK_is\(\) \{([\s\S]*?)\n  \}/,
+  );
+  const asKeywordMatch = parserSource.match(
+    /  function peg\$parseK_as\(\) \{([\s\S]*?)\n  \}/,
+  );
+  const isExpectation = isKeywordMatch?.[1]?.match(
+    /peg\$fail\((peg\$e\d+)\)/,
+  )?.[1];
+  const asExpectation = asKeywordMatch?.[1]?.match(
+    /peg\$fail\((peg\$e\d+)\)/,
+  )?.[1];
+
+  if (!parserMatch || !isExpectation || !asExpectation) {
+    throw new Error(
+      "Generated Peggy parser TypeCheck helper shape changed; update the BPL parser type-check optimizer.",
+    );
+  }
+
+  const helperBody = parserMatch[1]!;
+  const expectedFragments = [
+    "s1 = peg$parseRelational();",
+    "s5 = peg$parseK_is();",
+    "s5 = peg$parseK_as();",
+    "s7 = peg$parseType();",
+    "s2.push(s3);",
+    "s4 = [s4, s5, s6, s7];",
+  ];
+  if (!expectedFragments.every((fragment) => helperBody.includes(fragment))) {
+    throw new Error(
+      "Generated Peggy parser TypeCheck tail shape changed; update the BPL parser type-check optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$failBplTypeCheckOperatorExpectation() {",
+    "    if (peg$silentFails !== 0) {",
+    "      return;",
+    "    }",
+    `    peg$fail(${isExpectation});`,
+    `    peg$fail(${asExpectation});`,
+    "  }",
+    "",
+    "  function peg$scanBplTypeCheckOperator() {",
+    "    const startPos = peg$currPos;",
+    "",
+    "    switch (input.charCodeAt(startPos)) {",
+    "      case 105:",
+    "        if (",
+    "          input.charCodeAt(startPos + 1) === 115 &&",
+    "          !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 2))",
+    "        ) {",
+    "          peg$currPos = startPos + 2;",
+    "          return 1;",
+    "        }",
+    "        break;",
+    "      case 97:",
+    "        if (",
+    "          input.charCodeAt(startPos + 1) === 115 &&",
+    "          !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 2))",
+    "        ) {",
+    "          peg$currPos = startPos + 2;",
+    "          return 2;",
+    "        }",
+    "        break;",
+    "    }",
+    "",
+    "    peg$failBplTypeCheckOperatorExpectation();",
+    "    return peg$FAILED;",
+    "  }",
+    "",
+    "  function peg$parseTypeCheck() {",
+    "    let result = peg$parseRelational();",
+    "    if (result === peg$FAILED) {",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    while (true) {",
+    "      const tailStartPos = peg$currPos;",
+    "      peg$parse_();",
+    "      const operator = peg$scanBplTypeCheckOperator();",
+    "      if (operator === peg$FAILED) {",
+    "        peg$currPos = tailStartPos;",
+    "        return result;",
+    "      }",
+    "",
+    "      peg$parse_();",
+    "      const type = peg$parseType();",
+    "      if (type === peg$FAILED) {",
+    "        peg$currPos = tailStartPos;",
+    "        return result;",
+    "      }",
+    "",
+    "      const location = mergeLoc(result.location, type.location);",
+    "      result = operator === 1 ? isNode(result, type, location) : asNode(result, type, location);",
     "    }",
     "  }",
     "",
