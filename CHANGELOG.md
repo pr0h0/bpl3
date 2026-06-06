@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Concurrent On-Demand Check Actions** -
+  the `check` command now registers help and option metadata through a
+  lightweight registrar, then loads analysis dependencies on demand while
+  starting the already-required compiler import concurrently for real check
+  actions. Existing check error-code exports remain available from
+  `cli/commands/check.ts`, and controlled help, text, JSON, color, timing,
+  validation, stderr, and exit behavior remain stable. In an alternating
+  101-round comparison against `32ffc9fa`, normalized median startup improved
+  by ~7.7% for `check --help`, ~3.3% for root help, ~3.3% for a successful text
+  check, ~1.0% for a successful JSON check, and ~1.8% for missing-input JSON;
+  no-input error paths stayed within +1.0%. A fresh 21-round 5k compiler
+  comparison preserved token and IR signatures with full compilation at
+  -1.05%. Reproduce the loading and behavior contracts with
+  `bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/CLIJsonParseability.test.ts tests/JsonContracts.test.ts tests/JsonErrorCodeLists.test.ts tests/MarkdownDocs.test.ts`.
 - **On-Demand New Project Scaffolding** -
   the `new` command now registers help and option metadata through a
   lightweight registrar, then loads filesystem, manifest, logging,
