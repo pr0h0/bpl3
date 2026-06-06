@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Direct Integer-Width Dispatch** -
+  integer compatibility checks now resolve canonical and aliased integer widths
+  with direct exhaustive dispatch instead of probing the shared type-alias
+  table for every basic type comparison. Unknown and nominal types still
+  resolve to zero width, while compatibility behavior, token signatures, and
+  emitted LLVM remain unchanged. In isolated 101-round comparisons, median
+  type checking improved by ~3.00% and ~3.43% across opposite execution
+  orders, with median full compilation improving by ~4.84% and ~1.40%.
+  Reproduce with
+  `bun test tests/TypeUtils.test.ts tests/TypeChecker.test.ts tests/TypeCheckerExtended.test.ts tests/CompilerCorrectnessCorpus.test.ts tests/CompilerCorrectnessSeededFuzz.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Direct Known-Struct Field Resolution** -
   type checking now resolves fields on already-known, non-generic struct
   declarations before entering the general member-context path used by methods,

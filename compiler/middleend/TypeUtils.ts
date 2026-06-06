@@ -263,13 +263,33 @@ export class TypeUtils {
    * Get the size in bits of an integer type (including bool/i1)
    */
   static getIntegerBits(typeName: string): number {
-    const name = TYPE_ALIASES[typeName] || typeName;
-    if (name === "i1") return 1;
-    if (name === "i8" || name === "u8") return 8;
-    if (name === "i16" || name === "u16") return 16;
-    if (name === "i32" || name === "u32") return 32;
-    if (name === "i64" || name === "u64") return 64;
-    return 0;
+    switch (typeName) {
+      case "bool":
+      case "i1":
+        return 1;
+      case "char":
+      case "uchar":
+      case "i8":
+      case "u8":
+        return 8;
+      case "short":
+      case "ushort":
+      case "i16":
+      case "u16":
+        return 16;
+      case "int":
+      case "uint":
+      case "i32":
+      case "u32":
+        return 32;
+      case "long":
+      case "ulong":
+      case "i64":
+      case "u64":
+        return 64;
+      default:
+        return 0;
+    }
   }
 
   /**

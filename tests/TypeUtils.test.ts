@@ -125,4 +125,38 @@ describe("TypeUtils", () => {
     expect(implementation).not.toContain("return [");
     expect(implementation).not.toContain(".includes(");
   });
+
+  it("gets integer widths without alias table probes", () => {
+    for (const [name, bits] of [
+      ["bool", 1],
+      ["i1", 1],
+      ["char", 8],
+      ["uchar", 8],
+      ["i8", 8],
+      ["u8", 8],
+      ["short", 16],
+      ["ushort", 16],
+      ["i16", 16],
+      ["u16", 16],
+      ["int", 32],
+      ["uint", 32],
+      ["i32", 32],
+      ["u32", 32],
+      ["long", 64],
+      ["ulong", 64],
+      ["i64", 64],
+      ["u64", 64],
+      ["Pair", 0],
+    ] as const) {
+      expect(TypeUtils.getIntegerBits(name)).toBe(bits);
+    }
+
+    const implementation = methodSource(
+      "getIntegerBits",
+      "  /**\n   * Get the size in bytes",
+    );
+
+    expect(implementation).toContain("switch (typeName)");
+    expect(implementation).not.toContain("TYPE_ALIASES");
+  });
 });
