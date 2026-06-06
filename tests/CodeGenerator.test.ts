@@ -403,6 +403,31 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("keeps simple block declaration names off recursive collection", () => {
+    const source = readTextFile(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/StatementGenerator.ts",
+      ),
+      "utf8",
+    );
+    const start = source.indexOf("  protected generateBlock(");
+    const end = source.indexOf("  protected generateStatement", start);
+    const methodSource = source.slice(start, end);
+    const simpleNameCheck = methodSource.indexOf(
+      'if (typeof decl.name === "string")',
+    );
+    const recursiveCollection = methodSource.indexOf(
+      "collectDestructuringNames(decl.name)",
+    );
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(simpleNameCheck).toBeGreaterThanOrEqual(0);
+    expect(recursiveCollection).toBeGreaterThan(simpleNameCheck);
+    expect(methodSource).not.toContain("collectDeclaredNames(decl.name)");
+  });
+
   it("detects LLVM terminators without trimming generated lines", () => {
     const generator = new InspectableCodeGenerator();
     expect(generator.isIrTerminator("  ret i32 0")).toBe(true);

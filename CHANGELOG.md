@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Inline Simple Block Declaration Collection** -
+  codegen now records ordinary string-named block declarations directly and
+  reserves recursive name collection for tuple destructuring patterns. Block
+  shadowing snapshots, nested destructuring restoration, token signatures,
+  and emitted LLVM remain unchanged. In an isolated 101-round comparison,
+  codegen median stayed effectively flat within ~0.25% while median full
+  compilation improved by ~1.61%; the reverse-order comparison improved
+  median codegen by ~1.47% and median full compilation by ~3.49%. Reproduce
+  with
+  `bun test tests/CodeGenerator.test.ts tests/CodeGeneratorExtended.test.ts tests/CompilerCorrectnessCorpus.test.ts tests/AdvancedRuntime.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Removed Write-Only Local Null Tracking** -
   codegen no longer allocates per-function `localNullFlags` and
   `pointerToLocal` maps or executes branches reachable only through those

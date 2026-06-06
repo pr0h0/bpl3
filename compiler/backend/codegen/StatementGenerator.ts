@@ -1151,20 +1151,15 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     let declaredInBlock: Set<string> | undefined;
 
-    const collectDeclaredNames = (
-      name: string | any[] | { name: string; type?: AST.TypeNode }[],
+    const collectDestructuringNames = (
+      pattern: AST.DestructuringPattern[],
     ) => {
-      if (typeof name === "string") {
-        const declaredNames = (declaredInBlock ??= new Set<string>());
-        declaredNames.add(name);
-      } else if (Array.isArray(name)) {
-        for (const item of name) {
-          if (Array.isArray(item)) {
-            collectDeclaredNames(item);
-          } else if (item && typeof item.name === "string") {
-            const declaredNames = (declaredInBlock ??= new Set<string>());
-            declaredNames.add(item.name);
-          }
+      for (const item of pattern) {
+        if (Array.isArray(item)) {
+          collectDestructuringNames(item);
+        } else {
+          const declaredNames = (declaredInBlock ??= new Set<string>());
+          declaredNames.add(item.name);
         }
       }
     };
@@ -1173,7 +1168,12 @@ export abstract class StatementGenerator extends AsmGenerator {
     for (const stmt of block.statements) {
       if (stmt.kind === "VariableDecl") {
         const decl = stmt as AST.VariableDecl;
-        collectDeclaredNames(decl.name);
+        if (typeof decl.name === "string") {
+          const declaredNames = (declaredInBlock ??= new Set<string>());
+          declaredNames.add(decl.name);
+        } else {
+          collectDestructuringNames(decl.name);
+        }
       }
     }
 
