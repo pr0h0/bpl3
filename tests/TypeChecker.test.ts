@@ -999,6 +999,28 @@ describe("TypeChecker", () => {
     expect(directStructBranchSource).not.toContain(".members.filter(");
   });
 
+  it("skips primitive wrapper classification for known struct members", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/CallChecker.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("export function checkMember");
+    const moduleBranch = source.indexOf(
+      "// Handle module member access",
+      methodStart,
+    );
+    const methodPrefix = source.slice(methodStart, moduleBranch);
+    const knownStructGuard = methodPrefix.indexOf(
+      'objectType.resolvedDeclaration?.kind !== "StructDecl"',
+    );
+    const primitiveSwitch = methodPrefix.indexOf("switch (objectType.name)");
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(moduleBranch).toBeGreaterThan(methodStart);
+    expect(knownStructGuard).toBeGreaterThanOrEqual(0);
+    expect(primitiveSwitch).toBeGreaterThan(knownStructGuard);
+  });
+
   it("keeps direct struct field resolution off empty generic maps", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

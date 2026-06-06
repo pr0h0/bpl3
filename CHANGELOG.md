@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Known-Struct Member Wrapper Fast Path** -
+  type checking now skips primitive-wrapper name classification when a member
+  receiver already resolves to a concrete struct declaration. Primitive,
+  unresolved, alias, pointer, and wrapper member behavior remains on the
+  existing path. In isolated 101-round comparisons, median type checking
+  improved by ~0.77% and ~2.23% across opposite execution orders, with
+  unchanged token and LLVM signatures. Reproduce with
+  `bun test tests/TypeChecker.test.ts tests/TypeCheckerExtended.test.ts tests/TypeCheckerMemberAccessMisuse.test.ts tests/ModuleResolver.test.ts tests/OOP.test.ts tests/GenericsConstraints.test.ts tests/TypeReflection.test.ts tests/CompilerCorrectnessCorpus.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Direct Local Value-Struct Member Loads** -
   codegen now emits member GEP/load instructions directly for exact-layout,
   non-generic, non-pointer local value-struct identifiers, avoiding the generic

@@ -634,6 +634,7 @@ export function checkMember(
   let effectiveObjectType = objectType;
   if (
     objectType.kind === "BasicType" &&
+    objectType.resolvedDeclaration?.kind !== "StructDecl" &&
     objectType.pointerDepth === 0 &&
     objectType.arrayDimensions.length === 0
   ) {
