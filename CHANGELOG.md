@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Allocation-Free Function Linkage Assembly** -
+  function code generation now appends LLVM linkage modifiers directly instead
+  of allocating a temporary array and joining it for every emitted function.
+  Linkage ordering and emitted LLVM remain byte-identical for ordinary,
+  optimized, standard-library, and `Type_*` functions. Two alternating
+  101-round control/candidate comparisons preserved token signatures and LLVM
+  hashes while median codegen improved by ~2.74% and ~1.43%; median full
+  compilation moved by ~0.86% faster and ~1.44% slower, within surrounding
+  phase noise. Reproduce with
+  `bun test tests/CodeGenerator.test.ts tests/CodeGeneratorExtended.test.ts tests/FunctionAttributes.test.ts tests/FunctionPointers.test.ts tests/GoldenLLVMShapes.test.ts tests/CompilerCorrectnessCorpus.test.ts tests/CompilerCorrectnessSeededFuzz.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 11 --json`.
 - **Short Decimal Literal Typecheck Fast Path** -
   type checking now classifies parser-validated plain decimal literals of up
   to nine digits as `int` before searching for floating-point markers,

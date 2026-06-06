@@ -2716,9 +2716,9 @@ export abstract class StatementGenerator extends AsmGenerator {
         return;
       }
 
-      const linkageParts: string[] = [];
+      let linkage = "";
       if (name.startsWith("Type_")) {
-        linkageParts.push("linkonce_odr");
+        linkage += "linkonce_odr ";
       } else if (
         this.useLinkOnceOdrForStdLib &&
         this.stdLibPath &&
@@ -2726,13 +2726,11 @@ export abstract class StatementGenerator extends AsmGenerator {
         decl.location.file &&
         decl.location.file.startsWith(this.stdLibPath)
       ) {
-        linkageParts.push("linkonce_odr");
+        linkage += "linkonce_odr ";
       }
       if (this.optimizationLevel >= 2) {
-        linkageParts.push("dso_local");
+        linkage += "dso_local ";
       }
-      const linkage =
-        linkageParts.length > 0 ? `${linkageParts.join(" ")} ` : "";
       let dbgSuffix = "";
       if (this.generateDwarf && this.currentSubprogramId !== -1) {
         dbgSuffix = ` !dbg !${this.currentSubprogramId}`;

@@ -316,6 +316,26 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain("if (result.length > 0)");
   });
 
+  it("builds function linkage without temporary arrays", () => {
+    const source = readTextFile(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/StatementGenerator.ts",
+      ),
+      "utf8",
+    );
+    const start = source.indexOf("protected generateFunction");
+    const end = source.indexOf("    } finally {", start);
+    const methodSource = source.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(methodSource).toContain('let linkage = ""');
+    expect(methodSource).toContain('linkage += "linkonce_odr "');
+    expect(methodSource).toContain('linkage += "dso_local "');
+    expect(methodSource).not.toContain("linkageParts");
+  });
+
   it("swaps function-local codegen state instead of cloning it per function", () => {
     const source = readTextFile(
       join(
