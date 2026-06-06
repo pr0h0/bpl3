@@ -47,6 +47,8 @@ import {
   UNARY_PLUS_UNSUPPORTED_CODE,
 } from "./TypeCheckerBase";
 
+const STRUCT_LITERAL_FIELD_SET_THRESHOLD = 4;
+
 function isGenericParameterType(
   context: CheckerContext,
   type: AST.TypeNode,
@@ -1155,13 +1157,25 @@ export function checkStructLiteral(
   }
 
   // Check for missing fields
-  const providedFields = new Set<string>();
-  for (const field of expr.fields) {
-    providedFields.add(field.name);
+  let providedFields: Set<string> | undefined;
+  if (expr.fields.length > STRUCT_LITERAL_FIELD_SET_THRESHOLD) {
+    providedFields = new Set<string>();
+    for (const field of expr.fields) {
+      providedFields.add(field.name);
+    }
   }
   for (const member of decl.members) {
     if (member.kind === "StructField") {
-      if (!providedFields.has(member.name)) {
+      let hasField = providedFields?.has(member.name) ?? false;
+      if (!providedFields) {
+        for (const field of expr.fields) {
+          if (field.name === member.name) {
+            hasField = true;
+            break;
+          }
+        }
+      }
+      if (!hasField) {
         throw new CompilerError(
           `Missing field '${member.name}' in struct literal for '${expr.structName}'`,
           `Field '${member.name}' is required.`,

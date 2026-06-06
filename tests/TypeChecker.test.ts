@@ -334,7 +334,7 @@ describe("TypeChecker", () => {
     expect(bigint).toBeGreaterThan(replace);
   });
 
-  it("collects provided struct literal fields without an intermediate array", () => {
+  it("keeps small struct literal missing-field checks off Set allocation", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
       "utf8",
@@ -345,10 +345,14 @@ describe("TypeChecker", () => {
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
+    expect(source).toContain("STRUCT_LITERAL_FIELD_SET_THRESHOLD");
+    expect(methodSource).toContain("let providedFields: Set<string> | undefined;");
     expect(methodSource).toContain(
-      "const providedFields = new Set<string>();",
+      "expr.fields.length > STRUCT_LITERAL_FIELD_SET_THRESHOLD",
     );
+    expect(methodSource).toContain("providedFields = new Set<string>();");
     expect(methodSource).toContain("providedFields.add(field.name);");
+    expect(methodSource).toContain("for (const field of expr.fields)");
     expect(methodSource).not.toContain(
       "new Set(expr.fields.map((f) => f.name))",
     );

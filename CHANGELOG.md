@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Small Struct Literal Missing-Field Fast Path** -
+  type checking now verifies missing fields in struct literals with four or
+  fewer supplied fields by scanning the small field list directly, avoiding a
+  transient `Set` allocation. Larger literals retain the direct-filled set
+  path, while missing-field diagnostics, token signatures, and emitted LLVM
+  remain unchanged. In isolated 101-round comparisons, median typecheck
+  improved by ~0.27% and ~3.60% across opposite execution orders, with median
+  full compilation improving by ~0.66% and ~2.40%. Reproduce with
+  `bun test tests/TypeChecker.test.ts tests/TypeCheckerExtended.test.ts tests/CompilerCorrectnessCorpus.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Lazy Struct Literal Generic Maps** -
   type checking now allocates a struct literal's generic substitution map only
   when concrete generic arguments are present. Non-generic and argument-free
