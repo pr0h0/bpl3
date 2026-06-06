@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Direct Native Stack-Limit Global Access** -
+  optimized native IR now declares the runtime-owned `__bpl_stack_limit`
+  global as `dso_local`, allowing LLVM to lower recursive stack probes to a
+  direct RIP-relative comparison instead of reserving a register for a GOT
+  lookup. Stack-overflow checks and BPL runtime failure behavior remain intact,
+  and declaration pruning now recognizes qualified external globals. A 31-run
+  `fibonacci_recursive` sample moved BPL median runtime from ~331.09ms to
+  ~277.91ms and reduced the BPL/C gap from ~21.2% to ~1.5%. Reproduce with
+  `bun test tests/CodeGen_StackOverflow.test.ts tests/CodeGenerator.test.ts tests/CompilerRuntimeFailureSemantics.test.ts`
+  and
+  `bun benchmark/run_benchmark.ts --language bpl,c --runs 31 --warmups 5 fibonacci_recursive`.
 - **Basic-Block Redundant Null-Check Elimination** -
   codegen now remembers pointer values proven non-null by `__bpl_check_null`
   within the current generated basic block, so repeated member/index accesses

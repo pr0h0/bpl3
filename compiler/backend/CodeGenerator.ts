@@ -313,7 +313,7 @@ export class CodeGenerator extends StatementGenerator {
     this.emitDeclaration(`@exception_value = external global i64`);
     this.emitDeclaration(`@exception_type = external global i32`);
     this.emitDeclaration(`@__bpl_stack_depth = external global i32`);
-    this.emitDeclaration(`@__bpl_stack_limit = external global i8*`);
+    this.emitDeclaration(`@__bpl_stack_limit = external dso_local global i8*`);
 
     // Global argc/argv for Args library
     this.emitDeclaration(`@__bpl_argc_value = external global i32`);
@@ -582,7 +582,10 @@ export class CodeGenerator extends StatementGenerator {
   }
 
   private getDeclaredGlobalName(line: string): string | null {
-    return line.match(/^@([A-Za-z0-9_]+) = external global\b/)?.[1] ?? null;
+    return (
+      line.match(/^@([A-Za-z0-9_]+) = external(?: dso_local)? global\b/)?.[1] ??
+      null
+    );
   }
 
   private getDefinedGlobalName(line: string): string | null {
