@@ -898,11 +898,17 @@ export class BaseCodeGenerator {
       index++;
     }
 
-    return (
-      line.startsWith("ret ", index) ||
-      line.startsWith("br ", index) ||
-      line.startsWith("switch ", index) ||
-      line.startsWith("unreachable", index)
-    );
+    switch (line.charCodeAt(index)) {
+      case 114:
+        return line.startsWith("ret ", index);
+      case 98:
+        return line.startsWith("br ", index);
+      case 115:
+        return line.startsWith("switch ", index);
+      case 117:
+        return line.startsWith("unreachable", index);
+      default:
+        return false;
+    }
   }
 }

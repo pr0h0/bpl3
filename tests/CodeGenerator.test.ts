@@ -349,6 +349,8 @@ describe("CodeGenerator", () => {
     expect(generator.isIrTerminator("  unreachable")).toBe(true);
     expect(generator.isIrTerminator("  %x = add i32 1, 2")).toBe(false);
     expect(generator.isIrTerminator("  ret")).toBe(false);
+    expect(generator.isIrTerminator("  break")).toBe(false);
+    expect(generator.isIrTerminator("  switcheroo")).toBe(false);
 
     const source = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
@@ -361,7 +363,13 @@ describe("CodeGenerator", () => {
 
     const methodSource = source.slice(start, end);
     expect(methodSource).toContain("line.charCodeAt(index)");
+    expect(methodSource).toContain("switch (line.charCodeAt(index))");
+    expect(methodSource).toContain("case 114:");
+    expect(methodSource).toContain("case 98:");
+    expect(methodSource).toContain("case 115:");
+    expect(methodSource).toContain("case 117:");
     expect(methodSource).toContain('line.startsWith("ret ", index)');
+    expect(methodSource).not.toContain('line.startsWith("ret ", index) ||');
     expect(methodSource).not.toContain(".trim()");
   });
 
