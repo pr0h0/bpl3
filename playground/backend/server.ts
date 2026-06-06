@@ -13,6 +13,7 @@ import { Formatter } from "../../compiler/formatter/Formatter";
 import { lexWithGrammar } from "../../compiler/frontend/GrammarLexer";
 import { Parser } from "../../compiler/frontend/Parser";
 import { Compiler } from "../../compiler/index";
+import { getHostDefaults } from "../../cli/utils";
 import {
   createPlaygroundWasmBuildEnv,
   resolvePlaygroundWasmLinker,
@@ -515,6 +516,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
   const execute = req.execute !== false;
   const treeShakeTopLevelFunctions = execute && !includeArtifacts;
   const resolveImports = includeArtifacts || sourceMayUseBplImport(req.code);
+  const hostTarget = getHostDefaults().target;
   let bplHome: string | undefined;
   const getRequestBplHome = () => {
     bplHome ??= getBplHome();
@@ -619,6 +621,7 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
         resolveImports,
         verbose: false,
         treeShakeTopLevelFunctions,
+        target: hostTarget,
       });
 
       const result = compiler.compile(req.code);
@@ -693,10 +696,13 @@ async function compileAndRun(req: CompileRequest): Promise<CompileResponse> {
       const clangStart = Date.now();
       const runtimeFiles = await resolvePlaygroundNativeRuntimeFiles({
         bplHome: getRequestBplHome(),
+        target: hostTarget,
         warn: (message) => logger.warn(`[${requestId}] ${message}`),
       });
 
       const clangArgs = [
+        "-target",
+        hostTarget,
         "-o",
         binFile,
         irFile,

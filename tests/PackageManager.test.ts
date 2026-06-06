@@ -19,6 +19,18 @@ import {
 } from "../compiler/middleend/PackageManager";
 import { writeNodeCommandShim } from "./helpers/executableShim";
 
+const gnuTarTest = spawnSync("tar", ["--version"], {
+  encoding: "utf8",
+}).stdout?.includes("GNU tar")
+  ? test
+  : test.skip;
+const UNSAFE_ARCHIVE_MEMBER_TEST =
+  "should reject package archives with unsafe member paths";
+const SYMLINK_ARCHIVE_TEST =
+  "should reject package archives containing symlinks";
+const SYMLINK_EXPORT_ARCHIVE_TEST =
+  "should reject package archives whose exported entries are symlinks";
+
 describe("PackageManager", () => {
   let tempDir: string;
   let packageManager: PackageManager;
@@ -2159,7 +2171,7 @@ describe("PackageManager", () => {
       }
     });
 
-    test("should reject package archives with unsafe member paths", () => {
+    gnuTarTest(UNSAFE_ARCHIVE_MEMBER_TEST, () => {
       const sourceDir = path.join(tempDir, "unsafe-archive-source");
       const installDir = path.join(tempDir, "unsafe-archive-install");
       const tarballPath = path.join(tempDir, "unsafe-archive.tgz");
@@ -2210,7 +2222,7 @@ describe("PackageManager", () => {
       ).toBe(false);
     });
 
-    test("should reject package archives containing symlinks", () => {
+    gnuTarTest(SYMLINK_ARCHIVE_TEST, () => {
       const sourceDir = path.join(tempDir, "symlink-archive-source");
       const installDir = path.join(tempDir, "symlink-archive-install");
       const tarballPath = path.join(tempDir, "symlink-archive.tgz");
@@ -2260,7 +2272,7 @@ describe("PackageManager", () => {
       ).toBe(false);
     });
 
-    test("should reject package archives whose exported entries are symlinks", () => {
+    gnuTarTest(SYMLINK_EXPORT_ARCHIVE_TEST, () => {
       const sourceDir = path.join(tempDir, "export-symlink-archive-source");
       const installDir = path.join(tempDir, "export-symlink-archive-install");
       const tarballPath = path.join(tempDir, "export-symlink-archive.tgz");

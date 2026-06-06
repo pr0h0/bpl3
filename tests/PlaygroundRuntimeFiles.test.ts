@@ -73,11 +73,13 @@ describe("Playground native runtime file resolution", () => {
         bplHome,
         cacheDir,
         compiler,
+        target: "aarch64-apple-darwin",
       });
       const second = await resolvePlaygroundNativeRuntimeFiles({
         bplHome,
         cacheDir,
         compiler,
+        target: "aarch64-apple-darwin",
       });
 
       expect(first).toEqual(second);
@@ -86,6 +88,9 @@ describe("Playground native runtime file resolution", () => {
       expect(readFileSync(first[0]!, "utf8")).toBe("cached runtime object\n");
       expect(first[1]).toBe(join(bplHome, "lib", "runtime_support.o"));
       expect(readFileSync(logPath, "utf8").trim().split("\n")).toHaveLength(1);
+      expect(readFileSync(logPath, "utf8")).toContain(
+        "-target aarch64-apple-darwin",
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
       rmSync(bplHome, { recursive: true, force: true });

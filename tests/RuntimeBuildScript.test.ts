@@ -27,6 +27,19 @@ describe("Runtime build script", () => {
     expect(script).toContain('mv -f "$TMP_OBJECT" runtime_support.o');
   });
 
+  test("builds universal runtime support objects on macOS", () => {
+    const script = readFileSync(
+      join(import.meta.dir, "../lib/build_runtime.sh"),
+      "utf8",
+    );
+
+    expect(script).toContain('"$CC" -c -arch x86_64');
+    expect(script).toContain('"$CC" -c -arch arm64');
+    expect(script).toContain(
+      'lipo -create "$TMP_X86_OBJECT" "$TMP_ARM_OBJECT" -output "$TMP_OBJECT"',
+    );
+  });
+
   test("keeps named stack frame storage lazy to avoid default BSS bloat", () => {
     const source = readFileSync(
       join(import.meta.dir, "../lib/runtime_support.c"),

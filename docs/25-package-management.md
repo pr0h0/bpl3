@@ -946,6 +946,9 @@ the installed CLI against a malformed package import and asserts the stable
 `BPL_PACKAGE_MANIFEST_MISSING` diagnostic code. Reproduce that focused contract
 with `bun test tests/ReleaseMetadata.test.ts -t "packed package import diagnostic codes"`,
 or run the full packed smoke with `bun run release:smoke`.
+The packed smoke uses an isolated temporary npm cache. Its wasm artifact check
+is skipped when the compiler has no wasm backend unless
+`BPL_REQUIRE_WASM_LD=1` makes wasm toolchain coverage mandatory.
 
 To create a checksum manifest for the release artifacts, run:
 

@@ -19,6 +19,10 @@ import { join } from "path";
 
 import { getCompilerDriver } from "../compiler/common/CompilerDriver";
 import {
+  getNativeCodegenFlags,
+  getNativeLinkerFlags,
+} from "../compiler/common/NativeLinkerFlags";
+import {
   MODULE_CACHE_VERSION,
   ModuleCache,
 } from "../compiler/middleend/ModuleCache";
@@ -179,8 +183,9 @@ describe("ModuleCache", () => {
       );
 
       const args = JSON.parse(readFileSync(argsPath, "utf-8")) as string[];
-      expect(args).toContain("-ffunction-sections");
-      expect(args).toContain("-fdata-sections");
+      for (const flag of getNativeCodegenFlags()) {
+        expect(args).toContain(flag);
+      }
     } finally {
       if (previousBplCc === undefined) {
         delete process.env.BPL_CC;
@@ -810,8 +815,9 @@ describe("ModuleCache", () => {
 
       const args = JSON.parse(readFileSync(argsPath, "utf-8")) as string[];
       expect(args).toContain("-O3");
-      expect(args).toContain("-Wl,--gc-sections");
-      expect(args).toContain("-Wl,--no-export-dynamic");
+      for (const flag of getNativeLinkerFlags()) {
+        expect(args).toContain(flag);
+      }
     } finally {
       if (previousBplCc === undefined) {
         delete process.env.BPL_CC;

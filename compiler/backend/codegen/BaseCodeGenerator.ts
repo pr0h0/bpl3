@@ -834,7 +834,6 @@ export class BaseCodeGenerator {
     accessExpr: string,
   ): void {
     this.emit(`${trapLabel}:`);
-    // Print error message to stderr using fprintf
     const msg = `\n*** NULL OBJECT ACCESS ***\nFunction: ${funcName}\nExpression: ${accessExpr}\nAttempted to access member/index of null object\n\n`;
     if (!this.stringLiterals.has(msg)) {
       this.stringLiterals.set(
@@ -845,14 +844,8 @@ export class BaseCodeGenerator {
     const msgVar = this.stringLiterals.get(msg)!;
     const msgLen = msg.length + 1;
 
-    // Load stderr (file descriptor 2) and print using fprintf
-    // We use write syscall to avoid register issues with fprintf return value
-    const stderrPtr = this.newRegister();
     this.emit(
-      `  ${stderrPtr} = load %struct._IO_FILE*, %struct._IO_FILE** @stderr`,
-    );
-    this.emit(
-      `  call i32 @fprintf(%struct._IO_FILE* ${stderrPtr}, i8* getelementptr inbounds ([${msgLen} x i8], [${msgLen} x i8]* ${msgVar}, i64 0, i64 0))`,
+      `  call void @__bpl_write_stderr(i8* getelementptr inbounds ([${msgLen} x i8], [${msgLen} x i8]* ${msgVar}, i64 0, i64 0))`,
     );
     this.emit(`  call void @exit(i32 1)`);
     this.emit(`  unreachable`);

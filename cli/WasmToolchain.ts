@@ -1,4 +1,6 @@
 import { spawnSync } from "child_process";
+import { accessSync, constants, statSync } from "fs";
+import { delimiter, isAbsolute, join, resolve, sep } from "path";
 import {
   getPositiveIntegerEnv,
   TIMEOUT_ENV_DEFAULTS,
@@ -45,11 +47,39 @@ export function isUsableWasmLinker(
   candidate: string,
   timeoutMs = getWasmLinkerProbeTimeoutMs(),
 ): boolean {
-  const result = spawnSync(candidate, ["--version"], {
+  const executable = resolveExecutablePath(candidate);
+  if (!executable) return false;
+
+  const result = spawnSync(executable, ["--version"], {
     stdio: "ignore",
     timeout: timeoutMs,
   });
   return result.status === 0;
+}
+
+function resolveExecutablePath(command: string): string | undefined {
+  if (isAbsolute(command) || command.includes(sep)) {
+    const resolved = resolve(command);
+    return isExecutableFile(resolved) ? resolved : undefined;
+  }
+
+  for (const entry of process.env.PATH?.split(delimiter) ?? []) {
+    if (!entry) continue;
+    const candidate = join(entry, command);
+    if (isExecutableFile(candidate)) return candidate;
+  }
+
+  return undefined;
+}
+
+function isExecutableFile(filePath: string): boolean {
+  try {
+    if (!statSync(filePath).isFile()) return false;
+    accessSync(filePath, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function findWasmLinker(

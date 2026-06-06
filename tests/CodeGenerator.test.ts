@@ -1246,6 +1246,32 @@ describe("CodeGenerator", () => {
     expect(ir).toContain("declare noalias i8* @malloc(i64) allocsize(0)");
   });
 
+  it("emits runtime diagnostics without depending on the host stderr ABI", () => {
+    const ir = compile(`
+      struct Animal {
+        id: int,
+      }
+
+      struct Dog: Animal {
+        barkLevel: int,
+      }
+
+      frame readAnimalId<T: Animal>(value: *T) ret int {
+        return value.id;
+      }
+
+      frame main() ret int {
+        local dog: Dog = Dog { id: 42, barkLevel: 3 };
+        return readAnimalId<Animal>(cast<*Animal>(&dog));
+      }
+    `);
+
+    expect(ir).toContain("call void @__bpl_write_stderr(i8*");
+    expect(ir).toContain("declare void @__bpl_write_stderr(i8*)");
+    expect(ir).not.toContain("@stderr = external global");
+    expect(ir).not.toContain("@fprintf(");
+  });
+
   it("adds allocator facts to compatible malloc extern declarations", () => {
     const ir = compile(
       `

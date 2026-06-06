@@ -40,6 +40,8 @@ echo "Runtime build: $BPL_RUNTIME_BUILD"
 
 TMP_BUILD_DIR="$(mktemp -d "${SCRIPT_DIR}/.runtime-build.XXXXXX")"
 TMP_OBJECT="$TMP_BUILD_DIR/runtime_support.o"
+TMP_X86_OBJECT="$TMP_BUILD_DIR/runtime_support.x86_64.o"
+TMP_ARM_OBJECT="$TMP_BUILD_DIR/runtime_support.arm64.o"
 TMP_STATIC="$TMP_BUILD_DIR/libbpl_runtime_support.a"
 
 cleanup() {
@@ -70,10 +72,22 @@ SECTION_FLAGS=(-ffunction-sections -fdata-sections)
 
 # Compile runtime_support.c to object file
 echo "Compiling runtime_support.c -> runtime_support.o"
-"$CC" -c -fPIC "${OPT_FLAGS[@]}" "${SECTION_FLAGS[@]}" \
--Wall -Wextra \
--Wno-unused-parameter \
-runtime_support.c -o "$TMP_OBJECT"
+if [ "$PLATFORM" = "macos" ]; then
+    "$CC" -c -arch x86_64 -fPIC "${OPT_FLAGS[@]}" "${SECTION_FLAGS[@]}" \
+    -Wall -Wextra \
+    -Wno-unused-parameter \
+    runtime_support.c -o "$TMP_X86_OBJECT"
+    "$CC" -c -arch arm64 -fPIC "${OPT_FLAGS[@]}" "${SECTION_FLAGS[@]}" \
+    -Wall -Wextra \
+    -Wno-unused-parameter \
+    runtime_support.c -o "$TMP_ARM_OBJECT"
+    lipo -create "$TMP_X86_OBJECT" "$TMP_ARM_OBJECT" -output "$TMP_OBJECT"
+else
+    "$CC" -c -fPIC "${OPT_FLAGS[@]}" "${SECTION_FLAGS[@]}" \
+    -Wall -Wextra \
+    -Wno-unused-parameter \
+    runtime_support.c -o "$TMP_OBJECT"
+fi
 
 # Create a static library
 if command -v ar &> /dev/null; then

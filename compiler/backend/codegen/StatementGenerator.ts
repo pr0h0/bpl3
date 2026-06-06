@@ -1121,14 +1121,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       `Parameter: ${parameterName}\n` +
       `Expected runtime type: ${checkInfo.structName}\n\n`;
     const messagePtr = this.getStringLiteralPtr(message);
-    const stderrPtr = this.newRegister();
-    this.emit(
-      `  ${stderrPtr} = load %struct._IO_FILE*, %struct._IO_FILE** @stderr`,
-    );
-    const fprintfResult = this.newRegister();
-    this.emit(
-      `  ${fprintfResult} = call i32 @fprintf(%struct._IO_FILE* ${stderrPtr}, i8* ${messagePtr})`,
-    );
+    this.emit(`  call void @__bpl_write_stderr(i8* ${messagePtr})`);
     this.emit("  call void @exit(i32 1)");
     this.emit("  unreachable");
 

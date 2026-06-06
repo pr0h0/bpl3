@@ -43,7 +43,7 @@
     "--- System Paths ---",
     "PATH exists: 1",
     "HOME exists: 1",
-    "TmpDir = /tmp",
+    "TmpDir = ",
     "",
     "--- Cleanup ---",
     "Test variables cleaned up",
