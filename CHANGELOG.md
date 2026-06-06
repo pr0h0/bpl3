@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Generated Variable-Scope Keyword Cache** -
+  generated `global` / `local` declaration helpers now share a direct
+  last-position scope scanner instead of repeating literal matches, boundary
+  checks, and tuple allocations while Peggy retries ordered variable
+  declaration alternatives. The post-processor guards the expected helper
+  shape and call count, while preserving keyword boundaries, helper-specific
+  failure expectations, malformed-declaration diagnostics, AST shape, and
+  emitted LLVM. In a same-load 51-round 5k-function comparison, token and IR
+  signatures remained identical while median parse time improved from
+  ~160.30ms to ~153.70ms (~4.12%) and full compilation improved by ~0.12%.
+  Reproduce with
+  `bun test tests/Parser.test.ts tests/ParserExtended.test.ts tests/ParserRecovery.test.ts tests/GrammarParser.test.ts tests/CompilerCorrectnessHarness.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 51 --warmups 5 --json`.
 - **Generated Parser Type-Check Lookahead Scanner** -
   the Peggy parser post-processor now replaces `is` / `as` expression-tail
   tuple parsing with a direct, diagnostic-aware operator scanner and

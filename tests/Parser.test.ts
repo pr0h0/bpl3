@@ -1304,6 +1304,70 @@ describe("Parser", () => {
     expect(statementStartHelper).not.toContain("input.startsWith(peg$c17");
   });
 
+  it("caches generated variable-declaration scope keyword retries", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const scopeScanner = generatedSource.match(
+      /function peg\$scanBplVariableScopeKeyword\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const globalHelper = generatedSource.match(
+      /function peg\$parseK_global\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const localHelper = generatedSource.match(
+      /function peg\$parseK_local\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedVariableScopeKeywordScanning",
+    );
+    expect(generatedSource).toContain("let peg$bplLastVariableScopeStart = -1");
+    expect(scopeScanner).toContain(
+      "if (startPos === peg$bplLastVariableScopeStart)",
+    );
+    expect(scopeScanner).toContain(
+      "peg$isBplIdentifierContinuationCode",
+    );
+    expect(globalHelper).toContain("peg$scanBplVariableScopeKeyword()");
+    expect(globalHelper).toContain("scope === 1");
+    expect(localHelper).toContain("peg$scanBplVariableScopeKeyword()");
+    expect(localHelper).toContain("scope === 2");
+    expect(globalHelper).not.toContain("input.startsWith");
+    expect(localHelper).not.toContain("input.startsWith");
+    expect(globalHelper).not.toContain("peg$parseIdBoundary");
+    expect(localHelper).not.toContain("peg$parseIdBoundary");
+
+    expect(() =>
+      new Parser(
+        [
+          "global answer: int = 42;",
+          "frame main() ret int {",
+          "  local value: int = answer;",
+          "  return value;",
+          "}",
+        ].join("\n"),
+        "variable-scope-cache.bpl",
+      ).parse(),
+    ).not.toThrow();
+    expect(() =>
+      new Parser(
+        "frame main() ret int { locality value: int = 1; return value; }",
+        "variable-scope-boundary.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("keeps generated identifier boundary checks off regex dispatch", () => {
     const generatedSource = readTextFile(
       join(

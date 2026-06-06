@@ -11058,62 +11058,66 @@ function peg$parse(input, options) {
     return undefined;
   }
 
+  let peg$bplLastVariableScopeStart = -1;
+  let peg$bplLastVariableScope = 0;
+
+  function peg$scanBplVariableScopeKeyword() {
+    const startPos = peg$currPos;
+    if (startPos === peg$bplLastVariableScopeStart) {
+      return peg$bplLastVariableScope;
+    }
+
+    let scope = 0;
+    switch (input.charCodeAt(startPos)) {
+      case 103:
+        if (
+          input.charCodeAt(startPos + 1) === 108 &&
+          input.charCodeAt(startPos + 2) === 111 &&
+          input.charCodeAt(startPos + 3) === 98 &&
+          input.charCodeAt(startPos + 4) === 97 &&
+          input.charCodeAt(startPos + 5) === 108
+        ) {
+          scope = peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6)) ? -1 : 1;
+        }
+        break;
+      case 108:
+        if (
+          input.charCodeAt(startPos + 1) === 111 &&
+          input.charCodeAt(startPos + 2) === 99 &&
+          input.charCodeAt(startPos + 3) === 97 &&
+          input.charCodeAt(startPos + 4) === 108
+        ) {
+          scope = peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 5)) ? -2 : 2;
+        }
+        break;
+    }
+
+    peg$bplLastVariableScopeStart = startPos;
+    peg$bplLastVariableScope = scope;
+    return scope;
+  }
+
   function peg$parseK_global() {
-    let s0, s1, s2;
-
-    s0 = peg$currPos;
-    if (input.startsWith(peg$c17, peg$currPos)) {
-      s1 = peg$c17;
-      peg$currPos += 6;
-    } else {
-      s1 = peg$FAILED;
-      if (peg$silentFails === 0) { peg$fail(peg$e23); }
+    const startPos = peg$currPos;
+    const scope = peg$scanBplVariableScopeKeyword();
+    if (scope === 1) {
+      peg$currPos = startPos + 6;
+      return undefined;
     }
-    if (s1 !== peg$FAILED) {
-      s2 = peg$parseIdBoundary();
-      if (s2 !== peg$FAILED) {
-        s1 = [s1, s2];
-        s0 = s1;
-      } else {
-        peg$currPos = s0;
-        s0 = peg$FAILED;
-      }
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
-    }
-
-    return s0;
+    if (scope !== -1 && peg$silentFails === 0) { peg$fail(peg$e23); }
+    return peg$FAILED;
   }
 
   function peg$parseK_local() {
-    let s0, s1, s2;
-
-    s0 = peg$currPos;
-    if (input.startsWith(peg$c18, peg$currPos)) {
-      s1 = peg$c18;
-      peg$currPos += 5;
-    } else {
-      s1 = peg$FAILED;
-      if (peg$silentFails === 0) { peg$fail(peg$e24); }
+    const startPos = peg$currPos;
+    const scope = peg$scanBplVariableScopeKeyword();
+    if (scope === 2) {
+      peg$currPos = startPos + 5;
+      return undefined;
     }
-    if (s1 !== peg$FAILED) {
-      s2 = peg$parseIdBoundary();
-      if (s2 !== peg$FAILED) {
-        s1 = [s1, s2];
-        s0 = s1;
-      } else {
-        peg$currPos = s0;
-        s0 = peg$FAILED;
-      }
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
-    }
-
-    return s0;
+    if (scope !== -2 && peg$silentFails === 0) { peg$fail(peg$e24); }
+    return peg$FAILED;
   }
-
   function peg$parseK_const() {
     let s0, s1, s2;
 

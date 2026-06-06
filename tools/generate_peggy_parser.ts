@@ -89,6 +89,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedTypeCheckTailParsing(optimized);
   optimized = optimizeGeneratedAssignmentOperatorScanning(optimized);
   optimized = optimizeGeneratedStatementStartKeywordScanning(optimized);
+  optimized = optimizeGeneratedVariableScopeKeywordScanning(optimized);
   optimized = optimizeGeneratedNumberScanning(optimized);
   return optimizeGeneratedTriviaSkipping(optimized);
 }
@@ -981,6 +982,102 @@ function buildStatementStartKeywordAttempt(
     `${indent}  return undefined;`,
     `${indent}}`,
   ];
+}
+
+function optimizeGeneratedVariableScopeKeywordScanning(
+  parserSource: string,
+): string {
+  const keywordPattern =
+    /  function peg\$parseK_global\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseK_local\(\) \{([\s\S]*?)\n  \}\n\n(?=  function peg\$parseK_const\(\))/;
+  const match = parserSource.match(keywordPattern);
+  const globalExpectation = match?.[1]?.match(
+    /peg\$fail\((peg\$e\d+)\)/,
+  )?.[1];
+  const localExpectation = match?.[2]?.match(
+    /peg\$fail\((peg\$e\d+)\)/,
+  )?.[1];
+  const globalCallCount =
+    parserSource.match(/peg\$parseK_global\(\);/g)?.length ?? 0;
+  const localCallCount =
+    parserSource.match(/peg\$parseK_local\(\);/g)?.length ?? 0;
+
+  if (
+    !match ||
+    !globalExpectation ||
+    !localExpectation ||
+    globalCallCount !== 4 ||
+    localCallCount !== 4
+  ) {
+    throw new Error(
+      "Generated Peggy parser variable-scope keyword shape changed; update the BPL parser variable-scope optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  let peg$bplLastVariableScopeStart = -1;",
+    "  let peg$bplLastVariableScope = 0;",
+    "",
+    "  function peg$scanBplVariableScopeKeyword() {",
+    "    const startPos = peg$currPos;",
+    "    if (startPos === peg$bplLastVariableScopeStart) {",
+    "      return peg$bplLastVariableScope;",
+    "    }",
+    "",
+    "    let scope = 0;",
+    "    switch (input.charCodeAt(startPos)) {",
+    "      case 103:",
+    "        if (",
+    "          input.charCodeAt(startPos + 1) === 108 &&",
+    "          input.charCodeAt(startPos + 2) === 111 &&",
+    "          input.charCodeAt(startPos + 3) === 98 &&",
+    "          input.charCodeAt(startPos + 4) === 97 &&",
+    "          input.charCodeAt(startPos + 5) === 108",
+    "        ) {",
+    "          scope = peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6)) ? -1 : 1;",
+    "        }",
+    "        break;",
+    "      case 108:",
+    "        if (",
+    "          input.charCodeAt(startPos + 1) === 111 &&",
+    "          input.charCodeAt(startPos + 2) === 99 &&",
+    "          input.charCodeAt(startPos + 3) === 97 &&",
+    "          input.charCodeAt(startPos + 4) === 108",
+    "        ) {",
+    "          scope = peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 5)) ? -2 : 2;",
+    "        }",
+    "        break;",
+    "    }",
+    "",
+    "    peg$bplLastVariableScopeStart = startPos;",
+    "    peg$bplLastVariableScope = scope;",
+    "    return scope;",
+    "  }",
+    "",
+    "  function peg$parseK_global() {",
+    "    const startPos = peg$currPos;",
+    "    const scope = peg$scanBplVariableScopeKeyword();",
+    "    if (scope === 1) {",
+    "      peg$currPos = startPos + 6;",
+    "      return undefined;",
+    "    }",
+    `    if (scope !== -1 && peg$silentFails === 0) { peg$fail(${globalExpectation}); }`,
+    "    return peg$FAILED;",
+    "  }",
+    "",
+    "  function peg$parseK_local() {",
+    "    const startPos = peg$currPos;",
+    "    const scope = peg$scanBplVariableScopeKeyword();",
+    "    if (scope === 2) {",
+    "      peg$currPos = startPos + 5;",
+    "      return undefined;",
+    "    }",
+    `    if (scope !== -2 && peg$silentFails === 0) { peg$fail(${localExpectation}); }`,
+    "    return peg$FAILED;",
+    "  }",
+    "",
+  ].join("\n");
+
+  return parserSource.replace(keywordPattern, replacement);
 }
 
 function optimizeGeneratedAssignmentOperatorScanning(
