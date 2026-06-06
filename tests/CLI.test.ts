@@ -501,6 +501,22 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should preserve frontend-only build input diagnostics", () => {
+    const missingFile = path.join(
+      os.tmpdir(),
+      `bpl-missing-frontend-${process.pid}.bpl`,
+    );
+    fs.rmSync(missingFile, { force: true });
+
+    const result = runCLI(["build", missingFile, "--emit", "ast"]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "[CompilationRunner] BuildValidationError: File not found:",
+    );
+    expect(result.stderr).toContain(missingFile);
+  });
+
   it("should reject unsafe std imports without writing build artifacts", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-unsafe-std-"));
     const sourceFile = path.join(tempDir, "main.bpl");

@@ -10,6 +10,45 @@ import { getExplicitParentCompileOptions } from "./compileOptions";
 
 const log = new Logger("Build");
 
+export function shouldUseFrontendBuildAction(options: CompileOptions): boolean {
+  if (
+    options.emit !== "tokens" &&
+    options.emit !== "ast" &&
+    options.emit !== "formatted"
+  ) {
+    return false;
+  }
+
+  return (
+    (options.O === undefined || options.O === "0") &&
+    options.output === undefined &&
+    options.target === undefined &&
+    options.sysroot === undefined &&
+    options.cpu === undefined &&
+    options.march === undefined &&
+    options.lib === undefined &&
+    options.libPath === undefined &&
+    options.object === undefined &&
+    options.clangFlag === undefined &&
+    options.wasmRuntime === undefined &&
+    options.debugIrPath === undefined &&
+    !options.run &&
+    !options.cache &&
+    !options.cacheStats &&
+    options.jobs === undefined &&
+    options.prelude !== false &&
+    !options.dwarf &&
+    !options.debug &&
+    !options.stdin &&
+    options.eval === undefined &&
+    !options.watch &&
+    !options.time &&
+    !options.clear &&
+    !options.noRun &&
+    !options.skipRuntime
+  );
+}
+
 /**
  * Register the build command
  *
@@ -66,7 +105,6 @@ export function registerBuildCommand(program: Command): void {
     .option("--json", "output in JSON format")
     .action(async (file: string, _options: CompileOptions, command: Command) => {
       try {
-        const { processFileAsync } = await import("../CompilationRunner");
         // Merge parent options if any
         const globalOpts = getExplicitParentCompileOptions(command);
         const localOpts = command.opts<CompileOptions>();
@@ -80,6 +118,15 @@ export function registerBuildCommand(program: Command): void {
             globalOpts.dwarf,
         };
 
+        if (shouldUseFrontendBuildAction(compileOptions)) {
+          const { processFrontendBuildFile } = await import(
+            "./frontendBuildAction"
+          );
+          processFrontendBuildFile(file, compileOptions);
+          return;
+        }
+
+        const { processFileAsync } = await import("../CompilationRunner");
         await processFileAsync(file, compileOptions);
       } catch (e) {
         log.error(`${e instanceof Error ? e.message : String(e)}`);

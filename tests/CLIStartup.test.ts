@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { Command } from "commander";
 import { selectCliSubcommandGroup } from "../cli/CommandRegistration";
+import { shouldUseFrontendBuildAction } from "../cli/commands/build";
 
 function createRootCommand(): Command {
   return new Command()
@@ -91,6 +92,40 @@ describe("CLI startup command registration", () => {
     expect(commandSources[1]).toContain('import("../CompilationRunner")');
     expect(commandSources[2]).not.toContain('from "../Watcher"');
     expect(commandSources[2]).toContain('import("../Watcher")');
+  });
+
+  test("routes frontend-only build emits before loading the full compilation runner", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "commands", "build.ts"),
+      "utf8",
+    );
+    const frontendActionImport = source.search(
+      /import\(\s*["']\.\/frontendBuildAction["']\s*\)/,
+    );
+    const fullRunnerImport = source.indexOf('import("../CompilationRunner")');
+
+    expect(frontendActionImport).toBeGreaterThanOrEqual(0);
+    expect(fullRunnerImport).toBeGreaterThan(frontendActionImport);
+  });
+
+  test("keeps advanced frontend build options on the full runner", () => {
+    expect(shouldUseFrontendBuildAction({ emit: "tokens", O: "0" })).toBe(true);
+    expect(shouldUseFrontendBuildAction({ emit: "ast", write: true })).toBe(
+      true,
+    );
+    expect(shouldUseFrontendBuildAction({ emit: "formatted" })).toBe(true);
+
+    expect(shouldUseFrontendBuildAction({ emit: "llvm" })).toBe(false);
+    expect(shouldUseFrontendBuildAction({ emit: "ast", O: "3" })).toBe(false);
+    expect(shouldUseFrontendBuildAction({ emit: "ast", time: true })).toBe(
+      false,
+    );
+    expect(shouldUseFrontendBuildAction({ emit: "tokens", jobs: "0" })).toBe(
+      false,
+    );
+    expect(
+      shouldUseFrontendBuildAction({ emit: "formatted", target: "invalid" }),
+    ).toBe(false);
   });
 
   test("keeps check registration off action-only analysis dependencies", () => {

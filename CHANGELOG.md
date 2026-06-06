@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Frontend-Only Build Cold-Start Path** -
+  `bpl build --emit tokens`, `--emit ast`, and `--emit formatted` now defer to
+  a focused lexer/parser/formatter action for common requests instead of
+  loading module resolution, type checking, code generation, runtime, and
+  linker dependencies. Advanced options retain the full compilation runner.
+  Opposite-order 41-round cold comparisons preserved normalized
+  status/stdout/stderr hashes for valid, invalid, and missing inputs while
+  median latency improved by 44.23-50.10% for tokens, 40.18-41.99% for AST,
+  and 41.76-44.32% for formatted output. Reproduce focused behavior checks
+  with `bun test tests/CLIStartup.test.ts tests/CLI.test.ts`.
 - **Leading-Import Cold Compile Fast Path** -
   CLI compilation now recognizes files whose first significant token is an
   exact `import` keyword before invoking the full grammar lexer solely to
