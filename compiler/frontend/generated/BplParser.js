@@ -405,7 +405,13 @@ function peg$parse(input, options) {
   const peg$e118 = peg$literalExpectation("$", false);
 
   function peg$f0(stmts) {
-    const statements = stmts.map(([stmt]) => stmt).filter(Boolean);
+    const statements = [];
+    for (let i = 0; i < stmts.length; i++) {
+      const statement = stmts[i][0];
+      if (statement) {
+        statements.push(statement);
+      }
+    }
     const loc = location();
     return { kind: "Program", statements, location: loc };
   }

@@ -366,6 +366,36 @@ describe("Parser", () => {
     );
   });
 
+  it("keeps generated top-level statement collection off map/filter allocation", () => {
+    const grammarSource = readTextFile(
+      join(process.cwd(), "grammar", "bpl.peggy"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const programRuleSource = getGrammarRuleSource(grammarSource, "Program");
+    const programAction = generatedSource.match(
+      /function peg\$f\d+\(stmts\) \{[\s\S]*?return \{ kind: "Program", statements, location: loc \};\n  \}/,
+    )?.[0];
+
+    expect(programRuleSource).toContain("const statements = []");
+    expect(programRuleSource).toContain("statements.push(statement)");
+    expect(programRuleSource).not.toContain("stmts.map");
+    expect(programRuleSource).not.toContain(".filter(Boolean)");
+    expect(programAction).toContain("const statements = []");
+    expect(programAction).toContain("statements.push(statement)");
+    expect(programAction).not.toContain("stmts.map");
+    expect(programAction).not.toContain(".filter(Boolean)");
+  });
+
   it("keeps hot generated parser list actions off tail map/spread allocation", () => {
     const grammarSource = readTextFile(
       join(process.cwd(), "grammar", "bpl.peggy"),
