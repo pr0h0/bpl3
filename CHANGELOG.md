@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **On-Demand New Project Scaffolding** -
+  the `new` command now registers help and option metadata through a
+  lightweight registrar, then loads filesystem, manifest, logging,
+  JSON-reporting, and output-safety dependencies only when project creation
+  executes. Existing new-project error-code exports remain available from
+  `cli/commands/new.ts`, and controlled help, JSON, stderr, exit codes, and
+  generated app and library files remain byte-for-byte stable. In an
+  alternating 101-round comparison against `1e130816`, `new --help` median
+  startup improved from ~49.31ms to ~44.23ms (~10.3% raw, ~4.7% after
+  normalizing against version control drift); root help improved ~7.7% raw,
+  while invalid-name JSON execution stayed effectively flat after
+  normalization. A direct 5k compiler comparison preserved token and IR
+  signatures with full compilation at -4.42%. Reproduce the loading and
+  behavior contracts with
+  `bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/JsonContracts.test.ts tests/JsonErrorCodeLists.test.ts tests/MarkdownDocs.test.ts`.
 - **On-Demand Bindgen Parser** -
   the `bindgen` command now registers help and option metadata through a
   lightweight registrar, then loads its C header parser, output safety,

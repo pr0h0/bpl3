@@ -74,7 +74,7 @@ describe("JSON contract constants", () => {
       "cli/commands/doctor.ts",
       "cli/commands/format.ts",
       "cli/commands/lint.ts",
-      "cli/commands/new.ts",
+      "cli/commands/newAction.ts",
       "cli/commands/package.ts",
       "cli/commands/runScript.ts",
       "compiler/middleend/PackageManager.ts",

@@ -233,6 +233,33 @@ describe("CLI startup command registration", () => {
     expect(source).toContain('from "./commands/BindgenContracts"');
   });
 
+  test("keeps new command registration off action-only scaffolding dependencies", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "commands", "new.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain('import("./newAction")');
+    expect(source).not.toContain('from "fs"');
+    expect(source).not.toContain('from "path"');
+    expect(source).not.toContain('from "../../compiler/common/JsonContracts"');
+    expect(source).not.toContain('from "../../compiler/common/Logger"');
+    expect(source).not.toContain(
+      'from "../../compiler/common/PackageManifestSchema"',
+    );
+    expect(source).not.toContain('from "../utils"');
+  });
+
+  test("keeps the JSON error registry on focused new command contracts", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "JsonErrorCodes.ts"),
+      "utf8",
+    );
+
+    expect(source).not.toContain('from "./commands/new"');
+    expect(source).toContain('from "./commands/NewContracts"');
+  });
+
   test("keeps package registration off broad and action-only compiler modules", () => {
     const source = readFileSync(
       join(process.cwd(), "cli", "commands", "package.ts"),

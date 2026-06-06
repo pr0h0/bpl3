@@ -11,7 +11,7 @@ import {
 } from "./commands/DoctorContracts";
 import { FORMAT_JSON_ERROR_CODES } from "./commands/format";
 import { LINT_JSON_ERROR_CODES } from "./commands/lint";
-import { NEW_PROJECT_JSON_ERROR_CODES } from "./commands/new";
+import { NEW_PROJECT_JSON_ERROR_CODES } from "./commands/NewContracts";
 import { RUN_SCRIPT_JSON_ERROR_CODES } from "./commands/runScript";
 import { SANITIZER_RUNTIME_UNAVAILABLE_CODE } from "../compiler/common/SanitizerSupport";
 import { IMPORT_HANDLER_FAILURE_CODES } from "../compiler/middleend/ImportHandler";
