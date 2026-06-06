@@ -645,6 +645,10 @@ describe("Parser", () => {
   });
 
   it("keeps generated identifier parsing off Peggy action dispatch", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
     const generatedSource = readTextFile(
       join(
         process.cwd(),
@@ -659,8 +663,22 @@ describe("Parser", () => {
       /function peg\$parseIdentifier\(\)[\s\S]*?\n  \}/,
     )?.[0];
 
-    expect(identifierHelper).toContain("return input.slice(startPos, endPos);");
-    expect(identifierHelper).not.toContain("const name =");
+    expect(generatorSource).toContain("peg$bplLastIdentifierStart");
+    expect(generatedSource).toContain("let peg$bplLastIdentifierStart = -1;");
+    expect(generatedSource).toContain('let peg$bplLastIdentifierValue = "";');
+    expect(identifierHelper).toContain(
+      "if (startPos === peg$bplLastIdentifierStart)",
+    );
+    expect(identifierHelper).toContain(
+      "peg$currPos = startPos + peg$bplLastIdentifierValue.length;",
+    );
+    expect(identifierHelper).toContain(
+      "if (peg$collectExpected && peg$silentFails === 0)",
+    );
+    expect(identifierHelper).toContain("const value = input.slice(startPos, endPos);");
+    expect(identifierHelper).toContain("peg$bplLastIdentifierStart = startPos;");
+    expect(identifierHelper).toContain("peg$bplLastIdentifierValue = value;");
+    expect(identifierHelper).toContain("return value;");
     expect(identifierHelper).not.toContain("return { name };");
     expect(identifierHelper).not.toMatch(/return peg\$f\d+\(name\);/);
     expect(identifierHelper).not.toContain("peg$savedPos = startPos;");

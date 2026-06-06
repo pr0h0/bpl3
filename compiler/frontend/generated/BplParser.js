@@ -9530,8 +9530,17 @@ function peg$parse(input, options) {
     return s0;
   }
 
+  let peg$bplLastIdentifierStart = -1;
+  let peg$bplLastIdentifierValue = "";
+
   function peg$parseIdentifier() {
     const startPos = peg$currPos;
+    if (startPos === peg$bplLastIdentifierStart) {
+      peg$currPos = startPos + peg$bplLastIdentifierValue.length;
+      if (peg$collectExpected && peg$silentFails === 0) { peg$fail(peg$e79); }
+      return peg$bplLastIdentifierValue;
+    }
+
     const firstCode = input.charCodeAt(startPos);
 
     if (!((firstCode >= 65 && firstCode <= 90) || (firstCode >= 97 && firstCode <= 122) || firstCode === 95)) {
@@ -9558,7 +9567,10 @@ function peg$parse(input, options) {
       return peg$FAILED;
     }
 
-    return input.slice(startPos, endPos);
+    const value = input.slice(startPos, endPos);
+    peg$bplLastIdentifierStart = startPos;
+    peg$bplLastIdentifierValue = value;
+    return value;
   }
 
   function peg$isBplIdentStartCode(code) {
