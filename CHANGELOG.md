@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Allocation-Free Binary Operator Classification** -
+  binary type checking now classifies bitwise and arithmetic operators with
+  direct token comparisons instead of constructing temporary operator arrays
+  for every expression. Operator overloads, compatibility checks, diagnostics,
+  token signatures, and emitted LLVM remain unchanged. In isolated 101-round
+  comparisons, median typecheck improved by ~2.25% in the first ordering and
+  remained flat within ~0.02% in the reverse ordering, while average typecheck
+  improved by ~1.34% and ~0.97% and median full compilation improved by ~1.64%
+  and ~0.90%. Reproduce with
+  `bun test tests/TypeChecker.test.ts tests/TypeCheckerExtended.test.ts tests/BitwiseEdgeCases.test.ts tests/CompilerCorrectnessCorpus.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Direct Struct Field Substitution Fast Path** -
   direct non-generic struct field resolution now returns the declared field
   type without allocating an empty substitution map or invoking generic

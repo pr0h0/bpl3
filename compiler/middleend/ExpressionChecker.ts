@@ -717,13 +717,11 @@ export function checkBinary(
 
   // Bitwise operators on integers
   if (
-    [
-      TokenType.Ampersand,
-      TokenType.Pipe,
-      TokenType.Caret,
-      TokenType.LessLess,
-      TokenType.GreaterGreater,
-    ].includes(op)
+    op === TokenType.Ampersand ||
+    op === TokenType.Pipe ||
+    op === TokenType.Caret ||
+    op === TokenType.LessLess ||
+    op === TokenType.GreaterGreater
   ) {
     if (
       !TypeUtils.isIntegerType(leftType) ||
@@ -808,9 +806,10 @@ export function checkBinary(
 
   // Ensure arithmetic operators are only applied to numeric types (unless overloaded)
   if (
-    [TokenType.Plus, TokenType.Minus, TokenType.Star, TokenType.Slash].includes(
-      op,
-    )
+    op === TokenType.Plus ||
+    op === TokenType.Minus ||
+    op === TokenType.Star ||
+    op === TokenType.Slash
   ) {
     if (
       !isArithmeticOperandType(this, leftType) ||

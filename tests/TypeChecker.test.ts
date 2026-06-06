@@ -334,6 +334,22 @@ describe("TypeChecker", () => {
     expect(bigint).toBeGreaterThan(replace);
   });
 
+  it("keeps binary operator classification off temporary arrays", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("export function checkBinary");
+    const methodEnd = source.indexOf("export function checkUnary", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(methodSource).toContain("op === TokenType.Ampersand");
+    expect(methodSource).toContain("op === TokenType.Plus");
+    expect(methodSource).not.toContain("].includes(op)");
+  });
+
   it("keeps small struct literal missing-field checks off Set allocation", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
