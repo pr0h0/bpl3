@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Single-Pass Comment Extraction** -
+  comment-bearing lexing now scans the source once while using ordered
+  string, character, and interpolated-string ranges to ignore embedded comment
+  markers. It materializes line and block comment text directly from the
+  source instead of splitting every line, building a line-start index, and
+  concatenating block comments one character at a time. On the
+  `mini_database_engine` example, `extractComments` dropped from 87.7 ms self
+  time in the top profile row to about 29 ms across its remaining samples. Two
+  opposite-order 61-round comparisons preserved token signatures and LLVM
+  hashes while median lexing improved by ~47.10% and ~47.37%, with median full
+  compilation improving by ~15.06% and ~16.53%. A deterministic 2,000-case
+  differential lexer run against the detached control also preserved its
+  aggregate token and error hash. Reproduce focused behavior checks with
+  `bun test tests/Lexer.test.ts`.
 - **Cached VTable Entry Name Resolution** -
   vtable layout construction now caches the exact simple-name result for each
   inherited method entry, invalidating the cache whenever the known struct set

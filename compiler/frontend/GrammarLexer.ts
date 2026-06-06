@@ -106,121 +106,107 @@ function extractComments(
   tokens: TokenNode[],
 ): Token[] {
   const comments: Token[] = [];
-  const lines = source.split("\n");
-
-  // Identify ranges to exclude (strings, chars)
-  const excludeRanges = tokens
-    .filter(
-      (t) =>
-        t.type === "StringLiteral" ||
-        t.type === "InterpolatedStringLiteral" ||
-        t.type === "CharLiteral",
-    )
-    .map((t) => ({ start: t.start, end: t.end }))
-    .sort((a, b) => a.start - b.start);
-
-  // Calculate line start indices
-  const lineStartIndices: number[] = [];
-  let currentIdx = 0;
-  for (const line of lines) {
-    lineStartIndices.push(currentIdx);
-    currentIdx += line.length + 1; // +1 for newline
+  // GenericParser emits tokens in source order, so literal ranges stay ordered.
+  const excludeRanges: Array<{ start: number; end: number }> = [];
+  for (const token of tokens) {
+    if (
+      token.type === "StringLiteral" ||
+      token.type === "InterpolatedStringLiteral" ||
+      token.type === "CharLiteral"
+    ) {
+      excludeRanges.push({ start: token.start, end: token.end });
+    }
   }
 
-  let inBlockComment = false;
-  let blockCommentStart = { line: 0, column: 0 };
-  let blockCommentContent = "";
+  const sourceLength = source.length;
+  let position = 0;
+  let line = 1;
+  let column = 1;
   let rangeIdx = 0;
+  let blockCommentStart = -1;
+  let blockCommentLine = 0;
+  let blockCommentColumn = 0;
 
-  for (let lineNum = 0; lineNum < lines.length; lineNum++) {
-    const line = lines[lineNum] || "";
-    const lineStart = lineStartIndices[lineNum]!;
-    let col = 0;
-
-    while (col < line.length) {
-      const absPos = lineStart + col;
-
-      // Skip excluded ranges (strings, chars)
-      // Advance rangeIdx if current range is past
-      while (
-        rangeIdx < excludeRanges.length &&
-        excludeRanges[rangeIdx]!.end <= absPos
-      ) {
-        rangeIdx++;
-      }
-
-      // Check if inside current range
-      if (
-        !inBlockComment &&
-        rangeIdx < excludeRanges.length &&
-        absPos >= excludeRanges[rangeIdx]!.start
-      ) {
-        // We are inside a string/char literal.
-        // Skip until end of range or end of line
-        const rangeEnd = excludeRanges[rangeIdx]!.end;
-        const dist = rangeEnd - absPos;
-        const skip = Math.min(dist, line.length - col);
-        col += skip;
-        continue;
-      }
-
-      // Check for block comment start
-      if (!inBlockComment && line.substring(col, col + 2) === "/#") {
-        inBlockComment = true;
-        blockCommentStart = { line: lineNum + 1, column: col + 1 };
-        blockCommentContent = "/#";
-        col += 2;
-        continue;
-      }
-
-      // Check for block comment end
-      if (inBlockComment && line.substring(col, col + 2) === "#/") {
-        blockCommentContent += "#/";
-        comments.push(
-          new Token(
-            TokenType.Comment,
-            blockCommentContent,
-            null,
-            blockCommentStart.line,
-            blockCommentStart.column,
-            filePath,
-          ),
-        );
-        inBlockComment = false;
-        blockCommentContent = "";
-        col += 2;
-        continue;
-      }
-
-      // Inside block comment
-      if (inBlockComment) {
-        blockCommentContent += line[col];
-        col++;
-        continue;
-      }
-
-      // Check for single-line comment
-      if (line[col] === "#") {
-        const commentText = line.substring(col);
-        comments.push(
-          new Token(
-            TokenType.Comment,
-            commentText,
-            null,
-            lineNum + 1,
-            col + 1,
-            filePath,
-          ),
-        );
-        break; // Rest of line is comment
-      }
-
-      col++;
+  while (position < sourceLength) {
+    while (
+      rangeIdx < excludeRanges.length &&
+      excludeRanges[rangeIdx]!.end <= position
+    ) {
+      rangeIdx++;
     }
 
-    // Add newline to block comment if we're inside one
-    if (inBlockComment && lineNum < lines.length - 1) {
-      blockCommentContent += "\n";
+    if (
+      blockCommentStart < 0 &&
+      rangeIdx < excludeRanges.length &&
+      position >= excludeRanges[rangeIdx]!.start
+    ) {
+      const rangeEnd = excludeRanges[rangeIdx]!.end;
+      while (position < rangeEnd) {
+        if (source.charCodeAt(position) === 10) {
+          line++;
+          column = 1;
+        } else {
+          column++;
+        }
+        position++;
+      }
+      continue;
+    }
+
+    const currentCode = source.charCodeAt(position);
+    if (blockCommentStart < 0) {
+      if (currentCode === 47 && source.charCodeAt(position + 1) === 35) {
+        blockCommentStart = position;
+        blockCommentLine = line;
+        blockCommentColumn = column;
+        position += 2;
+        column += 2;
+        continue;
+      }
+
+      if (currentCode === 35) {
+        const lineEnd = source.indexOf("\n", position);
+        const commentEnd = lineEnd < 0 ? sourceLength : lineEnd;
+        comments.push(
+          new Token(
+            TokenType.Comment,
+            source.substring(position, commentEnd),
+            null,
+            line,
+            column,
+            filePath,
+          ),
+        );
+        column += commentEnd - position;
+        position = commentEnd;
+        continue;
+      }
+    } else if (
+      currentCode === 35 &&
+      source.charCodeAt(position + 1) === 47
+    ) {
+      position += 2;
+      column += 2;
+      comments.push(
+        new Token(
+          TokenType.Comment,
+          source.substring(blockCommentStart, position),
+          null,
+          blockCommentLine,
+          blockCommentColumn,
+          filePath,
+        ),
+      );
+      blockCommentStart = -1;
+      continue;
+    }
+
+    position++;
+    if (currentCode === 10) {
+      line++;
+      column = 1;
+    } else {
+      column++;
     }
   }
 

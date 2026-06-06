@@ -1438,6 +1438,50 @@ describe("Lexer - Extended Tests", () => {
       expect(methodSource).not.toContain("tokens.map(convertTokenNodeToToken)");
     });
 
+    it("preserves exact comment text and positions around literal markers", () => {
+      const tokens = tokenize(
+        [
+          "# header",
+          'local stringValue: string = "# not a comment";',
+          "local charValue: char = '#';",
+          "local interpolated: string = `# not a comment`;",
+          "/# block",
+          "body #/",
+          "  # tail",
+        ].join("\n"),
+      );
+
+      expect(
+        tokens
+          .filter((token) => token.type === TokenType.Comment)
+          .map(({ lexeme, line, column }) => ({ lexeme, line, column })),
+      ).toEqual([
+        { lexeme: "# header", line: 1, column: 1 },
+        { lexeme: "/# block\nbody #/", line: 5, column: 1 },
+        { lexeme: "# tail", line: 7, column: 3 },
+      ]);
+    });
+
+    it("extracts comments with one source-index scan", () => {
+      const source = readFileSync(
+        join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
+        "utf8",
+      );
+      const start = source.indexOf("function extractComments");
+      const end = source.indexOf("function convertTokenNodeToToken", start);
+
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+
+      const methodSource = source.slice(start, end);
+      expect(methodSource).toContain("const sourceLength = source.length");
+      expect(methodSource).toContain("let position = 0");
+      expect(methodSource).toContain("source.charCodeAt(position)");
+      expect(methodSource).not.toContain('source.split("\\n")');
+      expect(methodSource).not.toContain("lineStartIndices");
+      expect(methodSource).not.toContain("blockCommentContent +=");
+    });
+
     it("should skip single-line comments", () => {
       const tokens = tokenize("# This is a comment\nlocal");
       expect(tokens[0]!.type).toBe(TokenType.Comment);
