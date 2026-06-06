@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Cached VTable Entry Name Resolution** -
+  vtable layout construction now caches the exact simple-name result for each
+  inherited method entry, invalidating the cache whenever the known struct set
+  grows. This preserves existing override layout behavior and emitted LLVM
+  while avoiding repeated scans over every struct and method. On the
+  `mini_database_engine` example, profile self time in `getEntrySimpleName`
+  fell from 187.3 ms to 16.3 ms. Two opposite-order 61-round comparisons
+  preserved token signatures and LLVM hashes while median codegen improved by
+  ~17.27% and ~15.81%, with median full compilation improving by ~17.64% and
+  ~17.58%. Reproduce focused behavior checks with
+  `bun test tests/CodeGenerator.test.ts tests/StructVTable.test.ts tests/Struct.runtime.test.ts`.
 - **Exact LLVM Unreachable Terminator Boundaries** -
   code generation now recognizes `unreachable` as a terminator only when the
   keyword ends or is followed by LLVM metadata, instead of accepting arbitrary

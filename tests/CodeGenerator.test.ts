@@ -240,6 +240,42 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain("baseStructDef.members.find");
   });
 
+  it("caches repeated vtable entry name reconstruction", () => {
+    const baseSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/BaseCodeGenerator.ts",
+      ),
+      "utf8",
+    );
+    const generatorSource = readTextFile(
+      join(process.cwd(), "compiler/backend/CodeGenerator.ts"),
+      "utf8",
+    );
+    const structEnumSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/StructEnumGenerator.ts",
+      ),
+      "utf8",
+    );
+
+    expect(baseSource).toContain("vtableEntrySimpleNameCache");
+    expect(baseSource).toContain("vtableEntrySimpleNameCacheStructCount");
+    expect(generatorSource).toContain(
+      "this.vtableEntrySimpleNameCache.clear()",
+    );
+    expect(structEnumSource).toContain(
+      "const cached = this.vtableEntrySimpleNameCache.get(entry)",
+    );
+    expect(structEnumSource).toContain(
+      "this.vtableEntrySimpleNameCacheStructCount !== this.structMap.size",
+    );
+    expect(structEnumSource).toContain(
+      "this.vtableEntrySimpleNameCache.set(entry, simpleName)",
+    );
+  });
+
   it("indexes top-level codegen declarations in a single pre-layout pass", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/backend/CodeGenerator.ts"),

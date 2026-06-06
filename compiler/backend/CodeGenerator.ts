@@ -179,6 +179,7 @@ export class CodeGenerator extends StatementGenerator {
     this.globals.clear();
     this.locals.clear();
     this.generatedStructs.clear();
+    this.vtableEntrySimpleNameCache.clear();
     this.typeIdMap.clear();
     this.nextTypeId = 10; // Start from 10 to avoid conflicts
     this.emittedMemIsZero = false;

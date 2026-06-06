@@ -298,6 +298,8 @@ export class BaseCodeGenerator {
   protected emittedFunctions: Set<string> = new Set(); // Track functions actually emitted to LLVM
   protected typeAliasMap: Map<string, AST.TypeAliasDecl> = new Map(); // Track type aliases
   protected vtableLayouts: Map<string, string[]> = new Map(); // StructName -> [MethodName]
+  protected vtableEntrySimpleNameCache: Map<string, string | null> = new Map();
+  protected vtableEntrySimpleNameCacheStructCount: number = -1;
   protected vtableGlobalNames: Map<string, string> = new Map(); // StructName -> @StructName_vtable
   protected functionAttributeGroups = new FunctionAttributeGroups();
   protected usedLlvmMemIntrinsics: Set<"memcpy" | "memmove" | "memset"> =

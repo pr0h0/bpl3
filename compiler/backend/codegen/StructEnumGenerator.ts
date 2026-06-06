@@ -214,6 +214,16 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
   }
 
   protected getEntrySimpleName(entry: string): string | null {
+    if (
+      this.vtableEntrySimpleNameCacheStructCount !== this.structMap.size
+    ) {
+      this.vtableEntrySimpleNameCache.clear();
+      this.vtableEntrySimpleNameCacheStructCount = this.structMap.size;
+    }
+
+    const cached = this.vtableEntrySimpleNameCache.get(entry);
+    if (cached !== undefined) return cached;
+
     // Find matching struct prefix
     let bestStructName = "";
     for (const sName of this.structMap.keys()) {
@@ -223,7 +233,10 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
         }
       }
     }
-    if (!bestStructName) return null;
+    if (!bestStructName) {
+      this.vtableEntrySimpleNameCache.set(entry, null);
+      return null;
+    }
 
     // We can't easily look up the method decl without iterating.
     // Optimization: Assume format Struct_SimpleName_MangledParams.
@@ -238,10 +251,13 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
       ) {
         const fd = m as AST.FunctionDecl;
         if (this.getVTableMethodName(fd) === entry) {
-          return fd.name.substring(bestStructName.length + 1);
+          const simpleName = fd.name.substring(bestStructName.length + 1);
+          this.vtableEntrySimpleNameCache.set(entry, simpleName);
+          return simpleName;
         }
       }
     }
+    this.vtableEntrySimpleNameCache.set(entry, null);
     return null;
   }
 
