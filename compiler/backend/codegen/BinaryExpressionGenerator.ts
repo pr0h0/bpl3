@@ -899,7 +899,6 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   ): string {
     const isFloat = leftType === "double" || leftType === "float";
     const isUnsigned = !isFloat && !this.isSigned(expr.left.resolvedType!);
-    const rightType = this.resolveType(expr.right.resolvedType!);
 
     let op = "";
     let finalRight = right;
@@ -1057,11 +1056,19 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         break;
       case TokenType.LessLess:
         op = "shl";
-        finalRight = this.maskShiftAmount(right, rightType, leftType);
+        finalRight = this.maskShiftAmount(
+          right,
+          this.resolveType(expr.right.resolvedType!),
+          leftType,
+        );
         break;
       case TokenType.GreaterGreater:
         op = isUnsigned ? "lshr" : "ashr";
-        finalRight = this.maskShiftAmount(right, rightType, leftType);
+        finalRight = this.maskShiftAmount(
+          right,
+          this.resolveType(expr.right.resolvedType!),
+          leftType,
+        );
         break;
     }
 

@@ -106,6 +106,30 @@ describe("CodeGenerator", () => {
     expect(methodPrefix).toContain("if (simpleBuiltinLlvmType)");
   });
 
+  it("resolves standard binary right types only for shift masking", () => {
+    const source = readTextFile(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/BinaryExpressionGenerator.ts",
+      ),
+      "utf8",
+    );
+    const methodStart = source.indexOf("private generateStandardBinaryOp");
+    const methodEnd = source.indexOf("\n  /**", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(methodSource).not.toContain(
+      "const rightType = this.resolveType(expr.right.resolvedType!)",
+    );
+    expect(
+      methodSource.match(
+        /this\.resolveType\(expr\.right\.resolvedType!\)/g,
+      ),
+    ).toHaveLength(2);
+  });
+
   it("keeps hot type mangling list construction allocation-conscious", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/TypeGenerator.ts"),

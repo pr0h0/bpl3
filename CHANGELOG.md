@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Lazy Standard-Binary Right-Type Resolution** -
+  codegen now resolves the right operand's LLVM type only for shift operations,
+  where width masking consumes it, instead of resolving it for every ordinary
+  arithmetic, comparison, and bitwise expression. Shift behavior, token
+  signatures, and emitted LLVM remain unchanged. In isolated 51-round and
+  reverse-order 101-round comparisons on the 5k-function workload, median
+  codegen improved by ~0.43% and ~4.87%, respectively; the longer reverse
+  comparison improved average codegen by ~2.08% and full compilation by
+  ~2.01%. Reproduce with
+  `bun test tests/CodeGenerator.test.ts tests/BitwiseEdgeCases.test.ts tests/V01BugRepros.test.ts tests/MoreRuntimeEdgeCases.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Shared Empty Unused-Variable Results** -
   symbol-table unused-variable scans now return a shared readonly empty result
   and allocate a result array only after finding an unused variable. Populated
