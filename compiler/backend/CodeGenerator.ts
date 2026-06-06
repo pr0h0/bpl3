@@ -935,7 +935,8 @@ export class CodeGenerator extends StatementGenerator {
     let symbolIndex = 0;
     while ((symbolIndex = llvmBody.indexOf("@", symbolIndex)) !== -1) {
       const start = symbolIndex + 1;
-      if (!targets.symbols.has(llvmBody.charCodeAt(start))) {
+      const candidates = targets.symbols.get(llvmBody.charCodeAt(start));
+      if (candidates === undefined) {
         symbolIndex = start;
         continue;
       }
@@ -947,7 +948,7 @@ export class CodeGenerator extends StatementGenerator {
           llvmBody,
           start,
           end,
-          targets.symbols,
+          candidates,
         );
         symbolIndex = end;
       } else {
@@ -960,7 +961,8 @@ export class CodeGenerator extends StatementGenerator {
       (structIndex = llvmBody.indexOf("%struct.", structIndex)) !== -1
     ) {
       const start = structIndex + "%struct.".length;
-      if (!targets.structs.has(llvmBody.charCodeAt(start))) {
+      const candidates = targets.structs.get(llvmBody.charCodeAt(start));
+      if (candidates === undefined) {
         structIndex = start;
         continue;
       }
@@ -972,7 +974,7 @@ export class CodeGenerator extends StatementGenerator {
           llvmBody,
           start,
           end,
-          targets.structs,
+          candidates,
         );
         structIndex = end;
       } else {
@@ -986,13 +988,8 @@ export class CodeGenerator extends StatementGenerator {
     llvmBody: string,
     start: number,
     end: number,
-    targets: LlvmReferenceNameTargets,
+    candidates: string[],
   ): void {
-    const candidates = targets.get(llvmBody.charCodeAt(start));
-    if (candidates === undefined) {
-      return;
-    }
-
     const referenceLength = end - start;
     for (const candidate of candidates) {
       if (

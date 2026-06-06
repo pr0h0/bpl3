@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Single-Lookup Targeted LLVM Reference Scanning** -
+  final-pruning reference scans now reuse each delimiter's first-character
+  candidate list instead of checking the target map and then repeating the
+  same lookup in the matcher. Prefix-like references, runtime and builtin
+  pruning, token signatures, and emitted LLVM remain unchanged. In a
+  51-round isolated clean-HEAD comparison on the 5k-function workload,
+  median codegen improved from ~104.14ms to ~99.16ms (~4.78%) and full
+  compilation improved from ~369.34ms to ~349.78ms (~5.30%). A second
+  candidate run confirmed the codegen direction at ~100.39ms. Reproduce with
+  `bun test tests/CodeGenerator.test.ts` and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 51 --warmups 5 --json`.
 - **Generated Variable-Scope Keyword Cache** -
   generated `global` / `local` declaration helpers now share a direct
   last-position scope scanner instead of repeating literal matches, boundary

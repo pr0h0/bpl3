@@ -1610,17 +1610,23 @@ describe("CodeGenerator", () => {
       "private collectLlvmReferences",
       collectorStart,
     );
+    const matcherStart = source.indexOf(
+      "private addTargetedLlvmReference",
+      collectorStart,
+    );
 
     expect(finalPruningStart).toBeGreaterThanOrEqual(0);
     expect(finalPruningEnd).toBeGreaterThan(finalPruningStart);
     expect(collectorStart).toBeGreaterThanOrEqual(0);
     expect(collectorEnd).toBeGreaterThan(collectorStart);
+    expect(matcherStart).toBeGreaterThan(collectorStart);
 
     const finalPruningSource = source.slice(
       finalPruningStart,
       finalPruningEnd,
     );
     const collectorSource = source.slice(collectorStart, collectorEnd);
+    const matcherSource = source.slice(matcherStart, collectorEnd);
     expect(finalPruningSource).toContain(
       "this.collectFinalPruningLlvmReferences(generatedBody)",
     );
@@ -1636,6 +1642,15 @@ describe("CodeGenerator", () => {
     expect(source).toContain("private createLlvmReferenceNameTargets");
     expect(source).toContain("private scanTargetedLlvmReferencesFromText");
     expect(source).toContain("private addTargetedLlvmReference");
+    expect(collectorSource).toContain(
+      "targets.symbols.get(llvmBody.charCodeAt(start))",
+    );
+    expect(collectorSource).toContain(
+      "targets.structs.get(llvmBody.charCodeAt(start))",
+    );
+    expect(collectorSource).not.toContain("targets.symbols.has");
+    expect(collectorSource).not.toContain("targets.structs.has");
+    expect(matcherSource).not.toContain("targets.get");
   });
 
   it("keeps final IR section assembly off the map/filter allocation path", () => {
