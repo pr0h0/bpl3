@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Shared Empty Unused-Variable Results** -
+  symbol-table unused-variable scans now return a shared readonly empty result
+  and allocate a result array only after finding an unused variable. Populated
+  results remain fresh and retain symbol insertion order, while no-unused
+  function and block scopes avoid a fresh array allocation. Isolated 51-round
+  and reverse-order 101-round comparisons on the 5k-function workload
+  preserved token signatures and emitted LLVM while median typecheck time
+  improved by ~2.98% and ~1.93%, respectively; full-compilation medians stayed
+  within ~0.80%. Reproduce with
+  `bun test tests/SymbolTable.test.ts tests/TypeChecker.test.ts tests/BugHunting.test.ts tests/ErrorMessaging.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 7 --json`.
 - **Cached Auto-Destroy Method Discovery** -
   codegen now caches both positive and negative `@[auto_destroy]` method
   lookups by resolved struct declaration for the duration of one generation.

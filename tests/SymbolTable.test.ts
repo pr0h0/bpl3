@@ -185,6 +185,27 @@ describe("SymbolTable", () => {
     expect(functionSymbol.used).toBe(false);
   });
 
+  it("reuses empty unused-variable results without sharing populated results", () => {
+    const scope = new SymbolTable();
+    const empty = scope.getUnusedVariables();
+    expect(scope.getUnusedVariables()).toBe(empty);
+
+    const variable: Symbol = {
+      name: "value",
+      kind: "Variable",
+      declaration: {
+        kind: "VariableDecl",
+        location: dummyLocation,
+      },
+      used: false,
+    };
+    scope.define(variable);
+
+    const unused = scope.getUnusedVariables();
+    expect(unused).not.toBe(empty);
+    expect(unused).toEqual([variable]);
+  });
+
   it("keeps repeated variable resolution off redundant used writes", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),

@@ -22,6 +22,7 @@ export interface Symbol {
 }
 
 const UNRESOLVED_SYMBOL = Symbol("unresolved-symbol");
+const EMPTY_UNUSED_VARIABLES: readonly Symbol[] = [];
 
 type ResolutionCacheValue = Symbol | typeof UNRESOLVED_SYMBOL;
 
@@ -101,14 +102,14 @@ export class SymbolTable {
     return undefined;
   }
 
-  public getUnusedVariables(): Symbol[] {
-    const unused: Symbol[] = [];
+  public getUnusedVariables(): readonly Symbol[] {
+    let unused: Symbol[] | undefined;
     for (const symbol of this.symbols.values()) {
       if (symbol.kind === "Variable" && !symbol.used) {
-        unused.push(symbol);
+        (unused ??= []).push(symbol);
       }
     }
-    return unused;
+    return unused ?? EMPTY_UNUSED_VARIABLES;
   }
 
   public enterScope(): SymbolTable {
