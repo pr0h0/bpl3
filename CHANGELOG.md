@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Direct Struct Field Substitution Fast Path** -
+  direct non-generic struct field resolution now returns the declared field
+  type without allocating an empty substitution map or invoking generic
+  substitution. Generic and inherited fields still allocate and apply maps
+  when substitutions are present, while diagnostics, token signatures, and
+  emitted LLVM remain unchanged. In isolated 101-round comparisons, median
+  typecheck improved by ~1.34% and ~3.96% across opposite execution orders,
+  with median full compilation improving by ~1.52% and ~2.60%. Reproduce with
+  `bun test tests/TypeChecker.test.ts tests/TypeCheckerExtended.test.ts tests/CompilerCorrectnessCorpus.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 9 --json`.
 - **Small Struct Literal Missing-Field Fast Path** -
   type checking now verifies missing fields in struct literals with four or
   fewer supplied fields by scanning the small field list directly, avoiding a

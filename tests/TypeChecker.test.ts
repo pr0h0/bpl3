@@ -983,6 +983,25 @@ describe("TypeChecker", () => {
     expect(directStructBranchSource).not.toContain(".members.filter(");
   });
 
+  it("keeps direct struct field resolution off empty generic maps", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("public resolveStructField");
+    const methodEnd = source.indexOf("public resolveMemberWithContext", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(methodSource).toContain(
+      "substitutionMap?: Map<string, AST.TypeNode>",
+    );
+    expect(methodSource).not.toContain("= new Map()");
+    expect(methodSource).toContain("substitutionMap && substitutionMap.size > 0");
+    expect(methodSource).toContain(": member.type");
+  });
+
   it("skips operator overload member resolution for methodless structs", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/OverloadResolver.ts"),
