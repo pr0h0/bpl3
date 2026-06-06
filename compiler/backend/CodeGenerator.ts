@@ -811,11 +811,12 @@ export class CodeGenerator extends StatementGenerator {
         continue;
       }
 
-      if (hasOutput) {
-        result += "\n";
+      if (!hasOutput) {
+        result = line;
+        hasOutput = true;
+      } else {
+        result += "\n" + line;
       }
-      result += line;
-      hasOutput = true;
       previousWasBlank = isBlank;
     }
 
