@@ -93,8 +93,8 @@ describe("CLI startup command registration", () => {
     expect(commandSources[2]).toContain('import("../Watcher")');
   });
 
-  test("keeps source-analysis command registration off the compiler barrel", () => {
-    for (const name of ["check", "format", "lint"]) {
+  test("keeps check and lint registration off eager compiler barrel imports", () => {
+    for (const name of ["check", "lint"]) {
       const source = readFileSync(
         join(process.cwd(), "cli", "commands", `${name}.ts`),
         "utf8",
@@ -144,6 +144,38 @@ describe("CLI startup command registration", () => {
     expect(source).not.toContain('from "../utils"');
     expect(source).not.toContain('from "../../compiler/common/JsonContracts"');
     expect(source).not.toContain('from "../../compiler/common/Logger"');
+  });
+
+  test("keeps format registration off action-only formatting dependencies", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "commands", "format.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain('import("./formatAction")');
+    expect(source).not.toContain('from "fs"');
+    expect(source).not.toContain('from "../../compiler/common/JsonContracts"');
+    expect(source).not.toContain('from "../../compiler/common/Logger"');
+    expect(source).not.toContain('from "../utils"');
+  });
+
+  test("keeps the deferred format engine on focused compiler imports", () => {
+    const actionSource = readFileSync(
+      join(process.cwd(), "cli", "commands", "formatAction.ts"),
+      "utf8",
+    );
+    const engineSource = readFileSync(
+      join(process.cwd(), "cli", "commands", "formatEngine.ts"),
+      "utf8",
+    );
+
+    expect(actionSource).toContain('import("./formatEngine")');
+    expect(actionSource).not.toContain('import("../../compiler")');
+    expect(engineSource).toContain('from "../../compiler/formatter/Formatter"');
+    expect(engineSource).toContain(
+      'from "../../compiler/frontend/GrammarLexer"',
+    );
+    expect(engineSource).toContain('from "../../compiler/frontend/Parser"');
   });
 
   test("keeps the shared CLI diagnostic formatter off the compiler barrel", () => {

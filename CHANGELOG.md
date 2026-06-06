@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Focused On-Demand Format Engine** -
+  the `format` command now keeps filesystem, logging, JSON-reporting, and
+  formatting dependencies out of command registration, then loads a focused
+  parser/formatter engine only after validation succeeds. Real format actions
+  no longer evaluate the full compiler barrel, while existing format
+  error-code exports and controlled help, validation, JSON check, stdout,
+  write, stderr, exit-status, and rewritten-file behavior remain stable. In an
+  alternating 101-round comparison against `9240c423`, normalized median
+  startup improved by ~2.9% for `format --help`, ~31.0% for a successful JSON
+  format check, and ~32.4% for stdout formatting; validation-only paths stayed
+  within ~2.0%. A fresh 21-round 5k compiler comparison preserved token and IR
+  signatures with codegen at -5.82% and full compilation at -3.63%. Reproduce
+  the loading and behavior contracts with
+  `bun test tests/CLIStartup.test.ts tests/CLI.test.ts tests/CLIJsonParseability.test.ts tests/JsonContracts.test.ts tests/JsonErrorCodeLists.test.ts tests/MarkdownDocs.test.ts`.
 - **Concurrent On-Demand Lint Actions** -
   the `lint` command now keeps filesystem, diagnostics, logging, and JSON
   dependencies out of help startup, then loads them concurrently with the
