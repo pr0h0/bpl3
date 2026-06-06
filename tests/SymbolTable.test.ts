@@ -208,4 +208,34 @@ describe("SymbolTable", () => {
     expect(usedGuard).toBeGreaterThan(variableKind);
     expect(usedWrite).toBeGreaterThan(usedGuard);
   });
+
+  it("returns cached symbols without repeating used-state checks", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),
+      "utf8",
+    );
+    const resolveStart = source.indexOf("  public resolve(");
+    const scopeWalkStart = source.indexOf(
+      "    let scope: SymbolTable | undefined = this;",
+      resolveStart,
+    );
+    const nextMethodStart = source.indexOf(
+      "  public getUnusedVariables",
+      scopeWalkStart,
+    );
+
+    expect(resolveStart).toBeGreaterThanOrEqual(0);
+    expect(scopeWalkStart).toBeGreaterThan(resolveStart);
+    expect(nextMethodStart).toBeGreaterThan(scopeWalkStart);
+
+    const cacheHitSource = source.slice(resolveStart, scopeWalkStart);
+    const scopeWalkSource = source.slice(scopeWalkStart, nextMethodStart);
+    const usedWrite = scopeWalkSource.indexOf("symbol.used = true");
+    const cacheWrite = scopeWalkSource.indexOf("cache.set(name, symbol)");
+
+    expect(cacheHitSource).not.toContain("cached.kind");
+    expect(cacheHitSource).not.toContain("cached.used");
+    expect(usedWrite).toBeGreaterThanOrEqual(0);
+    expect(cacheWrite).toBeGreaterThan(usedWrite);
+  });
 });

@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Direct Cached Symbol Resolution** -
+  symbol-table cache hits now return already-resolved symbols directly instead
+  of repeating variable-kind and used-state checks. Variables are still marked
+  used before their first successful resolution is cached, while scope walks,
+  child-miss invalidation, diagnostics, token signatures, and emitted LLVM
+  remain unchanged. In a 101-round isolated clean-HEAD comparison on the
+  5k-function workload, median typecheck time improved from ~69.56ms to
+  ~68.82ms (~1.06%) and codegen remained effectively unchanged at ~103ms.
+  Reproduce with `bun test tests/SymbolTable.test.ts` and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 101 --warmups 7 --json`.
 - **Single-Lookup Targeted LLVM Reference Scanning** -
   final-pruning reference scans now reuse each delimiter's first-character
   candidate list instead of checking the target map and then repeating the

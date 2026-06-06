@@ -73,9 +73,6 @@ export class SymbolTable {
       if (cached === UNRESOLVED_SYMBOL) {
         return undefined;
       }
-      if (cached.kind === "Variable" && cached.used !== true) {
-        cached.used = true;
-      }
       return cached;
     }
 
