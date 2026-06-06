@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Short Decimal Literal Typecheck Fast Path** -
+  type checking now classifies parser-validated plain decimal literals of up
+  to nine digits as `int` before searching for floating-point markers,
+  cleaning separators, or invoking `BigInt`. Decimal, exponent, prefixed,
+  separator-bearing, and longer integer literals retain the existing fallback
+  behavior, while diagnostics, token signatures, and emitted LLVM remain
+  unchanged. Across three alternating 41-round control/candidate pairs, median
+  type checking improved by ~2.60%, ~1.71%, and ~1.11%, with median full
+  compilation improving by ~0.53%, ~2.16%, and ~0.14%. Reproduce with
+  `bun test tests/TypeChecker.test.ts tests/TypeCheckerExtended.test.ts tests/TypeCheckerStatementSemanticGuards.test.ts tests/CompilerCorrectnessCorpus.test.ts tests/CompilerCorrectnessSeededFuzz.test.ts`
+  and
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 41 --warmups 7 --json`.
 - **Allocation-Free Function Parameter Symbols** -
   function-body type checking now registers each parsed `AST.Parameter`
   declaration directly instead of cloning it solely to reassert its existing

@@ -136,10 +136,22 @@ export function checkLiteral(
 ): AST.TypeNode {
   let name = "void";
   if (expr.type === "number") {
-    if (
-      expr.raw.includes(".") ||
-      expr.raw.includes("e") ||
-      expr.raw.includes("E")
+    const raw = expr.raw;
+    const rawLength = raw.length;
+    let isSmallDecimalInteger = rawLength > 0 && rawLength <= 9;
+    for (let i = 0; isSmallDecimalInteger && i < rawLength; i++) {
+      const code = raw.charCodeAt(i);
+      if (code < 48 || code > 57) {
+        isSmallDecimalInteger = false;
+      }
+    }
+
+    if (isSmallDecimalInteger) {
+      name = "int";
+    } else if (
+      raw.includes(".") ||
+      raw.includes("e") ||
+      raw.includes("E")
     ) {
       name = "float";
     } else {

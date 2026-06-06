@@ -334,6 +334,27 @@ describe("TypeChecker", () => {
     expect(bigint).toBeGreaterThan(replace);
   });
 
+  it("classifies short decimal integer literals before BigInt fallback", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
+      "utf8",
+    );
+    const checkLiteral = source.indexOf("export function checkLiteral");
+    const checkLiteralEnd = source.indexOf("\n}\n\n/**", checkLiteral);
+    const literalSource = source.slice(checkLiteral, checkLiteralEnd);
+    const shortDecimalGuard = literalSource.indexOf("rawLength <= 9");
+    const digitScan = literalSource.indexOf("raw.charCodeAt(i)");
+    const floatFallback = literalSource.indexOf('raw.includes(".")');
+    const bigintFallback = literalSource.indexOf("BigInt(cleanRaw)");
+
+    expect(checkLiteral).toBeGreaterThanOrEqual(0);
+    expect(checkLiteralEnd).toBeGreaterThan(checkLiteral);
+    expect(shortDecimalGuard).toBeGreaterThanOrEqual(0);
+    expect(digitScan).toBeGreaterThan(shortDecimalGuard);
+    expect(floatFallback).toBeGreaterThan(digitScan);
+    expect(bigintFallback).toBeGreaterThan(floatFallback);
+  });
+
   it("keeps binary operator classification off temporary arrays", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
