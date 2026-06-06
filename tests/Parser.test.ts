@@ -957,7 +957,14 @@ describe("Parser", () => {
     expect(postfixTailHelper).toContain("case 43:");
     expect(postfixTailHelper).toContain("case 45:");
     expect(postfixTailHelper).toContain("s2 = peg$parsePostfixTailAfterTrivia()");
+    expect(postfixTailHelper).toContain("s2.startPos = s0");
+    expect(postfixTailHelper).toContain("s2.endPos = peg$currPos");
+    expect(postfixTailHelper).toContain("return s2");
+    expect(postfixTailHelper).not.toMatch(/peg\$f\d+\(s2\)/);
     expect(postfixTailHelper).toContain("peg$currPos = s0");
+    expect(generatedSource).not.toContain(
+      "tail.startPos = peg$savedPos;",
+    );
 
     expect(() =>
       new Parser(

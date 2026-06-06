@@ -636,6 +636,20 @@ function optimizeGeneratedPostfixTailScanning(parserSource: string): string {
     );
   }
 
+  const actionDefinition = [
+    `  function ${actionName}(tail) {`,
+    "    tail.startPos = peg$savedPos;",
+    "    tail.endPos = offset();",
+    "    return tail;",
+    "  }",
+    "",
+  ].join("\n");
+  if (!parserSource.includes(actionDefinition)) {
+    throw new Error(
+      "Generated Peggy parser postfix-tail action shape changed; update the BPL parser postfix-tail optimizer.",
+    );
+  }
+
   const replacement = [
     "  function peg$parsePostfixTail() {",
     "    let s0, s2;",
@@ -663,20 +677,21 @@ function optimizeGeneratedPostfixTailScanning(parserSource: string): string {
     "    }",
     "    s2 = peg$parsePostfixTailAfterTrivia();",
     "    if (s2 !== peg$FAILED) {",
-    "      peg$savedPos = s0;",
-    `      s0 = ${actionName}(s2);`,
-    "    } else {",
-    "      peg$currPos = s0;",
-    "      s0 = peg$FAILED;",
+    "      s2.startPos = s0;",
+    "      s2.endPos = peg$currPos;",
+    "      return s2;",
     "    }",
     "",
-    "    return s0;",
+    "    peg$currPos = s0;",
+    "    return peg$FAILED;",
     "  }",
     "",
     "  function peg$parsePostfixTailAfterTrivia()",
   ].join("\n");
 
-  return parserSource.replace(postfixTailPattern, replacement);
+  return parserSource
+    .replace(actionDefinition, "")
+    .replace(postfixTailPattern, replacement);
 }
 
 function optimizeGeneratedPostfixParsing(parserSource: string): string {

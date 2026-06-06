@@ -755,11 +755,6 @@ function peg$parse(input, options) {
     }
     return expr;
   }
-  function peg$f116(tail) {
-    tail.startPos = peg$savedPos;
-    tail.endPos = offset();
-    return tail;
-  }
   function peg$f117(args) {
     return { type: "generic", genericArgs: args };
   }
@@ -7012,14 +7007,13 @@ function peg$parse(input, options) {
     }
     s2 = peg$parsePostfixTailAfterTrivia();
     if (s2 !== peg$FAILED) {
-      peg$savedPos = s0;
-      s0 = peg$f116(s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+      s2.startPos = s0;
+      s2.endPos = peg$currPos;
+      return s2;
     }
 
-    return s0;
+    peg$currPos = s0;
+    return peg$FAILED;
   }
 
   function peg$parsePostfixTailAfterTrivia() {
