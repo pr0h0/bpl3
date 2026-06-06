@@ -88,6 +88,30 @@ describe("CodeGen - Stack Overflow", () => {
     expect(fibBody!).not.toMatch(/br label %stack\.limit\.check/);
   });
 
+  it("defers optimized recursive stack-limit probes until after leading call-free base cases", () => {
+    const source = `
+      frame fib(n: i64) ret i64 {
+        if (n < 2) {
+          return n;
+        }
+        return fib(n - 1) + fib(n - 2);
+      }
+
+      frame main() ret int {
+        return cast<int>(fib(10));
+      }
+    `;
+    const ir = generateOptimized(source);
+
+    const fibBody = functionBody(ir, "fib_i64");
+    const baseCheckIndex = fibBody.indexOf("icmp slt i64");
+    const stackProbeIndex = fibBody.indexOf("call i8* @llvm.stacksave()");
+
+    expect(baseCheckIndex).toBeGreaterThanOrEqual(0);
+    expect(stackProbeIndex).toBeGreaterThanOrEqual(0);
+    expect(baseCheckIndex).toBeLessThan(stackProbeIndex);
+  });
+
   it("keeps alloca stack-limit probes for optimized native direct tail recursion", () => {
     const source = `
       frame recur(n: int) ret int {

@@ -560,6 +560,56 @@ export abstract class StatementGenerator extends AsmGenerator {
     return this.blockContainsDirectSelfCall(decl.body, decl);
   }
 
+  private getPreStackLimitBaseCase(
+    decl: AST.FunctionDecl,
+    parentStruct?: AST.StructDecl | AST.EnumDecl,
+    captureInfo?: { name: string; fields: { name: string; type: string }[] },
+  ): AST.IfStmt | undefined {
+    if (!this.currentFunctionEmitsStackFrameHooks) return undefined;
+    if (!this.shouldUseStackLimitProbe()) return undefined;
+    if (this.currentFunctionUsesAllocaStackLimitProbe) return undefined;
+    if (decl.name === "main") return undefined;
+    if (parentStruct || captureInfo) return undefined;
+    if (decl.genericParams.length > 0) return undefined;
+
+    const firstStatement = decl.body.statements[0];
+    if (!firstStatement || firstStatement.kind !== "If") return undefined;
+
+    const ifStmt = firstStatement as AST.IfStmt;
+    if (ifStmt.elseBranch) return undefined;
+    if (this.expressionBlocksStackHookElision(ifStmt.condition)) {
+      return undefined;
+    }
+    if (this.expressionContainsDirectSelfCall(ifStmt.condition, decl)) {
+      return undefined;
+    }
+    if (!this.isPreStackLimitReturnBranch(ifStmt.thenBranch, decl)) {
+      return undefined;
+    }
+
+    return ifStmt;
+  }
+
+  private isPreStackLimitReturnBranch(
+    stmt: AST.Statement,
+    decl: AST.FunctionDecl,
+  ): boolean {
+    if (stmt.kind === "Block") {
+      const statements = (stmt as AST.BlockStmt).statements;
+      return (
+        statements.length === 1 &&
+        this.isPreStackLimitReturnBranch(statements[0]!, decl)
+      );
+    }
+    if (stmt.kind !== "Return") return false;
+
+    const value = (stmt as AST.ReturnStmt).value;
+    return (
+      !this.expressionBlocksStackHookElision(value) &&
+      !this.expressionContainsDirectSelfCall(value, decl)
+    );
+  }
+
   private blockContainsDirectSelfCall(
     block: AST.BlockStmt,
     decl: AST.FunctionDecl,
@@ -2656,6 +2706,11 @@ export abstract class StatementGenerator extends AsmGenerator {
         this.currentFunctionUsesAllocaStackLimitProbe =
           !hasDirectRecursiveCall || this.hasDirectTailRecursiveReturn(decl);
       }
+      const preStackLimitBaseCase = this.getPreStackLimitBaseCase(
+        decl,
+        parentStruct,
+        captureInfo,
+      );
 
       // Special handling for main function to accept argc/argv
       let params: string;
@@ -2748,7 +2803,9 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
 
       // Stack overflow check
-      this.emitStackFrameEnter();
+      if (!preStackLimitBaseCase) {
+        this.emitStackFrameEnter();
+      }
 
       // Store argc/argv in global variables for main function
       if (name === "main") {
@@ -2900,7 +2957,20 @@ export abstract class StatementGenerator extends AsmGenerator {
         }
       }
 
-      this.generateBlock(decl.body, false, true);
+      if (preStackLimitBaseCase) {
+        this.generateIf(preStackLimitBaseCase);
+        this.emitStackFrameEnter();
+        this.generateBlock(
+          {
+            ...decl.body,
+            statements: decl.body.statements.slice(1),
+          },
+          false,
+          true,
+        );
+      } else {
+        this.generateBlock(decl.body, false, true);
+      }
 
       // Add implicit return for void functions if missing
       let lastLine = "";
