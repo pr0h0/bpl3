@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import { spawnSync } from "child_process";
 import {
+  chmodSync,
   existsSync,
   mkdtempSync,
   readFileSync,
@@ -31,6 +33,247 @@ import {
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 
 describe("Benchmark runner helpers", () => {
+  it("keeps binary comparison tooling import-safe", () => {
+    const filePath = join(
+      process.cwd(),
+      "benchmark",
+      "compare_binaries.ts",
+    );
+
+    expect(existsSync(filePath)).toBe(true);
+    if (!existsSync(filePath)) return;
+
+    const source = readFileSync(filePath, "utf8");
+    expect(source).toContain("if (import.meta.main)");
+    expect(source).not.toContain("\nmain();");
+  });
+
+  it("exports a binary comparison argument parser", async () => {
+    const comparison = await import("../benchmark/compare_binaries");
+
+    expect(comparison.parseBinaryComparisonArgs).toBeFunction();
+  });
+
+  it("parses binary comparison paths and timing options", async () => {
+    const { parseBinaryComparisonArgs } = await import(
+      "../benchmark/compare_binaries"
+    );
+
+    expect(
+      parseBinaryComparisonArgs([
+        "--runs",
+        "7",
+        "--warmups",
+        "2",
+        "--no-validate",
+        "--json",
+        "/tmp/baseline",
+        "/tmp/candidate",
+      ]),
+    ).toEqual({
+      baselinePath: "/tmp/baseline",
+      candidatePath: "/tmp/candidate",
+      runs: 7,
+      warmups: 2,
+      validate: false,
+      json: true,
+    });
+  });
+
+  it("rejects invalid binary comparison arguments", async () => {
+    const { parseBinaryComparisonArgs } = await import(
+      "../benchmark/compare_binaries"
+    );
+
+    expect(() => parseBinaryComparisonArgs(["/tmp/baseline"])).toThrow(
+      "expects exactly two executable paths",
+    );
+    expect(() =>
+      parseBinaryComparisonArgs([
+        "--runs",
+        "0",
+        "/tmp/baseline",
+        "/tmp/candidate",
+      ]),
+    ).toThrow("--runs must be greater than 0");
+    expect(() =>
+      parseBinaryComparisonArgs([
+        "--warmups",
+        "-1",
+        "/tmp/baseline",
+        "/tmp/candidate",
+      ]),
+    ).toThrow("--warmups must be a non-negative integer");
+    expect(() =>
+      parseBinaryComparisonArgs([
+        "--unknown",
+        "/tmp/baseline",
+        "/tmp/candidate",
+      ]),
+    ).toThrow("Unknown option: --unknown");
+  });
+
+  it("reports positive binary timing improvements when the candidate is faster", async () => {
+    const { compareBinaryTimingStats } = await import(
+      "../benchmark/compare_binaries"
+    );
+
+    expect(
+      compareBinaryTimingStats(
+        { minMs: 80, medianMs: 100, averageMs: 110 },
+        { minMs: 70, medianMs: 90, averageMs: 99 },
+      ),
+    ).toEqual({
+      medianDeltaMs: -10,
+      medianImprovementPercent: 10,
+      averageDeltaMs: -11,
+      averageImprovementPercent: 10,
+    });
+  });
+
+  it("uses balanced schedules for binary comparison warmups and timings", () => {
+    const source = readFileSync(
+      join(process.cwd(), "benchmark", "compare_binaries.ts"),
+      "utf8",
+    );
+
+    expect(source).toMatch(
+      /buildBalancedRunSchedule\(\s*executables,\s*options\.warmups,\s*\)/,
+    );
+    expect(source).toMatch(
+      /buildBalancedRunSchedule\(\s*executables,\s*options\.runs,\s*\)/,
+    );
+  });
+
+  it("validates and times matching prebuilt binaries", async () => {
+    const { runBinaryComparison } = await import(
+      "../benchmark/compare_binaries"
+    );
+    const dir = mkdtempSync(join(tmpdir(), "bpl-binary-comparison-"));
+    try {
+      const baselinePath = writeBenchmarkExecutable(dir, "baseline", "same");
+      const candidatePath = writeBenchmarkExecutable(dir, "candidate", "same");
+
+      const result = runBinaryComparison({
+        baselinePath,
+        candidatePath,
+        runs: 2,
+        warmups: 1,
+        validate: true,
+        json: false,
+      });
+
+      expect(result).toMatchObject({
+        baselinePath,
+        candidatePath,
+        runs: 2,
+        warmups: 1,
+        validated: true,
+      });
+      expect(result.baseline.medianMs).toBeGreaterThan(0);
+      expect(result.candidate.medianMs).toBeGreaterThan(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects mismatched prebuilt binary output before timing", async () => {
+    const { runBinaryComparison } = await import(
+      "../benchmark/compare_binaries"
+    );
+    const dir = mkdtempSync(join(tmpdir(), "bpl-binary-comparison-"));
+    try {
+      const baselinePath = writeBenchmarkExecutable(dir, "baseline", "before");
+      const candidatePath = writeBenchmarkExecutable(dir, "candidate", "after");
+
+      expect(() =>
+        runBinaryComparison({
+          baselinePath,
+          candidatePath,
+          runs: 1,
+          warmups: 0,
+          validate: true,
+          json: false,
+        }),
+      ).toThrow("Candidate output does not match baseline output");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("formats deterministic binary comparison text", async () => {
+    const { formatBinaryComparisonResult } = await import(
+      "../benchmark/compare_binaries"
+    );
+
+    expect(
+      formatBinaryComparisonResult({
+        baselinePath: "/tmp/baseline",
+        candidatePath: "/tmp/candidate",
+        runs: 7,
+        warmups: 2,
+        validated: true,
+        baseline: { minMs: 80, medianMs: 100, averageMs: 110 },
+        candidate: { minMs: 70, medianMs: 90, averageMs: 99 },
+        comparison: {
+          medianDeltaMs: -10,
+          medianImprovementPercent: 10,
+          averageDeltaMs: -11,
+          averageImprovementPercent: 10,
+        },
+      }),
+    ).toBe(`Binary A/B comparison (7 runs, 2 warmups, output validated)
+Baseline:  /tmp/baseline
+Candidate: /tmp/candidate
+Baseline   min 80.00 ms  median 100.00 ms  average 110.00 ms
+Candidate  min 70.00 ms  median 90.00 ms  average 99.00 ms
+Candidate improvement: median +10.00% (-10.00 ms)  average +10.00% (-11.00 ms)`);
+  });
+
+  it("runs binary comparison CLI with machine-readable output", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-binary-comparison-"));
+    try {
+      const baselinePath = writeBenchmarkExecutable(dir, "baseline", "same");
+      const candidatePath = writeBenchmarkExecutable(dir, "candidate", "same");
+      const result = spawnSync(
+        "bun",
+        [
+          "benchmark/compare_binaries.ts",
+          "--runs",
+          "1",
+          "--warmups",
+          "0",
+          "--json",
+          baselinePath,
+          candidatePath,
+        ],
+        { cwd: process.cwd(), encoding: "utf8" },
+      );
+
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        baselinePath,
+        candidatePath,
+        runs: 1,
+        warmups: 0,
+        validated: true,
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("documents reusable prebuilt binary comparison", () => {
+    const readme = readFileSync(
+      join(process.cwd(), "benchmark", "README.md"),
+      "utf8",
+    );
+
+    expect(readme).toContain("compare_binaries.ts");
+    expect(readme).toContain("--no-validate");
+    expect(readme).toContain("positive improvement");
+  });
+
   it("keeps compile measurement tooling import-safe with phase exports", () => {
     const source = readFileSync(
       join(process.cwd(), "benchmark", "measure_compilation.ts"),
@@ -827,6 +1070,17 @@ describe("Benchmark runner helpers", () => {
     );
   });
 });
+
+function writeBenchmarkExecutable(
+  dir: string,
+  name: string,
+  output: string,
+): string {
+  const filePath = join(dir, name);
+  writeFileSync(filePath, `#!/usr/bin/env bun\nconsole.log(${JSON.stringify(output)});\n`);
+  chmodSync(filePath, 0o755);
+  return filePath;
+}
 
 function createPhaseBenchmarkFixture(
   overrides: Partial<

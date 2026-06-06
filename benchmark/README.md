@@ -63,6 +63,19 @@ Fail the run when BPL is more than 5% slower than C on any benchmark:
 ./benchmark/run_all.sh --language bpl,c --runs 5 --max-bpl-slower 5
 ```
 
+Compare two already-built executables while alternating which one runs first
+in each warmup and timed round:
+
+```bash
+bun benchmark/compare_binaries.ts --runs 501 --warmups 10 /tmp/baseline /tmp/candidate
+```
+
+The comparator validates that both executables succeed and produce matching
+output before timing them. It reports min/median/average timings and candidate
+median/average deltas; a positive improvement means the candidate is faster.
+Use `--json` for machine-readable results. Use `--no-validate` only when output
+comparison is intentionally unsuitable for the programs being measured.
+
 Measure compiler phase timings for the synthetic 5k compile fixture:
 
 ```bash
