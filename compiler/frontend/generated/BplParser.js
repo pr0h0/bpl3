@@ -6210,7 +6210,7 @@ function peg$parse(input, options) {
         return { op: "=", type: "Equal", pos: startPos };
     }
 
-    peg$failBplAssignmentOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplAssignmentOperatorExpectation(); }
     return peg$FAILED;
   }
 
@@ -6323,7 +6323,7 @@ function peg$parse(input, options) {
         break;
     }
 
-    peg$failBplLogicalOrOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplLogicalOrOperatorExpectation(); }
     return peg$FAILED;
   }
 
@@ -6376,7 +6376,7 @@ function peg$parse(input, options) {
         break;
     }
 
-    peg$failBplLogicalAndOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplLogicalAndOperatorExpectation(); }
     return peg$FAILED;
   }
 
@@ -6429,7 +6429,7 @@ function peg$parse(input, options) {
         break;
     }
 
-    peg$failBplBitwiseOrOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplBitwiseOrOperatorExpectation(); }
     return peg$FAILED;
   }
 
@@ -6482,7 +6482,7 @@ function peg$parse(input, options) {
         break;
     }
 
-    peg$failBplBitwiseXorOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplBitwiseXorOperatorExpectation(); }
     return peg$FAILED;
   }
 
@@ -6535,7 +6535,7 @@ function peg$parse(input, options) {
         break;
     }
 
-    peg$failBplBitwiseAndOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplBitwiseAndOperatorExpectation(); }
     return peg$FAILED;
   }
 
@@ -6592,7 +6592,7 @@ function peg$parse(input, options) {
         break;
     }
 
-    peg$failBplEqualityOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplEqualityOperatorExpectation(); }
     return peg$FAILED;
   }
 
@@ -6631,7 +6631,7 @@ function peg$parse(input, options) {
         break;
     }
 
-    peg$failBplTypeCheckOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplTypeCheckOperatorExpectation(); }
     return peg$FAILED;
   }
 
@@ -6714,7 +6714,7 @@ function peg$parse(input, options) {
         break;
     }
 
-    peg$failBplRelationalOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplRelationalOperatorExpectation(); }
     return peg$FAILED;
   }
 
@@ -6771,7 +6771,7 @@ function peg$parse(input, options) {
         break;
     }
 
-    peg$failBplShiftOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplShiftOperatorExpectation(); }
     return peg$FAILED;
   }
 
@@ -6827,7 +6827,7 @@ function peg$parse(input, options) {
         break;
     }
 
-    peg$failBplAdditiveOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplAdditiveOperatorExpectation(); }
     return peg$FAILED;
   }
 
@@ -6886,7 +6886,7 @@ function peg$parse(input, options) {
         break;
     }
 
-    peg$failBplMultiplicativeOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplMultiplicativeOperatorExpectation(); }
     return peg$FAILED;
   }
 
@@ -6954,7 +6954,7 @@ function peg$parse(input, options) {
         break;
     }
 
-    peg$failBplUnaryOperatorExpectation();
+    if (peg$collectExpected) { peg$failBplUnaryOperatorExpectation(); }
     return peg$FAILED;
   }
 

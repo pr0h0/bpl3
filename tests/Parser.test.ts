@@ -1521,6 +1521,53 @@ describe("Parser", () => {
     }
   });
 
+  it("skips operator expectation dispatch during the fast parser pass", () => {
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const operatorNames = [
+      "AssignmentOperator",
+      "LogicalOrOperator",
+      "LogicalAndOperator",
+      "BitwiseOrOperator",
+      "BitwiseXorOperator",
+      "BitwiseAndOperator",
+      "EqualityOperator",
+      "TypeCheckOperator",
+      "RelationalOperator",
+      "ShiftOperator",
+      "AdditiveOperator",
+      "MultiplicativeOperator",
+      "UnaryOperator",
+    ];
+
+    for (const operatorName of operatorNames) {
+      const scanner = generatedSource.match(
+        new RegExp(`function peg\\$scanBpl${operatorName}\\(\\)[\\s\\S]*?\\n  }`),
+      )?.[0];
+
+      expect(scanner).toContain(
+        `if (peg$collectExpected) { peg$failBpl${operatorName}Expectation(); }`,
+      );
+      expect(scanner).not.toContain(
+        `\n    peg$failBpl${operatorName}Expectation();`,
+      );
+    }
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return 1 + ; }",
+        "operator-expectation-retry.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("returns final typed tokens directly from the additive scanner", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
