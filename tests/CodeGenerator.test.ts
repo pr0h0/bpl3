@@ -457,6 +457,15 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain(
       "const declaredInBlock = new Set<string>();",
     );
+
+    const emptyDeferGuard = methodSource.indexOf(
+      "scope.deferred.length > 0",
+    );
+    const deferTerminatorCheck = methodSource.lastIndexOf(
+      "!this.isTerminator",
+    );
+    expect(emptyDeferGuard).toBeGreaterThanOrEqual(0);
+    expect(deferTerminatorCheck).toBeGreaterThan(emptyDeferGuard);
   });
 
   it("keeps simple block declaration names off recursive collection", () => {

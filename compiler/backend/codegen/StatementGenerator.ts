@@ -1377,8 +1377,9 @@ export abstract class StatementGenerator extends AsmGenerator {
     const scope = this.scopeStack.pop()!;
     // Only generate defers if we haven't terminated (or if we are falling through)
     if (
-      this.output.length === 0 ||
-      !this.isTerminator(this.output[this.output.length - 1] || "")
+      scope.deferred.length > 0 &&
+      (this.output.length === 0 ||
+        !this.isTerminator(this.output[this.output.length - 1] || ""))
     ) {
       for (let i = scope.deferred.length - 1; i >= 0; i--) {
         this.generateStatement(scope.deferred[i]!);
