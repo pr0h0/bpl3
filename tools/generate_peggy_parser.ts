@@ -1988,6 +1988,26 @@ function optimizeGeneratedBinaryExpressionTailParsingForConfig(
     );
   }
 
+  const operatorConfig = EXPRESSION_OPERATOR_SCAN_CONFIGS.find(
+    operator => operator.name === config.operatorName,
+  );
+  if (operatorConfig === undefined) {
+    throw new Error(
+      `Missing generated operator scanner config for ${config.operatorName}.`,
+    );
+  }
+  const possibleTailCodes = [
+    32,
+    9,
+    10,
+    13,
+    ...operatorConfig.cases.map(operatorCase => operatorCase.code),
+  ];
+  const impossibleTailChecks = possibleTailCodes.map(
+    (code, index) =>
+      `        tailCode !== ${code}${index + 1 < possibleTailCodes.length ? " &&" : ""}`,
+  );
+
   const replacement = [
     `  function peg$parse${config.name}() {`,
     `    let result = peg$parse${config.nextParserName}();`,
@@ -1997,6 +2017,15 @@ function optimizeGeneratedBinaryExpressionTailParsingForConfig(
     "",
     "    while (true) {",
     "      const tailStartPos = peg$currPos;",
+    "      const tailCode = input.charCodeAt(tailStartPos);",
+    "      if (",
+    "        !peg$collectExpected &&",
+    "        !peg$hasBplCommentMarker &&",
+    ...impossibleTailChecks,
+    "      ) {",
+    "        return result;",
+    "      }",
+    "",
     "      peg$parse_();",
     `      const operator = peg$scanBpl${config.operatorName}();`,
     "      if (operator === peg$FAILED) {",

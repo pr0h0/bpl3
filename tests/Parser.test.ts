@@ -285,6 +285,12 @@ describe("Parser", () => {
       )?.[0];
 
       expect(helper).toContain(`let result = peg$parse${nextLevelName}();`);
+      expect(helper).toContain(
+        "const tailCode = input.charCodeAt(tailStartPos);",
+      );
+      expect(helper).toContain("!peg$collectExpected &&");
+      expect(helper).toContain("!peg$hasBplCommentMarker &&");
+      expect(helper).toContain("tailCode !== 32 &&");
       expect(helper).toContain(`peg$scanBpl${operatorName}()`);
       if (levelName === "Additive" || levelName === "Relational") {
         expect(helper).toContain("        operator,");

@@ -6365,6 +6365,19 @@ function peg$parse(input, options) {
 
     while (true) {
       const tailStartPos = peg$currPos;
+      const tailCode = input.charCodeAt(tailStartPos);
+      if (
+        !peg$collectExpected &&
+        !peg$hasBplCommentMarker &&
+        tailCode !== 32 &&
+        tailCode !== 9 &&
+        tailCode !== 10 &&
+        tailCode !== 13 &&
+        tailCode !== 124
+      ) {
+        return result;
+      }
+
       peg$parse_();
       const operator = peg$scanBplLogicalOrOperator();
       if (operator === peg$FAILED) {
@@ -6418,6 +6431,19 @@ function peg$parse(input, options) {
 
     while (true) {
       const tailStartPos = peg$currPos;
+      const tailCode = input.charCodeAt(tailStartPos);
+      if (
+        !peg$collectExpected &&
+        !peg$hasBplCommentMarker &&
+        tailCode !== 32 &&
+        tailCode !== 9 &&
+        tailCode !== 10 &&
+        tailCode !== 13 &&
+        tailCode !== 38
+      ) {
+        return result;
+      }
+
       peg$parse_();
       const operator = peg$scanBplLogicalAndOperator();
       if (operator === peg$FAILED) {
@@ -6471,6 +6497,19 @@ function peg$parse(input, options) {
 
     while (true) {
       const tailStartPos = peg$currPos;
+      const tailCode = input.charCodeAt(tailStartPos);
+      if (
+        !peg$collectExpected &&
+        !peg$hasBplCommentMarker &&
+        tailCode !== 32 &&
+        tailCode !== 9 &&
+        tailCode !== 10 &&
+        tailCode !== 13 &&
+        tailCode !== 124
+      ) {
+        return result;
+      }
+
       peg$parse_();
       const operator = peg$scanBplBitwiseOrOperator();
       if (operator === peg$FAILED) {
@@ -6524,6 +6563,19 @@ function peg$parse(input, options) {
 
     while (true) {
       const tailStartPos = peg$currPos;
+      const tailCode = input.charCodeAt(tailStartPos);
+      if (
+        !peg$collectExpected &&
+        !peg$hasBplCommentMarker &&
+        tailCode !== 32 &&
+        tailCode !== 9 &&
+        tailCode !== 10 &&
+        tailCode !== 13 &&
+        tailCode !== 94
+      ) {
+        return result;
+      }
+
       peg$parse_();
       const operator = peg$scanBplBitwiseXorOperator();
       if (operator === peg$FAILED) {
@@ -6577,6 +6629,19 @@ function peg$parse(input, options) {
 
     while (true) {
       const tailStartPos = peg$currPos;
+      const tailCode = input.charCodeAt(tailStartPos);
+      if (
+        !peg$collectExpected &&
+        !peg$hasBplCommentMarker &&
+        tailCode !== 32 &&
+        tailCode !== 9 &&
+        tailCode !== 10 &&
+        tailCode !== 13 &&
+        tailCode !== 38
+      ) {
+        return result;
+      }
+
       peg$parse_();
       const operator = peg$scanBplBitwiseAndOperator();
       if (operator === peg$FAILED) {
@@ -6630,6 +6695,20 @@ function peg$parse(input, options) {
 
     while (true) {
       const tailStartPos = peg$currPos;
+      const tailCode = input.charCodeAt(tailStartPos);
+      if (
+        !peg$collectExpected &&
+        !peg$hasBplCommentMarker &&
+        tailCode !== 32 &&
+        tailCode !== 9 &&
+        tailCode !== 10 &&
+        tailCode !== 13 &&
+        tailCode !== 61 &&
+        tailCode !== 33
+      ) {
+        return result;
+      }
+
       peg$parse_();
       const operator = peg$scanBplEqualityOperator();
       if (operator === peg$FAILED) {
@@ -6749,6 +6828,20 @@ function peg$parse(input, options) {
 
     while (true) {
       const tailStartPos = peg$currPos;
+      const tailCode = input.charCodeAt(tailStartPos);
+      if (
+        !peg$collectExpected &&
+        !peg$hasBplCommentMarker &&
+        tailCode !== 32 &&
+        tailCode !== 9 &&
+        tailCode !== 10 &&
+        tailCode !== 13 &&
+        tailCode !== 62 &&
+        tailCode !== 60
+      ) {
+        return result;
+      }
+
       peg$parse_();
       const operator = peg$scanBplRelationalOperator();
       if (operator === peg$FAILED) {
@@ -6809,6 +6902,20 @@ function peg$parse(input, options) {
 
     while (true) {
       const tailStartPos = peg$currPos;
+      const tailCode = input.charCodeAt(tailStartPos);
+      if (
+        !peg$collectExpected &&
+        !peg$hasBplCommentMarker &&
+        tailCode !== 32 &&
+        tailCode !== 9 &&
+        tailCode !== 10 &&
+        tailCode !== 13 &&
+        tailCode !== 60 &&
+        tailCode !== 62
+      ) {
+        return result;
+      }
+
       peg$parse_();
       const operator = peg$scanBplShiftOperator();
       if (operator === peg$FAILED) {
@@ -6866,6 +6973,20 @@ function peg$parse(input, options) {
 
     while (true) {
       const tailStartPos = peg$currPos;
+      const tailCode = input.charCodeAt(tailStartPos);
+      if (
+        !peg$collectExpected &&
+        !peg$hasBplCommentMarker &&
+        tailCode !== 32 &&
+        tailCode !== 9 &&
+        tailCode !== 10 &&
+        tailCode !== 13 &&
+        tailCode !== 43 &&
+        tailCode !== 45
+      ) {
+        return result;
+      }
+
       peg$parse_();
       const operator = peg$scanBplAdditiveOperator();
       if (operator === peg$FAILED) {
@@ -6922,6 +7043,21 @@ function peg$parse(input, options) {
 
     while (true) {
       const tailStartPos = peg$currPos;
+      const tailCode = input.charCodeAt(tailStartPos);
+      if (
+        !peg$collectExpected &&
+        !peg$hasBplCommentMarker &&
+        tailCode !== 32 &&
+        tailCode !== 9 &&
+        tailCode !== 10 &&
+        tailCode !== 13 &&
+        tailCode !== 42 &&
+        tailCode !== 47 &&
+        tailCode !== 37
+      ) {
+        return result;
+      }
+
       peg$parse_();
       const operator = peg$scanBplMultiplicativeOperator();
       if (operator === peg$FAILED) {
