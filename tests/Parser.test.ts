@@ -624,6 +624,12 @@ describe("Parser", () => {
     expect(generatedSource).toContain("function peg$findBplLineIndex(pos)");
     expect(generatedSource).toContain("if (pos === peg$lastBplLinePos)");
     expect(generatedSource).toContain(
+      "const backwardLineLimit = peg$lastBplLineIndex > 8",
+    );
+    expect(generatedSource).toContain(
+      "peg$lastBplLineIndex > backwardLineLimit",
+    );
+    expect(generatedSource).toContain(
       'let peg$bplLinePos = input.indexOf("\\n");',
     );
     expect(generatedSource).toContain(
