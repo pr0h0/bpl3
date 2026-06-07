@@ -109,6 +109,28 @@ describe("CodeGenerator", () => {
     expect(methodPrefix).toContain("if (simpleBuiltinLlvmType)");
   });
 
+  it("inherits the allocation-free signed type classifier", () => {
+    const addressGeneratorSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/AddressExpressionGenerator.ts",
+      ),
+      "utf8",
+    );
+    const typeGeneratorSource = readTextFile(
+      join(process.cwd(), "compiler/backend/codegen/TypeGenerator.ts"),
+      "utf8",
+    );
+
+    expect(addressGeneratorSource).not.toContain("protected isSigned");
+    expect(addressGeneratorSource).not.toContain(
+      "].includes((type as AST.BasicTypeNode).name)",
+    );
+    expect(typeGeneratorSource).toContain(
+      "return isSignedTypeName((type as AST.BasicTypeNode).name)",
+    );
+  });
+
   it("resolves standard binary right types only for shift masking", () => {
     const source = readTextFile(
       join(

@@ -1043,25 +1043,6 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
   }
 
   /**
-   * Check if a type is signed
-   */
-  protected isSigned(type: AST.TypeNode): boolean {
-    if (type.kind === "BasicType") {
-      return [
-        "int",
-        "i8",
-        "i16",
-        "i32",
-        "i64",
-        "char",
-        "short",
-        "long",
-      ].includes((type as AST.BasicTypeNode).name);
-    }
-    return false;
-  }
-
-  /**
    * Get bit width of integer type
    */
   protected getBitWidth(type: string): number {
