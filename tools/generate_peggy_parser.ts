@@ -93,6 +93,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedAssignmentOperatorScanning(optimized);
   optimized = optimizeGeneratedTernaryParsing(optimized);
   optimized = optimizeGeneratedStatementStartKeywordScanning(optimized);
+  optimized = optimizeGeneratedStatementDispatch(optimized);
   optimized = optimizeGeneratedVariableScopeKeywordScanning(optimized);
   optimized = optimizeGeneratedNumberScanning(optimized);
   optimized = optimizeGeneratedTriviaSkipping(optimized);
@@ -989,49 +990,49 @@ function optimizeGeneratedStatementStartKeywordScanning(
     "    const startPos = peg$currPos;",
     "    switch (input.charCodeAt(startPos)) {",
     "      case 97:",
-    ...buildStatementStartKeywordAttempt("asm", "        "),
+    ...buildStatementStartKeywordAttempt("asm", "        ", 1),
     "        return peg$FAILED;",
     "      case 98:",
-    ...buildStatementStartKeywordAttempt("break", "        "),
+    ...buildStatementStartKeywordAttempt("break", "        ", 2),
     "        return peg$FAILED;",
     "      case 99:",
-    ...buildStatementStartKeywordAttempt("continue", "        "),
+    ...buildStatementStartKeywordAttempt("continue", "        ", 3),
     "        return peg$FAILED;",
     "      case 100:",
-    ...buildStatementStartKeywordAttempt("defer", "        "),
+    ...buildStatementStartKeywordAttempt("defer", "        ", 4),
     "        return peg$FAILED;",
     "      case 101:",
-    ...buildStatementStartKeywordAttempt("enum", "        "),
-    ...buildStatementStartKeywordAttempt("export", "        "),
-    ...buildStatementStartKeywordAttempt("extern", "        "),
+    ...buildStatementStartKeywordAttempt("enum", "        ", 5),
+    ...buildStatementStartKeywordAttempt("export", "        ", 6),
+    ...buildStatementStartKeywordAttempt("extern", "        ", 7),
     "        return peg$FAILED;",
     "      case 102:",
-    ...buildStatementStartKeywordAttempt("frame", "        "),
-    ...buildStatementStartKeywordAttempt("fallthrough", "        "),
+    ...buildStatementStartKeywordAttempt("frame", "        ", 8),
+    ...buildStatementStartKeywordAttempt("fallthrough", "        ", 9),
     "        return peg$FAILED;",
     "      case 103:",
-    ...buildStatementStartKeywordAttempt("global", "        "),
+    ...buildStatementStartKeywordAttempt("global", "        ", 10),
     "        return peg$FAILED;",
     "      case 105:",
-    ...buildStatementStartKeywordAttempt("if", "        "),
-    ...buildStatementStartKeywordAttempt("import", "        "),
+    ...buildStatementStartKeywordAttempt("if", "        ", 11),
+    ...buildStatementStartKeywordAttempt("import", "        ", 12),
     "        return peg$FAILED;",
     "      case 108:",
-    ...buildStatementStartKeywordAttempt("local", "        "),
-    ...buildStatementStartKeywordAttempt("loop", "        "),
+    ...buildStatementStartKeywordAttempt("local", "        ", 13),
+    ...buildStatementStartKeywordAttempt("loop", "        ", 14),
     "        return peg$FAILED;",
     "      case 114:",
-    ...buildStatementStartKeywordAttempt("return", "        "),
+    ...buildStatementStartKeywordAttempt("return", "        ", 15),
     "        return peg$FAILED;",
     "      case 115:",
-    ...buildStatementStartKeywordAttempt("struct", "        "),
-    ...buildStatementStartKeywordAttempt("spec", "        "),
-    ...buildStatementStartKeywordAttempt("switch", "        "),
+    ...buildStatementStartKeywordAttempt("struct", "        ", 16),
+    ...buildStatementStartKeywordAttempt("spec", "        ", 17),
+    ...buildStatementStartKeywordAttempt("switch", "        ", 18),
     "        return peg$FAILED;",
     "      case 116:",
-    ...buildStatementStartKeywordAttempt("type", "        "),
-    ...buildStatementStartKeywordAttempt("try", "        "),
-    ...buildStatementStartKeywordAttempt("throw", "        "),
+    ...buildStatementStartKeywordAttempt("type", "        ", 19),
+    ...buildStatementStartKeywordAttempt("try", "        ", 20),
+    ...buildStatementStartKeywordAttempt("throw", "        ", 21),
     "        return peg$FAILED;",
     "      default:",
     "        return peg$FAILED;",
@@ -1057,6 +1058,7 @@ function optimizeGeneratedStatementStartKeywordScanning(
 function buildStatementStartKeywordAttempt(
   keyword: string,
   indent: string,
+  statementKind: number,
 ): string[] {
   const continuationIndex = keyword.length;
   const tailChecks = keyword
@@ -1074,9 +1076,72 @@ function buildStatementStartKeywordAttempt(
   return [
     `${indent}if (${checks.join(" && ")}) {`,
     `${indent}  peg$currPos = startPos + ${keyword.length};`,
-    `${indent}  return undefined;`,
+    `${indent}  return ${statementKind};`,
     `${indent}}`,
   ];
+}
+
+function optimizeGeneratedStatementDispatch(parserSource: string): string {
+  const statementPattern =
+    /  function peg\$parseStatement\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseErrorRecovery\(\)/;
+  const match = parserSource.match(statementPattern);
+
+  if (!match) {
+    throw new Error(
+      "Generated Peggy parser Statement helper shape changed; update the BPL parser statement dispatch optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parseStatement() {",
+    "    if (!peg$collectExpected && !peg$hasBplCommentMarker) {",
+    "      const startPos = peg$currPos;",
+    "      const statementKind = peg$scanBplStatementStartKeyword();",
+    "      peg$currPos = startPos;",
+    "      let parser;",
+    "",
+    "      switch (statementKind) {",
+    "        case 1: parser = peg$parseAsmBlock; break;",
+    "        case 2: parser = peg$parseBreakStatement; break;",
+    "        case 3: parser = peg$parseContinueStatement; break;",
+    "        case 4: parser = peg$parseDeferStatement; break;",
+    "        case 5: parser = peg$parseEnumDeclaration; break;",
+    "        case 6: parser = peg$parseExportStatement; break;",
+    "        case 7: parser = peg$parseExternDeclaration; break;",
+    "        case 8: parser = peg$parseFunctionDeclaration; break;",
+    "        case 9: parser = peg$parseFallthroughStatement; break;",
+    "        case 10:",
+    "        case 13: parser = peg$parseVariableDeclaration; break;",
+    "        case 11: parser = peg$parseIfStatement; break;",
+    "        case 12: parser = peg$parseImportStatement; break;",
+    "        case 14: parser = peg$parseLoopStatement; break;",
+    "        case 15: parser = peg$parseReturnStatement; break;",
+    "        case 16: parser = peg$parseStructDeclaration; break;",
+    "        case 17: parser = peg$parseSpecDeclaration; break;",
+    "        case 18: parser = peg$parseSwitchStatement; break;",
+    "        case 19: parser = peg$parseTypeAlias; break;",
+    "        case 20: parser = peg$parseTryStatement; break;",
+    "        case 21: parser = peg$parseThrowStatement; break;",
+    "      }",
+    "",
+    "      if (parser !== undefined) {",
+    "        const result = parser();",
+    "        if (result !== peg$FAILED) return result;",
+    "        peg$currPos = startPos;",
+    "      }",
+    "    }",
+    "",
+    "    return peg$parseStatementFallback();",
+    "  }",
+    "",
+    "  function peg$parseStatementFallback() {",
+    match[1]!,
+    "  }",
+    "",
+    "  function peg$parseErrorRecovery()",
+  ].join("\n");
+
+  return parserSource.replace(statementPattern, replacement);
 }
 
 function optimizeGeneratedVariableScopeKeywordScanning(

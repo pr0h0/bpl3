@@ -1463,6 +1463,39 @@ describe("Parser", () => {
     expect(statementStartHelper).not.toContain("input.startsWith(peg$c17");
   });
 
+  it("dispatches keyword-led statements before the generated fallback chain", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const statementHelper = generatedSource.match(
+      /function peg\$parseStatement\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedStatementDispatch");
+    expect(statementHelper).toContain(
+      "if (!peg$collectExpected && !peg$hasBplCommentMarker)",
+    );
+    expect(statementHelper).toContain(
+      "const statementKind = peg$scanBplStatementStartKeyword();",
+    );
+    expect(statementHelper).toContain("parser = peg$parseReturnStatement;");
+    expect(statementHelper).toContain("parser = peg$parseFunctionDeclaration;");
+    expect(statementHelper).toContain("peg$currPos = startPos;");
+    expect(statementHelper).toContain("return peg$parseStatementFallback();");
+    expect(generatedSource).toContain("function peg$parseStatementFallback()");
+  });
+
   it("caches generated variable-declaration scope keyword retries", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

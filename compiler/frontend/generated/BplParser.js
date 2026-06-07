@@ -1441,6 +1441,48 @@ function peg$parse(input, options) {
   }
 
   function peg$parseStatement() {
+    if (!peg$collectExpected && !peg$hasBplCommentMarker) {
+      const startPos = peg$currPos;
+      const statementKind = peg$scanBplStatementStartKeyword();
+      peg$currPos = startPos;
+      let parser;
+
+      switch (statementKind) {
+        case 1: parser = peg$parseAsmBlock; break;
+        case 2: parser = peg$parseBreakStatement; break;
+        case 3: parser = peg$parseContinueStatement; break;
+        case 4: parser = peg$parseDeferStatement; break;
+        case 5: parser = peg$parseEnumDeclaration; break;
+        case 6: parser = peg$parseExportStatement; break;
+        case 7: parser = peg$parseExternDeclaration; break;
+        case 8: parser = peg$parseFunctionDeclaration; break;
+        case 9: parser = peg$parseFallthroughStatement; break;
+        case 10:
+        case 13: parser = peg$parseVariableDeclaration; break;
+        case 11: parser = peg$parseIfStatement; break;
+        case 12: parser = peg$parseImportStatement; break;
+        case 14: parser = peg$parseLoopStatement; break;
+        case 15: parser = peg$parseReturnStatement; break;
+        case 16: parser = peg$parseStructDeclaration; break;
+        case 17: parser = peg$parseSpecDeclaration; break;
+        case 18: parser = peg$parseSwitchStatement; break;
+        case 19: parser = peg$parseTypeAlias; break;
+        case 20: parser = peg$parseTryStatement; break;
+        case 21: parser = peg$parseThrowStatement; break;
+      }
+
+      if (parser !== undefined) {
+        const result = parser();
+        if (result !== peg$FAILED) return result;
+        peg$currPos = startPos;
+      }
+    }
+
+    return peg$parseStatementFallback();
+  }
+
+  function peg$parseStatementFallback() {
+
     let s0;
 
     s0 = peg$parseBlock();
@@ -5940,109 +5982,109 @@ function peg$parse(input, options) {
       case 97:
         if (input.charCodeAt(startPos + 1) === 115 && input.charCodeAt(startPos + 2) === 109 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 3))) {
           peg$currPos = startPos + 3;
-          return undefined;
+          return 1;
         }
         return peg$FAILED;
       case 98:
         if (input.charCodeAt(startPos + 1) === 114 && input.charCodeAt(startPos + 2) === 101 && input.charCodeAt(startPos + 3) === 97 && input.charCodeAt(startPos + 4) === 107 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 5))) {
           peg$currPos = startPos + 5;
-          return undefined;
+          return 2;
         }
         return peg$FAILED;
       case 99:
         if (input.charCodeAt(startPos + 1) === 111 && input.charCodeAt(startPos + 2) === 110 && input.charCodeAt(startPos + 3) === 116 && input.charCodeAt(startPos + 4) === 105 && input.charCodeAt(startPos + 5) === 110 && input.charCodeAt(startPos + 6) === 117 && input.charCodeAt(startPos + 7) === 101 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 8))) {
           peg$currPos = startPos + 8;
-          return undefined;
+          return 3;
         }
         return peg$FAILED;
       case 100:
         if (input.charCodeAt(startPos + 1) === 101 && input.charCodeAt(startPos + 2) === 102 && input.charCodeAt(startPos + 3) === 101 && input.charCodeAt(startPos + 4) === 114 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 5))) {
           peg$currPos = startPos + 5;
-          return undefined;
+          return 4;
         }
         return peg$FAILED;
       case 101:
         if (input.charCodeAt(startPos + 1) === 110 && input.charCodeAt(startPos + 2) === 117 && input.charCodeAt(startPos + 3) === 109 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 4))) {
           peg$currPos = startPos + 4;
-          return undefined;
+          return 5;
         }
         if (input.charCodeAt(startPos + 1) === 120 && input.charCodeAt(startPos + 2) === 112 && input.charCodeAt(startPos + 3) === 111 && input.charCodeAt(startPos + 4) === 114 && input.charCodeAt(startPos + 5) === 116 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6))) {
           peg$currPos = startPos + 6;
-          return undefined;
+          return 6;
         }
         if (input.charCodeAt(startPos + 1) === 120 && input.charCodeAt(startPos + 2) === 116 && input.charCodeAt(startPos + 3) === 101 && input.charCodeAt(startPos + 4) === 114 && input.charCodeAt(startPos + 5) === 110 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6))) {
           peg$currPos = startPos + 6;
-          return undefined;
+          return 7;
         }
         return peg$FAILED;
       case 102:
         if (input.charCodeAt(startPos + 1) === 114 && input.charCodeAt(startPos + 2) === 97 && input.charCodeAt(startPos + 3) === 109 && input.charCodeAt(startPos + 4) === 101 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 5))) {
           peg$currPos = startPos + 5;
-          return undefined;
+          return 8;
         }
         if (input.charCodeAt(startPos + 1) === 97 && input.charCodeAt(startPos + 2) === 108 && input.charCodeAt(startPos + 3) === 108 && input.charCodeAt(startPos + 4) === 116 && input.charCodeAt(startPos + 5) === 104 && input.charCodeAt(startPos + 6) === 114 && input.charCodeAt(startPos + 7) === 111 && input.charCodeAt(startPos + 8) === 117 && input.charCodeAt(startPos + 9) === 103 && input.charCodeAt(startPos + 10) === 104 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 11))) {
           peg$currPos = startPos + 11;
-          return undefined;
+          return 9;
         }
         return peg$FAILED;
       case 103:
         if (input.charCodeAt(startPos + 1) === 108 && input.charCodeAt(startPos + 2) === 111 && input.charCodeAt(startPos + 3) === 98 && input.charCodeAt(startPos + 4) === 97 && input.charCodeAt(startPos + 5) === 108 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6))) {
           peg$currPos = startPos + 6;
-          return undefined;
+          return 10;
         }
         return peg$FAILED;
       case 105:
         if (input.charCodeAt(startPos + 1) === 102 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 2))) {
           peg$currPos = startPos + 2;
-          return undefined;
+          return 11;
         }
         if (input.charCodeAt(startPos + 1) === 109 && input.charCodeAt(startPos + 2) === 112 && input.charCodeAt(startPos + 3) === 111 && input.charCodeAt(startPos + 4) === 114 && input.charCodeAt(startPos + 5) === 116 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6))) {
           peg$currPos = startPos + 6;
-          return undefined;
+          return 12;
         }
         return peg$FAILED;
       case 108:
         if (input.charCodeAt(startPos + 1) === 111 && input.charCodeAt(startPos + 2) === 99 && input.charCodeAt(startPos + 3) === 97 && input.charCodeAt(startPos + 4) === 108 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 5))) {
           peg$currPos = startPos + 5;
-          return undefined;
+          return 13;
         }
         if (input.charCodeAt(startPos + 1) === 111 && input.charCodeAt(startPos + 2) === 111 && input.charCodeAt(startPos + 3) === 112 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 4))) {
           peg$currPos = startPos + 4;
-          return undefined;
+          return 14;
         }
         return peg$FAILED;
       case 114:
         if (input.charCodeAt(startPos + 1) === 101 && input.charCodeAt(startPos + 2) === 116 && input.charCodeAt(startPos + 3) === 117 && input.charCodeAt(startPos + 4) === 114 && input.charCodeAt(startPos + 5) === 110 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6))) {
           peg$currPos = startPos + 6;
-          return undefined;
+          return 15;
         }
         return peg$FAILED;
       case 115:
         if (input.charCodeAt(startPos + 1) === 116 && input.charCodeAt(startPos + 2) === 114 && input.charCodeAt(startPos + 3) === 117 && input.charCodeAt(startPos + 4) === 99 && input.charCodeAt(startPos + 5) === 116 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6))) {
           peg$currPos = startPos + 6;
-          return undefined;
+          return 16;
         }
         if (input.charCodeAt(startPos + 1) === 112 && input.charCodeAt(startPos + 2) === 101 && input.charCodeAt(startPos + 3) === 99 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 4))) {
           peg$currPos = startPos + 4;
-          return undefined;
+          return 17;
         }
         if (input.charCodeAt(startPos + 1) === 119 && input.charCodeAt(startPos + 2) === 105 && input.charCodeAt(startPos + 3) === 116 && input.charCodeAt(startPos + 4) === 99 && input.charCodeAt(startPos + 5) === 104 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6))) {
           peg$currPos = startPos + 6;
-          return undefined;
+          return 18;
         }
         return peg$FAILED;
       case 116:
         if (input.charCodeAt(startPos + 1) === 121 && input.charCodeAt(startPos + 2) === 112 && input.charCodeAt(startPos + 3) === 101 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 4))) {
           peg$currPos = startPos + 4;
-          return undefined;
+          return 19;
         }
         if (input.charCodeAt(startPos + 1) === 114 && input.charCodeAt(startPos + 2) === 121 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 3))) {
           peg$currPos = startPos + 3;
-          return undefined;
+          return 20;
         }
         if (input.charCodeAt(startPos + 1) === 104 && input.charCodeAt(startPos + 2) === 114 && input.charCodeAt(startPos + 3) === 111 && input.charCodeAt(startPos + 4) === 119 && !peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 5))) {
           peg$currPos = startPos + 5;
-          return undefined;
+          return 21;
         }
         return peg$FAILED;
       default:
