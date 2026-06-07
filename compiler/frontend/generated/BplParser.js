@@ -9656,13 +9656,14 @@ function peg$parse(input, options) {
   }
 
   let peg$bplLastIdentifierStart = -1;
+  let peg$bplLastIdentifierEnd = -1;
   let peg$bplLastIdentifierValue = "";
   let peg$bplLastIdentifierFailure = -1;
 
   function peg$parseIdentifier() {
     const startPos = peg$currPos;
     if (startPos === peg$bplLastIdentifierStart) {
-      peg$currPos = startPos + peg$bplLastIdentifierValue.length;
+      peg$currPos = peg$bplLastIdentifierEnd;
       if (peg$collectExpected && peg$silentFails === 0) { peg$fail(peg$e79); }
       return peg$bplLastIdentifierValue;
     }
@@ -9701,6 +9702,7 @@ function peg$parse(input, options) {
 
     const value = input.slice(startPos, endPos);
     peg$bplLastIdentifierStart = startPos;
+    peg$bplLastIdentifierEnd = endPos;
     peg$bplLastIdentifierValue = value;
     return value;
   }

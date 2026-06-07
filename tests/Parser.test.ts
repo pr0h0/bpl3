@@ -753,18 +753,20 @@ describe("Parser", () => {
 
     expect(generatorSource).toContain("peg$bplLastIdentifierStart");
     expect(generatedSource).toContain("let peg$bplLastIdentifierStart = -1;");
+    expect(generatedSource).toContain("let peg$bplLastIdentifierEnd = -1;");
     expect(generatedSource).toContain('let peg$bplLastIdentifierValue = "";');
     expect(identifierHelper).toContain(
       "if (startPos === peg$bplLastIdentifierStart)",
     );
     expect(identifierHelper).toContain(
-      "peg$currPos = startPos + peg$bplLastIdentifierValue.length;",
+      "peg$currPos = peg$bplLastIdentifierEnd;",
     );
     expect(identifierHelper).toContain(
       "if (peg$collectExpected && peg$silentFails === 0)",
     );
     expect(identifierHelper).toContain("const value = input.slice(startPos, endPos);");
     expect(identifierHelper).toContain("peg$bplLastIdentifierStart = startPos;");
+    expect(identifierHelper).toContain("peg$bplLastIdentifierEnd = endPos;");
     expect(identifierHelper).toContain("peg$bplLastIdentifierValue = value;");
     expect(identifierHelper).toContain("return value;");
     expect(identifierHelper).not.toContain("return { name };");
