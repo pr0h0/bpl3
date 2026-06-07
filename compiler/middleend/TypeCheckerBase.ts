@@ -1367,14 +1367,19 @@ export abstract class TypeCheckerBase {
       }
     }
 
-    this.currentScope.define({
+    const symbol: Symbol = {
       name,
       kind,
       type,
       declaration: node,
       moduleScope,
       isConst,
-    });
+    };
+    if (existing) {
+      this.currentScope.define(symbol);
+    } else {
+      this.currentScope.defineNew(symbol);
+    }
   }
 
   public defineImportedSymbol(

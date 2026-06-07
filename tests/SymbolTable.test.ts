@@ -71,6 +71,36 @@ describe("SymbolTable", () => {
     expect(symbol.used).toBe(true);
   });
 
+  it("defines known-new symbols while invalidating cached child misses", () => {
+    const root = new SymbolTable();
+    const child = root.enterScope();
+
+    expect(child.resolve("known_new")).toBeUndefined();
+
+    const symbol: Symbol = {
+      name: "known_new",
+      kind: "Variable",
+      declaration: {
+        kind: "VariableDecl",
+        location: dummyLocation,
+      },
+      used: false,
+    };
+    root.defineNew(symbol);
+
+    expect(root.getInCurrentScope("known_new")).toBe(symbol);
+    expect(child.resolve("known_new")).toBe(symbol);
+  });
+
+  it("routes new typechecker symbols through the known-new path", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler", "middleend", "TypeCheckerBase.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain("this.currentScope.defineNew(symbol)");
+  });
+
   it("skips define invalidation work before caches or miss dependents exist", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),

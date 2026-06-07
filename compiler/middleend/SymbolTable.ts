@@ -53,6 +53,11 @@ export class SymbolTable {
     this.invalidateResolutionCacheFor(symbol.name);
   }
 
+  public defineNew(symbol: Symbol): void {
+    this.symbols.set(symbol.name, symbol);
+    this.invalidateResolutionCacheFor(symbol.name);
+  }
+
   public getInCurrentScope(name: string): Symbol | undefined {
     return this.symbols.get(name);
   }
