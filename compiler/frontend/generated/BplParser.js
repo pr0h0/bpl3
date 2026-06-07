@@ -1443,6 +1443,10 @@ function peg$parse(input, options) {
   function peg$parseStatement() {
     if (!peg$collectExpected && !peg$hasBplCommentMarker) {
       const startPos = peg$currPos;
+      if (startPos >= peg$bplInputLength || input.charCodeAt(startPos) === 125) {
+        return peg$FAILED;
+      }
+
       const statementKind = peg$scanBplStatementStartKeyword();
       peg$currPos = startPos;
       let parser;

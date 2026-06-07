@@ -1489,6 +1489,10 @@ describe("Parser", () => {
     expect(statementHelper).toContain(
       "const statementKind = peg$scanBplStatementStartKeyword();",
     );
+    expect(statementHelper).toContain(
+      "if (startPos >= peg$bplInputLength || input.charCodeAt(startPos) === 125)",
+    );
+    expect(statementHelper).toContain("return peg$FAILED;");
     expect(statementHelper).toContain("parser = peg$parseReturnStatement;");
     expect(statementHelper).toContain("parser = peg$parseFunctionDeclaration;");
     expect(statementHelper).toContain("peg$currPos = startPos;");
