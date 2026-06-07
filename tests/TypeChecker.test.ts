@@ -119,6 +119,33 @@ describe("TypeChecker", () => {
     expect(methodSource).not.toContain(".test(sourceFile)");
   });
 
+  it("defers duplicate-only symbol checks until an existing symbol is found", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("public defineSymbol(");
+    const end = source.indexOf("public defineImportedSymbol(", start);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const methodSource = source.slice(start, end);
+    const duplicateGuard = methodSource.indexOf(
+      "if (existing && !isFunctionOverload) {",
+    );
+    const declarationScopeCheck = methodSource.indexOf(
+      "const isDeclarationScope",
+    );
+    const stdlibRuntimeCheck = methodSource.indexOf(
+      "this.isStandardLibraryRuntimeTypeDeclaration",
+    );
+
+    expect(duplicateGuard).toBeGreaterThanOrEqual(0);
+    expect(declarationScopeCheck).toBeGreaterThan(duplicateGuard);
+    expect(stdlibRuntimeCheck).toBeGreaterThan(declarationScopeCheck);
+  });
+
   it("keeps canonical primitive type resolution on the no-op fast path", () => {
     const location = {
       file: "test.bpl",

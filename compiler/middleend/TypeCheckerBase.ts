@@ -1322,24 +1322,22 @@ export abstract class TypeCheckerBase {
       kind === "Function" &&
       type &&
       type.kind === "FunctionType";
-    const isDeclarationScope =
-      this.currentScope === this.globalScope ||
-      this.currentScope.getParent() === this.globalScope;
-    const isStdlibRuntimeType =
-      this.isStandardLibraryRuntimeTypeDeclaration(name, node.location);
 
-    if (
-      existing &&
-      !isFunctionOverload &&
-      isDeclarationScope &&
-      !isStdlibRuntimeType
-    ) {
-      throw new CompilerError(
-        `Symbol '${name}' is already defined in this scope`,
-        `Rename this ${formatSymbolKind(kind)} or remove the earlier ${formatSymbolKind(existing.kind)} declaration.`,
-        node.location,
-        SYMBOL_ALREADY_DEFINED_CODE,
-      );
+    if (existing && !isFunctionOverload) {
+      const isDeclarationScope =
+        this.currentScope === this.globalScope ||
+        this.currentScope.getParent() === this.globalScope;
+      if (
+        isDeclarationScope &&
+        !this.isStandardLibraryRuntimeTypeDeclaration(name, node.location)
+      ) {
+        throw new CompilerError(
+          `Symbol '${name}' is already defined in this scope`,
+          `Rename this ${formatSymbolKind(kind)} or remove the earlier ${formatSymbolKind(existing.kind)} declaration.`,
+          node.location,
+          SYMBOL_ALREADY_DEFINED_CODE,
+        );
+      }
     }
 
     if (
