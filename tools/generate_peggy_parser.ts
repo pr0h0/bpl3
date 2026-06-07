@@ -93,7 +93,8 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedStatementStartKeywordScanning(optimized);
   optimized = optimizeGeneratedVariableScopeKeywordScanning(optimized);
   optimized = optimizeGeneratedNumberScanning(optimized);
-  return optimizeGeneratedTriviaSkipping(optimized);
+  optimized = optimizeGeneratedTriviaSkipping(optimized);
+  return optimizeGeneratedInlineFailureDispatch(optimized);
 }
 
 function optimizeGeneratedBplLocationLines(parserSource: string): string {
@@ -291,6 +292,26 @@ function optimizeGeneratedFailureTracking(parserSource: string): string {
   return parserSource
     .replace(originalDeclarations, replacementDeclarations)
     .replace(originalFailHelper, replacementFailHelper);
+}
+
+function optimizeGeneratedInlineFailureDispatch(parserSource: string): string {
+  const unguardedFailurePattern =
+    /if \(peg\$silentFails === 0\) \{ peg\$fail\((peg\$e\d+)\); }/g;
+  const optimized = parserSource.replace(
+    unguardedFailurePattern,
+    "if (peg$collectExpected && peg$silentFails === 0) { peg$fail($1); }",
+  );
+
+  if (
+    optimized === parserSource ||
+    optimized.match(unguardedFailurePattern) !== null
+  ) {
+    throw new Error(
+      "Generated Peggy parser inline failure shape changed; update the BPL parser inline failure optimizer.",
+    );
+  }
+
+  return optimized;
 }
 
 function optimizeGeneratedIdentifierScanning(parserSource: string): string {

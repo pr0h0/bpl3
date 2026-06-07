@@ -1568,6 +1568,39 @@ describe("Parser", () => {
     ).toThrow(CompilerError);
   });
 
+  it("guards every generated inline failure dispatch during the fast parser pass", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const unguardedFailures = generatedSource.match(
+      /if \(peg\$silentFails === 0\) \{ peg\$fail\(peg\$e\d+\); }/g,
+    );
+    const guardedFailures = generatedSource.match(
+      /if \(peg\$collectExpected && peg\$silentFails === 0\) \{ peg\$fail\(peg\$e\d+\); }/g,
+    );
+
+    expect(generatorSource).toContain("optimizeGeneratedInlineFailureDispatch");
+    expect(unguardedFailures).toBeNull();
+    expect(guardedFailures?.length).toBeGreaterThan(300);
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return (1 + 2; }",
+        "inline-failure-retry.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("returns final typed tokens directly from the additive scanner", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
