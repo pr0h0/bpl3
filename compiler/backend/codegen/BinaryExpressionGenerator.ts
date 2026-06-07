@@ -898,7 +898,6 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     leftType: string,
   ): string {
     const isFloat = leftType === "double" || leftType === "float";
-    const isUnsigned = !isFloat && !this.isSigned(expr.left.resolvedType!);
 
     let op = "";
     let finalRight = right;
@@ -913,7 +912,8 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       case TokenType.Star:
         op = isFloat ? "fmul" : "mul";
         break;
-      case TokenType.Slash:
+      case TokenType.Slash: {
+        const isUnsigned = !isFloat && !this.isSigned(expr.left.resolvedType!);
         op = this.getDivisionOp(
           expr,
           isFloat,
@@ -923,6 +923,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
           leftType,
         );
         break;
+      }
       case TokenType.EqualEqual:
         // Check for array equality
         if (expr.left.resolvedType?.kind === "BasicType") {
@@ -1011,31 +1012,40 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         if (isFloat) {
           op = "fcmp olt";
         } else {
-          op = isUnsigned ? "icmp ult" : "icmp slt";
+          op = this.isSigned(expr.left.resolvedType!)
+            ? "icmp slt"
+            : "icmp ult";
         }
         break;
       case TokenType.LessEqual:
         if (isFloat) {
           op = "fcmp ole";
         } else {
-          op = isUnsigned ? "icmp ule" : "icmp sle";
+          op = this.isSigned(expr.left.resolvedType!)
+            ? "icmp sle"
+            : "icmp ule";
         }
         break;
       case TokenType.Greater:
         if (isFloat) {
           op = "fcmp ogt";
         } else {
-          op = isUnsigned ? "icmp ugt" : "icmp sgt";
+          op = this.isSigned(expr.left.resolvedType!)
+            ? "icmp sgt"
+            : "icmp ugt";
         }
         break;
       case TokenType.GreaterEqual:
         if (isFloat) {
           op = "fcmp oge";
         } else {
-          op = isUnsigned ? "icmp uge" : "icmp sge";
+          op = this.isSigned(expr.left.resolvedType!)
+            ? "icmp sge"
+            : "icmp uge";
         }
         break;
-      case TokenType.Percent:
+      case TokenType.Percent: {
+        const isUnsigned = !isFloat && !this.isSigned(expr.left.resolvedType!);
         op = this.getModuloOp(
           expr,
           isFloat,
@@ -1045,6 +1055,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
           leftType,
         );
         break;
+      }
       case TokenType.Ampersand:
         op = "and";
         break;
@@ -1063,7 +1074,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         );
         break;
       case TokenType.GreaterGreater:
-        op = isUnsigned ? "lshr" : "ashr";
+        op = this.isSigned(expr.left.resolvedType!) ? "ashr" : "lshr";
         finalRight = this.maskShiftAmount(
           right,
           this.resolveType(expr.right.resolvedType!),

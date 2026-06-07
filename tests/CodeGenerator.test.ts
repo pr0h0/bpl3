@@ -155,6 +155,52 @@ describe("CodeGenerator", () => {
     ).toHaveLength(2);
   });
 
+  it("defers standard binary signedness classification to consuming operators", () => {
+    const source = readTextFile(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/BinaryExpressionGenerator.ts",
+      ),
+      "utf8",
+    );
+    const methodStart = source.indexOf("private generateStandardBinaryOp");
+    const methodEnd = source.indexOf("\n  /**", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+    const switchStart = methodSource.indexOf("switch (expr.operator.type)");
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(switchStart).toBeGreaterThanOrEqual(0);
+    expect(methodSource.slice(0, switchStart)).not.toContain("this.isSigned");
+    expect(
+      methodSource.match(/this\.isSigned\(expr\.left\.resolvedType!\)/g),
+    ).toHaveLength(7);
+
+    const ir = compile(`
+      frame signed_div(a: int, b: int) ret int { return a / b; }
+      frame unsigned_div(a: u32, b: u32) ret u32 { return a / b; }
+      frame signed_mod(a: int, b: int) ret int { return a % b; }
+      frame unsigned_mod(a: u32, b: u32) ret u32 { return a % b; }
+      frame signed_lt(a: int, b: int) ret bool { return a < b; }
+      frame unsigned_lt(a: u32, b: u32) ret bool { return a < b; }
+      frame signed_shift(a: int, b: int) ret int { return a >> b; }
+      frame unsigned_shift(a: u32, b: u32) ret u32 { return a >> b; }
+    `);
+
+    for (const operation of [
+      "sdiv i32",
+      "udiv i32",
+      "srem i32",
+      "urem i32",
+      "icmp slt i32",
+      "icmp ult i32",
+      "ashr i32",
+      "lshr i32",
+    ]) {
+      expect(ir).toContain(operation);
+    }
+  });
+
   it("keeps hot type mangling list construction allocation-conscious", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/backend/codegen/TypeGenerator.ts"),
