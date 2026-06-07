@@ -87,6 +87,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedExpressionOperatorScanning(optimized);
   optimized = optimizeGeneratedBinaryExpressionTailParsing(optimized);
   optimized = optimizeGeneratedAdditiveOperatorTokens(optimized);
+  optimized = optimizeGeneratedRelationalOperatorTokens(optimized);
   optimized = optimizeGeneratedTypeCheckTailParsing(optimized);
   optimized = optimizeGeneratedAssignmentOperatorScanning(optimized);
   optimized = optimizeGeneratedStatementStartKeywordScanning(optimized);
@@ -1573,6 +1574,55 @@ function optimizeGeneratedAdditiveOperatorTokens(
   if (directScanner === scanner || directParser === parser) {
     throw new Error(
       "Generated Peggy parser additive token shape changed; update the BPL parser additive-token optimizer.",
+    );
+  }
+
+  return parserSource
+    .replace(scannerPattern, directScanner)
+    .replace(parserPattern, directParser);
+}
+
+function optimizeGeneratedRelationalOperatorTokens(
+  parserSource: string,
+): string {
+  const scannerPattern =
+    /  function peg\$scanBplRelationalOperator\(\) \{[\s\S]*?\n  \}\n\n(?=  function peg\$parseRelationalOperator\(\))/;
+  const scanner = parserSource.match(scannerPattern)?.[0];
+  const parserPattern =
+    /  function peg\$parseRelational\(\) \{[\s\S]*?\n  \}\n(?=  function peg\$failBplRelationalOperatorExpectation\(\))/;
+  const parser = parserSource.match(parserPattern)?.[0];
+
+  if (!scanner || !parser) {
+    throw new Error(
+      "Generated Peggy parser relational helper shape changed; update the BPL parser relational-token optimizer.",
+    );
+  }
+
+  const directScanner = scanner
+    .replace(
+      'return { op: ">=", type: "GreaterEqual", pos: startPos };',
+      'return makeTypedOperatorTokenFromPos("GreaterEqual", ">=", startPos);',
+    )
+    .replace(
+      'return { op: ">", type: "Greater", pos: startPos };',
+      'return makeTypedOperatorTokenFromPos("Greater", ">", startPos);',
+    )
+    .replace(
+      'return { op: "<=", type: "LessEqual", pos: startPos };',
+      'return makeTypedOperatorTokenFromPos("LessEqual", "<=", startPos);',
+    )
+    .replace(
+      'return { op: "<", type: "Less", pos: startPos };',
+      'return makeTypedOperatorTokenFromPos("Less", "<", startPos);',
+    );
+  const directParser = parser.replace(
+    "        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),",
+    "        operator,",
+  );
+
+  if (directScanner === scanner || directParser === parser) {
+    throw new Error(
+      "Generated Peggy parser relational token shape changed; update the BPL parser relational-token optimizer.",
     );
   }
 

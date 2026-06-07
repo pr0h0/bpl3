@@ -6685,7 +6685,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),
+        operator,
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6705,12 +6705,12 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 62:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: ">=", type: "GreaterEqual", pos: startPos }; }
-        { peg$currPos = startPos + 1; return { op: ">", type: "Greater", pos: startPos }; }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return makeTypedOperatorTokenFromPos("GreaterEqual", ">=", startPos); }
+        { peg$currPos = startPos + 1; return makeTypedOperatorTokenFromPos("Greater", ">", startPos); }
         break;
       case 60:
-        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return { op: "<=", type: "LessEqual", pos: startPos }; }
-        { peg$currPos = startPos + 1; return { op: "<", type: "Less", pos: startPos }; }
+        if (input.charCodeAt(startPos + 1) === 61) { peg$currPos = startPos + 2; return makeTypedOperatorTokenFromPos("LessEqual", "<=", startPos); }
+        { peg$currPos = startPos + 1; return makeTypedOperatorTokenFromPos("Less", "<", startPos); }
         break;
     }
 

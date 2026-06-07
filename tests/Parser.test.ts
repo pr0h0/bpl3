@@ -286,7 +286,7 @@ describe("Parser", () => {
 
       expect(helper).toContain(`let result = peg$parse${nextLevelName}();`);
       expect(helper).toContain(`peg$scanBpl${operatorName}()`);
-      if (levelName === "Additive") {
+      if (levelName === "Additive" || levelName === "Relational") {
         expect(helper).toContain("        operator,");
       } else {
         expect(helper).toContain(
@@ -1508,7 +1508,10 @@ describe("Parser", () => {
       expect(helper).not.toContain("let s0, s1");
       expect(helper).not.toContain("input.startsWith");
       expect(scanner).toContain("input.charCodeAt(startPos)");
-      if (operatorName === "AdditiveOperator") {
+      if (
+        operatorName === "AdditiveOperator" ||
+        operatorName === "RelationalOperator"
+      ) {
         expect(scanner).toContain("makeTypedOperatorTokenFromPos");
       } else {
         expect(scanner).toContain("pos: startPos");
@@ -1554,6 +1557,52 @@ describe("Parser", () => {
       new Parser(
         "frame main() ret int { return 3 + 2 - 1; }",
         "direct-additive-token.bpl",
+      ).parse(),
+    ).not.toThrow();
+  });
+
+  it("returns final typed tokens directly from the relational scanner", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const relationalParser = generatedSource.match(
+      /function peg\$parseRelational\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const relationalScanner = generatedSource.match(
+      /function peg\$scanBplRelationalOperator\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedRelationalOperatorTokens",
+    );
+    for (const [type, op] of [
+      ["GreaterEqual", ">="],
+      ["Greater", ">"],
+      ["LessEqual", "<="],
+      ["Less", "<"],
+    ]) {
+      expect(relationalScanner).toContain(
+        `return makeTypedOperatorTokenFromPos("${type}", "${op}", startPos);`,
+      );
+      expect(relationalScanner).not.toContain(`return { op: "${op}"`);
+    }
+    expect(relationalParser).toContain("        operator,");
+    expect(relationalParser).not.toContain("operator.type");
+    expect(() =>
+      new Parser(
+        "frame main() ret bool { return 3 >= 2; }",
+        "direct-relational-token.bpl",
       ).parse(),
     ).not.toThrow();
   });
