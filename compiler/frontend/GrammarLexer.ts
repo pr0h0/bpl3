@@ -5,12 +5,10 @@ import { CompilerError } from "../common/CompilerError";
 import {
   GENERIC_TOKEN_BOOL,
   GENERIC_TOKEN_CHAR,
-  GENERIC_TOKEN_IDENTIFIER,
   GENERIC_TOKEN_INTERPOLATED_STRING,
   GENERIC_TOKEN_KEYWORD,
   GENERIC_TOKEN_NULLPTR,
   GENERIC_TOKEN_NUMBER,
-  GENERIC_TOKEN_PUNCTUATOR,
   GENERIC_TOKEN_STRING,
   GenericParser,
   type GenericTokenKindCode,
@@ -233,25 +231,21 @@ function createFrontendTokenFromParts(
   column: number,
   file: string,
 ): Token {
+  if (
+    typeCode <= GENERIC_TOKEN_KEYWORD ||
+    typeCode === GENERIC_TOKEN_NULLPTR
+  ) {
+    return {
+      type: _type as TokenType,
+      lexeme: value,
+      literal: null,
+      line,
+      column,
+      file,
+    } as Token;
+  }
+
   switch (typeCode) {
-    case GENERIC_TOKEN_PUNCTUATOR:
-      return {
-        type: _type as TokenType,
-        lexeme: value,
-        literal: null,
-        line,
-        column,
-        file,
-      } as Token;
-    case GENERIC_TOKEN_IDENTIFIER:
-      return {
-        type: TokenType.Identifier,
-        lexeme: value,
-        literal: null,
-        line,
-        column,
-        file,
-      } as Token;
     case GENERIC_TOKEN_INTERPOLATED_STRING:
       return {
         type: TokenType.InterpolatedStringLiteral,
@@ -261,29 +255,11 @@ function createFrontendTokenFromParts(
         column,
         file,
       } as Token;
-    case GENERIC_TOKEN_KEYWORD:
-      return {
-        type: _type as TokenType,
-        lexeme: value,
-        literal: null,
-        line,
-        column,
-        file,
-      } as Token;
     case GENERIC_TOKEN_NUMBER:
       return {
         type: TokenType.NumberLiteral,
         lexeme: value,
         literal: parseNumber(value),
-        line,
-        column,
-        file,
-      } as Token;
-    case GENERIC_TOKEN_NULLPTR:
-      return {
-        type: _type as TokenType,
-        lexeme: value,
-        literal: null,
         line,
         column,
         file,

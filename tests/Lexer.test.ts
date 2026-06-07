@@ -82,7 +82,9 @@ describe("Lexer - Extended Tests", () => {
         expect(tokens[0]!.lexeme).toBe(keyword);
       }
       expect(genericParserSource).toContain("function classifyIdentifierLike");
-      expect(grammarLexerSource).toContain("case GENERIC_TOKEN_KEYWORD:");
+      expect(grammarLexerSource).toContain(
+        "typeCode <= GENERIC_TOKEN_KEYWORD",
+      );
     });
 
     it("checks identifier keyword candidates only for possible keyword starts", () => {
@@ -797,23 +799,21 @@ describe("Lexer - Extended Tests", () => {
       );
     });
 
-    it("converts identifier token nodes without a defensive keyword lookup", () => {
+    it("converts plain token nodes without a defensive keyword lookup", () => {
       const source = readFileSync(
         join(process.cwd(), "compiler/frontend/GrammarLexer.ts"),
         "utf8",
       );
-      const start = source.indexOf("case GENERIC_TOKEN_IDENTIFIER:");
-      const end = source.indexOf(
-        "case GENERIC_TOKEN_INTERPOLATED_STRING:",
-        start,
-      );
+      const start = source.indexOf("function createFrontendTokenFromParts");
+      const end = source.indexOf("switch (typeCode)", start);
 
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);
 
-      const identifierSource = source.slice(start, end);
-      expect(identifierSource).toContain("TokenType.Identifier");
-      expect(identifierSource).not.toContain("keywordMap");
+      const plainTokenSource = source.slice(start, end);
+      expect(plainTokenSource).toContain("typeCode <= GENERIC_TOKEN_KEYWORD");
+      expect(plainTokenSource).toContain("type: _type as TokenType");
+      expect(plainTokenSource).not.toContain("keywordMap");
     });
 
     it("dispatches frontend token conversion by generic token kind code", () => {
@@ -829,50 +829,37 @@ describe("Lexer - Extended Tests", () => {
 
       const converterSource = source.slice(start, end);
       const dispatch = converterSource.indexOf("switch (typeCode)");
-      const punctuatorCase = converterSource.indexOf(
-        "case GENERIC_TOKEN_PUNCTUATOR:",
+      const commonDispatch = converterSource.indexOf(
+        "typeCode <= GENERIC_TOKEN_KEYWORD",
       );
-      const identifierCase = converterSource.indexOf(
-        "case GENERIC_TOKEN_IDENTIFIER:",
+      const nullDispatch = converterSource.indexOf(
+        "typeCode === GENERIC_TOKEN_NULLPTR",
       );
       const interpolatedStringCase = converterSource.indexOf(
         "case GENERIC_TOKEN_INTERPOLATED_STRING:",
       );
-      const keywordCase = converterSource.indexOf(
-        "case GENERIC_TOKEN_KEYWORD:",
-      );
       const numberCase = converterSource.indexOf("case GENERIC_TOKEN_NUMBER:");
-      const nullCase = converterSource.indexOf("case GENERIC_TOKEN_NULLPTR:");
       const stringCase = converterSource.indexOf("case GENERIC_TOKEN_STRING:");
 
+      expect(commonDispatch).toBeGreaterThanOrEqual(0);
+      expect(nullDispatch).toBeGreaterThan(commonDispatch);
       expect(dispatch).toBeGreaterThanOrEqual(0);
-      expect(punctuatorCase).toBeGreaterThan(dispatch);
-      expect(identifierCase).toBeGreaterThan(punctuatorCase);
-      expect(interpolatedStringCase).toBeGreaterThan(identifierCase);
-      expect(keywordCase).toBeGreaterThan(interpolatedStringCase);
-      expect(numberCase).toBeGreaterThan(keywordCase);
-      expect(nullCase).toBeGreaterThan(numberCase);
-      expect(stringCase).toBeGreaterThan(nullCase);
+      expect(dispatch).toBeGreaterThan(nullDispatch);
+      expect(interpolatedStringCase).toBeGreaterThan(dispatch);
+      expect(numberCase).toBeGreaterThan(interpolatedStringCase);
+      expect(stringCase).toBeGreaterThan(numberCase);
 
-      const punctuatorSource = converterSource.slice(
-        punctuatorCase,
-        identifierCase,
-      );
-      const identifierSource = converterSource.slice(
-        identifierCase,
-        interpolatedStringCase,
-      );
-      const keywordSource = converterSource.slice(keywordCase, numberCase);
+      const commonSource = converterSource.slice(commonDispatch, dispatch);
       const numberSource = converterSource.slice(numberCase, stringCase);
       const stringSource = converterSource.slice(stringCase);
       expect(converterSource).not.toContain("type.charCodeAt(0)");
-      expect(punctuatorSource).not.toContain('type === "Punctuator"');
-      expect(identifierSource).not.toContain("switch (type.length)");
-      expect(identifierSource).not.toContain('type === "Identifier"');
-      expect(identifierSource).not.toContain(
-        'type === "InterpolatedStringLiteral"',
-      );
-      expect(keywordSource).not.toContain('type === "Keyword"');
+      expect(commonSource).toContain("type: _type as TokenType");
+      expect(commonSource).not.toContain("switch (type.length)");
+      expect(commonSource).not.toContain('type === "Identifier"');
+      expect(converterSource).not.toContain("case GENERIC_TOKEN_PUNCTUATOR:");
+      expect(converterSource).not.toContain("case GENERIC_TOKEN_IDENTIFIER:");
+      expect(converterSource).not.toContain("case GENERIC_TOKEN_KEYWORD:");
+      expect(converterSource).not.toContain("case GENERIC_TOKEN_NULLPTR:");
       expect(numberSource).not.toContain("switch (type.length)");
       expect(numberSource).not.toContain('type === "NumberLiteral"');
       expect(numberSource).not.toContain('type === "NullLiteral"');
@@ -944,7 +931,8 @@ describe("Lexer - Extended Tests", () => {
       );
       expect(converterSource).toContain("typeCode: GenericTokenKindCode");
       expect(converterSource).toContain("switch (typeCode)");
-      expect(converterSource).toContain("case GENERIC_TOKEN_IDENTIFIER:");
+      expect(converterSource).toContain("typeCode <= GENERIC_TOKEN_KEYWORD");
+      expect(converterSource).not.toContain("case GENERIC_TOKEN_IDENTIFIER:");
       expect(converterSource).not.toContain(
         "const typeCode = type.charCodeAt(0);",
       );
@@ -969,33 +957,31 @@ describe("Lexer - Extended Tests", () => {
       const converterStart = lexerSource.indexOf(
         "function createFrontendTokenFromParts",
       );
-      const keywordCase = lexerSource.indexOf(
-        "case GENERIC_TOKEN_KEYWORD:",
+      const converterDispatch = lexerSource.indexOf(
+        "switch (typeCode)",
         converterStart,
-      );
-      const numberCase = lexerSource.indexOf(
-        "case GENERIC_TOKEN_NUMBER:",
-        keywordCase,
       );
 
       expect(classifierStart).toBeGreaterThanOrEqual(0);
       expect(classifierEnd).toBeGreaterThan(classifierStart);
-      expect(keywordCase).toBeGreaterThan(converterStart);
-      expect(numberCase).toBeGreaterThan(keywordCase);
+      expect(converterDispatch).toBeGreaterThan(converterStart);
 
       const classifierSource = genericSource.slice(
         classifierStart,
         classifierEnd,
       );
-      const keywordSource = lexerSource.slice(keywordCase, numberCase);
+      const plainTokenSource = lexerSource.slice(
+        converterStart,
+        converterDispatch,
+      );
       expect(genericSource).toContain('keywordKind("Frame")');
       expect(genericSource).toContain('keywordKind("Continue")');
       expect(genericSource).toContain('type: "Nullptr"');
       expect(classifierSource).toContain("FRAME_TOKEN_KIND");
       expect(classifierSource).toContain("CONTINUE_TOKEN_KIND");
       expect(classifierSource).toContain("NULLPTR_TOKEN_KIND");
-      expect(keywordSource).toContain("type: _type as TokenType");
-      expect(keywordSource).not.toContain("keywordTokenType(value)");
+      expect(plainTokenSource).toContain("type: _type as TokenType");
+      expect(plainTokenSource).not.toContain("keywordTokenType(value)");
       expect(
         tokenize("frame continue nullptr")
           .slice(0, 3)
@@ -1029,17 +1015,17 @@ describe("Lexer - Extended Tests", () => {
 
       const converterSource = source.slice(converterStart, converterEnd);
       const helperSource = genericSource.slice(helperStart, helperEnd);
-      const punctuatorCase = converterSource.slice(
-        converterSource.indexOf("case GENERIC_TOKEN_PUNCTUATOR:"),
-        converterSource.indexOf("case GENERIC_TOKEN_IDENTIFIER:"),
+      const plainTokenSource = converterSource.slice(
+        0,
+        converterSource.indexOf("switch (typeCode)"),
       );
       expect(source).not.toContain("function punctuatorTokenType");
       expect(helperSource).not.toContain('"Punctuator"');
       expect(helperSource).toContain('"LeftParen"');
       expect(helperSource).toContain('"PlusEqual"');
       expect(helperSource).toContain('"EqualEqual"');
-      expect(punctuatorCase).toContain("type: _type as TokenType");
-      expect(punctuatorCase).not.toContain("punctuatorTokenType");
+      expect(plainTokenSource).toContain("type: _type as TokenType");
+      expect(plainTokenSource).not.toContain("punctuatorTokenType");
       expect(converterSource).not.toContain("punctuatorMap[value]");
       expect(helperSource).toContain("switch (firstCode)");
       expect(helperSource).toContain("case 40:");
@@ -1078,7 +1064,7 @@ describe("Lexer - Extended Tests", () => {
 
       const converterSource = source.slice(start, end);
       expect(source).not.toContain("function createPlainFrontendToken");
-      expect(converterSource).toContain("type: TokenType.Identifier,");
+      expect(converterSource).toContain("type: _type as TokenType,");
       expect(converterSource).toContain("lexeme: value,");
       expect(converterSource).not.toContain("let tokenType: TokenType;");
       expect(converterSource).not.toContain("createPlainFrontendToken(");
