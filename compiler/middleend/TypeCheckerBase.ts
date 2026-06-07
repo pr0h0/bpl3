@@ -795,6 +795,10 @@ export abstract class TypeCheckerBase {
         }
       }
 
+      if (type.name === "i32" && type.genericArgs.length === 0) {
+        return type;
+      }
+
       const cachedResolvedType = type.resolvedType;
       if (
         cachedResolvedType !== undefined &&

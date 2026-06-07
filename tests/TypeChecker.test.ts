@@ -281,6 +281,33 @@ describe("TypeChecker", () => {
     expect(prefix).toContain('cachedResolvedType.kind === "BasicType"');
   });
 
+  it("returns canonical i32 before resolved-type cache checks", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const resolveType = source.indexOf("public resolveType");
+    const arrayValidation = source.indexOf(
+      "type.arrayDimensions.length !== 0",
+      resolveType,
+    );
+    const canonicalI32 = source.indexOf('type.name === "i32"', resolveType);
+    const cachedResolvedType = source.indexOf(
+      "const cachedResolvedType = type.resolvedType",
+      resolveType,
+    );
+
+    expect(arrayValidation).toBeGreaterThan(resolveType);
+    expect(canonicalI32).toBeGreaterThan(arrayValidation);
+    expect(canonicalI32).toBeLessThan(cachedResolvedType);
+    expect(source.slice(canonicalI32, cachedResolvedType)).toContain(
+      "type.genericArgs.length === 0",
+    );
+    expect(source.slice(canonicalI32, cachedResolvedType)).toContain(
+      "return type;",
+    );
+  });
+
   it("reuses cached expression basic type resolutions before resolveType", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
