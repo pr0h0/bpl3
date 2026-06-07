@@ -785,6 +785,41 @@ describe("Parser", () => {
     expect(returnStatement.value?.location.startColumn).toBeGreaterThan(0);
   });
 
+  it("caches repeated identifier failures only on the fast parser pass", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const identifierHelper = generatedSource.match(
+      /function peg\$parseIdentifier\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+
+    expect(generatorSource).toContain("peg$bplLastIdentifierFailure");
+    expect(generatedSource).toContain("let peg$bplLastIdentifierFailure = -1;");
+    expect(identifierHelper).toContain(
+      "if (startPos === peg$bplLastIdentifierFailure && !peg$collectExpected)",
+    );
+    expect(identifierHelper).toContain(
+      "peg$bplLastIdentifierFailure = startPos;",
+    );
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return @; }",
+        "identifier-failure-cache-diagnostic.bpl",
+      ).parse(),
+    ).toThrow("Unexpected syntax: 'return @'");
+  });
+
   it("rejects reserved words in Identifier without slicing a token name first", () => {
     const generatedSource = readTextFile(
       join(

@@ -9534,6 +9534,7 @@ function peg$parse(input, options) {
 
   let peg$bplLastIdentifierStart = -1;
   let peg$bplLastIdentifierValue = "";
+  let peg$bplLastIdentifierFailure = -1;
 
   function peg$parseIdentifier() {
     const startPos = peg$currPos;
@@ -9543,9 +9544,14 @@ function peg$parse(input, options) {
       return peg$bplLastIdentifierValue;
     }
 
+    if (startPos === peg$bplLastIdentifierFailure && !peg$collectExpected) {
+      return peg$FAILED;
+    }
+
     const firstCode = input.charCodeAt(startPos);
 
     if (!((firstCode >= 65 && firstCode <= 90) || (firstCode >= 97 && firstCode <= 122) || firstCode === 95)) {
+      peg$bplLastIdentifierFailure = startPos;
       if (peg$collectExpected && peg$silentFails === 0) { peg$fail(peg$e78); }
       return peg$FAILED;
     }
@@ -9566,6 +9572,7 @@ function peg$parse(input, options) {
       peg$isBplReservedKeywordRange(startPos, endPos)
     ) {
       peg$currPos = startPos;
+      peg$bplLastIdentifierFailure = startPos;
       return peg$FAILED;
     }
 
