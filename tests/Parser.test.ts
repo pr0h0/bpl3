@@ -565,6 +565,15 @@ describe("Parser", () => {
     expect(mergeLocHelper).not.toContain("endLoc &&");
     expect(mergeLocHelper).not.toContain("let startLine = 1");
     expect(mergeLocToEndPosHelper).toContain(
+      "let endLineIndex = startLoc.endLine - 1;",
+    );
+    expect(mergeLocToEndPosHelper).toContain(
+      "const nextLineStart = peg$bplLineStarts[endLineIndex + 1];",
+    );
+    expect(mergeLocToEndPosHelper).toContain(
+      "endLineIndex = peg$findBplLineIndex(endPos);",
+    );
+    expect(mergeLocToEndPosHelper).not.toContain(
       "const endLineIndex = peg$findBplLineIndex(endPos);",
     );
     expect(mergeLocToEndPosHelper).toContain("startLine: startLoc.startLine,");
@@ -572,6 +581,25 @@ describe("Parser", () => {
       "endColumn: endPos - peg$bplLineStarts[endLineIndex] + 1,",
     );
     expect(mergeLocToEndPosHelper).not.toContain("location()");
+
+    const multilinePostfix = new Parser(
+      [
+        "struct Box { value: int }",
+        "frame main(box: Box) ret int {",
+        "  return box",
+        "    .value;",
+        "}",
+      ].join("\n"),
+      "multiline-postfix-location.bpl",
+    ).parse();
+    const multilineFunction = multilinePostfix.statements[1] as FunctionDecl;
+    const multilineBody = multilineFunction.body as BlockStmt;
+    const multilineReturn = multilineBody.statements[0]!;
+    expect(multilineReturn.kind).toBe("Return");
+    if (multilineReturn.kind !== "Return") {
+      throw new Error("Expected multiline return statement");
+    }
+    expect(multilineReturn.value?.location.endLine).toBe(4);
   });
 
   it("keeps normalized parser locations off the identity makeLoc path", () => {

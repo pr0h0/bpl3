@@ -584,7 +584,11 @@
   }
 
   function mergeLocToEndPos(startLoc, endPos) {
-    const endLineIndex = peg$findBplLineIndex(endPos);
+    let endLineIndex = startLoc.endLine - 1;
+    const nextLineStart = peg$bplLineStarts[endLineIndex + 1];
+    if (nextLineStart !== undefined && endPos >= nextLineStart) {
+      endLineIndex = peg$findBplLineIndex(endPos);
+    }
 
     return {
       file: parserFilePath,
