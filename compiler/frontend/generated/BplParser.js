@@ -10962,7 +10962,10 @@ function peg$parse(input, options) {
 
   function peg$parseBasicType() {
     const startPos = peg$currPos;
-    const pointerPrefix = peg$parsePointerPrefix();
+    const pointerPrefix =
+      !peg$collectExpected && input.charCodeAt(startPos) !== 42
+        ? peg$FAILED
+        : peg$parsePointerPrefix();
     const pointerDepth = pointerPrefix === peg$FAILED ? 0 : pointerPrefix.length;
 
     let name = peg$parseSelfKeyword();
@@ -10974,8 +10977,14 @@ function peg$parse(input, options) {
       return peg$FAILED;
     }
 
-    let genericArgs = peg$parseGenericArgs();
-    const firstArraySuffix = peg$parseArraySuffix();
+    let genericArgs =
+      !peg$collectExpected && input.charCodeAt(peg$currPos) !== 60
+        ? peg$FAILED
+        : peg$parseGenericArgs();
+    const firstArraySuffix =
+      !peg$collectExpected && input.charCodeAt(peg$currPos) !== 91
+        ? peg$FAILED
+        : peg$parseArraySuffix();
     if (genericArgs === peg$FAILED && firstArraySuffix === peg$FAILED) {
       peg$savedPos = startPos;
       return basicType(name, [], pointerDepth, [], location());

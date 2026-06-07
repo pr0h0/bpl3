@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Starter-Gated Basic-Type Optional Parsers** -
+  generated simple basic-type parsing now checks for `*`, `<`, and `[` before
+  invoking the pointer-prefix, generic-argument, and array-suffix parsers on
+  the fast pass. Detailed failure collection retains the original parser paths
+  so malformed-type diagnostics remain unchanged. Alternating 201-round
+  comparisons improved median parse time by ~0.67-1.03% and median full
+  compilation time by ~1.35-2.21%, with byte-identical AST output,
+  diagnostics, token signatures, and LLVM output. Reproduce focused behavior
+  checks with `bun test tests/Parser.test.ts` and timings with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 201 --warmups 10 --json`.
 - **Allocation-Free Simple Basic-Type Parsing** -
   generated parser basic-type handling now returns simple named types directly
   instead of allocating an empty array-suffix list and dispatching through a

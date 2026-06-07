@@ -1760,11 +1760,17 @@ describe("Parser", () => {
 
     expect(generatorSource).toContain("optimizeGeneratedBasicTypeParsing");
     expect(basicTypeHelper).toContain(
-      "const pointerPrefix = peg$parsePointerPrefix();",
+      "!peg$collectExpected && input.charCodeAt(startPos) !== 42",
     );
+    expect(basicTypeHelper).toContain(": peg$parsePointerPrefix();");
     expect(basicTypeHelper).toContain(
-      "const firstArraySuffix = peg$parseArraySuffix();",
+      "!peg$collectExpected && input.charCodeAt(peg$currPos) !== 60",
     );
+    expect(basicTypeHelper).toContain(": peg$parseGenericArgs();");
+    expect(basicTypeHelper).toContain(
+      "!peg$collectExpected && input.charCodeAt(peg$currPos) !== 91",
+    );
+    expect(basicTypeHelper).toContain(": peg$parseArraySuffix();");
     expect(basicTypeHelper).toContain(
       "if (genericArgs === peg$FAILED && firstArraySuffix === peg$FAILED)",
     );
