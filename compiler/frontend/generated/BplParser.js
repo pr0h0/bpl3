@@ -10961,36 +10961,41 @@ function peg$parse(input, options) {
   }
 
   function peg$parseBasicType() {
-    let s0, s1, s2, s3, s4, s5;
+    const startPos = peg$currPos;
+    const pointerPrefix = peg$parsePointerPrefix();
+    const pointerDepth = pointerPrefix === peg$FAILED ? 0 : pointerPrefix.length;
 
-    s0 = peg$currPos;
-    s1 = peg$parsePointerPrefix();
-    if (s1 === peg$FAILED) {
-      s1 = null;
+    let name = peg$parseSelfKeyword();
+    if (name === peg$FAILED) {
+      name = peg$parseQualifiedIdentifier();
     }
-    s2 = peg$parseSelfKeyword();
-    if (s2 === peg$FAILED) {
-      s2 = peg$parseQualifiedIdentifier();
-    }
-    if (s2 !== peg$FAILED) {
-      s3 = peg$parseGenericArgs();
-      if (s3 === peg$FAILED) {
-        s3 = null;
-      }
-      s4 = [];
-      s5 = peg$parseArraySuffix();
-      while (s5 !== peg$FAILED) {
-        s4.push(s5);
-        s5 = peg$parseArraySuffix();
-      }
-      peg$savedPos = s0;
-      s0 = peg$f182(s1, s2, s3, s4);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    if (name === peg$FAILED) {
+      peg$currPos = startPos;
+      return peg$FAILED;
     }
 
-    return s0;
+    let genericArgs = peg$parseGenericArgs();
+    const firstArraySuffix = peg$parseArraySuffix();
+    if (genericArgs === peg$FAILED && firstArraySuffix === peg$FAILED) {
+      peg$savedPos = startPos;
+      return basicType(name, [], pointerDepth, [], location());
+    }
+
+    if (genericArgs === peg$FAILED) {
+      genericArgs = [];
+    }
+    const arrayDimensions = [];
+    if (firstArraySuffix !== peg$FAILED) {
+      arrayDimensions.push(firstArraySuffix);
+      let arraySuffix = peg$parseArraySuffix();
+      while (arraySuffix !== peg$FAILED) {
+        arrayDimensions.push(arraySuffix);
+        arraySuffix = peg$parseArraySuffix();
+      }
+    }
+
+    peg$savedPos = startPos;
+    return basicType(name, genericArgs, pointerDepth, arrayDimensions, location());
   }
 
   function peg$parseSelfKeyword() {

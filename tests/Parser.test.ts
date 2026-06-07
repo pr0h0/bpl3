@@ -1739,6 +1739,54 @@ describe("Parser", () => {
     ).not.toThrow();
   });
 
+  it("keeps generated simple basic-type parsing off Peggy suffix arrays", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const basicTypeHelper = generatedSource.match(
+      /function peg\$parseBasicType\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedBasicTypeParsing");
+    expect(basicTypeHelper).toContain(
+      "const pointerPrefix = peg$parsePointerPrefix();",
+    );
+    expect(basicTypeHelper).toContain(
+      "const firstArraySuffix = peg$parseArraySuffix();",
+    );
+    expect(basicTypeHelper).toContain(
+      "if (genericArgs === peg$FAILED && firstArraySuffix === peg$FAILED)",
+    );
+    expect(basicTypeHelper).toContain(
+      "return basicType(name, [], pointerDepth, [], location());",
+    );
+    expect(basicTypeHelper).not.toContain("s4 = []");
+    expect(basicTypeHelper).not.toMatch(/peg\$f\d+\(s1, s2, s3, s4\)/);
+
+    expect(() =>
+      new Parser(
+        [
+          "struct Box<T> { value: T }",
+          "frame use(a: int, b: *int, c: Box<int>, d: int[2], e: *Box<int>[2]) ret int {",
+          "  return 0;",
+          "}",
+        ].join("\n"),
+        "basic-type-fast-path.bpl",
+      ).parse(),
+    ).not.toThrow();
+  });
+
   it("keeps generated expression-operator parsing on direct scanner fast paths", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

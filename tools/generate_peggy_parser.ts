@@ -82,6 +82,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedIdentifierScanning(optimized);
   optimized = optimizeGeneratedIdBoundary(optimized);
   optimized = optimizeGeneratedQualifiedIdentifierScanning(optimized);
+  optimized = optimizeGeneratedBasicTypeParsing(optimized);
   optimized = optimizeGeneratedPostfixTailScanning(optimized);
   optimized = optimizeGeneratedPostfixParsing(optimized);
   optimized = optimizeGeneratedStructLiteralSuccessCaching(optimized);
@@ -629,6 +630,94 @@ function optimizeGeneratedQualifiedIdentifierScanning(
   ].join("\n");
 
   return parserSource.replace(qualifiedIdentifierPattern, replacement);
+}
+
+function optimizeGeneratedBasicTypeParsing(parserSource: string): string {
+  const basicTypePattern =
+    /  function peg\$parseBasicType\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseSelfKeyword\(\)/;
+  const match = parserSource.match(basicTypePattern);
+  const actionName = match?.[1]?.match(
+    /s0 = (peg\$f\d+)\(s1, s2, s3, s4\);/,
+  )?.[1];
+
+  if (!match || !actionName) {
+    throw new Error(
+      "Generated Peggy parser BasicType helper shape changed; update the BPL parser basic-type optimizer.",
+    );
+  }
+
+  const expectedFragments = [
+    "s1 = peg$parsePointerPrefix();",
+    "s2 = peg$parseSelfKeyword();",
+    "s2 = peg$parseQualifiedIdentifier();",
+    "s3 = peg$parseGenericArgs();",
+    "s4 = [];",
+    "s5 = peg$parseArraySuffix();",
+    "s4.push(s5);",
+  ];
+  if (!expectedFragments.every(fragment => match[1]!.includes(fragment))) {
+    throw new Error(
+      "Generated Peggy parser BasicType suffix shape changed; update the BPL parser basic-type optimizer.",
+    );
+  }
+
+  const actionDefinition = [
+    `  function ${actionName}(ptrs, name, gen, arr) {`,
+    "    const pointerDepth = ptrs ? ptrs.length : 0;",
+    "    const genericArgs = gen ? gen : [];",
+    "    const arrayDimensions = arr.length ? arr.map(a => a) : [];",
+    "    return basicType(name, genericArgs, pointerDepth, arrayDimensions, location());",
+    "  }",
+  ].join("\n");
+  if (!parserSource.includes(actionDefinition)) {
+    throw new Error(
+      "Generated Peggy parser BasicType action shape changed; update the BPL parser basic-type optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parseBasicType() {",
+    "    const startPos = peg$currPos;",
+    "    const pointerPrefix = peg$parsePointerPrefix();",
+    "    const pointerDepth = pointerPrefix === peg$FAILED ? 0 : pointerPrefix.length;",
+    "",
+    "    let name = peg$parseSelfKeyword();",
+    "    if (name === peg$FAILED) {",
+    "      name = peg$parseQualifiedIdentifier();",
+    "    }",
+    "    if (name === peg$FAILED) {",
+    "      peg$currPos = startPos;",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    let genericArgs = peg$parseGenericArgs();",
+    "    const firstArraySuffix = peg$parseArraySuffix();",
+    "    if (genericArgs === peg$FAILED && firstArraySuffix === peg$FAILED) {",
+    "      peg$savedPos = startPos;",
+    "      return basicType(name, [], pointerDepth, [], location());",
+    "    }",
+    "",
+    "    if (genericArgs === peg$FAILED) {",
+    "      genericArgs = [];",
+    "    }",
+    "    const arrayDimensions = [];",
+    "    if (firstArraySuffix !== peg$FAILED) {",
+    "      arrayDimensions.push(firstArraySuffix);",
+    "      let arraySuffix = peg$parseArraySuffix();",
+    "      while (arraySuffix !== peg$FAILED) {",
+    "        arrayDimensions.push(arraySuffix);",
+    "        arraySuffix = peg$parseArraySuffix();",
+    "      }",
+    "    }",
+    "",
+    "    peg$savedPos = startPos;",
+    "    return basicType(name, genericArgs, pointerDepth, arrayDimensions, location());",
+    "  }",
+    "",
+    "  function peg$parseSelfKeyword()",
+  ].join("\n");
+
+  return parserSource.replace(basicTypePattern, replacement);
 }
 
 function buildReservedKeywordRangeHelper(reservedKeywords: string[]): string[] {
