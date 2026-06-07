@@ -6165,57 +6165,34 @@ function peg$parse(input, options) {
   }
 
   function peg$parseAssignment() {
-    let s0, s1, s2, s3, s4, s5, s6, s7;
-
-    s0 = peg$currPos;
-    s1 = peg$parseTernary();
-    if (s1 !== peg$FAILED) {
-      s2 = [];
-      s3 = peg$currPos;
-      s4 = peg$parse_();
-      s5 = peg$parseAssignmentOperator();
-      if (s5 !== peg$FAILED) {
-        s6 = peg$parse_();
-        s7 = peg$parseTernary();
-        if (s7 !== peg$FAILED) {
-          s4 = [s4, s5, s6, s7];
-          s3 = s4;
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      } else {
-        peg$currPos = s3;
-        s3 = peg$FAILED;
-      }
-      while (s3 !== peg$FAILED) {
-        s2.push(s3);
-        s3 = peg$currPos;
-        s4 = peg$parse_();
-        s5 = peg$parseAssignmentOperator();
-        if (s5 !== peg$FAILED) {
-          s6 = peg$parse_();
-          s7 = peg$parseTernary();
-          if (s7 !== peg$FAILED) {
-            s4 = [s4, s5, s6, s7];
-            s3 = s4;
-          } else {
-            peg$currPos = s3;
-            s3 = peg$FAILED;
-          }
-        } else {
-          peg$currPos = s3;
-          s3 = peg$FAILED;
-        }
-      }
-      peg$savedPos = s0;
-      s0 = peg$f89(s1, s2);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+    let result = peg$parseTernary();
+    if (result === peg$FAILED) {
+      return peg$FAILED;
     }
 
-    return s0;
+    while (true) {
+      const tailStartPos = peg$currPos;
+      peg$parse_();
+      const operator = peg$scanBplAssignmentOperator();
+      if (operator === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      peg$parse_();
+      const right = peg$parseTernary();
+      if (right === peg$FAILED) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
+
+      result = assignment(
+        result,
+        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
+        right,
+        mergeLoc(result.location, right.location),
+      );
+    }
   }
 
   function peg$failBplAssignmentOperatorExpectation() {

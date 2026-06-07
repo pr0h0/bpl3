@@ -1697,6 +1697,48 @@ describe("Parser", () => {
     expect(assignmentOperatorScanner).not.toContain("peg$savedPos = startPos");
   });
 
+  it("keeps generated assignment parsing off Peggy tuple arrays", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const assignmentHelper = generatedSource.match(
+      /function peg\$parseAssignment\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedAssignmentParsing");
+    expect(assignmentHelper).toContain("let result = peg$parseTernary();");
+    expect(assignmentHelper).toContain("peg$scanBplAssignmentOperator()");
+    expect(assignmentHelper).toContain("result = assignment(");
+    expect(assignmentHelper).not.toContain("s2 = []");
+    expect(assignmentHelper).not.toContain("s2.push");
+    expect(assignmentHelper).not.toContain("[s4, s5, s6, s7]");
+
+    expect(() =>
+      new Parser(
+        [
+          "frame main() ret int {",
+          "  local a: int = 1;",
+          "  local b: int = 2;",
+          "  a = b = 3;",
+          "  return a;",
+          "}",
+        ].join("\n"),
+        "assignment-fast-path.bpl",
+      ).parse(),
+    ).not.toThrow();
+  });
+
   it("keeps generated expression-operator parsing on direct scanner fast paths", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

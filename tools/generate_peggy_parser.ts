@@ -90,6 +90,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedAdditiveOperatorTokens(optimized);
   optimized = optimizeGeneratedRelationalOperatorTokens(optimized);
   optimized = optimizeGeneratedTypeCheckTailParsing(optimized);
+  optimized = optimizeGeneratedAssignmentParsing(optimized);
   optimized = optimizeGeneratedAssignmentOperatorScanning(optimized);
   optimized = optimizeGeneratedTernaryParsing(optimized);
   optimized = optimizeGeneratedStatementStartKeywordScanning(optimized);
@@ -1352,6 +1353,69 @@ function optimizeGeneratedAssignmentOperatorScanning(
     assignmentOperatorPattern,
     assignmentOperatorReplacement,
   );
+}
+
+function optimizeGeneratedAssignmentParsing(parserSource: string): string {
+  const assignmentPattern =
+    /  function peg\$parseAssignment\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseAssignmentOperator\(\)/;
+  const match = parserSource.match(assignmentPattern);
+
+  if (!match) {
+    throw new Error(
+      "Generated Peggy parser Assignment helper shape changed; update the BPL parser assignment optimizer.",
+    );
+  }
+
+  const expectedFragments = [
+    "s1 = peg$parseTernary();",
+    "s2 = [];",
+    "s5 = peg$parseAssignmentOperator();",
+    "s7 = peg$parseTernary();",
+    "s2.push(s3);",
+    "s4 = [s4, s5, s6, s7];",
+  ];
+  if (!expectedFragments.every(fragment => match[1]!.includes(fragment))) {
+    throw new Error(
+      "Generated Peggy parser Assignment tail shape changed; update the BPL parser assignment optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parseAssignment() {",
+    "    let result = peg$parseTernary();",
+    "    if (result === peg$FAILED) {",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    while (true) {",
+    "      const tailStartPos = peg$currPos;",
+    "      peg$parse_();",
+    "      const operator = peg$scanBplAssignmentOperator();",
+    "      if (operator === peg$FAILED) {",
+    "        peg$currPos = tailStartPos;",
+    "        return result;",
+    "      }",
+    "",
+    "      peg$parse_();",
+    "      const right = peg$parseTernary();",
+    "      if (right === peg$FAILED) {",
+    "        peg$currPos = tailStartPos;",
+    "        return result;",
+    "      }",
+    "",
+    "      result = assignment(",
+    "        result,",
+    "        makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),",
+    "        right,",
+    "        mergeLoc(result.location, right.location),",
+    "      );",
+    "    }",
+    "  }",
+    "",
+    "  function peg$parseAssignmentOperator()",
+  ].join("\n");
+
+  return parserSource.replace(assignmentPattern, replacement);
 }
 
 function optimizeGeneratedTernaryParsing(parserSource: string): string {

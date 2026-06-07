@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Allocation-Free Generated Assignment Parsing** -
+  generated parser assignment handling now folds assignment tails directly
+  instead of allocating Peggy tuple arrays and dispatching through an action
+  for every successful expression. No-tail expressions return their parsed
+  ternary immediately, while assignment operators and chains preserve the
+  existing left-to-right AST and diagnostic behavior. Exact-5k instrumentation
+  found 30,025 no-tail assignments, 20 single-tail assignments, and no chains.
+  A 401-round candidate/control comparison improved median parse time by
+  ~5.10%, and an immediate reverse-order candidate improved it by ~4.02%, with
+  byte-identical AST output and unchanged token and LLVM signatures. Reproduce
+  focused behavior checks with `bun test tests/Parser.test.ts` and timings with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 401 --warmups 15 --json`.
 - **Direct Single-Member Postfix Folding** -
   generated parser postfix handling now folds a lone member access directly
   instead of allocating a temporary postfix array and dispatching through the
