@@ -944,7 +944,6 @@ function peg$parse(input, options) {
     return collectTailIndex(head, tail, 3);
   }
   function peg$f161(key, value) {    return { name: key, value };  }
-  function peg$f162(id) {    return identifier(id, location());  }
   function peg$f163(name) {
     return name;
   }
@@ -9632,17 +9631,13 @@ function peg$parse(input, options) {
   }
 
   function peg$parseIdentifierExpr() {
-    let s0, s1;
-
-    s0 = peg$currPos;
-    s1 = peg$parseIdentifier();
-    if (s1 !== peg$FAILED) {
-      peg$savedPos = s0;
-      s1 = peg$f162(s1);
+    const startPos = peg$currPos;
+    const name = peg$parseIdentifier();
+    if (name === peg$FAILED) {
+      return peg$FAILED;
     }
-    s0 = s1;
 
-    return s0;
+    return identifier(name, peg$computeBplLocation(startPos, peg$currPos));
   }
 
   let peg$bplLastIdentifierStart = -1;

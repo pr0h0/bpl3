@@ -80,6 +80,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedLiteralMatches(optimized);
   optimized = optimizeGeneratedFailureTracking(optimized);
   optimized = optimizeGeneratedIdentifierScanning(optimized);
+  optimized = optimizeGeneratedIdentifierExpressionAction(optimized);
   optimized = optimizeGeneratedIdBoundary(optimized);
   optimized = optimizeGeneratedQualifiedIdentifierScanning(optimized);
   optimized = optimizeGeneratedBasicTypeParsing(optimized);
@@ -526,6 +527,62 @@ function optimizeGeneratedIdentifierScanning(parserSource: string): string {
     .replace(identifierPattern, identifierReplacement)
     .replace(identTokenPattern, identTokenReplacement)
     .replace(keywordReservedPattern, keywordReservedReplacement);
+}
+
+function optimizeGeneratedIdentifierExpressionAction(
+  parserSource: string,
+): string {
+  const identifierExprPattern =
+    /  function peg\$parseIdentifierExpr\(\) \{([\s\S]*?)\n  \}\n\n(?=  let peg\$bplLastIdentifierStart)/;
+  const match = parserSource.match(identifierExprPattern);
+  const actionName = match?.[1]?.match(/s1 = (peg\$f\d+)\(s1\);/)?.[1];
+
+  if (!match || !actionName) {
+    throw new Error(
+      "Generated Peggy parser IdentifierExpr helper shape changed; update the BPL parser identifier-expression optimizer.",
+    );
+  }
+
+  const expectedFragments = [
+    "s0 = peg$currPos;",
+    "s1 = peg$parseIdentifier();",
+    "peg$savedPos = s0;",
+    `s1 = ${actionName}(s1);`,
+    "return s0;",
+  ];
+  if (!expectedFragments.every((fragment) => match[1]!.includes(fragment))) {
+    throw new Error(
+      "Generated Peggy parser IdentifierExpr action shape changed; update the BPL parser identifier-expression optimizer.",
+    );
+  }
+
+  const escapedActionName = actionName.replace(/\$/g, "\\$");
+  const actionPattern = new RegExp(
+    `  function ${escapedActionName}\\(id\\) \\{\\s+return identifier\\(id, location\\(\\)\\);\\s+\\}\\n`,
+  );
+  if (!actionPattern.test(parserSource)) {
+    throw new Error(
+      "Generated Peggy parser IdentifierExpr action definition changed; update the BPL parser identifier-expression optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parseIdentifierExpr() {",
+    "    const startPos = peg$currPos;",
+    "    const name = peg$parseIdentifier();",
+    "    if (name === peg$FAILED) {",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    return identifier(name, peg$computeBplLocation(startPos, peg$currPos));",
+    "  }",
+    "",
+    "",
+  ].join("\n");
+
+  return parserSource
+    .replace(actionPattern, "")
+    .replace(identifierExprPattern, replacement);
 }
 
 function optimizeGeneratedIdBoundary(parserSource: string): string {

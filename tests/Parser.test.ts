@@ -822,6 +822,59 @@ describe("Parser", () => {
     expect(returnStatement.value?.location.startColumn).toBeGreaterThan(0);
   });
 
+  it("keeps generated identifier expressions off Peggy action dispatch", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const identifierExprHelper = generatedSource.match(
+      /function peg\$parseIdentifierExpr\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedIdentifierExpressionAction",
+    );
+    expect(identifierExprHelper).toContain("const startPos = peg$currPos;");
+    expect(identifierExprHelper).toContain(
+      "const name = peg$parseIdentifier();",
+    );
+    expect(identifierExprHelper).toContain(
+      "return identifier(name, peg$computeBplLocation(startPos, peg$currPos));",
+    );
+    expect(identifierExprHelper).not.toContain("peg$savedPos");
+    expect(identifierExprHelper).not.toMatch(/peg\$f\d+\(/);
+
+    const program = new Parser(
+      "frame main() ret int {\n  return value;\n}",
+      "identifier-expression-location.bpl",
+    ).parse();
+    const func = program.statements[0] as FunctionDecl;
+    const body = func.body as BlockStmt;
+    const returnStatement = body.statements[0]!;
+    expect(returnStatement.kind).toBe("Return");
+    if (returnStatement.kind !== "Return") {
+      throw new Error("Expected return statement");
+    }
+    expect(returnStatement.value?.kind).toBe("Identifier");
+    expect(returnStatement.value?.location).toEqual({
+      file: "identifier-expression-location.bpl",
+      startLine: 2,
+      startColumn: 10,
+      endLine: 2,
+      endColumn: 15,
+    });
+  });
+
   it("caches repeated identifier failures only on the fast parser pass", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
