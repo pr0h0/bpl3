@@ -84,6 +84,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedQualifiedIdentifierScanning(optimized);
   optimized = optimizeGeneratedPostfixTailScanning(optimized);
   optimized = optimizeGeneratedPostfixParsing(optimized);
+  optimized = optimizeGeneratedStructLiteralSuccessCaching(optimized);
   optimized = optimizeGeneratedExpressionOperatorScanning(optimized);
   optimized = optimizeGeneratedBinaryExpressionTailParsing(optimized);
   optimized = optimizeGeneratedAdditiveOperatorTokens(optimized);
@@ -801,6 +802,69 @@ function optimizeGeneratedPostfixParsing(parserSource: string): string {
   ].join("\n");
 
   return parserSource.replace(postfixPattern, replacement);
+}
+
+function optimizeGeneratedStructLiteralSuccessCaching(
+  parserSource: string,
+): string {
+  const structLiteralPattern =
+    /  function peg\$parseStructLiteral\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseStructLiteralFields\(\)/;
+  const match = parserSource.match(structLiteralPattern);
+  const actionName = match?.[1]?.match(
+    /peg\$savedPos = s0;\n          s0 = (peg\$f\d+)\(s1, s3, s7\);/,
+  )?.[1];
+
+  if (!match || !actionName) {
+    throw new Error(
+      "Generated Peggy parser StructLiteral helper shape changed; update the BPL parser StructLiteral cache optimizer.",
+    );
+  }
+
+  const success = [
+    "        if (s9 !== peg$FAILED) {",
+    "          peg$savedPos = s0;",
+    `          s0 = ${actionName}(s1, s3, s7);`,
+    "        } else {",
+  ].join("\n");
+  if (!match[0].includes(success)) {
+    throw new Error(
+      "Generated Peggy parser StructLiteral success shape changed; update the BPL parser StructLiteral cache optimizer.",
+    );
+  }
+
+  const cachedSuccess = [
+    "        if (s9 !== peg$FAILED) {",
+    "          peg$savedPos = s0;",
+    `          s0 = ${actionName}(s1, s3, s7);`,
+    "          if (!peg$collectExpected && !peg$hasBplCommentMarker) {",
+    "            peg$bplLastStructLiteralStart = startPos;",
+    "            peg$bplLastStructLiteralEnd = peg$currPos;",
+    "            peg$bplLastStructLiteralValue = s0;",
+    "          }",
+    "        } else {",
+  ].join("\n");
+  const replacement = [
+    "  let peg$bplLastStructLiteralStart = -1;",
+    "  let peg$bplLastStructLiteralEnd = -1;",
+    "  let peg$bplLastStructLiteralValue;",
+    "",
+    "  function peg$parseStructLiteral() {",
+    "    const startPos = peg$currPos;",
+    "    if (",
+    "      !peg$collectExpected &&",
+    "      !peg$hasBplCommentMarker &&",
+    "      peg$currPos === peg$bplLastStructLiteralStart",
+    "    ) {",
+    "      peg$currPos = peg$bplLastStructLiteralEnd;",
+    "      return peg$bplLastStructLiteralValue;",
+    "    }",
+    match[1]!.replace(success, cachedSuccess),
+    "  }",
+    "",
+    "  function peg$parseStructLiteralFields()",
+  ].join("\n");
+
+  return parserSource.replace(structLiteralPattern, replacement);
 }
 
 function optimizeGeneratedNumberScanning(parserSource: string): string {

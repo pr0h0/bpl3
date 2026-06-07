@@ -9353,7 +9353,21 @@ function peg$parse(input, options) {
     return s0;
   }
 
+  let peg$bplLastStructLiteralStart = -1;
+  let peg$bplLastStructLiteralEnd = -1;
+  let peg$bplLastStructLiteralValue;
+
   function peg$parseStructLiteral() {
+    const startPos = peg$currPos;
+    if (
+      !peg$collectExpected &&
+      !peg$hasBplCommentMarker &&
+      peg$currPos === peg$bplLastStructLiteralStart
+    ) {
+      peg$currPos = peg$bplLastStructLiteralEnd;
+      return peg$bplLastStructLiteralValue;
+    }
+
     let s0, s1, s2, s3, s4, s5, s6, s7, s8, s9;
 
     s0 = peg$currPos;
@@ -9389,6 +9403,11 @@ function peg$parse(input, options) {
         if (s9 !== peg$FAILED) {
           peg$savedPos = s0;
           s0 = peg$f159(s1, s3, s7);
+          if (!peg$collectExpected && !peg$hasBplCommentMarker) {
+            peg$bplLastStructLiteralStart = startPos;
+            peg$bplLastStructLiteralEnd = peg$currPos;
+            peg$bplLastStructLiteralValue = s0;
+          }
         } else {
           peg$currPos = s0;
           s0 = peg$FAILED;

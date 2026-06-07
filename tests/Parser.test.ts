@@ -1172,6 +1172,75 @@ describe("Parser", () => {
     ).not.toThrow();
   });
 
+  it("caches repeated successful struct literal parses only on the side-effect-free fast pass", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const structLiteralHelper = generatedSource.match(
+      /function peg\$parseStructLiteral\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedStructLiteralSuccessCaching",
+    );
+    expect(structLiteralHelper).toContain(
+      "peg$currPos === peg$bplLastStructLiteralStart",
+    );
+    expect(structLiteralHelper).toContain("!peg$collectExpected");
+    expect(structLiteralHelper).toContain("!peg$hasBplCommentMarker");
+    expect(structLiteralHelper).toContain(
+      "peg$currPos = peg$bplLastStructLiteralEnd",
+    );
+    expect(structLiteralHelper).toContain(
+      "return peg$bplLastStructLiteralValue",
+    );
+    expect(generatedSource).toContain(
+      "peg$bplLastStructLiteralStart = startPos;",
+    );
+    expect(generatedSource).toContain(
+      "peg$bplLastStructLiteralEnd = peg$currPos;",
+    );
+    expect(generatedSource).toContain("peg$bplLastStructLiteralValue = s0;");
+
+    const program = new Parser(
+      [
+        "struct Pair { first: int, second: int }",
+        "frame main() ret int {",
+        "  local first: Pair = Pair { first: 1, second: 2 };",
+        "  local second: Pair = Pair { first: 1, second: 2 };",
+        "  return first.first + second.first;",
+        "}",
+      ].join("\n"),
+      "struct-literal-cache.bpl",
+    ).parse();
+    const main = program.statements[1]!;
+    expect(main.kind).toBe("FunctionDecl");
+    if (main.kind !== "FunctionDecl") {
+      throw new Error("Expected main function");
+    }
+    const [first, second] = main.body.statements;
+    expect(first?.kind).toBe("VariableDecl");
+    expect(second?.kind).toBe("VariableDecl");
+    if (first?.kind !== "VariableDecl" || second?.kind !== "VariableDecl") {
+      throw new Error("Expected variable declarations");
+    }
+    expect(first.initializer?.kind).toBe("StructLiteral");
+    expect(second.initializer?.kind).toBe("StructLiteral");
+    expect(first.initializer).not.toBe(second.initializer);
+    expect(first.initializer?.location).not.toBe(second.initializer?.location);
+  });
+
   it("keeps generated number-token parsing on the direct scanner fast path", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
