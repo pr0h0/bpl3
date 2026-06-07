@@ -698,16 +698,28 @@ export class GenericParser {
       case 99:
       case 100:
       case 101:
-      case 102:
       case 103:
-      case 105:
       case 108:
       case 109:
       case 110:
       case 114:
-      case 115:
       case 116:
         tokenKind = classifyIdentifierLike(firstCode, value);
+        break;
+      case 102:
+        if (value.charCodeAt(1) !== 105) {
+          tokenKind = classifyIdentifierLike(firstCode, value);
+        }
+        break;
+      case 105:
+        if (value.charCodeAt(1) !== 110) {
+          tokenKind = classifyIdentifierLike(firstCode, value);
+        }
+        break;
+      case 115:
+        if (value.charCodeAt(1) !== 101) {
+          tokenKind = classifyIdentifierLike(firstCode, value);
+        }
     }
     const line = this.line;
     const column = this.column;

@@ -114,7 +114,19 @@ describe("Lexer - Extended Tests", () => {
       expect(matcherSource.indexOf("switch (firstCode)")).toBeLessThan(
         matcherSource.indexOf("classifyIdentifierLike(firstCode, value)"),
       );
+      expect(matcherSource).toContain("value.charCodeAt(1) !== 105");
+      expect(matcherSource).toContain("value.charCodeAt(1) !== 110");
+      expect(matcherSource).toContain("value.charCodeAt(1) !== 101");
       expect(matcherSource).not.toContain("KEYWORDS.has(value)");
+      expect(
+        tokenize("first second int")
+          .slice(0, 3)
+          .map((token) => token.type),
+      ).toEqual([
+        TokenType.Identifier,
+        TokenType.Identifier,
+        TokenType.Identifier,
+      ]);
     });
 
     it("classifies keyword candidates by length before literal comparisons", () => {
