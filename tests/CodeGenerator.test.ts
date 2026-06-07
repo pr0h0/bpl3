@@ -137,6 +137,32 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("returns identical LLVM casts before semantic lowering", () => {
+    const source = readTextFile(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/UnaryExpressionGenerator.ts",
+      ),
+      "utf8",
+    );
+    const methodStart = source.indexOf("protected emitCast");
+    const methodEnd = source.indexOf("\n  protected", methodStart + 1);
+    const methodSource = source.slice(methodStart, methodEnd);
+    const sameTypeReturn = methodSource.indexOf(
+      "if (srcType === destType) return val",
+    );
+    const aliasResolution = methodSource.indexOf("let effectiveSource");
+    const conversionLowering = methodSource.indexOf(
+      "lowerImplicitConversion(effectiveDest, srcTypeNode)",
+    );
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(sameTypeReturn).toBeGreaterThanOrEqual(0);
+    expect(sameTypeReturn).toBeLessThan(aliasResolution);
+    expect(sameTypeReturn).toBeLessThan(conversionLowering);
+  });
+
   it("resolves standard binary right types only for shift masking", () => {
     const source = readTextFile(
       join(

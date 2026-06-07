@@ -484,6 +484,8 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     srcTypeNode: AST.TypeNode,
     destTypeNode: AST.TypeNode,
   ): string {
+    if (srcType === destType) return val;
+
     let effectiveSource = srcTypeNode;
     let effectiveDest = destTypeNode;
 
@@ -573,8 +575,6 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     ) {
       return this.emitSliceFromArrayValue(val, srcTypeNode, effectiveDest);
     }
-
-    if (srcType === destType) return val;
 
     if (
       effectiveSource.kind === "TupleType" &&
