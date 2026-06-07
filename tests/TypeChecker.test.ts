@@ -35,6 +35,15 @@ function collectErrorMessages(source: string, filePath = "test.bpl") {
   return typeChecker.getErrors().map((error) => error.message);
 }
 
+class IntegerBitCountingTypeChecker extends TypeChecker {
+  public integerBitCalls = 0;
+
+  public override getIntegerBits(typeName: string): number {
+    this.integerBitCalls++;
+    return super.getIntegerBits(typeName);
+  }
+}
+
 describe("TypeChecker", () => {
   it("defers implicit primitive wrapper imports for programs that only use builtin aliases", () => {
     const checker = new TypeChecker();
@@ -139,6 +148,34 @@ describe("TypeChecker", () => {
     if (resolvedAlias.kind === "BasicType") {
       expect(resolvedAlias.name).toBe("i32");
     }
+  });
+
+  it("accepts equal scalar types before integer-width classification", () => {
+    const location = {
+      file: "test.bpl",
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 4,
+    };
+    const left: AST.BasicTypeNode = {
+      kind: "BasicType",
+      name: "i32",
+      genericArgs: [],
+      pointerDepth: 0,
+      arrayDimensions: [],
+      location,
+    };
+    const right: AST.BasicTypeNode = { ...left };
+    const checker = new IntegerBitCountingTypeChecker({
+      skipImportResolution: true,
+    });
+
+    expect(checker.areTypesCompatible(left, right)).toBe(true);
+    expect(checker.integerBitCalls).toBe(0);
+
+    const nullType: AST.BasicTypeNode = { ...left, name: "null" };
+    expect(checker.areTypesCompatible(nullType, { ...nullType })).toBe(false);
   });
 
   it("caches simple builtin alias resolution on the BasicType node", () => {

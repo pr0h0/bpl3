@@ -1439,6 +1439,19 @@ export abstract class TypeCheckerBase {
     }
 
     if (rt1.kind === "BasicType" && rt2.kind === "BasicType") {
+      if (
+        rt1.name === rt2.name &&
+        rt1.name !== "null" &&
+        rt1.pointerDepth === 0 &&
+        rt2.pointerDepth === 0 &&
+        rt1.arrayDimensions.length === 0 &&
+        rt2.arrayDimensions.length === 0 &&
+        rt1.genericArgs.length === 0 &&
+        rt2.genericArgs.length === 0
+      ) {
+        return true;
+      }
+
       // nullptr handling
       if (rt1.name === "nullptr" && rt2.name === "nullptr") return true;
       if (rt2.name === "nullptr") return rt1.pointerDepth > 0;
