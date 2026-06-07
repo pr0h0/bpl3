@@ -224,7 +224,21 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     // Pass 1: Hoist declarations
+    let invalidTopLevelStatements: Set<AST.Statement> | undefined;
     for (const stmt of program.statements) {
+      if (!isAllowedTopLevelStatement(stmt)) {
+        invalidTopLevelStatements ??= new Set<AST.Statement>();
+        invalidTopLevelStatements.add(stmt);
+        this.addError(
+          new CompilerError(
+            `Statement '${stmt.kind}' is not allowed at the top level`,
+            "Move executable statements inside a function body.",
+            stmt.location,
+          ),
+        );
+        continue;
+      }
+
       if (stmt.kind === "Import") continue;
       try {
         this.hoistDeclaration(stmt);
@@ -239,7 +253,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
     // Pass 2: Check bodies
     for (const stmt of program.statements) {
-      if (stmt.kind === "Import") continue;
+      if (
+        stmt.kind === "Import" ||
+        invalidTopLevelStatements?.has(stmt) === true
+      ) {
+        continue;
+      }
       try {
         this.checkStatement(stmt);
       } catch (e) {
@@ -2628,5 +2647,23 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   public checkBlock(stmt: AST.BlockStmt, newScope: boolean = true): void {
     StmtChecker.checkBlock.call(this, stmt, newScope);
+  }
+}
+
+function isAllowedTopLevelStatement(stmt: AST.Statement): boolean {
+  switch (stmt.kind) {
+    case "VariableDecl":
+    case "FunctionDecl":
+    case "StructDecl":
+    case "SpecDecl":
+    case "EnumDecl":
+    case "TypeAlias":
+    case "Import":
+    case "Export":
+    case "Extern":
+    case "Asm":
+      return true;
+    default:
+      return false;
   }
 }

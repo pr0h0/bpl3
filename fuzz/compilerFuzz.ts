@@ -624,6 +624,76 @@ function generateTupleSource(rng: () => number): string {
   `;
 }
 
+function generateCallResultMemberSource(rng: () => number): string {
+  const value = getRandomInt(rng, 1, 40);
+  const offset = getRandomInt(rng, 1, 12);
+
+  return `
+    struct Box {
+      value: int,
+    }
+
+    frame makeBox(value: int) ret Box {
+      return Box { value: value + ${offset} };
+    }
+
+    frame main() ret int {
+      return makeBox(${value}).value;
+    }
+  `;
+}
+
+function generateStructEqualitySource(rng: () => number): string {
+  const leftValue = getRandomInt(rng, 1, 20);
+  const rightValue = getRandomInt(rng, 1, 20);
+  const useSameValue = getRandomInt(rng, 0, 1) === 1;
+
+  return `
+    struct Pair {
+      left: int,
+      right: int,
+    }
+
+    frame main() ret int {
+      local left: Pair = Pair { left: ${leftValue}, right: ${rightValue} };
+      local right: Pair = Pair {
+        left: ${useSameValue ? leftValue : leftValue + 1},
+        right: ${useSameValue ? rightValue : rightValue + 1},
+      };
+      local same: bool = left == right;
+
+      if (same) {
+        return 1;
+      }
+
+      return 0;
+    }
+  `;
+}
+
+function generateEnumStructVariantSource(rng: () => number): string {
+  const x = getRandomInt(rng, 1, 20);
+  const y = getRandomInt(rng, 1, 20);
+
+  return `
+    enum Event {
+      Idle,
+      Point { x: int, y: int },
+    }
+
+    frame score(event: Event) ret int {
+      return match (event) {
+        Event.Idle => 0,
+        Event.Point { x: pointX, y: pointY } => pointX + pointY,
+      };
+    }
+
+    frame main() ret int {
+      return score(Event.Point { x: ${x}, y: ${y} });
+    }
+  `;
+}
+
 function generatePointerArraySource(rng: () => number): string {
   const firstRow = Array.from({ length: 3 }, () => getRandomInt(rng, 1, 20));
   const secondRow = Array.from({ length: 3 }, () => getRandomInt(rng, 1, 20));
@@ -661,6 +731,9 @@ const STRUCTURED_GENERATORS = [
   generateGenericBranchSource,
   generateLambdaCaptureSource,
   generateTupleSource,
+  generateCallResultMemberSource,
+  generateStructEqualitySource,
+  generateEnumStructVariantSource,
   generatePointerArraySource,
 ];
 

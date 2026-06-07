@@ -14,6 +14,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import {
   generateFuzzInput,
+  generateStructuredValidSources,
   minimizeFuzzCrash,
   minimizeFuzzFailure,
   replayFuzzFailureArtifact,
@@ -39,6 +40,15 @@ describe("Compiler fuzz runner", () => {
     expect(firstRun.map((input) => input.kind)).toContain("structured");
     expect(firstRun.map((input) => input.kind)).toContain("mutated");
     expect(firstRun.map((input) => input.kind)).toContain("tokens");
+  });
+
+  test("generates structured inputs for backend internal-error boundaries", () => {
+    const sources = generateStructuredValidSources(0x1ceb00da, 16).join("\n");
+
+    expect(sources).toContain("return makeBox(");
+    expect(sources).toContain(").value;");
+    expect(sources).toContain("local same: bool = left == right;");
+    expect(sources).toContain("Event.Point { x:");
   });
 
   test("generates differential runtime inputs that exercise checked failures", () => {

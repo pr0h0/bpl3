@@ -36,6 +36,25 @@ function compileValid(source: string) {
 }
 
 describe("Internal compiler error boundaries", () => {
+  test("rejects executable statements at top level before code generation", () => {
+    const loopErrors = compileInvalid(`
+      loop frame main() ret int {
+        return 0;
+      }
+    `);
+    expect(loopErrors).toContain(
+      "Statement 'Loop' is not allowed at the top level",
+    );
+
+    const returnErrors = compileInvalid("return 1;");
+    expect(returnErrors).toContain(
+      "Statement 'Return' is not allowed at the top level",
+    );
+
+    const ifErrors = compileInvalid("if (true) {}");
+    expect(ifErrors).toContain("Statement 'If' is not allowed at the top level");
+  });
+
   test("rejects aggregate binary arithmetic before LLVM code generation", () => {
     const structErrors = compileInvalid(`
       struct Box {
