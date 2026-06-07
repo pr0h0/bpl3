@@ -750,6 +750,8 @@ describe("TypeChecker", () => {
     expect(cloneSource).toContain("cached !== undefined");
     expect(cloneSource).not.toContain("cached?.kind");
     expect(cloneSource).not.toContain("hasExtendedBasicTypeMetadata(type)");
+    expect(cloneSource).toContain("genericArgs: type.genericArgs");
+    expect(cloneSource.match(/genericArgs: \[\]/g)?.length).toBe(2);
   });
 
   it("resolves already-resolved nominal basic types without scope lookup", () => {

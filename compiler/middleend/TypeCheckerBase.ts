@@ -337,7 +337,7 @@ function cloneSimpleBuiltinAliasType(
   const resolved: AST.BasicTypeNode = {
     kind: "BasicType",
     name: canonicalName,
-    genericArgs: [],
+    genericArgs: type.genericArgs,
     pointerDepth: type.pointerDepth,
     arrayDimensions: type.arrayDimensions,
     location: type.location,
