@@ -1194,8 +1194,8 @@ function peg$parse(input, options) {
     const startLineIndex = peg$findBplLineIndex(startPos);
     const startLineStart = peg$bplLineStarts[startLineIndex];
     const nextLineStart = peg$bplLineStarts[startLineIndex + 1];
-    const endLineIndex = endPos >= startLineStart &&
-      (nextLineStart === undefined || endPos < nextLineStart)
+    // Successful source ranges satisfy endPos >= startPos >= startLineStart.
+    const endLineIndex = nextLineStart === undefined || endPos < nextLineStart
       ? startLineIndex
       : peg$findBplLineIndex(endPos);
     const endLineStart = endLineIndex === startLineIndex

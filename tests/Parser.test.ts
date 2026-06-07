@@ -654,8 +654,9 @@ describe("Parser", () => {
     );
     expect(locationHelper).toContain("const endLineStart =");
     expect(locationHelper).toContain(
-      "endPos >= startLineStart",
+      "Successful source ranges satisfy endPos >= startPos >= startLineStart.",
     );
+    expect(locationHelper).not.toContain("endPos >= startLineStart");
     expect(locationHelper).toContain(
       "startColumn: startPos - startLineStart + 1,",
     );
