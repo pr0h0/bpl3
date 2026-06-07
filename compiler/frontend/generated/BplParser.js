@@ -1142,10 +1142,6 @@ function peg$parse(input, options) {
   let peg$lastBplLinePos = 0;
 
   function peg$findBplLineIndex(pos) {
-    if (pos === peg$lastBplLinePos) {
-      return peg$lastBplLineIndex;
-    }
-
     if (pos >= peg$bplLineStarts[peg$lastBplLineIndex] &&
       (peg$lastBplLineIndex + 1 === peg$bplLineStarts.length || pos < peg$bplLineStarts[peg$lastBplLineIndex + 1])) {
       peg$lastBplLinePos = pos;
