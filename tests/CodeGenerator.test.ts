@@ -98,6 +98,9 @@ describe("CodeGenerator", () => {
     const helperSource = source.slice(helperStart, helperEnd);
 
     expect(source).toContain("const SIMPLE_BUILTIN_LLVM_TYPES");
+    expect(helperSource).toContain("type: AST.BasicTypeNode");
+    expect(helperSource).not.toContain('type.kind !== "BasicType"');
+    expect(helperSource).not.toContain("type as AST.BasicTypeNode");
     expect(helperSource).toContain(
       "return SIMPLE_BUILTIN_LLVM_TYPES[basicType.name]",
     );

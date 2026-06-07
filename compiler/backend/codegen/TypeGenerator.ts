@@ -69,11 +69,9 @@ const SIMPLE_BUILTIN_LLVM_TYPES: Record<string, string> = {
 };
 
 function resolveSimpleBuiltinLlvmType(
-  type: AST.TypeNode | undefined,
+  type: AST.BasicTypeNode,
 ): string | undefined {
-  if (!type || type.kind !== "BasicType") return undefined;
-
-  const basicType = type as AST.BasicTypeNode;
+  const basicType = type;
   if (
     basicType.pointerDepth !== 0 ||
     basicType.arrayDimensions.length !== 0 ||
