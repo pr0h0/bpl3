@@ -8,6 +8,10 @@ import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
 
+function readTextFile(path: string, encoding: BufferEncoding = "utf8"): string {
+  return readFileSync(path, encoding).replace(/\r\n?/g, "\n");
+}
+
 function parseProgram(source: string, filePath = "test.bpl") {
   const tokens = lexWithGrammar(source, filePath);
   const parser = new Parser(source, filePath, tokens);
@@ -75,7 +79,7 @@ describe("TypeChecker", () => {
   });
 
   it("checks standard library runtime type declarations by name before path suffix", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -195,7 +199,7 @@ describe("TypeChecker", () => {
   });
 
   it("returns cached simple builtin aliases before name dispatch", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -214,7 +218,7 @@ describe("TypeChecker", () => {
   });
 
   it("reuses cached expression basic type resolutions before resolveType", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
       "utf8",
     );
@@ -241,11 +245,11 @@ describe("TypeChecker", () => {
   });
 
   it("reuses expression checker resolved types before resolving again", () => {
-    const typeCheckerSource = readFileSync(
+    const typeCheckerSource = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
       "utf8",
     );
-    const expressionCheckerSource = readFileSync(
+    const expressionCheckerSource = readTextFile(
       join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
       "utf8",
     );
@@ -290,7 +294,7 @@ describe("TypeChecker", () => {
   });
 
   it("reuses resolved initializer types during variable declaration checks", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/StatementChecker.ts"),
       "utf8",
     );
@@ -314,7 +318,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps integer literal underscore replacement behind a guard", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
       "utf8",
     );
@@ -335,7 +339,7 @@ describe("TypeChecker", () => {
   });
 
   it("classifies short decimal integer literals before BigInt fallback", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
       "utf8",
     );
@@ -356,7 +360,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps binary operator classification off temporary arrays", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
       "utf8",
     );
@@ -372,7 +376,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps small struct literal missing-field checks off Set allocation", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
       "utf8",
     );
@@ -396,7 +400,7 @@ describe("TypeChecker", () => {
   });
 
   it("allocates struct literal generic maps only when arguments are provided", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
       "utf8",
     );
@@ -420,7 +424,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps simple builtin aliases before the scope lookup path", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -442,7 +446,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps simple builtin resolver on a single direct dispatch", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -467,7 +471,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps scalar basic types off empty array-dimension iteration", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -486,7 +490,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps resolved basic type cache shape checks scalar-first", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -520,7 +524,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps cached basic type shape checks on the shared array-dimension fast path", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -552,7 +556,7 @@ describe("TypeChecker", () => {
   });
 
   it("reuses the builtin basic type name across the hot simple resolver", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -581,7 +585,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps hot int alias resolution before generic builtin dispatch", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -605,7 +609,7 @@ describe("TypeChecker", () => {
   });
 
   it("skips uppercase nominal basic names before generic builtin dispatch", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -631,7 +635,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps simple builtin type resolution on direct dispatch", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -657,7 +661,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps simple builtin alias cloning off the spread fast path", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -771,7 +775,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps non-generic nominal type caching inline in resolveType", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -792,7 +796,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps already-resolved nominal type reuse before implicit imports and scope lookup", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -827,7 +831,7 @@ describe("TypeChecker", () => {
   });
 
   it("reuses the basic type name across resolveType lookup branches", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -852,7 +856,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps qualified type lookup lazy on the unqualified type fast path", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -872,7 +876,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps function declaration hoisting on a single parameter scan", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
       "utf8",
     );
@@ -894,7 +898,7 @@ describe("TypeChecker", () => {
   });
 
   it("skips function attribute validation allocations for attribute-free functions", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(
         process.cwd(),
         "compiler/middleend/validators/FunctionAttributeValidator.ts",
@@ -924,7 +928,7 @@ describe("TypeChecker", () => {
   });
 
   it("skips attribute-free function validation before allocating options", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
       "utf8",
     );
@@ -943,7 +947,7 @@ describe("TypeChecker", () => {
   });
 
   it("allocates function duplicate-name sets only when duplicates are possible", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
       "utf8",
     );
@@ -977,7 +981,7 @@ describe("TypeChecker", () => {
   });
 
   it("defines function parameters without cloning their declarations", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
       "utf8",
     );
@@ -994,7 +998,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps direct struct member lookups on cached maps", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -1038,7 +1042,7 @@ describe("TypeChecker", () => {
   });
 
   it("skips primitive wrapper classification for known struct members", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/CallChecker.ts"),
       "utf8",
     );
@@ -1060,7 +1064,7 @@ describe("TypeChecker", () => {
   });
 
   it("resolves known struct fields before general member contexts", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/CallChecker.ts"),
       "utf8",
     );
@@ -1077,7 +1081,7 @@ describe("TypeChecker", () => {
   });
 
   it("keeps direct struct field resolution off empty generic maps", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );
@@ -1096,7 +1100,7 @@ describe("TypeChecker", () => {
   });
 
   it("skips operator overload member resolution for methodless structs", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/OverloadResolver.ts"),
       "utf8",
     );
@@ -1120,7 +1124,7 @@ describe("TypeChecker", () => {
   });
 
   it("skips operator overload resolution for builtin operand types", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler", "middleend", "ExpressionChecker.ts"),
       "utf8",
     );
@@ -1159,7 +1163,7 @@ describe("TypeChecker", () => {
   });
 
   it("skips failed-import cleanup scans when no recovery state exists", () => {
-    const source = readFileSync(
+    const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
     );

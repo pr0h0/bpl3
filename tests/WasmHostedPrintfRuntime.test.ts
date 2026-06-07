@@ -3,8 +3,10 @@ import { spawnSync } from "child_process";
 import { mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
+import { getCompilerDriver } from "../compiler/common/CompilerDriver";
 import { hasWasmCompilerTarget } from "./helpers/wasmCompiler";
 
+const WASM_TARGET = "wasm32-unknown-unknown";
 const RUNTIME_WASM_HOST = resolve(
   import.meta.dir,
   "../lib/runtime_wasm_host.ll",
@@ -38,9 +40,9 @@ describe("Hosted wasm printf runtime IR", () => {
 
     try {
       const result = spawnSync(
-        "clang",
+        getCompilerDriver(WASM_TARGET),
         [
-          "--target=wasm32-unknown-unknown",
+          `--target=${WASM_TARGET}`,
           "-c",
           RUNTIME_WASM_HOST,
           "-o",
