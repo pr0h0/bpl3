@@ -608,9 +608,10 @@ export abstract class StatementGenerator extends AsmGenerator {
           this.expressionBlocksStackHookElision(element),
         );
       case "StructLiteral":
-        return (expr as AST.StructLiteralExpr).fields.some((field) =>
-          this.expressionBlocksStackHookElision(field.value),
-        );
+        for (const field of (expr as AST.StructLiteralExpr).fields) {
+          if (this.expressionBlocksStackHookElision(field.value)) return true;
+        }
+        return false;
       case "TupleLiteral":
         return (expr as AST.TupleLiteralExpr).elements.some((element) =>
           this.expressionBlocksStackHookElision(element),

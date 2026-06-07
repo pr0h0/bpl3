@@ -1733,6 +1733,12 @@ describe("CodeGenerator", () => {
     expect(elisionSource).toContain("expressionBlocksStackHookElision");
     expect(elisionSource).not.toContain("expressionMayEmitCall");
     expect(elisionSource).not.toContain("expressionMayEmitCheckedRuntimeFailure");
+    expect(elisionSource).toContain(
+      "for (const field of (expr as AST.StructLiteralExpr).fields)",
+    );
+    expect(elisionSource).not.toContain(
+      "return (expr as AST.StructLiteralExpr).fields.some",
+    );
   });
 
   it("omits dead stack_ok branch scaffolding from multi-function IR", () => {
