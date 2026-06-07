@@ -91,6 +91,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedRelationalOperatorTokens(optimized);
   optimized = optimizeGeneratedTypeCheckTailParsing(optimized);
   optimized = optimizeGeneratedAssignmentOperatorScanning(optimized);
+  optimized = optimizeGeneratedTernaryParsing(optimized);
   optimized = optimizeGeneratedStatementStartKeywordScanning(optimized);
   optimized = optimizeGeneratedVariableScopeKeywordScanning(optimized);
   optimized = optimizeGeneratedNumberScanning(optimized);
@@ -1257,6 +1258,84 @@ function optimizeGeneratedAssignmentOperatorScanning(
     assignmentOperatorPattern,
     assignmentOperatorReplacement,
   );
+}
+
+function optimizeGeneratedTernaryParsing(parserSource: string): string {
+  const ternaryPattern =
+    /  function peg\$parseTernary\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseLogicalOr\(\)/;
+  const match = parserSource.match(ternaryPattern);
+  const actionName = match?.[1]?.match(
+    /s0 = (peg\$f\d+)\(s1, s5, s9\);/,
+  )?.[1];
+  const expectedNames = match
+    ? [...match[1]!.matchAll(/peg\$fail\((peg\$e\d+)\)/g)].map(
+        ([, expectedName]) => expectedName,
+      )
+    : [];
+
+  if (!match || !actionName || expectedNames.length !== 2) {
+    throw new Error(
+      "Generated Peggy parser Ternary helper shape changed; update the BPL parser ternary optimizer.",
+    );
+  }
+
+  const [questionExpectation, colonExpectation] = expectedNames;
+  const replacement = [
+    "  function peg$parseTernary() {",
+    "    if (peg$hasBplCommentMarker) {",
+    "      return peg$parseTernaryWithCommentMarkers();",
+    "    }",
+    "",
+    "    const startPos = peg$currPos;",
+    "    const condition = peg$parseLogicalOr();",
+    "    if (condition === peg$FAILED) {",
+    "      peg$currPos = startPos;",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+    "    const conditionEndPos = peg$currPos;",
+    "    peg$parse_();",
+    "    if (input.charCodeAt(peg$currPos) !== 63) {",
+    `      if (peg$collectExpected && peg$silentFails === 0) { peg$fail(${questionExpectation}); }`,
+    "      peg$currPos = conditionEndPos;",
+    "      return condition;",
+    "    }",
+    "",
+    "    peg$currPos++;",
+    "    peg$parse_();",
+    "    const trueExpr = peg$parseTernary();",
+    "    if (trueExpr === peg$FAILED) {",
+    "      peg$currPos = conditionEndPos;",
+    "      return condition;",
+    "    }",
+    "",
+    "    peg$parse_();",
+    "    if (input.charCodeAt(peg$currPos) !== 58) {",
+    `      if (peg$collectExpected && peg$silentFails === 0) { peg$fail(${colonExpectation}); }`,
+    "      peg$currPos = conditionEndPos;",
+    "      return condition;",
+    "    }",
+    "",
+    "    peg$currPos++;",
+    "    peg$parse_();",
+    "    const falseExpr = peg$parseTernary();",
+    "    if (falseExpr === peg$FAILED) {",
+    "      peg$currPos = conditionEndPos;",
+    "      return condition;",
+    "    }",
+    "",
+    "    peg$savedPos = startPos;",
+    `    return ${actionName}(condition, trueExpr, falseExpr);`,
+    "  }",
+    "",
+    "  function peg$parseTernaryWithCommentMarkers() {",
+    match[1]!,
+    "  }",
+    "",
+    "  function peg$parseLogicalOr()",
+  ].join("\n");
+
+  return parserSource.replace(ternaryPattern, replacement);
 }
 
 type GeneratedOperatorScanBranch = {

@@ -1241,6 +1241,51 @@ describe("Parser", () => {
     expect(first.initializer?.location).not.toBe(second.initializer?.location);
   });
 
+  it("parses ternary conditions once before deciding whether a question mark follows", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const ternaryHelper = generatedSource.match(
+      /function peg\$parseTernary\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedTernaryParsing");
+    expect(ternaryHelper).toContain("const condition = peg$parseLogicalOr()");
+    expect(ternaryHelper?.match(/peg\$parseLogicalOr\(\)/g)).toHaveLength(1);
+    expect(ternaryHelper).toContain("const conditionEndPos = peg$currPos");
+    expect(ternaryHelper).toContain("peg$currPos = conditionEndPos");
+    expect(ternaryHelper).toContain("peg$fail(peg$e");
+    expect(ternaryHelper).toContain("if (peg$hasBplCommentMarker)");
+    expect(generatedSource).toContain(
+      "function peg$parseTernaryWithCommentMarkers()",
+    );
+    expect(ternaryHelper).not.toContain("if (s0 === peg$FAILED)");
+
+    expect(() =>
+      new Parser(
+        [
+          "frame main() ret int {",
+          "  local plain: int = 1 + 2;",
+          "  local nested: int = true ? false ? 3 : 4 : plain;",
+          "  return nested;",
+          "}",
+        ].join("\n"),
+        "ternary-single-pass.bpl",
+      ).parse(),
+    ).not.toThrow();
+  });
+
   it("keeps generated number-token parsing on the direct scanner fast path", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

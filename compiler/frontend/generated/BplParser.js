@@ -6219,6 +6219,54 @@ function peg$parse(input, options) {
   }
 
   function peg$parseTernary() {
+    if (peg$hasBplCommentMarker) {
+      return peg$parseTernaryWithCommentMarkers();
+    }
+
+    const startPos = peg$currPos;
+    const condition = peg$parseLogicalOr();
+    if (condition === peg$FAILED) {
+      peg$currPos = startPos;
+      return peg$FAILED;
+    }
+
+    const conditionEndPos = peg$currPos;
+    peg$parse_();
+    if (input.charCodeAt(peg$currPos) !== 63) {
+      if (peg$collectExpected && peg$silentFails === 0) { peg$fail(peg$e52); }
+      peg$currPos = conditionEndPos;
+      return condition;
+    }
+
+    peg$currPos++;
+    peg$parse_();
+    const trueExpr = peg$parseTernary();
+    if (trueExpr === peg$FAILED) {
+      peg$currPos = conditionEndPos;
+      return condition;
+    }
+
+    peg$parse_();
+    if (input.charCodeAt(peg$currPos) !== 58) {
+      if (peg$collectExpected && peg$silentFails === 0) { peg$fail(peg$e4); }
+      peg$currPos = conditionEndPos;
+      return condition;
+    }
+
+    peg$currPos++;
+    peg$parse_();
+    const falseExpr = peg$parseTernary();
+    if (falseExpr === peg$FAILED) {
+      peg$currPos = conditionEndPos;
+      return condition;
+    }
+
+    peg$savedPos = startPos;
+    return peg$f91(condition, trueExpr, falseExpr);
+  }
+
+  function peg$parseTernaryWithCommentMarkers() {
+
     let s0, s1, s2, s3, s4, s5, s6, s7, s8, s9;
 
     s0 = peg$currPos;
