@@ -7076,7 +7076,20 @@ function peg$parse(input, options) {
     const firstPostfix = peg$parsePostfixTail();
     if (firstPostfix === peg$FAILED) { return primary; }
 
-    const postfixes = [firstPostfix];
+    const secondPostfix = peg$parsePostfixTail();
+    if (secondPostfix === peg$FAILED) {
+      peg$savedPos = startPos;
+      if (firstPostfix.type === "member") {
+        return member(
+          primary,
+          firstPostfix.property,
+          mergeLocToEndPos(primary.location, firstPostfix.endPos),
+        );
+      }
+      return peg$f115(primary, [firstPostfix]);
+    }
+
+    const postfixes = [firstPostfix, secondPostfix];
     let postfix = peg$parsePostfixTail();
     while (postfix !== peg$FAILED) {
       postfixes.push(postfix);

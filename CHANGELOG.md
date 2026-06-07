@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Direct Single-Member Postfix Folding** -
+  generated parser postfix handling now folds a lone member access directly
+  instead of allocating a temporary postfix array and dispatching through the
+  general multi-tail action. Calls, indexes, generics, enum variants, postfix
+  unary operators, and chained postfixes retain the existing action path.
+  Exact-5k instrumentation found 20,000 single-member tails and no multi-tail
+  chains. A 401-round candidate/control comparison improved median parse time
+  by ~2.72%, and an immediate reverse-order candidate improved it by ~1.42%,
+  with byte-identical AST output and unchanged token and LLVM signatures.
+  Reproduce focused behavior checks with `bun test tests/Parser.test.ts` and
+  timings with
+  `bun benchmark/measure_compilation.ts --mode phases --functions 5000 --rounds 401 --warmups 15 --json`.
 - **Frontend-Only Build Cold-Start Path** -
   `bpl build --emit tokens`, `--emit ast`, and `--emit formatted` now defer to
   a focused lexer/parser/formatter action for common requests instead of

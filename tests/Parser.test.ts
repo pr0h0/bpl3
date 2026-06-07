@@ -1164,7 +1164,7 @@ describe("Parser", () => {
     ).not.toThrow();
   });
 
-  it("keeps generated postfix parsing allocation-free when no tail exists", () => {
+  it("keeps generated postfix parsing allocation-free for zero or one member tail", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
       "utf8",
@@ -1190,7 +1190,23 @@ describe("Parser", () => {
     expect(postfixHelper).toContain(
       "if (firstPostfix === peg$FAILED) { return primary; }",
     );
-    expect(postfixHelper).toContain("const postfixes = [firstPostfix];");
+    expect(postfixHelper).toContain(
+      [
+        "if (secondPostfix === peg$FAILED) {",
+        "      peg$savedPos = startPos;",
+        '      if (firstPostfix.type === "member") {',
+        "        return member(",
+        "          primary,",
+        "          firstPostfix.property,",
+        "          mergeLocToEndPos(primary.location, firstPostfix.endPos),",
+        "        );",
+        "      }",
+      ].join("\n"),
+    );
+    expect(postfixHelper).toContain("return peg$f115(primary, [firstPostfix]);");
+    expect(postfixHelper).toContain(
+      "const postfixes = [firstPostfix, secondPostfix];",
+    );
     expect(postfixHelper).not.toContain("s2 = []");
 
     expect(() =>
