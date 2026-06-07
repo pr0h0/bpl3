@@ -599,13 +599,40 @@ describe("TypeChecker", () => {
     expect(resolverEnd).toBeGreaterThan(resolver);
 
     const resolverSource = source.slice(resolver, resolverEnd);
-    const hotIntFastPath = resolverSource.indexOf("name.length === 3");
+    const hotIntFastPath = resolverSource.indexOf("name.charCodeAt(1) === 110");
     const dispatchCall = resolverSource.indexOf(
       "resolveSimpleBuiltinTypeName(name)",
     );
     expect(hotIntFastPath).toBeGreaterThanOrEqual(0);
     expect(dispatchCall).toBeGreaterThan(hotIntFastPath);
     expect(resolverSource).toContain('cloneSimpleBuiltinAliasType(type, "i32")');
+  });
+
+  it("returns canonical i32 before alias and generic builtin dispatch", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const resolver = source.indexOf("function resolveSimpleBuiltinBasicType");
+    const resolverEnd = source.indexOf(
+      "\nfunction canReuseResolvedBasicType",
+      resolver,
+    );
+
+    expect(resolver).toBeGreaterThanOrEqual(0);
+    expect(resolverEnd).toBeGreaterThan(resolver);
+
+    const resolverSource = source.slice(resolver, resolverEnd);
+    const shapeGuard = resolverSource.indexOf("type.genericArgs.length !== 0");
+    const canonicalI32 = resolverSource.indexOf("name.charCodeAt(1) === 51");
+    const intAlias = resolverSource.indexOf("name.charCodeAt(1) === 110");
+    const dispatchCall = resolverSource.indexOf(
+      "resolveSimpleBuiltinTypeName(name)",
+    );
+
+    expect(canonicalI32).toBeGreaterThan(shapeGuard);
+    expect(intAlias).toBeGreaterThan(canonicalI32);
+    expect(dispatchCall).toBeGreaterThan(intAlias);
   });
 
   it("skips uppercase nominal basic names before generic builtin dispatch", () => {

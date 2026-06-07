@@ -83,7 +83,16 @@ function resolveSimpleBuiltinLlvmType(
     return undefined;
   }
 
-  return SIMPLE_BUILTIN_LLVM_TYPES[basicType.name];
+  const name = basicType.name;
+  if (
+    name.length === 3 &&
+    name.charCodeAt(0) === 105 &&
+    name.charCodeAt(1) === 51 &&
+    name.charCodeAt(2) === 50
+  ) {
+    return "i32";
+  }
+  return SIMPLE_BUILTIN_LLVM_TYPES[name];
 }
 
 /**

@@ -101,9 +101,15 @@ describe("CodeGenerator", () => {
     expect(helperSource).toContain("type: AST.BasicTypeNode");
     expect(helperSource).not.toContain('type.kind !== "BasicType"');
     expect(helperSource).not.toContain("type as AST.BasicTypeNode");
-    expect(helperSource).toContain(
-      "return SIMPLE_BUILTIN_LLVM_TYPES[basicType.name]",
+    const shapeGuard = helperSource.indexOf("basicType.isPointerToArray");
+    const nameReuse = helperSource.indexOf("const name = basicType.name");
+    const canonicalI32 = helperSource.indexOf("name.charCodeAt(1) === 51");
+    const tableLookup = helperSource.indexOf(
+      "return SIMPLE_BUILTIN_LLVM_TYPES[name]",
     );
+    expect(nameReuse).toBeGreaterThan(shapeGuard);
+    expect(canonicalI32).toBeGreaterThan(nameReuse);
+    expect(tableLookup).toBeGreaterThan(canonicalI32);
     expect(helperSource).not.toContain("switch (basicType.name)");
     expect(methodPrefix).toContain("resolveSimpleBuiltinLlvmType(type)");
     expect(methodPrefix).toContain("if (simpleBuiltinLlvmType)");

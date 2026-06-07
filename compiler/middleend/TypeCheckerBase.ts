@@ -523,6 +523,14 @@ function resolveSimpleBuiltinBasicType(
   }
 
   const name = type.name;
+  if (
+    name.length === 3 &&
+    name.charCodeAt(0) === 105 &&
+    name.charCodeAt(1) === 51 &&
+    name.charCodeAt(2) === 50
+  ) {
+    return type;
+  }
   const firstCode = name.charCodeAt(0);
   if (
     name.length === 3 &&
