@@ -286,9 +286,13 @@ describe("Parser", () => {
 
       expect(helper).toContain(`let result = peg$parse${nextLevelName}();`);
       expect(helper).toContain(`peg$scanBpl${operatorName}()`);
-      expect(helper).toContain(
-        "makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos)",
-      );
+      if (levelName === "Additive") {
+        expect(helper).toContain("        operator,");
+      } else {
+        expect(helper).toContain(
+          "makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos)",
+        );
+      }
       expect(helper).not.toContain("s2 = []");
       expect(helper).not.toContain("s2.push");
       expect(helper).not.toContain("[s4, s5, s6, s7]");
@@ -1504,10 +1508,54 @@ describe("Parser", () => {
       expect(helper).not.toContain("let s0, s1");
       expect(helper).not.toContain("input.startsWith");
       expect(scanner).toContain("input.charCodeAt(startPos)");
-      expect(scanner).toContain("pos: startPos");
-      expect(scanner).toContain("type:");
+      if (operatorName === "AdditiveOperator") {
+        expect(scanner).toContain("makeTypedOperatorTokenFromPos");
+      } else {
+        expect(scanner).toContain("pos: startPos");
+        expect(scanner).toContain("type:");
+      }
       expect(scanner).not.toContain("peg$savedPos = startPos");
     }
+  });
+
+  it("returns final typed tokens directly from the additive scanner", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const additiveParser = generatedSource.match(
+      /function peg\$parseAdditive\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const additiveScanner = generatedSource.match(
+      /function peg\$scanBplAdditiveOperator\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedAdditiveOperatorTokens");
+    expect(additiveScanner).toContain(
+      'return makeTypedOperatorTokenFromPos("Plus", "+", startPos);',
+    );
+    expect(additiveScanner).toContain(
+      'return makeTypedOperatorTokenFromPos("Minus", "-", startPos);',
+    );
+    expect(additiveScanner).not.toContain('return { op: "+"');
+    expect(additiveParser).toContain("        operator,");
+    expect(additiveParser).not.toContain("operator.type");
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return 3 + 2 - 1; }",
+        "direct-additive-token.bpl",
+      ).parse(),
+    ).not.toThrow();
   });
 
   it("preserves keyword boundary behavior for identifiers", () => {

@@ -6802,7 +6802,7 @@ function peg$parse(input, options) {
 
       result = binary(
         result,
-        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),
+        operator,
         right,
         mergeLoc(result.location, right.location),
       );
@@ -6820,10 +6820,10 @@ function peg$parse(input, options) {
 
     switch (input.charCodeAt(startPos)) {
       case 43:
-        { peg$currPos = startPos + 1; return { op: "+", type: "Plus", pos: startPos }; }
+        { peg$currPos = startPos + 1; return makeTypedOperatorTokenFromPos("Plus", "+", startPos); }
         break;
       case 45:
-        { peg$currPos = startPos + 1; return { op: "-", type: "Minus", pos: startPos }; }
+        { peg$currPos = startPos + 1; return makeTypedOperatorTokenFromPos("Minus", "-", startPos); }
         break;
     }
 

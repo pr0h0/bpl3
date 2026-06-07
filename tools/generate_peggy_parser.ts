@@ -86,6 +86,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedPostfixParsing(optimized);
   optimized = optimizeGeneratedExpressionOperatorScanning(optimized);
   optimized = optimizeGeneratedBinaryExpressionTailParsing(optimized);
+  optimized = optimizeGeneratedAdditiveOperatorTokens(optimized);
   optimized = optimizeGeneratedTypeCheckTailParsing(optimized);
   optimized = optimizeGeneratedAssignmentOperatorScanning(optimized);
   optimized = optimizeGeneratedStatementStartKeywordScanning(optimized);
@@ -1537,6 +1538,47 @@ function optimizeGeneratedBinaryExpressionTailParsingForConfig(
   ].join("\n");
 
   return parserSource.replace(parserPattern, replacement);
+}
+
+function optimizeGeneratedAdditiveOperatorTokens(
+  parserSource: string,
+): string {
+  const scannerPattern =
+    /  function peg\$scanBplAdditiveOperator\(\) \{[\s\S]*?\n  \}\n\n(?=  function peg\$parseAdditiveOperator\(\))/;
+  const scanner = parserSource.match(scannerPattern)?.[0];
+  const parserPattern =
+    /  function peg\$parseAdditive\(\) \{[\s\S]*?\n  \}\n(?=  function peg\$failBplAdditiveOperatorExpectation\(\))/;
+  const parser = parserSource.match(parserPattern)?.[0];
+
+  if (!scanner || !parser) {
+    throw new Error(
+      "Generated Peggy parser additive helper shape changed; update the BPL parser additive-token optimizer.",
+    );
+  }
+
+  const directScanner = scanner
+    .replace(
+      'return { op: "+", type: "Plus", pos: startPos };',
+      'return makeTypedOperatorTokenFromPos("Plus", "+", startPos);',
+    )
+    .replace(
+      'return { op: "-", type: "Minus", pos: startPos };',
+      'return makeTypedOperatorTokenFromPos("Minus", "-", startPos);',
+    );
+  const directParser = parser.replace(
+    "        makeTypedOperatorTokenFromPos(operator.type, operator.op, operator.pos),",
+    "        operator,",
+  );
+
+  if (directScanner === scanner || directParser === parser) {
+    throw new Error(
+      "Generated Peggy parser additive token shape changed; update the BPL parser additive-token optimizer.",
+    );
+  }
+
+  return parserSource
+    .replace(scannerPattern, directScanner)
+    .replace(parserPattern, directParser);
 }
 
 function optimizeGeneratedTypeCheckTailParsing(parserSource: string): string {
