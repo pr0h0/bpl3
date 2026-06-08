@@ -1590,4 +1590,38 @@ describe("TypeChecker", () => {
 
     expect(() => check(source2)).toThrow(CompilerError);
   });
+
+  it("reuses first-pass struct inheritance resolutions", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("private checkStructBody");
+    const methodEnd = source.indexOf("private checkEnumBody", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+    const firstScan = methodSource.indexOf(
+      "for (const parent of decl.inheritanceList)",
+    );
+    const firstWriteback = methodSource.indexOf(
+      "this.replaceResolvedInheritanceParent(decl, parent, resolved)",
+    );
+    const secondScan = methodSource.indexOf(
+      "for (let i = 0; i < decl.inheritanceList.length; i++)",
+    );
+    const secondResolve = methodSource.indexOf(
+      "const resolvedParent = this.resolveType(parentType)",
+      secondScan,
+    );
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(firstScan).toBeGreaterThanOrEqual(0);
+    expect(firstWriteback).toBeGreaterThan(firstScan);
+    expect(secondScan).toBeGreaterThan(firstWriteback);
+    expect(secondResolve).toBeGreaterThan(secondScan);
+    expect(methodSource).toContain(
+      'resolved.kind === "BasicType" && resolved !== parent',
+    );
+    expect(source).toContain("private replaceResolvedInheritanceParent");
+  });
 });

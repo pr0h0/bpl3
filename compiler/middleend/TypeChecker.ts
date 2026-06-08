@@ -1236,6 +1236,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
+  private replaceResolvedInheritanceParent(
+    decl: AST.StructDecl,
+    parent: AST.TypeNode,
+    resolved: AST.BasicTypeNode,
+  ): void {
+    const parentIndex = decl.inheritanceList.indexOf(parent);
+    if (parentIndex >= 0) {
+      decl.inheritanceList[parentIndex] = resolved;
+    }
+  }
+
   private checkStructBody(decl: AST.StructDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
@@ -1343,6 +1354,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       let hasStructParent = false;
       for (const parent of decl.inheritanceList) {
         const resolved = this.resolveType(parent);
+        if (resolved.kind === "BasicType" && resolved !== parent) {
+          this.replaceResolvedInheritanceParent(decl, parent, resolved);
+        }
         if (
           resolved.kind === "BasicType" &&
           resolved.resolvedDeclaration &&
