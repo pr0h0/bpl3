@@ -995,13 +995,20 @@ export function checkMember(
         member &&
         (member.kind === "FunctionDecl" || member.kind === "SpecMethod")
       ) {
-        const allMethods = members.filter(
-          (m) => m.kind === "FunctionDecl" || m.kind === "SpecMethod",
-        ) as (AST.FunctionDecl | AST.SpecMethod)[];
-
         // Filter out static methods and check 'this' compatibility
-        const compatibleMethods: (AST.FunctionDecl | AST.SpecMethod)[] = [];
-        for (const method of allMethods) {
+        let compatibleMethod: AST.FunctionDecl | AST.SpecMethod | undefined;
+        let compatibleMethods:
+          | (AST.FunctionDecl | AST.SpecMethod)[]
+          | undefined;
+        for (const candidate of members) {
+          if (
+            candidate.kind !== "FunctionDecl" &&
+            candidate.kind !== "SpecMethod"
+          ) {
+            continue;
+          }
+          const method = candidate;
+
           // Skip static methods (no 'this' parameter)
           if (method.kind === "FunctionDecl" && method.isStatic) continue;
 
@@ -1059,10 +1066,15 @@ export function checkMember(
             continue;
           }
 
-          compatibleMethods.push(method);
+          if (compatibleMethod) {
+            compatibleMethods ??= [compatibleMethod];
+            compatibleMethods.push(method);
+          } else {
+            compatibleMethod = method;
+          }
         }
 
-        if (compatibleMethods.length === 0) {
+        if (!compatibleMethod) {
           throw new CompilerError(
             `No compatible instance method '${expr.property}' found on type '${this.typeToString(
               effectiveObjectType,
@@ -1073,8 +1085,8 @@ export function checkMember(
           );
         }
 
-        if (compatibleMethods.length === 1 && compatibleMethods[0]) {
-          const method = compatibleMethods[0];
+        if (!compatibleMethods) {
+          const method = compatibleMethod;
 
           // Resolve types in module context first
           const { returnType: initReturnType, paramTypes: allParamTypes } =
@@ -1101,7 +1113,7 @@ export function checkMember(
         }
 
         // Multiple overloads
-        if (compatibleMethods.length > 0 && compatibleMethods[0]) {
+        if (compatibleMethods[0]) {
           const first = compatibleMethods[0];
           // For overloads, we also need to indicate it's a bound method.
           // However, overload resolution later expects FunctionType or similar.

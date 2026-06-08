@@ -1317,6 +1317,48 @@ describe("TypeChecker", () => {
     expect(candidateMap).toBeGreaterThan(methodFilter);
   });
 
+  it("keeps single compatible instance methods off temporary arrays", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/CallChecker.ts"),
+      "utf8",
+    );
+    const branchStart = source.indexOf("// Handle struct/enum member access");
+    const branchEnd = source.indexOf("// Handle tuple indexing", branchStart);
+    const branchSource = source.slice(branchStart, branchEnd);
+    const firstCompatible = branchSource.indexOf("let compatibleMethod:");
+    const overloadCandidates = branchSource.indexOf(
+      "let compatibleMethods:",
+      firstCompatible,
+    );
+    const directScan = branchSource.indexOf(
+      "for (const candidate of members)",
+      overloadCandidates,
+    );
+    const methodGuard = branchSource.indexOf(
+      'candidate.kind !== "FunctionDecl"',
+      directScan,
+    );
+    const lazyOverloads = branchSource.indexOf(
+      "compatibleMethods ??= [compatibleMethod]",
+      methodGuard,
+    );
+    const singleResult = branchSource.indexOf(
+      "if (!compatibleMethods)",
+      lazyOverloads,
+    );
+
+    expect(branchStart).toBeGreaterThanOrEqual(0);
+    expect(branchEnd).toBeGreaterThan(branchStart);
+    expect(firstCompatible).toBeGreaterThanOrEqual(0);
+    expect(overloadCandidates).toBeGreaterThan(firstCompatible);
+    expect(directScan).toBeGreaterThan(overloadCandidates);
+    expect(methodGuard).toBeGreaterThan(directScan);
+    expect(lazyOverloads).toBeGreaterThan(methodGuard);
+    expect(singleResult).toBeGreaterThan(lazyOverloads);
+    expect(branchSource).not.toContain("members.filter(");
+    expect(branchSource).not.toContain("const compatibleMethods");
+  });
+
   it("keeps direct struct field resolution off empty generic maps", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
