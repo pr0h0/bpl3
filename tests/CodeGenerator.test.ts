@@ -426,6 +426,15 @@ describe("CodeGenerator", () => {
     expect(source).toContain("private buildFunctionParameterList");
     expect(source).toContain("private getMethodBaseName");
     expect(methodSource).toContain("this.buildFunctionParameterList(");
+    const emptyMapShortcut = methodSource.indexOf(
+      "this.currentTypeMap.size === 0",
+    );
+    const signatureSubstitution = methodSource.indexOf(
+      "this.substituteType(",
+      emptyMapShortcut,
+    );
+    expect(emptyMapShortcut).toBeGreaterThanOrEqual(0);
+    expect(signatureSubstitution).toBeGreaterThan(emptyMapShortcut);
     expect(methodSource).not.toContain("decl.params\n          .map");
     expect(methodSource).not.toContain(".join(\", \")");
     expect(initStart).toBeGreaterThanOrEqual(0);

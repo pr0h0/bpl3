@@ -2726,10 +2726,13 @@ export abstract class StatementGenerator extends AsmGenerator {
         );
       }
       // Substitute generic types in function signature before mangling
-      const substitutedFuncType = this.substituteType(
-        funcType,
-        this.currentTypeMap,
-      ) as AST.FunctionTypeNode;
+      const substitutedFuncType =
+        decl.genericParams.length === 0 && this.currentTypeMap.size === 0
+          ? funcType
+          : (this.substituteType(
+              funcType,
+              this.currentTypeMap,
+            ) as AST.FunctionTypeNode);
       effectiveFuncType = substitutedFuncType;
 
       name = this.getMangledName(
