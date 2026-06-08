@@ -253,10 +253,11 @@ describe("CLI startup command registration", () => {
     expect(actionSource).toContain('import("./formatEngine")');
     expect(actionSource).not.toContain('import("../../compiler")');
     expect(engineSource).toContain('from "../../compiler/formatter/Formatter"');
-    expect(engineSource).toContain(
+    expect(engineSource).not.toContain(
       'from "../../compiler/frontend/GrammarLexer"',
     );
     expect(engineSource).toContain('from "../../compiler/frontend/Parser"');
+    expect(engineSource).toContain("new Parser(content, filePath)");
   });
 
   test("keeps the shared CLI diagnostic formatter off the compiler barrel", () => {
