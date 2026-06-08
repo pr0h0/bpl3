@@ -189,6 +189,56 @@ describe("TypeChecker", () => {
     }
   });
 
+  it("reuses generic arguments resolved during constraint validation", () => {
+    const location = {
+      file: "test.bpl",
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 12,
+    };
+    const declaration: AST.StructDecl = {
+      kind: "StructDecl",
+      name: "Box",
+      genericParams: [{ name: "T", location }],
+      inheritanceList: [],
+      members: [],
+      location,
+    };
+    const argument: AST.BasicTypeNode = {
+      kind: "BasicType",
+      name: "i32",
+      genericArgs: [],
+      pointerDepth: 0,
+      arrayDimensions: [],
+      location,
+    };
+    const type: AST.BasicTypeNode = {
+      kind: "BasicType",
+      name: "Box",
+      genericArgs: [argument],
+      pointerDepth: 0,
+      arrayDimensions: [],
+      location,
+    };
+    const checker = new ResolveCountingTypeChecker({
+      skipImportResolution: true,
+    });
+    checker.currentScope.define({
+      name: "Box",
+      kind: "Struct",
+      declaration,
+    });
+
+    const resolved = checker.resolveType(type);
+
+    expect(resolved.kind).toBe("BasicType");
+    if (resolved.kind === "BasicType") {
+      expect(resolved.genericArgs).toEqual([argument]);
+    }
+    expect(checker.resolveTypeCalls).toBe(2);
+  });
+
   it("accepts equal scalar types before integer-width classification", () => {
     const location = {
       file: "test.bpl",

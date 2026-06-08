@@ -820,6 +820,7 @@ export abstract class TypeCheckerBase {
       const name = type.name;
       let resolvedSymbol = this.currentScope.resolve(name);
       const isQualifiedTypeName = name.includes(".");
+      let constraintResolvedArgs: AST.TypeNode[] | undefined;
 
       if (!resolvedSymbol && isQualifiedTypeName) {
         resolvedSymbol = resolveQualifiedTypeSymbol(
@@ -878,9 +879,8 @@ export abstract class TypeCheckerBase {
 
         if (genericParams.length > 0) {
           if (type.genericArgs.length === genericParams.length) {
-            const resolvedArgs = type.genericArgs.map((t) =>
-              this.resolveType(t, true),
-            );
+            const resolvedArgs = (constraintResolvedArgs =
+              type.genericArgs.map((t) => this.resolveType(t, true)));
 
             const mapping = new Map<string, AST.TypeNode>();
             for (let i = 0; i < genericParams.length; i++) {
@@ -940,9 +940,9 @@ export abstract class TypeCheckerBase {
           return type;
         }
 
-        const resolvedArgs = type.genericArgs.map((t) =>
-          this.resolveType(t, checkConstraints),
-        );
+        const resolvedArgs =
+          constraintResolvedArgs ??
+          type.genericArgs.map((t) => this.resolveType(t, checkConstraints));
 
         const basicType = { ...type } as AST.BasicTypeNode;
         basicType.name = resolvedSymbol.name;
@@ -963,9 +963,9 @@ export abstract class TypeCheckerBase {
           return type;
         }
 
-        const resolvedArgs = type.genericArgs.map((t) =>
-          this.resolveType(t, checkConstraints),
-        );
+        const resolvedArgs =
+          constraintResolvedArgs ??
+          type.genericArgs.map((t) => this.resolveType(t, checkConstraints));
 
         const basicType = { ...type } as AST.BasicTypeNode;
         basicType.name = resolvedSymbol.name;
@@ -986,9 +986,9 @@ export abstract class TypeCheckerBase {
           return type;
         }
 
-        const resolvedArgs = type.genericArgs.map((t) =>
-          this.resolveType(t, checkConstraints),
-        );
+        const resolvedArgs =
+          constraintResolvedArgs ??
+          type.genericArgs.map((t) => this.resolveType(t, checkConstraints));
 
         const basicType = { ...type } as AST.BasicTypeNode;
         basicType.name = resolvedSymbol.name;
