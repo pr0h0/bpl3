@@ -1284,6 +1284,66 @@ describe("Parser", () => {
     ).not.toThrow();
   });
 
+  it("folds direct-dot member postfixes before allocating tail objects", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const postfixHelper = generatedSource.match(
+      /function peg\$parsePostfix\(\)[\s\S]*?\n  \}/,
+    )?.[0];
+
+    expect(generatorSource).toContain("directMemberStartPos");
+    expect(postfixHelper).toContain(
+      "!peg$collectExpected &&\n      !peg$hasBplCommentMarker",
+    );
+    expect(postfixHelper).toContain(
+      "input.charCodeAt(directMemberStartPos) === 46",
+    );
+    expect(postfixHelper).toContain(
+      "const directMemberProperty = peg$parseIdentifier();",
+    );
+    expect(postfixHelper).toContain(
+      "let directMemberLookaheadPos = directMemberEndPos;",
+    );
+    expect(postfixHelper).toContain("const directMember = member(");
+    expect(postfixHelper).toContain(
+      "const firstPostfix = peg$parsePostfixTail();",
+    );
+    expect(postfixHelper.indexOf("const directMember = member(")).toBeLessThan(
+      postfixHelper.indexOf("const firstPostfix = peg$parsePostfixTail();"),
+    );
+
+    expect(() =>
+      new Parser(
+        [
+          "enum Shape { Circle { radius: int } }",
+          "struct Box { child: Box, value: int }",
+          "frame main() ret int {",
+          "  local box: Box;",
+          "  local direct: int = box.value;",
+          "  local spaced: int = box . value;",
+          "  local chained: int = box.child.value;",
+          "  local tupleMember: int = (1, 2).0;",
+          "  local variant: Shape = Shape.Circle { radius: 1 };",
+          "  return direct;",
+          "}",
+        ].join("\n"),
+        "direct-member-postfix.bpl",
+      ).parse(),
+    ).not.toThrow();
+  });
+
   it("caches repeated successful struct literal parses only on the side-effect-free fast pass", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

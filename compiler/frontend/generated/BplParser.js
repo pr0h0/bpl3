@@ -7185,6 +7185,46 @@ function peg$parse(input, options) {
       return peg$FAILED;
     }
 
+    const directMemberStartPos = peg$currPos;
+    if (
+      !peg$collectExpected &&
+      !peg$hasBplCommentMarker &&
+      input.charCodeAt(directMemberStartPos) === 46
+    ) {
+      peg$currPos++;
+      peg$parse_();
+      const directMemberProperty = peg$parseIdentifier();
+      if (directMemberProperty !== peg$FAILED) {
+        const directMemberEndPos = peg$currPos;
+        let directMemberLookaheadPos = directMemberEndPos;
+        while (directMemberLookaheadPos < peg$bplInputLength) {
+          const code = input.charCodeAt(directMemberLookaheadPos);
+          if (code !== 32 && code !== 9 && code !== 10 && code !== 13) break;
+          directMemberLookaheadPos++;
+        }
+        if (input.charCodeAt(directMemberLookaheadPos) !== 123) {
+          const directMember = member(
+            primary,
+            directMemberProperty,
+            mergeLocToEndPos(primary.location, directMemberEndPos),
+          );
+          const nextPostfix = peg$parsePostfixTail();
+          if (nextPostfix === peg$FAILED) {
+            return directMember;
+          }
+          const postfixes = [nextPostfix];
+          let postfix = peg$parsePostfixTail();
+          while (postfix !== peg$FAILED) {
+            postfixes.push(postfix);
+            postfix = peg$parsePostfixTail();
+          }
+          peg$savedPos = startPos;
+          return peg$f115(directMember, postfixes);
+        }
+      }
+      peg$currPos = directMemberStartPos;
+    }
+
     const firstPostfix = peg$parsePostfixTail();
     if (firstPostfix === peg$FAILED) { return primary; }
 
