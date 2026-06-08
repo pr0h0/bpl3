@@ -313,8 +313,10 @@ export class TypeUtils {
       expr.kind === "Literal" &&
       (expr as AST.LiteralExpr).type === "number"
     ) {
+      const raw = (expr as AST.LiteralExpr).raw;
+      if (raw.indexOf(".") !== -1) return undefined;
       try {
-        return BigInt((expr as AST.LiteralExpr).raw);
+        return BigInt(raw);
       } catch {
         return undefined;
       }

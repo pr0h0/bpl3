@@ -126,6 +126,29 @@ describe("TypeUtils", () => {
     expect(implementation).not.toContain(".includes(");
   });
 
+  it("rejects decimal constants before BigInt parsing", () => {
+    const literal = (raw: string): AST.LiteralExpr => ({
+      kind: "Literal",
+      type: "number",
+      value: Number(raw),
+      raw,
+      location,
+    });
+
+    expect(TypeUtils.getIntegerConstantValue(literal("42"))).toBe(42n);
+    expect(TypeUtils.getIntegerConstantValue(literal("1.5"))).toBeUndefined();
+
+    const implementation = methodSource(
+      "getIntegerConstantValue",
+      "  /**\n   * Check if an integer value fits",
+    );
+    const decimalGuard = implementation.indexOf('raw.indexOf(".")');
+    const bigintParse = implementation.indexOf("BigInt(raw)");
+
+    expect(decimalGuard).toBeGreaterThanOrEqual(0);
+    expect(bigintParse).toBeGreaterThan(decimalGuard);
+  });
+
   it("gets integer widths without alias table probes", () => {
     for (const [name, bits] of [
       ["bool", 1],
