@@ -1425,6 +1425,21 @@ export abstract class TypeCheckerBase {
     t2: AST.TypeNode,
     checkConstraints: boolean = true,
   ): boolean {
+    if (
+      t1.kind === "BasicType" &&
+      t2.kind === "BasicType" &&
+      t1.name === "i32" &&
+      t2.name === "i32" &&
+      t1.pointerDepth === 0 &&
+      t2.pointerDepth === 0 &&
+      t1.arrayDimensions.length === 0 &&
+      t2.arrayDimensions.length === 0 &&
+      t1.genericArgs.length === 0 &&
+      t2.genericArgs.length === 0
+    ) {
+      return true;
+    }
+
     const rt1 = this.resolveType(t1, checkConstraints);
     const rt2 = this.resolveType(t2, checkConstraints);
 

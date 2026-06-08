@@ -44,6 +44,18 @@ class IntegerBitCountingTypeChecker extends TypeChecker {
   }
 }
 
+class ResolveCountingTypeChecker extends TypeChecker {
+  public resolveTypeCalls = 0;
+
+  public override resolveType(
+    type: AST.TypeNode,
+    checkConstraints: boolean = true,
+  ): AST.TypeNode {
+    this.resolveTypeCalls++;
+    return super.resolveType(type, checkConstraints);
+  }
+}
+
 describe("TypeChecker", () => {
   it("defers implicit primitive wrapper imports for programs that only use builtin aliases", () => {
     const checker = new TypeChecker();
@@ -203,6 +215,34 @@ describe("TypeChecker", () => {
 
     const nullType: AST.BasicTypeNode = { ...left, name: "null" };
     expect(checker.areTypesCompatible(nullType, { ...nullType })).toBe(false);
+  });
+
+  it("accepts canonical scalar i32 pairs before resolving them", () => {
+    const location = {
+      file: "test.bpl",
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 4,
+    };
+    const left: AST.BasicTypeNode = {
+      kind: "BasicType",
+      name: "i32",
+      genericArgs: [],
+      pointerDepth: 0,
+      arrayDimensions: [],
+      location,
+    };
+    const checker = new ResolveCountingTypeChecker({
+      skipImportResolution: true,
+    });
+
+    expect(checker.areTypesCompatible(left, { ...left })).toBe(true);
+    expect(checker.resolveTypeCalls).toBe(0);
+
+    const alias: AST.BasicTypeNode = { ...left, name: "int" };
+    expect(checker.areTypesCompatible(left, alias)).toBe(true);
+    expect(checker.resolveTypeCalls).toBe(2);
   });
 
   it("caches simple builtin alias resolution on the BasicType node", () => {
