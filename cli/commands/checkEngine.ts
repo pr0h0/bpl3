@@ -4,7 +4,6 @@
  */
 
 import { CompilerError } from "../../compiler/common/CompilerError";
-import { lexWithGrammar } from "../../compiler/frontend/GrammarLexer";
 import { Parser } from "../../compiler/frontend/Parser";
 import { TypeChecker } from "../../compiler/middleend/TypeChecker";
 
@@ -15,8 +14,7 @@ export function checkSource(
   filePath: string,
   skipImportResolution: boolean,
 ): CompilerError[] {
-  const tokens = lexWithGrammar(content, filePath);
-  const parser = new Parser(content, filePath, tokens);
+  const parser = new Parser(content, filePath);
   const ast = parser.parse(false);
   const typeChecker = new TypeChecker({
     skipImportResolution,
