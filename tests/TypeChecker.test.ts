@@ -1624,4 +1624,37 @@ describe("TypeChecker", () => {
     );
     expect(source).toContain("private replaceResolvedInheritanceParent");
   });
+
+  it("allocates enum tuple pattern substitution maps only for generics", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("public checkPattern");
+    const tupleStart = source.indexOf(
+      'if (pattern.kind === "PatternEnumTuple")',
+      methodStart,
+    );
+    const structStart = source.indexOf(
+      'if (pattern.kind === "PatternEnumStruct")',
+      tupleStart,
+    );
+    const tupleSource = source.slice(tupleStart, structStart);
+    const mapDeclaration = tupleSource.indexOf(
+      "let typeMap: Map<string, AST.TypeNode> | undefined",
+    );
+    const genericArgGuard = tupleSource.indexOf(
+      "enumType.genericArgs.length > 0",
+    );
+    const mapAllocation = tupleSource.indexOf("typeMap = new Map()");
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(tupleStart).toBeGreaterThan(methodStart);
+    expect(structStart).toBeGreaterThan(tupleStart);
+    expect(mapDeclaration).toBeGreaterThanOrEqual(0);
+    expect(genericArgGuard).toBeGreaterThan(mapDeclaration);
+    expect(mapAllocation).toBeGreaterThan(genericArgGuard);
+    expect(tupleSource).toContain("enumDecl!.genericParams.length > 0");
+    expect(tupleSource).toContain("if (typeMap)");
+  });
 });

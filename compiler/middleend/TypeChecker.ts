@@ -2503,9 +2503,14 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
 
       // Build type substitution for generic enums
-      const typeMap = new Map<string, AST.TypeNode>();
-      if (enumType.kind === "BasicType" && enumDecl!.genericParams) {
-        const genericArgs = enumType.genericArgs || [];
+      let typeMap: Map<string, AST.TypeNode> | undefined;
+      if (
+        enumType.kind === "BasicType" &&
+        enumType.genericArgs.length > 0 &&
+        enumDecl!.genericParams.length > 0
+      ) {
+        const genericArgs = enumType.genericArgs;
+        typeMap = new Map();
         for (
           let i = 0;
           i < enumDecl!.genericParams.length && i < genericArgs.length;
@@ -2521,7 +2526,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         if (binding.kind === "PatternWildcard") continue;
 
         let bindingType = variant.dataType.types[i]!;
-        if (typeMap.size > 0) {
+        if (typeMap) {
           bindingType = this.substituteType(bindingType, typeMap);
         }
 
