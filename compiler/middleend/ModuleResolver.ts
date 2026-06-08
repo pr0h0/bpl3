@@ -21,16 +21,14 @@ import { compilerLog } from "../common/Logger";
 import { findCaseMismatchPath } from "../common/PathSafety";
 import { walkAST } from "../common/ASTTraversal";
 import { Parser } from "../frontend/Parser";
-import { PackageManager, type PackageManagerOptions } from "./PackageManager";
+import type { PackageManagerOptions } from "./PackageManager";
 import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
-import {
-  formatPackageResolutionHint,
-  getPackageResolutionFailureCode,
-  type PackageResolutionTrace,
-} from "./PackageResolver";
+import type { PackageResolutionTrace } from "./PackageResolver";
 import { SymbolTable } from "./SymbolTable";
 
 import type * as AST from "../common/AST";
+
+type PackageResolverApi = typeof import("./PackageResolver");
 
 export const MODULE_NOT_FOUND_CODE = "BPL_MODULE_NOT_FOUND";
 export const MODULE_FILE_NOT_FOUND_CODE = "BPL_MODULE_FILE_NOT_FOUND";
@@ -357,17 +355,22 @@ export class ModuleResolver {
     }
 
     // Try to resolve as a package import
-    const packageManager = new PackageManager(undefined, {
-      ...this.packageManagerOptions,
-      ensureDirectories: false,
-    });
+    const {
+      formatPackageResolutionHint,
+      getPackageResolutionFailureCode,
+      resolvePackageImport,
+    } = getPackageResolverApi();
+    const packageResolutionOptions = {
+      globalPackageDir: this.packageManagerOptions.globalPackageDir,
+    };
     const packageTraces: PackageResolutionTrace[] = [];
     try {
       // Prefer the importing file's package tree so absolute builds from an
       // unrelated cwd do not shadow project-local dependencies.
-      const fromFilePackage = packageManager.resolvePackageWithDiagnostics(
+      const fromFilePackage = resolvePackageImport(
         importSource,
         path.dirname(fromFile),
+        packageResolutionOptions,
       );
       packageTraces.push(fromFilePackage.trace);
       if (fromFilePackage.result) {
@@ -380,9 +383,10 @@ export class ModuleResolver {
       if (!isTerminalPackageResolutionFailure(fromFilePackage.trace)) {
         // Then try from current working directory for REPL/scripts that import
         // packages without an on-disk project root near the source file.
-        const cwdPackage = packageManager.resolvePackageWithDiagnostics(
+        const cwdPackage = resolvePackageImport(
           importSource,
           process.cwd(),
+          packageResolutionOptions,
         );
         packageTraces.push(cwdPackage.trace);
         if (cwdPackage.result) {
@@ -940,6 +944,12 @@ function isTerminalPackageResolutionFailure(
   return Boolean(
     trace.failureReason && trace.failureReason !== "package-not-found",
   );
+}
+
+let packageResolverApi: PackageResolverApi | undefined;
+
+function getPackageResolverApi(): PackageResolverApi {
+  return (packageResolverApi ??= require("./PackageResolver"));
 }
 
 export function isSafeStandardLibraryImportPath(relativePath: string): boolean {

@@ -166,6 +166,20 @@ describe("CLI startup command registration", () => {
     );
   });
 
+  test("keeps module resolution off package-management command dependencies", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler", "middleend", "ModuleResolver.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain('import type { PackageManagerOptions }');
+    expect(source).toContain(
+      'type PackageResolverApi = typeof import("./PackageResolver")',
+    );
+    expect(source).not.toContain("new PackageManager(");
+    expect(source).toContain('require("./PackageResolver")');
+  });
+
   test("keeps the JSON error registry on focused check contracts", () => {
     const source = readFileSync(
       join(process.cwd(), "cli", "JsonErrorCodes.ts"),
