@@ -10,6 +10,10 @@ export interface SymlinkPathOptions {
   trustedSymlinks?: readonly TrustedSymlinkRoot[];
 }
 
+export interface CaseMismatchPathOptions {
+  directoryEntries?: Map<string, string[] | null>;
+}
+
 export function findSymlinkedParentPath(
   filePath: string,
   options: SymlinkPathOptions = {},
@@ -58,7 +62,10 @@ export function findNonDirectoryPathComponent(targetPath: string): string | null
   return null;
 }
 
-export function findCaseMismatchPath(targetPath: string): string | null {
+export function findCaseMismatchPath(
+  targetPath: string,
+  options: CaseMismatchPathOptions = {},
+): string | null {
   const absolutePath = path.resolve(targetPath);
   const rootPath = path.parse(absolutePath).root;
   const components = path
@@ -68,7 +75,10 @@ export function findCaseMismatchPath(targetPath: string): string | null {
   let currentPath = rootPath;
 
   for (const component of components) {
-    const entries = tryReadDirectory(currentPath);
+    const entries = readDirectoryEntries(
+      currentPath,
+      options.directoryEntries,
+    );
     if (!entries) return null;
 
     if (entries.includes(component)) {
@@ -87,6 +97,19 @@ export function findCaseMismatchPath(targetPath: string): string | null {
   }
 
   return null;
+}
+
+function readDirectoryEntries(
+  directoryPath: string,
+  cache: Map<string, string[] | null> | undefined,
+): string[] | null {
+  if (cache?.has(directoryPath)) {
+    return cache.get(directoryPath)!;
+  }
+
+  const entries = tryReadDirectory(directoryPath);
+  cache?.set(directoryPath, entries);
+  return entries;
 }
 
 function pathComponents(absolutePath: string): string[] {

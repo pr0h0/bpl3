@@ -87,6 +87,7 @@ const PRIMITIVE_WRAPPER_METHOD_NAMES = new Set([
 export class ModuleResolver {
   /** Cache of loaded modules by absolute path */
   private modules: Map<string, ModuleInfo> = new Map();
+  private caseMismatchDirectoryEntries = new Map<string, string[] | null>();
 
   /** Standard library location */
   private stdLibPath: string;
@@ -161,7 +162,9 @@ export class ModuleResolver {
     candidatePath: string,
     options: { allowDirectoryIndex: boolean },
   ): string | null {
-    const caseMismatchPath = findCaseMismatchPath(candidatePath);
+    const caseMismatchPath = findCaseMismatchPath(candidatePath, {
+      directoryEntries: this.caseMismatchDirectoryEntries,
+    });
     if (caseMismatchPath) {
       throw this.createModuleCaseMismatchError(
         candidatePath,
@@ -714,6 +717,7 @@ export class ModuleResolver {
    */
   clearCache() {
     this.modules.clear();
+    this.caseMismatchDirectoryEntries.clear();
   }
 
   /**

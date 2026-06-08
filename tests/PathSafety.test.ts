@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -85,6 +85,30 @@ describe("Path safety helpers", () => {
         findCaseMismatchPath(path.join(tempDir, "missing", "module.bpl")),
       ).toBeNull();
     } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("reuses explicitly cached directory entries across case checks", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-path-safety-"));
+    const realFile = path.join(tempDir, "Module.bpl");
+    const directoryEntries = new Map<string, string[] | null>();
+    const originalReaddirSync = fs.readdirSync;
+    const readdirSpy = spyOn(fs, "readdirSync").mockImplementation(
+      ((directoryPath: fs.PathLike) =>
+        originalReaddirSync(directoryPath)) as typeof fs.readdirSync,
+    );
+
+    try {
+      fs.writeFileSync(realFile, "export value;");
+
+      expect(findCaseMismatchPath(realFile, { directoryEntries })).toBeNull();
+      const readsAfterFirstCheck = readdirSpy.mock.calls.length;
+
+      expect(findCaseMismatchPath(realFile, { directoryEntries })).toBeNull();
+      expect(readdirSpy.mock.calls.length).toBe(readsAfterFirstCheck);
+    } finally {
+      readdirSpy.mockRestore();
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
