@@ -92,6 +92,51 @@ describe("TypeUtils", () => {
     expect(implementation).not.toContain("TYPE_ALIASES");
   });
 
+  it("checks signed integer names without allocating a lookup array", () => {
+    for (const name of [
+      "i8",
+      "i16",
+      "i32",
+      "i64",
+      "char",
+      "short",
+      "int",
+      "long",
+    ]) {
+      expect(TypeUtils.isSignedInteger(basicType(name))).toBe(true);
+    }
+
+    for (const name of [
+      "u8",
+      "u16",
+      "u32",
+      "u64",
+      "uchar",
+      "ushort",
+      "uint",
+      "ulong",
+      "bool",
+      "double",
+    ]) {
+      expect(TypeUtils.isSignedInteger(basicType(name))).toBe(false);
+    }
+
+    expect(
+      TypeUtils.isSignedInteger(basicType("i32", { pointerDepth: 1 })),
+    ).toBe(false);
+    expect(
+      TypeUtils.isSignedInteger(basicType("i32", { arrayDimensions: [4] })),
+    ).toBe(true);
+
+    const implementation = methodSource(
+      "isSignedInteger",
+      "  /**\n   * Check if a type is an unsigned integer type",
+    );
+
+    expect(implementation).toContain("switch (type.name)");
+    expect(implementation).not.toContain(".includes(");
+  });
+
   it("checks comparison operators without allocating a lookup array", () => {
     const comparisonOperators = [
       TokenType.EqualEqual,

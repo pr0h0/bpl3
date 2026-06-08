@@ -188,9 +188,19 @@ export class TypeUtils {
   static isSignedInteger(type: AST.TypeNode): boolean {
     if (type.kind !== "BasicType") return false;
     if (type.pointerDepth > 0) return false;
-    return ["i8", "i16", "i32", "i64", "char", "short", "int", "long"].includes(
-      type.name,
-    );
+    switch (type.name) {
+      case "i8":
+      case "i16":
+      case "i32":
+      case "i64":
+      case "char":
+      case "short":
+      case "int":
+      case "long":
+        return true;
+      default:
+        return false;
+    }
   }
 
   /**
