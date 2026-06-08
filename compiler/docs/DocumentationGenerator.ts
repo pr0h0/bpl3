@@ -3,7 +3,6 @@ import * as path from "path";
 import * as AST from "../common/AST";
 import { DocParser } from "../common/DocParser";
 import { Parser } from "../frontend/Parser";
-import { lexWithGrammar } from "../frontend/GrammarLexer";
 import { TypeUtils } from "../middleend/TypeUtils";
 import { findSymlinkedParentPath } from "../common/PathSafety";
 
@@ -24,8 +23,7 @@ export class DocumentationGenerator {
     this.visitedFiles.add(resolvedFilePath);
 
     const source = fs.readFileSync(resolvedFilePath, "utf-8");
-    const tokens = lexWithGrammar(source, resolvedFilePath);
-    const parser = new Parser(source, resolvedFilePath, tokens);
+    const parser = new Parser(source, resolvedFilePath);
 
     // Parse without implicit imports to avoid cluttering docs with stdlib unless explicitly imported
     const ast = parser.parse(false);

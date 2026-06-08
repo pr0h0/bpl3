@@ -33,6 +33,16 @@ describe("DocumentationGenerator", () => {
     expect(secondMarkdown).not.toContain("`first`");
   });
 
+  test("keeps documentation parsing off the redundant grammar lexer pass", () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), "compiler", "docs", "DocumentationGenerator.ts"),
+      "utf-8",
+    );
+
+    expect(source).not.toContain('from "../frontend/GrammarLexer"');
+    expect(source).toContain("new Parser(source, resolvedFilePath)");
+  });
+
   test("rejects documentation inputs through symlinked parent directories", () => {
     const realRoot = path.join(tempDir, "real-root");
     const linkedRoot = path.join(tempDir, "linked-root");
