@@ -856,6 +856,32 @@ export function checkMember(
       );
       if (memberContext) {
         const { members, genericMap } = memberContext;
+        if (
+          members.length === 1 &&
+          members[0]?.kind === "FunctionDecl"
+        ) {
+          const singleMethod = members[0];
+          let { returnType, paramTypes } = resolveMethodTypesInModuleContext(
+            this,
+            singleMethod,
+          );
+
+          if (genericMap && genericMap.size > 0) {
+            returnType = this.substituteType(returnType, genericMap);
+            paramTypes = paramTypes.map((type) =>
+              this.substituteType(type, genericMap),
+            );
+          }
+
+          return {
+            kind: "FunctionType",
+            returnType,
+            paramTypes,
+            location: expr.location,
+            declaration: singleMethod,
+          } as AST.FunctionTypeNode;
+        }
+
         const methods = members.filter(
           (m) => m.kind === "FunctionDecl",
         ) as AST.FunctionDecl[];

@@ -1290,6 +1290,33 @@ describe("TypeChecker", () => {
     expect(generalContext).toBeGreaterThan(directField);
   });
 
+  it("keeps single static member candidates off filter and map arrays", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/CallChecker.ts"),
+      "utf8",
+    );
+    const branchStart = source.indexOf("// Handle enum variant access");
+    const branchEnd = source.indexOf(
+      "// Handle struct/enum member access",
+      branchStart,
+    );
+    const branchSource = source.slice(branchStart, branchEnd);
+    const singleCandidate = branchSource.indexOf("members.length === 1");
+    const singleFunctionGuard = branchSource.indexOf(
+      'members[0]?.kind === "FunctionDecl"',
+      singleCandidate,
+    );
+    const methodFilter = branchSource.indexOf("members.filter(");
+    const candidateMap = branchSource.indexOf("methods.map(");
+
+    expect(branchStart).toBeGreaterThanOrEqual(0);
+    expect(branchEnd).toBeGreaterThan(branchStart);
+    expect(singleCandidate).toBeGreaterThanOrEqual(0);
+    expect(singleFunctionGuard).toBeGreaterThan(singleCandidate);
+    expect(methodFilter).toBeGreaterThan(singleCandidate);
+    expect(candidateMap).toBeGreaterThan(methodFilter);
+  });
+
   it("keeps direct struct field resolution off empty generic maps", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
