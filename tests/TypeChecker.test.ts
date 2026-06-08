@@ -1625,6 +1625,32 @@ describe("TypeChecker", () => {
     expect(source).toContain("private replaceResolvedInheritanceParent");
   });
 
+  it("skips non-struct override parents before resolving them", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("private getInheritedMethodsByName");
+    const methodEnd = source.indexOf(
+      "private methodParamsMatchIgnoringThis",
+      methodStart,
+    );
+    const methodSource = source.slice(methodStart, methodEnd);
+    const rootTypeGuard = methodSource.indexOf('parentType.name === "Type"');
+    const specGuard = methodSource.indexOf(
+      'parentType.resolvedDeclaration?.kind === "SpecDecl"',
+    );
+    const resolveParent = methodSource.indexOf(
+      "const resolvedParent = this.resolveType(parentType, false)",
+    );
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(rootTypeGuard).toBeGreaterThanOrEqual(0);
+    expect(specGuard).toBeGreaterThan(rootTypeGuard);
+    expect(resolveParent).toBeGreaterThan(specGuard);
+  });
+
   it("allocates spec duplicate-signature sets only when duplicates are possible", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),

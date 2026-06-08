@@ -1146,6 +1146,14 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     const visited = new Set<string>();
 
     const visitParent = (parentType: AST.TypeNode): void => {
+      if (
+        parentType.kind === "BasicType" &&
+        (parentType.name === "Type" ||
+          parentType.resolvedDeclaration?.kind === "SpecDecl")
+      ) {
+        return;
+      }
+
       const resolvedParent = this.resolveType(parentType, false);
       if (
         resolvedParent.kind !== "BasicType" ||
