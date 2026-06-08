@@ -127,6 +127,17 @@ describe("TypeChecker duplicate symbols", () => {
     expect(error.code).toBe("BPL_SYMBOL_ALREADY_DEFINED");
   });
 
+  test("rejects duplicate spec method signatures", () => {
+    const source = `
+      spec Mapper {
+        frame map(this: *Self, value: int) ret int;
+        frame map(this: *Self, value: int) ret int;
+      }
+    `;
+
+    expect(() => check(source)).toThrow("Duplicate method 'map' in spec 'Mapper'");
+  });
+
   test("preserves valid function overloads", () => {
     const source = `
       frame pick(value: int) ret int { return value; }

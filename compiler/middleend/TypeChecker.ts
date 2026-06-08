@@ -1646,42 +1646,45 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     // BUG-129: Check for duplicate method signatures
-    const methodSignatures = new Set<string>();
+    const methodSignatures =
+      decl.methods.length > 1 ? new Set<string>() : undefined;
     for (const method of decl.methods) {
-      // Build a signature string: name + param types
-      // Use safe type stringification
-      let paramSig: string;
-      try {
-        paramSig = method.params
-          .map((p) => (p.type ? this.typeToString(p.type) : "unknown"))
-          .join(",");
-      } catch {
-        paramSig = method.params
-          .map((p) =>
-            p.type?.kind === "BasicType" ? (p.type as any).name : "unknown",
-          )
-          .join(",");
-      }
-      const signature = `${method.name}(${paramSig})`;
+      if (methodSignatures) {
+        // Build a signature string: name + param types
+        // Use safe type stringification
+        let paramSig: string;
+        try {
+          paramSig = method.params
+            .map((p) => (p.type ? this.typeToString(p.type) : "unknown"))
+            .join(",");
+        } catch {
+          paramSig = method.params
+            .map((p) =>
+              p.type?.kind === "BasicType" ? (p.type as any).name : "unknown",
+            )
+            .join(",");
+        }
+        const signature = `${method.name}(${paramSig})`;
 
-      if (methodSignatures.has(signature)) {
-        // Ensure we have a valid location
-        const errorLocation = (method.location?.file
-          ? method.location
-          : decl.location) || {
-          file: this.currentModulePath,
-          startLine: 1,
-          startColumn: 1,
-          endLine: 1,
-          endColumn: 1,
-        };
-        throw new CompilerError(
-          `Duplicate method '${method.name}' in spec '${decl.name}'`,
-          "Spec methods must have unique signatures. Remove the duplicate method definition.",
-          errorLocation,
-        );
+        if (methodSignatures.has(signature)) {
+          // Ensure we have a valid location
+          const errorLocation = (method.location?.file
+            ? method.location
+            : decl.location) || {
+            file: this.currentModulePath,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
+          };
+          throw new CompilerError(
+            `Duplicate method '${method.name}' in spec '${decl.name}'`,
+            "Spec methods must have unique signatures. Remove the duplicate method definition.",
+            errorLocation,
+          );
+        }
+        methodSignatures.add(signature);
       }
-      methodSignatures.add(signature);
 
       // Resolve types but don't check constraints (generic params like T aren't in scope)
       for (const param of method.params) {

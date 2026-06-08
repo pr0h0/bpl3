@@ -1625,6 +1625,28 @@ describe("TypeChecker", () => {
     expect(source).toContain("private replaceResolvedInheritanceParent");
   });
 
+  it("allocates spec duplicate-signature sets only when duplicates are possible", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("private checkSpecBody");
+    const methodEnd = source.indexOf("private checkTypeAlias", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+    const guardedAllocation = methodSource.indexOf(
+      "decl.methods.length > 1 ? new Set<string>() : undefined",
+    );
+    const signatureGuard = methodSource.indexOf(
+      "if (methodSignatures)",
+      guardedAllocation,
+    );
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(guardedAllocation).toBeGreaterThanOrEqual(0);
+    expect(signatureGuard).toBeGreaterThan(guardedAllocation);
+  });
+
   it("allocates enum tuple pattern substitution maps only for generics", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
