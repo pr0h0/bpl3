@@ -1262,7 +1262,9 @@ describe("Parser", () => {
         "      }",
       ].join("\n"),
     );
-    expect(postfixHelper).toContain("return peg$f115(primary, [firstPostfix]);");
+    expect(postfixHelper).toMatch(
+      /return peg\$f\d+\(primary, \[firstPostfix\]\);/,
+    );
     expect(postfixHelper).toContain(
       "const postfixes = [firstPostfix, secondPostfix];",
     );
@@ -1741,6 +1743,23 @@ describe("Parser", () => {
         "variable-scope-boundary.bpl",
       ).parse(),
     ).toThrow(CompilerError);
+  });
+
+  it("parses variable-declaration scope once before declaration alternatives", () => {
+    const grammarSource = readTextFile(
+      join(process.cwd(), "grammar", "bpl.peggy"),
+      "utf8",
+    );
+    const ruleStart = grammarSource.indexOf("\nVariableDeclaration\n");
+    const ruleEnd = grammarSource.indexOf("\nDestructTargetList\n", ruleStart);
+
+    expect(ruleStart).toBeGreaterThanOrEqual(0);
+    expect(ruleEnd).toBeGreaterThan(ruleStart);
+
+    const rule = grammarSource.slice(ruleStart, ruleEnd);
+    expect(rule.match(/\bK_global\b/g)).toHaveLength(1);
+    expect(rule.match(/\bK_local\b/g)).toHaveLength(1);
+    expect(rule).toContain("scope:(K_global { return true; } / K_local { return false; })");
   });
 
   it("keeps generated identifier boundary checks off regex dispatch", () => {

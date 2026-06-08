@@ -1390,8 +1390,8 @@ function optimizeGeneratedVariableScopeKeywordScanning(
     !match ||
     !globalExpectation ||
     !localExpectation ||
-    globalCallCount !== 4 ||
-    localCallCount !== 4
+    globalCallCount !== 1 ||
+    localCallCount !== 1
   ) {
     throw new Error(
       "Generated Peggy parser variable-scope keyword shape changed; update the BPL parser variable-scope optimizer.",

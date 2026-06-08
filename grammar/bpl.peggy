@@ -707,32 +707,24 @@ ErrorRecovery
     }
 
 VariableDeclaration
-  = K_global _ K_const _ name:Identifier _ ":" _ type:Type _ "=" _ init:Expression _ ";" {
-      return variableDecl(true, true, name, type, init, location());
+  = scope:(K_global { return true; } / K_local { return false; }) _ declaration:(
+    K_const _ name:Identifier _ ":" _ type:Type _ "=" _ init:Expression _ ";" {
+      return variableDecl(scope, true, name, type, init, undefined);
     }
-  / K_local _ K_const _ name:Identifier _ ":" _ type:Type _ "=" _ init:Expression _ ";" {
-      return variableDecl(false, true, name, type, init, location());
+  / "(" _ targets:DestructTargetList _ ")" _ "=" _ init:Expression _ ";" {
+      return variableDecl(scope, false, targets, undefined, init, undefined);
     }
-  / K_global _ "(" _ targets:DestructTargetList _ ")" _ "=" _ init:Expression _ ";" {
-      return variableDecl(true, false, targets, undefined, init, location());
-    }
-  / K_local _ "(" _ targets:DestructTargetList _ ")" _ "=" _ init:Expression _ ";" {
-      return variableDecl(false, false, targets, undefined, init, location());
-    }
-  / K_global _ name:Identifier _ ":" _ type:Type _ init:(_ "=" _ Expression)? _ ";" {
+  / name:Identifier _ ":" _ type:Type _ init:(_ "=" _ Expression)? _ ";" {
       const initializer = init ? init[3] : undefined;
-      return variableDecl(true, false, name, type, initializer, location());
+      return variableDecl(scope, false, name, type, initializer, undefined);
     }
-  / K_local _ name:Identifier _ ":" _ type:Type _ init:(_ "=" _ Expression)? _ ";" {
-      const initializer = init ? init[3] : undefined;
-      return variableDecl(false, false, name, type, initializer, location());
+  / name:Identifier _ "=" _ init:Expression _ ";" {
+      return variableDecl(scope, false, name, undefined, init, undefined);
     }
-  / K_global _ name:Identifier _ "=" _ init:Expression _ ";" {
-      return variableDecl(true, false, name, undefined, init, location());
-    }
-  / K_local _ name:Identifier _ "=" _ init:Expression _ ";" {
-      return variableDecl(false, false, name, undefined, init, location());
-    }
+  ) {
+    declaration.location = location();
+    return declaration;
+  }
 
 DestructTargetList
   = head:DestructTarget tail:(_ "," _ DestructTarget)* _ ","? {
