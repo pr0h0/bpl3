@@ -219,10 +219,11 @@ describe("CLI startup command registration", () => {
     expect(actionSource).toContain('import("./lintEngine")');
     expect(actionSource).not.toContain('import("../../compiler")');
     expect(engineSource).toContain('from "../../compiler/common/CompilerError"');
-    expect(engineSource).toContain(
+    expect(engineSource).not.toContain(
       'from "../../compiler/frontend/GrammarLexer"',
     );
     expect(engineSource).toContain('from "../../compiler/frontend/Parser"');
+    expect(engineSource).toContain("new Parser(content, filePath)");
     expect(engineSource).toContain('from "../../compiler/linter/Linter"');
   });
 
