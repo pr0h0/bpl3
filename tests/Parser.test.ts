@@ -1773,6 +1773,29 @@ describe("Parser", () => {
     expect(generatedSource).toContain("function peg$parseStatementFallback()");
   });
 
+  it("dispatches comment-free non-keyword statements before fallback", () => {
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const statementHelper = generatedSource.match(
+      /function peg\$parseStatement\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(statementHelper).toContain(
+      "statementKind === peg$FAILED && input.charCodeAt(startPos) !== 123",
+    );
+    expect(statementHelper).toContain("peg$parseExpressionStatement");
+    expect(statementHelper).toContain("peg$currPos = startPos;");
+    expect(statementHelper).toContain("return peg$parseStatementFallback();");
+  });
+
   it("guards generated switch-statement fallback failures by exact keyword", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

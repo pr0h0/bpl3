@@ -1406,6 +1406,8 @@ function optimizeGeneratedStatementDispatch(parserSource: string): string {
     "        case 21: parser = peg$parseThrowStatement; break;",
     "      }",
     "",
+    "      if (statementKind === peg$FAILED && input.charCodeAt(startPos) !== 123) parser = peg$parseExpressionStatement;",
+    "",
     "      if (parser !== undefined) {",
     "        const result = parser();",
     "        if (result !== peg$FAILED) return result;",
