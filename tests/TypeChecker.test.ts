@@ -1112,7 +1112,10 @@ describe("TypeChecker", () => {
     expect(resolveTypeSource).toContain("const name = type.name;");
     expect(resolveTypeSource).toContain("this.currentScope.resolve(name)");
     expect(resolveTypeSource).toContain(
-      'const isQualifiedTypeName = name.includes(".");',
+      "let isQualifiedTypeName = false;",
+    );
+    expect(resolveTypeSource).toContain(
+      'isQualifiedTypeName = name.includes(".");',
     );
     expect(resolveTypeSource).toContain(
       "this.ensureImplicitPrimitiveWrappersLoaded(name)",
@@ -1135,10 +1138,45 @@ describe("TypeChecker", () => {
     expect(nextMethod).toBeGreaterThan(resolveType);
     expect(resolveTypeSource).not.toContain("const resolveQualifiedSymbol =");
     expect(resolveTypeSource).toContain(
-      'const isQualifiedTypeName = name.includes(".");',
+      "let isQualifiedTypeName = false;",
+    );
+    expect(resolveTypeSource).toContain(
+      'isQualifiedTypeName = name.includes(".");',
     );
     expect(resolveTypeSource).toMatch(
       /resolveQualifiedTypeSymbol\(\s*this\.currentScope,\s*name,\s*\)/,
+    );
+  });
+
+  it("classifies qualified type names only after the initial scope lookup misses", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const resolveType = source.indexOf("public resolveType");
+    const nextMethod = source.indexOf("\n  protected", resolveType);
+    const resolveTypeSource = source.slice(resolveType, nextMethod);
+    const initialLookup = resolveTypeSource.indexOf(
+      "let resolvedSymbol = this.currentScope.resolve(name);",
+    );
+    const initialMissBranch = resolveTypeSource.indexOf(
+      "if (!resolvedSymbol) {",
+      initialLookup,
+    );
+    const qualifiedClassification = resolveTypeSource.indexOf(
+      'isQualifiedTypeName = name.includes(".");',
+    );
+    const firstQualifiedLookup = resolveTypeSource.indexOf(
+      "resolveQualifiedTypeSymbol(",
+      initialLookup,
+    );
+
+    expect(initialLookup).toBeGreaterThanOrEqual(0);
+    expect(initialMissBranch).toBeGreaterThan(initialLookup);
+    expect(qualifiedClassification).toBeGreaterThan(initialMissBranch);
+    expect(qualifiedClassification).toBeLessThan(firstQualifiedLookup);
+    expect(resolveTypeSource.slice(initialLookup, initialMissBranch)).not.toContain(
+      'includes(".")',
     );
   });
 

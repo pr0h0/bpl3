@@ -819,14 +819,17 @@ export abstract class TypeCheckerBase {
 
       const name = type.name;
       let resolvedSymbol = this.currentScope.resolve(name);
-      const isQualifiedTypeName = name.includes(".");
+      let isQualifiedTypeName = false;
       let constraintResolvedArgs: AST.TypeNode[] | undefined;
 
-      if (!resolvedSymbol && isQualifiedTypeName) {
-        resolvedSymbol = resolveQualifiedTypeSymbol(
-          this.currentScope,
-          name,
-        );
+      if (!resolvedSymbol) {
+        isQualifiedTypeName = name.includes(".");
+        if (isQualifiedTypeName) {
+          resolvedSymbol = resolveQualifiedTypeSymbol(
+            this.currentScope,
+            name,
+          );
+        }
       }
 
       if (!resolvedSymbol) {
