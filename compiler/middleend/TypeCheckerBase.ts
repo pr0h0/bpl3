@@ -715,14 +715,14 @@ export abstract class TypeCheckerBase {
     const typeName = type.name;
     this.ensureImplicitPrimitiveWrappersLoaded(typeName);
 
+    if (RESERVED_BUILTIN_TYPE_NAMES.has(typeName)) {
+      return;
+    }
+
     const looksLikeGenericParam =
       typeName.length <= 2 && /^[A-Z][0-9]?$/.test(typeName);
 
-    if (
-      this.resolveTypeSymbol(typeName) ||
-      RESERVED_BUILTIN_TYPE_NAMES.has(typeName) ||
-      looksLikeGenericParam
-    ) {
+    if (looksLikeGenericParam || this.resolveTypeSymbol(typeName)) {
       return;
     }
 

@@ -57,6 +57,38 @@ class ResolveCountingTypeChecker extends TypeChecker {
 }
 
 describe("TypeChecker", () => {
+  it("keeps known builtin and generic-like names off scope resolution", () => {
+    const location = {
+      file: "test.bpl",
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 4,
+    };
+    const checker = new TypeChecker({ skipImportResolution: true });
+    const resolvedNames: string[] = [];
+    const internals = checker as unknown as {
+      resolveTypeSymbol(name: string): undefined;
+    };
+    internals.resolveTypeSymbol = (name) => {
+      resolvedNames.push(name);
+      return undefined;
+    };
+
+    for (const name of ["int", "T"]) {
+      checker.ensureKnownType({
+        kind: "BasicType",
+        name,
+        genericArgs: [],
+        pointerDepth: 0,
+        arrayDimensions: [],
+        location,
+      });
+    }
+
+    expect(resolvedNames).toEqual([]);
+  });
+
   it("defers implicit primitive wrapper imports for programs that only use builtin aliases", () => {
     const checker = new TypeChecker();
     checker.checkProgram(
