@@ -1736,6 +1736,50 @@ describe("Parser", () => {
     expect(generatedSource).toContain("function peg$parseStatementFallback()");
   });
 
+  it("guards generated switch-statement fallback failures by exact keyword", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const switchHelper = generatedSource.match(
+      /function peg\$parseSwitchStatement\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedSwitchStatementFailureGuard",
+    );
+    expect(switchHelper).toContain("if (!peg$collectExpected)");
+    expect(switchHelper).toContain("input.charCodeAt(startPos) !== 115");
+    expect(switchHelper).toContain(
+      "peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6))",
+    );
+    expect(switchHelper).toContain("return peg$FAILED;");
+
+    for (const switchSource of [
+      "switch (value) { default: return value; }",
+      "switch value { default: return value; }",
+    ]) {
+      const program = new Parser(
+        `frame main() ret int { local value: int = 1; ${switchSource} }`,
+        "switch-guard.bpl",
+      ).parse();
+      const func = program.statements[0] as FunctionDecl;
+      const body = func.body as BlockStmt;
+
+      expect(body.statements[1]?.kind).toBe("Switch");
+    }
+  });
+
   it("caches generated variable-declaration scope keyword retries", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
