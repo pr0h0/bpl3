@@ -99,6 +99,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedStatementDispatch(optimized);
   optimized = optimizeGeneratedVariableScopeKeywordScanning(optimized);
   optimized = optimizeGeneratedNumberScanning(optimized);
+  optimized = optimizeGeneratedStringLiteralScanning(optimized);
   optimized = optimizeGeneratedTriviaSkipping(optimized);
   return optimizeGeneratedInlineFailureDispatch(optimized);
 }
@@ -1195,6 +1196,61 @@ function optimizeGeneratedNumberScanning(parserSource: string): string {
   }
 
   return parserSource.replace(numberTokenPattern, numberTokenReplacement);
+}
+
+function optimizeGeneratedStringLiteralScanning(parserSource: string): string {
+  const stringLiteralPattern =
+    /  function peg\$parseStringLiteral\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseCharLiteral\(\)/;
+  const match = parserSource.match(stringLiteralPattern);
+  const actionName = match?.[1]?.match(/s1 = (peg\$f\d+)\(s1\);/)?.[1];
+
+  if (!match || !actionName) {
+    throw new Error(
+      "Generated Peggy parser string literal helper shape changed; update the BPL string scanner optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$scanBplStringLiteral() {",
+    "    const startPos = peg$currPos;",
+    "    if (input.charCodeAt(startPos) !== 34) return peg$FAILED;",
+    "",
+    "    let pos = startPos + 1;",
+    "    while (pos < input.length) {",
+    "      const code = input.charCodeAt(pos);",
+    "      if (code === 34) {",
+    "        peg$currPos = pos + 1;",
+    "        return input.substring(startPos, peg$currPos);",
+    "      }",
+    "      if (code === 92) {",
+    "        if (pos + 1 >= input.length) return peg$FAILED;",
+    "        pos += 2;",
+    "        continue;",
+    "      }",
+    "      if (code === 10 || code === 13) return peg$FAILED;",
+    "      pos++;",
+    "    }",
+    "",
+    "    return peg$FAILED;",
+    "  }",
+    "",
+    "  function peg$parseStringLiteral() {",
+    "    if (peg$collectExpected) return peg$parseStringLiteralDetailed();",
+    "",
+    "    const startPos = peg$currPos;",
+    "    const raw = peg$scanBplStringLiteral();",
+    "    if (raw === peg$FAILED) return peg$FAILED;",
+    "    peg$savedPos = startPos;",
+    `    return ${actionName}(raw);`,
+    "  }",
+    "",
+    `  function peg$parseStringLiteralDetailed() {${match[1]}`,
+    "  }",
+    "",
+    "  function peg$parseCharLiteral()",
+  ].join("\n");
+
+  return parserSource.replace(stringLiteralPattern, replacement);
 }
 
 function optimizeGeneratedStatementStartKeywordScanning(

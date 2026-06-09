@@ -1503,6 +1503,57 @@ describe("Parser", () => {
     expect(numberScanner).toContain("input.charCodeAt(peg$currPos + 1)");
   });
 
+  it("keeps generated string-literal parsing on the direct fast scanner", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const stringHelper = generatedSource.match(
+      /function peg\$parseStringLiteral\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const stringScanner = generatedSource.match(
+      /function peg\$scanBplStringLiteral\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedStringLiteralScanning");
+    expect(generatedSource).toContain("function peg$scanBplStringLiteral()");
+    expect(generatedSource).toContain(
+      "function peg$parseStringLiteralDetailed()",
+    );
+    expect(stringHelper).toContain("const raw = peg$scanBplStringLiteral()");
+    expect(stringScanner).toContain("if (code === 92)");
+    expect(stringScanner).toContain("if (code === 10 || code === 13)");
+
+    const program = new Parser(
+      'frame main() ret string { return "line\\n\\"quote\\""; }',
+      "string-scanner.bpl",
+    ).parse();
+    const func = program.statements[0] as FunctionDecl;
+    const body = func.body as BlockStmt;
+    const returnStatement = body.statements[0]!;
+
+    expect(returnStatement.kind).toBe("Return");
+    if (returnStatement.kind !== "Return") {
+      throw new Error("Expected return statement");
+    }
+    expect(returnStatement.value).toMatchObject({
+      kind: "Literal",
+      type: "string",
+      raw: '"line\\n\\"quote\\""',
+      value: 'line\n"quote"',
+    });
+  });
+
   it("preserves generated number-token trivia boundary behavior", () => {
     expect(() =>
       new Parser("frame main() ret int { return 1_2; }", "number-boundary.bpl")

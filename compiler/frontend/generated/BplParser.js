@@ -9633,7 +9633,40 @@ function peg$parse(input, options) {
     return s0;
   }
 
+  function peg$scanBplStringLiteral() {
+    const startPos = peg$currPos;
+    if (input.charCodeAt(startPos) !== 34) return peg$FAILED;
+
+    let pos = startPos + 1;
+    while (pos < input.length) {
+      const code = input.charCodeAt(pos);
+      if (code === 34) {
+        peg$currPos = pos + 1;
+        return input.substring(startPos, peg$currPos);
+      }
+      if (code === 92) {
+        if (pos + 1 >= input.length) return peg$FAILED;
+        pos += 2;
+        continue;
+      }
+      if (code === 10 || code === 13) return peg$FAILED;
+      pos++;
+    }
+
+    return peg$FAILED;
+  }
+
   function peg$parseStringLiteral() {
+    if (peg$collectExpected) return peg$parseStringLiteralDetailed();
+
+    const startPos = peg$currPos;
+    const raw = peg$scanBplStringLiteral();
+    if (raw === peg$FAILED) return peg$FAILED;
+    peg$savedPos = startPos;
+    return peg$f167(raw);
+  }
+
+  function peg$parseStringLiteralDetailed() {
     let s0, s1, s2, s3, s4, s5, s6, s7;
 
     s0 = peg$currPos;
