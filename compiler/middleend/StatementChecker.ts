@@ -1047,11 +1047,19 @@ export function checkAllPathsReturn(
   switch (stmt.kind) {
     case "Return":
       return true;
-    case "Block":
-      for (const s of stmt.statements) {
-        if (checkAllPathsReturn.call(this, s)) return true;
+    case "Block": {
+      const lastIndex = stmt.statements.length - 1;
+      if (
+        lastIndex >= 0 &&
+        checkAllPathsReturn.call(this, stmt.statements[lastIndex]!)
+      ) {
+        return true;
+      }
+      for (let i = 0; i < lastIndex; i++) {
+        if (checkAllPathsReturn.call(this, stmt.statements[i]!)) return true;
       }
       return false;
+    }
     case "If":
       if (!stmt.elseBranch) return false;
       return (

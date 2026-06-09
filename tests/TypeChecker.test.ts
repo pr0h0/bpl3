@@ -498,6 +498,31 @@ describe("TypeChecker", () => {
     );
   });
 
+  it("checks final block return paths before earlier statements", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/StatementChecker.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("export function checkAllPathsReturn");
+    const end = source.indexOf("\n\n/**\n * Check an asm block", start);
+    const returnCheckSource = source.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(returnCheckSource).toContain(
+      "const lastIndex = stmt.statements.length - 1;",
+    );
+    expect(returnCheckSource).toContain(
+      "checkAllPathsReturn.call(this, stmt.statements[lastIndex]!)",
+    );
+    expect(returnCheckSource).toContain(
+      "for (let i = 0; i < lastIndex; i++)",
+    );
+    expect(returnCheckSource).not.toContain(
+      "for (const s of stmt.statements)",
+    );
+  });
+
   it("keeps integer literal underscore replacement behind a guard", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
