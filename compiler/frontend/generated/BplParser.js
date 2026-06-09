@@ -13414,8 +13414,13 @@ function peg$parse(input, options) {
             break;
         }
       } else {
-        result += inner[i];
-        i++;
+        const nextEscape = inner.indexOf("\\", i);
+        if (nextEscape === -1) {
+          result += inner.slice(i);
+          break;
+        }
+        result += inner.slice(i, nextEscape);
+        i = nextEscape;
       }
     }
 

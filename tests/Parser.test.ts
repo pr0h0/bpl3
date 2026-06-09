@@ -1554,6 +1554,43 @@ describe("Parser", () => {
     });
   });
 
+  it("decodes ordinary string spans without per-character appends", () => {
+    const grammarSource = readTextFile(
+      join(process.cwd(), "grammar", "bpl.peggy"),
+      "utf8",
+    );
+    const decodeStringHelper = grammarSource.match(
+      /  function decodeString\(raw\) \{[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(decodeStringHelper).toContain(
+      'const nextEscape = inner.indexOf("\\\\", i);',
+    );
+    expect(decodeStringHelper).toContain(
+      "result += inner.slice(i, nextEscape);",
+    );
+    expect(decodeStringHelper).not.toContain("result += inner[i]");
+
+    const program = new Parser(
+      'frame plain() ret string { return "plain text"; }\n' +
+        'frame escaped() ret string { return "a\\nb\\x41\\u0042\\q"; }',
+      "string-runs.bpl",
+    ).parse();
+    const values = program.statements.map((statement) => {
+      const func = statement as FunctionDecl;
+      const body = func.body as BlockStmt;
+      const returnStatement = body.statements[0]!;
+      if (returnStatement.kind !== "Return") {
+        throw new Error("Expected return statement");
+      }
+      return returnStatement.value?.kind === "Literal"
+        ? returnStatement.value.value
+        : undefined;
+    });
+
+    expect(values).toEqual(["plain text", "a\nbAB\\q"]);
+  });
+
   it("preserves generated number-token trivia boundary behavior", () => {
     expect(() =>
       new Parser("frame main() ret int { return 1_2; }", "number-boundary.bpl")
