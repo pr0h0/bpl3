@@ -86,6 +86,7 @@ export type PackageResolutionFailureCode =
   (typeof PACKAGE_RESOLUTION_FAILURE_CODES)[number];
 
 type SemanticVersion = [bigint, bigint, bigint];
+type CaseMismatchFinder = (targetPath: string) => string | null;
 
 interface PackageRootCandidate {
   rootPath: string;
@@ -111,6 +112,11 @@ export function resolvePackageImport(
   startDir: string,
   options: PackageResolutionOptions = {},
 ): PackageResolutionDetails {
+  const caseMismatchDirectoryEntries = new Map<string, string[] | null>();
+  const findPackageCaseMismatch: CaseMismatchFinder = (targetPath) =>
+    findCaseMismatchPath(targetPath, {
+      directoryEntries: caseMismatchDirectoryEntries,
+    });
   const normalizedStartDir = path.resolve(startDir || process.cwd());
   const searchRoots = getPackageSearchRoots(normalizedStartDir);
   const trace: PackageResolutionTrace = {
@@ -152,6 +158,7 @@ export function resolvePackageImport(
       parts,
       "local",
       trace,
+      findPackageCaseMismatch,
     );
     if (result) return { result, trace };
     if (hasTerminalPackageFailure(trace)) return { result: null, trace };
@@ -163,6 +170,7 @@ export function resolvePackageImport(
       parts,
       "workspace",
       trace,
+      findPackageCaseMismatch,
     );
     if (result) return { result, trace };
     if (hasTerminalPackageFailure(trace)) return { result: null, trace };
@@ -175,6 +183,7 @@ export function resolvePackageImport(
     parts,
     "global",
     trace,
+    findPackageCaseMismatch,
     true,
   );
   if (result) return { result, trace };
@@ -361,12 +370,13 @@ function resolvePackageFromBaseDir(
   parts: string[],
   source: PackageResolutionSource,
   trace: PackageResolutionTrace,
+  findPackageCaseMismatch: CaseMismatchFinder,
   includeVersionedGlobalDirs = false,
 ): PackageResolutionResult | null {
   const packageName = parts[0]!;
   trace.searchedPaths.push(baseDir);
 
-  const baseDirCaseMismatch = findCaseMismatchPath(baseDir);
+  const baseDirCaseMismatch = findPackageCaseMismatch(baseDir);
   if (baseDirCaseMismatch) {
     failOnCaseMismatchedPackageSearchDirectory(
       baseDir,
@@ -426,7 +436,10 @@ function resolvePackageFromBaseDir(
   )) {
     trace.searchedPaths.push(packageRoot.rootPath);
 
-    const classification = classifyPackageRootCandidate(packageRoot);
+    const classification = classifyPackageRootCandidate(
+      packageRoot,
+      findPackageCaseMismatch,
+    );
     if (classification.status === "missing") continue;
     if (classification.status === "case-mismatch") {
       trace.foundPackageRoot = classification.actualPath;
@@ -453,7 +466,7 @@ function resolvePackageFromBaseDir(
     }
     const packageRootPath = classification.rootPath;
     const manifestPath = path.join(packageRootPath, "bpl.json");
-    const manifestCaseMismatchPath = findCaseMismatchPath(manifestPath);
+    const manifestCaseMismatchPath = findPackageCaseMismatch(manifestPath);
     if (manifestCaseMismatchPath) {
       trace.foundPackageRoot = packageRootPath;
       failOnCaseMismatchedPackageManifest(
@@ -471,7 +484,10 @@ function resolvePackageFromBaseDir(
 
     trace.foundPackageRoot = packageRootPath;
 
-    const manifestRead = readPackageManifest(manifestPath);
+    const manifestRead = readPackageManifest(
+      manifestPath,
+      findPackageCaseMismatch,
+    );
     if (!manifestRead.ok) {
       trace.failureReason = "manifest-invalid";
       trace.failureCode = getPackageManifestReadFailureCode(
@@ -487,8 +503,19 @@ function resolvePackageFromBaseDir(
 
     const filePath =
       parts.length === 1
-        ? resolvePackageEntryPoint(packageRootPath, manifest, trace)
-        : resolvePackageSubpath(packageRootPath, manifest, parts, trace);
+        ? resolvePackageEntryPoint(
+            packageRootPath,
+            manifest,
+            trace,
+            findPackageCaseMismatch,
+          )
+        : resolvePackageSubpath(
+            packageRootPath,
+            manifest,
+            parts,
+            trace,
+            findPackageCaseMismatch,
+          );
 
     if (filePath) {
       return {
@@ -605,8 +632,9 @@ function parseSemanticVersion(version: string): SemanticVersion | null {
 
 function classifyPackageRootCandidate(
   candidate: PackageRootCandidate,
+  findPackageCaseMismatch: CaseMismatchFinder,
 ): PackageRootCandidateClassification {
-  const caseMismatchPath = findCaseMismatchPath(candidate.rootPath);
+  const caseMismatchPath = findPackageCaseMismatch(candidate.rootPath);
   if (caseMismatchPath) {
     return {
       status: "case-mismatch",
@@ -643,8 +671,9 @@ function compareSemverDesc(
 
 function readPackageManifest(
   manifestPath: string,
+  findPackageCaseMismatch: CaseMismatchFinder,
 ): PackageManifestReadResult {
-  const caseMismatchPath = findCaseMismatchPath(manifestPath);
+  const caseMismatchPath = findPackageCaseMismatch(manifestPath);
   if (caseMismatchPath) {
     return {
       ok: false,
@@ -1105,6 +1134,7 @@ function resolvePackageEntryPoint(
   packageRoot: string,
   manifest: Record<string, unknown>,
   trace: PackageResolutionTrace,
+  findPackageCaseMismatch: CaseMismatchFinder,
 ): string | null {
   const main = manifest.main;
   const entry = manifest.entry;
@@ -1124,6 +1154,7 @@ function resolvePackageEntryPoint(
     path.join(packageRoot, ...mainEntry.split(/[\\/]/)),
     packageRoot,
     trace,
+    findPackageCaseMismatch,
   );
 }
 
@@ -1132,6 +1163,7 @@ function resolvePackageSubpath(
   manifest: Record<string, unknown>,
   parts: string[],
   trace: PackageResolutionTrace,
+  findPackageCaseMismatch: CaseMismatchFinder,
 ): string | null {
   const exportAllowlist = getPackageSubpathExportAllowlist(
     packageRoot,
@@ -1146,6 +1178,7 @@ function resolvePackageSubpath(
     path.join(packageRoot, ...parts.slice(1)),
     packageRoot,
     trace,
+    findPackageCaseMismatch,
     exportAllowlist ?? undefined,
   );
 }
@@ -1207,6 +1240,7 @@ function resolvePackageSourcePath(
   filePath: string,
   packageRoot: string,
   trace: PackageResolutionTrace,
+  findPackageCaseMismatch: CaseMismatchFinder,
   allowedRelativePaths?: ReadonlySet<string>,
 ): string | null {
   const candidateAllowed = (candidatePath: string): boolean =>
@@ -1222,7 +1256,7 @@ function resolvePackageSourcePath(
     return null;
   }
 
-  const sourceCaseMismatchPath = findCaseMismatchPath(filePath);
+  const sourceCaseMismatchPath = findPackageCaseMismatch(filePath);
   if (sourceCaseMismatchPath && candidateAllowed(filePath)) {
     addEntryCandidate(trace, filePath);
     failOnCaseMismatchedSourceCandidate(
@@ -1260,7 +1294,7 @@ function resolvePackageSourcePath(
         const indexPath = path.join(filePath, indexName);
         if (!candidateAllowed(indexPath)) continue;
         addEntryCandidate(trace, indexPath);
-        const indexCaseMismatchPath = findCaseMismatchPath(indexPath);
+        const indexCaseMismatchPath = findPackageCaseMismatch(indexPath);
         if (indexCaseMismatchPath) {
           failOnCaseMismatchedSourceCandidate(
             indexPath,
@@ -1288,7 +1322,7 @@ function resolvePackageSourcePath(
         : filePath + ext;
     if (!candidateAllowed(fullPath)) continue;
     addEntryCandidate(trace, fullPath);
-    const fullPathCaseMismatchPath = findCaseMismatchPath(fullPath);
+    const fullPathCaseMismatchPath = findPackageCaseMismatch(fullPath);
     if (fullPathCaseMismatchPath) {
       failOnCaseMismatchedSourceCandidate(
         fullPath,

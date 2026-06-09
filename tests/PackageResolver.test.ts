@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  spyOn,
+  test,
+} from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -17,6 +24,48 @@ describe("PackageResolver", () => {
 
   afterEach(() => {
     fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  test("reuses case-check directory entries within one resolution only", () => {
+    const appDir = path.join(tempDir, "app");
+    const globalPackageDir = path.join(tempDir, "global-packages");
+    const packageRoot = path.join(globalPackageDir, "math");
+    fs.mkdirSync(appDir);
+    fs.mkdirSync(packageRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageRoot, "bpl.json"),
+      JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
+    );
+    fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export add;");
+
+    const reads = new Map<string, number>();
+    const originalReaddirSync = fs.readdirSync;
+    const readdirSpy = spyOn(fs, "readdirSync").mockImplementation(
+      ((
+        directoryPath: fs.PathLike,
+        options?: Parameters<typeof fs.readdirSync>[1],
+      ) => {
+        const resolvedPath = path.resolve(String(directoryPath));
+        reads.set(resolvedPath, (reads.get(resolvedPath) ?? 0) + 1);
+        return originalReaddirSync(directoryPath, options as never) as never;
+      }) as unknown as typeof fs.readdirSync,
+    );
+
+    try {
+      expect(
+        resolvePackageImport("math", appDir, { globalPackageDir }).result
+          ?.packageRoot,
+      ).toBe(packageRoot);
+      expect(reads.get(packageRoot)).toBe(1);
+
+      expect(
+        resolvePackageImport("math", appDir, { globalPackageDir }).result
+          ?.packageRoot,
+      ).toBe(packageRoot);
+      expect(reads.get(packageRoot)).toBe(2);
+    } finally {
+      readdirSpy.mockRestore();
+    }
   });
 
   test("resolves global versioned package directories by semantic version", () => {
