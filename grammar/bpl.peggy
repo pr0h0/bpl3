@@ -1260,7 +1260,7 @@ PostfixTailAfterTrivia
 
 ArgumentList
   = head:Expression tail:(_ "," _ Expression)* _ ","? {
-      return [head, ...tail.map(t => t[3])];
+      return collectTailIndex(head, tail, 3);
     }
 
 GenericArgList

@@ -494,7 +494,11 @@ describe("Parser", () => {
       "utf8",
     );
 
-    for (const ruleName of ["StructLiteralFields", "ParameterList"]) {
+    for (const ruleName of [
+      "ArgumentList",
+      "StructLiteralFields",
+      "ParameterList",
+    ]) {
       const ruleSource = getGrammarRuleSource(grammarSource, ruleName);
       expect(ruleSource).toContain("collectTailIndex(head, tail, 3)");
       expect(ruleSource).not.toContain("tail.map");

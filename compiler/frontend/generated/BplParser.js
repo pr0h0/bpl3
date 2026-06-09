@@ -770,7 +770,7 @@ function peg$parse(input, options) {
     return { type: "postfixUnary", operator: op, operatorType: operatorTypeMap[op] || "Unknown" };
   }
   function peg$f123(head, tail) {
-    return [head, ...tail.map(t => t[3])];
+    return collectTailIndex(head, tail, 3);
   }
   function peg$f124(head, tail) {
     return [head, ...tail.map(t => t[3])];
