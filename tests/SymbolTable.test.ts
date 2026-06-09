@@ -163,6 +163,29 @@ describe("SymbolTable", () => {
     );
   });
 
+  it("does not allocate a resolution cache for a first local hit", () => {
+    const scope = new SymbolTable();
+    const symbol: Symbol = {
+      name: "local_value",
+      kind: "Variable",
+      declaration: {
+        kind: "VariableDecl",
+        location: dummyLocation,
+      },
+      used: false,
+    };
+    scope.define(symbol);
+
+    expect(scope.resolve("local_value")).toBe(symbol);
+    expect(
+      (
+        scope as unknown as {
+          resolutionCache?: Map<string, unknown>;
+        }
+      ).resolutionCache,
+    ).toBeUndefined();
+  });
+
   it("resolves root symbols through very deep scope chains without overflowing", () => {
     const root = new SymbolTable();
     const symbol: Symbol = {

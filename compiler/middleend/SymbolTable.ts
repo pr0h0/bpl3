@@ -89,6 +89,9 @@ export class SymbolTable {
         if (symbol.kind === "Variable" && symbol.used !== true) {
           symbol.used = true;
         }
+        if (scope === this && !cache) {
+          return symbol;
+        }
         if (!cache) {
           cache = new Map();
           this.resolutionCache = cache;
