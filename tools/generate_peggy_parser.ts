@@ -101,6 +101,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedVariableScopeKeywordScanning(optimized);
   optimized = optimizeGeneratedNumberScanning(optimized);
   optimized = optimizeGeneratedStringLiteralScanning(optimized);
+  optimized = optimizeGeneratedInterpolatedStringRunScanning(optimized);
   optimized = optimizeGeneratedTriviaSkipping(optimized);
   return optimizeGeneratedInlineFailureDispatch(optimized);
 }
@@ -1252,6 +1253,57 @@ function optimizeGeneratedStringLiteralScanning(parserSource: string): string {
   ].join("\n");
 
   return parserSource.replace(stringLiteralPattern, replacement);
+}
+
+function optimizeGeneratedInterpolatedStringRunScanning(
+  parserSource: string,
+): string {
+  const charsPattern =
+    /  function peg\$parseInterpolatedStringChars\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseInterpolatedStringChar\(\)/;
+  const match = parserSource.match(charsPattern);
+
+  if (!match) {
+    throw new Error(
+      "Generated Peggy parser interpolated-string chars helper shape changed; update the BPL interpolated-string scanner optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$scanBplPlainInterpolatedStringChars() {",
+    "    const startPos = peg$currPos;",
+    "    let pos = startPos;",
+    "",
+    "    while (pos < peg$bplInputLength) {",
+    "      const code = input.charCodeAt(pos);",
+    "      if (code === 96 || (code === 36 && input.charCodeAt(pos + 1) === 123)) {",
+    "        break;",
+    "      }",
+    "      if (code === 92 || code === 34 || code === 10 || code === 13) {",
+    "        return peg$FAILED;",
+    "      }",
+    "      pos++;",
+    "    }",
+    "",
+    "    if (pos === startPos) return peg$FAILED;",
+    "    peg$currPos = pos;",
+    "    return input.substring(startPos, pos);",
+    "  }",
+    "",
+    "  function peg$parseInterpolatedStringChars() {",
+    "    if (peg$collectExpected) return peg$parseInterpolatedStringCharsDetailed();",
+    "",
+    "    const plain = peg$scanBplPlainInterpolatedStringChars();",
+    "    if (plain !== peg$FAILED) return plain;",
+    "    return peg$parseInterpolatedStringCharsDetailed();",
+    "  }",
+    "",
+    `  function peg$parseInterpolatedStringCharsDetailed() {${match[1]}`,
+    "  }",
+    "",
+    "  function peg$parseInterpolatedStringChar()",
+  ].join("\n");
+
+  return parserSource.replace(charsPattern, replacement);
 }
 
 function optimizeGeneratedStatementStartKeywordScanning(

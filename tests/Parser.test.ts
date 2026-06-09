@@ -1554,6 +1554,57 @@ describe("Parser", () => {
     });
   });
 
+  it("scans plain interpolated-string runs directly", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const scanner = generatedSource.match(
+      /function peg\$scanBplPlainInterpolatedStringChars\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const program = new Parser(
+      "frame main(value: int) ret string { return `plain ${value} tail`; }",
+      "interpolated-runs.bpl",
+    ).parse();
+    const func = program.statements[0] as FunctionDecl;
+    const body = func.body as BlockStmt;
+    const returnStatement = body.statements[0]!;
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedInterpolatedStringRunScanning",
+    );
+    expect(generatedSource).toContain(
+      "function peg$parseInterpolatedStringCharsDetailed()",
+    );
+    expect(scanner).toContain("input.substring(startPos, pos)");
+    expect(scanner).toContain(
+      "code === 92 || code === 34 || code === 10 || code === 13",
+    );
+
+    expect(returnStatement.kind).toBe("Return");
+    if (
+      returnStatement.kind !== "Return" ||
+      returnStatement.value?.kind !== "InterpolatedString"
+    ) {
+      throw new Error("Expected interpolated string return");
+    }
+    expect(returnStatement.value.parts).toMatchObject([
+      { kind: "Literal", type: "string", value: "plain " },
+      { kind: "Identifier", name: "value" },
+      { kind: "Literal", type: "string", value: " tail" },
+    ]);
+  });
+
   it("decodes ordinary string spans without per-character appends", () => {
     const grammarSource = readTextFile(
       join(process.cwd(), "grammar", "bpl.peggy"),

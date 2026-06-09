@@ -12807,7 +12807,35 @@ function peg$parse(input, options) {
     return s0;
   }
 
+  function peg$scanBplPlainInterpolatedStringChars() {
+    const startPos = peg$currPos;
+    let pos = startPos;
+
+    while (pos < peg$bplInputLength) {
+      const code = input.charCodeAt(pos);
+      if (code === 96 || (code === 36 && input.charCodeAt(pos + 1) === 123)) {
+        break;
+      }
+      if (code === 92 || code === 34 || code === 10 || code === 13) {
+        return peg$FAILED;
+      }
+      pos++;
+    }
+
+    if (pos === startPos) return peg$FAILED;
+    peg$currPos = pos;
+    return input.substring(startPos, pos);
+  }
+
   function peg$parseInterpolatedStringChars() {
+    if (peg$collectExpected) return peg$parseInterpolatedStringCharsDetailed();
+
+    const plain = peg$scanBplPlainInterpolatedStringChars();
+    if (plain !== peg$FAILED) return plain;
+    return peg$parseInterpolatedStringCharsDetailed();
+  }
+
+  function peg$parseInterpolatedStringCharsDetailed() {
     let s0, s1, s2;
 
     s0 = peg$currPos;
