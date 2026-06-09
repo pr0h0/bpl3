@@ -84,13 +84,24 @@ export const PRIMITIVE_STRUCT_MAP: Record<string, string> = {
  */
 export function createBasicType(
   name: string,
-  options: {
+  options?: {
     pointerDepth?: number;
     genericArgs?: AST.TypeNode[];
     arrayDimensions?: number[];
     location?: SourceLocation;
-  } = {},
+  },
 ): AST.BasicTypeNode {
+  if (options === undefined) {
+    return {
+      kind: "BasicType",
+      name,
+      genericArgs: [],
+      pointerDepth: 0,
+      arrayDimensions: [],
+      location: INTERNAL_LOCATION,
+    };
+  }
+
   return {
     kind: "BasicType",
     name,
