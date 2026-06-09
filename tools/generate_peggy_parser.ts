@@ -97,6 +97,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedTernaryParsing(optimized);
   optimized = optimizeGeneratedStatementStartKeywordScanning(optimized);
   optimized = optimizeGeneratedStatementDispatch(optimized);
+  optimized = optimizeGeneratedFunctionDeclarationFailureGuard(optimized);
   optimized = optimizeGeneratedImportStatementFailureGuard(optimized);
   optimized = optimizeGeneratedSwitchStatementFailureGuard(optimized);
   optimized = optimizeGeneratedVariableScopeKeywordScanning(optimized);
@@ -1516,6 +1517,46 @@ function optimizeGeneratedImportStatementFailureGuard(
   ].join("\n");
 
   return parserSource.replace(importStatementPattern, replacement);
+}
+
+function optimizeGeneratedFunctionDeclarationFailureGuard(
+  parserSource: string,
+): string {
+  const functionDeclarationPattern =
+    /  function peg\$parseFunctionDeclaration\(\) \{\n(    let [^\n]+;\n)/;
+  const match = parserSource.match(functionDeclarationPattern);
+
+  if (!match) {
+    throw new Error(
+      "Generated Peggy parser FunctionDeclaration helper shape changed; update the BPL function-declaration failure optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parseFunctionDeclaration() {",
+    match[1]!.trimEnd(),
+    "",
+    "    if (!peg$collectExpected) {",
+    "      const startPos = peg$currPos;",
+    "      const startCode = input.charCodeAt(startPos);",
+    "      if (",
+    "        (startCode !== 64 || input.charCodeAt(startPos + 1) !== 91) &&",
+    "        (",
+    "          startCode !== 102 ||",
+    "          input.charCodeAt(startPos + 1) !== 114 ||",
+    "          input.charCodeAt(startPos + 2) !== 97 ||",
+    "          input.charCodeAt(startPos + 3) !== 109 ||",
+    "          input.charCodeAt(startPos + 4) !== 101 ||",
+    "          peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 5))",
+    "        )",
+    "      ) {",
+    "        return peg$FAILED;",
+    "      }",
+    "    }",
+    "",
+  ].join("\n");
+
+  return parserSource.replace(functionDeclarationPattern, replacement);
 }
 
 function optimizeGeneratedSwitchStatementFailureGuard(

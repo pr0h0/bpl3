@@ -1847,6 +1847,59 @@ describe("Parser", () => {
     expect(statementHelper).toContain("return peg$parseStatementFallback();");
   });
 
+  it("guards generated function-declaration fallback failures by exact starters", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const functionHelper = generatedSource.match(
+      /function peg\$parseFunctionDeclaration\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedFunctionDeclarationFailureGuard",
+    );
+    expect(functionHelper).toContain("if (!peg$collectExpected)");
+    expect(functionHelper).toContain(
+      "const startCode = input.charCodeAt(startPos);",
+    );
+    expect(functionHelper).toContain("startCode !== 64");
+    expect(functionHelper).toContain("input.charCodeAt(startPos + 1) !== 91");
+    expect(functionHelper).toContain("startCode !== 102");
+    expect(functionHelper).toContain(
+      "peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 5))",
+    );
+    expect(functionHelper).toContain("return peg$FAILED;");
+
+    for (const functionSource of [
+      "frame plain() {}",
+      "@[inline]\nframe attributed() {}",
+      "struct Resource { @[inline] frame method(this: *Resource) {} }",
+    ]) {
+      expect(
+        new Parser(functionSource, "function-declaration-guard.bpl").parse()
+          .statements,
+      ).toHaveLength(1);
+    }
+
+    expect(() =>
+      new Parser(
+        "@[inline]\nframe malformed(",
+        "malformed-function-declaration-guard.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("guards generated import-statement fallback failures by exact keyword", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

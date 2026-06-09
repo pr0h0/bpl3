@@ -2278,6 +2278,24 @@ function peg$parse(input, options) {
   function peg$parseFunctionDeclaration() {
     let s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16;
 
+    if (!peg$collectExpected) {
+      const startPos = peg$currPos;
+      const startCode = input.charCodeAt(startPos);
+      if (
+        (startCode !== 64 || input.charCodeAt(startPos + 1) !== 91) &&
+        (
+          startCode !== 102 ||
+          input.charCodeAt(startPos + 1) !== 114 ||
+          input.charCodeAt(startPos + 2) !== 97 ||
+          input.charCodeAt(startPos + 3) !== 109 ||
+          input.charCodeAt(startPos + 4) !== 101 ||
+          peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 5))
+        )
+      ) {
+        return peg$FAILED;
+      }
+    }
+
     s0 = peg$currPos;
     s1 = peg$currPos;
     s2 = peg$parse_();
