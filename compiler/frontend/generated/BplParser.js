@@ -3334,6 +3334,21 @@ function peg$parse(input, options) {
   function peg$parseImportStatement() {
     let s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13;
 
+    if (!peg$collectExpected) {
+      const startPos = peg$currPos;
+      if (
+        input.charCodeAt(startPos) !== 105 ||
+        input.charCodeAt(startPos + 1) !== 109 ||
+        input.charCodeAt(startPos + 2) !== 112 ||
+        input.charCodeAt(startPos + 3) !== 111 ||
+        input.charCodeAt(startPos + 4) !== 114 ||
+        input.charCodeAt(startPos + 5) !== 116 ||
+        peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6))
+      ) {
+        return peg$FAILED;
+      }
+    }
+
     s0 = peg$currPos;
     s1 = peg$parseK_import();
     if (s1 !== peg$FAILED) {

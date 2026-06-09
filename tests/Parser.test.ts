@@ -1847,6 +1847,52 @@ describe("Parser", () => {
     expect(statementHelper).toContain("return peg$parseStatementFallback();");
   });
 
+  it("guards generated import-statement fallback failures by exact keyword", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const importHelper = generatedSource.match(
+      /function peg\$parseImportStatement\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedImportStatementFailureGuard",
+    );
+    expect(importHelper).toContain("if (!peg$collectExpected)");
+    expect(importHelper).toContain("input.charCodeAt(startPos) !== 105");
+    expect(importHelper).toContain(
+      "peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6))",
+    );
+    expect(importHelper).toContain("return peg$FAILED;");
+
+    for (const importSource of [
+      'import [Thing] from "thing.bpl";',
+      'import * as thing from "thing.bpl";',
+      'import "thing.bpl";',
+    ]) {
+      const program = new Parser(importSource, "import-guard.bpl").parse();
+      expect(program.statements[0]?.kind).toBe("Import");
+    }
+
+    expect(() =>
+      new Parser(
+        'import [Thing] "thing.bpl";',
+        "malformed-import-guard.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("guards generated switch-statement fallback failures by exact keyword", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

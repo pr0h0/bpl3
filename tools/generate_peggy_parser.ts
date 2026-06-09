@@ -97,6 +97,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedTernaryParsing(optimized);
   optimized = optimizeGeneratedStatementStartKeywordScanning(optimized);
   optimized = optimizeGeneratedStatementDispatch(optimized);
+  optimized = optimizeGeneratedImportStatementFailureGuard(optimized);
   optimized = optimizeGeneratedSwitchStatementFailureGuard(optimized);
   optimized = optimizeGeneratedVariableScopeKeywordScanning(optimized);
   optimized = optimizeGeneratedNumberScanning(optimized);
@@ -1478,6 +1479,43 @@ function optimizeGeneratedStatementDispatch(parserSource: string): string {
   ].join("\n");
 
   return parserSource.replace(statementPattern, replacement);
+}
+
+function optimizeGeneratedImportStatementFailureGuard(
+  parserSource: string,
+): string {
+  const importStatementPattern =
+    /  function peg\$parseImportStatement\(\) \{\n(    let [^\n]+;\n)/;
+  const match = parserSource.match(importStatementPattern);
+
+  if (!match) {
+    throw new Error(
+      "Generated Peggy parser ImportStatement helper shape changed; update the BPL import-statement failure optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parseImportStatement() {",
+    match[1]!.trimEnd(),
+    "",
+    "    if (!peg$collectExpected) {",
+    "      const startPos = peg$currPos;",
+    "      if (",
+    "        input.charCodeAt(startPos) !== 105 ||",
+    "        input.charCodeAt(startPos + 1) !== 109 ||",
+    "        input.charCodeAt(startPos + 2) !== 112 ||",
+    "        input.charCodeAt(startPos + 3) !== 111 ||",
+    "        input.charCodeAt(startPos + 4) !== 114 ||",
+    "        input.charCodeAt(startPos + 5) !== 116 ||",
+    "        peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 6))",
+    "      ) {",
+    "        return peg$FAILED;",
+    "      }",
+    "    }",
+    "",
+  ].join("\n");
+
+  return parserSource.replace(importStatementPattern, replacement);
 }
 
 function optimizeGeneratedSwitchStatementFailureGuard(
