@@ -319,6 +319,23 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
   protected generateLiteral(expr: AST.LiteralExpr): string {
     if (expr.type === "number") {
+      const resolvedType = expr.resolvedType;
+      if (
+        expr.value !== 0 &&
+        resolvedType?.kind === "BasicType" &&
+        resolvedType.name === "i32"
+      ) {
+        const raw = expr.raw;
+        if (
+          raw &&
+          (raw.length === 1 || raw.charCodeAt(0) !== 48) &&
+          raw.indexOf("_") === -1 &&
+          raw.indexOf(".") === -1
+        ) {
+          return raw;
+        }
+      }
+
       // Handle zero initialization for non-primitive types
       if (expr.value === 0 && expr.resolvedType) {
         const type = expr.resolvedType;

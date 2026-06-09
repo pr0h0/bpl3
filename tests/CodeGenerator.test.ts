@@ -1176,6 +1176,36 @@ describe("CodeGenerator", () => {
     );
   });
 
+  it("emits nonzero canonical i32 raw literals before general number branches", () => {
+    const source = readTextFile(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/ExpressionGenerator.ts",
+      ),
+      "utf8",
+    );
+    const start = source.indexOf("  protected generateLiteral(");
+    const end = source.indexOf("  protected generateIdentifier(", start);
+    const methodSource = source.slice(start, end);
+    const canonicalI32FastPath = methodSource.indexOf(
+      'resolvedType.name === "i32"',
+    );
+    const zeroInitialization = methodSource.indexOf("expr.value === 0");
+    const floatingTypeCheck = methodSource.indexOf(
+      'typeName === "float" || typeName === "double"',
+    );
+
+    expect(canonicalI32FastPath).toBeGreaterThanOrEqual(0);
+    expect(canonicalI32FastPath).toBeLessThan(zeroInitialization);
+    expect(canonicalI32FastPath).toBeLessThan(floatingTypeCheck);
+    expect(compile("frame main() ret i32 { return 42; }")).toContain(
+      "ret i32 42",
+    );
+    expect(compile("frame main() ret i32 { return 0; }")).toContain(
+      "ret i32 zeroinitializer",
+    );
+  });
+
   it("prunes unused internal runtime helper declarations from simple IR", () => {
     const ir = compile("frame main() ret int { return 0; }", {
       optimizationLevel: 3,
