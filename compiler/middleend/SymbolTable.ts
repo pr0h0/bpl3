@@ -144,10 +144,22 @@ export class SymbolTable {
     const allNames = this.getAllSymbols();
     let bestMatch: string | undefined;
     let minDistance = Infinity;
+    const maxDistance = Math.min(3, name.length - 1);
+    if (maxDistance < 0) return undefined;
+
+    const previousRow = new Array<number>(name.length + 1);
+    const currentRow = new Array<number>(name.length + 1);
 
     for (const candidate of allNames) {
-      const distance = this.levenshtein(name, candidate);
-      if (distance < minDistance && distance <= 3 && distance < name.length) {
+      if (Math.abs(name.length - candidate.length) > maxDistance) continue;
+      const distance = this.levenshtein(
+        name,
+        candidate,
+        maxDistance,
+        previousRow,
+        currentRow,
+      );
+      if (distance < minDistance && distance <= maxDistance) {
         minDistance = distance;
         bestMatch = candidate;
       }
@@ -156,38 +168,48 @@ export class SymbolTable {
     return bestMatch;
   }
 
-  private levenshtein(a: string, b: string): number {
-    if (!a || !b) return (a || b)?.length;
-    if (a.length === 0) return b.length;
-    if (b.length === 0) return a.length;
-
-    const matrix: number[][] = [];
-
-    for (let i = 0; i <= b.length; i++) {
-      matrix[i] = [i];
+  private levenshtein(
+    a: string,
+    b: string,
+    maxDistance: number,
+    previousRow: number[],
+    currentRow: number[],
+  ): number {
+    const sentinel = maxDistance + 1;
+    for (let column = 0; column <= a.length; column++) {
+      previousRow[column] = column;
     }
 
-    for (let j = 0; j <= a.length; j++) {
-      matrix[0]![j] = j;
-    }
+    let previous = previousRow;
+    let current = currentRow;
+    for (let row = 1; row <= b.length; row++) {
+      current[0] = row;
+      const startColumn = Math.max(1, row - maxDistance);
+      const endColumn = Math.min(a.length, row + maxDistance);
+      if (startColumn > 1) current[startColumn - 1] = sentinel;
 
-    for (let i = 1; i <= b.length; i++) {
-      for (let j = 1; j <= a.length; j++) {
-        if (b.charAt(i - 1) === a.charAt(j - 1)) {
-          matrix[i]![j] = matrix[i - 1]![j - 1]!;
-        } else {
-          matrix[i]![j] = Math.min(
-            matrix[i - 1]![j - 1]! + 1, // substitution
-            Math.min(
-              matrix[i]![j - 1]! + 1, // insertion
-              matrix[i - 1]![j]! + 1, // deletion
-            ),
-          );
-        }
+      let rowMinimum = sentinel;
+      for (let column = startColumn; column <= endColumn; column++) {
+        const value =
+          b.charCodeAt(row - 1) === a.charCodeAt(column - 1)
+            ? previous[column - 1]!
+            : Math.min(
+                previous[column - 1]! + 1,
+                current[column - 1]! + 1,
+                previous[column]! + 1,
+              );
+        current[column] = value;
+        if (value < rowMinimum) rowMinimum = value;
       }
+      if (endColumn < a.length) current[endColumn + 1] = sentinel;
+      if (rowMinimum > maxDistance) return sentinel;
+
+      const next = previous;
+      previous = current;
+      current = next;
     }
 
-    return matrix[b.length]![a.length]!;
+    return previous[a.length]!;
   }
 
   private registerMissWithAncestors(name: string): void {

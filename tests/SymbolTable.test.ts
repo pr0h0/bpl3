@@ -15,6 +15,26 @@ const dummyLocation = {
   endColumn: 1,
 };
 
+function referenceLevenshtein(a: string, b: string): number {
+  const matrix = Array.from({ length: b.length + 1 }, (_, row) => [row]);
+  for (let column = 0; column <= a.length; column++) {
+    matrix[0]![column] = column;
+  }
+  for (let row = 1; row <= b.length; row++) {
+    for (let column = 1; column <= a.length; column++) {
+      matrix[row]![column] =
+        b.charCodeAt(row - 1) === a.charCodeAt(column - 1)
+          ? matrix[row - 1]![column - 1]!
+          : Math.min(
+              matrix[row - 1]![column - 1]! + 1,
+              matrix[row]![column - 1]! + 1,
+              matrix[row - 1]![column]! + 1,
+            );
+    }
+  }
+  return matrix[b.length]![a.length]!;
+}
+
 describe("SymbolTable", () => {
   it("keeps resolution cache invalidation lazy and scoped to missed names", () => {
     const source = readFileSync(
@@ -311,5 +331,85 @@ describe("SymbolTable", () => {
     expect(cacheHitSource).not.toContain("cached.used");
     expect(usedWrite).toBeGreaterThanOrEqual(0);
     expect(cacheWrite).toBeGreaterThan(usedWrite);
+  });
+
+  it("bounds did-you-mean distance work without per-candidate matrices", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),
+      "utf8",
+    );
+    const findStart = source.indexOf("  public findSimilar(");
+    const distanceStart = source.indexOf("  private levenshtein(", findStart);
+    const distanceEnd = source.indexOf(
+      "  private registerMissWithAncestors",
+      distanceStart,
+    );
+
+    expect(findStart).toBeGreaterThanOrEqual(0);
+    expect(distanceStart).toBeGreaterThan(findStart);
+    expect(distanceEnd).toBeGreaterThan(distanceStart);
+
+    const suggestionSource = source.slice(findStart, distanceEnd);
+    expect(suggestionSource).toContain(
+      "const maxDistance = Math.min(3, name.length - 1);",
+    );
+    expect(suggestionSource).toContain(
+      "Math.abs(name.length - candidate.length) > maxDistance",
+    );
+    expect(suggestionSource).toContain(
+      "const previousRow = new Array<number>(name.length + 1);",
+    );
+    expect(suggestionSource).toContain(
+      "const currentRow = new Array<number>(name.length + 1);",
+    );
+    expect(suggestionSource).not.toContain("const matrix: number[][]");
+  });
+
+  it("preserves did-you-mean selection across bounded distance cases", () => {
+    const scope = new SymbolTable();
+    const names = [
+      "totalCount",
+      "totalCost",
+      "counter",
+      "value",
+      "values",
+      "x",
+      "unrelatedIdentifier",
+    ];
+    for (const name of names) {
+      scope.defineNew({
+        name,
+        kind: "Variable",
+        declaration: {
+          kind: "VariableDecl",
+          location: dummyLocation,
+        },
+      });
+    }
+
+    for (const query of [
+      "totalCoun",
+      "totalCoat",
+      "counte",
+      "valu",
+      "z",
+      "veryDistantName",
+      "",
+    ]) {
+      let expected: string | undefined;
+      let minDistance = Infinity;
+      for (const candidate of names) {
+        const distance = referenceLevenshtein(query, candidate);
+        if (
+          distance < minDistance &&
+          distance <= 3 &&
+          distance < query.length
+        ) {
+          minDistance = distance;
+          expected = candidate;
+        }
+      }
+      expect(scope.findSimilar(query)).toBe(expected);
+    }
   });
 });
