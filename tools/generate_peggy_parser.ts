@@ -90,6 +90,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedStructLiteralSuccessCaching(optimized);
   optimized = optimizeGeneratedExpressionOperatorScanning(optimized);
   optimized = optimizeGeneratedBinaryExpressionTailParsing(optimized);
+  optimized = optimizeGeneratedBitwiseOrPostTriviaGuard(optimized);
   optimized = optimizeGeneratedAdditiveOperatorTokens(optimized);
   optimized = optimizeGeneratedRelationalOperatorTokens(optimized);
   optimized = optimizeGeneratedTypeCheckTailParsing(optimized);
@@ -2354,6 +2355,31 @@ function optimizeGeneratedBinaryExpressionTailParsingForConfig(
   ].join("\n");
 
   return parserSource.replace(parserPattern, replacement);
+}
+
+function optimizeGeneratedBitwiseOrPostTriviaGuard(
+  parserSource: string,
+): string {
+  const original = [
+    "      peg$parse_();",
+    "      const operator = peg$scanBplBitwiseOrOperator();",
+  ].join("\n");
+  const replacement = [
+    "      peg$parse_();",
+    "      if (!peg$collectExpected && input.charCodeAt(peg$currPos) !== 124) {",
+    "        peg$currPos = tailStartPos;",
+    "        return result;",
+    "      }",
+    "      const operator = peg$scanBplBitwiseOrOperator();",
+  ].join("\n");
+
+  if (!parserSource.includes(original)) {
+    throw new Error(
+      "Generated Peggy parser BitwiseOr post-trivia shape changed; update the BPL parser BitwiseOr optimizer.",
+    );
+  }
+
+  return parserSource.replace(original, replacement);
 }
 
 function optimizeGeneratedAdditiveOperatorTokens(

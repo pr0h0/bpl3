@@ -320,6 +320,54 @@ describe("Parser", () => {
     ).not.toThrow();
   });
 
+  it("guards generated bitwise-or operator scans after trivia", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const helper = generatedSource.match(
+      /function peg\$parseBitwiseOr\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const trivia = helper?.indexOf("peg$parse_();") ?? -1;
+    const postTriviaGuard =
+      helper?.indexOf("input.charCodeAt(peg$currPos) !== 124", trivia) ?? -1;
+    const scanner =
+      helper?.indexOf("peg$scanBplBitwiseOrOperator()", trivia) ?? -1;
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedBitwiseOrPostTriviaGuard",
+    );
+    expect(trivia).toBeGreaterThanOrEqual(0);
+    expect(postTriviaGuard).toBeGreaterThan(trivia);
+    expect(scanner).toBeGreaterThan(postTriviaGuard);
+    expect(helper).toContain("if (!peg$collectExpected &&");
+    expect(helper).toContain("peg$currPos = tailStartPos;");
+    expect(helper).toContain("return result;");
+
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return (1 | 2) || (3 == 3) ? 1 : 0; }",
+        "bitwise-or-post-trivia-guard.bpl",
+      ).parse(),
+    ).not.toThrow();
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return 1 | ; }",
+        "bitwise-or-post-trivia-diagnostic.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("keeps generated type-check lookahead on the direct scanner fast path", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

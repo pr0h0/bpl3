@@ -6222,6 +6222,10 @@ function peg$parse(input, options) {
       }
 
       peg$parse_();
+      if (!peg$collectExpected && input.charCodeAt(peg$currPos) !== 124) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
       const operator = peg$scanBplBitwiseOrOperator();
       if (operator === peg$FAILED) {
         peg$currPos = tailStartPos;
