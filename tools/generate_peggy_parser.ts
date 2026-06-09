@@ -81,6 +81,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedFailureTracking(optimized);
   optimized = optimizeGeneratedIdentifierScanning(optimized);
   optimized = optimizeGeneratedIdentifierExpressionAction(optimized);
+  optimized = optimizeGeneratedBoolLiteralFailureGuard(optimized);
   optimized = optimizeGeneratedIdBoundary(optimized);
   optimized = optimizeGeneratedQualifiedIdentifierScanning(optimized);
   optimized = optimizeGeneratedBasicTypeParsing(optimized);
@@ -1517,6 +1518,35 @@ function optimizeGeneratedImportStatementFailureGuard(
   ].join("\n");
 
   return parserSource.replace(importStatementPattern, replacement);
+}
+
+function optimizeGeneratedBoolLiteralFailureGuard(
+  parserSource: string,
+): string {
+  const boolLiteralPattern =
+    /  function peg\$parseBoolLiteral\(\) \{\n(    let [^\n]+;\n)/;
+  const match = parserSource.match(boolLiteralPattern);
+
+  if (!match) {
+    throw new Error(
+      "Generated Peggy parser BoolLiteral helper shape changed; update the BPL boolean-literal failure optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parseBoolLiteral() {",
+    match[1]!.trimEnd(),
+    "",
+    "    if (!peg$collectExpected) {",
+    "      const startCode = input.charCodeAt(peg$currPos);",
+    "      if (startCode !== 116 && startCode !== 102) {",
+    "        return peg$FAILED;",
+    "      }",
+    "    }",
+    "",
+  ].join("\n");
+
+  return parserSource.replace(boolLiteralPattern, replacement);
 }
 
 function optimizeGeneratedFunctionDeclarationFailureGuard(

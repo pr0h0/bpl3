@@ -9626,6 +9626,13 @@ function peg$parse(input, options) {
   function peg$parseBoolLiteral() {
     let s0, s1;
 
+    if (!peg$collectExpected) {
+      const startCode = input.charCodeAt(peg$currPos);
+      if (startCode !== 116 && startCode !== 102) {
+        return peg$FAILED;
+      }
+    }
+
     s0 = peg$currPos;
     s1 = peg$parseK_true();
     if (s1 !== peg$FAILED) {

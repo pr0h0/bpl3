@@ -1990,6 +1990,42 @@ describe("Parser", () => {
     }
   });
 
+  it("guards generated boolean-literal failures by first character", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const boolHelper = generatedSource.match(
+      /function peg\$parseBoolLiteral\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedBoolLiteralFailureGuard",
+    );
+    expect(boolHelper).toContain("if (!peg$collectExpected)");
+    expect(boolHelper).toContain("startCode !== 116 && startCode !== 102");
+    expect(boolHelper).toContain("return peg$FAILED;");
+
+    const program = new Parser(
+      "frame main() { local yes: bool = true; local no: bool = false; }",
+      "boolean-literal-guard.bpl",
+    ).parse();
+    const func = program.statements[0] as FunctionDecl;
+    const body = func.body as BlockStmt;
+
+    expect(body.statements).toHaveLength(2);
+  });
+
   it("caches generated variable-declaration scope keyword retries", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
