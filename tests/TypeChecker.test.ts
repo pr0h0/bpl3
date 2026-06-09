@@ -1097,6 +1097,38 @@ describe("TypeChecker", () => {
     expect(helperSource).toContain("decl.genericParams.length === 0");
   });
 
+  it("checks missing resolved declarations before nominal shape guards", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const helperStart = source.indexOf("function canReuseResolvedBasicType");
+    const helperEnd = source.indexOf(
+      "\nfunction resolveQualifiedTypeSymbol",
+      helperStart,
+    );
+    const helperSource = source.slice(helperStart, helperEnd);
+    const declaration = helperSource.indexOf(
+      "const decl = type.resolvedDeclaration;",
+    );
+    const missingDeclaration = helperSource.indexOf("if (!decl)", declaration);
+    const genericArguments = helperSource.indexOf(
+      "type.genericArgs.length !== 0",
+    );
+    const aliasDeclaration = helperSource.indexOf("type.aliasDeclaration");
+    const variableDeclaration = helperSource.indexOf(
+      "type.variableDeclaration",
+    );
+
+    expect(helperStart).toBeGreaterThanOrEqual(0);
+    expect(helperEnd).toBeGreaterThan(helperStart);
+    expect(declaration).toBeGreaterThanOrEqual(0);
+    expect(missingDeclaration).toBeGreaterThan(declaration);
+    expect(genericArguments).toBeGreaterThan(missingDeclaration);
+    expect(aliasDeclaration).toBeGreaterThan(genericArguments);
+    expect(variableDeclaration).toBeGreaterThan(aliasDeclaration);
+  });
+
   it("reuses the basic type name across resolveType lookup branches", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

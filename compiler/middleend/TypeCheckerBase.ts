@@ -558,6 +558,11 @@ function resolveSimpleBuiltinBasicType(
 }
 
 function canReuseResolvedBasicType(type: AST.BasicTypeNode): boolean {
+  const decl = type.resolvedDeclaration;
+  if (!decl) {
+    return false;
+  }
+
   if (
     type.genericArgs.length !== 0 ||
     type.aliasDeclaration ||
@@ -566,12 +571,10 @@ function canReuseResolvedBasicType(type: AST.BasicTypeNode): boolean {
     return false;
   }
 
-  const decl = type.resolvedDeclaration;
   if (
-    !decl ||
-    (decl.kind !== "StructDecl" &&
-      decl.kind !== "EnumDecl" &&
-      decl.kind !== "SpecDecl")
+    decl.kind !== "StructDecl" &&
+    decl.kind !== "EnumDecl" &&
+    decl.kind !== "SpecDecl"
   ) {
     return false;
   }
