@@ -3093,21 +3093,11 @@ export abstract class StatementGenerator extends AsmGenerator {
         this.generateBlock(decl.body, false, true);
       }
 
-      // Add implicit return for void functions if missing
-      let lastLine = "";
-      for (let i = this.output.length - 1; i >= 0; i--) {
-        if (this.output[i]!.trim() !== "") {
-          lastLine = this.output[i]!.trim();
-          break;
-        }
-      }
-
       // Handle implicit returns based on function type
       // Don't emit implicit return if the block is already terminated
-      const isTerminator =
-        lastLine.startsWith("ret") ||
-        lastLine.startsWith("br") ||
-        lastLine.startsWith("unreachable");
+      const isTerminator = this.isTerminator(
+        this.output[this.output.length - 1] || "",
+      );
 
       if (!isTerminator) {
         // Decrement stack depth

@@ -647,6 +647,34 @@ describe("CodeGenerator", () => {
     expect(methodSource).not.toContain(".trim()");
   });
 
+  it("classifies function implicit returns from the final emitted line", () => {
+    const source = readTextFile(
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/StatementGenerator.ts",
+      ),
+      "utf8",
+    );
+    const start = source.indexOf("  protected generateFunction(");
+    const end = source.indexOf(
+      "  protected generateArrayInitialization(",
+      start,
+    );
+    const methodSource = source.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(methodSource).toContain(
+      "const isTerminator = this.isTerminator(",
+    );
+    expect(methodSource).toContain(
+      'this.output[this.output.length - 1] || "",',
+    );
+    expect(methodSource).not.toContain('let lastLine = "";');
+    expect(methodSource).not.toContain('lastLine.startsWith("ret")');
+    expect(methodSource).not.toContain("this.output[i]!.trim()");
+  });
+
   it("keeps simple struct member address generation on a direct layout path", () => {
     const source = readTextFile(
       join(
