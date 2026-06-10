@@ -485,7 +485,23 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
 
     // Safety check: BUG-106/BUG-143 Prevent returning stack addresses directly
     // or hidden inside aggregate literals.
-    const stackAddressName = findReturnedStackAddress(this, stmt.value);
+    let stackAddressName: string | undefined;
+    switch (stmt.value?.kind) {
+      case "Unary":
+        if (stmt.value.operator.type === "Ampersand") {
+          stackAddressName = findReturnedStackAddress(this, stmt.value);
+        }
+        break;
+      case "StructLiteral":
+      case "TupleLiteral":
+      case "ArrayLiteral":
+      case "EnumStructVariant":
+      case "Cast":
+      case "Group":
+      case "Ternary":
+        stackAddressName = findReturnedStackAddress(this, stmt.value);
+        break;
+    }
     if (stackAddressName) {
       throw new CompilerError(
         `Potential use-after-free: returning address of stack variable '${stackAddressName}'`,

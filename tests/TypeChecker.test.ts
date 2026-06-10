@@ -435,6 +435,47 @@ describe("TypeChecker", () => {
     );
   });
 
+  it("guards returned stack address scans by possible root kinds", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/StatementChecker.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("export function checkReturn");
+    const methodEnd = source.indexOf("export function checkTry", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+    const rootKindSwitch = methodSource.indexOf("switch (stmt.value?.kind)");
+    const rootKindGuardEnd = methodSource.indexOf(
+      "if (stackAddressName)",
+      rootKindSwitch,
+    );
+    const stackAddressScan = methodSource.indexOf(
+      "findReturnedStackAddress(this, stmt.value)",
+      rootKindSwitch,
+    );
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(rootKindSwitch).toBeGreaterThanOrEqual(0);
+    expect(rootKindGuardEnd).toBeGreaterThan(rootKindSwitch);
+    expect(stackAddressScan).toBeGreaterThan(rootKindSwitch);
+    expect(methodSource.slice(rootKindSwitch, rootKindGuardEnd)).toContain(
+      'stmt.value.operator.type === "Ampersand"',
+    );
+    for (const kind of [
+      "StructLiteral",
+      "TupleLiteral",
+      "ArrayLiteral",
+      "EnumStructVariant",
+      "Cast",
+      "Group",
+      "Ternary",
+    ]) {
+      expect(methodSource.slice(rootKindSwitch, rootKindGuardEnd)).toContain(
+        `case "${kind}":`,
+      );
+    }
+  });
+
   it("reuses cached expression basic type resolutions before resolveType", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
