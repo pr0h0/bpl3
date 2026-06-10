@@ -103,8 +103,9 @@ function readDirectoryEntries(
   directoryPath: string,
   cache: Map<string, string[] | null> | undefined,
 ): string[] | null {
-  if (cache?.has(directoryPath)) {
-    return cache.get(directoryPath)!;
+  const cachedEntries = cache?.get(directoryPath);
+  if (cachedEntries !== undefined) {
+    return cachedEntries;
   }
 
   const entries = tryReadDirectory(directoryPath);

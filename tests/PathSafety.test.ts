@@ -112,4 +112,35 @@ describe("Path safety helpers", () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  it("uses one lookup for explicitly cached directory entries", () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), "compiler", "common", "PathSafety.ts"),
+      "utf8",
+    );
+    const helper = source.match(
+      /function readDirectoryEntries\([\s\S]*?\n}/,
+    )?.[0];
+
+    expect(helper).toContain("const cachedEntries = cache?.get(directoryPath)");
+    expect(helper).toContain("cachedEntries !== undefined");
+    expect(helper).not.toContain("cache?.has(directoryPath)");
+  });
+
+  it("reuses explicitly cached missing directory entries", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-path-safety-"));
+    const targetPath = path.join(tempDir, "missing", "Module.bpl");
+    const directoryEntries = new Map<string, string[] | null>([
+      [path.parse(targetPath).root, null],
+    ]);
+    const readdirSpy = spyOn(fs, "readdirSync");
+
+    try {
+      expect(findCaseMismatchPath(targetPath, { directoryEntries })).toBeNull();
+      expect(readdirSpy).not.toHaveBeenCalled();
+    } finally {
+      readdirSpy.mockRestore();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
