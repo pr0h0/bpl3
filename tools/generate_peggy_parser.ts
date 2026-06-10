@@ -91,6 +91,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedStructLiteralSuccessCaching(optimized);
   optimized = optimizeGeneratedExpressionOperatorScanning(optimized);
   optimized = optimizeGeneratedBinaryExpressionTailParsing(optimized);
+  optimized = optimizeGeneratedRelationalActualTailGuard(optimized);
   optimized = optimizeGeneratedBitwiseOrPostTriviaGuard(optimized);
   optimized = optimizeGeneratedLogicalAndPostTriviaGuard(optimized);
   optimized = optimizeGeneratedMultiplicativePostTriviaGuard(optimized);
@@ -2509,6 +2510,51 @@ function optimizeGeneratedBinaryExpressionTailParsingForConfig(
   ].join("\n");
 
   return parserSource.replace(parserPattern, replacement);
+}
+
+function optimizeGeneratedRelationalActualTailGuard(
+  parserSource: string,
+): string {
+  const parserPattern =
+    /  function peg\$parseRelational\(\) \{[\s\S]*?\n  \}\n(?=  function peg\$failBplRelationalOperatorExpectation\(\))/;
+  const parser = parserSource.match(parserPattern)?.[0];
+  const original = [
+    "      if (",
+    "        !peg$collectExpected &&",
+    "        !peg$hasBplCommentMarker &&",
+    "        tailCode !== 32 &&",
+    "        tailCode !== 9 &&",
+    "        tailCode !== 10 &&",
+    "        tailCode !== 13 &&",
+    "        tailCode !== 62 &&",
+    "        tailCode !== 60",
+    "      ) {",
+  ].join("\n");
+  const replacement = [
+    "      if (",
+    "        !peg$collectExpected &&",
+    "        tailCode !== 32 &&",
+    "        tailCode !== 9 &&",
+    "        tailCode !== 10 &&",
+    "        tailCode !== 13 &&",
+    "        tailCode !== 62 &&",
+    "        tailCode !== 60 &&",
+    "        tailCode !== 35 &&",
+    "        (tailCode !== 47 ||",
+    "          input.charCodeAt(tailStartPos + 1) !== 35)",
+    "      ) {",
+  ].join("\n");
+
+  if (!parser?.includes(original)) {
+    throw new Error(
+      "Generated Peggy parser Relational actual-tail shape changed; update the BPL parser Relational optimizer.",
+    );
+  }
+
+  return parserSource.replace(
+    parserPattern,
+    parser.replace(original, replacement),
+  );
 }
 
 function optimizeGeneratedBitwiseOrPostTriviaGuard(

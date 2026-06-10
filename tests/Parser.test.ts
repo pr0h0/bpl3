@@ -289,7 +289,12 @@ describe("Parser", () => {
         "const tailCode = input.charCodeAt(tailStartPos);",
       );
       expect(helper).toContain("!peg$collectExpected &&");
-      expect(helper).toContain("!peg$hasBplCommentMarker &&");
+      if (levelName === "Relational") {
+        expect(helper).not.toContain("!peg$hasBplCommentMarker &&");
+        expect(helper).toContain("tailCode !== 35");
+      } else {
+        expect(helper).toContain("!peg$hasBplCommentMarker &&");
+      }
       expect(helper).toContain("tailCode !== 32 &&");
       expect(helper).toContain(`peg$scanBpl${operatorName}()`);
       if (levelName === "Additive" || levelName === "Relational") {
@@ -318,6 +323,49 @@ describe("Parser", () => {
         "binary-tail-fast-path.bpl",
       ).parse(),
     ).not.toThrow();
+  });
+
+  it("guards generated relational tails by actual comment starters", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const helper = generatedSource.match(
+      /function peg\$parseRelational\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedRelationalActualTailGuard",
+    );
+    expect(helper).not.toContain("!peg$hasBplCommentMarker &&");
+    expect(helper).toContain("tailCode !== 35");
+    expect(helper).toContain("tailCode !== 47 ||");
+    expect(helper).toContain(
+      "input.charCodeAt(tailStartPos + 1) !== 35",
+    );
+
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return 1 /# gap #/ < 2 ? 1 : 0; }",
+        "relational-actual-comment-tail.bpl",
+      ).parse(),
+    ).not.toThrow();
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return 1 < ; }",
+        "relational-actual-tail-diagnostic.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
   });
 
   it("guards generated bitwise-or operator scans after trivia", () => {

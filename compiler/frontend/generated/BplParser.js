@@ -6598,13 +6598,15 @@ function peg$parse(input, options) {
       const tailCode = input.charCodeAt(tailStartPos);
       if (
         !peg$collectExpected &&
-        !peg$hasBplCommentMarker &&
         tailCode !== 32 &&
         tailCode !== 9 &&
         tailCode !== 10 &&
         tailCode !== 13 &&
         tailCode !== 62 &&
-        tailCode !== 60
+        tailCode !== 60 &&
+        tailCode !== 35 &&
+        (tailCode !== 47 ||
+          input.charCodeAt(tailStartPos + 1) !== 35)
       ) {
         return result;
       }
