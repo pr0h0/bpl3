@@ -891,11 +891,13 @@ describe("TypeChecker", () => {
     const uppercaseFastMiss = resolverSource.indexOf(
       "firstCode < 97 || firstCode > 122",
     );
+    const canonicalI32 = resolverSource.indexOf("name.charCodeAt(1) === 51");
     const dispatchCall = resolverSource.indexOf(
       "resolveSimpleBuiltinTypeName(name)",
     );
 
     expect(uppercaseFastMiss).toBeGreaterThanOrEqual(0);
+    expect(canonicalI32).toBeGreaterThan(uppercaseFastMiss);
     expect(dispatchCall).toBeGreaterThan(uppercaseFastMiss);
   });
 
