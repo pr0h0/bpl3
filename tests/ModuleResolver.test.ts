@@ -52,6 +52,55 @@ describe("ModuleResolver", () => {
     );
   });
 
+  it("caches successful explicit std path resolutions per resolver", () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), "compiler/middleend/ModuleResolver.ts"),
+      "utf8",
+    );
+    const resolveStart = source.indexOf("  resolveModulePath(");
+    const loadStart = source.indexOf("  private loadModule(", resolveStart);
+    const resolveSource = source.slice(resolveStart, loadStart);
+    const clearStart = source.indexOf("  clearCache()");
+    const clearEnd = source.indexOf("\n  }\n", clearStart);
+    const clearSource = source.slice(clearStart, clearEnd);
+
+    expect(source).toContain("private resolvedExplicitStdImports");
+    expect(resolveSource).toContain(
+      "this.resolvedExplicitStdImports.get(importSource)",
+    );
+    expect(resolveSource).toContain(
+      "this.resolvedExplicitStdImports.set(importSource, result)",
+    );
+    expect(clearSource).toContain("this.resolvedExplicitStdImports.clear()");
+  });
+
+  it("clears cached explicit std path resolutions", () => {
+    const stdLibDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-module-std-cache-"),
+    );
+    const stdModule = path.join(stdLibDir, "cached.bpl");
+    const mainPath = path.join(stdLibDir, "main.bpl");
+    fs.writeFileSync(stdModule, "export cached;");
+    fs.writeFileSync(mainPath, "frame main() ret int { return 0; }");
+
+    try {
+      const resolver = new ModuleResolver({ stdLibPath: stdLibDir });
+      expect(resolver.resolveModulePath("std/cached.bpl", mainPath)).toBe(
+        stdModule,
+      );
+
+      fs.rmSync(stdModule);
+      resolver.clearCache();
+
+      const error = captureCompilerError(() => {
+        resolver.resolveModulePath("std/cached.bpl", mainPath);
+      });
+      expect(error.code).toBe("BPL_MODULE_NOT_FOUND");
+    } finally {
+      fs.rmSync(stdLibDir, { recursive: true, force: true });
+    }
+  });
+
   it("should resolve a single module without imports", () => {
     const mainPath = path.join(tempDir, "main.bpl");
     fs.writeFileSync(

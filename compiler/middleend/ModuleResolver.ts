@@ -86,6 +86,7 @@ export class ModuleResolver {
   /** Cache of loaded modules by absolute path */
   private modules: Map<string, ModuleInfo> = new Map();
   private caseMismatchDirectoryEntries = new Map<string, string[] | null>();
+  private resolvedExplicitStdImports = new Map<string, string>();
 
   /** Standard library location */
   private stdLibPath: string;
@@ -331,12 +332,18 @@ export class ModuleResolver {
         );
       }
 
+      const cached = this.resolvedExplicitStdImports.get(importSource);
+      if (cached) {
+        return cached;
+      }
+
       const stdPath = path.join(
         this.stdLibPath,
         ...relativePath.split(/[\\/]/),
       );
       const result = this.tryResolveWithExtensions(stdPath);
       if (result) {
+        this.resolvedExplicitStdImports.set(importSource, result);
         return result;
       }
 
@@ -722,6 +729,7 @@ export class ModuleResolver {
   clearCache() {
     this.modules.clear();
     this.caseMismatchDirectoryEntries.clear();
+    this.resolvedExplicitStdImports.clear();
   }
 
   /**
