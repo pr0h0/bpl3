@@ -6169,6 +6169,15 @@ function peg$parse(input, options) {
       }
 
       peg$parse_();
+      const operatorCode = input.charCodeAt(peg$currPos);
+      if (
+        !peg$collectExpected &&
+        (operatorCode !== 38 ||
+          input.charCodeAt(peg$currPos + 1) !== 38)
+      ) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
       const operator = peg$scanBplLogicalAndOperator();
       if (operator === peg$FAILED) {
         peg$currPos = tailStartPos;

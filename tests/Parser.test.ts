@@ -368,6 +368,59 @@ describe("Parser", () => {
     ).toThrow(CompilerError);
   });
 
+  it("guards generated logical-and operator scans after trivia", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const helper = generatedSource.match(
+      /function peg\$parseLogicalAnd\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const trivia = helper?.indexOf("peg$parse_();") ?? -1;
+    const postTriviaGuard =
+      helper?.indexOf("const operatorCode = input.charCodeAt(peg$currPos);") ??
+      -1;
+    const scanner =
+      helper?.indexOf("peg$scanBplLogicalAndOperator()", trivia) ?? -1;
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedLogicalAndPostTriviaGuard",
+    );
+    expect(trivia).toBeGreaterThanOrEqual(0);
+    expect(postTriviaGuard).toBeGreaterThan(trivia);
+    expect(scanner).toBeGreaterThan(postTriviaGuard);
+    expect(helper).toContain("operatorCode !== 38 ||");
+    expect(helper).toContain(
+      "input.charCodeAt(peg$currPos + 1) !== 38",
+    );
+    expect(helper).toContain("!peg$collectExpected &&");
+    expect(helper).toContain("peg$currPos = tailStartPos;");
+    expect(helper).toContain("return result;");
+
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return ((3 & 1) == 1 && 2 == 2) ? 1 : 0; }",
+        "logical-and-post-trivia-guard.bpl",
+      ).parse(),
+    ).not.toThrow();
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return 1 && ; }",
+        "logical-and-post-trivia-diagnostic.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("guards generated multiplicative operator scans after trivia", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
