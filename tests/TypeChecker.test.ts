@@ -1282,6 +1282,35 @@ describe("TypeChecker", () => {
     expect(branchSource).not.toContain("stmt.params.map");
   });
 
+  it("returns empty-shape pointer indexes before general array dispatch", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/CallChecker.ts"),
+      "utf8",
+    );
+    const functionStart = source.indexOf("export function checkIndex(");
+    const functionEnd = source.indexOf(
+      "\nfunction inferGenericArgs(",
+      functionStart,
+    );
+    const functionSource = source.slice(functionStart, functionEnd);
+    const aliasArrayBranch = functionSource.indexOf(
+      "getPointerToAliasedArrayElementType(this, objectType)",
+    );
+    const pointerBranch = functionSource.indexOf("// Handle pointer indexing");
+    const emptyShapeGuard = functionSource.indexOf(
+      "objectType.arrayDimensions.length === 0",
+      pointerBranch,
+    );
+    const arrayBranch = functionSource.indexOf("// Handle array indexing");
+
+    expect(functionStart).toBeGreaterThanOrEqual(0);
+    expect(functionEnd).toBeGreaterThan(functionStart);
+    expect(aliasArrayBranch).toBeGreaterThanOrEqual(0);
+    expect(pointerBranch).toBeGreaterThan(aliasArrayBranch);
+    expect(emptyShapeGuard).toBeGreaterThan(pointerBranch);
+    expect(arrayBranch).toBeGreaterThan(emptyShapeGuard);
+  });
+
   it("skips function attribute validation allocations for attribute-free functions", () => {
     const source = readTextFile(
       join(

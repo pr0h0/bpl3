@@ -1219,6 +1219,26 @@ export function checkIndex(
     return getPointerToAliasedArrayElementType(this, objectType);
   }
 
+  // Handle pointer indexing before the general array-shape path
+  if (
+    objectType.kind === "BasicType" &&
+    objectType.pointerDepth > 0 &&
+    objectType.arrayDimensions.length === 0
+  ) {
+    if (indexType && !TypeUtils.isIntegerType(indexType)) {
+      throw new CompilerError(
+        `Pointer index must be an integer, got ${this.typeToString(indexType)}`,
+        "Ensure the index expression evaluates to an integer.",
+        expr.index.location,
+        POINTER_INDEX_TYPE_MISMATCH_CODE,
+      );
+    }
+    return {
+      ...objectType,
+      pointerDepth: objectType.pointerDepth - 1,
+    };
+  }
+
   // Handle array indexing
   if (
     "arrayDimensions" in objectType &&
@@ -1239,22 +1259,6 @@ export function checkIndex(
       return withoutAliasShape(innerType);
     }
     return innerType;
-  }
-
-  // Handle pointer indexing
-  if (objectType.kind === "BasicType" && objectType.pointerDepth > 0) {
-    if (indexType && !TypeUtils.isIntegerType(indexType)) {
-      throw new CompilerError(
-        `Pointer index must be an integer, got ${this.typeToString(indexType)}`,
-        "Ensure the index expression evaluates to an integer.",
-        expr.index.location,
-        POINTER_INDEX_TYPE_MISMATCH_CODE,
-      );
-    }
-    return {
-      ...objectType,
-      pointerDepth: objectType.pointerDepth - 1,
-    };
   }
 
   // Try __get__ operator overload
