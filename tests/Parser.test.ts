@@ -2951,6 +2951,36 @@ describe("Parser", () => {
     expect(statementSource.indexOf("/ AsmBlock")).toBeLessThan(expressionIndex);
   });
 
+  it("skips top-level error recovery after normal parsing reaches EOF", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const programSource = generatedSource.match(
+      /function peg\$parseProgram\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedProgramRecoveryGuard");
+    expect(
+      programSource?.match(/peg\$parseTopLevelErrorRecovery\(\)/g),
+    ).toHaveLength(2);
+    expect(
+      programSource?.match(
+        /!peg\$collectExpected && peg\$currPos >= peg\$bplInputLength/g,
+      ),
+    ).toHaveLength(2);
+  });
+
   it("keeps comment-free parser passes off token comment filtering", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler", "frontend", "Parser.ts"),

@@ -102,6 +102,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedTernaryParsing(optimized);
   optimized = optimizeGeneratedStatementStartKeywordScanning(optimized);
   optimized = optimizeGeneratedStatementDispatch(optimized);
+  optimized = optimizeGeneratedProgramRecoveryGuard(optimized);
   optimized = optimizeGeneratedFunctionDeclarationFailureGuard(optimized);
   optimized = optimizeGeneratedImportStatementFailureGuard(optimized);
   optimized = optimizeGeneratedSwitchStatementFailureGuard(optimized);
@@ -1510,6 +1511,26 @@ function optimizeGeneratedStatementDispatch(parserSource: string): string {
   ].join("\n");
 
   return parserSource.replace(statementPattern, replacement);
+}
+
+function optimizeGeneratedProgramRecoveryGuard(parserSource: string): string {
+  const recoveryCallPattern =
+    /^(\s*)s4 = peg\$parseTopLevelErrorRecovery\(\);$/gm;
+  const matches = [...parserSource.matchAll(recoveryCallPattern)];
+
+  if (matches.length !== 2) {
+    throw new Error(
+      "Generated Peggy Program recovery shape changed; update the BPL Program recovery optimizer.",
+    );
+  }
+
+  return parserSource.replace(recoveryCallPattern, (_match, indent: string) =>
+    [
+      `${indent}s4 = !peg$collectExpected && peg$currPos >= peg$bplInputLength`,
+      `${indent}  ? peg$FAILED`,
+      `${indent}  : peg$parseTopLevelErrorRecovery();`,
+    ].join("\n"),
+  );
 }
 
 function optimizeGeneratedImportStatementFailureGuard(

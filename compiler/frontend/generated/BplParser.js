@@ -1359,7 +1359,9 @@ function peg$parse(input, options) {
     }
     if (s3 === peg$FAILED) {
       s3 = peg$currPos;
-      s4 = peg$parseTopLevelErrorRecovery();
+      s4 = !peg$collectExpected && peg$currPos >= peg$bplInputLength
+        ? peg$FAILED
+        : peg$parseTopLevelErrorRecovery();
       if (s4 !== peg$FAILED) {
         s5 = peg$parse_();
         s4 = [s4, s5];
@@ -1383,7 +1385,9 @@ function peg$parse(input, options) {
       }
       if (s3 === peg$FAILED) {
         s3 = peg$currPos;
-        s4 = peg$parseTopLevelErrorRecovery();
+        s4 = !peg$collectExpected && peg$currPos >= peg$bplInputLength
+          ? peg$FAILED
+          : peg$parseTopLevelErrorRecovery();
         if (s4 !== peg$FAILED) {
           s5 = peg$parse_();
           s4 = [s4, s5];
