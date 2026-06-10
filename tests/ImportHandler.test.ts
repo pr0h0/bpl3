@@ -108,6 +108,24 @@ function withTemporaryBplHome<T>(bplHome: string, fn: () => T): T {
 }
 
 describe("ImportHandler", () => {
+  it("indexes exported names once for repeated named imports", () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), "compiler", "middleend", "ImportHandler.ts"),
+      "utf8",
+    );
+    const importItemStart = source.indexOf("  private importItem(");
+    const hintStart = source.indexOf(
+      "  private createMissingExportHint(",
+      importItemStart,
+    );
+    const importItemSource = source.slice(importItemStart, hintStart);
+
+    expect(source).toContain("private exportedNamesByAst");
+    expect(source).toContain("private getExportedNames(");
+    expect(importItemSource).toContain("this.getExportedNames(ast)");
+    expect(importItemSource).not.toContain("for (const s of ast.statements)");
+  });
+
   it("resolves safe backslash explicit std imports during defensive fallback", () => {
     const root = fs.mkdtempSync(
       path.join(os.tmpdir(), "import-handler-fallback-"),

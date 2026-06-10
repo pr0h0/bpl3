@@ -52,6 +52,7 @@ export interface ImportHandlerContext {
 export class ImportHandler {
   private ctx: ImportHandlerContext;
   private moduleResolver: ModuleResolver;
+  private exportedNamesByAst = new WeakMap<AST.Program, ReadonlySet<string>>();
 
   constructor(context: ImportHandlerContext) {
     this.ctx = context;
@@ -514,25 +515,10 @@ export class ImportHandler {
     moduleScope: SymbolTable,
     ast: AST.Program | undefined,
   ): void {
-    // Check if the item is exported by looking at ExportStmt nodes in AST
-    let isExported = false;
-    let exportedSymbol: Symbol | undefined;
-
-    if (ast) {
-      for (const s of ast.statements) {
-        if (s.kind === "Export") {
-          const exportStmt = s as AST.ExportStmt;
-          for (const exportedItem of exportStmt.items) {
-            if (exportedItem.name === item.name) {
-              isExported = true;
-              exportedSymbol = moduleScope.resolve(item.name);
-              break;
-            }
-          }
-          if (isExported) break;
-        }
-      }
-    }
+    const isExported = ast ? this.getExportedNames(ast).has(item.name) : false;
+    const exportedSymbol = isExported
+      ? moduleScope.resolve(item.name)
+      : undefined;
 
     if (!isExported || !exportedSymbol) {
       throw new CompilerError(
@@ -558,6 +544,15 @@ export class ImportHandler {
   private collectExportedNames(ast: AST.Program | undefined): string[] {
     if (!ast) return [];
 
+    return [...this.getExportedNames(ast)].sort((left, right) =>
+      left.localeCompare(right),
+    );
+  }
+
+  private getExportedNames(ast: AST.Program): ReadonlySet<string> {
+    const cached = this.exportedNamesByAst.get(ast);
+    if (cached) return cached;
+
     const names = new Set<string>();
     for (const statement of ast.statements) {
       if (statement.kind !== "Export") continue;
@@ -566,7 +561,7 @@ export class ImportHandler {
         names.add(item.name);
       }
     }
-
-    return [...names].sort((left, right) => left.localeCompare(right));
+    this.exportedNamesByAst.set(ast, names);
+    return names;
   }
 }
