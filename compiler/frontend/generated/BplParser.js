@@ -2472,6 +2472,19 @@ function peg$parse(input, options) {
   function peg$parseEnumDeclaration() {
     let s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13;
 
+    if (!peg$collectExpected) {
+      const startPos = peg$currPos;
+      if (
+        input.charCodeAt(startPos) !== 101 ||
+        input.charCodeAt(startPos + 1) !== 110 ||
+        input.charCodeAt(startPos + 2) !== 117 ||
+        input.charCodeAt(startPos + 3) !== 109 ||
+        peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 4))
+      ) {
+        return peg$FAILED;
+      }
+    }
+
     s0 = peg$currPos;
     s1 = peg$parseK_enum();
     if (s1 !== peg$FAILED) {

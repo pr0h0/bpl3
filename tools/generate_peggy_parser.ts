@@ -107,6 +107,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedImportStatementFailureGuard(optimized);
   optimized = optimizeGeneratedSwitchStatementFailureGuard(optimized);
   optimized = optimizeGeneratedSpecDeclarationFailureGuard(optimized);
+  optimized = optimizeGeneratedEnumDeclarationFailureGuard(optimized);
   optimized = optimizeGeneratedVariableScopeKeywordScanning(optimized);
   optimized = optimizeGeneratedNumberScanning(optimized);
   optimized = optimizeGeneratedStringLiteralScanning(optimized);
@@ -1708,6 +1709,41 @@ function optimizeGeneratedSpecDeclarationFailureGuard(
   ].join("\n");
 
   return parserSource.replace(specDeclarationPattern, replacement);
+}
+
+function optimizeGeneratedEnumDeclarationFailureGuard(
+  parserSource: string,
+): string {
+  const enumDeclarationPattern =
+    /  function peg\$parseEnumDeclaration\(\) \{\n(    let [^\n]+;\n)/;
+  const match = parserSource.match(enumDeclarationPattern);
+
+  if (!match) {
+    throw new Error(
+      "Generated Peggy parser EnumDeclaration helper shape changed; update the BPL enum-declaration failure optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parseEnumDeclaration() {",
+    match[1]!.trimEnd(),
+    "",
+    "    if (!peg$collectExpected) {",
+    "      const startPos = peg$currPos;",
+    "      if (",
+    "        input.charCodeAt(startPos) !== 101 ||",
+    "        input.charCodeAt(startPos + 1) !== 110 ||",
+    "        input.charCodeAt(startPos + 2) !== 117 ||",
+    "        input.charCodeAt(startPos + 3) !== 109 ||",
+    "        peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 4))",
+    "      ) {",
+    "        return peg$FAILED;",
+    "      }",
+    "    }",
+    "",
+  ].join("\n");
+
+  return parserSource.replace(enumDeclarationPattern, replacement);
 }
 
 function optimizeGeneratedVariableScopeKeywordScanning(

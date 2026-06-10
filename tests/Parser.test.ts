@@ -2199,6 +2199,52 @@ describe("Parser", () => {
     ).toThrow(CompilerError);
   });
 
+  it("guards generated enum-declaration fallback failures by exact keyword", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const enumHelper = generatedSource.match(
+      /function peg\$parseEnumDeclaration\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedEnumDeclarationFailureGuard",
+    );
+    expect(enumHelper).toContain("if (!peg$collectExpected)");
+    expect(enumHelper).toContain("input.charCodeAt(startPos) !== 101");
+    expect(enumHelper).toContain(
+      "peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 4))",
+    );
+    expect(enumHelper).toContain("return peg$FAILED;");
+
+    expect(() =>
+      new Parser(
+        [
+          "enum Empty {}",
+          "enum Result<T> { Ok(T), Error(string) }",
+        ].join("\n"),
+        "enum-declaration-guard.bpl",
+      ).parse(),
+    ).not.toThrow();
+    expect(() =>
+      new Parser(
+        "enum Broken { Value(",
+        "malformed-enum-declaration-guard.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("guards generated boolean-literal failures by first character", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
