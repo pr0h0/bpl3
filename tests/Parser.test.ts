@@ -1970,9 +1970,8 @@ describe("Parser", () => {
     )?.[0];
 
     expect(generatorSource).toContain("optimizeGeneratedStatementDispatch");
-    expect(statementHelper).toContain(
-      "if (!peg$collectExpected && !peg$hasBplCommentMarker)",
-    );
+    expect(statementHelper).toContain("if (!peg$collectExpected)");
+    expect(statementHelper).not.toContain("peg$hasBplCommentMarker");
     expect(statementHelper).toContain(
       "const statementKind = peg$scanBplStatementStartKeyword();",
     );

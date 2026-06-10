@@ -1448,7 +1448,7 @@ function peg$parse(input, options) {
   }
 
   function peg$parseStatement() {
-    if (!peg$collectExpected && !peg$hasBplCommentMarker) {
+    if (!peg$collectExpected) {
       const startPos = peg$currPos;
       if (startPos >= peg$bplInputLength || input.charCodeAt(startPos) === 125) {
         return peg$FAILED;

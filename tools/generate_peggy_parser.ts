@@ -1459,7 +1459,7 @@ function optimizeGeneratedStatementDispatch(parserSource: string): string {
 
   const replacement = [
     "  function peg$parseStatement() {",
-    "    if (!peg$collectExpected && !peg$hasBplCommentMarker) {",
+    "    if (!peg$collectExpected) {",
     "      const startPos = peg$currPos;",
     "      if (startPos >= peg$bplInputLength || input.charCodeAt(startPos) === 125) {",
     "        return peg$FAILED;",
