@@ -485,6 +485,8 @@ export function createIndexOutOfBoundsErrorDecl(): AST.StructDecl {
   };
 }
 
+const INDEX_OUT_OF_BOUNDS_ERROR_DECL = createIndexOutOfBoundsErrorDecl();
+
 export function createDivisionByZeroErrorDecl(): AST.StructDecl {
   return {
     kind: "StructDecl",
@@ -591,12 +593,11 @@ export function initializeBuiltinsInScope(scope: SymbolTable): void {
   });
 
   // Register IndexOutOfBoundsError struct type
-  const indexOutOfBoundsErrorDecl = createIndexOutOfBoundsErrorDecl();
   scope.define({
     name: "IndexOutOfBoundsError",
     kind: "Struct",
     type: createBasicType("IndexOutOfBoundsError"),
-    declaration: indexOutOfBoundsErrorDecl,
+    declaration: INDEX_OUT_OF_BOUNDS_ERROR_DECL,
   });
 
   // Register DivisionByZeroError struct type

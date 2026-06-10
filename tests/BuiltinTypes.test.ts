@@ -4,8 +4,11 @@ import { join } from "path";
 
 import {
   createBasicType,
+  createIndexOutOfBoundsErrorDecl,
   createTypeStructDecl,
+  initializeBuiltinsInScope,
 } from "../compiler/middleend/BuiltinTypes";
+import { SymbolTable } from "../compiler/middleend/SymbolTable";
 
 describe("BuiltinTypes", () => {
   it("keeps name-only basic type construction on the no-options fast path", () => {
@@ -82,5 +85,25 @@ describe("BuiltinTypes", () => {
     expect(functionSource).not.toContain(
       "for (const [alias, target] of TYPE_ALIASES)",
     );
+  });
+
+  it("reuses the immutable index error declaration only across builtin scopes", () => {
+    const firstFactoryDeclaration = createIndexOutOfBoundsErrorDecl();
+    const secondFactoryDeclaration = createIndexOutOfBoundsErrorDecl();
+    expect(firstFactoryDeclaration).not.toBe(secondFactoryDeclaration);
+
+    const firstScope = new SymbolTable();
+    const secondScope = new SymbolTable();
+    initializeBuiltinsInScope(firstScope);
+    initializeBuiltinsInScope(secondScope);
+
+    const firstScopeDeclaration = firstScope.getInCurrentScope(
+      "IndexOutOfBoundsError",
+    )?.declaration;
+    const secondScopeDeclaration = secondScope.getInCurrentScope(
+      "IndexOutOfBoundsError",
+    )?.declaration;
+    expect(firstScopeDeclaration).toBeDefined();
+    expect(firstScopeDeclaration).toBe(secondScopeDeclaration);
   });
 });
