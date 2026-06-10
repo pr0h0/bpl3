@@ -785,6 +785,14 @@ export abstract class TypeCheckerBase {
     checkConstraints: boolean = true,
   ): AST.TypeNode {
     if (type.kind === "BasicType") {
+      if (
+        type.name === "i32" &&
+        type.genericArgs.length === 0 &&
+        type.arrayDimensions.length === 0
+      ) {
+        return type;
+      }
+
       if (type.arrayDimensions.length !== 0) {
         for (const dim of type.arrayDimensions) {
           if (dim !== null && dim <= 0) {

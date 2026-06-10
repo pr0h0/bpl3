@@ -403,7 +403,7 @@ describe("TypeChecker", () => {
     expect(prefix).toContain('cachedResolvedType.kind === "BasicType"');
   });
 
-  it("returns canonical i32 before resolved-type cache checks", () => {
+  it("returns scalar canonical i32 before array validation and cache checks", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
       "utf8",
@@ -413,15 +413,20 @@ describe("TypeChecker", () => {
       "type.arrayDimensions.length !== 0",
       resolveType,
     );
-    const canonicalI32 = source.indexOf('type.name === "i32"', resolveType);
+    const scalarI32 = source.indexOf('type.name === "i32"', resolveType);
+    const canonicalI32 = source.indexOf('type.name === "i32"', scalarI32 + 1);
     const cachedResolvedType = source.indexOf(
       "const cachedResolvedType = type.resolvedType",
       resolveType,
     );
 
     expect(arrayValidation).toBeGreaterThan(resolveType);
+    expect(scalarI32).toBeLessThan(arrayValidation);
     expect(canonicalI32).toBeGreaterThan(arrayValidation);
     expect(canonicalI32).toBeLessThan(cachedResolvedType);
+    expect(source.slice(scalarI32, arrayValidation)).toContain(
+      "type.arrayDimensions.length === 0",
+    );
     expect(source.slice(canonicalI32, cachedResolvedType)).toContain(
       "type.genericArgs.length === 0",
     );
