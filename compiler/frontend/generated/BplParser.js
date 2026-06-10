@@ -5076,6 +5076,18 @@ function peg$parse(input, options) {
   }
 
   function peg$parseTryStatement() {
+    if (!peg$collectExpected) {
+      const startPos = peg$currPos;
+      if (
+        input.charCodeAt(startPos) !== 116 ||
+        input.charCodeAt(startPos + 1) !== 114 ||
+        input.charCodeAt(startPos + 2) !== 121 ||
+        peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 3))
+      ) {
+        return peg$FAILED;
+      }
+    }
+
     let s0, s1, s2, s3, s4, s5, s6, s7, s8;
 
     s0 = peg$currPos;

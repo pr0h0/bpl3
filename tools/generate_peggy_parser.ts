@@ -106,6 +106,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedFunctionDeclarationFailureGuard(optimized);
   optimized = optimizeGeneratedImportStatementFailureGuard(optimized);
   optimized = optimizeGeneratedSwitchStatementFailureGuard(optimized);
+  optimized = optimizeGeneratedTryStatementFailureGuard(optimized);
   optimized = optimizeGeneratedSpecDeclarationFailureGuard(optimized);
   optimized = optimizeGeneratedEnumDeclarationFailureGuard(optimized);
   optimized = optimizeGeneratedVariableScopeKeywordScanning(optimized);
@@ -1674,6 +1675,39 @@ function optimizeGeneratedSwitchStatementFailureGuard(
   ].join("\n");
 
   return parserSource.replace(switchStatementPattern, replacement);
+}
+
+function optimizeGeneratedTryStatementFailureGuard(
+  parserSource: string,
+): string {
+  const tryStatementPattern =
+    /  function peg\$parseTryStatement\(\) \{\n(    let [^\n]+;\n)/;
+  const match = parserSource.match(tryStatementPattern);
+
+  if (!match) {
+    throw new Error(
+      "Generated Peggy parser TryStatement helper shape changed; update the BPL try-statement failure optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parseTryStatement() {",
+    "    if (!peg$collectExpected) {",
+    "      const startPos = peg$currPos;",
+    "      if (",
+    "        input.charCodeAt(startPos) !== 116 ||",
+    "        input.charCodeAt(startPos + 1) !== 114 ||",
+    "        input.charCodeAt(startPos + 2) !== 121 ||",
+    "        peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 3))",
+    "      ) {",
+    "        return peg$FAILED;",
+    "      }",
+    "    }",
+    "",
+    match[1]!,
+  ].join("\n");
+
+  return parserSource.replace(tryStatementPattern, replacement);
 }
 
 function optimizeGeneratedSpecDeclarationFailureGuard(

@@ -2245,6 +2245,47 @@ describe("Parser", () => {
     ).toThrow(CompilerError);
   });
 
+  it("guards generated try-statement fallback failures by exact keyword", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const tryHelper = generatedSource.match(
+      /function peg\$parseTryStatement\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedTryStatementFailureGuard");
+    expect(tryHelper).toContain("if (!peg$collectExpected)");
+    expect(tryHelper).toContain("input.charCodeAt(startPos) !== 116");
+    expect(tryHelper).toContain(
+      "peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 3))",
+    );
+    expect(tryHelper).toContain("return peg$FAILED;");
+
+    expect(() =>
+      new Parser(
+        "frame main() { try { throw 1; } catch (error: int) {} }",
+        "try-statement-guard.bpl",
+      ).parse(),
+    ).not.toThrow();
+    expect(() =>
+      new Parser(
+        "frame main() { try { throw 1;",
+        "malformed-try-statement-guard.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("guards generated boolean-literal failures by first character", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
