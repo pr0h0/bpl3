@@ -368,6 +368,58 @@ describe("Parser", () => {
     ).toThrow(CompilerError);
   });
 
+  it("guards generated multiplicative operator scans after trivia", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const helper = generatedSource.match(
+      /function peg\$parseMultiplicative\(\)[\s\S]*?\n  }/,
+    )?.[0];
+    const trivia = helper?.indexOf("peg$parse_();") ?? -1;
+    const postTriviaGuard =
+      helper?.indexOf("const operatorCode = input.charCodeAt(peg$currPos);") ??
+      -1;
+    const scanner =
+      helper?.indexOf("peg$scanBplMultiplicativeOperator()", trivia) ?? -1;
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedMultiplicativePostTriviaGuard",
+    );
+    expect(trivia).toBeGreaterThanOrEqual(0);
+    expect(postTriviaGuard).toBeGreaterThan(trivia);
+    expect(scanner).toBeGreaterThan(postTriviaGuard);
+    expect(helper).toContain("operatorCode !== 42");
+    expect(helper).toContain("operatorCode !== 47");
+    expect(helper).toContain("operatorCode !== 37");
+    expect(helper).toContain("        !peg$collectExpected &&");
+    expect(helper).toContain("peg$currPos = tailStartPos;");
+    expect(helper).toContain("return result;");
+
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return 8 /# gap #/ / 2 * 3 % 5; }",
+        "multiplicative-post-trivia-guard.bpl",
+      ).parse(),
+    ).not.toThrow();
+    expect(() =>
+      new Parser(
+        "frame main() ret int { return 1 * ; }",
+        "multiplicative-post-trivia-diagnostic.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("keeps generated type-check lookahead on the direct scanner fast path", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

@@ -91,6 +91,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedExpressionOperatorScanning(optimized);
   optimized = optimizeGeneratedBinaryExpressionTailParsing(optimized);
   optimized = optimizeGeneratedBitwiseOrPostTriviaGuard(optimized);
+  optimized = optimizeGeneratedMultiplicativePostTriviaGuard(optimized);
   optimized = optimizeGeneratedAdditiveOperatorTokens(optimized);
   optimized = optimizeGeneratedRelationalOperatorTokens(optimized);
   optimized = optimizeGeneratedTypeCheckTailParsing(optimized);
@@ -2376,6 +2377,37 @@ function optimizeGeneratedBitwiseOrPostTriviaGuard(
   if (!parserSource.includes(original)) {
     throw new Error(
       "Generated Peggy parser BitwiseOr post-trivia shape changed; update the BPL parser BitwiseOr optimizer.",
+    );
+  }
+
+  return parserSource.replace(original, replacement);
+}
+
+function optimizeGeneratedMultiplicativePostTriviaGuard(
+  parserSource: string,
+): string {
+  const original = [
+    "      peg$parse_();",
+    "      const operator = peg$scanBplMultiplicativeOperator();",
+  ].join("\n");
+  const replacement = [
+    "      peg$parse_();",
+    "      const operatorCode = input.charCodeAt(peg$currPos);",
+    "      if (",
+    "        !peg$collectExpected &&",
+    "        operatorCode !== 42 &&",
+    "        operatorCode !== 47 &&",
+    "        operatorCode !== 37",
+    "      ) {",
+    "        peg$currPos = tailStartPos;",
+    "        return result;",
+    "      }",
+    "      const operator = peg$scanBplMultiplicativeOperator();",
+  ].join("\n");
+
+  if (!parserSource.includes(original)) {
+    throw new Error(
+      "Generated Peggy parser Multiplicative post-trivia shape changed; update the BPL parser Multiplicative optimizer.",
     );
   }
 

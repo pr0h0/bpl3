@@ -6774,6 +6774,16 @@ function peg$parse(input, options) {
       }
 
       peg$parse_();
+      const operatorCode = input.charCodeAt(peg$currPos);
+      if (
+        !peg$collectExpected &&
+        operatorCode !== 42 &&
+        operatorCode !== 47 &&
+        operatorCode !== 37
+      ) {
+        peg$currPos = tailStartPos;
+        return result;
+      }
       const operator = peg$scanBplMultiplicativeOperator();
       if (operator === peg$FAILED) {
         peg$currPos = tailStartPos;
