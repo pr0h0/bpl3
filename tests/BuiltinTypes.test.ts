@@ -2,7 +2,10 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
 
-import { createBasicType } from "../compiler/middleend/BuiltinTypes";
+import {
+  createBasicType,
+  createTypeStructDecl,
+} from "../compiler/middleend/BuiltinTypes";
 
 describe("BuiltinTypes", () => {
   it("keeps name-only basic type construction on the no-options fast path", () => {
@@ -30,5 +33,33 @@ describe("BuiltinTypes", () => {
     expect(first).toEqual(second);
     expect(first.genericArgs).not.toBe(second.genericArgs);
     expect(first.arrayDimensions).not.toBe(second.arrayDimensions);
+  });
+
+  it("shares the fresh Type destroy method void node within one declaration", () => {
+    const first = createTypeStructDecl();
+    const second = createTypeStructDecl();
+    const firstDestroy = first.members.find(
+      (member) => member.kind === "FunctionDecl" && member.name === "destroy",
+    );
+    const secondDestroy = second.members.find(
+      (member) => member.kind === "FunctionDecl" && member.name === "destroy",
+    );
+
+    expect(firstDestroy?.kind).toBe("FunctionDecl");
+    expect(secondDestroy?.kind).toBe("FunctionDecl");
+    if (
+      firstDestroy?.kind !== "FunctionDecl" ||
+      secondDestroy?.kind !== "FunctionDecl" ||
+      firstDestroy.resolvedType?.kind !== "FunctionType" ||
+      secondDestroy.resolvedType?.kind !== "FunctionType"
+    ) {
+      throw new Error("Expected Type destroy methods");
+    }
+
+    expect(firstDestroy.returnType).toBe(firstDestroy.resolvedType.returnType);
+    expect(secondDestroy.returnType).toBe(
+      secondDestroy.resolvedType.returnType,
+    );
+    expect(firstDestroy.returnType).not.toBe(secondDestroy.returnType);
   });
 });

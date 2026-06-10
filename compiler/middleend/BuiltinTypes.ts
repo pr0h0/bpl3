@@ -187,6 +187,7 @@ export function createNullAccessErrorDecl(): AST.StructDecl {
 export function createTypeStructDecl(): AST.StructDecl {
   const typeType = createBasicType("Type", { pointerDepth: 1 });
   const stringType = createBasicType("string");
+  const voidType = createBasicType("void");
 
   // getTypeName method
   const getTypeNameMethod: AST.FunctionDecl = {
@@ -309,10 +310,10 @@ export function createTypeStructDecl(): AST.StructDecl {
         location: INTERNAL_LOCATION,
       },
     ],
-    returnType: createBasicType("void"),
+    returnType: voidType,
     resolvedType: {
       kind: "FunctionType",
-      returnType: createBasicType("void"),
+      returnType: voidType,
       paramTypes: [typeType],
       location: INTERNAL_LOCATION,
     },
