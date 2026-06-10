@@ -401,10 +401,12 @@
     // raw includes surrounding quotes
     // Remove the quotes first
     const inner = raw.slice(1, -1);
+    const firstEscape = inner.indexOf("\\");
+    if (firstEscape === -1) return inner;
     
     // Manually process escape sequences
-    let result = "";
-    let i = 0;
+    let result = inner.slice(0, firstEscape);
+    let i = firstEscape;
     
     while (i < inner.length) {
       if (inner[i] === "\\") {

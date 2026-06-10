@@ -1768,6 +1768,16 @@ describe("Parser", () => {
     )?.[0];
 
     expect(decodeStringHelper).toContain(
+      'const firstEscape = inner.indexOf("\\\\");',
+    );
+    expect(decodeStringHelper).toContain(
+      "if (firstEscape === -1) return inner;",
+    );
+    expect(decodeStringHelper).toContain(
+      "let result = inner.slice(0, firstEscape);",
+    );
+    expect(decodeStringHelper).toContain("let i = firstEscape;");
+    expect(decodeStringHelper).toContain(
       'const nextEscape = inner.indexOf("\\\\", i);',
     );
     expect(decodeStringHelper).toContain(
