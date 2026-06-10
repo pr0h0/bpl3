@@ -2855,6 +2855,51 @@ describe("Parser", () => {
     expect(failHelper).toContain("peg$maxFailExpected.push(expected);");
   });
 
+  it("skips generated literal expectations on fast parser passes", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const literalExpectationHelper = generatedSource.match(
+      /function peg\$literalExpectation\(text, ignoreCase\)[\s\S]*?\n  }/,
+    )?.[0];
+    const failHelper = generatedSource.match(
+      /function peg\$fail\(expected\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedLiteralExpectationInitialization",
+    );
+    expect(literalExpectationHelper).toContain(
+      "if (options.bplCollectExpected === false) return undefined;",
+    );
+    expect(
+      literalExpectationHelper!.indexOf(
+        "if (options.bplCollectExpected === false) return undefined;",
+      ),
+    ).toBeLessThan(literalExpectationHelper!.indexOf('return { type: "literal"'));
+    expect(failHelper).toContain("if (!peg$collectExpected) { return; }");
+    expect(() =>
+      new Parser("frame main() { return; }", "literal-expectation.bpl").parse(),
+    ).not.toThrow();
+    expect(() =>
+      new Parser(
+        "frame main() { local value: char = 'ab'; }",
+        "literal-expectation-error.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("dispatches declaration statements before the expression fallback", () => {
     const grammarSource = readTextFile(
       join(process.cwd(), "grammar", "bpl.peggy"),

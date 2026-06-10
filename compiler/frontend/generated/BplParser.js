@@ -1232,6 +1232,7 @@ function peg$parse(input, options) {
   }
 
   function peg$literalExpectation(text, ignoreCase) {
+    if (options.bplCollectExpected === false) return undefined;
     return { type: "literal", text, ignoreCase };
   }
 

@@ -79,6 +79,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   let optimized = optimizeGeneratedMakeLoc(withBplLocation);
   optimized = optimizeGeneratedLiteralMatches(optimized);
   optimized = optimizeGeneratedFailureTracking(optimized);
+  optimized = optimizeGeneratedLiteralExpectationInitialization(optimized);
   optimized = optimizeGeneratedIdentifierScanning(optimized);
   optimized = optimizeGeneratedIdentifierExpressionAction(optimized);
   optimized = optimizeGeneratedBoolLiteralFailureGuard(optimized);
@@ -318,6 +319,30 @@ function optimizeGeneratedFailureTracking(parserSource: string): string {
   return parserSource
     .replace(originalDeclarations, replacementDeclarations)
     .replace(originalFailHelper, replacementFailHelper);
+}
+
+function optimizeGeneratedLiteralExpectationInitialization(
+  parserSource: string,
+): string {
+  const original = [
+    "  function peg$literalExpectation(text, ignoreCase) {",
+    '    return { type: "literal", text, ignoreCase };',
+    "  }",
+  ].join("\n");
+  const replacement = [
+    "  function peg$literalExpectation(text, ignoreCase) {",
+    "    if (options.bplCollectExpected === false) return undefined;",
+    '    return { type: "literal", text, ignoreCase };',
+    "  }",
+  ].join("\n");
+
+  if (!parserSource.includes(original)) {
+    throw new Error(
+      "Generated Peggy parser literal expectation helper shape changed; update the BPL parser literal expectation optimizer.",
+    );
+  }
+
+  return parserSource.replace(original, replacement);
 }
 
 function optimizeGeneratedInlineFailureDispatch(parserSource: string): string {
