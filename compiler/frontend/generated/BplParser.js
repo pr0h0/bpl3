@@ -2913,6 +2913,19 @@ function peg$parse(input, options) {
   function peg$parseSpecDeclaration() {
     let s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13;
 
+    if (!peg$collectExpected) {
+      const startPos = peg$currPos;
+      if (
+        input.charCodeAt(startPos) !== 115 ||
+        input.charCodeAt(startPos + 1) !== 112 ||
+        input.charCodeAt(startPos + 2) !== 101 ||
+        input.charCodeAt(startPos + 3) !== 99 ||
+        peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 4))
+      ) {
+        return peg$FAILED;
+      }
+    }
+
     s0 = peg$currPos;
     s1 = peg$parseK_spec();
     if (s1 !== peg$FAILED) {

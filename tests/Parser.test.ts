@@ -2090,6 +2090,52 @@ describe("Parser", () => {
     }
   });
 
+  it("guards generated spec-declaration fallback failures by exact keyword", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const specHelper = generatedSource.match(
+      /function peg\$parseSpecDeclaration\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedSpecDeclarationFailureGuard",
+    );
+    expect(specHelper).toContain("if (!peg$collectExpected)");
+    expect(specHelper).toContain("input.charCodeAt(startPos) !== 115");
+    expect(specHelper).toContain(
+      "peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 4))",
+    );
+    expect(specHelper).toContain("return peg$FAILED;");
+
+    expect(() =>
+      new Parser(
+        [
+          "spec Parent { frame read(); }",
+          "spec Child<T>: Parent { frame get(value: T) ret T; }",
+        ].join("\n"),
+        "spec-declaration-guard.bpl",
+      ).parse(),
+    ).not.toThrow();
+    expect(() =>
+      new Parser(
+        "spec Broken { frame run(",
+        "malformed-spec-declaration-guard.bpl",
+      ).parse(),
+    ).toThrow(CompilerError);
+  });
+
   it("guards generated boolean-literal failures by first character", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),
