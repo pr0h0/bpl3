@@ -1374,7 +1374,7 @@ describe("TypeChecker", () => {
     expect(directFieldHelper).toBeGreaterThan(fieldCache);
     expect(directMemberHelper).toBeGreaterThan(memberCache);
     expect(resolveFieldSource).toContain(
-      "this.getDirectStructField(decl, fieldName)",
+      "this.getDirectStructField(currentDecl, fieldName)",
     );
     expect(resolveMemberSource).toContain("this.getDirectStructMembers(");
     expect(resolveMemberSource).toContain("decl as AST.StructDecl");
@@ -1538,8 +1538,15 @@ describe("TypeChecker", () => {
       "substitutionMap?: Map<string, AST.TypeNode>",
     );
     expect(methodSource).not.toContain("= new Map()");
-    expect(methodSource).toContain("substitutionMap && substitutionMap.size > 0");
+    expect(methodSource).toContain(
+      "currentSubstitutionMap && currentSubstitutionMap.size > 0",
+    );
     expect(methodSource).toContain(": member.type");
+    expect(methodSource).toContain("let currentDecl = decl;");
+    expect(methodSource).toContain("while (true)");
+    expect(methodSource).not.toContain(
+      "return this.resolveStructField(parentDecl",
+    );
   });
 
   it("skips operator overload member resolution for methodless structs", () => {

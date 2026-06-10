@@ -1784,54 +1784,56 @@ export abstract class TypeCheckerBase {
     fieldName: string,
     substitutionMap?: Map<string, AST.TypeNode>,
   ): { field: AST.StructField; type: AST.TypeNode } | undefined {
-    const member = this.getDirectStructField(decl, fieldName);
-    if (member) {
-      return {
-        field: member,
-        type:
-          substitutionMap && substitutionMap.size > 0
-            ? this.substituteType(member.type, substitutionMap)
-            : member.type,
-      };
-    }
+    let currentDecl = decl;
+    let currentSubstitutionMap = substitutionMap;
 
-    if (decl.inheritanceList && decl.inheritanceList.length > 0) {
-      const parentType = decl.inheritanceList[0];
-      if (parentType && parentType.kind === "BasicType") {
-        const parentSymbol = this.currentScope.resolve(parentType.name);
-        if (parentSymbol && parentSymbol.kind === "Struct") {
-          const parentDecl = parentSymbol.declaration as AST.StructDecl;
-
-          // Update substitution map with parent's generic args
-          let newMap = substitutionMap;
-          if (
-            parentDecl.genericParams &&
-            parentType.genericArgs &&
-            parentType.genericArgs.length > 0
-          ) {
-            newMap = substitutionMap
-              ? new Map(substitutionMap)
-              : new Map<string, AST.TypeNode>();
-            for (let i = 0; i < parentDecl.genericParams.length; i++) {
-              if (i < parentType.genericArgs.length) {
-                const paramName = parentDecl.genericParams[i]!.name;
-                const argType = parentType.genericArgs[i]!;
-                // Substitute the argument with the current context
-                const substitutedArg =
-                  substitutionMap && substitutionMap.size > 0
-                    ? this.substituteType(argType, substitutionMap)
-                    : argType;
-                newMap.set(paramName, substitutedArg);
-              }
-            }
-          }
-
-          return this.resolveStructField(parentDecl, fieldName, newMap);
-        }
+    while (true) {
+      const member = this.getDirectStructField(currentDecl, fieldName);
+      if (member) {
+        return {
+          field: member,
+          type:
+            currentSubstitutionMap && currentSubstitutionMap.size > 0
+              ? this.substituteType(member.type, currentSubstitutionMap)
+              : member.type,
+        };
       }
-    }
 
-    return undefined;
+      const parentType = currentDecl.inheritanceList?.[0];
+      if (!parentType || parentType.kind !== "BasicType") {
+        return undefined;
+      }
+
+      const parentSymbol = this.currentScope.resolve(parentType.name);
+      if (!parentSymbol || parentSymbol.kind !== "Struct") {
+        return undefined;
+      }
+
+      const parentDecl = parentSymbol.declaration as AST.StructDecl;
+      if (
+        parentDecl.genericParams &&
+        parentType.genericArgs &&
+        parentType.genericArgs.length > 0
+      ) {
+        const newMap = currentSubstitutionMap
+          ? new Map(currentSubstitutionMap)
+          : new Map<string, AST.TypeNode>();
+        for (let i = 0; i < parentDecl.genericParams.length; i++) {
+          if (i < parentType.genericArgs.length) {
+            const paramName = parentDecl.genericParams[i]!.name;
+            const argType = parentType.genericArgs[i]!;
+            const substitutedArg =
+              currentSubstitutionMap && currentSubstitutionMap.size > 0
+                ? this.substituteType(argType, currentSubstitutionMap)
+                : argType;
+            newMap.set(paramName, substitutedArg);
+          }
+        }
+        currentSubstitutionMap = newMap;
+      }
+
+      currentDecl = parentDecl;
+    }
   }
 
   public resolveMemberWithContext(
