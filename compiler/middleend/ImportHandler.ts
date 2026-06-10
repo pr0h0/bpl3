@@ -355,8 +355,12 @@ export class ImportHandler {
     }
 
     // Import specific items
+    const exportedNames =
+      moduleAst && stmt.items.length > 0
+        ? this.getExportedNames(moduleAst)
+        : undefined;
     for (const item of stmt.items) {
-      this.importItem(item, stmt, moduleScope, moduleAst);
+      this.importItem(item, stmt, moduleScope, moduleAst, exportedNames);
     }
   }
 
@@ -514,8 +518,9 @@ export class ImportHandler {
     stmt: AST.ImportStmt,
     moduleScope: SymbolTable,
     ast: AST.Program | undefined,
+    exportedNames: ReadonlySet<string> | undefined,
   ): void {
-    const isExported = ast ? this.getExportedNames(ast).has(item.name) : false;
+    const isExported = exportedNames?.has(item.name) ?? false;
     const exportedSymbol = isExported
       ? moduleScope.resolve(item.name)
       : undefined;

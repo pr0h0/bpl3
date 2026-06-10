@@ -108,10 +108,19 @@ function withTemporaryBplHome<T>(bplHome: string, fn: () => T): T {
 }
 
 describe("ImportHandler", () => {
-  it("indexes exported names once for repeated named imports", () => {
+  it("resolves exported names once for repeated named imports", () => {
     const source = fs.readFileSync(
       path.join(process.cwd(), "compiler", "middleend", "ImportHandler.ts"),
       "utf8",
+    );
+    const checkImportStart = source.indexOf("  checkImport(");
+    const implicitImportsStart = source.indexOf(
+      "  public loadImplicitImports(",
+      checkImportStart,
+    );
+    const checkImportSource = source.slice(
+      checkImportStart,
+      implicitImportsStart,
     );
     const importItemStart = source.indexOf("  private importItem(");
     const hintStart = source.indexOf(
@@ -122,7 +131,8 @@ describe("ImportHandler", () => {
 
     expect(source).toContain("private exportedNamesByAst");
     expect(source).toContain("private getExportedNames(");
-    expect(importItemSource).toContain("this.getExportedNames(ast)");
+    expect(checkImportSource).toContain("this.getExportedNames(moduleAst)");
+    expect(importItemSource).not.toContain("this.getExportedNames(ast)");
     expect(importItemSource).not.toContain("for (const s of ast.statements)");
   });
 
