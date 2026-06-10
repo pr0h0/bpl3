@@ -532,7 +532,8 @@ export function createDivisionByZeroErrorDecl(): AST.StructDecl {
  */
 export function initializeBuiltinsInScope(scope: SymbolTable): void {
   // Register base types
-  for (const name of BASE_TYPES) {
+  for (let index = 0; index < BASE_TYPES.length; index++) {
+    const name = BASE_TYPES[index]!;
     const type = createBasicType(name);
     scope.define({
       name,
@@ -548,7 +549,10 @@ export function initializeBuiltinsInScope(scope: SymbolTable): void {
   }
 
   // Register type aliases
-  for (const [alias, target] of TYPE_ALIASES) {
+  for (let index = 0; index < TYPE_ALIASES.length; index++) {
+    const aliasEntry = TYPE_ALIASES[index]!;
+    const alias = aliasEntry[0];
+    const target = aliasEntry[1];
     const type = createBasicType(target);
     scope.define({
       name: alias,

@@ -62,4 +62,25 @@ describe("BuiltinTypes", () => {
     );
     expect(firstDestroy.returnType).not.toBe(secondDestroy.returnType);
   });
+
+  it("initializes builtin type arrays with indexed loops", () => {
+    const source = readFileSync(
+      join(import.meta.dir, "../compiler/middleend/BuiltinTypes.ts"),
+      "utf8",
+    );
+    const start = source.indexOf("export function initializeBuiltinsInScope(");
+    const functionSource = source.slice(start);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(functionSource).toContain(
+      "for (let index = 0; index < BASE_TYPES.length; index++)",
+    );
+    expect(functionSource).toContain(
+      "for (let index = 0; index < TYPE_ALIASES.length; index++)",
+    );
+    expect(functionSource).not.toContain("for (const name of BASE_TYPES)");
+    expect(functionSource).not.toContain(
+      "for (const [alias, target] of TYPE_ALIASES)",
+    );
+  });
 });
