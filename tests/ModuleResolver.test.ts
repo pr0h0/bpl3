@@ -4,7 +4,10 @@ import * as os from "os";
 import * as path from "path";
 
 import { CompilerError } from "../compiler/common/CompilerError";
-import { ModuleResolver } from "../compiler/middleend/ModuleResolver";
+import {
+  isSafeStandardLibraryImportPath,
+  ModuleResolver,
+} from "../compiler/middleend/ModuleResolver";
 
 import type * as AST from "../compiler/common/AST";
 
@@ -50,6 +53,44 @@ describe("ModuleResolver", () => {
     expect(importHandlerSource).not.toContain(
       "new Parser(content, importPath, tokens)",
     );
+  });
+
+  it("fast paths separator-free std paths without weakening path safety", () => {
+    for (const relativePath of ["string.bpl", "Type", "C:drive-relative"]) {
+      expect(isSafeStandardLibraryImportPath(relativePath)).toBe(true);
+    }
+    for (const relativePath of [
+      "",
+      ".",
+      "..",
+      "/absolute.bpl",
+      "\\absolute.bpl",
+      "C:\\absolute.bpl",
+      "nested/../escape.bpl",
+    ]) {
+      expect(isSafeStandardLibraryImportPath(relativePath)).toBe(false);
+    }
+
+    const source = fs.readFileSync(
+      path.join(process.cwd(), "compiler/middleend/ModuleResolver.ts"),
+      "utf8",
+    );
+    const functionStart = source.indexOf(
+      "export function isSafeStandardLibraryImportPath",
+    );
+    const functionSource = source.slice(functionStart);
+    const emptyGuard = functionSource.indexOf(
+      "if (relativePath.length === 0) return false",
+    );
+    const separatorFreeGuard = functionSource.indexOf(
+      'if (!relativePath.includes("/") && !relativePath.includes("\\\\"))',
+    );
+    const absoluteCheck = functionSource.indexOf("path.isAbsolute(relativePath)");
+
+    expect(functionStart).toBeGreaterThanOrEqual(0);
+    expect(emptyGuard).toBeGreaterThanOrEqual(0);
+    expect(separatorFreeGuard).toBeGreaterThan(emptyGuard);
+    expect(absoluteCheck).toBeGreaterThan(separatorFreeGuard);
   });
 
   it("caches successful explicit std path resolutions per resolver", () => {
