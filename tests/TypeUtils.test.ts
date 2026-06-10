@@ -92,6 +92,26 @@ describe("TypeUtils", () => {
     expect(implementation).not.toContain("TYPE_ALIASES");
   });
 
+  it("checks dominant numeric names before the switch fallback", () => {
+    const implementation = methodSource(
+      "isNumericType",
+      "  /**\n   * Convert a type node",
+    );
+    const pointerGuard = implementation.indexOf("type.pointerDepth > 0");
+    const arrayGuard = implementation.indexOf(
+      "type.arrayDimensions.length > 0",
+    );
+    const dominantNames = implementation.indexOf(
+      'type.name === "i32" || type.name === "int" || type.name === "double"',
+    );
+    const fallbackSwitch = implementation.indexOf("switch (type.name)");
+
+    expect(pointerGuard).toBeGreaterThanOrEqual(0);
+    expect(arrayGuard).toBeGreaterThan(pointerGuard);
+    expect(dominantNames).toBeGreaterThan(arrayGuard);
+    expect(fallbackSwitch).toBeGreaterThan(dominantNames);
+  });
+
   it("checks signed integer names without allocating a lookup array", () => {
     for (const name of [
       "i8",

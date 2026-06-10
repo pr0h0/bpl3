@@ -108,11 +108,12 @@ export class TypeUtils {
   static isNumericType(type: AST.TypeNode): boolean {
     if (type.kind !== "BasicType") return false;
     if (type.pointerDepth > 0 || type.arrayDimensions.length > 0) return false;
+    if (type.name === "i32" || type.name === "int" || type.name === "double") {
+      return true;
+    }
     switch (type.name) {
-      case "int":
       case "uint":
       case "float":
-      case "double":
       case "bool":
       case "i1":
       case "char":
@@ -125,7 +126,6 @@ export class TypeUtils {
       case "u8":
       case "i16":
       case "u16":
-      case "i32":
       case "u32":
       case "i64":
       case "u64":
