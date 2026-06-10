@@ -111,6 +111,8 @@ export class SymbolTable {
   }
 
   public getUnusedVariables(): readonly Symbol[] {
+    if (this.symbols.size === 0) return EMPTY_UNUSED_VARIABLES;
+
     let unused: Symbol[] | undefined;
     for (const symbol of this.symbols.values()) {
       if (symbol.kind === "Variable" && !symbol.used) {

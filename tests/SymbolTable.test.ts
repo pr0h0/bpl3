@@ -279,6 +279,21 @@ describe("SymbolTable", () => {
     expect(unused).toEqual([variable]);
   });
 
+  it("returns empty unused-variable results before scanning empty scopes", () => {
+    const source = readFileSync(
+      join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("  public getUnusedVariables");
+    const methodEnd = source.indexOf("  public enterScope", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+    const emptyGuard = methodSource.indexOf("if (this.symbols.size === 0)");
+    const valuesScan = methodSource.indexOf("this.symbols.values()");
+
+    expect(emptyGuard).toBeGreaterThanOrEqual(0);
+    expect(valuesScan).toBeGreaterThan(emptyGuard);
+  });
+
   it("keeps repeated variable resolution off redundant used writes", () => {
     const source = readFileSync(
       join(process.cwd(), "compiler", "middleend", "SymbolTable.ts"),
