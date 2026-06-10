@@ -1527,6 +1527,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
     // Check for duplicate variants
     const variantNames = new Set<string>();
+    let hasVariantPayload = false;
     for (const variant of decl.variants) {
       if (variantNames.has(variant.name)) {
         this.addError(
@@ -1539,10 +1540,13 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         );
       }
       variantNames.add(variant.name);
+      if (variant.dataType) hasVariantPayload = true;
     }
 
     // Check for infinite size cycles in enum variants
-    this.detectEnumCycle(decl.name, decl);
+    if (hasVariantPayload) {
+      this.detectEnumCycle(decl.name, decl);
+    }
 
     // Check for duplicate generic parameter names
     const genericParamNames = new Set<string>();

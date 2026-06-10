@@ -1983,6 +1983,36 @@ describe("TypeChecker", () => {
     expect(signatureGuard).toBeGreaterThan(guardedAllocation);
   });
 
+  it("skips enum cycle traversal when no variant carries data", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("private checkEnumBody");
+    const methodEnd = source.indexOf("private checkSpecBody", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+    const payloadFlag = methodSource.indexOf("let hasVariantPayload = false");
+    const payloadMark = methodSource.indexOf(
+      "hasVariantPayload = true",
+      payloadFlag,
+    );
+    const cycleGuard = methodSource.indexOf(
+      "if (hasVariantPayload)",
+      payloadMark,
+    );
+    const cycleCheck = methodSource.indexOf(
+      "this.detectEnumCycle(decl.name, decl)",
+      cycleGuard,
+    );
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(payloadFlag).toBeGreaterThanOrEqual(0);
+    expect(payloadMark).toBeGreaterThan(payloadFlag);
+    expect(cycleGuard).toBeGreaterThan(payloadMark);
+    expect(cycleCheck).toBeGreaterThan(cycleGuard);
+  });
+
   it("allocates enum tuple pattern substitution maps only for generics", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
