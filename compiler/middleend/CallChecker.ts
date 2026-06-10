@@ -1383,7 +1383,7 @@ function resolveMethodTypesInModuleContext(
   context: CheckerContext,
   method: AST.FunctionDecl | AST.SpecMethod,
 ): { returnType: AST.TypeNode; paramTypes: AST.TypeNode[] } {
-  let returnType = method.returnType || {
+  const returnType: AST.TypeNode = method.returnType || {
     kind: "BasicType",
     name: "void",
     genericArgs: [],
@@ -1391,7 +1391,6 @@ function resolveMethodTypesInModuleContext(
     arrayDimensions: [],
     location: method.location,
   };
-  let paramTypes = method.params.map((p) => p.type);
 
   if (method.location && (context as any).modules) {
     const modulePath = method.location.file;
@@ -1400,14 +1399,19 @@ function resolveMethodTypesInModuleContext(
       const oldScope = (context as any).currentScope;
       (context as any).currentScope = moduleScope;
       try {
-        returnType = context.resolveType(returnType);
-        paramTypes = paramTypes.map((t) => context.resolveType(t));
+        return {
+          returnType: context.resolveType(returnType),
+          paramTypes: method.params.map((p) => context.resolveType(p.type)),
+        };
       } finally {
         (context as any).currentScope = oldScope;
       }
     }
   }
-  return { returnType, paramTypes };
+  return {
+    returnType,
+    paramTypes: method.params.map((p) => p.type),
+  };
 }
 
 function packVariadicArguments(

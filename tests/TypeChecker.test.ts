@@ -1493,6 +1493,36 @@ describe("TypeChecker", () => {
     expect(branchSource).not.toContain("const compatibleMethods");
   });
 
+  it("maps method parameter types only once per module-context resolution", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/CallChecker.ts"),
+      "utf8",
+    );
+    const helperStart = source.indexOf(
+      "function resolveMethodTypesInModuleContext",
+    );
+    const helperEnd = source.indexOf(
+      "function packVariadicArguments",
+      helperStart,
+    );
+    const helperSource = source.slice(helperStart, helperEnd);
+    const moduleLookup = helperSource.indexOf("const moduleScope =");
+    const resolvedParamMap = helperSource.indexOf(
+      "method.params.map((p) => context.resolveType(p.type))",
+    );
+    const rawParamMap = helperSource.indexOf(
+      "method.params.map((p) => p.type)",
+    );
+
+    expect(helperStart).toBeGreaterThanOrEqual(0);
+    expect(helperEnd).toBeGreaterThan(helperStart);
+    expect(resolvedParamMap).toBeGreaterThan(moduleLookup);
+    expect(rawParamMap).toBeGreaterThan(moduleLookup);
+    expect(helperSource).not.toContain(
+      "paramTypes = paramTypes.map((t) => context.resolveType(t))",
+    );
+  });
+
   it("keeps direct struct field resolution off empty generic maps", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
