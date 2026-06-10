@@ -2572,6 +2572,32 @@ describe("Parser", () => {
     ).not.toThrow();
   });
 
+  it("gates optional generic parameter lists by their opening delimiter", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const gates =
+      generatedSource.match(
+        /!peg\$collectExpected && input\.charCodeAt\(peg\$currPos\) !== 60\s+\? null\s+: peg\$parseGenericParamList\(\)/g,
+      ) ?? [];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedGenericParamListDispatch",
+    );
+    expect(gates).toHaveLength(6);
+  });
+
   it("keeps generated simple basic-type parsing off Peggy suffix arrays", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

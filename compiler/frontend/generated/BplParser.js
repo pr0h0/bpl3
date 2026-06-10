@@ -2322,7 +2322,9 @@ function peg$parse(input, options) {
       s4 = peg$parseIdentifier();
       if (s4 !== peg$FAILED) {
         s5 = peg$parse_();
-        s6 = peg$parseGenericParamList();
+        s6 = !peg$collectExpected && input.charCodeAt(peg$currPos) !== 60
+          ? null
+          : peg$parseGenericParamList();
         if (s6 === peg$FAILED) {
           s6 = null;
         }
@@ -2393,7 +2395,9 @@ function peg$parse(input, options) {
       s3 = peg$parseIdentifier();
       if (s3 !== peg$FAILED) {
         s4 = peg$parse_();
-        s5 = peg$parseGenericParamList();
+        s5 = !peg$collectExpected && input.charCodeAt(peg$currPos) !== 60
+          ? null
+          : peg$parseGenericParamList();
         if (s5 === peg$FAILED) {
           s5 = null;
         }
@@ -2492,7 +2496,9 @@ function peg$parse(input, options) {
       s3 = peg$parseIdentifier();
       if (s3 !== peg$FAILED) {
         s4 = peg$parse_();
-        s5 = peg$parseGenericParamList();
+        s5 = !peg$collectExpected && input.charCodeAt(peg$currPos) !== 60
+          ? null
+          : peg$parseGenericParamList();
         if (s5 === peg$FAILED) {
           s5 = null;
         }
@@ -2951,7 +2957,9 @@ function peg$parse(input, options) {
       s3 = peg$parseIdentifier();
       if (s3 !== peg$FAILED) {
         s4 = peg$parse_();
-        s5 = peg$parseGenericParamList();
+        s5 = !peg$collectExpected && input.charCodeAt(peg$currPos) !== 60
+          ? null
+          : peg$parseGenericParamList();
         if (s5 === peg$FAILED) {
           s5 = null;
         }
@@ -3077,7 +3085,9 @@ function peg$parse(input, options) {
       s3 = peg$parseIdentifier();
       if (s3 !== peg$FAILED) {
         s4 = peg$parse_();
-        s5 = peg$parseGenericParamList();
+        s5 = !peg$collectExpected && input.charCodeAt(peg$currPos) !== 60
+          ? null
+          : peg$parseGenericParamList();
         if (s5 === peg$FAILED) {
           s5 = null;
         }
@@ -3329,7 +3339,9 @@ function peg$parse(input, options) {
       s3 = peg$parseIdentifier();
       if (s3 !== peg$FAILED) {
         s4 = peg$parse_();
-        s5 = peg$parseGenericParamList();
+        s5 = !peg$collectExpected && input.charCodeAt(peg$currPos) !== 60
+          ? null
+          : peg$parseGenericParamList();
         if (s5 === peg$FAILED) {
           s5 = null;
         }

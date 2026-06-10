@@ -86,6 +86,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedIdBoundary(optimized);
   optimized = optimizeGeneratedQualifiedIdentifierScanning(optimized);
   optimized = optimizeGeneratedBasicTypeParsing(optimized);
+  optimized = optimizeGeneratedGenericParamListDispatch(optimized);
   optimized = optimizeGeneratedPostfixTailScanning(optimized);
   optimized = optimizeGeneratedPostfixParsing(optimized);
   optimized = optimizeGeneratedStructLiteralSuccessCaching(optimized);
@@ -823,6 +824,36 @@ function optimizeGeneratedBasicTypeParsing(parserSource: string): string {
   ].join("\n");
 
   return parserSource.replace(basicTypePattern, replacement);
+}
+
+function optimizeGeneratedGenericParamListDispatch(
+  parserSource: string,
+): string {
+  const optionalCallPattern =
+    /^(\s+)(s\d+) = peg\$parseGenericParamList\(\);\n\1if \(\2 === peg\$FAILED\) {\n\1  \2 = null;\n\1}/gm;
+  let replacements = 0;
+  const optimized = parserSource.replace(
+    optionalCallPattern,
+    (_match, indent: string, result: string) => {
+      replacements++;
+      return [
+        `${indent}${result} = !peg$collectExpected && input.charCodeAt(peg$currPos) !== 60`,
+        `${indent}  ? null`,
+        `${indent}  : peg$parseGenericParamList();`,
+        `${indent}if (${result} === peg$FAILED) {`,
+        `${indent}  ${result} = null;`,
+        `${indent}}`,
+      ].join("\n");
+    },
+  );
+
+  if (replacements !== 6) {
+    throw new Error(
+      "Generated Peggy parser GenericParamList call shape changed; update the generic-parameter dispatch optimizer.",
+    );
+  }
+
+  return optimized;
 }
 
 function buildReservedKeywordRangeHelper(reservedKeywords: string[]): string[] {
