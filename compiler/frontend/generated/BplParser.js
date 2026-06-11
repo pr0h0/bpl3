@@ -12227,6 +12227,10 @@ function peg$parse(input, options) {
   function peg$parseK_Func() {
     let s0, s1, s2;
 
+    if (!peg$collectExpected && input.charCodeAt(peg$currPos) !== 70) {
+      return peg$FAILED;
+    }
+
     s0 = peg$currPos;
     if (input.startsWith(peg$c87, peg$currPos)) {
       s1 = peg$c87;
