@@ -1570,8 +1570,8 @@ describe("Parser", () => {
     expect(postfixHelper).toContain(
       "const firstPostfix = peg$parsePostfixTail();",
     );
-    expect(postfixHelper.indexOf("const directMember = member(")).toBeLessThan(
-      postfixHelper.indexOf("const firstPostfix = peg$parsePostfixTail();"),
+    expect(postfixHelper!.indexOf("const directMember = member(")).toBeLessThan(
+      postfixHelper!.indexOf("const firstPostfix = peg$parsePostfixTail();"),
     );
 
     expect(() =>
