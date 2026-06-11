@@ -1467,6 +1467,17 @@ describe("Parser", () => {
         "      }",
       ].join("\n"),
     );
+    expect(postfixHelper).toContain(
+      [
+        '      if (firstPostfix.type === "call") {',
+        "        return call(",
+        "          primary,",
+        "          firstPostfix.args,",
+        "          mergeLocToEndPos(primary.location, firstPostfix.endPos),",
+        "        );",
+        "      }",
+      ].join("\n"),
+    );
     expect(postfixHelper).toMatch(
       /return peg\$f\d+\(primary, \[firstPostfix\]\);/,
     );

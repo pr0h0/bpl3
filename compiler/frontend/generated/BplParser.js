@@ -7029,6 +7029,13 @@ function peg$parse(input, options) {
           mergeLocToEndPos(primary.location, firstPostfix.endPos),
         );
       }
+      if (firstPostfix.type === "call") {
+        return call(
+          primary,
+          firstPostfix.args,
+          mergeLocToEndPos(primary.location, firstPostfix.endPos),
+        );
+      }
       return peg$f114(primary, [firstPostfix]);
     }
 
