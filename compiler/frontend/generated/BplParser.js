@@ -11313,31 +11313,23 @@ function peg$parse(input, options) {
   }
 
   function peg$parseK_frame() {
-    let s0, s1, s2;
-
-    s0 = peg$currPos;
-    if (input.startsWith(peg$c20, peg$currPos)) {
-      s1 = peg$c20;
-      peg$currPos += 5;
-    } else {
-      s1 = peg$FAILED;
-      if (peg$collectExpected && peg$silentFails === 0) { peg$fail(peg$e26); }
-    }
-    if (s1 !== peg$FAILED) {
-      s2 = peg$parseIdBoundary();
-      if (s2 !== peg$FAILED) {
-        s1 = [s1, s2];
-        s0 = s1;
-      } else {
-        peg$currPos = s0;
-        s0 = peg$FAILED;
+    const startPos = peg$currPos;
+    if (
+      input.charCodeAt(startPos) === 102 &&
+      input.charCodeAt(startPos + 1) === 114 &&
+      input.charCodeAt(startPos + 2) === 97 &&
+      input.charCodeAt(startPos + 3) === 109 &&
+      input.charCodeAt(startPos + 4) === 101
+    ) {
+      if (peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 5))) {
+        return peg$FAILED;
       }
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
+      peg$currPos = startPos + 5;
+      return peg$c20;
     }
 
-    return s0;
+    if (peg$collectExpected && peg$silentFails === 0) { peg$fail(peg$e26); }
+    return peg$FAILED;
   }
 
   function peg$parseK_ret() {

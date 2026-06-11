@@ -2487,6 +2487,35 @@ describe("Parser", () => {
     ).toThrow(CompilerError);
   });
 
+  it("keeps generated frame keyword parsing allocation-free", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const helper = generatedSource.match(
+      /function peg\$parseK_frame\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain("optimizeGeneratedFrameKeywordParsing");
+    expect(helper).toContain("const startPos = peg$currPos;");
+    expect(helper).toContain("input.charCodeAt(startPos + 4) === 101");
+    expect(helper).toContain("peg$isBplIdentifierContinuationCode");
+    expect(helper).toContain("return peg$c20;");
+    expect(helper).not.toContain("let s0, s1, s2");
+    expect(helper).not.toContain("peg$parseIdBoundary()");
+    expect(helper).not.toContain("[s1, s2]");
+  });
+
   it("keeps generated assignment-operator parsing on the direct scanner fast path", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

@@ -84,6 +84,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedIdentifierExpressionAction(optimized);
   optimized = optimizeGeneratedBoolLiteralFailureGuard(optimized);
   optimized = optimizeGeneratedIdBoundary(optimized);
+  optimized = optimizeGeneratedFrameKeywordParsing(optimized);
   optimized = optimizeGeneratedQualifiedIdentifierScanning(optimized);
   optimized = optimizeGeneratedBasicTypeParsing(optimized);
   optimized = optimizeGeneratedGenericParamListDispatch(optimized);
@@ -673,6 +674,48 @@ function optimizeGeneratedIdBoundary(parserSource: string): string {
   }
 
   return parserSource.replace(original, replacement);
+}
+
+function optimizeGeneratedFrameKeywordParsing(parserSource: string): string {
+  const helperPattern =
+    /  function peg\$parseK_frame\(\) \{([\s\S]*?)\n  \}\n\n(?=  function peg\$parseK_ret\(\))/;
+  const match = parserSource.match(helperPattern);
+  if (
+    !match ||
+    !match[1]?.includes("input.startsWith(peg$c20, peg$currPos)") ||
+    !match[1].includes("s2 = peg$parseIdBoundary()") ||
+    !match[1].includes("peg$fail(peg$e26)")
+  ) {
+    throw new Error(
+      "Generated Peggy parser frame keyword helper shape changed; update the BPL parser frame keyword optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parseK_frame() {",
+    "    const startPos = peg$currPos;",
+    "    if (",
+    "      input.charCodeAt(startPos) === 102 &&",
+    "      input.charCodeAt(startPos + 1) === 114 &&",
+    "      input.charCodeAt(startPos + 2) === 97 &&",
+    "      input.charCodeAt(startPos + 3) === 109 &&",
+    "      input.charCodeAt(startPos + 4) === 101",
+    "    ) {",
+    "      if (peg$isBplIdentifierContinuationCode(input.charCodeAt(startPos + 5))) {",
+    "        return peg$FAILED;",
+    "      }",
+    "      peg$currPos = startPos + 5;",
+    "      return peg$c20;",
+    "    }",
+    "",
+    "    if (peg$collectExpected && peg$silentFails === 0) { peg$fail(peg$e26); }",
+    "    return peg$FAILED;",
+    "  }",
+    "",
+    "",
+  ].join("\n");
+
+  return parserSource.replace(helperPattern, replacement);
 }
 
 function optimizeGeneratedQualifiedIdentifierScanning(
