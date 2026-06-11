@@ -1859,42 +1859,40 @@ export abstract class TypeCheckerBase {
         | AST.SpecDecl
         | AST.EnumDecl;
     } else {
-      // Check if it's a primitive type that maps to a struct
-      if (PRIMITIVE_STRUCT_MAP[baseType.name]) {
-        const structName = PRIMITIVE_STRUCT_MAP[baseType.name]!;
-        const symbol = this.currentScope.resolve(structName);
-        if (symbol && symbol.kind === "Struct") {
+      const symbol = this.currentScope.resolve(baseType.name);
+      if (symbol) {
+        if (symbol.kind === "Struct") {
           decl = symbol.declaration as AST.StructDecl;
+        } else if (symbol.kind === "Enum") {
+          decl = symbol.declaration as AST.EnumDecl;
+        } else if (symbol.kind === "Spec") {
+          decl = symbol.declaration as AST.SpecDecl;
+        } else if (symbol.kind === "TypeAlias") {
+          // Check if it's a generic parameter with a constraint
+          const aliasDecl = symbol.declaration;
+          // GenericParam interface doesn't have 'kind' property, so we check for constraint existence
+          // or if it happens to have kind="GenericParam" (future proofing)
+          if (
+            (aliasDecl.kind === "GenericParam" || !aliasDecl.kind) &&
+            "constraint" in aliasDecl
+          ) {
+            const gp = aliasDecl as unknown as AST.GenericParam;
+            if (gp.constraint && gp.constraint.kind === "BasicType") {
+              return this.resolveMemberWithContext(
+                gp.constraint as AST.BasicTypeNode,
+                memberName,
+              );
+            }
+          }
         }
       }
 
-      if (!decl) {
-        const symbol = this.currentScope.resolve(baseType.name);
-        if (symbol) {
-          if (symbol.kind === "Struct") {
-            decl = symbol.declaration as AST.StructDecl;
-          } else if (symbol.kind === "Enum") {
-            decl = symbol.declaration as AST.EnumDecl;
-          } else if (symbol.kind === "Spec") {
-            decl = symbol.declaration as AST.SpecDecl;
-          } else if (symbol.kind === "TypeAlias") {
-            // Check if it's a generic parameter with a constraint
-            const aliasDecl = symbol.declaration;
-            // GenericParam interface doesn't have 'kind' property, so we check for constraint existence
-            // or if it happens to have kind="GenericParam" (future proofing)
-            if (
-              (aliasDecl.kind === "GenericParam" || !aliasDecl.kind) &&
-              "constraint" in aliasDecl
-            ) {
-              const gp = aliasDecl as unknown as AST.GenericParam;
-              if (gp.constraint && gp.constraint.kind === "BasicType") {
-                return this.resolveMemberWithContext(
-                  gp.constraint as AST.BasicTypeNode,
-                  memberName,
-                );
-              }
-            }
-          }
+      // Check if it's a primitive type that maps to a struct
+      if (!decl && PRIMITIVE_STRUCT_MAP[baseType.name]) {
+        const structName = PRIMITIVE_STRUCT_MAP[baseType.name]!;
+        const primitiveSymbol = this.currentScope.resolve(structName);
+        if (primitiveSymbol && primitiveSymbol.kind === "Struct") {
+          decl = primitiveSymbol.declaration as AST.StructDecl;
         }
       }
     }

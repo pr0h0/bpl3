@@ -1455,6 +1455,27 @@ describe("TypeChecker", () => {
     expect(directStructBranchSource).not.toContain(".members.filter(");
   });
 
+  it("resolves member declarations from scope before primitive wrapper fallback", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("public resolveMemberWithContext");
+    const methodEnd = source.indexOf("  public isCastAllowed", methodStart);
+    const methodSource = source.slice(methodStart, methodEnd);
+    const scopeLookup = methodSource.indexOf(
+      "const symbol = this.currentScope.resolve(baseType.name);",
+    );
+    const primitiveFallback = methodSource.indexOf(
+      "const structName = PRIMITIVE_STRUCT_MAP[baseType.name]!;",
+    );
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(methodEnd).toBeGreaterThan(methodStart);
+    expect(scopeLookup).toBeGreaterThanOrEqual(0);
+    expect(primitiveFallback).toBeGreaterThan(scopeLookup);
+  });
+
   it("skips primitive wrapper classification for known struct members", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/CallChecker.ts"),
