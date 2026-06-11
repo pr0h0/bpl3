@@ -89,6 +89,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedBasicTypeParsing(optimized);
   optimized = optimizeGeneratedGenericParamListDispatch(optimized);
   optimized = optimizeGeneratedPostfixTailScanning(optimized);
+  optimized = optimizeGeneratedPostfixTailAfterTriviaMember(optimized);
   optimized = optimizeGeneratedPostfixParsing(optimized);
   optimized = optimizeGeneratedStructLiteralSuccessCaching(optimized);
   optimized = optimizeGeneratedExpressionOperatorScanning(optimized);
@@ -1032,6 +1033,48 @@ function optimizeGeneratedPostfixTailScanning(parserSource: string): string {
   return parserSource
     .replace(actionDefinition, "")
     .replace(postfixTailPattern, replacement);
+}
+
+function optimizeGeneratedPostfixTailAfterTriviaMember(
+  parserSource: string,
+): string {
+  const helperPattern =
+    /(  function peg\$parsePostfixTailAfterTrivia\(\) \{\n    let [^;]+;\n\n)/;
+  const helperMatch = parserSource.match(helperPattern);
+  const helperHeader = helperMatch?.[1];
+  const memberActionMatch = parserSource.match(
+    /  function (peg\$f\d+)\(prop\) \{\n    return \{ type: "member", property: prop \};\n  \}/,
+  );
+  const memberActionName = memberActionMatch?.[1];
+
+  if (!helperHeader || !memberActionName) {
+    throw new Error(
+      "Generated Peggy parser postfix-tail member shape changed; update the BPL parser postfix-tail member optimizer.",
+    );
+  }
+
+  const fastPath = [
+    helperHeader.trimEnd(),
+    "    const memberStart = peg$currPos;",
+    "    if (!peg$collectExpected && input.charCodeAt(memberStart) === 46) {",
+    "      peg$currPos++;",
+    "      peg$parse_();",
+    "      const memberProperty = peg$parseIdentifier();",
+    "      if (memberProperty !== peg$FAILED) {",
+    "        const memberEnd = peg$currPos;",
+    "        peg$parse_();",
+    "        if (input.charCodeAt(peg$currPos) !== 123) {",
+    "          peg$currPos = memberEnd;",
+    "          peg$savedPos = memberStart;",
+    `          return ${memberActionName}(memberProperty);`,
+    "        }",
+    "      }",
+    "      peg$currPos = memberStart;",
+    "    }",
+    "",
+  ].join("\n");
+
+  return parserSource.replace(helperPattern, fastPath);
 }
 
 function optimizeGeneratedPostfixParsing(parserSource: string): string {

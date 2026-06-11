@@ -1389,8 +1389,14 @@ describe("Parser", () => {
     const postfixTailHelper = generatedSource.match(
       /function peg\$parsePostfixTail\(\)[\s\S]*?\n  \}/,
     )?.[0];
+    const postfixTailAfterTriviaHelper = generatedSource.match(
+      /function peg\$parsePostfixTailAfterTrivia\(\)[\s\S]*?\n  \}/,
+    )?.[0];
 
     expect(generatorSource).toContain("optimizeGeneratedPostfixTailScanning");
+    expect(generatorSource).toContain(
+      "optimizeGeneratedPostfixTailAfterTriviaMember",
+    );
     expect(postfixTailHelper).toContain(
       "const nextCode = input.charCodeAt(peg$currPos)",
     );
@@ -1406,6 +1412,23 @@ describe("Parser", () => {
     expect(postfixTailHelper).toContain("return s2");
     expect(postfixTailHelper).not.toMatch(/peg\$f\d+\(s2\)/);
     expect(postfixTailHelper).toContain("peg$currPos = s0");
+    expect(postfixTailAfterTriviaHelper).toContain(
+      "const memberStart = peg$currPos",
+    );
+    expect(postfixTailAfterTriviaHelper).toContain(
+      "!peg$collectExpected && input.charCodeAt(memberStart) === 46",
+    );
+    expect(postfixTailAfterTriviaHelper).toContain(
+      "const memberProperty = peg$parseIdentifier()",
+    );
+    expect(postfixTailAfterTriviaHelper).toContain(
+      "const memberEnd = peg$currPos",
+    );
+    expect(postfixTailAfterTriviaHelper).toContain(
+      "input.charCodeAt(peg$currPos) !== 123",
+    );
+    expect(postfixTailAfterTriviaHelper).toContain("return peg$f120(memberProperty)");
+    expect(postfixTailAfterTriviaHelper).toContain("peg$currPos = memberStart");
     expect(generatedSource).not.toContain(
       "tail.startPos = peg$savedPos;",
     );

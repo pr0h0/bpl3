@@ -7087,7 +7087,22 @@ function peg$parse(input, options) {
 
   function peg$parsePostfixTailAfterTrivia() {
     let s0, s1, s2, s3, s4, s5, s6, s7, s8, s9;
-
+    const memberStart = peg$currPos;
+    if (!peg$collectExpected && input.charCodeAt(memberStart) === 46) {
+      peg$currPos++;
+      peg$parse_();
+      const memberProperty = peg$parseIdentifier();
+      if (memberProperty !== peg$FAILED) {
+        const memberEnd = peg$currPos;
+        peg$parse_();
+        if (input.charCodeAt(peg$currPos) !== 123) {
+          peg$currPos = memberEnd;
+          peg$savedPos = memberStart;
+          return peg$f120(memberProperty);
+        }
+      }
+      peg$currPos = memberStart;
+    }
     s0 = peg$currPos;
     if (input.charCodeAt(peg$currPos) === 60) {
       s1 = peg$c60;
