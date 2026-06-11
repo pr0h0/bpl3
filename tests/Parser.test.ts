@@ -1398,7 +1398,16 @@ describe("Parser", () => {
       "optimizeGeneratedPostfixTailAfterTriviaMember",
     );
     expect(postfixTailHelper).toContain(
-      "const nextCode = input.charCodeAt(peg$currPos)",
+      "let nextCode = input.charCodeAt(peg$currPos)",
+    );
+    expect(postfixTailHelper).toContain("case 32:");
+    expect(postfixTailHelper).toContain("case 9:");
+    expect(postfixTailHelper).toContain("case 10:");
+    expect(postfixTailHelper).toContain("case 13:");
+    expect(postfixTailHelper).toContain("case 35:");
+    expect(postfixTailHelper).toContain("case 47:");
+    expect(postfixTailHelper).toContain(
+      "peg$parse_();\n        nextCode = input.charCodeAt(peg$currPos);",
     );
     expect(postfixTailHelper).toContain("case 60:");
     expect(postfixTailHelper).toContain("case 40:");
