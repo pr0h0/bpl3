@@ -214,6 +214,28 @@ describe("TypeUtils", () => {
     expect(bigintParse).toBeGreaterThan(decimalGuard);
   });
 
+  it("returns non-number literals before checking unary constants", () => {
+    const implementation = methodSource(
+      "getIntegerConstantValue",
+      "  /**\n   * Check if an integer value fits",
+    );
+    const literalBranch = implementation.indexOf(
+      'if (expr.kind === "Literal")',
+    );
+    const nonNumberReturn = implementation.indexOf(
+      'if (expr.type !== "number") return undefined',
+      literalBranch,
+    );
+    const unaryBranch = implementation.indexOf(
+      'if (expr.kind === "Unary"',
+      nonNumberReturn,
+    );
+
+    expect(literalBranch).toBeGreaterThanOrEqual(0);
+    expect(nonNumberReturn).toBeGreaterThan(literalBranch);
+    expect(unaryBranch).toBeGreaterThan(nonNumberReturn);
+  });
+
   it("gets integer widths without alias table probes", () => {
     for (const [name, bits] of [
       ["bool", 1],

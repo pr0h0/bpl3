@@ -319,11 +319,9 @@ export class TypeUtils {
    * Get the integer constant value from an expression if it's a constant
    */
   static getIntegerConstantValue(expr: AST.Expression): bigint | undefined {
-    if (
-      expr.kind === "Literal" &&
-      (expr as AST.LiteralExpr).type === "number"
-    ) {
-      const raw = (expr as AST.LiteralExpr).raw;
+    if (expr.kind === "Literal") {
+      if (expr.type !== "number") return undefined;
+      const raw = expr.raw;
       if (raw.indexOf(".") !== -1) return undefined;
       try {
         return BigInt(raw);
