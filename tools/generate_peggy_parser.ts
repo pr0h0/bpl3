@@ -89,6 +89,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedFrameKeywordParsing(optimized);
   optimized = optimizeGeneratedQualifiedIdentifierScanning(optimized);
   optimized = optimizeGeneratedBasicTypeParsing(optimized);
+  optimized = optimizeGeneratedParenthesizedTypeDispatch(optimized);
   optimized = optimizeGeneratedGenericParamListDispatch(optimized);
   optimized = optimizeGeneratedPostfixTailScanning(optimized);
   optimized = optimizeGeneratedPostfixTailAfterTriviaMember(optimized);
@@ -870,6 +871,43 @@ function optimizeGeneratedBasicTypeParsing(parserSource: string): string {
   ].join("\n");
 
   return parserSource.replace(basicTypePattern, replacement);
+}
+
+function optimizeGeneratedParenthesizedTypeDispatch(
+  parserSource: string,
+): string {
+  const baseTypePattern =
+    /  function peg\$parseBaseType\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseParenthesizedType\(\)/;
+  const match = parserSource.match(baseTypePattern);
+  const parenthesizedFallback = [
+    "        s0 = peg$parseTupleType();",
+    "        if (s0 === peg$FAILED) {",
+    "          s0 = peg$parseParenthesizedType();",
+    "          if (s0 === peg$FAILED) {",
+    "            s0 = peg$parseBasicType();",
+    "          }",
+    "        }",
+  ].join("\n");
+
+  if (!match || !match[1]!.includes(parenthesizedFallback)) {
+    throw new Error(
+      "Generated Peggy parser BaseType fallback shape changed; update the parenthesized-type dispatch optimizer.",
+    );
+  }
+
+  const replacement = parenthesizedFallback.replace(
+    "          s0 = peg$parseParenthesizedType();",
+    [
+      "          s0 = !peg$collectExpected && input.charCodeAt(peg$currPos) !== 40",
+      "            ? peg$FAILED",
+      "            : peg$parseParenthesizedType();",
+    ].join("\n"),
+  );
+
+  return parserSource.replace(
+    baseTypePattern,
+    match[0].replace(parenthesizedFallback, replacement),
+  );
 }
 
 function optimizeGeneratedGenericParamListDispatch(

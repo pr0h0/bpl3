@@ -2786,6 +2786,41 @@ describe("Parser", () => {
     ).not.toThrow();
   });
 
+  it("gates generated parenthesized-type fallback by its opening delimiter", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const baseTypeHelper = generatedSource.match(
+      /function peg\$parseBaseType\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedParenthesizedTypeDispatch",
+    );
+    expect(baseTypeHelper).toContain(
+      "!peg$collectExpected && input.charCodeAt(peg$currPos) !== 40",
+    );
+    expect(baseTypeHelper).toContain(": peg$parseParenthesizedType();");
+
+    expect(() =>
+      new Parser(
+        "frame main() { local pointerRows: (*int)[10]; }",
+        "parenthesized-type-dispatch.bpl",
+      ).parse(),
+    ).not.toThrow();
+  });
+
   it("keeps generated expression-operator parsing on direct scanner fast paths", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

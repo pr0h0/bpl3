@@ -10606,7 +10606,9 @@ function peg$parse(input, options) {
       if (s0 === peg$FAILED) {
         s0 = peg$parseTupleType();
         if (s0 === peg$FAILED) {
-          s0 = peg$parseParenthesizedType();
+          s0 = !peg$collectExpected && input.charCodeAt(peg$currPos) !== 40
+            ? peg$FAILED
+            : peg$parseParenthesizedType();
           if (s0 === peg$FAILED) {
             s0 = peg$parseBasicType();
           }
