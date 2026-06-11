@@ -2412,6 +2412,37 @@ describe("Parser", () => {
     expect(body.statements).toHaveLength(2);
   });
 
+  it("guards generated const keyword failures by first character", () => {
+    const generatorSource = readTextFile(
+      join(process.cwd(), "tools", "generate_peggy_parser.ts"),
+      "utf8",
+    );
+    const generatedSource = readTextFile(
+      join(
+        process.cwd(),
+        "compiler",
+        "frontend",
+        "generated",
+        "BplParser.js",
+      ),
+      "utf8",
+    );
+    const constKeywordHelper = generatedSource.match(
+      /function peg\$parseK_const\(\)[\s\S]*?\n  }/,
+    )?.[0];
+
+    expect(generatorSource).toContain(
+      "optimizeGeneratedConstKeywordFailureGuard",
+    );
+    expect(constKeywordHelper).toContain(
+      "!peg$collectExpected && input.charCodeAt(peg$currPos) !== 99",
+    );
+    const guard = constKeywordHelper?.indexOf("!peg$collectExpected");
+    const literalMatch = constKeywordHelper?.indexOf("input.startsWith");
+    expect(guard).toBeGreaterThanOrEqual(0);
+    expect(literalMatch).toBeGreaterThan(guard!);
+  });
+
   it("caches generated variable-declaration scope keyword retries", () => {
     const generatorSource = readTextFile(
       join(process.cwd(), "tools", "generate_peggy_parser.ts"),

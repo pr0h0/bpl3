@@ -83,6 +83,7 @@ export function optimizeGeneratedParserSource(parserSource: string): string {
   optimized = optimizeGeneratedIdentifierScanning(optimized);
   optimized = optimizeGeneratedIdentifierExpressionAction(optimized);
   optimized = optimizeGeneratedBoolLiteralFailureGuard(optimized);
+  optimized = optimizeGeneratedConstKeywordFailureGuard(optimized);
   optimized = optimizeGeneratedIdBoundary(optimized);
   optimized = optimizeGeneratedFrameKeywordParsing(optimized);
   optimized = optimizeGeneratedQualifiedIdentifierScanning(optimized);
@@ -1750,6 +1751,32 @@ function optimizeGeneratedBoolLiteralFailureGuard(
   ].join("\n");
 
   return parserSource.replace(boolLiteralPattern, replacement);
+}
+
+function optimizeGeneratedConstKeywordFailureGuard(
+  parserSource: string,
+): string {
+  const constKeywordPattern =
+    /  function peg\$parseK_const\(\) \{\n(    let [^\n]+;\n)/;
+  const match = parserSource.match(constKeywordPattern);
+
+  if (!match) {
+    throw new Error(
+      "Generated Peggy parser K_const helper shape changed; update the BPL const-keyword failure optimizer.",
+    );
+  }
+
+  const replacement = [
+    "  function peg$parseK_const() {",
+    match[1]!.trimEnd(),
+    "",
+    "    if (!peg$collectExpected && input.charCodeAt(peg$currPos) !== 99) {",
+    "      return peg$FAILED;",
+    "    }",
+    "",
+  ].join("\n");
+
+  return parserSource.replace(constKeywordPattern, replacement);
 }
 
 function optimizeGeneratedFunctionDeclarationFailureGuard(

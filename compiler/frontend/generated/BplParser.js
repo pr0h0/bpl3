@@ -11307,6 +11307,10 @@ function peg$parse(input, options) {
   function peg$parseK_const() {
     let s0, s1, s2;
 
+    if (!peg$collectExpected && input.charCodeAt(peg$currPos) !== 99) {
+      return peg$FAILED;
+    }
+
     s0 = peg$currPos;
     if (input.startsWith(peg$c74, peg$currPos)) {
       s1 = peg$c74;
