@@ -552,6 +552,31 @@ describe("TypeChecker", () => {
     expect(resolveCall).toBeGreaterThan(directResolvedType);
   });
 
+  it("reuses cached mutable identifier types during assignment checks", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
+      "utf8",
+    );
+    const methodStart = source.indexOf("private checkIsMutable");
+    const identifierBranch = source.indexOf(
+      'if (expr.kind === "Identifier")',
+      methodStart,
+    );
+    const mutableTypeGuard = source.indexOf(
+      'expr.resolvedType?.kind === "BasicType"',
+      identifierBranch,
+    );
+    const symbolLookup = source.indexOf(
+      "this.currentScope.resolve(id.name)",
+      identifierBranch,
+    );
+
+    expect(methodStart).toBeGreaterThanOrEqual(0);
+    expect(identifierBranch).toBeGreaterThan(methodStart);
+    expect(mutableTypeGuard).toBeGreaterThan(identifierBranch);
+    expect(mutableTypeGuard).toBeLessThan(symbolLookup);
+  });
+
   it("reuses resolved initializer types during variable declaration checks", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/StatementChecker.ts"),

@@ -1730,6 +1730,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   private checkIsMutable(expr: AST.Expression): void {
     if (expr.kind === "Identifier") {
+      if (
+        expr.resolvedType?.kind === "BasicType" &&
+        expr.resolvedType.isConst !== true
+      ) {
+        return;
+      }
       const id = expr as AST.IdentifierExpr;
       const symbol = this.currentScope.resolve(id.name);
       if (symbol && symbol.isConst) {
