@@ -183,14 +183,17 @@ function areTypeNodesStructurallyEqual(
     return (
       left.name === right.name &&
       left.pointerDepth === right.pointerDepth &&
-      areArrayDimensionsExactlyEqual(
-        left.arrayDimensions,
-        right.arrayDimensions,
-      ) &&
-      left.genericArgs.length === right.genericArgs.length &&
-      left.genericArgs.every((arg, index) =>
-        areTypeNodesStructurallyEqual(arg, right.genericArgs[index]!),
-      )
+      ((left.arrayDimensions.length === 0 &&
+        right.arrayDimensions.length === 0) ||
+        areArrayDimensionsExactlyEqual(
+          left.arrayDimensions,
+          right.arrayDimensions,
+        )) &&
+      ((left.genericArgs.length === 0 && right.genericArgs.length === 0) ||
+        (left.genericArgs.length === right.genericArgs.length &&
+          left.genericArgs.every((arg, index) =>
+            areTypeNodesStructurallyEqual(arg, right.genericArgs[index]!),
+          )))
     );
   }
 

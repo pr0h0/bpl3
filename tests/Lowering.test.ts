@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import * as AST from "../compiler/common/AST";
 import {
@@ -63,6 +65,41 @@ describe("Incremental implicit conversion lowering", () => {
     const conversion = lowerImplicitConversion(basic("int"), basic("int"));
 
     expect(conversion.kind).toBe("identity");
+  });
+
+  it("short circuits empty structural type lists before helper traversal", () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "compiler/middleend/lowering/ImplicitConversions.ts",
+      ),
+      "utf8",
+    );
+    const functionStart = source.indexOf(
+      "function areTypeNodesStructurallyEqual",
+    );
+    const functionEnd = source.indexOf(
+      "function areCallableTypesStructurallyEqual",
+      functionStart,
+    );
+    const functionSource = source.slice(functionStart, functionEnd);
+    const emptyDimensions = functionSource.indexOf(
+      "left.arrayDimensions.length === 0",
+    );
+    const dimensionHelper = functionSource.indexOf(
+      "areArrayDimensionsExactlyEqual(",
+    );
+    const emptyGenerics = functionSource.indexOf(
+      "left.genericArgs.length === 0",
+    );
+    const genericTraversal = functionSource.indexOf("left.genericArgs.every(");
+
+    expect(functionStart).toBeGreaterThanOrEqual(0);
+    expect(functionEnd).toBeGreaterThan(functionStart);
+    expect(emptyDimensions).toBeGreaterThanOrEqual(0);
+    expect(dimensionHelper).toBeGreaterThan(emptyDimensions);
+    expect(emptyGenerics).toBeGreaterThan(dimensionHelper);
+    expect(genericTraversal).toBeGreaterThan(emptyGenerics);
   });
 
   it("BUG-141: classifies scalar integer aliases as integer-compatible conversions", () => {
