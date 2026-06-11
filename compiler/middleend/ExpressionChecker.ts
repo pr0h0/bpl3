@@ -127,6 +127,23 @@ function canHaveOperatorOverload(type: AST.TypeNode): boolean {
   return !isOperatorOverloadFreeBasicTypeName(type.name);
 }
 
+function isNullptrType(type: AST.TypeNode): boolean {
+  return (
+    type.kind === "BasicType" &&
+    (type.name === "nullptr" || type.name === "null")
+  );
+}
+
+function isPointerType(type: AST.TypeNode): boolean {
+  return type.kind === "BasicType" && type.pointerDepth > 0;
+}
+
+function isBoolType(type: AST.TypeNode): boolean {
+  return (
+    type.kind === "BasicType" && (type.name === "bool" || type.name === "i1")
+  );
+}
+
 /**
  * Check a literal expression and return its type
  */
@@ -526,16 +543,6 @@ export function checkBinary(
 
   const op = expr.operator.type;
 
-  // Helper to check if a type is nullptr
-  const isNullptrType = (t: AST.TypeNode) =>
-    t.kind === "BasicType" &&
-    ((t as AST.BasicTypeNode).name === "nullptr" ||
-      (t as AST.BasicTypeNode).name === "null");
-
-  // Helper to check if a type is a pointer
-  const isPointerType = (t: AST.TypeNode) =>
-    t.kind === "BasicType" && (t as AST.BasicTypeNode).pointerDepth > 0;
-
   // Skip operator overloads for ALL pointer comparisons (use direct pointer identity comparison)
   // When comparing pointers, we always want pointer identity, not dereferenced value equality
   // Users should dereference explicitly if they want value comparison: *ptr1 == *ptr2
@@ -690,10 +697,7 @@ export function checkBinary(
 
   // Boolean operators
   if (op === TokenType.AndAnd || op === TokenType.OrOr) {
-    const isBool = (t: AST.TypeNode) =>
-      t.kind === "BasicType" && (t.name === "bool" || t.name === "i1");
-
-    if (!isBool(leftType) || !isBool(rightType)) {
+    if (!isBoolType(leftType) || !isBoolType(rightType)) {
       throw new CompilerError(
         `Logical operators require boolean operands, got ${this.typeToString(
           leftType,

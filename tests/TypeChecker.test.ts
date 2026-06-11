@@ -659,6 +659,31 @@ describe("TypeChecker", () => {
     expect(methodSource).not.toContain("].includes(op)");
   });
 
+  it("keeps binary type predicates off per-call closure allocation", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
+      "utf8",
+    );
+    const binaryStart = source.indexOf("export function checkBinary");
+    const binaryEnd = source.indexOf("export function checkUnary", binaryStart);
+    const binarySource = source.slice(binaryStart, binaryEnd);
+    const nullptrHelper = source.indexOf("function isNullptrType");
+    const pointerHelper = source.indexOf("function isPointerType");
+    const boolHelper = source.indexOf("function isBoolType");
+
+    expect(binaryStart).toBeGreaterThanOrEqual(0);
+    expect(binaryEnd).toBeGreaterThan(binaryStart);
+    expect(nullptrHelper).toBeGreaterThanOrEqual(0);
+    expect(pointerHelper).toBeGreaterThanOrEqual(0);
+    expect(boolHelper).toBeGreaterThanOrEqual(0);
+    expect(nullptrHelper).toBeLessThan(binaryStart);
+    expect(pointerHelper).toBeLessThan(binaryStart);
+    expect(boolHelper).toBeLessThan(binaryStart);
+    expect(binarySource).not.toContain("const isNullptrType");
+    expect(binarySource).not.toContain("const isPointerType");
+    expect(binarySource).not.toContain("const isBool");
+  });
+
   it("keeps small struct literal missing-field checks off Set allocation", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/ExpressionChecker.ts"),
