@@ -85,6 +85,13 @@ export function lowerImplicitConversion(
     return { kind: "integer-compatible", targetType, sourceType };
   }
 
+  if (
+    targetType.arrayDimensions.length === 0 &&
+    sourceType.arrayDimensions.length === 0
+  ) {
+    return { kind: "unsupported", targetType, sourceType };
+  }
+
   if (!sameBasicElementType(targetType, sourceType)) {
     return { kind: "unsupported", targetType, sourceType };
   }

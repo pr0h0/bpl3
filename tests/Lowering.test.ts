@@ -117,6 +117,48 @@ describe("Incremental implicit conversion lowering", () => {
     expect(conversion.kind).toBe("unsupported");
   });
 
+  it("rejects no-array shapes before element and array-conversion helpers", () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "compiler/middleend/lowering/ImplicitConversions.ts",
+      ),
+      "utf8",
+    );
+    const functionStart = source.indexOf(
+      "export function lowerImplicitConversion",
+    );
+    const functionEnd = source.indexOf(
+      "function sameBasicElementType",
+      functionStart,
+    );
+    const functionSource = source.slice(functionStart, functionEnd);
+    const integerCheck = functionSource.indexOf(
+      "isIntegerScalar(targetType) && isIntegerScalar(sourceType)",
+    );
+    const noArrayGuard = functionSource.indexOf(
+      "targetType.arrayDimensions.length === 0 &&",
+    );
+    const elementCheck = functionSource.indexOf(
+      "sameBasicElementType(targetType, sourceType)",
+    );
+    const arrayToPointerCheck = functionSource.indexOf(
+      "isArrayToPointerDecay(targetType, sourceType)",
+    );
+
+    expect(
+      lowerImplicitConversion(
+        basic("Widget", { pointerDepth: 2 }),
+        basic("Widget", { pointerDepth: 1 }),
+      ).kind,
+    ).toBe("unsupported");
+    expect(functionStart).toBeGreaterThanOrEqual(0);
+    expect(functionEnd).toBeGreaterThan(functionStart);
+    expect(noArrayGuard).toBeGreaterThan(integerCheck);
+    expect(noArrayGuard).toBeLessThan(elementCheck);
+    expect(noArrayGuard).toBeLessThan(arrayToPointerCheck);
+  });
+
   it("classifies fixed array to slice as an array-to-slice conversion", () => {
     const conversion = lowerImplicitConversion(
       basic("int", { arrayDimensions: [null] }),
