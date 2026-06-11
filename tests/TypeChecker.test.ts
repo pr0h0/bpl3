@@ -1593,6 +1593,22 @@ describe("TypeChecker", () => {
     );
   });
 
+  it("checks call arity before the rare variadic fallback", () => {
+    const source = readTextFile(
+      join(process.cwd(), "compiler/middleend/CallChecker.ts"),
+      "utf8",
+    );
+    const helperStart = source.indexOf("function validateFunctionCall");
+    const helperEnd = source.indexOf("function inferGenericArgs", helperStart);
+    const helperSource = source.slice(helperStart, helperEnd);
+
+    expect(helperStart).toBeGreaterThanOrEqual(0);
+    expect(helperEnd).toBeGreaterThan(helperStart);
+    expect(helperSource).toContain(
+      "funcType.paramTypes.length !== expr.args.length &&\n    !funcType.isVariadic",
+    );
+  });
+
   it("keeps direct struct field resolution off empty generic maps", () => {
     const source = readTextFile(
       join(process.cwd(), "compiler/middleend/TypeCheckerBase.ts"),

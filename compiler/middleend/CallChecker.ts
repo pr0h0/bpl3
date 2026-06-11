@@ -593,7 +593,10 @@ function validateFunctionCall(
   funcType: AST.FunctionTypeNode | AST.LambdaTypeNode,
   argTypes: (AST.TypeNode | undefined)[],
 ): AST.TypeNode {
-  if (!funcType.isVariadic && funcType.paramTypes.length !== expr.args.length) {
+  if (
+    funcType.paramTypes.length !== expr.args.length &&
+    !funcType.isVariadic
+  ) {
     throw new CompilerError(
       `Expected ${funcType.paramTypes.length} arguments, got ${expr.args.length}`,
       "Argument count mismatch.",
