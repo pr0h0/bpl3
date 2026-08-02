@@ -2355,9 +2355,19 @@ describe("PackageManager", () => {
         path.join(packageDir, "alias.bpl"),
       );
 
-      spawnSync("tar", ["-czf", tarballPath, "-C", sourceDir, "package"], {
-        stdio: "pipe",
-      });
+      spawnSync(
+        "tar",
+        [
+          "-czf",
+          tarballPath,
+          "-C",
+          sourceDir,
+          "package/bpl.json",
+          "package/index.bpl",
+          "package/alias.bpl",
+        ],
+        { stdio: "pipe" },
+      );
 
       expect(fs.existsSync(tarballPath)).toBe(true);
 
