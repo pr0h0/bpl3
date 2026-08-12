@@ -6764,6 +6764,46 @@ describe("CLI JSON parseability", () => {
     );
   });
 
+  test("returns virtual-source LLVM inline without leaving cwd artifacts", () => {
+    const source = "frame main() ret int { return 0; }";
+
+    for (const input of [
+      { args: ["--eval", source, "--json"], stdin: undefined },
+      { args: ["--stdin", "--json"], stdin: source },
+    ]) {
+      const cwd = fs.mkdtempSync(
+        path.join(os.tmpdir(), "bpl-virtual-json-output-"),
+      );
+
+      try {
+        const result = runCli(input.args, { cwd, input: input.stdin });
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+
+        const report = parseJsonObjectStdout<{
+          schemaVersion: number;
+          check: string;
+          success: boolean;
+          file: string;
+          output: { inlineLlvm: string; llvm?: string; executable?: string };
+        }>(result);
+        expect(report).toMatchObject({
+          schemaVersion: 1,
+          check: "build",
+          success: true,
+          output: {
+            inlineLlvm: expect.stringContaining("define i32 @main("),
+          },
+        });
+        expect(report.output.llvm).toBeUndefined();
+        expect(report.output.executable).toBeUndefined();
+        expect(fs.readdirSync(cwd)).toEqual([]);
+      } finally {
+        fs.rmSync(cwd, { recursive: true, force: true });
+      }
+    }
+  });
+
   test("keeps JSON-mode build validation failures parseable on stdout", () => {
     const sourceDir = path.join(tempDir, "source-dir");
     fs.mkdirSync(sourceDir);

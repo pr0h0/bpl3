@@ -2931,6 +2931,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Virtual-Source Artifact Cleanup** - `bpl --eval` and `bpl --stdin` no
+  longer create literal `<eval>`, `<eval>.ll`, `<stdin>`, or `<stdin>.ll`
+  artifacts in the current working directory when `-o` is omitted. The
+  compiler validates generated IR through a private temporary build directory,
+  prints LLVM to stdout for human output, reports it as `output.inlineLlvm` in
+  JSON mode, and removes the temporary tree before returning. Explicit `-o`
+  paths retain the existing persistent artifact behavior. Regression coverage
+  is in `tests/CLI.test.ts` and `tests/CLIJsonParseability.test.ts`.
 - **Tree-Shaking Traversal for Nested Calls** - `walkAST` now descends through
   plain syntactic wrapper objects such as struct and enum-struct literal field
   entries while still skipping semantic overload metadata and guarding against

@@ -4,6 +4,7 @@
  */
 
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import {
   Compiler,
@@ -19,6 +20,7 @@ import {
 import { diagnosticFormatter } from "./DiagnosticFormatter";
 import {
   compileBinaryAndRun,
+  compileToBinary,
   type CompileBinaryAndRunResult,
   getExecutableOutputPath,
   isWasmTarget,
@@ -53,6 +55,7 @@ type CliOptimizationLevel = "0" | "1" | "2" | "3";
 type CliEmitType = NonNullable<CompileOptions["emit"]>;
 type BuildJsonOutput = {
   llvm?: string;
+  inlineLlvm?: string;
   executable?: string;
 };
 
@@ -943,6 +946,11 @@ function writeLlvmOutputAndMaybeBuild(
   ir: string,
   programArgs?: string[],
 ): void {
+  if (isVirtualSourceLabel(filePath) && !options.output) {
+    writeVirtualLlvmOutputAndMaybeBuild(filePath, options, ir, programArgs);
+    return;
+  }
+
   const outputPath = getLlvmOutputPath(filePath, options);
   assertWritableBuildOutputPath(outputPath);
 
@@ -969,6 +977,55 @@ function writeLlvmOutputAndMaybeBuild(
       llvm: outputPath,
       executable: binaryResult?.compile.executablePath,
     });
+  }
+}
+
+function isVirtualSourceLabel(filePath: string): boolean {
+  return filePath === "<eval>" || filePath === "<stdin>";
+}
+
+function writeVirtualLlvmOutputAndMaybeBuild(
+  filePath: string,
+  options: CompileOptions,
+  ir: string,
+  programArgs?: string[],
+): void {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-virtual-build-"));
+  const outputPath = path.join(
+    tempDir,
+    filePath === "<stdin>" ? "stdin.ll" : "eval.ll",
+  );
+
+  try {
+    writeFileAtomically(outputPath, ir);
+
+    if (shouldCompileExecutable(options)) {
+      const compileResult = compileToBinary(outputPath, options);
+      if (!compileResult.success) {
+        throw new Error(compileResult.error || "Compilation failed");
+      }
+
+      if (options.run && compileResult.executablePath) {
+        const runResult = runExecutable(
+          compileResult.executablePath,
+          programArgs || [],
+          options.verbose,
+        );
+        if (!runResult.success) {
+          throw new Error(
+            runResult.error || `Program exited with code ${runResult.exitCode}`,
+          );
+        }
+      }
+    }
+
+    if (shouldEmitBuildJsonReport(options)) {
+      emitBuildJsonSuccess(filePath, options, { inlineLlvm: ir });
+    } else {
+      console.log(ir);
+    }
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
   }
 }
 

@@ -282,6 +282,73 @@ describe("CLI Tests", () => {
     expect(result.stderr).toContain("llvm, ast, tokens, formatted");
   });
 
+  it("should emit virtual-source LLVM without leaving cwd artifacts", () => {
+    const source = "frame main() ret int { return 0; }";
+
+    for (const input of [
+      { args: ["--eval", source], stdin: undefined },
+      { args: ["--stdin"], stdin: source },
+    ]) {
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "bpl-virtual-llvm-output-"),
+      );
+
+      try {
+        const result = spawnSync("bun", [BPL_CLI, ...input.args], {
+          cwd: tempDir,
+          input: input.stdin,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        });
+
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(result.stdout).toContain("define i32 @main(");
+        expect(fs.readdirSync(tempDir)).toEqual([]);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it("should clean virtual-source temporary builds after backend failures", () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-virtual-fail-cwd-"));
+    const tempRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-virtual-fail-tmp-"),
+    );
+
+    try {
+      const result = spawnSync(
+        "bun",
+        [
+          BPL_CLI,
+          "--eval",
+          "frame main() ret int { return 0; }",
+          "--clang-flag=-fdefinitely-not-a-clang-flag",
+        ],
+        {
+          cwd,
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            NO_COLOR: "1",
+            TMPDIR: tempRoot,
+            TMP: tempRoot,
+            TEMP: tempRoot,
+          },
+        },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Failed to compile LLVM IR with clang");
+      expect(fs.readdirSync(cwd)).toEqual([]);
+      expect(fs.readdirSync(tempRoot)).toEqual([]);
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   it("should keep default no-input compile errors human-readable without JSON", () => {
     const result = runCLI([]);
 

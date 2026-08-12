@@ -436,7 +436,7 @@ part of a command's validation path use stdout with `success: false` or
 | --- | --- |
 | `bpl --version --json` | Version report with `schemaVersion`, `check: "version"`, `success: true`, and `version`. |
 | `bpl bindgen <header> --json` | Bindgen report with `schemaVersion`, `check: "bindgen"`, `success`, `header`, `outputPath`, and `generatedBytes`; stdout-mode success includes `bindings`, and output-file success writes the file while reporting its path. Validation failures return `success: false`, `error`, and stable `BPL_BINDGEN_*` `errorCode` values for header and output path failures. |
-| `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths; JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. Build validation failures such as no input files, invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, unsupported `--target`, input path, and output path errors are stdout-only JSON reports and do not leave failed LLVM or executable artifacts behind. Codegen diagnostics such as `--debug-ir-path` path-safety failures are promoted to top-level `errorCode` values while preserving the diagnostic object. No-input builds report `errorCode: "BPL_BUILD_NO_INPUTS"`. Unsupported targets report `errorCode: "BPL_BUILD_UNSUPPORTED_TARGET"`. |
+| `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths. Successful `--eval` and `--stdin` builds without `-o` report generated IR as `output.inlineLlvm` and leave no virtual-source artifacts in the working directory. JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. Build validation failures such as no input files, invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, unsupported `--target`, input path, and output path errors are stdout-only JSON reports and do not leave failed LLVM or executable artifacts behind. Codegen diagnostics such as `--debug-ir-path` path-safety failures are promoted to top-level `errorCode` values while preserving the diagnostic object. No-input builds report `errorCode: "BPL_BUILD_NO_INPUTS"`. Unsupported targets report `errorCode: "BPL_BUILD_UNSUPPORTED_TARGET"`. |
 | `bpl check --json` | Type-check report with `schemaVersion`, `check: "check"`, `success`, `totalFiles`, `errorCount`, `timeMs`, and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`. |
 | `bpl completion [shell] --json` | Completion report with `schemaVersion`, `check: "completion"`, `success`, `shell`, and `script`; unsupported shells return `success: false`, `shell`, `error`, and `errorCode: "BPL_COMPLETION_SHELL_UNSUPPORTED"` on stdout. |
 | `bpl docs <file> --json` | Documentation-generation report with `schemaVersion`, `check: "docs"`, `success`, `file`, `outputPath`, and `generatedBytes`; validation failures return `success: false`, `error`, and stable `BPL_DOCS_*` `errorCode` values for input and output path failures. The command always writes Markdown to `outputPath`, defaulting to `docs.md`. |
@@ -982,6 +982,12 @@ cat hello.bpl | bpl --stdin
 # Emit AST from eval
 bpl -e 'frame main() { }' --emit ast
 ```
+
+Virtual-source LLVM is printed to stdout when `-o` is omitted. The compiler
+still validates the generated IR through the configured backend, but removes
+its temporary LLVM and executable files before returning. Pass `-o <path>` to
+retain artifacts. With `--json`, inline IR is available at
+`output.inlineLlvm`.
 
 ## Development Mode
 

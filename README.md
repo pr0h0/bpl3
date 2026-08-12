@@ -263,7 +263,11 @@ You can compile snippets or piped input directly:
   cat examples/hello-world/main.bpl | bpl --stdin
   ```
 
-`--emit tokens|ast|formatted|llvm` works with both `-e` and `--stdin`; diagnostics show `<eval>`/`<stdin>` in locations.
+`--emit tokens|ast|formatted|llvm` works with both `-e` and `--stdin`;
+diagnostics show `<eval>`/`<stdin>` in locations. Without `-o`, LLVM output is
+printed to stdout after backend validation and no `<eval>` or `<stdin>` files
+are left in the working directory. Use `-o <path>` to keep LLVM and executable
+artifacts. JSON mode reports virtual-source IR as `output.inlineLlvm`.
 
 ### More Examples
 
