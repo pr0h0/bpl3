@@ -139,6 +139,36 @@ describe("BPL diagnostics", () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  it("restores BPL_HOME after per-document diagnostics", () => {
+    const tempBplHome = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-lsp-bpl-home-"),
+    );
+    const originalBplHome = process.env.BPL_HOME;
+
+    try {
+      fs.mkdirSync(path.join(tempBplHome, "lib"));
+      fs.writeFileSync(path.join(tempBplHome, "lib", "string.bpl"), "");
+
+      delete process.env.BPL_HOME;
+      withTempDocument("frame main() ret int { return 0; }\n", (document) => {
+        const provider = new DiagnosticsProvider(new SymbolIndex(repoRoot));
+        provider.validate(document, {
+          bplHome: tempBplHome,
+          maxNumberOfProblems: 1000,
+        });
+      });
+
+      expect(process.env.BPL_HOME).toBeUndefined();
+    } finally {
+      if (originalBplHome === undefined) {
+        delete process.env.BPL_HOME;
+      } else {
+        process.env.BPL_HOME = originalBplHome;
+      }
+      fs.rmSync(tempBplHome, { recursive: true, force: true });
+    }
+  });
 });
 
 function withTempDocument(

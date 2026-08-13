@@ -39,58 +39,67 @@ export class DiagnosticsProvider {
     const text = textDocument.getText();
     const filePath = fileURLToPath(textDocument.uri);
     const currentDir = path.dirname(filePath);
-
-    if (settings.bplHome) {
-      process.env.BPL_HOME = settings.bplHome;
-      this.symbolIndex.setBplHome(settings.bplHome);
-    } else {
-      const libDir = findWorkspaceLibDir(currentDir);
-      if (libDir) {
-        process.env.BPL_HOME = path.dirname(libDir);
-        this.symbolIndex.setBplHome(path.dirname(libDir));
-      }
-    }
+    const originalBplHome = process.env.BPL_HOME;
 
     try {
-      this.symbolIndex.indexFile(filePath, true);
-    } catch (error) {
-      this.onIndexError?.(filePath, error);
-    }
-
-    const diagnostics: Diagnostic[] = [];
-    let analysis: AnalysisResult | undefined;
-
-    try {
-      const parser = new Parser(text, filePath);
-      const program: AST.Program = parser.parse();
-      const checker = new TypeChecker({
-        skipImportResolution: false,
-        collectAllErrors: true,
-      });
-
-      checker.checkProgram(program);
-      analysis = { program, checker };
-
-      for (const err of checker.getErrors()) {
-        diagnostics.push(compilerErrorToDiagnostic(err, textDocument));
-      }
-    } catch (error: any) {
-      if (error instanceof CompilerError) {
-        diagnostics.push(compilerErrorToDiagnostic(error, textDocument));
+      if (settings.bplHome) {
+        process.env.BPL_HOME = settings.bplHome;
+        this.symbolIndex.setBplHome(settings.bplHome);
       } else {
-        diagnostics.push({
-          severity: DiagnosticSeverity.Error,
-          range: Range.create(0, 0, 0, 1),
-          message: String(error?.message || error),
-          source: "bpl-lsp",
+        const libDir = findWorkspaceLibDir(currentDir);
+        if (libDir) {
+          process.env.BPL_HOME = path.dirname(libDir);
+          this.symbolIndex.setBplHome(path.dirname(libDir));
+        }
+      }
+
+      try {
+        this.symbolIndex.indexFile(filePath, true);
+      } catch (error) {
+        this.onIndexError?.(filePath, error);
+      }
+
+      const diagnostics: Diagnostic[] = [];
+      let analysis: AnalysisResult | undefined;
+
+      try {
+        const parser = new Parser(text, filePath);
+        const program: AST.Program = parser.parse();
+        const checker = new TypeChecker({
+          skipImportResolution: false,
+          collectAllErrors: true,
         });
+
+        checker.checkProgram(program);
+        analysis = { program, checker };
+
+        for (const err of checker.getErrors()) {
+          diagnostics.push(compilerErrorToDiagnostic(err, textDocument));
+        }
+      } catch (error: any) {
+        if (error instanceof CompilerError) {
+          diagnostics.push(compilerErrorToDiagnostic(error, textDocument));
+        } else {
+          diagnostics.push({
+            severity: DiagnosticSeverity.Error,
+            range: Range.create(0, 0, 0, 1),
+            message: String(error?.message || error),
+            source: "bpl-lsp",
+          });
+        }
+      }
+
+      return {
+        diagnostics: diagnostics.slice(0, settings.maxNumberOfProblems || 1000),
+        analysis,
+      };
+    } finally {
+      if (originalBplHome === undefined) {
+        delete process.env.BPL_HOME;
+      } else {
+        process.env.BPL_HOME = originalBplHome;
       }
     }
-
-    return {
-      diagnostics: diagnostics.slice(0, settings.maxNumberOfProblems || 1000),
-      analysis,
-    };
   }
 }
 
