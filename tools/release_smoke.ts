@@ -568,6 +568,11 @@ function runPackedPackageSmoke(): void {
       "lib/runtime_wasm.ll",
       "lib/runtime_wasm_host.ll",
       "lib/runtime_support.o",
+      "packages/bpl-db/bpl-db-0.1.0.tgz",
+      "packages/bpl-express/README.md",
+      "packages/bpl-express/bpl-express-0.1.0.tgz",
+      "packages/bpl-templ/README.md",
+      "packages/bpl-templ/bpl-templ-0.1.6.tgz",
       ...packageHelperFiles,
       ...packageHelperDependencyFiles,
     ]);
@@ -5651,6 +5656,7 @@ function assertPackedFileAllowlist(
     "examples/",
     "grammar/",
     "lib/",
+    "packages/",
   ];
   const forbiddenPrefixes = [
     ".github/",

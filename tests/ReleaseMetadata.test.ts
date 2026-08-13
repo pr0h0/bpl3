@@ -165,6 +165,7 @@ describe("Release metadata", () => {
         "examples",
         "grammar",
         "lib",
+        "packages",
         "README.md",
         "LICENSE",
       ]),
