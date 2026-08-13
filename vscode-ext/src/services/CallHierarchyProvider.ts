@@ -58,7 +58,7 @@ export class CallHierarchyProvider {
   async getIncomingCalls(
     item: CallHierarchyItem,
   ): Promise<CallHierarchyIncomingCall[]> {
-    const incomingCalls: CallHierarchyIncomingCall[] = [];
+    const incomingCalls = new Map<string, CallHierarchyIncomingCall>();
     const targetFuncName = item.name;
     const _targetUri = item.uri;
 
@@ -76,16 +76,22 @@ export class CallHierarchyProvider {
         const callerFunc = this.findContainingFunction(ast, call.node);
         if (callerFunc) {
           const caller = this.createCallHierarchyItem(callerFunc, filePath);
+          const key = this.callHierarchyItemKey(caller);
+          const existing = incomingCalls.get(key);
 
-          incomingCalls.push({
-            from: caller,
-            fromRanges: [call.range],
-          });
+          if (existing) {
+            existing.fromRanges.push(call.range);
+          } else {
+            incomingCalls.set(key, {
+              from: caller,
+              fromRanges: [call.range],
+            });
+          }
         }
       }
     }
 
-    return incomingCalls;
+    return [...incomingCalls.values()];
   }
 
   /**
@@ -270,6 +276,14 @@ export class CallHierarchyProvider {
             func.body.statements.forEach(visitStatement);
           }
           break;
+        case "StructDecl":
+          const struct = stmt as AST.StructDecl;
+          for (const member of struct.members) {
+            if (member.kind === "FunctionDecl") {
+              visitStatement(member);
+            }
+          }
+          break;
         case "Block":
           (stmt as AST.BlockStmt).statements.forEach(visitStatement);
           break;
@@ -289,6 +303,10 @@ export class CallHierarchyProvider {
           const ret = stmt as AST.ReturnStmt;
           if (ret.value) visitStatement(ret.value);
           break;
+        case "VariableDecl":
+          const varDecl = stmt as AST.VariableDecl;
+          if (varDecl.initializer) visitStatement(varDecl.initializer);
+          break;
         case "Binary":
           const binary = stmt as AST.BinaryExpr;
           visitStatement(binary.left);
@@ -298,6 +316,11 @@ export class CallHierarchyProvider {
           const call = stmt as AST.CallExpr;
           visitStatement(call.callee);
           call.args.forEach(visitStatement);
+          break;
+        case "Assignment":
+          const assign = stmt as AST.AssignmentExpr;
+          visitStatement(assign.assignee);
+          visitStatement(assign.value);
           break;
       }
     };
@@ -511,5 +534,15 @@ export class CallHierarchyProvider {
       r1.end.line === r2.end.line &&
       r1.end.character === r2.end.character
     );
+  }
+
+  private callHierarchyItemKey(item: CallHierarchyItem): string {
+    return [
+      item.uri,
+      item.selectionRange.start.line,
+      item.selectionRange.start.character,
+      item.selectionRange.end.line,
+      item.selectionRange.end.character,
+    ].join(":");
   }
 }

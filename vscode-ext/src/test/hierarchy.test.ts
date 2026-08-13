@@ -100,6 +100,76 @@ describe("Hierarchy Providers", () => {
     expect(outgoing.map((call) => call.to.name)).toEqual(["helper"]);
   });
 
+  it("groups repeated incoming calls from the same caller", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CallHierarchyProvider(astResolver, symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/call hierarchy incoming grouped.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "frame helper() ret int { return 1; }",
+        "frame main() ret int {",
+        "    local first: int = helper();",
+        "    return first + helper();",
+        "}",
+      ].join("\n"),
+    );
+
+    const helper = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 0, character: 7 },
+      },
+      doc,
+    )![0]!;
+
+    const incoming = await provider.getIncomingCalls(helper);
+
+    expect(incoming.map((call) => call.from.name)).toEqual(["main"]);
+    expect(incoming[0]?.fromRanges).toHaveLength(2);
+  });
+
+  it("finds incoming calls from methods", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CallHierarchyProvider(astResolver, symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/call hierarchy method incoming.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "frame helper() ret int { return 1; }",
+        "struct Runner {",
+        "    frame run(this: Runner) ret int {",
+        "        return helper();",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const helper = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 0, character: 7 },
+      },
+      doc,
+    )![0]!;
+
+    const incoming = await provider.getIncomingCalls(helper);
+
+    expect(incoming.map((call) => call.from.name)).toEqual(["run"]);
+  });
+
   it("prepares type hierarchy at LSP cursor positions", () => {
     const symbolIndex = new SymbolIndex();
     const astResolver = new ASTResolver(symbolIndex);
