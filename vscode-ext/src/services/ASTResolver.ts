@@ -216,12 +216,20 @@ export class ASTResolver {
   /**
    * Resolve the type of an AST node
    */
-  resolveType(node: AST.ASTNode, filePath: string): string | null {
+  resolveType(
+    node: AST.ASTNode,
+    filePath: string,
+    includePatternBindings = true,
+  ): string | null {
     debugLog(`[ASTResolver] Resolving type for node kind: ${node.kind}`);
 
     switch (node.kind) {
       case "Identifier":
-        return this.resolveIdentifierType(node as AST.IdentifierExpr, filePath);
+        return this.resolveIdentifierType(
+          node as AST.IdentifierExpr,
+          filePath,
+          includePatternBindings,
+        );
 
       case "Member":
         return this.resolveMemberAccessType(node as AST.MemberExpr, filePath);
@@ -253,6 +261,7 @@ export class ASTResolver {
   private resolveIdentifierType(
     node: AST.IdentifierExpr,
     filePath: string,
+    includePatternBindings = true,
   ): string | null {
     let ast = this.getCachedAST(filePath);
     if (!ast) {
@@ -277,6 +286,20 @@ export class ASTResolver {
       containingFunc = this.findContainingFunction(ast, node);
     }
     if (containingFunc) {
+      if (includePatternBindings) {
+        const patternBindingType = this.findPatternBindingType(
+          containingFunc,
+          name,
+          node,
+          filePath,
+          ast,
+        );
+        if (patternBindingType) {
+          debugLog(`[ASTResolver] Found pattern binding: ${name}`);
+          return patternBindingType;
+        }
+      }
+
       const localVar = this.findLocalVariable(containingFunc, name, node);
       if (localVar) {
         debugLog(`[ASTResolver] Found local variable: ${name}`);
@@ -711,6 +734,307 @@ export class ASTResolver {
     }
 
     return null;
+  }
+
+  private findPatternBindingType(
+    func: AST.FunctionDecl,
+    name: string,
+    reference: AST.IdentifierExpr,
+    filePath: string,
+    ast: AST.Program,
+  ): string | null {
+    if (!func.body) return null;
+
+    return this.findPatternBindingTypeInNode(
+      func.body,
+      name,
+      reference,
+      filePath,
+      ast,
+    );
+  }
+
+  private findPatternBindingTypeInNode(
+    node: unknown,
+    name: string,
+    reference: AST.IdentifierExpr,
+    filePath: string,
+    ast: AST.Program,
+  ): string | null {
+    if (!node || typeof node !== "object") return null;
+
+    if ((node as AST.ASTNode).kind === "Match") {
+      const matchExpr = node as AST.MatchExpr;
+      const matchedType = this.resolveType(matchExpr.value, filePath, false);
+
+      for (const arm of matchExpr.arms) {
+        if (this.nodeContainsReference(arm.body, reference)) {
+          return this.resolvePatternBindingType(
+            arm.pattern,
+            name,
+            matchedType,
+            ast,
+          );
+        }
+      }
+    }
+
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          const found = this.findPatternBindingTypeInNode(
+            item,
+            name,
+            reference,
+            filePath,
+            ast,
+          );
+          if (found) return found;
+        }
+      } else if (value && typeof value === "object" && "kind" in value) {
+        const found = this.findPatternBindingTypeInNode(
+          value,
+          name,
+          reference,
+          filePath,
+          ast,
+        );
+        if (found) return found;
+      }
+    }
+
+    return null;
+  }
+
+  private resolvePatternBindingType(
+    pattern: AST.Pattern,
+    name: string,
+    matchedType: string | null,
+    ast: AST.Program,
+  ): string | null {
+    switch (pattern.kind) {
+      case "PatternIdentifier":
+        if (pattern.name !== name) return null;
+        if (pattern.bindingDeclaration?.typeAnnotation) {
+          return typeNodeToString(pattern.bindingDeclaration.typeAnnotation);
+        }
+        if (pattern.type) return typeNodeToString(pattern.type);
+        return matchedType;
+
+      case "PatternTuple": {
+        const elementTypes = matchedType
+          ? this.splitTupleTypeString(matchedType)
+          : null;
+        for (let index = 0; index < pattern.patterns.length; index++) {
+          const nestedPattern = pattern.patterns[index]!;
+          const nestedType = elementTypes?.[index] ?? null;
+          const found = this.resolvePatternBindingType(
+            nestedPattern,
+            name,
+            nestedType,
+            ast,
+          );
+          if (found) return found;
+        }
+        return null;
+      }
+
+      case "PatternEnumTuple": {
+        const enumDecl = this.findEnumDecl(ast, pattern.enumName);
+        const variant = enumDecl?.variants.find(
+          (candidate) => candidate.name === pattern.variantName,
+        );
+        if (!enumDecl || variant?.dataType?.kind !== "EnumVariantTuple") {
+          return this.resolvePatternBindingsWithoutEnumType(
+            pattern.bindings,
+            name,
+          );
+        }
+
+        const typeMap = this.buildEnumTypeMap(enumDecl, matchedType);
+        for (let index = 0; index < pattern.bindings.length; index++) {
+          const binding = pattern.bindings[index]!;
+          const bindingType = variant.dataType.types[index];
+          const found = this.resolvePatternBindingType(
+            binding,
+            name,
+            bindingType
+              ? this.typeNodeToResolvedString(bindingType, typeMap)
+              : null,
+            ast,
+          );
+          if (found) return found;
+        }
+        return null;
+      }
+
+      case "PatternEnumStruct": {
+        const enumDecl = this.findEnumDecl(ast, pattern.enumName);
+        const variant = enumDecl?.variants.find(
+          (candidate) => candidate.name === pattern.variantName,
+        );
+        if (!enumDecl || variant?.dataType?.kind !== "EnumVariantStruct") {
+          const field = pattern.fields.find(
+            (candidate) => candidate.binding === name,
+          );
+          return field?.bindingDeclaration?.typeAnnotation
+            ? typeNodeToString(field.bindingDeclaration.typeAnnotation)
+            : null;
+        }
+
+        const typeMap = this.buildEnumTypeMap(enumDecl, matchedType);
+        for (const field of pattern.fields) {
+          if (field.binding !== name) continue;
+
+          if (field.bindingDeclaration?.typeAnnotation) {
+            return typeNodeToString(field.bindingDeclaration.typeAnnotation);
+          }
+
+          const variantField = variant.dataType.fields.find(
+            (candidate) => candidate.name === field.fieldName,
+          );
+          return variantField
+            ? this.typeNodeToResolvedString(variantField.type, typeMap)
+            : null;
+        }
+        return null;
+      }
+
+      default:
+        return null;
+    }
+  }
+
+  private resolvePatternBindingsWithoutEnumType(
+    bindings: AST.Pattern[],
+    name: string,
+  ): string | null {
+    for (const binding of bindings) {
+      if (
+        binding.kind === "PatternIdentifier" &&
+        binding.name === name &&
+        binding.bindingDeclaration?.typeAnnotation
+      ) {
+        return typeNodeToString(binding.bindingDeclaration.typeAnnotation);
+      }
+    }
+    return null;
+  }
+
+  private findEnumDecl(ast: AST.Program, name: string): AST.EnumDecl | null {
+    for (const stmt of ast.statements) {
+      if (stmt.kind === "EnumDecl" && stmt.name === name) {
+        return stmt;
+      }
+    }
+    return null;
+  }
+
+  private buildEnumTypeMap(
+    enumDecl: AST.EnumDecl,
+    matchedType: string | null,
+  ): Map<string, string> {
+    const typeMap = new Map<string, string>();
+    if (!matchedType || enumDecl.genericParams.length === 0) return typeMap;
+
+    const genericArgs = this.extractGenericArgs(matchedType, enumDecl.name);
+    for (
+      let index = 0;
+      index < enumDecl.genericParams.length && index < genericArgs.length;
+      index++
+    ) {
+      typeMap.set(enumDecl.genericParams[index]!.name, genericArgs[index]!);
+    }
+
+    return typeMap;
+  }
+
+  private typeNodeToResolvedString(
+    type: AST.TypeNode,
+    typeMap: Map<string, string>,
+  ): string {
+    if (type.kind === "BasicType") {
+      let name =
+        type.genericArgs.length === 0
+          ? (typeMap.get(type.name) ?? type.name)
+          : type.name;
+
+      if (type.genericArgs.length > 0) {
+        name += `<${type.genericArgs.map((arg) => this.typeNodeToResolvedString(arg, typeMap)).join(", ")}>`;
+      }
+      if (type.arrayDimensions) {
+        for (const dim of type.arrayDimensions) {
+          name += `[${dim !== null ? dim : ""}]`;
+        }
+      }
+      if (type.pointerDepth) {
+        name = "*".repeat(type.pointerDepth) + name;
+      }
+      return name;
+    }
+
+    if (type.kind === "TupleType") {
+      return `(${type.types.map((part) => this.typeNodeToResolvedString(part, typeMap)).join(", ")})`;
+    }
+
+    if (type.kind === "FunctionType") {
+      const params = type.paramTypes
+        .map((param) => this.typeNodeToResolvedString(param, typeMap))
+        .join(", ");
+      const ret = this.typeNodeToResolvedString(type.returnType, typeMap);
+      return `Func<${ret}>(${params})`;
+    }
+
+    if (type.kind === "LambdaType") {
+      const params = type.paramTypes
+        .map((param) => this.typeNodeToResolvedString(param, typeMap))
+        .join(", ");
+      const ret = this.typeNodeToResolvedString(type.returnType, typeMap);
+      return `Lambda<${ret}>(${params})`;
+    }
+
+    if (type.kind === "MetaType") {
+      return `typeof<${this.typeNodeToResolvedString(type.type, typeMap)}>`;
+    }
+
+    return typeNodeToString(type);
+  }
+
+  private extractGenericArgs(typeName: string, baseName: string): string[] {
+    const prefix = `${baseName}<`;
+    if (!typeName.startsWith(prefix) || !typeName.endsWith(">")) return [];
+
+    return this.splitTopLevelTypeList(
+      typeName.slice(prefix.length, typeName.length - 1),
+    );
+  }
+
+  private splitTupleTypeString(typeName: string): string[] | null {
+    if (!typeName.startsWith("(") || !typeName.endsWith(")")) return null;
+    return this.splitTopLevelTypeList(typeName.slice(1, -1));
+  }
+
+  private splitTopLevelTypeList(source: string): string[] {
+    const parts: string[] = [];
+    let start = 0;
+    let angleDepth = 0;
+    let parenDepth = 0;
+
+    for (let index = 0; index < source.length; index++) {
+      const char = source[index];
+      if (char === "<") angleDepth++;
+      if (char === ">") angleDepth--;
+      if (char === "(") parenDepth++;
+      if (char === ")") parenDepth--;
+      if (char === "," && angleDepth === 0 && parenDepth === 0) {
+        parts.push(source.slice(start, index).trim());
+        start = index + 1;
+      }
+    }
+
+    const finalPart = source.slice(start).trim();
+    if (finalPart) parts.push(finalPart);
+    return parts;
   }
 
   private catchClauseVariableDecl(
