@@ -993,6 +993,18 @@ frame test(value: int) ret int {
       expect(edits).toBeDefined();
       expect(edits!.length).toBe(3); // param + 2 usages
     });
+
+    it("should handle variables in ternary expressions", () => {
+      const code = `frame test(flag: bool, left: int, right: int) ret int {
+    return flag ? left : right;
+}`;
+      const testFile = path.join(tmpDir, "ternary-expression.bpl");
+      const result = getRenameEdits(testFile, code, 1, 11, "condition");
+
+      const edits = result?.changes?.[pathToFileURL(testFile).toString()];
+      expect(edits).toBeDefined();
+      expect(edits!.length).toBe(2); // param + condition usage
+    });
   });
 
   describe("Variables in Loop Conditions", () => {

@@ -2182,18 +2182,71 @@ export class ASTRenameHandler {
         callback(binNode.left);
         callback(binNode.right);
         break;
+      case "Ternary":
+        const ternaryNode = node as AST.TernaryExpr;
+        callback(ternaryNode.condition);
+        callback(ternaryNode.trueExpr);
+        callback(ternaryNode.falseExpr);
+        break;
       case "Unary":
         const unaryNode = node as AST.UnaryExpr;
         callback(unaryNode.operand);
+        break;
+      case "Is":
+        callback((node as AST.IsExpr).expression);
+        break;
+      case "As":
+        callback((node as AST.AsExpr).expression);
         break;
       case "Cast":
         const castNode = node as AST.CastExpr;
         callback(castNode.expression);
         break;
+      case "Sizeof": {
+        const target = (node as AST.SizeofExpr).target;
+        if ((target as AST.ASTNode).kind) callback(target as AST.ASTNode);
+        break;
+      }
+      case "TypeOf": {
+        const target = (node as AST.TypeOfExpr).target;
+        if ((target as AST.ASTNode).kind) callback(target as AST.ASTNode);
+        break;
+      }
+      case "TypeMatch": {
+        const value = (node as AST.TypeMatchExpr).value;
+        if ((value as AST.ASTNode).kind) callback(value as AST.ASTNode);
+        break;
+      }
       case "Group":
       case "Grouped":
         const groupedNode = node as AST.GroupExpr;
         callback(groupedNode.expression);
+        break;
+      case "ArrayLiteral":
+        (node as AST.ArrayLiteralExpr).elements.forEach(callback);
+        break;
+      case "TupleLiteral":
+        (node as AST.TupleLiteralExpr).elements.forEach(callback);
+        break;
+      case "StructLiteral":
+        (node as AST.StructLiteralExpr).fields.forEach((field) =>
+          callback(field.value),
+        );
+        break;
+      case "EnumStructVariant":
+        (node as AST.EnumStructVariantExpr).fields.forEach((field) =>
+          callback(field.value),
+        );
+        break;
+      case "InterpolatedString":
+        (node as AST.InterpolatedStringExpr).parts.forEach(callback);
+        break;
+      case "GenericInstantiation":
+        callback((node as AST.GenericInstantiationExpr).base);
+        break;
+      case "LambdaExpression":
+        (node as AST.LambdaExpr).params.forEach(callback);
+        callback((node as AST.LambdaExpr).body);
         break;
       case "Index":
         const indexNode = node as AST.IndexExpr;
@@ -2215,18 +2268,27 @@ export class ASTRenameHandler {
         matchNode.arms.forEach((arm: AST.MatchArm) => {
           // Traverse the pattern to find PatternIdentifier bindings
           callback(arm.pattern);
+          if (arm.guard) callback(arm.guard);
           callback(arm.body);
         });
         break;
       case "MatchArm":
         const armNode = node as AST.MatchArm;
         callback(armNode.pattern);
+        if (armNode.guard) callback(armNode.guard);
         callback(armNode.body);
         break;
       case "PatternEnum":
+        // Enum variant patterns don't contain nested renameable expressions.
+        break;
       case "PatternLiteral":
+        callback((node as AST.PatternLiteral).value);
+        break;
       case "PatternWildcard":
         // These patterns don't have bindings
+        break;
+      case "PatternTuple":
+        (node as AST.PatternTuple).patterns.forEach(callback);
         break;
       case "PatternEnumTuple":
         // PatternEnumTuple now has Pattern[] bindings (PatternIdentifier or PatternWildcard)
