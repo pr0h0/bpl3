@@ -143,4 +143,40 @@ describe("Rename Handler - Bug Fixes", () => {
     expect(prepareResult).not.toBeNull();
     expect(prepareResult ? doc.getText(prepareResult) : null).toBe("value");
   });
+
+  it("should rename enum method parameters from the method body", () => {
+    const code = `enum Color {
+    Red,
+
+    frame to_code(this: Color, factor: int) ret int {
+        return factor;
+    }
+}
+`;
+    const filePath = path.join(TMP_DIR, "enum-method-param-rename.bpl");
+    fs.writeFileSync(filePath, code);
+
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      code,
+    );
+
+    const renameResult = renameHandler.rename(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 4, character: 15 },
+        newName: "multiplier",
+      },
+      doc,
+    );
+    const edits = renameResult?.changes?.[doc.uri];
+
+    expect(edits?.length).toBe(2);
+
+    const declEdit = edits?.find((edit) => edit.range.start.line === 3);
+    expect(declEdit?.newText).toBe("multiplier");
+    expect(declEdit ? doc.getText(declEdit.range) : null).toBe("factor");
+  });
 });

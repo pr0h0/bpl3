@@ -1377,6 +1377,25 @@ export class ASTRenameHandler {
             }
           }
         }
+
+        if (stmt.kind === "EnumDecl") {
+          const enumDecl = stmt as AST.EnumDecl;
+          for (const func of enumDecl.methods) {
+            if (func.location && node.location) {
+              const nodeInFunc =
+                (node.location.startLine > func.location.startLine ||
+                  (node.location.startLine === func.location.startLine &&
+                    node.location.startColumn >= func.location.startColumn)) &&
+                (node.location.endLine < func.location.endLine ||
+                  (node.location.endLine === func.location.endLine &&
+                    node.location.endColumn <= func.location.endColumn));
+
+              if (nodeInFunc && node !== func) {
+                return func;
+              }
+            }
+          }
+        }
       }
       return null;
     };
@@ -1816,6 +1835,15 @@ export class ASTRenameHandler {
         funcNode.params.forEach(callback);
         // Traverse body
         if (funcNode.body) callback(funcNode.body);
+        break;
+      case "StructDecl":
+        (node as AST.StructDecl).members.forEach(callback);
+        break;
+      case "EnumDecl":
+        (node as AST.EnumDecl).methods.forEach(callback);
+        break;
+      case "SpecDecl":
+        (node as AST.SpecDecl).methods.forEach(callback);
         break;
       case "Block":
         (node as AST.BlockStmt).statements.forEach(callback);
