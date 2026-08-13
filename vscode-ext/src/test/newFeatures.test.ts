@@ -492,6 +492,33 @@ frame main() {}`;
   });
 });
 
+describe("Symbol Index Type Rendering", () => {
+  it("should preserve lambda field types in indexed symbols", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/test-lambda-field-index.bpl",
+    );
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(
+      filePath,
+      ["struct Runner {", "    callback: Lambda<int>(int),", "}", ""].join(
+        "\n",
+      ),
+    );
+
+    try {
+      const symbolIndex = new SymbolIndex();
+      symbolIndex.indexFile(filePath, false);
+
+      const runner = symbolIndex.findSymbol("Runner")[0];
+      expect(runner?.fields?.find((field) => field.name === "callback")?.type)
+        .toBe("Lambda<int>(int)");
+    } finally {
+      fs.rmSync(filePath, { force: true });
+    }
+  });
+});
+
 describe("Integration - All Features Together", () => {
   let symbolIndex: SymbolIndex;
   let astResolver: ASTResolver;

@@ -634,9 +634,18 @@ export class SymbolIndex {
         const ret = this.typeNodeToString(type.returnType);
         return `Func<${ret}>(${params})`;
       }
+      case "LambdaType": {
+        const params = type.paramTypes
+          .map((t) => this.typeNodeToString(t))
+          .join(", ");
+        const ret = this.typeNodeToString(type.returnType);
+        return `Lambda<${ret}>(${params})`;
+      }
       case "TupleType": {
         return `(${type.types.map((t) => this.typeNodeToString(t)).join(", ")})`;
       }
+      case "MetaType":
+        return `typeof<${this.typeNodeToString(type.type)}>`;
       default:
         return "unknown";
     }
