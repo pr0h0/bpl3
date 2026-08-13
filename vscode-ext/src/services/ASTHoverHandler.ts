@@ -1742,11 +1742,16 @@ export class ASTHoverHandler {
         }
       } else if (stmt.kind === "Block") {
         // Recursively search nested blocks
-        const varDecl = this.findVariableInBlock(stmt, name, refNode);
-        if (varDecl) return varDecl;
+        if (this.isNodeContainedIn(refNode, stmt)) {
+          const varDecl = this.findVariableInBlock(stmt, name, refNode);
+          if (varDecl) return varDecl;
+        }
       } else if (stmt.kind === "If") {
-        // Search in if/else branches - search ALL branches before the reference
-        if (stmt.thenBranch && stmt.thenBranch.kind === "Block") {
+        if (
+          stmt.thenBranch &&
+          stmt.thenBranch.kind === "Block" &&
+          this.isNodeContainedIn(refNode, stmt.thenBranch)
+        ) {
           const varDecl = this.findVariableInBlock(
             stmt.thenBranch,
             name,
@@ -1754,7 +1759,11 @@ export class ASTHoverHandler {
           );
           if (varDecl) return varDecl;
         }
-        if (stmt.elseBranch && stmt.elseBranch.kind === "Block") {
+        if (
+          stmt.elseBranch &&
+          stmt.elseBranch.kind === "Block" &&
+          this.isNodeContainedIn(refNode, stmt.elseBranch)
+        ) {
           const varDecl = this.findVariableInBlock(
             stmt.elseBranch,
             name,
@@ -1764,7 +1773,11 @@ export class ASTHoverHandler {
         }
       } else if (stmt.kind === "Loop") {
         // Search in loop body
-        if (stmt.body && stmt.body.kind === "Block") {
+        if (
+          stmt.body &&
+          stmt.body.kind === "Block" &&
+          this.isNodeContainedIn(refNode, stmt.body)
+        ) {
           const varDecl = this.findVariableInBlock(stmt.body, name, refNode);
           if (varDecl) return varDecl;
         }
@@ -1777,15 +1790,68 @@ export class ASTHoverHandler {
             if (
               arm.body &&
               typeof arm.body === "object" &&
-              arm.body.kind === "Block"
+              arm.body.kind === "Block" &&
+              this.isNodeContainedIn(refNode, arm.body)
             ) {
               const varDecl = this.findVariableInBlock(arm.body, name, refNode);
               if (varDecl) return varDecl;
             }
           }
         }
+      } else if (stmt.kind === "Switch") {
+        for (const switchCase of stmt.cases) {
+          if (this.isNodeContainedIn(refNode, switchCase.body)) {
+            const varDecl = this.findVariableInBlock(
+              switchCase.body,
+              name,
+              refNode,
+            );
+            if (varDecl) return varDecl;
+          }
+        }
+        if (
+          stmt.defaultCase &&
+          this.isNodeContainedIn(refNode, stmt.defaultCase)
+        ) {
+          const varDecl = this.findVariableInBlock(
+            stmt.defaultCase,
+            name,
+            refNode,
+          );
+          if (varDecl) return varDecl;
+        }
+      } else if (stmt.kind === "Try") {
+        if (this.isNodeContainedIn(refNode, stmt.tryBlock)) {
+          const varDecl = this.findVariableInBlock(
+            stmt.tryBlock,
+            name,
+            refNode,
+          );
+          if (varDecl) return varDecl;
+        }
+        for (const catchClause of stmt.catchClauses) {
+          if (this.isNodeContainedIn(refNode, catchClause.body)) {
+            const varDecl = this.findVariableInBlock(
+              catchClause.body,
+              name,
+              refNode,
+            );
+            if (varDecl) return varDecl;
+          }
+        }
+      } else if (stmt.kind === "Defer") {
+        if (
+          stmt.statement.kind === "Block" &&
+          this.isNodeContainedIn(refNode, stmt.statement)
+        ) {
+          const varDecl = this.findVariableInBlock(
+            stmt.statement,
+            name,
+            refNode,
+          );
+          if (varDecl) return varDecl;
+        }
       }
-      // Add more statement types as needed
     }
 
     debugLog(`[ASTHover] Variable not found in this block`);

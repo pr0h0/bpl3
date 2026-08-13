@@ -200,6 +200,45 @@ describe("BPL Language Server Tests", () => {
       expect(value).toContain("Local");
     });
 
+    it("shows local variable hover inside switch cases", () => {
+      const filePath = path.join(
+        __dirname,
+        "fixtures",
+        "switch-case-hover.bpl",
+      );
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        [
+          "frame test(value: int) ret int {",
+          "    switch (value) {",
+          "        case 1: {",
+          "            local count: int = 1;",
+          "            return count;",
+          "        }",
+          "    }",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      );
+      const hover = hoverHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 4, character: 20 },
+        },
+        doc,
+      );
+
+      const value =
+        typeof hover?.contents === "object" && "value" in hover.contents
+          ? hover.contents.value
+          : String(hover?.contents ?? "");
+      expect(value).toContain("count");
+      expect(value).toContain("int");
+      expect(value).toContain("Local");
+    });
+
     it("shows hover for type alias declarations", () => {
       const filePath = path.join(__dirname, "fixtures", "type-alias-hover.bpl");
       const doc = TextDocument.create(
