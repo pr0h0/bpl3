@@ -779,6 +779,24 @@ export class ASTCompletionHandler {
     if (!expr) return undefined;
 
     switch (expr.kind) {
+      case "Literal":
+        switch ((expr as AST.LiteralExpr).type) {
+          case "number":
+            return typeof expr.value === "number" && !Number.isInteger(expr.value)
+              ? "float"
+              : "int";
+          case "string":
+            return "string";
+          case "bool":
+            return "bool";
+          case "char":
+            return "char";
+          case "null":
+          case "nullptr":
+            return "nullptr";
+          default:
+            return undefined;
+        }
       case "IntLiteral":
         return "int";
       case "FloatLiteral":
@@ -801,6 +819,16 @@ export class ASTCompletionHandler {
           }
         }
         return undefined;
+      case "Cast":
+        return expr.targetType ? this.typeNodeToString(expr.targetType) : undefined;
+      case "Group":
+      case "Grouped":
+        return this.inferTypeFromExpression(expr.expression);
+      case "Ternary": {
+        const trueType = this.inferTypeFromExpression(expr.trueExpr);
+        const falseType = this.inferTypeFromExpression(expr.falseExpr);
+        return trueType === falseType ? trueType : undefined;
+      }
       case "Member":
         // Try to resolve member access
         return undefined;
@@ -814,6 +842,18 @@ export class ASTCompletionHandler {
           return elemType ? `${elemType}[]` : undefined;
         }
         return undefined;
+      case "StructLiteral":
+        return expr.structName;
+      case "EnumStructVariant":
+        return expr.enumName;
+      case "TupleLiteral": {
+        const elementTypes = (expr.elements || []).map(
+          (element: AST.Expression) => this.inferTypeFromExpression(element),
+        );
+        return elementTypes.every(Boolean)
+          ? `(${elementTypes.join(", ")})`
+          : undefined;
+      }
       case "New":
         // new Type() - return the type
         if (expr.type && expr.type.kind === "BasicType") {

@@ -559,5 +559,33 @@ frame test() {
       expect(cbCompletion?.detail).toBe("Lambda<int>(int, string)");
       expect(callbackCompletion?.detail).toBe("Lambda<int>(int, string)");
     });
+
+    it("infers literal local variable types in completions", () => {
+      const symbolIndex = new SymbolIndex();
+      const astResolver = new ASTResolver(symbolIndex);
+      const handler = new ASTCompletionHandler(astResolver, symbolIndex);
+      const doc = TextDocument.create(
+        "file:///test-literal-local-completion.bpl",
+        "bpl",
+        1,
+        [
+          "frame test() ret int {",
+          "    local count = 1;",
+          "    return ",
+          "}",
+        ].join("\n"),
+      );
+
+      const completions = handler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 2, character: 11 },
+        },
+        doc,
+      );
+      const countCompletion = completions.find((c) => c.label === "count");
+
+      expect(countCompletion?.detail).toBe("int");
+    });
   });
 });
