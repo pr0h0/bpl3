@@ -23,6 +23,17 @@ const intType: AST.BasicTypeNode = {
   location,
 };
 
+function basicType(name: string): AST.BasicTypeNode {
+  return {
+    kind: "BasicType",
+    name,
+    genericArgs: [],
+    pointerDepth: 0,
+    arrayDimensions: [],
+    location,
+  };
+}
+
 const equalToken = new Token(
   TokenType.Equal,
   "=",
@@ -330,6 +341,14 @@ describe("linter type-safety guards", () => {
       "Program",
       "FunctionDecl",
       "StructDecl",
+      "StructField",
+      "SpecDecl",
+      "SpecMethod",
+      "EnumDecl",
+      "EnumVariant",
+      "EnumVariantTuple",
+      "EnumVariantStruct",
+      "TypeAlias",
       "Block",
       "If",
       "Loop",
@@ -341,6 +360,7 @@ describe("linter type-safety guards", () => {
       "Case",
       "Defer",
       "ExpressionStmt",
+      "Parameter",
       "VariableDecl",
       "InterpolatedString",
       "Binary",
@@ -474,6 +494,112 @@ describe("linter type-safety guards", () => {
     expect(messages).toContain("identifier:caseValue");
     expect(messages).toContain("identifier:caseBody");
     expect(messages).toContain("identifier:defaultBody");
+  });
+
+  test("visits declaration type children", () => {
+    const rule: LintRule = {
+      code: "TTYPE",
+      name: "declaration-type-visitor-test",
+      check(node, context) {
+        if (node.kind !== "BasicType") return;
+
+        context.report(
+          `type:${(node as AST.BasicTypeNode).name}`,
+          node,
+          undefined,
+          "TTYPE",
+        );
+      },
+    };
+
+    const program: AST.Program = {
+      kind: "Program",
+      location,
+      statements: [
+        {
+          kind: "TypeAlias",
+          name: "Alias",
+          genericParams: [],
+          type: basicType("aliasType"),
+          location,
+        },
+        {
+          kind: "StructDecl",
+          name: "Container",
+          genericParams: [],
+          inheritanceList: [],
+          members: [
+            {
+              kind: "StructField",
+              name: "field",
+              type: basicType("fieldType"),
+              location,
+            },
+          ],
+          location,
+        },
+        {
+          kind: "SpecDecl",
+          name: "Callable",
+          genericParams: [],
+          extends: [basicType("baseSpec")],
+          methods: [
+            {
+              kind: "SpecMethod",
+              name: "call",
+              genericParams: [],
+              params: [
+                {
+                  kind: "Parameter",
+                  name: "specParam",
+                  type: basicType("specParamType"),
+                  location,
+                },
+              ],
+              returnType: basicType("specReturnType"),
+              location,
+            },
+          ],
+          location,
+        },
+        {
+          kind: "FunctionDecl",
+          isFrame: true,
+          isStatic: true,
+          name: "main",
+          attributes: [],
+          genericParams: [],
+          params: [
+            {
+              kind: "Parameter",
+              name: "param",
+              type: basicType("paramType"),
+              location,
+            },
+          ],
+          returnType: basicType("returnType"),
+          body: {
+            kind: "Block",
+            statements: [variableDecl("localValue")],
+            location,
+          },
+          location,
+        },
+      ],
+    };
+
+    const messages = new Linter([rule])
+      .lint(program)
+      .map((error) => error.message);
+
+    expect(messages).toContain("type:aliasType");
+    expect(messages).toContain("type:fieldType");
+    expect(messages).toContain("type:baseSpec");
+    expect(messages).toContain("type:specParamType");
+    expect(messages).toContain("type:specReturnType");
+    expect(messages).toContain("type:paramType");
+    expect(messages).toContain("type:returnType");
+    expect(messages).toContain("type:int");
   });
 
   test("visits aggregate expression children", () => {

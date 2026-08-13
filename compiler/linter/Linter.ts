@@ -73,6 +73,7 @@ export class Linter {
         for (const param of func.params) {
           this.visit(param, context);
         }
+        this.visit(func.returnType, context);
         if (func.body) this.visit(func.body, context);
         break;
       case "StructDecl":
@@ -80,6 +81,51 @@ export class Linter {
         for (const member of struct.members) {
           this.visit(member, context);
         }
+        break;
+      case "StructField":
+        this.visit((node as AST.StructField).type, context);
+        break;
+      case "SpecDecl":
+        const spec = node as AST.SpecDecl;
+        for (const extendedType of spec.extends) {
+          this.visit(extendedType, context);
+        }
+        for (const method of spec.methods) {
+          this.visit(method, context);
+        }
+        break;
+      case "SpecMethod":
+        const specMethod = node as AST.SpecMethod;
+        for (const param of specMethod.params) {
+          this.visit(param, context);
+        }
+        if (specMethod.returnType) this.visit(specMethod.returnType, context);
+        break;
+      case "EnumDecl":
+        const enumDecl = node as AST.EnumDecl;
+        for (const variant of enumDecl.variants) {
+          this.visit(variant, context);
+        }
+        for (const method of enumDecl.methods) {
+          this.visit(method, context);
+        }
+        break;
+      case "EnumVariant":
+        const variant = node as AST.EnumVariant;
+        if (variant.dataType) this.visit(variant.dataType, context);
+        break;
+      case "EnumVariantTuple":
+        for (const variantType of (node as AST.EnumVariantTuple).types) {
+          this.visit(variantType, context);
+        }
+        break;
+      case "EnumVariantStruct":
+        for (const field of (node as AST.EnumVariantStruct).fields) {
+          this.visit(field.type, context);
+        }
+        break;
+      case "TypeAlias":
+        this.visit((node as AST.TypeAliasDecl).type, context);
         break;
       case "Block":
         for (const stmt of (node as AST.BlockStmt).statements) {
@@ -137,8 +183,12 @@ export class Linter {
       case "ExpressionStmt":
         this.visit((node as AST.ExpressionStmt).expression, context);
         break;
+      case "Parameter":
+        this.visit((node as AST.Parameter).type, context);
+        break;
       case "VariableDecl":
         const varDecl = node as AST.VariableDecl;
+        if (varDecl.typeAnnotation) this.visit(varDecl.typeAnnotation, context);
         if (varDecl.initializer) this.visit(varDecl.initializer, context);
         break;
       case "InterpolatedString":
