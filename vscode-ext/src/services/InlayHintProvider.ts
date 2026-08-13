@@ -84,10 +84,9 @@ export class InlayHintProvider {
     const type = this.inferType(node.initializer);
     if (!type || type === "unknown") return;
 
-    // Position: after variable name
-    const position = this.getPosition(
-      node.location?.startLine || 1,
-      (node.location?.startColumn || 0) + varName.length,
+    const position = this.getVariableNameEndPosition(
+      node,
+      varName,
       document,
     );
 
@@ -348,5 +347,29 @@ export class InlayHintProvider {
       line: Math.max(0, line - 1),
       character: Math.max(0, column - 1),
     };
+  }
+
+  private getVariableNameEndPosition(
+    node: AST.VariableDecl,
+    varName: string,
+    document: TextDocument,
+  ): { line: number; character: number } {
+    const line = Math.max(0, (node.location?.startLine || 1) - 1);
+    const searchStart = Math.max(0, (node.location?.startColumn || 1) - 1);
+    const lineText = document.getText({
+      start: { line, character: 0 },
+      end: { line: line + 1, character: 0 },
+    });
+    const nameIndex = lineText.indexOf(varName, searchStart);
+
+    if (nameIndex >= 0) {
+      return { line, character: nameIndex + varName.length };
+    }
+
+    return this.getPosition(
+      node.location?.startLine || 1,
+      (node.location?.startColumn || 0) + varName.length,
+      document,
+    );
   }
 }

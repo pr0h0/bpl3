@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "bun:test";
 import * as path from "path";
 import { readFileSync } from "fs";
+import { pathToFileURL } from "url";
 import { ASTResolver } from "../services/ASTResolver";
 import { SymbolIndex } from "../services/SymbolIndex";
 import { SignatureHelpProvider } from "../services/SignatureHelpProvider";
@@ -163,6 +164,35 @@ describe("BPL High Priority Features Tests", () => {
       // Should have hint for local x = 42
       const xHint = hints.find((h) => h.label === ": int");
       expect(xHint).toBeDefined();
+    });
+
+    it("places inferred type hints after local variable names", () => {
+      const symbolIndex = new SymbolIndex();
+      const astResolver = new ASTResolver(symbolIndex);
+      const provider = new InlayHintProvider(astResolver, symbolIndex);
+      const filePath = path.join(__dirname, "fixtures", "inlay-position.bpl");
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        ["frame main() ret int {", "    local count = 1;", "    return count;", "}"].join(
+          "\n",
+        ),
+      );
+
+      const hints = provider.handle(
+        {
+          textDocument: { uri: doc.uri },
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 3, character: 0 },
+          },
+        },
+        doc,
+      );
+
+      const countHint = hints.find((h) => h.label === ": int");
+      expect(countHint?.position).toEqual({ line: 1, character: 15 });
     });
 
     it("shows type hints for string variables", () => {
