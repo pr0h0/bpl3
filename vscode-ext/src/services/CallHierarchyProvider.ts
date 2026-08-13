@@ -40,8 +40,8 @@ export class CallHierarchyProvider {
 
     const node = this.astResolver.findNodeAtPosition(
       filePath,
-      position.line + 1,
-      position.character + 1,
+      position.line,
+      position.character,
     );
     if (!node) return null;
 
@@ -306,10 +306,7 @@ export class CallHierarchyProvider {
     for (const stmt of ast.statements) {
       if (stmt.kind === "FunctionDecl") {
         const func = stmt as AST.FunctionDecl;
-        if (
-          func.body &&
-          this.rangeContainsPosition(func.body, targetLine, targetCol)
-        ) {
+        if (this.rangeContainsPosition(func, targetLine, targetCol)) {
           return func;
         }
       } else if (stmt.kind === "StructDecl") {
@@ -317,10 +314,7 @@ export class CallHierarchyProvider {
         for (const member of struct.members) {
           if (member.kind === "FunctionDecl") {
             const method = member as AST.FunctionDecl;
-            if (
-              method.body &&
-              this.rangeContainsPosition(method.body, targetLine, targetCol)
-            ) {
+            if (this.rangeContainsPosition(method, targetLine, targetCol)) {
               return method;
             }
           }

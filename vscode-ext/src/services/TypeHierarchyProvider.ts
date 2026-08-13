@@ -38,8 +38,8 @@ export class TypeHierarchyProvider {
 
     const node = this.astResolver.findNodeAtPosition(
       filePath,
-      position.line + 1,
-      position.character + 1,
+      position.line,
+      position.character,
     );
     if (!node) return null;
 
