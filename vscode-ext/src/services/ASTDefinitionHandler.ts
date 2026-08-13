@@ -9,11 +9,19 @@ import {
   type TextDocumentPositionParams,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { fileURLToPath, pathToFileURL } from "url";
+import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
-import { debugLog } from "./utils";
+import { debugLog, filePathToUri } from "./utils";
+
+type DefinitionLocationRange = {
+  file?: string;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+};
 
 export class ASTDefinitionHandler {
   constructor(
@@ -69,19 +77,7 @@ export class ASTDefinitionHandler {
         case "PatternEnumTuple":
         case "PatternEnumStruct":
           // Pattern variables - already at declaration
-          return Location.create(
-            pathToFileURL(filePath).toString(),
-            Range.create(
-              {
-                line: node.location.startLine - 1,
-                character: node.location.startColumn - 1,
-              },
-              {
-                line: node.location.endLine - 1,
-                character: node.location.endColumn - 1,
-              },
-            ),
-          );
+          return this.createLocation(node.location, filePath);
 
         case "TypeAliasDecl":
         case "StructDecl":
@@ -90,19 +86,7 @@ export class ASTDefinitionHandler {
         case "FunctionDecl":
         case "VariableDecl":
           // Already at the declaration, stay here
-          return Location.create(
-            pathToFileURL(filePath).toString(),
-            Range.create(
-              {
-                line: node.location.startLine - 1,
-                character: node.location.startColumn - 1,
-              },
-              {
-                line: node.location.endLine - 1,
-                character: node.location.endColumn - 1,
-              },
-            ),
-          );
+          return this.createLocation(node.location, filePath);
 
         default:
           debugLog(`[ASTDefinition] Unhandled node kind: ${node.kind}`);
@@ -128,19 +112,7 @@ export class ASTDefinitionHandler {
     if (node.resolvedDeclaration && node.resolvedDeclaration.location) {
       const decl = node.resolvedDeclaration;
       debugLog(`[ASTDefinition] Found via resolvedDeclaration`);
-      return Location.create(
-        pathToFileURL(filePath).toString(),
-        Range.create(
-          {
-            line: decl.location.startLine - 1,
-            character: decl.location.startColumn - 1,
-          },
-          {
-            line: decl.location.endLine - 1,
-            character: decl.location.endColumn - 1,
-          },
-        ),
-      );
+      return this.createLocation(decl.location, filePath);
     }
 
     // Try to find local variable declaration in the same file
@@ -152,19 +124,7 @@ export class ASTDefinitionHandler {
       const varDecl = this.findVariableDeclaration(ast, name, node);
       if (varDecl && varDecl.location) {
         debugLog(`[ASTDefinition] Found local variable declaration`);
-        return Location.create(
-          pathToFileURL(filePath).toString(),
-          Range.create(
-            {
-              line: varDecl.location.startLine - 1,
-              character: varDecl.location.startColumn - 1,
-            },
-            {
-              line: varDecl.location.endLine - 1,
-              character: varDecl.location.endColumn - 1,
-            },
-          ),
-        );
+        return this.createLocation(varDecl.location, filePath);
       }
 
       // Try to find pattern variable
@@ -174,19 +134,7 @@ export class ASTDefinitionHandler {
       const patternVar = this.findPatternVariable(ast, name, node);
       if (patternVar && patternVar.location) {
         debugLog(`[ASTDefinition] Found pattern variable declaration`);
-        return Location.create(
-          pathToFileURL(filePath).toString(),
-          Range.create(
-            {
-              line: patternVar.location.startLine - 1,
-              character: patternVar.location.startColumn - 1,
-            },
-            {
-              line: patternVar.location.endLine - 1,
-              character: patternVar.location.endColumn - 1,
-            },
-          ),
-        );
+        return this.createLocation(patternVar.location, filePath);
       }
     }
 
@@ -197,19 +145,7 @@ export class ASTDefinitionHandler {
       if (!symbol) return null;
 
       debugLog(`[ASTDefinition] Found in symbol index: ${name}`);
-      return Location.create(
-        pathToFileURL(symbol.filePath).toString(),
-        Range.create(
-          {
-            line: symbol.location.startLine - 1,
-            character: symbol.location.startColumn - 1,
-          },
-          {
-            line: symbol.location.endLine - 1,
-            character: symbol.location.endColumn - 1,
-          },
-        ),
-      );
+      return this.createLocation(symbol.location, symbol.filePath);
     }
 
     return null;
@@ -253,19 +189,7 @@ export class ASTDefinitionHandler {
         const method = symbol.methods.find((m) => m.name === memberName);
         if (method) {
           debugLog(`[ASTDefinition] Found method: ${memberName}`);
-          return Location.create(
-            pathToFileURL(symbol.filePath).toString(),
-            Range.create(
-              {
-                line: method.location.startLine - 1,
-                character: method.location.startColumn - 1,
-              },
-              {
-                line: method.location.endLine - 1,
-                character: method.location.endColumn - 1,
-              },
-            ),
-          );
+          return this.createLocation(method.location, symbol.filePath);
         }
       }
 
@@ -275,19 +199,7 @@ export class ASTDefinitionHandler {
         if (field) {
           debugLog(`[ASTDefinition] Found field: ${memberName}`);
           // Fields don't have location, so go to struct
-          return Location.create(
-            pathToFileURL(symbol.filePath).toString(),
-            Range.create(
-              {
-                line: symbol.location.startLine - 1,
-                character: symbol.location.startColumn - 1,
-              },
-              {
-                line: symbol.location.endLine - 1,
-                character: symbol.location.endColumn - 1,
-              },
-            ),
-          );
+          return this.createLocation(symbol.location, symbol.filePath);
         }
       }
 
@@ -297,19 +209,7 @@ export class ASTDefinitionHandler {
         if (variant) {
           debugLog(`[ASTDefinition] Found enum variant: ${memberName}`);
           // Variants don't have location, go to enum
-          return Location.create(
-            pathToFileURL(symbol.filePath).toString(),
-            Range.create(
-              {
-                line: symbol.location.startLine - 1,
-                character: symbol.location.startColumn - 1,
-              },
-              {
-                line: symbol.location.endLine - 1,
-                character: symbol.location.endColumn - 1,
-              },
-            ),
-          );
+          return this.createLocation(symbol.location, symbol.filePath);
         }
       }
     }
@@ -352,19 +252,7 @@ export class ASTDefinitionHandler {
     // Check if there's a resolved declaration
     if (node.resolvedDeclaration && node.resolvedDeclaration.location) {
       const decl = node.resolvedDeclaration;
-      return Location.create(
-        pathToFileURL(filePath).toString(),
-        Range.create(
-          {
-            line: decl.location.startLine - 1,
-            character: decl.location.startColumn - 1,
-          },
-          {
-            line: decl.location.endLine - 1,
-            character: decl.location.endColumn - 1,
-          },
-        ),
-      );
+      return this.createLocation(decl.location, filePath);
     }
 
     // Fall back to symbol index
@@ -375,23 +263,30 @@ export class ASTDefinitionHandler {
 
       debugLog(`[ASTDefinition] Found type in symbol index: ${typeName}`);
 
-      return Location.create(
-        pathToFileURL(symbol.filePath).toString(),
-        Range.create(
-          {
-            line: symbol.location.startLine - 1,
-            character: symbol.location.startColumn - 1,
-          },
-          {
-            line: symbol.location.endLine - 1,
-            character: symbol.location.endColumn - 1,
-          },
-        ),
-      );
+      return this.createLocation(symbol.location, symbol.filePath);
     }
 
     debugLog(`[ASTDefinition] Type not found: ${typeName}`);
     return null;
+  }
+
+  private createLocation(
+    location: DefinitionLocationRange,
+    fallbackFilePath: string,
+  ): Location {
+    return Location.create(
+      filePathToUri(location.file || fallbackFilePath),
+      Range.create(
+        {
+          line: location.startLine - 1,
+          character: location.startColumn - 1,
+        },
+        {
+          line: location.endLine - 1,
+          character: location.endColumn - 1,
+        },
+      ),
+    );
   }
 
   /**

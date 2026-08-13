@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from "bun:test";
 import * as path from "path";
 import { pathToFileURL } from "url";
 import { readFileSync } from "fs";
+import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "../services/ASTResolver";
 import { SymbolIndex } from "../services/SymbolIndex";
 import { ASTCompletionHandler } from "../services/ASTCompletionHandler";
@@ -200,6 +201,48 @@ describe("BPL Language Server Tests", () => {
 
       expect(location?.range.start.line).toBe(1);
       expect(location?.range.start.character).toBe(4);
+    });
+
+    it("uses declaration file for resolved identifier definitions", () => {
+      const requestFilePath = path.join(__dirname, "fixtures", "request.bpl");
+      const declarationFilePath = path.join(
+        __dirname,
+        "fixtures",
+        "declaration with spaces.bpl",
+      );
+      const resolvedDeclaration: AST.VariableDecl = {
+        kind: "VariableDecl",
+        isGlobal: false,
+        isConst: false,
+        name: "count",
+        location: {
+          file: declarationFilePath,
+          startLine: 7,
+          startColumn: 5,
+          endLine: 7,
+          endColumn: 16,
+        },
+      };
+      const identifier: AST.IdentifierExpr = {
+        kind: "Identifier",
+        name: "count",
+        resolvedDeclaration,
+        location: {
+          file: requestFilePath,
+          startLine: 3,
+          startColumn: 12,
+          endLine: 3,
+          endColumn: 17,
+        },
+      };
+
+      const location = (definitionHandler as any).handleIdentifier(
+        identifier,
+        requestFilePath,
+      );
+
+      expect(location.uri).toBe(pathToFileURL(declarationFilePath).toString());
+      expect(location.range.start).toEqual({ line: 6, character: 4 });
     });
   });
 
