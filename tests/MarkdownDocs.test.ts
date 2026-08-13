@@ -2312,6 +2312,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Timeout environment variables must be positive integers",
       "invalid values are ignored with a warning that says `expected a positive integer`",
+      "`BPL_RUN_TIMEOUT_MS` to a positive millisecond value when CI or scripts need `bpl run` compiled program execution or `bpl run-script` package script execution to fail instead of hanging indefinitely",
       "`BPL_RUN_TIMEOUT_MS` invalid values fall back to running without a timeout",
       "`BPL_CLEAN_GIT_TIMEOUT_MS` bounds `bpl clean` git probes and automatic `bpl new` git initialization; invalid values fall back to 5000 milliseconds",
       "`BPL_COMPILE_DRIVER_TIMEOUT_MS` invalid values fall back to 600000 milliseconds",

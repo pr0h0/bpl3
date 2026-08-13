@@ -1115,9 +1115,10 @@ bpl build main.bpl -O 2 -o myapp
 ```
 
 Set `BPL_RUN_TIMEOUT_MS` to a positive millisecond value when CI or scripts
-need compiled program execution to fail instead of hanging indefinitely. When
-unset, `bpl run` preserves normal unbounded program execution.
-`BPL_RUN_TIMEOUT_MS` invalid values fall back to running without a timeout.
+need `bpl run` compiled program execution or `bpl run-script` package script
+execution to fail instead of hanging indefinitely. When unset, both commands
+preserve normal unbounded execution. `BPL_RUN_TIMEOUT_MS` invalid values fall
+back to running without a timeout.
 
 ## Debug Information
 

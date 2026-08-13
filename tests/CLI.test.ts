@@ -2680,6 +2680,45 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should time out long-running package scripts", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
+    fs.writeFileSync(
+      path.join(tempDir, "bpl.json"),
+      JSON.stringify(
+        {
+          name: "run-script-timeout-test",
+          version: "1.0.0",
+          scripts: {
+            hang:
+              `exec ${JSON.stringify(process.execPath)} ` +
+              `-e "setTimeout(() => {}, 30000)"`,
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    try {
+      const result = spawnSync("bun", [BPL_CLI, "run-script", "hang"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          BPL_RUN_TIMEOUT_MS: "100",
+          NO_COLOR: "1",
+        },
+        timeout: 5000,
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Script 'hang' failed");
+      expect(result.stderr).toContain("timed out");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should list package scripts as JSON without executing them", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-script-"));
     const outputFile = path.join(tempDir, "should-not-exist.txt");

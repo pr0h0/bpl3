@@ -14,6 +14,8 @@ import {
   createJsonReport,
 } from "../../compiler/common/JsonContracts";
 import { findSymlinkedParentPath } from "../../compiler/common/PathSafety";
+import { getOptionalPositiveIntegerEnv } from "../../compiler/common/Env";
+import { formatCommandSpawnFailure } from "../../compiler/common/ProcessErrors";
 
 const log = new Logger("RunScript");
 
@@ -196,7 +198,23 @@ export function registerRunScriptCommand(program: Command): void {
           shell: true,
           stdio: "inherit",
           env,
+          ...getRunScriptTimeoutOption(),
         });
+
+        if (result.error) {
+          const detail =
+            formatCommandSpawnFailure(fullCommand, result.error) ??
+            result.error.message;
+          log.error(`Script '${scriptName}' failed: ${detail}`);
+          process.exit(1);
+        }
+
+        if (result.signal) {
+          log.error(
+            `Script '${scriptName}' terminated by signal ${result.signal}`,
+          );
+          process.exit(1);
+        }
 
         if (result.status !== 0) {
           process.exit(result.status || 1);
@@ -239,6 +257,15 @@ function quoteShellArg(arg: string): string {
   }
 
   return `'${arg.replace(/'/g, "'\\''")}'`;
+}
+
+function getRunScriptTimeoutOption(): { timeout?: number } {
+  const timeout = getOptionalPositiveIntegerEnv("BPL_RUN_TIMEOUT_MS", {
+    warn: (message) => log.warn(message),
+    fallbackAction: "running without timeout",
+  });
+
+  return timeout === undefined ? {} : { timeout };
 }
 
 function getPackageScripts(
