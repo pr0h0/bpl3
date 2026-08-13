@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "CLI for compiling BPL templates",
   "scripts": {
-    "build": "bpl build ./src/cli.bpl --compile --outfile ./dist/bpl-templ"
+    "build": "bpl build ./src/cli.bpl --compile --outfile ./src/bpl-templ"
   },
   "dependencies": {
     "commander": "^11.1.0"

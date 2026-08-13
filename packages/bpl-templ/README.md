@@ -17,7 +17,7 @@ This package provides a CLI tool for compiling templates.
 cd packages/bpl-templ
 bun install
 bun run build
-# The binary is now at dist/bpl-templ
+# The binary is now at src/bpl-templ
 ```
 
 ## Usage
