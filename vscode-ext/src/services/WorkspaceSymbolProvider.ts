@@ -71,9 +71,8 @@ export class WorkspaceSymbolProvider {
     const results: WorkspaceSymbol[] = [];
 
     // Get all symbols from the index
-    const allSymbols = this.symbolIndex.getAllSymbols();
-
-    for (const [name, symbol] of Object.entries(allSymbols)) {
+    for (const symbol of this.symbolIndex.getAllSymbols()) {
+      const name = symbol.name;
       if (name.toLowerCase().includes(query)) {
         const location = symbol.location;
         if (!location) continue;
@@ -381,6 +380,10 @@ export class WorkspaceSymbolProvider {
         return SymbolKind.TypeParameter;
       case "variable":
         return SymbolKind.Variable;
+      case "constant":
+        return SymbolKind.Constant;
+      case "spec":
+        return SymbolKind.Interface;
       default:
         return SymbolKind.Variable;
     }
