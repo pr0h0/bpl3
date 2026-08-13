@@ -194,6 +194,10 @@ export class SemanticTokenProvider {
           this.visitSpecDecl(node as AST.SpecDecl, builder, source);
           break;
 
+        case "SpecMethod":
+          this.visitSpecMethod(node as AST.SpecMethod, builder, source);
+          break;
+
         case "VariableDecl":
           this.visitVariableDecl(node as AST.VariableDecl, builder, source);
           break;
@@ -415,6 +419,33 @@ export class SemanticTokenProvider {
       namePos.column,
       node.name.length,
       SemanticTokenType.interface,
+      1 << SemanticTokenModifier.declaration,
+    );
+  }
+
+  /**
+   * Visit spec method declaration
+   */
+  private visitSpecMethod(
+    node: AST.SpecMethod,
+    builder: SemanticTokensBuilder,
+    source: string,
+  ): void {
+    if (!node.location) return;
+
+    const namePos = this.getNamePosition(
+      node.location.startLine - 1,
+      node.location.startColumn - 1,
+      node.name,
+      source,
+    );
+
+    this.pushToken(
+      builder,
+      namePos.line,
+      namePos.column,
+      node.name.length,
+      SemanticTokenType.function,
       1 << SemanticTokenModifier.declaration,
     );
   }

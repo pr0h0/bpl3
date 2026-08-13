@@ -102,4 +102,34 @@ describe("Semantic Token Provider", () => {
       ),
     ).toBe(true);
   });
+
+  it("marks spec method declaration names as functions", () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new SemanticTokenProvider(astResolver);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/spec-method-semantic-tokens.bpl",
+    );
+
+    const result = provider.provideSemanticTokens(
+      filePath,
+      [
+        "spec Reader {",
+        "    frame read(this: *Self) ret int;",
+        "}",
+      ].join("\n"),
+    );
+    const tokens = decodeTokens(result?.data);
+
+    expect(
+      tokens.some(
+        (token) =>
+          token.line === 1 &&
+          token.character === 10 &&
+          token.length === "read".length &&
+          token.type === SemanticTokenType.function,
+      ),
+    ).toBe(true);
+  });
 });
