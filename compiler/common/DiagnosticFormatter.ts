@@ -232,6 +232,17 @@ function buildPointer(startCol: number, endCol: number): string {
   return `${" ".repeat(Math.max(0, startCol - 1))}${"^".repeat(length)}`;
 }
 
+function buildPreviewPointer(
+  location: SourceLocation,
+  previewLine: string,
+): string {
+  const endColumn =
+    location.endLine === location.startLine
+      ? Math.min(location.endColumn, previewLine.length + 1)
+      : previewLine.length + 1;
+  return buildPointer(location.startColumn, endColumn);
+}
+
 function formatPointerForLine(
   location: SourceLocation,
   lineNum: number,
@@ -457,6 +468,10 @@ export class DiagnosticFormatter {
       const diagnostic = err.toDiagnostic();
       const sourceLines = getSourceLines(err.location.file);
       const sourceLine = getSourceLine(sourceLines, err.location.startLine);
+      const sourcePreview =
+        sourceLine !== null
+          ? truncateLine(sourceLine, this.config.maxLineLength)
+          : null;
       return {
         severity: diagnostic.severity,
         severityLabel: getSeverityLabel(diagnostic.severity, false),
@@ -475,14 +490,11 @@ export class DiagnosticFormatter {
           },
         },
         source:
-          sourceLine !== null
+          sourceLine !== null && sourcePreview !== null
             ? {
                 line: sourceLine,
-                preview: truncateLine(sourceLine, this.config.maxLineLength),
-                pointer: buildPointer(
-                  err.location.startColumn,
-                  err.location.endColumn,
-                ),
+                preview: sourcePreview,
+                pointer: buildPreviewPointer(err.location, sourcePreview),
               }
             : undefined,
         relatedLocations: (diagnostic.relatedLocations ?? []).map((rel) => ({

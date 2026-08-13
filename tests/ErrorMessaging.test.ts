@@ -219,11 +219,42 @@ describe("Enhanced Error Messaging", () => {
         source: {
           line: '    local x: i32 = "bad";',
           preview: '    local x: i32 = "bad";',
-          pointer: "    ^^^^^^^^^^^^^^^^^^^^^^",
+          pointer: `${" ".repeat(4)}${"^".repeat(
+            '    local x: i32 = "bad";'.length - 4,
+          )}`,
         },
       });
       expect(parsed[0].location.end.line).toBe(2);
       expect(parsed[0].location.end.column).toBe(27);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("should clamp JSON source pointers for multi-line diagnostics to the preview line", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-json-range-"));
+    const testFile = path.join(tempDir, "main.bpl");
+    const firstLine = "    local x: int = 1;";
+    fs.writeFileSync(
+      testFile,
+      ["frame main() {", firstLine, "    return x;", "}"].join("\n"),
+    );
+
+    try {
+      const formatter = new DiagnosticFormatter({ colorize: false });
+      const error = new CompilerError("Invalid block", "Rewrite it.", {
+        file: testFile,
+        startLine: 2,
+        startColumn: 5,
+        endLine: 3,
+        endColumn: 13,
+      });
+
+      const parsed = JSON.parse(formatter.formatAsJSON([error]));
+
+      expect(parsed[0].source.pointer).toBe(
+        `${" ".repeat(4)}${"^".repeat(firstLine.length - 4)}`,
+      );
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
