@@ -1271,7 +1271,9 @@ export class Formatter {
       }
 
       default:
-        return "/* unknown pattern */";
+        throw new Error(
+          `Unsupported pattern kind in formatter: ${String((pattern as AST.Pattern).kind)}`,
+        );
     }
   }
 
@@ -1400,7 +1402,9 @@ export class Formatter {
         return output;
       }
       default:
-        return "unknown_type";
+        throw new Error(
+          `Unsupported type kind in formatter: ${String((type as AST.TypeNode).kind)}`,
+        );
     }
   }
 
