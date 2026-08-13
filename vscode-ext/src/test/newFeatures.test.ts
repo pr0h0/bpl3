@@ -209,6 +209,38 @@ describe("Document Highlight Provider", () => {
 
     expect(result?.length).toBeGreaterThanOrEqual(4);
   });
+
+  it("highlights variables inside enum methods", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/highlight enum method.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "enum Color {",
+        "    Red,",
+        "    frame to_code(this: Color) ret int {",
+        "        local count: int = 1;",
+        "        count = count + 1;",
+        "        return count;",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 5, character: 16 },
+      },
+      doc,
+    );
+
+    expect(result?.length).toBeGreaterThanOrEqual(4);
+  });
 });
 
 describe("Folding Range Provider", () => {
