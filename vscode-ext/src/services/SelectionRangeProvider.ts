@@ -265,12 +265,15 @@ export class SelectionRangeProvider {
 
       case "Loop":
         const loop = node as AST.LoopStmt;
+        if (loop.init) children.push(loop.init);
         if (loop.condition) children.push(loop.condition);
+        if (loop.step) children.push(loop.step);
         if (loop.body) children.push(loop.body);
         break;
 
       case "Switch":
         const switchStmt = node as AST.SwitchStmt;
+        children.push(switchStmt.expression);
         for (const c of switchStmt.cases) {
           if (c.body) children.push(c.body);
         }
@@ -301,9 +304,82 @@ export class SelectionRangeProvider {
         children.push(binary.left, binary.right);
         break;
 
+      case "Ternary":
+        const ternary = node as AST.TernaryExpr;
+        children.push(ternary.condition, ternary.trueExpr, ternary.falseExpr);
+        break;
+
       case "Unary":
         const unary = node as AST.UnaryExpr;
         children.push(unary.operand);
+        break;
+
+      case "Is":
+        children.push((node as AST.IsExpr).expression);
+        break;
+
+      case "As":
+        children.push((node as AST.AsExpr).expression);
+        break;
+
+      case "Cast":
+        children.push((node as AST.CastExpr).expression);
+        break;
+
+      case "Sizeof": {
+        const target = (node as AST.SizeofExpr).target;
+        if ((target as AST.ASTNode).kind) children.push(target as AST.ASTNode);
+        break;
+      }
+
+      case "TypeOf": {
+        const target = (node as AST.TypeOfExpr).target;
+        if ((target as AST.ASTNode).kind) children.push(target as AST.ASTNode);
+        break;
+      }
+
+      case "TypeMatch": {
+        const value = (node as AST.TypeMatchExpr).value;
+        if ((value as AST.ASTNode).kind) children.push(value as AST.ASTNode);
+        break;
+      }
+
+      case "Group":
+      case "Grouped":
+        children.push((node as AST.GroupExpr).expression);
+        break;
+
+      case "ArrayLiteral":
+        children.push(...(node as AST.ArrayLiteralExpr).elements);
+        break;
+
+      case "TupleLiteral":
+        children.push(...(node as AST.TupleLiteralExpr).elements);
+        break;
+
+      case "StructLiteral":
+        for (const field of (node as AST.StructLiteralExpr).fields) {
+          children.push(field.value);
+        }
+        break;
+
+      case "EnumStructVariant":
+        for (const field of (node as AST.EnumStructVariantExpr).fields) {
+          children.push(field.value);
+        }
+        break;
+
+      case "InterpolatedString":
+        children.push(...(node as AST.InterpolatedStringExpr).parts);
+        break;
+
+      case "GenericInstantiation":
+        children.push((node as AST.GenericInstantiationExpr).base);
+        break;
+
+      case "LambdaExpression":
+        children.push(...(node as AST.LambdaExpr).params);
+        children.push((node as AST.LambdaExpr).body);
         break;
 
       case "Call":
@@ -340,12 +416,30 @@ export class SelectionRangeProvider {
         if (matchExpr.value) children.push(matchExpr.value);
         // Add each match arm's body
         for (const arm of matchExpr.arms) {
+          if (arm.pattern) children.push(arm.pattern);
           if (arm.guard) children.push(arm.guard);
           if (arm.body) children.push(arm.body);
         }
         break;
 
-      // Add more cases as needed
+      case "MatchArm":
+        const arm = node as AST.MatchArm;
+        children.push(arm.pattern);
+        if (arm.guard) children.push(arm.guard);
+        children.push(arm.body);
+        break;
+
+      case "PatternLiteral":
+        children.push((node as AST.PatternLiteral).value);
+        break;
+
+      case "PatternTuple":
+        children.push(...(node as AST.PatternTuple).patterns);
+        break;
+
+      case "PatternEnumTuple":
+        children.push(...(node as AST.PatternEnumTuple).bindings);
+        break;
     }
 
     return children;

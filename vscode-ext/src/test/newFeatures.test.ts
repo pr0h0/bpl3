@@ -163,6 +163,36 @@ describe("Selection Range Provider", () => {
 
     expect(ranges.some((range) => range.start.line === 1)).toBe(true);
   });
+
+  it("should provide selection ranges inside ternary expressions", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/test-ternary-selection.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "frame choose(flag: bool, left: int, right: int) ret int {",
+        "    return flag ? left : right;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+        positions: [{ line: 1, character: 11 }],
+      },
+      doc,
+    );
+
+    expect(result?.[0]?.range).toEqual({
+      start: { line: 1, character: 11 },
+      end: { line: 1, character: 15 },
+    });
+  });
 });
 
 describe("Document Highlight Provider", () => {
