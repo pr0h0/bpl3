@@ -47,6 +47,11 @@ export class CodeLensProvider {
             lenses.push(...methodLenses);
           }
         }
+      } else if (stmt.kind === "EnumDecl") {
+        for (const method of (stmt as AST.EnumDecl).methods) {
+          const methodLenses = this.createFunctionLenses(method, filePath);
+          lenses.push(...methodLenses);
+        }
       }
     }
 

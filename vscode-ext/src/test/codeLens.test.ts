@@ -26,4 +26,37 @@ describe("CodeLens Provider", () => {
     expect(lenses.some((lens) => lens.command?.title === "1 implementation"))
       .toBe(true);
   });
+
+  it("provides code lenses for enum methods", () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CodeLensProvider(astResolver);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/code-lens-enum-method.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "enum Color {",
+        "    Red,",
+        "    frame to_code(this: Color) ret int {",
+        "        return 1;",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const lenses = provider.provide({ textDocument: { uri: doc.uri } }, doc);
+
+    expect(
+      lenses.some(
+        (lens) =>
+          lens.range.start.line === 2 &&
+          lens.command?.title === "0 references",
+      ),
+    ).toBe(true);
+  });
 });
