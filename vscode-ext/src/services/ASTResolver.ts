@@ -3,63 +3,7 @@ import { Parser } from "../../../compiler/frontend/Parser";
 import { lexWithGrammar } from "../../../compiler/frontend/GrammarLexer";
 import * as AST from "../../../compiler/common/AST";
 import { SymbolIndex } from "./SymbolIndex";
-import { debugLog } from "./utils";
-
-/**
- * Convert a TypeNode to a string representation
- */
-function typeNodeToString(type: AST.TypeNode | null | undefined): string {
-  if (!type) return "void";
-
-  switch (type.kind) {
-    case "BasicType": {
-      const basic = type as AST.BasicTypeNode;
-      let result = basic.name;
-
-      // Add generic arguments
-      if (basic.genericArgs && basic.genericArgs.length > 0) {
-        result +=
-          "<" + basic.genericArgs.map(typeNodeToString).join(", ") + ">";
-      }
-
-      // Add pointer depth
-      if (basic.pointerDepth > 0) {
-        result = "*".repeat(basic.pointerDepth) + result;
-      }
-
-      // Add array dimensions
-      if (basic.arrayDimensions && basic.arrayDimensions.length > 0) {
-        for (const dim of basic.arrayDimensions) {
-          result += dim !== null ? `[${dim}]` : "[]";
-        }
-      }
-
-      return result;
-    }
-
-    case "TupleType": {
-      const tuple = type as AST.TupleTypeNode;
-      return "(" + tuple.types.map(typeNodeToString).join(", ") + ")";
-    }
-
-    case "FunctionType": {
-      const func = type as AST.FunctionTypeNode;
-      const params = func.paramTypes.map(typeNodeToString).join(", ");
-      const ret = typeNodeToString(func.returnType);
-      return `Func<${ret}>(${params})`;
-    }
-
-    case "LambdaType": {
-      const lambda = type as AST.LambdaTypeNode;
-      const params = lambda.paramTypes.map(typeNodeToString).join(", ");
-      const ret = typeNodeToString(lambda.returnType);
-      return `Lambda<${ret}>(${params})`;
-    }
-
-    default:
-      return "unknown";
-  }
-}
+import { debugLog, typeNodeToString } from "./utils";
 
 interface ASTCache {
   ast: AST.Program;

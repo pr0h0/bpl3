@@ -9,7 +9,7 @@ import * as path from "path";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex, HoverProvider } from "./index";
 import * as AST from "../../../compiler/common/AST";
-import { debugLog } from "./utils";
+import { debugLog, typeNodeToString as formatTypeNode } from "./utils";
 
 /**
  * AST-based hover handler using the compiler's parser
@@ -1252,55 +1252,7 @@ export class ASTHoverHandler {
    * Convert TypeNode to string (helper)
    */
   private typeNodeToString(type: AST.TypeNode | null | undefined): string {
-    if (!type) return "void";
-
-    switch (type.kind) {
-      case "BasicType": {
-        const basic = type as AST.BasicTypeNode;
-        let result = basic.name;
-        if (basic.genericArgs && basic.genericArgs.length > 0) {
-          result +=
-            "<" +
-            basic.genericArgs.map((t) => this.typeNodeToString(t)).join(", ") +
-            ">";
-        }
-        if (basic.pointerDepth > 0) {
-          result = "*".repeat(basic.pointerDepth) + result;
-        }
-        if (basic.arrayDimensions && basic.arrayDimensions.length > 0) {
-          for (const dim of basic.arrayDimensions) {
-            result += dim !== null ? `[${dim}]` : "[]";
-          }
-        }
-        return result;
-      }
-      case "TupleType": {
-        const tuple = type as AST.TupleTypeNode;
-        return (
-          "(" +
-          tuple.types.map((t) => this.typeNodeToString(t)).join(", ") +
-          ")"
-        );
-      }
-      case "FunctionType": {
-        const func = type as AST.FunctionTypeNode;
-        const params = func.paramTypes
-          .map((t) => this.typeNodeToString(t))
-          .join(", ");
-        const ret = this.typeNodeToString(func.returnType);
-        return `Func<${ret}>(${params})`;
-      }
-      case "LambdaType": {
-        const lambda = type as AST.LambdaTypeNode;
-        const params = lambda.paramTypes
-          .map((t) => this.typeNodeToString(t))
-          .join(", ");
-        const ret = this.typeNodeToString(lambda.returnType);
-        return `Lambda<${ret}>(${params})`;
-      }
-      default:
-        return "unknown";
-    }
+    return formatTypeNode(type ?? undefined);
   }
 
   /**
