@@ -209,6 +209,24 @@ export class WorkspaceSymbolProvider {
         }
         break;
 
+      case "SpecDecl":
+        const spec = stmt as AST.SpecDecl;
+        if (spec.name.toLowerCase().includes(query)) {
+          const symbol = this.statementToWorkspaceSymbol(stmt, filePath);
+          if (symbol) results.push(symbol);
+        }
+        for (const method of spec.methods) {
+          if (method.name.toLowerCase().includes(query)) {
+            const methodSymbol = this.createSpecMethodSymbol(
+              method,
+              spec.name,
+              filePath,
+            );
+            if (methodSymbol) results.push(methodSymbol);
+          }
+        }
+        break;
+
       case "TypeAlias":
         const typeAlias = stmt as AST.TypeAliasDecl;
         if (typeAlias.name.toLowerCase().includes(query)) {
@@ -257,6 +275,10 @@ export class WorkspaceSymbolProvider {
       case "EnumDecl":
         name = (stmt as AST.EnumDecl).name;
         kind = SymbolKind.Enum;
+        break;
+      case "SpecDecl":
+        name = (stmt as AST.SpecDecl).name;
+        kind = SymbolKind.Interface;
         break;
       case "TypeAlias":
         name = (stmt as AST.TypeAliasDecl).name;
@@ -344,6 +366,25 @@ export class WorkspaceSymbolProvider {
         range: range,
       },
       containerName: enumName,
+    };
+  }
+
+  private createSpecMethodSymbol(
+    method: AST.SpecMethod,
+    specName: string,
+    filePath: string,
+  ): WorkspaceSymbol | null {
+    const range = this.nodeToRange(method);
+    if (!range) return null;
+
+    return {
+      name: `${specName}.${method.name}`,
+      kind: SymbolKind.Method,
+      location: {
+        uri: filePathToUri(filePath),
+        range: range,
+      },
+      containerName: specName,
     };
   }
 

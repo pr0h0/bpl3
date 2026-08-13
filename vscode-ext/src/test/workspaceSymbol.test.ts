@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "path";
+import { SymbolKind } from "vscode-languageserver/node";
 import { ASTResolver } from "../services/ASTResolver";
 import { SymbolIndex } from "../services/SymbolIndex";
 import { WorkspaceSymbolProvider } from "../services/WorkspaceSymbolProvider";
@@ -29,5 +30,29 @@ describe("Workspace Symbol Provider", () => {
     const results = await provider.search({ query: "" });
 
     expect(results.some((symbol) => symbol.name === "Point")).toBe(true);
+  });
+
+  it("searches cached spec symbols and methods", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new WorkspaceSymbolProvider(astResolver, symbolIndex);
+    const filePath = path.join(__dirname, "fixtures", "workspace-spec.bpl");
+
+    astResolver.parseDocumentContent(
+      filePath,
+      [
+        "spec ReadWriter<T> {",
+        "    frame write(this: *Self, value: T) ret void;",
+        "}",
+      ].join("\n"),
+    );
+
+    const specResults = await provider.search({ query: "ReadWriter" });
+    const methodResults = await provider.search({ query: "write" });
+
+    expect(specResults.some((symbol) => symbol.kind === SymbolKind.Interface))
+      .toBe(true);
+    expect(methodResults.some((symbol) => symbol.name === "ReadWriter.write"))
+      .toBe(true);
   });
 });
