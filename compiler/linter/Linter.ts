@@ -70,6 +70,9 @@ export class Linter {
         break;
       case "FunctionDecl":
         const func = node as AST.FunctionDecl;
+        for (const attribute of func.attributes) {
+          this.visit(attribute, context);
+        }
         for (const param of func.params) {
           this.visit(param, context);
         }
@@ -78,6 +81,9 @@ export class Linter {
         break;
       case "StructDecl":
         const struct = node as AST.StructDecl;
+        for (const inheritedType of struct.inheritanceList) {
+          this.visit(inheritedType, context);
+        }
         for (const member of struct.members) {
           this.visit(member, context);
         }
@@ -123,6 +129,8 @@ export class Linter {
         for (const field of (node as AST.EnumVariantStruct).fields) {
           this.visit(field.type, context);
         }
+        break;
+      case "FunctionAttribute":
         break;
       case "TypeAlias":
         this.visit((node as AST.TypeAliasDecl).type, context);
@@ -218,6 +226,13 @@ export class Linter {
         if (varDecl.typeAnnotation) this.visit(varDecl.typeAnnotation, context);
         if (varDecl.initializer) this.visit(varDecl.initializer, context);
         break;
+      case "Extern":
+        const externDecl = node as AST.ExternDecl;
+        for (const param of externDecl.params) {
+          this.visit(param.type, context);
+        }
+        if (externDecl.returnType) this.visit(externDecl.returnType, context);
+        break;
       case "InterpolatedString":
         const interpolated = node as AST.InterpolatedStringExpr;
         for (const part of interpolated.parts) {
@@ -269,6 +284,7 @@ export class Linter {
         }
         break;
       case "Cast":
+        this.visit((node as AST.CastExpr).targetType, context);
         this.visit((node as AST.CastExpr).expression, context);
         break;
       case "Sizeof":
@@ -276,6 +292,9 @@ export class Linter {
         break;
       case "TypeOf":
         this.visit((node as AST.TypeOfExpr).target, context);
+        break;
+      case "OffsetOf":
+        this.visit((node as AST.OffsetOfExpr).targetType, context);
         break;
       case "TypeMatch":
         const typeMatch = node as AST.TypeMatchExpr;
@@ -298,17 +317,37 @@ export class Linter {
       case "PatternLiteral":
         this.visit((node as AST.PatternLiteral).value, context);
         break;
+      case "PatternIdentifier":
+        const patternIdentifier = node as AST.PatternIdentifier;
+        if (patternIdentifier.type) {
+          this.visit(patternIdentifier.type, context);
+        }
+        if (patternIdentifier.bindingDeclaration) {
+          this.visit(patternIdentifier.bindingDeclaration, context);
+        }
+        break;
       case "PatternTuple":
         for (const pattern of (node as AST.PatternTuple).patterns) {
           this.visit(pattern, context);
         }
         break;
+      case "PatternEnum":
+        for (const genericArg of (node as AST.PatternEnum).genericArgs ?? []) {
+          this.visit(genericArg, context);
+        }
+        break;
       case "PatternEnumTuple":
+        for (const genericArg of (node as AST.PatternEnumTuple).genericArgs ?? []) {
+          this.visit(genericArg, context);
+        }
         for (const binding of (node as AST.PatternEnumTuple).bindings) {
           this.visit(binding, context);
         }
         break;
       case "PatternEnumStruct":
+        for (const genericArg of (node as AST.PatternEnumStruct).genericArgs ?? []) {
+          this.visit(genericArg, context);
+        }
         for (const field of (node as AST.PatternEnumStruct).fields) {
           if (field.bindingDeclaration) {
             this.visit(field.bindingDeclaration, context);
@@ -340,6 +379,10 @@ export class Linter {
         }
         if (lambda.returnType) this.visit(lambda.returnType, context);
         this.visit(lambda.body, context);
+        break;
+      case "LambdaParameter":
+        const lambdaParam = node as AST.LambdaParameter;
+        if (lambdaParam.type) this.visit(lambdaParam.type, context);
         break;
       case "Is":
         const isExpr = node as AST.IsExpr;

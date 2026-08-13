@@ -348,6 +348,7 @@ describe("linter type-safety guards", () => {
       "EnumVariant",
       "EnumVariantTuple",
       "EnumVariantStruct",
+      "FunctionAttribute",
       "TypeAlias",
       "BasicType",
       "TupleType",
@@ -367,6 +368,7 @@ describe("linter type-safety guards", () => {
       "ExpressionStmt",
       "Parameter",
       "VariableDecl",
+      "Extern",
       "InterpolatedString",
       "Binary",
       "Unary",
@@ -380,17 +382,21 @@ describe("linter type-safety guards", () => {
       "Cast",
       "Sizeof",
       "TypeOf",
+      "OffsetOf",
       "TypeMatch",
       "Match",
       "MatchArm",
       "PatternLiteral",
+      "PatternIdentifier",
       "PatternTuple",
+      "PatternEnum",
       "PatternEnumTuple",
       "PatternEnumStruct",
       "Assignment",
       "Ternary",
       "GenericInstantiation",
       "LambdaExpression",
+      "LambdaParameter",
       "Is",
       "As",
       "Group",
@@ -408,15 +414,11 @@ describe("linter type-safety guards", () => {
       "AutoDestroy",
       "Break",
       "Continue",
-      "Extern",
       "Export",
       "Fallthrough",
       "Identifier",
       "Import",
       "Literal",
-      "OffsetOf",
-      "PatternEnum",
-      "PatternIdentifier",
       "PatternWildcard",
       "RuntimeDeferCleanup",
     ]).toEqual([
@@ -424,15 +426,11 @@ describe("linter type-safety guards", () => {
       "AutoDestroy",
       "Break",
       "Continue",
-      "Extern",
       "Export",
       "Fallthrough",
       "Identifier",
       "Import",
       "Literal",
-      "OffsetOf",
-      "PatternEnum",
-      "PatternIdentifier",
       "PatternWildcard",
       "RuntimeDeferCleanup",
     ]);
@@ -532,7 +530,7 @@ describe("linter type-safety guards", () => {
           kind: "StructDecl",
           name: "Container",
           genericParams: [],
-          inheritanceList: [],
+          inheritanceList: [basicType("baseStruct")],
           members: [
             {
               kind: "StructField",
@@ -572,7 +570,13 @@ describe("linter type-safety guards", () => {
           isFrame: true,
           isStatic: true,
           name: "main",
-          attributes: [],
+          attributes: [
+            {
+              kind: "FunctionAttribute",
+              name: "noreturn",
+              location,
+            },
+          ],
           genericParams: [],
           params: [
             {
@@ -590,6 +594,14 @@ describe("linter type-safety guards", () => {
           },
           location,
         },
+        {
+          kind: "Extern",
+          name: "nativeCall",
+          params: [{ name: "input", type: basicType("externParam") }],
+          isVariadic: false,
+          returnType: basicType("externReturn"),
+          location,
+        },
       ],
     };
 
@@ -598,6 +610,7 @@ describe("linter type-safety guards", () => {
       .map((error) => error.message);
 
     expect(messages).toContain("type:aliasType");
+    expect(messages).toContain("type:baseStruct");
     expect(messages).toContain("type:fieldType");
     expect(messages).toContain("type:baseSpec");
     expect(messages).toContain("type:specParamType");
@@ -605,6 +618,37 @@ describe("linter type-safety guards", () => {
     expect(messages).toContain("type:paramType");
     expect(messages).toContain("type:returnType");
     expect(messages).toContain("type:int");
+    expect(messages).toContain("type:externParam");
+    expect(messages).toContain("type:externReturn");
+  });
+
+  test("visits function attributes", () => {
+    const rule: LintRule = {
+      code: "TATTR",
+      name: "function-attribute-visitor-test",
+      check(node, context) {
+        if (node.kind !== "FunctionAttribute") return;
+
+        context.report(
+          `attribute:${(node as AST.FunctionAttribute).name}`,
+          node,
+          undefined,
+          "TATTR",
+        );
+      },
+    };
+
+    const program = functionWithParameter("value");
+    const [func] = program.statements as [AST.FunctionDecl];
+    func.attributes.push({
+      kind: "FunctionAttribute",
+      name: "noreturn",
+      location,
+    });
+
+    expect(new Linter([rule]).lint(program).map((error) => error.message)).toEqual(
+      ["attribute:noreturn"],
+    );
   });
 
   test("visits nested type children", () => {
@@ -799,6 +843,94 @@ describe("linter type-safety guards", () => {
     expect(messages).toContain("identifier:genericBase");
   });
 
+  test("visits expression type children", () => {
+    const rule: LintRule = {
+      code: "TEXPRTYPE",
+      name: "expression-type-visitor-test",
+      check(node, context) {
+        if (node.kind !== "BasicType") return;
+
+        context.report(
+          `type:${(node as AST.BasicTypeNode).name}`,
+          node,
+          undefined,
+          "TEXPRTYPE",
+        );
+      },
+    };
+
+    const errors = new Linter([rule]).lint(
+      functionWithExpression({
+        kind: "ArrayLiteral",
+        elements: [
+          {
+            kind: "Cast",
+            targetType: basicType("castTarget"),
+            expression: identifier("castValue"),
+            location,
+          },
+          {
+            kind: "Sizeof",
+            target: basicType("sizeofTarget"),
+            location,
+          },
+          {
+            kind: "TypeOf",
+            target: basicType("typeOfTarget"),
+            location,
+          },
+          {
+            kind: "OffsetOf",
+            targetType: basicType("offsetTarget"),
+            member: "field",
+            location,
+          },
+          {
+            kind: "TypeMatch",
+            targetType: basicType("typeMatchTarget"),
+            value: identifier("typeMatchValue"),
+            location,
+          },
+          {
+            kind: "GenericInstantiation",
+            base: identifier("genericBase"),
+            genericArgs: [basicType("genericExprArg")],
+            location,
+          },
+          {
+            kind: "LambdaExpression",
+            params: [
+              {
+                kind: "LambdaParameter",
+                name: "lambdaArg",
+                type: basicType("lambdaParamType"),
+                location,
+              },
+            ],
+            returnType: basicType("lambdaReturnType"),
+            body: {
+              kind: "Block",
+              statements: [],
+              location,
+            },
+            location,
+          },
+        ],
+        location,
+      }),
+    );
+
+    const messages = errors.map((error) => error.message);
+    expect(messages).toContain("type:castTarget");
+    expect(messages).toContain("type:sizeofTarget");
+    expect(messages).toContain("type:typeOfTarget");
+    expect(messages).toContain("type:offsetTarget");
+    expect(messages).toContain("type:typeMatchTarget");
+    expect(messages).toContain("type:genericExprArg");
+    expect(messages).toContain("type:lambdaParamType");
+    expect(messages).toContain("type:lambdaReturnType");
+  });
+
   test("visits lambda and match expression children", () => {
     const messages = collectVisitedNames({
       kind: "ArrayLiteral",
@@ -850,23 +982,31 @@ describe("linter type-safety guards", () => {
     expect(messages).toContain("identifier:matchBody");
   });
 
-  test("visits enum struct pattern field binding declarations", () => {
+  test("visits pattern type and binding children", () => {
     const rule: LintRule = {
       code: "TPAT",
       name: "pattern-binding-visitor-test",
       check(node, context) {
-        if (node.kind !== "VariableDecl") return;
-
-        context.report(
-          `variable:${(node as AST.VariableDecl).name}`,
-          node,
-          undefined,
-          "TPAT",
-        );
+        if (node.kind === "VariableDecl") {
+          context.report(
+            `variable:${(node as AST.VariableDecl).name}`,
+            node,
+            undefined,
+            "TPAT",
+          );
+        } else if (node.kind === "BasicType") {
+          context.report(
+            `type:${(node as AST.BasicTypeNode).name}`,
+            node,
+            undefined,
+            "TPAT",
+          );
+        }
       },
     };
 
     const bindingDeclaration = variableDecl("fieldBinding");
+    const identifierBinding = variableDecl("identifierBinding");
     const errors = new Linter([rule]).lint(
       functionWithExpression({
         kind: "Match",
@@ -875,9 +1015,47 @@ describe("linter type-safety guards", () => {
           {
             kind: "MatchArm",
             pattern: {
+              kind: "PatternIdentifier",
+              name: "typedBinding",
+              type: basicType("patternIdentifierType"),
+              bindingDeclaration: identifierBinding,
+              location,
+            },
+            body: identifier("identifierBody"),
+            location,
+          },
+          {
+            kind: "MatchArm",
+            pattern: {
+              kind: "PatternEnum",
+              enumName: "Result",
+              variantName: "None",
+              genericArgs: [basicType("patternEnumGeneric")],
+              location,
+            },
+            body: identifier("enumBody"),
+            location,
+          },
+          {
+            kind: "MatchArm",
+            pattern: {
+              kind: "PatternEnumTuple",
+              enumName: "Result",
+              variantName: "Ok",
+              genericArgs: [basicType("patternTupleGeneric")],
+              bindings: [],
+              location,
+            },
+            body: identifier("tupleBody"),
+            location,
+          },
+          {
+            kind: "MatchArm",
+            pattern: {
               kind: "PatternEnumStruct",
               enumName: "Result",
               variantName: "Ok",
+              genericArgs: [basicType("patternStructGeneric")],
               fields: [
                 {
                   fieldName: "value",
@@ -895,8 +1073,12 @@ describe("linter type-safety guards", () => {
       }),
     );
 
-    expect(errors.map((error) => error.message)).toContain(
-      "variable:fieldBinding",
-    );
+    const messages = errors.map((error) => error.message);
+    expect(messages).toContain("type:patternIdentifierType");
+    expect(messages).toContain("variable:identifierBinding");
+    expect(messages).toContain("type:patternEnumGeneric");
+    expect(messages).toContain("type:patternTupleGeneric");
+    expect(messages).toContain("type:patternStructGeneric");
+    expect(messages).toContain("variable:fieldBinding");
   });
 });
