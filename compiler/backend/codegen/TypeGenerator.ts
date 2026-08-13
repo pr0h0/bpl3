@@ -1618,14 +1618,27 @@ export abstract class TypeGenerator extends StructEnumGenerator {
             }
 
             if (!declType) {
-              // @ts-ignore
-              declType = decl.resolvedType!;
+              declType = decl.resolvedType;
             }
 
-            const baseTypeStr = this.resolveType(declType!);
+            if (!declType) {
+              throw new CompilerError(
+                "Cannot resolve declaration type",
+                "Internal compiler error: address-of type resolution lost the declaration type.",
+                {
+                  file: this.currentFilePath,
+                  startLine: 0,
+                  startColumn: 0,
+                  endLine: 0,
+                  endColumn: 0,
+                },
+              );
+            }
+
+            const baseTypeStr = this.resolveType(declType);
             codeGenLog.debug("Base type: " + baseTypeStr);
 
-            const declMods = this.getEffectiveModifiers(declType!);
+            const declMods = this.getEffectiveModifiers(declType);
             const totalMods = {
               pointerDepth: basicType.pointerDepth,
               arrayDimensions: basicType.arrayDimensions,
