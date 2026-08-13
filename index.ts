@@ -10,14 +10,14 @@
 import { Command } from "commander";
 import type { CompileOptions } from "./cli/types";
 import {
+  emitNoInputBuildErrorAndExit,
+  validateCompileInputSources,
+} from "./cli/BuildInputValidation";
+import {
   CLI_JSON_CHECKS,
   createJsonReport,
 } from "./compiler/common/JsonContracts";
 import { Logger } from "./compiler/common/Logger";
-import {
-  BUILD_CONFLICTING_INPUTS_CODE,
-  BUILD_NO_INPUTS_CODE,
-} from "./cli/BuildErrorCodes";
 import { registerRequestedCliSubcommands } from "./cli/CommandRegistration";
 
 const log = new Logger("CLI");
@@ -48,46 +48,6 @@ function handleJsonVersionRequest(argv: string[], version: string): void {
     ),
   );
   process.exit(0);
-}
-
-function emitBuildValidationErrorAndExit(
-  message: string,
-  errorCode: string,
-  options: CompileOptions,
-): never {
-  if (options.json) {
-    console.log(
-      JSON.stringify(
-        createJsonReport(CLI_JSON_CHECKS.build, false, {
-          error: message,
-          errorCode,
-        }),
-        null,
-        2,
-      ),
-    );
-  } else {
-    log.error(message);
-  }
-  process.exit(1);
-}
-
-function validateRootCompileInputs(
-  files: string[] | undefined,
-  options: CompileOptions,
-): void {
-  const inputSources: string[] = [];
-  if (files && files.length > 0) inputSources.push("file arguments");
-  if (options.eval !== undefined) inputSources.push("--eval");
-  if (options.stdin) inputSources.push("--stdin");
-
-  if (inputSources.length > 1) {
-    emitBuildValidationErrorAndExit(
-      `Conflicting input sources: ${inputSources.join(", ")}. Choose exactly one of file arguments, --eval, or --stdin.`,
-      BUILD_CONFLICTING_INPUTS_CODE,
-      options,
-    );
-  }
 }
 
 // ============================================================================
@@ -145,7 +105,7 @@ program
   .option("--color", "force colored output")
   .option("--no-color", "disable colored output")
   .action(async (files: string[] | undefined, options: CompileOptions) => {
-    validateRootCompileInputs(files, options);
+    validateCompileInputSources(files, options);
 
     // Handle --eval flag
     if (options.eval !== undefined) {
@@ -167,15 +127,7 @@ program
     }
 
     if (!files || files.length === 0) {
-      if (options.json) {
-        emitBuildValidationErrorAndExit(
-          "No input files specified.",
-          BUILD_NO_INPUTS_CODE,
-          options,
-        );
-      }
-      log.error("No input files specified");
-      process.exit(1);
+      emitNoInputBuildErrorAndExit(options);
     }
 
     // TypeScript needs this assertion after the exit check
