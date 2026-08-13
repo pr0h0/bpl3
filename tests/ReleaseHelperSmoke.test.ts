@@ -363,11 +363,20 @@ function writePackedHelperInstallFixture(
     cpSync(join(repoRoot, helperPath), join(packageDir, helperPath));
   }
 
-  if (options.includePathSafety) {
-    mkdirSync(join(packageDir, "compiler", "common"), { recursive: true });
+  mkdirSync(join(packageDir, "compiler", "common"), { recursive: true });
+  for (const helperDependencyPath of [
+    "compiler/common/Env.ts",
+    "compiler/common/ProcessErrors.ts",
+  ]) {
     cpSync(
-      join(repoRoot, "compiler", "common", "PathSafety.ts"),
-      join(packageDir, "compiler", "common", "PathSafety.ts"),
+      join(repoRoot, helperDependencyPath),
+      join(packageDir, helperDependencyPath),
+    );
+  }
+  if (options.includePathSafety) {
+    cpSync(
+      join(repoRoot, "compiler/common/PathSafety.ts"),
+      join(packageDir, "compiler/common/PathSafety.ts"),
     );
   }
 

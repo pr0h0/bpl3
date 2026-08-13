@@ -78,12 +78,30 @@ export interface PackageHelperDependency {
 export const PACKAGE_HELPER_DEPENDENCIES = [
   {
     importedBy: [
+      "tools/release_manifest.ts",
+      "tools/test_ci.ts",
+    ],
+    path: "compiler/common/Env.ts",
+    reason:
+      "Packed helper scripts share environment parsing without shipping broad compiler sources.",
+  },
+  {
+    importedBy: [
       "tools/fuzz_artifact_repro.ts",
       "tools/release_manifest.ts",
     ],
     path: "compiler/common/PathSafety.ts",
     reason:
       "Packed helper scripts share symlink-safe path validation without shipping broad compiler sources.",
+  },
+  {
+    importedBy: [
+      "tools/release_manifest.ts",
+      "tools/test_ci.ts",
+    ],
+    path: "compiler/common/ProcessErrors.ts",
+    reason:
+      "Packed helper scripts share spawn error formatting without shipping broad compiler sources.",
   },
 ] as const satisfies readonly PackageHelperDependency[];
 

@@ -158,7 +158,9 @@ describe("Release metadata", () => {
         "cli/index.d.ts",
         "cli/index.js",
         "completions",
+        "compiler/common/Env.ts",
         "compiler/common/PathSafety.ts",
+        "compiler/common/ProcessErrors.ts",
         "docs",
         "examples",
         "grammar",
@@ -211,9 +213,15 @@ describe("Release metadata", () => {
     ]);
 
     expect(packageJson.files).toContain("tools");
+    expect(packageJson.files).toContain("compiler/common/Env.ts");
     expect(packageJson.files).toContain("compiler/common/PathSafety.ts");
+    expect(packageJson.files).toContain("compiler/common/ProcessErrors.ts");
+    expect(existsSync(join(repoRoot, "compiler/common/Env.ts"))).toBe(true);
     expect(
       existsSync(join(repoRoot, "compiler/common/PathSafety.ts")),
+    ).toBe(true);
+    expect(
+      existsSync(join(repoRoot, "compiler/common/ProcessErrors.ts")),
     ).toBe(true);
     for (const [scriptName, helperPath] of helperScripts) {
       expect(packageJson.scripts[scriptName]).toContain(helperPath);
@@ -314,6 +322,15 @@ describe("Release metadata", () => {
     expect(PACKAGE_HELPER_DEPENDENCIES).toEqual([
       {
         importedBy: [
+          "tools/release_manifest.ts",
+          "tools/test_ci.ts",
+        ],
+        path: "compiler/common/Env.ts",
+        reason:
+          "Packed helper scripts share environment parsing without shipping broad compiler sources.",
+      },
+      {
+        importedBy: [
           "tools/fuzz_artifact_repro.ts",
           "tools/release_manifest.ts",
         ],
@@ -321,11 +338,24 @@ describe("Release metadata", () => {
         reason:
           "Packed helper scripts share symlink-safe path validation without shipping broad compiler sources.",
       },
+      {
+        importedBy: [
+          "tools/release_manifest.ts",
+          "tools/test_ci.ts",
+        ],
+        path: "compiler/common/ProcessErrors.ts",
+        reason:
+          "Packed helper scripts share spawn error formatting without shipping broad compiler sources.",
+      },
     ]);
     expect(discoverPackageHelperDependencyFiles(repoRoot)).toEqual([
+      "compiler/common/Env.ts",
       "compiler/common/PathSafety.ts",
+      "compiler/common/ProcessErrors.ts",
     ]);
+    expect(packageJson.files).toContain("compiler/common/Env.ts");
     expect(packageJson.files).toContain("compiler/common/PathSafety.ts");
+    expect(packageJson.files).toContain("compiler/common/ProcessErrors.ts");
     expect(packageJson.files).not.toContain("compiler");
     expect(packageJson.files).not.toContain("compiler/common");
     expect(releaseManifestSource).toContain("formatReleaseManifestHelp");
@@ -1194,7 +1224,13 @@ describe("Release metadata", () => {
         kind: "helper",
         sha256: createHash("sha256")
           .update(
-            'import "../compiler/common/PathSafety";\nrelease manifest helper\n',
+            [
+              'import "../compiler/common/Env";',
+              'import "../compiler/common/PathSafety";',
+              'import "../compiler/common/ProcessErrors";',
+              "release manifest helper",
+              "",
+            ].join("\n"),
           )
           .digest("hex"),
       });
@@ -1210,10 +1246,35 @@ describe("Release metadata", () => {
           .update("fuzz script wrapper\n")
           .digest("hex"),
       });
+      expect(byPath.get("tools/test_ci.ts")).toMatchObject({
+        kind: "helper",
+        sha256: createHash("sha256")
+          .update(
+            [
+              'import "../compiler/common/Env";',
+              'import "../compiler/common/ProcessErrors";',
+              "test ci helper",
+              "",
+            ].join("\n"),
+          )
+          .digest("hex"),
+      });
+      expect(byPath.get("compiler/common/Env.ts")).toMatchObject({
+        kind: "helper",
+        sha256: createHash("sha256")
+          .update("env helper\n")
+          .digest("hex"),
+      });
       expect(byPath.get("compiler/common/PathSafety.ts")).toMatchObject({
         kind: "helper",
         sha256: createHash("sha256")
           .update("path safety helper\n")
+          .digest("hex"),
+      });
+      expect(byPath.get("compiler/common/ProcessErrors.ts")).toMatchObject({
+        kind: "helper",
+        sha256: createHash("sha256")
+          .update("process errors helper\n")
           .digest("hex"),
       });
       expect(byPath.get("bpl-v3-9.9.9.tgz")).toMatchObject({
@@ -1246,6 +1307,7 @@ describe("Release metadata", () => {
         ["fuzz:repro", "tools/fuzz_artifact_repro.ts"],
         ["release:manifest", "tools/release_manifest.ts"],
         ["release:smoke", "tools/release_smoke.ts"],
+        ["test:ci", "tools/test_ci.ts"],
       ]);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
@@ -1648,6 +1710,7 @@ function writeReleaseFixture(tempRoot: string): void {
           "fuzz:promote": "bun tools/fuzz_script_wrapper.ts promote",
           "fuzz:replay": "bun tools/fuzz_script_wrapper.ts replay",
           "fuzz:repro": "bun tools/fuzz_artifact_repro.ts",
+          "test:ci": "bun tools/test_ci.ts",
         },
       },
       null,
@@ -1668,15 +1731,38 @@ function writeReleaseFixture(tempRoot: string): void {
   );
   writeFileSync(
     join(tempRoot, "tools", "release_manifest.ts"),
-    'import "../compiler/common/PathSafety";\nrelease manifest helper\n',
+    [
+      'import "../compiler/common/Env";',
+      'import "../compiler/common/PathSafety";',
+      'import "../compiler/common/ProcessErrors";',
+      "release manifest helper",
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(tempRoot, "tools", "test_ci.ts"),
+    [
+      'import "../compiler/common/Env";',
+      'import "../compiler/common/ProcessErrors";',
+      "test ci helper",
+      "",
+    ].join("\n"),
   );
   writeFileSync(
     join(tempRoot, "tools", "release_smoke.ts"),
     "release smoke helper\n",
   );
   writeFileSync(
+    join(tempRoot, "compiler", "common", "Env.ts"),
+    "env helper\n",
+  );
+  writeFileSync(
     join(tempRoot, "compiler", "common", "PathSafety.ts"),
     "path safety helper\n",
+  );
+  writeFileSync(
+    join(tempRoot, "compiler", "common", "ProcessErrors.ts"),
+    "process errors helper\n",
   );
   writeFileSync(join(tempRoot, "lib", "runtime.ll"), "runtime ir\n");
   writeFileSync(join(tempRoot, "lib", "runtime_wasm.ll"), "wasm runtime ir\n");
