@@ -85,6 +85,15 @@ export class DocumentHighlightProvider {
       };
     }
 
+    if (node.kind === "BasicType") {
+      const basicType = node as AST.BasicTypeNode;
+      return {
+        kind: "Identifier",
+        name: basicType.name,
+        location: basicType.location,
+      };
+    }
+
     // Also check member expressions (property is a string, not a node)
     // Member access highlighting would require more complex logic
 
@@ -205,6 +214,30 @@ export class DocumentHighlightProvider {
       }
     }
 
+    if (node.kind === "TypeAlias") {
+      const typeAlias = node as AST.TypeAliasDecl;
+      if (typeAlias.name === symbolName && typeAlias.location) {
+        highlights.push(
+          DocumentHighlight.create(
+            this.locationToRange(typeAlias.location),
+            DocumentHighlightKind.Write,
+          ),
+        );
+      }
+    }
+
+    if (node.kind === "BasicType") {
+      const basicType = node as AST.BasicTypeNode;
+      if (basicType.name === symbolName && basicType.location) {
+        highlights.push(
+          DocumentHighlight.create(
+            this.locationToRange(basicType.location),
+            DocumentHighlightKind.Read,
+          ),
+        );
+      }
+    }
+
     // Recursively check children
     const children = this.getChildNodes(node);
     for (const child of children) {
@@ -320,7 +353,9 @@ export class DocumentHighlightProvider {
         break;
       }
       case "TypeMatch": {
-        const value = (node as AST.TypeMatchExpr).value;
+        const typeMatch = node as AST.TypeMatchExpr;
+        children.push(typeMatch.targetType);
+        const value = typeMatch.value;
         if ((value as AST.ASTNode).kind) children.push(value as AST.ASTNode);
         break;
       }

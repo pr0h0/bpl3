@@ -481,6 +481,43 @@ describe("Document Highlight Provider", () => {
       true,
     );
   });
+
+  it("highlights type aliases from type match targets", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/highlight type match alias.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "type Alias = int;",
+        "frame test(value: Alias) ret bool {",
+        "    return match<Alias>(value);",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 2, character: 18 },
+      },
+      doc,
+    );
+
+    expect(result?.some((highlight) => highlight.range.start.line === 0)).toBe(
+      true,
+    );
+    expect(
+      result?.some(
+        (highlight) =>
+          highlight.range.start.line === 2 &&
+          highlight.range.start.character === 17,
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("Folding Range Provider", () => {
