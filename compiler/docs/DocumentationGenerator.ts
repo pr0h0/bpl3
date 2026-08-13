@@ -171,7 +171,8 @@ export class DocumentationGenerator {
 
     this.output.push(`### \`${name}\``);
     this.output.push("```bpl");
-    this.output.push(`global ${name}: ${typeStr}`);
+    const constPrefix = global.isConst ? "const " : "";
+    this.output.push(`global ${constPrefix}${name}: ${typeStr}`);
     this.output.push("```");
 
     if (global.documentation) {

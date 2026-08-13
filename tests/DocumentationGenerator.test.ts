@@ -105,4 +105,14 @@ describe("DocumentationGenerator", () => {
       "frame log(const fmt: string, values: ...int) ret void",
     );
   });
+
+  test("preserves global const modifiers in declarations", () => {
+    const sourceFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(sourceFile, "global const LIMIT: int = 10;\n");
+
+    const generator = new DocumentationGenerator();
+    const markdown = generator.generate(sourceFile);
+
+    expect(markdown).toContain("global const LIMIT: int");
+  });
 });
