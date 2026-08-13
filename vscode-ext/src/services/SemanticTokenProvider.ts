@@ -131,10 +131,16 @@ export class SemanticTokenProvider {
   /**
    * Provide semantic tokens for an entire document
    */
-  provideSemanticTokens(filePath: string): SemanticTokens | null {
+  provideSemanticTokens(
+    filePath: string,
+    sourceText?: string,
+  ): SemanticTokens | null {
     debugLog(`[SemanticTokens] Providing tokens for ${filePath}`);
 
-    const ast = this.astResolver.getAST(filePath);
+    const ast =
+      sourceText !== undefined
+        ? this.astResolver.parseDocumentContent(filePath, sourceText)
+        : this.astResolver.getAST(filePath);
     if (!ast) {
       debugLog(`[SemanticTokens] Could not parse ${filePath}`);
       return null;
@@ -145,7 +151,7 @@ export class SemanticTokenProvider {
     );
 
     // Get source for name position calculations
-    const source = this.astResolver.getSource(filePath) || "";
+    const source = sourceText ?? this.astResolver.getSource(filePath) ?? "";
 
     const builder = new SemanticTokensBuilder();
     this.visitNode(ast, builder, source);

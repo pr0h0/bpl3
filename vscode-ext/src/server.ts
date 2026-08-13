@@ -616,9 +616,13 @@ connection.onDefinition(
 // Semantic tokens provider for dynamic syntax highlighting
 connection.languages.semanticTokens.on((params) => {
   const filePath = fileURLToPath(params.textDocument.uri);
+  const document = documents.get(params.textDocument.uri);
   debugLog(`[SemanticTokens] Full tokens requested for ${filePath}`);
 
-  const result = semanticTokenProvider.provideSemanticTokens(filePath);
+  const result = semanticTokenProvider.provideSemanticTokens(
+    filePath,
+    document?.getText(),
+  );
   return result || { data: [] };
 });
 
