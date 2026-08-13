@@ -218,11 +218,11 @@ export class SemanticTokenProvider {
           this.visitTypeAliasDecl(node as AST.TypeAliasDecl, builder, source);
           break;
 
-        case "ImportStmt":
+        case "Import":
           this.visitImportStmt(node as AST.ImportStmt, builder);
           break;
 
-        case "ExportStmt":
+        case "Export":
           this.visitExportStmt(node as AST.ExportStmt, builder);
           break;
 
