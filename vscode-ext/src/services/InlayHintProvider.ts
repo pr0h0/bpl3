@@ -126,11 +126,11 @@ export class InlayHintProvider {
       }
     }
 
-    // If not found, check for struct methods
+    // If not found, check for methods stored on struct/enum symbols.
     if (!params) {
-      const structSymbols = this.symbolIndex.getAllSymbols();
-      for (const sym of structSymbols) {
-        if (sym.kind === "struct" && sym.methods) {
+      const symbolsWithMethods = this.symbolIndex.getAllSymbols();
+      for (const sym of symbolsWithMethods) {
+        if (sym.methods) {
           for (const method of sym.methods) {
             if (method.name === funcName) {
               // Methods store parameters in method.signature.parameters

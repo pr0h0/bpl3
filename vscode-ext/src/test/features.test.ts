@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "bun:test";
 import * as path from "path";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { pathToFileURL } from "url";
 import { ASTResolver } from "../services/ASTResolver";
 import { SymbolIndex } from "../services/SymbolIndex";
@@ -95,6 +95,52 @@ describe("BPL High Priority Features Tests", () => {
       if (result) {
         expect(result.signatures.length).toBeGreaterThan(0);
       }
+    });
+
+    it("shows signature help for enum methods", () => {
+      const symbolIndex = new SymbolIndex();
+      const astResolver = new ASTResolver(symbolIndex);
+      const provider = new SignatureHelpProvider(astResolver, symbolIndex);
+      const filePath = path.join(
+        __dirname,
+        "../../../tmp/enum-method-signature-help.bpl",
+      );
+      const content = [
+        "enum Color {",
+        "    Red,",
+        "    frame mix(this: Color, amount: int, label: string) ret int {",
+        "        return amount;",
+        "    }",
+        "}",
+        "frame test() {",
+        "    local color: Color = Color.Red;",
+        '    color.mix(10, "warm");',
+        "}",
+      ].join("\n");
+      writeFileSync(filePath, content);
+      symbolIndex.indexFile(filePath, false);
+      astResolver.parseDocumentContent(filePath, content);
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        content,
+      );
+
+      const result = provider.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 8, character: 14 },
+          context: {
+            isRetrigger: false,
+            triggerKind: 1,
+          },
+        },
+        doc,
+      );
+
+      expect(result?.signatures[0]?.label).toContain("amount: int");
+      expect(result?.signatures[0]?.label).toContain("label: string");
     });
 
     it("tracks active parameter with commas", () => {
@@ -327,6 +373,52 @@ describe("BPL High Priority Features Tests", () => {
       const dyHint = hints.find((h) => h.label === "dy:");
       expect(dxHint).toBeDefined();
       expect(dyHint).toBeDefined();
+    });
+
+    it("shows parameter hints for enum methods (skipping 'this')", () => {
+      const symbolIndex = new SymbolIndex();
+      const astResolver = new ASTResolver(symbolIndex);
+      const provider = new InlayHintProvider(astResolver, symbolIndex);
+      const filePath = path.join(
+        __dirname,
+        "../../../tmp/enum-method-inlay-hints.bpl",
+      );
+      const content = [
+        "enum Color {",
+        "    Red,",
+        "    frame mix(this: Color, amount: int, label: string) ret int {",
+        "        return amount;",
+        "    }",
+        "}",
+        "frame test() {",
+        "    local color: Color = Color.Red;",
+        '    color.mix(10, "warm");',
+        "}",
+      ].join("\n");
+      writeFileSync(filePath, content);
+      symbolIndex.indexFile(filePath, false);
+      astResolver.parseDocumentContent(filePath, content);
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        content,
+      );
+
+      const hints = provider.handle(
+        {
+          textDocument: { uri: doc.uri },
+          range: {
+            start: { line: 8, character: 0 },
+            end: { line: 8, character: 100 },
+          },
+        },
+        doc,
+      );
+
+      expect(hints.find((hint) => hint.label === "this:")).toBeUndefined();
+      expect(hints.find((hint) => hint.label === "amount:")).toBeDefined();
+      expect(hints.find((hint) => hint.label === "label:")).toBeDefined();
     });
 
     it("does not show type hints when type is explicitly specified", () => {

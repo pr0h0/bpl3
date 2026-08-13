@@ -143,9 +143,9 @@ export class SignatureHelpProvider {
     }
 
     // Also check for methods (could be called via explicit self)
-    const structSymbols = this.symbolIndex.getAllSymbols();
-    for (const sym of structSymbols) {
-      if (sym.kind === "struct" && sym.methods) {
+    const symbolsWithMethods = this.symbolIndex.getAllSymbols();
+    for (const sym of symbolsWithMethods) {
+      if (sym.methods) {
         for (const method of sym.methods) {
           if (method.name === functionName) {
             const sig = this.createSignatureFromMethod(method);
