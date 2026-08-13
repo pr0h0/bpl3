@@ -81,6 +81,9 @@ export class ASTHoverHandler {
         case "SpecDecl":
           return this.handleSpecDecl(node as AST.SpecDecl);
 
+        case "SpecMethod":
+          return this.handleSpecMethod(node as AST.SpecMethod);
+
         case "TypeAlias":
           return this.handleTypeAliasDecl(node as AST.TypeAliasDecl);
 
@@ -480,6 +483,44 @@ export class ASTHoverHandler {
     // Return type
     if (returnType !== "void") {
       docs += `**Returns:** \`${returnType}\`\n\n`;
+    }
+
+    return {
+      contents: {
+        kind: MarkupKind.Markdown,
+        value: docs,
+      },
+    };
+  }
+
+  /**
+   * Handle hover on spec method signatures
+   */
+  private handleSpecMethod(node: AST.SpecMethod): Hover {
+    const genericParams =
+      node.genericParams && node.genericParams.length > 0
+        ? `<${node.genericParams.map((p) => p.name).join(", ")}>`
+        : "";
+    const params = node.params
+      .map((p: AST.Parameter) => {
+        const paramType = this.typeNodeToString(p.type);
+        const constModifier = p.isConst ? "const " : "";
+        return `${constModifier}${p.name}: ${paramType}`;
+      })
+      .join(", ");
+    const returnType = this.typeNodeToString(node.returnType);
+
+    let docs = `### 🎯 Spec Method \`${node.name}\`\n\n`;
+
+    if (node.documentation) {
+      docs += this.formatDocumentation(node.documentation);
+      docs += `\n---\n\n`;
+    }
+
+    docs += `\`\`\`bpl\nframe ${node.name}${genericParams}(${params}) ret ${returnType}\n\`\`\`\n\n`;
+
+    if (node.location?.file) {
+      docs += `📍 *Defined in:* \`${this.shortenFilePath(node.location.file)}\` (line ${node.location.startLine})\n\n`;
     }
 
     return {

@@ -247,6 +247,39 @@ describe("BPL Language Server Tests", () => {
       expect(value).toContain("Extern Function");
       expect(value).toContain("extern printf(fmt: string, ...) ret int");
     });
+
+    it("shows hover for spec method declarations", () => {
+      const filePath = path.join(
+        __dirname,
+        "fixtures",
+        "spec-method-hover.bpl",
+      );
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        [
+          "spec Reader {",
+          "    frame read(this: *Self) ret int;",
+          "}",
+        ].join("\n"),
+      );
+      const hover = hoverHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 1, character: 11 },
+        },
+        doc,
+      );
+
+      const value =
+        typeof hover?.contents === "object" && "value" in hover.contents
+          ? hover.contents.value
+          : String(hover?.contents ?? "");
+      expect(value).toContain("Spec Method");
+      expect(value).toContain("read");
+      expect(value).toContain("frame read(this: *Self) ret int");
+    });
   });
 
   describe("Definition Tests", () => {
@@ -378,6 +411,35 @@ describe("BPL Language Server Tests", () => {
 
       expect(location?.uri).toBe(doc.uri);
       expect(location?.range.start.line).toBe(0);
+    });
+
+    it("returns the current declaration for spec method definitions", () => {
+      const filePath = path.join(
+        __dirname,
+        "fixtures",
+        "spec-method-definition.bpl",
+      );
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        [
+          "spec Reader {",
+          "    frame read(this: *Self) ret int;",
+          "}",
+        ].join("\n"),
+      );
+
+      const location = definitionHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 1, character: 11 },
+        },
+        doc,
+      );
+
+      expect(location?.uri).toBe(doc.uri);
+      expect(location?.range.start.line).toBe(1);
     });
   });
 

@@ -83,6 +83,7 @@ export class ASTDefinitionHandler {
         case "StructDecl":
         case "EnumDecl":
         case "SpecDecl":
+        case "SpecMethod":
         case "FunctionDecl":
         case "Extern":
         case "VariableDecl":
