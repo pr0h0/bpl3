@@ -115,7 +115,7 @@ export class CompilerError extends Error {
 
       // Check SourceManager first (for virtual files like stdin/eval)
       const cachedSource = SourceManager.getSource(this.location.file);
-      if (cachedSource) {
+      if (cachedSource !== undefined) {
         this.sourceLines = cachedSource.split("\n");
         return;
       }

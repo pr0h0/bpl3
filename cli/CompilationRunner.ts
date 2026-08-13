@@ -45,9 +45,15 @@ import {
 import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
 import { updateConfig } from "../compiler/common/Config";
 import { resolveNativeRuntimeFiles } from "./NativeRuntimeFiles";
-import { BUILD_NO_INPUTS_CODE } from "./BuildErrorCodes";
+import {
+  BUILD_CONFLICTING_INPUTS_CODE,
+  BUILD_NO_INPUTS_CODE,
+} from "./BuildErrorCodes";
 
-export { BUILD_NO_INPUTS_CODE } from "./BuildErrorCodes";
+export {
+  BUILD_CONFLICTING_INPUTS_CODE,
+  BUILD_NO_INPUTS_CODE,
+} from "./BuildErrorCodes";
 
 const log = new Logger("CompilationRunner");
 
@@ -82,6 +88,7 @@ export const BUILD_OUTPUT_PARENT_NOT_DIRECTORY_CODE =
   "BPL_BUILD_OUTPUT_PARENT_NOT_DIRECTORY";
 export const BUILD_JSON_ERROR_CODES = [
   BUILD_NO_INPUTS_CODE,
+  BUILD_CONFLICTING_INPUTS_CODE,
   BUILD_INVALID_OPTIMIZATION_CODE,
   BUILD_INVALID_EMIT_CODE,
   BUILD_INVALID_WASM_RUNTIME_CODE,

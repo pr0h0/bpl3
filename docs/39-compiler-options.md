@@ -459,8 +459,9 @@ part of a command's validation path use stdout with `success: false` or
 Build validation `errorCode` values are stable when `bpl build --json` can
 classify the validation failure. Option parsing uses
 `BPL_BUILD_NO_INPUTS`, `BPL_BUILD_INVALID_OPTIMIZATION`,
-`BPL_BUILD_INVALID_EMIT`, `BPL_BUILD_INVALID_WASM_RUNTIME`, and
-`BPL_BUILD_INVALID_JOBS`. Target validation uses
+`BPL_BUILD_CONFLICTING_INPUTS`, `BPL_BUILD_INVALID_EMIT`,
+`BPL_BUILD_INVALID_WASM_RUNTIME`, and `BPL_BUILD_INVALID_JOBS`. Target
+validation uses
 `BPL_BUILD_UNSUPPORTED_TARGET`. Input file validation uses
 `BPL_BUILD_INPUT_NOT_FOUND`, `BPL_BUILD_INPUT_SYMLINK`, and
 `BPL_BUILD_INPUT_NOT_FILE`. Output artifact validation uses

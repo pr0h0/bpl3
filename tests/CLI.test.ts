@@ -282,6 +282,54 @@ describe("CLI Tests", () => {
     expect(result.stderr).toContain("llvm, ast, tokens, formatted");
   });
 
+  it("should reject conflicting root compile input sources", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-input-conflict-"));
+    const sourceFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }");
+
+    try {
+      for (const args of [
+        ["--eval", "frame main() {}", "--stdin"],
+        ["--eval", "frame main() {}", sourceFile],
+        ["--stdin", sourceFile],
+      ]) {
+        const result = runCLI(args);
+
+        expect(result.status).toBe(1);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain("Conflicting input sources");
+        expect(result.stderr).toContain("file arguments, --eval, or --stdin");
+      }
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should report conflicting root compile input sources as json", () => {
+    const result = runCLI([
+      "--eval",
+      "frame main() {}",
+      "--stdin",
+      "--json",
+    ]);
+    const report = parseJsonObjectStdout(result) as JsonObject;
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe("");
+    expect(report.check).toBe("build");
+    expect(report.success).toBe(false);
+    expect(report.error).toContain("Conflicting input sources");
+    expect(report.errorCode).toBe("BPL_BUILD_CONFLICTING_INPUTS");
+  });
+
+  it("should treat an empty eval string as virtual source input", () => {
+    const result = runCLI(["--eval", ""]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("<eval>");
+    expect(result.stderr).not.toContain("No input files specified");
+  });
+
   it("should emit virtual-source LLVM without leaving cwd artifacts", () => {
     const source = "frame main() ret int { return 0; }";
 

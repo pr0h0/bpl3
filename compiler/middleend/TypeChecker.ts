@@ -281,13 +281,16 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     const mainSymbol = this.currentScope.resolve("main");
     if (!mainSymbol) {
       // Find a good location for the error (use program start or first statement)
-      const location = program.statements[0]?.location || {
-        file: "",
-        startLine: 1,
-        startColumn: 1,
-        endLine: 1,
-        endColumn: 1,
-      };
+      let location = program.statements[0]?.location ?? program.location;
+      if (!location) {
+        location = {
+          file: "unknown",
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        };
+      }
       this.addError(
         new CompilerError(
           "Missing entry point function 'main'",
