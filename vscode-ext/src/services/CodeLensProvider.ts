@@ -271,16 +271,19 @@ export class CodeLensProvider {
       if (!n) return;
 
       // Check for struct instantiation in StructLiteral
-      if (n.kind === "StructLiteral" && n.type) {
-        if (n.type.kind === "NamedType" && n.type.name === structName) {
-          count++;
-        }
+      if (n.kind === "StructLiteral" && n.structName === structName) {
+        count++;
       }
 
       // Check for inheritance
-      if (n.kind === "StructDecl" && n.baseType) {
-        if (n.baseType.kind === "NamedType" && n.baseType.name === structName) {
-          count++;
+      if (n.kind === "StructDecl" && Array.isArray(n.inheritanceList)) {
+        for (const inheritedType of n.inheritanceList) {
+          if (
+            inheritedType.kind === "BasicType" &&
+            inheritedType.name === structName
+          ) {
+            count++;
+          }
         }
       }
 
