@@ -483,18 +483,34 @@ export class ASTResolver {
     line: number,
     col: number,
   ): AST.FunctionDecl | null {
+    const containsPosition = (funcDecl: AST.FunctionDecl): boolean => {
+      const loc = funcDecl.location;
+      return (
+        !!loc &&
+        line >= loc.startLine &&
+        line <= loc.endLine &&
+        (line > loc.startLine || col >= loc.startColumn) &&
+        (line < loc.endLine || col <= loc.endColumn)
+      );
+    };
+
     for (const stmt of ast.statements) {
       if (stmt.kind === "FunctionDecl") {
         const funcDecl = stmt as AST.FunctionDecl;
-        const loc = funcDecl.location;
-        if (
-          loc &&
-          line >= loc.startLine &&
-          line <= loc.endLine &&
-          (line > loc.startLine || col >= loc.startColumn) &&
-          (line < loc.endLine || col <= loc.endColumn)
-        ) {
+        if (containsPosition(funcDecl)) {
           return funcDecl;
+        }
+      } else if (stmt.kind === "StructDecl") {
+        for (const member of (stmt as AST.StructDecl).members) {
+          if (member.kind === "FunctionDecl" && containsPosition(member)) {
+            return member;
+          }
+        }
+      } else if (stmt.kind === "EnumDecl") {
+        for (const method of (stmt as AST.EnumDecl).methods) {
+          if (containsPosition(method)) {
+            return method;
+          }
         }
       }
     }
@@ -513,6 +529,18 @@ export class ASTResolver {
         const funcDecl = stmt as AST.FunctionDecl;
         if (this.containsNode(funcDecl, node)) {
           return funcDecl;
+        }
+      } else if (stmt.kind === "StructDecl") {
+        for (const member of (stmt as AST.StructDecl).members) {
+          if (member.kind === "FunctionDecl" && this.containsNode(member, node)) {
+            return member;
+          }
+        }
+      } else if (stmt.kind === "EnumDecl") {
+        for (const method of (stmt as AST.EnumDecl).methods) {
+          if (this.containsNode(method, node)) {
+            return method;
+          }
         }
       }
     }
