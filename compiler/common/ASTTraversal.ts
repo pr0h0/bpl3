@@ -406,21 +406,34 @@ export function getChildren(
   const skipProps = new Set(options.skipProperties ?? DEFAULT_SKIP_PROPERTIES);
   const children: AST.ASTNode[] = [];
 
+  const collectFromValue = (value: unknown): void => {
+    if (value === null || value === undefined) return;
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        collectFromValue(item);
+      }
+      return;
+    }
+
+    if (isASTNode(value)) {
+      children.push(value);
+      return;
+    }
+
+    if (typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      for (const key of Object.keys(record)) {
+        if (skipProps.has(key)) continue;
+        collectFromValue(record[key]);
+      }
+    }
+  };
+
   for (const key of Object.keys(node)) {
     if (skipProps.has(key)) continue;
 
-    const child = (node as any)[key];
-    if (child === null || child === undefined) continue;
-
-    if (Array.isArray(child)) {
-      for (const item of child) {
-        if (isASTNode(item)) {
-          children.push(item);
-        }
-      }
-    } else if (isASTNode(child)) {
-      children.push(child);
-    }
+    collectFromValue((node as any)[key]);
   }
 
   return children;

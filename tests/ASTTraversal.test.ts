@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import {
   collectIdentifiers,
   findNodeAtPosition,
+  getChildren,
   walkAST,
 } from "../compiler/common/ASTTraversal";
 
@@ -210,5 +211,34 @@ describe("AST traversal", () => {
       "Call",
       "Identifier",
     ]);
+  });
+
+  it("returns direct AST children stored inside wrapper objects", () => {
+    const structLiteral = {
+      kind: "StructLiteral",
+      structName: "Box",
+      genericArgs: [],
+      fields: [
+        {
+          name: "value",
+          value: {
+            kind: "Call",
+            callee: {
+              kind: "Identifier",
+              name: "make",
+              location: loc(1, 15, 1, 19),
+            },
+            args: [],
+            genericArgs: [],
+            location: loc(1, 15, 1, 21),
+          },
+        },
+      ],
+      location: loc(1, 1, 1, 22),
+    };
+
+    const children = getChildren(structLiteral);
+
+    expect(children.map((node) => node.kind)).toEqual(["Call"]);
   });
 });
