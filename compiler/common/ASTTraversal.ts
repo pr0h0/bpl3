@@ -255,27 +255,41 @@ export function findNodeAtPosition(
   // Check bounds
   if (!isPositionInLocation(line, column, node.location)) return [];
 
+  const findInValue = (value: unknown): AST.ASTNode[] => {
+    if (value === null || value === undefined) return [];
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const childPath = findInValue(item);
+        if (childPath.length > 0) return childPath;
+      }
+      return [];
+    }
+
+    if (isASTNode(value)) {
+      return findNodeAtPosition(value, line, column);
+    }
+
+    if (typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      for (const key of Object.keys(record)) {
+        if (DEFAULT_SKIP_PROPERTIES.includes(key)) continue;
+
+        const childPath = findInValue(record[key]);
+        if (childPath.length > 0) return childPath;
+      }
+    }
+
+    return [];
+  };
+
   // Try to find a child that contains the position
   for (const key of Object.keys(node)) {
     if (DEFAULT_SKIP_PROPERTIES.includes(key)) continue;
 
-    const child = (node as any)[key];
-    if (child === null || child === undefined) continue;
-
-    if (Array.isArray(child)) {
-      for (const item of child) {
-        if (isASTNode(item)) {
-          const childPath = findNodeAtPosition(item, line, column);
-          if (childPath.length > 0) {
-            return [node, ...childPath];
-          }
-        }
-      }
-    } else if (isASTNode(child)) {
-      const childPath = findNodeAtPosition(child, line, column);
-      if (childPath.length > 0) {
-        return [node, ...childPath];
-      }
+    const childPath = findInValue((node as any)[key]);
+    if (childPath.length > 0) {
+      return [node, ...childPath];
     }
   }
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 
-import { collectIdentifiers, walkAST } from "../compiler/common/ASTTraversal";
+import {
+  collectIdentifiers,
+  findNodeAtPosition,
+  walkAST,
+} from "../compiler/common/ASTTraversal";
 
 import type { SourceLocation } from "../compiler/common/CompilerError";
 
@@ -11,6 +15,21 @@ const location: SourceLocation = {
   endLine: 1,
   endColumn: 1,
 };
+
+function loc(
+  startLine: number,
+  startColumn: number,
+  endLine: number,
+  endColumn: number,
+): SourceLocation {
+  return {
+    file: location.file,
+    startLine,
+    startColumn,
+    endLine,
+    endColumn,
+  };
+}
 
 describe("AST traversal", () => {
   it("walks AST nodes stored inside literal field wrapper objects", () => {
@@ -157,6 +176,39 @@ describe("AST traversal", () => {
     expect(identifiers.map((identifier) => identifier.name)).toEqual([
       "left",
       "right",
+    ]);
+  });
+
+  it("finds positioned nodes inside literal field wrapper objects", () => {
+    const structLiteral = {
+      kind: "StructLiteral",
+      structName: "Box",
+      genericArgs: [],
+      fields: [
+        {
+          name: "value",
+          value: {
+            kind: "Call",
+            callee: {
+              kind: "Identifier",
+              name: "make",
+              location: loc(1, 15, 1, 19),
+            },
+            args: [],
+            genericArgs: [],
+            location: loc(1, 15, 1, 21),
+          },
+        },
+      ],
+      location: loc(1, 1, 1, 22),
+    };
+
+    const path = findNodeAtPosition(structLiteral, 1, 16);
+
+    expect(path.map((node) => node.kind)).toEqual([
+      "StructLiteral",
+      "Call",
+      "Identifier",
     ]);
   });
 });
