@@ -92,6 +92,43 @@ describe("Selection Range Provider", () => {
 
     expect(result === null || Array.isArray(result)).toBe(true);
   });
+
+  it("should provide selection ranges inside enum methods", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/test-enum-method-selection.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "enum Color {",
+        "    Red,",
+        "    frame to_code(this: Color) ret int {",
+        "        return 1;",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+        positions: [{ line: 3, character: 15 }],
+      },
+      doc,
+    );
+
+    const ranges = [];
+    let current = result?.[0];
+    while (current) {
+      ranges.push(current.range);
+      current = current.parent;
+    }
+
+    expect(ranges.some((range) => range.start.line === 2)).toBe(true);
+  });
 });
 
 describe("Document Highlight Provider", () => {
@@ -331,6 +368,35 @@ frame main() {}`;
     );
 
     expect(result === null || Array.isArray(result)).toBe(true);
+  });
+
+  it("should fold enum method bodies", () => {
+    const doc = TextDocument.create(
+      `file://${path.resolve(__dirname, "../../../tmp/test-enum-method-folding.bpl")}`,
+      "bpl",
+      1,
+      [
+        "enum Color {",
+        "    Red,",
+        "    frame to_code(this: Color) ret int {",
+        "        return 1;",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+      },
+      doc,
+    );
+
+    expect(
+      result?.some(
+        (range) => range.startLine === 2 && range.endLine === 4,
+      ),
+    ).toBe(true);
   });
 });
 

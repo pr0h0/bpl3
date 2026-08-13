@@ -293,6 +293,9 @@ export class FoldingRangeProvider {
           }
         }
         break;
+      case "EnumDecl":
+        children.push(...(node as AST.EnumDecl).methods);
+        break;
       case "Block":
         children.push(...(node as AST.BlockStmt).statements);
         break;

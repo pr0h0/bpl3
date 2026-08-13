@@ -245,6 +245,10 @@ export class SelectionRangeProvider {
         }
         break;
 
+      case "EnumDecl":
+        children.push(...(node as AST.EnumDecl).methods);
+        break;
+
       case "Block":
         const block = node as AST.BlockStmt;
         children.push(...block.statements);
