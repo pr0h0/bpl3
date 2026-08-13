@@ -280,6 +280,13 @@ export class ASTRenameHandler {
           symbolInfo.structName!,
         );
 
+      case "spec-method":
+        return this.findSpecMethodReferences(
+          symbolName,
+          symbolInfo.node as AST.SpecMethod,
+          document,
+        );
+
       case "function":
       case "struct":
       case "enum":
@@ -919,6 +926,48 @@ export class ASTRenameHandler {
   }
 
   /**
+   * Find references to a spec method in the current document
+   */
+  private findSpecMethodReferences(
+    methodName: string,
+    methodNode: AST.SpecMethod,
+    document: TextDocument,
+  ): Location[] {
+    const references: Location[] = [];
+
+    const declarationRange = this.getNodeRange(methodNode, document);
+    if (declarationRange) {
+      references.push(Location.create(document.uri, declarationRange));
+    }
+
+    const content = document.getText();
+    const lines = content.split("\n");
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+      const line = lines[lineIdx];
+      if (!line) continue;
+
+      const lineRegex = new RegExp(`\\.${methodName}\\s*\\(`, "g");
+      let match;
+      while ((match = lineRegex.exec(line)) !== null) {
+        references.push(
+          Location.create(
+            document.uri,
+            Range.create(
+              { line: lineIdx, character: match.index + 1 },
+              {
+                line: lineIdx,
+                character: match.index + 1 + methodName.length,
+              },
+            ),
+          ),
+        );
+      }
+    }
+
+    return references;
+  }
+
+  /**
    * Find references to a global symbol across all files
    */
   private findGlobalSymbolReferences(
@@ -1088,6 +1137,14 @@ export class ASTRenameHandler {
         scope: containingStruct ? "struct" : "global",
         node,
         structName: containingStruct?.name,
+      };
+    }
+
+    if (node.kind === "SpecMethod") {
+      return {
+        type: "spec-method",
+        scope: "spec",
+        node,
       };
     }
 
@@ -1534,6 +1591,7 @@ export class ASTRenameHandler {
     return (
       node.kind === "Identifier" ||
       node.kind === "FunctionDecl" ||
+      node.kind === "SpecMethod" ||
       node.kind === "StructDecl" ||
       node.kind === "EnumDecl" ||
       node.kind === "VariableDecl" ||
@@ -1758,6 +1816,33 @@ export class ASTRenameHandler {
       }
     }
 
+    if (node.kind === "SpecMethod") {
+      const specMethod = node as AST.SpecMethod;
+      const line = document.getText({
+        start: {
+          line: node.location.startLine - 1,
+          character: 0,
+        },
+        end: {
+          line: node.location.startLine - 1,
+          character: 1000,
+        },
+      });
+      const nameIndex = line.indexOf(specMethod.name);
+      if (nameIndex >= 0) {
+        return Range.create(
+          {
+            line: node.location.startLine - 1,
+            character: nameIndex,
+          },
+          {
+            line: node.location.startLine - 1,
+            character: nameIndex + specMethod.name.length,
+          },
+        );
+      }
+    }
+
     if (node.kind === "PatternIdentifier") {
       const patternId = node as AST.PatternIdentifier;
       return Range.create(
@@ -1803,6 +1888,8 @@ export class ASTRenameHandler {
         return (node as AST.IdentifierExpr).name;
       case "FunctionDecl":
         return (node as AST.FunctionDecl).name;
+      case "SpecMethod":
+        return (node as AST.SpecMethod).name;
       case "StructDecl":
         return (node as AST.StructDecl).name;
       case "EnumDecl":
@@ -1835,6 +1922,9 @@ export class ASTRenameHandler {
         funcNode.params.forEach(callback);
         // Traverse body
         if (funcNode.body) callback(funcNode.body);
+        break;
+      case "SpecMethod":
+        (node as AST.SpecMethod).params.forEach(callback);
         break;
       case "StructDecl":
         (node as AST.StructDecl).members.forEach(callback);

@@ -179,4 +179,70 @@ describe("Rename Handler - Bug Fixes", () => {
     expect(declEdit?.newText).toBe("multiplier");
     expect(declEdit ? doc.getText(declEdit.range) : null).toBe("factor");
   });
+
+  it("should prepare rename for spec method declarations", () => {
+    const code = `spec Reader {
+    frame read(this: *Self) ret int;
+}
+`;
+    const filePath = path.join(TMP_DIR, "spec-method-prepare-rename.bpl");
+    fs.writeFileSync(filePath, code);
+
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      code,
+    );
+
+    const prepareResult = renameHandler.prepareRename(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 1, character: 11 },
+      },
+      doc,
+    );
+
+    expect(prepareResult).not.toBeNull();
+    expect(prepareResult ? doc.getText(prepareResult) : null).toBe("read");
+  });
+
+  it("should rename spec method declarations and member calls", () => {
+    const code = `spec Reader {
+    frame read(this: *Self) ret int;
+}
+
+struct Runner {
+    frame run(this: Runner, reader: *Reader) ret int {
+        return reader.read();
+    }
+}
+`;
+    const filePath = path.join(TMP_DIR, "spec-method-rename.bpl");
+    fs.writeFileSync(filePath, code);
+
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      code,
+    );
+
+    const renameResult = renameHandler.rename(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 1, character: 11 },
+        newName: "load",
+      },
+      doc,
+    );
+    const edits = renameResult?.changes?.[doc.uri];
+
+    expect(edits?.length).toBe(2);
+    expect(edits?.every((edit) => edit.newText === "load")).toBe(true);
+    expect(edits?.map((edit) => doc.getText(edit.range))).toEqual([
+      "read",
+      "read",
+    ]);
+  });
 });
