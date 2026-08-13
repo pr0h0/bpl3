@@ -50,7 +50,7 @@ export {
 export function typeNodeToString(type: AST.TypeNode | undefined): string {
   if (!type) return "void";
   switch (type.kind) {
-    case "BasicType":
+    case "BasicType": {
       let name = type.name;
       if (type.genericArgs && type.genericArgs.length > 0) {
         name += `<${type.genericArgs.map(typeNodeToString).join(", ")}>`;
@@ -64,12 +64,21 @@ export function typeNodeToString(type: AST.TypeNode | undefined): string {
         name = "*".repeat(type.pointerDepth) + name;
       }
       return name;
-    case "FunctionType":
+    }
+    case "FunctionType": {
       const params = type.paramTypes.map(typeNodeToString).join(", ");
       const ret = typeNodeToString(type.returnType);
       return `Func<${ret}>(${params})`;
+    }
+    case "LambdaType": {
+      const params = type.paramTypes.map(typeNodeToString).join(", ");
+      const ret = typeNodeToString(type.returnType);
+      return `Lambda<${ret}>(${params})`;
+    }
     case "TupleType":
       return `(${type.types.map(typeNodeToString).join(", ")})`;
+    case "MetaType":
+      return `typeof<${typeNodeToString(type.type)}>`;
     default:
       return "unknown";
   }
