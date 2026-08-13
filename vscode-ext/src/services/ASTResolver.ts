@@ -616,29 +616,17 @@ export class ASTResolver {
       if (stmt.kind === "Loop") {
         const loop = stmt as AST.LoopStmt;
         // Check if beforeNode is inside this loop
-        if (
-          loop.location &&
-          beforeNode.location &&
-          beforeNode.location.startLine >= loop.location.startLine &&
-          beforeNode.location.startLine <= loop.location.endLine
-        ) {
-          if (loop.body && loop.body.kind === "Block") {
-            const found = this.findVariableInStatements(
-              (loop.body as AST.BlockStmt).statements,
-              name,
-              beforeNode,
-            );
-            if (found) return found;
-          }
+        if (this.nodeContainsReference(loop, beforeNode) && loop.body) {
+          const found = this.findVariableInStatements(
+            [loop.body],
+            name,
+            beforeNode,
+          );
+          if (found) return found;
         }
       } else if (stmt.kind === "If") {
         const ifStmt = stmt as AST.IfStmt;
-        if (
-          ifStmt.thenBranch?.location &&
-          beforeNode.location &&
-          beforeNode.location.startLine >= ifStmt.thenBranch.location.startLine &&
-          beforeNode.location.startLine <= ifStmt.thenBranch.location.endLine
-        ) {
+        if (this.nodeContainsReference(ifStmt.thenBranch, beforeNode)) {
           const found = this.findVariableInStatements(
             [ifStmt.thenBranch],
             name,
@@ -647,12 +635,7 @@ export class ASTResolver {
           if (found) return found;
         }
 
-        if (
-          ifStmt.elseBranch?.location &&
-          beforeNode.location &&
-          beforeNode.location.startLine >= ifStmt.elseBranch.location.startLine &&
-          beforeNode.location.startLine <= ifStmt.elseBranch.location.endLine
-        ) {
+        if (this.nodeContainsReference(ifStmt.elseBranch, beforeNode)) {
           const found = this.findVariableInStatements(
             [ifStmt.elseBranch],
             name,
@@ -662,12 +645,7 @@ export class ASTResolver {
         }
       } else if (stmt.kind === "Block") {
         const block = stmt as AST.BlockStmt;
-        if (
-          block.location &&
-          beforeNode.location &&
-          beforeNode.location.startLine >= block.location.startLine &&
-          beforeNode.location.startLine <= block.location.endLine
-        ) {
+        if (this.nodeContainsReference(block, beforeNode)) {
           const found = this.findVariableInStatements(
             block.statements,
             name,
@@ -675,11 +653,71 @@ export class ASTResolver {
           );
           if (found) return found;
         }
+      } else if (stmt.kind === "Switch") {
+        const switchStmt = stmt as AST.SwitchStmt;
+        for (const switchCase of switchStmt.cases) {
+          if (this.nodeContainsReference(switchCase.body, beforeNode)) {
+            const found = this.findVariableInStatements(
+              [switchCase.body],
+              name,
+              beforeNode,
+            );
+            if (found) return found;
+          }
+        }
+        if (this.nodeContainsReference(switchStmt.defaultCase, beforeNode)) {
+          const found = this.findVariableInStatements(
+            [switchStmt.defaultCase],
+            name,
+            beforeNode,
+          );
+          if (found) return found;
+        }
+      } else if (stmt.kind === "Try") {
+        const tryStmt = stmt as AST.TryStmt;
+        if (this.nodeContainsReference(tryStmt.tryBlock, beforeNode)) {
+          const found = this.findVariableInStatements(
+            [tryStmt.tryBlock],
+            name,
+            beforeNode,
+          );
+          if (found) return found;
+        }
+        for (const catchClause of tryStmt.catchClauses) {
+          if (this.nodeContainsReference(catchClause.body, beforeNode)) {
+            const found = this.findVariableInStatements(
+              [catchClause.body],
+              name,
+              beforeNode,
+            );
+            if (found) return found;
+          }
+        }
+      } else if (stmt.kind === "Defer") {
+        const deferStmt = stmt as AST.DeferStmt;
+        if (this.nodeContainsReference(deferStmt.statement, beforeNode)) {
+          const found = this.findVariableInStatements(
+            [deferStmt.statement],
+            name,
+            beforeNode,
+          );
+          if (found) return found;
+        }
       }
-      // Add more statement types as needed (MatchExpr, etc.)
     }
 
     return null;
+  }
+
+  private nodeContainsReference(
+    node: AST.ASTNode | undefined,
+    reference: AST.ASTNode,
+  ): node is AST.ASTNode {
+    if (!node?.location || !reference.location) return false;
+    return (
+      reference.location.startLine >= node.location.startLine &&
+      reference.location.startLine <= node.location.endLine
+    );
   }
 
   /**

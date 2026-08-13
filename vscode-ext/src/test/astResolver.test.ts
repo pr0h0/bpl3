@@ -133,4 +133,42 @@ describe("ASTResolver", () => {
 
     expect(resolver.resolveType(identifier, filePath)).toBe("int");
   });
+
+  it("resolves local variable types inside switch cases", () => {
+    const symbolIndex = new SymbolIndex();
+    const resolver = new ASTResolver(symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/switch-case-resolve-type.bpl",
+    );
+
+    resolver.parseDocumentContent(
+      filePath,
+      [
+        "frame test(value: int) ret int {",
+        "    switch (value) {",
+        "        case 1: {",
+        "            local count: int = 1;",
+        "            return count;",
+        "        }",
+        "    }",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const identifier: AST.IdentifierExpr = {
+      kind: "Identifier",
+      name: "count",
+      location: {
+        file: filePath,
+        startLine: 5,
+        startColumn: 20,
+        endLine: 5,
+        endColumn: 25,
+      },
+    };
+
+    expect(resolver.resolveType(identifier, filePath)).toBe("int");
+  });
 });
