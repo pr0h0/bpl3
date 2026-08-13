@@ -343,6 +343,10 @@ export class CodeLensProvider {
         count++;
       }
 
+      if (n.kind === "Member" && n.property === name) {
+        count++;
+      }
+
       // Recurse into all properties
       for (const key in n) {
         const value = n[key];

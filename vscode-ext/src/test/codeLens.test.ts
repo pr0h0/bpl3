@@ -107,6 +107,11 @@ describe("CodeLens Provider", () => {
         "spec Reader {",
         "    frame read(this: *Self) ret int;",
         "}",
+        "struct Runner {",
+        "    frame run(this: Runner, reader: *Reader) ret int {",
+        "        return reader.read();",
+        "    }",
+        "}",
       ].join("\n"),
     );
 
@@ -116,7 +121,7 @@ describe("CodeLens Provider", () => {
       lenses.some(
         (lens) =>
           lens.range.start.line === 1 &&
-          lens.command?.title === "0 references",
+          lens.command?.title === "1 reference",
       ),
     ).toBe(true);
   });
