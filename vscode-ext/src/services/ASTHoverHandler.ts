@@ -1038,7 +1038,7 @@ export class ASTHoverHandler {
    */
   private handleBasicType(
     node: AST.BasicTypeNode,
-    _filePath: string,
+    filePath: string,
   ): Hover | null {
     const typeName = node.name;
     debugLog(`[ASTHover] BasicType: ${typeName}`);
@@ -1101,10 +1101,27 @@ export class ASTHoverHandler {
       };
     }
 
+    const ast = this.astResolver.getCachedAST(filePath);
+    const currentFileTypeAlias = ast?.statements.find(
+      (stmt): stmt is AST.TypeAliasDecl =>
+        stmt.kind === "TypeAlias" && stmt.name === typeName,
+    );
+    if (currentFileTypeAlias) {
+      return this.handleTypeAliasDecl(currentFileTypeAlias);
+    }
+
     // Look up in symbol index
     const symbols = this.symbolIndex.findSymbol(typeName);
     if (symbols.length > 0) {
       const symbol = symbols[0];
+      if (
+        symbol?.kind === "type-alias" &&
+        symbol.declaration.kind === "TypeAlias"
+      ) {
+        return this.handleTypeAliasDecl(
+          symbol.declaration as AST.TypeAliasDecl,
+        );
+      }
       if (
         symbol &&
         (symbol.kind === "struct" ||

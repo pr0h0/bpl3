@@ -301,6 +301,39 @@ describe("BPL Language Server Tests", () => {
       expect(value).toContain("Alias");
     });
 
+    it("shows hover for type alias references", () => {
+      const filePath = path.join(
+        __dirname,
+        "fixtures",
+        "type-alias-reference-hover.bpl",
+      );
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        [
+          "type Alias = int;",
+          "frame test(value: Alias) ret Alias {",
+          "    return value;",
+          "}",
+        ].join("\n"),
+      );
+      const hover = hoverHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 1, character: 19 },
+        },
+        doc,
+      );
+
+      const value =
+        typeof hover?.contents === "object" && "value" in hover.contents
+          ? hover.contents.value
+          : String(hover?.contents ?? "");
+      expect(value).toContain("Type Alias");
+      expect(value).toContain("Alias");
+    });
+
     it("shows hover for extern declarations", () => {
       const filePath = path.join(__dirname, "fixtures", "extern-hover.bpl");
       const doc = TextDocument.create(
@@ -491,6 +524,36 @@ describe("BPL Language Server Tests", () => {
         {
           textDocument: { uri: doc.uri },
           position: { line: 0, character: 6 },
+        },
+        doc,
+      );
+
+      expect(location?.uri).toBe(doc.uri);
+      expect(location?.range.start.line).toBe(0);
+    });
+
+    it("returns type alias declarations from type match targets", () => {
+      const filePath = path.join(
+        __dirname,
+        "fixtures",
+        "type-alias-type-match-definition.bpl",
+      );
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        [
+          "type Alias = int;",
+          "frame test(value: Alias) ret bool {",
+          "    return match<Alias>(value);",
+          "}",
+        ].join("\n"),
+      );
+
+      const location = definitionHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 2, character: 18 },
         },
         doc,
       );

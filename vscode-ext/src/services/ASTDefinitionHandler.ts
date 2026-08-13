@@ -257,6 +257,20 @@ export class ASTDefinitionHandler {
       return this.createLocation(decl.location, filePath);
     }
 
+    const ast = this.astResolver.getCachedAST(filePath);
+    const currentFileType = ast?.statements.find(
+      (stmt) =>
+        (stmt.kind === "TypeAlias" ||
+          stmt.kind === "StructDecl" ||
+          stmt.kind === "EnumDecl" ||
+          stmt.kind === "SpecDecl") &&
+        "name" in stmt &&
+        stmt.name === typeName,
+    );
+    if (currentFileType?.location) {
+      return this.createLocation(currentFileType.location, filePath);
+    }
+
     // Fall back to symbol index
     const symbols = this.symbolIndex.findSymbol(typeName);
     if (symbols.length > 0) {
