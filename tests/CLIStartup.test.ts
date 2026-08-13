@@ -135,9 +135,11 @@ describe("CLI startup command registration", () => {
     );
 
     expect(source).not.toContain("options.O as any");
+    expect(source).not.toContain("tokens: any[]");
     expect(source).toContain(
       "defaults: { optimization: parseOptimizationLevel(options.O) }",
     );
+    expect(source).toContain("tokens: ReturnType<typeof lexWithGrammar>");
   });
 
   test("keeps check registration off action-only analysis dependencies", () => {

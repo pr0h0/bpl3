@@ -766,7 +766,7 @@ function compileSingleFile(
 ): void {
   // 1. Lexing
   const endLexing = startPhaseTimer("Lexing", options);
-  let tokens: any[] = [];
+  let tokens: ReturnType<typeof lexWithGrammar> = [];
   if (options.emit === "tokens") {
     try {
       tokens = lexWithGrammar(content, filePath);
