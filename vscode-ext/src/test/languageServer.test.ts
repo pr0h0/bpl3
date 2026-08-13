@@ -162,6 +162,30 @@ describe("BPL Language Server Tests", () => {
       expect(value).toContain("count");
       expect(value).toContain("int");
     });
+
+    it("shows hover for type alias declarations", () => {
+      const filePath = path.join(__dirname, "fixtures", "type-alias-hover.bpl");
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        "type Alias = int;",
+      );
+      const hover = hoverHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 0, character: 6 },
+        },
+        doc,
+      );
+
+      const value =
+        typeof hover?.contents === "object" && "value" in hover.contents
+          ? hover.contents.value
+          : String(hover?.contents ?? "");
+      expect(value).toContain("Type Alias");
+      expect(value).toContain("Alias");
+    });
   });
 
   describe("Definition Tests", () => {
@@ -243,6 +267,31 @@ describe("BPL Language Server Tests", () => {
 
       expect(location.uri).toBe(pathToFileURL(declarationFilePath).toString());
       expect(location.range.start).toEqual({ line: 6, character: 4 });
+    });
+
+    it("returns the current declaration for type alias definitions", () => {
+      const filePath = path.join(
+        __dirname,
+        "fixtures",
+        "type-alias-definition.bpl",
+      );
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        "type Alias = int;",
+      );
+
+      const location = definitionHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 0, character: 6 },
+        },
+        doc,
+      );
+
+      expect(location?.uri).toBe(doc.uri);
+      expect(location?.range.start.line).toBe(0);
     });
   });
 

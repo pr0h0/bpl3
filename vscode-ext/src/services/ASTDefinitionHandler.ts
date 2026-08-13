@@ -79,7 +79,7 @@ export class ASTDefinitionHandler {
           // Pattern variables - already at declaration
           return this.createLocation(node.location, filePath);
 
-        case "TypeAliasDecl":
+        case "TypeAlias":
         case "StructDecl":
         case "EnumDecl":
         case "SpecDecl":

@@ -78,7 +78,7 @@ export class ASTHoverHandler {
         case "SpecDecl":
           return this.handleSpecDecl(node as AST.SpecDecl);
 
-        case "TypeAliasDecl":
+        case "TypeAlias":
           return this.handleTypeAliasDecl(node as AST.TypeAliasDecl);
 
         case "BasicType":

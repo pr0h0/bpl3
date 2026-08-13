@@ -214,7 +214,7 @@ export class SemanticTokenProvider {
           this.visitLambdaParameter(node as AST.LambdaParameter, builder);
           break;
 
-        case "TypeAliasDecl":
+        case "TypeAlias":
           this.visitTypeAliasDecl(node as AST.TypeAliasDecl, builder, source);
           break;
 
