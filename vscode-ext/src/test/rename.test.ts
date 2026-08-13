@@ -991,8 +991,7 @@ frame test(value: int) ret int {
 
       const edits = result?.changes?.[pathToFileURL(testFile).toString()];
       expect(edits).toBeDefined();
-      // Currently only finds parameter declaration, not usages in complex boolean expressions
-      expect(edits!.length).toBeGreaterThanOrEqual(1);
+      expect(edits!.length).toBe(3); // param + 2 usages
     });
   });
 
@@ -1127,8 +1126,7 @@ frame test(value: int) ret int {
 
       const edits = result?.changes?.[pathToFileURL(testFile).toString()];
       expect(edits).toBeDefined();
-      // Currently only finds parameter declaration, not usages in nested parenthesized expressions
-      expect(edits!.length).toBeGreaterThanOrEqual(1);
+      expect(edits!.length).toBe(4); // param + 3 usages
     });
 
     it("should handle modulo and bitwise operations", () => {
@@ -1141,8 +1139,7 @@ frame test(value: int) ret int {
 
       const edits = result?.changes?.[pathToFileURL(testFile).toString()];
       expect(edits).toBeDefined();
-      // Currently only finds parameter declaration, not usages in bitwise expressions
-      expect(edits!.length).toBeGreaterThanOrEqual(1);
+      expect(edits!.length).toBe(3); // param + 2 usages
     });
   });
 

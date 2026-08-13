@@ -2190,6 +2190,7 @@ export class ASTRenameHandler {
         const castNode = node as AST.CastExpr;
         callback(castNode.expression);
         break;
+      case "Group":
       case "Grouped":
         const groupedNode = node as AST.GroupExpr;
         callback(groupedNode.expression);
