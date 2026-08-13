@@ -65,6 +65,60 @@ describe("Rename Handler - Comprehensive Tests", () => {
     });
   });
 
+  describe("Type Alias Rename", () => {
+    it("should rename type aliases from type annotation references", () => {
+      const code = `type Alias = int;
+frame test(value: Alias) ret Alias {
+    return value;
+}`;
+      const testFile = path.join(tmpDir, "type-alias-reference.bpl");
+      const result = getRenameEdits(testFile, code, 1, 19, "Renamed");
+
+      const edits = result?.changes?.[pathToFileURL(testFile).toString()];
+      expect(edits).toBeDefined();
+      expect(edits!.length).toBe(3);
+      expect(edits!.every((edit) => edit.newText === "Renamed")).toBe(true);
+    });
+
+    it("should rename type aliases from type match targets", () => {
+      const code = `type Alias = int;
+frame test(value: Alias) ret bool {
+    return match<Alias>(value);
+}`;
+      const testFile = path.join(tmpDir, "type-alias-type-match.bpl");
+      const result = getRenameEdits(testFile, code, 2, 18, "Renamed");
+
+      const edits = result?.changes?.[pathToFileURL(testFile).toString()];
+      expect(edits).toBeDefined();
+      expect(edits!.length).toBe(3);
+      expect(
+        edits!.some(
+          (edit) =>
+            edit.range.start.line === 2 && edit.range.start.character === 17,
+        ),
+      ).toBe(true);
+    });
+
+    it("should not prepare rename for primitive type references", () => {
+      const code = `frame test(value: int) ret int {
+    return value;
+}`;
+      const testFile = path.join(tmpDir, "primitive-type-prepare.bpl");
+      fs.writeFileSync(testFile, code);
+      const doc = createTextDocument(testFile, code);
+
+      const result = renameHandler.prepareRename(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 0, character: 18 },
+        },
+        doc,
+      );
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe("Parameter Rename - Type Preservation", () => {
     it("should rename parameter without removing type annotation", () => {
       const code = `frame test(param: int) ret int {

@@ -98,6 +98,10 @@ export class ASTRenameHandler {
 
       // Check if the node is renameable
       if (this.isRenameableNode(node)) {
+        if (node.kind === "BasicType" && !this.analyzeSymbol(node, filePath)) {
+          return null;
+        }
+
         debugLog(`[ASTRename] Node is renameable, getting range...`);
         const range = this.getNodeRange(node, document);
         if (range) {
@@ -1138,7 +1142,9 @@ export class ASTRenameHandler {
     specMethodNode?: AST.SpecMethod;
     structName?: string;
   } | null {
-    const ast = this.astResolver.getAST(filePath);
+    const ast =
+      this.astResolver.getCachedAST(filePath) ??
+      this.astResolver.getAST(filePath);
     if (!ast) return null;
 
     // Find the containing function or struct
@@ -1243,6 +1249,22 @@ export class ASTRenameHandler {
         scope: "global",
         node,
       };
+    }
+
+    if (node.kind === "BasicType") {
+      const typeNode = node as AST.BasicTypeNode;
+      const typeAlias = ast.statements.find(
+        (stmt): stmt is AST.TypeAliasDecl =>
+          stmt.kind === "TypeAlias" && stmt.name === typeNode.name,
+      );
+
+      if (typeAlias) {
+        return {
+          type: "type-alias",
+          scope: "global",
+          node: typeAlias,
+        };
+      }
     }
 
     if (node.kind === "SpecMethod") {
@@ -1731,6 +1753,7 @@ export class ASTRenameHandler {
       node.kind === "Extern" ||
       node.kind === "SpecMethod" ||
       node.kind === "TypeAlias" ||
+      node.kind === "BasicType" ||
       node.kind === "StructDecl" ||
       node.kind === "EnumDecl" ||
       node.kind === "VariableDecl" ||
@@ -1796,13 +1819,12 @@ export class ASTRenameHandler {
             );
             if (param.location) {
               const paramLoc = param.location;
+              const paramNameStart = paramLoc.startColumn - 1;
+              const paramNameEnd = paramNameStart + param.name.length;
               const inParamRange =
-                (line > paramLoc.startLine ||
-                  (line === paramLoc.startLine &&
-                    character >= paramLoc.startColumn - 1)) &&
-                (line < paramLoc.endLine ||
-                  (line === paramLoc.endLine &&
-                    character <= paramLoc.endColumn - 1));
+                line === paramLoc.startLine &&
+                character >= paramNameStart &&
+                character <= paramNameEnd;
 
               debugLog(
                 `[ASTRename] Param "${param.name}" range check: line ${line} char ${character} in (${paramLoc.startLine}:${paramLoc.startColumn}-${paramLoc.endLine}:${paramLoc.endColumn})? ${inParamRange}`,
@@ -2073,6 +2095,8 @@ export class ASTRenameHandler {
         return (node as AST.ExternDecl).name;
       case "TypeAlias":
         return (node as AST.TypeAliasDecl).name;
+      case "BasicType":
+        return (node as AST.BasicTypeNode).name;
       case "SpecMethod":
         return (node as AST.SpecMethod).name;
       case "StructDecl":
@@ -2111,6 +2135,14 @@ export class ASTRenameHandler {
       case "SpecMethod":
         (node as AST.SpecMethod).params.forEach(callback);
         break;
+      case "Parameter":
+        callback((node as AST.Parameter).type);
+        break;
+      case "LambdaParameter": {
+        const lambdaParam = node as AST.LambdaParameter;
+        if (lambdaParam.type) callback(lambdaParam.type);
+        break;
+      }
       case "StructDecl":
         (node as AST.StructDecl).members.forEach(callback);
         break;
@@ -2213,7 +2245,9 @@ export class ASTRenameHandler {
         break;
       }
       case "TypeMatch": {
-        const value = (node as AST.TypeMatchExpr).value;
+        const typeMatch = node as AST.TypeMatchExpr;
+        callback(typeMatch.targetType);
+        const value = typeMatch.value;
         if ((value as AST.ASTNode).kind) callback(value as AST.ASTNode);
         break;
       }
