@@ -231,5 +231,34 @@ frame test() {
       expect(labels).toContain("i");
       expect(labels).toContain("total");
     });
+
+    it("preserves composite local variable types in completions", () => {
+      const lambdaContent = [
+        "frame test(cb: Lambda<int>(int, string)) ret int {",
+        "    local callback: Lambda<int>(int, string);",
+        "    ",
+        "    return 0;",
+        "}",
+      ].join("\n");
+      const lambdaDoc = TextDocument.create(
+        "file:///test-lambda-completion.bpl",
+        "bpl",
+        1,
+        lambdaContent,
+      );
+
+      const params: TextDocumentPositionParams = {
+        textDocument: { uri: lambdaDoc.uri },
+        position: { line: 2, character: 4 },
+      };
+      const completions = completionHandler.handle(params, lambdaDoc);
+      const cbCompletion = completions.find((c) => c.label === "cb");
+      const callbackCompletion = completions.find(
+        (c) => c.label === "callback",
+      );
+
+      expect(cbCompletion?.detail).toBe("Lambda<int>(int, string)");
+      expect(callbackCompletion?.detail).toBe("Lambda<int>(int, string)");
+    });
   });
 });
