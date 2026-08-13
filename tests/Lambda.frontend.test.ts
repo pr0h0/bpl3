@@ -1,6 +1,23 @@
 import { describe, expect, it } from "bun:test";
+import * as AST from "../compiler/common/AST";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
+
+function parseProgram(source: string): AST.Program {
+  const tokens = lexWithGrammar(source, "test.bpl");
+  const parser = new Parser(source, "test.bpl", tokens);
+  return parser.parse();
+}
+
+function findFunction(program: AST.Program, name: string): AST.FunctionDecl {
+  const functionDecl = program.statements.find(
+    (statement): statement is AST.FunctionDecl =>
+      statement.kind === "FunctionDecl" && statement.name === name,
+  );
+
+  expect(functionDecl).toBeDefined();
+  return functionDecl!;
+}
 
 describe("Lambda Frontend", () => {
   it("should lex lambda tokens correctly", () => {
@@ -17,24 +34,31 @@ describe("Lambda Frontend", () => {
         return 0;
       }
     `;
-    const tokens = lexWithGrammar(source, "test.bpl");
-    const parser = new Parser(source, "test.bpl", tokens);
-    const ast = parser.parse();
+    const ast = parseProgram(source);
 
-    // @ts-ignore
-    const main = ast.statements.find(
-      (d) => d.kind === "FunctionDecl" && d.name === "main",
-    );
-    expect(main).toBeDefined();
+    const main = findFunction(ast, "main");
 
-    // @ts-ignore
     const varDecl = main.body.statements[0];
+    expect(varDecl).toBeDefined();
+    if (!varDecl) return;
+
     expect(varDecl.kind).toBe("VariableDecl");
+    if (varDecl.kind !== "VariableDecl") return;
 
     const lambda = varDecl.initializer;
+    expect(lambda?.kind).toBe("LambdaExpression");
+    if (lambda?.kind !== "LambdaExpression") return;
+
     expect(lambda.kind).toBe("LambdaExpression");
     expect(lambda.params.length).toBe(1);
-    expect(lambda.params[0].name).toBe("x");
+    const param = lambda.params[0];
+    expect(param).toBeDefined();
+    if (!param) return;
+
+    expect(param.name).toBe("x");
+    expect(lambda.returnType?.kind).toBe("BasicType");
+    if (lambda.returnType?.kind !== "BasicType") return;
+
     expect(lambda.returnType.name).toBe("int");
   });
 });

@@ -1,6 +1,27 @@
 import { describe, expect, it } from "bun:test";
+import * as AST from "../compiler/common/AST";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
+
+function parseProgram(source: string): AST.Program {
+  const tokens = lexWithGrammar(source, "test.bpl");
+  const parser = new Parser(source, "test.bpl", tokens);
+  return parser.parse();
+}
+
+function findNamedStatement<TKind extends AST.Statement["kind"]>(
+  program: AST.Program,
+  kind: TKind,
+  name: string,
+): Extract<AST.Statement, { kind: TKind }> {
+  const statement = program.statements.find(
+    (candidate): candidate is Extract<AST.Statement, { kind: TKind }> =>
+      candidate.kind === kind && "name" in candidate && candidate.name === name,
+  );
+
+  expect(statement).toBeDefined();
+  return statement!;
+}
 
 describe("Generics Frontend", () => {
   it("should parse generic struct", () => {
@@ -10,19 +31,15 @@ describe("Generics Frontend", () => {
         frame get(this: Box<T>) ret T { return this.value; }
       }
     `;
-    const tokens = lexWithGrammar(source, "test.bpl");
-    const parser = new Parser(source, "test.bpl", tokens);
-    const ast = parser.parse();
+    const ast = parseProgram(source);
 
-    // @ts-ignore
-    const box = ast.statements.find(
-      (d) => d.kind === "StructDecl" && d.name === "Box",
-    );
-    expect(box).toBeDefined();
-    // @ts-ignore
+    const box = findNamedStatement(ast, "StructDecl", "Box");
     expect(box.genericParams.length).toBe(1);
-    // @ts-ignore
-    expect(box.genericParams[0].name).toBe("T");
+    const genericParam = box.genericParams[0];
+    expect(genericParam).toBeDefined();
+    if (!genericParam) return;
+
+    expect(genericParam.name).toBe("T");
   });
 
   it("should parse generic function", () => {
@@ -31,19 +48,15 @@ describe("Generics Frontend", () => {
         return x;
       }
     `;
-    const tokens = lexWithGrammar(source, "test.bpl");
-    const parser = new Parser(source, "test.bpl", tokens);
-    const ast = parser.parse();
+    const ast = parseProgram(source);
 
-    // @ts-ignore
-    const func = ast.statements.find(
-      (d) => d.kind === "FunctionDecl" && d.name === "identity",
-    );
-    expect(func).toBeDefined();
-    // @ts-ignore
+    const func = findNamedStatement(ast, "FunctionDecl", "identity");
     expect(func.genericParams.length).toBe(1);
-    // @ts-ignore
-    expect(func.genericParams[0].name).toBe("T");
+    const genericParam = func.genericParams[0];
+    expect(genericParam).toBeDefined();
+    if (!genericParam) return;
+
+    expect(genericParam.name).toBe("T");
   });
 
   it("should parse generic spec", () => {
@@ -52,19 +65,15 @@ describe("Generics Frontend", () => {
         frame get(this: Container<T>) ret T;
       }
     `;
-    const tokens = lexWithGrammar(source, "test.bpl");
-    const parser = new Parser(source, "test.bpl", tokens);
-    const ast = parser.parse();
+    const ast = parseProgram(source);
 
-    // @ts-ignore
-    const spec = ast.statements.find(
-      (d) => d.kind === "SpecDecl" && d.name === "Container",
-    );
-    expect(spec).toBeDefined();
-    // @ts-ignore
+    const spec = findNamedStatement(ast, "SpecDecl", "Container");
     expect(spec.genericParams.length).toBe(1);
-    // @ts-ignore
-    expect(spec.genericParams[0].name).toBe("T");
+    const genericParam = spec.genericParams[0];
+    expect(genericParam).toBeDefined();
+    if (!genericParam) return;
+
+    expect(genericParam.name).toBe("T");
   });
 
   it("should parse lambda in generic function", () => {
@@ -74,18 +83,12 @@ describe("Generics Frontend", () => {
         return f(item);
       }
     `;
-    const tokens = lexWithGrammar(source, "test.bpl");
-    const parser = new Parser(source, "test.bpl", tokens);
-    const ast = parser.parse();
+    const ast = parseProgram(source);
 
-    // @ts-ignore
-    const func = ast.statements.find(
-      (d) => d.kind === "FunctionDecl" && d.name === "map",
-    );
-    expect(func).toBeDefined();
-    // @ts-ignore
+    const func = findNamedStatement(ast, "FunctionDecl", "map");
     const lambdaVar = func.body.statements.find(
-      (s: any) => s.kind === "VariableDecl",
+      (statement): statement is AST.VariableDecl =>
+        statement.kind === "VariableDecl",
     );
     expect(lambdaVar).toBeDefined();
   });
@@ -95,20 +98,17 @@ describe("Generics Frontend", () => {
       struct Parent<T> { val: T }
       struct Child<T> : Parent<T> { extra: int }
     `;
-    const tokens = lexWithGrammar(source, "test.bpl");
-    const parser = new Parser(source, "test.bpl", tokens);
-    const ast = parser.parse();
+    const ast = parseProgram(source);
 
-    // @ts-ignore
-    const child = ast.statements.find(
-      (d) => d.kind === "StructDecl" && d.name === "Child",
-    );
-    expect(child).toBeDefined();
-    // @ts-ignore
-    expect(child.inheritanceList[0].kind).toBe("BasicType");
-    // @ts-ignore
-    expect(child.inheritanceList[0].name).toBe("Parent");
-    // @ts-ignore
-    expect(child.inheritanceList[0].genericArgs.length).toBe(1);
+    const child = findNamedStatement(ast, "StructDecl", "Child");
+    const parentType = child.inheritanceList[0];
+    expect(parentType).toBeDefined();
+    if (!parentType) return;
+
+    expect(parentType.kind).toBe("BasicType");
+    if (parentType.kind !== "BasicType") return;
+
+    expect(parentType.name).toBe("Parent");
+    expect(parentType.genericArgs.length).toBe(1);
   });
 });
