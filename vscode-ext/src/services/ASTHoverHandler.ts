@@ -142,7 +142,9 @@ export class ASTHoverHandler {
     }
 
     // If no resolved declaration, search AST for local variable
-    const ast = this.astResolver.getAST(filePath);
+    const ast =
+      this.astResolver.getCachedAST(filePath) ??
+      this.astResolver.getAST(filePath);
     if (ast) {
       debugLog(`[ASTHover] Searching AST for local variable: ${name}`);
       const varDecl = this.findVariableDeclaration(ast, name, node);

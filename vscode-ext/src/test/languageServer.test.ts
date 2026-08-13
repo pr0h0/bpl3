@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from "bun:test";
 import * as path from "path";
+import { pathToFileURL } from "url";
 import { readFileSync } from "fs";
 import { ASTResolver } from "../services/ASTResolver";
 import { SymbolIndex } from "../services/SymbolIndex";
@@ -131,6 +132,35 @@ describe("BPL Language Server Tests", () => {
       const hover = hoverHandler.handle(params, testDocument);
       expect(hover !== undefined).toBe(true);
     });
+
+    it("uses unsaved document content for local variable hover", () => {
+      const filePath = path.join(__dirname, "fixtures", "unsaved hover.bpl");
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        [
+          "frame test() ret int {",
+          "    local count: int = 0;",
+          "    return count;",
+          "}",
+        ].join("\n"),
+      );
+      const hover = hoverHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 2, character: 12 },
+        },
+        doc,
+      );
+
+      const value =
+        typeof hover?.contents === "object" && "value" in hover.contents
+          ? hover.contents.value
+          : String(hover?.contents ?? "");
+      expect(value).toContain("count");
+      expect(value).toContain("int");
+    });
   });
 
   describe("Definition Tests", () => {
@@ -141,6 +171,35 @@ describe("BPL Language Server Tests", () => {
       };
       const location = definitionHandler.handle(params, testDocument);
       expect(location !== undefined).toBe(true);
+    });
+
+    it("uses unsaved document content for local variable definitions", () => {
+      const filePath = path.join(
+        __dirname,
+        "fixtures",
+        "unsaved definition.bpl",
+      );
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        [
+          "frame test() ret int {",
+          "    local count: int = 0;",
+          "    return count;",
+          "}",
+        ].join("\n"),
+      );
+      const location = definitionHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 2, character: 12 },
+        },
+        doc,
+      );
+
+      expect(location?.range.start.line).toBe(1);
+      expect(location?.range.start.character).toBe(4);
     });
   });
 

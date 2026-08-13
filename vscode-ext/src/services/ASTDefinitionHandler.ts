@@ -144,7 +144,9 @@ export class ASTDefinitionHandler {
     }
 
     // Try to find local variable declaration in the same file
-    const ast = this.astResolver.getAST(filePath);
+    const ast =
+      this.astResolver.getCachedAST(filePath) ??
+      this.astResolver.getAST(filePath);
     if (ast) {
       debugLog(`[ASTDefinition] Searching AST for local variable: ${name}`);
       const varDecl = this.findVariableDeclaration(ast, name, node);
