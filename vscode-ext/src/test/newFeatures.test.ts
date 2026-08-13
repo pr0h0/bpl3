@@ -193,6 +193,48 @@ describe("Selection Range Provider", () => {
       end: { line: 1, character: 15 },
     });
   });
+
+  it("should provide selection ranges inside type match targets", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/test-type-match-selection.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "type Alias = int;",
+        "frame test(value: Alias) ret bool {",
+        "    return match<Alias>(value);",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+        positions: [{ line: 2, character: 18 }],
+      },
+      doc,
+    );
+
+    const ranges = [];
+    let current = result?.[0];
+    while (current) {
+      ranges.push(current.range);
+      current = current.parent;
+    }
+
+    expect(
+      ranges.some(
+        (range) =>
+          range.start.line === 2 &&
+          range.start.character === 17 &&
+          range.end.character === 22,
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("Document Highlight Provider", () => {

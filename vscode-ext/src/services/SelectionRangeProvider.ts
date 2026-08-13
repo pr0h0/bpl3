@@ -339,7 +339,9 @@ export class SelectionRangeProvider {
       }
 
       case "TypeMatch": {
-        const value = (node as AST.TypeMatchExpr).value;
+        const typeMatch = node as AST.TypeMatchExpr;
+        children.push(typeMatch.targetType);
+        const value = typeMatch.value;
         if ((value as AST.ASTNode).kind) children.push(value as AST.ASTNode);
         break;
       }
