@@ -471,6 +471,47 @@ describe("BPL High Priority Features Tests", () => {
       // Should infer Array<int> or similar for arr
       expect(hints.length).toBeGreaterThanOrEqual(0);
     });
+
+    it("shows parameter hints for calls inside ternary expressions", () => {
+      const symbolIndex = new SymbolIndex();
+      const astResolver = new ASTResolver(symbolIndex);
+      const provider = new InlayHintProvider(astResolver, symbolIndex);
+      const filePath = path.join(
+        __dirname,
+        "../../../tmp/inlay-ternary-call.bpl",
+      );
+      const content = [
+        "frame combine(left: int, right: int) ret int {",
+        "    return left + right;",
+        "}",
+        "frame choose(flag: bool) ret int {",
+        "    return flag ? combine(1, 2) : combine(3, 4);",
+        "}",
+      ].join("\n");
+      writeFileSync(filePath, content);
+      symbolIndex.indexFile(filePath, false);
+      astResolver.parseDocumentContent(filePath, content);
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        content,
+      );
+
+      const hints = provider.handle(
+        {
+          textDocument: { uri: doc.uri },
+          range: {
+            start: { line: 4, character: 0 },
+            end: { line: 4, character: 100 },
+          },
+        },
+        doc,
+      );
+
+      expect(hints.filter((hint) => hint.label === "left:")).toHaveLength(2);
+      expect(hints.filter((hint) => hint.label === "right:")).toHaveLength(2);
+    });
   });
 
   describe("Edge Cases", () => {

@@ -283,44 +283,201 @@ export class InlayHintProvider {
   ): void {
     if (!node) return;
 
-    // Handle different node types
-    // FunctionDecl.body is a BlockStmt, not an array
-    if ("body" in node && node.body) {
-      this.collectHints(node.body as AST.ASTNode, hints, document);
+    for (const child of this.getChildNodes(node)) {
+      this.collectHints(child, hints, document);
     }
+  }
 
-    if ("statements" in node && Array.isArray(node.statements)) {
-      for (const stmt of node.statements) {
-        this.collectHints(stmt as AST.ASTNode, hints, document);
+  private getChildNodes(node: AST.ASTNode): AST.ASTNode[] {
+    const children: AST.ASTNode[] = [];
+
+    switch (node.kind) {
+      case "Program":
+        children.push(...(node as AST.Program).statements);
+        break;
+      case "FunctionDecl": {
+        const func = node as AST.FunctionDecl;
+        if (func.body) children.push(func.body);
+        break;
       }
-    }
-
-    if ("members" in node && Array.isArray(node.members)) {
-      for (const member of node.members) {
-        this.collectHints(member as AST.ASTNode, hints, document);
+      case "StructDecl":
+        children.push(...(node as AST.StructDecl).members);
+        break;
+      case "EnumDecl":
+        children.push(...(node as AST.EnumDecl).methods);
+        break;
+      case "SpecDecl":
+        children.push(...(node as AST.SpecDecl).methods);
+        break;
+      case "Block":
+        children.push(...(node as AST.BlockStmt).statements);
+        break;
+      case "If": {
+        const ifStmt = node as AST.IfStmt;
+        children.push(ifStmt.condition, ifStmt.thenBranch);
+        if (ifStmt.elseBranch) children.push(ifStmt.elseBranch);
+        break;
       }
-    }
-
-    if ("declarations" in node && Array.isArray(node.declarations)) {
-      for (const decl of node.declarations) {
-        this.collectHints(decl as AST.ASTNode, hints, document);
+      case "Loop": {
+        const loop = node as AST.LoopStmt;
+        if (loop.init) children.push(loop.init);
+        if (loop.condition) children.push(loop.condition);
+        if (loop.step) children.push(loop.step);
+        children.push(loop.body);
+        break;
       }
-    }
-
-    if ("initializer" in node && node.initializer) {
-      this.collectHints(node.initializer as AST.ASTNode, hints, document);
-    }
-
-    // Handle ExpressionStmt which wraps expressions like standalone function calls
-    if ("expression" in node && node.expression) {
-      this.collectHints(node.expression as AST.ASTNode, hints, document);
-    }
-
-    if ("args" in node && Array.isArray(node.args)) {
-      for (const arg of node.args) {
-        this.collectHints(arg as AST.ASTNode, hints, document);
+      case "Switch": {
+        const switchStmt = node as AST.SwitchStmt;
+        children.push(switchStmt.expression, ...switchStmt.cases);
+        if (switchStmt.defaultCase) children.push(switchStmt.defaultCase);
+        break;
       }
+      case "Case": {
+        const switchCase = node as AST.SwitchCase;
+        children.push(switchCase.value, switchCase.body);
+        break;
+      }
+      case "Defer":
+        children.push((node as AST.DeferStmt).statement);
+        break;
+      case "Try": {
+        const tryStmt = node as AST.TryStmt;
+        children.push(tryStmt.tryBlock, ...tryStmt.catchClauses);
+        break;
+      }
+      case "CatchClause":
+        children.push((node as AST.CatchClause).body);
+        break;
+      case "Throw":
+        children.push((node as AST.ThrowStmt).expression);
+        break;
+      case "VariableDecl": {
+        const varDecl = node as AST.VariableDecl;
+        if (varDecl.initializer) children.push(varDecl.initializer);
+        break;
+      }
+      case "Return": {
+        const ret = node as AST.ReturnStmt;
+        if (ret.value) children.push(ret.value);
+        break;
+      }
+      case "ExpressionStmt":
+        children.push((node as AST.ExpressionStmt).expression);
+        break;
+      case "Assignment": {
+        const assignment = node as AST.AssignmentExpr;
+        children.push(assignment.assignee, assignment.value);
+        break;
+      }
+      case "Binary": {
+        const binary = node as AST.BinaryExpr;
+        children.push(binary.left, binary.right);
+        break;
+      }
+      case "Ternary": {
+        const ternary = node as AST.TernaryExpr;
+        children.push(ternary.condition, ternary.trueExpr, ternary.falseExpr);
+        break;
+      }
+      case "Unary":
+        children.push((node as AST.UnaryExpr).operand);
+        break;
+      case "Is":
+        children.push((node as AST.IsExpr).expression);
+        break;
+      case "As":
+        children.push((node as AST.AsExpr).expression);
+        break;
+      case "Cast":
+        children.push((node as AST.CastExpr).expression);
+        break;
+      case "Sizeof": {
+        const target = (node as AST.SizeofExpr).target;
+        if ((target as AST.ASTNode).kind) children.push(target as AST.ASTNode);
+        break;
+      }
+      case "TypeOf": {
+        const target = (node as AST.TypeOfExpr).target;
+        if ((target as AST.ASTNode).kind) children.push(target as AST.ASTNode);
+        break;
+      }
+      case "TypeMatch": {
+        const value = (node as AST.TypeMatchExpr).value;
+        if ((value as AST.ASTNode).kind) children.push(value as AST.ASTNode);
+        break;
+      }
+      case "Group":
+      case "Grouped":
+        children.push((node as AST.GroupExpr).expression);
+        break;
+      case "ArrayLiteral":
+        children.push(...(node as AST.ArrayLiteralExpr).elements);
+        break;
+      case "TupleLiteral":
+        children.push(...(node as AST.TupleLiteralExpr).elements);
+        break;
+      case "StructLiteral":
+        for (const field of (node as AST.StructLiteralExpr).fields) {
+          children.push(field.value);
+        }
+        break;
+      case "EnumStructVariant":
+        for (const field of (node as AST.EnumStructVariantExpr).fields) {
+          children.push(field.value);
+        }
+        break;
+      case "InterpolatedString":
+        children.push(...(node as AST.InterpolatedStringExpr).parts);
+        break;
+      case "GenericInstantiation":
+        children.push((node as AST.GenericInstantiationExpr).base);
+        break;
+      case "LambdaExpression":
+        children.push(...(node as AST.LambdaExpr).params);
+        children.push((node as AST.LambdaExpr).body);
+        break;
+      case "Index": {
+        const index = node as AST.IndexExpr;
+        children.push(index.object, index.index);
+        break;
+      }
+      case "Call": {
+        const call = node as AST.CallExpr;
+        children.push(call.callee, ...call.args);
+        break;
+      }
+      case "Member":
+        children.push((node as AST.MemberExpr).object);
+        break;
+      case "Match": {
+        const match = node as AST.MatchExpr;
+        children.push(match.value);
+        for (const arm of match.arms) {
+          children.push(arm.pattern);
+          if (arm.guard) children.push(arm.guard);
+          children.push(arm.body);
+        }
+        break;
+      }
+      case "MatchArm": {
+        const arm = node as AST.MatchArm;
+        children.push(arm.pattern);
+        if (arm.guard) children.push(arm.guard);
+        children.push(arm.body);
+        break;
+      }
+      case "PatternLiteral":
+        children.push((node as AST.PatternLiteral).value);
+        break;
+      case "PatternTuple":
+        children.push(...(node as AST.PatternTuple).patterns);
+        break;
+      case "PatternEnumTuple":
+        children.push(...(node as AST.PatternEnumTuple).bindings);
+        break;
     }
+
+    return children;
   }
 
   /**
