@@ -10,7 +10,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
-import { SymbolIndex } from "./SymbolIndex";
+import { SymbolIndex, type SymbolInfo } from "./SymbolIndex";
 import { filePathToUri } from "./utils";
 
 /**
@@ -111,16 +111,31 @@ export class CallHierarchyProvider {
       if (call.callee.kind === "Identifier") {
         const calleeName = (call.callee as AST.IdentifierExpr).name;
 
+        const cachedFunc = this.findFunctionInWorkspace(calleeName);
+        if (cachedFunc) {
+          const callRange = this.nodeToRange(call);
+          if (callRange) {
+            outgoingCalls.push({
+              to: this.createCallHierarchyItem(
+                cachedFunc.decl,
+                cachedFunc.filePath,
+              ),
+              fromRanges: [callRange],
+            });
+          }
+          continue;
+        }
+
         // Try to resolve the callee
-        const symbol = this.symbolIndex.findSymbol(calleeName);
+        const symbols = this.symbolIndex.findSymbol(calleeName);
         if (
-          symbol &&
-          symbol.length > 0 &&
-          symbol[0] &&
-          symbol[0].kind === "function"
+          symbols &&
+          symbols.length > 0 &&
+          symbols[0] &&
+          symbols[0].kind === "function"
         ) {
           const calleeItem = this.createCallHierarchyItemFromSymbol(
-            symbol,
+            symbols[0],
             calleeName,
           );
 
@@ -339,8 +354,63 @@ export class CallHierarchyProvider {
         if (funcRange && this.rangesEqual(funcRange, range)) {
           return func;
         }
+      } else if (stmt.kind === "StructDecl") {
+        const struct = stmt as AST.StructDecl;
+        for (const member of struct.members) {
+          if (member.kind === "FunctionDecl") {
+            const method = member as AST.FunctionDecl;
+            const methodRange = this.nodeToRange(method);
+            if (methodRange && this.rangesEqual(methodRange, range)) {
+              return method;
+            }
+          }
+        }
       }
     }
+    return null;
+  }
+
+  private findFunctionInWorkspace(
+    name: string,
+  ): { decl: AST.FunctionDecl; filePath: string } | null {
+    const allFiles = this.astResolver.getAllCachedFiles();
+
+    for (const filePath of allFiles) {
+      const ast = this.astResolver.getCachedAST(filePath);
+      if (!ast) continue;
+
+      const funcDecl = this.findFunctionByName(ast, name);
+      if (funcDecl) {
+        return { decl: funcDecl, filePath };
+      }
+    }
+
+    return null;
+  }
+
+  private findFunctionByName(
+    ast: AST.Program,
+    name: string,
+  ): AST.FunctionDecl | null {
+    for (const stmt of ast.statements) {
+      if (stmt.kind === "FunctionDecl") {
+        const func = stmt as AST.FunctionDecl;
+        if (func.name === name) {
+          return func;
+        }
+      } else if (stmt.kind === "StructDecl") {
+        const struct = stmt as AST.StructDecl;
+        for (const member of struct.members) {
+          if (member.kind === "FunctionDecl") {
+            const method = member as AST.FunctionDecl;
+            if (method.name === name) {
+              return method;
+            }
+          }
+        }
+      }
+    }
+
     return null;
   }
 
@@ -367,7 +437,7 @@ export class CallHierarchyProvider {
    * Create call hierarchy item from symbol
    */
   private createCallHierarchyItemFromSymbol(
-    symbol: any,
+    symbol: SymbolInfo,
     name: string,
   ): CallHierarchyItem {
     const filePath = symbol.filePath || "";

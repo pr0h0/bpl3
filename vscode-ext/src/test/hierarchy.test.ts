@@ -31,6 +31,75 @@ describe("Hierarchy Providers", () => {
     expect(result?.[0]?.name).toBe("main");
   });
 
+  it("resolves outgoing calls from cached unsaved documents", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CallHierarchyProvider(astResolver, symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/call hierarchy outgoing.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "frame helper() ret int { return 1; }",
+        "frame main() ret int {",
+        "    return helper();",
+        "}",
+      ].join("\n"),
+    );
+
+    const item = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 1, character: 7 },
+      },
+      doc,
+    )![0]!;
+
+    const outgoing = await provider.getOutgoingCalls(item);
+
+    expect(outgoing.map((call) => call.to.name)).toEqual(["helper"]);
+    expect(outgoing[0]?.to.uri).toBe(doc.uri);
+  });
+
+  it("resolves outgoing calls from methods", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CallHierarchyProvider(astResolver, symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/call hierarchy method outgoing.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "frame helper() ret int { return 1; }",
+        "struct Runner {",
+        "    frame run(this: Runner) ret int {",
+        "        return helper();",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const item = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 2, character: 11 },
+      },
+      doc,
+    )![0]!;
+
+    const outgoing = await provider.getOutgoingCalls(item);
+
+    expect(outgoing.map((call) => call.to.name)).toEqual(["helper"]);
+  });
+
   it("prepares type hierarchy at LSP cursor positions", () => {
     const symbolIndex = new SymbolIndex();
     const astResolver = new ASTResolver(symbolIndex);
