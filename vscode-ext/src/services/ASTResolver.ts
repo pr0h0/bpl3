@@ -80,9 +80,13 @@ export class ASTResolver {
    * Get the source code for a file from cache
    */
   getSource(filePath: string): string | null {
-    // Ensure AST is parsed and cached
+    let cached = this.astCache.get(filePath);
+    if (cached) return cached.source;
+
+    // Ensure disk-backed files are parsed and cached when no live document is
+    // available.
     this.getAST(filePath);
-    const cached = this.astCache.get(filePath);
+    cached = this.astCache.get(filePath);
     return cached ? cached.source : null;
   }
 
