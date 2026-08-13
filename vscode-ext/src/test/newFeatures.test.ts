@@ -507,6 +507,40 @@ frame helper(x: int) ret int {
     expect(result === null || Array.isArray(result)).toBe(true);
   });
 
+  it("should provide symbols for enum methods", () => {
+    const testContent = `enum Color {
+    Red,
+    Green,
+
+    frame to_code(this: Color) ret int {
+        return 1;
+    }
+}`;
+
+    const doc = TextDocument.create(
+      `file://${path.resolve(__dirname, "../../../tmp/test-enum-method-symbols.bpl")}`,
+      "bpl",
+      1,
+      testContent,
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+      },
+      doc,
+    );
+
+    expect(result?.[0]?.name).toBe("Color");
+    expect(result?.[0]?.kind).toBe(SymbolKind.Enum);
+    expect(
+      result?.[0]?.children?.some(
+        (symbol) =>
+          symbol.name === "to_code" && symbol.kind === SymbolKind.Method,
+      ),
+    ).toBe(true);
+  });
+
   it("should provide symbols for global variables", () => {
     const testContent = `global DEBUG: bool = true;
 global MAX_SIZE: int = 1000;

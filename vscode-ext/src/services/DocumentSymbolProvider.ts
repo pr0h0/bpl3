@@ -285,6 +285,14 @@ export class DocumentSymbolProvider {
       }
     }
 
+    for (const method of enumDecl.methods) {
+      const methodSymbol = this.functionToSymbol(method);
+      if (methodSymbol) {
+        methodSymbol.kind = SymbolKind.Method;
+        symbol.children.push(methodSymbol);
+      }
+    }
+
     return symbol;
   }
 

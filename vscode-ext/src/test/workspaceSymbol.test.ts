@@ -76,4 +76,33 @@ describe("Workspace Symbol Provider", () => {
       ),
     ).toBe(true);
   });
+
+  it("searches cached enum method symbols", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new WorkspaceSymbolProvider(astResolver, symbolIndex);
+    const filePath = path.join(
+      __dirname,
+      "fixtures",
+      "workspace-enum-method.bpl",
+    );
+
+    astResolver.parseDocumentContent(
+      filePath,
+      [
+        "enum Color {",
+        "    Red,",
+        "    frame to_code(this: Color) ret int {",
+        "        return 1;",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const results = await provider.search({ query: "to_code" });
+
+    expect(results.some((symbol) => symbol.name === "Color.to_code")).toBe(
+      true,
+    );
+  });
 });

@@ -215,6 +215,16 @@ export class WorkspaceSymbolProvider {
             if (variantSymbol) results.push(variantSymbol);
           }
         }
+        for (const method of enumDecl.methods) {
+          if (method.name.toLowerCase().includes(query)) {
+            const methodSymbol = this.createMethodSymbol(
+              method,
+              enumDecl.name,
+              filePath,
+            );
+            if (methodSymbol) results.push(methodSymbol);
+          }
+        }
         break;
 
       case "SpecDecl":
