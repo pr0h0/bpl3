@@ -129,6 +129,40 @@ describe("Selection Range Provider", () => {
 
     expect(ranges.some((range) => range.start.line === 2)).toBe(true);
   });
+
+  it("should provide selection ranges inside spec method signatures", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/test-spec-method-selection.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "spec Reader {",
+        "    frame read(this: *Self) ret int;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+        positions: [{ line: 1, character: 14 }],
+      },
+      doc,
+    );
+
+    const ranges = [];
+    let current = result?.[0];
+    while (current) {
+      ranges.push(current.range);
+      current = current.parent;
+    }
+
+    expect(ranges.some((range) => range.start.line === 1)).toBe(true);
+  });
 });
 
 describe("Document Highlight Provider", () => {
@@ -395,6 +429,32 @@ frame main() {}`;
     expect(
       result?.some(
         (range) => range.startLine === 2 && range.endLine === 4,
+      ),
+    ).toBe(true);
+  });
+
+  it("should fold spec bodies", () => {
+    const doc = TextDocument.create(
+      `file://${path.resolve(__dirname, "../../../tmp/test-spec-folding.bpl")}`,
+      "bpl",
+      1,
+      [
+        "spec Reader {",
+        "    frame read(this: *Self) ret int;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+      },
+      doc,
+    );
+
+    expect(
+      result?.some(
+        (range) => range.startLine === 0 && range.endLine === 2,
       ),
     ).toBe(true);
   });

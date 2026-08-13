@@ -46,7 +46,7 @@ export class FoldingRangeProvider {
    * Collect folding ranges from AST nodes
    */
   private collectFoldingRanges(
-    node: AST.Statement | AST.Expression,
+    node: AST.ASTNode,
     ranges: FoldingRange[],
   ): void {
     if (!node.location) return;
@@ -87,6 +87,19 @@ export class FoldingRangeProvider {
 
         case "EnumDecl":
           // Fold enum body
+          ranges.push(
+            FoldingRange.create(
+              startLine - 1,
+              endLine - 1,
+              undefined,
+              undefined,
+              "region",
+            ),
+          );
+          break;
+
+        case "SpecDecl":
+          // Fold spec body
           ranges.push(
             FoldingRange.create(
               startLine - 1,
@@ -273,10 +286,8 @@ export class FoldingRangeProvider {
   /**
    * Get child nodes for traversal
    */
-  private getChildNodes(
-    node: AST.Statement | AST.Expression,
-  ): (AST.Statement | AST.Expression)[] {
-    const children: (AST.Statement | AST.Expression)[] = [];
+  private getChildNodes(node: AST.ASTNode): AST.ASTNode[] {
+    const children: AST.ASTNode[] = [];
 
     switch (node.kind) {
       case "FunctionDecl":
@@ -295,6 +306,9 @@ export class FoldingRangeProvider {
         break;
       case "EnumDecl":
         children.push(...(node as AST.EnumDecl).methods);
+        break;
+      case "SpecDecl":
+        children.push(...(node as AST.SpecDecl).methods);
         break;
       case "Block":
         children.push(...(node as AST.BlockStmt).statements);

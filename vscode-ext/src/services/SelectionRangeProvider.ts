@@ -75,7 +75,7 @@ export class SelectionRangeProvider {
     );
 
     // Collect all nodes that contain this position
-    const allContainingNodes: (AST.Statement | AST.Expression)[] = [];
+    const allContainingNodes: AST.ASTNode[] = [];
 
     for (const stmt of ast.statements) {
       if (this.nodeContainsPosition(stmt, line, char)) {
@@ -164,10 +164,10 @@ export class SelectionRangeProvider {
    * Find all nodes that contain the given position (innermost to outermost)
    */
   private findContainingNodes(
-    node: AST.Statement | AST.Expression,
+    node: AST.ASTNode,
     line: number,
     char: number,
-  ): (AST.Statement | AST.Expression)[] {
+  ): AST.ASTNode[] {
     if (!this.nodeContainsPosition(node, line, char)) {
       return [];
     }
@@ -199,7 +199,7 @@ export class SelectionRangeProvider {
    * Check if node contains position
    */
   private nodeContainsPosition(
-    node: AST.Statement | AST.Expression,
+    node: AST.ASTNode,
     line: number,
     char: number,
   ): boolean {
@@ -222,10 +222,8 @@ export class SelectionRangeProvider {
   /**
    * Get child nodes for traversal
    */
-  private getChildNodes(
-    node: AST.Statement | AST.Expression,
-  ): (AST.Statement | AST.Expression)[] {
-    const children: (AST.Statement | AST.Expression)[] = [];
+  private getChildNodes(node: AST.ASTNode): AST.ASTNode[] {
+    const children: AST.ASTNode[] = [];
 
     switch (node.kind) {
       case "FunctionDecl":
@@ -247,6 +245,10 @@ export class SelectionRangeProvider {
 
       case "EnumDecl":
         children.push(...(node as AST.EnumDecl).methods);
+        break;
+
+      case "SpecDecl":
+        children.push(...(node as AST.SpecDecl).methods);
         break;
 
       case "Block":
@@ -352,7 +354,7 @@ export class SelectionRangeProvider {
   /**
    * Convert AST node to LSP Range
    */
-  private nodeToRange(node: AST.Statement | AST.Expression): Range | null {
+  private nodeToRange(node: AST.ASTNode): Range | null {
     if (!node.location) return null;
 
     const loc = node.location;
