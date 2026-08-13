@@ -21,7 +21,7 @@ export class InlayHintProvider {
   /**
    * Handle inlay hint request
    */
-  handle(_params: InlayHintParams, document: TextDocument): InlayHint[] {
+  handle(params: InlayHintParams, document: TextDocument): InlayHint[] {
     const filePath = fileURLToPath(document.uri);
     const content = document.getText();
 
@@ -35,7 +35,9 @@ export class InlayHintProvider {
     // Collect hints from the AST
     this.collectHints(ast, hints, document);
 
-    return hints;
+    return hints.filter((hint) =>
+      this.positionInRange(hint.position, params.range),
+    );
   }
 
   /**
@@ -358,5 +360,27 @@ export class InlayHintProvider {
       (node.location?.startColumn || 0) + varName.length,
       document,
     );
+  }
+
+  private positionInRange(
+    position: { line: number; character: number },
+    range: InlayHintParams["range"],
+  ): boolean {
+    if (position.line < range.start.line || position.line > range.end.line) {
+      return false;
+    }
+    if (
+      position.line === range.start.line &&
+      position.character < range.start.character
+    ) {
+      return false;
+    }
+    if (
+      position.line === range.end.line &&
+      position.character > range.end.character
+    ) {
+      return false;
+    }
+    return true;
   }
 }

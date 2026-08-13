@@ -230,12 +230,40 @@ describe("BPL High Priority Features Tests", () => {
       expect(countHint?.position).toEqual({ line: 1, character: 15 });
     });
 
+    it("filters inlay hints to the requested range", () => {
+      const symbolIndex = new SymbolIndex();
+      const astResolver = new ASTResolver(symbolIndex);
+      const provider = new InlayHintProvider(astResolver, symbolIndex);
+      const filePath = path.join(__dirname, "fixtures", "inlay-range.bpl");
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        ["frame main() ret int {", "    local count = 1;", "    return count;", "}"].join(
+          "\n",
+        ),
+      );
+
+      const hints = provider.handle(
+        {
+          textDocument: { uri: doc.uri },
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 100 },
+          },
+        },
+        doc,
+      );
+
+      expect(hints).toHaveLength(0);
+    });
+
     it("shows type hints for string variables", () => {
       const params: InlayHintParams = {
         textDocument: { uri: testDocument.uri },
         range: {
-          start: { line: 32, character: 0 },
-          end: { line: 35, character: 0 },
+          start: { line: 35, character: 0 },
+          end: { line: 35, character: 100 },
         },
       };
 
@@ -250,8 +278,8 @@ describe("BPL High Priority Features Tests", () => {
       const params: InlayHintParams = {
         textDocument: { uri: testDocument.uri },
         range: {
-          start: { line: 35, character: 0 },
-          end: { line: 38, character: 0 },
+          start: { line: 38, character: 0 },
+          end: { line: 38, character: 100 },
         },
       };
 
@@ -284,8 +312,8 @@ describe("BPL High Priority Features Tests", () => {
       const params: InlayHintParams = {
         textDocument: { uri: testDocument.uri },
         range: {
-          start: { line: 42, character: 0 },
-          end: { line: 44, character: 0 },
+          start: { line: 45, character: 0 },
+          end: { line: 45, character: 100 },
         },
       };
 
