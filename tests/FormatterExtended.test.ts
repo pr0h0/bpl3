@@ -68,5 +68,13 @@ describe("Formatter - Extended Tests", () => {
       const formatted = format(code);
       expect(formatted).toBe(`spec Container<T> {\n    frame get() ret T;\n}`);
     });
+
+    it("should format variadic spec method parameters", () => {
+      const code = `spec Logger { frame write(const fmt: string, values: ...int) ret void; }`;
+      const formatted = format(code);
+      expect(formatted).toBe(
+        `spec Logger {\n    frame write(const fmt: string, values: ...int);\n}`,
+      );
+    });
   });
 });

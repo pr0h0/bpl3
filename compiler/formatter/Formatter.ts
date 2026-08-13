@@ -227,14 +227,7 @@ export class Formatter {
     output += this.formatGenericParams(decl.genericParams);
 
     output += "(";
-    output += decl.params
-      .map((p) => {
-        const typeStr = this.formatType(p.type);
-        const prefix = p.isVariadic ? "..." : "";
-        const constPrefix = p.isConst ? "const " : "";
-        return `${constPrefix}${p.name}: ${prefix}${typeStr}`;
-      })
-      .join(", ");
+    output += decl.params.map((p) => this.formatParameter(p)).join(", ");
     output += ")";
 
     if (
@@ -441,14 +434,7 @@ export class Formatter {
     output += this.formatGenericParams(method.genericParams);
 
     output += "(";
-    output += method.params
-      .map((p) => {
-        const typeStr = this.formatType(p.type);
-        return p.isConst
-          ? `const ${p.name}: ${typeStr}`
-          : `${p.name}: ${typeStr}`;
-      })
-      .join(", ");
+    output += method.params.map((p) => this.formatParameter(p)).join(", ");
     output += ")";
 
     if (
@@ -473,6 +459,12 @@ export class Formatter {
 
     output += ` = ${this.formatType(decl.type)};`;
     return output;
+  }
+
+  private formatParameter(param: AST.Parameter): string {
+    const constPrefix = param.isConst ? "const " : "";
+    const variadicPrefix = param.isVariadic ? "..." : "";
+    return `${constPrefix}${param.name}: ${variadicPrefix}${this.formatType(param.type)}`;
   }
 
   private formatImport(stmt: AST.ImportStmt): string {
