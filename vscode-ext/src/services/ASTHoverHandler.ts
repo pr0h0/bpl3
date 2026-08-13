@@ -1831,6 +1831,10 @@ export class ASTHoverHandler {
         }
         for (const catchClause of stmt.catchClauses) {
           if (this.isNodeContainedIn(refNode, catchClause.body)) {
+            const catchVariable = this.catchClauseVariableDecl(catchClause);
+            if (catchVariable?.name === name) {
+              return catchVariable;
+            }
             const varDecl = this.findVariableInBlock(
               catchClause.body,
               name,
@@ -1856,6 +1860,21 @@ export class ASTHoverHandler {
 
     debugLog(`[ASTHover] Variable not found in this block`);
     return null;
+  }
+
+  private catchClauseVariableDecl(
+    catchClause: AST.CatchClause,
+  ): AST.VariableDecl | null {
+    if (!catchClause.variable) return null;
+
+    return {
+      kind: "VariableDecl",
+      isGlobal: false,
+      isConst: false,
+      name: catchClause.variable,
+      typeAnnotation: catchClause.type ?? undefined,
+      location: catchClause.location,
+    };
   }
 
   /**

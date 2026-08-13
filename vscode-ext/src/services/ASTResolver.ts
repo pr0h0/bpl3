@@ -685,6 +685,10 @@ export class ASTResolver {
         }
         for (const catchClause of tryStmt.catchClauses) {
           if (this.nodeContainsReference(catchClause.body, beforeNode)) {
+            const catchVariable = this.catchClauseVariableDecl(catchClause);
+            if (catchVariable?.name === name) {
+              return catchVariable;
+            }
             const found = this.findVariableInStatements(
               [catchClause.body],
               name,
@@ -707,6 +711,21 @@ export class ASTResolver {
     }
 
     return null;
+  }
+
+  private catchClauseVariableDecl(
+    catchClause: AST.CatchClause,
+  ): AST.VariableDecl | null {
+    if (!catchClause.variable) return null;
+
+    return {
+      kind: "VariableDecl",
+      isGlobal: false,
+      isConst: false,
+      name: catchClause.variable,
+      typeAnnotation: catchClause.type ?? undefined,
+      location: catchClause.location,
+    };
   }
 
   private nodeContainsReference(

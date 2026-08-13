@@ -239,6 +239,44 @@ describe("BPL Language Server Tests", () => {
       expect(value).toContain("Local");
     });
 
+    it("shows catch variable hover inside catch blocks", () => {
+      const filePath = path.join(
+        __dirname,
+        "fixtures",
+        "catch-variable-hover.bpl",
+      );
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        [
+          "frame test() ret int {",
+          "    try {",
+          "        throw 1;",
+          "    } catch (err: int) {",
+          "        local catchValue: int = err;",
+          "        return err;",
+          "    }",
+          "}",
+        ].join("\n"),
+      );
+      const hover = hoverHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 5, character: 16 },
+        },
+        doc,
+      );
+
+      const value =
+        typeof hover?.contents === "object" && "value" in hover.contents
+          ? hover.contents.value
+          : String(hover?.contents ?? "");
+      expect(value).toContain("err");
+      expect(value).toContain("int");
+      expect(value).toContain("Local");
+    });
+
     it("shows hover for type alias declarations", () => {
       const filePath = path.join(__dirname, "fixtures", "type-alias-hover.bpl");
       const doc = TextDocument.create(

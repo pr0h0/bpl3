@@ -425,6 +425,10 @@ export class ASTDefinitionHandler {
         }
         for (const catchClause of stmt.catchClauses) {
           if (this.isNodeContainedIn(beforeNode, catchClause.body)) {
+            const catchVariable = this.catchClauseVariableDecl(catchClause);
+            if (catchVariable?.name === name) {
+              return catchVariable;
+            }
             const found = this.findVariableInBlock(
               catchClause.body,
               name,
@@ -448,6 +452,21 @@ export class ASTDefinitionHandler {
     }
 
     return null;
+  }
+
+  private catchClauseVariableDecl(
+    catchClause: AST.CatchClause,
+  ): AST.VariableDecl | null {
+    if (!catchClause.variable) return null;
+
+    return {
+      kind: "VariableDecl",
+      isGlobal: false,
+      isConst: false,
+      name: catchClause.variable,
+      typeAnnotation: catchClause.type ?? undefined,
+      location: catchClause.location,
+    };
   }
 
   private declarationPrecedes(

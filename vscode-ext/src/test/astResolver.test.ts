@@ -171,4 +171,40 @@ describe("ASTResolver", () => {
 
     expect(resolver.resolveType(identifier, filePath)).toBe("int");
   });
+
+  it("resolves catch variable types inside catch blocks", () => {
+    const symbolIndex = new SymbolIndex();
+    const resolver = new ASTResolver(symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/catch-variable-resolve-type.bpl",
+    );
+
+    resolver.parseDocumentContent(
+      filePath,
+      [
+        "frame test() ret int {",
+        "    try {",
+        "        throw 1;",
+        "    } catch (err: int) {",
+        "        return err;",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const identifier: AST.IdentifierExpr = {
+      kind: "Identifier",
+      name: "err",
+      location: {
+        file: filePath,
+        startLine: 5,
+        startColumn: 16,
+        endLine: 5,
+        endColumn: 19,
+      },
+    };
+
+    expect(resolver.resolveType(identifier, filePath)).toBe("int");
+  });
 });
