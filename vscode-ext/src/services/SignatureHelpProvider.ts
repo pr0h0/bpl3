@@ -1,12 +1,12 @@
 import {
   type SignatureHelpParams,
   type SignatureHelp,
+  type Position,
   SignatureInformation,
   ParameterInformation,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { fileURLToPath } from "url";
-import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
 
@@ -35,17 +35,8 @@ export class SignatureHelpProvider {
     const ast = this.astResolver.getCachedAST(filePath);
     if (!ast) return null;
 
-    const line = position.line + 1; // AST uses 1-based
-    const char = position.character + 1;
-
     // Find the function call we're inside
-    const callContext = this.findFunctionCallContext(
-      ast,
-      line,
-      char,
-      document,
-      position,
-    );
+    const callContext = this.findFunctionCallContext(document, position);
     if (!callContext) return null;
 
     // Get signature information
@@ -63,19 +54,13 @@ export class SignatureHelpProvider {
    * Find function call context at cursor position
    */
   private findFunctionCallContext(
-    ast: AST.Program,
-    line: number,
-    char: number,
     document: TextDocument,
-    position: any,
+    position: Position,
   ): { functionName: string; currentParam: number } | null {
-    // Get line text and find unclosed parenthesis
-    const lineText = document.getText({
-      start: { line: position.line, character: 0 },
-      end: { line: position.line + 1, character: 0 },
+    const beforeCursor = document.getText({
+      start: { line: 0, character: 0 },
+      end: position,
     });
-
-    const beforeCursor = lineText.substring(0, position.character);
 
     // Find the last unclosed '('
     let parenDepth = 0;

@@ -116,6 +116,41 @@ describe("BPL High Priority Features Tests", () => {
       }
     });
 
+    it("tracks active parameter across multiline calls", () => {
+      const filePath = path.join(
+        __dirname,
+        "fixtures",
+        "signature-multiline.bpl",
+      );
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        [
+          "frame test() ret int {",
+          "    return calculate(",
+          "        10,",
+          "        20",
+          "    );",
+          "}",
+        ].join("\n"),
+      );
+      const params: SignatureHelpParams = {
+        textDocument: { uri: doc.uri },
+        position: { line: 3, character: 10 },
+        context: {
+          isRetrigger: false,
+          triggerKind: 2,
+          triggerCharacter: ",",
+        },
+      };
+
+      const result = signatureHelpProvider.handle(params, doc);
+
+      expect(result?.signatures.length).toBeGreaterThan(0);
+      expect(result?.activeParameter).toBe(1);
+    });
+
     it("handles nested function calls", () => {
       // Inside nested call: sprintf("%s %d", "test",█
       const params: SignatureHelpParams = {
