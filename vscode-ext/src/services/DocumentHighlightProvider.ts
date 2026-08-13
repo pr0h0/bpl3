@@ -76,6 +76,15 @@ export class DocumentHighlightProvider {
       return node as AST.IdentifierExpr;
     }
 
+    if (node.kind === "PatternIdentifier") {
+      const pattern = node as AST.PatternIdentifier;
+      return {
+        kind: "Identifier",
+        name: pattern.name,
+        location: pattern.location,
+      };
+    }
+
     // Also check member expressions (property is a string, not a node)
     // Member access highlighting would require more complex logic
 
@@ -153,6 +162,30 @@ export class DocumentHighlightProvider {
         highlights.push(
           DocumentHighlight.create(
             this.locationToRange(varStmt.location),
+            DocumentHighlightKind.Write,
+          ),
+        );
+      }
+    }
+
+    if (node.kind === "CatchClause") {
+      const catchClause = node as AST.CatchClause;
+      if (catchClause.variable === symbolName && catchClause.location) {
+        highlights.push(
+          DocumentHighlight.create(
+            this.locationToRange(catchClause.location),
+            DocumentHighlightKind.Write,
+          ),
+        );
+      }
+    }
+
+    if (node.kind === "PatternIdentifier") {
+      const pattern = node as AST.PatternIdentifier;
+      if (pattern.name === symbolName && pattern.location) {
+        highlights.push(
+          DocumentHighlight.create(
+            this.locationToRange(pattern.location),
             DocumentHighlightKind.Write,
           ),
         );
@@ -339,9 +372,10 @@ export class DocumentHighlightProvider {
       case "Try":
         const tryCatch = node as AST.TryStmt;
         children.push(tryCatch.tryBlock);
-        for (const catchClause of tryCatch.catchClauses) {
-          children.push(catchClause.body);
-        }
+        children.push(...tryCatch.catchClauses);
+        break;
+      case "CatchClause":
+        children.push((node as AST.CatchClause).body);
         break;
       case "Match":
         const matchExpr = node as AST.MatchExpr;

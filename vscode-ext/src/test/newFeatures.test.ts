@@ -369,6 +369,76 @@ describe("Document Highlight Provider", () => {
 
     expect(result?.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("highlights match pattern bindings from the binding name", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/highlight match pattern.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "enum Option {",
+        "    Some(int),",
+        "    None,",
+        "}",
+        "frame test(value: Option) ret int {",
+        "    return match (value) {",
+        "        Option.Some(item) => item,",
+        "        Option.None => 0,",
+        "    };",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 6, character: 22 },
+      },
+      doc,
+    );
+
+    expect(result?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("includes catch variable declarations when highlighting references", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/highlight catch variable.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "frame test() ret int {",
+        "    try {",
+        "        throw 1;",
+        "    } catch (err: int) {",
+        "        return err;",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 4, character: 16 },
+      },
+      doc,
+    );
+
+    expect(result?.some((highlight) => highlight.range.start.line === 3)).toBe(
+      true,
+    );
+    expect(result?.some((highlight) => highlight.range.start.line === 4)).toBe(
+      true,
+    );
+  });
 });
 
 describe("Folding Range Provider", () => {
