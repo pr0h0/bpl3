@@ -51,7 +51,8 @@ Native control flow structures are supported.
 Templates are compiled using the `bpl-templ` CLI tool.
 
 ```bash
-bpl run packages/bpl-templ/src/cli.bpl generate src/views -o src/views
+bpl install packages/bpl-templ/bpl-templ-0.1.6.tgz
+bpl_modules/.bin/bpl-templ generate src/views -o src/views
 ```
 
 This generates `.bpl` files (e.g., `src/views/MyView.bpl`) which define a struct `MyView` with a `render` method.

@@ -27,6 +27,13 @@ bun run build
 To compile a directory of templates:
 
 ```bash
+bpl_modules/.bin/bpl-templ generate ./src/views -o ./src/views
+```
+
+When working from this repository without installing the package first, run the
+source CLI directly:
+
+```bash
 bpl run packages/bpl-templ/src/cli.bpl generate ./src/views -o ./src/views
 ```
 
