@@ -296,9 +296,25 @@ export class ASTRenameHandler {
         );
 
       case "function":
+        if (symbolInfo.node.kind === "Extern") {
+          return this.findCurrentDocumentSymbolReferences(
+            symbolName,
+            document,
+          );
+        }
+        return this.findGlobalSymbolReferences(symbolName, symbolInfo.type);
+
+      case "type-alias":
+        if (symbolInfo.node.kind === "TypeAlias") {
+          return this.findCurrentDocumentSymbolReferences(
+            symbolName,
+            document,
+          );
+        }
+        return this.findGlobalSymbolReferences(symbolName, symbolInfo.type);
+
       case "struct":
       case "enum":
-      case "type-alias":
       case "global-variable":
         // Global symbols - rename across all files
         return this.findGlobalSymbolReferences(symbolName, symbolInfo.type);
@@ -996,6 +1012,42 @@ export class ASTRenameHandler {
   }
 
   /**
+   * Find word references in the current document
+   */
+  private findCurrentDocumentSymbolReferences(
+    symbolName: string,
+    document: TextDocument,
+  ): Location[] {
+    const references: Location[] = [];
+    const content = document.getText();
+    const lines = content.split("\n");
+
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+      const line = lines[lineIdx];
+      if (!line) continue;
+
+      const lineRegex = new RegExp(`\\b${symbolName}\\b`, "g");
+      let match;
+      while ((match = lineRegex.exec(line)) !== null) {
+        references.push(
+          Location.create(
+            document.uri,
+            Range.create(
+              { line: lineIdx, character: match.index },
+              {
+                line: lineIdx,
+                character: match.index + symbolName.length,
+              },
+            ),
+          ),
+        );
+      }
+    }
+
+    return references;
+  }
+
+  /**
    * Find references to a global symbol across all files
    */
   private findGlobalSymbolReferences(
@@ -1174,6 +1226,22 @@ export class ASTRenameHandler {
         scope: containingStruct ? "struct" : "global",
         node,
         structName: containingStruct?.name,
+      };
+    }
+
+    if (node.kind === "Extern") {
+      return {
+        type: "function",
+        scope: "global",
+        node,
+      };
+    }
+
+    if (node.kind === "TypeAlias") {
+      return {
+        type: "type-alias",
+        scope: "global",
+        node,
       };
     }
 
@@ -1660,7 +1728,9 @@ export class ASTRenameHandler {
     return (
       node.kind === "Identifier" ||
       node.kind === "FunctionDecl" ||
+      node.kind === "Extern" ||
       node.kind === "SpecMethod" ||
+      node.kind === "TypeAlias" ||
       node.kind === "StructDecl" ||
       node.kind === "EnumDecl" ||
       node.kind === "VariableDecl" ||
@@ -1912,6 +1982,16 @@ export class ASTRenameHandler {
       }
     }
 
+    if (node.kind === "TypeAlias") {
+      const typeAlias = node as AST.TypeAliasDecl;
+      return this.getNameRangeFromLine(node, document, typeAlias.name);
+    }
+
+    if (node.kind === "Extern") {
+      const externDecl = node as AST.ExternDecl;
+      return this.getNameRangeFromLine(node, document, externDecl.name);
+    }
+
     if (node.kind === "PatternIdentifier") {
       const patternId = node as AST.PatternIdentifier;
       return Range.create(
@@ -1938,6 +2018,38 @@ export class ASTRenameHandler {
     );
   }
 
+  private getNameRangeFromLine(
+    node: AST.ASTNode,
+    document: TextDocument,
+    name: string,
+  ): Range | null {
+    if (!node.location) return null;
+
+    const line = document.getText({
+      start: {
+        line: node.location.startLine - 1,
+        character: 0,
+      },
+      end: {
+        line: node.location.startLine - 1,
+        character: 1000,
+      },
+    });
+    const nameIndex = line.indexOf(name);
+    if (nameIndex < 0) return null;
+
+    return Range.create(
+      {
+        line: node.location.startLine - 1,
+        character: nameIndex,
+      },
+      {
+        line: node.location.startLine - 1,
+        character: nameIndex + name.length,
+      },
+    );
+  }
+
   /**
    * Get the name of a symbol from a node
    */
@@ -1957,6 +2069,10 @@ export class ASTRenameHandler {
         return (node as AST.IdentifierExpr).name;
       case "FunctionDecl":
         return (node as AST.FunctionDecl).name;
+      case "Extern":
+        return (node as AST.ExternDecl).name;
+      case "TypeAlias":
+        return (node as AST.TypeAliasDecl).name;
       case "SpecMethod":
         return (node as AST.SpecMethod).name;
       case "StructDecl":

@@ -302,4 +302,93 @@ struct Runner {
     expect(edits?.[0]?.newText).toBe("data");
     expect(edits?.[0] ? doc.getText(edits[0].range) : null).toBe("value");
   });
+
+  it("should rename type alias declarations and references", () => {
+    const code = `type UserId = int;
+
+frame load(value: UserId) ret UserId {
+    return value;
+}
+`;
+    const filePath = path.join(TMP_DIR, "type-alias-rename.bpl");
+    fs.writeFileSync(filePath, code);
+
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      code,
+    );
+
+    const prepareResult = renameHandler.prepareRename(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 0, character: 6 },
+      },
+      doc,
+    );
+    expect(prepareResult ? doc.getText(prepareResult) : null).toBe("UserId");
+
+    const renameResult = renameHandler.rename(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 0, character: 6 },
+        newName: "AccountId",
+      },
+      doc,
+    );
+    const edits = renameResult?.changes?.[doc.uri];
+
+    expect(edits?.length).toBe(3);
+    expect(edits?.every((edit) => edit.newText === "AccountId")).toBe(true);
+    expect(edits?.map((edit) => doc.getText(edit.range))).toEqual([
+      "UserId",
+      "UserId",
+      "UserId",
+    ]);
+  });
+
+  it("should rename extern declarations and calls", () => {
+    const code = `extern printf(fmt: string, ...) ret int;
+
+frame main() ret int {
+    return printf("ok");
+}
+`;
+    const filePath = path.join(TMP_DIR, "extern-rename.bpl");
+    fs.writeFileSync(filePath, code);
+
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      code,
+    );
+
+    const prepareResult = renameHandler.prepareRename(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 0, character: 8 },
+      },
+      doc,
+    );
+    expect(prepareResult ? doc.getText(prepareResult) : null).toBe("printf");
+
+    const renameResult = renameHandler.rename(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 0, character: 8 },
+        newName: "print_line",
+      },
+      doc,
+    );
+    const edits = renameResult?.changes?.[doc.uri];
+
+    expect(edits?.length).toBe(2);
+    expect(edits?.every((edit) => edit.newText === "print_line")).toBe(true);
+    expect(edits?.map((edit) => doc.getText(edit.range))).toEqual([
+      "printf",
+      "printf",
+    ]);
+  });
 });
