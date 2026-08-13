@@ -312,6 +312,33 @@ describe("Document Highlight Provider", () => {
 
     expect(result?.length).toBeGreaterThanOrEqual(4);
   });
+
+  it("highlights variables inside ternary expressions", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/highlight ternary.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "frame choose(flag: bool, left: int, right: int) ret int {",
+        "    return flag ? left : right;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 1, character: 11 },
+      },
+      doc,
+    );
+
+    expect(result?.length).toBeGreaterThanOrEqual(1);
+  });
 });
 
 describe("Folding Range Provider", () => {

@@ -63,7 +63,7 @@ export class DocumentHighlightProvider {
    * Find identifier node at position
    */
   private findIdentifierAtPosition(
-    node: AST.Statement | AST.Expression,
+    node: AST.ASTNode,
     line: number,
     char: number,
   ): AST.IdentifierExpr | null {
@@ -127,7 +127,7 @@ export class DocumentHighlightProvider {
    * Find all usages of a symbol
    */
   private findAllUsages(
-    node: AST.Statement | AST.Expression,
+    node: AST.ASTNode,
     symbolName: string,
     highlights: DocumentHighlight[],
     isDeclaration: boolean,
@@ -183,7 +183,7 @@ export class DocumentHighlightProvider {
    * Check if node contains position
    */
   private nodeContainsPosition(
-    node: AST.Statement | AST.Expression,
+    node: AST.ASTNode,
     line: number,
     char: number,
   ): boolean {
@@ -201,10 +201,8 @@ export class DocumentHighlightProvider {
   /**
    * Get child nodes for traversal
    */
-  private getChildNodes(
-    node: AST.Statement | AST.Expression,
-  ): (AST.Statement | AST.Expression)[] {
-    const children: (AST.Statement | AST.Expression)[] = [];
+  private getChildNodes(node: AST.ASTNode): AST.ASTNode[] {
+    const children: AST.ASTNode[] = [];
 
     switch (node.kind) {
       case "FunctionDecl":
@@ -221,6 +219,9 @@ export class DocumentHighlightProvider {
         break;
       case "EnumDecl":
         children.push(...(node as AST.EnumDecl).methods);
+        break;
+      case "SpecDecl":
+        children.push(...(node as AST.SpecDecl).methods);
         break;
       case "Block":
         children.push(...(node as AST.BlockStmt).statements);
@@ -259,8 +260,66 @@ export class DocumentHighlightProvider {
         const binary = node as AST.BinaryExpr;
         children.push(binary.left, binary.right);
         break;
+      case "Ternary":
+        const ternary = node as AST.TernaryExpr;
+        children.push(ternary.condition, ternary.trueExpr, ternary.falseExpr);
+        break;
       case "Unary":
         children.push((node as AST.UnaryExpr).operand);
+        break;
+      case "Is":
+        children.push((node as AST.IsExpr).expression);
+        break;
+      case "As":
+        children.push((node as AST.AsExpr).expression);
+        break;
+      case "Cast":
+        children.push((node as AST.CastExpr).expression);
+        break;
+      case "Sizeof": {
+        const target = (node as AST.SizeofExpr).target;
+        if ((target as AST.ASTNode).kind) children.push(target as AST.ASTNode);
+        break;
+      }
+      case "TypeOf": {
+        const target = (node as AST.TypeOfExpr).target;
+        if ((target as AST.ASTNode).kind) children.push(target as AST.ASTNode);
+        break;
+      }
+      case "TypeMatch": {
+        const value = (node as AST.TypeMatchExpr).value;
+        if ((value as AST.ASTNode).kind) children.push(value as AST.ASTNode);
+        break;
+      }
+      case "Group":
+      case "Grouped":
+        children.push((node as AST.GroupExpr).expression);
+        break;
+      case "ArrayLiteral":
+        children.push(...(node as AST.ArrayLiteralExpr).elements);
+        break;
+      case "TupleLiteral":
+        children.push(...(node as AST.TupleLiteralExpr).elements);
+        break;
+      case "StructLiteral":
+        for (const field of (node as AST.StructLiteralExpr).fields) {
+          children.push(field.value);
+        }
+        break;
+      case "EnumStructVariant":
+        for (const field of (node as AST.EnumStructVariantExpr).fields) {
+          children.push(field.value);
+        }
+        break;
+      case "InterpolatedString":
+        children.push(...(node as AST.InterpolatedStringExpr).parts);
+        break;
+      case "GenericInstantiation":
+        children.push((node as AST.GenericInstantiationExpr).base);
+        break;
+      case "LambdaExpression":
+        children.push(...(node as AST.LambdaExpr).params);
+        children.push((node as AST.LambdaExpr).body);
         break;
       case "Call":
         const call = node as AST.CallExpr;
@@ -283,6 +342,30 @@ export class DocumentHighlightProvider {
         for (const catchClause of tryCatch.catchClauses) {
           children.push(catchClause.body);
         }
+        break;
+      case "Match":
+        const matchExpr = node as AST.MatchExpr;
+        children.push(matchExpr.value);
+        for (const arm of matchExpr.arms) {
+          children.push(arm.pattern);
+          if (arm.guard) children.push(arm.guard);
+          children.push(arm.body);
+        }
+        break;
+      case "MatchArm":
+        const arm = node as AST.MatchArm;
+        children.push(arm.pattern);
+        if (arm.guard) children.push(arm.guard);
+        children.push(arm.body);
+        break;
+      case "PatternLiteral":
+        children.push((node as AST.PatternLiteral).value);
+        break;
+      case "PatternTuple":
+        children.push(...(node as AST.PatternTuple).patterns);
+        break;
+      case "PatternEnumTuple":
+        children.push(...(node as AST.PatternEnumTuple).bindings);
         break;
     }
 
