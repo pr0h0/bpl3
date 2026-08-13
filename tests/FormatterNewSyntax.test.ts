@@ -41,4 +41,25 @@ describe("Formatter - New Syntax", () => {
     const expected = `local m = Map<string, int> { key: "k", val: 1 };`;
     expect(format(code)).toBe(expected);
   });
+
+  it("should format type matches and guarded match arms", () => {
+    const code = [
+      "frame test(value: Option<int>) ret int {",
+      "return match (value) {",
+      "Option.Some(item) if match<int>(item) => item,",
+      "Option.None => 0,",
+      "};",
+      "}",
+    ].join("\n");
+    const expected = [
+      "frame test(value: Option<int>) ret int {",
+      "    return match (value) {",
+      "        Option.Some(item) if match<int>(item) => item,",
+      "        Option.None => 0,",
+      "    };",
+      "}",
+    ].join("\n");
+
+    expect(format(code)).toBe(expected);
+  });
 });
