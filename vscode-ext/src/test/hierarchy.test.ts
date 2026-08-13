@@ -137,6 +137,37 @@ describe("Hierarchy Providers", () => {
     expect(outgoing.map((call) => call.to.name)).toEqual(["helper"]);
   });
 
+  it("prepares call hierarchy for spec methods", () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CallHierarchyProvider(astResolver, symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/call hierarchy spec method.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "spec Reader {",
+        "    frame read(this: *Self) ret int;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 1, character: 11 },
+      },
+      doc,
+    );
+
+    expect(result?.[0]?.name).toBe("read");
+    expect(result?.[0]?.kind).toBe(SymbolKind.Method);
+  });
+
   it("groups repeated incoming calls from the same caller", async () => {
     const symbolIndex = new SymbolIndex();
     const astResolver = new ASTResolver(symbolIndex);
@@ -241,6 +272,43 @@ describe("Hierarchy Providers", () => {
     const incoming = await provider.getIncomingCalls(helper);
 
     expect(incoming.map((call) => call.from.name)).toEqual(["to_code"]);
+  });
+
+  it("finds incoming member calls to spec methods", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CallHierarchyProvider(astResolver, symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/call hierarchy spec method incoming.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "spec Reader {",
+        "    frame read(this: *Self) ret int;",
+        "}",
+        "struct Runner {",
+        "    frame run(this: Runner, reader: *Reader) ret int {",
+        "        return reader.read();",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const read = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 1, character: 11 },
+      },
+      doc,
+    )![0]!;
+
+    const incoming = await provider.getIncomingCalls(read);
+
+    expect(incoming.map((call) => call.from.name)).toEqual(["run"]);
   });
 
   it("prepares type hierarchy at LSP cursor positions", () => {

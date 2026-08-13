@@ -13,6 +13,8 @@ import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex, type SymbolInfo } from "./SymbolIndex";
 import { filePathToUri } from "./utils";
 
+type CallableDecl = AST.FunctionDecl | AST.SpecMethod;
+
 /**
  * Provides call hierarchy support - shows incoming and outgoing calls for functions
  */
@@ -108,7 +110,9 @@ export class CallHierarchyProvider {
 
     // Find the function declaration
     const funcDecl = this.findFunctionByRange(ast, item.selectionRange);
-    if (!funcDecl || !funcDecl.body) return outgoingCalls;
+    if (funcDecl?.kind !== "FunctionDecl" || !funcDecl.body) {
+      return outgoingCalls;
+    }
 
     // Find all function calls in this function's body
     const calls = this.findAllCalls(funcDecl.body);
@@ -257,10 +261,13 @@ export class CallHierarchyProvider {
     const visitStatement = (stmt: AST.Statement | AST.Expression) => {
       if (stmt.kind === "Call") {
         const call = stmt as AST.CallExpr;
-        if (
-          call.callee.kind === "Identifier" &&
-          (call.callee as AST.IdentifierExpr).name === funcName
-        ) {
+        const callsTarget =
+          (call.callee.kind === "Identifier" &&
+            (call.callee as AST.IdentifierExpr).name === funcName) ||
+          (call.callee.kind === "Member" &&
+            (call.callee as AST.MemberExpr).property === funcName);
+
+        if (callsTarget) {
           const range = this.nodeToRange(call);
           if (range) {
             calls.push({ node: call, range });
@@ -322,6 +329,9 @@ export class CallHierarchyProvider {
           visitStatement(call.callee);
           call.args.forEach(visitStatement);
           break;
+        case "Member":
+          visitStatement((stmt as AST.MemberExpr).object);
+          break;
         case "Assignment":
           const assign = stmt as AST.AssignmentExpr;
           visitStatement(assign.assignee);
@@ -340,7 +350,7 @@ export class CallHierarchyProvider {
   private findContainingFunction(
     ast: AST.Program,
     node: AST.ASTNode,
-  ): AST.FunctionDecl | null {
+  ): CallableDecl | null {
     if (!node.location) return null;
 
     const targetLine = node.location.startLine;
@@ -368,6 +378,12 @@ export class CallHierarchyProvider {
             return method;
           }
         }
+      } else if (stmt.kind === "SpecDecl") {
+        for (const method of (stmt as AST.SpecDecl).methods) {
+          if (this.rangeContainsPosition(method, targetLine, targetCol)) {
+            return method;
+          }
+        }
       }
     }
 
@@ -380,7 +396,7 @@ export class CallHierarchyProvider {
   private findFunctionByRange(
     ast: AST.Program,
     range: Range,
-  ): AST.FunctionDecl | null {
+  ): CallableDecl | null {
     for (const stmt of ast.statements) {
       if (stmt.kind === "FunctionDecl") {
         const func = stmt as AST.FunctionDecl;
@@ -406,6 +422,13 @@ export class CallHierarchyProvider {
             return method;
           }
         }
+      } else if (stmt.kind === "SpecDecl") {
+        for (const method of (stmt as AST.SpecDecl).methods) {
+          const methodRange = this.nodeToRange(method);
+          if (methodRange && this.rangesEqual(methodRange, range)) {
+            return method;
+          }
+        }
       }
     }
     return null;
@@ -413,7 +436,7 @@ export class CallHierarchyProvider {
 
   private findFunctionInWorkspace(
     name: string,
-  ): { decl: AST.FunctionDecl; filePath: string } | null {
+  ): { decl: CallableDecl; filePath: string } | null {
     const allFiles = this.astResolver.getAllCachedFiles();
 
     for (const filePath of allFiles) {
@@ -432,7 +455,7 @@ export class CallHierarchyProvider {
   private findFunctionByName(
     ast: AST.Program,
     name: string,
-  ): AST.FunctionDecl | null {
+  ): CallableDecl | null {
     for (const stmt of ast.statements) {
       if (stmt.kind === "FunctionDecl") {
         const func = stmt as AST.FunctionDecl;
@@ -455,6 +478,12 @@ export class CallHierarchyProvider {
             return method;
           }
         }
+      } else if (stmt.kind === "SpecDecl") {
+        for (const method of (stmt as AST.SpecDecl).methods) {
+          if (method.name === name) {
+            return method;
+          }
+        }
       }
     }
 
@@ -462,10 +491,10 @@ export class CallHierarchyProvider {
   }
 
   /**
-   * Create call hierarchy item from function declaration
+   * Create call hierarchy item from callable declaration
    */
   private createCallHierarchyItem(
-    funcDecl: AST.FunctionDecl,
+    funcDecl: CallableDecl,
     filePath: string,
   ): CallHierarchyItem {
     const range = this.nodeToRange(funcDecl);
@@ -473,7 +502,8 @@ export class CallHierarchyProvider {
 
     return {
       name: funcDecl.name,
-      kind: SymbolKind.Function,
+      kind:
+        funcDecl.kind === "SpecMethod" ? SymbolKind.Method : SymbolKind.Function,
       uri: filePathToUri(filePath),
       range: selectionRange,
       selectionRange: selectionRange,
