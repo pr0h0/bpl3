@@ -299,42 +299,183 @@ export class ASTDefinitionHandler {
     name: string,
     beforeNode: AST.ASTNode,
   ): AST.VariableDecl | null {
-    let found: AST.VariableDecl | null = null;
+    for (const stmt of ast.statements) {
+      if (stmt.kind === "VariableDecl") {
+        if (stmt.name === name && this.declarationPrecedes(stmt, beforeNode)) {
+          return stmt;
+        }
+      } else if (stmt.kind === "FunctionDecl") {
+        if (this.isNodeContainedIn(beforeNode, stmt)) {
+          return this.findVariableInFunction(stmt, name, beforeNode);
+        }
+      } else if (stmt.kind === "StructDecl") {
+        for (const member of stmt.members) {
+          if (
+            member.kind === "FunctionDecl" &&
+            this.isNodeContainedIn(beforeNode, member)
+          ) {
+            return this.findVariableInFunction(member, name, beforeNode);
+          }
+        }
+      } else if (stmt.kind === "EnumDecl") {
+        for (const method of stmt.methods) {
+          if (this.isNodeContainedIn(beforeNode, method)) {
+            return this.findVariableInFunction(method, name, beforeNode);
+          }
+        }
+      }
+    }
 
-    const traverse = (node: any): void => {
-      if (!node || typeof node !== "object") return;
+    return null;
+  }
 
-      // Stop if we've reached the node we're searching from
-      if (node === beforeNode) return;
+  private findVariableInFunction(
+    funcNode: AST.FunctionDecl,
+    name: string,
+    beforeNode: AST.ASTNode,
+  ): AST.VariableDecl | null {
+    if (!funcNode.body) return null;
+    return this.findVariableInBlock(funcNode.body, name, beforeNode);
+  }
 
-      // Check if this is a variable declaration with matching name
-      if (node.kind === "VariableDecl" && node.name === name) {
-        // Only consider declarations that come before the reference
+  private findVariableInBlock(
+    block: AST.BlockStmt,
+    name: string,
+    beforeNode: AST.ASTNode,
+  ): AST.VariableDecl | null {
+    for (const stmt of block.statements) {
+      if (
+        stmt.location &&
+        beforeNode.location &&
+        stmt.location.startLine > beforeNode.location.startLine
+      ) {
+        break;
+      }
+
+      if (stmt.kind === "VariableDecl") {
+        if (stmt.name === name && this.declarationPrecedes(stmt, beforeNode)) {
+          return stmt;
+        }
+      } else if (
+        stmt.kind === "Block" &&
+        this.isNodeContainedIn(beforeNode, stmt)
+      ) {
+        const found = this.findVariableInBlock(stmt, name, beforeNode);
+        if (found) return found;
+      } else if (stmt.kind === "If") {
         if (
-          node.location &&
-          beforeNode.location &&
-          (node.location.startLine < beforeNode.location.startLine ||
-            (node.location.startLine === beforeNode.location.startLine &&
-              node.location.startColumn < beforeNode.location.startColumn))
+          stmt.thenBranch?.kind === "Block" &&
+          this.isNodeContainedIn(beforeNode, stmt.thenBranch)
         ) {
-          found = node;
+          const found = this.findVariableInBlock(
+            stmt.thenBranch,
+            name,
+            beforeNode,
+          );
+          if (found) return found;
         }
+        if (
+          stmt.elseBranch?.kind === "Block" &&
+          this.isNodeContainedIn(beforeNode, stmt.elseBranch)
+        ) {
+          const found = this.findVariableInBlock(
+            stmt.elseBranch,
+            name,
+            beforeNode,
+          );
+          if (found) return found;
+        }
+      } else if (
+        stmt.kind === "Loop" &&
+        stmt.body?.kind === "Block" &&
+        this.isNodeContainedIn(beforeNode, stmt.body)
+      ) {
+        const found = this.findVariableInBlock(stmt.body, name, beforeNode);
+        if (found) return found;
+      } else if (stmt.kind === "Switch") {
+        for (const switchCase of stmt.cases) {
+          if (this.isNodeContainedIn(beforeNode, switchCase.body)) {
+            const found = this.findVariableInBlock(
+              switchCase.body,
+              name,
+              beforeNode,
+            );
+            if (found) return found;
+          }
+        }
+        if (
+          stmt.defaultCase &&
+          this.isNodeContainedIn(beforeNode, stmt.defaultCase)
+        ) {
+          const found = this.findVariableInBlock(
+            stmt.defaultCase,
+            name,
+            beforeNode,
+          );
+          if (found) return found;
+        }
+      } else if (stmt.kind === "Try") {
+        if (this.isNodeContainedIn(beforeNode, stmt.tryBlock)) {
+          const found = this.findVariableInBlock(
+            stmt.tryBlock,
+            name,
+            beforeNode,
+          );
+          if (found) return found;
+        }
+        for (const catchClause of stmt.catchClauses) {
+          if (this.isNodeContainedIn(beforeNode, catchClause.body)) {
+            const found = this.findVariableInBlock(
+              catchClause.body,
+              name,
+              beforeNode,
+            );
+            if (found) return found;
+          }
+        }
+      } else if (
+        stmt.kind === "Defer" &&
+        stmt.statement.kind === "Block" &&
+        this.isNodeContainedIn(beforeNode, stmt.statement)
+      ) {
+        const found = this.findVariableInBlock(
+          stmt.statement,
+          name,
+          beforeNode,
+        );
+        if (found) return found;
       }
+    }
 
-      // Recursively traverse children
-      if (Array.isArray(node)) {
-        for (const item of node) {
-          traverse(item);
-        }
-      } else {
-        for (const key of Object.keys(node)) {
-          traverse(node[key]);
-        }
-      }
-    };
+    return null;
+  }
 
-    traverse(ast);
-    return found;
+  private declarationPrecedes(
+    declaration: AST.VariableDecl,
+    beforeNode: AST.ASTNode,
+  ): boolean {
+    return (
+      !!declaration.location &&
+      !!beforeNode.location &&
+      (declaration.location.startLine < beforeNode.location.startLine ||
+        (declaration.location.startLine === beforeNode.location.startLine &&
+          declaration.location.startColumn < beforeNode.location.startColumn))
+    );
+  }
+
+  private isNodeContainedIn(
+    node: AST.ASTNode,
+    container: AST.ASTNode,
+  ): boolean {
+    if (!node.location || !container.location) return false;
+    return (
+      node.location.startLine >= container.location.startLine &&
+      node.location.endLine <= container.location.endLine &&
+      (node.location.startLine > container.location.startLine ||
+        node.location.startColumn >= container.location.startColumn) &&
+      (node.location.endLine < container.location.endLine ||
+        node.location.endColumn <= container.location.endColumn)
+    );
   }
 
   /**

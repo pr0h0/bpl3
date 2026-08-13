@@ -360,6 +360,40 @@ describe("BPL Language Server Tests", () => {
       expect(location?.range.start.character).toBe(4);
     });
 
+    it("uses scoped local definitions inside switch cases", () => {
+      const filePath = path.join(
+        __dirname,
+        "fixtures",
+        "switch-case-definition.bpl",
+      );
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        [
+          "frame test(value: int) ret int {",
+          "    switch (value) {",
+          "        case 1: {",
+          "            local count: int = 1;",
+          "            return count;",
+          "        }",
+          "    }",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      );
+      const location = definitionHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 4, character: 20 },
+        },
+        doc,
+      );
+
+      expect(location?.range.start.line).toBe(3);
+      expect(location?.range.start.character).toBe(12);
+    });
+
     it("uses declaration file for resolved identifier definitions", () => {
       const requestFilePath = path.join(__dirname, "fixtures", "request.bpl");
       const declarationFilePath = path.join(
