@@ -297,7 +297,8 @@ describe("BPL High Priority Features Tests", () => {
 
       const dxHint = hints.find((h) => h.label === "dx:");
       const dyHint = hints.find((h) => h.label === "dy:");
-      expect(dxHint || dyHint).toBeDefined();
+      expect(dxHint).toBeDefined();
+      expect(dyHint).toBeDefined();
     });
 
     it("does not show type hints when type is explicitly specified", () => {

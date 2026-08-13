@@ -144,24 +144,11 @@ export class InlayHintProvider {
     if (!params) return;
 
     // Add parameter name hints
+    const hasImplicitThisParam =
+      params[0]?.name === "this" && node.callee.kind === "Member";
     for (let i = 0; i < node.args.length; i++) {
       const arg = node.args[i];
-      let paramIndex = i;
-
-      // Skip 'this' parameter for methods
-      if (
-        i === 0 &&
-        params[0] &&
-        params[0].name === "this" &&
-        node.callee.kind === "Member"
-      ) {
-        continue;
-      }
-
-      // Adjust index if this was skipped
-      if (params[0]?.name === "this" && node.callee.kind === "Member") {
-        paramIndex = i + 1;
-      }
+      const paramIndex = hasImplicitThisParam ? i + 1 : i;
 
       const param = params[paramIndex];
       if (!param) continue;
