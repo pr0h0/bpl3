@@ -1,10 +1,11 @@
-import { readFileSync, writeFileSync } from "fs";
-import { join, resolve } from "path";
+import { lstatSync, readFileSync, writeFileSync, type Stats } from "fs";
+import { dirname, join, resolve } from "path";
 
 import {
   CLI_JSON_ERROR_CODE_LISTS,
   type CliJsonErrorCodeList,
 } from "../cli/JsonErrorCodes";
+import { findSymlinkedParentPath } from "../compiler/common/PathSafety";
 
 const CLI_REGISTRY_SHIM_PATH = "cli/index.js";
 const CLI_REGISTRY_TYPES_PATH = "cli/index.d.ts";
@@ -55,7 +56,10 @@ export function checkCliJsonRegistryShim(
   const expectedFiles = expectedCliJsonRegistryFiles();
 
   for (const [relativePath, expected] of expectedFiles) {
-    const actual = readFileSync(join(repoRoot, relativePath), "utf8");
+    const actual = readFileSync(
+      assertSafeCliJsonRegistryPath(repoRoot, relativePath),
+      "utf8",
+    );
     if (actual !== expected) {
       mismatches.push(relativePath);
     }
@@ -69,7 +73,7 @@ export function checkCliJsonRegistryShim(
 
 export function writeCliJsonRegistryShim(repoRoot = process.cwd()): void {
   for (const [relativePath, contents] of expectedCliJsonRegistryFiles()) {
-    writeFileSync(join(repoRoot, relativePath), contents);
+    writeFileSync(assertSafeCliJsonRegistryPath(repoRoot, relativePath), contents);
   }
 }
 
@@ -81,6 +85,59 @@ function expectedCliJsonRegistryFiles(): ReadonlyMap<string, string> {
     ],
     [CLI_REGISTRY_TYPES_PATH, renderCliJsonRegistryTypes()],
   ]);
+}
+
+function assertSafeCliJsonRegistryPath(
+  repoRoot: string,
+  relativePath: string,
+): string {
+  const filePath = join(repoRoot, relativePath);
+  const existingPath = tryLstat(filePath);
+
+  if (existingPath?.isSymbolicLink()) {
+    throw new Error(`CLI registry shim path is a symbolic link: ${filePath}`);
+  }
+  if (existingPath && !existingPath.isFile()) {
+    throw new Error(`CLI registry shim path is not a file: ${filePath}`);
+  }
+
+  const parentPath = dirname(resolve(filePath));
+  const parent = tryLstat(parentPath);
+  if (!parent) {
+    throw new Error(`CLI registry shim parent does not exist: ${parentPath}`);
+  }
+  if (parent.isSymbolicLink()) {
+    throw new Error(`CLI registry shim parent is a symbolic link: ${parentPath}`);
+  }
+  if (!parent.isDirectory()) {
+    throw new Error(`CLI registry shim parent is not a directory: ${parentPath}`);
+  }
+
+  const symlinkedParent = findSymlinkedParentPath(filePath);
+  if (symlinkedParent) {
+    throw new Error(
+      `CLI registry shim parent path contains a symbolic link: ${symlinkedParent}`,
+    );
+  }
+
+  return filePath;
+}
+
+function tryLstat(filePath: string): Stats | null {
+  try {
+    return lstatSync(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 function renderCliJsonRegistryList(list: CliJsonErrorCodeList): string[] {

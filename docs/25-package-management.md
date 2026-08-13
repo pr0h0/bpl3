@@ -993,7 +993,9 @@ The generated CLI JSON registry helper is available as
 `bun tools/cli_json_registry_shim.ts --help` for direct helper usage and
 `bun tools/cli_json_registry_shim.ts --write` to refresh the checked-in shim
 files. `release:cli-registry` rejects `--check=true` and `--write=true` with
-status 2 before checking or writing generated files. Focus that contract with:
+status 2 before checking or writing generated files. The helper refuses
+symlinked shim files or symlinked shim parent paths before reading or writing
+the generated files. Focus that contract with:
 
 ```bash
 bun test tests/JsonErrorCodeLists.test.ts

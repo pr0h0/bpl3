@@ -621,6 +621,7 @@ describe("Markdown documentation", () => {
       "bun tools/cli_json_registry_shim.ts --help",
       "bun tools/cli_json_registry_shim.ts --write",
       "`release:cli-registry` rejects `--check=true` and `--write=true`",
+      "The helper refuses symlinked shim files or symlinked shim parent paths before reading or writing the generated files",
       "bun test tests/JsonErrorCodeLists.test.ts",
     ];
 

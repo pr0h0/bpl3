@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "child_process";
-import { existsSync, readFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "fs";
+import { tmpdir } from "os";
 import { join } from "path";
 
 import {
@@ -10,6 +19,7 @@ import {
 import {
   renderCliJsonRegistryShim,
   renderCliJsonRegistryTypes,
+  writeCliJsonRegistryShim,
 } from "../tools/cli_json_registry_shim";
 
 interface JsonErrorCodeListShape {
@@ -141,6 +151,26 @@ describe("CLI JSON error-code list exports", () => {
     expect(
       readFileSync(join(import.meta.dir, "../cli/index.d.ts"), "utf8"),
     ).toBe(renderCliJsonRegistryTypes());
+  });
+
+  test("refuses to write CLI registry shims through symlinks", () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-cli-registry-link-"));
+    const cliDir = join(tempRoot, "cli");
+    const outsideTarget = join(tempRoot, "outside-index.js");
+
+    try {
+      mkdirSync(cliDir);
+      writeFileSync(outsideTarget, "outside\n");
+      symlinkSync(outsideTarget, join(cliDir, "index.js"), "file");
+      writeFileSync(join(cliDir, "index.d.ts"), renderCliJsonRegistryTypes());
+
+      expect(() => writeCliJsonRegistryShim(tempRoot)).toThrow(
+        /CLI registry shim path is a symbolic link/,
+      );
+      expect(readFileSync(outsideTarget, "utf8")).toBe("outside\n");
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
   });
 
   test("reports CLI registry shim usage diagnostics predictably", () => {
