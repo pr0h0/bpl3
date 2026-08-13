@@ -52,6 +52,12 @@ export class TypeHierarchyProvider {
       // Find the struct declaration
       const typeName = (node as AST.IdentifierExpr).name;
       structDecl = this.findStructDeclaration(ast, typeName);
+    } else if (node.kind === "BasicType") {
+      const typeName = (node as AST.BasicTypeNode).name;
+      const struct = this.findStructReference(ast, filePath, typeName);
+      if (struct) {
+        return [this.createTypeHierarchyItem(struct.decl, struct.filePath)];
+      }
     }
 
     if (!structDecl) return null;
@@ -77,22 +83,30 @@ export class TypeHierarchyProvider {
     )
       return supertypes;
 
-    // Get the base type name (first element is parent struct)
-    const baseTypeName = this.getTypeName(structDecl.inheritanceList[0]!);
-    if (!baseTypeName) return supertypes;
+    for (const inheritedType of structDecl.inheritanceList) {
+      const baseTypeName = this.getTypeName(inheritedType);
+      if (!baseTypeName) continue;
 
-    // Find the base struct
-    const baseSymbol = this.symbolIndex.findSymbol(baseTypeName);
-    if (
-      baseSymbol &&
-      baseSymbol.length > 0 &&
-      baseSymbol[0] &&
-      baseSymbol[0].kind === "struct"
-    ) {
       const baseStruct = this.findStructInWorkspace(baseTypeName);
       if (baseStruct) {
         supertypes.push(
           this.createTypeHierarchyItem(baseStruct.decl, baseStruct.filePath),
+        );
+        continue;
+      }
+
+      const baseSymbol = this.symbolIndex.findSymbol(baseTypeName);
+      if (
+        baseSymbol &&
+        baseSymbol.length > 0 &&
+        baseSymbol[0] &&
+        baseSymbol[0].kind === "struct"
+      ) {
+        supertypes.push(
+          this.createTypeHierarchyItem(
+            baseSymbol[0].declaration as AST.StructDecl,
+            baseSymbol[0].filePath,
+          ),
         );
       }
     }
@@ -121,10 +135,11 @@ export class TypeHierarchyProvider {
             structDecl.inheritanceList &&
             structDecl.inheritanceList.length > 0
           ) {
-            const baseTypeName = this.getTypeName(
-              structDecl.inheritanceList[0]!,
+            const inheritsTarget = structDecl.inheritanceList.some(
+              (inheritedType) =>
+                this.getTypeName(inheritedType) === targetName,
             );
-            if (baseTypeName === targetName) {
+            if (inheritsTarget) {
               subtypes.push(this.createTypeHierarchyItem(structDecl, filePath));
             }
           }
@@ -151,6 +166,18 @@ export class TypeHierarchyProvider {
       }
     }
     return null;
+  }
+
+  private findStructReference(
+    ast: AST.Program,
+    filePath: string,
+    name: string,
+  ): { decl: AST.StructDecl; filePath: string } | null {
+    const localDecl = this.findStructDeclaration(ast, name);
+    if (localDecl) {
+      return { decl: localDecl, filePath };
+    }
+    return this.findStructInWorkspace(name);
   }
 
   /**
