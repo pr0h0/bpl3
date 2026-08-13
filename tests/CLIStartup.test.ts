@@ -154,6 +154,8 @@ describe("CLI startup command registration", () => {
     expect(source).not.toContain('from "../../compiler/common/Config"');
     expect(source).not.toContain('from "../../compiler/common/JsonContracts"');
     expect(source).not.toContain('from "../../compiler/common/Logger"');
+    expect(source).not.toContain("rawOptions: any");
+    expect(source).toContain("rawOptions: CompileOptions");
   });
 
   test("keeps the deferred check engine on focused compiler imports", () => {
@@ -168,6 +170,8 @@ describe("CLI startup command registration", () => {
 
     expect(actionSource).toContain('import("./checkEngine")');
     expect(actionSource).not.toContain('import("../../compiler")');
+    expect(actionSource).not.toContain("rawOptions: any");
+    expect(actionSource).not.toContain("const results: any[]");
     expect(engineSource).toContain('from "../../compiler/common/CompilerError"');
     expect(engineSource).not.toContain(
       'from "../../compiler/frontend/GrammarLexer"',

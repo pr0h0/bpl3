@@ -6,6 +6,7 @@
 import * as fs from "fs";
 import type { Command } from "commander";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
+import type { CompileOptions } from "../types";
 import { getInputFilePathError } from "../utils";
 import { Logger, LogLevel, setLogLevel } from "../../compiler/common/Logger";
 import { updateConfig } from "../../compiler/common/Config";
@@ -22,14 +23,23 @@ import {
 
 const log = new Logger("Check");
 
+type CheckFileResult = {
+  file: string;
+  success: boolean;
+  timeMs?: number;
+  diagnostics?: unknown[];
+  error?: string;
+  errorCode?: string;
+};
+
 export async function runCheckCommand(
   files: string[],
-  rawOptions: any,
+  rawOptions: CompileOptions,
   command: Command,
 ): Promise<void> {
   const inheritedOptions =
     typeof command.optsWithGlobals === "function"
-      ? command.optsWithGlobals()
+      ? (command.optsWithGlobals() as CompileOptions)
       : {};
   const options = {
     ...inheritedOptions,
@@ -76,7 +86,7 @@ export async function runCheckCommand(
   const startTime = Date.now();
   let totalFiles = 0;
   let errorCount = 0;
-  const results: any[] = [];
+  const results: CheckFileResult[] = [];
 
   for (const filePath of files) {
     totalFiles++;

@@ -4,6 +4,7 @@
  */
 
 import type { Command } from "commander";
+import type { CompileOptions } from "../types";
 
 export {
   CHECK_INPUT_NOT_FILE_CODE,
@@ -30,8 +31,10 @@ export function registerCheckCommand(program: Command): void {
     .option("--no-prelude", "do not load implicit primitives")
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")
-    .action(async (files: string[], rawOptions: any, command: Command) => {
-      const { runCheckCommand } = await import("./checkAction");
-      await runCheckCommand(files, rawOptions, command);
-    });
+    .action(
+      async (files: string[], rawOptions: CompileOptions, command: Command) => {
+        const { runCheckCommand } = await import("./checkAction");
+        await runCheckCommand(files, rawOptions, command);
+      },
+    );
 }
