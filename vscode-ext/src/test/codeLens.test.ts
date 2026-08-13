@@ -59,4 +59,65 @@ describe("CodeLens Provider", () => {
       ),
     ).toBe(true);
   });
+
+  it("counts spec extensions and implementations", () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CodeLensProvider(astResolver);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/code-lens-spec.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "spec Reader {",
+        "    frame read(this: *Self) ret int;",
+        "}",
+        "spec ReadWriter: Reader {",
+        "    frame write(this: *Self, value: int) ret void;",
+        "}",
+        "struct FileReader : Reader {",
+        "    frame read(this: *FileReader) ret int { return 0; }",
+        "}",
+      ].join("\n"),
+    );
+
+    const lenses = provider.provide({ textDocument: { uri: doc.uri } }, doc);
+
+    expect(lenses.some((lens) => lens.command?.title === "2 implementations"))
+      .toBe(true);
+  });
+
+  it("provides code lenses for spec methods", () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CodeLensProvider(astResolver);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/code-lens-spec-method.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "spec Reader {",
+        "    frame read(this: *Self) ret int;",
+        "}",
+      ].join("\n"),
+    );
+
+    const lenses = provider.provide({ textDocument: { uri: doc.uri } }, doc);
+
+    expect(
+      lenses.some(
+        (lens) =>
+          lens.range.start.line === 1 &&
+          lens.command?.title === "0 references",
+      ),
+    ).toBe(true);
+  });
 });

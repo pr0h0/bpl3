@@ -52,6 +52,15 @@ export class CodeLensProvider {
           const methodLenses = this.createFunctionLenses(method, filePath);
           lenses.push(...methodLenses);
         }
+      } else if (stmt.kind === "SpecDecl") {
+        const spec = stmt as AST.SpecDecl;
+        const specLenses = this.createSpecLenses(spec, filePath);
+        lenses.push(...specLenses);
+
+        for (const method of spec.methods) {
+          const methodLenses = this.createSpecMethodLenses(method, filePath);
+          lenses.push(...methodLenses);
+        }
       }
     }
 
@@ -200,6 +209,90 @@ export class CodeLensProvider {
   }
 
   /**
+   * Create code lenses for a spec
+   */
+  private createSpecLenses(spec: AST.SpecDecl, filePath: string): CodeLens[] {
+    const lenses: CodeLens[] = [];
+    const range = this.nodeToRange(spec);
+    if (!range) return lenses;
+
+    const headerRange = Range.create(
+      range.start.line,
+      range.start.character,
+      range.start.line,
+      range.start.character + spec.name.length + 5, // "spec " + name
+    );
+
+    const implCount = this.countImplementations(spec.name, filePath);
+
+    if (implCount > 0) {
+      lenses.push({
+        range: headerRange,
+        command: {
+          title:
+            implCount === 1
+              ? "1 implementation"
+              : `${implCount} implementations`,
+          command: "editor.action.showReferences",
+          arguments: [
+            pathToFileURL(filePath).toString(),
+            { line: range.start.line, character: range.start.character },
+            [],
+          ],
+        },
+      });
+    }
+
+    const methodCount = spec.methods.length;
+    if (methodCount > 0) {
+      lenses.push({
+        range: headerRange,
+        command: {
+          title: `${methodCount} method${methodCount === 1 ? "" : "s"}`,
+          command: "",
+        },
+      });
+    }
+
+    return lenses;
+  }
+
+  /**
+   * Create code lenses for a spec method signature
+   */
+  private createSpecMethodLenses(
+    method: AST.SpecMethod,
+    filePath: string,
+  ): CodeLens[] {
+    const lenses: CodeLens[] = [];
+    const range = this.nodeToRange(method);
+    if (!range) return lenses;
+
+    const headerRange = Range.create(
+      range.start.line,
+      range.start.character,
+      range.start.line,
+      range.start.character + method.name.length + 6, // "frame " + name
+    );
+
+    const refCount = this.countReferences(method.name, filePath);
+    lenses.push({
+      range: headerRange,
+      command: {
+        title: refCount === 1 ? "1 reference" : `${refCount} references`,
+        command: "editor.action.showReferences",
+        arguments: [
+          pathToFileURL(filePath).toString(),
+          { line: range.start.line, character: range.start.character },
+          [],
+        ],
+      },
+    });
+
+    return lenses;
+  }
+
+  /**
    * Count references to a symbol (simple heuristic)
    */
   private countReferences(name: string, _filePath: string): number {
@@ -218,9 +311,9 @@ export class CodeLensProvider {
   }
 
   /**
-   * Count implementations of a struct
+   * Count implementations of a type declaration
    */
-  private countImplementations(structName: string, _filePath: string): number {
+  private countImplementations(typeName: string, _filePath: string): number {
     let count = 0;
     const allFiles = this.astResolver.getAllCachedFiles();
 
@@ -228,8 +321,7 @@ export class CodeLensProvider {
       const ast = this.astResolver.getCachedAST(fp);
       if (!ast) continue;
 
-      // Count struct instantiations and inheritance
-      count += this.countStructUsages(ast, structName);
+      count += this.countTypeUsages(ast, typeName);
     }
 
     return count;
@@ -267,25 +359,37 @@ export class CodeLensProvider {
   }
 
   /**
-   * Count struct usages (instantiations and inheritance)
+   * Count type usages (struct instantiations, inheritance, and spec extension)
    */
-  private countStructUsages(ast: AST.Program, structName: string): number {
+  private countTypeUsages(ast: AST.Program, typeName: string): number {
     let count = 0;
 
     const visit = (n: any) => {
       if (!n) return;
 
       // Check for struct instantiation in StructLiteral
-      if (n.kind === "StructLiteral" && n.structName === structName) {
+      if (n.kind === "StructLiteral" && n.structName === typeName) {
         count++;
       }
 
-      // Check for inheritance
+      // Check for struct inheritance and spec implementation
       if (n.kind === "StructDecl" && Array.isArray(n.inheritanceList)) {
         for (const inheritedType of n.inheritanceList) {
           if (
             inheritedType.kind === "BasicType" &&
-            inheritedType.name === structName
+            inheritedType.name === typeName
+          ) {
+            count++;
+          }
+        }
+      }
+
+      // Check for spec extension
+      if (n.kind === "SpecDecl" && Array.isArray(n.extends)) {
+        for (const inheritedType of n.extends) {
+          if (
+            inheritedType.kind === "BasicType" &&
+            inheritedType.name === typeName
           ) {
             count++;
           }
