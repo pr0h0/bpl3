@@ -572,7 +572,8 @@ describe("Markdown documentation", () => {
       "Missing value for --repo-root",
       "bun tools/release_manifest.ts --help",
       "prints the release manifest helper usage without writing artifacts",
-      'bun test tests/ReleaseMetadata.test.ts -t "release manifest CLI reports usage errors"',
+      "`BPL_RELEASE_MANIFEST_NPM_PACK_TIMEOUT_MS`, defaulting to 300000 milliseconds",
+      'bun test tests/ReleaseMetadata.test.ts -t "release manifest CLI reports usage errors|stalled npm pack"',
     ];
 
     expectDocsContainSnippets(combinedDocs, requiredSnippets);

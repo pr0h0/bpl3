@@ -122,7 +122,9 @@ Release manifest usage errors, such as
 `Unknown release manifest option: --unknown`, `Missing value for --out`, or
 `Missing value for --repo-root`, exit with status 2 before running release
 manifest or npm pack work. Use `bun tools/release_manifest.ts --help` to print
-the release manifest helper usage without writing artifacts.
+the release manifest helper usage without writing artifacts. The `--pack-npm`
+step is bounded by `BPL_RELEASE_MANIFEST_NPM_PACK_TIMEOUT_MS`, defaulting to
+300000 milliseconds.
 
 Helper CLI inline value forms are supported for automation that prefers
 single-token options:

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "child_process";
 import { createHash } from "crypto";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -12,7 +13,7 @@ import {
   writeFileSync,
 } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { delimiter, join } from "path";
 import {
   PACKAGE_HELPER_DEPENDENCIES,
   createReleaseManifest,
@@ -1539,6 +1540,61 @@ describe("Release metadata", () => {
       expect(
         manifest.artifacts.map((artifact: { path: string }) => artifact.path),
       ).toContain("lib/runtime_wasm_host.ll");
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("release manifest CLI times out stalled npm pack", () => {
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-release-manifest-npm-timeout-"),
+    );
+
+    try {
+      writeReleaseFixture(tempRoot);
+      const fakeBin = join(tempRoot, "fake-bin");
+      mkdirSync(fakeBin);
+      const fakeNpm = join(fakeBin, "npm");
+      writeFileSync(
+        fakeNpm,
+        [
+          "#!/usr/bin/env bash",
+          `exec ${JSON.stringify(process.execPath)} ` +
+            `-e "setTimeout(() => {}, 2000)"`,
+          "",
+        ].join("\n"),
+      );
+      chmodSync(fakeNpm, 0o755);
+
+      const manifestPath = join(tempRoot, "dist", "release-manifest.json");
+      const result = spawnSync(
+        "bun",
+        [
+          "tools/release_manifest.ts",
+          "--repo-root",
+          tempRoot,
+          "--out",
+          manifestPath,
+          "--pack-npm",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            BPL_RELEASE_MANIFEST_NPM_PACK_TIMEOUT_MS: "50",
+            PATH: `${fakeBin}${delimiter}${process.env.PATH ?? ""}`,
+          },
+          timeout: 5000,
+        },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "npm pack failed while creating release manifest",
+      );
+      expect(result.stderr).toContain("timed out");
+      expect(existsSync(manifestPath)).toBe(false);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }

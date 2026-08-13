@@ -9,10 +9,12 @@ import {
 } from "fs";
 import { basename, dirname, join, relative, resolve } from "path";
 import { spawnSync } from "child_process";
+import { getPositiveIntegerEnv } from "../compiler/common/Env";
 import {
   findNonDirectoryPathComponent,
   findSymlinkedPathComponent,
 } from "../compiler/common/PathSafety";
+import { formatCommandSpawnFailure } from "../compiler/common/ProcessErrors";
 
 export interface ReleaseManifestArtifact {
   kind: "binary" | "runtime" | "helper" | "npm-package";
@@ -58,6 +60,8 @@ interface PackageJson {
 }
 
 class CliUsageError extends Error {}
+
+export const RELEASE_MANIFEST_NPM_PACK_TIMEOUT_MS = 5 * 60 * 1000;
 
 export interface PackageScriptHelperReference {
   scriptName: string;
@@ -584,16 +588,33 @@ if (import.meta.main) {
 
     if (packNpm) {
       mkdirSync(dirname(outPath), { recursive: true });
+      const npmPackArgs = [
+        "pack",
+        "--json",
+        "--pack-destination",
+        dirname(outPath),
+      ];
       const pack = spawnSync(
         "npm",
-        ["pack", "--json", "--pack-destination", dirname(outPath)],
+        npmPackArgs,
         {
           cwd: repoRoot,
           encoding: "utf-8",
           stdio: "pipe",
+          timeout: getReleaseManifestNpmPackTimeoutMs(),
         },
       );
-      if (pack.error) throw pack.error;
+      if (pack.error) {
+        throw new Error(
+          [
+            "npm pack failed while creating release manifest.",
+            formatCommandSpawnFailure(
+              ["npm", ...npmPackArgs].join(" "),
+              pack.error,
+            ) ?? pack.error.message,
+          ].join("\n"),
+        );
+      }
       if (pack.status !== 0) {
         throw new Error(
           [
@@ -617,4 +638,14 @@ if (import.meta.main) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(error instanceof CliUsageError ? 2 : 1);
   }
+}
+
+function getReleaseManifestNpmPackTimeoutMs(): number {
+  return getPositiveIntegerEnv(
+    "BPL_RELEASE_MANIFEST_NPM_PACK_TIMEOUT_MS",
+    RELEASE_MANIFEST_NPM_PACK_TIMEOUT_MS,
+    {
+      warn: (message) => console.warn(message),
+    },
+  );
 }
