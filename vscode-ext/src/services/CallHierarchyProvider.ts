@@ -7,6 +7,7 @@ import {
   SymbolKind,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
@@ -27,7 +28,7 @@ export class CallHierarchyProvider {
     params: CallHierarchyPrepareParams,
     document: TextDocument,
   ): CallHierarchyItem[] | null {
-    const filePath = document.uri.replace("file://", "");
+    const filePath = fileURLToPath(document.uri);
     const content = document.getText();
     const position = params.position;
 
@@ -94,7 +95,7 @@ export class CallHierarchyProvider {
     item: CallHierarchyItem,
   ): Promise<CallHierarchyOutgoingCall[]> {
     const outgoingCalls: CallHierarchyOutgoingCall[] = [];
-    const sourceUri = item.uri.replace("file://", "");
+    const sourceUri = fileURLToPath(item.uri);
 
     const ast = this.astResolver.getCachedAST(sourceUri);
     if (!ast) return outgoingCalls;

@@ -4,6 +4,7 @@ import {
   Range,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { fileURLToPath, pathToFileURL } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 
@@ -17,7 +18,7 @@ export class CodeLensProvider {
    * Provide code lenses for a document
    */
   provide(params: CodeLensParams, document: TextDocument): CodeLens[] {
-    const filePath = document.uri.replace("file://", "");
+    const filePath = fileURLToPath(document.uri);
     const content = document.getText();
 
     // Parse document
@@ -90,7 +91,7 @@ export class CodeLensProvider {
         title: refCount === 1 ? "1 reference" : `${refCount} references`,
         command: "editor.action.showReferences",
         arguments: [
-          `file://${filePath}`,
+          pathToFileURL(filePath).toString(),
           { line: range.start.line, character: range.start.character },
           [], // References will be computed by the editor
         ],

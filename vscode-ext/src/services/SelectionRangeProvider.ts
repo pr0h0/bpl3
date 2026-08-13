@@ -5,6 +5,7 @@ import {
   SelectionRange,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { debugLog } from "./utils";
@@ -23,7 +24,7 @@ export class SelectionRangeProvider {
     params: SelectionRangeParams,
     document: TextDocument,
   ): SelectionRange[] | null {
-    const filePath = document.uri.replace("file://", "");
+    const filePath = fileURLToPath(document.uri);
     const content = document.getText();
 
     // Parse document

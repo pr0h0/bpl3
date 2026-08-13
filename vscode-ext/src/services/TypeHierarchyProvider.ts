@@ -5,6 +5,7 @@ import {
   type TypeHierarchyPrepareParams,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
@@ -25,7 +26,7 @@ export class TypeHierarchyProvider {
     params: TypeHierarchyPrepareParams,
     document: TextDocument,
   ): TypeHierarchyItem[] | null {
-    const filePath = document.uri.replace("file://", "");
+    const filePath = fileURLToPath(document.uri);
     const content = document.getText();
     const position = params.position;
 
@@ -62,7 +63,7 @@ export class TypeHierarchyProvider {
    */
   async getSupertypes(item: TypeHierarchyItem): Promise<TypeHierarchyItem[]> {
     const supertypes: TypeHierarchyItem[] = [];
-    const uri = item.uri.replace("file://", "");
+    const uri = fileURLToPath(item.uri);
 
     const ast = this.astResolver.getCachedAST(uri);
     if (!ast) return supertypes;

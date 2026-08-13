@@ -18,6 +18,7 @@ import { SignatureHelpProvider } from "../services/SignatureHelpProvider";
 import { DocumentSymbolProvider } from "../services/DocumentSymbolProvider";
 import * as path from "path";
 import * as fs from "fs";
+import { pathToFileURL } from "url";
 
 const TODO_APP_PATH = path.join(
   __dirname,
@@ -94,11 +95,12 @@ describe("Selection Range Provider", () => {
 
 describe("Document Highlight Provider", () => {
   let provider: DocumentHighlightProvider;
+  let astResolver: ASTResolver;
   let testDoc: TextDocument;
 
   beforeAll(() => {
     const symbolIndex = new SymbolIndex();
-    const astResolver = new ASTResolver(symbolIndex);
+    astResolver = new ASTResolver(symbolIndex);
     provider = new DocumentHighlightProvider(astResolver);
 
     const testContent = `frame test() {
@@ -151,6 +153,29 @@ describe("Document Highlight Provider", () => {
     );
 
     expect(result === null || Array.isArray(result)).toBe(true);
+  });
+
+  it("decodes file URIs before caching parsed documents", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/highlight uri space.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      "frame test() {\n    local count: int = 0;\n    return count;\n}",
+    );
+
+    provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 1, character: 10 },
+      },
+      doc,
+    );
+
+    expect(astResolver.getCachedAST(filePath)).not.toBeNull();
   });
 });
 

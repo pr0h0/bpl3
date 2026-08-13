@@ -5,6 +5,7 @@ import {
   Range,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 
@@ -22,7 +23,7 @@ export class DocumentHighlightProvider {
     params: DocumentHighlightParams,
     document: TextDocument,
   ): DocumentHighlight[] | null {
-    const filePath = document.uri.replace("file://", "");
+    const filePath = fileURLToPath(document.uri);
     const content = document.getText();
     const position = params.position;
 

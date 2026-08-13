@@ -4,6 +4,7 @@ import {
   InlayHintKind,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
@@ -21,7 +22,7 @@ export class InlayHintProvider {
    * Handle inlay hint request
    */
   handle(_params: InlayHintParams, document: TextDocument): InlayHint[] {
-    const filePath = document.uri.replace("file://", "");
+    const filePath = fileURLToPath(document.uri);
     const content = document.getText();
 
     // Parse document
