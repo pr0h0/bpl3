@@ -260,6 +260,39 @@ describe("Enhanced Error Messaging", () => {
     }
   });
 
+  test("should clamp JSON source pointers to truncated previews", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-json-truncated-pointer-"),
+    );
+    const testFile = path.join(tempDir, "main.bpl");
+    const longLine = `    ${"x".repeat(80)} = 1;`;
+    fs.writeFileSync(testFile, ["frame main() {", longLine, "}"].join("\n"));
+
+    try {
+      const formatter = new DiagnosticFormatter({
+        colorize: false,
+        maxLineLength: 20,
+      });
+      const error = new CompilerError("Invalid assignment", "Rewrite it.", {
+        file: testFile,
+        startLine: 2,
+        startColumn: 70,
+        endLine: 2,
+        endColumn: 75,
+      });
+
+      const parsed = JSON.parse(formatter.formatAsJSON([error]));
+
+      expect(parsed[0].source.preview).toHaveLength(20);
+      expect(parsed[0].source.pointer).toHaveLength(
+        parsed[0].source.preview.length,
+      );
+      expect(parsed[0].source.pointer).toEndWith("^");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("should format errors without ANSI colors when requested", () => {
     const formatter = new DiagnosticFormatter({
       colorize: false,

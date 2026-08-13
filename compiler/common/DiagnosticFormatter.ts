@@ -236,11 +236,20 @@ function buildPreviewPointer(
   location: SourceLocation,
   previewLine: string,
 ): string {
-  const endColumn =
+  const previewEndColumn = previewLine.length + 1;
+  const startColumn = Math.min(
+    location.startColumn,
+    Math.max(1, previewEndColumn - 1),
+  );
+  const unclampedEndColumn =
     location.endLine === location.startLine
-      ? Math.min(location.endColumn, previewLine.length + 1)
-      : previewLine.length + 1;
-  return buildPointer(location.startColumn, endColumn);
+      ? location.endColumn
+      : previewEndColumn;
+  const endColumn = Math.max(
+    startColumn + 1,
+    Math.min(unclampedEndColumn, previewEndColumn),
+  );
+  return buildPointer(startColumn, endColumn);
 }
 
 function formatPointerForLine(
