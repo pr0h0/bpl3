@@ -97,4 +97,40 @@ describe("ASTResolver", () => {
 
     expect(resolver.resolveType(identifier, filePath)).toBe("int");
   });
+
+  it("resolves local variable types inside if blocks", () => {
+    const symbolIndex = new SymbolIndex();
+    const resolver = new ASTResolver(symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/if-block-resolve-type.bpl",
+    );
+
+    resolver.parseDocumentContent(
+      filePath,
+      [
+        "frame test(flag: bool) ret int {",
+        "    if (flag) {",
+        "        local count: int = 1;",
+        "        return count;",
+        "    }",
+        "    return 0;",
+        "}",
+      ].join("\n"),
+    );
+
+    const identifier: AST.IdentifierExpr = {
+      kind: "Identifier",
+      name: "count",
+      location: {
+        file: filePath,
+        startLine: 4,
+        startColumn: 16,
+        endLine: 4,
+        endColumn: 21,
+      },
+    };
+
+    expect(resolver.resolveType(identifier, filePath)).toBe("int");
+  });
 });

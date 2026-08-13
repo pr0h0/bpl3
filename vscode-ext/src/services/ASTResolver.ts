@@ -631,27 +631,30 @@ export class ASTResolver {
             if (found) return found;
           }
         }
-      } else if (stmt.kind === "IfStmt") {
+      } else if (stmt.kind === "If") {
         const ifStmt = stmt as AST.IfStmt;
-        // Handle thenBranch (can be array or single statement)
-        if (ifStmt.thenBranch) {
-          const thenStatements = Array.isArray(ifStmt.thenBranch)
-            ? ifStmt.thenBranch
-            : [ifStmt.thenBranch];
+        if (
+          ifStmt.thenBranch?.location &&
+          beforeNode.location &&
+          beforeNode.location.startLine >= ifStmt.thenBranch.location.startLine &&
+          beforeNode.location.startLine <= ifStmt.thenBranch.location.endLine
+        ) {
           const found = this.findVariableInStatements(
-            thenStatements,
+            [ifStmt.thenBranch],
             name,
             beforeNode,
           );
           if (found) return found;
         }
-        // Handle elseBranch
-        if (ifStmt.elseBranch) {
-          const elseStatements = Array.isArray(ifStmt.elseBranch)
-            ? ifStmt.elseBranch
-            : [ifStmt.elseBranch];
+
+        if (
+          ifStmt.elseBranch?.location &&
+          beforeNode.location &&
+          beforeNode.location.startLine >= ifStmt.elseBranch.location.startLine &&
+          beforeNode.location.startLine <= ifStmt.elseBranch.location.endLine
+        ) {
           const found = this.findVariableInStatements(
-            elseStatements,
+            [ifStmt.elseBranch],
             name,
             beforeNode,
           );
