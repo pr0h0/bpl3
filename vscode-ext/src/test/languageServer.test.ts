@@ -163,6 +163,43 @@ describe("BPL Language Server Tests", () => {
       expect(value).toContain("int");
     });
 
+    it("shows local variable hover inside enum methods", () => {
+      const filePath = path.join(
+        __dirname,
+        "fixtures",
+        "enum-method-hover.bpl",
+      );
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        [
+          "enum Color {",
+          "    Red,",
+          "    frame to_code(this: Color) ret int {",
+          "        local count: int = 1;",
+          "        return count;",
+          "    }",
+          "}",
+        ].join("\n"),
+      );
+      const hover = hoverHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 4, character: 16 },
+        },
+        doc,
+      );
+
+      const value =
+        typeof hover?.contents === "object" && "value" in hover.contents
+          ? hover.contents.value
+          : String(hover?.contents ?? "");
+      expect(value).toContain("count");
+      expect(value).toContain("int");
+      expect(value).toContain("Local");
+    });
+
     it("shows hover for type alias declarations", () => {
       const filePath = path.join(__dirname, "fixtures", "type-alias-hover.bpl");
       const doc = TextDocument.create(

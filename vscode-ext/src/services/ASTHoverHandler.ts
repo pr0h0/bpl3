@@ -1363,6 +1363,16 @@ export class ASTHoverHandler {
             if (varDecl) return varDecl;
           }
         }
+      } else if (topNode.kind === "EnumDecl") {
+        for (const method of topNode.methods || []) {
+          if (this.isNodeContainedIn(refNode, method)) {
+            debugLog(
+              `[ASTHover] Reference is inside method ${method.name} of enum ${topNode.name}`,
+            );
+            const varDecl = this.findVariableInFunction(method, name, refNode);
+            if (varDecl) return varDecl;
+          }
+        }
       }
     }
 
@@ -1399,6 +1409,17 @@ export class ASTHoverHandler {
           ) {
             const patternVar = this.findPatternVariableInFunction(
               member,
+              name,
+              refNode,
+            );
+            if (patternVar) return patternVar;
+          }
+        }
+      } else if (topNode.kind === "EnumDecl") {
+        for (const method of topNode.methods || []) {
+          if (this.isNodeContainedIn(refNode, method)) {
+            const patternVar = this.findPatternVariableInFunction(
+              method,
               name,
               refNode,
             );
