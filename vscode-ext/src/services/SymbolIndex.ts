@@ -8,7 +8,7 @@ import * as fs from "fs";
 import type * as AST from "../../../compiler/common/AST";
 import { Parser } from "../../../compiler/frontend/Parser";
 import { ModuleResolver } from "./ModuleResolver";
-import { debugLog } from "./utils";
+import { debugLog, typeNodeToString as formatTypeNode } from "./utils";
 
 export interface SymbolInfo {
   name: string;
@@ -609,46 +609,7 @@ export class SymbolIndex {
    * Convert type node to string
    */
   private typeNodeToString(type: AST.TypeNode | undefined): string {
-    if (!type) return "void";
-
-    switch (type.kind) {
-      case "BasicType": {
-        let name = type.name;
-        if (type.genericArgs && type.genericArgs.length > 0) {
-          name += `<${type.genericArgs.map((t) => this.typeNodeToString(t)).join(", ")}>`;
-        }
-        if (type.arrayDimensions) {
-          for (const dim of type.arrayDimensions) {
-            name += `[${dim !== null ? dim : ""}]`;
-          }
-        }
-        if (type.pointerDepth) {
-          name = "*".repeat(type.pointerDepth) + name;
-        }
-        return name;
-      }
-      case "FunctionType": {
-        const params = type.paramTypes
-          .map((t) => this.typeNodeToString(t))
-          .join(", ");
-        const ret = this.typeNodeToString(type.returnType);
-        return `Func<${ret}>(${params})`;
-      }
-      case "LambdaType": {
-        const params = type.paramTypes
-          .map((t) => this.typeNodeToString(t))
-          .join(", ");
-        const ret = this.typeNodeToString(type.returnType);
-        return `Lambda<${ret}>(${params})`;
-      }
-      case "TupleType": {
-        return `(${type.types.map((t) => this.typeNodeToString(t)).join(", ")})`;
-      }
-      case "MetaType":
-        return `typeof<${this.typeNodeToString(type.type)}>`;
-      default:
-        return "unknown";
-    }
+    return formatTypeNode(type);
   }
 
   /**

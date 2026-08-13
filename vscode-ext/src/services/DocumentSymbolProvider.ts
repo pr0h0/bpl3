@@ -7,6 +7,7 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
+import { typeNodeToString as formatTypeNode } from "./utils";
 
 /**
  * Provides document symbols for outline view and quick navigation.
@@ -244,48 +245,7 @@ export class DocumentSymbolProvider {
    * Convert type node to string
    */
   private typeNodeToString(type: AST.TypeNode | undefined): string {
-    if (!type) return "void";
-
-    switch (type.kind) {
-      case "BasicType":
-        let name = type.name;
-        if (type.genericArgs && type.genericArgs.length > 0) {
-          name += `<${type.genericArgs.map((t: AST.TypeNode) => this.typeNodeToString(t)).join(", ")}>`;
-        }
-        if (type.arrayDimensions) {
-          for (const dim of type.arrayDimensions) {
-            name += `[${dim !== null ? dim : ""}]`;
-          }
-        }
-        if (type.pointerDepth) {
-          name = "*".repeat(type.pointerDepth) + name;
-        }
-        return name;
-
-      case "FunctionType":
-        const params = type.paramTypes
-          .map((t: AST.TypeNode) => this.typeNodeToString(t))
-          .join(", ");
-        const ret = this.typeNodeToString(type.returnType);
-        return `Func<${ret}>(${params})`;
-
-      case "LambdaType": {
-        const lambdaParams = type.paramTypes
-          .map((t: AST.TypeNode) => this.typeNodeToString(t))
-          .join(", ");
-        const lambdaReturnType = this.typeNodeToString(type.returnType);
-        return `Lambda<${lambdaReturnType}>(${lambdaParams})`;
-      }
-
-      case "TupleType":
-        return `(${type.types.map((t: AST.TypeNode) => this.typeNodeToString(t)).join(", ")})`;
-
-      case "MetaType":
-        return `typeof<${this.typeNodeToString(type.type)}>`;
-
-      default:
-        return "unknown";
-    }
+    return formatTypeNode(type);
   }
 
   /**

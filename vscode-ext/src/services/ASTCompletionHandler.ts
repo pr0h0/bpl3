@@ -16,7 +16,7 @@ import * as path from "path";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex, type SymbolInfo } from "./SymbolIndex";
-import { debugLog } from "./utils";
+import { debugLog, typeNodeToString as formatTypeNode } from "./utils";
 
 export class ASTCompletionHandler {
   constructor(
@@ -769,47 +769,7 @@ export class ASTCompletionHandler {
    * Convert TypeNode to string
    */
   private typeNodeToString(typeNode: AST.TypeNode): string {
-    switch (typeNode.kind) {
-      case "BasicType": {
-        let result = typeNode.name;
-        if (typeNode.genericArgs && typeNode.genericArgs.length > 0) {
-          result += `<${typeNode.genericArgs
-            .map((arg) => this.typeNodeToString(arg))
-            .join(", ")}>`;
-        }
-        if (typeNode.pointerDepth > 0) {
-          result = "*".repeat(typeNode.pointerDepth) + result;
-        }
-        if (typeNode.arrayDimensions && typeNode.arrayDimensions.length > 0) {
-          for (const dim of typeNode.arrayDimensions) {
-            result += dim !== null ? `[${dim}]` : "[]";
-          }
-        }
-        return result;
-      }
-      case "FunctionType": {
-        const params = typeNode.paramTypes
-          .map((paramType) => this.typeNodeToString(paramType))
-          .join(", ");
-        const returnType = this.typeNodeToString(typeNode.returnType);
-        return `Func<${returnType}>(${params})`;
-      }
-      case "LambdaType": {
-        const params = typeNode.paramTypes
-          .map((paramType) => this.typeNodeToString(paramType))
-          .join(", ");
-        const returnType = this.typeNodeToString(typeNode.returnType);
-        return `Lambda<${returnType}>(${params})`;
-      }
-      case "TupleType":
-        return `(${typeNode.types
-          .map((elementType) => this.typeNodeToString(elementType))
-          .join(", ")})`;
-      case "MetaType":
-        return `typeof<${this.typeNodeToString(typeNode.type)}>`;
-      default:
-        return "unknown";
-    }
+    return formatTypeNode(typeNode);
   }
 
   /**
