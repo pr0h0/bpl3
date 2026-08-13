@@ -451,6 +451,28 @@ frame main() {}`;
     expect(result === null || Array.isArray(result)).toBe(true);
   });
 
+  it("should show lambda type alias details", () => {
+    const testContent = `type Callback = Lambda<int>(int, string);`;
+
+    const doc = TextDocument.create(
+      `file://${path.resolve(__dirname, "../../../tmp/test-lambda-type-symbols.bpl")}`,
+      "bpl",
+      1,
+      testContent,
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+      },
+      doc,
+    );
+
+    expect(Array.isArray(result)).toBe(true);
+    expect(result?.[0]?.name).toBe("Callback");
+    expect(result?.[0]?.detail).toBe("Lambda<int>(int, string)");
+  });
+
   it("should handle empty document", () => {
     const doc = TextDocument.create(
       `file://${path.resolve(__dirname, "../../../tmp/empty.bpl")}`,

@@ -269,8 +269,19 @@ export class DocumentSymbolProvider {
         const ret = this.typeNodeToString(type.returnType);
         return `Func<${ret}>(${params})`;
 
+      case "LambdaType": {
+        const lambdaParams = type.paramTypes
+          .map((t: AST.TypeNode) => this.typeNodeToString(t))
+          .join(", ");
+        const lambdaReturnType = this.typeNodeToString(type.returnType);
+        return `Lambda<${lambdaReturnType}>(${lambdaParams})`;
+      }
+
       case "TupleType":
         return `(${type.types.map((t: AST.TypeNode) => this.typeNodeToString(t)).join(", ")})`;
+
+      case "MetaType":
+        return `typeof<${this.typeNodeToString(type.type)}>`;
 
       default:
         return "unknown";
