@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "path";
 import { pathToFileURL } from "url";
+import { SymbolKind } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { ASTResolver } from "../services/ASTResolver";
 import { CallHierarchyProvider } from "../services/CallHierarchyProvider";
@@ -330,5 +331,79 @@ describe("Hierarchy Providers", () => {
 
     expect(supertypes.map((item) => item.name)).toEqual(["Base"]);
     expect(subtypes.map((item) => item.name)).toEqual(["Child"]);
+  });
+
+  it("prepares type hierarchy for spec declarations", () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new TypeHierarchyProvider(astResolver, symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/type hierarchy spec.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      "spec Reader { frame read(this: *Self) ret int; }",
+    );
+
+    const result = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 0, character: 7 },
+      },
+      doc,
+    );
+
+    expect(result?.[0]?.name).toBe("Reader");
+    expect(result?.[0]?.kind).toBe(SymbolKind.Interface);
+    expect(result?.[0]?.detail).toBe("spec");
+  });
+
+  it("resolves type hierarchy through spec extensions and implementations", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new TypeHierarchyProvider(astResolver, symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/type hierarchy spec cached.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "spec Reader { frame read(this: *Self) ret int; }",
+        "spec ReadWriter: Reader { frame write(this: *Self, value: int) ret void; }",
+        "struct FileReader : Reader {",
+        "    frame read(this: *FileReader) ret int { return 0; }",
+        "}",
+      ].join("\n"),
+    );
+
+    const reader = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 0, character: 7 },
+      },
+      doc,
+    )![0]!;
+    const readWriter = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 1, character: 7 },
+      },
+      doc,
+    )![0]!;
+
+    const supertypes = await provider.getSupertypes(readWriter);
+    const subtypes = await provider.getSubtypes(reader);
+
+    expect(supertypes.map((item) => item.name)).toEqual(["Reader"]);
+    expect(subtypes.map((item) => item.name)).toEqual([
+      "ReadWriter",
+      "FileReader",
+    ]);
   });
 });
