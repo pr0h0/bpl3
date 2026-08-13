@@ -349,6 +349,11 @@ describe("linter type-safety guards", () => {
       "EnumVariantTuple",
       "EnumVariantStruct",
       "TypeAlias",
+      "BasicType",
+      "TupleType",
+      "FunctionType",
+      "LambdaType",
+      "MetaType",
       "Block",
       "If",
       "Loop",
@@ -600,6 +605,79 @@ describe("linter type-safety guards", () => {
     expect(messages).toContain("type:paramType");
     expect(messages).toContain("type:returnType");
     expect(messages).toContain("type:int");
+  });
+
+  test("visits nested type children", () => {
+    const rule: LintRule = {
+      code: "TNEST",
+      name: "nested-type-visitor-test",
+      check(node, context) {
+        if (node.kind !== "BasicType") return;
+
+        context.report(
+          `type:${(node as AST.BasicTypeNode).name}`,
+          node,
+          undefined,
+          "TNEST",
+        );
+      },
+    };
+
+    const nestedType: AST.TypeNode = {
+      kind: "FunctionType",
+      returnType: {
+        kind: "TupleType",
+        types: [basicType("tupleElement")],
+        location,
+      },
+      paramTypes: [
+        {
+          kind: "BasicType",
+          name: "Box",
+          genericArgs: [basicType("genericArg")],
+          pointerDepth: 0,
+          arrayDimensions: [],
+          location,
+        },
+        {
+          kind: "LambdaType",
+          returnType: basicType("lambdaReturn"),
+          paramTypes: [
+            {
+              kind: "MetaType",
+              type: basicType("metaInner"),
+              location,
+            },
+          ],
+          location,
+        },
+      ],
+      location,
+    };
+
+    const program: AST.Program = {
+      kind: "Program",
+      location,
+      statements: [
+        {
+          kind: "TypeAlias",
+          name: "Nested",
+          genericParams: [],
+          type: nestedType,
+          location,
+        },
+      ],
+    };
+
+    const messages = new Linter([rule])
+      .lint(program)
+      .map((error) => error.message);
+
+    expect(messages).toContain("type:tupleElement");
+    expect(messages).toContain("type:Box");
+    expect(messages).toContain("type:genericArg");
+    expect(messages).toContain("type:lambdaReturn");
+    expect(messages).toContain("type:metaInner");
   });
 
   test("visits aggregate expression children", () => {

@@ -127,6 +127,33 @@ export class Linter {
       case "TypeAlias":
         this.visit((node as AST.TypeAliasDecl).type, context);
         break;
+      case "BasicType":
+        for (const genericArg of (node as AST.BasicTypeNode).genericArgs) {
+          this.visit(genericArg, context);
+        }
+        break;
+      case "TupleType":
+        for (const tupleType of (node as AST.TupleTypeNode).types) {
+          this.visit(tupleType, context);
+        }
+        break;
+      case "FunctionType":
+        const functionType = node as AST.FunctionTypeNode;
+        this.visit(functionType.returnType, context);
+        for (const paramType of functionType.paramTypes) {
+          this.visit(paramType, context);
+        }
+        break;
+      case "LambdaType":
+        const lambdaType = node as AST.LambdaTypeNode;
+        this.visit(lambdaType.returnType, context);
+        for (const paramType of lambdaType.paramTypes) {
+          this.visit(paramType, context);
+        }
+        break;
+      case "MetaType":
+        this.visit((node as AST.MetaType).type, context);
+        break;
       case "Block":
         for (const stmt of (node as AST.BlockStmt).statements) {
           this.visit(stmt, context);
