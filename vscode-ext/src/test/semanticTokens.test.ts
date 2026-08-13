@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as path from "path";
 import { ASTResolver } from "../services/ASTResolver";
 import {
+  SemanticTokenModifier,
   SemanticTokenProvider,
   SemanticTokenType,
 } from "../services/SemanticTokenProvider";
@@ -14,6 +15,7 @@ function decodeTokens(data: Uint32Array | number[] | undefined) {
     character: number;
     length: number;
     type: number;
+    modifiers: number;
   }> = [];
   let line = 0;
   let character = 0;
@@ -29,6 +31,7 @@ function decodeTokens(data: Uint32Array | number[] | undefined) {
       character,
       length: raw[i + 2] ?? 0,
       type: raw[i + 3] ?? -1,
+      modifiers: raw[i + 4] ?? 0,
     });
   }
 
@@ -129,6 +132,79 @@ describe("Semantic Token Provider", () => {
           token.character === 10 &&
           token.length === "read".length &&
           token.type === SemanticTokenType.function,
+      ),
+    ).toBe(true);
+  });
+
+  it("marks catch variables as parameter declarations", () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new SemanticTokenProvider(astResolver);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/catch-semantic-tokens.bpl",
+    );
+
+    const result = provider.provideSemanticTokens(
+      filePath,
+      [
+        "frame test() ret int {",
+        "    try {",
+        "        throw 1;",
+        "    } catch (err: int) {",
+        "        return err;",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+    const tokens = decodeTokens(result?.data);
+
+    expect(
+      tokens.some(
+        (token) =>
+          token.line === 3 &&
+          token.character === 13 &&
+          token.length === "err".length &&
+          token.type === SemanticTokenType.parameter &&
+          (token.modifiers & (1 << SemanticTokenModifier.declaration)) !== 0,
+      ),
+    ).toBe(true);
+  });
+
+  it("marks enum struct pattern bindings as parameter declarations", () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new SemanticTokenProvider(astResolver);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/enum-struct-pattern-semantic-tokens.bpl",
+    );
+
+    const result = provider.provideSemanticTokens(
+      filePath,
+      [
+        "enum Packet {",
+        "    Data { id: int },",
+        "    Empty,",
+        "}",
+        "frame test(value: Packet) ret int {",
+        "    return match (value) {",
+        "        Packet.Data { id: packetId } => packetId,",
+        "        Packet.Empty => 0,",
+        "    };",
+        "}",
+      ].join("\n"),
+    );
+    const tokens = decodeTokens(result?.data);
+
+    expect(
+      tokens.some(
+        (token) =>
+          token.line === 6 &&
+          token.character === 26 &&
+          token.length === "packetId".length &&
+          token.type === SemanticTokenType.parameter &&
+          (token.modifiers & (1 << SemanticTokenModifier.declaration)) !== 0,
       ),
     ).toBe(true);
   });

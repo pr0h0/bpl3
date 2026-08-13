@@ -128,6 +128,40 @@ export class SemanticTokenProvider {
     return { line, column };
   }
 
+  private getNamePositionInLocation(
+    name: string,
+    location: {
+      startLine: number;
+      startColumn: number;
+      endLine: number;
+      endColumn: number;
+    },
+    source: string,
+  ): { line: number; column: number } {
+    const lines = source.split("\n");
+    const startLine = location.startLine - 1;
+    const endLine = location.endLine - 1;
+
+    for (let line = startLine; line <= endLine; line++) {
+      const lineText = lines[line];
+      if (lineText === undefined) continue;
+
+      const searchStart = line === startLine ? location.startColumn - 1 : 0;
+      const searchEnd =
+        line === endLine ? location.endColumn - 1 : lineText.length;
+      const nameIndex = lineText.indexOf(name, searchStart);
+
+      if (nameIndex >= 0 && nameIndex < searchEnd) {
+        return { line, column: nameIndex };
+      }
+    }
+
+    return {
+      line: startLine,
+      column: location.startColumn - 1,
+    };
+  }
+
   /**
    * Provide semantic tokens for an entire document
    */
@@ -254,11 +288,19 @@ export class SemanticTokenProvider {
           break;
 
         case "PatternEnumStruct":
-          this.visitPatternEnumStruct(node as AST.PatternEnumStruct, builder);
+          this.visitPatternEnumStruct(
+            node as AST.PatternEnumStruct,
+            builder,
+            source,
+          );
           break;
 
         case "PatternIdentifier":
           this.visitPatternIdentifier(node as AST.PatternIdentifier, builder);
+          break;
+
+        case "CatchClause":
+          this.visitCatchClause(node as AST.CatchClause, builder, source);
           break;
       }
     }
@@ -769,6 +811,7 @@ export class SemanticTokenProvider {
   private visitPatternEnumStruct(
     node: AST.PatternEnumStruct,
     builder: SemanticTokensBuilder,
+    source: string,
   ): void {
     if (!node.location) return;
 
@@ -793,6 +836,24 @@ export class SemanticTokenProvider {
       SemanticTokenType.enumMember,
       0,
     );
+
+    for (const field of node.fields) {
+      if (field.binding === "_") continue;
+
+      const bindingPos = this.getNamePositionInLocation(
+        field.binding,
+        node.location,
+        source,
+      );
+      this.pushToken(
+        builder,
+        bindingPos.line,
+        bindingPos.column,
+        field.binding.length,
+        SemanticTokenType.parameter,
+        1 << SemanticTokenModifier.declaration,
+      );
+    }
   }
 
   /**
@@ -810,6 +871,28 @@ export class SemanticTokenProvider {
       node.location.startLine - 1,
       node.location.startColumn - 1,
       node.name.length,
+      SemanticTokenType.parameter,
+      1 << SemanticTokenModifier.declaration,
+    );
+  }
+
+  private visitCatchClause(
+    node: AST.CatchClause,
+    builder: SemanticTokensBuilder,
+    source: string,
+  ): void {
+    if (!node.location || !node.variable) return;
+
+    const namePos = this.getNamePositionInLocation(
+      node.variable,
+      node.location,
+      source,
+    );
+    this.pushToken(
+      builder,
+      namePos.line,
+      namePos.column,
+      node.variable.length,
       SemanticTokenType.parameter,
       1 << SemanticTokenModifier.declaration,
     );
