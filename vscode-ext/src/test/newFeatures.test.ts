@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, beforeAll } from "bun:test";
+import { SymbolKind } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { ASTResolver } from "../services/ASTResolver";
 import { SymbolIndex } from "../services/SymbolIndex";
@@ -527,6 +528,31 @@ frame main() {}`;
     expect(Array.isArray(result)).toBe(true);
     expect(result?.[0]?.name).toBe("Callback");
     expect(result?.[0]?.detail).toBe("Lambda<int>(int, string)");
+  });
+
+  it("should provide symbols for specs with methods", () => {
+    const testContent = `spec ReadWriter<T>: Reader {
+    frame write(this: *Self, value: T) ret void;
+}`;
+
+    const doc = TextDocument.create(
+      `file://${path.resolve(__dirname, "../../../tmp/test-spec-symbols.bpl")}`,
+      "bpl",
+      1,
+      testContent,
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+      },
+      doc,
+    );
+
+    expect(result?.[0]?.name).toBe("ReadWriter");
+    expect(result?.[0]?.kind).toBe(SymbolKind.Interface);
+    expect(result?.[0]?.children?.[0]?.name).toBe("write");
+    expect(result?.[0]?.children?.[0]?.detail).toContain("value: T");
   });
 
   it("should handle empty document", () => {

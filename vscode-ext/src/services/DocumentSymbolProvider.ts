@@ -58,6 +58,9 @@ export class DocumentSymbolProvider {
       case "EnumDecl":
         return this.enumToSymbol(stmt as AST.EnumDecl);
 
+      case "SpecDecl":
+        return this.specToSymbol(stmt as AST.SpecDecl);
+
       case "VariableDecl":
         return this.variableToSymbol(stmt as AST.VariableDecl);
 
@@ -67,6 +70,58 @@ export class DocumentSymbolProvider {
       default:
         return null;
     }
+  }
+
+  private specToSymbol(spec: AST.SpecDecl): DocumentSymbol | null {
+    if (!spec.location) return null;
+
+    const genericDetail =
+      spec.genericParams.length > 0
+        ? `<${spec.genericParams.map((p: AST.GenericParam) => p.name).join(", ")}>`
+        : "";
+    const extendsDetail =
+      spec.extends.length > 0
+        ? `: ${spec.extends.map((t) => this.typeNodeToString(t)).join(", ")}`
+        : "";
+
+    const symbol = DocumentSymbol.create(
+      spec.name,
+      `${genericDetail}${extendsDetail}`,
+      SymbolKind.Interface,
+      this.locationToRange(spec.location),
+      this.locationToRange(spec.location),
+    );
+
+    symbol.children = [];
+    for (const method of spec.methods) {
+      const methodSymbol = this.specMethodToSymbol(method);
+      if (methodSymbol) {
+        symbol.children.push(methodSymbol);
+      }
+    }
+
+    return symbol;
+  }
+
+  private specMethodToSymbol(
+    method: AST.SpecMethod,
+  ): DocumentSymbol | null {
+    if (!method.location) return null;
+
+    const paramTypes = method.params
+      .map((p: AST.Parameter) => `${p.name}: ${this.typeNodeToString(p.type)}`)
+      .join(", ");
+    const returnType = method.returnType
+      ? ` ret ${this.typeNodeToString(method.returnType)}`
+      : "";
+
+    return DocumentSymbol.create(
+      method.name,
+      `(${paramTypes})${returnType}`,
+      SymbolKind.Method,
+      this.locationToRange(method.location),
+      this.locationToRange(method.location),
+    );
   }
 
   /**
