@@ -214,9 +214,7 @@ export class DocumentationGenerator {
     this.output.push(`### \`${fullName}\``);
 
     // Signature
-    const params = func.params
-      .map((p) => `${p.name}: ${TypeUtils.typeToString(p.type)}`)
-      .join(", ");
+    const params = this.formatParameters(func.params);
     const ret = TypeUtils.typeToString(func.returnType);
 
     let genericStr = "";
@@ -376,9 +374,7 @@ export class DocumentationGenerator {
       this.output.push("#### Required Methods");
       this.output.push("```bpl");
       for (const method of spec.methods) {
-        const params = method.params
-          .map((p) => `${p.name}: ${TypeUtils.typeToString(p.type)}`)
-          .join(", ");
+        const params = this.formatParameters(method.params);
         const ret = method.returnType
           ? TypeUtils.typeToString(method.returnType)
           : "void";
@@ -401,6 +397,16 @@ export class DocumentationGenerator {
       }
     }
     this.output.push("");
+  }
+
+  private formatParameters(params: AST.Parameter[]): string {
+    return params
+      .map((param) => {
+        const constPrefix = param.isConst ? "const " : "";
+        const variadicPrefix = param.isVariadic ? "..." : "";
+        return `${constPrefix}${param.name}: ${variadicPrefix}${TypeUtils.typeToString(param.type)}`;
+      })
+      .join(", ");
   }
 }
 

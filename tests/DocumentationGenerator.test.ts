@@ -79,4 +79,30 @@ describe("DocumentationGenerator", () => {
       "Documentation input not found",
     );
   });
+
+  test("preserves const and variadic parameter modifiers in signatures", () => {
+    const sourceFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(
+      sourceFile,
+      [
+        "spec Logger {",
+        "    frame write(const fmt: string, values: ...int) ret void;",
+        "}",
+        "",
+        "frame log(const fmt: string, values: ...int) ret void {",
+        "}",
+        "",
+      ].join("\n"),
+    );
+
+    const generator = new DocumentationGenerator();
+    const markdown = generator.generate(sourceFile);
+
+    expect(markdown).toContain(
+      "frame write(const fmt: string, values: ...int) ret void",
+    );
+    expect(markdown).toContain(
+      "frame log(const fmt: string, values: ...int) ret void",
+    );
+  });
 });

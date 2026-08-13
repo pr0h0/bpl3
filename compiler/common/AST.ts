@@ -469,12 +469,7 @@ export interface SpecMethod extends ASTNode {
   kind: "SpecMethod";
   name: string;
   genericParams: GenericParam[];
-  params: {
-    name: string;
-    type: TypeNode;
-    location: SourceLocation;
-    isConst?: boolean;
-  }[];
+  params: Parameter[];
   returnType?: TypeNode;
 }
 
