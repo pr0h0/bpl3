@@ -9,6 +9,7 @@ import type {
 } from "vscode-languageserver/node";
 import fs from "fs";
 import path from "path";
+import { pathToFileURL } from "url";
 
 const TMP_DIR = path.resolve(__dirname, "../../../tmp");
 
@@ -113,5 +114,33 @@ describe("Rename Handler - Bug Fixes", () => {
         expect(declEdit.newText).toBe("multiplier");
       }
     }
+  });
+
+  it("should prepare rename from unsaved document content", () => {
+    const code = `frame add(value: int) ret int {
+    return value;
+}
+`;
+    const filePath = path.join(TMP_DIR, "unsaved-rename.bpl");
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      code,
+    );
+
+    const prepareResult = renameHandler.prepareRename(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 0, character: 10 },
+      },
+      doc,
+    );
+
+    expect(prepareResult).not.toBeNull();
+    expect(prepareResult ? doc.getText(prepareResult) : null).toBe("value");
   });
 });

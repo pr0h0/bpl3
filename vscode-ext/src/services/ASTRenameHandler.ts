@@ -13,6 +13,7 @@ import {
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { fileURLToPath } from "url";
+import * as fs from "fs";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
@@ -1530,7 +1531,9 @@ export class ASTRenameHandler {
     line: number,
     character: number,
   ): AST.ASTNode | null {
-    const ast = this.astResolver.getAST(filePath);
+    const ast = fs.existsSync(filePath)
+      ? this.astResolver.getAST(filePath)
+      : this.astResolver.getCachedAST(filePath);
     if (!ast) return null;
 
     let targetNode: AST.ASTNode | null = null;
