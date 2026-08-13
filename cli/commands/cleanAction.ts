@@ -137,7 +137,7 @@ export function runCleanCommand(
             }
           }
         }
-      } catch (e) {
+      } catch (_e) {
         // Skip directories we can't read
       }
     }
@@ -156,11 +156,12 @@ export function runCleanCommand(
         const isDirectory = stats.isDirectory();
         const isSymlink = stats.isSymbolicLink();
         const reportPath = isDirectory ? `${relativePath}/` : relativePath;
-        const entryType: CleanEntry["type"] = isSymlink
-          ? "symlink"
-          : isDirectory
-            ? "directory"
-            : "file";
+        let entryType: CleanEntry["type"] = "file";
+        if (isSymlink) {
+          entryType = "symlink";
+        } else if (isDirectory) {
+          entryType = "directory";
+        }
 
         entriesToDelete.push({
           path: reportPath,
@@ -201,14 +202,10 @@ export function runCleanCommand(
           `\nWould delete ${entriesToDelete.length} file(s) and directory(s)`,
         );
       }
+    } else if (entriesToDelete.length === 0) {
+      log.info("No build artifacts found");
     } else {
-      if (entriesToDelete.length === 0) {
-        log.info("No build artifacts found");
-      } else {
-        log.info(
-          `\n✓ Cleaned ${entriesToDelete.length} file(s) and directory(s)`,
-        );
-      }
+      log.info(`\n✓ Cleaned ${entriesToDelete.length} file(s) and directory(s)`);
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

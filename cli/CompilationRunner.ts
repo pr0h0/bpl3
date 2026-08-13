@@ -476,11 +476,12 @@ function injectRuntimeObjects(options: CompileOptions): void {
     return;
   }
 
-  const objects = options.object
-    ? Array.isArray(options.object)
+  let objects: string[] = [];
+  if (options.object) {
+    objects = Array.isArray(options.object)
       ? options.object
-      : [options.object as string]
-    : [];
+      : [options.object as string];
+  }
 
   const hostDefaults = getHostDefaults();
   const addObject = (objectPath: string) => {
@@ -525,23 +526,6 @@ function shouldResolveImportsForCompilation(options: CompileOptions): boolean {
     options.emit !== "tokens" &&
     options.emit !== "formatted"
   );
-}
-
-function tryLstat(filePath: string): fs.Stats | null {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      (error.code === "ENOENT" || error.code === "ENOTDIR")
-    ) {
-      return null;
-    }
-
-    throw error;
-  }
 }
 
 const IMPORT_DECLARATION_CANDIDATE = /\bimport\b/;

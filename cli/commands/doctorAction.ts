@@ -661,12 +661,12 @@ function printDoctorReport(report: DoctorReport): void {
     const status = timeout.isValid ? "OK" : "WARN";
     const effective =
       timeout.effectiveMs === null ? "none" : `${timeout.effectiveMs}ms`;
-    const source =
-      timeout.raw === null
-        ? "default"
-        : timeout.isValid
-          ? `env: ${timeout.raw}`
-          : `invalid: ${timeout.raw}`;
+    let source = "default";
+    if (timeout.raw !== null) {
+      source = timeout.isValid
+        ? `env: ${timeout.raw}`
+        : `invalid: ${timeout.raw}`;
+    }
     console.log(`${status} ${timeout.name}: ${effective} (${source})`);
     if (!timeout.isValid) {
       console.log(
@@ -677,7 +677,12 @@ function printDoctorReport(report: DoctorReport): void {
   console.log("");
 
   for (const check of report.checks) {
-    const status = check.ok ? "OK" : check.required === false ? "WARN" : "FAIL";
+    let status = "FAIL";
+    if (check.ok) {
+      status = "OK";
+    } else if (check.required === false) {
+      status = "WARN";
+    }
     console.log(`${status} ${check.name}: ${check.detail}`);
     if (!check.ok && check.hint) {
       console.log(`  hint: ${check.hint}`);

@@ -161,7 +161,6 @@ export function compileToBinary(
       assertReadableDirectoryInput(libPath, "Library search path input");
     }
     const hostDefaults = getHostDefaults();
-    const target = options.target ?? hostDefaults.target;
     tempExecPath = createTemporaryOutputPath(execPath);
     clangArgs = buildClangArgs(irPath, tempExecPath, options, hostDefaults);
   } catch (error) {
@@ -238,11 +237,14 @@ export function getExecutableOutputPath(
 ): string {
   const hostDefaults = getHostDefaults();
   const target = options.target ?? hostDefaults.target;
-  const execPathBase = isWasmTarget(target)
-    ? irPath.endsWith(".wasm.ll")
+  let execPathBase: string;
+  if (isWasmTarget(target)) {
+    execPathBase = irPath.endsWith(".wasm.ll")
       ? irPath.replace(/\.ll$/, "")
-      : irPath.replace(/\.ll$/, ".wasm")
-    : irPath.replace(/\.ll$/, "");
+      : irPath.replace(/\.ll$/, ".wasm");
+  } else {
+    execPathBase = irPath.replace(/\.ll$/, "");
+  }
 
   return path.isAbsolute(execPathBase)
     ? execPathBase
@@ -482,12 +484,12 @@ function buildClangArgs(
         runtimeWasmHostPath,
         "Hosted WebAssembly runtime IR",
       );
-      const alreadyLinked =
+      const alreadyLinkedHostRuntime =
         (options.object &&
           normalizeArrayOption(options.object).includes(runtimeWasmHostPath)) ||
         args.includes(runtimeWasmHostPath);
 
-      if (linkWasm && !alreadyLinked) {
+      if (linkWasm && !alreadyLinkedHostRuntime) {
         args.push(runtimeWasmHostPath);
       }
     }
