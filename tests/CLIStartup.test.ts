@@ -128,6 +128,18 @@ describe("CLI startup command registration", () => {
     ).toBe(false);
   });
 
+  test("keeps normalized compile options off broad type escapes", () => {
+    const source = readFileSync(
+      join(process.cwd(), "cli", "CompilationRunner.ts"),
+      "utf8",
+    );
+
+    expect(source).not.toContain("options.O as any");
+    expect(source).toContain(
+      "defaults: { optimization: parseOptimizationLevel(options.O) }",
+    );
+  });
+
   test("keeps check registration off action-only analysis dependencies", () => {
     const source = readFileSync(
       join(process.cwd(), "cli", "commands", "check.ts"),

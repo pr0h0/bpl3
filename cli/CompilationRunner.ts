@@ -153,7 +153,7 @@ function applyOptions(options: CompileOptions): void {
   // Handle optimization level
   if (options.O) {
     updateConfig({
-      defaults: { optimization: options.O as any },
+      defaults: { optimization: parseOptimizationLevel(options.O) },
     });
   }
 }
