@@ -36,8 +36,48 @@ function trackedPackageManifestPaths(): string[] {
     .filter((filePath) => filePath !== "vscode-ext/snippets/bpl.json");
 }
 
+function trackedPackageArchivePaths(): string[] {
+  const trackedArchives = spawnSync("git", ["ls-files", "*.tgz"], {
+    encoding: "utf8",
+  });
+
+  expect(trackedArchives.status).toBe(0);
+
+  return trackedArchives.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 function readPackageManifest(manifestPath: string): JsonObject {
   return JSON.parse(readFileSync(manifestPath, "utf8")) as JsonObject;
+}
+
+function readPackageArchiveManifest(archivePath: string): JsonObject {
+  const manifest = spawnSync(
+    "tar",
+    ["-xOzf", archivePath, "package/bpl.json"],
+    {
+      encoding: "utf8",
+    },
+  );
+
+  expect(manifest.status, `${archivePath} contains package/bpl.json`).toBe(0);
+  return JSON.parse(manifest.stdout) as JsonObject;
+}
+
+function packageArchiveMembers(archivePath: string): Set<string> {
+  const members = spawnSync("tar", ["-tzf", archivePath], {
+    encoding: "utf8",
+  });
+
+  expect(members.status, `${archivePath} has readable members`).toBe(0);
+  return new Set(
+    members.stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean),
+  );
 }
 
 function propertySchema(name: string): JsonSchemaObject {
@@ -88,6 +128,67 @@ function expectManifestFileReference(
   expect(stats.isFile(), `${label} is a file`).toBe(true);
 }
 
+function expectManifestArchiveReference(
+  archivePath: string,
+  members: Set<string>,
+  fieldPath: string,
+  relativePath: string,
+): void {
+  const memberPath = `package/${relativePath.replace(/\\/g, "/")}`;
+  expect(
+    members.has(memberPath),
+    `${archivePath}.package/bpl.json.${fieldPath} -> ${memberPath} exists`,
+  ).toBe(true);
+}
+
+function expectManifestFileReferences(
+  manifestPath: string,
+  manifest: JsonObject,
+  expectReference: (fieldPath: string, relativePath: string) => void,
+): void {
+  for (const field of ["main", "entry"] as const) {
+    const relativePath = manifest[field];
+    if (relativePath === undefined) continue;
+
+    expect(relativePath, `${manifestPath}.${field} is a string`).toBeTypeOf(
+      "string",
+    );
+    expectReference(field, relativePath as string);
+  }
+
+  const exports = manifest.exports;
+  if (exports !== undefined) {
+    expect(Array.isArray(exports), `${manifestPath}.exports is an array`).toBe(
+      true,
+    );
+    if (!Array.isArray(exports)) return;
+
+    for (const [index, relativePath] of exports.entries()) {
+      expect(
+        relativePath,
+        `${manifestPath}.exports[${index}] is a string`,
+      ).toBeTypeOf("string");
+      expectReference(`exports[${index}]`, relativePath as string);
+    }
+  }
+
+  const bin = manifest.bin;
+  if (bin !== undefined) {
+    const isObjectMap =
+      bin !== null && typeof bin === "object" && !Array.isArray(bin);
+    expect(isObjectMap, `${manifestPath}.bin is an object map`).toBe(true);
+    if (!isObjectMap) return;
+
+    for (const [commandName, relativePath] of Object.entries(bin)) {
+      expect(
+        relativePath,
+        `${manifestPath}.bin.${commandName} is a string`,
+      ).toBeTypeOf("string");
+      expectReference(`bin.${commandName}`, relativePath as string);
+    }
+  }
+}
+
 describe("Package manifest JSON schema", () => {
   test("documents optional editor schema URI metadata", () => {
     expect(propertySchema("$schema").type).toBe("string");
@@ -110,57 +211,31 @@ describe("Package manifest JSON schema", () => {
   test("resolves tracked package manifest file references to files", () => {
     for (const manifestPath of trackedPackageManifestPaths()) {
       const manifest = readPackageManifest(manifestPath);
+      expectManifestFileReferences(manifestPath, manifest, (field, filePath) =>
+        expectManifestFileReference(manifestPath, field, filePath),
+      );
+    }
+  });
 
-      for (const field of ["main", "entry"] as const) {
-        const relativePath = manifest[field];
-        if (relativePath === undefined) continue;
+  test("resolves tracked package archive manifest references to members", () => {
+    const archivePaths = trackedPackageArchivePaths();
 
-        expect(relativePath, `${manifestPath}.${field} is a string`).toBeTypeOf(
-          "string",
-        );
-        expectManifestFileReference(manifestPath, field, relativePath as string);
-      }
+    expect(archivePaths).toContain("packages/bpl-templ/bpl-templ-0.1.6.tgz");
 
-      const exports = manifest.exports;
-      if (exports !== undefined) {
-        expect(
-          Array.isArray(exports),
-          `${manifestPath}.exports is an array`,
-        ).toBe(true);
-        if (!Array.isArray(exports)) continue;
+    for (const archivePath of archivePaths) {
+      const manifest = readPackageArchiveManifest(archivePath);
+      const members = packageArchiveMembers(archivePath);
 
-        for (const [index, relativePath] of exports.entries()) {
-          expect(
-            relativePath,
-            `${manifestPath}.exports[${index}] is a string`,
-          ).toBeTypeOf("string");
-          expectManifestFileReference(
-            manifestPath,
-            `exports[${index}]`,
-            relativePath as string,
-          );
-        }
-      }
-
-      const bin = manifest.bin;
-      if (bin !== undefined) {
-        const isObjectMap =
-          bin !== null && typeof bin === "object" && !Array.isArray(bin);
-        expect(isObjectMap, `${manifestPath}.bin is an object map`).toBe(true);
-        if (!isObjectMap) continue;
-
-        for (const [commandName, relativePath] of Object.entries(bin)) {
-          expect(
-            relativePath,
-            `${manifestPath}.bin.${commandName} is a string`,
-          ).toBeTypeOf("string");
-          expectManifestFileReference(
-            manifestPath,
-            `bin.${commandName}`,
-            relativePath as string,
-          );
-        }
-      }
+      expectPackageManifestConformsToSchema(
+        manifest,
+        `${archivePath}:package/bpl.json`,
+      );
+      expectManifestFileReferences(
+        `${archivePath}:package/bpl.json`,
+        manifest,
+        (field, filePath) =>
+          expectManifestArchiveReference(archivePath, members, field, filePath),
+      );
     }
   });
 
