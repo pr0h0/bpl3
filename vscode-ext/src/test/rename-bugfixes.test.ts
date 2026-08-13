@@ -245,4 +245,61 @@ struct Runner {
       "read",
     ]);
   });
+
+  it("should prepare rename for spec method parameters", () => {
+    const code = `spec Writer {
+    frame write(this: *Self, value: int) ret void;
+}
+`;
+    const filePath = path.join(TMP_DIR, "spec-method-param-prepare-rename.bpl");
+    fs.writeFileSync(filePath, code);
+
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      code,
+    );
+
+    const prepareResult = renameHandler.prepareRename(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 1, character: 30 },
+      },
+      doc,
+    );
+
+    expect(prepareResult).not.toBeNull();
+    expect(prepareResult ? doc.getText(prepareResult) : null).toBe("value");
+  });
+
+  it("should rename spec method parameters without touching types", () => {
+    const code = `spec Writer {
+    frame write(this: *Self, value: int) ret void;
+}
+`;
+    const filePath = path.join(TMP_DIR, "spec-method-param-rename.bpl");
+    fs.writeFileSync(filePath, code);
+
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      code,
+    );
+
+    const renameResult = renameHandler.rename(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 1, character: 30 },
+        newName: "data",
+      },
+      doc,
+    );
+    const edits = renameResult?.changes?.[doc.uri];
+
+    expect(edits?.length).toBe(1);
+    expect(edits?.[0]?.newText).toBe("data");
+    expect(edits?.[0] ? doc.getText(edits[0].range) : null).toBe("value");
+  });
 });

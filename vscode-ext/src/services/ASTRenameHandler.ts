@@ -248,6 +248,7 @@ export class ASTRenameHandler {
       case "parameter":
       case "pattern-binding":
       case "catch-parameter":
+      case "spec-parameter":
         // Only rename within the current function or catch scope
         if (symbolInfo.type === "catch-parameter") {
           const catchClause = this.findContainingCatchClause(
@@ -257,6 +258,13 @@ export class ASTRenameHandler {
           return this.findCatchParameterReferences(
             symbolName,
             catchClause,
+            document,
+          );
+        }
+        if (symbolInfo.type === "spec-parameter") {
+          return this.findSpecParameterReferences(
+            symbolName,
+            symbolInfo.specMethodNode!,
             document,
           );
         }
@@ -968,6 +976,26 @@ export class ASTRenameHandler {
   }
 
   /**
+   * Find references to a spec method parameter
+   */
+  private findSpecParameterReferences(
+    name: string,
+    methodNode: AST.SpecMethod,
+    document: TextDocument,
+  ): Location[] {
+    const references: Location[] = [];
+    const param = methodNode.params.find((p) => p.name === name);
+    if (!param) return references;
+
+    const range = this.getNodeRange(param, document);
+    if (range) {
+      references.push(Location.create(document.uri, range));
+    }
+
+    return references;
+  }
+
+  /**
    * Find references to a global symbol across all files
    */
   private findGlobalSymbolReferences(
@@ -1055,6 +1083,7 @@ export class ASTRenameHandler {
     scope: string;
     node: AST.ASTNode;
     functionNode?: AST.FunctionDecl;
+    specMethodNode?: AST.SpecMethod;
     structName?: string;
   } | null {
     const ast = this.astResolver.getAST(filePath);
@@ -1062,6 +1091,7 @@ export class ASTRenameHandler {
 
     // Find the containing function or struct
     const containingFunction = this.findContainingFunction(node, ast);
+    const containingSpecMethod = this.findContainingSpecMethod(node, ast);
     const containingStruct = this.findContainingStruct(node, ast);
 
     // Handle VariableDecl directly - treat as local variable
@@ -1098,6 +1128,13 @@ export class ASTRenameHandler {
           scope: "function",
           node,
           functionNode: containingFunction,
+        };
+      } else if (containingSpecMethod) {
+        return {
+          type: "spec-parameter",
+          scope: "spec-method",
+          node,
+          specMethodNode: containingSpecMethod,
         };
       }
     }
@@ -1458,6 +1495,38 @@ export class ASTRenameHandler {
     };
 
     return findFunc(ast.statements);
+  }
+
+  /**
+   * Find the containing spec method of a node
+   */
+  private findContainingSpecMethod(
+    node: AST.ASTNode,
+    ast: AST.Program,
+  ): AST.SpecMethod | null {
+    if (!node.location) return null;
+
+    for (const stmt of ast.statements) {
+      if (stmt.kind !== "SpecDecl") continue;
+
+      for (const method of (stmt as AST.SpecDecl).methods) {
+        if (!method.location) continue;
+
+        const nodeInMethod =
+          (node.location.startLine > method.location.startLine ||
+            (node.location.startLine === method.location.startLine &&
+              node.location.startColumn >= method.location.startColumn)) &&
+          (node.location.endLine < method.location.endLine ||
+            (node.location.endLine === method.location.endLine &&
+              node.location.endColumn <= method.location.endColumn));
+
+        if (nodeInMethod && node !== method) {
+          return method;
+        }
+      }
+    }
+
+    return null;
   }
 
   /**
