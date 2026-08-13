@@ -177,6 +177,37 @@ describe("Document Highlight Provider", () => {
 
     expect(astResolver.getCachedAST(filePath)).not.toBeNull();
   });
+
+  it("highlights variables inside struct methods", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/highlight method.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "struct Runner {",
+        "    frame run(this: Runner) ret int {",
+        "        local count: int = 0;",
+        "        count = count + 1;",
+        "        return count;",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 4, character: 16 },
+      },
+      doc,
+    );
+
+    expect(result?.length).toBeGreaterThanOrEqual(4);
+  });
 });
 
 describe("Folding Range Provider", () => {

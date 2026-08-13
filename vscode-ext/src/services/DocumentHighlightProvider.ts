@@ -211,6 +211,14 @@ export class DocumentHighlightProvider {
         const func = node as AST.FunctionDecl;
         if (func.body) children.push(...func.body.statements);
         break;
+      case "StructDecl":
+        const struct = node as AST.StructDecl;
+        for (const member of struct.members) {
+          if (member.kind === "FunctionDecl") {
+            children.push(member);
+          }
+        }
+        break;
       case "Block":
         children.push(...(node as AST.BlockStmt).statements);
         break;
@@ -221,7 +229,9 @@ export class DocumentHighlightProvider {
         break;
       case "Loop":
         const loop = node as AST.LoopStmt;
+        if (loop.init) children.push(loop.init);
         if (loop.condition) children.push(loop.condition);
+        if (loop.step) children.push(loop.step);
         children.push(loop.body);
         break;
       case "Switch":
