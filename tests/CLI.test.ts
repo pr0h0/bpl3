@@ -131,6 +131,28 @@ function writeNodePathShim(directory: string): void {
   fs.symlinkSync(process.execPath, path.join(directory, "node"), "file");
 }
 
+function writeHangingGitShim(directory: string): void {
+  const scriptPath = path.join(directory, "hanging-git.js");
+  fs.writeFileSync(scriptPath, "setTimeout(() => {}, 30_000);\n");
+
+  if (process.platform === "win32") {
+    fs.writeFileSync(
+      path.join(directory, "git.cmd"),
+      `@echo off\r\n"${process.execPath}" "${scriptPath}" %*\r\n`,
+    );
+    return;
+  }
+
+  const gitPath = path.join(directory, "git");
+  fs.writeFileSync(
+    gitPath,
+    [`#!${process.execPath}`, `require(${JSON.stringify(scriptPath)});`].join(
+      "\n",
+    ),
+  );
+  fs.chmodSync(gitPath, 0o755);
+}
+
 function expectHelpOutput(args: string[], snippets: string[]): string {
   const result = runCLI(args);
   expect(result.status).toBe(0);
@@ -3623,6 +3645,45 @@ describe("CLI Tests", () => {
       });
     } finally {
       fs.rmSync(outsideProject, { recursive: true, force: true });
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should not hang when automatic new-project git initialization stalls", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-new-git-hang-"));
+    const binDir = path.join(tempDir, "bin");
+    fs.mkdirSync(binDir);
+    writeHangingGitShim(binDir);
+
+    try {
+      const result = spawnSync(
+        "bun",
+        [BPL_CLI, "new", "git-timeout-app", "--json"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            NO_COLOR: "1",
+            PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ""}`,
+            BPL_CLEAN_GIT_TIMEOUT_MS: "100",
+          },
+          timeout: 2_000,
+        },
+      );
+      const report = expectJsonStdoutReport<{
+        check: "project-new";
+        success: boolean;
+        gitInitialized: boolean;
+      }>(result, {
+        status: 0,
+        check: "project-new",
+        success: true,
+      });
+
+      expect(report.gitInitialized).toBe(false);
+      expect(fs.existsSync(path.join(tempDir, "git-timeout-app"))).toBe(true);
+    } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });

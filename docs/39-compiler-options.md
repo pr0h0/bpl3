@@ -276,7 +276,9 @@ accident. If `build/`, `dist/`, or `.bpl-cache/` contains tracked files,
 untracked build artifacts inside it.
 The git tracked-file probe is bounded by `BPL_CLEAN_GIT_TIMEOUT_MS`, defaulting
 to 5000 milliseconds; if the probe fails or times out inside a git repository,
-`bpl clean` refuses to remove files.
+`bpl clean` refuses to remove files. The same timeout bounds automatic
+`bpl new` git initialization so project scaffolding still completes when `git`
+stalls; the result reports `gitInitialized: false`.
 `BPL_CLEAN_GIT_TIMEOUT_MS` invalid values fall back to 5000 milliseconds.
 If the current working directory path contains a symbolic-link component,
 `bpl clean` also refuses before the git probe, artifact scan, or any deletion.
@@ -1180,7 +1182,8 @@ integer` and keeps the same fallback it would have used before the invalid
 override:
 
 - `BPL_COMPILE_DRIVER_TIMEOUT_MS` invalid values fall back to 600000 milliseconds.
-- `BPL_CLEAN_GIT_TIMEOUT_MS` invalid values fall back to 5000 milliseconds.
+- `BPL_CLEAN_GIT_TIMEOUT_MS` bounds `bpl clean` git probes and automatic
+  `bpl new` git initialization; invalid values fall back to 5000 milliseconds.
 - `BPL_PACKAGE_TOOL_TIMEOUT_MS` invalid values fall back to 300000 milliseconds.
 - `BPL_OBJECT_SYMBOL_TIMEOUT_MS` invalid values fall back to 30000 milliseconds.
 - `BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS` invalid values fall back to 30000 milliseconds.

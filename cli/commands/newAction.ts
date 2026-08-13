@@ -5,6 +5,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { spawnSync } from "child_process";
 import type { Command } from "commander";
 import {
   Logger,
@@ -16,7 +17,12 @@ import {
   CLI_JSON_CHECKS,
   createJsonReport,
 } from "../../compiler/common/JsonContracts";
+import {
+  getPositiveIntegerEnv,
+  TIMEOUT_ENV_DEFAULTS,
+} from "../../compiler/common/Env";
 import { BPL_PACKAGE_SCHEMA_URI } from "../../compiler/common/PackageManifestSchema";
+import { formatCommandSpawnFailure } from "../../compiler/common/ProcessErrors";
 import { writeFileAtomically } from "../utils";
 import {
   NEW_PROJECT_NAME_INVALID_CODE,
@@ -28,6 +34,7 @@ import {
 } from "./NewContracts";
 
 const log = new Logger("New");
+const NEW_PROJECT_GIT_TIMEOUT_MS = TIMEOUT_ENV_DEFAULTS.BPL_CLEAN_GIT_TIMEOUT_MS;
 
 type NewTemplate = "app" | "library";
 
@@ -296,20 +303,19 @@ Thumbs.db
 
     // Initialize git repository if not disabled
     if (options.git !== false) {
-      try {
-        const { execSync } = require("child_process");
-        execSync("git init", { cwd: projectPath, stdio: "ignore" });
-        execSync("git add .", { cwd: projectPath, stdio: "ignore" });
-        execSync('git commit -m "Initial commit"', {
-          cwd: projectPath,
-          stdio: "ignore",
-        });
+      if (
+        runNewProjectGit(projectPath, ["init"], options.verbose) &&
+        runNewProjectGit(projectPath, ["add", "."], options.verbose) &&
+        runNewProjectGit(
+          projectPath,
+          ["commit", "-m", "Initial commit"],
+          options.verbose,
+        )
+      ) {
         gitInitialized = true;
         if (options.verbose) {
           log.info("Initialized git repository");
         }
-      } catch {
-        // Silently fail if git is not available
       }
     }
 
@@ -371,6 +377,37 @@ Thumbs.db
       resetLogLevel();
     }
   }
+}
+
+function runNewProjectGit(
+  projectPath: string,
+  args: string[],
+  verbose: boolean | undefined,
+): boolean {
+  const result = spawnSync("git", args, {
+    cwd: projectPath,
+    stdio: "ignore",
+    timeout: getNewProjectGitTimeoutMs(),
+  });
+
+  if (!result.error && result.status === 0) {
+    return true;
+  }
+
+  if (verbose) {
+    const detail =
+      formatCommandSpawnFailure("git", result.error) ??
+      `git ${args.join(" ")} exited with status ${result.status ?? "unknown"}`;
+    log.warn(`Skipped git initialization: ${detail}`);
+  }
+  return false;
+}
+
+function getNewProjectGitTimeoutMs(): number {
+  return getPositiveIntegerEnv(
+    "BPL_CLEAN_GIT_TIMEOUT_MS",
+    NEW_PROJECT_GIT_TIMEOUT_MS,
+  );
 }
 
 function validateProjectName(name: string): void {
