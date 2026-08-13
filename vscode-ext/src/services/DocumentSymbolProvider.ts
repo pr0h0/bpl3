@@ -52,6 +52,9 @@ export class DocumentSymbolProvider {
       case "FunctionDecl":
         return this.functionToSymbol(stmt as AST.FunctionDecl);
 
+      case "Extern":
+        return this.externToSymbol(stmt as AST.ExternDecl);
+
       case "StructDecl":
         return this.structToSymbol(stmt as AST.StructDecl);
 
@@ -158,6 +161,33 @@ export class DocumentSymbolProvider {
     }
 
     return symbol;
+  }
+
+  /**
+   * Convert extern declaration to symbol
+   */
+  private externToSymbol(externDecl: AST.ExternDecl): DocumentSymbol | null {
+    if (!externDecl.location) return null;
+
+    const paramTypes = externDecl.params
+      .map((p) => `${p.name}: ${this.typeNodeToString(p.type)}`)
+      .join(", ");
+    let variadic = "";
+    if (externDecl.isVariadic) {
+      variadic = paramTypes.length > 0 ? ", ..." : "...";
+    }
+    const returnType = externDecl.returnType
+      ? ` ret ${this.typeNodeToString(externDecl.returnType)}`
+      : "";
+    const detail = `(${paramTypes}${variadic})${returnType}`;
+
+    return DocumentSymbol.create(
+      externDecl.name,
+      detail,
+      SymbolKind.Function,
+      this.locationToRange(externDecl.location),
+      this.locationToRange(externDecl.location),
+    );
   }
 
   /**

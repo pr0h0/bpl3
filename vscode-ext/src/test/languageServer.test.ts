@@ -186,6 +186,30 @@ describe("BPL Language Server Tests", () => {
       expect(value).toContain("Type Alias");
       expect(value).toContain("Alias");
     });
+
+    it("shows hover for extern declarations", () => {
+      const filePath = path.join(__dirname, "fixtures", "extern-hover.bpl");
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        "extern printf(fmt: string, ...) ret int;",
+      );
+      const hover = hoverHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 0, character: 8 },
+        },
+        doc,
+      );
+
+      const value =
+        typeof hover?.contents === "object" && "value" in hover.contents
+          ? hover.contents.value
+          : String(hover?.contents ?? "");
+      expect(value).toContain("Extern Function");
+      expect(value).toContain("extern printf(fmt: string, ...) ret int");
+    });
   });
 
   describe("Definition Tests", () => {
@@ -286,6 +310,31 @@ describe("BPL Language Server Tests", () => {
         {
           textDocument: { uri: doc.uri },
           position: { line: 0, character: 6 },
+        },
+        doc,
+      );
+
+      expect(location?.uri).toBe(doc.uri);
+      expect(location?.range.start.line).toBe(0);
+    });
+
+    it("returns the current declaration for extern definitions", () => {
+      const filePath = path.join(
+        __dirname,
+        "fixtures",
+        "extern-definition.bpl",
+      );
+      const doc = TextDocument.create(
+        pathToFileURL(filePath).toString(),
+        "bpl",
+        1,
+        "extern printf(fmt: string, ...) ret int;",
+      );
+
+      const location = definitionHandler.handle(
+        {
+          textDocument: { uri: doc.uri },
+          position: { line: 0, character: 8 },
         },
         doc,
       );

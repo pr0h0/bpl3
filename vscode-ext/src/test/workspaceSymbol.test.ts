@@ -55,4 +55,25 @@ describe("Workspace Symbol Provider", () => {
     expect(methodResults.some((symbol) => symbol.name === "ReadWriter.write"))
       .toBe(true);
   });
+
+  it("searches cached extern symbols", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new WorkspaceSymbolProvider(astResolver, symbolIndex);
+    const filePath = path.join(__dirname, "fixtures", "workspace-extern.bpl");
+
+    astResolver.parseDocumentContent(
+      filePath,
+      "extern printf(fmt: string, ...) ret int;",
+    );
+
+    const results = await provider.search({ query: "printf" });
+
+    expect(
+      results.some(
+        (symbol) =>
+          symbol.name === "printf" && symbol.kind === SymbolKind.Function,
+      ),
+    ).toBe(true);
+  });
 });

@@ -154,6 +154,14 @@ export class WorkspaceSymbolProvider {
         }
         break;
 
+      case "Extern":
+        const externDecl = stmt as AST.ExternDecl;
+        if (externDecl.name.toLowerCase().includes(query)) {
+          const symbol = this.statementToWorkspaceSymbol(stmt, filePath);
+          if (symbol) results.push(symbol);
+        }
+        break;
+
       case "StructDecl":
         const struct = stmt as AST.StructDecl;
         if (struct.name.toLowerCase().includes(query)) {
@@ -266,6 +274,10 @@ export class WorkspaceSymbolProvider {
     switch (stmt.kind) {
       case "FunctionDecl":
         name = (stmt as AST.FunctionDecl).name;
+        kind = SymbolKind.Function;
+        break;
+      case "Extern":
+        name = (stmt as AST.ExternDecl).name;
         kind = SymbolKind.Function;
         break;
       case "StructDecl":

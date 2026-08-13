@@ -434,6 +434,28 @@ frame helper(x: int) ret int {
     expect(result === null || Array.isArray(result)).toBe(true);
   });
 
+  it("should provide document symbols for extern declarations", () => {
+    const testContent = "extern printf(fmt: string, ...) ret int;";
+
+    const doc = TextDocument.create(
+      `file://${path.resolve(__dirname, "../../../tmp/test-extern-symbols.bpl")}`,
+      "bpl",
+      1,
+      testContent,
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+      },
+      doc,
+    );
+
+    expect(result?.[0]?.name).toBe("printf");
+    expect(result?.[0]?.kind).toBe(SymbolKind.Function);
+    expect(result?.[0]?.detail).toBe("(fmt: string, ...) ret int");
+  });
+
   it("should provide symbols for structs with fields and methods", () => {
     const testContent = `struct Point {
     x: int,

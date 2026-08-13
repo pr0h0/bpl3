@@ -178,6 +178,10 @@ export class SemanticTokenProvider {
           this.visitFunctionDecl(node as AST.FunctionDecl, builder, source);
           break;
 
+        case "Extern":
+          this.visitExternDecl(node as AST.ExternDecl, builder, source);
+          break;
+
         case "StructDecl":
           this.visitStructDecl(node as AST.StructDecl, builder, source);
           break;
@@ -303,6 +307,34 @@ export class SemanticTokenProvider {
       node.name.length,
       SemanticTokenType.function,
       modifiers.reduce((a, b) => a | b, 1 << SemanticTokenModifier.declaration),
+    );
+  }
+
+  /**
+   * Visit extern declaration
+   */
+  private visitExternDecl(
+    node: AST.ExternDecl,
+    builder: SemanticTokensBuilder,
+    source: string,
+  ): void {
+    if (!node.location) return;
+
+    const namePos = this.getNamePosition(
+      node.location.startLine - 1,
+      node.location.startColumn - 1,
+      node.name,
+      source,
+    );
+
+    this.pushToken(
+      builder,
+      namePos.line,
+      namePos.column,
+      node.name.length,
+      SemanticTokenType.function,
+      (1 << SemanticTokenModifier.declaration) |
+        (1 << SemanticTokenModifier.readonly),
     );
   }
 

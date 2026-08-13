@@ -69,6 +69,9 @@ export class ASTHoverHandler {
         case "FunctionDecl":
           return this.handleFunctionDecl(node as AST.FunctionDecl);
 
+        case "Extern":
+          return this.handleExternDecl(node as AST.ExternDecl);
+
         case "StructDecl":
           return this.handleStructDecl(node as AST.StructDecl);
 
@@ -127,6 +130,11 @@ export class ASTHoverHandler {
     if (node.resolvedDeclaration?.kind === "FunctionDecl") {
       const funcDecl = node.resolvedDeclaration as AST.FunctionDecl;
       return this.handleFunctionDecl(funcDecl);
+    }
+
+    if (node.resolvedDeclaration?.kind === "Extern") {
+      const externDecl = node.resolvedDeclaration as AST.ExternDecl;
+      return this.handleExternDecl(externDecl);
     }
 
     // Check if resolved declaration is a variable
@@ -470,6 +478,52 @@ export class ASTHoverHandler {
     }
 
     // Return type
+    if (returnType !== "void") {
+      docs += `**Returns:** \`${returnType}\`\n\n`;
+    }
+
+    return {
+      contents: {
+        kind: MarkupKind.Markdown,
+        value: docs,
+      },
+    };
+  }
+
+  /**
+   * Handle hover on extern declarations
+   */
+  private handleExternDecl(node: AST.ExternDecl): Hover | null {
+    const params = node.params
+      .map((p) => `${p.name}: ${this.typeNodeToString(p.type)}`)
+      .join(", ");
+    let variadic = "";
+    if (node.isVariadic) {
+      variadic = params.length > 0 ? ", ..." : "...";
+    }
+    const returnType = this.typeNodeToString(node.returnType);
+    const returnClause = returnType !== "void" ? ` ret ${returnType}` : "";
+    const signature = `extern ${node.name}(${params}${variadic})${returnClause}`;
+
+    let docs = `### ⚡ Extern Function \`${node.name}\`\n\n`;
+    docs += `\`\`\`bpl\n${signature}\n\`\`\`\n\n`;
+
+    if (node.location?.file) {
+      docs += `📍 *Defined in:* \`${this.shortenFilePath(node.location.file)}\` (line ${node.location.startLine})\n\n`;
+    }
+
+    if (node.params.length > 0) {
+      docs += `**Parameters:**\n\n`;
+      for (const param of node.params) {
+        docs += `- \`${param.name}\`: \`${this.typeNodeToString(param.type)}\`\n`;
+      }
+      docs += `\n`;
+    }
+
+    if (node.isVariadic) {
+      docs += `**Variadic:** accepts additional arguments\n\n`;
+    }
+
     if (returnType !== "void") {
       docs += `**Returns:** \`${returnType}\`\n\n`;
     }

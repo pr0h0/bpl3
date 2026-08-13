@@ -84,6 +84,7 @@ export class ASTDefinitionHandler {
         case "EnumDecl":
         case "SpecDecl":
         case "FunctionDecl":
+        case "Extern":
         case "VariableDecl":
           // Already at the declaration, stay here
           return this.createLocation(node.location, filePath);
