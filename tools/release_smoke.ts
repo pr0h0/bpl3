@@ -571,6 +571,8 @@ function runPackedPackageSmoke(): void {
       "packages/bpl-db/bpl-db-0.1.0.tgz",
       "packages/bpl-express/README.md",
       "packages/bpl-express/bpl-express-0.1.0.tgz",
+      "packages/bpl-http-client/bpl-http-client-0.1.0.tgz",
+      "packages/bpl-http-parser/bpl-http-parser-0.1.0.tgz",
       "packages/bpl-templ/README.md",
       "packages/bpl-templ/bpl-templ-0.1.6.tgz",
       ...packageHelperFiles,

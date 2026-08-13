@@ -3,5 +3,7 @@
   "version": "0.1.0",
   "description": "A mini web framework for BPL",
   "entry": "index.bpl",
-  "dependencies": {}
+  "dependencies": {
+    "bpl-http-parser": "file:../bpl-http-parser/bpl-http-parser-0.1.0.tgz"
+  }
 }

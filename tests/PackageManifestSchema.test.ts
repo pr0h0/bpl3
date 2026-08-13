@@ -49,6 +49,13 @@ function trackedPackageArchivePaths(): string[] {
     .filter(Boolean);
 }
 
+function trackedFirstPartyPackageManifestPaths(): string[] {
+  return trackedPackageManifestPaths().filter(
+    (filePath) =>
+      filePath.startsWith("packages/") && dirname(filePath) !== "packages",
+  );
+}
+
 function readPackageManifest(manifestPath: string): JsonObject {
   return JSON.parse(readFileSync(manifestPath, "utf8")) as JsonObject;
 }
@@ -250,6 +257,32 @@ describe("Package manifest JSON schema", () => {
       expect(readPackageArchiveManifest(archivePath)).toEqual(
         readPackageManifest(sourceManifestPath),
       );
+    }
+  });
+
+  test("ships a tracked archive for every first-party package manifest", () => {
+    const archivePaths = new Set(trackedPackageArchivePaths());
+
+    for (const manifestPath of trackedFirstPartyPackageManifestPaths()) {
+      const manifest = readPackageManifest(manifestPath);
+      const packageName = manifest.name;
+      const packageVersion = manifest.version;
+
+      expect(packageName, `${manifestPath}.name is a string`).toBeTypeOf(
+        "string",
+      );
+      expect(packageVersion, `${manifestPath}.version is a string`).toBeTypeOf(
+        "string",
+      );
+
+      const expectedArchivePath = join(
+        dirname(manifestPath),
+        `${packageName as string}-${packageVersion as string}.tgz`,
+      );
+      expect(
+        archivePaths.has(expectedArchivePath),
+        `${manifestPath} has tracked package archive ${expectedArchivePath}`,
+      ).toBe(true);
     }
   });
 
