@@ -604,6 +604,104 @@ frame test() {
       expect(labels).toContain("total");
     });
 
+    it("includes switch case locals in completions", () => {
+      const switchDoc = TextDocument.create(
+        "file:///test-switch-completion.bpl",
+        "bpl",
+        1,
+        [
+          "frame test() ret int {",
+          "    local outer: int = 1;",
+          "    switch (outer) {",
+          "        case 1: {",
+          "            local caseValue: int = outer;",
+          "            ",
+          "        }",
+          "        default: { }",
+          "    }",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      );
+
+      const labels = completionHandler
+        .handle(
+          {
+            textDocument: { uri: switchDoc.uri },
+            position: { line: 5, character: 12 },
+          },
+          switchDoc,
+        )
+        .map((c) => c.label);
+
+      expect(labels).toContain("outer");
+      expect(labels).toContain("caseValue");
+    });
+
+    it("includes catch variables and catch locals in completions", () => {
+      const tryDoc = TextDocument.create(
+        "file:///test-catch-completion.bpl",
+        "bpl",
+        1,
+        [
+          "frame test() ret int {",
+          "    local before: int = 1;",
+          "    try {",
+          "        throw before;",
+          "    } catch (err: int) {",
+          "        local catchValue: int = err;",
+          "        ",
+          "    }",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      );
+
+      const labels = completionHandler
+        .handle(
+          {
+            textDocument: { uri: tryDoc.uri },
+            position: { line: 6, character: 8 },
+          },
+          tryDoc,
+        )
+        .map((c) => c.label);
+
+      expect(labels).toContain("before");
+      expect(labels).toContain("err");
+      expect(labels).toContain("catchValue");
+    });
+
+    it("includes match pattern bindings in arm completions", () => {
+      const matchDoc = TextDocument.create(
+        "file:///test-match-completion.bpl",
+        "bpl",
+        1,
+        [
+          "frame test() ret int {",
+          "    match (value) {",
+          "        Option.Some(val) => {",
+          "            ",
+          "        },",
+          "    };",
+          "    return 0;",
+          "}",
+        ].join("\n"),
+      );
+
+      const labels = completionHandler
+        .handle(
+          {
+            textDocument: { uri: matchDoc.uri },
+            position: { line: 3, character: 12 },
+          },
+          matchDoc,
+        )
+        .map((c) => c.label);
+
+      expect(labels).toContain("val");
+    });
+
     it("preserves composite local variable types in completions", () => {
       const lambdaContent = [
         "frame test(cb: Lambda<int>(int, string)) ret int {",

@@ -630,6 +630,15 @@ export class ASTCompletionHandler {
 
       if (stmt.kind === "VariableDecl") {
         this.addVariableDeclToScope(stmt, locals, visited);
+        if (stmt.initializer?.kind === "Match") {
+          this.collectVariablesInMatchExpression(
+            stmt.initializer,
+            line,
+            character,
+            locals,
+            visited,
+          );
+        }
       }
 
       // Recursively check nested blocks (if, loop, etc.)
@@ -703,29 +712,153 @@ export class ASTCompletionHandler {
             );
           }
         }
-      } else if (stmt.kind === "MatchExpr") {
-        // Check match arms
-        if (stmt.arms) {
-          for (const arm of stmt.arms) {
-            if (arm.body && arm.body.kind === "Block") {
-              if (
-                arm.body.location &&
-                arm.body.location.startLine <= line &&
-                arm.body.location.endLine >= line
-              ) {
-                this.collectVariablesInScope(
-                  arm.body,
-                  line,
-                  character,
-                  locals,
-                  visited,
-                );
-              }
-            }
+      } else if (stmt.kind === "Switch") {
+        for (const switchCase of stmt.cases) {
+          if (this.nodeContainsLine(switchCase.body, line)) {
+            this.collectVariablesInScope(
+              switchCase.body,
+              line,
+              character,
+              locals,
+              visited,
+            );
           }
         }
+        if (stmt.defaultCase && this.nodeContainsLine(stmt.defaultCase, line)) {
+          this.collectVariablesInScope(
+            stmt.defaultCase,
+            line,
+            character,
+            locals,
+            visited,
+          );
+        }
+      } else if (stmt.kind === "Try") {
+        if (this.nodeContainsLine(stmt.tryBlock, line)) {
+          this.collectVariablesInScope(
+            stmt.tryBlock,
+            line,
+            character,
+            locals,
+            visited,
+          );
+        }
+        for (const catchClause of stmt.catchClauses) {
+          if (this.nodeContainsLine(catchClause.body, line)) {
+            if (catchClause.variable && !visited.has(catchClause.variable)) {
+              visited.add(catchClause.variable);
+              locals.push({
+                name: catchClause.variable,
+                type: catchClause.type
+                  ? this.typeNodeToString(catchClause.type)
+                  : undefined,
+              });
+            }
+            this.collectVariablesInScope(
+              catchClause.body,
+              line,
+              character,
+              locals,
+              visited,
+            );
+          }
+        }
+      } else if (stmt.kind === "Defer") {
+        if (
+          stmt.statement.kind === "Block" &&
+          this.nodeContainsLine(stmt.statement, line)
+        ) {
+          this.collectVariablesInScope(
+            stmt.statement,
+            line,
+            character,
+            locals,
+            visited,
+          );
+        }
+      } else if (
+        stmt.kind === "ExpressionStmt" &&
+        stmt.expression.kind === "Match"
+      ) {
+        this.collectVariablesInMatchExpression(
+          stmt.expression,
+          line,
+          character,
+          locals,
+          visited,
+        );
       }
     }
+  }
+
+  private collectVariablesInMatchExpression(
+    matchExpr: AST.MatchExpr,
+    line: number,
+    character: number,
+    locals: Array<{ name: string; type?: string }>,
+    visited: Set<string>,
+  ): void {
+    for (const arm of matchExpr.arms) {
+      if (arm.body.kind === "Block" && this.nodeContainsLine(arm.body, line)) {
+        this.addPatternBindingsToScope(arm.pattern, locals, visited);
+        this.collectVariablesInScope(
+          arm.body,
+          line,
+          character,
+          locals,
+          visited,
+        );
+      }
+    }
+  }
+
+  private addPatternBindingsToScope(
+    pattern: AST.Pattern,
+    locals: Array<{ name: string; type?: string }>,
+    visited: Set<string>,
+  ): void {
+    switch (pattern.kind) {
+      case "PatternIdentifier":
+        if (!visited.has(pattern.name)) {
+          visited.add(pattern.name);
+          locals.push({
+            name: pattern.name,
+            type: pattern.type ? this.typeNodeToString(pattern.type) : undefined,
+          });
+        }
+        if (pattern.bindingDeclaration) {
+          this.addVariableDeclToScope(pattern.bindingDeclaration, locals, visited);
+        }
+        break;
+      case "PatternTuple":
+        for (const nestedPattern of pattern.patterns) {
+          this.addPatternBindingsToScope(nestedPattern, locals, visited);
+        }
+        break;
+      case "PatternEnumTuple":
+        for (const nestedPattern of pattern.bindings) {
+          this.addPatternBindingsToScope(nestedPattern, locals, visited);
+        }
+        break;
+      case "PatternEnumStruct":
+        for (const field of pattern.fields) {
+          if (field.bindingDeclaration) {
+            this.addVariableDeclToScope(field.bindingDeclaration, locals, visited);
+          } else if (!visited.has(field.binding)) {
+            visited.add(field.binding);
+            locals.push({ name: field.binding });
+          }
+        }
+        break;
+    }
+  }
+
+  private nodeContainsLine(node: AST.ASTNode, line: number): boolean {
+    return !!(
+      node.location &&
+      node.location.startLine <= line &&
+      node.location.endLine >= line
+    );
   }
 
   private addVariableDeclToScope(
