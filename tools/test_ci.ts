@@ -1,6 +1,8 @@
 import { spawnSync } from "child_process";
 import { existsSync, readdirSync } from "fs";
 import { basename, join } from "path";
+import { getPositiveIntegerEnv } from "../compiler/common/Env";
+import { formatCommandSpawnFailure } from "../compiler/common/ProcessErrors";
 
 export const CI_SAFE_FIXED_TEST_FILES = [
   "tests/PlaygroundExampleContracts.test.ts",
@@ -22,6 +24,8 @@ export const CI_SAFE_EXCLUDED_TEST_FILES = [
   "fuzz.test.ts",
   "GoldenLLVMShapes.test.ts",
 ] as const;
+
+export const TEST_CI_STEP_TIMEOUT_MS = 20 * 60 * 1000;
 
 export interface TestCiStep {
   name: string;
@@ -127,7 +131,7 @@ export function formatTestCiFailureSummary(
   ];
 
   if (result.errorMessage) {
-    lines.push(`Start error: ${result.errorMessage}`);
+    lines.push(`Process error: ${result.errorMessage}`);
   }
   if (result.status !== null) {
     lines.push(`Exit status: ${result.status}`);
@@ -147,11 +151,14 @@ export function formatTestCiFailureSummary(
 }
 
 export function runTestCiPlan(plan: TestCiStep[]): number {
+  const timeout = getTestCiStepTimeoutMs();
+
   for (const step of plan) {
     console.log(`\n==> ${step.name}`);
     const result = spawnSync(step.command, step.args, {
       stdio: "inherit",
       env: process.env,
+      timeout,
     });
 
     if (result.error) {
@@ -159,7 +166,7 @@ export function runTestCiPlan(plan: TestCiStep[]): number {
         `\n${formatTestCiFailureSummary(step, {
           status: result.status,
           signal: result.signal,
-          errorMessage: result.error.message,
+          errorMessage: formatTestCiSpawnError(step, result.error),
         })}`,
       );
       return 1;
@@ -178,6 +185,20 @@ export function runTestCiPlan(plan: TestCiStep[]): number {
 
   console.log(`\n${formatTestCiSuccessSummary(plan)}`);
   return 0;
+}
+
+function getTestCiStepTimeoutMs(): number {
+  return getPositiveIntegerEnv(
+    "BPL_TEST_CI_STEP_TIMEOUT_MS",
+    TEST_CI_STEP_TIMEOUT_MS,
+    {
+      warn: (message) => console.warn(message),
+    },
+  );
+}
+
+function formatTestCiSpawnError(step: TestCiStep, error: Error): string {
+  return formatCommandSpawnFailure(formatCommand(step), error) ?? error.message;
 }
 
 function parseArgs(argv: string[]): { list: boolean; json: boolean } {

@@ -2250,6 +2250,7 @@ describe("Markdown documentation", () => {
       "runs the VS Code extension suite",
       "checks the generated `bpl-v3/cli` registry shim with `bun run release:cli-registry`",
       "then runs discovered top-level CI-safe unit tests",
+      "Each delegated step is bounded by `BPL_TEST_CI_STEP_TIMEOUT_MS`, which defaults to 1200000 milliseconds",
       "Playground example JSON contracts are validated before the full playground compile/run pass",
       "bun test tests/PlaygroundExampleContracts.test.ts",
       "CI-safe unit discovery includes `tests/CiTriage.test.ts`, so offline jobs-json diagnostics run in the broad suite",

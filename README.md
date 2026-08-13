@@ -940,6 +940,8 @@ bun tools/test_ci.ts --help
 # Unknown test_ci options and malformed flag values such as --json=true exit
 # with status 2 on stderr while stdout stays empty. Packed --list/--json
 # planning works even when the installed package has no tests/ directory.
+# Each delegated step is bounded by BPL_TEST_CI_STEP_TIMEOUT_MS, defaulting to
+# 1200000 milliseconds.
 # CI-safe unit discovery includes tests/CiTriage.test.ts, including offline
 # jobs-json diagnostics. Focus that path directly when needed:
 bun test tests/CiTriage.test.ts -t "unreadable and malformed jobs-json"

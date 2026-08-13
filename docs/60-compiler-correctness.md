@@ -44,7 +44,10 @@ VS Code extension suite, checks the generated `bpl-v3/cli` registry shim with
 `bun run release:cli-registry`, then runs discovered top-level CI-safe unit
 tests. It intentionally excludes the full correctness corpora, long fuzz
 runners, sanitizer runtime suite, golden LLVM shape suite, and full release
-smoke suite because those have dedicated scripts and CI jobs.
+smoke suite because those have dedicated scripts and CI jobs. Each delegated
+step is bounded by `BPL_TEST_CI_STEP_TIMEOUT_MS`, which defaults to 1200000
+milliseconds; invalid values fall back to that default with an `expected a
+positive integer` warning.
 CI-safe unit discovery includes `tests/CiTriage.test.ts`, so offline jobs-json
 diagnostics run in the broad suite. Focus that path directly with:
 

@@ -340,7 +340,7 @@ describe("CI-safe test runner", () => {
         signal: "SIGTERM",
         errorMessage: "spawn failed",
       }),
-    ).toContain("Start error: spawn failed");
+    ).toContain("Process error: spawn failed");
   });
 
   test("prints success summaries when all CI-safe steps pass", () => {
@@ -395,6 +395,43 @@ describe("CI-safe test runner", () => {
     } finally {
       console.log = originalLog;
       console.error = originalError;
+    }
+  });
+
+  test("times out stalled CI-safe steps", () => {
+    const errors: string[] = [];
+    const logs: string[] = [];
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalTimeout = process.env.BPL_TEST_CI_STEP_TIMEOUT_MS;
+    console.log = (message?: unknown) => {
+      logs.push(String(message ?? ""));
+    };
+    console.error = (message?: unknown) => {
+      errors.push(String(message ?? ""));
+    };
+    process.env.BPL_TEST_CI_STEP_TIMEOUT_MS = "50";
+
+    try {
+      const exitCode = runTestCiPlan([
+        {
+          name: "Hang",
+          command: process.execPath,
+          args: ["-e", "setTimeout(() => {}, 2000)"],
+        },
+      ]);
+
+      expect(exitCode).toBe(1);
+      expect(errors.join("\n")).toContain("Process error:");
+      expect(errors.join("\n")).toContain("timed out");
+    } finally {
+      console.log = originalLog;
+      console.error = originalError;
+      if (originalTimeout === undefined) {
+        delete process.env.BPL_TEST_CI_STEP_TIMEOUT_MS;
+      } else {
+        process.env.BPL_TEST_CI_STEP_TIMEOUT_MS = originalTimeout;
+      }
     }
   });
 });
