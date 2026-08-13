@@ -100,6 +100,42 @@ describe("Hierarchy Providers", () => {
     expect(outgoing.map((call) => call.to.name)).toEqual(["helper"]);
   });
 
+  it("resolves outgoing calls from enum methods", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CallHierarchyProvider(astResolver, symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/call hierarchy enum method outgoing.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "frame helper() ret int { return 1; }",
+        "enum Color {",
+        "    Red,",
+        "    frame to_code(this: Color) ret int {",
+        "        return helper();",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const item = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 3, character: 11 },
+      },
+      doc,
+    )![0]!;
+
+    const outgoing = await provider.getOutgoingCalls(item);
+
+    expect(outgoing.map((call) => call.to.name)).toEqual(["helper"]);
+  });
+
   it("groups repeated incoming calls from the same caller", async () => {
     const symbolIndex = new SymbolIndex();
     const astResolver = new ASTResolver(symbolIndex);
@@ -168,6 +204,42 @@ describe("Hierarchy Providers", () => {
     const incoming = await provider.getIncomingCalls(helper);
 
     expect(incoming.map((call) => call.from.name)).toEqual(["run"]);
+  });
+
+  it("finds incoming calls from enum methods", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CallHierarchyProvider(astResolver, symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/call hierarchy enum method incoming.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "frame helper() ret int { return 1; }",
+        "enum Color {",
+        "    Red,",
+        "    frame to_code(this: Color) ret int {",
+        "        return helper();",
+        "    }",
+        "}",
+      ].join("\n"),
+    );
+
+    const helper = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 0, character: 7 },
+      },
+      doc,
+    )![0]!;
+
+    const incoming = await provider.getIncomingCalls(helper);
+
+    expect(incoming.map((call) => call.from.name)).toEqual(["to_code"]);
   });
 
   it("prepares type hierarchy at LSP cursor positions", () => {

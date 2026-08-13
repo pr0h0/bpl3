@@ -284,6 +284,11 @@ export class CallHierarchyProvider {
             }
           }
           break;
+        case "EnumDecl":
+          for (const method of (stmt as AST.EnumDecl).methods) {
+            visitStatement(method);
+          }
+          break;
         case "Block":
           (stmt as AST.BlockStmt).statements.forEach(visitStatement);
           break;
@@ -357,6 +362,12 @@ export class CallHierarchyProvider {
             }
           }
         }
+      } else if (stmt.kind === "EnumDecl") {
+        for (const method of (stmt as AST.EnumDecl).methods) {
+          if (this.rangeContainsPosition(method, targetLine, targetCol)) {
+            return method;
+          }
+        }
       }
     }
 
@@ -386,6 +397,13 @@ export class CallHierarchyProvider {
             if (methodRange && this.rangesEqual(methodRange, range)) {
               return method;
             }
+          }
+        }
+      } else if (stmt.kind === "EnumDecl") {
+        for (const method of (stmt as AST.EnumDecl).methods) {
+          const methodRange = this.nodeToRange(method);
+          if (methodRange && this.rangesEqual(methodRange, range)) {
+            return method;
           }
         }
       }
@@ -429,6 +447,12 @@ export class CallHierarchyProvider {
             if (method.name === name) {
               return method;
             }
+          }
+        }
+      } else if (stmt.kind === "EnumDecl") {
+        for (const method of (stmt as AST.EnumDecl).methods) {
+          if (method.name === name) {
+            return method;
           }
         }
       }
