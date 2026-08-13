@@ -11,6 +11,7 @@ import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
+import { filePathToUri } from "./utils";
 
 /**
  * Provides call hierarchy support - shows incoming and outgoing calls for functions
@@ -74,7 +75,6 @@ export class CallHierarchyProvider {
         // Find the containing function that makes this call
         const callerFunc = this.findContainingFunction(ast, call.node);
         if (callerFunc) {
-          const _uri = `file://${filePath}`;
           const caller = this.createCallHierarchyItem(callerFunc, filePath);
 
           incomingCalls.push({
@@ -363,7 +363,7 @@ export class CallHierarchyProvider {
     return {
       name: funcDecl.name,
       kind: SymbolKind.Function,
-      uri: `file://${filePath}`,
+      uri: filePathToUri(filePath),
       range: selectionRange,
       selectionRange: selectionRange,
     };
@@ -377,7 +377,7 @@ export class CallHierarchyProvider {
     name: string,
   ): CallHierarchyItem {
     const filePath = symbol.filePath || "";
-    const uri = `file://${filePath}`;
+    const uri = filePathToUri(filePath);
 
     // Try to get range from symbol location
     let range = Range.create(0, 0, 0, 0);

@@ -159,7 +159,7 @@ export class CodeLensProvider {
               : `${implCount} implementations`,
           command: "editor.action.showReferences",
           arguments: [
-            `file://${filePath}`,
+            pathToFileURL(filePath).toString(),
             { line: range.start.line, character: range.start.character },
             [],
           ],

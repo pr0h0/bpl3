@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
+import { filePathToUri } from "./utils";
 
 /**
  * Provides type hierarchy support - shows struct inheritance trees
@@ -223,7 +224,7 @@ export class TypeHierarchyProvider {
     return {
       name: structDecl.name,
       kind: SymbolKind.Class,
-      uri: `file://${filePath}`,
+      uri: filePathToUri(filePath),
       range: selectionRange,
       selectionRange: selectionRange,
       detail: detail,

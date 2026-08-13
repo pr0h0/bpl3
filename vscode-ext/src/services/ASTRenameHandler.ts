@@ -16,7 +16,7 @@ import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
-import { debugLog } from "./utils";
+import { debugLog, filePathToUri } from "./utils";
 
 export class ASTRenameHandler {
   private static readonly reservedIdentifiers = new Set([
@@ -786,7 +786,7 @@ export class ASTRenameHandler {
         // We need to find it in the source
         references.push(
           Location.create(
-            `file://${structSymbol.filePath}`,
+            filePathToUri(structSymbol.filePath),
             Range.create(
               {
                 line: structSymbol.location.startLine - 1,
@@ -821,7 +821,7 @@ export class ASTRenameHandler {
           while ((match = lineRegex.exec(line)) !== null) {
             references.push(
               Location.create(
-                `file://${file}`,
+                filePathToUri(file),
                 Range.create(
                   { line: lineIdx, character: match.index + 1 }, // +1 to skip the dot
                   {
@@ -863,7 +863,7 @@ export class ASTRenameHandler {
       if (method) {
         references.push(
           Location.create(
-            `file://${structSymbol.filePath}`,
+            filePathToUri(structSymbol.filePath),
             Range.create(
               {
                 line: method.location.startLine - 1,
@@ -897,7 +897,7 @@ export class ASTRenameHandler {
           while ((match = lineRegex.exec(line)) !== null) {
             references.push(
               Location.create(
-                `file://${file}`,
+                filePathToUri(file),
                 Range.create(
                   { line: lineIdx, character: match.index + 1 }, // +1 to skip the dot
                   {
@@ -932,7 +932,7 @@ export class ASTRenameHandler {
       const symbol = symbols[0];
       references.push(
         Location.create(
-          `file://${symbol.filePath}`,
+          filePathToUri(symbol.filePath),
           Range.create(
             {
               line: symbol.location.startLine - 1,
@@ -965,14 +965,14 @@ export class ASTRenameHandler {
               // Skip the declaration we already added
               const isDuplicate = references.some(
                 (ref) =>
-                  ref.uri === `file://${file}` &&
+                  ref.uri === filePathToUri(file) &&
                   ref.range.start.line === lineIdx &&
                   ref.range.start.character === match!.index,
               );
               if (!isDuplicate) {
                 references.push(
                   Location.create(
-                    `file://${file}`,
+                    filePathToUri(file),
                     Range.create(
                       { line: lineIdx, character: match.index },
                       {

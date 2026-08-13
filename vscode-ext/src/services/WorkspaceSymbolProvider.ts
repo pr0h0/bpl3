@@ -7,6 +7,7 @@ import {
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
+import { filePathToUri } from "./utils";
 
 /**
  * Provides workspace-wide symbol search (Ctrl+T)
@@ -88,7 +89,7 @@ export class WorkspaceSymbolProvider {
           name: name,
           kind: this.symbolKindFromType(symbol.kind),
           location: {
-            uri: `file://${symbol.filePath}`,
+            uri: filePathToUri(symbol.filePath),
             range: range,
           },
         });
@@ -272,7 +273,7 @@ export class WorkspaceSymbolProvider {
       name: name,
       kind: kind,
       location: {
-        uri: `file://${filePath}`,
+        uri: filePathToUri(filePath),
         range: range,
       },
     };
@@ -293,7 +294,7 @@ export class WorkspaceSymbolProvider {
       name: `${structName}.${method.name}`,
       kind: SymbolKind.Method,
       location: {
-        uri: `file://${filePath}`,
+        uri: filePathToUri(filePath),
         range: range,
       },
       containerName: structName,
@@ -315,7 +316,7 @@ export class WorkspaceSymbolProvider {
       name: `${structName}.${field.name}`,
       kind: SymbolKind.Field,
       location: {
-        uri: `file://${filePath}`,
+        uri: filePathToUri(filePath),
         range: range,
       },
       containerName: structName,
@@ -337,7 +338,7 @@ export class WorkspaceSymbolProvider {
       name: `${enumName}.${variant.name}`,
       kind: SymbolKind.EnumMember,
       location: {
-        uri: `file://${filePath}`,
+        uri: filePathToUri(filePath),
         range: range,
       },
       containerName: enumName,
