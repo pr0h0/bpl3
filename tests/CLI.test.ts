@@ -396,6 +396,110 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should reject conflicting run subcommand input sources", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-run-input-conflict-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }");
+
+    try {
+      for (const args of [
+        ["--eval", "frame main() {}", "run", sourceFile],
+        ["--stdin", "run", sourceFile],
+      ]) {
+        const result = runCLI(args);
+
+        expect(result.status).toBe(1);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain("Conflicting input sources");
+        expect(result.stderr).toContain("file arguments, --eval, or --stdin");
+      }
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should report conflicting run subcommand input sources as json", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-run-json-input-conflict-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }");
+
+    try {
+      const result = runCLI([
+        "--eval",
+        "frame main() {}",
+        "--json",
+        "run",
+        sourceFile,
+      ]);
+      const report = parseJsonObjectStdout(result) as JsonObject;
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(report.check).toBe("build");
+      expect(report.success).toBe(false);
+      expect(report.error).toContain("Conflicting input sources");
+      expect(report.errorCode).toBe("BPL_BUILD_CONFLICTING_INPUTS");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should reject conflicting dev subcommand input sources", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-dev-input-conflict-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }");
+
+    try {
+      for (const args of [
+        ["--eval", "frame main() {}", "dev", sourceFile],
+        ["--stdin", "dev", sourceFile],
+      ]) {
+        const result = runCLI(args);
+
+        expect(result.status).toBe(1);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain("Conflicting input sources");
+        expect(result.stderr).toContain("file arguments, --eval, or --stdin");
+      }
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should report conflicting dev subcommand input sources as json", () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-dev-json-input-conflict-"),
+    );
+    const sourceFile = path.join(tempDir, "main.bpl");
+    fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }");
+
+    try {
+      const result = runCLI([
+        "--eval",
+        "frame main() {}",
+        "--json",
+        "dev",
+        sourceFile,
+      ]);
+      const report = parseJsonObjectStdout(result) as JsonObject;
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(report.check).toBe("build");
+      expect(report.success).toBe(false);
+      expect(report.error).toContain("Conflicting input sources");
+      expect(report.errorCode).toBe("BPL_BUILD_CONFLICTING_INPUTS");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("should treat an empty eval string as virtual source input", () => {
     const result = runCLI(["--eval", ""]);
 

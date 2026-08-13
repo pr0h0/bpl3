@@ -7,6 +7,7 @@ import type { Command } from "commander";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
 import { getExplicitParentCompileOptions } from "./compileOptions";
+import { validateCompileInputSources } from "../BuildInputValidation";
 
 const log = new Logger("Dev");
 
@@ -67,6 +68,7 @@ export function registerDevCommand(program: Command): void {
               globalOpts.debug ||
               globalOpts.dwarf,
           };
+          validateCompileInputSources([file], compileOptions);
 
           watchMode(file, compileOptions, args);
         } catch (e) {
