@@ -231,6 +231,13 @@ export class Linter {
           this.visit(binding, context);
         }
         break;
+      case "PatternEnumStruct":
+        for (const field of (node as AST.PatternEnumStruct).fields) {
+          if (field.bindingDeclaration) {
+            this.visit(field.bindingDeclaration, context);
+          }
+        }
+        break;
       case "Assignment":
         const assignment = node as AST.AssignmentExpr;
         this.visit(assignment.assignee, context);

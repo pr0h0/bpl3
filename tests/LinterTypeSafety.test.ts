@@ -361,6 +361,7 @@ describe("linter type-safety guards", () => {
       "PatternLiteral",
       "PatternTuple",
       "PatternEnumTuple",
+      "PatternEnumStruct",
       "Assignment",
       "Ternary",
       "GenericInstantiation",
@@ -390,7 +391,6 @@ describe("linter type-safety guards", () => {
       "Literal",
       "OffsetOf",
       "PatternEnum",
-      "PatternEnumStruct",
       "PatternIdentifier",
       "PatternWildcard",
       "RuntimeDeferCleanup",
@@ -407,7 +407,6 @@ describe("linter type-safety guards", () => {
       "Literal",
       "OffsetOf",
       "PatternEnum",
-      "PatternEnumStruct",
       "PatternIdentifier",
       "PatternWildcard",
       "RuntimeDeferCleanup",
@@ -645,5 +644,55 @@ describe("linter type-safety guards", () => {
     expect(messages).toContain("identifier:matchValue");
     expect(messages).toContain("identifier:matchGuard");
     expect(messages).toContain("identifier:matchBody");
+  });
+
+  test("visits enum struct pattern field binding declarations", () => {
+    const rule: LintRule = {
+      code: "TPAT",
+      name: "pattern-binding-visitor-test",
+      check(node, context) {
+        if (node.kind !== "VariableDecl") return;
+
+        context.report(
+          `variable:${(node as AST.VariableDecl).name}`,
+          node,
+          undefined,
+          "TPAT",
+        );
+      },
+    };
+
+    const bindingDeclaration = variableDecl("fieldBinding");
+    const errors = new Linter([rule]).lint(
+      functionWithExpression({
+        kind: "Match",
+        value: identifier("matchValue"),
+        arms: [
+          {
+            kind: "MatchArm",
+            pattern: {
+              kind: "PatternEnumStruct",
+              enumName: "Result",
+              variantName: "Ok",
+              fields: [
+                {
+                  fieldName: "value",
+                  binding: "fieldBinding",
+                  bindingDeclaration,
+                },
+              ],
+              location,
+            },
+            body: identifier("matchBody"),
+            location,
+          },
+        ],
+        location,
+      }),
+    );
+
+    expect(errors.map((error) => error.message)).toContain(
+      "variable:fieldBinding",
+    );
   });
 });
