@@ -445,7 +445,7 @@ export function collectIdentifiers(
 ): AST.IdentifierExpr[] {
   return findNodes(
     node,
-    (n) => n.kind === "IdentifierExpr",
+    (n) => n.kind === "Identifier",
   ) as AST.IdentifierExpr[];
 }
 

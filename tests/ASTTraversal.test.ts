@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { walkAST } from "../compiler/common/ASTTraversal";
+import { collectIdentifiers, walkAST } from "../compiler/common/ASTTraversal";
 
 import type { SourceLocation } from "../compiler/common/CompilerError";
 
@@ -126,5 +126,37 @@ describe("AST traversal", () => {
     expect(visitedKinds).toContain("Binary");
     expect(visitedKinds).toContain("Literal");
     expect(visitedKinds).not.toContain("FunctionDecl");
+  });
+
+  it("collects identifier expression nodes", () => {
+    const expression = {
+      kind: "Binary",
+      left: {
+        kind: "Identifier",
+        name: "left",
+        location,
+      },
+      operator: {
+        type: "Plus",
+        lexeme: "+",
+        literal: null,
+        line: 1,
+        column: 6,
+        file: location.file,
+      },
+      right: {
+        kind: "Identifier",
+        name: "right",
+        location,
+      },
+      location,
+    };
+
+    const identifiers = collectIdentifiers(expression);
+
+    expect(identifiers.map((identifier) => identifier.name)).toEqual([
+      "left",
+      "right",
+    ]);
   });
 });
