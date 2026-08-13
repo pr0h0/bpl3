@@ -25,9 +25,12 @@ export class WorkspaceSymbolProvider {
     const query = params.query.toLowerCase();
     const results: WorkspaceSymbol[] = [];
 
-    // If query is empty, return top-level symbols
+    // If query is empty, return indexed symbols plus cached top-level symbols.
     if (!query) {
-      return this.getTopLevelSymbols();
+      return this.deduplicateResults([
+        ...this.searchInSymbolIndex(query),
+        ...this.getTopLevelSymbols(),
+      ]);
     }
 
     // Search in symbol index first (faster)

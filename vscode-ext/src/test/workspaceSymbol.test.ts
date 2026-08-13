@@ -17,4 +17,17 @@ describe("Workspace Symbol Provider", () => {
 
     expect(results.some((symbol) => symbol.name === "Point")).toBe(true);
   });
+
+  it("returns indexed symbols for empty queries", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new WorkspaceSymbolProvider(astResolver, symbolIndex);
+    const filePath = path.join(__dirname, "fixtures", "features-test.bpl");
+
+    symbolIndex.indexFile(filePath, false);
+
+    const results = await provider.search({ query: "" });
+
+    expect(results.some((symbol) => symbol.name === "Point")).toBe(true);
+  });
 });
