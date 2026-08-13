@@ -9,6 +9,29 @@ import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { ASTResolver } from "./ASTResolver";
 
+const BUILTIN_TYPE_NAMES = new Set([
+  "int",
+  "uint",
+  "u8",
+  "u16",
+  "u32",
+  "u64",
+  "i8",
+  "i16",
+  "i32",
+  "i64",
+  "float",
+  "f32",
+  "f64",
+  "bool",
+  "char",
+  "string",
+  "void",
+  "any",
+  "Func",
+  "Lambda",
+]);
+
 /**
  * Provides document highlights - highlights all occurrences of the symbol under cursor.
  * Gives instant visual feedback for variable/function usage.
@@ -87,6 +110,10 @@ export class DocumentHighlightProvider {
 
     if (node.kind === "BasicType") {
       const basicType = node as AST.BasicTypeNode;
+      if (BUILTIN_TYPE_NAMES.has(basicType.name)) {
+        return null;
+      }
+
       return {
         kind: "Identifier",
         name: basicType.name,
@@ -228,7 +255,11 @@ export class DocumentHighlightProvider {
 
     if (node.kind === "BasicType") {
       const basicType = node as AST.BasicTypeNode;
-      if (basicType.name === symbolName && basicType.location) {
+      if (
+        basicType.name === symbolName &&
+        basicType.location &&
+        !BUILTIN_TYPE_NAMES.has(basicType.name)
+      ) {
         highlights.push(
           DocumentHighlight.create(
             this.locationToRange(basicType.location),

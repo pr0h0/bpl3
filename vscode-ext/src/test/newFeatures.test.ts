@@ -518,6 +518,34 @@ describe("Document Highlight Provider", () => {
       ),
     ).toBe(true);
   });
+
+  it("does not highlight primitive basic types as user symbols", () => {
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/highlight primitive basic type.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "type Alias = int;",
+        "frame test(value: int) ret int {",
+        "    return value;",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = provider.handle(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 1, character: 18 },
+      },
+      doc,
+    );
+
+    expect(result).toBeNull();
+  });
 });
 
 describe("Folding Range Provider", () => {
