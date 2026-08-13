@@ -857,8 +857,12 @@ removed `package`, its `version`, and the requested `global` scope. JSON-mode
 failures stay on stdout with `success: false`, `package`, `global`, `error`,
 and stable `errorCode` values including `BPL_PACKAGE_UNINSTALL_NAME_INVALID`
 for invalid package names and `BPL_PACKAGE_UNINSTALL_NOT_INSTALLED` for missing
-local or global packages. Reproduce the focused JSON contract with
-`bun test tests/PackageManagerCLI.test.ts -t "uninstall success and failures as JSON"`.
+local or global packages. Filesystem safety failures use
+`BPL_PACKAGE_UNINSTALL_ROOT_SYMLINK`,
+`BPL_PACKAGE_UNINSTALL_ROOT_NOT_DIRECTORY`, and
+`BPL_PACKAGE_UNINSTALL_MANIFEST_MISSING`. Reproduce the focused JSON contracts
+with `bun test tests/PackageManagerCLI.test.ts -t "uninstall success and failures as JSON"`
+and `bun test tests/PackageJsonFailureContracts.test.ts -t "package uninstall filesystem error codes"`.
 Local uninstall also validates an existing `bpl.lock` before unlinking binaries
 or removing package files; symlinked, broken-symlink, malformed, or non-file
 lockfile paths are rejected instead of leaving package files and lock entries

@@ -257,6 +257,85 @@ describe("Package JSON failure contracts", () => {
     }
   });
 
+  test("surfaces stable package uninstall filesystem error codes", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-uninstall-codes-"));
+
+    try {
+      const cases: Array<{
+        name: string;
+        setup: (context: CommandContext, packageName: string) => void;
+        expectedCode: string;
+        expectedError: string;
+      }> = [
+        {
+          name: "root-symlink",
+          setup: (context, packageName) => {
+            const realPackageDir = join(tempDir, "uninstall-real-package");
+            mkdirSync(realPackageDir, { recursive: true });
+            writeFileSync(
+              join(realPackageDir, "bpl.json"),
+              JSON.stringify({ name: packageName, version: "1.0.0" }),
+            );
+            mkdirSync(join(context.cwd, "bpl_modules"), { recursive: true });
+            symlinkSync(
+              realPackageDir,
+              join(context.cwd, "bpl_modules", packageName),
+              "dir",
+            );
+          },
+          expectedCode: "BPL_PACKAGE_UNINSTALL_ROOT_SYMLINK",
+          expectedError: "Package root is a symbolic link",
+        },
+        {
+          name: "root-not-directory",
+          setup: (context, packageName) => {
+            mkdirSync(join(context.cwd, "bpl_modules"), { recursive: true });
+            writeFileSync(
+              join(context.cwd, "bpl_modules", packageName),
+              "not a directory",
+            );
+          },
+          expectedCode: "BPL_PACKAGE_UNINSTALL_ROOT_NOT_DIRECTORY",
+          expectedError: "Invalid package directory",
+        },
+        {
+          name: "manifest-missing",
+          setup: (context, packageName) => {
+            mkdirSync(join(context.cwd, "bpl_modules", packageName), {
+              recursive: true,
+            });
+          },
+          expectedCode: "BPL_PACKAGE_UNINSTALL_MANIFEST_MISSING",
+          expectedError: "Invalid package directory",
+        },
+      ];
+
+      for (const testCase of cases) {
+        const packageName = `uninstall-${testCase.name}`;
+        const context = cleanPackageRoot(tempDir, testCase.name);
+        testCase.setup(context, packageName);
+
+        const report = expectJsonStdoutReport(
+          runCli(["uninstall", packageName, "--json"], context),
+          {
+            status: 1,
+            check: "package-uninstall",
+            success: false,
+          },
+        );
+
+        expect(report).toMatchObject({
+          package: packageName,
+          global: false,
+          error: expect.stringContaining(testCase.expectedError),
+          errorCode: testCase.expectedCode,
+        });
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("surfaces stable package-cache version filter error codes", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-cache-codes-"));
 
