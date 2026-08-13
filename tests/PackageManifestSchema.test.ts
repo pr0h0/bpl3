@@ -239,6 +239,20 @@ describe("Package manifest JSON schema", () => {
     }
   });
 
+  test("mirrors tracked package archive manifests from source manifests", () => {
+    for (const archivePath of trackedPackageArchivePaths()) {
+      const sourceManifestPath = join(dirname(archivePath), "bpl.json");
+
+      expect(
+        existsSync(sourceManifestPath),
+        `${archivePath} has a source bpl.json next to it`,
+      ).toBe(true);
+      expect(readPackageArchiveManifest(archivePath)).toEqual(
+        readPackageManifest(sourceManifestPath),
+      );
+    }
+  });
+
   test("rejects leading-zero semantic version segments", () => {
     const versionPattern = schemaPattern(propertySchema("version"), "version");
 
