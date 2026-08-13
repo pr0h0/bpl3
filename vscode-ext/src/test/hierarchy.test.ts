@@ -137,6 +137,40 @@ describe("Hierarchy Providers", () => {
     expect(outgoing.map((call) => call.to.name)).toEqual(["helper"]);
   });
 
+  it("resolves outgoing calls inside ternary expressions", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CallHierarchyProvider(astResolver, symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/call hierarchy ternary outgoing.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "frame first() ret int { return 1; }",
+        "frame second() ret int { return 2; }",
+        "frame choose(flag: bool) ret int {",
+        "    return flag ? first() : second();",
+        "}",
+      ].join("\n"),
+    );
+
+    const item = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 2, character: 7 },
+      },
+      doc,
+    )![0]!;
+
+    const outgoing = await provider.getOutgoingCalls(item);
+
+    expect(outgoing.map((call) => call.to.name)).toEqual(["first", "second"]);
+  });
+
   it("prepares call hierarchy for spec methods", () => {
     const symbolIndex = new SymbolIndex();
     const astResolver = new ASTResolver(symbolIndex);
@@ -272,6 +306,40 @@ describe("Hierarchy Providers", () => {
     const incoming = await provider.getIncomingCalls(helper);
 
     expect(incoming.map((call) => call.from.name)).toEqual(["to_code"]);
+  });
+
+  it("finds incoming calls inside ternary expressions", async () => {
+    const symbolIndex = new SymbolIndex();
+    const astResolver = new ASTResolver(symbolIndex);
+    const provider = new CallHierarchyProvider(astResolver, symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/call hierarchy ternary incoming.bpl",
+    );
+    const doc = TextDocument.create(
+      pathToFileURL(filePath).toString(),
+      "bpl",
+      1,
+      [
+        "frame helper() ret int { return 1; }",
+        "frame choose(flag: bool) ret int {",
+        "    return flag ? helper() : helper();",
+        "}",
+      ].join("\n"),
+    );
+
+    const helper = provider.prepare(
+      {
+        textDocument: { uri: doc.uri },
+        position: { line: 0, character: 7 },
+      },
+      doc,
+    )![0]!;
+
+    const incoming = await provider.getIncomingCalls(helper);
+
+    expect(incoming.map((call) => call.from.name)).toEqual(["choose"]);
+    expect(incoming[0]?.fromRanges).toHaveLength(2);
   });
 
   it("finds incoming member calls to spec methods", async () => {
