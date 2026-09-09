@@ -3041,13 +3041,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-241: JSON.parse accepts trailing non-whitespace input
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed**: `JSON.parse<int>("1 false")` succeeds at O0/O3 and ignores the trailing value.
 
 **Cause**: The root parser does not require complete consumption after parsing one value.
+
+**Resolution (2026-09-09)**: The root parser skips trailing JSON whitespace and rejects any remaining input through its existing partial-allocation cleanup path. O0/O3 tests cover numbers, booleans, strings, objects, and nested fixed arrays, with adjacent garbage, extra values, and valid whitespace.
 
 ### BUG-242: JSON custom-parser fallback invokes the same hook again
 

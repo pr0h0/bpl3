@@ -668,6 +668,11 @@ struct JSON {
 
         JSON.parseAny(&p, ptr, info);
 
+        p.skipWs();
+        if ((!p.has_error) && (p.pos != p.len)) {
+            p.fail("Unexpected trailing input");
+        }
+
         if (p.has_error) {
             # Clean up partial allocation
             JSON.freeAny(ptr, info);
