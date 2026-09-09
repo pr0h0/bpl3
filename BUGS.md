@@ -2889,7 +2889,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-231: Floating-point unary minus loses negative zero
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
@@ -2902,6 +2902,8 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Suggested resolution**: Use LLVM fneg for floating-point negation. It flips the sign bit and preserves the remaining representation. See [LLVM fneg semantics](https://llvm.org/docs/LangRef.html#fneg-instruction).
 
 **Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-231).
+
+**Resolution (2026-09-08)**: Floating negation now emits fneg for both LLVM float widths. Signed-zero and finite negation regressions pass at O0/O3. Removed an obsolete codegen test assertion requiring the function-wide move state eliminated by BUG-228. All 90 selected numeric/codegen tests and typecheck passed.
 
 ### BUG-232: f32 is recognized as a type but rejected as numeric
 

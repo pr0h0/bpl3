@@ -146,8 +146,8 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       const val = this.generateExpression(expr.operand);
       const type = this.resolveType(expr.resolvedType!);
       const reg = this.newRegister();
-      if (type === "double") {
-        this.emit(`  ${reg} = fsub double 0.0, ${val}`);
+      if (type === "double" || type === "float") {
+        this.emit(`  ${reg} = fneg ${type} ${val}`);
       } else {
         this.emit(`  ${reg} = sub ${type} 0, ${val}`);
       }
