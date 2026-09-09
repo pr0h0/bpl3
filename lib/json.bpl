@@ -420,7 +420,7 @@ struct JSON {
         } else {
             if (info.kind == TYPE_KIND_STRUCT) {
                 # Duck Typing: Check if this struct is actually an "Array<T>"
-                if (strncmp(info.name, "Array", 5) == 0) {
+                if (JSON.isDynamicArray(info)) {
                     JSON.serializeDynamicArray(sb, ptr, info);
                 } else {
                     JSON.serializeStruct(sb, ptr, info);
@@ -552,6 +552,29 @@ struct JSON {
                 }
             }
         }
+    }
+
+    # Dynamic arrays must have the expected reflected storage fields.
+    frame isDynamicArray(info: *TypeInfo) ret bool {
+        if ((strcmp(info.name, "Array") != 0) && (strncmp(info.name, "Array_", 6) != 0)) {
+            return false;
+        }
+        local hasData: bool = false;
+        local hasLength: bool = false;
+        local hasCapacity: bool = false;
+        loop (local i: int = 0; i < info.num_fields; i = i + 1) {
+            local f: FieldInfo = info.fields[i];
+            if (strcmp(f.name, "data") == 0) {
+                hasData = (f.type_info.kind == TYPE_KIND_POINTER) && (f.type_info.element_type != nullptr);
+            }
+            if (strcmp(f.name, "length") == 0) {
+                hasLength = (strcmp(f.type_info.name, "int") == 0) || (strcmp(f.type_info.name, "i32") == 0);
+            }
+            if (strcmp(f.name, "capacity") == 0) {
+                hasCapacity = (strcmp(f.type_info.name, "int") == 0) || (strcmp(f.type_info.name, "i32") == 0);
+            }
+        }
+        return hasData && hasLength && hasCapacity;
     }
 
     frame serializeDynamicArray(sb: *StringBuilder, ptr: ulong, info: *TypeInfo) {
@@ -729,7 +752,7 @@ struct JSON {
         }
         if (info.kind == TYPE_KIND_STRUCT) {
             # Check for Array<T>
-            if (strncmp(info.name, "Array", 5) == 0) {
+            if (JSON.isDynamicArray(info)) {
                 JSON.freeDynamicArray(ptr, info);
                 return;
             }
@@ -865,8 +888,7 @@ struct JSON {
         } else {
             if (info.kind == TYPE_KIND_STRUCT) {
                 # Duck Typing: Check if this struct is actually an "Array<T>"
-                # We check if name starts with "Array"
-                if (strncmp(info.name, "Array", 5) == 0) {
+                if (JSON.isDynamicArray(info)) {
                     JSON.parseDynamicArray(p, ptr, info);
                 } else {
                     JSON.parseStruct(p, ptr, info);

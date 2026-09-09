@@ -3097,11 +3097,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-246: JSON mistakes unrelated Array-prefixed structs for dynamic arrays
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed**: A normal `ArrayRecord { values: int[2] }` is rejected when parsing its JSON object. The serializer, parser, and cleanup identify dynamic arrays using only the first five characters of the reflected type name.
+
+**Resolution (2026-09-09)**: A shared predicate checks the reflected array name boundary and required data/length/capacity field types before choosing array serialization, parsing, or cleanup. O0/O3 regressions round-trip ArrayRecord, Array_Record, and the actual standard-library Array<int>, including freeing allocated strings and array storage.
 
 ### BUG-247: Reflecting Array methods emits unresolved generic types
 
