@@ -2988,3 +2988,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: The audit cleanup refactor passed the root ESNext typecheck but failed the extension's ES2022 typecheck because `Array.findLastIndex` is unavailable in that target.
 
 **Resolution (2026-09-09)**: Scope lookup now uses a shared reverse-loop helper. Compiler typecheck, all three audit cleanup regressions, and all 236 extension tests pass.
+
+### BUG-237: C variadic calls do not promote f32 arguments to double
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Source**: `compiler/backend/codegen/CallExpressionGenerator.ts`
+
+**Observed**: Passing `f32` values 1.5, -2.25, and 3.5 directly to `printf` produced `0.00 0.00 0.00` on the local native target. Integer argument promotions existed, but the C default promotion from float to double was missing.
+
+**Resolution (2026-09-09)**: Extern variadic arguments now extend LLVM `float` to `double`. Fixed parameters retain their declared widths. The runtime regression also calls `fabsf` with a fixed f32 parameter; it passes at O0/O3 with LLVM verification. All 99 selected numeric, TypeUtils, and codegen tests, compiler typecheck, and ESLint pass.

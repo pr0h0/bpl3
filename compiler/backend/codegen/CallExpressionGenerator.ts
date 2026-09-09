@@ -1912,7 +1912,13 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         expr.resolvedDeclaration &&
         expr.resolvedDeclaration.kind === "Extern";
 
-      // For extern variadic calls, apply C default integer promotions.
+      // For extern variadic calls, apply C default argument promotions.
+      if (srcType === "float" && isExternVariadic) {
+        const promoted = this.newRegister();
+        this.emit(`  ${promoted} = fpext float ${val} to double`);
+        return `double ${promoted}`;
+      }
+
       if (srcType === "i1" && isExternVariadic) {
         const promoted = this.newRegister();
         this.emit(`  ${promoted} = zext i1 ${val} to i32`);

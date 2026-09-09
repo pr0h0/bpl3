@@ -1,6 +1,25 @@
 import { it } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
+it("promotes f32 variadic arguments while preserving fixed f32 parameters", () => {
+  expectCorrectnessSuite([{
+    name: "f32 C variadic promotion",
+    validateLlvm: true,
+    expectedStdout: "1.50 -2.25 3.50 4.50\n",
+    source: `
+      extern printf(fmt: string, ...) ret int;
+      extern fabsf(value: f32) ret f32;
+      frame main() ret int {
+        local a: f32 = cast<f32>(1.5);
+        local b: f32 = cast<f32>(-2.25);
+        printf("%.2f %.2f %.2f %.2f\\n", a, b,
+          fabsf(cast<f32>(-3.5)), 4.5);
+        return 0;
+      }
+    `,
+  }]);
+}, 60000);
+
 it("keeps scalar and aggregate NaN inequality complementary to equality", () => {
   expectCorrectnessSuite([{
     name: "NaN equality laws",
