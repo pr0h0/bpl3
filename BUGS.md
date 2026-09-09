@@ -2959,7 +2959,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-235: Map bucket storage never scales with entry count
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
@@ -2970,3 +2970,5 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Evidence**: Default construction creates 16 buckets; insertion adds nodes to linked chains without load-factor tracking, growth, or rehash. No later growth path exists in Map. The fixed bucket count makes chain length grow with entry count and invalidates the unconditional O(1) description. This is source-confirmed algorithmic analysis, not a measured slowdown.
 
 **Suggested resolution**: Add load-factor-based growth, rehashing, reserve, and size-sensitive benchmarks; document iterator/reference invalidation.
+
+**Resolution (2026-09-08)**: Map insertion now maintains a maximum 3/4 load factor; reserve() rehashes existing nodes and bucketCount() exposes capacity. Value-preservation, update, collision, removal, and clear tests pass at O0/O3. Added map_scaling.bpl: 1k/10k/100k entries grew to 2048/16384/262144 buckets with all hit/miss checks correct. Typecheck passed; iterator and callback contracts documented.

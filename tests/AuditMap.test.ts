@@ -46,3 +46,43 @@ it("supports narrow integer and f32 keys without losing updates", () => {
       }`,
   }]);
 }, 60000);
+
+it("rehashes without losing values, updates, custom collisions, or removals", () => {
+  expectCorrectnessSuite([{
+    name: "map growth and reserve",
+    validateLlvm: true,
+    expectedStdout: "130 1 1\n130 1\n65 0 1\n0 0\n40 1\n",
+    source: `
+      import [Map] from "std/map.bpl";
+      import [Option] from "std/option.bpl";
+      extern printf(fmt: string, ...);
+      frame hash(key: *int) ret u64 { return cast<u64>(*key % 3); }
+      frame equal(a: *int, b: *int) ret bool { return *a == *b; }
+      frame main() ret int {
+        local m: Map<int, int> = Map<int, int>.new();
+        loop (local i: int = 0; i < 130; i = i + 1) { m.set(i, i + 1); }
+        local present: bool = true;
+        loop (local i: int = 0; i < 130; i = i + 1) { local value: Option<int> = m.get(i); present = present && value.unwrap() == i + 1; }
+        printf("%d %d %d\\n", m.size(), m.bucketCount() >= 174, present);
+        local before: int = m.bucketCount();
+        loop (local i: int = 0; i < 130; i = i + 1) { m.set(i, i + 2); }
+        printf("%d %d\\n", m.size(), m.bucketCount() == before);
+        m.reserve(1000);
+        loop (local i: int = 0; i < 130; i = i + 1) {
+          local value: Option<int> = m.get(i);
+          if (value.unwrap() != i + 2) { return 1; }
+        }
+        loop (local i: int = 0; i < 65; i = i + 1) { m.remove(i); }
+        printf("%d %d %d\\n", m.size(), m.has(0), m.has(129));
+        m.clear(); printf("%d %d\\n", m.size(), m.has(129)); m.destroy();
+        local c: Map<int, int> = Map<int, int>.new(16, hash, equal);
+        loop (local i: int = 0; i < 40; i = i + 1) { c.set(i, i); }
+        c.reserve(100);
+        present = true;
+        loop (local i: int = 0; i < 40; i = i + 1) { present = present && c.has(i); }
+        printf("%d %d\\n", c.size(), present); c.destroy();
+        return 0;
+      }
+    `,
+  }]);
+}, 60000);

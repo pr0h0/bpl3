@@ -18,7 +18,15 @@ arr.destroy();
 
 ## Map<K, V>
 
-A key-value store backed by hash buckets and collision chains.
+A key-value store backed by hash buckets and collision chains. Insertion grows
+and rehashes the table before its load factor exceeds 3/4. With well-distributed
+hashes, lookup and insertion have expected amortized O(1) cost.
+
+`m.reserve(entryCount)` reserves space for at least that many entries without
+shrinking. `m.bucketCount()` reports the current bucket count. Rehashing preserves
+node/key/value storage but invalidates iterators; remove/clear/destroy also
+invalidate references to removed entries. Custom hash/equality callbacks must be
+stable, non-mutating, and non-throwing.
 
 Default keys use value equality. Integer and boolean keys have numeric hashes;
 `string` and `String` keys use content hashing and equality. Floating-point keys

@@ -181,3 +181,11 @@ not fail the run. Signature drift always fails the comparison.
 - `go` (for Go)
 - `python3` (for Python)
 - `node` (for JavaScript)
+
+## Map scaling
+
+Run `bun index.ts run benchmark/map_scaling.bpl -O 3` to measure insertion,
+successful lookups, and unsuccessful lookups at 1k, 10k, and 100k integer keys.
+The fixture reports phase microseconds and verifies coverage through hit/miss
+counts. Timings use the standard library wall clock and should be repeated on an
+idle machine; use trends rather than hard microsecond thresholds.

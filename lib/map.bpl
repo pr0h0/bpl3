@@ -1,4 +1,4 @@
-# Map<K,V> hash map implementation O(1)
+# Map<K,V> hash map with bounded load factor and amortized growth
 
 export [Map];
 export [MapIterator];
@@ -6,6 +6,7 @@ export [Pair];
 export [MapNode];
 
 import [Array] from "std/array.bpl";
+import [Error] from "std/errors.bpl";
 import [Option] from "std/option.bpl";
 import [Iterable], [Iterator] from "std/iter_specs.bpl";
 import [Destructible], [Equatable] from "std/core_specs.bpl";
@@ -242,6 +243,48 @@ struct Map<K, V>: Iterable<Pair<K, V>>, Destructible, Equatable<Map<K, V>> {
         return cast<int>(idx);
     }
 
+    # Reserve enough buckets for at least entry_count entries at load <= 3/4.
+    # Rehash relinks nodes, preserving key/value storage but invalidating iterators.
+    frame reserve(this: *Map<K, V>, entry_count: int) {
+        if (entry_count < 0) {
+            throw Error.new("Map.reserve requires a nonnegative entry count");
+        }
+        local required: long = ((cast<long>(entry_count) * 4) + 2) / 3;
+        local capacity: long = cast<long>(this.buckets.len());
+        if (capacity < 16) { capacity = 16; }
+        loop (capacity < required) {
+            capacity = capacity * 2;
+            if (capacity > 2147483647) {
+                throw Error.new("Map capacity exceeds the supported range");
+            }
+        }
+        if (capacity <= cast<long>(this.buckets.len())) { return; }
+        local replacement: Array<*MapNode<K, V>> = Array<*MapNode<K, V>>.new(cast<int>(capacity));
+        if (replacement.data == nullptr) {
+            throw Error.new("Unable to allocate Map buckets");
+        }
+        loop (local i: int = 0; i < cast<int>(capacity); i = i + 1) {
+            replacement.push(nullptr);
+        }
+        local hash: Func<u64>(*K) = this.hasher;
+        loop (local i: int = 0; i < this.buckets.len(); i = i + 1) {
+            local node: *MapNode<K, V> = this.buckets.get(i);
+            loop (node != nullptr) {
+                local next: *MapNode<K, V> = node.next;
+                local bucket: int = cast<int>(hash(&node.key) % cast<u64>(capacity));
+                node.next = replacement.get(bucket);
+                replacement.set(bucket, node);
+                node = next;
+            }
+        }
+        this.buckets.destroy();
+        this.buckets = replacement;
+    }
+
+    frame bucketCount(this: *Map<K, V>) ret int {
+        return this.buckets.len();
+    }
+
     frame set(this: *Map<K, V>, key: K, value: V) {
         local idx: int = this._getBucketIndex(key);
         local head: *MapNode<K, V> = this.buckets.get(idx);
@@ -256,6 +299,9 @@ struct Map<K, V>: Iterable<Pair<K, V>>, Destructible, Equatable<Map<K, V>> {
             current = current.next;
         }
 
+        this.reserve(this.count + 1);
+        idx = this._getBucketIndex(key);
+        head = this.buckets.get(idx);
         local node: *MapNode<K, V> = cast<*MapNode<K, V>>(malloc(sizeof<MapNode<K, V>>()));
         node.key = key;
         node.value = value;
