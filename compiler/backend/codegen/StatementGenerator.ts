@@ -1384,10 +1384,11 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     // Generate deferred statements (LIFO)
     const scope = this.scopeStack.pop()!;
-    // Only generate defers if we haven't terminated (or if we are falling through)
+    // Skip empty cleanup, but restore try frames even when there are no defers.
     if (
-      this.output.length === 0 ||
-      !this.isTerminator(this.output[this.output.length - 1] || "")
+      (scope.deferred.length > 0 || scope.previousExceptionFrame !== undefined) &&
+      (this.output.length === 0 ||
+        !this.isTerminator(this.output[this.output.length - 1] || ""))
     ) {
       this.emitScopeCleanup(scope);
     }

@@ -3025,6 +3025,8 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Resolution (2026-09-09)**: Try scopes now carry the previous exception frame, restored by shared scope cleanup after deferred work on normal and early exits. Three new O0/O3 regressions cover break, continue, function return, match yield, retained outer scopes, and throwing deferred cleanup. Existing cleanup/defer/runtime-failure coverage, typecheck, and lint pass.
 
+**Validation follow-up (2026-09-09)**: Broader codegen tests caught the lost empty-cleanup fast path. The guard now skips scopes with neither defers nor an exception frame, retaining required handler restoration. All 102 selected codegen, cleanup, exception, and working-directory tests pass.
+
 ### BUG-240: Fractional f32 match patterns emit invalid LLVM constants
 
 **Status**: Fixed
