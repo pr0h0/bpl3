@@ -13,6 +13,7 @@
  * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
 import * as AST from "../../common/AST";
+import { formatFloatingPointLiteral } from "./FloatingPointLiteral";
 import { RTTI } from "../../middleend/RTTI";
 import { CallExpressionGenerator } from "./CallExpressionGenerator";
 
@@ -145,14 +146,10 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     const cmpReg = this.newRegister();
 
     if (llvmType === "double" || llvmType === "float") {
-      if (
-        pattern.value.kind === "Literal" &&
-        pattern.value.type === "number" &&
-        !literalValue.includes(".") &&
-        !literalValue.includes("e")
-      ) {
-        literalValue = literalValue + ".0";
-      }
+      literalValue = formatFloatingPointLiteral(
+        Number(pattern.value.value),
+        llvmType,
+      );
       this.emit(
         `  ${cmpReg} = fcmp oeq ${llvmType} ${value}, ${literalValue}`,
       );
@@ -1018,15 +1015,10 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
           );
           this.emit(`  ${cmpReg} = icmp eq i32 ${strcmpResult}, 0`);
         } else if (llvmType === "double" || llvmType === "float") {
-          // Ensure literal is float format for fcmp
-          if (
-            pattern.value.kind === "Literal" &&
-            pattern.value.type === "number" &&
-            !literalValue.includes(".") &&
-            !literalValue.includes("e")
-          ) {
-            literalValue = literalValue + ".0";
-          }
+          literalValue = formatFloatingPointLiteral(
+            Number(pattern.value.value),
+            llvmType,
+          );
           this.emit(
             `  ${cmpReg} = fcmp oeq ${llvmType} ${matchValue}, ${literalValue}`,
           );
@@ -1303,15 +1295,10 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
           let literalValue = this.generateLiteral(subPattern.value);
 
           if (element.type === "double" || element.type === "float") {
-            // Ensure literal is float format for fcmp
-            if (
-              subPattern.value.kind === "Literal" &&
-              subPattern.value.type === "number" &&
-              !literalValue.includes(".") &&
-              !literalValue.includes("e")
-            ) {
-              literalValue = literalValue + ".0";
-            }
+            literalValue = formatFloatingPointLiteral(
+              Number(subPattern.value.value),
+              element.type,
+            );
             const cmpReg = this.newRegister();
             this.emit(
               `  ${cmpReg} = fcmp oeq ${element.type} ${element.value}, ${literalValue}`,

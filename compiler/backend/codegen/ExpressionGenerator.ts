@@ -18,6 +18,7 @@ import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
 import { TokenType } from "../../frontend/TokenType";
 import { UnaryExpressionGenerator } from "./UnaryExpressionGenerator";
+import { formatFloatingPointLiteral } from "./FloatingPointLiteral";
 import { getIntegerBitWidth } from "./utils";
 
 const STRUCT_LITERAL_FIELD_MAP_THRESHOLD = 4;
@@ -367,9 +368,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       if (expr.resolvedType && expr.resolvedType.kind === "BasicType") {
         const typeName = (expr.resolvedType as AST.BasicTypeNode).name;
         if (typeName === "float" || typeName === "double") {
-          // Ensure float literals have decimal point
-          const str = String(expr.value);
-          return str.includes(".") ? str : `${str}.0`;
+          return formatFloatingPointLiteral(Number(expr.value), "double");
         }
       }
 

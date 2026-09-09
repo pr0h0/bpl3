@@ -3027,13 +3027,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-240: Fractional f32 match patterns emit invalid LLVM constants
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed**: Matching `cast<f32>(0.1)` against `0.1` emits `fcmp oeq float ..., 0.1`, rejected by clang at O0/O3 as a floating-point constant invalid for its type.
 
 **Cause**: Match literal generation emits the original decimal without converting it to the matched floating-point width.
+
+**Resolution (2026-09-09)**: A shared LLVM literal formatter rounds f32 constants and encodes them at the required precision for scalar, tuple, and enum patterns. It also preserves valid exponent notation when JavaScript stringifies very small or large decimal literals (the old formatter appended `.0` after the exponent). Both defects were reproduced before the fix; the new runtime regressions pass at O0/O3 with LLVM verification.
 
 ### BUG-241: JSON.parse accepts trailing non-whitespace input
 
