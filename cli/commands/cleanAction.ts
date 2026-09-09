@@ -240,12 +240,9 @@ function assertNoSymlinkedWorkingDirectoryPath(cwd: string): void {
   if (shellCwd && path.isAbsolute(shellCwd)) candidates.push(shellCwd);
   for (let i = 0; i < process.execArgv.length; i++) {
     const arg = process.execArgv[i]!;
-    const requested =
-      arg === "--cwd"
-        ? process.execArgv[++i]
-        : arg.startsWith("--cwd=")
-          ? arg.slice("--cwd=".length)
-          : undefined;
+    let requested: string | undefined;
+    if (arg === "--cwd") requested = process.execArgv[++i];
+    else if (arg.startsWith("--cwd=")) requested = arg.slice("--cwd=".length);
     if (!requested) continue;
     if (path.isAbsolute(requested)) candidates.push(requested);
     else if (shellCwd && path.isAbsolute(shellCwd)) {
