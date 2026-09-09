@@ -3000,3 +3000,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: Passing `f32` values 1.5, -2.25, and 3.5 directly to `printf` produced `0.00 0.00 0.00` on the local native target. Integer argument promotions existed, but the C default promotion from float to double was missing.
 
 **Resolution (2026-09-09)**: Extern variadic arguments now extend LLVM `float` to `double`. Fixed parameters retain their declared widths. The runtime regression also calls `fabsf` with a fixed f32 parameter; it passes at O0/O3 with LLVM verification. All 99 selected numeric, TypeUtils, and codegen tests, compiler typecheck, and ESLint pass.
+
+### BUG-238: Audit cross-reference anchors fail documentation validation
+
+**Status**: Fixed
+
+**Priority**: P3
+
+**Source**: `docs/audits/2026-09-08.md`
+
+**Observed**: Once the audit report was tracked, nine cross-references from BUGS.md failed the Markdown validator. The report used explicit HTML anchors, while the validator recognizes heading-generated anchors only.
+
+**Resolution (2026-09-09)**: Findings now use short BUG-number headings that generate the same stable anchors; descriptions remain directly below each heading. All 95 Markdown documentation tests pass without changing the validator.
