@@ -3053,13 +3053,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-242: JSON custom-parser fallback invokes the same hook again
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
 **Observed**: A `fromJson` hook returning `JsonParseResult.Default` is invoked twice when a guard stops further recursion; the field value remains zero instead of the input's 42 at O0/O3. Without the guard, fallback repeatedly invokes the same hook.
 
 **Cause**: The Default branch calls `JSON.parseAny` on the same type, which rediscovers and invokes `fromJson` rather than entering the default parser.
+
+**Resolution (2026-09-09)**: Default fallback now enters a separate built-in parser dispatcher. Nested fields still invoke their own hooks. Three new O0/O3 regressions verify bounded hook counts, parsed values, nested error propagation, and unchanged Success/Ignore behavior; the complete six-test JSON audit set passes.
 
 ### BUG-243: Clean loses symlinked working-directory validation on Bun 1.4.2
 
@@ -3072,3 +3074,27 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Cause**: Bun 1.4.2 canonicalizes `process.cwd()`, while Bun 1.3.14 preserves the logical path supplied by `--cwd`. Checking only the canonical path misses the symlink.
 
 **Resolution (2026-09-09)**: Clean additionally validates logical paths from shell `PWD` and runtime `--cwd` arguments when they resolve to the actual current directory. Stale, missing, and relative inherited PWD values are ignored. Regression coverage checks shell paths, absolute/relative runtime paths, and the equals form without weakening the existing JSON or exit-code assertions.
+
+### BUG-244: Forwarding generic pointer types can add an extra pointer level
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed**: A generic wrapper that stores `JSON.parse<T>` in `*T` and calls `JSON.free<T>` on it fails type checking with `expected **T, got *T`, even when instantiated with `int`.
+
+### BUG-245: JSON.parse cannot instantiate a fixed-array root type
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed**: `JSON.parse<int[2]>` fails compilation with an unsupported cast from `i8*` to `[2 x i32*]`. Generic substitution flattens the pointer and array modifiers rather than representing a pointer to the whole array. Fixed arrays inside a struct work and provide a workaround.
+
+### BUG-246: JSON mistakes unrelated Array-prefixed structs for dynamic arrays
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed**: A normal `ArrayRecord { values: int[2] }` is rejected when parsing its JSON object. The serializer, parser, and cleanup identify dynamic arrays using only the first five characters of the reflected type name.

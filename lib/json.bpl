@@ -837,7 +837,7 @@ struct JSON {
                                 JsonParseResult.Default => {
                                     # Parse the extracted string
                                     local subP: JsonParser = JsonParser.new(rawJson);
-                                    JSON.parseAny(&subP, ptr, info);
+                                    JSON.parseDefault(&subP, ptr, info);
                                     if (subP.has_error) {
                                         p.fail(subP.error_msg);
                                     }
@@ -854,6 +854,12 @@ struct JSON {
                 i = i + 1;
             }
         }
+        JSON.parseDefault(p, ptr, info);
+    }
+
+    # Bypass only the current type's hook; nested values still use parseAny.
+    frame parseDefault(p: *JsonParser, ptr: ulong, info: *TypeInfo) {
+        if (p.has_error) { return; }
         if (info.kind == TYPE_KIND_PRIMITIVE) {
             JSON.parsePrimitive(p, ptr, info);
         } else {
