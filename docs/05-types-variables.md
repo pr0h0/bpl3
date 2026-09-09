@@ -58,13 +58,13 @@ local ch: char = 65;  # ASCII 'A'
 
 | Type  | Size   | Precision          | LLVM Type | Alias    |
 | ----- | ------ | ------------------ | --------- | -------- |
-| `f32` | 32-bit | ~7 decimal digits  | `float`   | `float`  |
-| `f64` | 64-bit | ~15 decimal digits | `double`  | `double` |
+| `f32` | 32-bit | ~7 decimal digits  | `float`   | none     |
+| `f64` | 64-bit | ~15 decimal digits | `double`  | `float`, `double` |
 
 **Examples:**
 
 ```bpl
-local pi: float = 3.14159;       # f32
+local pi: f32 = cast<f32>(3.14159); # explicit narrowing from a 64-bit literal
 local precise: double = 3.141592653589793;  # f64
 local small: float = 0.0001;
 local big: double = 1700000.0;   # Scientific notation like 1.7e6 is not supported yet

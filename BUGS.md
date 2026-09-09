@@ -2907,7 +2907,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-232: f32 is recognized as a type but rejected as numeric
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
@@ -2920,6 +2920,8 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Suggested resolution**: Centralize builtin type definitions: category, width, signedness, canonical aliases, conversion rules, LLVM type, and debug metadata. Exercise all documented numeric spellings through arithmetic and conversions. Runtime reproduction here covers f32; f64 omission is source evidence.
 
 **Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-232).
+
+**Resolution (2026-09-08)**: Added a shared primitive-type registry used by builtin registration, numeric checking, aliases, integer conversion eligibility, LLVM lowering, signedness, and DWARF metadata. Implemented f32/f64 conversions and clarified widths in the spec/type guide. Numeric and compiler selection: 282 tests passed; typecheck passed.
 
 ### BUG-233: JSON Unicode escapes are silently decoded incorrectly
 

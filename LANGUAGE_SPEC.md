@@ -38,7 +38,9 @@ This section defines the semantic contract the compiler currently implements. Sy
 - `short` and `ushort` are 16-bit integer aliases for `i16` and `u16`.
 - `char` and `uchar` are 8-bit integer aliases for `i8` and `u8`.
 - `bool` is a 1-bit boolean value.
-- `float` and `double` lower to 64-bit LLVM `double` values in the current backend.
+- `float`, `double`, and `f64` are aliases for the same 64-bit floating-point type, lowering to LLVM `double`.
+- `f32` is a distinct 32-bit floating-point type, lowering to LLVM `float`. Use explicit casts between `f32` and the 64-bit type; floating-point literals default to 64-bit.
+- Floating-point negation changes the sign bit, including signed zero. Equality is ordered; inequality is its complement, so NaN is unequal to every value including itself.
 - `void` has no runtime value unless used behind a pointer, where `*void` lowers as `i8*`.
 - `null` is compatible with struct/object values and pointer-like null contexts; `nullptr` is compatible with pointer types.
 - `string` currently lowers as a C-compatible `i8*` string pointer.

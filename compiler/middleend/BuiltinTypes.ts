@@ -1,3 +1,4 @@
+import { PRIMITIVE_CANONICAL_NAMES, PRIMITIVE_ALIASES } from "../common/PrimitiveTypes";
 /**
  * Builtin type initialization for the BPL type checker
  * Provides base types, type aliases, and built-in struct definitions
@@ -21,37 +22,12 @@ export const INTERNAL_LOCATION: SourceLocation = {
 /**
  * Base types that are fundamental to the language
  */
-export const BASE_TYPES = [
-  "i1",
-  "i8",
-  "u8",
-  "i16",
-  "u16",
-  "i32",
-  "u32",
-  "i64",
-  "u64",
-  "double",
-  "void",
-  "null",
-  "nullptr",
-];
+export const BASE_TYPES = [...PRIMITIVE_CANONICAL_NAMES, "void", "null", "nullptr"];
 
 /**
  * Type aliases mapping user-friendly names to their underlying types
  */
-export const TYPE_ALIASES: [string, string][] = [
-  ["int", "i32"],
-  ["uint", "u32"],
-  ["float", "double"],
-  ["bool", "i1"],
-  ["char", "i8"],
-  ["uchar", "u8"],
-  ["short", "i16"],
-  ["ushort", "u16"],
-  ["long", "i64"],
-  ["ulong", "u64"],
-];
+export const TYPE_ALIASES: [string, string][] = Object.entries(PRIMITIVE_ALIASES);
 
 /**
  * Mapping from primitive types to their struct wrappers

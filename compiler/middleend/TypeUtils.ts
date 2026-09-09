@@ -13,90 +13,12 @@ import {
   lowerImplicitConversion,
 } from "./lowering/ImplicitConversions";
 
-/**
- * Integer type names for type checking
- */
-export const INTEGER_TYPES = [
-  "i8",
-  "u8",
-  "i16",
-  "u16",
-  "i32",
-  "u32",
-  "i64",
-  "u64",
-  "int",
-  "uint",
-  "long",
-  "ulong",
-  "short",
-  "ushort",
-  "char",
-  "uchar",
-];
+import { PRIMITIVE_INTEGER_NAMES, PRIMITIVE_NAMES, PRIMITIVE_ALIASES, getPrimitiveType } from "../common/PrimitiveTypes";
 
-/**
- * Numeric type names for casting
- */
-export const NUMERIC_TYPES = [
-  "int",
-  "uint",
-  "float",
-  "double",
-  "bool",
-  "i1",
-  "char",
-  "uchar",
-  "short",
-  "ushort",
-  "long",
-  "ulong",
-  "i8",
-  "u8",
-  "i16",
-  "u16",
-  "i32",
-  "u32",
-  "i64",
-  "u64",
-];
-
-/**
- * Known primitive types for type matching
- */
-export const KNOWN_TYPES = [
-  "int",
-  "i1",
-  "i8",
-  "i16",
-  "i32",
-  "i64",
-  "u8",
-  "u16",
-  "u32",
-  "u64",
-  "float",
-  "double",
-  "bool",
-  "char",
-  "void",
-  "string",
-];
-
-/**
- * Type aliases mapping BPL type names to their canonical LLVM-style names
- */
-export const TYPE_ALIASES: Readonly<Record<string, string>> = {
-  long: "i64",
-  ulong: "u64",
-  int: "i32",
-  uint: "u32",
-  short: "i16",
-  ushort: "u16",
-  char: "i8",
-  uchar: "u8",
-  bool: "i1",
-};
+export const INTEGER_TYPES = PRIMITIVE_INTEGER_NAMES;
+export const NUMERIC_TYPES = PRIMITIVE_NAMES;
+export const KNOWN_TYPES = [...PRIMITIVE_NAMES, "void", "string"];
+export const TYPE_ALIASES = PRIMITIVE_ALIASES;
 
 /**
  * Type utilities class providing static methods for type operations
@@ -108,31 +30,7 @@ export class TypeUtils {
   static isNumericType(type: AST.TypeNode): boolean {
     if (type.kind !== "BasicType") return false;
     if (type.pointerDepth > 0 || type.arrayDimensions.length > 0) return false;
-    if (type.name === "i32" || type.name === "int" || type.name === "double") {
-      return true;
-    }
-    switch (type.name) {
-      case "uint":
-      case "float":
-      case "bool":
-      case "i1":
-      case "char":
-      case "uchar":
-      case "short":
-      case "ushort":
-      case "long":
-      case "ulong":
-      case "i8":
-      case "u8":
-      case "i16":
-      case "u16":
-      case "u32":
-      case "i64":
-      case "u64":
-        return true;
-      default:
-        return false;
-    }
+    return getPrimitiveType(type.name) !== undefined;
   }
 
   /**

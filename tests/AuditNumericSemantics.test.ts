@@ -40,3 +40,29 @@ it("preserves signed zero through floating-point negation", () => {
     `,
   }]);
 }, 60000);
+
+it("supports every float spelling through arithmetic, calls, and explicit conversions", () => {
+  expectCorrectnessSuite([{
+    name: "f32 and f64 arithmetic",
+    validateLlvm: true,
+    expectedStdout: "-1.5 2.5 3.0 0.5 0.8\n3 -3 7.0\n8.0 0 1\n",
+    source: `
+      extern printf(fmt: string, ...);
+      frame negate(x: f32) ret f32 { return -x; }
+      frame main() ret int {
+        local x: f32 = cast<f32>(1.5);
+        local y: f32 = cast<f32>(2);
+        printf("%.1f %.1f %.1f %.1f %.1f\\n", cast<float>(negate(x)),
+          cast<double>(x + cast<f32>(1)), cast<f64>(x * y),
+          cast<float>(y - x), cast<float>(x / y));
+        printf("%d %d %.1f\\n", cast<int>(cast<f32>(3.75)),
+          cast<int>(cast<f32>(-3.75)), cast<float>(cast<f32>(cast<uint>(7))));
+        local a: f64 = 4.0;
+        local b: double = a;
+        local c: float = b;
+        printf("%.1f %d %d\\n", a + c, x == y, x < y);
+        return 0;
+      }
+    `,
+  }]);
+}, 60000);

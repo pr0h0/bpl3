@@ -1,3 +1,4 @@
+import { PRIMITIVE_TYPES, getPrimitiveType } from "../../common/PrimitiveTypes";
 import type { AST } from "../..";
 import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
@@ -16,56 +17,14 @@ import {
  * DWARF basic type information: [displayName, sizeInBits, encoding]
  * Encoding values: 2=boolean, 4=float, 5=signed, 6=signed_char, 7=unsigned, 8=unsigned_char
  */
-const DWARF_BASIC_TYPES: Record<string, [string, number, number]> = {
-  i32: ["int", 32, 5],
-  int: ["int", 32, 5],
-  u32: ["unsigned int", 32, 7],
-  uint: ["unsigned int", 32, 7],
-  i64: ["long", 64, 5],
-  long: ["long", 64, 5],
-  u64: ["unsigned long", 64, 7],
-  ulong: ["unsigned long", 64, 7],
-  i16: ["short", 16, 5],
-  short: ["short", 16, 5],
-  u16: ["unsigned short", 16, 7],
-  ushort: ["unsigned short", 16, 7],
-  i8: ["signed char", 8, 6],
-  char: ["char", 8, 8],
-  u8: ["unsigned char", 8, 8],
-  uchar: ["unsigned char", 8, 8],
-  i1: ["bool", 8, 2],
-  bool: ["bool", 8, 2],
-  double: ["double", 64, 4],
-  float: ["float", 64, 4],
-};
-
+const DWARF_BASIC_TYPES: Record<string, [string, number, number]> = Object.fromEntries(
+  Object.entries(PRIMITIVE_TYPES).map(([name, info]) => [name,
+    [info.debugName, info.kind === "boolean" ? 8 : info.bits, info.debugEncoding],
+  ]),
+);
 const SIMPLE_BUILTIN_LLVM_TYPES: Record<string, string> = {
-  i32: "i32",
-  u32: "i32",
-  int: "i32",
-  uint: "i32",
-  i8: "i8",
-  u8: "i8",
-  char: "i8",
-  uchar: "i8",
-  i16: "i16",
-  u16: "i16",
-  short: "i16",
-  ushort: "i16",
-  i64: "i64",
-  u64: "i64",
-  long: "i64",
-  ulong: "i64",
-  float: "double",
-  double: "double",
-  f64: "double",
-  f32: "float",
-  bool: "i1",
-  i1: "i1",
-  void: "void",
-  string: "i8*",
-  null: "i8*",
-  nullptr: "i8*",
+  ...Object.fromEntries(Object.entries(PRIMITIVE_TYPES).map(([name, info]) => [name, info.llvmType])),
+  void: "void", string: "i8*", null: "i8*", nullptr: "i8*",
 };
 
 function resolveSimpleBuiltinLlvmType(
@@ -1165,24 +1124,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
   }
 
   protected isPrimitiveType(name: string): boolean {
-    const primitives = [
-      "int",
-      "i8",
-      "i16",
-      "i32",
-      "i64",
-      "u8",
-      "u16",
-      "u32",
-      "u64",
-      "float",
-      "double",
-      "bool",
-      "char",
-      "void",
-      "string",
-    ];
-    return primitives.includes(name);
+    return getPrimitiveType(name) !== undefined || name === "void" || name === "string";
   }
 
   protected getASTTypeSize(type: AST.TypeNode): number {
@@ -1716,43 +1658,11 @@ export abstract class TypeGenerator extends StructEnumGenerator {
             llvmType = `%struct.${basicType.name}`; // Fallback
           }
         } else {
+          const primitive = getPrimitiveType(basicType.name);
+          if (primitive) {
+            llvmType = primitive.llvmType;
+          } else {
           switch (basicType.name) {
-            case "i32":
-            case "u32":
-            case "int":
-            case "uint":
-              llvmType = "i32";
-              break;
-            case "i8":
-            case "u8":
-            case "char":
-            case "uchar":
-              llvmType = "i8";
-              break;
-            case "i16":
-            case "u16":
-            case "short":
-            case "ushort":
-              llvmType = "i16";
-              break;
-            case "i64":
-            case "u64":
-            case "long":
-            case "ulong":
-              llvmType = "i64";
-              break;
-            case "float":
-            case "double":
-            case "f64":
-              llvmType = "double";
-              break;
-            case "f32":
-              llvmType = "float";
-              break;
-            case "bool":
-            case "i1":
-              llvmType = "i1";
-              break;
             case "void":
               llvmType = basicType.pointerDepth > 0 ? "i8" : "void";
               break;
@@ -1806,6 +1716,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
               }
 
               break;
+          }
           }
         }
 

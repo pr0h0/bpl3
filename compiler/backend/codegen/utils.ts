@@ -1,3 +1,4 @@
+import { getPrimitiveType } from "../../common/PrimitiveTypes";
 /**
  * Code Generator Utilities
  * Helper functions and utilities for LLVM IR generation
@@ -124,16 +125,8 @@ export function getIntegerBitWidth(llvmType: string): number {
  * Check if a type is signed (based on BPL naming conventions)
  */
 export function isSigned(typeName: string): boolean {
-  return (
-    typeName === "int" ||
-    typeName === "i8" ||
-    typeName === "i16" ||
-    typeName === "i32" ||
-    typeName === "i64" ||
-    typeName === "char" ||
-    typeName === "short" ||
-    typeName === "long"
-  );
+  const info = getPrimitiveType(typeName);
+  return info?.kind === "integer" && info.signed;
 }
 
 /**

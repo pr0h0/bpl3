@@ -1,3 +1,4 @@
+import { PRIMITIVE_INTEGER_NAMES } from "../../common/PrimitiveTypes";
 import * as AST from "../../common/AST";
 
 export type LoweredImplicitConversionKind =
@@ -13,24 +14,7 @@ export interface LoweredImplicitConversion {
   sourceType: AST.TypeNode;
 }
 
-const INTEGER_TYPES = new Set([
-  "i8",
-  "u8",
-  "i16",
-  "u16",
-  "i32",
-  "u32",
-  "i64",
-  "u64",
-  "int",
-  "uint",
-  "long",
-  "ulong",
-  "short",
-  "ushort",
-  "char",
-  "uchar",
-]);
+const INTEGER_TYPES = new Set(PRIMITIVE_INTEGER_NAMES);
 
 export function areArrayDimensionsAssignable(
   targetDimensions: (number | null)[],

@@ -1,3 +1,4 @@
+import { PRIMITIVE_NAMES } from "../common/PrimitiveTypes";
 /**
  * TypeCheckerBase - Base class with shared state and utility methods for type checking
  * This class provides the foundation for modular type checking with separate
@@ -251,35 +252,7 @@ export const TYPE_CHECKER_FAILURE_CODES = [
 ] as const;
 
 export const RESERVED_BUILTIN_TYPE_NAMES = new Set([
-  "i1",
-  "i8",
-  "u8",
-  "i16",
-  "u16",
-  "i32",
-  "u32",
-  "i64",
-  "u64",
-  "double",
-  "void",
-  "null",
-  "nullptr",
-  "int",
-  "uint",
-  "float",
-  "bool",
-  "char",
-  "uchar",
-  "short",
-  "ushort",
-  "long",
-  "ulong",
-  "string",
-  "f32",
-  "f64",
-  "Self",
-  "TypeInfo",
-  "Any",
+  ...PRIMITIVE_NAMES, "void", "null", "nullptr", "string", "Self", "TypeInfo", "Any",
 ]);
 
 const STANDARD_LIBRARY_RUNTIME_ERROR_TYPES = new Set([

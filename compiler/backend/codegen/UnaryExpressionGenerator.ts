@@ -940,25 +940,32 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     }
 
     // Float casts
-    if (srcType === "double" && destType.startsWith("i")) {
+    if ((srcType === "double" || srcType === "float") && this.getBitWidth(destType) > 0) {
       const isSigned = this.isSigned(destTypeNode);
       const width = this.getBitWidth(destType);
 
       // Use saturating cast intrinsic to prevent UB on overflow
       const intrinsicOp = isSigned ? "llvm.fptosi.sat" : "llvm.fptoui.sat";
-      const intrinsicName = `${intrinsicOp}.i${width}.f64`;
+      const intrinsicName = `${intrinsicOp}.i${width}.${srcType === "float" ? "f32" : "f64"}`;
 
-      const decl = `declare ${destType} @${intrinsicName}(double)`;
+      const decl = `declare ${destType} @${intrinsicName}(${srcType})`;
       if (!this.declarationsOutput.includes(decl)) {
         this.declarationsOutput.push(decl);
       }
 
-      this.emit(`  ${reg} = call ${destType} @${intrinsicName}(double ${val})`);
+      this.emit(`  ${reg} = call ${destType} @${intrinsicName}(${srcType} ${val})`);
       return reg;
     }
-    if (srcType.startsWith("i") && destType === "double") {
+    if (this.getBitWidth(srcType) > 0 && (destType === "double" || destType === "float")) {
       const op = this.isSigned(srcTypeNode) ? "sitofp" : "uitofp";
-      this.emit(`  ${reg} = ${op} ${srcType} ${val} to double`);
+      this.emit(`  ${reg} = ${op} ${srcType} ${val} to ${destType}`);
+      return reg;
+    }
+
+    if ((srcType === "float" && destType === "double") ||
+        (srcType === "double" && destType === "float")) {
+      const op = srcType === "float" ? "fpext" : "fptrunc";
+      this.emit(`  ${reg} = ${op} ${srcType} ${val} to ${destType}`);
       return reg;
     }
 

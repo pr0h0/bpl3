@@ -1,3 +1,4 @@
+import { getPrimitiveType } from "../common/PrimitiveTypes";
 /**
  * ExpressionChecker - Handles type checking of expressions
  * These methods are designed to be bound to a TypeChecker instance using .call()
@@ -76,47 +77,8 @@ function isArithmeticOperandType(
 }
 
 function isOperatorOverloadFreeBasicTypeName(name: string): boolean {
-  switch (name.charCodeAt(0)) {
-    case 98:
-      return name === "bool";
-    case 99:
-      return name === "char";
-    case 100:
-      return name === "double";
-    case 102:
-      return name === "float";
-    case 105:
-      switch (name.length) {
-        case 2:
-          return name === "i1" || name === "i8";
-        case 3:
-          return name === "i16" || name === "i32" || name === "i64";
-      }
-      return name === "int";
-    case 108:
-      return name === "long";
-    case 110:
-      return name === "null" || name === "nullptr";
-    case 115:
-      return name === "short" || name === "string";
-    case 117:
-      switch (name.length) {
-        case 2:
-          return name === "u8";
-        case 3:
-          return name === "u16" || name === "u32" || name === "u64";
-        case 4:
-          return name === "uint";
-        case 5:
-          return name === "uchar" || name === "ulong";
-        case 6:
-          return name === "ushort";
-      }
-      return false;
-    case 118:
-      return name === "void";
-  }
-  return false;
+  return getPrimitiveType(name) !== undefined ||
+    name === "void" || name === "string" || name === "null" || name === "nullptr";
 }
 
 function canHaveOperatorOverload(type: AST.TypeNode): boolean {
