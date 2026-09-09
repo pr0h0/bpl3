@@ -16,14 +16,17 @@ for (const bits of [8, 16, 32, 64]) {
     const label = (
       { 8: "char", 16: "short", 32: "int", 64: "long" } as Record<number, string>
     )[bits]!;
+    const signedLabel = bits === 8 ? "signed char" : label;
+    const signedEncoding = bits === 8 ? 6 : 5;
+    const unsignedEncoding = bits === 8 ? 8 : 7;
     canonical[name] = {
       canonicalName: name,
       kind: "integer",
       bits,
       signed,
       llvmType: `i${bits}`,
-      debugName: signed ? (bits === 8 ? "signed char" : label) : `unsigned ${label}`,
-      debugEncoding: bits === 8 ? (signed ? 6 : 8) : signed ? 5 : 7,
+      debugName: signed ? signedLabel : `unsigned ${label}`,
+      debugEncoding: signed ? signedEncoding : unsignedEncoding,
     };
   }
 }
