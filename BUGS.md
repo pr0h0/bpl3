@@ -2792,3 +2792,167 @@ and Linux retains the full Linux/x86/GNU coverage.
 
 **Resolution**: Generated IR calls `__bpl_write_stderr`, implemented by the C
 runtime support layer using the host libc's public `stderr` interface.
+
+---
+
+## Audit findings — 2026-09-08
+
+Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) for complete reproductions, validation scope, and repair priorities. All entries below remain open; no implementation fixes were applied.
+
+### BUG-226: Switch fallthrough skips deferred cleanup
+
+**Status**: Open
+
+**Priority**: P1
+
+**Source**: `compiler/backend/codegen/StatementGenerator.ts:2514`
+
+**Observed**: Expected `one → cleanup → two → end`; actual `one → two → end`. No cleanup message is printed, even at function exit. LANGUAGE_SPEC.md:293 explicitly includes fallthrough among scope exits that execute defer.
+
+**Cause**: generateFallthrough emits a branch without unwinding the case scope. The normal block cleanup is bypassed by the terminator.
+
+**Suggested resolution**: Emit cleanup for every scope exited by fallthrough before branching. Share scope-exit lowering with break, continue, return, and match yields; preserve LIFO order.
+
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-226).
+
+### BUG-227: Returning a match-arm value skips deferred cleanup
+
+**Status**: Open
+
+**Priority**: P1
+
+**Source**: `compiler/backend/codegen/StatementGenerator.ts:2138`
+
+**Observed**: Expected `cleanup` before `value=1`; actual output is only `value=1`. The arm return correctly yields to the match expression, but never executes the arm cleanup.
+
+**Cause**: The !isMatchYield guard encloses all deferred cleanup. A match yield then branches directly to the merge block.
+
+**Suggested resolution**: Track the scope depth at match entry and unwind the scopes exited by a yield. Keep enclosing function cleanup pending.
+
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-227).
+
+### BUG-228: A return in one branch suppresses destruction in another branch
+
+**Status**: Open
+
+**Priority**: P1
+
+**Source**: `compiler/backend/codegen/StatementGenerator.ts:2141`
+
+**Observed**: choose(false) returns resource 2 but fails to destroy resource 1. Expected `destroy 1 → chosen 2 → destroy 2`; actual `chosen 2 → destroy 2`. The reproduction uses logging destructors, with no resource allocation.
+
+**Cause**: Generating the earlier return a inserts a into movedAutoDestroyAddresses, a mutable set shared across the rest of function generation. generateAutoDestroy at line 1497 consults that set on the later return b path, even though the earlier branch did not execute.
+
+**Suggested resolution**: Make the return-value cleanup exclusion local to each emitted exit, or introduce control-flow-aware move state with explicit branch merges. Test both flag values and nested branches.
+
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-228).
+
+### BUG-229: Default Map equality silently rejects supported-looking key types
+
+**Status**: Open
+
+**Priority**: P1
+
+**Source**: `lib/map.bpl:127`
+
+**Observed**: After set(true, 1), has(true) is false. Setting true again increments count to 2 instead of updating the existing entry. The generic constructor accepts Map<bool, int> without a diagnostic.
+
+**Cause**: _mapDefaultEq falls through to false for bool, while _mapDefaultHash falls through to zero. Other types absent from the dispatch also lack defaults, but runtime validation here specifically covered bool.
+
+**Suggested resolution**: Define an explicit default-key capability, supply correct hash/equality for permitted keys, and reject unsupported default constructors at compile time. Keep the custom hasher/equaler overload available.
+
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-229).
+
+### BUG-230: NaN inequality disagrees with negated equality
+
+**Status**: Open
+
+**Priority**: P2
+
+**Source**: `compiler/backend/codegen/BinaryExpressionGenerator.ts:1009`
+
+**Observed**: For n = nan(""), printing n == n, n != n, !(n == n) produces `0 0 1`; expected ordinary floating-point inequality is `0 1 1`. This also breaks the familiar x != x NaN check.
+
+**Cause**: Scalar != uses fcmp one, which requires both operands to be ordered. fcmp une includes unordered operands and is the complement of ordered equality.
+
+**Suggested resolution**: Use fcmp une for scalar floating-point != and lock down NaN behavior for scalar and aggregate comparisons. See [LLVM fcmp semantics](https://llvm.org/docs/LangRef.html#fcmp-instruction).
+
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-230).
+
+### BUG-231: Floating-point unary minus loses negative zero
+
+**Status**: Open
+
+**Priority**: P2
+
+**Source**: `compiler/backend/codegen/UnaryExpressionGenerator.ts:149`
+
+**Observed**: With z = 0.0, copysign(1.0, -z) prints `1.0`, whereas sign-changing negation should produce `-1.0`.
+
+**Cause**: Negation is emitted as fsub double 0.0, value. Subtracting positive zero from positive zero does not implement sign-bit negation.
+
+**Suggested resolution**: Use LLVM fneg for floating-point negation. It flips the sign bit and preserves the remaining representation. See [LLVM fneg semantics](https://llvm.org/docs/LangRef.html#fneg-instruction).
+
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-231).
+
+### BUG-232: f32 is recognized as a type but rejected as numeric
+
+**Status**: Open
+
+**Priority**: P2
+
+**Source**: `compiler/middleend/TypeUtils.ts:108`
+
+**Observed**: A function returning -x for an f32 parameter is rejected with BPL_UNARY_NEGATION_OPERAND_TYPE_MISMATCH. A separate check of cast<f32>(1.5) fails with BPL_CAST_INVALID. docs/06-operators.md lists f32 and f64 among supported arithmetic types.
+
+**Cause**: TypeUtils.isNumericType and NUMERIC_TYPES omit f32/f64, while TypeGenerator.ts:61 maps them to LLVM floating-point types and TypeCheckerBase.ts reserves them as builtins. Fixing the frontend alone is insufficient: the unary emitter also only special-cases double.
+
+**Suggested resolution**: Centralize builtin type definitions: category, width, signedness, canonical aliases, conversion rules, LLVM type, and debug metadata. Exercise all documented numeric spellings through arithmetic and conversions. Runtime reproduction here covers f32; f64 omission is source evidence.
+
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-232).
+
+### BUG-233: JSON Unicode escapes are silently decoded incorrectly
+
+**Status**: Open
+
+**Priority**: P2
+
+**Source**: `lib/json.bpl:144`
+
+**Observed**: Parsing the valid JSON string "\u0041" returns `u0041` rather than `A`, without reporting an error.
+
+**Cause**: parseString handles short escapes but has no Unicode escape branch. The fallback copies the escape letter and subsequently treats the hexadecimal digits as ordinary text.
+
+**Suggested resolution**: Decode four-digit Unicode escapes, combine valid surrogate pairs, and encode the resulting code points consistently with the string representation. Reject invalid escapes instead of silently changing text. See [RFC 8259 section 7](https://www.rfc-editor.org/rfc/rfc8259#section-7).
+
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-233).
+
+### BUG-234: README advertises local type inference that the compiler forbids
+
+**Status**: Open
+
+**Priority**: P2
+
+**Source**: `compiler/middleend/StatementChecker.ts:855`
+
+**Observed**: local x = 1 is rejected with BPL_VARIABLE_TYPE_ANNOTATION_MISSING. README.md:38 advertises type inference, and AGENTS.MD contains unannotated local examples.
+
+**Cause**: The statement checker explicitly enforces annotations. This appears to be an intentional implementation rule, so the confirmed defect is the conflicting documentation.
+
+**Suggested resolution**: Choose and publish one contract. Either remove the unsupported inference claim and repair examples, or implement local initializer-based inference. Compile documented snippets in CI, including deliberately invalid examples with expected diagnostics.
+
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-234).
+
+### BUG-235: Map bucket storage never scales with entry count
+
+**Status**: Open
+
+**Priority**: P2
+
+**Category**: Standard library / Performance
+
+**Source**: `lib/map.bpl:171`, `lib/map.bpl:207`.
+
+**Evidence**: Default construction creates 16 buckets; insertion adds nodes to linked chains without load-factor tracking, growth, or rehash. No later growth path exists in Map. The fixed bucket count makes chain length grow with entry count and invalidates the unconditional O(1) description. This is source-confirmed algorithmic analysis, not a measured slowdown.
+
+**Suggested resolution**: Add load-factor-based growth, rehashing, reserve, and size-sensitive benchmarks; document iterator/reference invalidation.
