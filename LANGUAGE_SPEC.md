@@ -104,7 +104,7 @@ The compiler currently runs as parser AST, type checker, and LLVM code generator
 
 ### Variables
 
-Variables must be declared as `local` or `global`.
+Variables must be declared as `local` or `global` with an explicit type annotation. Local initializer-based type inference is not supported.
 
 ```bpl
 local x: int;

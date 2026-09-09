@@ -475,23 +475,33 @@ frame main() ret int {
 
 ## Type Inference
 
-BPL has **limited** type inference:
+Local declarations always require explicit type annotations. Function return
+annotations specify the result type; `ret T` is not inferred. Generic calls can
+supply type arguments explicitly.
 
+<!-- executable-example: explicit-locals -->
 ```bpl
-# ❌ No inference for simple variables
-local x = 42;  # Error: type required
+extern printf(fmt: string, ...);
 
-# ✅ Some inference in generic contexts
-local box: Box<int>;
-box.value = 42;  # Compiler knows value is int
+frame identity<T>(value: T) ret T { return value; }
 
-# ✅ Return type inference in some cases
-frame identity<T>(val: T) ret T {
-    return val;  # Return type inferred as T
+frame main() ret int {
+    local x: int = 42;
+    local result: int = identity<int>(x);
+    printf("%d\n", result);
+    return 0;
 }
 ```
 
-**Philosophy:** BPL favors explicitness over brevity for clarity.
+<!-- rejected-example: missing-local-type -->
+```bpl
+frame main() ret int {
+    local x = 42;
+    return x;
+}
+```
+
+The rejected example reports `BPL_VARIABLE_TYPE_ANNOTATION_MISSING`.
 
 ## Type Conversions
 

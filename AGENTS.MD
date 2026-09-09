@@ -31,7 +31,7 @@ You are working with BPL, a statically-typed, compiled programming language that
 - `i8`, `i16`, `i32`, `i64` (signed integers)
 - `float` (f64), `f32`, `f64`
 - `bool` (`true`, `false`)
-- `char` (u8)
+- `char` (i8), `uchar` (u8)
 - `void` (empty type)
 - `nullptr` (null pointer)
 
@@ -43,14 +43,15 @@ You are working with BPL, a statically-typed, compiled programming language that
 - **Function Types**: `Func<Ret>(Arg1, Arg2)`
 - **Lambda Types**: Lambda<Ret>(Arg1, Arg2)
 - **Generics**: `Struct<T>`, `Func<T>`
-- **String**: `string` (immutable string slice)
+- **String**: `string` (C-compatible null-terminated pointer)
 
 ### Variables
 
 - **Local**: `local name: Type = value;`
 - **Global**: `global NAME: Type = value;`
 - **Constants**: `local const name: Type = value;`
-- **Destructuring**: `local (x, y) = tuple;`
+- **Destructuring**: `local (x: int, y: int) = tuple;`
+- Local declarations require explicit types. Use explicit generic type arguments in examples.
 
 ### Functions (`frame`)
 
@@ -64,12 +65,13 @@ frame identity<T>(val: T) ret T {
     return val;
 }
 
-**Note**: Functions (`Func<T>`) are raw function pointers (compatible with C ABI). Lambdas (`Lambda<T>`) are fat pointers (struct `{ func*, ctx* }`). You can cast a `Func` to a `Lambda` (wrapping it), but casting a `Lambda` to a `Func` is forbidden.
 ```
+
+**Note**: Functions (`Func<T>`) are raw function pointers (compatible with C ABI). Lambdas (`Lambda<T>`) are fat pointers (struct `{ func*, ctx* }`). You can cast a `Func` to a `Lambda` (wrapping it), but casting a `Lambda` to a `Func` is forbidden.
 
 ### Structs
 
-````bpl
+```bpl
 struct Point {
     x: int,
     y: int,
@@ -79,11 +81,11 @@ struct Point {
         return sqrt(cast<float>(this.x * this.x + this.y * this.y));
     }
 }
+```
 
 **Layout Note**: Structs defined without methods (and without invalidating inheritance) are "POD" (Plain Old Data) and match C memory layout exactly. Structs with methods (or inheriting from classes with methods) implicitly inherit from `Type` and carry a hidden compilation-generated vtable pointer as their first field.
 
-# Inheritance
-struct Dog : Animal { ... }
+Inheritance uses `struct Dog : Animal { ... }`.
 
 ### Bound Methods
 
@@ -96,12 +98,12 @@ struct Counter {
 }
 
 frame main() {
-    local c = Counter { count: 0 };
+    local c: Counter = Counter { count: 0 };
     # 'inc' is a Lambda<void> that captures 'c'
-    local inc = c.increment;
+    local inc: Lambda<void>() = c.increment;
     inc();
 }
-````
+```
 
 ### Enums (ADTs)
 

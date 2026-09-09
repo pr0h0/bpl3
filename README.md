@@ -26,7 +26,7 @@ frame main() ret int {
 ### 🚀 Performance First
 
 - **LLVM Backend**: Leverages LLVM's world-class optimization and code generation
-- **Zero-Cost Abstractions**: High-level features without runtime overhead
+- **Optimizable Abstractions**: LLVM can inline and simplify high-level code; runtime checks, closures, and allocations may add overhead
 - **Manual Memory Management**: Direct control over allocations for predictable performance
 - **Native Compilation**: Produces optimized machine code for your platform
 
@@ -34,8 +34,8 @@ frame main() ret int {
 
 - **Strong Static Typing**: Catch errors at compile-time before they become runtime bugs
 - **Generics**: Write reusable, type-safe code with full monomorphization
-- **No Null Dereferences**: Explicit null handling patterns
-- **Type Inference**: Less verbose where it matters, explicit where it helps
+- **Runtime Null Checks**: Checked access paths diagnose null values; raw pointers retain C-style lifetime and bounds responsibilities
+- **Explicit Local Types**: Local declarations require type annotations, and generic type arguments can be supplied explicitly
 
 ### 🏗️ Modern Language Features
 

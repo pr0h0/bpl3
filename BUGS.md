@@ -2945,7 +2945,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-234: README advertises local type inference that the compiler forbids
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
@@ -2958,6 +2958,8 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Suggested resolution**: Choose and publish one contract. Either remove the unsupported inference claim and repair examples, or implement local initializer-based inference. Compile documented snippets in CI, including deliberately invalid examples with expected diagnostics.
 
 **Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-234).
+
+**Resolution (2026-09-08)**: Kept the existing explicit-local-type language contract; corrected README/AGENTS/type-guide claims and examples, including float widths and runtime safety/overhead wording. Added executable README and typed-generic examples plus the expected missing-type diagnostic. Both new doc tests and typecheck pass. Existing MarkdownDocs has 94 passing tests and one Git-tracked-link check blocked because the new audit report cannot be staged in this read-only .git session.
 
 ### BUG-235: Map bucket storage never scales with entry count
 
