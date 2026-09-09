@@ -3012,3 +3012,45 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: Once the audit report was tracked, nine cross-references from BUGS.md failed the Markdown validator. The report used explicit HTML anchors, while the validator recognizes heading-generated anchors only.
 
 **Resolution (2026-09-09)**: Findings now use short BUG-number headings that generate the same stable anchors; descriptions remain directly below each heading. All 95 Markdown documentation tests pass without changing the validator.
+
+### BUG-239: Early exits from try leave an exception handler active
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed**: Breaking out of a loop from its inner try block, then throwing in an enclosing try, invokes the exited inner catch instead of the enclosing catch at both O0 and O3.
+
+**Cause**: `ExceptionGenerator.generateTry` restores `exception_top` only on normal fallthrough and exception entry. Scope-exit cleanup does not restore handlers on break, continue, return, or match yield.
+
+**Resolution (2026-09-09)**: Try scopes now carry the previous exception frame, restored by shared scope cleanup after deferred work on normal and early exits. Three new O0/O3 regressions cover break, continue, function return, match yield, retained outer scopes, and throwing deferred cleanup. Existing cleanup/defer/runtime-failure coverage, typecheck, and lint pass.
+
+### BUG-240: Fractional f32 match patterns emit invalid LLVM constants
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed**: Matching `cast<f32>(0.1)` against `0.1` emits `fcmp oeq float ..., 0.1`, rejected by clang at O0/O3 as a floating-point constant invalid for its type.
+
+**Cause**: Match literal generation emits the original decimal without converting it to the matched floating-point width.
+
+### BUG-241: JSON.parse accepts trailing non-whitespace input
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed**: `JSON.parse<int>("1 false")` succeeds at O0/O3 and ignores the trailing value.
+
+**Cause**: The root parser does not require complete consumption after parsing one value.
+
+### BUG-242: JSON custom-parser fallback invokes the same hook again
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed**: A `fromJson` hook returning `JsonParseResult.Default` is invoked twice when a guard stops further recursion; the field value remains zero instead of the input's 42 at O0/O3. Without the guard, fallback repeatedly invokes the same hook.
+
+**Cause**: The Default branch calls `JSON.parseAny` on the same type, which rediscovers and invokes `fromJson` rather than entering the default parser.

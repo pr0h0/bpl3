@@ -18,8 +18,10 @@ import { ExpressionGenerator } from "./ExpressionGenerator";
 export abstract class ExceptionGenerator extends ExpressionGenerator {
   protected abstract generateBlock(
     block: AST.BlockStmt,
-    skipEntryLabel?: boolean,
-    skipTerminator?: boolean,
+    isLoop?: boolean,
+    isFunction?: boolean,
+    isSwitch?: boolean,
+    previousExceptionFrame?: string,
   ): void;
   protected abstract generateStatement(stmt: AST.Statement): void;
 
@@ -89,13 +91,10 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
     // Try Body
     this.emit(`${tryBodyLabel}:`);
-    this.generateBlock(stmt.tryBlock);
+    this.generateBlock(stmt.tryBlock, false, false, false, prevFramePtrReg);
 
-    // On success, pop stack
+    // Block cleanup restores the previous handler on all normal scope exits.
     if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
-      this.emit(
-        `  store %struct.ExceptionFrame* ${prevFramePtrReg}, %struct.ExceptionFrame** @exception_top`,
-      );
       this.emit(`  br label %${endLabel}`);
     }
 

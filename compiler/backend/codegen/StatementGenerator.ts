@@ -20,6 +20,7 @@ import { codeGenLog } from "../../common/Logger";
 import { TokenType } from "../../frontend/TokenType";
 import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConversions";
 import { AsmGenerator } from "./AsmGenerator";
+import type { CodegenScope } from "./BaseCodeGenerator";
 
 const OPTIMIZED_NATIVE_STACK_LIMIT_BYTES = 1024 * 1024;
 const LLVM_STACKSAVE_INTRINSIC = "llvm.stacksave";
@@ -1285,6 +1286,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     isLoop: boolean = false,
     isFunction: boolean = false,
     isSwitch: boolean = false,
+    previousExceptionFrame?: string,
   ) {
     // Scope management:
     // We need to track variables declared in this block so we can restore their previous state (if any)
@@ -1292,7 +1294,13 @@ export abstract class StatementGenerator extends AsmGenerator {
     // This ensures that variables declared inside the block don't leak out or permanently shadow outer variables.
 
     // Push scope for defer
-    this.scopeStack.push({ deferred: [], isLoop, isFunction, isSwitch });
+    this.scopeStack.push({
+      deferred: [],
+      isLoop,
+      isFunction,
+      isSwitch,
+      previousExceptionFrame,
+    });
 
     let declaredInBlock: Set<string> | undefined;
 
@@ -1378,11 +1386,10 @@ export abstract class StatementGenerator extends AsmGenerator {
     const scope = this.scopeStack.pop()!;
     // Only generate defers if we haven't terminated (or if we are falling through)
     if (
-      scope.deferred.length > 0 &&
-      (this.output.length === 0 ||
-        !this.isTerminator(this.output[this.output.length - 1] || ""))
+      this.output.length === 0 ||
+      !this.isTerminator(this.output[this.output.length - 1] || "")
     ) {
-      this.emitDeferredStatements(scope.deferred);
+      this.emitScopeCleanup(scope);
     }
   }
 
@@ -1408,7 +1415,16 @@ export abstract class StatementGenerator extends AsmGenerator {
     movedAddress?: string,
   ): void {
     for (let i = this.scopeStack.length - 1; i >= retainedDepth; i--) {
-      this.emitDeferredStatements(this.scopeStack[i]!.deferred, movedAddress);
+      this.emitScopeCleanup(this.scopeStack[i]!, movedAddress);
+    }
+  }
+
+  private emitScopeCleanup(scope: CodegenScope, movedAddress?: string): void {
+    this.emitDeferredStatements(scope.deferred, movedAddress);
+    if (scope.previousExceptionFrame !== undefined) {
+      this.emit(
+        `  store %struct.ExceptionFrame* ${scope.previousExceptionFrame}, %struct.ExceptionFrame** @exception_top`,
+      );
     }
   }
 
@@ -1566,7 +1582,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     // Unwind scopes until loop or switch
     for (let i = this.scopeStack.length - 1; i >= 0; i--) {
       const scope = this.scopeStack[i]!;
-      this.emitDeferredStatements(scope.deferred);
+      this.emitScopeCleanup(scope);
 
       if (scope.isLoop) {
         if (this.loopStack.length === 0) {
@@ -1618,7 +1634,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     // Unwind scopes until loop
     for (let i = this.scopeStack.length - 1; i >= 0; i--) {
       const scope = this.scopeStack[i]!;
-      this.emitDeferredStatements(scope.deferred);
+      this.emitScopeCleanup(scope);
       if (scope.isLoop) break;
     }
 

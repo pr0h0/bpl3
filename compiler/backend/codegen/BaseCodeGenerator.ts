@@ -1,6 +1,7 @@
 import { CompilerError, type AST } from "../..";
 import type { SourceLocation } from "../../common/CompilerError";
 import { DebugInfoGenerator } from "./DebugInfoGenerator";
+
 import { FunctionAttributeGroups } from "./attributes/FunctionAttributeGroups";
 import {
   createIndexOutOfBoundsErrorDecl,
@@ -13,6 +14,14 @@ import {
   targetHasComponent,
   type ParsedTargetTriple,
 } from "../../common/TargetTriple";
+
+export interface CodegenScope {
+  deferred: AST.Statement[];
+  isLoop: boolean;
+  isFunction: boolean;
+  isSwitch?: boolean;
+  previousExceptionFrame?: string;
+}
 
 /**
  * Get the LLVM datalayout string for a given target triple.
@@ -255,12 +264,7 @@ export class BaseCodeGenerator {
   protected specMap: Map<string, AST.SpecDecl> = new Map();
   protected thunks: Set<string> = new Set();
   protected loopStack: { continueLabel: string; breakLabel: string }[] = [];
-  protected scopeStack: {
-    deferred: AST.Statement[];
-    isLoop: boolean;
-    isFunction: boolean;
-    isSwitch?: boolean;
-  }[] = [];
+  protected scopeStack: CodegenScope[] = [];
   protected declaredFunctions: Set<string> = new Set();
   protected globals: Set<string> = new Set();
   protected locals: Set<string> = new Set();
