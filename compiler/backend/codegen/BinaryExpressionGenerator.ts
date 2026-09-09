@@ -1006,7 +1006,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
           );
         }
 
-        op = isFloat ? "fcmp one" : "icmp ne";
+        op = isFloat ? "fcmp une" : "icmp ne";
         break;
       case TokenType.Less:
         if (isFloat) {

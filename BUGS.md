@@ -2871,7 +2871,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-230: NaN inequality disagrees with negated equality
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
@@ -2884,6 +2884,8 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Suggested resolution**: Use fcmp une for scalar floating-point != and lock down NaN behavior for scalar and aggregate comparisons. See [LLVM fcmp semantics](https://llvm.org/docs/LangRef.html#fcmp-instruction).
 
 **Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-230).
+
+**Resolution (2026-09-08)**: Scalar floating-point inequality now uses fcmp une. Scalar/aggregate NaN and finite comparison regressions pass at O0/O3 with LLVM verification; 3 tests and typecheck passed.
 
 ### BUG-231: Floating-point unary minus loses negative zero
 
