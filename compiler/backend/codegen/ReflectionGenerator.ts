@@ -124,6 +124,11 @@ export abstract class ReflectionGenerator extends TypeGenerator {
       }
 
       if (structDecl) {
+        if (basic.genericArgs.length > 0) {
+          const llvmType = this.resolveType(basic);
+          structDecl =
+            this.structMap.get(llvmType.slice("%struct.".length)) ?? structDecl;
+        }
         this.generateStructTypeInfo(globalName, basic, structDecl);
         return globalName;
       }
@@ -284,9 +289,10 @@ export abstract class ReflectionGenerator extends TypeGenerator {
       fieldsPtr = `getelementptr inbounds (${fieldArrayType}, ${fieldArrayType}* ${fieldsArrayName}, i32 0, i32 0)`;
     }
 
-    // Generate Methods
+    // Only concrete methods have a callable address. Method-level generics
+    // require type arguments and cannot be represented by MethodInfo.
     const methods = decl.members.filter(
-      (m) => m.kind === "FunctionDecl",
+      (m) => m.kind === "FunctionDecl" && m.genericParams.length === 0,
     ) as AST.FunctionDecl[];
 
     let methodsPtr = "null";
@@ -324,12 +330,11 @@ export abstract class ReflectionGenerator extends TypeGenerator {
         const symbolName =
           "@" + this.getMangledName(symbolPrefix, effectiveFuncType);
 
-        // Function Pointer Type (with explicit i8* closure context)
+        // Methods are raw function pointers with their declared parameters.
         const retType = this.resolveType(effectiveFuncType.returnType);
         const paramTypes = effectiveFuncType.paramTypes.map((p) =>
           this.resolveType(p),
         );
-        paramTypes.unshift("i8*"); // Add implicit closure context
 
         const llvmFuncType = `${retType} (${paramTypes.join(", ")})*`;
 

@@ -3105,8 +3105,10 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-247: Reflecting Array methods emits unresolved generic types
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed**: A minimal program inspecting `typeof<Array<int>>()` emits an `Array_U` vtable whose signatures contain unresolved `%struct.U`, rejected by clang. Reproduced before and after the generic forwarding fix. Reflection currently attempts to expose methods whose own type parameters have not been instantiated.
+
+**Resolution (2026-09-09)**: Reflection uses the concrete struct declaration, skips methods with unbound method-level parameters, and emits raw function-pointer signatures without a closure context. The regression obtains and calls Array<int>.len through MethodInfo at O0/O3 with LLVM verification, and all five existing reflection examples pass.
