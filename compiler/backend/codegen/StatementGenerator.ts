@@ -1392,17 +1392,31 @@ export abstract class StatementGenerator extends AsmGenerator {
   ): void {
     for (let i = deferred.length - 1; i >= 0; i--) {
       const statement = deferred[i]!;
-      if (statement.kind === "AutoDestroy" &&
-          (statement as AST.AutoDestroyStmt).address === movedAddress) continue;
+      if (
+        statement.kind === "AutoDestroy" &&
+        (statement as AST.AutoDestroyStmt).address === movedAddress
+      ) {
+        continue;
+      }
       this.generateStatement(statement);
     }
   }
 
   /** Emit cleanup for scopes exited by this edge, retaining the outer depth. */
-  protected emitScopeExitCleanup(retainedDepth: number, movedAddress?: string): void {
+  protected emitScopeExitCleanup(
+    retainedDepth: number,
+    movedAddress?: string,
+  ): void {
     for (let i = this.scopeStack.length - 1; i >= retainedDepth; i--) {
       this.emitDeferredStatements(this.scopeStack[i]!.deferred, movedAddress);
     }
+  }
+
+  private findEnclosingScopeDepth(kind: "isFunction" | "isSwitch"): number {
+    for (let i = this.scopeStack.length - 1; i >= 0; i--) {
+      if (this.scopeStack[i]![kind]) return i;
+    }
+    return -1;
   }
 
   protected generateStatement(stmt: AST.Statement) {
@@ -2144,7 +2158,7 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     // Only trigger function-level return hooks (like destructors) if not yielding from a match
     if (!isMatchYield) {
-      const functionDepth = this.scopeStack.findLastIndex((scope) => scope.isFunction);
+      const functionDepth = this.findEnclosingScopeDepth("isFunction");
       this.emitScopeExitCleanup(Math.max(0, functionDepth), movedAddress);
 
       // Decrement stack depth
@@ -2509,7 +2523,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
     const target = ctx.labels[nextIndex];
     if (target) {
-      const caseDepth = this.scopeStack.findLastIndex((scope) => scope.isSwitch);
+      const caseDepth = this.findEnclosingScopeDepth("isSwitch");
       if (caseDepth < 0) {
         throw this.createError("Internal error: Switch without case scope", stmt);
       }

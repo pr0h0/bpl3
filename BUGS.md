@@ -2976,3 +2976,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Suggested resolution**: Add load-factor-based growth, rehashing, reserve, and size-sensitive benchmarks; document iterator/reference invalidation.
 
 **Resolution (2026-09-08)**: Map insertion now maintains a maximum 3/4 load factor; reserve() rehashes existing nodes and bucketCount() exposes capacity. Value-preservation, update, collision, removal, and clear tests pass at O0/O3. Added map_scaling.bpl: 1k/10k/100k entries grew to 2048/16384/262144 buckets with all hit/miss checks correct. Typecheck passed; iterator and callback contracts documented.
+
+### BUG-236: Cleanup refactor uses an API outside the extension's library target
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Source**: `compiler/backend/codegen/StatementGenerator.ts`
+
+**Observed**: The audit cleanup refactor passed the root ESNext typecheck but failed the extension's ES2022 typecheck because `Array.findLastIndex` is unavailable in that target.
+
+**Resolution (2026-09-09)**: Scope lookup now uses a shared reverse-loop helper. Compiler typecheck, all three audit cleanup regressions, and all 236 extension tests pass.
