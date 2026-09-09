@@ -2,11 +2,12 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("parses and frees a fixed array as a JSON root value", () => {
-  expectCorrectnessSuite([{
-    name: "JSON fixed array root",
-    validateLlvm: true,
-    expectedStdout: "11 22\n",
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "JSON fixed array root",
+      validateLlvm: true,
+      expectedStdout: "11 22\n",
+      source: `
       import [JSON] from "std/json.bpl";
       extern printf(fmt: string, ...);
       type Pair = int[2];
@@ -18,5 +19,6 @@ test("parses and frees a fixed array as a JSON root value", () => {
         return 0;
       }
     `,
-  }]);
+    },
+  ]);
 }, 60000);
