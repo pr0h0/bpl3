@@ -3077,11 +3077,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-244: Forwarding generic pointer types can add an extra pointer level
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed**: A generic wrapper that stores `JSON.parse<T>` in `*T` and calls `JSON.free<T>` on it fails type checking with `expected **T, got *T`, even when instantiated with `int`.
+
+**Resolution (2026-09-09)**: Calls whose callee is an explicit generic instantiation now use its already-substituted signature. A runtime regression covers JSON wrappers and pointer-valued generic arguments at O0/O3 with LLVM verification; 262 selected checker/codegen tests, typecheck, and lint pass.
 
 ### BUG-245: JSON.parse cannot instantiate a fixed-array root type
 
@@ -3098,3 +3100,11 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Priority**: P2
 
 **Observed**: A normal `ArrayRecord { values: int[2] }` is rejected when parsing its JSON object. The serializer, parser, and cleanup identify dynamic arrays using only the first five characters of the reflected type name.
+
+### BUG-247: Reflecting Array methods emits unresolved generic types
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed**: A minimal program inspecting `typeof<Array<int>>()` emits an `Array_U` vtable whose signatures contain unresolved `%struct.U`, rejected by clang. Reproduced before and after the generic forwarding fix. Reflection currently attempts to expose methods whose own type parameters have not been instantiated.

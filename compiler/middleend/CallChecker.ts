@@ -329,7 +329,12 @@ export function checkCall(
     const decl = effectiveFuncType.declaration as AST.FunctionDecl;
 
     // Handle generic method inference
-    if (decl && decl.genericParams && decl.genericParams.length > 0) {
+    if (
+      decl && decl.genericParams && decl.genericParams.length > 0 &&
+      expr.callee.kind !== "GenericInstantiation"
+    ) {
+      // GenericInstantiation already substituted the signature. Inferring
+      // again can treat a forwarded *T as T and add its pointer level twice.
       // Check if we have explicit generics in the call
       if (expr.genericArgs && expr.genericArgs.length > 0) {
         // Explicit generics provided - substitute them
