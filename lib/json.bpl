@@ -5,6 +5,7 @@ export [JsonToResult];
 export [JsonParseResult];
 
 import [String] from "std/string.bpl";
+import [UTF8] from "std/utf8.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
 import [TypeInfo], [FieldInfo], [MethodInfo], {TYPE_KIND_PRIMITIVE}, {TYPE_KIND_STRUCT}, {TYPE_KIND_ARRAY}, {TYPE_KIND_POINTER}, {TYPE_KIND_ENUM} from "std/reflection.bpl";
 
@@ -99,6 +100,27 @@ struct JsonParser {
         return false;
     }
 
+    frame parseHex4(this: *JsonParser) ret u32 {
+        local value: u32 = 0;
+        loop (local i: int = 0; i < 4; i = i + 1) {
+            if (this.pos >= this.len) {
+                this.fail("Incomplete Unicode escape");
+                return 0;
+            }
+            local c: int = cast<int>(this.next());
+            local digit: int = -1;
+            if ((c >= 48) && (c <= 57)) { digit = c - 48; }
+            else if ((c >= 65) && (c <= 70)) { digit = c - 65 + 10; }
+            else if ((c >= 97) && (c <= 102)) { digit = c - 97 + 10; }
+            if (digit < 0) {
+                this.fail("Invalid hexadecimal digit in Unicode escape");
+                return 0;
+            }
+            value = (value << 4) | cast<u32>(digit);
+        }
+        return value;
+    }
+
     frame parseString(this: *JsonParser) ret string {
         this.skipWs();
         if (this.peek() != cast<char>(34)) {
@@ -141,10 +163,40 @@ struct JsonParser {
                     res[idx] = cast<char>(13); # \r
                 } else if (esc == cast<char>(116)) {
                     res[idx] = cast<char>(9); # \t
+                } else if (esc == cast<char>(117)) {
+                    local codepoint: u32 = this.parseHex4();
+                    if (this.has_error) { free(res); return nullptr; }
+                    if ((codepoint >= cast<u32>(0xD800)) && (codepoint <= cast<u32>(0xDBFF))) {
+                        if ((this.next() != cast<char>(92)) || (this.next() != cast<char>(117))) {
+                            this.fail("High surrogate requires a low surrogate escape");
+                            free(res); return nullptr;
+                        }
+                        local low: u32 = this.parseHex4();
+                        if (this.has_error) { free(res); return nullptr; }
+                        if ((low < cast<u32>(0xDC00)) || (low > cast<u32>(0xDFFF))) {
+                            this.fail("Invalid low surrogate");
+                            free(res); return nullptr;
+                        }
+                        codepoint = cast<u32>(0x10000) + ((codepoint - cast<u32>(0xD800)) << 10) + (low - cast<u32>(0xDC00));
+                    } else if ((codepoint >= cast<u32>(0xDC00)) && (codepoint <= cast<u32>(0xDFFF))) {
+                        this.fail("Unexpected low surrogate");
+                        free(res); return nullptr;
+                    }
+                    if (codepoint == cast<u32>(0)) {
+                        this.fail("JSON string cannot contain U+0000 in a null-terminated string");
+                        free(res); return nullptr;
+                    }
+                    idx = idx + UTF8.encodeCodepoint(codepoint, cast<*u8>(&res[idx]));
+                    continue;
                 } else {
-                    res[idx] = esc; # fallback
+                    this.fail("Invalid string escape");
+                    free(res); return nullptr;
                 }
             } else {
+                if (cast<u8>(c) < cast<u8>(32)) {
+                    this.fail("Unescaped control character in string");
+                    free(res); return nullptr;
+                }
                 res[idx] = c;
                 this.next();
             }
@@ -226,6 +278,7 @@ struct JsonParser {
                 }
                 # key
                 local key: string = this.parseString();
+                if (this.has_error) { return; }
                 if (key != nullptr) {
                     free(key);
                 }
@@ -853,7 +906,9 @@ struct JSON {
                 break;
             }
             local key: string = p.parseString();
+            if (key == nullptr) { return; }
             if (p.expect(cast<char>(58)) == false) {
+                free(key);
                 return; # :
             }
             # Find field

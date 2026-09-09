@@ -2927,7 +2927,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-233: JSON Unicode escapes are silently decoded incorrectly
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
@@ -2940,6 +2940,8 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Suggested resolution**: Decode four-digit Unicode escapes, combine valid surrogate pairs, and encode the resulting code points consistently with the string representation. Reject invalid escapes instead of silently changing text. See [RFC 8259 section 7](https://www.rfc-editor.org/rfc/rfc8259#section-7).
 
 **Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-233).
+
+**Resolution (2026-09-08)**: JSON strings now decode Unicode escapes and surrogate pairs through UTF8.encodeCodepoint. Invalid escapes, malformed surrogates, and raw controls report errors; U+0000 is explicitly rejected because primitive strings are null-terminated. Parser callers propagate failed key decoding. Valid/invalid Unicode regressions passed at O0/O3; typecheck passed; behavior documented.
 
 ### BUG-234: README advertises local type inference that the compiler forbids
 

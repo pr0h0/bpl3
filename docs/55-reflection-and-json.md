@@ -87,6 +87,13 @@ frame main() {
 ### Parsing
 
 Use `JSON.parse<T>(json: string)` to parse a JSON string into a new object.
+Release successful results with `JSON.free<T>(ptr)` so nested allocations are
+also released. Parse failures return `nullptr` and print a diagnostic.
+
+String parsing decodes `\uXXXX` escapes to UTF-8 and combines valid UTF-16
+surrogate pairs. Invalid escapes, incomplete pairs, and unescaped control
+characters are rejected. BPL primitive strings are null-terminated, so escaped
+U+0000 is explicitly rejected instead of silently truncating the value.
 
 ```bpl
 frame main() {
