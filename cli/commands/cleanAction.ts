@@ -205,7 +205,9 @@ export function runCleanCommand(
     } else if (entriesToDelete.length === 0) {
       log.info("No build artifacts found");
     } else {
-      log.info(`\n✓ Cleaned ${entriesToDelete.length} file(s) and directory(s)`);
+      log.info(
+        `\n✓ Cleaned ${entriesToDelete.length} file(s) and directory(s)`,
+      );
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
@@ -231,7 +233,35 @@ export function runCleanCommand(
 }
 
 function assertNoSymlinkedWorkingDirectoryPath(cwd: string): void {
-  const symlinkedPath = findSymlinkedPathComponent(cwd);
+  // Newer runtimes canonicalize cwd. Preserve the logical path supplied by
+  // the shell or Bun, but ignore inherited values for a different directory.
+  const candidates = [cwd];
+  const shellCwd = process.env.PWD;
+  if (shellCwd && path.isAbsolute(shellCwd)) candidates.push(shellCwd);
+  for (let i = 0; i < process.execArgv.length; i++) {
+    const arg = process.execArgv[i]!;
+    const requested =
+      arg === "--cwd"
+        ? process.execArgv[++i]
+        : arg.startsWith("--cwd=")
+          ? arg.slice("--cwd=".length)
+          : undefined;
+    if (!requested) continue;
+    if (path.isAbsolute(requested)) candidates.push(requested);
+    else if (shellCwd && path.isAbsolute(shellCwd)) {
+      candidates.push(path.resolve(shellCwd, requested));
+    }
+  }
+  const realCwd = fs.realpathSync(cwd);
+  const symlinkedPath = candidates.reduce<string | null>((found, candidate) => {
+    if (found) return found;
+    try {
+      if (fs.realpathSync(candidate) !== realCwd) return null;
+    } catch {
+      return null;
+    }
+    return findSymlinkedPathComponent(candidate);
+  }, null);
   if (!symlinkedPath) return;
 
   throw new CleanValidationError(

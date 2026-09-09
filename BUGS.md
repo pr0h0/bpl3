@@ -3054,3 +3054,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: A `fromJson` hook returning `JsonParseResult.Default` is invoked twice when a guard stops further recursion; the field value remains zero instead of the input's 42 at O0/O3. Without the guard, fallback repeatedly invokes the same hook.
 
 **Cause**: The Default branch calls `JSON.parseAny` on the same type, which rediscovers and invokes `fromJson` rather than entering the default parser.
+
+### BUG-243: Clean loses symlinked working-directory validation on Bun 1.4.2
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed**: GitHub Actions run 34345008118 failed three clean-command regressions on Ubuntu with Bun 1.4.2. The adjacent check/lint no-input test passed. Reproduced locally with the same Bun version: clean returned success for a symlinked parent directory.
+
+**Cause**: Bun 1.4.2 canonicalizes `process.cwd()`, while Bun 1.3.14 preserves the logical path supplied by `--cwd`. Checking only the canonical path misses the symlink.
+
+**Resolution (2026-09-09)**: Clean additionally validates logical paths from shell `PWD` and runtime `--cwd` arguments when they resolve to the actual current directory. Stale, missing, and relative inherited PWD values are ignored. Regression coverage checks shell paths, absolute/relative runtime paths, and the equals form without weakening the existing JSON or exit-code assertions.
