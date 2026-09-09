@@ -2855,7 +2855,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-229: Default Map equality silently rejects supported-looking key types
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
@@ -2868,6 +2868,8 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Suggested resolution**: Define an explicit default-key capability, supply correct hash/equality for permitted keys, and reject unsupported default constructors at compile time. Keep the custom hasher/equaler overload available.
 
 **Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-229).
+
+**Resolution (2026-09-08)**: Default equality now supports boolean/narrow integer and equality-comparable compound keys. Numeric hashes cover all integer widths and f32/f64; signed zeros and NaNs have documented map equivalence. Compound-key fallback uses a correct constant hash with custom hashing documented for performance. Reflection now uses shared primitive metadata, fixing f32 aggregate comparisons exposed by Map. Five map/numeric runtime tests and typecheck passed.
 
 ### BUG-230: NaN inequality disagrees with negated equality
 

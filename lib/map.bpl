@@ -16,6 +16,34 @@ extern free(ptr: *void) ret void;
 
 # Default Hasher
 frame _mapDefaultHash<T>(val: *T) ret u64 {
+    if (typeof<T>() == typeof<bool>()) {
+        return cast<u64>(*cast<*bool>(val));
+    }
+    if (typeof<T>() == typeof<u8>()) {
+        return cast<u64>(*cast<*u8>(val));
+    }
+    if (typeof<T>() == typeof<i16>()) {
+        return cast<u64>(*cast<*i16>(val));
+    }
+    if (typeof<T>() == typeof<u16>()) {
+        return cast<u64>(*cast<*u16>(val));
+    }
+    if (typeof<T>() == typeof<float>()) {
+        local value: float = *cast<*float>(val);
+        # Equal zeros and all NaNs share a hash and a map key.
+        if ((value == cast<float>(0)) || (value != value)) {
+            return 0;
+        }
+        return cast<u64>(*cast<*u64>(val));
+    }
+    if (typeof<T>() == typeof<f32>()) {
+        local value: f32 = *cast<*f32>(val);
+        # Equal zeros and all NaNs share a hash and a map key.
+        if ((value == cast<f32>(0)) || (value != value)) {
+            return 0;
+        }
+        return cast<u64>(*cast<*u32>(val));
+    }
     # int/uint/long/ulong (32/64 bit)
     if (typeof<T>() == typeof<int>()) {
         return cast<u64>(*cast<*int>(val));
@@ -63,13 +91,23 @@ frame _mapDefaultHash<T>(val: *T) ret u64 {
         local s: *String = cast<*String>(val);
         return s.hash();
     }
-    # Fallback: Treat as bytes? Or address?
-    # For now, return 0 to warn user implicitly by performance drop, or address if pointer
+    # Equality-comparable compound keys use a correct constant hash.
+    # Supply a custom hasher/equaler for well-distributed compound-key hashing.
     return 0;
 }
 
 # Default Equaler
 frame _mapDefaultEq<T>(a: *T, b: *T) ret bool {
+    if (typeof<T>() == typeof<float>()) {
+        local left: float = *cast<*float>(a);
+        local right: float = *cast<*float>(b);
+        return (left == right) || ((left != left) && (right != right));
+    }
+    if (typeof<T>() == typeof<f32>()) {
+        local left: f32 = *cast<*f32>(a);
+        local right: f32 = *cast<*f32>(b);
+        return (left == right) || ((left != left) && (right != right));
+    }
     # Primitives
     if (typeof<T>() == typeof<int>()) {
         return *cast<*int>(a) == *cast<*int>(b);
@@ -124,7 +162,7 @@ frame _mapDefaultEq<T>(a: *T, b: *T) ret bool {
         # sa.__eq__(*sb)
         return sa.__eq__(*sb);
     }
-    return false;
+    return *a == *b;
 }
 
 struct Pair<K, V> {

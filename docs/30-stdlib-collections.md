@@ -18,7 +18,16 @@ arr.destroy();
 
 ## Map<K, V>
 
-A key-value store (associative array). Currently implemented as a list of pairs (O(n) lookup).
+A key-value store backed by hash buckets and collision chains.
+
+Default keys use value equality. Integer and boolean keys have numeric hashes;
+`string` and `String` keys use content hashing and equality. Floating-point keys
+treat positive/negative zero as the same key and all NaNs as the same key.
+Other equality-comparable keys use their `==` operation with a constant hash,
+which is correct but gives linear lookup. Supply the custom
+`Map<K, V>.new(capacity, hasher, equaler)` overload for efficient compound keys.
+Custom equality must be an equivalence relation, and equal keys must have equal
+hashes. Keys must remain unchanged while stored in the map.
 
 ```bpl
 import [Map] from "std/map.bpl";

@@ -1,3 +1,4 @@
+import { getPrimitiveType } from "../../common/PrimitiveTypes";
 import * as AST from "../../common/AST";
 import { TypeGenerator } from "./TypeGenerator";
 
@@ -156,27 +157,7 @@ export abstract class ReflectionGenerator extends TypeGenerator {
   }
 
   protected isPrimitive(name: string): boolean {
-    const p = [
-      "int",
-      "uint",
-      "long",
-      "ulong",
-      "float",
-      "double",
-      "bool",
-      "char",
-      "void",
-      "string",
-      "i8",
-      "u8",
-      "i16",
-      "u16",
-      "i32",
-      "u32",
-      "i64",
-      "u64",
-    ];
-    return p.includes(name);
+    return getPrimitiveType(name) !== undefined || name === "void" || name === "string";
   }
 
   private generatePrimitiveTypeInfo(
