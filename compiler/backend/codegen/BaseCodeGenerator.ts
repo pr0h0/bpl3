@@ -275,7 +275,6 @@ export class BaseCodeGenerator {
   > = new Map();
   protected basicBlockNonZeroIntegerExpressions?: Map<string, number>;
   protected currentFunctionAddressEscapedLocals: Set<string> = new Set();
-  protected movedAutoDestroyAddresses?: Set<string>; // Locals returned by move should not be auto-destroyed
   protected generatedStructs: Set<string> = new Set(); // Track generated monomorphized structs
   protected skippedStructs: Set<string> = new Set(); // Track structs that were skipped during generation (e.g. pointers)
   protected onReturn?: () => void;

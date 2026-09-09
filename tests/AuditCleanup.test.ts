@@ -86,3 +86,29 @@ it("cleans nested match yields without destroying enclosing scopes or moved valu
     `,
   }]);
 }, 60000);
+
+it("keeps return-transfer exclusions local to each branch", () => {
+  expectCorrectnessSuite([{
+    name: "conditional resource return",
+    validateLlvm: true,
+    expectedStdout: "destroy 2\nchosen 1\ndestroy 1\ndestroy 1\nchosen 2\ndestroy 2\n",
+    source: `
+      extern printf(fmt: string, ...);
+      struct Resource {
+        id: int,
+        @[auto_destroy] frame destroy(this: *Resource) { printf("destroy %d\\n", this.id); }
+      }
+      frame choose(flag: bool) ret Resource {
+        local a: Resource = Resource { id: 1 };
+        local b: Resource = Resource { id: 2 };
+        if (flag) { if (a.id == 1) { return (a); } }
+        return b;
+      }
+      frame main() ret int {
+        { local a: Resource = choose(true); printf("chosen %d\\n", a.id); }
+        { local b: Resource = choose(false); printf("chosen %d\\n", b.id); }
+        return 0;
+      }
+    `,
+  }]);
+}, 60000);

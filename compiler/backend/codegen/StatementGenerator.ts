@@ -1511,10 +1511,6 @@ export abstract class StatementGenerator extends AsmGenerator {
   }
 
   protected generateAutoDestroy(stmt: AST.AutoDestroyStmt) {
-    if (this.movedAutoDestroyAddresses?.has(stmt.address)) {
-      return;
-    }
-
     const type = this.resolveType(stmt.type);
     if (!type.startsWith("%struct.") || type.endsWith("*")) {
       return;
@@ -2148,20 +2144,8 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     // Only trigger function-level return hooks (like destructors) if not yielding from a match
     if (!isMatchYield) {
-      if (movedAddress) {
-        (this.movedAutoDestroyAddresses ??= new Set<string>()).add(
-          movedAddress,
-        );
-      }
-
-      // Run defers (LIFO)
-      for (let i = this.scopeStack.length - 1; i >= 0; i--) {
-        const scope = this.scopeStack[i]!;
-        for (let j = scope.deferred.length - 1; j >= 0; j--) {
-          this.generateStatement(scope.deferred[j]!);
-        }
-        if (scope.isFunction) break;
-      }
+      const functionDepth = this.scopeStack.findLastIndex((scope) => scope.isFunction);
+      this.emitScopeExitCleanup(Math.max(0, functionDepth), movedAddress);
 
       // Decrement stack depth
       this.emitStackFrameExit();
@@ -2700,7 +2684,6 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.basicBlockNonZeroIntegerExpressions;
     const prevCurrentFunctionAddressEscapedLocals =
       this.currentFunctionAddressEscapedLocals;
-    const prevMovedAutoDestroyAddresses = this.movedAutoDestroyAddresses;
     const prevOnReturn = this.onReturn;
     const prevIsMainWithVoidReturn = this.isMainWithVoidReturn;
     const prevGeneratingFunctionBody = this.generatingFunctionBody;
@@ -2724,7 +2707,6 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.basicBlockCallStableNonNullPointerExpressions = new Map();
     this.basicBlockNonZeroIntegerExpressions = undefined;
     this.currentFunctionAddressEscapedLocals = new Set();
-    this.movedAutoDestroyAddresses = undefined;
     this.generatingFunctionBody = true;
 
     let name = decl.name;
@@ -3160,7 +3142,6 @@ export abstract class StatementGenerator extends AsmGenerator {
         prevBasicBlockNonZeroIntegerExpressions;
       this.currentFunctionAddressEscapedLocals =
         prevCurrentFunctionAddressEscapedLocals;
-      this.movedAutoDestroyAddresses = prevMovedAutoDestroyAddresses;
       this.onReturn = prevOnReturn;
       this.isMainWithVoidReturn = prevIsMainWithVoidReturn;
       this.generatingFunctionBody = prevGeneratingFunctionBody;

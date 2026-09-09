@@ -2837,7 +2837,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-228: A return in one branch suppresses destruction in another branch
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
@@ -2850,6 +2850,8 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Suggested resolution**: Make the return-value cleanup exclusion local to each emitted exit, or introduce control-flow-aware move state with explicit branch merges. Test both flag values and nested branches.
 
 **Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-228).
+
+**Resolution (2026-09-08)**: Removed function-wide moved-address state. Each return now passes its own cleanup exclusion into the shared exit helper. Both conditional return paths and nested branches pass at O0/O3 with LLVM verification; 33 tests and typecheck passed.
 
 ### BUG-229: Default Map equality silently rejects supported-looking key types
 
