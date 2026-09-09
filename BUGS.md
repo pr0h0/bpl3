@@ -2797,11 +2797,11 @@ runtime support layer using the host libc's public `stderr` interface.
 
 ## Audit findings — 2026-09-08
 
-Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) for complete reproductions, validation scope, and repair priorities. All entries below remain open; no implementation fixes were applied.
+Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) for complete reproductions, validation scope, and repair priorities. Original observations are retained below; each entry records its current status and resolution.
 
 ### BUG-226: Switch fallthrough skips deferred cleanup
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
@@ -2814,6 +2814,8 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Suggested resolution**: Emit cleanup for every scope exited by fallthrough before branching. Share scope-exit lowering with break, continue, return, and match yields; preserve LIFO order.
 
 **Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-226).
+
+**Resolution (2026-09-08)**: Fallthrough now emits LIFO cleanup for the exited case scopes through a shared scope-exit helper. Numeric/string switch regression and existing defer suite: 14 tests passed; bun run check passed.
 
 ### BUG-227: Returning a match-arm value skips deferred cleanup
 

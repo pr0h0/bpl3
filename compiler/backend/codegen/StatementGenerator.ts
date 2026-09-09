@@ -1382,9 +1382,20 @@ export abstract class StatementGenerator extends AsmGenerator {
       (this.output.length === 0 ||
         !this.isTerminator(this.output[this.output.length - 1] || ""))
     ) {
-      for (let i = scope.deferred.length - 1; i >= 0; i--) {
-        this.generateStatement(scope.deferred[i]!);
-      }
+      this.emitDeferredStatements(scope.deferred);
+    }
+  }
+
+  private emitDeferredStatements(deferred: readonly AST.Statement[]): void {
+    for (let i = deferred.length - 1; i >= 0; i--) {
+      this.generateStatement(deferred[i]!);
+    }
+  }
+
+  /** Emit cleanup for scopes exited by this edge, retaining the outer depth. */
+  protected emitScopeExitCleanup(retainedDepth: number): void {
+    for (let i = this.scopeStack.length - 1; i >= retainedDepth; i--) {
+      this.emitDeferredStatements(this.scopeStack[i]!.deferred);
     }
   }
 
@@ -1539,9 +1550,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     // Unwind scopes until loop or switch
     for (let i = this.scopeStack.length - 1; i >= 0; i--) {
       const scope = this.scopeStack[i]!;
-      for (let j = scope.deferred.length - 1; j >= 0; j--) {
-        this.generateStatement(scope.deferred[j]!);
-      }
+      this.emitDeferredStatements(scope.deferred);
 
       if (scope.isLoop) {
         if (this.loopStack.length === 0) {
@@ -1593,9 +1602,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     // Unwind scopes until loop
     for (let i = this.scopeStack.length - 1; i >= 0; i--) {
       const scope = this.scopeStack[i]!;
-      for (let j = scope.deferred.length - 1; j >= 0; j--) {
-        this.generateStatement(scope.deferred[j]!);
-      }
+      this.emitDeferredStatements(scope.deferred);
       if (scope.isLoop) break;
     }
 
@@ -2513,6 +2520,11 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
     const target = ctx.labels[nextIndex];
     if (target) {
+      const caseDepth = this.scopeStack.findLastIndex((scope) => scope.isSwitch);
+      if (caseDepth < 0) {
+        throw this.createError("Internal error: Switch without case scope", stmt);
+      }
+      this.emitScopeExitCleanup(caseDepth);
       this.emit(`  br label %${target}`);
     } else {
       // Fallback? Should exist due to endLabel
