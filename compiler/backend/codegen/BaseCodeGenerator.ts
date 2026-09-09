@@ -331,6 +331,7 @@ export class BaseCodeGenerator {
 
   protected matchStack: {
     mergeLabel: string;
+    retainedScopeDepth: number;
     resultType: string;
     resultTypeNode: AST.TypeNode;
     results: { value: string; label: string; type: string }[];

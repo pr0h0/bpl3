@@ -34,3 +34,55 @@ describe("Audit scope-exit regressions", () => {
     }]);
   }, 60000);
 });
+
+
+it("cleans nested match yields without destroying enclosing scopes or moved values", () => {
+  expectCorrectnessSuite([{
+    name: "match yield scope cleanup",
+    validateLlvm: true,
+    expectedStdout: "nested\narm\nvalue=7\nenum\nstring\ntuple\nchecks=3\nresource=9\ndestroy 9\nfunction\n",
+    source: `
+      extern printf(fmt: string, ...);
+      enum Choice { Yes, No }
+      struct Resource {
+        id: int,
+        @[auto_destroy] frame destroy(this: *Resource) { printf("destroy %d\\n", this.id); }
+      }
+      frame main() ret int {
+        defer printf("function\\n");
+        local n: int = match (true) {
+          true => {
+            defer printf("arm\\n");
+            local inner: int = match (1) {
+              1 => { defer printf("nested\\n"); return 7; },
+              _ => 0,
+            };
+            if (inner == 7) { return inner; }
+            return 0;
+          },
+          false => 0,
+        };
+        printf("value=%d\\n", n);
+        local e: int = match (Choice.Yes) {
+          Choice.Yes => { defer printf("enum\\n"); return 1; },
+          Choice.No => 0,
+        };
+        local s: int = match ("a") {
+          "a" => { defer printf("string\\n"); return 1; },
+          _ => 0,
+        };
+        local t: int = match ((1, true)) {
+          (1, true) => { defer printf("tuple\\n"); return 1; },
+          _ => 0,
+        };
+        printf("checks=%d\\n", e + s + t);
+        local r: Resource = match (true) {
+          true => { local a: Resource = Resource { id: 9 }; return a; },
+          false => Resource { id: 0 },
+        };
+        printf("resource=%d\\n", r.id);
+        return 0;
+      }
+    `,
+  }]);
+}, 60000);

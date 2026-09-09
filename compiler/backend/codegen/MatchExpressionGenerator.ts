@@ -555,6 +555,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
     // Push new match context to stack
     this.matchStack.push({
+      retainedScopeDepth: this.scopeStack.length,
       mergeLabel,
       resultType,
       resultTypeNode: expr.resolvedType!,
@@ -796,6 +797,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
     const resultType = this.resolveType(expr.resolvedType!);
     this.matchStack.push({
+      retainedScopeDepth: this.scopeStack.length,
       mergeLabel,
       results: [],
       resultType,
@@ -982,6 +984,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
     const resultType = this.resolveType(expr.resolvedType!);
     this.matchStack.push({
+      retainedScopeDepth: this.scopeStack.length,
       mergeLabel,
       results: [],
       resultType,
@@ -1157,6 +1160,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
     const resultType = this.resolveType(expr.resolvedType!);
     this.matchStack.push({
+      retainedScopeDepth: this.scopeStack.length,
       mergeLabel,
       results: [],
       resultType,

@@ -1386,16 +1386,22 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
   }
 
-  private emitDeferredStatements(deferred: readonly AST.Statement[]): void {
+  private emitDeferredStatements(
+    deferred: readonly AST.Statement[],
+    movedAddress?: string,
+  ): void {
     for (let i = deferred.length - 1; i >= 0; i--) {
-      this.generateStatement(deferred[i]!);
+      const statement = deferred[i]!;
+      if (statement.kind === "AutoDestroy" &&
+          (statement as AST.AutoDestroyStmt).address === movedAddress) continue;
+      this.generateStatement(statement);
     }
   }
 
   /** Emit cleanup for scopes exited by this edge, retaining the outer depth. */
-  protected emitScopeExitCleanup(retainedDepth: number): void {
+  protected emitScopeExitCleanup(retainedDepth: number, movedAddress?: string): void {
     for (let i = this.scopeStack.length - 1; i >= retainedDepth; i--) {
-      this.emitDeferredStatements(this.scopeStack[i]!.deferred);
+      this.emitDeferredStatements(this.scopeStack[i]!.deferred, movedAddress);
     }
   }
 
@@ -2120,9 +2126,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       isMatchYield = true;
     }
 
-    const movedAddress = !isMatchYield
-      ? this.getMovedAutoDestroyAddress(stmt.value, destTypeNode)
-      : undefined;
+    const movedAddress = this.getMovedAutoDestroyAddress(stmt.value, destTypeNode);
 
     let retVal: string | undefined;
 
@@ -2167,6 +2171,7 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     if (isMatchYield) {
       const matchContext = this.matchStack[this.matchStack.length - 1]!;
+      this.emitScopeExitCleanup(matchContext.retainedScopeDepth, movedAddress);
       if (retVal) {
         matchContext.results.push({
           value: retVal,

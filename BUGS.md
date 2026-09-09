@@ -2819,7 +2819,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-227: Returning a match-arm value skips deferred cleanup
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
@@ -2832,6 +2832,8 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Suggested resolution**: Track the scope depth at match entry and unwind the scopes exited by a yield. Keep enclosing function cleanup pending.
 
 **Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-227).
+
+**Resolution (2026-09-08)**: Match contexts now record retained scope depth. Yields clean only exited scopes and exclude a moved result from destruction. Nested primitive, enum, string, tuple, and resource-yield tests pass at O0/O3 with LLVM verification; 15 cleanup tests and typecheck passed.
 
 ### BUG-228: A return in one branch suppresses destruction in another branch
 
