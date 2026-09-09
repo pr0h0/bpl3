@@ -3087,11 +3087,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-245: JSON.parse cannot instantiate a fixed-array root type
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed**: `JSON.parse<int[2]>` fails compilation with an unsupported cast from `i8*` to `[2 x i32*]`. Generic substitution flattens the pointer and array modifiers rather than representing a pointer to the whole array. Fixed arrays inside a struct work and provide a workaround.
+
+**Resolution (2026-09-09)**: Substitution now preserves the existing pointer-to-array marker when a pointer-qualified type parameter is replaced with a fixed array. The JSON root regression verifies parsing, element access, and freeing at O0/O3 with LLVM verification. All 19 selected array, generic, and type-utility tests pass.
 
 ### BUG-246: JSON mistakes unrelated Array-prefixed structs for dynamic arrays
 

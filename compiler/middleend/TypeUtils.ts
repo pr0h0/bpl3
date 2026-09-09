@@ -710,6 +710,9 @@ export class TypeSubstitution {
           return {
             ...subst,
             pointerDepth: subst.pointerDepth + type.pointerDepth,
+            ...(subst.arrayDimensions.length > 0 && type.pointerDepth > 0
+              ? { isPointerToArray: true }
+              : {}),
             arrayDimensions: [
               ...subst.arrayDimensions,
               ...type.arrayDimensions,
