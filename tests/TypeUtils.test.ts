@@ -45,12 +45,14 @@ function methodSource(name: string, nextComment: string): string {
 }
 
 describe("TypeUtils", () => {
-  it("checks numeric basic type names without array membership probes", () => {
+  it("recognizes all numeric scalar spellings and rejects other types", () => {
     for (const name of [
       "int",
       "uint",
       "float",
       "double",
+      "f32",
+      "f64",
       "bool",
       "i1",
       "char",
@@ -71,7 +73,9 @@ describe("TypeUtils", () => {
       expect(TypeUtils.isNumericType(basicType(name))).toBe(true);
     }
 
-    for (const name of ["string", "void", "Int", "usize"]) {
+    for (const name of [
+      "string", "void", "Int", "usize", "constructor", "toString", "__proto__",
+    ]) {
       expect(TypeUtils.isNumericType(basicType(name))).toBe(false);
     }
 
@@ -81,35 +85,28 @@ describe("TypeUtils", () => {
     expect(
       TypeUtils.isNumericType(basicType("int", { arrayDimensions: [4] })),
     ).toBe(false);
-
-    const implementation = methodSource(
-      "isNumericType",
-      "  /**\n   * Convert a type node",
-    );
-
-    expect(implementation).toContain("switch (type.name)");
-    expect(implementation).not.toContain("NUMERIC_TYPES.includes");
-    expect(implementation).not.toContain("TYPE_ALIASES");
   });
 
-  it("checks dominant numeric names before the switch fallback", () => {
-    const implementation = methodSource(
-      "isNumericType",
-      "  /**\n   * Convert a type node",
-    );
-    const pointerGuard = implementation.indexOf("type.pointerDepth > 0");
-    const arrayGuard = implementation.indexOf(
-      "type.arrayDimensions.length > 0",
-    );
-    const dominantNames = implementation.indexOf(
-      'type.name === "i32" || type.name === "int" || type.name === "double"',
-    );
-    const fallbackSwitch = implementation.indexOf("switch (type.name)");
-
-    expect(pointerGuard).toBeGreaterThanOrEqual(0);
-    expect(arrayGuard).toBeGreaterThan(pointerGuard);
-    expect(dominantNames).toBeGreaterThan(arrayGuard);
-    expect(fallbackSwitch).toBeGreaterThan(dominantNames);
+  it("rejects pointers, arrays, and tuples of numeric types as scalars", () => {
+    for (const name of ["i32", "int", "double", "f32", "f64", "bool"]) {
+      expect(
+        TypeUtils.isNumericType(basicType(name, { pointerDepth: 1 })),
+      ).toBe(false);
+      for (const dimension of [null, 0, 4]) {
+        expect(
+          TypeUtils.isNumericType(basicType(name, {
+            arrayDimensions: [dimension],
+          })),
+        ).toBe(false);
+      }
+    }
+    expect(
+      TypeUtils.isNumericType({
+        kind: "TupleType",
+        types: [basicType("int"), basicType("f32")],
+        location,
+      }),
+    ).toBe(false);
   });
 
   it("checks signed integer names without allocating a lookup array", () => {
