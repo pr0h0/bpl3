@@ -1,4 +1,3 @@
-import { PRIMITIVE_NAMES } from "../common/PrimitiveTypes";
 /**
  * TypeCheckerBase - Base class with shared state and utility methods for type checking
  * This class provides the foundation for modular type checking with separate
@@ -6,6 +5,7 @@ import { PRIMITIVE_NAMES } from "../common/PrimitiveTypes";
  */
 
 import * as AST from "../common/AST";
+import { PRIMITIVE_NAMES } from "../common/PrimitiveTypes";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { LinkerSymbolTable } from "./LinkerSymbolTable";

@@ -940,7 +940,10 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     }
 
     // Float casts
-    if ((srcType === "double" || srcType === "float") && this.getBitWidth(destType) > 0) {
+    if (
+      (srcType === "double" || srcType === "float") &&
+      this.getBitWidth(destType) > 0
+    ) {
       const isSigned = this.isSigned(destTypeNode);
       const width = this.getBitWidth(destType);
 
@@ -956,14 +959,19 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       this.emit(`  ${reg} = call ${destType} @${intrinsicName}(${srcType} ${val})`);
       return reg;
     }
-    if (this.getBitWidth(srcType) > 0 && (destType === "double" || destType === "float")) {
+    if (
+      this.getBitWidth(srcType) > 0 &&
+      (destType === "double" || destType === "float")
+    ) {
       const op = this.isSigned(srcTypeNode) ? "sitofp" : "uitofp";
       this.emit(`  ${reg} = ${op} ${srcType} ${val} to ${destType}`);
       return reg;
     }
 
-    if ((srcType === "float" && destType === "double") ||
-        (srcType === "double" && destType === "float")) {
+    if (
+      (srcType === "float" && destType === "double") ||
+      (srcType === "double" && destType === "float")
+    ) {
       const op = srcType === "float" ? "fpext" : "fptrunc";
       this.emit(`  ${reg} = ${op} ${srcType} ${val} to ${destType}`);
       return reg;

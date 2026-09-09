@@ -1,10 +1,10 @@
-import { getPrimitiveType } from "../common/PrimitiveTypes";
 /**
  * ExpressionChecker - Handles type checking of expressions
  * These methods are designed to be bound to a TypeChecker instance using .call()
  */
 
 import * as AST from "../common/AST";
+import { getPrimitiveType } from "../common/PrimitiveTypes";
 import { CompilerError } from "../common/CompilerError";
 import { typeCheckerLog } from "../common/Logger";
 import { TokenType } from "../frontend/TokenType";

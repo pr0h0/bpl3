@@ -18,13 +18,19 @@ import {
  * Encoding values: 2=boolean, 4=float, 5=signed, 6=signed_char, 7=unsigned, 8=unsigned_char
  */
 const DWARF_BASIC_TYPES: Record<string, [string, number, number]> = Object.fromEntries(
-  Object.entries(PRIMITIVE_TYPES).map(([name, info]) => [name,
+  Object.entries(PRIMITIVE_TYPES).map(([name, info]) => [
+    name,
     [info.debugName, info.kind === "boolean" ? 8 : info.bits, info.debugEncoding],
   ]),
 );
 const SIMPLE_BUILTIN_LLVM_TYPES: Record<string, string> = {
-  ...Object.fromEntries(Object.entries(PRIMITIVE_TYPES).map(([name, info]) => [name, info.llvmType])),
-  void: "void", string: "i8*", null: "i8*", nullptr: "i8*",
+  ...Object.fromEntries(
+    Object.entries(PRIMITIVE_TYPES).map(([name, info]) => [name, info.llvmType]),
+  ),
+  void: "void",
+  string: "i8*",
+  null: "i8*",
+  nullptr: "i8*",
 };
 
 function resolveSimpleBuiltinLlvmType(
@@ -1124,7 +1130,9 @@ export abstract class TypeGenerator extends StructEnumGenerator {
   }
 
   protected isPrimitiveType(name: string): boolean {
-    return getPrimitiveType(name) !== undefined || name === "void" || name === "string";
+    return (
+      getPrimitiveType(name) !== undefined || name === "void" || name === "string"
+    );
   }
 
   protected getASTTypeSize(type: AST.TypeNode): number {
@@ -1662,61 +1670,61 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           if (primitive) {
             llvmType = primitive.llvmType;
           } else {
-          switch (basicType.name) {
-            case "void":
-              llvmType = basicType.pointerDepth > 0 ? "i8" : "void";
-              break;
-            case "string":
-              llvmType = "i8*";
-              break;
-            case "null":
-            case "nullptr":
-              llvmType = "i8*"; // Generic pointer type
-              break;
-            default:
-              // For non-primitive types without generic args, check resolvedDeclaration first
-              if (basicType.resolvedDeclaration) {
-                if (basicType.resolvedDeclaration.kind === "EnumDecl") {
-                  const enumDecl =
-                    basicType.resolvedDeclaration as AST.EnumDecl;
-                  llvmType = `%enum.${enumDecl.name}`;
-                } else if (
-                  basicType.resolvedDeclaration.kind === "StructDecl"
-                ) {
-                  const structDecl =
-                    basicType.resolvedDeclaration as AST.StructDecl;
-                  llvmType = `%struct.${structDecl.name}`;
-                } else if (basicType.resolvedDeclaration.kind === "SpecDecl") {
+            switch (basicType.name) {
+              case "void":
+                llvmType = basicType.pointerDepth > 0 ? "i8" : "void";
+                break;
+              case "string":
+                llvmType = "i8*";
+                break;
+              case "null":
+              case "nullptr":
+                llvmType = "i8*"; // Generic pointer type
+                break;
+              default:
+                // For non-primitive types without generic args, check resolvedDeclaration first
+                if (basicType.resolvedDeclaration) {
+                  if (basicType.resolvedDeclaration.kind === "EnumDecl") {
+                    const enumDecl =
+                      basicType.resolvedDeclaration as AST.EnumDecl;
+                    llvmType = `%enum.${enumDecl.name}`;
+                  } else if (
+                    basicType.resolvedDeclaration.kind === "StructDecl"
+                  ) {
+                    const structDecl =
+                      basicType.resolvedDeclaration as AST.StructDecl;
+                    llvmType = `%struct.${structDecl.name}`;
+                  } else if (basicType.resolvedDeclaration.kind === "SpecDecl") {
+                    llvmType = "{ i8*, i8* }";
+                  } else {
+                    llvmType = `%struct.${basicType.name}`;
+                  }
+                } else if (this.enumVariants.has(basicType.name)) {
+                  llvmType = `%enum.${basicType.name}`;
+                } else if (this.enumDeclMap.has(basicType.name)) {
+                  llvmType = `%enum.${basicType.name}`;
+                } else if (this.specMap.has(basicType.name)) {
                   llvmType = "{ i8*, i8* }";
+                } else if (basicType.name.includes(".")) {
+                  // If not found and name contains a dot (qualified name), try stripping namespace
+                  const simpleName = basicType.name.split(".").pop()!;
+                  if (this.enumVariants.has(simpleName)) {
+                    llvmType = `%enum.${simpleName}`;
+                  } else if (this.enumDeclMap.has(simpleName)) {
+                    llvmType = `%enum.${simpleName}`;
+                  } else if (this.specMap.has(simpleName)) {
+                    llvmType = "{ i8*, i8* }";
+                  } else if (this.structMap.has(simpleName)) {
+                    llvmType = `%struct.${simpleName}`;
+                  } else {
+                    llvmType = `%struct.${basicType.name}`;
+                  }
                 } else {
                   llvmType = `%struct.${basicType.name}`;
                 }
-              } else if (this.enumVariants.has(basicType.name)) {
-                llvmType = `%enum.${basicType.name}`;
-              } else if (this.enumDeclMap.has(basicType.name)) {
-                llvmType = `%enum.${basicType.name}`;
-              } else if (this.specMap.has(basicType.name)) {
-                llvmType = "{ i8*, i8* }";
-              } else if (basicType.name.includes(".")) {
-                // If not found and name contains a dot (qualified name), try stripping namespace
-                const simpleName = basicType.name.split(".").pop()!;
-                if (this.enumVariants.has(simpleName)) {
-                  llvmType = `%enum.${simpleName}`;
-                } else if (this.enumDeclMap.has(simpleName)) {
-                  llvmType = `%enum.${simpleName}`;
-                } else if (this.specMap.has(simpleName)) {
-                  llvmType = "{ i8*, i8* }";
-                } else if (this.structMap.has(simpleName)) {
-                  llvmType = `%struct.${simpleName}`;
-                } else {
-                  llvmType = `%struct.${basicType.name}`;
-                }
-              } else {
-                llvmType = `%struct.${basicType.name}`;
-              }
 
-              break;
-          }
+                break;
+            }
           }
         }
 

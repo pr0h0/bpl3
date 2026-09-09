@@ -13,7 +13,12 @@ import {
   lowerImplicitConversion,
 } from "./lowering/ImplicitConversions";
 
-import { PRIMITIVE_INTEGER_NAMES, PRIMITIVE_NAMES, PRIMITIVE_ALIASES, getPrimitiveType } from "../common/PrimitiveTypes";
+import {
+  PRIMITIVE_INTEGER_NAMES,
+  PRIMITIVE_NAMES,
+  PRIMITIVE_ALIASES,
+  getPrimitiveType,
+} from "../common/PrimitiveTypes";
 
 export const INTEGER_TYPES = PRIMITIVE_INTEGER_NAMES;
 export const NUMERIC_TYPES = PRIMITIVE_NAMES;

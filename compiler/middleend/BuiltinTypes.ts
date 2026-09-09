@@ -1,10 +1,13 @@
-import { PRIMITIVE_CANONICAL_NAMES, PRIMITIVE_ALIASES } from "../common/PrimitiveTypes";
 /**
  * Builtin type initialization for the BPL type checker
  * Provides base types, type aliases, and built-in struct definitions
  */
 
 import * as AST from "../common/AST";
+import {
+  PRIMITIVE_CANONICAL_NAMES,
+  PRIMITIVE_ALIASES,
+} from "../common/PrimitiveTypes";
 import type { SymbolTable } from "./SymbolTable";
 import type { SourceLocation } from "../common/CompilerError";
 
