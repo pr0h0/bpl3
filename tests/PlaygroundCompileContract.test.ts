@@ -227,7 +227,7 @@ describe("Playground compile API contract", () => {
   });
 
   test("uses collision-safe temporary directories for playground compiler requests", () => {
-    const serverSource = readFileSync("playground/backend/server.ts", "utf8");
+    const serverSource = readFileSync("playground/backend/engine.ts", "utf8");
 
     expect(serverSource).toMatch(
       /fs\.mkdtempSync\(\s*path\.join\(os\.tmpdir\(\),\s*"bpl-playground-"\)\s*\)/,
@@ -239,15 +239,17 @@ describe("Playground compile API contract", () => {
   });
 
   test("uses the cached native runtime file resolver for playground links", () => {
-    const serverSource = readFileSync("playground/backend/server.ts", "utf8");
+    const serverSource = readFileSync("playground/backend/engine.ts", "utf8");
 
     expect(serverSource).toContain("resolvePlaygroundNativeRuntimeFiles");
     expect(serverSource).not.toContain("const runtimeFiles: string[] = []");
-    expect(serverSource).not.toContain('"runtime.ll");\n      if (fs.existsSync');
+    expect(serverSource).not.toContain(
+      '"runtime.ll");\n      if (fs.existsSync',
+    );
   });
 
   test("fast-paths no-import artifact-free native compiles", () => {
-    const serverSource = readFileSync("playground/backend/server.ts", "utf8");
+    const serverSource = readFileSync("playground/backend/engine.ts", "utf8");
     const compileStart = serverSource.indexOf("async function compileAndRun");
     const compileEnd = serverSource.indexOf(
       "async function compileToWasm",
@@ -271,7 +273,7 @@ describe("Playground compile API contract", () => {
   });
 
   test("caches artifact-free native binaries before creating request temp dirs", () => {
-    const serverSource = readFileSync("playground/backend/server.ts", "utf8");
+    const serverSource = readFileSync("playground/backend/engine.ts", "utf8");
     const compileStart = serverSource.indexOf("async function compileAndRun");
     const compileEnd = serverSource.indexOf(
       "async function compileToWasm",

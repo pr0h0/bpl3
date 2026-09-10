@@ -4,7 +4,10 @@ import { resolve } from "path";
 
 import { JsonDirectoryCache } from "../playground/backend/jsonDirectoryCache";
 
-const SERVER_SOURCE = resolve(import.meta.dir, "../playground/backend/server.ts");
+const SERVER_SOURCE = resolve(
+  import.meta.dir,
+  "../playground/backend/server.ts",
+);
 
 interface FakeJsonFile {
   mtimeMs: number;
@@ -19,7 +22,8 @@ function filePath(directoryPath: string, fileName: string): string {
 function createCacheFixture(files: Record<string, FakeJsonFile>) {
   let readCount = 0;
   const directoryPath = "/playground/examples";
-  const fileNames = () => Object.keys(files).map((path) => path.split("/").at(-1)!);
+  const fileNames = () =>
+    Object.keys(files).map((path) => path.split("/").at(-1)!);
   const cache = new JsonDirectoryCache({
     existsDirectory: () => true,
     readDirectory: () => fileNames(),
@@ -127,10 +131,7 @@ describe("Playground JSON directory cache", () => {
     const serverSource = readFileSync(SERVER_SOURCE, "utf8");
     const examplesStart = serverSource.indexOf("// Get examples");
     const tutorialsStart = serverSource.indexOf("// Get tutorials");
-    const compileStart = serverSource.indexOf(
-      "// Compile and run BPL code",
-      tutorialsStart,
-    );
+    const compileStart = serverSource.indexOf("// Server", tutorialsStart);
 
     expect(examplesStart).toBeGreaterThanOrEqual(0);
     expect(tutorialsStart).toBeGreaterThan(examplesStart);

@@ -44,14 +44,15 @@ describe("Playground process runner", () => {
         ].join("\n"),
       );
 
-      const result = await runProcessFile(process.execPath, [
-        scriptPath,
-        ...argv,
-      ], {
-        input: "stdin line\n",
-        timeout: 5000,
-        maxBuffer: 1024 * 1024,
-      });
+      const result = await runProcessFile(
+        process.execPath,
+        [scriptPath, ...argv],
+        {
+          input: "stdin line\n",
+          timeout: 5000,
+          maxBuffer: 1024 * 1024,
+        },
+      );
 
       expect(JSON.parse(result.stdout)).toEqual({
         argv,
@@ -194,14 +195,12 @@ describe("Playground process runner", () => {
 
   test("backend server runs compiled programs through argv-vector execution", () => {
     const serverSource = readFileSync(
-      join(import.meta.dir, "../playground/backend/server.ts"),
+      join(import.meta.dir, "../playground/backend/engine.ts"),
       "utf8",
     );
 
     expect(serverSource).toContain("async function runCompiledNativeBinary");
-    expect(serverSource).toContain(
-      "runPlaygroundNativeBinary(options.binFile",
-    );
+    expect(serverSource).toContain("runPlaygroundNativeBinary(options.binFile");
     expect(serverSource).not.toContain("const argsStr =");
     expect(serverSource).not.toContain("execAsync(cmd");
   });

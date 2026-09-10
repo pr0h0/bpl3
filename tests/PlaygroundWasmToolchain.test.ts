@@ -11,7 +11,7 @@ import { writeNodeCommandShim } from "./helpers/executableShim";
 
 describe("Playground wasm toolchain", () => {
   const serverSource = fs.readFileSync(
-    path.resolve(import.meta.dir, "../playground/backend/server.ts"),
+    path.resolve(import.meta.dir, "../playground/backend/engine.ts"),
     "utf8",
   );
   const originalWasmLd = process.env.WASM_LD;
@@ -48,11 +48,11 @@ describe("Playground wasm toolchain", () => {
         ok: true,
         linker: workingLinker,
       });
-      expect(createPlaygroundWasmBuildEnv(process.env, workingLinker)).toMatchObject(
-        {
-          WASM_LD: workingLinker,
-        },
-      );
+      expect(
+        createPlaygroundWasmBuildEnv(process.env, workingLinker),
+      ).toMatchObject({
+        WASM_LD: workingLinker,
+      });
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
