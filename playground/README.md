@@ -133,9 +133,14 @@ Native execution has a 5-second limit and a 1 MiB output budget. Each complete
 worker job has a 30-second watchdog independent of the web server, and the Docker
 client allows 35 seconds for attach/completion. Combined worker output and
 diagnostics are capped at 16 MiB. Worker failures return HTTP 502; cleanup failures
-return 503 and disable new jobs until the server restarts. Containers are removed
+return 503 and disable new jobs until cleanup succeeds. The controller retries
+cleanup and checks Docker every 15 seconds; `/health` returns 503 while unavailable. Containers are removed
 on completion and explicitly force-removed on errors. The PID 1 watchdog also
-terminates jobs left running after controller failure. Do not add `--init` before
+terminates jobs left running after controller failure. A 60-second expiry label
+lets startup and periodic recovery remove containers abandoned before startup.
+Recovery leaves unexpired workers and unrelated containers alone. If every
+controller is stopped, expired unstarted containers are collected on the next
+controller startup. Do not add `--init` before
 this watchdog: that would allow a submitted program to suspend the watchdog.
 
 Docker jobs start fresh, so they do not share native binaries or compiler caches

@@ -138,6 +138,49 @@ describe("playground runner", () => {
     expect(calls.length).toBe(count);
   });
 
+  test("recovers cleanup after a Docker outage before accepting new jobs", async () => {
+    let offline = false;
+    const { runner, calls } = harness(({ args }) =>
+      offline && (args[0] === "rm" || args[0] === "ps")
+        ? Promise.reject(new Error("daemon unavailable"))
+        : undefined,
+    );
+    await runner.prepare();
+    offline = true;
+    await expect(runner.execute("compile", { code: "" })).rejects.toThrow(
+      "cleanup failed",
+    );
+    expect(runner.ready).toBe(false);
+    await expect(runner.recover()).rejects.toThrow();
+    offline = false;
+    await runner.recover();
+    expect(runner.ready).toBe(true);
+    await expect(
+      runner.execute("compile", { code: "" }),
+    ).resolves.toMatchObject({ success: true });
+    expect(calls.filter(({ args }) => args[0] === "rm").length).toBe(4);
+  });
+
+  test("reaps only expired labelled jobs and serializes concurrent recovery calls", async () => {
+    const old = "a".repeat(12),
+      current = "b".repeat(12);
+    const { runner, calls } = harness(({ args }) =>
+      args[0] === "ps"
+        ? Promise.resolve({
+            stdout: `${old} 1\n${current} ${Date.now() + 60000}\n${"c".repeat(12)}\nbad-name 1\n`,
+            stderr: "",
+          })
+        : undefined,
+    );
+    await runner.prepare();
+    expect(
+      calls.filter(({ args }) => args[0] === "rm").map(({ args }) => args[2]),
+    ).toEqual([old]);
+    const first = runner.recover();
+    expect(runner.recover()).toBe(first);
+    await first;
+  });
+
   test("bounds concurrency and releases capacity after jobs finish", async () => {
     const pending: Array<() => void> = [];
     const { runner } = harness(({ args }) =>

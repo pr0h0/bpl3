@@ -3186,3 +3186,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: Tutorial loading and code execution use hard-coded `http://localhost:3001` URLs. Custom ports target the wrong service, remote visitors target their own machines, and explicit host mode correctly rejects the resulting foreign-origin requests.
 
 **Resolution (2026-09-10)**: Tutorials now use same-origin API paths for served pages, matching the main playground. A browser-script regression executes tutorial loading and the Run handler at both a custom local port and a remote HTTPS origin.
+
+### BUG-255: A controller crash can leave unstarted playground containers behind
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed**: The controller creates a container before attaching and starting it. A crash between these operations leaves a stopped container: neither its watchdog nor Docker's remove-on-exit behavior has run. Cleanup failures also permanently disable a live controller while its health endpoint still reports success.
+
+**Resolution (2026-09-10)**: Added labelled expiry leases, startup/periodic orphan cleanup, retryable failed cleanup, and readiness reporting. Recovery never removes unexpired jobs belonging to other controllers. Nine runner tests and eleven real Docker tests pass, including actual memory, process, and tmpfs exhaustion; typecheck passes. Docker transport outages are injected in tests without restarting the shared host daemon.

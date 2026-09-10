@@ -47,6 +47,90 @@ dockerTests("real Docker playground workers", () => {
     expect(compiled.output).toBeUndefined();
   }, 60_000);
 
+  test("recovers an expired container left between create and start, without touching an unexpired job", async () => {
+    const names = [
+      `bpl-playground-orphan-${process.pid}`,
+      `bpl-playground-live-${process.pid}`,
+    ];
+    try {
+      for (const [i, name] of names.entries())
+        await runProcessFile("docker", [
+          "create",
+          "--name",
+          name,
+          "--label",
+          "bpl.playground.worker=true",
+          "--label",
+          `bpl.playground.expires=${i === 0 ? 1 : Date.now() + 60000}`,
+          process.env.BPL_PLAYGROUND_IMAGE || "bpl-playground-worker:local",
+        ]);
+      await runner.recover();
+      for (const [i, name] of names.entries()) {
+        const found = await runProcessFile("docker", [
+          "ps",
+          "-aq",
+          "--filter",
+          `name=^/${name}$`,
+        ]);
+        expect(Boolean(found.stdout.trim())).toBe(i === 1);
+      }
+      expect(await runner.execute("compile", { code: hello })).toMatchObject({
+        success: true,
+      });
+    } finally {
+      for (const name of names)
+        await runProcessFile("docker", ["rm", "-f", name]).catch(() => {});
+    }
+  }, 45_000);
+
+  test("survives tmpfs exhaustion and process exhaustion with fresh workspaces", async () => {
+    const disk = await runner.execute("compile", {
+      code: `extern system(cmd: string) ret int;
+      frame main() ret int { return system("dd if=/dev/zero of=/tmp/fill bs=1M count=256 2>/dev/null; test $(stat -c %s /tmp/fill) -lt 268435456 && echo bounded"); }`,
+    });
+    expect(disk).toMatchObject({ success: true, output: "bounded\n" });
+    const processes = await runner.execute("compile", {
+      code: `
+      extern fork() ret int; extern sleep(seconds: uint) ret uint;
+      extern printf(fmt: string, ...) ret int;
+      frame main() ret int {
+        local count: int = 0;
+        loop (count < 128) {
+          local pid: int = fork();
+          if (pid == 0) { sleep(2); return 0; }
+          if (pid < 0) { printf("bounded %d\\n", count); return 0; }
+          count += 1;
+        }
+        return 1;
+      }`,
+    });
+    expect(processes.success).toBe(true);
+    const count = Number(/bounded (\d+)/.exec(processes.output || "")?.[1]);
+    expect(count).toBeGreaterThan(0);
+    expect(count).toBeLessThan(64);
+    expect(await runner.execute("compile", { code: hello })).toMatchObject({
+      success: true,
+    });
+  }, 60_000);
+
+  test("contains memory exhaustion, removes the job, and accepts another job", async () => {
+    const outcome = await runner
+      .execute("compile", {
+        code: `
+      extern malloc(size: ulong) ret *char;
+      extern memset(ptr: *char, value: int, size: ulong) ret *char;
+      frame main() ret int {
+        loop { local data: *char = malloc(16777216); if (data == nullptr) { return 1; } memset(data, 1, 16777216); }
+        return 0;
+      }`,
+      })
+      .catch(() => ({ success: false }));
+    expect(outcome.success).toBe(false);
+    expect(await runner.execute("compile", { code: hello })).toMatchObject({
+      success: true,
+    });
+  }, 60_000);
+
   test("builds valid hosted Wasm inside the worker", async () => {
     const result = await runner.execute("wasm", { code: hello });
     expect(result.success).toBe(true);

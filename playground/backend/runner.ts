@@ -7,6 +7,7 @@ export type PlaygroundOperation = "compile" | "wasm" | "format";
 export type PlaygroundResult = CompileResponse &
   Partial<HostedWasmCompileResponse> & { code?: string };
 export const DEFAULT_WORKER_IMAGE = "bpl-playground-worker:local";
+const WORKER_LEASE_MS = 60_000;
 
 export class RunnerError extends Error {
   constructor(
@@ -30,13 +31,67 @@ export class DockerPlaygroundRunner {
   private active = 0;
   private unavailable = false;
   private imageId?: string;
+  private pendingCleanup = new Set<string>();
+  private recovery?: Promise<void>;
 
   constructor(
     private readonly image = DEFAULT_WORKER_IMAGE,
     private readonly run: typeof runProcessFile = runProcessFile,
   ) {}
 
+  get ready(): boolean {
+    return Boolean(this.imageId) && !this.unavailable;
+  }
+
+  private async remove(name: string): Promise<void> {
+    try {
+      await this.run("docker", ["rm", "--force", name], {
+        timeout: 10_000,
+        maxBuffer: 1024 * 1024,
+      });
+    } catch (error) {
+      if (!(error as { stderr?: string }).stderr?.includes("No such container"))
+        throw error;
+    }
+    this.pendingCleanup.delete(name);
+  }
+
+  /** Only expired, labelled playground jobs and this controller's failed cleanups. */
+  recover(): Promise<void> {
+    if (this.recovery) return this.recovery;
+    this.recovery = (async () => {
+      try {
+        for (const name of this.pendingCleanup) await this.remove(name);
+        const jobs = await this.run(
+          "docker",
+          [
+            "ps",
+            "--all",
+            "--filter",
+            "label=bpl.playground.worker=true",
+            "--format",
+            '{{.ID}} {{.Label "bpl.playground.expires"}}',
+          ],
+          { timeout: 10_000, maxBuffer: 1024 * 1024 },
+        );
+        for (const line of jobs.stdout.trim().split("\n")) {
+          const match = /^([a-f0-9]{12,64}) (\d+)$/.exec(line);
+          if (match && Number(match[2]) <= Date.now())
+            await this.remove(match[1]!);
+        }
+        this.unavailable = this.pendingCleanup.size > 0;
+      } catch (error) {
+        this.unavailable = true;
+        throw error;
+      } finally {
+        this.recovery = undefined;
+      }
+    })();
+    return this.recovery;
+  }
+
   async prepare(): Promise<void> {
+    this.imageId = undefined;
     try {
       const info = await this.run(
         "docker",
@@ -57,6 +112,7 @@ export class DockerPlaygroundRunner {
       if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) {
         throw new Error("Invalid worker image ID");
       }
+      await this.recover();
       this.imageId = imageId;
     } catch (error) {
       throw new RunnerError(
@@ -94,6 +150,8 @@ export class DockerPlaygroundRunner {
           name,
           "--label",
           "bpl.playground.worker=true",
+          "--label",
+          `bpl.playground.expires=${Date.now() + WORKER_LEASE_MS}`,
           "--pull=never",
           "--rm",
           "--init=false",
@@ -143,18 +201,13 @@ export class DockerPlaygroundRunner {
       );
     } finally {
       try {
-        await this.run("docker", ["rm", "--force", name], {
-          timeout: 10_000,
-          maxBuffer: 1024 * 1024,
-        });
+        await this.remove(name);
       } catch (error) {
-        const stderr = (error as { stderr?: string }).stderr ?? "";
-        if (!stderr.includes("No such container")) {
-          this.unavailable = true;
-          throw new RunnerError(
-            "Worker cleanup failed; check Docker and restart the playground.",
-          );
-        }
+        this.pendingCleanup.add(name);
+        this.unavailable = true;
+        throw new RunnerError(
+          "Worker cleanup failed; waiting for Docker recovery.",
+        );
       } finally {
         this.active--;
       }
@@ -169,12 +222,19 @@ export async function createPlaygroundRunner(
   if (mode === "docker") {
     const runner = new DockerPlaygroundRunner(env.BPL_PLAYGROUND_IMAGE);
     await runner.prepare();
-    return { mode, execute: runner.execute.bind(runner) };
+    return {
+      mode,
+      execute: runner.execute.bind(runner),
+      recover: () => runner.recover(),
+      ready: () => runner.ready,
+    };
   }
   // Importing the compiler is deliberately restricted to explicit host mode.
   const engine = await import("./engine");
   return {
     mode,
+    recover: async () => {},
+    ready: () => true,
     async execute(
       operation: PlaygroundOperation,
       request: CompileRequest,

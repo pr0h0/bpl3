@@ -53,6 +53,13 @@ function getTutorials() {
 
 // Server
 const runner = await createPlaygroundRunner();
+if (runner.mode === "docker") {
+  setInterval(() => {
+    void runner
+      .recover()
+      .catch(() => logger.warn("Docker recovery unavailable; retrying."));
+  }, 15_000).unref();
+}
 async function runJob(operation: PlaygroundOperation, request: CompileRequest) {
   const start = Date.now();
   try {
@@ -120,13 +127,16 @@ const server = Bun.serve({
     if (url.pathname === "/health" && req.method === "GET") {
       const uptime = getUptime();
       const healthData = {
-        status: "ok",
+        status: runner.ready() ? "ok" : "unavailable",
         runner: runner.mode,
         uptime,
         timestamp: new Date().toISOString(),
       };
       logger.debug("Health check", healthData);
-      return new Response(JSON.stringify(healthData), { headers });
+      return new Response(JSON.stringify(healthData), {
+        headers,
+        status: runner.ready() ? 200 : 503,
+      });
     }
 
     // GET /stats - Statistics endpoint
