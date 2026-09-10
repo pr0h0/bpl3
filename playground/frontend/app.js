@@ -16,14 +16,43 @@ const browserWasmRuntime = window.BplBrowserWasmRuntime;
 if (!browserWasmRuntime) {
   throw new Error("BPL browser wasm runtime script must load before app.js");
 }
-const { runHostedWasmInBrowser } = wasmHostAdapter;
+let activeOperation = null;
+function beginOperation() {
+  if (activeOperation) return null;
+  activeOperation = new AbortController();
+  document.getElementById("loading").style.display = "flex";
+  return activeOperation;
+}
+function finishOperation(operation) {
+  if (activeOperation === operation) {
+    activeOperation = null;
+    document.getElementById("loading").style.display = "none";
+  }
+}
+function showCancelled(target = "output-content") {
+  document.getElementById(target).textContent = "Execution cancelled.";
+  document.getElementById("exec-status").textContent = "Cancelled";
+}
+document
+  .getElementById("stop-btn")
+  .addEventListener("click", () => activeOperation?.abort());
+window.addEventListener("pagehide", () => activeOperation?.abort());
+const runHostedWasmInBrowser = (wasm, args) =>
+  wasmHostAdapter.runHostedWasmInWorker(wasm, args, {
+    signal: activeOperation?.signal,
+  });
 const {
-  compileAndRunBplInBrowser,
+  compileAndRunBplInBrowser: compileInBrowser,
   detectBrowserWasmCapabilities,
   formatBrowserWasmFailureReport,
   formatBrowserWasmCapabilitySummary,
   formatHostedWasmRunReport,
 } = browserWasmRuntime;
+
+const compileAndRunBplInBrowser = (code, args) =>
+  compileInBrowser(code, args, {
+    hostAdapter: { runHostedWasmInBrowser },
+  });
 
 require.config({
   paths: {
@@ -330,18 +359,25 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
 
 // Run code
 document.getElementById("run-btn").addEventListener("click", async () => {
+  const operation = beginOperation();
+  if (!operation) return;
   // Auto-format before running if checkbox is checked
   const autoFormat = document.getElementById("auto-format-checkbox")?.checked;
   if (autoFormat) {
-    document.getElementById("format-btn")?.click();
-    // Wait a bit for formatting to complete
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    try {
+      await formatEditor(operation.signal);
+    } catch {
+      showCancelled();
+      finishOperation(operation);
+      return;
+    }
   }
 
   const code = editor.getValue();
 
   if (!code.trim()) {
     showToast("Editor is empty. Please write some code first!", "warning");
+    finishOperation(operation);
     return;
   }
 
@@ -386,6 +422,7 @@ document.getElementById("run-btn").addEventListener("click", async () => {
 
     const response = await fetch(`${API_BASE}/compile`, {
       method: "POST",
+      signal: operation.signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         code,
@@ -396,6 +433,7 @@ document.getElementById("run-btn").addEventListener("click", async () => {
     });
 
     const result = await response.json();
+    operation.signal.throwIfAborted();
     const duration = Date.now() - startTime;
     latestCompileRequest = { code, input: stdin, args };
     compileArtifactsLoaded = false;
@@ -444,19 +482,26 @@ document.getElementById("run-btn").addEventListener("click", async () => {
     // Update server stats after compilation
     setTimeout(pollServerStats, 500);
   } catch (error) {
+    if (operation.signal.aborted) {
+      showCancelled();
+      return;
+    }
     const outputEl = document.getElementById("output-content");
     outputEl.textContent = `Failed to connect to server: ${error.message}\n\nMake sure the backend server is running:\ncd playground/backend && bun run dev`;
     outputEl.className = "error";
     showToast("Server connection failed", "error");
   } finally {
-    document.getElementById("loading").style.display = "none";
+    finishOperation(operation);
   }
 });
 
 document.getElementById("run-wasm-btn").addEventListener("click", async () => {
+  const operation = beginOperation();
+  if (!operation) return;
   const code = editor.getValue();
   if (!code.trim()) {
     showToast("Editor is empty. Please write some code first!", "warning");
+    finishOperation(operation);
     return;
   }
 
@@ -524,10 +569,12 @@ document.getElementById("run-wasm-btn").addEventListener("click", async () => {
 
     const response = await fetch(`${API_BASE}/wasm`, {
       method: "POST",
+      signal: operation.signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, args }),
     });
     const result = await response.json();
+    operation.signal.throwIfAborted();
 
     if (!result.success) {
       wasmContent.textContent = result.error || "WebAssembly build failed";
@@ -566,18 +613,20 @@ document.getElementById("run-wasm-btn").addEventListener("click", async () => {
       : "var(--success)";
     showToast("WebAssembly executed in browser", "success");
   } catch (error) {
-    const browserFallback = await compileAndRunBplInBrowser(code, args);
+    if (operation.signal.aborted) {
+      showCancelled("wasm-content");
+      return;
+    }
     wasmContent.textContent = formatBrowserWasmFailureReport({
       errorMessage: error.message,
       capabilitySummary: browserCapabilitySummary,
-      fallbackError: browserFallback.error,
     });
     wasmContent.className = "error";
     document.getElementById("exec-status").textContent = "Wasm failed";
     document.getElementById("exec-status").style.color = "var(--error)";
     showToast("WebAssembly run failed", "error");
   } finally {
-    document.getElementById("loading").style.display = "none";
+    finishOperation(operation);
   }
 });
 
@@ -617,11 +666,16 @@ async function loadCompileArtifacts() {
     return;
   }
 
+  const operation = beginOperation();
+  if (!operation) return;
+  document.getElementById("loading-status").textContent =
+    "Loading compiler debug output...";
   setCompileArtifactPlaceholders("Loading compiler debug output...");
   compileArtifactsPromise = (async () => {
     try {
       const response = await fetch(`${API_BASE}/compile`, {
         method: "POST",
+        signal: operation.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...latestCompileRequest,
@@ -648,12 +702,15 @@ async function loadCompileArtifacts() {
         result.tokens || "(no tokens)";
       compileArtifactsLoaded = true;
     } catch (error) {
-      const message = `Failed to load compiler debug output: ${error.message}`;
+      const message = operation.signal.aborted
+        ? "Execution cancelled."
+        : `Failed to load compiler debug output: ${error.message}`;
       document.getElementById("ir-content").textContent = message;
       document.getElementById("ast-content").textContent = message;
       document.getElementById("tokens-content").textContent = message;
     } finally {
       compileArtifactsPromise = null;
+      finishOperation(operation);
     }
   })();
 
@@ -661,7 +718,7 @@ async function loadCompileArtifacts() {
 }
 
 // Format code
-document.getElementById("format-btn").addEventListener("click", async () => {
+async function formatEditor(signal) {
   const code = editor.getValue();
 
   if (!code.trim()) {
@@ -672,11 +729,13 @@ document.getElementById("format-btn").addEventListener("click", async () => {
   try {
     const response = await fetch(`${API_BASE}/format`, {
       method: "POST",
+      signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code }),
     });
 
     const result = await response.json();
+    signal?.throwIfAborted();
 
     if (result.success && result.code) {
       editor.setValue(result.code);
@@ -688,7 +747,19 @@ document.getElementById("format-btn").addEventListener("click", async () => {
       );
     }
   } catch (error) {
+    if (signal?.aborted) throw error;
     showToast("Failed to connect to server", "error");
+  }
+}
+document.getElementById("format-btn").addEventListener("click", async () => {
+  const operation = beginOperation();
+  if (!operation) return;
+  try {
+    await formatEditor(operation.signal);
+  } catch {
+    showCancelled();
+  } finally {
+    finishOperation(operation);
   }
 });
 

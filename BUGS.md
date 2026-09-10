@@ -3199,13 +3199,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-256: Abandoned playground requests continue occupying execution slots
 
-**Status**: In progress
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed**: HTTP request cancellation is not passed to the runner or subprocesses, so disconnecting clients leave work running until its timeout. A single client can also occupy both Docker slots, and the UI has no Stop action.
 
-**Resolution**: Adding cancellation through HTTP, Docker and host subprocess execution, plus per-address admission limits and browser Stop controls. Docker creation completes before cancellation cleanup to avoid leaving a late-created container behind.
+**Resolution (2026-09-10)**: Added cancellation through HTTP, Docker and host subprocess execution, plus per-address admission limits and browser Stop controls. Docker creation completes before cancellation cleanup to avoid leaving a late-created container behind.
 
 ### BUG-257: Subprocess output corrupts UTF-8 split across chunks
 
@@ -3219,20 +3219,20 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-258: Auto-format can race the subsequent Run request
 
-**Status**: In progress
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed**: Run triggers formatting and waits a fixed 100 ms before reading the editor. Slower formatting can change the editor after compilation has already started and conflicts with one-active-job admission.
 
-**Resolution**: Awaiting formatting completion before submitting compilation, sharing the cancellation signal across both phases.
+**Resolution (2026-09-10)**: Run now awaits formatting completion before submitting compilation, sharing the cancellation signal across both phases.
 
 ### BUG-259: Browser Wasm execution can freeze the playground UI
 
-**Status**: In progress
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed**: Wasm exports execute on the browser main thread. Infinite loops prevent the UI from processing Stop or any other interaction, and captured output grows without a bound.
 
-**Resolution**: Moving execution into a disposable Web Worker with termination on Stop, a five-second timeout, and a 1 MiB output budget.
+**Resolution (2026-09-10)**: Moved execution into a disposable Web Worker with termination on Stop, a five-second timeout, and a 1 MiB output budget.

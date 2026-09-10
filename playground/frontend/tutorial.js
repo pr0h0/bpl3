@@ -8,6 +8,11 @@ let currentTutorial = null;
 let currentTutorialIndex = 0;
 let completedLessons = [];
 let modalEditor = null;
+let tutorialOperation = null;
+window.addEventListener("pagehide", () => tutorialOperation?.abort());
+document
+  .getElementById("modal-stop-btn")
+  ?.addEventListener("click", () => tutorialOperation?.abort());
 
 // Load completed lessons from localStorage
 function loadProgress() {
@@ -609,6 +614,7 @@ function openCodeModal(code) {
 
 // Close code modal
 document.getElementById("close-modal-btn")?.addEventListener("click", () => {
+  tutorialOperation?.abort();
   document.getElementById("code-modal").style.display = "none";
 });
 
@@ -616,7 +622,10 @@ document.getElementById("close-modal-btn")?.addEventListener("click", () => {
 document
   .getElementById("modal-run-btn")
   ?.addEventListener("click", async () => {
-    if (!modalEditor) return;
+    if (!modalEditor || tutorialOperation) return;
+    const operation = new AbortController();
+    tutorialOperation = operation;
+    document.getElementById("modal-stop-btn").disabled = false;
 
     const code = modalEditor.getValue();
     const output = document.getElementById("modal-output");
@@ -626,11 +635,13 @@ document
     try {
       const response = await fetch(`${TUTORIAL_API_BASE}/compile`, {
         method: "POST",
+        signal: operation.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, input: "", args: [] }),
       });
 
       const result = await response.json();
+      operation.signal.throwIfAborted();
 
       if (result.success) {
         output.textContent = result.output || "(no output)";
@@ -640,14 +651,20 @@ document
         output.style.color = "var(--error)";
       }
     } catch (error) {
-      output.textContent = "Failed to connect to server";
+      output.textContent = operation.signal.aborted
+        ? "Execution cancelled."
+        : "Failed to connect to server";
       output.style.color = "var(--error)";
+    } finally {
+      tutorialOperation = null;
+      document.getElementById("modal-stop-btn").disabled = true;
     }
   });
 
 // Close modal on backdrop click
 document.getElementById("code-modal")?.addEventListener("click", (e) => {
   if (e.target.id === "code-modal") {
+    tutorialOperation?.abort();
     document.getElementById("code-modal").style.display = "none";
   }
 });
@@ -892,6 +909,7 @@ document.addEventListener("DOMContentLoaded", () => {
 document.addEventListener("keydown", (e) => {
   // Escape to close modal
   if (e.key === "Escape") {
+    tutorialOperation?.abort();
     document.getElementById("code-modal").style.display = "none";
   }
 

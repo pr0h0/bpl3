@@ -39,9 +39,8 @@ type PlaygroundWasmHostAdapter = {
   createHostedWasmBrowserHost(argv?: string[]): PlaygroundWasmHost;
 };
 
-const wasmHostAdapter = require(
-  "../playground/frontend/wasmHostAdapter.js",
-) as PlaygroundWasmHostAdapter;
+const wasmHostAdapter =
+  require("../playground/frontend/wasmHostAdapter.js") as PlaygroundWasmHostAdapter;
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -60,6 +59,15 @@ function readString(memory: WebAssembly.Memory, ptr: number, len: number) {
 }
 
 describe("Playground hosted wasm browser adapter", () => {
+  test("bounds combined browser Wasm stdout and stderr", () => {
+    const host = wasmHostAdapter.createHostedWasmBrowserHost([]);
+    host.attach({ memory: new WebAssembly.Memory({ initial: 17 }) });
+    host.imports.env.__bpl_host_write(1, 0, 512 * 1024);
+    host.imports.env.__bpl_host_write(2, 0, 512 * 1024);
+    expect(() => host.imports.env.__bpl_host_write(1, 0, 1)).toThrow(
+      "output exceeded",
+    );
+  });
   test("exports the full host import contract used by hosted wasm", () => {
     expect(wasmHostAdapter.HOSTED_WASM_ENV_IMPORTS).toEqual([
       "__bpl_host_write",
@@ -80,10 +88,7 @@ describe("Playground hosted wasm browser adapter", () => {
   });
 
   test("routes writes, argv, exit, and BPL errors through browser-safe hooks", () => {
-    const host = wasmHostAdapter.createHostedWasmBrowserHost([
-      "alpha",
-      "beta",
-    ]);
+    const host = wasmHostAdapter.createHostedWasmBrowserHost(["alpha", "beta"]);
     const memory = new WebAssembly.Memory({ initial: 1 });
     host.attach({ memory });
 

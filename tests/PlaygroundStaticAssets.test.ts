@@ -62,7 +62,8 @@ describe("Playground frontend static assets", () => {
       const calls: URL[] = [];
       const handlers = new Map<string, () => Promise<void>>();
       const context = createContext({
-        window: { location: new URL(page) },
+        window: { location: new URL(page), addEventListener() {} },
+        AbortController,
         URLSearchParams,
         console,
         require: { config() {} },

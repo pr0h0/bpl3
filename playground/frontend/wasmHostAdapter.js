@@ -39,6 +39,7 @@
     );
     let exports;
     let stdout = "";
+    let outputBytes = 0;
     let stderr = "";
     let returnCode = null;
     let trapped = false;
@@ -80,6 +81,9 @@
     const host = {
       env: {
         __bpl_host_write(fd, ptr, len) {
+          outputBytes += len >>> 0;
+          if (outputBytes > 1024 * 1024)
+            throw new Error("Browser wasm output exceeded 1 MiB");
           const text = decoder.decode(readBytes(ptr, len));
           if (fd === 2) {
             stderr += text;
@@ -174,7 +178,47 @@
     return host.result();
   }
 
+  function runHostedWasmInWorker(wasmBase64, args = [], options = {}) {
+    return new Promise((resolve, reject) => {
+      if (options.signal?.aborted) {
+        reject(new DOMException("Execution cancelled", "AbortError"));
+        return;
+      }
+      const worker = new global.Worker("wasmWorker.js");
+      const cleanup = () => {
+        clearTimeout(timer);
+        options.signal?.removeEventListener("abort", abort);
+        worker.terminate();
+      };
+      const abort = () => {
+        cleanup();
+        reject(new DOMException("Execution cancelled", "AbortError"));
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error("Browser wasm execution timeout (5 seconds)"));
+      }, 5000);
+      options.signal?.addEventListener("abort", abort, { once: true });
+      worker.onmessage = ({ data }) => {
+        cleanup();
+        if (data.error) reject(new Error(data.error));
+        else resolve(data.result);
+      };
+      worker.onerror = (error) => {
+        cleanup();
+        reject(new Error(error.message));
+      };
+      try {
+        worker.postMessage({ wasmBase64, args });
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
+    });
+  }
+
   const api = {
+    runHostedWasmInWorker,
     HOSTED_WASM_ENV_IMPORTS,
     assertHostedWasmEnvImports,
     decodeBase64Bytes,

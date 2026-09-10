@@ -106,12 +106,13 @@ caches, so repeated runs avoid container startup and compilation costs.
 
 ### Configuration and deployment
 
-| Setting                 | Default                       | Purpose                                             |
-| ----------------------- | ----------------------------- | --------------------------------------------------- |
-| `BPL_PLAYGROUND_RUNNER` | `docker`                      | `docker` or explicitly trusted `host`               |
-| `BPL_PLAYGROUND_IMAGE`  | `bpl-playground-worker:local` | Trusted, locally built worker image                 |
-| `BPL_PLAYGROUND_HOST`   | `127.0.0.1`                   | Docker-mode HTTP bind address; ignored in host mode |
-| `PORT`                  | `3001`                        | HTTP port                                           |
+| Setting                          | Default                       | Purpose                                                              |
+| -------------------------------- | ----------------------------- | -------------------------------------------------------------------- |
+| `BPL_PLAYGROUND_RUNNER`          | `docker`                      | `docker` or explicitly trusted `host`                                |
+| `BPL_PLAYGROUND_IMAGE`           | `bpl-playground-worker:local` | Trusted, locally built worker image                                  |
+| `BPL_PLAYGROUND_HOST`            | `127.0.0.1`                   | Docker-mode HTTP bind address; ignored in host mode                  |
+| `BPL_PLAYGROUND_TRUSTED_PROXIES` | unset                         | Comma-separated exact proxy IPs allowed to supply a single client IP |
+| `PORT`                           | `3001`                        | HTTP port                                                            |
 
 These are server settings; visitors cannot select a runner or image. `/health`
 reports the selected runner. For a shared deployment, use Docker mode and place
@@ -122,11 +123,32 @@ Docker socket, credentials, or host bind mounts. Docker workers share the host
 kernel, so keep Docker and the host patched and use a dedicated machine or VM for
 an Internet-facing playground.
 
+The controller uses the socket peer address by default and ignores supplied
+forwarding headers. Behind a reverse proxy, configure its exact IP in
+`BPL_PLAYGROUND_TRUSTED_PROXIES` and have it **overwrite** `X-Forwarded-For` with
+the client address (for Nginx: `proxy_set_header X-Forwarded-For $remote_addr;`).
+Forwarded chains are ignored. Configure this only for proxies you control.
+
+The Stop button cancels the active request in the editor and tutorial modal.
+Disconnecting a client also cancels its job; the execution slot stays reserved
+until Docker cleanup completes. If cancellation arrives during container creation,
+creation is allowed to settle before removal to avoid an orphan race. Host mode
+kills subprocess groups when cancelled; its synchronous parsing and compilation
+cannot be interrupted mid-call.
+
+Browser Wasm runs in a disposable Web Worker, so Stop remains responsive even for
+an infinite loop. Browser execution has a five-second timeout and a 1 MiB combined
+stdout/stderr budget. Serve the playground over HTTP(S) to use Web Workers.
+Auto-format completes before Run submits the formatted source.
+
 Each worker has no external network, runs as UID/GID 10001, drops all capabilities,
 sets `no-new-privileges`, and uses a read-only root filesystem. Its temporary
 workspace is a 128 MiB tmpfs. Limits are 1 CPU, 768 MiB memory with no additional
 swap, 64 processes, and 256 file descriptors. At most two jobs run per server;
-additional submissions receive HTTP 429. Request bodies are limited to 512 KiB,
+additional submissions receive HTTP 429. Each client IP may have one active job,
+a burst of ten submissions, and twenty further submissions per minute. HTTP 429
+responses include `Retry-After`. Tracking is bounded to 4,096 client addresses;
+clients behind the same NAT share a budget. Host mode does not apply these quotas. Request bodies are limited to 512 KiB,
 source to 128 KiB, stdin to 256 KiB, and argv to 64 arguments of at most 4 KiB each.
 
 Native execution has a 5-second limit and a 1 MiB output budget. Each complete
