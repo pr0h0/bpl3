@@ -126,7 +126,9 @@ export class DockerPlaygroundRunner {
   async execute(
     operation: PlaygroundOperation,
     request: CompileRequest,
+    signal?: AbortSignal,
   ): Promise<PlaygroundResult> {
+    if (signal?.aborted) throw new RunnerError("Execution cancelled.", 499);
     if (!this.imageId || this.unavailable) {
       throw new RunnerError(
         "Docker runner unavailable; restart after checking Docker.",
@@ -173,6 +175,8 @@ export class DockerPlaygroundRunner {
         ],
         { timeout: 10_000, maxBuffer: 1024 * 1024 },
       );
+      // Wait for create to settle even on cancellation, so cleanup cannot race it.
+      if (signal?.aborted) throw new RunnerError("Execution cancelled.", 499);
       const result = await this.run(
         "docker",
         ["start", "--attach", "--interactive", name],
@@ -180,6 +184,7 @@ export class DockerPlaygroundRunner {
           input: JSON.stringify({ operation, request }),
           timeout: 35_000,
           maxBuffer: 16 * 1024 * 1024,
+          signal,
         },
       );
       const response: unknown = JSON.parse(result.stdout);
@@ -193,6 +198,7 @@ export class DockerPlaygroundRunner {
       }
       return response as PlaygroundResult;
     } catch (error) {
+      if (signal?.aborted) throw new RunnerError("Execution cancelled.", 499);
       if (error instanceof RunnerError) throw error;
       // Do not expose Docker daemon details or host configuration to visitors.
       throw new RunnerError(
@@ -238,10 +244,16 @@ export async function createPlaygroundRunner(
     async execute(
       operation: PlaygroundOperation,
       request: CompileRequest,
+      signal?: AbortSignal,
     ): Promise<PlaygroundResult> {
+      if (signal?.aborted) throw new RunnerError("Execution cancelled.", 499);
       if (operation === "format") return engine.formatCode(request);
-      if (operation === "wasm") return engine.compileToWasm(request);
-      return engine.compileAndRun(request);
+      const result =
+        operation === "wasm"
+          ? await engine.compileToWasm(request, signal)
+          : await engine.compileAndRun(request, signal);
+      if (signal?.aborted) throw new RunnerError("Execution cancelled.", 499);
+      return result;
     },
   };
 }

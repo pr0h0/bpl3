@@ -43,6 +43,25 @@ function harness(
 }
 
 describe("playground runner", () => {
+  test("never starts pre-cancelled work and waits for create before removing cancelled work", async () => {
+    const controller = new AbortController();
+    const { runner, calls } = harness(({ args }) => {
+      if (args[0] === "create") {
+        controller.abort();
+        return Promise.resolve({ stdout: "created", stderr: "" });
+      }
+    });
+    await runner.prepare();
+    await expect(
+      runner.execute("compile", { code: "" }, AbortSignal.abort()),
+    ).rejects.toMatchObject({ status: 499 });
+    expect(calls.some(({ args }) => args[0] === "create")).toBe(false);
+    await expect(
+      runner.execute("compile", { code: "" }, controller.signal),
+    ).rejects.toMatchObject({ status: 499 });
+    expect(calls.some(({ args }) => args[0] === "start")).toBe(false);
+    expect(calls.at(-1)!.args.slice(0, 2)).toEqual(["rm", "--force"]);
+  });
   test("defaults to Docker and requires explicit valid host selection", () => {
     expect(getRunnerMode({})).toBe("docker");
     expect(getRunnerMode({ BPL_PLAYGROUND_RUNNER: "host" })).toBe("host");

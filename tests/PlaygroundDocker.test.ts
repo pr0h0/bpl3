@@ -260,4 +260,63 @@ dockerTests("Docker playground HTTP routing", () => {
       expect(await response.json()).toMatchObject({ success: false });
     }
   });
+
+  test("disconnect cancels its worker and one client cannot occupy both slots", async () => {
+    const controller = new AbortController();
+    const pending = fetch(`${base}/compile`, {
+      method: "POST",
+      signal: controller.signal,
+      body: JSON.stringify({
+        code: "frame main() ret int { loop {} return 0; }",
+      }),
+    }).catch((error) => error);
+    // Wait for the HTTP request to own its slot and the container to be running.
+    const deadline = Date.now() + 10000;
+    let worker = "";
+    while (Date.now() < deadline) {
+      const jobs = await runProcessFile("docker", [
+        "ps",
+        "-q",
+        "--filter",
+        "label=bpl.playground.worker=true",
+      ]);
+      if (jobs.stdout.trim()) {
+        worker = jobs.stdout.trim().split("\n")[0]!;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    try {
+      expect(worker).not.toBe("");
+      const rejected = await fetch(`${base}/compile`, {
+        method: "POST",
+        headers: { "x-forwarded-for": "203.0.113.123" },
+        body: JSON.stringify({ code: hello }),
+      });
+      expect(rejected.status).toBe(429);
+      expect(rejected.headers.get("retry-after")).toBe("3");
+    } finally {
+      controller.abort();
+      await pending;
+    }
+    const stopped = Date.now() + 3000;
+    let remaining = worker;
+    while (Date.now() < stopped && remaining) {
+      remaining = (
+        await runProcessFile("docker", [
+          "ps",
+          "-aq",
+          "--filter",
+          `id=${worker}`,
+        ])
+      ).stdout.trim();
+      if (remaining) await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    expect(remaining).toBe("");
+    const next = await fetch(`${base}/compile`, {
+      method: "POST",
+      body: JSON.stringify({ code: hello }),
+    });
+    expect(await next.json()).toMatchObject({ success: true });
+  }, 30000);
 });

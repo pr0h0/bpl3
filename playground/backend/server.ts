@@ -9,6 +9,15 @@ import {
   type PlaygroundOperation,
 } from "./runner";
 import type { CompileRequest } from "./protocol";
+import {
+  PlaygroundAdmission,
+  clientAddress,
+  trustedProxyAddresses,
+} from "./admission";
+const admission = new PlaygroundAdmission();
+const trustedProxies = trustedProxyAddresses(
+  process.env.BPL_PLAYGROUND_TRUSTED_PROXIES,
+);
 const staticTextFileCache = new StaticTextFileCache();
 const jsonDirectoryCache = new JsonDirectoryCache();
 function readStaticTextFile(filePath: string): string {
@@ -60,10 +69,23 @@ if (runner.mode === "docker") {
       .catch(() => logger.warn("Docker recovery unavailable; retrying."));
   }, 15_000).unref();
 }
-async function runJob(operation: PlaygroundOperation, request: CompileRequest) {
+async function runJob(
+  operation: PlaygroundOperation,
+  request: CompileRequest,
+  httpRequest: Request,
+  peer: string,
+) {
+  if (httpRequest.signal.aborted)
+    throw new RunnerError("Execution cancelled.", 499);
+  const release =
+    runner.mode === "docker"
+      ? admission.acquire(
+          clientAddress(peer, httpRequest.headers, trustedProxies),
+        )
+      : () => {};
   const start = Date.now();
   try {
-    const result = await runner.execute(operation, request);
+    const result = await runner.execute(operation, request, httpRequest.signal);
     if (runner.mode === "docker" && operation !== "format")
       updateStats(result.success, Date.now() - start);
     return result;
@@ -71,6 +93,8 @@ async function runJob(operation: PlaygroundOperation, request: CompileRequest) {
     if (runner.mode === "docker" && operation !== "format")
       updateStats(false, Date.now() - start);
     throw error;
+  } finally {
+    release();
   }
 }
 logger.info(`Playground runner: ${runner.mode}`);
@@ -87,7 +111,8 @@ const server = Bun.serve({
       : (process.env.BPL_PLAYGROUND_HOST ?? "127.0.0.1"),
   maxRequestBodySize: 512 * 1024,
   idleTimeout: 60,
-  async fetch(req) {
+  async fetch(req, server) {
+    const peer = server.requestIP(req)?.address ?? "unknown";
     const url = new URL(req.url);
     const startTime = Date.now();
 
@@ -107,7 +132,7 @@ const server = Bun.serve({
     }
 
     // CORS headers
-    const headers = {
+    const headers: Record<string, string> = {
       "Access-Control-Allow-Origin": runner.mode === "host" ? url.origin : "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
@@ -188,12 +213,14 @@ const server = Bun.serve({
         const validation = validateCompileRequestPayload(body);
         if (!validation.success)
           return invalidRequestResponse(validation.error, headers);
-        const result = await runJob("format", validation.request);
+        const result = await runJob("format", validation.request, req, peer);
         return new Response(JSON.stringify(result), {
           headers,
           status: result.success ? 200 : 500,
         });
       } catch (error) {
+        if (error instanceof RunnerError && error.status === 429)
+          headers["Retry-After"] = "3";
         return new Response(
           JSON.stringify({ success: false, error: String(error) }),
           {
@@ -237,9 +264,11 @@ const server = Bun.serve({
           return invalidRequestResponse(validation.error, headers);
         }
 
-        const result = await runJob("compile", validation.request);
+        const result = await runJob("compile", validation.request, req, peer);
         return new Response(JSON.stringify(result), { headers });
       } catch (e: any) {
+        if (e instanceof RunnerError && e.status === 429)
+          headers["Retry-After"] = "3";
         logger.error("Compile endpoint error", { error: e.message });
         return new Response(
           JSON.stringify({ success: false, error: e.message }),
@@ -269,9 +298,11 @@ const server = Bun.serve({
           return invalidRequestResponse(validation.error, headers);
         }
 
-        const result = await runJob("wasm", validation.request);
+        const result = await runJob("wasm", validation.request, req, peer);
         return new Response(JSON.stringify(result), { headers });
       } catch (e: any) {
+        if (e instanceof RunnerError && e.status === 429)
+          headers["Retry-After"] = "3";
         logger.error("Wasm endpoint error", { error: e.message });
         return new Response(
           JSON.stringify({ success: false, error: e.message }),
@@ -284,6 +315,14 @@ const server = Bun.serve({
     }
 
     // Static files
+    if (url.pathname === "/wasmWorker.js") {
+      return new Response(
+        readStaticTextFile(path.join(__dirname, "../frontend/wasmWorker.js")),
+        {
+          headers: { "Content-Type": "application/javascript" },
+        },
+      );
+    }
     if (url.pathname === "/" || url.pathname === "/index.html") {
       const html = readStaticTextFile(
         path.join(__dirname, "../frontend/index.html"),
