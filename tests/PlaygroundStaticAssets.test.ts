@@ -1,9 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
+import { createContext, runInContext } from "vm";
 
 const FRONTEND_DIR = resolve(import.meta.dir, "../playground/frontend");
-const SERVER_SOURCE = resolve(import.meta.dir, "../playground/backend/server.ts");
+const SERVER_SOURCE = resolve(
+  import.meta.dir,
+  "../playground/backend/server.ts",
+);
 const HTML_FILES = ["index.html", "tutorial.html"] as const;
 
 function sortedUnique(values: string[]): string[] {
@@ -49,6 +53,53 @@ function extractServedFrontendAssets(serverSource: string): string[] {
 }
 
 describe("Playground frontend static assets", () => {
+  test("tutorial loading and execution use the page origin on custom ports and remote deployments", async () => {
+    const source = readFileSync(resolve(FRONTEND_DIR, "tutorial.js"), "utf8");
+    for (const page of [
+      "http://localhost:3011/tutorial.html",
+      "https://play.example/tutorial.html",
+    ]) {
+      const calls: URL[] = [];
+      const handlers = new Map<string, () => Promise<void>>();
+      const context = createContext({
+        window: { location: new URL(page) },
+        URLSearchParams,
+        console,
+        require: { config() {} },
+        document: {
+          addEventListener() {},
+          querySelectorAll: () => [],
+          getElementById: (id: string) => ({
+            style: {},
+            addEventListener: (event: string, handler: () => Promise<void>) =>
+              handlers.set(`${id}:${event}`, handler),
+          }),
+        },
+        fetch: async (url: string) => {
+          const resolved = new URL(url, page);
+          calls.push(resolved);
+          return {
+            json: async () =>
+              resolved.pathname === "/tutorials"
+                ? []
+                : { success: true, output: "ok" },
+          };
+        },
+      });
+      runInContext(source, context);
+      await runInContext("loadTutorials()", context);
+      runInContext(
+        'modalEditor = { getValue: () => "frame main() ret int { return 0; }" }',
+        context,
+      );
+      await handlers.get("modal-run-btn:click")!();
+      expect(calls.map((url) => url.href)).toEqual([
+        new URL("/tutorials", page).href,
+        new URL("/compile", page).href,
+      ]);
+    }
+  });
+
   test("serves every local script and stylesheet referenced by frontend HTML", () => {
     const serverSource = readFileSync(SERVER_SOURCE, "utf8");
     const servedAssets = extractServedFrontendAssets(serverSource);
@@ -90,7 +141,7 @@ describe("Playground frontend static assets", () => {
     const serverSource = readFileSync(SERVER_SOURCE, "utf8");
     const staticStart = serverSource.indexOf("// Static files");
     const staticEnd = serverSource.indexOf(
-      "return new Response(\"Not Found\"",
+      'return new Response("Not Found"',
       staticStart,
     );
 

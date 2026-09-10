@@ -1,5 +1,8 @@
 // Tutorial JavaScript - BPL Learn from Zero to Hero
 
+const TUTORIAL_API_BASE =
+  window.location.protocol === "file:" ? "http://localhost:3001" : "";
+
 let tutorials = [];
 let currentTutorial = null;
 let currentTutorialIndex = 0;
@@ -42,7 +45,7 @@ require.config({
 // Load tutorials from backend
 async function loadTutorials() {
   try {
-    const response = await fetch("http://localhost:3001/tutorials");
+    const response = await fetch(`${TUTORIAL_API_BASE}/tutorials`);
     tutorials = await response.json();
 
     // Build lessons list
@@ -621,7 +624,7 @@ document
     output.textContent = "Running...";
 
     try {
-      const response = await fetch("http://localhost:3001/compile", {
+      const response = await fetch(`${TUTORIAL_API_BASE}/compile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, input: "", args: [] }),

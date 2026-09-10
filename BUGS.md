@@ -3176,3 +3176,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: The playground executes submitted native code with the web server's access and sends wildcard CORS headers. A website can submit code to a developer's local playground; loopback binding alone also permits DNS rebinding attacks.
 
 **Resolution (2026-09-10)**: Docker is the default runner. Explicit host mode binds only to loopback, rejects non-local Host headers and foreign/null Origin headers, and returns same-origin CORS headers. HTTP regressions exercise both rejected requests and valid local formatting. Docker workers receive neither host filesystem mounts nor host environment variables.
+
+### BUG-254: Tutorial requests target localhost instead of the deployed playground
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed**: Tutorial loading and code execution use hard-coded `http://localhost:3001` URLs. Custom ports target the wrong service, remote visitors target their own machines, and explicit host mode correctly rejects the resulting foreign-origin requests.
+
+**Resolution (2026-09-10)**: Tutorials now use same-origin API paths for served pages, matching the main playground. A browser-script regression executes tutorial loading and the Run handler at both a custom local port and a remote HTTPS origin.
