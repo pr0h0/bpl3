@@ -3137,11 +3137,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-250: Unmatched typed catches swallow exceptions
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
 **Observed**: An int thrown inside a try with only a bool catch falls through instead of reaching an enclosing int catch at O0/O3. The final unsuccessful catch check branches to the end of the try statement.
+
+**Resolution (2026-09-10)**: Failed typed-catch dispatch reuses exception transfer to reach the next handler without overwriting the payload. Regressions cover multiple nonmatching clauses, function boundaries, deferred cleanup, an outer catch-all, floating payload forwarding, and explicit failure without a handler. All ten selected exception/cleanup/runtime-failure tests, typecheck, and lint pass.
 
 ### BUG-251: Floating-point exception payloads lose precision
 

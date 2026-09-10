@@ -118,8 +118,8 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     // catch { } (no type) is a catch-all
 
     // Find if there's a catch-all clause (clause with null type)
-    const catchAllIndex = stmt.catchClauses.findIndex((c) => c.type === null);
-    const _hasCatchAll = catchAllIndex !== -1;
+    const hasCatchAll = stmt.catchClauses.some((c) => c.type === null);
+    const rethrowLabel = hasCatchAll ? endLabel : this.newLabel("catch.rethrow");
 
     // Let's gather labels first.
     const clauseLabels = stmt.catchClauses.map((_, i) => ({
@@ -131,9 +131,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     if (stmt.catchClauses.length > 0) {
       this.emit(`  br label %${clauseLabels[0]!.check}`);
     } else {
-      // Rethrow if no handler
-      this.emit(`  call void @exit(i32 1)`); // Unhandled
-      this.emit(`  unreachable`);
+      this.emit(`  br label %${rethrowLabel}`);
     }
 
     for (let i = 0; i < stmt.catchClauses.length; i++) {
@@ -145,7 +143,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
       if (i < stmt.catchClauses.length - 1) {
         nextTarget = clauseLabels[i + 1]!.check;
       } else {
-        nextTarget = endLabel;
+        nextTarget = rethrowLabel;
       }
 
       this.emit(`${labels.check}:`);
@@ -234,8 +232,12 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
       }
     }
 
-    // If no catch-all was present, unhandled exceptions fall through to end
-    // which means they are swallowed (acceptable for this MVP)
+    if (!hasCatchAll) {
+      this.emit(`${rethrowLabel}:`);
+      // The current handler was already popped. Keep the original payload
+      // and unwind to the next enclosing handler instead of swallowing it.
+      this.emitExceptionTransfer();
+    }
 
     this.emit(`${endLabel}:`);
   }
@@ -307,7 +309,11 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
       this.emit(`  store i64 ${castVal}, i64* @exception_value`);
     }
 
-    // 4. Longjmp
+    this.emitExceptionTransfer(type);
+  }
+
+  private emitExceptionTransfer(type?: AST.TypeNode): void {
+    const typeStr = type ? this.resolveType(type) : undefined;
     const framePtr = this.newRegister();
     this.emit(
       `  ${framePtr} = load %struct.ExceptionFrame*, %struct.ExceptionFrame** @exception_top`,
@@ -327,8 +333,8 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
     // Check if it is an Error type (or inherits from it)
     let isError = false;
-    if (type.kind === "BasicType") {
-      const structName = (type as AST.BasicTypeNode).name;
+    if (type?.kind === "BasicType") {
+      const structName = type.name;
 
       const checkInheritance = (name: string): boolean => {
         if (name === "Error") return true;
