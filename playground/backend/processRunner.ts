@@ -6,6 +6,8 @@ export interface RunProcessFileOptions {
   input?: string;
   timeout?: number;
   maxBuffer?: number;
+  signal?: AbortSignal;
+  killProcessGroup?: boolean;
 }
 
 export interface RunProcessFileResult {
@@ -38,11 +40,21 @@ export function runProcessFile(
   const maxBuffer = options.maxBuffer ?? 1024 * 1024;
 
   return new Promise((resolve, reject) => {
+    if (options.signal?.aborted) {
+      reject(
+        Object.assign(new Error("Execution cancelled"), { name: "AbortError" }),
+      );
+      return;
+    }
     const child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env,
       stdio: ["pipe", "pipe", "pipe"],
+      detached:
+        options.killProcessGroup === true && process.platform !== "win32",
     });
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
     let stdout = "";
     let stderr = "";
     let settled = false;
@@ -56,13 +68,34 @@ export function runProcessFile(
             ) as RunProcessFileError;
             error.killed = true;
             fail(error);
-            child.kill();
           }, options.timeout);
 
     function cleanup() {
+      options.signal?.removeEventListener("abort", abort);
       if (timeout) {
         clearTimeout(timeout);
       }
+    }
+
+    function kill(): void {
+      try {
+        if (
+          options.killProcessGroup &&
+          process.platform !== "win32" &&
+          child.pid
+        )
+          process.kill(-child.pid, "SIGKILL");
+        else child.kill("SIGKILL");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ESRCH")
+          child.kill("SIGKILL");
+      }
+    }
+
+    function abort(): void {
+      fail(
+        Object.assign(new Error("Execution cancelled"), { name: "AbortError" }),
+      );
     }
 
     function fail(error: Error): void {
@@ -70,6 +103,7 @@ export function runProcessFile(
         return;
       }
       settled = true;
+      kill();
       cleanup();
       const processError = error as RunProcessFileError;
       processError.code =
@@ -96,7 +130,6 @@ export function runProcessFile(
 
       if (Buffer.byteLength(stdout) + Buffer.byteLength(stderr) > maxBuffer) {
         fail(new Error(`Process output exceeded maxBuffer ${maxBuffer}`));
-        child.kill();
       }
     }
 
@@ -129,6 +162,12 @@ export function runProcessFile(
       settled = true;
       reject(error);
     });
+
+    options.signal?.addEventListener("abort", abort, { once: true });
+    if (options.signal?.aborted) {
+      abort();
+      return;
+    }
 
     try {
       child.stdin.end(options.input ?? "");

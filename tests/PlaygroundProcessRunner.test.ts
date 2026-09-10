@@ -20,6 +20,31 @@ async function expectRunProcessFileError(
 }
 
 describe("Playground process runner", () => {
+  test("rejects pre-aborted work without spawning and kills an aborting child", async () => {
+    await expect(
+      runProcessFile("must-not-spawn", [], { signal: AbortSignal.abort() }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    const controller = new AbortController();
+    const pending = runProcessFile(
+      process.execPath,
+      ["-e", "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)"],
+      { signal: controller.signal },
+    );
+    setTimeout(() => controller.abort(), 100);
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  test("preserves UTF-8 characters split across subprocess writes", async () => {
+    const result = await runProcessFile(
+      process.execPath,
+      [
+        "-e",
+        "process.stdout.write(Buffer.from([0xe2])); setTimeout(() => process.stdout.write(Buffer.from([0x82, 0xac])), 50)",
+      ],
+      { timeout: 5000 },
+    );
+    expect(result.stdout).toBe("€");
+  });
   test("passes shell metacharacter args literally and preserves stdin", async () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-playground-process-"));
     const scriptPath = join(tempDir, "argv-stdin.js");

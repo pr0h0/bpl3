@@ -1,7 +1,4 @@
-import {
-  runProcessFile,
-  type RunProcessFileError,
-} from "./processRunner";
+import { runProcessFile, type RunProcessFileError } from "./processRunner";
 
 const DEFAULT_TIMEOUT_MS = 5000;
 const DEFAULT_MAX_BUFFER = 1024 * 1024;
@@ -11,6 +8,7 @@ export interface PlaygroundNativeExecutionOptions {
   input?: string;
   timeoutMs?: number;
   maxBuffer?: number;
+  signal?: AbortSignal;
 }
 
 export type PlaygroundNativeExecutionResult =
@@ -46,6 +44,8 @@ export async function runPlaygroundNativeBinary(
         input: options.input,
         timeout: timeoutMs,
         maxBuffer: options.maxBuffer ?? DEFAULT_MAX_BUFFER,
+        signal: options.signal,
+        killProcessGroup: true,
       },
     );
 

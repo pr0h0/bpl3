@@ -3196,3 +3196,43 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: The controller creates a container before attaching and starting it. A crash between these operations leaves a stopped container: neither its watchdog nor Docker's remove-on-exit behavior has run. Cleanup failures also permanently disable a live controller while its health endpoint still reports success.
 
 **Resolution (2026-09-10)**: Added labelled expiry leases, startup/periodic orphan cleanup, retryable failed cleanup, and readiness reporting. Recovery never removes unexpired jobs belonging to other controllers. Nine runner tests and eleven real Docker tests pass, including actual memory, process, and tmpfs exhaustion; typecheck passes. Docker transport outages are injected in tests without restarting the shared host daemon.
+
+### BUG-256: Abandoned playground requests continue occupying execution slots
+
+**Status**: In progress
+
+**Priority**: P2
+
+**Observed**: HTTP request cancellation is not passed to the runner or subprocesses, so disconnecting clients leave work running until its timeout. A single client can also occupy both Docker slots, and the UI has no Stop action.
+
+**Resolution**: Adding cancellation through HTTP, Docker and host subprocess execution, plus per-address admission limits and browser Stop controls. Docker creation completes before cancellation cleanup to avoid leaving a late-created container behind.
+
+### BUG-257: Subprocess output corrupts UTF-8 split across chunks
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed**: Each stdout/stderr Buffer was decoded independently, replacing partial multibyte characters split between stream events.
+
+**Resolution (2026-09-10)**: Streams now use incremental UTF-8 decoding. A subprocess regression deliberately splits a euro sign across writes and verifies exact output.
+
+### BUG-258: Auto-format can race the subsequent Run request
+
+**Status**: In progress
+
+**Priority**: P2
+
+**Observed**: Run triggers formatting and waits a fixed 100 ms before reading the editor. Slower formatting can change the editor after compilation has already started and conflicts with one-active-job admission.
+
+**Resolution**: Awaiting formatting completion before submitting compilation, sharing the cancellation signal across both phases.
+
+### BUG-259: Browser Wasm execution can freeze the playground UI
+
+**Status**: In progress
+
+**Priority**: P2
+
+**Observed**: Wasm exports execute on the browser main thread. Infinite loops prevent the UI from processing Stop or any other interaction, and captured output grows without a bound.
+
+**Resolution**: Moving execution into a disposable Web Worker with termination on Stop, a five-second timeout, and a 1 MiB output budget.

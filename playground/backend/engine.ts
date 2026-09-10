@@ -1,9 +1,7 @@
-import { execFile } from "child_process";
 import { createHash } from "crypto";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { promisify } from "util";
 
 import * as AST from "../../compiler/common/AST";
 import { CompilerError } from "../../compiler/common/CompilerError";
@@ -20,7 +18,7 @@ import {
 } from "./wasmToolchain";
 import { stringifyPlaygroundAstArtifact } from "./artifactStringify";
 import { runPlaygroundNativeBinary } from "./nativeExecution";
-import { formatProcessCommand } from "./processRunner";
+import { formatProcessCommand, runProcessFile } from "./processRunner";
 import { resolvePlaygroundNativeRuntimeFiles } from "./runtimeFiles";
 import {
   CompileOnlyResponseCache,
@@ -34,7 +32,6 @@ import {
 
 import { logger, updateStats } from "./telemetry";
 import type { CompileRequest, CompileResponse } from "./protocol";
-const execFileAsync = promisify(execFile);
 // Create formatter with specific settings for playground
 const diagnosticFormatter = new DiagnosticFormatter({
   colorize: false, // JSON API, don't use ANSI colors
@@ -179,6 +176,7 @@ async function runCompiledNativeBinary(options: {
   tokens: any[];
   sourceFile?: string;
   cacheHit: boolean;
+  signal?: AbortSignal;
 }): Promise<CompileResponse> {
   const execStart = Date.now();
   const args = options.req.args || [];
@@ -193,6 +191,7 @@ async function runCompiledNativeBinary(options: {
 
   const execution = await runPlaygroundNativeBinary(options.binFile, {
     args,
+    signal: options.signal,
     input: options.req.input,
     timeoutMs: 5000,
     maxBuffer: 1024 * 1024,
@@ -260,6 +259,7 @@ async function runCompiledNativeBinary(options: {
 // Compile and run BPL code
 export async function compileAndRun(
   req: CompileRequest,
+  signal?: AbortSignal,
 ): Promise<CompileResponse> {
   const startTime = Date.now();
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -327,6 +327,7 @@ export async function compileAndRun(
       ast: undefined,
       tokens: [],
       cacheHit: true,
+      signal,
     });
   }
 
@@ -476,7 +477,12 @@ export async function compileAndRun(
         `[${requestId}] Running clang: ${formatProcessCommand("clang", clangArgs)}`,
       );
 
-      await execFileAsync("clang", clangArgs);
+      await runProcessFile("clang", clangArgs, {
+        signal,
+        killProcessGroup: true,
+        timeout: 10000,
+        maxBuffer: 1024 * 1024,
+      });
       logger.debug(
         `[${requestId}] LLVM compilation completed in ${Date.now() - clangStart}ms`,
       );
@@ -515,6 +521,7 @@ export async function compileAndRun(
       tokens,
       sourceFile,
       cacheHit: false,
+      signal,
     });
   } finally {
     if (!preserveTempDir) {
@@ -531,6 +538,7 @@ export async function compileAndRun(
 
 export async function compileToWasm(
   req: CompileRequest,
+  signal?: AbortSignal,
 ): Promise<WasmCompileResponse> {
   const requestId = `wasm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
@@ -577,7 +585,7 @@ export async function compileToWasm(
       linker,
     });
 
-    const { stdout, stderr } = await execFileAsync(
+    const { stdout, stderr } = await runProcessFile(
       "bun",
       [
         path.join(repoRoot, "index.ts"),
@@ -593,6 +601,8 @@ export async function compileToWasm(
       {
         cwd: repoRoot,
         env: createPlaygroundWasmBuildEnv(process.env, linker, repoRoot),
+        signal,
+        killProcessGroup: true,
         timeout: 10_000,
         maxBuffer: 1024 * 1024 * 16,
       },
