@@ -760,6 +760,7 @@ function highlightBPL(code) {
 // Get BPL language definition for Monaco
 function getBPLLanguageDefinition() {
   return {
+    symbols: /[=><!~?:&|+\-*\/^%]+/,
     keywords: [
       "frame",
       "ret",

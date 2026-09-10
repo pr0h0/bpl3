@@ -88,6 +88,9 @@ describe("Playground frontend static assets", () => {
         },
       });
       runInContext(source, context);
+      expect(
+        runInContext('getBPLLanguageDefinition().symbols.test("<=>")', context),
+      ).toBe(true);
       await runInContext("loadTutorials()", context);
       runInContext(
         'modalEditor = { getValue: () => "frame main() ret int { return 0; }" }',
