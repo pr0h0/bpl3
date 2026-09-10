@@ -56,6 +56,10 @@ export [Stack];
 import [Queue] from "std/queue.bpl";
 export [Queue];
 
+import [Deque], [DequeIterator] from "std/deque.bpl";
+export [Deque];
+export [DequeIterator];
+
 import [Set] from "std/set.bpl";
 export [Set];
 

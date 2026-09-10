@@ -97,6 +97,39 @@ local first: int = q.dequeue().unwrap(); # 1
 q.destroy();
 ```
 
+## Deque<T>
+
+A double-ended queue backed by a growable circular buffer. Push/pop at either
+end have amortized O(1) cost; indexed access is O(1). Growth and `clone()` are
+O(n). Import `Deque` and `DequeIterator` from `std/deque.bpl` or `std`.
+
+```bpl
+import [Deque] from "std/deque.bpl";
+
+local work: Deque<int> = Deque<int>.new();
+work.pushBack(20);
+work.pushFront(10);
+local first: int = work.popFront().unwrap(); # 10
+local last: int = work.popBack().unwrap(); # 20
+work.destroy();
+```
+
+- `new()` starts with capacity 8; `new(capacity)` accepts zero and normalizes
+  negative capacity to zero. Storage grows automatically as needed.
+- `pushFront(value)`, `pushBack(value)` insert elements.
+- `popFront()`, `popBack()`, `peekFront()`, `peekBack()`, and `get(index)` return
+  `Option<T>`; empty queues and invalid indices return `None`.
+- `set(index, value)` returns false for an invalid index, leaving the queue unchanged.
+- `size()`, `capacity()`, `isEmpty()`, and `reserve(minimum)` inspect or reserve
+  storage. Reserve never shrinks. Allocation/capacity failures throw a string.
+- `iterator()` visits front to back. Structural changes invalidate iterators.
+- `clone()` allocates independent storage with shallow element copies.
+- `clear()` retains storage; `destroy()` frees storage and resets the queue.
+  Both allow reuse. Neither destroys element-owned resources. Do not copy an
+  owning deque by assignment and then destroy both copies; use `clone()` instead.
+
+See [the deque example](../examples/stdlib_deque/main.bpl).
+
 ## LinkedList<T>
 
 A doubly linked list.

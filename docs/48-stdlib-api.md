@@ -16,6 +16,12 @@ Array algorithms (sorting, searching, etc.). See [Algorithm Documentation](34-st
 
 Dynamic array implementation with generics.
 
+### Deque (`std/deque.bpl`)
+
+Generic double-ended queue with checked indexed access, front/back insertion
+and removal, reserve, cloning, and iteration. See the
+[collections reference](30-stdlib-collections.md#dequet).
+
 ### String (`std/string.bpl`)
 
 String manipulation utilities. See [String Documentation](29-stdlib-string.md).

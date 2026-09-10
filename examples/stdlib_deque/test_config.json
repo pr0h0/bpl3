@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["front=10 back=30 size=3", "10", "20", "30"],
+  "args": [],
+  "env": {},
+  "input": ""
+}
