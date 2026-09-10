@@ -172,8 +172,19 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
         const valI64 = this.newRegister();
         this.emit(`  ${valI64} = load i64, i64* @exception_value`);
 
-        // For structs, load from heap. For primitives, cast from i64.
-        if (targetTypeStr.startsWith("%struct.")) {
+        // Floating payloads are transported as bits, never numeric integers.
+        if (targetTypeStr === "double" || targetTypeStr === "float") {
+          let bits = valI64;
+          const bitsType = targetTypeStr === "float" ? "i32" : "i64";
+          if (bitsType === "i32") {
+            bits = this.newRegister();
+            this.emit(`  ${bits} = trunc i64 ${valI64} to i32`);
+          }
+          const value = this.newRegister();
+          this.emit(`  ${value} = bitcast ${bitsType} ${bits} to ${targetTypeStr}`);
+          const localVar = this.allocateStack(clause.variable!, targetTypeStr);
+          this.emit(`  store ${targetTypeStr} ${value}, ${targetTypeStr}* ${localVar}`);
+        } else if (targetTypeStr.startsWith("%struct.")) {
           // Convert i64 pointer back to struct pointer
           const structPtr = this.newRegister();
           this.emit(
@@ -248,7 +259,17 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
     // 3. Store Value
     // For structs, allocate on heap and store pointer. For primitives, store directly as i64.
-    if (typeStr.startsWith("%struct.")) {
+    if (typeStr === "double" || typeStr === "float") {
+      const bitsType = typeStr === "float" ? "i32" : "i64";
+      let bits = this.newRegister();
+      this.emit(`  ${bits} = bitcast ${typeStr} ${val} to ${bitsType}`);
+      if (bitsType === "i32") {
+        const extended = this.newRegister();
+        this.emit(`  ${extended} = zext i32 ${bits} to i64`);
+        bits = extended;
+      }
+      this.emit(`  store i64 ${bits}, i64* @exception_value`);
+    } else if (typeStr.startsWith("%struct.")) {
       // Calculate size of struct
       // Create sizePtrReg first so it gets a lower register number
       const sizePtrReg = this.newRegister();

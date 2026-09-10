@@ -3145,8 +3145,10 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-251: Floating-point exception payloads lose precision
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
 **Observed**: Throwing float 1.75 and f32 -2.25 produces caught values 1.0 and -2.0 at O0/O3. Payload transport numerically converts floating-point values to i64 and back instead of preserving their bits.
+
+**Resolution (2026-09-10)**: Floating throws and catches now bitcast their payloads through the i64 transport slot, zero-extending f32 bits. O0/O3 regression coverage preserves fractions, large finite values, NaNs, infinities, and negative zero for both widths; all four selected exception tests pass.
