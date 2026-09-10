@@ -20,7 +20,7 @@ Dynamic array implementation with generics.
 
 Generic double-ended queue with checked indexed access, front/back insertion
 and removal, reserve, cloning, and iteration. See the
-[collections reference](30-stdlib-collections.md#dequet).
+[collections reference](30-stdlib-collections.md#deque).
 
 ### String (`std/string.bpl`)
 
