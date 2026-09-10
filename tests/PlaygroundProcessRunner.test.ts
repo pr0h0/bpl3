@@ -173,14 +173,14 @@ describe("Playground process runner", () => {
           [
             'process.stdout.write("started");',
             'process.stderr.write("waiting");',
-            "setTimeout(() => {}, 1000);",
+            "setInterval(() => {}, 1000);",
           ].join(""),
         ],
-        { timeout: 50 },
+        { timeout: 1000 },
       ),
     );
 
-    expect(error.message).toBe("Process timed out after 50ms");
+    expect(error.message).toBe("Process timed out after 1000ms");
     expect(error.killed).toBe(true);
     expect(error.stdout).toBe("started");
     expect(error.stderr).toBe("waiting");
