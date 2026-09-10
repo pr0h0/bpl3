@@ -3286,3 +3286,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: Hex and Base64 string helpers promise caller-owned allocations but return string literals for empty or null input. Following the contract and freeing those results aborts the process with an invalid free.
 
 **Resolution (2026-09-10)**: Empty results now use allocated, NUL-terminated buffers. Regression coverage frees empty, null-input, and nonempty results at O0/O3. Corrected the API reference to name the existing `decodeToString` methods.
+
+### BUG-265: Hexadecimal e/E digits cause floating-point literal classification
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed**: The literal checker treats any spelling containing e/E as floating point, including hexadecimal digits. `cast<u64>(0xfedcba9876543210)` consequently loses low bits through a double conversion, producing bytes ending in `3000` instead of `3210`. Smaller hexadecimal literals also receive the wrong type and arithmetic semantics.
+
+**Resolution (2026-09-10)**: Exclude hexadecimal prefixes from floating-point spelling detection. Regression coverage checks lower/upper-case hex, integer division, inferred width, and both halves of a 64-bit value at O0/O3 with LLVM verification. Binary reader/writer golden-byte tests independently cover this case.

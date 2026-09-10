@@ -128,9 +128,9 @@ export function checkLiteral(
     if (isSmallDecimalInteger) {
       name = "int";
     } else if (
-      raw.includes(".") ||
-      raw.includes("e") ||
-      raw.includes("E")
+      !raw.startsWith("0x") &&
+      !raw.startsWith("0X") &&
+      (raw.includes(".") || raw.includes("e") || raw.includes("E"))
     ) {
       name = "float";
     } else {
