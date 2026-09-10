@@ -1,5 +1,18 @@
 # BPL Playground Architecture
 
+The HTTP server validates requests and selects the administrator-configured runner.
+Docker is the default: `/compile`, `/wasm`, and `/format` each run in a fresh
+restricted worker container. Only JSON crosses stdin/stdout; no host files,
+credentials, or sockets are mounted. `runner.ts` manages limits and cleanup,
+`worker.ts` dispatches one job, and `engine.ts` contains the compiler pipeline.
+The worker image runs a 30-second watchdog as PID 1 so synchronous compiler hangs
+and detached native descendants are bounded independently of the HTTP server.
+
+Explicit host mode loads `engine.ts` inside the local server and retains its
+compilation caches. This is a trusted development mode, restricted to loopback
+and local browser origins. The pipeline below runs inside the worker in Docker
+mode and inside the server in host mode. See [runner setup and limits](README.md#configuration-and-deployment).
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         FRONTEND                                 │

@@ -1,9 +1,14 @@
 import path from "path";
 import { JsonDirectoryCache } from "./jsonDirectoryCache";
 import { StaticTextFileCache } from "./staticTextFileCache";
-import { logger, stats, getUptime } from "./telemetry";
+import { logger, stats, getUptime, updateStats } from "./telemetry";
 import { validateCompileRequestPayload } from "./protocol";
-import { compileAndRun, compileToWasm, formatCode } from "./engine";
+import {
+  createPlaygroundRunner,
+  RunnerError,
+  type PlaygroundOperation,
+} from "./runner";
+import type { CompileRequest } from "./protocol";
 const staticTextFileCache = new StaticTextFileCache();
 const jsonDirectoryCache = new JsonDirectoryCache();
 function readStaticTextFile(filePath: string): string {
@@ -47,16 +52,56 @@ function getTutorials() {
 }
 
 // Server
+const runner = await createPlaygroundRunner();
+async function runJob(operation: PlaygroundOperation, request: CompileRequest) {
+  const start = Date.now();
+  try {
+    const result = await runner.execute(operation, request);
+    if (runner.mode === "docker" && operation !== "format")
+      updateStats(result.success, Date.now() - start);
+    return result;
+  } catch (error) {
+    if (runner.mode === "docker" && operation !== "format")
+      updateStats(false, Date.now() - start);
+    throw error;
+  }
+}
+logger.info(`Playground runner: ${runner.mode}`);
+if (runner.mode === "host")
+  logger.warn(
+    "Host mode executes code with your account's access. Use only for trusted local development.",
+  );
 const port = Number.parseInt(process.env.PORT || "3001", 10);
 const server = Bun.serve({
   port,
+  hostname:
+    runner.mode === "host"
+      ? "127.0.0.1"
+      : (process.env.BPL_PLAYGROUND_HOST ?? "127.0.0.1"),
+  maxRequestBodySize: 512 * 1024,
+  idleTimeout: 60,
   async fetch(req) {
     const url = new URL(req.url);
     const startTime = Date.now();
 
+    // Loopback binding alone does not stop websites from accessing local services.
+    if (
+      runner.mode === "host" &&
+      (!["127.0.0.1", "localhost"].includes(url.hostname) ||
+        (req.headers.has("origin") && req.headers.get("origin") !== url.origin))
+    ) {
+      return Response.json(
+        {
+          success: false,
+          error: "Host mode only accepts local, same-origin requests.",
+        },
+        { status: 403 },
+      );
+    }
+
     // CORS headers
     const headers = {
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": runner.mode === "host" ? url.origin : "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
       "Content-Type": "application/json",
@@ -76,6 +121,7 @@ const server = Bun.serve({
       const uptime = getUptime();
       const healthData = {
         status: "ok",
+        runner: runner.mode,
         uptime,
         timestamp: new Date().toISOString(),
       };
@@ -120,24 +166,29 @@ const server = Bun.serve({
     // POST /format
     if (url.pathname === "/format" && req.method === "POST") {
       try {
-        const body = (await req.json()) as { code: string };
-        logger.info("Format request received", {
-          codeLength: body.code.length,
-        });
-
-        const result = formatCode(body);
+        let body: unknown;
+        try {
+          body = await req.json();
+        } catch {
+          return invalidRequestResponse(
+            "Invalid request: body must be valid JSON.",
+            headers,
+          );
+        }
+        const validation = validateCompileRequestPayload(body);
+        if (!validation.success)
+          return invalidRequestResponse(validation.error, headers);
+        const result = await runJob("format", validation.request);
         return new Response(JSON.stringify(result), {
           headers,
           status: result.success ? 200 : 500,
         });
-      } catch (e: any) {
-        const duration = Date.now() - startTime;
-        logger.error(`Format failed after ${duration}ms`, { error: e.message });
+      } catch (error) {
         return new Response(
-          JSON.stringify({ success: false, error: e.message }),
+          JSON.stringify({ success: false, error: String(error) }),
           {
-            status: 500,
             headers,
+            status: error instanceof RunnerError ? error.status : 500,
           },
         );
       }
@@ -176,14 +227,14 @@ const server = Bun.serve({
           return invalidRequestResponse(validation.error, headers);
         }
 
-        const result = await compileAndRun(validation.request);
+        const result = await runJob("compile", validation.request);
         return new Response(JSON.stringify(result), { headers });
       } catch (e: any) {
         logger.error("Compile endpoint error", { error: e.message });
         return new Response(
           JSON.stringify({ success: false, error: e.message }),
           {
-            status: 500,
+            status: e instanceof RunnerError ? e.status : 500,
             headers,
           },
         );
@@ -208,14 +259,14 @@ const server = Bun.serve({
           return invalidRequestResponse(validation.error, headers);
         }
 
-        const result = await compileToWasm(validation.request);
+        const result = await runJob("wasm", validation.request);
         return new Response(JSON.stringify(result), { headers });
       } catch (e: any) {
         logger.error("Wasm endpoint error", { error: e.message });
         return new Response(
           JSON.stringify({ success: false, error: e.message }),
           {
-            status: 500,
+            status: e instanceof RunnerError ? e.status : 500,
             headers,
           },
         );

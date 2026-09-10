@@ -3166,3 +3166,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: `flags &= 3` parses and typechecks but fails code generation with an unsupported compound-assignment error. The same missing dispatch affects `|=` and `^=`. The operator guide also advertises shift-assignment tokens absent from the grammar.
 
 **Resolution (2026-09-10)**: The shared compound-to-binary dispatch now includes integer AND/OR/XOR. Non-integer operands receive the existing bitwise diagnostic during type checking. Runtime regressions cover narrow/signed values and single evaluation of array indexes; the guide no longer advertises unsupported shift-assignment tokens. All 12 selected tests, typecheck, lint, and documentation checks pass.
+
+### BUG-253: Playground accepts cross-origin native execution on the host
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed**: The playground executes submitted native code with the web server's access and sends wildcard CORS headers. A website can submit code to a developer's local playground; loopback binding alone also permits DNS rebinding attacks.
+
+**Resolution (2026-09-10)**: Docker is the default runner. Explicit host mode binds only to loopback, rejects non-local Host headers and foreign/null Origin headers, and returns same-origin CORS headers. HTTP regressions exercise both rejected requests and valid local formatting. Docker workers receive neither host filesystem mounts nor host environment variables.

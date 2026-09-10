@@ -74,6 +74,29 @@ export function validateCompileRequestPayload(
     };
   }
 
+  if (Buffer.byteLength(payload.code) > 128 * 1024) {
+    return { success: false, error: "Invalid request: code exceeds 128 KiB." };
+  }
+  if (
+    payload.input !== undefined &&
+    Buffer.byteLength(payload.input) > 256 * 1024
+  ) {
+    return { success: false, error: "Invalid request: input exceeds 256 KiB." };
+  }
+  if (
+    payload.args !== undefined &&
+    (payload.args.length > 64 ||
+      payload.args.some(
+        (arg: string) => arg.includes("\0") || Buffer.byteLength(arg) > 4096,
+      ))
+  ) {
+    return {
+      success: false,
+      error:
+        "Invalid request: at most 64 arguments, each at most 4 KiB without NUL bytes.",
+    };
+  }
+
   return {
     success: true,
     request: {

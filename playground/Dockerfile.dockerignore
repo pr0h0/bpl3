@@ -1,0 +1,15 @@
+**
+!package.json
+!bun.lock
+!index.ts
+!compiler/**
+!cli/**
+!grammar/**
+!lib/**
+!playground/backend/**
+**/node_modules
+**/*.o
+**/*.a
+**/*.so
+**/*.dylib
+**/.runtime-build.*

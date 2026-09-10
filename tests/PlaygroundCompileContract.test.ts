@@ -80,6 +80,7 @@ describe("Playground compile API contract", () => {
       env: {
         ...process.env,
         PORT: String(PORT),
+        BPL_PLAYGROUND_RUNNER: "host",
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -89,6 +90,29 @@ describe("Playground compile API contract", () => {
 
   afterAll(() => {
     server.kill();
+  });
+
+  test("host mode rejects cross-origin execution and DNS rebinding hosts", async () => {
+    const requests: Record<string, string>[] = [
+      { Origin: "https://untrusted.example" },
+      { Origin: "null" },
+      { Host: `untrusted.example:${PORT}` },
+    ];
+    for (const headers of requests) {
+      const response = await fetch(`${API_BASE}/compile`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ code: HELLO_WORLD_SOURCE }),
+      });
+      expect(response.status).toBe(403);
+      expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    }
+    const response = await fetch(`${API_BASE}/format`, {
+      method: "POST",
+      headers: { Origin: API_BASE },
+      body: JSON.stringify({ code: HELLO_WORLD_SOURCE }),
+    });
+    expect(response.status).toBe(200);
   });
 
   test("keeps default run responses small and loads debug artifacts only on request", async () => {

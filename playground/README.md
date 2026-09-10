@@ -68,43 +68,96 @@ backend-compiled modules use the same host import adapter.
 
 ## Quick Start
 
-### Prerequisites
+### Docker workers (default)
 
-- [Bun](https://bun.sh) (v1.0+)
-- [Clang/LLVM](https://llvm.org/) (for compiling LLVM IR)
-- LLVM lld with `wasm-ld` on PATH, or `WASM_LD` set, for the Run Wasm path
-- Node.js and TypeScript (for building BPL compiler)
-
-### Installation
-
-1. Build the BPL compiler first:
+Install Bun and Docker with Linux containers enabled. From the repository root:
 
 ```bash
-cd /path/to/bpl3
-bun install
-bun run build
+bun install --frozen-lockfile
+bun run playground:build
+bun run playground
 ```
 
-2. Start the playground server:
+Open `http://localhost:3001`. Set `PORT=3011` to use another port.
+The web server runs on the host; each compilation, native execution, or formatting
+request runs in a disposable Docker container. The image bundles Bun 1.4.2,
+Ubuntu 24.04, Clang/lld 18, and the BPL runtime. Host LLVM is unnecessary in this
+mode. Rebuild the image after changing compiler, library, or worker code, then
+restart the server: it pins the image ID at startup.
+
+Docker must be running and the image must already exist. Startup fails with setup
+instructions if either is unavailable; it never falls back to host execution.
+
+### Trusted local development on the host
+
+Install Bun, Clang, and lld (`wasm-ld`, or set `WASM_LD`) locally, then run:
 
 ```bash
-cd playground
-bun run start
+bun install --frozen-lockfile
+bun run build:runtime
+bun run playground:host
 ```
 
-If port 3001 is already in use:
+This explicitly sets `BPL_PLAYGROUND_RUNNER=host`. Submitted code has your account's
+filesystem, network, and environment access. Use it only for your own trusted code.
+Host mode always binds to `127.0.0.1` and rejects foreign browser origins and
+non-local Host headers. It preserves the development compiler and native binary
+caches, so repeated runs avoid container startup and compilation costs.
+
+### Configuration and deployment
+
+| Setting                 | Default                       | Purpose                                             |
+| ----------------------- | ----------------------------- | --------------------------------------------------- |
+| `BPL_PLAYGROUND_RUNNER` | `docker`                      | `docker` or explicitly trusted `host`               |
+| `BPL_PLAYGROUND_IMAGE`  | `bpl-playground-worker:local` | Trusted, locally built worker image                 |
+| `BPL_PLAYGROUND_HOST`   | `127.0.0.1`                   | Docker-mode HTTP bind address; ignored in host mode |
+| `PORT`                  | `3001`                        | HTTP port                                           |
+
+These are server settings; visitors cannot select a runner or image. `/health`
+reports the selected runner. For a shared deployment, use Docker mode and place
+the HTTP server behind your reverse proxy with appropriate access and rate limits.
+Set `BPL_PLAYGROUND_HOST=0.0.0.0` only when you intend to expose it. Run the trusted
+controller under a dedicated account with Docker access; never give a worker the
+Docker socket, credentials, or host bind mounts. Docker workers share the host
+kernel, so keep Docker and the host patched and use a dedicated machine or VM for
+an Internet-facing playground.
+
+Each worker has no external network, runs as UID/GID 10001, drops all capabilities,
+sets `no-new-privileges`, and uses a read-only root filesystem. Its temporary
+workspace is a 128 MiB tmpfs. Limits are 1 CPU, 768 MiB memory with no additional
+swap, 64 processes, and 256 file descriptors. At most two jobs run per server;
+additional submissions receive HTTP 429. Request bodies are limited to 512 KiB,
+source to 128 KiB, stdin to 256 KiB, and argv to 64 arguments of at most 4 KiB each.
+
+Native execution has a 5-second limit and a 1 MiB output budget. Each complete
+worker job has a 30-second watchdog independent of the web server, and the Docker
+client allows 35 seconds for attach/completion. Combined worker output and
+diagnostics are capped at 16 MiB. Worker failures return HTTP 502; cleanup failures
+return 503 and disable new jobs until the server restarts. Containers are removed
+on completion and explicitly force-removed on errors. The PID 1 watchdog also
+terminates jobs left running after controller failure. Do not add `--init` before
+this watchdog: that would allow a submitted program to suspend the watchdog.
+
+Docker jobs start fresh, so they do not share native binaries or compiler caches
+across requests. Wasm compilation happens in a worker; Wasm execution continues
+in the browser. To run the real-container regression suite:
 
 ```bash
-PORT=3011 bun run start
+bun run playground:build
+bun run test:playground-docker
 ```
 
-3. Open your browser to `http://localhost:3001` or the custom `PORT` you selected.
+The regular test suite covers runner contracts without requiring Docker. A
+separate GitHub Actions job builds the image and runs the Docker integration tests.
 
 ## Project Structure
 
 ```
 playground/
 ├── backend/
+│   ├── runner.ts         # Docker lifecycle, limits, and explicit host selection
+│   ├── worker.ts         # One-job JSON worker entry point
+│   ├── engine.ts         # Compilation, formatting, and native execution
 │   ├── server.ts         # Bun server with API endpoints
 │   ├── runtimeFiles.ts   # Native runtime object cache for faster playground links
 │   └── package.json
@@ -265,8 +318,7 @@ bun test tests/TutorialExamples.test.ts -t "argv-vector execution"
 ### Start Development Server
 
 ```bash
-cd playground
-bun run dev
+bun run playground:host
 ```
 
 ### Modify Examples
@@ -365,11 +417,13 @@ Create a new JSON file in `tutorials/`:
 
 - Ensure Bun is installed: `bun --version`
 - Check if port 3001 is available
-- Make sure BPL compiler is built
+- In Docker mode, check `docker info`, run `bun run playground:build`, and restart
+- In host mode, check the local toolchain and run `bun run build:runtime`
 
 **Compilation errors:**
 
-- Verify Clang/LLVM is installed: `clang --version`
+- In host mode, verify Clang/LLVM is installed: `clang --version`
+- In Docker mode, rebuild the image after compiler or runtime changes
 - Check file permissions in `/tmp`
 - Look at browser console for detailed errors
 - In the Wasm tab, "Browser BPL compiler: unavailable" means browser execution
