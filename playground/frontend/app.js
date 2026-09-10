@@ -684,6 +684,7 @@ async function loadCompileArtifacts() {
         }),
       });
       const result = await response.json();
+      operation.signal.throwIfAborted();
 
       if (!result.success) {
         const error = result.error || "Unable to load compiler debug output.";
