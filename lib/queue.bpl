@@ -28,6 +28,9 @@ struct Queue<T>: Iterable<T>, Destructible {
     tail: int,
     count: int,
     frame new(initial_capacity: int) ret Queue<T> {
+        if (initial_capacity < 0) {
+            initial_capacity = 0;
+        }
         local q: Queue<T>;
         q.inner = Array<T>.new(initial_capacity);
         # Hack: set length to capacity so we can use set() on any index
@@ -47,6 +50,7 @@ struct Queue<T>: Iterable<T>, Destructible {
 
     frame destroy(this: *Queue<T>) {
         this.inner.destroy();
+        this.clear();
     }
 
     frame enqueue(this: *Queue<T>, value: T) {

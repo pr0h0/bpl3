@@ -82,6 +82,11 @@ s.destroy();
 
 A First-In-First-Out (FIFO) data structure. Optimized with a circular buffer.
 
+Non-positive initial capacities create an empty queue that grows on demand.
+`clear()` retains storage; `destroy()` releases storage and resets the queue to
+empty, allowing reuse. Neither operation destroys resources owned by elements.
+Structural changes invalidate iterators.
+
 ```bpl
 import [Queue] from "std/queue.bpl";
 

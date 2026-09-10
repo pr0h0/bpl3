@@ -3266,3 +3266,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: The real-browser tutorial smoke test raises a Monaco exception because the language definition references `@symbols` without defining it.
 
 **Resolution (2026-09-10)**: Added the operator-symbol expression required by the tutorial tokenizer, with regression coverage alongside the tutorial script tests.
+
+### BUG-263: Queue destruction leaves stale element counts and indices
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed**: Destroying a nonempty queue frees its storage but preserves its count, head, and tail. It still reports nonempty and subsequent access or reuse fails. Negative initial capacities also pass invalid sizes to the backing array.
+
+**Resolution (2026-09-10)**: Reset queue state on destruction and normalize negative initial capacity to zero. Regression coverage checks wrapped growth, draining, repeated destruction, clear, reuse, and non-positive capacities at O0/O3 with LLVM verification.
