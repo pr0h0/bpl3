@@ -184,6 +184,12 @@ Rational number (fraction) arithmetic.
 
 ## Encoding/Decoding
 
+### Binary (`std/binary.bpl`)
+
+`ByteReader` and `ByteWriter` provide checked, non-owning byte-buffer cursors,
+unsigned integer access in either byte order, and failure without partial writes
+or cursor movement. See the [binary data reference](61-stdlib-binary.md).
+
 ### Base64 (`std/base64.bpl`)
 
 Base64 encoding and decoding.

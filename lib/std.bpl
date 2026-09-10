@@ -200,6 +200,10 @@ export [Base64];
 import [Hex] from "std/hex.bpl";
 export [Hex];
 
+import [ByteReader], [ByteWriter] from "std/binary.bpl";
+export [ByteReader];
+export [ByteWriter];
+
 import [Hash] from "std/hash.bpl";
 export [Hash];
 

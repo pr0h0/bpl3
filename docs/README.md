@@ -98,6 +98,7 @@ Welcome to the comprehensive documentation for **BPL (Best Programming Language)
 - [Keyword Index](46-keyword-index.md) - All reserved words
 - [Operator Precedence](47-operator-precedence.md) - Expression evaluation order
 - [Standard Library API](48-stdlib-api.md) - Complete API reference
+- [Binary Data](61-stdlib-binary.md) - Checked byte-buffer readers and writers
 
 ### Tools and Ecosystem
 

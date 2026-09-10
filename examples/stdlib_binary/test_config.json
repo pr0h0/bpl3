@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["magic=cafe value=123456 remaining=0", "truncated=1"],
+  "args": [],
+  "env": {},
+  "input": ""
+}
