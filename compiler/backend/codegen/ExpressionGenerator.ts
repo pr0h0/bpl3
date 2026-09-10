@@ -22,6 +22,13 @@ import { formatFloatingPointLiteral } from "./FloatingPointLiteral";
 import { getIntegerBitWidth } from "./utils";
 
 const STRUCT_LITERAL_FIELD_MAP_THRESHOLD = 4;
+const COMPOUND_BINARY_OPERATORS: Partial<Record<TokenType, TokenType>> = {
+  [TokenType.PlusEqual]: TokenType.Plus,
+  [TokenType.MinusEqual]: TokenType.Minus,
+  [TokenType.StarEqual]: TokenType.Star,
+  [TokenType.SlashEqual]: TokenType.Slash,
+  [TokenType.PercentEqual]: TokenType.Percent,
+};
 
 export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
   protected abstract generateBlock(block: AST.BlockStmt): void;
@@ -659,28 +666,8 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       expr.assignee.resolvedType!,
     );
 
-    const isFloat = destType === "double" || destType === "float";
-    let op = "";
-    switch (expr.operator.type) {
-      case TokenType.PlusEqual:
-        op = isFloat ? "fadd" : "add";
-        break;
-      case TokenType.MinusEqual:
-        op = isFloat ? "fsub" : "sub";
-        break;
-      case TokenType.StarEqual:
-        op = isFloat ? "fmul" : "mul";
-        break;
-      case TokenType.SlashEqual:
-        op = isFloat ? "fdiv" : "sdiv";
-        break;
-      case TokenType.PercentEqual:
-        op = isFloat ? "frem" : "srem";
-        break;
-      // Bitwise operators can be added here
-    }
-
-    if (!op) {
+    const operator = COMPOUND_BINARY_OPERATORS[expr.operator.type];
+    if (operator === undefined) {
       throw new CompilerError(
         `Unsupported compound assignment operator: ${expr.operator.lexeme}`,
         "This operator is not supported for compound assignment.",
@@ -688,8 +675,22 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       );
     }
 
-    const result = this.newRegister();
-    this.emit(`  ${result} = ${op} ${destType} ${currentValue}, ${castVal}`);
+    // Reuse binary arithmetic after evaluating the address and operands once.
+    // Keep narrowing visible so constant-divisor checks use the stored width.
+    const right: AST.Expression = srcType === destType ? expr.value : {
+      kind: "Cast",
+      expression: expr.value,
+      targetType: expr.assignee.resolvedType!,
+      resolvedType: expr.assignee.resolvedType!,
+      location: expr.value.location,
+    };
+    const result = this.generateStandardBinaryOp({
+      kind: "Binary",
+      left: expr.assignee,
+      right,
+      operator: { ...expr.operator, type: operator },
+      location: expr.location,
+    }, currentValue, castVal, destType);
     this.emit(`  store ${destType} ${result}, ${destType}* ${addr}`);
     this.clearBasicBlockIntegerExpressionFact(
       this.exprToDescription(expr.assignee),

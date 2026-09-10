@@ -891,7 +891,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   /**
    * Generate standard binary operation
    */
-  private generateStandardBinaryOp(
+  protected generateStandardBinaryOp(
     expr: AST.BinaryExpr,
     left: string,
     right: string,

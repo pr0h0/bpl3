@@ -1,5 +1,8 @@
 import { test } from "bun:test";
-import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
+import {
+  expectCorrectnessSuite,
+  expectRuntimeFailureSuite,
+} from "./helpers/compilerCorrectness";
 
 test("uses floating-point instructions for f32 and f64 compound assignments", () => {
   expectCorrectnessSuite([
@@ -27,5 +30,50 @@ test("uses floating-point instructions for f32 and f64 compound assignments", ()
       }
     `,
     },
+  ]);
+}, 60000);
+
+test("compound division and remainder respect integer signedness", () => {
+  expectCorrectnessSuite([
+    {
+      name: "signed and unsigned compound division",
+      validateLlvm: true,
+      expectedStdout: "1333333333 1 6148914691236517205 0 -3 -1\n",
+      source: `
+      extern printf(fmt: string, ...);
+      frame main() ret int {
+        local q: u32 = 4000000000; local r: u32 = q;
+        q /= 3; r %= 3;
+        local wideQ: u64 = 18446744073709551615; local wideR: u64 = wideQ;
+        wideQ /= 3; wideR %= 3;
+        local signedQ: int = -10; local signedR: int = signedQ;
+        signedQ /= 3; signedR %= 3;
+        printf("%u %u %llu %llu %d %d\\n", q, r, wideQ, wideR, signedQ, signedR);
+        return 0;
+      }
+    `,
+    },
+  ]);
+}, 60000);
+
+test("compound integer division uses the normal checked failure paths", () => {
+  expectRuntimeFailureSuite([
+    ...["/=", "%="].flatMap((operator) => [
+      {
+        name: `${operator} zero divisor`,
+        expectedMessage: "DIVISION BY ZERO",
+        source: `frame main() ret int { local x: int = 10; local zero: int = 0; x ${operator} zero; return x; }`,
+      },
+      {
+        name: `${operator} signed overflow`,
+        expectedMessage: "INTEGER OVERFLOW",
+        source: `frame main() ret int { local x: int = -2147483648; local negativeOne: int = -1; x ${operator} negativeOne; return x; }`,
+      },
+      {
+        name: `${operator} divisor narrowed to zero`,
+        expectedMessage: "DIVISION BY ZERO",
+        source: `frame main() ret int { local x: u8 = 10; x ${operator} 256; return cast<int>(x); }`,
+      },
+    ]),
   ]);
 }, 60000);

@@ -3127,11 +3127,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-249: Integer compound division ignores unsignedness and runtime checks
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
 **Observed**: Starting with u32 value 4000000000, `/= 3` produces 4196644864 instead of 1333333333, and `%= 3` produces 0 instead of 1 at O0/O3. The compound path unconditionally selects signed division/remainder and bypasses the ordinary division checks.
+
+**Resolution (2026-09-10)**: Compound assignments reuse ordinary binary arithmetic after evaluating their address and operands once. Signedness, zero-divisor checks, and signed overflow checks now agree with binary expressions; narrowing remains visible to constant-divisor analysis. O0/O3 tests cover u32/u64 and signed results, both failure operators, and a divisor narrowed to zero. Typecheck and lint pass.
 
 ### BUG-250: Unmatched typed catches swallow exceptions
 
