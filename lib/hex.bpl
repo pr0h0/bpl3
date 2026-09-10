@@ -11,7 +11,11 @@ struct Hex {
     # Returns a newly allocated string (caller must free)
     frame encode(data: *u8, length: int) ret string {
         if ((data == nullptr) || (length <= 0)) {
-            return "";
+            local empty: *u8 = cast<*u8>(malloc(1));
+            if (empty != nullptr) {
+                *empty = cast<u8>(0);
+            }
+            return cast<string>(empty);
         }
         local outLen: int = length * 2;
         local output: *u8 = cast<*u8>(malloc(cast<long>(outLen + 1)));
@@ -35,7 +39,7 @@ struct Hex {
     # Encode a byte array to uppercase hex string
     frame encodeUpper(data: *u8, length: int) ret string {
         if ((data == nullptr) || (length <= 0)) {
-            return "";
+            return Hex.encode(nullptr, 0);
         }
         local outLen: int = length * 2;
         local output: *u8 = cast<*u8>(malloc(cast<long>(outLen + 1)));
@@ -59,7 +63,7 @@ struct Hex {
     # Encode a string to hex
     frame encodeString(str: string) ret string {
         if (str == nullptr) {
-            return "";
+            return Hex.encode(nullptr, 0);
         }
         local len: int = cast<int>(strlen(str));
         return Hex.encode(cast<*u8>(str), len);
@@ -129,7 +133,7 @@ struct Hex {
     # Decode hex to a new string (caller must free)
     frame decodeToString(input: string) ret string {
         if (input == nullptr) {
-            return "";
+            return Hex.encode(nullptr, 0);
         }
         local inLen: int = cast<int>(strlen(input));
         local maxOutLen: int = (inLen / 2) + 1;

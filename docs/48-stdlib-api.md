@@ -182,10 +182,13 @@ Rational number (fraction) arithmetic.
 
 Base64 encoding and decoding.
 
+String-returning helpers return caller-owned allocations, including empty
+results and null-input results. Release them with `free(cast<*void>(result))`.
+
 - `Base64.encode(data: *u8, length: int) ret string`
 - `Base64.encodeString(str: string) ret string`
 - `Base64.decode(input: string, output: *u8) ret int`
-- `Base64.decodeString(input: string) ret string`
+- `Base64.decodeToString(input: string) ret string`
 - `Base64.encodedLength(inputLength: int) ret int`
 - `Base64.decodedLength(input: string) ret int`
 - `Base64.isValid(input: string) ret bool`
@@ -194,11 +197,14 @@ Base64 encoding and decoding.
 
 Hexadecimal encoding and decoding.
 
+String-returning helpers return caller-owned allocations, including empty
+results and null-input results. Release them with `free(cast<*void>(result))`.
+
 - `Hex.encode(data: *u8, length: int) ret string`
 - `Hex.encodeUpper(data: *u8, length: int) ret string`
 - `Hex.encodeString(str: string) ret string`
 - `Hex.decode(input: string, output: *u8) ret int`
-- `Hex.decodeString(input: string) ret string`
+- `Hex.decodeToString(input: string) ret string`
 - `Hex.isValid(input: string) ret bool`
 
 ### Hash (`std/hash.bpl`)

@@ -14,7 +14,11 @@ struct Base64 {
     # Returns a newly allocated string (caller must free)
     frame encode(data: *u8, length: int) ret string {
         if ((data == nullptr) || (length <= 0)) {
-            return "";
+            local empty: *u8 = cast<*u8>(malloc(1));
+            if (empty != nullptr) {
+                *empty = cast<u8>(0);
+            }
+            return cast<string>(empty);
         }
         # Calculate output length: 4 chars for every 3 bytes, rounded up
         local outLen: int = ((length + 2) / 3) * 4;
@@ -69,7 +73,7 @@ struct Base64 {
     # Encode a string to Base64
     frame encodeString(str: string) ret string {
         if (str == nullptr) {
-            return "";
+            return Base64.encode(nullptr, 0);
         }
         local len: int = cast<int>(strlen(str));
         return Base64.encode(cast<*u8>(str), len);
@@ -175,7 +179,7 @@ struct Base64 {
     # Decode Base64 to a new string (caller must free)
     frame decodeToString(input: string) ret string {
         if (input == nullptr) {
-            return "";
+            return Base64.encode(nullptr, 0);
         }
         local inLen: int = cast<int>(strlen(input));
         local maxOutLen: int = ((inLen * 3) / 4) + 1;

@@ -3276,3 +3276,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: Destroying a nonempty queue frees its storage but preserves its count, head, and tail. It still reports nonempty and subsequent access or reuse fails. Negative initial capacities also pass invalid sizes to the backing array.
 
 **Resolution (2026-09-10)**: Reset queue state on destruction and normalize negative initial capacity to zero. Regression coverage checks wrapped growth, draining, repeated destruction, clear, reuse, and non-positive capacities at O0/O3 with LLVM verification.
+
+### BUG-264: Empty encoding results violate their documented ownership contract
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed**: Hex and Base64 string helpers promise caller-owned allocations but return string literals for empty or null input. Following the contract and freeing those results aborts the process with an invalid free.
+
+**Resolution (2026-09-10)**: Empty results now use allocated, NUL-terminated buffers. Regression coverage frees empty, null-input, and nonempty results at O0/O3. Corrected the API reference to name the existing `decodeToString` methods.
