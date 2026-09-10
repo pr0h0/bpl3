@@ -200,6 +200,23 @@ describe("playground runner", () => {
     await first;
   });
 
+  test("reports unavailable when its pinned image disappears and never silently changes images", async () => {
+    let removed = false;
+    const { runner, calls } = harness(({ args }) =>
+      args[0] === "image" && removed
+        ? Promise.reject(new Error("image removed"))
+        : undefined,
+    );
+    await runner.prepare();
+    removed = true;
+    await expect(runner.recover()).rejects.toThrow("image removed");
+    expect(runner.ready).toBe(false);
+    expect(calls.at(-1)!.args.at(-1)).toBe(imageId);
+    await expect(runner.execute("compile", { code: "" })).rejects.toMatchObject(
+      { status: 503 },
+    );
+  });
+
   test("bounds concurrency and releases capacity after jobs finish", async () => {
     const pending: Array<() => void> = [];
     const { runner } = harness(({ args }) =>

@@ -3236,3 +3236,33 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: Wasm exports execute on the browser main thread. Infinite loops prevent the UI from processing Stop or any other interaction, and captured output grows without a bound.
 
 **Resolution (2026-09-10)**: Moved execution into a disposable Web Worker with termination on Stop, a five-second timeout, and a 1 MiB output budget.
+
+### BUG-260: Readiness ignores a missing pinned Docker worker image
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed**: Rebuilding the local worker tag on a containerd-backed Docker installation can remove the previous unreferenced image ID. A running controller still pins that ID and fails jobs, while Docker listing succeeds and health remains ready.
+
+**Resolution (2026-09-10)**: Periodic recovery now also verifies the pinned image. Missing images make health unavailable without silently switching compiler versions. Restart the controller after rebuilding as documented. A regression checks readiness and the exact image ID probed.
+
+### BUG-261: Process timeout regression assumes Bun starts within 50 ms
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed**: During the full CI-safe unit suite, surrounding subprocess startups took 57–94 ms. The timeout test killed its child at 50 ms before its first write, then incorrectly failed the partial-output assertion.
+
+**Resolution (2026-09-10)**: Give startup a one-second margin and keep the child alive with an interval. The test still requires timeout termination and exact captured stdout/stderr, without assuming a 50 ms Bun startup.
+
+### BUG-262: Tutorial editor references an undefined Monarch symbols attribute
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed**: The real-browser tutorial smoke test raises a Monaco exception because the language definition references `@symbols` without defining it.
+
+**Resolution (2026-09-10)**: Added the operator-symbol expression required by the tutorial tokenizer, with regression coverage alongside the tutorial script tests.

@@ -62,6 +62,13 @@ export class DockerPlaygroundRunner {
     this.recovery = (async () => {
       try {
         for (const name of this.pendingCleanup) await this.remove(name);
+        if (this.imageId) {
+          await this.run(
+            "docker",
+            ["image", "inspect", "--format", "{{.Id}}", this.imageId],
+            { timeout: 10_000 },
+          );
+        }
         const jobs = await this.run(
           "docker",
           [
