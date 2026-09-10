@@ -659,7 +659,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       expr.assignee.resolvedType!,
     );
 
-    const isFloat = destType === "double";
+    const isFloat = destType === "double" || destType === "float";
     let op = "";
     switch (expr.operator.type) {
       case TokenType.PlusEqual:

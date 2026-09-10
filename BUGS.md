@@ -3114,3 +3114,37 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: A minimal program inspecting `typeof<Array<int>>()` emits an `Array_U` vtable whose signatures contain unresolved `%struct.U`, rejected by clang. Reproduced before and after the generic forwarding fix. Reflection currently attempts to expose methods whose own type parameters have not been instantiated.
 
 **Resolution (2026-09-09)**: Reflection uses the concrete struct declaration, skips methods with unbound method-level parameters, and emits raw function-pointer signatures without a closure context. The regression obtains and calls Array<int>.len through MethodInfo at O0/O3 with LLVM verification, and all five existing reflection examples pass.
+
+### BUG-248: f32 compound assignments emit integer LLVM instructions
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed**: `f32` addition and multiplication assignments emit `add float` and fail clang compilation at O0/O3. Compound assignment recognizes only LLVM double as floating point.
+
+**Resolution (2026-09-10)**: Compound assignment recognizes both LLVM floating widths. O0/O3 regressions cover all five arithmetic assignments, f32 array elements, and single evaluation of an index expression. All five selected numeric tests and typecheck pass.
+
+### BUG-249: Integer compound division ignores unsignedness and runtime checks
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed**: Starting with u32 value 4000000000, `/= 3` produces 4196644864 instead of 1333333333, and `%= 3` produces 0 instead of 1 at O0/O3. The compound path unconditionally selects signed division/remainder and bypasses the ordinary division checks.
+
+### BUG-250: Unmatched typed catches swallow exceptions
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed**: An int thrown inside a try with only a bool catch falls through instead of reaching an enclosing int catch at O0/O3. The final unsuccessful catch check branches to the end of the try statement.
+
+### BUG-251: Floating-point exception payloads lose precision
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed**: Throwing float 1.75 and f32 -2.25 produces caught values 1.0 and -2.0 at O0/O3. Payload transport numerically converts floating-point values to i64 and back instead of preserving their bits.
