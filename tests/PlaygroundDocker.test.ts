@@ -131,6 +131,56 @@ dockerTests("real Docker playground workers", () => {
     });
   }, 60_000);
 
+  test("recovers a real abandoned container after a simulated Docker transport outage", async () => {
+    let offline = false;
+    let injected = false;
+    let name = "";
+    const recovering = new DockerPlaygroundRunner(
+      process.env.BPL_PLAYGROUND_IMAGE,
+      async (command, args, options) => {
+        if (offline) throw new Error("Docker transport disconnected");
+        const result = await runProcessFile(command, args, options);
+        if (args[0] === "create" && !injected) {
+          name = args[args.indexOf("--name") + 1]!;
+          offline = true;
+          injected = true;
+        }
+        return result;
+      },
+    );
+    try {
+      await recovering.prepare();
+      await expect(
+        recovering.execute("compile", { code: hello }),
+      ).rejects.toThrow("cleanup failed");
+      expect(recovering.ready).toBe(false);
+      await expect(recovering.recover()).rejects.toThrow("disconnected");
+      const abandoned = await runProcessFile("docker", [
+        "ps",
+        "-aq",
+        "--filter",
+        `name=^/${name}$`,
+      ]);
+      expect(abandoned.stdout.trim()).not.toBe("");
+      offline = false;
+      await recovering.recover();
+      expect(recovering.ready).toBe(true);
+      const cleaned = await runProcessFile("docker", [
+        "ps",
+        "-aq",
+        "--filter",
+        `name=^/${name}$`,
+      ]);
+      expect(cleaned.stdout.trim()).toBe("");
+      expect(
+        await recovering.execute("compile", { code: hello }),
+      ).toMatchObject({ success: true });
+    } finally {
+      if (name)
+        await runProcessFile("docker", ["rm", "-f", name]).catch(() => {});
+    }
+  }, 45000);
+
   test("builds valid hosted Wasm inside the worker", async () => {
     const result = await runner.execute("wasm", { code: hello });
     expect(result.success).toBe(true);
