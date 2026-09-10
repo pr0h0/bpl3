@@ -63,8 +63,9 @@ Successful responses return `success: true` and a required `wasmBase64` string.
 `wasmBytes` and `imports` are optional display metadata using the same shape as
 the backend `/wasm` response. Failure responses return `success: false` with an
 `error` string. The playground then calls
-`BplWasmHostAdapter.runHostedWasmInBrowser(wasmBase64, args)` so browser and
-backend-compiled modules use the same host import adapter.
+`BplWasmHostAdapter.runHostedWasmInWorker(wasmBase64, args, options)` so browser
+and backend-compiled modules use the same host import adapter, cancellation,
+and execution limits.
 
 ## Quick Start
 

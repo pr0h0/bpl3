@@ -2181,7 +2181,7 @@ describe("Markdown documentation", () => {
       "Successful responses return `success: true` and a required `wasmBase64` string",
       "`wasmBytes` and `imports` are optional display metadata",
       "Failure responses return `success: false` with an `error` string",
-      "The playground then calls `BplWasmHostAdapter.runHostedWasmInBrowser(wasmBase64, args)`",
+      "The playground then calls `BplWasmHostAdapter.runHostedWasmInWorker(wasmBase64, args, options)`",
     ];
 
     expectDocsContainSnippets(normalizedText, requiredSnippets);
