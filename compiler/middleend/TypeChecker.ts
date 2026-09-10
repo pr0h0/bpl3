@@ -11,6 +11,7 @@ import {
   ASSIGNMENT_TARGET_CONSTANT_CODE,
   ASSIGNMENT_TARGET_INVALID_CODE,
   ASSIGNMENT_TYPE_MISMATCH_CODE,
+  BITWISE_OPERAND_TYPE_MISMATCH_CODE,
   BUILTIN_TYPE_REDEFINITION_CODE,
   ENUM_VARIANT_FIELD_TYPE_MISMATCH_CODE,
   ENUM_VARIANT_FIELD_UNKNOWN_CODE,
@@ -24,7 +25,7 @@ import {
   TypeCheckerBase,
   VOID_TYPE_INVALID_CODE,
 } from "./TypeCheckerBase";
-import { KNOWN_TYPES } from "./TypeUtils";
+import { KNOWN_TYPES, TypeUtils } from "./TypeUtils";
 import { OverloadResolver } from "./OverloadResolver";
 import { ImportHandler } from "./ImportHandler";
 import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
@@ -1823,6 +1824,21 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     const valueType = this.checkExpression(expr.value);
 
     if (targetType && valueType) {
+      const isBitwiseCompound =
+        expr.operator.type === TokenType.AmpersandEqual ||
+        expr.operator.type === TokenType.PipeEqual ||
+        expr.operator.type === TokenType.CaretEqual;
+      if (
+        isBitwiseCompound &&
+        (!TypeUtils.isIntegerType(targetType) || !TypeUtils.isIntegerType(valueType))
+      ) {
+        throw new CompilerError(
+          "Bitwise operators require integer operands",
+          "Ensure both operands are integers.",
+          expr.location,
+          BITWISE_OPERAND_TYPE_MISMATCH_CODE,
+        );
+      }
       let compatible = this.areTypesCompatible(targetType, valueType);
       if (!compatible) {
         const val = this.getIntegerConstantValue(expr.value);

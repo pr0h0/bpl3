@@ -3154,3 +3154,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: Throwing float 1.75 and f32 -2.25 produces caught values 1.0 and -2.0 at O0/O3. Payload transport numerically converts floating-point values to i64 and back instead of preserving their bits.
 
 **Resolution (2026-09-10)**: Floating throws and catches now bitcast their payloads through the i64 transport slot, zero-extending f32 bits. O0/O3 regression coverage preserves fractions, large finite values, NaNs, infinities, and negative zero for both widths; all four selected exception tests pass.
+
+### BUG-252: Documented bitwise compound assignments fail code generation
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed**: `flags &= 3` parses and typechecks but fails code generation with an unsupported compound-assignment error. The same missing dispatch affects `|=` and `^=`. The operator guide also advertises shift-assignment tokens absent from the grammar.
+
+**Resolution (2026-09-10)**: The shared compound-to-binary dispatch now includes integer AND/OR/XOR. Non-integer operands receive the existing bitwise diagnostic during type checking. Runtime regressions cover narrow/signed values and single evaluation of array indexes; the guide no longer advertises unsupported shift-assignment tokens. All 12 selected tests, typecheck, lint, and documentation checks pass.

@@ -40,7 +40,7 @@ BPL operators follow C-like precedence rules. Higher precedence operators bind m
 | 11          | `&&`                                                      | Logical AND                           | Left to right |
 | 12          | `\|\|`                                                    | Logical OR                            | Left to right |
 | 13          | `?:`                                                      | Ternary conditional                   | Right to left |
-| 14 (lowest) | `=` `+=` `-=` `*=` `/=` `%=` `<<=` `>>=` `&=` `^=` `\|=`  | Assignment                            | Right to left |
+| 14 (lowest) | `=` `+=` `-=` `*=` `/=` `%=` `&=` `^=` `\|=`  | Assignment                            | Right to left |
 
 ## Arithmetic Operators
 
@@ -316,7 +316,15 @@ x = x ^ 0xFF; # x = x ^ 0xFF;
 **Available Compound Operators:**
 
 - Arithmetic: `+=`, `-=`, `*=`, `/=`, `%=`
-- Bitwise: `<<=`, `>>=`, `&=`, `|=`, `^=`
+- Bitwise (integer operands): `&=`, `|=`, `^=`
+
+Shift assignment (`<<=` and `>>=`) is not supported; use `x = x << n` or
+`x = x >> n`.
+
+Arithmetic compound assignments support `f32` and `f64`. Integer `/=` and `%=`
+respect the target's signedness and check for zero divisors and signed overflow,
+including when conversion to the target type makes a divisor zero. The target
+address is evaluated once.
 
 **Equivalent but more efficient:**
 

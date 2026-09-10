@@ -33,6 +33,32 @@ test("uses floating-point instructions for f32 and f64 compound assignments", ()
   ]);
 }, 60000);
 
+test("bitwise compound assignments support integer lvalues and evaluate indexes once", () => {
+  expectCorrectnessSuite([
+    {
+      name: "bitwise compound assignments",
+      validateLlvm: true,
+      expectedStdout: "30 240 -2 3\n",
+      source: `
+      extern printf(fmt: string, ...);
+      global calls: int = 0;
+      frame index() ret int { calls += 1; return 0; }
+      frame main() ret int {
+        local flags: int[1] = [31];
+        flags[index()] &= 15;
+        flags[index()] |= 16;
+        flags[index()] ^= 1;
+        local narrow: u8 = 255;
+        narrow &= 240; narrow |= 3; narrow ^= 3;
+        local signed: int = -1; signed &= -2;
+        printf("%d %d %d %d\\n", flags[0], narrow, signed, calls);
+        return 0;
+      }
+    `,
+    },
+  ]);
+}, 60000);
+
 test("compound division and remainder respect integer signedness", () => {
   expectCorrectnessSuite([
     {

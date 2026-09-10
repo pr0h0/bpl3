@@ -32,6 +32,22 @@ function expectBinaryOperatorError(
 }
 
 describe("TypeChecker binary operator misuse diagnostics", () => {
+  test("rejects non-integer bitwise compound assignments before codegen", () => {
+    for (const operator of ["&=", "|=", "^="]) {
+      for (const [type, value] of [
+        ["float", "1.5"],
+        ["bool", "true"],
+        ["string", '"text"'],
+      ]) {
+        expectBinaryOperatorError(
+          `frame main() { local x: ${type} = ${value}; x ${operator} ${value}; }`,
+          "Bitwise operators require integer operands",
+          "BPL_BITWISE_OPERAND_TYPE_MISMATCH",
+          "Ensure both operands are integers.",
+        );
+      }
+    }
+  });
   test("codes unsupported string concatenation", () => {
     expectBinaryOperatorError(
       `

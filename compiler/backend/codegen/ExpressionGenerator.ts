@@ -28,6 +28,9 @@ const COMPOUND_BINARY_OPERATORS: Partial<Record<TokenType, TokenType>> = {
   [TokenType.StarEqual]: TokenType.Star,
   [TokenType.SlashEqual]: TokenType.Slash,
   [TokenType.PercentEqual]: TokenType.Percent,
+  [TokenType.AmpersandEqual]: TokenType.Ampersand,
+  [TokenType.PipeEqual]: TokenType.Pipe,
+  [TokenType.CaretEqual]: TokenType.Caret,
 };
 
 export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
