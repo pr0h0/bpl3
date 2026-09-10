@@ -171,7 +171,7 @@ describe("CodeGenerator", () => {
       ),
       "utf8",
     );
-    const methodStart = source.indexOf("private generateStandardBinaryOp");
+    const methodStart = source.indexOf(" generateStandardBinaryOp(");
     const methodEnd = source.indexOf("\n  /**", methodStart);
     const methodSource = source.slice(methodStart, methodEnd);
 
@@ -195,7 +195,7 @@ describe("CodeGenerator", () => {
       ),
       "utf8",
     );
-    const methodStart = source.indexOf("private generateStandardBinaryOp");
+    const methodStart = source.indexOf(" generateStandardBinaryOp(");
     const methodEnd = source.indexOf("\n  /**", methodStart);
     const methodSource = source.slice(methodStart, methodEnd);
     const switchStart = methodSource.indexOf("switch (expr.operator.type)");

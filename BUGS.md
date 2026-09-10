@@ -3135,6 +3135,8 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Resolution (2026-09-10)**: Compound assignments reuse ordinary binary arithmetic after evaluating their address and operands once. Signedness, zero-divisor checks, and signed overflow checks now agree with binary expressions; narrowing remains visible to constant-divisor analysis. O0/O3 tests cover u32/u64 and signed results, both failure operators, and a divisor narrowed to zero. Typecheck and lint pass.
 
+**Validation follow-up (2026-09-10)**: Two existing codegen performance checks located the shared helper by its former private modifier. Their lookup now identifies the method independently of visibility, retaining all checks on lazy type resolution, signedness classification, and emitted instructions.
+
 ### BUG-250: Unmatched typed catches swallow exceptions
 
 **Status**: Fixed
