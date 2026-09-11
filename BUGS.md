@@ -3377,13 +3377,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Documentation/workaround**: Use distinct ignored names, such as `_a` and `_b`. The lambda guide now demonstrates this form.
 
-### BUG-274: Some interpolation expressions cannot resolve primitive/string conversion
+### BUG-274: Some interpolation expressions cannot resolve primitive conversion
 
 **Status**: Open
 
 **Priority**: P2
 
-**Observed (2026-09-11)**: Interpolating `${cast<float>(items) * price}` fails with `BPL_INSTANCE_METHOD_NOT_COMPATIBLE` for float.toString. The earlier logging example also failed when invoking String.toString directly inside interpolation.
+**Observed (2026-09-11)**: Interpolating `${cast<float>(items) * price}` fails with `BPL_INSTANCE_METHOD_NOT_COMPATIBLE` for float.toString. Isolated interpolation of String.toString calls succeeds; the logging failure was caused by the separate intrinsic-name collision in BUG-276.
 
 **Documentation/workaround**: Bind computed values to typed locals before interpolation. The repaired guide exercises that form. Importing only String's module also does not load all primitive conversion wrappers; examples using primitive interpolation import from `std`.
 

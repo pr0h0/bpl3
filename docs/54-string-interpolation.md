@@ -565,6 +565,6 @@ does not currently provide a database driver.
 
 ## Current expression limitations
 
-Some computed floating-point expressions and direct `String.toString()` calls
-inside `${...}` can fail compilation. Bind the expression to a typed local first
+Some computed floating-point expressions inside `${...}` can fail compilation.
+Bind the expression to a typed local first
 and interpolate that local (see BUG-274 in [the bug log](../BUGS.md)).
