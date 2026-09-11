@@ -1,5 +1,5 @@
 import [Deque] from "std/deque.bpl";
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     local work: Deque<int> = Deque<int>.new(2);

@@ -1,5 +1,5 @@
 import [ByteReader], [ByteWriter] from "std/binary.bpl";
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 frame main() ret int {
     local packet: u8[6];
