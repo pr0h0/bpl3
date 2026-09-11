@@ -68,7 +68,11 @@ import [JSON], [Jsonable], [JsonToResult], [JsonParseResult] from "std";
 
 `JSON.stringify<T>(&value)` serializes primitive and reflected values into a
 `String`. `JSON.parse<T>(json)` parses into an allocated `*T`; callers own the
-returned value and any nested resources.
+returned value and any nested resources and must release them with `JSON.free<T>`.
+Serialization and parsing support different primitive types, enum payloads are
+not a general round trip, and malformed/unsupported input still has parser
+limitations. See [Reflection and JSON](55-reflection-and-json.md) for exact
+ownership, hooks, supported types, and known failures.
 
 ### Logging (`std/log.bpl`)
 

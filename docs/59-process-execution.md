@@ -1,8 +1,8 @@
 # Process Execution
 
-The `std/process.bpl` module provides utilities for executing shell commands and interacting with subprocesses. It allows you to run commands, check their exit status, and capture their output. All functions effectively behave as varargs, space-joining all arguments to form the final command string.
+The `std/process.bpl` module provides utilities for executing shell commands and interacting with subprocesses. It allows you to run commands, check their exit status, and capture their output. `exec`, `execSilent`, `execStatus`, and `execOutput` accept command arguments separately. `execShell` accepts one raw shell command, and `sleep` accepts milliseconds.
 
-**Safety Note:** This module automatically escapes all arguments to prevent OS command injection. You can safely pass user input as separate arguments to these functions.
+**Argument handling:** The argument-based execution functions quote each argument for a POSIX shell. This protects argument boundaries and shell metacharacters; it does not validate the executable, reject options such as `--delete`, or restrict what the child process can access. `execShell` performs no such quoting. These helpers do not provide process isolation, timeouts, or output limits.
 
 ## Import
 
@@ -27,18 +27,18 @@ struct ProcessResult {
 
 ### Safety and Injection Protection
 
-The module automatically handles shell escaping for all arguments.
+The argument-based helpers quote shell arguments; `execShell` does not.
 
 ```bpl
-# This is SAFE.
-# The shell receives: echo 'hello;' 'echo' 'INJECTED'
+# The semicolon stays inside a single argument.
+# The shell receives: 'echo' 'hello; echo INJECTED'
 # Output is literal "hello; echo INJECTED"
 exec("echo", "hello; echo INJECTED");
 ```
 
 ### Functions
 
-All safe execution functions accept variadic `string` arguments plus the required trailing `count: int` parameter in their declarations. Callers pass only the command arguments; the compiler supplies `count` automatically. Arguments are joined by spaces to form the shell command string, and each argument is automatically escaped (wrapped in single quotes with internal escaping) to ensure safety.
+The argument-based execution functions accept variadic `string` arguments plus the required trailing `count: int` parameter in their declarations. Callers pass only the command arguments; the compiler supplies `count` automatically. Arguments are joined by spaces to form the shell command string, and each argument is automatically escaped (wrapped in single quotes with internal escaping) to preserve shell argument boundaries.
 
 #### `exec`
 
@@ -66,7 +66,7 @@ frame execShell(cmd: string) ret ProcessResult
 
 #### `execSilent`
 
-Executes a shell command safely but redirects both stdout and stderr to `/dev/null`. Useful for checking if a command works without cluttering the output.
+Executes a command with quoted arguments but redirects both stdout and stderr to `/dev/null`. Useful for checking if a command works without cluttering the output.
 
 ```bpl
 frame execSilent(args: ...string, count: int) ret int
@@ -86,7 +86,7 @@ frame sleep(ms: int)
 
 #### `execStatus`
 
-Executes a shell command safely and returns its exit status code.
+Executes a command with quoted arguments and returns its exit status code.
 
 ```bpl
 frame execStatus(args: ...string, count: int) ret int

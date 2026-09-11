@@ -1,139 +1,154 @@
 # Reflection and Generic JSON
 
-BPL now supports **Runtime Type Information (RTTI)** and **Reflection**, enabling powerful generic libraries like JSON serialization without boilerplate code.
+## Runtime type information
 
-## Reflection Basics
-
-The `typeof<T>()` operator returns a pointer to `TypeInfo`, which describes a type at runtime.
-
-### TypeInfo Structure
-
-The core of the reflection system is the `TypeInfo` struct (defined in `std/reflection.bpl`):
+`typeof<T>()` returns a borrowed pointer to compiler-generated `TypeInfo`
+metadata. Do not free or modify this metadata. It includes the type's name,
+size, kind, reflected fields and methods, and an element type for arrays and
+pointers. See [the declarations](stdlib-reference.md#stdreflectionbpl) for
+`TypeInfo`, `FieldInfo`, `MethodInfo`, and the `TYPE_KIND_*` constants.
 
 ```bpl
-struct TypeInfo {
-    name: string,       # Type name (e.g., "int", "Point", "Array<int>")
-    size: ulong,        # Size in bytes
-    kind: u8,           # 0=Prim, 1=Struct, 2=Array, 3=Pointer, 4=Enum, 5=Func
-
-    # For Structs
-    num_fields: int,
-    fields: *FieldInfo,
-    num_methods: int,
-    methods: *MethodInfo,
-
-    # For Arrays/Pointers
-    element_type: *TypeInfo
-}
-
-struct FieldInfo {
-    name: string,
-    offset: ulong,
-    type_info: *TypeInfo
-}
-
-struct MethodInfo {
-    name: string,
-    func_ptr: *void
-}
-```
-
-### Usage Example
-
-```bpl
+import printf from "std/c.bpl";
 import [TypeInfo], {TYPE_KIND_STRUCT} from "std/reflection.bpl";
 
 struct Point { x: int, y: int }
 
-frame main() {
+frame main() ret int {
     local info: *TypeInfo = typeof<Point>();
-    printf("Type: %s, Size: %d\n", info.name, info.size);
-
+    printf("Type: %s\n", info.name);
     if (info.kind == TYPE_KIND_STRUCT) {
         printf("Fields: %d\n", info.num_fields);
     }
+    return 0;
 }
 ```
 
-## Generic JSON Library
+The metadata pointer is resolved during compilation/linking. Inspecting fields
+or invoking methods through it involves runtime work; reflection metadata also
+occupies space in the output. It is not an ownership or lifetime checker.
 
-The generic JSON library (`std/json.bpl`) uses reflection to automatically serialize and parse structs, arrays, and primitives.
+## Serialization and ownership
 
-### Serialization
+`JSON.stringify<T>(ptr: *T)` returns an owned `String`. Destroy that result when
+finished. The input is borrowed and must remain valid for the entire call.
 
-Use `JSON.stringify<T>(obj: *T)` to convert any object to a JSON string.
+<!-- bpl-doc: run=json-serialize -->
 
 ```bpl
 import [JSON] from "std/json.bpl";
+import [String] from "std/string.bpl";
+import printf from "std/c.bpl";
 
-struct User {
-    id: int,
-    name: string,
-    active: bool
-}
+struct User { id: int, name: string, active: bool }
 
-frame main() {
-    local u: User;
-    u.id = 1;
-    u.name = "Alice";
-    u.active = true;
-
-    local json: String = JSON.stringify<User>(&u);
-    IO.log(json.toString());
-    # Output: {"id":1,"name":"Alice","active":true}
+frame main() ret int {
+    local user: User = User { id: 1, name: "Alice", active: true };
+    local json: String = JSON.stringify<User>(&user);
+    printf("%s\n", json.toString());
+    json.destroy();
+    return 0;
 }
 ```
 
-### Parsing
+Output: `{"id": 1, "name": "Alice", "active": true}`.
 
-Use `JSON.parse<T>(json: string)` to parse a JSON string into a new object.
-Release successful results with `JSON.free<T>(ptr)` so nested allocations are
-also released. Parse failures return `nullptr` and print a diagnostic.
+## Parsing and cleanup
 
-String parsing decodes `\uXXXX` escapes to UTF-8 and combines valid UTF-16
-surrogate pairs. Invalid escapes, incomplete pairs, and unescaped control
-characters are rejected. BPL primitive strings are null-terminated, so escaped
-U+0000 is explicitly rejected instead of silently truncating the value.
+`JSON.parse<T>(text: string)` allocates a result. Check for `nullptr` before
+accessing it. Release a successful result with `JSON.free<T>(ptr)`, which
+recursively releases parsed strings, arrays, and pointer fields before releasing
+the outer allocation. Calling only C `free` on the outer struct leaks nested
+allocations. Do not call `JSON.free` on stack values or objects with borrowed
+string literals.
+
+<!-- bpl-doc: run=json-parse -->
 
 ```bpl
-frame main() {
-    local json: string = "{\"id\":2,\"name\":\"Bob\",\"active\":false}";
-    local uPtr: *User = JSON.parse<User>(json);
+import [JSON] from "std/json.bpl";
+import printf from "std/c.bpl";
 
-    printf("User: %s\n", uPtr.name);
-    free(cast<string>(uPtr)); # Clean up if necessary
+struct User { id: int, name: string, active: bool }
+
+frame main() ret int {
+    local text: string = "{\"id\":2,\"name\":\"Bob\",\"active\":false}";
+    local user: *User = JSON.parse<User>(text);
+    if (user == nullptr) { return 1; }
+    printf("User: %s\n", user.name);
+    JSON.free<User>(user);
+    return 0;
 }
 ```
 
-### Custom Serialization (`toJson`)
+Parse failures return `nullptr` and print a diagnostic. String parsing decodes
+`\uXXXX` and valid UTF-16 surrogate pairs into UTF-8. Invalid escapes, incomplete
+pairs, unescaped control characters, and escaped U+0000 are rejected. BPL's
+primitive strings are NUL-terminated, so they cannot represent embedded U+0000.
 
-You can customize how a struct is serialized by implementing a `toJson` method. The generic serializer checks for this method via reflection.
+## Custom hooks
+
+The serializer looks for a method named `toJson` with this contract:
 
 ```bpl
-struct Date {
-    timestamp: long,
+frame toJson(this: *Self) ret JsonToResult;
+```
 
-    frame toJson(this: *Date) ret string {
-        # Custom logic to format date
-        local sb: StringBuilder = StringBuilder.new();
-        sb.append("\"");
-        sb.append(generic_format_date(this.timestamp));
-        sb.append("\"");
-        return sb.toString(); # Note: return raw JSON string
+`JsonToResult.Result(text)` appends raw JSON text; it does not quote or validate
+it. The text is borrowed during serialization, so a stable literal or caller-owned
+buffer works. The serializer does not free a newly allocated hook result.
+`Ignore` emits `null`; `Default` uses the ordinary serializer for this value.
+
+<!-- bpl-doc: run=json-hook -->
+
+```bpl
+import [JSON], [JsonToResult] from "std/json.bpl";
+import [String] from "std/string.bpl";
+import printf from "std/c.bpl";
+
+struct Redacted {
+    frame toJson(this: *Redacted) ret JsonToResult {
+        return JsonToResult.Result("\"redacted\"");
     }
 }
+
+frame main() ret int {
+    local value: Redacted;
+    local json: String = JSON.stringify<Redacted>(&value);
+    printf("%s\n", json.toString());
+    json.destroy();
+    return 0;
+}
 ```
 
-### Supported Types
+The corresponding static parsing hook has the signature
+`frame fromJson(json: string, dest: *Self) ret JsonParseResult`.
+`Success` and `Ignore` consume the value; `Default` invokes the ordinary parser
+for the current type while retaining nested hooks. The supplied JSON text is a
+temporary allocation freed after the hook returns: copy anything you retain.
+The destination belongs to the parser. Use allocation/ownership conventions that
+`JSON.free` can release. The exported `Jsonable` spec declares both hooks.
 
-- **Primitives**: `int`, `float`, `bool`, `string`, `char`, `long`, `ushort`, `uint`, `ulong`.
-- **Structs**: Automatically serializes all fields.
-- **Arrays**: `Array<T>` is supported dynamically.
-- **Pointers**: `*T` is serialized as the value it points to (or `null` if nullptr).
-- **Enums**: (Partial support) Serialized as variant name or object depending on implementation.
+## Current support and limitations
 
-## Performance Considerations
+The implementation is experimental; it is not a general, strict JSON validator.
 
-Reflection in BPL is zero-overhead at compile time for generating the metadata, but runtime usage involves pointer chasing. `typeof<T>()` returns a constant pointer resolved at compile-time/link-time.
+| Value                           | Serialization                         | Parsing                                                    |
+| ------------------------------- | ------------------------------------- | ---------------------------------------------------------- |
+| `int` / `i32`, `bool`, `string` | Implemented                           | Implemented                                                |
+| `float`, `long` / `i64`         | Implemented with C formatting         | Not implemented by the primitive parser                    |
+| Other primitive kinds           | Unsupported kinds fall back to `null` | No general primitive conversion                            |
+| Structs                         | Reflected fields or a custom hook     | Reflected fields; unknown keys are skipped                 |
+| Fixed arrays, `Array<T>`        | Recursive elements                    | Subject to element support and parser limits               |
+| Pointers                        | Pointee value or `null`               | Allocated pointee; requires supported element type         |
+| Enums                           | Variant name only                     | Variant-name lookup; payloads are not a general round trip |
 
-The JSON library uses generic recursion, which is efficient but slower than specialized hand-written serialization code. For extreme performance-critical paths, consider implementing custom serialization methods.
+Missing fields are not required-field validation. Cyclic graphs are unsupported:
+recursive serialization/freeing has no cycle detection. Unsupported numeric
+parsing and fixed-array overflow can fail to advance the parser; do not treat
+arbitrary input as safe until these paths are fixed. See BUG-277 in
+[the bug log](../BUGS.md).
+
+Serialization escapes quotes, backslashes, newline, carriage return, and tab,
+but currently fails to escape every other JSON control byte. Float formatting uses a fixed 64-byte buffer with unbounded `%f`; large-magnitude
+finite values can overflow it (BUG-279). Non-finite floats also lack a JSON policy. Avoid these
+values or provide a correctly encoded custom hook. See BUG-278.

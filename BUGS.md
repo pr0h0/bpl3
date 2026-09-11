@@ -3366,3 +3366,93 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-11)**: `Date.fromTimestamp(-86400)` produces 1970-1-0, which `isValid()` rejects. Timestamp/date conversion loops only move forward from 1970; Time.formatTimestamp has the same limitation for negative input.
 
 **Documentation/workaround**: The date and time guides now state the unsupported range. Restrict these conversions to supported post-epoch values until backward calendar conversion is implemented.
+
+### BUG-273: Repeated ignored lambda parameters produce duplicate LLVM names
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: A lambda such as `|_: int, _: int| ret int { return 1; }` passes the frontend but Clang rejects duplicate `%_` parameters in the generated function.
+
+**Documentation/workaround**: Use distinct ignored names, such as `_a` and `_b`. The lambda guide now demonstrates this form.
+
+### BUG-274: Some interpolation expressions cannot resolve primitive/string conversion
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: Interpolating `${cast<float>(items) * price}` fails with `BPL_INSTANCE_METHOD_NOT_COMPATIBLE` for float.toString. The earlier logging example also failed when invoking String.toString directly inside interpolation.
+
+**Documentation/workaround**: Bind computed values to typed locals before interpolation. The repaired guide exercises that form. Importing only String's module also does not load all primitive conversion wrappers; examples using primitive interpolation import from `std`.
+
+### BUG-275: Casting a local Func value to Lambda generates invalid return IR
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: Assigning `add` to a local `Func<int>(int, int)`, then casting that local to `Lambda<int>(int, int)`, emits a wrapper with `%ret` typed as a pointer but returned as i32. Clang rejects the module.
+
+**Documentation/workaround**: Use an explicit lambda that calls the function pointer. The conversion example now demonstrates this workaround.
+
+### BUG-276: User function named log is lowered as the math intrinsic
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: A user-defined `frame log(level: string, message: string)` can be lowered as `llvm.log.f64` when `std` is imported. A call with two strings then fails LLVM validation because a pointer is supplied as a double.
+
+**Documentation/workaround**: The interpolation logging example now uses `logMessage`. Intrinsic selection needs to respect the resolved declaration rather than matching a function name alone.
+
+### BUG-277: JSON array parsing can loop without consuming input
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed (2026-09-11)**: Both `JSON.parse<int[1]>("[1,2]")` and `JSON.parse<float[1]>("[1.25]")` compile but fail to terminate in bounded local reproductions. The fixed-array loop neither consumes nor rejects excess values, and unsupported primitive parsing can return without advancing the cursor.
+
+**Documentation/workaround**: The JSON guide documents supported primitive parsing and the lack of a strict arbitrary-input contract. Parser loops need explicit progress/error handling; unsupported types and excess elements need rejection.
+
+### BUG-278: JSON serialization emits unescaped control bytes
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: Stringifying a one-byte string containing 0x01 emits a raw control byte between quotes. Python's JSON parser rejects the output. The serializer handles quotes, backslash, newline, carriage return, and tab but omits the remaining control-byte escapes.
+
+**Documentation/workaround**: The JSON guide calls out the limitation. Escape all bytes below 0x20 before claiming standards-compliant string serialization.
+
+### BUG-279: JSON float serialization can overflow its fixed formatting buffer
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed in source (2026-09-11)**: `JSON.serializePrimitive` allocates 64 bytes then calls unbounded `sprintf(buf, "%f", f)`. Large finite doubles require more than 64 characters in fixed notation. Non-finite values also have no JSON-compatible policy. The overflow was identified by source inspection, not executed.
+
+**Documentation/workaround**: The JSON guide warns against large-magnitude and non-finite floats. Replace unbounded formatting with sized allocation/formatting and define a finite-number policy.
+
+### BUG-280: Language and assembly guides contain noncompiling or misleading examples
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed**: Guides claimed generic inference and absent const support, omitted imports and tuple-binding annotations, used nonexistent JSON hook signatures, and mixed LLVM/BPL floating-point widths. The SSE example used packed f32 instructions on f64 buffers and therefore did not compute its advertised result.
+
+**Resolution (2026-09-11)**: Corrected language contracts, examples, FFI declarations, JSON ownership/hooks, and assembly widths. Added automatic compilation of complete guide programs, explicit companion-module fixtures and negative examples, and O0/O3 output checks for representative programs including SIMD and JSON.
+
+### BUG-281: Implicit Long method lookup disagrees with generated return types
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: With only `IO` and `String` imported from `std`, assigning `x.toString()` for `x: long` to `String` is rejected as pointer-to-String mismatch. Assigning it to `string` passes checking but produces invalid LLVM because the actual call returns the String struct.
+
+**Documentation/workaround**: Explicitly import `[Long]` from `std` before using its methods. The contributor example compiles with this import and destroys the returned owned Strings.
