@@ -43,7 +43,7 @@ frame main() ret int {
 - **Module System**: Organize code with imports and exports
 - **Exception Handling**: Try/catch blocks for robust error management
 - **Pattern Matching**: Type-safe conditional logic
-- **Process execution**: Execute shell commands, check status, and capture output with automatic injection protection
+- **Process execution**: Execute shell commands, check status, and capture output with POSIX argument quoting; raw `execShell` requires trusted command text
 - **String Interpolation**: Embed expressions in strings with `` `Hello ${name}` ``
 - **Tuples**: Multi-value types for clean APIs
 - **Function Pointers**: First-class functions
@@ -56,7 +56,7 @@ frame main() ret int {
 - **Built-in Formatter**: Automatic code formatting and `format --check` for CI gates
 - **Watch Mode**: Automatic recompilation on file changes for rapid development
 - **Package Manager**: Easy dependency management with `bpl install`
-- **Cross-Platform**: Compile for Linux, macOS, Windows, ARM, and more
+- **Platform support**: Native runtime builds on Linux and macOS; Windows compiler-component checks and target-specific limitations are described in the [cross-compilation guide](docs/37-cross-compilation.md)
 - **VS Code Extension**: Full language server with IntelliSense, go-to-definition, hover tooltips, clickable imports, and smart stdlib path completions
 - **Incremental Compilation**: Fast rebuilds with module caching
 
@@ -67,7 +67,10 @@ frame main() ret int {
 ```bash
 git clone https://github.com/pr0h0/bpl3.git
 cd bpl3
-./init.sh
+bun install --frozen-lockfile
+bun run build
+export BPL_HOME="$PWD"
+export PATH="$BPL_HOME:$PATH"
 bpl --version
 ```
 
@@ -75,7 +78,7 @@ bpl --version
 
 You'll need:
 
-1. **Clang/LLVM** (13+) - for compiling LLVM IR to native code
+1. **Clang/LLVM** - for compiling LLVM IR to native code
 2. **Bun** - for running the compiler
 
 **Linux (Ubuntu/Debian):**
@@ -93,7 +96,7 @@ curl -fsSL https://bun.sh/install | bash
 ```
 
 **Windows:**
-Download LLVM from [releases.llvm.org](https://releases.llvm.org/) or use WSL.
+Use WSL for the documented native build workflow. Native Windows runtime builds are not covered by the runtime build script.
 
 ### Verify Installation
 
@@ -585,7 +588,8 @@ bpl format main.bpl
 
 ### Cross-Compilation
 
-Compile for different platforms and architectures:
+Select a target for an installed cross-toolchain. These commands require matching
+system libraries and runtime support; see [cross-compilation](docs/37-cross-compilation.md):
 
 ```bash
 # Cross-compile for ARM64 Linux
@@ -604,7 +608,7 @@ bpl build main.bpl --target aarch64-unknown-linux-gnu --sysroot /opt/sysroots/aa
 bpl build main.bpl --clang-flag=-O3 --clang-flag=-static
 ```
 
-**Supported target triples:**
+**Example toolchain target triples (availability depends on your linker, sysroot, and runtime):**
 
 - `x86_64-pc-linux-gnu` (Linux x64)
 - `aarch64-unknown-linux-gnu` (Linux ARM64)

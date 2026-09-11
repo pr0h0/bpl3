@@ -1,348 +1,124 @@
 # Installation
 
-This guide will help you install the BPL compiler and set up your development environment.
+## Requirements and platform scope
 
-## Prerequisites
+Building from source requires **Bun**, Git, a Clang-compatible C compiler, and
+Bash for the runtime build script. Node.js alone cannot run this compiler: the CLI
+uses Bun APIs. The compiled `bpl` executable includes the Bun runtime, but still
+needs the installation's grammar, standard library, and runtime files.
 
-Before installing BPL, ensure you have the following installed:
+Native runtime builds support Linux and macOS. The configured CI matrix tests
+Ubuntu system Clang and Clang 18, and macOS Apple Clang and Homebrew LLVM.
+Windows CI exercises parser, typechecker, and code-generation components; it does
+not establish native runtime support. Use WSL and the Linux workflow on Windows.
+See [the workflow](../.github/workflows/compiler-correctness.yml) for the actual
+matrix. There is no independently verified minimum LLVM version guarantee.
 
-### Required
-
-1. **Clang/LLVM** (version 13 or higher)
-   - Used to compile LLVM IR to native executables
-   - Provides the LLVM toolchain
-
-2. **Bun** or **Node.js**
-   - Bun (recommended): https://bun.sh
-   - Node.js (v16+): https://nodejs.org
-
-### Platform-Specific Instructions
-
-#### Linux (Ubuntu/Debian)
+On Ubuntu/Debian, install the native tools with:
 
 ```bash
-# Install Clang/LLVM
 sudo apt-get update
-sudo apt-get install clang llvm
-
-# Install Bun (recommended)
-curl -fsSL https://bun.sh/install | bash
-
-# Or install Node.js
-sudo apt-get install nodejs npm
+sudo apt-get install git clang llvm lld
 ```
 
-#### Linux (Fedora/RHEL)
+On macOS, install Xcode Command Line Tools (`xcode-select --install`) or a
+Clang toolchain through Homebrew (`brew install llvm lld`). Ensure the intended
+compiler is on `PATH`. Install Bun using its [installation instructions](https://bun.sh).
+`wasm-ld` is needed for WebAssembly linking; native-only builds do not need it.
+
+## Build from source
+
+From a Linux or macOS shell:
 
 ```bash
-# Install Clang/LLVM
-sudo dnf install clang llvm
-
-# Install Bun
-curl -fsSL https://bun.sh/install | bash
-
-# Or install Node.js
-sudo dnf install nodejs npm
-```
-
-#### macOS
-
-```bash
-# Install Clang (comes with Xcode Command Line Tools)
-xcode-select --install
-
-# Or install via Homebrew. The lld formula provides wasm-ld.
-brew install llvm lld
-
-# Install Bun (recommended)
-curl -fsSL https://bun.sh/install | bash
-
-# Or install Node.js
-brew install node
-```
-
-#### Windows
-
-1. **Install Clang/LLVM**
-   - Download from: https://releases.llvm.org/
-   - Or use Chocolatey: `choco install llvm`
-
-2. **Install Bun or Node.js**
-
-   ```powershell
-   # Install Bun
-   irm bun.sh/install.ps1 | iex
-
-   # Or install Node.js from https://nodejs.org
-   ```
-
-3. **Windows Subsystem for Linux (WSL) Recommended**
-   For the best experience on Windows, consider using WSL:
-   ```powershell
-   wsl --install
-   ```
-   Then follow the Linux installation instructions inside WSL.
-
-## Installing BPL
-
-### Installing from Source
-
-This method gives you the latest development version:
-
-```bash
-# Clone the repository
 git clone https://github.com/pr0h0/bpl3.git
 cd bpl3
-
-# Initialize and build
-./init.sh
-
-# Verify installation
+bun install --frozen-lockfile
+bun run build
+export BPL_HOME="$PWD"
+export PATH="$BPL_HOME:$PATH"
 bpl --version
 bpl doctor
 ```
 
-## Verifying Installation
+Keep the cloned directory: moving only the executable does not install its
+support files. Persist the two exports in your shell configuration using the
+actual installation path. `BPL_HOME` must identify a real installation directory,
+without symlinked parent components. `bpl doctor` checks the selected environment.
 
-Test your installation with a simple program:
+The legacy `./init.sh` helper builds the compiler, installs a link in `/usr/bin`
+with `sudo`, and edits `~/.bashrc`. It uses Linux/GNU utilities and is not the
+portable installation workflow.
 
-```bash
-# Create a test file
-cat > test.bpl << 'EOF'
-extern printf(fmt: string, ...);
+## Verify compilation
+
+```bpl
+import printf from "std/c.bpl";
 
 frame main() ret int {
     printf("BPL is working!\n");
     return 0;
 }
-EOF
-
-# Compile and run
-bpl run test.bpl
 ```
 
-You should see:
+Save this as `hello.bpl`, then run:
 
-```
-BPL is working!
+```bash
+bpl run hello.bpl
 ```
 
-For release builds from source, run the local release gate before publishing or
-installing the generated package elsewhere:
+Expected program output: `BPL is working!`.
+
+## VS Code
+
+From the repository root, build and package the extension:
+
+```bash
+cd vscode-ext
+npm install
+npm run compile
+npx @vscode/vsce package
+code --install-extension bpl3-vscode-*.vsix
+```
+
+These packaging steps require Node/npm and the VS Code `code` command. See the
+[extension README](../vscode-ext/README.md) for configuration and development.
+Other editors can use custom syntax definitions; this repository does not
+provide equivalent tested integrations for each editor.
+
+## Troubleshooting
+
+- **`bpl` is not found:** check that the directory containing `bpl` is on `PATH`.
+  Setting `BPL_HOME` alone does not add it to `PATH`.
+- **Clang cannot be found or rejects LLVM IR:** inspect `clang --version`, run
+  `bpl doctor`, and compare your toolchain with the CI matrix above. Capture the
+  compiler diagnostic and a minimal input when reporting a failure.
+- **Missing grammar, library, or runtime:** check `BPL_HOME` and rebuild with
+  `bun run build`. Do not point it at a directory containing only a copied binary.
+- **Foreign-target link failure:** a target triple does not install a linker,
+  sysroot, C library, or target runtime. See [cross-compilation](37-cross-compilation.md).
+
+## Updating and uninstalling
+
+After updating the checkout, rerun `bun install --frozen-lockfile` and
+`bun run build`. Reinstall the extension separately if its sources changed.
+
+To uninstall the PATH-based installation, remove the exports you added to your
+shell configuration, then remove the checkout when you no longer need its files.
+If you used `init.sh`, also remove its `/usr/bin/bpl` link and `BPL_HOME` shell entry.
+
+## Release validation
+
+Before publishing a build, use the repository's release checks:
 
 ```bash
 bun run release:check
 bun run release:manifest
 ```
 
-`release:check` type-checks the TypeScript code, verifies the generated
-`bpl-v3/cli` JSON registry shim is in sync, validates the standalone compiler,
-packed npm CLI, runtime artifacts, shell completions, and VS Code
-language-server tests. The manifest step writes `dist/release-manifest.json`
-with SHA-256 hashes for the shipped compiler and runtime files.
+The check script validates TypeScript, CLI registry synchronization, release
+metadata, packaged CLI/runtime smoke tests, and extension tests. The manifest
+command writes `dist/release-manifest.json` with artifact hashes. See
+[package.json](../package.json) for the authoritative script definitions.
 
-## Editor Setup
-
-### VS Code (Recommended)
-
-1. **Install the Extension**
-
-   ```bash
-   cd bpl3/vscode-ext
-   npm install
-   npm run build
-   code --install-extension vscode-bpl-*.vsix
-   ```
-
-2. **Features**
-   - Syntax highlighting
-   - Code snippets
-   - Auto-formatting
-   - Error diagnostics (partial)
-
-### Vim/Neovim
-
-Create a syntax file at `~/.vim/syntax/bpl.vim`:
-
-```vim
-" BPL syntax highlighting
-if exists("b:current_syntax")
-  finish
-endif
-
-" Keywords
-syn keyword bplKeyword frame local global import export extern return if else loop switch case default try catch throw break continue cast sizeof match type struct fallthrough
-syn keyword bplType int uint float bool char void string
-syn keyword bplBoolean true false
-syn keyword bplNull nullptr
-
-" Comments
-syn match bplComment "#.*$"
-syn region bplMultiComment start="###" end="###"
-
-" Strings
-syn region bplString start='"' end='"'
-syn region bplChar start="'" end="'"
-
-" Numbers
-syn match bplNumber '\d\+'
-syn match bplFloat '\d\+\.\d\+'
-
-" Operators
-syn match bplOperator "+\|-\|*\|/\|%\|&\||\|^\|~\|<<\|>>"
-syn match bplOperator "==\|!=\|<\|>\|<=\|>="
-syn match bplOperator "&&\|||\|!"
-
-hi def link bplKeyword Keyword
-hi def link bplType Type
-hi def link bplBoolean Boolean
-hi def link bplNull Constant
-hi def link bplComment Comment
-hi def link bplMultiComment Comment
-hi def link bplString String
-hi def link bplChar Character
-hi def link bplNumber Number
-hi def link bplFloat Float
-hi def link bplOperator Operator
-
-let b:current_syntax = "bpl"
-```
-
-Add to `~/.vim/ftdetect/bpl.vim`:
-
-```vim
-au BufRead,BufNewFile *.bpl set filetype=bpl
-```
-
-### Sublime Text
-
-Create `BPL.sublime-syntax` in your User packages directory:
-
-```yaml
-%YAML 1.2
----
-name: BPL
-file_extensions: [bpl]
-scope: source.bpl
-
-contexts:
-  main:
-    - match: '\\b(frame|local|global|import|export|extern|return|if|else|loop|switch|case|default|try|catch|throw|break|continue|cast|sizeof|match|type|struct|fallthrough)\\b'
-      scope: keyword.control.bpl
-    - match: '\b(int|uint|float|bool|char|void|string)\b'
-      scope: storage.type.bpl
-    - match: '\b(true|false)\b'
-      scope: constant.language.bpl
-    - match: "#.*$"
-      scope: comment.line.bpl
-    - match: '"'
-      push: string
-    - match: "'"
-      push: char
-    - match: '\b\d+\.?\d*\b'
-      scope: constant.numeric.bpl
-
-  string:
-    - meta_scope: string.quoted.double.bpl
-    - match: '\\.'
-      scope: constant.character.escape.bpl
-    - match: '"'
-      pop: true
-
-  char:
-    - meta_scope: string.quoted.single.bpl
-    - match: "'"
-      pop: true
-```
-
-## Troubleshooting
-
-### "bpl: command not found"
-
-**Solution**: Ensure the installation directory is in your PATH.
-
-If you installed via `./init.sh`, it should have added `BPL_HOME` to your `~/.bashrc`. Try reloading your shell:
-
-```bash
-source ~/.bashrc
-```
-
-`BPL_HOME` should point at the real BPL installation directory. The compiler,
-runtime linker, and `bpl doctor` reject BPL homes reached through symlinked
-parent path components so grammar, standard library, and runtime files are not
-loaded through redirected roots.
-
-### "clang: command not found"
-
-**Solution**: Clang is not installed or not in PATH.
-
-```bash
-# Verify clang installation
-which clang
-
-# If not found, install as described in prerequisites
-```
-
-### Compilation errors with LLVM IR
-
-**Solution**: Your LLVM version might be incompatible.
-
-```bash
-# Check LLVM version
-llvm-config --version
-
-# BPL requires LLVM 11 or higher
-# Upgrade if necessary
-```
-
-### Windows: "Unable to compile LLVM IR"
-
-**Solution**: Use WSL or ensure MinGW/MSYS2 is properly installed.
-
-Alternatively, compile LLVM IR manually:
-
-```bash
-bpl main.bpl  # Generates main.ll
-clang main.ll -o main.exe
-```
-
-## Updating BPL
-
-```bash
-cd bpl3
-git pull
-./init.sh
-```
-
-## Uninstalling
-
-```bash
-# Remove symlink (if created)
-sudo rm /usr/bin/bpl
-
-# Remove BPL_HOME from .bashrc
-sed -i '/BPL_HOME/d' ~/.bashrc
-
-# Delete the cloned directory
-rm -rf bpl3
-```
-
-## Next Steps
-
-Now that you have BPL installed, continue to:
-
-- [Quick Start Guide](03-quick-start.md) - Write your first program
-- [Syntax and Comments](04-syntax-comments.md) - Learn the language basics
-
-## Getting Help
-
-If you encounter issues:
-
-1. Check the [Common Pitfalls](42-common-pitfalls.md) guide
-2. Search existing [GitHub Issues](https://github.com/pr0h0/bpl3/issues)
-3. Create a new issue with:
-   - Your operating system and version
-   - BPL version (`bpl --version`)
-   - Clang version (`clang --version`)
-   - The complete error message
-   - A minimal reproduction example
+Continue with the [quick start](03-quick-start.md).
