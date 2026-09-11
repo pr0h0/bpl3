@@ -3456,3 +3456,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-11)**: With only `IO` and `String` imported from `std`, assigning `x.toString()` for `x: long` to `String` is rejected as pointer-to-String mismatch. Assigning it to `string` passes checking but produces invalid LLVM because the actual call returns the String struct.
 
 **Documentation/workaround**: Explicitly import `[Long]` from `std` before using its methods. The contributor example compiles with this import and destroys the returned owned Strings.
+
+### BUG-282: Documentation maintenance helpers violate the release tools inventory
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: The broad CI-safe run rejected the two new documentation helpers under `tools/`, a directory included in the npm payload. These helpers depend on repository compiler/test sources and should not be shipped as standalone package helpers.
+
+**Resolution**: Moved them to `tests/helpers`, updated imports and the docs:stdlib script, and documented the source-checkout requirement. Retained the existing release inventory checks without weakening them.

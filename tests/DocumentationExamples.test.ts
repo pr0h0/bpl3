@@ -7,7 +7,7 @@ import {
   DOCUMENTATION_ROOT,
   extractDocumentationExamples,
   loadDocumentationExamples,
-} from "../tools/documentation_examples";
+} from "./helpers/documentationExamples";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 const examples = loadDocumentationExamples();

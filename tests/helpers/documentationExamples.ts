@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "fs";
 import { resolve } from "path";
 
-export const DOCUMENTATION_ROOT = resolve(import.meta.dir, "..");
+export const DOCUMENTATION_ROOT = resolve(import.meta.dir, "../..");
 
 export interface DocumentationExample {
   file: string;

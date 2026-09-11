@@ -1,6 +1,8 @@
 # Documentation validation
 
-Documentation has three complementary checks:
+These maintenance commands require a source checkout; their helpers and tests
+are intentionally excluded from the published npm payload. Documentation has
+three complementary checks:
 
 ```bash
 # Regenerate every standard-library module's declaration reference.
@@ -17,7 +19,7 @@ bun run check
 
 ## What is checked
 
-`tools/stdlib_reference.ts` parses every `lib/**/*.bpl` module and generates
+`tests/helpers/stdlibReference.ts` parses every `lib/**/*.bpl` module and generates
 [stdlib-reference.md](stdlib-reference.md). It lists exported declarations and
 members, preserving overloads and receiver types. It does not infer ownership,
 error behavior, algorithm complexity, or implementation completeness. Those

@@ -1,9 +1,9 @@
 import { readFileSync, readdirSync, writeFileSync } from "fs";
 import { join, relative, resolve } from "path";
-import type * as AST from "../compiler/common/AST";
-import { Parser } from "../compiler/frontend/Parser";
+import type * as AST from "../../compiler/common/AST";
+import { Parser } from "../../compiler/frontend/Parser";
 
-const repositoryRoot = resolve(import.meta.dir, "..");
+const repositoryRoot = resolve(import.meta.dir, "../..");
 export const STDLIB_REFERENCE_PATH = "docs/stdlib-reference.md";
 
 function sourceText(source: string, node: AST.ASTNode): string {
