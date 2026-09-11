@@ -154,6 +154,9 @@ Fixed-array aliases currently have a reflection limitation (BUG-284). For
 the destination variable is declared `*Pair`.
 
 Serialization escapes quotes, backslashes, and all representable control bytes
-below 0x20. Valid UTF-8 bytes are preserved; embedded NUL remains unsupported. Float formatting uses a fixed 64-byte buffer with unbounded `%f`; large-magnitude
-finite values can overflow it (BUG-279). Non-finite floats also lack a JSON policy. Avoid these
-values or provide a correctly encoded custom hook.
+below 0x20. Valid UTF-8 bytes are preserved; embedded NUL remains unsupported.
+Binary64 (`float`/`double`/`f64`) output uses up to 17 significant digits and may
+use exponent notation; this preserves finite values through a binary64 JSON
+parser. Formatting is bounded and does not allocate a fixed-size heap buffer.
+NaN and either infinity serialize as `null`. Numeric formatting requires the C
+numeric locale; callers changing the process locale must retain that convention.

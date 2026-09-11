@@ -13,6 +13,7 @@ extern malloc(size: long) ret string;
 extern free(ptr: string) ret void;
 extern strcmp(s1: string, s2: string) ret int;
 extern sprintf(str: string, format: string, ...) ret int;
+extern snprintf(str: string, size: long, format: string, ...) ret int;
 extern printf(fmt: string, ...) ret int;
 
 extern strlen(s: string) ret int;
@@ -588,12 +589,23 @@ struct JSON {
                     # "
                     sb.appendChar(cast<char>(34));
                 } else {
-                    if (strcmp(info.name, "float") == 0) {
+                    if ((strcmp(info.name, "float") == 0) || (strcmp(info.name, "double") == 0) || (strcmp(info.name, "f64") == 0)) {
                         local f: float = *cast<*float>(ptr);
-                        local buf: string = malloc(64);
-                        sprintf(buf, "%f", f);
-                        sb.append(buf);
-                        free(buf);
+                        # JSON has no NaN/infinity literals. Match the null fallback
+                        # used for values without a JSON representation.
+                        local bits: ulong = *cast<*ulong>(&f);
+                        local exponentMask: ulong = cast<ulong>(0x7ff0000000000000);
+                        if ((bits & exponentMask) == exponentMask) {
+                            sb.append("null");
+                        } else {
+                            # 17 significant digits round-trip binary64; scientific
+                            # notation bounds even maximum finite values well below 64 bytes.
+                            local bytes: char[64];
+                            local buf: string = cast<string>(&bytes[0]);
+                            local written: int = snprintf(buf, 64, "%.17g", f);
+                            if ((written < 0) || (written >= 64)) { sb.append("null"); }
+                            else { sb.append(buf); }
+                        }
                     } else {
                         if ((strcmp(info.name, "long") == 0) || (strcmp(info.name, "i64") == 0)) {
                             local l: long = *cast<*long>(ptr);

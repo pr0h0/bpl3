@@ -67,7 +67,7 @@ local ch: char = 65;  # ASCII 'A'
 local pi: f32 = cast<f32>(3.14159); # explicit narrowing from a 64-bit literal
 local precise: double = 3.141592653589793;  # f64
 local small: float = 0.0001;
-local big: double = 1.7e6;       # Scientific notation is supported
+local big: double = 1700000.0;   # Exponent notation is not accepted in BPL source
 
 # Arithmetic
 local sum: float = 1.5 + 2.5;    # 4.0

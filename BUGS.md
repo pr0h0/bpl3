@@ -3433,13 +3433,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-279: JSON float serialization can overflow its fixed formatting buffer
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
 **Observed in source (2026-09-11)**: `JSON.serializePrimitive` allocates 64 bytes then calls unbounded `sprintf(buf, "%f", f)`. Large finite doubles require more than 64 characters in fixed notation. Non-finite values also have no JSON-compatible policy. The overflow was identified by source inspection, not executed.
 
 **Documentation/workaround**: The JSON guide warns against large-magnitude and non-finite floats. Replace unbounded formatting with sized allocation/formatting and define a finite-number policy.
+
+**Resolution (2026-09-11)**: Use bounded snprintf with 17 significant digits and a 64-byte stack buffer. Detect non-finite binary64 values and emit null. Tests cover maximum finite doubles, subnormals, signed zero, adjacent representable values, aliases, and non-finite inputs against an independent JSON parser at O0/O3.
 
 ### BUG-280: Language and assembly guides contain noncompiling or misleading examples
 
@@ -3490,3 +3492,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-11)**: For `type Pair = int[2]`, `JSON.parse<Pair>("[]")` reaches the unsupported primitive path, whereas `JSON.parse<int[2]>("[]")` correctly parses an array. The alias receives incompatible reflected metadata.
 
 **Workaround**: Use the concrete array type as the JSON generic argument; a pointer variable can still use `*Pair`. The JSON guide and regression fixtures use this form.
+
+### BUG-285: Documentation incorrectly advertises exponent notation in BPL source
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: The NumberToken grammar accepts integer and decimal-fraction spellings but not exponent suffixes. The attempted `1.7976931348623157e308` literal fails parsing; the recently edited primitive-type guide incorrectly said source exponent notation was supported.
+
+**Resolution**: Corrected the source-literal guide. JSON numeric text and BPL source literal syntax are separate contracts. The JSON formatter detects non-finite values through binary64 exponent bits, without requiring an unsupported source literal.
