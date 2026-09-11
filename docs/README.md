@@ -1,6 +1,9 @@
 # BPL Documentation
 
-Welcome to the comprehensive documentation for **BPL (Best Programming Language) v3**. This documentation provides in-depth information about every aspect of the language, from basic syntax to advanced features.
+Documentation for **BPL (Best Programming Language) v3**. The numbered chapters
+are user guides; implementation details and limitations are linked from them.
+Design plans, brainstorming documents, and dated audit reports record proposals
+or historical results rather than guarantees about the current implementation.
 
 ## Quick Links
 
@@ -97,7 +100,8 @@ Welcome to the comprehensive documentation for **BPL (Best Programming Language)
 - [Grammar Reference](45-grammar-reference.md) - Complete grammar
 - [Keyword Index](46-keyword-index.md) - All reserved words
 - [Operator Precedence](47-operator-precedence.md) - Expression evaluation order
-- [Standard Library API](48-stdlib-api.md) - Complete API reference
+- [Standard Library API](48-stdlib-api.md) - API guide and current limitations
+- [Standard Library Declarations](stdlib-reference.md) - Generated exports and signatures for every library module
 - [Binary Data](61-stdlib-binary.md) - Checked byte-buffer readers and writers
 
 ### Tools and Ecosystem
@@ -111,21 +115,16 @@ Welcome to the comprehensive documentation for **BPL (Best Programming Language)
 
 ## Examples
 
-Every documentation page includes practical examples. For a complete collection of working programs, see the [examples directory](../examples/).
+Examples range from complete programs to fragments and deliberately invalid code.
+Read the surrounding context before copying a block. The [examples directory](../examples/)
+contains programs with test configurations.
 
 ## Contributing
 
 Found an error or want to improve the documentation? Open a pull request with the docs change and the relevant verification output.
 
-Active project work is tracked on the BPL Agent Board alongside repository
-changes. The board should reflect task ownership, acceptance criteria, progress,
-review state, and verification evidence. Repository changes should still update
-the appropriate docs, examples, tests, and `CHANGELOG.md`; the board records the
-coordination trail, while git records the implementation.
-
-Never commit Agent Board credentials, API keys, local environment files, or
-private endpoint details. Agent Board comments and summaries should contain
-human-readable progress and verification notes only.
+Update affected guides when behavior changes, add executable regression coverage
+where possible, and regenerate the declaration reference after library API changes.
 
 ## License
 

@@ -26,46 +26,41 @@ import [IO] from "std/io.bpl";
 
 ## Reading Functions
 
-| Function                                      | Description                             |
-| --------------------------------------------- | --------------------------------------- |
-| `IO.read(format: string, ptr: *void) ret int` | Formatted read (wrapper around C scanf) |
-| `IO.readLine(buf: string) ret int`            | Read line from stdin, returns length    |
+| Function                                      | Description                                     |
+| --------------------------------------------- | ----------------------------------------------- |
+| `IO.read(format: string, ptr: *void) ret int` | Formatted read (wrapper around C scanf)         |
+| `IO.readLine(buf: string) ret int`            | Unbounded legacy read; avoid for external input |
 
-## Example
+## Bounded input example
+
+`IO.readLine` calls the unbounded C `gets` function and has no capacity argument.
+It can overflow its destination; it also does not handle EOF robustly. Use a
+bounded native read or a width-limited formatted token read instead. `IO.read`
+returns the native `scanf` result: check the assignment count before using input.
 
 ```bpl
 import [IO] from "std/io.bpl";
 
-extern printf(fmt: string, ...);
-
-frame main() {
-    # Print without newline
-    IO.print("Enter your name: ");
-
-    # Read a line
+frame main() ret int {
     local buf: char[100];
-    local len: int = IO.readLine(cast<string>(&buf));
-
-    # Print with newline
-    IO.printString("Hello!");
-    IO.log("This is a log message");
-
-    # Print integer with explicit newline
-    IO.printInt(42);
-    IO.print("\n");
-
-    # Or use the line helper
-    IO.printIntLn(42);
+    IO.print("Enter one word: ");
+    if (IO.read("%99s", cast<*void>(&buf[0])) != 1) { return 1; }
+    IO.printString(cast<string>(&buf[0]));
+    return 0;
 }
 ```
+
+This reads a whitespace-delimited token, not an entire line. Keep format strings
+trusted and match each conversion to the destination type and buffer size.
+`IO.printf` accepts one integer argument; use the native variadic `printf` for
+other argument lists.
 
 ## Low-level I/O
 
 For more control, you can use C's printf directly:
 
 ```bpl
-extern printf(fmt: string, ...) ret int;
-extern scanf(fmt: string, ...) ret int;
+import [printf], [scanf] from "std/c.bpl";
 
 frame main() {
     printf("Hello, %s! You are %d years old.\n", "World", 25);

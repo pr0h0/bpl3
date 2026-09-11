@@ -1,124 +1,78 @@
 # Standard Library: File System
 
-The `FS` and `File` structs provide file system operations.
-
-## Import
+`std/fs.bpl` exports `FS` and `File`. These are small wrappers over C/POSIX file
+operations, with limited error checking and platform assumptions.
 
 ```bpl
 import [FS], [File] from "std/fs.bpl";
 ```
 
-## FS Static Methods
+## Available filesystem helpers
 
-| Method                                               | Description                                  |
-| ---------------------------------------------------- | -------------------------------------------- |
-| `FS.exists(path: string) ret bool`                   | Check if file exists                         |
-| `FS.readFile(path: string) ret String`               | Read entire file (throws IOError on failure) |
-| `FS.writeFile(path: string, data: string) ret bool`  | Write data to file                           |
-| `FS.appendFile(path: string, data: string) ret bool` | Append data to file                          |
-| `FS.deleteFile(path: string) ret bool`               | Delete a file                                |
-| `FS.copyFile(src: string, dest: string) ret bool`    | Copy a file                                  |
-| `FS.mkdir(path: string) ret bool`                    | Create directory                             |
-| `FS.isDir(path: string) ret bool`                    | Check if path is directory                   |
-| `FS.listDir(path: string) ret Array<String>`         | List directory contents                      |
-| `FS.fileSize(path: string) ret long`                 | Get file size in bytes                       |
+| Method                                              | Current behavior                                                            |
+| --------------------------------------------------- | --------------------------------------------------------------------------- |
+| `FS.exists(path: string) ret bool`                  | Attempts to open for reading; false can mean inaccessible, not just missing |
+| `FS.writeFile(path: string, data: string) ret bool` | Opens with `"w"`, writes NUL-terminated text, then closes                   |
+| `FS.readFile(path: string) ret String`              | Reads a seekable file into an owned String; open failure throws `IOError`   |
+| `FS.mkdir(path: string) ret bool`                   | Calls POSIX `mkdir(path, 511)`; false includes already-existing directories |
+| `FS.mkdirp(path: string) ret bool`                  | Experimental relative-path helper; ignores errors and always returns true   |
+| `FS.listDir(path: string) ret Array<String>`        | Owned entry names excluding `.` and `..`; empty array on open failure       |
 
-## File Object
+There are no `FS.appendFile`, `deleteFile`, `copyFile`, `isDir`, or `fileSize`
+methods. For append, open a `File` with mode `"a"`. Other operations require
+appropriate native APIs or additional application code.
 
-For more control over file operations:
+`writeFile` reports whether opening succeeded; it does not check short writes
+or close errors. `readFile` does not validate all seek, size, allocation, or read
+results. It uses an int-sized file length and is not a large-file or binary-data
+API: embedded NUL truncates the resulting String. `mkdirp` does not preserve a
+leading root slash and must not be used as a reliable absolute-path creator.
 
-```bpl
-# Open a file
-local f: File = File.open("data.txt", "r");  # "r", "w", "a", "rb", "wb"
+`listDir` assumes the Linux x86-64 `dirent` name offset. Do not assume this helper
+works on macOS or Windows. Entry order is unspecified. Destroy each returned
+String before destroying the Array that stores them.
 
-# Read line by line
-local buf: char[256];
-loop (f.readLine(cast<string>(&buf), 256)) {
-    printf("%s", &buf);
-}
+## File handles
 
-# Write to file
-local out: File = File.open("output.txt", "w");
-out.write("Hello, World!\n");
+- `File.open(path, mode)` returns a `File`; inspect `handle != nullptr` for success.
+- `file.write(data)` writes text when open; it returns no status.
+- `file.readLine(buf, max_len)` uses `fgets`, retains the newline when present,
+  and returns false for EOF, read failure, or a closed handle. Provide a writable
+  buffer with at least `max_len` bytes and a positive limit.
+- `file.close()` closes a non-null handle and resets it. It ignores close errors.
 
-# Always close files
-f.close();
-out.close();
-```
+Use `"r"` to read, `"w"` to create/truncate, and `"a"` to append. Binary modes
+`"rb"`/`"wb"` are accepted by the underlying C library, but `File.write` still
+uses NUL-terminated text. File values shallow-copy the handle; close each opened
+handle once and do not use copies after closing it.
 
-## File Modes
-
-| Mode   | Description                |
-| ------ | -------------------------- |
-| `"r"`  | Read (file must exist)     |
-| `"w"`  | Write (creates/truncates)  |
-| `"a"`  | Append (creates if needed) |
-| `"rb"` | Read binary                |
-| `"wb"` | Write binary               |
-
-## Example
+## Checked-open example
 
 ```bpl
 import [FS], [File] from "std/fs.bpl";
 import [String] from "std/string.bpl";
+import [IOError] from "std/errors.bpl";
+import printf from "std/c.bpl";
 
-extern printf(fmt: string, ...);
-
-frame main() {
-    local path: string = "test.txt";
-
-    # Write to file
-    if (FS.writeFile(path, "Hello, BPL!\nLine 2\n")) {
-        printf("File written successfully\n");
+frame main() ret int {
+    if (!FS.writeFile("notes.txt", "first line\n")) {
+        return 1;
     }
-
-    # Check if exists
-    if (FS.exists(path)) {
-        printf("File exists\n");
-
-        # Read entire file
-        try {
-            local content: String = FS.readFile(path);
-            printf("Content:\n%s", content.toString());
-            content.destroy();
-        } catch (e: IOError) {
-            printf("Error reading file: %s\n", e.message);
-        }
+    local file: File = File.open("notes.txt", "a");
+    if (file.handle == nullptr) { return 2; }
+    file.write("second line\n");
+    file.close();
+    try {
+        local content: String = FS.readFile("notes.txt");
+        printf("%s", content.toString());
+        content.destroy();
+    } catch (error: IOError) {
+        printf("%s\n", error.message);
+        return 3;
     }
-
-    # Append to file
-    FS.appendFile(path, "Appended line\n");
-
-    # Get file size
-    local size: long = FS.fileSize(path);
-    printf("File size: %ld bytes\n", size);
-
-    # Clean up
-    FS.deleteFile(path);
+    return 0;
 }
 ```
 
-## Directory Operations
-
-```bpl
-import [FS] from "std/fs.bpl";
-
-frame main() {
-    # Create directory
-    FS.mkdir("mydir");
-
-    # Check if directory
-    if (FS.isDir("mydir")) {
-        printf("mydir is a directory\n");
-    }
-
-    # List directory contents
-    local files: Array<String> = FS.listDir(".");
-    local i: int = 0;
-    loop (i < files.len()) {
-        printf("  %s\n", files.get(i).toString());
-        i = i + 1;
-    }
-    files.destroy();
-}
-```
+The example leaves `notes.txt` in the working directory. Open success alone is
+not a guarantee that all data reached persistent storage.

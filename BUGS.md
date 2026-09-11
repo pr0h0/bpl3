@@ -3296,3 +3296,73 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed**: The literal checker treats any spelling containing e/E as floating point, including hexadecimal digits. `cast<u64>(0xfedcba9876543210)` consequently loses low bits through a double conversion, producing bytes ending in `3000` instead of `3210`. Smaller hexadecimal literals also receive the wrong type and arithmetic semantics.
 
 **Resolution (2026-09-10)**: Exclude hexadecimal prefixes from floating-point spelling detection. Regression coverage checks lower/upper-case hex, integer division, inferred width, and both halves of a 64-bit value at O0/O3 with LLVM verification. Binary reader/writer golden-byte tests independently cover this case.
+
+### BUG-266: Standard-library guides describe nonexistent APIs and incorrect ownership
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed**: Guides advertise nonexistent String/FS methods, describe substring's length as an end index, claim automatic String cleanup, misname BitSet/Env/Date operations, and omit unimplemented threading/synchronization/iterator modules.
+
+**Resolution (2026-09-11)**: Corrected the standard-library chapters and added a parsed declaration reference for every library module, with a drift regression. Documented ownership, platform assumptions, incomplete error handling, and stub modules.
+
+### BUG-267: Rand fractions and distributions violate their advertised contracts
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: `Rand.seed(cast<ulong>(2782269413)).nextFloat()` returns -0.5. Absolute signed-int normalization otherwise covers only roughly half of [0,1), and `range` inherits bias/overflow issues. `nextGaussian` uses an ad-hoc polynomial instead of the advertised normal sampler.
+
+**Documentation/workaround**: The API guide now states these limitations. Avoid these helpers for unbiased sampling, statistical simulation, and security-sensitive randomness until their algorithms are replaced.
+
+### BUG-268: String.replaceAll can repeatedly expand replacement text
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: The implementation repeatedly replaces the first match and rescans the resulting string. Replacing "a" with "aa" continually creates another match and does not terminate normally.
+
+**Documentation/workaround**: The String guide documents this behavior. Avoid replacements that introduce further matches; a future fix should scan the original input once and append to a builder.
+
+### BUG-269: UUID.v4 repeats identifiers generated within one second
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed (2026-09-11)**: Each call seeds a fresh LCG from whole seconds and emits the same byte sequence for that seed. A local reproduction generated two equal UUIDs in consecutive calls.
+
+**Documentation/workaround**: The API guide now rejects uniqueness and security guarantees for this generator. Use an external suitable generator until the implementation uses an appropriate entropy source.
+
+### BUG-270: IO.readLine has no input bound and mishandles EOF
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed (2026-09-11)**: `IO.readLine` calls `gets(buf)` without a capacity, ignores the return value, and calls strlen on the buffer. The former documentation presented a 100-byte buffer as sufficient for arbitrary line input.
+
+**Documentation/workaround**: Replaced the example with a width-limited token read and documented the unsafe legacy method. A replacement API needs a buffer capacity and explicit EOF/error handling.
+
+### BUG-271: FS.mkdirp loses absolute roots and ignores creation failures
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: Path splitting discards the leading slash, reconstruction starts from an empty relative path, all mkdir return values are discarded, and the helper unconditionally returns true.
+
+**Documentation/workaround**: The filesystem guide marks it experimental and unsuitable for reliable absolute-path creation. It also describes the limited error checks and Linux x86-64 directory-layout assumption of the surrounding FS helpers.
+
+### BUG-272: Date timestamp conversion mishandles dates before 1970
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: `Date.fromTimestamp(-86400)` produces 1970-1-0, which `isValid()` rejects. Timestamp/date conversion loops only move forward from 1970; Time.formatTimestamp has the same limitation for negative input.
+
+**Documentation/workaround**: The date and time guides now state the unsupported range. Restrict these conversions to supported post-epoch values until backward calendar conversion is implemented.

@@ -1,132 +1,93 @@
 # Standard Library: String Utilities
 
-The `String` struct provides a managed string type with automatic memory management.
-
-## Import
-
-```bpl
-import [String] from "std/string.bpl";
-```
-
-## Creation
-
-```bpl
-local s: String = String.new("Hello, World!");
-defer s.destroy();  # Clean up when scope exits
-```
-
-## Core Methods
-
-| Method                                | Description                |
-| ------------------------------------- | -------------------------- |
-| `String.new(text: string) ret String` | Create from string literal |
-| `s.destroy()`                         | Free memory                |
-| `s.toString() ret string`             | Get underlying C string    |
-| `s.clone() ret String`                | Create a deep copy         |
-| `s.isEmpty() ret bool`                | Check if empty             |
-| `s.assign(text: string)`              | Replace content            |
-
-## String Operations
-
-| Method                                         | Description                             |
-| ---------------------------------------------- | --------------------------------------- |
-| `s.includes(substr: string) ret bool`          | Check if contains substring             |
-| `s.indexOf(substr: string) ret int`            | Find first occurrence (-1 if not found) |
-| `s.lastIndexOf(substr: string) ret int`        | Find last occurrence                    |
-| `s.startsWith(prefix: string) ret bool`        | Check prefix                            |
-| `s.endsWith(suffix: string) ret bool`          | Check suffix                            |
-| `s.substring(start: int, end: int) ret String` | Extract substring                       |
-| `s.charAt(index: int) ret char`                | Get character at index                  |
-
-## Transformation
-
-| Method                                                | Description                        |
-| ----------------------------------------------------- | ---------------------------------- |
-| `s.toUpper() ret String`                              | Convert to uppercase               |
-| `s.toLower() ret String`                              | Convert to lowercase               |
-| `s.trim() ret String`                                 | Remove leading/trailing whitespace |
-| `s.trimLeft() ret String`                             | Remove leading whitespace          |
-| `s.trimRight() ret String`                            | Remove trailing whitespace         |
-| `s.replace(old: string, new: string) ret String`      | Replace all occurrences            |
-| `s.replaceFirst(old: string, new: string) ret String` | Replace first occurrence           |
-| `s.reverse() ret String`                              | Reverse the string                 |
-| `s.repeat(count: int) ret String`                     | Repeat string n times              |
-| `s.padLeft(width: int, pad: char) ret String`         | Pad on left                        |
-| `s.padRight(width: int, pad: char) ret String`        | Pad on right                       |
-
-## Splitting & Joining
-
-| Method                                                     | Description               |
-| ---------------------------------------------------------- | ------------------------- |
-| `s.split(delimiter: string) ret Array<String>`             | Split into array          |
-| `String.join(arr: *Array<String>, sep: string) ret String` | Join array with separator |
-
-## Conversion
-
-| Method                                                    | Description               |
-| --------------------------------------------------------- | ------------------------- |
-| `String.fromInt(val: long) ret String`                    | Convert integer to string |
-| `String.fromFloat(val: float, precision: int) ret String` | Convert float to string   |
-| `String.fromBool(val: bool) ret String`                   | Convert bool to string    |
-| `s.toInt() ret int`                                       | Parse as integer          |
-| `s.toFloat() ret float`                                   | Parse as float            |
-| `s.toBool() ret bool`                                     | Parse as boolean          |
-
-## Operator Overloading
-
-```bpl
-local a: String = String.new("Hello");
-local b: String = String.new(" World");
-
-# Concatenation with +
-local c: String = a + b;           # "Hello World"
-local d: String = a + "!";         # "Hello!" (with literal)
-
-# Comparison
-if (a == b) { ... }
-if (a < b) { ... }   # Lexicographic comparison
-```
-
-## Example
+`String` owns a heap-allocated, NUL-terminated byte string. It requires explicit
+cleanup; it is not garbage-collected and its `destroy` method is not marked
+`@[auto_destroy]`. Use `defer { s.destroy(); }` or call `destroy()` yourself.
 
 ```bpl
 import [String] from "std/string.bpl";
+```
 
-extern printf(fmt: string, ...);
+## Ownership and representation
 
-frame main() {
-    local greeting: String = String.new("  Hello, World!  ");
-    defer greeting.destroy();
+`String.new(text)` copies a non-null C string. `clone()` copies its storage.
+`toString()` and `cstr()` return borrowed pointers, valid only while the string
+storage remains alive and unchanged. Do not free those borrowed pointers.
+Assigning a `String` value copies its pointer and length; it does not clone its
+storage. Destroying both shallow copies would free the same allocation twice.
 
-    # Trim whitespace
-    local trimmed: String = greeting.trim();
-    defer trimmed.destroy();
-    printf("Trimmed: '%s'\n", trimmed.toString());
+`length` counts bytes. Embedded NUL bytes are not supported as string content.
+Indexing, substring, reversal, and case conversion operate on bytes; case
+conversion handles ASCII letters, not general Unicode case mappings. Use the
+UTF-8 module when you need codepoint operations.
 
-    # Check contents
-    if (trimmed.includes("World")) {
-        printf("Contains 'World'\n");
+## Available methods
+
+| Method                                                      | Behavior                                            |
+| ----------------------------------------------------------- | --------------------------------------------------- |
+| `String.new(text: string) ret String`                       | Allocate a copy of a C string                       |
+| `String.fromInt(val: long) ret String`                      | Format an integer                                   |
+| `String.fromAddress(addr: long) ret String`                 | Format an address                                   |
+| `s.destroy()`                                               | Free owned storage                                  |
+| `s.clone() ret String`                                      | Copy owned bytes                                    |
+| `s.assign(text: string)`                                    | Replace content from an independent C string        |
+| `s.isEmpty() ret bool`                                      | Test length                                         |
+| `s.toString() ret string`, `s.cstr() ret string`            | Borrow underlying bytes                             |
+| `s.get(index: int) ret char`                                | Byte at index; zero when out of range               |
+| `s.substring(start: int, len: int) ret String`              | Copy up to `len` bytes; second argument is a length |
+| `s.includes(text: string) ret bool`                         | Substring containment                               |
+| `s.indexOf(text: string) ret int`                           | First match, or -1                                  |
+| `s.lastIndexOf(text: string) ret int`                       | Last match, or -1                                   |
+| `s.count(text: string) ret int`                             | Count non-overlapping matches                       |
+| `s.startsWith(text: string) ret bool`                       | Prefix test                                         |
+| `s.endsWith(text: string) ret bool`                         | Suffix test                                         |
+| `s.trim()`, `s.trimLeft()`, `s.trimRight()`                 | Return newly allocated trimmed Strings              |
+| `s.toUpper()`, `s.toLower()`                                | Return newly allocated ASCII case conversions       |
+| `s.reverse() ret String`                                    | Reverse bytes                                       |
+| `s.repeat(count: int) ret String`                           | Repeat bytes in a new allocation                    |
+| `s.padLeft(width: int, pad: char) ret String`               | Pad to a byte width                                 |
+| `s.padRight(width: int, pad: char) ret String`              | Pad to a byte width                                 |
+| `s.replace(old: string, replacement: string) ret String`    | Replace the first match                             |
+| `s.replaceAll(old: string, replacement: string) ret String` | Repeatedly replace the first match until unchanged  |
+| `s.split(delimiter: char) ret Array<String>`                | Split on one byte; each element owns storage        |
+| `s.isDigits()`, `s.isAlpha()`, `s.isAlphanumeric()`         | ASCII classification                                |
+
+`replaceAll` currently rescans replacement text. Avoid replacements that create
+further matches, such as replacing `"a"` with `"aa"`, which can fail to terminate.
+Keep substring lengths and allocation sizes within the supported signed-int
+range; these helpers do not provide comprehensive allocation/overflow checking.
+
+There are no `String.join`, `charAt`, `replaceFirst`, `fromFloat`, `fromBool`,
+`toInt`, `toFloat`, or `toBool` methods in this implementation. The
+[declaration reference](stdlib-reference.md) lists exact signatures and overloads.
+
+## Splitting and cleanup example
+
+```bpl
+import [String] from "std/string.bpl";
+import [Array] from "std/array.bpl";
+import printf from "std/c.bpl";
+
+frame main() ret int {
+    local text: String = String.new("red,green,blue");
+    local parts: Array<String> = text.split(',');
+    loop (local i: int = 0; i < parts.len(); i = i + 1) {
+        printf("%s\n", parts.getRef(i).toString());
+        parts.getRef(i).destroy();
     }
-
-    # Transform
-    local upper: String = trimmed.toUpper();
-    defer upper.destroy();
-    printf("Upper: %s\n", upper.toString());
-
-    # Replace
-    local replaced: String = trimmed.replace("World", "BPL");
-    defer replaced.destroy();
-    printf("Replaced: %s\n", replaced.toString());
+    parts.destroy();
+    text.destroy();
+    return 0;
 }
 ```
 
-## C String Functions
+Destroying `Array<String>` only frees array storage, so destroy each element
+first. An empty input string produces an empty array. A trailing delimiter
+produces a final empty string.
 
-For low-level operations, you can use C functions:
+## Operators
 
-```bpl
-extern strlen(s: string) ret int;
-extern strcpy(dest: *char, src: string) ret *char;
-extern strcat(dest: *char, src: string) ret *char;
-extern strcmp(s1: string, s2: string) ret int;
-```
+`+` allocates a new concatenated String. `<<` appends to the receiver. Comparison
+operators use string contents. Results of concatenation need cleanup, and
+assignment of owning String values remains shallow. Do not pass a string's own
+borrowed buffer to `assign`, which frees the previous buffer before copying.

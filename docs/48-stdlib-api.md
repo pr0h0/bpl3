@@ -1,6 +1,14 @@
 # Standard Library API Reference
 
-Comprehensive API reference for all BPL standard library modules.
+This guide describes selected APIs and their current limitations. The generated
+[declaration reference](stdlib-reference.md) covers every BPL module under `lib/`,
+including exports, overloads, fields, and low-level modules. Regenerate it with
+`bun run docs:stdlib`; a regression test checks it for drift.
+
+Prefer importing a specific module when you only need its APIs. `std` re-exports
+many modules but not every symbol. Check its export list in the declaration
+reference. Resource ownership is explicit: most library `destroy` methods are
+ordinary methods, and containers generally do not destroy element-owned resources.
 
 ## Core Modules
 
@@ -259,10 +267,12 @@ Fixed-size bit array for efficient flag/set operations.
 
 **Set Operations:**
 
-- `bs.and(other: *BitSet) ret BitSet` - Intersection
-- `bs.or(other: *BitSet) ret BitSet` - Union
-- `bs.xor(other: *BitSet) ret BitSet` - Symmetric difference
-- `bs.not() ret BitSet` - Complement
+- `bs.andWith(other: *BitSet)` - In-place intersection
+- `bs.orWith(other: *BitSet)` - In-place union
+- `bs.xorWith(other: *BitSet)` - In-place symmetric difference
+- `bs.flipAll()` - In-place complement
+- `bs.clone() ret BitSet` - Allocate independent storage
+- `bs.firstSet() ret int`, `bs.lastSet() ret int` - Index, or -1
 - `bs.equals(other: *BitSet) ret bool`
 
 **Cleanup:**
@@ -275,7 +285,11 @@ Fixed-size bit array for efficient flag/set operations.
 
 ### UUID (`std/uuid.bpl`)
 
-UUID generation and parsing (v4 random UUIDs).
+UUID formatting, parsing, and v4-shaped generation. `v4()` reseeds a predictable
+LCG from whole seconds on every call; calls in the same second repeat identifiers.
+Do not use it where uniqueness, unpredictability, or security tokens are required.
+`fromString` can return a partially parsed value, so validate text with `isValid`
+before parsing. `toString()` returns allocated storage that the caller must free.
 
 **Creation:**
 
@@ -301,7 +315,10 @@ UUID generation and parsing (v4 random UUIDs).
 
 ### Env (`std/env.bpl`)
 
-Environment variable utilities.
+Environment variable utilities using POSIX `getenv`/`setenv`/`unsetenv`.
+Getters return borrowed environment pointers or supplied/default literals;
+do not free them. Mutating the environment can invalidate borrowed pointers.
+These APIs are not a portable Windows environment abstraction.
 
 **Get/Set:**
 
@@ -322,8 +339,8 @@ Environment variable utilities.
 - `Env.getHome() ret string`
 - `Env.getUser() ret string`
 - `Env.getShell() ret string`
-- `Env.getTempDir() ret string`
-- `Env.getCurrentDir() ret string`
+- `Env.getTmpDir() ret string`
+- `Env.getPwd() ret string` - Reads PWD; does not query the working directory
 
 **Type Conversion:**
 
@@ -336,7 +353,10 @@ Environment variable utilities.
 
 ### Date (`std/date.bpl`)
 
-Date utilities.
+Calendar helpers intended for UTC-like Unix timestamps. Constructors store fields
+without validation; use `isValid()`. Negative timestamps and dates before 1970
+are not handled correctly by the current conversion algorithms. Formatting
+allocates strings that callers must free. This is not a timezone/DST library.
 
 **Creation:**
 
@@ -347,14 +367,15 @@ Date utilities.
 **Conversion:**
 
 - `date.toTimestamp() ret long`
-- `date.format(fmt: string) ret string`
+- `date.format() ret string` - Owned YYYY-MM-DD text
+- `date.formatSep(sep: u8) ret string` - Owned text with a separator
 
 **Properties:**
 
 - `date.year`, `date.month`, `date.day`
 - `date.dayOfWeek() ret int` - 0=Sunday
 - `date.dayOfYear() ret int`
-- `date.weekNumber() ret int`
+- `date.weekOfYear() ret int`
 - `date.isLeapYear() ret bool`
 - `date.daysInMonth() ret int`
 
@@ -383,7 +404,8 @@ Date and time combined.
 
 - `dt.toTimestamp() ret long`
 - `dt.toDate() ret Date`
-- `dt.format(fmt: string) ret string`
+- `dt.format() ret string` - Owned YYYY-MM-DD HH:MM:SS text
+- `dt.formatISO() ret string`, `dt.formatTime() ret string` - Owned formatted text
 
 ---
 
@@ -403,11 +425,11 @@ Pseudo-random number generator (LCG).
 - `rng.nextInt() ret int`
 - `rng.nextUInt() ret uint`
 - `rng.nextLong() ret long`
-- `rng.nextFloat() ret float` - Range [0, 1)
+- `rng.nextFloat() ret float` - Legacy biased fraction; see limitations below
 - `rng.nextBool() ret bool`
-- `rng.range(min: int, max: int) ret int` - Range [min, max)
+- `rng.range(min: int, max: int) ret int` - Legacy modulo-based range
 - `rng.range(min: float, max: float) ret float`
-- `rng.nextGaussian() ret float` - Normal distribution
+- `rng.nextGaussian() ret float` - Legacy approximation; not a normal distribution
 
 **Array Operations:**
 
@@ -415,3 +437,39 @@ Pseudo-random number generator (LCG).
 - `rng.choiceInt(arr: *Array<int>) ret int`
 - `rng.fillBytes(buf: *u8, len: int)`
 - `rng.weightedChoice(weights: *Array<int>) ret int`
+
+## Random-number limitations
+
+`Rand` is deterministic and not cryptographically secure. Its current
+`nextFloat` takes the absolute value of a signed 32-bit result and divides by
+2^32, so it normally covers only the lower half of the advertised unit interval;
+the minimum signed integer can produce a negative value. `range` inherits bias
+and signed-overflow edge cases. `nextGaussian` uses a polynomial approximation
+that is not a valid normal-distribution sampler. Do not use these methods for
+security, unbiased sampling, or statistical simulation without replacing them.
+
+## Additional modules and implementation status
+
+The declaration reference includes every module, including these previously
+omitted areas:
+
+| Modules                                                                                                         | Scope and limits                                                                     |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `option.bpl`, `result.bpl`, `errors.bpl`                                                                        | Optional values, results, and error types; unwrap failures throw                     |
+| `char_utils.bpl`, `string_utils.bpl`, `string_builder.bpl`, `fmt.bpl`                                           | Character/string helpers and formatting; inspect ownership per API                   |
+| `utf8.bpl`                                                                                                      | Byte/codepoint helpers; `encode` borrows its input and `decode` copies into a String |
+| `vec2.bpl`, `vec3.bpl`, `range.bpl`                                                                             | Vector and range utilities                                                           |
+| `path.bpl`, `args.bpl`, `arg_parser.bpl`                                                                        | Path and command-line helpers                                                        |
+| `memory/allocator.bpl`, `memory/arena_allocator.bpl`, `memory/pool_allocator.bpl`, `memory/stack_allocator.bpl` | Manual allocator interfaces and implementations; allocations have explicit lifetimes |
+| `memory/page_allocator.bpl`, `memory/syscalls.bpl`                                                              | mmap-backed allocation with Linux-specific constants                                 |
+| `iter_specs.bpl`, `core_specs.bpl`                                                                              | Interfaces used by implemented collections                                           |
+| `iter.bpl`                                                                                                      | `Iter.map`, `filter`, and `reduce` are stubs that throw 999                          |
+| `thread.bpl`, `sync.bpl`                                                                                        | Threading and synchronization are stubs that throw 999                               |
+| `type.bpl`, `primitives.bpl`, `reflection.bpl`, `intrinsics.bpl`                                                | Compiler/runtime support; platform and representation details matter                 |
+| `c.bpl`                                                                                                         | Native C declarations, not a portable or memory-safe wrapper                         |
+| `process.bpl`                                                                                                   | Shell-backed execution; see the [process guide](59-process-execution.md)             |
+| `assert.bpl`, `debug.bpl`, `diagnostics.bpl`, `scope_stack.bpl`                                                 | Assertions, diagnostics, and compiler-oriented utilities                             |
+
+`Log.debug/info/warn/error` currently share the same output path; they do not
+provide independent level filtering or destinations. See the linked module
+source for behavior that is not covered by a narrative guide.

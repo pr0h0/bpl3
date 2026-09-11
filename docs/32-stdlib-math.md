@@ -10,6 +10,9 @@ import [Math] from "std/math.bpl";
 
 ## Constants
 
+Constants are exported separately from `Math`; import them with, for example,
+`import {PI}, {E} from "std/math.bpl";`. The declarations below show their values.
+
 ```bpl
 global const PI: float = 3.14159265358979323846;
 global const E: float = 2.71828182845904523536;
@@ -86,7 +89,7 @@ global const LN10: float = 2.30258509299404568402;
 ## Example
 
 ```bpl
-import [Math] from "std/math.bpl";
+import [Math], {PI} from "std/math.bpl";
 extern printf(fmt: string, ...);
 
 frame main() {

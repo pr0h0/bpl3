@@ -9,24 +9,34 @@ import [Algorithm] from "std/algorithm.bpl";
 import [Array] from "std/array.bpl";
 ```
 
+## Preconditions and cost
+
+`sortAsc`/`sortDesc` use quadratic sorting; `quickSort` uses a last-element pivot
+and can take quadratic time and linear recursion depth on unfavorable input.
+`binarySearch` requires ascending order. Empty min/max/average calls return zero.
+`unique` allocates a new Array and uses linear containment checks, so its worst
+case is quadratic. `merge` concatenates; it does not merge sorted runs.
+Destroy arrays returned by `unique`, `range`, `rangeStep`, and `merge`.
+Shuffle inherits the current bias and edge cases of `Rand.range`.
+
 ## Integer Array Operations
 
-| Function                                                        | Description                         |
-| --------------------------------------------------------------- | ----------------------------------- |
-| `Algorithm.sortAsc(arr: *Array<int>)`                           | Sort ascending (bubble sort)        |
-| `Algorithm.sortDesc(arr: *Array<int>)`                          | Sort descending                     |
-| `Algorithm.quickSort(arr: *Array<int>)`                         | Quick sort (ascending)              |
-| `Algorithm.reverse(arr: *Array<int>)`                           | Reverse array in place              |
-| `Algorithm.binarySearch(arr: *Array<int>, target: int) ret int` | Binary search (returns index or -1) |
-| `Algorithm.min(arr: *Array<int>) ret int`                       | Find minimum value                  |
-| `Algorithm.max(arr: *Array<int>) ret int`                       | Find maximum value                  |
-| `Algorithm.sum(arr: *Array<int>) ret long`                      | Sum of all elements                 |
-| `Algorithm.average(arr: *Array<int>) ret float`                 | Average of elements                 |
-| `Algorithm.fill(arr: *Array<int>, value: int)`                  | Fill array with value               |
-| `Algorithm.count(arr: *Array<int>, value: int) ret int`         | Count occurrences                   |
-| `Algorithm.shuffle(arr: *Array<int>, rng: *Rand)`               | Fisher-Yates shuffle                |
-| `Algorithm.isSorted(arr: *Array<int>) ret bool`                 | Check if sorted ascending           |
-| `Algorithm.unique(arr: *Array<int>) ret Array<int>`             | Remove duplicates                   |
+| Function                                                        | Description                                       |
+| --------------------------------------------------------------- | ------------------------------------------------- |
+| `Algorithm.sortAsc(arr: *Array<int>)`                           | Sort ascending (bubble sort)                      |
+| `Algorithm.sortDesc(arr: *Array<int>)`                          | Sort descending                                   |
+| `Algorithm.quickSort(arr: *Array<int>)`                         | Quick sort (ascending)                            |
+| `Algorithm.reverse(arr: *Array<int>)`                           | Reverse array in place                            |
+| `Algorithm.binarySearch(arr: *Array<int>, target: int) ret int` | Binary search (returns index or -1)               |
+| `Algorithm.min(arr: *Array<int>) ret int`                       | Find minimum value                                |
+| `Algorithm.max(arr: *Array<int>) ret int`                       | Find maximum value                                |
+| `Algorithm.sum(arr: *Array<int>) ret long`                      | Sum of all elements                               |
+| `Algorithm.average(arr: *Array<int>) ret float`                 | Average of elements                               |
+| `Algorithm.fill(arr: *Array<int>, value: int)`                  | Fill array with value                             |
+| `Algorithm.count(arr: *Array<int>, value: int) ret int`         | Count occurrences                                 |
+| `Algorithm.shuffle(arr: *Array<int>, rng: *Rand)`               | Fisher-Yates shuffle                              |
+| `Algorithm.isSorted(arr: *Array<int>) ret bool`                 | Check if sorted ascending                         |
+| `Algorithm.unique(arr: *Array<int>) ret Array<int>`             | Copy distinct values, preserving first-seen order |
 
 ## Float Array Operations
 

@@ -8,6 +8,17 @@ The `Time`, `Duration`, and `Stopwatch` structs provide time-related utilities.
 import [Time], [Duration], [Stopwatch] from "std/time.bpl";
 ```
 
+## Clock and ownership limitations
+
+`nowMs`/`nowUs` use the wall clock (`gettimeofday`), not a monotonic clock, so
+Stopwatch and `measure` can be affected by clock adjustments. `Time.now` returns
+a signed 32-bit `int`; it is not a general 64-bit timestamp API. Duration values
+store milliseconds and conversions to larger units truncate toward zero.
+`formatTimestamp` returns an allocation that callers must free; negative
+(pre-1970) timestamps are not converted correctly by the current implementation.
+Sleep wrappers use POSIX APIs and do not promise exact scheduling or retry
+interrupted sleeps.
+
 ## Time Static Methods
 
 | Method                                             | Description                      |
