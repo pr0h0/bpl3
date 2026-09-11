@@ -565,6 +565,16 @@ struct JSON {
                                             if (ch == cast<char>(9)) {
                                                 # \t
                                                 sb.append("\\t");
+                                            } else if (ch == cast<char>(8)) {
+                                                sb.append("\\b");
+                                            } else if (ch == cast<char>(12)) {
+                                                sb.append("\\f");
+                                            } else if (cast<u8>(ch) < cast<u8>(32)) {
+                                                local digits: string = "0123456789abcdef";
+                                                local byte: int = cast<int>(cast<u8>(ch));
+                                                sb.append("\\u00");
+                                                sb.appendChar(digits[byte >> 4]);
+                                                sb.appendChar(digits[byte & 15]);
                                             } else {
                                                 sb.appendChar(ch);
                                             }

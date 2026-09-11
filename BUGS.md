@@ -3421,13 +3421,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-278: JSON serialization emits unescaped control bytes
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-11)**: Stringifying a one-byte string containing 0x01 emits a raw control byte between quotes. Python's JSON parser rejects the output. The serializer handles quotes, backslash, newline, carriage return, and tab but omits the remaining control-byte escapes.
 
 **Documentation/workaround**: The JSON guide calls out the limitation. Escape all bytes below 0x20 before claiming standards-compliant string serialization.
+
+**Resolution (2026-09-11)**: Escape all representable control bytes, using short escapes where defined and lowercase Unicode escapes otherwise. Regression tests compare exact output to an independent JSON encoder and round-trip control bytes plus UTF-8 at O0/O3.
 
 ### BUG-279: JSON float serialization can overflow its fixed formatting buffer
 

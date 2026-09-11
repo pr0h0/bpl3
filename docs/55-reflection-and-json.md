@@ -153,7 +153,7 @@ Fixed-array aliases currently have a reflection limitation (BUG-284). For
 `type Pair = int[2]`, use `JSON.parse<int[2]>` and `JSON.free<int[2]>`, even when
 the destination variable is declared `*Pair`.
 
-Serialization escapes quotes, backslashes, newline, carriage return, and tab,
-but currently fails to escape every other JSON control byte. Float formatting uses a fixed 64-byte buffer with unbounded `%f`; large-magnitude
+Serialization escapes quotes, backslashes, and all representable control bytes
+below 0x20. Valid UTF-8 bytes are preserved; embedded NUL remains unsupported. Float formatting uses a fixed 64-byte buffer with unbounded `%f`; large-magnitude
 finite values can overflow it (BUG-279). Non-finite floats also lack a JSON policy. Avoid these
-values or provide a correctly encoded custom hook. See BUG-278.
+values or provide a correctly encoded custom hook.
