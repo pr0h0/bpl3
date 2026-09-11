@@ -143,10 +143,15 @@ The implementation is experimental; it is not a general, strict JSON validator.
 | Enums                           | Variant name only                     | Variant-name lookup; payloads are not a general round trip |
 
 Missing fields are not required-field validation. Cyclic graphs are unsupported:
-recursive serialization/freeing has no cycle detection. Unsupported numeric
-parsing and fixed-array overflow can fail to advance the parser; do not treat
-arbitrary input as safe until these paths are fixed. See BUG-277 in
-[the bug log](../BUGS.md).
+recursive serialization/freeing has no cycle detection. Fixed arrays reject
+excess elements; shorter inputs retain zero-initialized remaining slots.
+Unsupported primitive destinations return a parse error. Container separators,
+null literals, and skipped unknown-field values are validated; malformed input
+returns `nullptr` rather than leaving an array parser stuck (BUG-277/283).
+
+Fixed-array aliases currently have a reflection limitation (BUG-284). For
+`type Pair = int[2]`, use `JSON.parse<int[2]>` and `JSON.free<int[2]>`, even when
+the destination variable is declared `*Pair`.
 
 Serialization escapes quotes, backslashes, newline, carriage return, and tab,
 but currently fails to escape every other JSON control byte. Float formatting uses a fixed 64-byte buffer with unbounded `%f`; large-magnitude

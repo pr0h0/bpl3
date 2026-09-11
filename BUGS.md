@@ -3409,13 +3409,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-277: JSON array parsing can loop without consuming input
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
 **Observed (2026-09-11)**: Both `JSON.parse<int[1]>("[1,2]")` and `JSON.parse<float[1]>("[1.25]")` compile but fail to terminate in bounded local reproductions. The fixed-array loop neither consumes nor rejects excess values, and unsupported primitive parsing can return without advancing the cursor.
 
 **Documentation/workaround**: The JSON guide documents supported primitive parsing and the lack of a strict arbitrary-input contract. Parser loops need explicit progress/error handling; unsupported types and excess elements need rejection.
+
+**Resolution (2026-09-11)**: Added parser progress/error checks, strict container separators and skipped-value scanning, explicit unsupported-type rejection, and fixed-array capacity rejection. Regression tests cover malformed fixed/dynamic arrays, unknown fields, valid partial arrays, and nested cleanup at O0/O3.
 
 ### BUG-278: JSON serialization emits unescaped control bytes
 
@@ -3466,3 +3468,23 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-11)**: The broad CI-safe run rejected the two new documentation helpers under `tools/`, a directory included in the npm payload. These helpers depend on repository compiler/test sources and should not be shipped as standalone package helpers.
 
 **Resolution**: Moved them to `tests/helpers`, updated imports and the docs:stdlib script, and documented the source-checkout requirement. Retained the existing release inventory checks without weakening them.
+
+### BUG-283: JSON accepts malformed skipped values and null literals
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: Unknown fields were skipped by consuming arbitrary non-delimiter text; pointer null parsing consumed any four-byte spelling beginning with n. Container loops also accepted trailing commas or lacked separator checks.
+
+**Resolution**: Validate skipped strings, numbers, booleans, nulls, and nested containers; require complete null spelling and correct separators. Tests reject malformed known and unknown fields and preserve valid nested skipped values.
+
+### BUG-284: Reflection does not resolve fixed-array aliases at JSON generic call sites
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-11)**: For `type Pair = int[2]`, `JSON.parse<Pair>("[]")` reaches the unsupported primitive path, whereas `JSON.parse<int[2]>("[]")` correctly parses an array. The alias receives incompatible reflected metadata.
+
+**Workaround**: Use the concrete array type as the JSON generic argument; a pointer variable can still use `*Pair`. The JSON guide and regression fixtures use this form.

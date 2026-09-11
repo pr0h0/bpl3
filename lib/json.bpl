@@ -109,9 +109,13 @@ struct JsonParser {
             }
             local c: int = cast<int>(this.next());
             local digit: int = -1;
-            if ((c >= 48) && (c <= 57)) { digit = c - 48; }
-            else if ((c >= 65) && (c <= 70)) { digit = c - 65 + 10; }
-            else if ((c >= 97) && (c <= 102)) { digit = c - 97 + 10; }
+            if ((c >= 48) && (c <= 57)) {
+                digit = c - 48;
+            } else if ((c >= 65) && (c <= 70)) {
+                digit = (c - 65) + 10;
+            } else if ((c >= 97) && (c <= 102)) {
+                digit = (c - 97) + 10;
+            }
             if (digit < 0) {
                 this.fail("Invalid hexadecimal digit in Unicode escape");
                 return 0;
@@ -165,37 +169,49 @@ struct JsonParser {
                     res[idx] = cast<char>(9); # \t
                 } else if (esc == cast<char>(117)) {
                     local codepoint: u32 = this.parseHex4();
-                    if (this.has_error) { free(res); return nullptr; }
+                    if (this.has_error) {
+                        free(res);
+                        return nullptr;
+                    }
                     if ((codepoint >= cast<u32>(0xD800)) && (codepoint <= cast<u32>(0xDBFF))) {
                         if ((this.next() != cast<char>(92)) || (this.next() != cast<char>(117))) {
                             this.fail("High surrogate requires a low surrogate escape");
-                            free(res); return nullptr;
+                            free(res);
+                            return nullptr;
                         }
                         local low: u32 = this.parseHex4();
-                        if (this.has_error) { free(res); return nullptr; }
+                        if (this.has_error) {
+                            free(res);
+                            return nullptr;
+                        }
                         if ((low < cast<u32>(0xDC00)) || (low > cast<u32>(0xDFFF))) {
                             this.fail("Invalid low surrogate");
-                            free(res); return nullptr;
+                            free(res);
+                            return nullptr;
                         }
                         codepoint = cast<u32>(0x10000) + ((codepoint - cast<u32>(0xD800)) << 10) + (low - cast<u32>(0xDC00));
                     } else if ((codepoint >= cast<u32>(0xDC00)) && (codepoint <= cast<u32>(0xDFFF))) {
                         this.fail("Unexpected low surrogate");
-                        free(res); return nullptr;
+                        free(res);
+                        return nullptr;
                     }
                     if (codepoint == cast<u32>(0)) {
                         this.fail("JSON string cannot contain U+0000 in a null-terminated string");
-                        free(res); return nullptr;
+                        free(res);
+                        return nullptr;
                     }
                     idx = idx + UTF8.encodeCodepoint(codepoint, cast<*u8>(&res[idx]));
                     continue;
                 } else {
                     this.fail("Invalid string escape");
-                    free(res); return nullptr;
+                    free(res);
+                    return nullptr;
                 }
             } else {
                 if (cast<u8>(c) < cast<u8>(32)) {
                     this.fail("Unescaped control character in string");
-                    free(res); return nullptr;
+                    free(res);
+                    return nullptr;
                 }
                 res[idx] = c;
                 this.next();
@@ -260,90 +276,127 @@ struct JsonParser {
         return false;
     }
 
-    frame skipValue(this: *JsonParser) {
-        this.skipWs();
+    # Validate and consume one JSON number without converting its value.
+    frame skipNumber(this: *JsonParser) {
+        if (this.peek() == '-') {
+            this.next();
+        }
         local c: char = this.peek();
-
-        if (c == cast<char>(123)) {
-            # { object
-            this.next(); # consume {
-            loop {
-                this.skipWs();
-                if (this.peek() == cast<char>(125)) {
-                    this.next(); # }
-                    return;
-                }
-                if (this.pos >= this.len) {
-                    break;
-                }
-                # key
-                local key: string = this.parseString();
-                if (this.has_error) { return; }
-                if (key != nullptr) {
-                    free(key);
-                }
-                # :
-                this.expect(cast<char>(58));
-                # value
-                this.skipValue();
-
-                this.skipWs();
-                if (this.peek() == cast<char>(44)) {
-                    # ,
-                    this.next();
-                } else {
-                    if (this.peek() != cast<char>(125)) {
-                        this.fail("Expected , or } in skipped object");
-                        break;
-                    }
-                }
-            }
-            return;
-        }
-        # [ array
-        if (c == cast<char>(91)) {
-            this.next(); # consume [
-            loop {
-                this.skipWs();
-                if (this.peek() == cast<char>(93)) {
-                    this.next(); # ]
-                    return;
-                }
-                if (this.pos >= this.len) {
-                    break;
-                }
-                this.skipValue();
-
-                this.skipWs();
-                if (this.peek() == cast<char>(44)) {
-                    # ,
-                    this.next();
-                } else {
-                    if (this.peek() != cast<char>(93)) {
-                        this.fail("Expected , or ] in skipped array");
-                        break; # Break loop to avoid infinite hang
-                    }
-                }
-            }
-            return;
-        }
-        # " string
-        if (c == cast<char>(34)) {
-            local s: string = this.parseString();
-            if (s != nullptr) {
-                free(s);
-            }
-            return;
-        }
-        # number or bool or null - consume until delimiter
-        loop (this.pos < this.len) {
-            local ch: char = this.peek();
-            if ((ch == cast<char>(44)) || (ch == cast<char>(125)) || (ch == cast<char>(93)) || (ch == cast<char>(32)) || (ch == cast<char>(10)) || (ch == cast<char>(13)) || (ch == cast<char>(9))) {
-                # , } ]
-                # whitespace
+        if (c == '0') {
+            this.next();
+            c = this.peek();
+            if ((c >= '0') && (c <= '9')) {
+                this.fail("Leading zero in number");
                 return;
             }
+        } else if ((c >= '1') && (c <= '9')) {
+            loop ((this.peek() >= '0') && (this.peek() <= '9')) {
+                this.next();
+            }
+        } else {
+            this.fail("Expected number");
+            return;
+        }
+        if (this.peek() == '.') {
             this.next();
+            if ((this.peek() < '0') || (this.peek() > '9')) {
+                this.fail("Expected fraction digits");
+                return;
+            }
+            loop ((this.peek() >= '0') && (this.peek() <= '9')) {
+                this.next();
+            }
+        }
+        if ((this.peek() == 'e') || (this.peek() == 'E')) {
+            this.next();
+            if ((this.peek() == '+') || (this.peek() == '-')) {
+                this.next();
+            }
+            if ((this.peek() < '0') || (this.peek() > '9')) {
+                this.fail("Expected exponent digits");
+                return;
+            }
+            loop ((this.peek() >= '0') && (this.peek() <= '9')) {
+                this.next();
+            }
+        }
+    }
+
+    frame parseNull(this: *JsonParser) {
+        if ((this.next() != 'n') || (this.next() != 'u') || (this.next() != 'l') || (this.next() != 'l')) {
+            this.fail("Expected null");
+        }
+    }
+
+    # Consume a container separator. True means another value is required.
+    frame nextElement(this: *JsonParser, close: char) ret bool {
+        if (this.has_error) {
+            return false;
+        }
+        this.skipWs();
+        if (this.peek() == close) {
+            this.next();
+            return false;
+        }
+        if (this.peek() != ',') {
+            this.fail("Expected comma or closing delimiter");
+            return false;
+        }
+        this.next();
+        this.skipWs();
+        if ((this.peek() == close) || (this.pos >= this.len)) {
+            this.fail("Expected value after comma");
+            return false;
+        }
+        return true;
+    }
+
+    frame skipValue(this: *JsonParser) {
+        if (this.has_error) {
+            return;
+        }
+        this.skipWs();
+        local c: char = this.peek();
+        if ((c == '{') || (c == '[')) {
+            local close: char = ']';
+            if (c == '{') {
+                close = '}';
+            }
+            this.next();
+            this.skipWs();
+            if (this.peek() == close) {
+                this.next();
+                return;
+            }
+            loop {
+                if (c == '{') {
+                    local key: string = this.parseString();
+                    if (key != nullptr) {
+                        free(key);
+                    }
+                    if (this.has_error || !this.expect(':')) {
+                        return;
+                    }
+                }
+                this.skipValue();
+                if (!this.nextElement(close)) {
+                    return;
+                }
+            }
+        }
+        if (c == '"') {
+            local value: string = this.parseString();
+            if (value != nullptr) {
+                free(value);
+            }
+        } else if ((c == 't') || (c == 'f')) {
+            this.parseBool();
+        } else if (c == 'n') {
+            this.parseNull();
+        } else if ((c == '-') || ((c >= '0') && (c <= '9'))) {
+            this.skipNumber();
+        } else {
+            this.fail("Expected JSON value");
         }
     }
 
@@ -351,6 +404,9 @@ struct JsonParser {
         this.skipWs();
         local start: int = this.pos;
         this.skipValue();
+        if (this.has_error) {
+            return nullptr;
+        }
         local end: int = this.pos;
         local len: int = end - start;
         if (len <= 0) {
@@ -695,7 +751,6 @@ struct JSON {
         if ((!p.has_error) && (p.pos != p.len)) {
             p.fail("Unexpected trailing input");
         }
-
         if (p.has_error) {
             # Clean up partial allocation
             JSON.freeAny(ptr, info);
@@ -882,7 +937,9 @@ struct JSON {
 
     # Bypass only the current type's hook; nested values still use parseAny.
     frame parseDefault(p: *JsonParser, ptr: ulong, info: *TypeInfo) {
-        if (p.has_error) { return; }
+        if (p.has_error) {
+            return;
+        }
         if (info.kind == TYPE_KIND_PRIMITIVE) {
             JSON.parsePrimitive(p, ptr, info);
         } else {
@@ -902,6 +959,8 @@ struct JSON {
                     } else {
                         if (info.kind == TYPE_KIND_POINTER) {
                             JSON.parsePointer(p, ptr, info);
+                        } else {
+                            p.fail("Unsupported JSON destination type");
                         }
                     }
                 }
@@ -922,6 +981,8 @@ struct JSON {
                 if (strcmp(info.name, "bool") == 0) {
                     local b: bool = p.parseBool();
                     *cast<*bool>(ptr) = b;
+                } else {
+                    p.fail("Unsupported JSON primitive type");
                 }
             }
         }
@@ -939,7 +1000,9 @@ struct JSON {
                 break;
             }
             local key: string = p.parseString();
-            if (key == nullptr) { return; }
+            if (key == nullptr) {
+                return;
+            }
             if (p.expect(cast<char>(58)) == false) {
                 free(key);
                 return; # :
@@ -963,59 +1026,45 @@ struct JSON {
             }
             free(key);
 
-            p.skipWs();
-            if (p.peek() == cast<char>(44)) {
-                # ,
-                p.next();
-            } else {
-                if (p.peek() == cast<char>(125)) {
-                    # }
-                    p.next();
-                    break;
-                }
-                # EOF or unexpected
-                if (p.pos >= p.len) {
-                    p.fail("Unexpected EOF in struct");
-                    break;
-                }
-                # Missing comma or brace
-                p.fail("Expected , or }");
-                break;
+            if (!p.nextElement('}')) {
+                return;
             }
         }
     }
 
     frame parseArray(p: *JsonParser, ptr: ulong, info: *TypeInfo) {
-        if (p.expect(cast<char>(91)) == false) {
-            return; # [
+        if (!p.expect('[')) {
+            return;
         }
-        # Determine element count from size (Fixed Array)
         local elemSize: ulong = info.element_type.size;
+        if (elemSize == 0) {
+            p.fail("Unsupported zero-size array element");
+            return;
+        }
         local maxCount: ulong = info.size / elemSize;
         local count: ulong = 0;
-
+        p.skipWs();
+        if (p.peek() == ']') {
+            p.next();
+            return;
+        }
         loop {
-            p.skipWs();
-            if (p.peek() == cast<char>(93)) {
-                # ]
-                p.next();
-                break;
+            if (count >= maxCount) {
+                p.fail("Too many fixed-array elements");
+                return;
             }
-            if (count < maxCount) {
-                local elemAddr: ulong = ptr + (count * elemSize);
-                JSON.parseAny(p, elemAddr, info.element_type);
-                count = count + 1;
+            local start: int = p.pos;
+            JSON.parseAny(p, ptr + (count * elemSize), info.element_type);
+            if (p.has_error) {
+                return;
             }
-            p.skipWs();
-            if (p.peek() == cast<char>(44)) {
-                # ,
-                p.next();
-            } else {
-                if (p.peek() == cast<char>(93)) {
-                    # ]
-                    p.next();
-                    break;
-                }
+            if (p.pos <= start) {
+                p.fail("Array parser made no progress");
+                return;
+            }
+            count = count + 1;
+            if (!p.nextElement(']')) {
+                return;
             }
         }
     }
@@ -1045,10 +1094,7 @@ struct JSON {
         p.skipWs();
         if (p.peek() == cast<char>(110)) {
             # n (null)
-            p.next(); # n
-            p.next(); # u
-            p.next(); # l
-            p.next(); # l
+            p.parseNull();
             *cast<*ulong>(ptr) = 0;
             return;
         }
@@ -1074,38 +1120,29 @@ struct JSON {
         local startPos: int = p.pos;
         local count: int = 0;
 
-        # Pass 1: Count elements
-        loop {
-            p.skipWs();
-            if (p.peek() == cast<char>(93)) {
-                break; # ]
+        # Validate/count values before allocating. Every iteration consumes a
+        # value and separator or returns an error.
+        p.skipWs();
+        if (p.peek() != ']') {
+            loop {
+                local start: int = p.pos;
+                p.skipValue();
+                if (p.has_error) {
+                    return;
+                }
+                if (p.pos <= start) {
+                    p.fail("Array scanner made no progress");
+                    return;
+                }
+                count = count + 1;
+                if (!p.nextElement(']')) {
+                    break;
+                }
             }
-            # Simple skip (requires robust skipValue)
-            # For now we assume well-formed and just count commas+1
-            # This is naive but works for the prototype provided parsing doesn't crash
-            # Better: Implement skipValue()
-
-            count = count + 1;
-
-            # Use inner parser to skip value? NO, side effects.
-            # We need to scan until comma or bracket at current level.
-            # This is hard without full parser state.
-
-            # Workaround: Parsing everything twice is inefficient but easier.
-            # We assume we can implement dynamic growable array?
-            # Realloc implementation is safer for single pass.
-            # But we lack realloc in this context easily.
-
-            # Let's allocate a fixed buffer "big enough" or implement a simple linked list? No.
-            # Let's implement skipValue properly below.
-            p.skipValue();
-
-            p.skipWs();
-            if (p.peek() == cast<char>(44)) {
-                p.next(); # ,
+            if (p.has_error) {
+                return;
             }
         }
-
         # Pass 2: Reset and Parse
         p.pos = startPos;
 
@@ -1150,24 +1187,26 @@ struct JSON {
         *cast<*int>(ptr + capOffset) = count;
 
         local idx: int = 0;
+        if (count == 0) {
+            p.expect(']');
+            return;
+        }
         loop (idx < count) {
             p.skipWs();
-            if (p.peek() == cast<char>(93)) {
-                break;
-            }
+            local start: int = p.pos;
             local itemAddr: ulong = buffer + (cast<ulong>(idx) * elemType.size);
             JSON.parseAny(p, itemAddr, elemType);
-
-            p.skipWs();
-            if (p.peek() == cast<char>(44)) {
-                p.next();
+            if (p.has_error) {
+                return;
+            }
+            if (p.pos <= start) {
+                p.fail("Array parser made no progress");
+                return;
             }
             idx = idx + 1;
-        }
-
-        p.skipWs();
-        if (p.peek() == cast<char>(93)) {
-            p.next(); # ]
+            if (!p.nextElement(']')) {
+                return;
+            }
         }
     }
 }
