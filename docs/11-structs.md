@@ -182,7 +182,7 @@ p.y = 20;
 ### Heap Allocation
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 extern free(ptr: *void);
 
 struct Point {
@@ -204,7 +204,7 @@ free(cast<*void>(p));
 ### Array of Structs
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 extern free(ptr: *void);
 
 struct Point {
@@ -261,7 +261,7 @@ printf("Point: (%d, %d)\n", p.x, p.y);
 Use `*` to dereference a pointer before accessing members, or use `.` directly (automatic dereference):
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 
 struct Point {
     x: int,
@@ -400,7 +400,7 @@ p.print();  # Now at (15, 15)
 ### Methods with Pointers
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 extern free(ptr: *void);
 
 struct Point {
@@ -455,7 +455,7 @@ p.print();
 ### Destructor Pattern
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 extern free(ptr: *void);
 
 struct Buffer {
@@ -730,7 +730,7 @@ printf("(%d, %d)\n", p.x, p.y);  # Now (30, 20)
 ### Dynamic Allocation
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 extern free(ptr: *void);
 
 struct Point {
@@ -755,7 +755,7 @@ free(cast<*void>(p));
 ### Linked Structures
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 
 struct Node {
     data: int,
@@ -807,7 +807,7 @@ loop (i < 3) {
 ### Heap-Allocated Array
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 extern free(ptr: *void);
 
 struct Point {

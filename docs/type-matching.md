@@ -1,3 +1,6 @@
+> This companion guide overlaps the [current type-matching chapter](56-type-matching.md).
+> Use that chapter for the current narrowing and struct-pointer limitations.
+
 # Type Matching with `match<Type>`
 
 ## Overview
@@ -7,6 +10,7 @@ BPL provides the `match<Type>(value)` expression for runtime type checking. This
 When `match<Type>(value)` appears directly in an `if` condition and `value` is a simple identifier, the true branch narrows that identifier to the matched type. The narrowing is scoped to the branch.
 
 ```bpl
+import printf from "std/c.bpl";
 frame describe(animal: *Animal) ret string {
     if (match<Dog>(animal)) {
         return animal.breed;  # animal is *Dog here
@@ -23,6 +27,7 @@ frame describe(animal: *Animal) ret string {
 Use `match<EnumName.Variant>(value)` to check if an enum value is a specific variant:
 
 ```bpl
+import printf from "std/c.bpl";
 enum Option<T> {
     Some(T),
     None,
@@ -53,6 +58,7 @@ frame processOption(opt: Option<int>) ret int {
 Check variants before pattern matching for early returns:
 
 ```bpl
+import printf from "std/c.bpl";
 frame getValue(opt: Option<int>) ret int {
     # Quick check before expensive operations
     if (match<Option.None>(opt)) {
@@ -72,6 +78,7 @@ frame getValue(opt: Option<int>) ret int {
 Validate enum state before processing:
 
 ```bpl
+import printf from "std/c.bpl";
 frame handleResponse(resp: Response<Data, Error>) ret bool {
     if (match<Response.Err>(resp)) {
         printf("Error occurred\n");
@@ -88,6 +95,7 @@ frame handleResponse(resp: Response<Data, Error>) ret bool {
 Check multiple variants in sequence:
 
 ```bpl
+import printf from "std/c.bpl";
 frame classifyMessage(msg: Message) ret string {
     if (match<Message.Info>(msg)) {
         return "info";
@@ -107,6 +115,7 @@ frame classifyMessage(msg: Message) ret string {
 Combine type checks with boolean logic:
 
 ```bpl
+import printf from "std/c.bpl";
 frame isErrorOrWarning(msg: Message) ret bool {
     return match<Message.Error>(msg) || match<Message.Warning>(msg);
 }
@@ -121,6 +130,7 @@ frame isSome(opt: Option<int>) ret bool {
 `match<Type>` works seamlessly with pattern guards in match expressions:
 
 ```bpl
+import printf from "std/c.bpl";
 frame processValue(opt: Option<int>) ret int {
     # Use type matching for early check
     if (!match<Option.Some>(opt)) {
@@ -142,6 +152,7 @@ frame processValue(opt: Option<int>) ret int {
 `match<Type>` fully supports generic enums:
 
 ```bpl
+import printf from "std/c.bpl";
 enum Result<T, E> {
     Ok(T),
     Err(E),
@@ -200,6 +211,7 @@ This makes it suitable for hot code paths and performance-critical sections.
 Using `match<Type>`:
 
 ```bpl
+import printf from "std/c.bpl";
 if (match<Option.Some>(opt)) {
     # Still need another match to extract value
     local value: int = match (opt) {
@@ -212,6 +224,7 @@ if (match<Option.Some>(opt)) {
 Using pattern matching directly:
 
 ```bpl
+import printf from "std/c.bpl";
 match (opt) {
     Option<int>.Some(x) => {
         # Have x directly available
@@ -228,6 +241,7 @@ match (opt) {
 `match<Type>` supports checking generic parameters against concrete types. This works because BPL uses monomorphization for generics, meaning the compiler generates specialized versions of the function for each concrete type used.
 
 ```bpl
+import printf from "std/c.bpl";
 frame processGeneric<T>(value: T) ret int {
     if (match<int>(value)) {
         # value is an int

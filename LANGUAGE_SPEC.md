@@ -127,17 +127,19 @@ type IntArr = int[];
 
 ### Destructuring
 
-Tuple destructuring is supported.
+Tuple destructuring requires explicit types for named bindings; `_` discards an
+element. Tuple types have at least two elements.
 
 ```bpl
 local (a: int, b: bool) = getTuple();
-(a,b)=tuple # a and b must be already declared at this point
-(a,b) = (b,a)
+local (x: int, y: int) = (1, 2);
+(x, y) = (y, x); # Assignment requires already-declared compatible bindings
 ```
 
 ### Constants
 
-Use the `const` keyword to declare immutable variables.
+Use `const` to prohibit reassignment of a binding. A constant pointer binding
+does not by itself make its pointee immutable.
 
 ```bpl
 local const PI: float = 3.14159;

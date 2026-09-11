@@ -52,6 +52,8 @@ portable installation workflow.
 
 ## Verify compilation
 
+<!-- bpl-doc: run=installation -->
+
 ```bpl
 import printf from "std/c.bpl";
 

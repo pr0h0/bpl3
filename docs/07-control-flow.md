@@ -1078,6 +1078,7 @@ loop (true) {
 BPL supports standalone blocks `{ ... }` as statements. These are useful for creating new scopes to limit variable lifetime or to shadow variables.
 
 ```bpl
+import printf from "std/c.bpl";
 frame main() ret int {
     local x: int = 10;
 
@@ -1104,6 +1105,7 @@ The `defer` statement schedules a function call or block to be executed when the
 ### Basic Usage
 
 ```bpl
+import printf from "std/c.bpl";
 frame main() {
     defer printf("World\n");
     printf("Hello ");

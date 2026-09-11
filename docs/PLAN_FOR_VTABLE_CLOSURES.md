@@ -1,3 +1,6 @@
+> Historical design document. Examples may describe proposed or superseded syntax.
+> Consult the [current documentation index](README.md) for implemented behavior.
+
 # Plan for Refactoring VTables and Closures
 
 ## 1. Executive Summary

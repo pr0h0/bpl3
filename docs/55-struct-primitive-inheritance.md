@@ -8,7 +8,7 @@ BPL allows structs to inherit from primitive types, enabling you to create speci
 struct MyInt : int {
     # Methods can be added
     frame isEven(this: *MyInt) ret bool {
-        return (*cast<*int>(this) % 2) == 0;
+        return (cast<int>(*this) % 2) == 0;
     }
 }
 ```
@@ -18,6 +18,12 @@ struct MyInt : int {
 Instances of the struct can be used wherever the primitive type is expected (implicit conversion).
 
 ```bpl
+import printf from "std/c.bpl";
+
+struct MyInt : int {
+    frame isEven(this: *MyInt) ret bool { return (cast<int>(*this) % 2) == 0; }
+}
+
 frame printInt(x: int) {
     printf("%d\n", x);
 }
@@ -46,6 +52,8 @@ You can cast between the struct and the primitive type:
 
 ## Memory Layout
 
-The struct will contain the primitive value as its first field (conceptually `__base__`). If the struct has virtual methods (or inherits from a struct with virtual methods), it will also have a vtable pointer.
+The layout includes the primitive payload (conceptually `__base__`) and may
+include a vtable pointer before that payload. Use `cast<int>(value)` to unwrap
+a value; reinterpreting the object pointer as `*int` can read the vtable instead.
 
 If the struct has no other fields and no virtual methods, it has the same memory layout as the primitive type.

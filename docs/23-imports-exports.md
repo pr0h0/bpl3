@@ -91,6 +91,8 @@ export PI;
 
 **math.bpl**
 
+<!-- bpl-doc: fixture=math.bpl -->
+
 ```bpl
 frame add(a: int, b: int) ret int {
     return a + b;

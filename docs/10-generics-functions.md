@@ -45,7 +45,7 @@ frame identity<T>(val: T) ret T {
 
 # Get first element of a tuple
 frame first<T, U>(pair: (T, U)) ret T {
-    local (a, _) = pair;
+    local (a: T, _) = pair;
     return a;
 }
 ```
@@ -63,7 +63,7 @@ By convention, type parameters use single uppercase letters:
 
 ## Type Inference
 
-When calling a generic function, the compiler can often infer the type arguments from the provided values:
+Supply explicit type arguments at generic call sites. A result annotation such as `local x: int` does not make `identity(42)` equivalent to `identity<int>(42)`:
 
 ```bpl
 extern printf(fmt: string, ...);
@@ -73,10 +73,10 @@ frame identity<T>(val: T) ret T {
 }
 
 frame main() ret int {
-    # Type is inferred from the argument
-    local x: int = identity(42);        # T inferred as int
-    local y: float = identity(3.14);    # T inferred as float
-    local z: string = identity("hello"); # T inferred as string
+    # Supply the type arguments explicitly
+    local x: int = identity<int>(42);        # T is int
+    local y: float = identity<float>(3.14);    # T is float
+    local z: string = identity<string>("hello"); # T is string
 
     printf("x=%d, y=%f, z=%s\n", x, y, z);
     return 0;
@@ -85,7 +85,7 @@ frame main() ret int {
 
 ### Explicit Type Arguments
 
-You can also specify type arguments explicitly when needed:
+Specify pointer types in angle brackets too:
 
 ```bpl
 extern printf(fmt: string, ...);
@@ -96,12 +96,12 @@ frame identity<T>(val: T) ret T {
 
 frame main() ret int {
     # Explicit type specification
-    local x: int = identity<int>(42);
-    local y: float = identity<float>(3.14);
+    local _x: int = identity<int>(42);
+    local _y: float = identity<float>(3.14);
 
-    # Explicit types are required when inference is ambiguous
+    # Supply the pointer type explicitly
     local ptr: *int = nullptr;
-    local nullPtr: *int = identity<*int>(ptr);
+    local _nullPtr: *int = identity<*int>(ptr);
 
     return 0;
 }
@@ -141,7 +141,7 @@ frame main() ret int {
 
     # Create pairs with different types
     local pair1: (int, string) = makePair<int, string>(42, "answer");
-    local (num, str) = pair1;
+    local (num: int, str: string) = pair1;
     printf("Pair: (%d, %s)\n", num, str);
 
     # Map with lambda
@@ -163,7 +163,7 @@ spec Printable {
 }
 
 # Generic function constrained to Printable types
-frame printAll<T: Printable>(items: *T[], count: int) ret void {
+frame printAll<T: Printable>(items: *T, count: int) ret void {
     loop (local i: int = 0; i < count; i = i + 1) {
         items[i].print();
     }
@@ -237,7 +237,7 @@ frame main() ret int {
 
 ```bpl
 extern printf(fmt: string, ...);
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 extern free(ptr: *void);
 
 frame forEach<T>(arr: *T, len: int, action: Lambda<void>(T)) ret void {
@@ -280,12 +280,13 @@ Generics work seamlessly with pointer types:
 
 ```bpl
 extern printf(fmt: string, ...);
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 extern free(ptr: *void);
 
 # Allocate and initialize a value on the heap
 frame boxed<T>(value: T) ret *T {
     local ptr: *T = cast<*T>(malloc(sizeof(T)));
+    if (ptr == nullptr) { return nullptr; }
     *ptr = value;
     return ptr;
 }
@@ -301,6 +302,7 @@ frame derefOr<T>(ptr: *T, defaultVal: T) ret T {
 frame main() ret int {
     # Box an integer
     local boxedInt: *int = boxed<int>(42);
+    if (boxedInt == nullptr) { return 1; }
     printf("Boxed value: %d\n", *boxedInt);
     free(cast<*void>(boxedInt));
 
@@ -325,16 +327,13 @@ frame mapGet<K, V>(key: K) ret V { ... }
 frame mapGet<T, U>(key: T) ret U { ... }
 ```
 
-### 2. Prefer Type Inference When Unambiguous
+### 2. Supply Explicit Type Arguments
 
 ```bpl
-# Good: Type is clear from context
-local x: int = identity(42);
+# Generic calls name their type arguments
+local x: int = identity<int>(42);
 
-# Unnecessary: Explicit type when inference works
-local y: int = identity<int>(42);
-
-# Necessary: When type can't be inferred
+# This also applies to null pointer arguments
 local ptr: *int = identity<*int>(nullptr);
 ```
 
@@ -369,8 +368,8 @@ frame identity<T>(val: T) ret T {
     return val;
 }
 
-local x: int = identity(42);
-local y: float = identity(3.14);
+local x: int = identity<int>(42);
+local y: float = identity<float>(3.14);
 ```
 
 The compiler internally creates:

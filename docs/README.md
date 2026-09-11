@@ -119,6 +119,11 @@ Examples range from complete programs to fragments and deliberately invalid code
 Read the surrounding context before copying a block. The [examples directory](../examples/)
 contains programs with test configurations.
 
+## Documentation checks
+
+See [documentation validation](documentation-validation.md) for generated API
+checks, compiled examples, runtime output tests, and the limits of this coverage.
+
 ## Contributing
 
 Found an error or want to improve the documentation? Open a pull request with the docs change and the relevant verification output.

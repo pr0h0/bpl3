@@ -1,6 +1,6 @@
 # Inheritance
 
-BPL supports single inheritance for structs. All structs implicitly inherit from the root `Type` struct if no other parent is specified.
+BPL supports single inheritance for structs. Structs with methods implicitly inherit from the root `Type` when no parent is specified. Method-free structs without inheritance can retain a plain C-compatible layout.
 
 ## Syntax
 
@@ -30,12 +30,16 @@ The fields of the parent struct are included at the beginning of the child struc
 If a struct has virtual methods (methods that are overridden or inherited), it will contain a hidden **vtable pointer** as its first field (offset 0). The actual data fields start after this pointer.
 
 ```bpl
+import printf from "std/c.bpl";
+
 struct Animal {
-    name: string
+    name: string,
+    frame makeSound(this: *Animal) { printf("Animal sound\n"); }
 }
 
 struct Dog : Animal {
-    breed: string
+    breed: string,
+    frame makeSound(this: *Dog) { printf("Woof!\n"); }
 }
 
 frame main() ret int {
@@ -83,7 +87,7 @@ struct Dog : Animal {
 
 ## The `Type` Root Struct
 
-All user-defined structs implicitly inherit from `Type` (defined in `std/type.bpl`). This provides common methods like:
+Structs with methods and no explicit parent implicitly inherit from `Type` (defined in `std/type.bpl`). This provides common methods like:
 
 - `getTypeName() ret string`
 - `toString() ret string`
@@ -97,7 +101,7 @@ struct Point {
     y: int,
 
     frame toString(this: *Point) ret string {
-        return "Point(" + this.x.toString() + ", " + this.y.toString() + ")";
+        return "Point"; # A borrowed string literal; no allocation to release.
     }
 }
 ```

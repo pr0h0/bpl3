@@ -73,26 +73,28 @@ frame sum(...nums: int, count: int) ret int {
 
 frame main() {
     # Called naturally:
-    local s: int = sum(10, 20, 30, 40);
+    local _s: int = sum(10, 20, 30, 40);
     # Compiler transforms to: sum([10, 20, 30, 40], 4)
 }
 ```
 
 #### Heterogeneous Variadics (Mixed Types)
 
-To accept arguments of different types, use `...Any`. The compiler wraps each argument in an `Any` struct containing its type ID and data.
+To accept arguments of different types, use `...Any`. The compiler wraps each argument in an `Any` struct containing a reflection type pointer and data.
 
 ```bpl
+import printf from "std/c.bpl";
+import [Any] from "std/type.bpl";
 # 'args' is an array of Any structs
 frame printAll(...args: Any, count: int) {
     local i: int = 0;
     loop (i < count) {
         local arg: Any = args[i];
-        # Use match<Type> or type_id to inspect
+        # Use match<Type> or the type_info metadata to inspect
         if ((arg is int)) {
             printf("Int: %d\n", cast<int>(arg.data));
         } else if ((arg is string)) {
-            printf("String: %s\n", cast<string>(arg.data));
+            printf("String: %s\n", cast<*char>(arg.data));
         }
         i += 1;
     }

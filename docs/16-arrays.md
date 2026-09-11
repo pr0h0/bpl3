@@ -36,13 +36,13 @@ extern printf(fmt: string, ...);
 
 frame main() ret int {
     # Declare without initialization (contains garbage values!)
-    local uninitialized: int[3];
+    local _uninitialized: int[3];
 
     # Initialize with array literal
-    local initialized: int[5] = [1, 2, 3, 4, 5];
+    local _initialized: int[5] = [1, 2, 3, 4, 5];
 
-    # Partial initialization (remaining elements are zero)
-    local partial: int[5] = [1, 2];  # [1, 2, 0, 0, 0]
+    # Supply every element of a fixed-size array literal
+    local _partial: int[5] = [1, 2, 0, 0, 0];  # [1, 2, 0, 0, 0]
 
     # Zero-initialize manually
     local zeros: int[5];
@@ -69,10 +69,10 @@ frame main() ret int {
     local names: string[] = ["Alice", "Bob", "Charlie"];
 
     # Float array
-    local values: float[] = [1.0, 2.5, 3.7];
+    local _values: float[] = [1.0, 2.5, 3.7];
 
     # Nested arrays (2D)
-    local matrix: int[3][3] = [
+    local _matrix: int[3][3] = [
         [1, 2, 3],
         [4, 5, 6],
         [7, 8, 9]
@@ -180,7 +180,7 @@ frame main() ret int {
     local ptr: *int = &arr[0];
 
     # Arrays decay to pointers
-    local ptr2: *int = arr;  # Same as &arr[0]
+    local _ptr2: *int = arr;  # Same as &arr[0]
 
     # Access through pointer
     printf("*ptr = %d\n", *ptr);      # 10
@@ -398,15 +398,15 @@ frame main() ret int {
 
 ```bpl
 extern printf(fmt: string, ...);
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 extern free(ptr: *void);
-extern realloc(ptr: *void, size: int) ret *void;
+extern realloc(ptr: *void, size: long) ret *void;
 
 frame main() ret int {
     local size: int = 5;
 
     # Allocate array on heap
-    local arr: *int = cast<*int>(malloc(size * sizeof(int)));
+    local arr: *int = cast<*int>(malloc(cast<long>(size) * sizeof(int)));
 
     # Initialize
     loop (local i: int = 0; i < size; i = i + 1) {
@@ -420,7 +420,7 @@ frame main() ret int {
 
     # Resize (grow to 10 elements)
     local newSize: int = 10;
-    arr = cast<*int>(realloc(cast<*void>(arr), newSize * sizeof(int)));
+    arr = cast<*int>(realloc(cast<*void>(arr), cast<long>(newSize) * sizeof(int)));
 
     # Initialize new elements
     loop (local i: int = size; i < newSize; i = i + 1) {
@@ -587,11 +587,11 @@ loop (local i: int = 0; i < 10; i = i + 1) {
 ### 4. Free Dynamic Arrays
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 extern free(ptr: *void);
 
 frame main() ret int {
-    local arr: *int = cast<*int>(malloc(100 * sizeof(int)));
+    local arr: *int = cast<*int>(malloc(cast<long>(100) * sizeof(int)));
 
     # ... use arr ...
 

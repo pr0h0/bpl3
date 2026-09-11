@@ -40,7 +40,7 @@ BPL operators follow C-like precedence rules. Higher precedence operators bind m
 | 11          | `&&`                                                      | Logical AND                           | Left to right |
 | 12          | `\|\|`                                                    | Logical OR                            | Left to right |
 | 13          | `?:`                                                      | Ternary conditional                   | Right to left |
-| 14 (lowest) | `=` `+=` `-=` `*=` `/=` `%=` `&=` `^=` `\|=`  | Assignment                            | Right to left |
+| 14 (lowest) | `=` `+=` `-=` `*=` `/=` `%=` `&=` `^=` `\|=`              | Assignment                            | Right to left |
 
 ## Arithmetic Operators
 
@@ -389,7 +389,7 @@ if (p != nullptr) {
 ## Cast Operator
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 
 # Syntax: cast<TargetType>(expression)
 

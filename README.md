@@ -755,9 +755,12 @@ struct Platypus : Animal, Swimmer {
 
 Organize code across files:
 
+<!-- bpl-doc: fixture=math.bpl -->
+
 ```bpl
 # math.bpl
-export add, multiply;
+export add;
+export multiply;
 
 frame add(a: int, b: int) ret int {
     return a + b;
@@ -773,8 +776,8 @@ frame multiply(a: int, b: int) ret int {
 import add, multiply from "./math.bpl";
 
 frame main() ret int {
-    local sum: int = add(5, 3);
-    local product: int = multiply(5, 3);
+    local _sum: int = add(5, 3);
+    local _product: int = multiply(5, 3);
     return 0;
 }
 ```

@@ -32,7 +32,7 @@ local triple: (int, float, bool); # Three different types
 - **Fixed size**: The number of elements is determined at compile time
 - **Heterogeneous**: Elements can have different types
 - **Ordered**: Elements are accessed by position
-- **Value type**: Tuples are copied when assigned
+- **Value type**: Assignment copies the tuple fields; pointer fields still refer to the same storage
 
 ## Creating Tuples
 
@@ -45,15 +45,11 @@ extern printf(fmt: string, ...);
 
 frame main() ret int {
     # Simple tuples
-    local point: (int, int) = (10, 20);
-    local person: (string, int) = ("Alice", 30);
-    local data: (int, float, bool) = (42, 3.14, true);
+    local _point: (int, int) = (10, 20);
+    local _person: (string, int) = ("Alice", 30);
+    local _data: (int, float, bool) = (42, 3.14, true);
 
-    # Single-element tuples need a trailing comma
-    local single: (int,) = (42,);
-
-    # Empty tuple (unit type)
-    local unit: () = ();
+    # Tuple types require at least two elements.
 
     return 0;
 }
@@ -69,13 +65,13 @@ frame main() ret int {
     local y: int = 10;
 
     # Create tuple from variables
-    local point: (int, int) = (x, y);
+    local _point: (int, int) = (x, y);
 
     # Create tuple from expressions
-    local computed: (int, int) = (x + y, x * y);
+    local _computed: (int, int) = (x + y, x * y);
 
     # Nested function calls
-    local result: (int, int) = (abs(-5), max(3, 7));
+    local _result: (int, int) = (abs(-5), max(3, 7));
 
     return 0;
 }
@@ -93,7 +89,7 @@ frame max(a: int, b: int) ret int {
 
 ## Destructuring
 
-Destructuring allows you to extract tuple elements into separate variables:
+Destructuring extracts tuple elements into separate variables. Each named binding requires a type annotation; `_` discards an element. Tuple types require at least two elements; `(T,)` and `()` are not supported.
 
 ### Basic Destructuring
 
@@ -104,7 +100,7 @@ frame main() ret int {
     local point: (int, int) = (10, 20);
 
     # Destructure into variables
-    local (x, y) = point;
+    local (x: int, y: int) = point;
 
     printf("x = %d, y = %d\n", x, y);
 
@@ -127,11 +123,11 @@ frame main() ret int {
     local data: (int, string, float) = (42, "hello", 3.14);
 
     # Only extract the string
-    local (_, name, _) = data;
+    local (_, name: string, _) = data;
     printf("Name: %s\n", name);
 
     # Only extract first and last
-    local (first, _, last) = data;
+    local (first: int, _, last: float) = data;
     printf("First: %d, Last: %f\n", first, last);
 
     return 0;
@@ -147,7 +143,7 @@ frame main() ret int {
     local nested: ((int, int), string) = ((10, 20), "point");
 
     # Nested destructuring
-    local ((x, y), label) = nested;
+    local ((x: int, y: int), label: string) = nested;
     printf("%s: (%d, %d)\n", label, x, y);
 
     return 0;
@@ -193,11 +189,11 @@ frame minMax(arr: *int, len: int) ret (int, int) {
 
 frame main() ret int {
     # Using divMod
-    local (q, r) = divMod(17, 5);
+    local (q: int, r: int) = divMod(17, 5);
     printf("17 / 5 = %d remainder %d\n", q, r);
 
     # Using safeDivide
-    local (success, result) = safeDivide(10, 0);
+    local (success: bool, result: int) = safeDivide(10, 0);
     if (success) {
         printf("Result: %d\n", result);
     } else {
@@ -206,7 +202,7 @@ frame main() ret int {
 
     # Using minMax
     local arr: int[5] = [3, 1, 4, 1, 5];
-    local (min, max) = minMax(&arr[0], 5);
+    local (min: int, max: int) = minMax(&arr[0], 5);
     printf("Min: %d, Max: %d\n", min, max);
 
     return 0;
@@ -221,13 +217,13 @@ Functions can accept tuples as parameters:
 extern printf(fmt: string, ...);
 
 frame printPoint(p: (int, int)) ret void {
-    local (x, y) = p;
+    local (x: int, y: int) = p;
     printf("(%d, %d)\n", x, y);
 }
 
 frame addPoints(p1: (int, int), p2: (int, int)) ret (int, int) {
-    local (x1, y1) = p1;
-    local (x2, y2) = p2;
+    local (x1: int, y1: int) = p1;
+    local (x2: int, y2: int) = p2;
     return (x1 + x2, y1 + y2);
 }
 
@@ -284,7 +280,7 @@ frame main() ret int {
 extern printf(fmt: string, ...);
 
 frame classifyTriangle(sides: (int, int, int)) ret string {
-    local (a, b, c) = sides;
+    local (a: int, b: int, c: int) = sides;
 
     # Sort sides (simple bubble sort for 3 elements)
     if (a > b) { local t: int = a; a = b; b = t; }
@@ -331,14 +327,14 @@ type Line = (Point, Point);
 type Rect = ((int, int), (int, int));
 
 frame lineLength(line: Line) ret float {
-    local ((x1, y1), (x2, y2)) = line;
+    local ((x1: int, y1: int), (x2: int, y2: int)) = line;
     local dx: int = x2 - x1;
     local dy: int = y2 - y1;
     return sqrt(cast<float>(dx * dx + dy * dy));
 }
 
 frame rectArea(rect: Rect) ret int {
-    local ((x1, y1), (x2, y2)) = rect;
+    local ((x1: int, y1: int), (x2: int, y2: int)) = rect;
     local width: int = x2 - x1;
     local height: int = y2 - y1;
     if (width < 0) { width = -width; }
@@ -414,7 +410,7 @@ frame main() ret int {
     printf("Before: a=%d, b=%d\n", a, b);
 
     # Swap using tuple destructuring
-    local (newA, newB) = (b, a);
+    local (newA: int, newB: int) = (b, a);
     a = newA;
     b = newB;
 
@@ -437,14 +433,14 @@ type Cartesian = (float, float);
 type Polar = (float, float);  # (radius, angle)
 
 frame toPolar(cart: Cartesian) ret Polar {
-    local (x, y) = cart;
+    local (x: float, y: float) = cart;
     local r: float = sqrt(x * x + y * y);
     local theta: float = atan2(y, x);
     return (r, theta);
 }
 
 frame toCartesian(polar: Polar) ret Cartesian {
-    local (r, theta) = polar;
+    local (r: float, theta: float) = polar;
     return (r * cos(theta), r * sin(theta));
 }
 
@@ -452,7 +448,7 @@ frame main() ret int {
     local cart: Cartesian = (3.0, 4.0);
     local polar: Polar = toPolar(cart);
 
-    local (r, theta) = polar;
+    local (r: float, theta: float) = polar;
     printf("Polar: r=%f, theta=%f\n", r, theta);
 
     return 0;
@@ -475,7 +471,7 @@ frame parseInt(s: string) ret (bool, int, string) {
 }
 
 frame main() ret int {
-    local (ok, value, err) = parseInt("42");
+    local (ok: bool, value: int, err: string) = parseInt("42");
 
     if (ok) {
         printf("Parsed: %d\n", value);
@@ -523,7 +519,7 @@ struct Point {
 
 ```bpl
 # Good: Immediate destructuring
-local (x, y) = getPoint();
+local (x: int, y: int) = getPoint();
 printf("Point: (%d, %d)\n", x, y);
 
 # Less clear: Accessing without destructuring

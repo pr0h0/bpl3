@@ -129,6 +129,8 @@ The extension will be published to the VS Code Marketplace for one-click install
 
 **Member Access:**
 
+<!-- bpl-doc: fragment=unfinished-editor-completion -->
+
 ```bpl
 struct User {
     name: string,
@@ -147,6 +149,8 @@ frame main() ret int {
 
 **Import Completions:**
 
+<!-- bpl-doc: fragment=unfinished-editor-completion -->
+
 ```bpl
 import [Array] from "std/array.bpl";
 
@@ -158,6 +162,8 @@ frame main() ret int {
 ```
 
 **Enum Completions:**
+
+<!-- bpl-doc: fragment=unfinished-editor-completion -->
 
 ```bpl
 enum Status {
@@ -273,3 +279,6 @@ Open a pull request after running the extension tests listed above.
 ## License
 
 The VS Code extension is part of the BPL project and is licensed under the Apache-2.0 License.
+
+The completion examples intentionally end at an unfinished member access, such as
+`user.`. They illustrate editor state and are not complete compilable programs.

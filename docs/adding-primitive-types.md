@@ -78,15 +78,25 @@ switch (objectType.name) {
 
 ## Usage
 
-Once added, you can use the new type wrapper:
+Import the wrapper explicitly when calling its methods. In particular, the
+current implicit `Long` lookup can disagree with code generation about
+`toString`’s return type (BUG-281 in [the bug log](../BUGS.md)).
+The explicit import below selects the standard-library declaration:
 
 ```bpl
+import [IO], [String], [Long] from "std";
+
 frame main() {
     local x: long = 1234567890123;
-    IO.printString(x.toString());
+    local text: String = x.toString();
+    IO.printString(text);
+    text.destroy();
 
     # Casting also works
-    IO.printString(cast<long>(42).toString());
+    local other: long = cast<long>(42);
+    local otherText: String = other.toString();
+    IO.printString(otherText);
+    otherText.destroy();
 }
 ```
 

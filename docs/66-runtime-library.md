@@ -60,7 +60,7 @@ Triggered when array access exceeds array bounds.
 ```bpl
 frame main() {
     local arr: int[5] = [1, 2, 3, 4, 5];
-    local x: int = arr[10];  # Runtime error!
+    local _x: int = arr[10];  # Runtime error!
 }
 ```
 
@@ -89,7 +89,7 @@ frame divide(a: int, b: int) ret int {
 }
 
 frame main() {
-    local result: int = divide(10, 0);
+    local _result: int = divide(10, 0);
 }
 ```
 

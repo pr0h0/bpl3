@@ -82,6 +82,7 @@ printf("x = %d\n", x);  # Prints 20
 ### Complete Example
 
 ```bpl
+import printf from "std/c.bpl";
 frame main() ret int {
     local x: int = 42;
     local p: *int = &x;

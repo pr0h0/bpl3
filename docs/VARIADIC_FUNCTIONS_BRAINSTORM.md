@@ -1,3 +1,6 @@
+> Historical design document. Examples may describe proposed or superseded syntax.
+> Consult the [current documentation index](README.md) for implemented behavior.
+
 # Variadic Functions Brainstorming
 
 This document explores the design and implementation of two types of variadic functions in BPL: **Homogeneous** (same type) and **Heterogeneous** (mixed types).

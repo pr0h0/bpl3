@@ -496,6 +496,10 @@ Missing packages are shown inline:
 ## Using Packages
 
 Once installed, you can import the package by its name in your BPL code.
+The fragment below assumes a package named `my-package` exporting `MyStruct`
+and `myFunction`; it cannot compile without that package.
+
+<!-- bpl-doc: fragment=requires-installed-my-package -->
 
 ```bpl
 import [MyStruct], myFunction from "my-package";

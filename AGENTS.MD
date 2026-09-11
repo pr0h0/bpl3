@@ -72,13 +72,15 @@ frame identity<T>(val: T) ret T {
 ### Structs
 
 ```bpl
+import [Math] from "std/math.bpl";
+
 struct Point {
     x: int,
     y: int,
 
     # Method
     frame distance(this: *Point) ret float {
-        return sqrt(cast<float>(this.x * this.x + this.y * this.y));
+        return Math.sqrt(cast<float>(this.x * this.x + this.y * this.y));
     }
 }
 ```
@@ -187,7 +189,8 @@ try {
 import printf from "libc";
 import [Point] from "./geometry.bpl";
 import exec from "std/process.bpl";
-export frame myFunc() { ... }
+frame myFunc() { }
+export myFunc;
 ```
 
 ### Inline Assembly
@@ -318,6 +321,14 @@ Before marking a task as complete:
   ```
 - **Segfaults**: Check `malloc`/`free` usage in BPL code. Use `valgrind` on the generated binary if needed.
 - **Operator Precedence**: Check `Formatter.ts` and `Parser.ts` (or grammar) to ensure consistency.
+
+## Documentation checks
+
+Complete `frame main` examples in README and the numbered guides are compiled by
+`bun run docs:examples`. Mark companion modules, intentional errors, and editor
+fragments explicitly using the conventions in `docs/documentation-validation.md`.
+The generated declaration reference is checked by `tests/StdlibReference.test.ts`;
+regenerate it with `bun run docs:stdlib` after public library changes.
 
 ## 7. Bug Reporting
 

@@ -41,9 +41,11 @@ is a library enum, not a built-in ownership or nullability system.
 
 ## Example
 
+<!-- bpl-doc: run=introduction -->
+
 ```bpl
 import [Math] from "std/math.bpl";
-import [String] from "std/string.bpl";
+import [String] from "std";
 import printf from "std/c.bpl";
 
 struct Point {

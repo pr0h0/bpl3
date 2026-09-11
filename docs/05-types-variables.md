@@ -56,9 +56,9 @@ local ch: char = 65;  # ASCII 'A'
 
 ### Floating-Point Types
 
-| Type  | Size   | Precision          | LLVM Type | Alias    |
-| ----- | ------ | ------------------ | --------- | -------- |
-| `f32` | 32-bit | ~7 decimal digits  | `float`   | none     |
+| Type  | Size   | Precision          | LLVM Type | Alias             |
+| ----- | ------ | ------------------ | --------- | ----------------- |
+| `f32` | 32-bit | ~7 decimal digits  | `float`   | none              |
 | `f64` | 64-bit | ~15 decimal digits | `double`  | `float`, `double` |
 
 **Examples:**
@@ -67,7 +67,7 @@ local ch: char = 65;  # ASCII 'A'
 local pi: f32 = cast<f32>(3.14159); # explicit narrowing from a 64-bit literal
 local precise: double = 3.141592653589793;  # f64
 local small: float = 0.0001;
-local big: double = 1700000.0;   # Scientific notation like 1.7e6 is not supported yet
+local big: double = 1.7e6;       # Scientific notation is supported
 
 # Arithmetic
 local sum: float = 1.5 + 2.5;    # 4.0
@@ -369,6 +369,7 @@ local const MAX_RETRIES: int = 3;
 Declared at module scope:
 
 ```bpl
+import printf from "std/c.bpl";
 # Must use 'global' keyword
 global MAX_SIZE: int = 100;
 global PI: float = 3.14159;
@@ -460,16 +461,16 @@ See [Tuples](17-tuples.md) for more details.
 
 ### Constants
 
-BPL doesn't have a dedicated `const` keyword yet. Use naming conventions:
+Use `const` to prohibit reassignment of a binding. This does not make memory
+reachable through a pointer immutable.
 
 ```bpl
-# Convention: UPPER_CASE for constants
-global MAX_CONNECTIONS: int = 100;
-global DEFAULT_TIMEOUT: int = 30;
+global const MAX_CONNECTIONS: int = 100;
+global const DEFAULT_TIMEOUT: int = 30;
 
 frame main() ret int {
-    local BUFFER_SIZE: int = 1024;  # Conventionally constant
-    # ...
+    local const BUFFER_SIZE: int = 1024;
+    return BUFFER_SIZE - 1024;
 }
 ```
 
@@ -480,6 +481,7 @@ annotations specify the result type; `ret T` is not inferred. Generic calls can
 supply type arguments explicitly.
 
 <!-- executable-example: explicit-locals -->
+
 ```bpl
 extern printf(fmt: string, ...);
 
@@ -493,7 +495,9 @@ frame main() ret int {
 }
 ```
 
+<!-- bpl-doc: expect-error=BPL_VARIABLE_TYPE_ANNOTATION_MISSING -->
 <!-- rejected-example: missing-local-type -->
+
 ```bpl
 frame main() ret int {
     local x = 42;

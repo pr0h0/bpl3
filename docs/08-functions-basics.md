@@ -243,7 +243,7 @@ frame main() ret int {
 ### Pointers
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 
 frame allocateBuffer(size: int) ret *char {
     return cast<*char>(malloc(size));
@@ -268,7 +268,7 @@ frame findMax(arr: *int, size: int) ret *int {
 **Important:** Returning pointers to local variables is undefined behavior:
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 
 # DANGEROUS - Returns pointer to local variable
 frame getBadPointer() ret *int {
@@ -297,7 +297,7 @@ frame createArray() ret int[10] {
 # CORRECT - Return pointer
 
 ```bpl
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 
 frame createArray() ret *int {
     local arr: *int = cast<*int>(malloc(10 * cast<int>(sizeof(int))));
@@ -443,7 +443,7 @@ extern fopen(filename: string, mode: string) ret *void;
 extern fclose(file: *void) ret int;
 
 # <stdlib.h>
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 extern free(ptr: *void) ret void;
 extern exit(code: int) ret void;
 
@@ -698,7 +698,7 @@ frame getBadPointer() ret *int {
     return &x;  # Dangling pointer!
 }
 
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 
 # CORRECT
 frame getGoodPointer() ret *int {

@@ -85,11 +85,12 @@ BPL provides runtime type checking for struct pointers using the `is` and `as` o
 
 ### The `is` Operator
 
-The `is` operator checks if a struct pointer's runtime type matches or is derived from a target type.
+The `is` operator checks if a struct pointer's runtime type exactly matches a target type. A derived type does not currently match an intermediate ancestor.
 
 **Syntax:** `pointer is TargetType` or `pointer is *TargetType`
 
 ```bpl
+import printf from "std/c.bpl";
 struct Animal { name: string }
 struct Dog : Animal { breed: string }
 
@@ -106,7 +107,7 @@ frame main() ret int {
     local dog: Dog = Dog { name: "Buddy", breed: "Golden Retriever" };
     local animal: *Animal = &dog;  # Upcast to base type
 
-    processAnimal(animal);  # Prints: "It's a dog!"
+    processAnimal(animal);  # Prints: "Dog breed: Golden Retriever"
     return 0;
 }
 ```
@@ -152,6 +153,7 @@ The `as` operator attempts a safe downcast and returns `nullptr` if the types do
 **Syntax:** `pointer as *TargetType`
 
 ```bpl
+import printf from "std/c.bpl";
 struct Animal { name: string }
 struct Dog : Animal { breed: string }
 struct Cat : Animal { indoor: bool }

@@ -87,7 +87,7 @@ extern printf(fmt: string, ...);
 
 ```bpl
 frame main() ret int {
-    # ...
+    return 0;
 }
 ```
 
@@ -357,6 +357,8 @@ frame main() ret int {
 ```
 
 **utils.bpl:**
+
+<!-- bpl-doc: fixture=utils.bpl -->
 
 ```bpl
 export add;

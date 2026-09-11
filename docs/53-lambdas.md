@@ -279,7 +279,7 @@ frame main() ret int {
     };
 
     # Ignore all parameters
-    local alwaysZero: Lambda<int>(int, int, int) = |_, _, _| ret int {
+    local alwaysZero: Lambda<int>(int, int, int) = |_a: int, _b: int, _c: int| ret int {
         return 0;
     };
 
@@ -626,12 +626,12 @@ frame main() ret int {
     # Func can be assigned from a regular function
     local f: Func<int>(int, int) = add;
 
-    # Func can be converted to Lambda (wrapped)
-    local l: Lambda<int>(int, int) = cast<Lambda<int>(int, int)>(f);
+    # Explicit closure wrapper (workaround for casts of local Func values)
+    local l: Lambda<int>(int, int) = |a: int, b: int| ret int { return f(a, b); };
 
     # Lambda with captures CANNOT be converted to Func
     local x: int = 10;
-    local captured: Lambda<int>(int) = |n: int| ret int {
+    local _captured: Lambda<int>(int) = |n: int| ret int {
         return n + x;
     };
     # local bad: Func<int>(int) = captured;  # ERROR!
@@ -714,3 +714,11 @@ frame processItems(items: *Item, len: int, handler: Lambda<void>(Item)) ret void
 ---
 
 **Next:** Learn about [String Interpolation](54-string-interpolation.md) for embedding expressions in strings.
+
+## Current compiler limitations
+
+Use distinct names such as `_a`, `_b`, `_c` for ignored lambda parameters;
+repeated `_` names can produce invalid LLVM argument names (BUG-273).
+Casting a local `Func` value directly to `Lambda` can also produce invalid LLVM;
+use an explicit closure wrapper as above (BUG-275). See [the bug log](../BUGS.md).
+The pointer sizes in the comparison table assume a 64-bit target.

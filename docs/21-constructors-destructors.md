@@ -29,6 +29,7 @@ BPL supports implicit constructor calls for local variables. If a struct defines
 For regular structs, simply define a `new` method.
 
 ```bpl
+import printf from "std/c.bpl";
 struct Point {
     x: int,
     y: int,
@@ -41,45 +42,31 @@ struct Point {
 }
 
 frame main() {
-    local p: Point; # Implicitly calls p.new()
+    local _p: Point; # Implicitly calls p.new()
 }
 ```
 
 ### Generic Structs
 
-Implicit constructors also work with generic structs. This allows you to specialize initialization logic based on the type parameter.
-
-To check the type of a generic parameter `T` inside the constructor without potentially triggering recursive constructors or side effects (if `T` is a complex type), use the pattern of declaring a dummy variable initialized to 0.
+Implicit constructors also work with generic structs. This example initializes
+container bookkeeping without constructing an arbitrary value of `T`:
 
 ```bpl
-extern memcpy(dest: *void, src: *void, n: int) ret *void;
+import printf from "std/c.bpl";
 
-struct Point<T> {
-    x: T,
-    y: T,
-
-    frame new(this: *Point<T>) {
-        # Use a dummy variable initialized to 0 to check the type T.
-        # This avoids triggering any potential constructors for T itself.
-        local dummy: T = 0;
-
-        if ((dummy is int)) {
-            local val_x: int = 10;
-            local val_y: int = 20;
-            # Use memcpy for generic field assignment to bypass type checking limitations
-            memcpy(cast<*void>(&this.x), cast<*void>(&val_x), sizeof(int));
-            memcpy(cast<*void>(&this.y), cast<*void>(&val_y), sizeof(int));
-        } else if ((dummy is char)) {
-            local val_x: char = 'a';
-            local val_y: char = 'b';
-            memcpy(cast<*void>(&this.x), cast<*void>(&val_x), sizeof(char));
-            memcpy(cast<*void>(&this.y), cast<*void>(&val_y), sizeof(char));
-        }
+struct Buffer<T> {
+    data: *T,
+    length: int,
+    frame new(this: *Buffer<T>) {
+        this.data = nullptr;
+        this.length = 0;
     }
 }
 
-frame main() {
-    local p: Point<int>; # Implicitly calls Point<int>.new(&p)
+frame main() ret int {
+    local buffer: Buffer<int>;
+    printf("Length: %d\n", buffer.length);
+    return 0;
 }
 ```
 

@@ -2,6 +2,11 @@
 
 BPL allows embedding assembly code directly in your programs. This is useful for performance-critical sections, accessing platform-specific CPU features, or interfacing with hardware. BPL supports multiple assembly syntax flavors to accommodate different preferences and use cases.
 
+The Intel/AT&T examples on this page target x86-64. They are not portable to
+ARM or WebAssembly. CPU-specific instructions also require CPU support. Raw LLVM
+examples must match BPL type widths: `float` is LLVM `double`, while `f32` is LLVM
+`float`. Use named local variables for assembly outputs, then assign struct fields.
+
 ## Table of Contents
 
 - [Overview](#overview)
@@ -38,6 +43,8 @@ asm("flavor") {
 
 Intel syntax uses the familiar `op dest, src` ordering and is often preferred by developers coming from Windows/MASM backgrounds.
 
+<!-- bpl-doc: arch=x64 -->
+
 ```bpl
 extern printf(fmt: string, ...);
 
@@ -67,6 +74,8 @@ frame main() ret int {
 ### 2. AT&T Syntax (`att`)
 
 AT&T syntax uses `op src, dest` ordering and is common in Unix/Linux environments and GCC.
+
+<!-- bpl-doc: arch=x64 -->
 
 ```bpl
 extern printf(fmt: string, ...);
@@ -135,6 +144,8 @@ BPL provides powerful variable interpolation to bridge between BPL variables and
 
 ### Input Examples
 
+<!-- bpl-doc: arch=x64 -->
+
 ```bpl
 extern printf(fmt: string, ...);
 
@@ -161,6 +172,8 @@ frame main() ret int {
 
 ### Output Examples
 
+<!-- bpl-doc: arch=x64 -->
+
 ```bpl
 extern printf(fmt: string, ...);
 
@@ -180,6 +193,8 @@ frame main() ret int {
 ```
 
 ### Address Examples
+
+<!-- bpl-doc: arch=x64 -->
 
 ```bpl
 extern printf(fmt: string, ...);
@@ -213,13 +228,13 @@ frame main() ret int {
     local result: int = 0;
 
     asm("llvm") {
-        # (x) becomes the LLVM pointer to x (e.g., %x_ptr.0)
+        "; (x) becomes the LLVM pointer to x (e.g., %x_ptr.0)"
         "%val = load i32, i32* (x)"
 
-        # Perform operation
+        "; Perform operation"
         "%doubled = mul i32 %val, 2"
 
-        # (result) becomes the LLVM pointer to result
+        "; (result) becomes the LLVM pointer to result"
         "store i32 %doubled, i32* (result)"
     }
 
@@ -239,6 +254,8 @@ frame main() ret int {
 ### Explicit Constraints
 
 Specify exact registers or constraint types:
+
+<!-- bpl-doc: arch=x64 -->
 
 ```bpl
 extern printf(fmt: string, ...);
@@ -334,6 +351,8 @@ asm("intel") {
 
 ### Example 1: Bit Manipulation
 
+<!-- bpl-doc: arch=x64 -->
+
 ```bpl
 extern printf(fmt: string, ...);
 
@@ -362,6 +381,8 @@ frame main() ret int {
 
 ### Example 2: CPUID Instruction
 
+<!-- bpl-doc: arch=x64 -->
+
 ```bpl
 extern printf(fmt: string, ...);
 
@@ -373,19 +394,21 @@ struct CPUIDResult {
 }
 
 frame cpuid(leaf: int) ret CPUIDResult {
-    local result: CPUIDResult;
-
+    local outA: int = 0;
+    local outB: int = 0;
+    local outC: int = 0;
+    local outD: int = 0;
     asm("intel") {
-        mov eax, (leaf)
+        mov eax, (leaf: "{eax}")
+        xor ecx, ecx
         cpuid
-        mov (=result.eax), eax
-        mov (=result.ebx), ebx
-        mov (=result.ecx), ecx
-        mov (=result.edx), edx
-        [ "eax", "ebx", "ecx", "edx" ]
+        mov (=outA: "={eax}"), eax
+        mov (=outB: "={ebx}"), ebx
+        mov (=outC: "={ecx}"), ecx
+        mov (=outD: "={edx}"), edx
+        [ "memory", "cc" ]
     }
-
-    return result;
+    return CPUIDResult { eax: outA, ebx: outB, ecx: outC, edx: outD };
 }
 
 frame main() ret int {
@@ -421,6 +444,8 @@ frame loadAcquire(ptr: *int) ret int {
 
 ### Example 4: Atomic Increment
 
+<!-- bpl-doc: arch=x64 -->
+
 ```bpl
 extern printf(fmt: string, ...);
 
@@ -448,10 +473,12 @@ frame main() ret int {
 
 ### Example 5: SIMD Operations (SSE)
 
+<!-- bpl-doc: arch=x64 run=simd-f32 -->
+
 ```bpl
 extern printf(fmt: string, ...);
 
-frame addFloat4(a: *float, b: *float, result: *float) ret void {
+frame addFloat4(a: *f32, b: *f32, result: *f32) ret void {
     asm("intel") {
         mov rax, (a)
         mov rbx, (b)
@@ -467,9 +494,9 @@ frame addFloat4(a: *float, b: *float, result: *float) ret void {
 }
 
 frame main() ret int {
-    local a: float[4] = [1.0, 2.0, 3.0, 4.0];
-    local b: float[4] = [5.0, 6.0, 7.0, 8.0];
-    local result: float[4];
+    local a: f32[4] = [cast<f32>(1.0), cast<f32>(2.0), cast<f32>(3.0), cast<f32>(4.0)];
+    local b: f32[4] = [cast<f32>(5.0), cast<f32>(6.0), cast<f32>(7.0), cast<f32>(8.0)];
+    local result: f32[4];
 
     addFloat4(&a[0], &b[0], &result[0]);
 
@@ -494,15 +521,15 @@ frame llvmExample() ret int {
     local result: int = 0;
 
     asm("llvm") {
-        # Load values
+        "; Load values"
         "%a_val = load i32, i32* (a)"
         "%b_val = load i32, i32* (b)"
 
-        # Arithmetic
+        "; Arithmetic"
         "%sum = add i32 %a_val, %b_val"
         "%product = mul i32 %sum, 2"
 
-        # Store result
+        "; Store result"
         "store i32 %product, i32* (result)"
     }
 
@@ -512,6 +539,8 @@ frame llvmExample() ret int {
 
 ### LLVM Intrinsics
 
+<!-- bpl-doc: run=llvm-sqrt -->
+
 ```bpl
 extern printf(fmt: string, ...);
 
@@ -520,9 +549,9 @@ frame main() ret int {
     local result: float = 0.0;
 
     asm("llvm") {
-        "%x_val = load float, float* (x)"
-        "%sqrt = call float @llvm.sqrt.f32(float %x_val)"
-        "store float %sqrt, float* (result)"
+        "%x_val = load double, double* (x)"
+        "%sqrt = call double @llvm.sqrt.f64(double %x_val)"
+        "store double %sqrt, double* (result)"
     }
 
     printf("sqrt(2.0) = %f\n", result);
@@ -537,8 +566,8 @@ frame manualAsm() ret int {
     local result: int = 0;
 
     asm("llvm") {
-        # Manual call asm for full control
-        # Note: $$ for immediate values, $0 for operands
+        "; Manual call asm for full control"
+        "; Note: $$ for immediate values, $0 for operands"
         "%val = call i64 asm sideeffect \"movq $$42, %rax; addq $$8, %rax; movq %rax, $0\", \"=r,~{rax},~{cc}\"()"
         "%truncated = trunc i64 %val to i32"
         "store i32 %truncated, i32* (result)"

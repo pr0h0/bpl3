@@ -165,8 +165,9 @@ frame main() ret int {
     local items: int = 3;
     local price: float = 9.99;
 
-    # Nested expressions
-    local receipt: String = `Total: $${cast<float>(items) * price} for ${items} items`;
+    local total: float = cast<float>(items) * price;
+    # Bind the computed value before interpolation
+    local receipt: String = `Total: $${total} for ${items} items`;
     printf("%s\n", receipt.toString());
 
     receipt.destroy();
@@ -343,8 +344,9 @@ frame main() ret int {
 import [String] from "std";
 extern printf(fmt: string, ...);
 
-frame log(level: string, message: String) ret void {
-    local output: String = `[${level}] ${message.toString()}`;
+frame logMessage(level: string, message: String) ret void {
+    local messageText: string = message.toString();
+    local output: String = `[${level}] ${messageText}`;
     printf("%s\n", output.toString());
     output.destroy();
 }
@@ -353,7 +355,9 @@ frame main() ret int {
     local userId: int = 123;
     local action: string = "login";
 
-    log("INFO", `User ${userId} performed ${action}`);
+    local message: String = `User ${userId} performed ${action}`;
+    logMessage("INFO", message);
+    message.destroy();
     # [INFO] User 123 performed login
 
     return 0;
@@ -413,7 +417,7 @@ frame main() ret int {
 }
 ```
 
-### SQL Queries (Be Careful!)
+### SQL Query Text
 
 ```bpl
 import [String] from "std";
@@ -478,20 +482,20 @@ frame main() ret int {
 For building large strings, consider using a builder pattern or preallocating:
 
 ```bpl
-import [String, StringBuilder] from "std";
+import [String], [StringBuilder] from "std";
 extern printf(fmt: string, ...);
 
 frame main() ret int {
-    local sb: StringBuilder = StringBuilder.new();
+    local sb: StringBuilder = StringBuilder.newDefault();
 
     loop (local i: int = 0; i < 10; i = i + 1) {
-        sb.append(`Line ${i}\n`);
+        local line: String = `Line ${i}\n`;
+        sb.append(line.toString());
+        line.destroy();
     }
 
-    local result: String = sb.build();
-    printf("%s", result.toString());
-
-    result.destroy();
+    local result: string = sb.toString();
+    printf("%s", result); # borrowed until the builder changes or is destroyed
     sb.destroy();
     return 0;
 }
@@ -505,6 +509,7 @@ frame main() ret int {
 import [String] from "std";
 
 frame main() ret int {
+    local name: string = "World";
     local s: String = `Hello ${name}`;
     # ... use s ...
     s.destroy();  # Don't forget!
@@ -548,11 +553,18 @@ local msg: String = `Total: $${total}`;
 local userInput: string = getUserInput();
 local query: String = `SELECT * FROM users WHERE name = '${userInput}'`;  # SQL injection!
 
-# SAFE: Use parameterized queries or proper escaping
-local escaped: string = escapeSQL(userInput);
-local safeQuery: String = `SELECT * FROM users WHERE name = '${escaped}'`;
 ```
 
 ---
 
+Use your database driver’s parameter binding for data values. Interpolation is
+text construction, not SQL escaping or parameter binding; the standard library
+does not currently provide a database driver.
+
 **Next:** Learn about [Reflection and JSON](55-reflection-and-json.md) for runtime type information.
+
+## Current expression limitations
+
+Some computed floating-point expressions and direct `String.toString()` calls
+inside `${...}` can fail compilation. Bind the expression to a typed local first
+and interpolate that local (see BUG-274 in [the bug log](../BUGS.md)).

@@ -70,16 +70,16 @@ frame main() {
     local x: int = 0b10110; # 22
 
     # Population Count
-    local bits: int = x.popCount();
+    local _bits: int = x.popCount();
     # Result: 3 (10110 has three 1s)
 
     # Leading Zeros (for 32-bit int)
-    local lz: int = x.leadingZeros();
+    local _lz: int = x.leadingZeros();
     # Result: 27 (32 total bits - 5 used bits)
 
     # Byte Swap (Endianness)
     local val: uint = 0x12345678;
-    local swapped: uint = val.byteSwap();
+    local _swapped: uint = val.byteSwap();
     # Result: 0x78563412
 }
 ```

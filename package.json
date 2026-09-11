@@ -68,7 +68,8 @@
     "playground:host": "BPL_PLAYGROUND_RUNNER=host bash playground/start.sh",
     "playground:build": "docker build -f playground/Dockerfile -t bpl-playground-worker:local .",
     "test:playground-docker": "BPL_TEST_DOCKER=1 bun test tests/PlaygroundDocker.test.ts",
-    "file-sizes": "wc -l compiler/**/*.ts compiler/**/**/*.ts index.ts vscode-ext/src/*.ts 2>/dev/null | sort -n | tail -20"
+    "file-sizes": "wc -l compiler/**/*.ts compiler/**/**/*.ts index.ts vscode-ext/src/*.ts 2>/dev/null | sort -n | tail -20",
+    "docs:examples": "bun test tests/DocumentationExamples.test.ts"
   },
   "repository": {
     "type": "git",

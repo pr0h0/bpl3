@@ -268,7 +268,7 @@ struct Point {
 frame main() ret int {
     try {
         local p: *Point = nullptr;
-        local v: int = p.x;  # Throws NullAccessError
+        local _v: int = p.x;  # Throws NullAccessError
     } catch (e: NullAccessError) {
         printf("Nullptr access detected!\n");
         printf("  Message: %s\n", e.message);
@@ -297,7 +297,7 @@ frame main() ret int {
     local arr: int[5] = [1, 2, 3, 4, 5];
 
     try {
-        local val: int = arr[10];  # Out of bounds
+        local _val: int = arr[10];  # Out of bounds
     } catch (e: string) {
         printf("Bounds error: %s\n", e);
     }
@@ -449,7 +449,7 @@ The `defer` statement ensures cleanup code runs even when exceptions occur:
 
 ```bpl
 extern printf(fmt: string, ...);
-extern malloc(size: int) ret *void;
+import malloc from "std/c.bpl";
 extern free(ptr: *void);
 
 frame processFile() ret void {
