@@ -3606,3 +3606,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-12)**: fromString fills as many byte pairs as available and returns a partial UUID; after 16 bytes it ignores remaining input. It also skips misplaced hyphens.
 
 **Resolution**: Validate the complete dashed/compact format before decoding. Add tryFromString with unchanged-output failure semantics, and make fromString return nil for invalid input. O0/O3 LLVM-verified tests cover invalid lengths, misplaced separators, extra input, mixed case, and valid nil UUIDs.
+
+### BUG-295: Primitive reflection reports incorrect alias and f32 sizes
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-12)**: Reflection uses an approximate type-size helper whose default is eight bytes; aliases such as uchar/short/ushort and f32 can therefore receive incorrect sizes. Reflective array parsing and serialization depend on these sizes for element spacing.
+
+**Resolution**: Read scalar bit widths from the shared primitive type contract, rounding boolean storage to one byte. O0/O3 LLVM-verified tests compare reflection against sizeof for canonical scalar types and aliases.

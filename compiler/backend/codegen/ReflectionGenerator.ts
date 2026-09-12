@@ -199,7 +199,10 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     // Name string
     const nameStrVar = this.getOrCreateStringLiteral(type.name);
     // Size
-    const size = this.getTypeSizeInBits(type) / 8;
+    const primitive = getPrimitiveType(type.name);
+    const size = primitive
+      ? Math.ceil(primitive.bits / 8)
+      : this.getTypeSizeInBits(type) / 8;
 
     // Emit global
     // %struct.TypeInfo = type { i8*, i64, i8, i32, %struct.FieldInfo*, %struct.TypeInfo* }
