@@ -647,22 +647,44 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         return result;
     }
 
-    # Replace all occurrences of 'old' with 'new'
+    # Replace non-overlapping matches in the original input; never rescan replacements.
     frame replaceAll(this: *String, old: string, newStr: string) ret String {
-        local current: String = this.clone();
+        if ((this.data == nullptr) || (old == nullptr)) { return this.clone(); }
         local oldLen: int = strlen(old);
-        if (oldLen == 0) 
-            return current;
-        loop {
-            local replaced: String = current.replace(old, newStr);
-            if (replaced.__eq__(&current)) {
-                replaced.destroy();
-                break;
-            }
-            current.destroy();
-            current = replaced;
+        if (oldLen == 0) { return this.clone(); }
+        local newLen: int = 0;
+        if (newStr != nullptr) { newLen = strlen(newStr); }
+        local count: int = 0;
+        local i: int = 0;
+        loop (i <= this.length - oldLen) {
+            local j: int = 0;
+            loop ((j < oldLen) && (this.data[i + j] == old[j])) { j = j + 1; }
+            if (j == oldLen) { count = count + 1; i = i + oldLen; }
+            else { i = i + 1; }
         }
-        return current;
+        if (count == 0) { return this.clone(); }
+        local size: long = cast<long>(this.length) + cast<long>(count) * (cast<long>(newLen) - cast<long>(oldLen));
+        # String lengths are signed int; leave room for the terminator.
+        if (size > 2147483646) { throw "String.replaceAll result too large"; }
+        local buf: string = malloc(size + 1);
+        if (buf == nullptr) { throw "String.replaceAll allocation failed"; }
+        local out: int = 0;
+        i = 0;
+        loop (i < this.length) {
+            local j: int = 0;
+            if (i <= this.length - oldLen) {
+                loop ((j < oldLen) && (this.data[i + j] == old[j])) { j = j + 1; }
+            }
+            if (j == oldLen) {
+                loop (local k: int = 0; k < newLen; k = k + 1) { buf[out] = newStr[k]; out = out + 1; }
+                i = i + oldLen;
+            } else { buf[out] = this.data[i]; out = out + 1; i = i + 1; }
+        }
+        buf[out] = cast<char>(0);
+        local result: String;
+        result.data = buf;
+        result.length = out;
+        return result;
     }
 
     # Find index of substring

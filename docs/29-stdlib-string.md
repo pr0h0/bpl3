@@ -23,39 +23,40 @@ UTF-8 module when you need codepoint operations.
 
 ## Available methods
 
-| Method                                                      | Behavior                                            |
-| ----------------------------------------------------------- | --------------------------------------------------- |
-| `String.new(text: string) ret String`                       | Allocate a copy of a C string                       |
-| `String.fromInt(val: long) ret String`                      | Format an integer                                   |
-| `String.fromAddress(addr: long) ret String`                 | Format an address                                   |
-| `s.destroy()`                                               | Free owned storage                                  |
-| `s.clone() ret String`                                      | Copy owned bytes                                    |
-| `s.assign(text: string)`                                    | Replace content from an independent C string        |
-| `s.isEmpty() ret bool`                                      | Test length                                         |
-| `s.toString() ret string`, `s.cstr() ret string`            | Borrow underlying bytes                             |
-| `s.get(index: int) ret char`                                | Byte at index; zero when out of range               |
-| `s.substring(start: int, len: int) ret String`              | Copy up to `len` bytes; second argument is a length |
-| `s.includes(text: string) ret bool`                         | Substring containment                               |
-| `s.indexOf(text: string) ret int`                           | First match, or -1                                  |
-| `s.lastIndexOf(text: string) ret int`                       | Last match, or -1                                   |
-| `s.count(text: string) ret int`                             | Count non-overlapping matches                       |
-| `s.startsWith(text: string) ret bool`                       | Prefix test                                         |
-| `s.endsWith(text: string) ret bool`                         | Suffix test                                         |
-| `s.trim()`, `s.trimLeft()`, `s.trimRight()`                 | Return newly allocated trimmed Strings              |
-| `s.toUpper()`, `s.toLower()`                                | Return newly allocated ASCII case conversions       |
-| `s.reverse() ret String`                                    | Reverse bytes                                       |
-| `s.repeat(count: int) ret String`                           | Repeat bytes in a new allocation                    |
-| `s.padLeft(width: int, pad: char) ret String`               | Pad to a byte width                                 |
-| `s.padRight(width: int, pad: char) ret String`              | Pad to a byte width                                 |
-| `s.replace(old: string, replacement: string) ret String`    | Replace the first match                             |
-| `s.replaceAll(old: string, replacement: string) ret String` | Repeatedly replace the first match until unchanged  |
-| `s.split(delimiter: char) ret Array<String>`                | Split on one byte; each element owns storage        |
-| `s.isDigits()`, `s.isAlpha()`, `s.isAlphanumeric()`         | ASCII classification                                |
+| Method                                                      | Behavior                                              |
+| ----------------------------------------------------------- | ----------------------------------------------------- |
+| `String.new(text: string) ret String`                       | Allocate a copy of a C string                         |
+| `String.fromInt(val: long) ret String`                      | Format an integer                                     |
+| `String.fromAddress(addr: long) ret String`                 | Format an address                                     |
+| `s.destroy()`                                               | Free owned storage                                    |
+| `s.clone() ret String`                                      | Copy owned bytes                                      |
+| `s.assign(text: string)`                                    | Replace content from an independent C string          |
+| `s.isEmpty() ret bool`                                      | Test length                                           |
+| `s.toString() ret string`, `s.cstr() ret string`            | Borrow underlying bytes                               |
+| `s.get(index: int) ret char`                                | Byte at index; zero when out of range                 |
+| `s.substring(start: int, len: int) ret String`              | Copy up to `len` bytes; second argument is a length   |
+| `s.includes(text: string) ret bool`                         | Substring containment                                 |
+| `s.indexOf(text: string) ret int`                           | First match, or -1                                    |
+| `s.lastIndexOf(text: string) ret int`                       | Last match, or -1                                     |
+| `s.count(text: string) ret int`                             | Count non-overlapping matches                         |
+| `s.startsWith(text: string) ret bool`                       | Prefix test                                           |
+| `s.endsWith(text: string) ret bool`                         | Suffix test                                           |
+| `s.trim()`, `s.trimLeft()`, `s.trimRight()`                 | Return newly allocated trimmed Strings                |
+| `s.toUpper()`, `s.toLower()`                                | Return newly allocated ASCII case conversions         |
+| `s.reverse() ret String`                                    | Reverse bytes                                         |
+| `s.repeat(count: int) ret String`                           | Repeat bytes in a new allocation                      |
+| `s.padLeft(width: int, pad: char) ret String`               | Pad to a byte width                                   |
+| `s.padRight(width: int, pad: char) ret String`              | Pad to a byte width                                   |
+| `s.replace(old: string, replacement: string) ret String`    | Replace the first match                               |
+| `s.replaceAll(old: string, replacement: string) ret String` | Replace non-overlapping matches in the original input |
+| `s.split(delimiter: char) ret Array<String>`                | Split on one byte; each element owns storage          |
+| `s.isDigits()`, `s.isAlpha()`, `s.isAlphanumeric()`         | ASCII classification                                  |
 
-`replaceAll` currently rescans replacement text. Avoid replacements that create
-further matches, such as replacing `"a"` with `"aa"`, which can fail to terminate.
-Keep substring lengths and allocation sizes within the supported signed-int
-range; these helpers do not provide comprehensive allocation/overflow checking.
+`replaceAll` returns an owned result and leaves the original unchanged. Replacement
+text is never searched again: replacing `"a"` with `"aa"` terminates. Matches are
+non-overlapping and processed left to right. An empty or null search returns a
+clone; a null replacement deletes matches. Results too large for String's length
+or failed allocation throw a string error.
 
 There are no `String.join`, `charAt`, `replaceFirst`, `fromFloat`, `fromBool`,
 `toInt`, `toFloat`, or `toBool` methods in this implementation. The

@@ -3319,13 +3319,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-268: String.replaceAll can repeatedly expand replacement text
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-11)**: The implementation repeatedly replaces the first match and rescans the resulting string. Replacing "a" with "aa" continually creates another match and does not terminate normally.
 
 **Documentation/workaround**: The String guide documents this behavior. Avoid replacements that introduce further matches; a future fix should scan the original input once and append to a builder.
+
+**Resolution (2026-09-12)**: Count and copy non-overlapping matches from the original input, without rescanning replacement text. Preserve clone/null semantics and reject oversized results. O0/O3 regressions cover expansion, deletion, overlaps, identical replacements, and input ownership.
 
 ### BUG-269: UUID.v4 repeats identifiers generated within one second
 
@@ -3522,3 +3524,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-12)**: The primitive int parser accumulated unchecked int arithmetic and accepted any run of digits, so values outside the signed 32-bit range could wrap and invalid JSON spellings such as 01 were accepted.
 
 **Resolution**: Validate JSON number syntax, accumulate with signed range checks before each arithmetic step, and reject fractional/exponent spellings for integer destinations. Added checked long/i64 parsing and finite binary64 parsing for float/double/f64. O0/O3 tests cover exact boundaries, adjacent overflows, malformed syntax, subnormals, signed zero, large exponents, aliases, fields, and arrays.
+
+### BUG-288: Astral Unicode string literals produce invalid LLVM constants
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-12)**: A literal containing an emoji is sized as four UTF-8 bytes but escapeString encodes each UTF-16 surrogate separately, emitting two replacement characters (six bytes). Clang rejects the constant type mismatch. BMP UTF-8 text is unaffected.
+
+**Workaround**: Construct astral UTF-8 text with explicit byte arrays until whole-string UTF-8 encoding is used during LLVM escaping.
