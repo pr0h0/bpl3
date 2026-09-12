@@ -18,6 +18,7 @@ extern malloc(size: long) ret string;
 extern free(ptr: string) ret void;
 extern fgets(str: string, n: int, stream: *void) ret string;
 extern mkdir(path: string, mode: int) ret int;
+extern __bpl_mkdirp(path: string) ret int;
 extern opendir(name: string) ret *void;
 extern readdir(dir: *void) ret *void;
 extern closedir(dir: *void) ret int;
@@ -98,25 +99,9 @@ struct FS {
         return mkdir(path, 511) == 0;
     }
 
+    # Create missing path components, preserving roots and checking existing directories.
     frame mkdirp(path: string) ret bool {
-        local s: String = String.new(path);
-        local parts: Array<String> = s.split(cast<char>(47)); # /
-        local current: String = String.new("");
-
-        local i: int = 0;
-        loop (i < parts.length) {
-            local part: String = parts.get(i);
-            if (part.length > 0) {
-                if (current.length > 0) {
-                    current = current + "/";
-                }
-                current = current + part;
-                # Ignore error if exists
-                mkdir(current.data, 511);
-            }
-            i = i + 1;
-        }
-        return true;
+        return __bpl_mkdirp(path) == 0;
     }
 
     frame listDir(path: string) ret Array<String> {

@@ -15,7 +15,7 @@ import [FS], [File] from "std/fs.bpl";
 | `FS.writeFile(path: string, data: string) ret bool` | Opens with `"w"`, writes NUL-terminated text, then closes                   |
 | `FS.readFile(path: string) ret String`              | Reads a seekable file into an owned String; open failure throws `IOError`   |
 | `FS.mkdir(path: string) ret bool`                   | Calls POSIX `mkdir(path, 511)`; false includes already-existing directories |
-| `FS.mkdirp(path: string) ret bool`                  | Experimental relative-path helper; ignores errors and always returns true   |
+| `FS.mkdirp(path: string) ret bool`                  | Creates missing directories; checks errors and existing directory types     |
 | `FS.listDir(path: string) ret Array<String>`        | Owned entry names excluding `.` and `..`; empty array on open failure       |
 
 There are no `FS.appendFile`, `deleteFile`, `copyFile`, `isDir`, or `fileSize`
@@ -25,8 +25,15 @@ appropriate native APIs or additional application code.
 `writeFile` reports whether opening succeeded; it does not check short writes
 or close errors. `readFile` does not validate all seek, size, allocation, or read
 results. It uses an int-sized file length and is not a large-file or binary-data
-API: embedded NUL truncates the resulting String. `mkdirp` does not preserve a
-leading root slash and must not be used as a reliable absolute-path creator.
+API: embedded NUL truncates the resulting String.
+
+`mkdirp` preserves absolute roots and accepts relative paths, repeated separators,
+and trailing slashes. It succeeds for existing directories (including symlinks to
+directories), but rejects file collisions, null/empty paths, and native failures.
+It creates with mode 0777 subject to the process umask. Components created before
+a later failure remain in place. It follows normal filesystem path resolution,
+including symlinks and `..`; it does not confine paths to a directory. This helper
+uses the native Linux/macOS runtime; rebuild runtime support after updating it.
 
 `listDir` assumes the Linux x86-64 `dirent` name offset. Do not assume this helper
 works on macOS or Windows. Entry order is unspecified. Destroy each returned

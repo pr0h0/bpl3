@@ -18,6 +18,8 @@
 #include <string.h>
 #include <signal.h>
 #include <stdint.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 #ifdef __linux__
 #include <execinfo.h>
@@ -374,4 +376,32 @@ int32_t __bpl_read_line(char *buffer, int32_t capacity, int32_t *length) {
             truncated = 1;
         }
     }
+}
+
+/* Accept existing directories, including directory symlinks, but not files. */
+static int __bpl_ensure_directory(const char *path) {
+    if (mkdir(path, 0777) == 0) return 0;
+    if (errno != EEXIST) return -1;
+    struct stat info;
+    return stat(path, &info) == 0 && S_ISDIR(info.st_mode) ? 0 : -1;
+}
+
+int32_t __bpl_mkdirp(const char *path) {
+    if (!path || !*path) return -1;
+    size_t size = strlen(path) + 1;
+    char *copy = (char *)malloc(size);
+    if (!copy) return -1;
+    memcpy(copy, path, size);
+    int result = 0;
+    for (size_t i = 1; i < size - 1; ++i) {
+        if (copy[i] == '/' && copy[i - 1] != '/') {
+            copy[i] = '\0';
+            result = __bpl_ensure_directory(copy);
+            copy[i] = '/';
+            if (result != 0) break;
+        }
+    }
+    if (result == 0) result = __bpl_ensure_directory(copy);
+    free(copy);
+    return result;
 }

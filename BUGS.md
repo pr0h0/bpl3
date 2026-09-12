@@ -3357,13 +3357,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-271: FS.mkdirp loses absolute roots and ignores creation failures
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-11)**: Path splitting discards the leading slash, reconstruction starts from an empty relative path, all mkdir return values are discarded, and the helper unconditionally returns true.
 
 **Documentation/workaround**: The filesystem guide marks it experimental and unsuitable for reliable absolute-path creation. It also describes the limited error checks and Linux x86-64 directory-layout assumption of the surrounding FS helpers.
+
+**Resolution (2026-09-12)**: Preserve the original path while creating each component with native mkdir/stat checks. Existing non-directories and native errors return false; temporary storage is always freed. O0/O3 tests cover absolute/relative paths, repeated separators, symlink directories, idempotency, and file collisions.
 
 ### BUG-272: Date timestamp conversion mishandles dates before 1970
 
