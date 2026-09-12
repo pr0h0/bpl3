@@ -174,7 +174,9 @@ describe("CLI startup command registration", () => {
     expect(actionSource).not.toContain('import("../../compiler")');
     expect(actionSource).not.toContain("rawOptions: any");
     expect(actionSource).not.toContain("const results: any[]");
-    expect(engineSource).toContain('from "../../compiler/common/CompilerError"');
+    expect(engineSource).toContain(
+      'from "../../compiler/common/CompilerError"',
+    );
     expect(engineSource).not.toContain(
       'from "../../compiler/frontend/GrammarLexer"',
     );
@@ -191,7 +193,7 @@ describe("CLI startup command registration", () => {
       "utf8",
     );
 
-    expect(source).toContain('import type { PackageManagerOptions }');
+    expect(source).toContain("import type { PackageManagerOptions }");
     expect(source).toContain(
       'type PackageResolverApi = typeof import("./PackageResolver")',
     );
@@ -236,7 +238,9 @@ describe("CLI startup command registration", () => {
 
     expect(actionSource).toContain('import("./lintEngine")');
     expect(actionSource).not.toContain('import("../../compiler")');
-    expect(engineSource).toContain('from "../../compiler/common/CompilerError"');
+    expect(engineSource).toContain(
+      'from "../../compiler/common/CompilerError"',
+    );
     expect(engineSource).not.toContain(
       'from "../../compiler/frontend/GrammarLexer"',
     );
@@ -447,13 +451,13 @@ describe("CLI startup command registration", () => {
     expect(source).toContain(
       'import("../../compiler/middleend/PackageManager")',
     );
-    expect(source).toContain('from "../../compiler/middleend/PackageContracts"');
+    expect(source).toContain(
+      'from "../../compiler/middleend/PackageContracts"',
+    );
   });
 
   test("keeps package error class identity across focused and manager exports", async () => {
-    const contracts = await import(
-      "../compiler/middleend/PackageContracts"
-    );
+    const contracts = await import("../compiler/middleend/PackageContracts");
     const manager = await import("../compiler/middleend/PackageManager");
 
     expect(manager.PackageInstalledNameError).toBe(
@@ -462,5 +466,27 @@ describe("CLI startup command registration", () => {
     expect(manager.PackageLockVerificationError).toBe(
       contracts.PackageLockVerificationError,
     );
+  });
+});
+
+test("subcommand discovery does not duplicate variadic compile options", () => {
+  const command = new Command()
+    .exitOverride()
+    .argument("[files...]")
+    .option("--object <file...>")
+    .option("--clang-flag <flag...>");
+  const args = [
+    "run",
+    "main.bpl",
+    "--object",
+    "shim.o",
+    "--clang-flag=-fwrapv",
+  ];
+  expect(selectCliSubcommandGroup(command, args)).toBe("run");
+  expect(command.opts()).toEqual({});
+  command.parse(args, { from: "user" });
+  expect(command.opts()).toEqual({
+    object: ["shim.o"],
+    clangFlag: ["-fwrapv"],
   });
 });

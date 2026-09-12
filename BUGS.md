@@ -3548,3 +3548,14 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-12)**: A program importing only UUID and exercising a string throw fails LLVM compilation because the generated uncaught-exception fallback calls undeclared printf, even when the exception is caught.
 
 **Resolution**: Send the fallback diagnostic through the always-declared runtime stderr writer. Regressions cover caught and uncaught string exceptions without libc imports at O0/O3.
+
+### BUG-292: CLI subcommand discovery duplicates variadic compiler options
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-12)**: selectCliSubcommandGroup calls parseOptions on the real command before parseAsync. The second parse appends --object/--clang-flag values again, causing duplicate object definitions at link time.
+
+**Resolution**: Parse discovery arguments with a separate Command instance. Regression checks that discovery leaves real options untouched and each explicit value reaches the final parse once.
+

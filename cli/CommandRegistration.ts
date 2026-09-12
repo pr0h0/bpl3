@@ -1,4 +1,4 @@
-import type { Command } from "commander";
+import { Command } from "commander";
 
 export type CliSubcommandGroup =
   | "run"
@@ -127,7 +127,11 @@ export function selectCliSubcommandGroup(
   program: Command,
   userArgs: string[],
 ): RegistrationMode {
-  const parsed = program.parseOptions(userArgs);
+  // Discovery must not populate the real command's variadic option arrays;
+  // parseAsync will parse these arguments once registration is complete.
+  const probe = new Command().name(program.name());
+  for (const option of program.options) probe.addOption(option);
+  const parsed = probe.parseOptions(userArgs);
   const firstOperand = parsed.operands[0];
   if (firstOperand) {
     const group = GROUP_BY_COMMAND[firstOperand];
