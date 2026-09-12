@@ -2,7 +2,7 @@
 
 export [UUID];
 
-import [Rand] from "std/rand.bpl";
+extern getentropy(buffer: *void, length: ulong) ret int;
 
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
@@ -10,17 +10,18 @@ extern strlen(str: string) ret long;
 
 struct UUID {
     bytes: u8[16],
-    # Generate a new random UUID (v4)
+    # Generate using native OS entropy; throw rather than return a weak fallback.
     frame v4() ret UUID {
         local uuid: UUID;
-        local rng: Rand = Rand.seedFromTime();
+        if (UUID.tryV4(&uuid) == false) { throw "UUID entropy unavailable"; }
+        return uuid;
+    }
 
-        # Fill with random bytes
-        local i: int = 0;
-        loop (i < 16) {
-            uuid.bytes[i] = cast<u8>(rng.nextInt() & 255);
-            i = i + 1;
-        }
+    # On failure, leave the destination unchanged.
+    frame tryV4(output: *UUID) ret bool {
+        if (output == nullptr) { return false; }
+        local uuid: UUID;
+        if (getentropy(cast<*void>(&uuid.bytes[0]), 16) != 0) { return false; }
 
         # Set version to 4 (random)
         # Version is in bits 12-15 of time_hi_and_version (byte 6)
@@ -29,7 +30,8 @@ struct UUID {
         # Set variant to RFC 4122 (10xx xxxx in byte 8)
         uuid.bytes[8] = (uuid.bytes[8] & cast<u8>(0x3F)) | cast<u8>(0x80);
 
-        return uuid;
+        *output = uuid;
+        return true;
     }
 
     # Create a UUID from raw bytes

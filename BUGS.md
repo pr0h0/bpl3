@@ -3331,13 +3331,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-269: UUID.v4 repeats identifiers generated within one second
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
 **Observed (2026-09-11)**: Each call seeds a fresh LCG from whole seconds and emits the same byte sequence for that seed. A local reproduction generated two equal UUIDs in consecutive calls.
 
 **Documentation/workaround**: The API guide now rejects uniqueness and security guarantees for this generator. Use an external suitable generator until the implementation uses an appropriate entropy source.
+
+**Resolution (2026-09-12)**: Use native getentropy for all 16 bytes, then set the version and variant bits. Add tryV4 with unchanged-output failure semantics; v4 throws on failure. Tests cover repeated generation, bit layout, round-trips, null outputs, and injected entropy failure.
 
 ### BUG-270: IO.readLine has no input bound and mishandles EOF
 

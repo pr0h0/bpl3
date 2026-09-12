@@ -289,15 +289,21 @@ Fixed-size bit array for efficient flag/set operations.
 
 ### UUID (`std/uuid.bpl`)
 
-UUID formatting, parsing, and v4-shaped generation. `v4()` reseeds a predictable
-LCG from whole seconds on every call; calls in the same second repeat identifiers.
-Do not use it where uniqueness, unpredictability, or security tokens are required.
+UUID formatting, parsing, and v4 generation using native OS entropy. `v4()` throws
+a string error if entropy is unavailable; `tryV4(output)` returns false and leaves
+the destination unchanged. There is no time-seeded fallback. Generation requires
+native `getentropy` support (Linux glibc 2.25+ or macOS 10.12+); see the
+[portability notes](https://www.gnu.org/software/gnulib/manual/html_node/getentropy.html)
+and [entropy API contract](https://www.gnu.org/software/libc/manual/2.26/html_node/Unpredictable-Bytes.html).
+Random UUIDs do not provide a mathematical uniqueness guarantee or replace a
+purpose-built authentication-token protocol.
 `fromString` can return a partially parsed value, so validate text with `isValid`
 before parsing. `toString()` returns allocated storage that the caller must free.
 
 **Creation:**
 
-- `UUID.v4() ret UUID` - Generate random v4 UUID
+- `UUID.v4() ret UUID` - Generate random v4 UUID; throws on entropy failure
+- `UUID.tryV4(output: *UUID) ret bool` - Checked generation; null output returns false
 - `UUID.fromBytes(data: *u8) ret UUID`
 - `UUID.fromString(str: string) ret UUID`
 - `UUID.nil() ret UUID` - All-zero UUID
