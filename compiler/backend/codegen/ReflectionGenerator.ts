@@ -64,6 +64,29 @@ export abstract class ReflectionGenerator extends TypeGenerator {
    * Returns the global variable name (e.g. @TypeInfo_int).
    */
   protected getOrCreateTypeInfo(type: AST.TypeNode): string {
+    // Resolve transparent aliases before choosing the reflected kind. Keep outer
+    // pointer/array modifiers intact; their generators recursively reflect the base.
+    if (
+      type.kind === "BasicType" &&
+      type.pointerDepth === 0 &&
+      type.arrayDimensions.length === 0
+    ) {
+      const alias =
+        type.resolvedDeclaration?.kind === "TypeAlias"
+          ? type.resolvedDeclaration
+          : this.typeAliasMap.get(type.name);
+      if (alias) {
+        const typeMap = new Map<string, AST.TypeNode>();
+        alias.genericParams?.forEach((parameter, index) => {
+          const argument = type.genericArgs[index];
+          if (argument) typeMap.set(parameter.name, argument);
+        });
+        return this.getOrCreateTypeInfo(
+          this.substituteType(alias.type, typeMap),
+        );
+      }
+    }
+
     const typeKey = this.mangleType(type);
     if (this.typeInfoCache.has(typeKey)) {
       return this.typeInfoCache.get(typeKey)!;
@@ -162,7 +185,11 @@ export abstract class ReflectionGenerator extends TypeGenerator {
   }
 
   protected isPrimitive(name: string): boolean {
-    return getPrimitiveType(name) !== undefined || name === "void" || name === "string";
+    return (
+      getPrimitiveType(name) !== undefined ||
+      name === "void" ||
+      name === "string"
+    );
   }
 
   private generatePrimitiveTypeInfo(
@@ -245,7 +272,8 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     decl: AST.StructDecl,
   ) {
     const nameStrVar = this.getOrCreateStringLiteral(decl.name);
-    const size = this.getTypeSizeInBits(type) / 8;
+    const llvmSizeType = this.resolveType(type);
+    const size = `ptrtoint (${llvmSizeType}* getelementptr (${llvmSizeType}, ${llvmSizeType}* null, i32 1) to i64)`;
 
     // Helper to generate fields array
     const fieldsArrayName = `${globalName}_fields`;
@@ -377,7 +405,8 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     };
 
     const elementTypeGlobal = this.getOrCreateTypeInfo(elementTypeNode);
-    const size = this.getTypeSizeInBits(type) / 8;
+    const llvmSizeType = this.resolveType(type);
+    const size = `ptrtoint (${llvmSizeType}* getelementptr (${llvmSizeType}, ${llvmSizeType}* null, i32 1) to i64)`;
 
     // Name conventions: "Array"
     const typeName = "Array";

@@ -150,9 +150,11 @@ Unsupported primitive destinations return a parse error. Container separators,
 null literals, and skipped unknown-field values are validated; malformed input
 returns `nullptr` rather than leaving an array parser stuck (BUG-277/283).
 
-Fixed-array aliases currently have a reflection limitation (BUG-284). For
-`type Pair = int[2]`, use `JSON.parse<int[2]>` and `JSON.free<int[2]>`, even when
-the destination variable is declared `*Pair`.
+Fixed-array aliases and alias chains are supported: for `type Pair = int[2]`,
+`JSON.parse<Pair>` and `JSON.free<Pair>` use the array's metadata. Reflected struct
+and array sizes come from LLVM's layout. Generic array aliases still have a
+separate pointer/type-substitution limitation (BUG-290); use the concrete array
+type as the JSON generic argument for those cases.
 
 Serialization escapes quotes, backslashes, and all representable control bytes
 below 0x20. Valid UTF-8 bytes are preserved; embedded NUL remains unsupported.

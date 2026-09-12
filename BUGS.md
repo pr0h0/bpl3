@@ -3493,13 +3493,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-284: Reflection does not resolve fixed-array aliases at JSON generic call sites
 
-**Status**: Open
+**Status**: Fixed (non-generic aliases)
 
 **Priority**: P2
 
 **Observed (2026-09-11)**: For `type Pair = int[2]`, `JSON.parse<Pair>("[]")` reaches the unsupported primitive path, whereas `JSON.parse<int[2]>("[]")` correctly parses an array. The alias receives incompatible reflected metadata.
 
 **Workaround**: Use the concrete array type as the JSON generic argument; a pointer variable can still use `*Pair`. The JSON guide and regression fixtures use this form.
+
+**Resolution (2026-09-12)**: Resolve transparent aliases before generating type metadata; preserve outer pointer/array modifiers and resolve alias chains. O0/O3 LLVM-verified JSON tests cover root aliases, nested fields, pointer fields, and recursive freeing. Generic pointer substitution is tracked separately in BUG-290.
 
 ### BUG-285: Documentation incorrectly advertises exponent notation in BPL source
 
@@ -3562,4 +3564,24 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-12)**: selectCliSubcommandGroup calls parseOptions on the real command before parseAsync. The second parse appends --object/--clang-flag values again, causing duplicate object definitions at link time.
 
 **Resolution**: Parse discovery arguments with a separate Command instance. Regression checks that discovery leaves real options untouched and each explicit value reaches the final parse once.
+
+### BUG-290: Generic fixed-array aliases lose element substitution through pointers
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-12)**: For type GenericPair<T> = T[2], indexing a *GenericPair<int> is checked as T rather than int. JSON.parse<GenericPair<int>> also encounters incompatible pointer-to-array versus array-of-pointer casts during code generation.
+
+**Workaround**: Use concrete fixed-array types for generic alias pointer operations and JSON root parsing. Non-generic fixed-array aliases are covered by the BUG-284 fix.
+
+### BUG-291: Reflected aggregate sizes can underestimate array-alias fields
+
+**Status**: Fixed (reflection); manual compiler size estimates remain approximate
+
+**Priority**: P1
+
+**Observed (2026-09-12)**: A struct with int[2] and float[2] aliases plus a pointer occupies 32 bytes in LLVM but reflection reports 24. JSON allocation can corrupt the heap when filling its final field.
+
+**Resolution**: Derive reflected struct and array byte sizes from LLVM getelementptr constant expressions. This also uses the actual target layout rather than manual alignment estimates. Other consumers of the compiler's approximate size helper have not been comprehensively audited.
 
