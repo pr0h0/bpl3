@@ -3538,3 +3538,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Workaround**: Construct astral UTF-8 text with explicit byte arrays until whole-string UTF-8 encoding is used during LLVM escaping.
 
 **Resolution (2026-09-12)**: Encode the complete string before escaping LLVM bytes, matching UTF-8 length calculation. Runtime/LLVM regression covers astral, BMP, ASCII, quote, and backslash characters together.
+
+### BUG-289: Throwing without a printf import emits invalid LLVM
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-12)**: A program importing only UUID and exercising a string throw fails LLVM compilation because the generated uncaught-exception fallback calls undeclared printf, even when the exception is caught.
+
+**Resolution**: Send the fallback diagnostic through the always-declared runtime stderr writer. Regressions cover caught and uncaught string exceptions without libc imports at O0/O3.

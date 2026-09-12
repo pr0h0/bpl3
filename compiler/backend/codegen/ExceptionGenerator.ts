@@ -119,7 +119,9 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
     // Find if there's a catch-all clause (clause with null type)
     const hasCatchAll = stmt.catchClauses.some((c) => c.type === null);
-    const rethrowLabel = hasCatchAll ? endLabel : this.newLabel("catch.rethrow");
+    const rethrowLabel = hasCatchAll
+      ? endLabel
+      : this.newLabel("catch.rethrow");
 
     // Let's gather labels first.
     const clauseLabels = stmt.catchClauses.map((_, i) => ({
@@ -179,9 +181,13 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
             this.emit(`  ${bits} = trunc i64 ${valI64} to i32`);
           }
           const value = this.newRegister();
-          this.emit(`  ${value} = bitcast ${bitsType} ${bits} to ${targetTypeStr}`);
+          this.emit(
+            `  ${value} = bitcast ${bitsType} ${bits} to ${targetTypeStr}`,
+          );
           const localVar = this.allocateStack(clause.variable!, targetTypeStr);
-          this.emit(`  store ${targetTypeStr} ${value}, ${targetTypeStr}* ${localVar}`);
+          this.emit(
+            `  store ${targetTypeStr} ${value}, ${targetTypeStr}* ${localVar}`,
+          );
         } else if (targetTypeStr.startsWith("%struct.")) {
           // Convert i64 pointer back to struct pointer
           const structPtr = this.newRegister();
@@ -398,10 +404,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
       this.emit(`  unreachable`);
     } else {
       const msgPtr = this.getStringLiteralPtr("Uncaught exception\n");
-      const printfResult = this.newRegister();
-      this.emit(
-        `  ${printfResult} = call i32 (i8*, ...) @printf(i8* ${msgPtr})`,
-      );
+      this.emit(`  call void @__bpl_write_stderr(i8* ${msgPtr})`);
       this.emit(`  call void @exit(i32 1)`);
       this.emit(`  unreachable`);
     }
@@ -598,10 +601,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
       }
 
       // Handle field objects that are not ASTNodes but contain expressions.
-      if (
-        typeof node.value === "object" &&
-        (node.fieldName || node.name)
-      ) {
+      if (typeof node.value === "object" && (node.fieldName || node.name)) {
         collectCaptures(node.value);
         return;
       }
