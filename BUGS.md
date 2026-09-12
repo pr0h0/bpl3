@@ -3375,7 +3375,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Observed (2026-09-11)**: `Date.fromTimestamp(-86400)` produces 1970-1-0, which `isValid()` rejects. Timestamp/date conversion loops only move forward from 1970; Time.formatTimestamp has the same limitation for negative input.
 
-**Documentation/workaround**: The date and time guides now state the unsupported range. Restrict these conversions to supported post-epoch values until backward calendar conversion is implemented.
+**Progress (2026-09-12)**: Date and DateTime now use constant-time Gregorian conversion, floor negative timestamps to the containing UTC day, and normalize clock fields. Invalid fields and timestamps outside the int year range throw strings. O0/O3 tests cover a complete 400-year cycle crossing year zero, independent JavaScript UTC cases, and int year boundaries. Time.formatTimestamp still needs migration to this conversion.
 
 ### BUG-273: Repeated ignored lambda parameters produce duplicate LLVM names
 
@@ -3616,3 +3616,39 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-12)**: Reflection uses an approximate type-size helper whose default is eight bytes; aliases such as uchar/short/ushort and f32 can therefore receive incorrect sizes. Reflective array parsing and serialization depend on these sizes for element spacing.
 
 **Resolution**: Read scalar bit widths from the shared primitive type contract, rounding boolean storage to one byte. O0/O3 LLVM-verified tests compare reflection against sizeof for canonical scalar types and aliases.
+
+### BUG-296: Date formatting can overflow buffers and leaks separator storage
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed (2026-09-12)**: Date.format allocates 16 bytes, but a valid int-min year needs 18 bytes including the terminator. DateTime.format/formatISO similarly allocate only 24 bytes. Invalid stored fields can expand every integer conversion. Date.formatSep also never frees its separate two-byte separator allocation.
+
+### BUG-297: Calendar arithmetic wraps at integer boundaries
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-12)**: Date.subDays negates an int before widening; addMonths multiplies the int year by 12 and uses truncating division for negative months; addYears adds in int; diffDays narrows without a range check. DateTime additions multiply/add long values without overflow checks.
+
+**Workaround**: Avoid extreme offsets and negative-year month arithmetic. Timestamp conversion itself supports the full int year range.
+
+### BUG-298: Date week helpers mishandle ISO week 53 and negative years
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-12)**: weekOfYear unconditionally maps week 53 to 1 and dates in the preceding ISO year to 52. dayOfWeek uses signed remainders and subtracts one from the int year, which fails for some negative years and the minimum year.
+
+### BUG-299: Literal-left arithmetic with long operands can emit mismatched LLVM types
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-12)**: The date conversion expression `5 * dayOfYear`, with dayOfYear declared long, emitted `mul i32 5, %55` where %55 had type i64. Clang rejected the LLVM IR.
+
+**Workaround**: Explicitly widen the literal (`cast<long>(5) * dayOfYear`). Date conversion uses explicit casts for these expressions.

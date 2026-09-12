@@ -33,65 +33,56 @@ struct Date {
         return Date.fromTimestamp(t);
     }
 
-    # Create date from Unix timestamp
+    # Gregorian civil-day conversion uses March-based 400-year cycles.
+    # Algorithm reference: https://howardhinnant.github.io/date_algorithms.html
+    # Floor division is required because BPL signed division truncates toward zero.
     frame fromTimestamp(timestamp: long) ret Date {
         local days: long = timestamp / cast<long>(86400);
-
-        local year: int = 1970;
-        local daysLeft: long = days;
-
-        loop (daysLeft >= cast<long>(365)) {
-            local daysInYear: int = 365;
-            if (Date.isLeapYearInt(year)) {
-                daysInYear = 366;
-            }
-            if (daysLeft < cast<long>(daysInYear)) {
-                break;
-            }
-            daysLeft = daysLeft - cast<long>(daysInYear);
+        if (timestamp % cast<long>(86400) < 0) {
+            days = days - 1;
+        }
+        local shifted: long = days + 719468;
+        local era: long = shifted / 146097;
+        if (shifted % 146097 < 0) {
+            era = era - 1;
+        }
+        local dayOfEra: long = shifted - era * 146097;
+        local yearOfEra: long = (dayOfEra - dayOfEra / 1460 + dayOfEra / 36524 - dayOfEra / 146096) / 365;
+        local year: long = yearOfEra + era * 400;
+        local dayOfYear: long = dayOfEra - (yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100);
+        local marchMonth: long = (cast<long>(5) * dayOfYear + 2) / 153;
+        local day: int = cast<int>(dayOfYear - (cast<long>(153) * marchMonth + 2) / 5 + 1);
+        local month: int = cast<int>(marchMonth) + 3;
+        if (marchMonth >= 10) {
+            month = month - 12;
             year = year + 1;
         }
-
-        local month: int = 1;
-        loop (month <= 12) {
-            local dim: int = Date.daysInMonthStatic(year, month);
-            if (daysLeft < cast<long>(dim)) {
-                break;
-            }
-            daysLeft = daysLeft - cast<long>(dim);
-            month = month + 1;
+        if (year < -2147483648 || year > 2147483647) {
+            throw "Date.fromTimestamp: year is outside the int range";
         }
-
-        local day: int = cast<int>(daysLeft) + 1;
-        return Date.new(year, month, day);
+        return Date.new(cast<int>(year), month, day);
     }
 
-    # Convert to Unix timestamp (midnight UTC)
+    # Convert a valid proleptic Gregorian date to midnight UTC.
+    # Every int year fits safely in a long Unix timestamp.
     frame toTimestamp(this: *Date) ret long {
-        local days: long = cast<long>(0);
-
-        # Add days for years
-        local y: int = 1970;
-        loop (y < this.year) {
-            if (Date.isLeapYearInt(y)) {
-                days = days + cast<long>(366);
-            } else {
-                days = days + cast<long>(365);
-            }
-            y = y + 1;
+        if (!this.isValid()) {
+            throw "Date.toTimestamp: invalid date";
         }
-
-        # Add days for months
-        local m: int = 1;
-        loop (m < this.month) {
-            days = days + cast<long>(Date.daysInMonthStatic(this.year, m));
-            m = m + 1;
+        local year: long = cast<long>(this.year);
+        local marchMonth: long = cast<long>(this.month) - 3;
+        if (this.month <= 2) {
+            year = year - 1;
+            marchMonth = marchMonth + 12;
         }
-
-        # Add days
-        days = days + cast<long>(this.day - 1);
-
-        return days * cast<long>(86400);
+        local era: long = year / 400;
+        if (year % 400 < 0) {
+            era = era - 1;
+        }
+        local yearOfEra: long = year - era * 400;
+        local dayOfYear: long = (cast<long>(153) * marchMonth + 2) / 5 + cast<long>(this.day) - 1;
+        local dayOfEra: long = yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear;
+        return (era * 146097 + dayOfEra - 719468) * cast<long>(86400);
     }
 
     # Static helper for leap year check
@@ -341,6 +332,9 @@ struct DateTime {
     frame fromTimestamp(timestamp: long) ret DateTime {
         local d: Date = Date.fromTimestamp(timestamp);
         local remaining: long = timestamp % cast<long>(86400);
+        if (remaining < 0) {
+            remaining = remaining + 86400;
+        }
 
         local hour: int = cast<int>(remaining / cast<long>(3600));
         remaining = remaining % cast<long>(3600);
@@ -352,6 +346,9 @@ struct DateTime {
 
     # Convert to Unix timestamp
     frame toTimestamp(this: *DateTime) ret long {
+        if (!this.isValid()) {
+            throw "DateTime.toTimestamp: invalid date or time";
+        }
         local d: Date = Date.new(this.year, this.month, this.day);
         local ts: long = d.toTimestamp();
         ts = ts + (cast<long>(this.hour) * cast<long>(3600));

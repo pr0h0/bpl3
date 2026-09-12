@@ -367,10 +367,17 @@ These APIs are not a portable Windows environment abstraction.
 
 ### Date (`std/date.bpl`)
 
-Calendar helpers intended for UTC-like Unix timestamps. Constructors store fields
-without validation; use `isValid()`. Negative timestamps and dates before 1970
-are not handled correctly by the current conversion algorithms. Formatting
-allocates strings that callers must free. This is not a timezone/DST library.
+Calendar helpers use UTC Unix seconds and the proleptic Gregorian calendar,
+including year zero and negative years. Constructors store fields without
+validation; use `isValid()`. `toTimestamp()` throws a string for invalid date/time
+fields. `fromTimestamp()` handles negative timestamps and throws a string if the
+resulting year does not fit `int` (-2147483648 through 2147483647). Conversion
+runs in constant time. Formatting allocates strings that callers must free.
+This is not a timezone/DST library and does not model leap seconds.
+
+Calendar arithmetic and week-number helpers still have edge-case limitations
+recorded in BUGS.md; conversion support does not imply every operation supports
+the full year range.
 
 **Creation:**
 
