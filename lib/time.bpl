@@ -1,5 +1,7 @@
 # Time
 
+import [DateTime] from "std/date.bpl";
+
 export [Time];
 export [Duration];
 export [Stopwatch];
@@ -8,8 +10,6 @@ extern time(ptr: *long) ret long;
 extern usleep(usec: int) ret int;
 extern gettimeofday(tv: *void, tz: *void) ret int;
 
-extern malloc(size: long) ret *void;
-extern sprintf(str: string, format: string, ...) ret int;
 
 # Timeval struct for gettimeofday
 struct Timeval {
@@ -166,53 +166,11 @@ struct Time {
         usleep(usec);
     }
 
-    # Format timestamp as simple string (YYYY-MM-DD HH:MM:SS approximation)
-    # Note: This is a simplified version, not handling timezones
+    # Format UTC Unix seconds using the proleptic Gregorian calendar.
+    # The caller owns the returned string; out-of-range years throw a string.
     frame formatTimestamp(timestamp: long) ret string {
-        local buf: string = cast<string>(malloc(32));
-
-        # Unix timestamp to approximate date (simplified, assumes UTC)
-        local days: long = timestamp / 86400;
-        local remaining: long = timestamp % 86400;
-
-        local hours: int = cast<int>(remaining / 3600);
-        remaining = remaining % 3600;
-        local minutes: int = cast<int>(remaining / 60);
-        local seconds: int = cast<int>(remaining % 60);
-
-        # Approximate year/month/day (simplified calculation)
-        local year: int = 1970;
-        local daysLeft: long = days;
-
-        loop (daysLeft >= 365) {
-            local daysInYear: int = 365;
-            if (((year % 4) == 0) && (((year % 100) != 0) || ((year % 400) == 0))) {
-                daysInYear = 366;
-            }
-            if (daysLeft < cast<long>(daysInYear)) 
-                break;
-            daysLeft = daysLeft - cast<long>(daysInYear);
-            year = year + 1;
-        }
-
-        local month: int = 1;
-        local daysInMonth: int[12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
-        # Check leap year for February
-        if (((year % 4) == 0) && (((year % 100) != 0) || ((year % 400) == 0))) {
-            daysInMonth[1] = 29;
-        }
-        loop (month <= 12) {
-            if (daysLeft < cast<long>(daysInMonth[month - 1])) 
-                break;
-            daysLeft = daysLeft - cast<long>(daysInMonth[month - 1]);
-            month = month + 1;
-        }
-
-        local day: int = cast<int>(daysLeft) + 1;
-
-        sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d", year, month, day, hours, minutes, seconds);
-        return buf;
+        local dt: DateTime = DateTime.fromTimestamp(timestamp);
+        return dt.format();
     }
 
     # Measure execution time of a function (returns milliseconds)

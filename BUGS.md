@@ -3369,13 +3369,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-272: Date timestamp conversion mishandles dates before 1970
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-11)**: `Date.fromTimestamp(-86400)` produces 1970-1-0, which `isValid()` rejects. Timestamp/date conversion loops only move forward from 1970; Time.formatTimestamp has the same limitation for negative input.
 
-**Progress (2026-09-12)**: Date and DateTime now use constant-time Gregorian conversion, floor negative timestamps to the containing UTC day, and normalize clock fields. Invalid fields and timestamps outside the int year range throw strings. O0/O3 tests cover a complete 400-year cycle crossing year zero, independent JavaScript UTC cases, and int year boundaries. Time.formatTimestamp still needs migration to this conversion.
+**Progress (2026-09-12)**: Date and DateTime now use constant-time Gregorian conversion, floor negative timestamps to the containing UTC day, and normalize clock fields. Invalid fields and timestamps outside the int year range throw strings. O0/O3 tests cover a complete 400-year cycle crossing year zero, independent JavaScript UTC cases, and int year boundaries. Time.formatTimestamp delegates to DateTime conversion and formatting, including negative timestamps and range checks.
 
 ### BUG-273: Repeated ignored lambda parameters produce duplicate LLVM names
 
@@ -3619,11 +3619,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-296: Date formatting can overflow buffers and leaks separator storage
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
 **Observed (2026-09-12)**: Date.format allocates 16 bytes, but a valid int-min year needs 18 bytes including the terminator. DateTime.format/formatISO similarly allocate only 24 bytes. Invalid stored fields can expand every integer conversion. Date.formatSep also never frees its separate two-byte separator allocation.
+
+**Resolution**: Use bounded snprintf with buffers sized for all signed int fields, check allocation failure, and keep the separator in stack storage. O0/O3 regression tests exercise minimum/maximum years, invalid extreme fields, embedded-NUL separator behavior, and repeated formatting.
 
 ### BUG-297: Calendar arithmetic wraps at integer boundaries
 

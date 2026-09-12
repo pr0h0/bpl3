@@ -6,7 +6,7 @@ export [DateTime];
 extern time(ptr: *long) ret long;
 extern gettimeofday(tv: *void, tz: *void) ret int;
 extern malloc(size: long) ret *void;
-extern sprintf(str: string, format: string, ...) ret int;
+extern snprintf(str: string, capacity: ulong, format: string, ...) ret int;
 
 struct Timeval {
     tv_sec: long,
@@ -225,19 +225,24 @@ struct Date {
 
     # Format date as string (YYYY-MM-DD)
     frame format(this: *Date) ret string {
-        local buf: string = cast<string>(malloc(cast<long>(16)));
-        sprintf(buf, "%04d-%02d-%02d", this.year, this.month, this.day);
+        # Three signed int fields (at most 11 bytes each), separators, and NUL.
+        local buf: string = cast<string>(malloc(cast<long>(36)));
+        if (buf == nullptr) { throw "Date formatting: allocation failed"; }
+        snprintf(buf, cast<ulong>(36), "%04d-%02d-%02d", this.year, this.month, this.day);
         return buf;
     }
 
     # Format date with custom separator
     frame formatSep(this: *Date, sep: u8) ret string {
-        local buf: string = cast<string>(malloc(cast<long>(16)));
-        local sepStr: string = cast<string>(malloc(cast<long>(2)));
+        # Three signed int fields (at most 11 bytes each), separators, and NUL.
+        local buf: string = cast<string>(malloc(cast<long>(36)));
+        if (buf == nullptr) { throw "Date formatting: allocation failed"; }
+        local sepBytes: u8[2];
+        local sepStr: string = cast<string>(&sepBytes[0]);
         local sepPtr: *u8 = cast<*u8>(sepStr);
         *sepPtr = sep;
         *(sepPtr + 1) = cast<u8>(0);
-        sprintf(buf, "%04d%s%02d%s%02d", this.year, sepStr, this.month, sepStr, this.day);
+        snprintf(buf, cast<ulong>(36), "%04d%s%02d%s%02d", this.year, sepStr, this.month, sepStr, this.day);
         return buf;
     }
 
@@ -408,22 +413,28 @@ struct DateTime {
 
     # Format as ISO 8601 string (YYYY-MM-DD HH:MM:SS)
     frame format(this: *DateTime) ret string {
-        local buf: string = cast<string>(malloc(cast<long>(24)));
-        sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d", this.year, this.month, this.day, this.hour, this.minute, this.second);
+        # Six signed int fields, five separators, and NUL fit in 72 bytes.
+        local buf: string = cast<string>(malloc(cast<long>(72)));
+        if (buf == nullptr) { throw "DateTime formatting: allocation failed"; }
+        snprintf(buf, cast<ulong>(72), "%04d-%02d-%02d %02d:%02d:%02d", this.year, this.month, this.day, this.hour, this.minute, this.second);
         return buf;
     }
 
     # Format as ISO 8601 with T separator
     frame formatISO(this: *DateTime) ret string {
-        local buf: string = cast<string>(malloc(cast<long>(24)));
-        sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02d", this.year, this.month, this.day, this.hour, this.minute, this.second);
+        # Six signed int fields, five separators, and NUL fit in 72 bytes.
+        local buf: string = cast<string>(malloc(cast<long>(72)));
+        if (buf == nullptr) { throw "DateTime formatting: allocation failed"; }
+        snprintf(buf, cast<ulong>(72), "%04d-%02d-%02dT%02d:%02d:%02d", this.year, this.month, this.day, this.hour, this.minute, this.second);
         return buf;
     }
 
     # Format time only (HH:MM:SS)
     frame formatTime(this: *DateTime) ret string {
-        local buf: string = cast<string>(malloc(cast<long>(12)));
-        sprintf(buf, "%02d:%02d:%02d", this.hour, this.minute, this.second);
+        # Three signed int fields (at most 11 bytes each), separators, and NUL.
+        local buf: string = cast<string>(malloc(cast<long>(36)));
+        if (buf == nullptr) { throw "Date formatting: allocation failed"; }
+        snprintf(buf, cast<ulong>(36), "%02d:%02d:%02d", this.hour, this.minute, this.second);
         return buf;
     }
 

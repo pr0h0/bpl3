@@ -375,6 +375,12 @@ resulting year does not fit `int` (-2147483648 through 2147483647). Conversion
 runs in constant time. Formatting allocates strings that callers must free.
 This is not a timezone/DST library and does not model leap seconds.
 
+Formatting prints stored fields without validating them. Year width is a minimum
+of four characters; larger and negative years expand to fit. `formatISO()` uses
+a `T` separator but does not add a timezone suffix or normalize expanded years
+to an interchange standard. All formatting buffers accommodate every stored
+`int` value. `formatSep(0)` omits separators. Allocation failure throws a string.
+
 Calendar arithmetic and week-number helpers still have edge-case limitations
 recorded in BUGS.md; conversion support does not imply every operation supports
 the full year range.
