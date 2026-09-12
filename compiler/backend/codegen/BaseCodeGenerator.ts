@@ -273,10 +273,8 @@ export class BaseCodeGenerator {
   protected basicBlockNonNullPointers: Map<string, number> = new Map();
   protected basicBlockNonNullPointerExpressions: Map<string, number> =
     new Map();
-  protected basicBlockCallStableNonNullPointerExpressions: Map<
-    string,
-    number
-  > = new Map();
+  protected basicBlockCallStableNonNullPointerExpressions: Map<string, number> =
+    new Map();
   protected basicBlockNonZeroIntegerExpressions?: Map<string, number>;
   protected currentFunctionAddressEscapedLocals: Set<string> = new Set();
   protected generatedStructs: Set<string> = new Set(); // Track generated monomorphized structs
@@ -503,10 +501,7 @@ export class BaseCodeGenerator {
     this.basicBlockNonNullPointers.set(ptrVal, proofIndex);
     if (expressionKey !== undefined) {
       this.basicBlockNonNullPointerExpressions.set(expressionKey, proofIndex);
-      this.markCallStablePointerExpressionIfEligible(
-        expressionKey,
-        proofIndex,
-      );
+      this.markCallStablePointerExpressionIfEligible(expressionKey, proofIndex);
     }
   }
 
@@ -525,10 +520,7 @@ export class BaseCodeGenerator {
     const proofIndex = this.output.length;
     for (const expressionKey of expressionKeys) {
       this.basicBlockNonNullPointerExpressions.set(expressionKey, proofIndex);
-      this.markCallStablePointerExpressionIfEligible(
-        expressionKey,
-        proofIndex,
-      );
+      this.markCallStablePointerExpressionIfEligible(expressionKey, proofIndex);
     }
   }
 
@@ -542,10 +534,8 @@ export class BaseCodeGenerator {
 
     const validKeys: string[] = [];
     const seenKeys = new Set<string>();
-    for (const [
-      expressionKey,
-      proofIndex,
-    ] of this.basicBlockNonNullPointerExpressions) {
+    for (const [expressionKey, proofIndex] of this
+      .basicBlockNonNullPointerExpressions) {
       if (!this.hasBasicBlockPointerBoundarySince(proofIndex)) {
         validKeys.push(expressionKey);
         seenKeys.add(expressionKey);
@@ -553,10 +543,8 @@ export class BaseCodeGenerator {
         this.basicBlockNonNullPointerExpressions.delete(expressionKey);
       }
     }
-    for (const [
-      expressionKey,
-      proofIndex,
-    ] of this.basicBlockCallStableNonNullPointerExpressions) {
+    for (const [expressionKey, proofIndex] of this
+      .basicBlockCallStableNonNullPointerExpressions) {
       if (!this.hasBasicBlockPointerBoundarySince(proofIndex, true)) {
         if (!seenKeys.has(expressionKey)) {
           validKeys.push(expressionKey);
@@ -661,7 +649,9 @@ export class BaseCodeGenerator {
     }
   }
 
-  private isCallStableLocalPointerExpressionKey(expressionKey: string): boolean {
+  private isCallStableLocalPointerExpressionKey(
+    expressionKey: string,
+  ): boolean {
     if (!this.isSimpleIdentifierExpressionKey(expressionKey)) return false;
     if (!this.locals.has(expressionKey)) return false;
     if (this.globals.has(expressionKey)) return false;
@@ -699,17 +689,12 @@ export class BaseCodeGenerator {
 
   private isIdentifierStartCode(code: number): boolean {
     return (
-      code === 95 ||
-      (code >= 65 && code <= 90) ||
-      (code >= 97 && code <= 122)
+      code === 95 || (code >= 65 && code <= 90) || (code >= 97 && code <= 122)
     );
   }
 
   private isIdentifierPartCode(code: number): boolean {
-    return (
-      this.isIdentifierStartCode(code) ||
-      (code >= 48 && code <= 57)
-    );
+    return this.isIdentifierStartCode(code) || (code >= 48 && code <= 57);
   }
 
   protected emitDeclaration(line: string) {
@@ -856,25 +841,13 @@ export class BaseCodeGenerator {
   }
 
   protected escapeString(str: string): string {
-    // Process string character by character
-    // All non-ASCII characters are encoded as UTF-8 bytes
-    const encoder = new TextEncoder();
+    // Encode together so UTF-16 surrogate pairs become one UTF-8 code point.
     let result = "";
-    for (let i = 0; i < str.length; i++) {
-      const code = str.charCodeAt(i);
-      // Printable ASCII (except " and \)
-      if (code >= 32 && code <= 126 && code !== 34 && code !== 92) {
-        result += str[i];
-      } else if (code < 128) {
-        // Non-printable ASCII - escape it as single byte
-        result += "\\" + code.toString(16).toUpperCase().padStart(2, "0");
+    for (const byte of new TextEncoder().encode(str)) {
+      if (byte >= 32 && byte <= 126 && byte !== 34 && byte !== 92) {
+        result += String.fromCharCode(byte);
       } else {
-        // Non-ASCII character - encode as UTF-8 bytes
-        const bytes = encoder.encode(str[i]);
-        for (let j = 0; j < bytes.length; j++) {
-          const byte = bytes[j]!;
-          result += "\\" + byte.toString(16).toUpperCase().padStart(2, "0");
-        }
+        result += "\\" + byte.toString(16).toUpperCase().padStart(2, "0");
       }
     }
     return result;
@@ -908,8 +881,7 @@ export class BaseCodeGenerator {
       case 117:
         return (
           line.startsWith("unreachable", index) &&
-          (line.length === index + 11 ||
-            line.charCodeAt(index + 11) === 44)
+          (line.length === index + 11 || line.charCodeAt(index + 11) === 44)
         );
       default:
         return false;

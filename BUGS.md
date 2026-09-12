@@ -3527,10 +3527,12 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-288: Astral Unicode string literals produce invalid LLVM constants
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-12)**: A literal containing an emoji is sized as four UTF-8 bytes but escapeString encodes each UTF-16 surrogate separately, emitting two replacement characters (six bytes). Clang rejects the constant type mismatch. BMP UTF-8 text is unaffected.
 
 **Workaround**: Construct astral UTF-8 text with explicit byte arrays until whole-string UTF-8 encoding is used during LLVM escaping.
+
+**Resolution (2026-09-12)**: Encode the complete string before escaping LLVM bytes, matching UTF-8 length calculation. Runtime/LLVM regression covers astral, BMP, ASCII, quote, and backslash characters together.
