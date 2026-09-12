@@ -2939,6 +2939,7 @@ frame fromBytes(data: *u8) ret UUID
 frame nil() ret UUID
 frame toString(this: *UUID) ret string
 frame fromString(str: string) ret UUID
+frame tryFromString(str: string, output: *UUID) ret bool
 frame hexCharToValue(c: u8) ret int
 frame isNil(this: *UUID) ret bool
 frame version(this: *UUID) ret int

@@ -297,8 +297,11 @@ native `getentropy` support (Linux glibc 2.25+ or macOS 10.12+); see the
 and [entropy API contract](https://www.gnu.org/software/libc/manual/2.26/html_node/Unpredictable-Bytes.html).
 Random UUIDs do not provide a mathematical uniqueness guarantee or replace a
 purpose-built authentication-token protocol.
-`fromString` can return a partially parsed value, so validate text with `isValid`
-before parsing. `toString()` returns allocated storage that the caller must free.
+`fromString` accepts exactly 32 hexadecimal digits or the standard 36-character
+hyphenated form; hexadecimal letters may be upper- or lowercase. Invalid input
+returns nil. `tryFromString(text, output)` distinguishes invalid input from a valid
+nil UUID, returns false for a null destination, and leaves the destination
+unchanged on failure. `toString()` returns allocated storage that the caller must free.
 
 **Creation:**
 
@@ -306,6 +309,7 @@ before parsing. `toString()` returns allocated storage that the caller must free
 - `UUID.tryV4(output: *UUID) ret bool` - Checked generation; null output returns false
 - `UUID.fromBytes(data: *u8) ret UUID`
 - `UUID.fromString(str: string) ret UUID`
+- `UUID.tryFromString(str: string, output: *UUID) ret bool`
 - `UUID.nil() ret UUID` - All-zero UUID
 
 **Conversion:**

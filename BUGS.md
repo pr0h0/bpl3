@@ -3596,3 +3596,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-12)**: The BUG-289 compiler fix caused hosted String programs to import an undefined env.__bpl_write_stderr symbol. Native runtime support supplied this function, but neither Wasm runtime did.
 
 **Resolution**: Provide a weak no-output writer for freestanding Wasm and a hosted override forwarding to the existing fd-2 host write hook. Tests exercise both modes, and the affected String-based hosted programs are rerun.
+
+### BUG-294: UUID parsing accepts incomplete input and trailing garbage
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-12)**: fromString fills as many byte pairs as available and returns a partial UUID; after 16 bytes it ignores remaining input. It also skips misplaced hyphens.
+
+**Resolution**: Validate the complete dashed/compact format before decoding. Add tryFromString with unchanged-output failure semantics, and make fromString return nil for invalid input. O0/O3 LLVM-verified tests cover invalid lengths, misplaced separators, extra input, mixed case, and valid nil UUIDs.

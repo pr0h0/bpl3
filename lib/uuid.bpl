@@ -88,46 +88,30 @@ struct UUID {
         return cast<string>(output);
     }
 
-    # Parse a UUID from string
-    # Accepts formats: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx or xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    # Invalid text returns nil. Use tryFromString to distinguish failure from nil.
     frame fromString(str: string) ret UUID {
         local uuid: UUID = UUID.nil();
+        UUID.tryFromString(str, &uuid);
+        return uuid;
+    }
 
-        if (str == nullptr) {
-            return uuid;
-        }
+    # Accept exactly the dashed or compact format. Failure leaves output unchanged.
+    frame tryFromString(str: string, output: *UUID) ret bool {
+        if ((output == nullptr) || (UUID.isValid(str) == false)) { return false; }
+        local uuid: UUID = UUID.nil();
         local ptr: *u8 = cast<*u8>(str);
-        local len: int = cast<int>(strlen(str));
-
         local byteIdx: int = 0;
         local i: int = 0;
-
-        loop ((i < len) && (byteIdx < 16)) {
-            local c1: u8 = *(ptr + i);
-
-            # Skip dashes
-            if (c1 == cast<u8>(45)) {
-                i = i + 1;
-                continue;
-            }
-            # Need two hex chars
-            if ((i + 1) >= len) {
-                break;
-            }
-            local c2: u8 = *(ptr + i + 1);
-
-            local hi: int = UUID.hexCharToValue(c1);
-            local lo: int = UUID.hexCharToValue(c2);
-
-            if ((hi < 0) || (lo < 0)) {
-                return UUID.nil();
-            }
+        loop (byteIdx < 16) {
+            if (ptr[i] == cast<u8>(45)) { i = i + 1; }
+            local hi: int = UUID.hexCharToValue(ptr[i]);
+            local lo: int = UUID.hexCharToValue(ptr[i + 1]);
             uuid.bytes[byteIdx] = cast<u8>((hi << 4) | lo);
             byteIdx = byteIdx + 1;
             i = i + 2;
         }
-
-        return uuid;
+        *output = uuid;
+        return true;
     }
 
     # Helper: convert hex char to value
