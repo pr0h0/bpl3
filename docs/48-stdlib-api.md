@@ -435,11 +435,11 @@ Pseudo-random number generator (LCG).
 - `rng.nextInt() ret int`
 - `rng.nextUInt() ret uint`
 - `rng.nextLong() ret long`
-- `rng.nextFloat() ret float` - Legacy biased fraction; see limitations below
+- `rng.nextFloat() ret float` - Unsigned 32-bit fraction in [0, 1)
 - `rng.nextBool() ret bool`
-- `rng.range(min: int, max: int) ret int` - Legacy modulo-based range
+- `rng.range(min: int, max: int) ret int` - Rejection-sampled [min, max) integer range
 - `rng.range(min: float, max: float) ret float`
-- `rng.nextGaussian() ret float` - Legacy approximation; not a normal distribution
+- `rng.nextGaussian() ret float` - Box–Muller normal sample
 
 **Array Operations:**
 
@@ -450,13 +450,21 @@ Pseudo-random number generator (LCG).
 
 ## Random-number limitations
 
-`Rand` is deterministic and not cryptographically secure. Its current
-`nextFloat` takes the absolute value of a signed 32-bit result and divides by
-2^32, so it normally covers only the lower half of the advertised unit interval;
-the minimum signed integer can produce a negative value. `range` inherits bias
-and signed-overflow edge cases. `nextGaussian` uses a polynomial approximation
-that is not a valid normal-distribution sampler. Do not use these methods for
-security, unbiased sampling, or statistical simulation without replacing them.
+`Rand` is a deterministic 32-bit LCG, not a cryptographic generator. `seedFromTime`
+uses whole seconds, so equal seeds repeat sequences. `nextFloat` maps unsigned
+32-bit output to [0, 1). Integer `range` uses rejection sampling to remove modulo
+bias and supports intervals spanning signed boundaries; empty or reversed ranges
+return `min` without advancing the generator.
+
+For finite floating bounds, `range` uses a convex combination to avoid overflow
+in `max - min`. Rounding can produce an endpoint. `nextGaussian` uses Box–Muller
+with native logarithm, square root, and cosine, resampling zero before the
+logarithm. These fixes change generated fractions, ranges, and Gaussian sequences
+from earlier releases. They do not remove the correlations or limited state space
+of the underlying LCG. `nextBool` and `fillBytes` still use its low bits, which
+have short repeating patterns; use OS entropy for security-sensitive randomness.
+`weightedChoice` still requires nonnegative weights with a positive total fitting
+signed int; overflow and invalid weights are not checked.
 
 ## Additional modules and implementation status
 

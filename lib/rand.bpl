@@ -3,6 +3,7 @@
 export [Rand];
 
 import [Array] from "std/array.bpl";
+import [Math] from "std/math.bpl";
 
 extern time(ptr: *long) ret long;
 
@@ -40,14 +41,8 @@ struct Rand {
     }
 
     frame nextFloat(this: *Rand) ret float {
-        local i: int = this.nextInt();
-        if (i < 0) {
-            i = -i;
-        }
-        # Normalize to [0,1)
-        local denom: float = 4294967296.0;
-        local f: float = cast<float>(i) / denom;
-        return f;
+        # Every unsigned 32-bit value maps exactly into [0, 1).
+        return cast<float>(this.nextUInt()) / 4294967296.0;
     }
 
     frame nextBool(this: *Rand) ret bool {
@@ -55,40 +50,28 @@ struct Rand {
     }
 
     frame range(this: *Rand, min: int, max: int) ret int {
-        local diff: int = max - min;
-        if (diff <= 0) 
-            return min;
-        local i: int = this.nextInt();
-        if (i < 0) {
-            i = -i;
-        }
-        return min + (i % diff);
+        if (max <= min) { return min; }
+        local span: ulong = cast<ulong>(cast<long>(max) - cast<long>(min));
+        local domain: ulong = cast<ulong>(0x100000000);
+        local limit: ulong = domain - (domain % span);
+        local value: ulong = cast<ulong>(this.nextUInt());
+        loop (value >= limit) { value = cast<ulong>(this.nextUInt()); }
+        return cast<int>(cast<long>(min) + cast<long>(value % span));
     }
 
     frame range(this: *Rand, min: float, max: float) ret float {
-        return min + (this.nextFloat() * (max - min));
+        if (max <= min) { return min; }
+        local fraction: float = this.nextFloat();
+        # A convex combination avoids overflow in max-min for opposite signs.
+        return min * (1.0 - fraction) + max * fraction;
     }
 
-    # Generates a random float with Gaussian (normal) distribution
-    # Uses Box-Muller transform
+    # Box-Muller transform; reject zero instead of clipping the distribution.
     frame nextGaussian(this: *Rand) ret float {
         local u1: float = this.nextFloat();
+        loop (u1 == 0.0) { u1 = this.nextFloat(); }
         local u2: float = this.nextFloat();
-        # Avoid log(0) - use a small epsilon
-        local epsilon: float = 0.00001;
-        if (u1 < epsilon) 
-            u1 = epsilon;
-        # Box-Muller transform (approximation using available functions)
-        # z = sqrt(-2 * ln(u1)) * cos(2 * pi * u2)
-        local pi: float = 3.14159265358979323846;
-        local mag: float = 0.0 - (2.0 * (u1 - 0.5)); # Simplified approximation
-
-        # Use polynomial approximation for cos
-        local angle: float = 2.0 * pi * u2;
-        local x2: float = angle * angle;
-        local cosVal: float = (1.0 - (x2 / 2.0)) + ((x2 * x2) / 24.0);
-
-        return mag * cosVal;
+        return Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(6.283185307179586 * u2);
     }
 
     # Shuffle an array of integers in place

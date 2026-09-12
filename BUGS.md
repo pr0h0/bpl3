@@ -3309,13 +3309,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-267: Rand fractions and distributions violate their advertised contracts
 
-**Status**: Open
+**Status**: Fixed (fractions, ranges, Gaussian sampling)
 
 **Priority**: P2
 
 **Observed (2026-09-11)**: `Rand.seed(cast<ulong>(2782269413)).nextFloat()` returns -0.5. Absolute signed-int normalization otherwise covers only roughly half of [0,1), and `range` inherits bias/overflow issues. `nextGaussian` uses an ad-hoc polynomial instead of the advertised normal sampler.
 
 **Documentation/workaround**: The API guide now states these limitations. Avoid these helpers for unbiased sampling, statistical simulation, and security-sensitive randomness until their algorithms are replaced.
+
+**Resolution (2026-09-12)**: Normalize unsigned outputs, use wide arithmetic and rejection sampling for integer ranges, avoid overflowing floating range differences, and implement Box–Muller with native math. Deterministic O0/O3 model and moment tests pass. LCG correlations, low-bit helpers, and unchecked weighted-choice totals remain documented limitations.
 
 ### BUG-268: String.replaceAll can repeatedly expand replacement text
 
