@@ -3502,3 +3502,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-11)**: The NumberToken grammar accepts integer and decimal-fraction spellings but not exponent suffixes. The attempted `1.7976931348623157e308` literal fails parsing; the recently edited primitive-type guide incorrectly said source exponent notation was supported.
 
 **Resolution**: Corrected the source-literal guide. JSON numeric text and BPL source literal syntax are separate contracts. The JSON formatter detects non-finite values through binary64 exponent bits, without requiring an unsupported source literal.
+
+### BUG-286: StringBuilder.appendInt loses the minimum signed integer
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-12)**: Appending -2147483648 negates the value in an int temporary, which cannot represent its magnitude. The digit loop writes no digits, producing only a minus sign. JSON integer serialization inherits this invalid output.
+
+**Resolution**: Widen the magnitude to long before negation. An O0/O3 regression with LLVM verification covers both signed boundaries, zero, nearby values, buffer growth, and builder reuse.

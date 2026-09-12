@@ -115,14 +115,15 @@ struct StringBuilder {
         # Convert int to string manually
         # Handle negative numbers
         local is_negative: bool = false;
-        local abs_value: int = value;
+        local abs_value: long = cast<long>(value);
 
         if (value < 0) {
             is_negative = true;
-            abs_value = -value;
+            # Widen before negation: INT_MIN has no positive int counterpart.
+            abs_value = -abs_value;
         }
         # Count digits
-        local temp: int = abs_value;
+        local temp: long = abs_value;
         local digit_count: int = 0;
         if (temp == 0) {
             digit_count = 1;
@@ -147,13 +148,13 @@ struct StringBuilder {
         }
         # Write digits in reverse order
         local pos: int = (this.length + digit_count) - 1;
-        local val: int = abs_value;
+        local val: long = abs_value;
         if (val == 0) {
             this.buffer[this.length] = cast<char>(48); # '0'
             this.length = this.length + 1;
         } else {
             loop (val > 0) {
-                local digit: int = val % 10;
+                local digit: int = cast<int>(val % 10);
                 this.buffer[pos] = cast<char>(48 + digit); # '0' + digit
                 pos = pos - 1;
                 val = val / 10;
