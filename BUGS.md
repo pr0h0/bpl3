@@ -3512,3 +3512,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-12)**: Appending -2147483648 negates the value in an int temporary, which cannot represent its magnitude. The digit loop writes no digits, producing only a minus sign. JSON integer serialization inherits this invalid output.
 
 **Resolution**: Widen the magnitude to long before negation. An O0/O3 regression with LLVM verification covers both signed boundaries, zero, nearby values, buffer growth, and builder reuse.
+
+### BUG-287: JSON integer parsing silently overflows and accepts leading zeros
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-12)**: The primitive int parser accumulated unchecked int arithmetic and accepted any run of digits, so values outside the signed 32-bit range could wrap and invalid JSON spellings such as 01 were accepted.
+
+**Resolution**: Validate JSON number syntax, accumulate with signed range checks before each arithmetic step, and reject fractional/exponent spellings for integer destinations. Added checked long/i64 parsing and finite binary64 parsing for float/double/f64. O0/O3 tests cover exact boundaries, adjacent overflows, malformed syntax, subnormals, signed zero, large exponents, aliases, fields, and arrays.

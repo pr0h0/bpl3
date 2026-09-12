@@ -135,7 +135,8 @@ The implementation is experimental; it is not a general, strict JSON validator.
 | Value                           | Serialization                         | Parsing                                                    |
 | ------------------------------- | ------------------------------------- | ---------------------------------------------------------- |
 | `int` / `i32`, `bool`, `string` | Implemented                           | Implemented                                                |
-| `float`, `long` / `i64`         | Implemented with C formatting         | Not implemented by the primitive parser                    |
+| `long` / `i64`                  | Implemented with C formatting         | Checked signed 64-bit integers                             |
+| `float` / `double` / `f64`      | Bounded binary64 formatting           | JSON fractions and exponents; finite binary64 results      |
 | Other primitive kinds           | Unsupported kinds fall back to `null` | No general primitive conversion                            |
 | Structs                         | Reflected fields or a custom hook     | Reflected fields; unknown keys are skipped                 |
 | Fixed arrays, `Array<T>`        | Recursive elements                    | Subject to element support and parser limits               |
@@ -158,5 +159,19 @@ below 0x20. Valid UTF-8 bytes are preserved; embedded NUL remains unsupported.
 Binary64 (`float`/`double`/`f64`) output uses up to 17 significant digits and may
 use exponent notation; this preserves finite values through a binary64 JSON
 parser. Formatting is bounded and does not allocate a fixed-size heap buffer.
-NaN and either infinity serialize as `null`. Numeric formatting requires the C
-numeric locale; callers changing the process locale must retain that convention.
+NaN and either infinity serialize as `null`. Numeric formatting and floating-point
+parsing require the C numeric locale; callers changing the process locale must
+retain that convention.
+
+Integer parsing checks the destination range: `int`/`i32` accepts -2147483648
+through 2147483647, and `long`/`i64` accepts -9223372036854775808 through 9223372036854775807. Overflow returns `nullptr`; values are never silently
+truncated. Integer destinations require integer spelling: `1.0` and `1e0` are
+rejected even though they describe integral values.
+
+Floating-point destinations accept JSON fractions and exponent notation, including
+negative zero and subnormals. Conversion rounds to binary64; underflow may round
+to signed zero. Overflow to infinity is rejected. JSON text such as `"1e100"` can
+be parsed even though BPL source literals do not support exponent notation.
+Leading plus signs, leading zeros, incomplete fractions/exponents, `NaN`, and
+`Infinity` are rejected. These numeric rules also apply to fields and supported
+array elements. Other widths and unsigned primitive destinations remain unsupported.

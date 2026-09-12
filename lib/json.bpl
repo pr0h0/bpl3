@@ -15,6 +15,7 @@ extern strcmp(s1: string, s2: string) ret int;
 extern sprintf(str: string, format: string, ...) ret int;
 extern snprintf(str: string, size: long, format: string, ...) ret int;
 extern printf(fmt: string, ...) ret int;
+extern strtod(text: string, end: **char) ret float;
 
 extern strlen(s: string) ret int;
 extern memset(dest: string, val: int, n: long) ret string;
@@ -225,30 +226,63 @@ struct JsonParser {
         return nullptr;
     }
 
-    frame parseInt(this: *JsonParser) ret int {
+    # Accumulate negatively so the minimum signed value remains representable.
+    frame parseInteger(this: *JsonParser, minimum: long, maximum: long) ret long {
         this.skipWs();
-        local sign: int = 1;
-        if (this.peek() == cast<char>(45)) {
-            # -
-            sign = -1;
-            this.next();
+        local start: int = this.pos;
+        this.skipNumber();
+        if (this.has_error) {
+            return 0;
         }
-        local has_digits: bool = false;
-        local val: int = 0;
-        loop (this.pos < this.len) {
-            local c: char = this.peek();
-            if ((c < cast<char>(48)) || (c > cast<char>(57))) {
-                break;
+        local negative: bool = this.src[start] == '-';
+        local limit: long = -maximum;
+        if (negative) {
+            limit = minimum;
+            start = start + 1;
+        }
+        local threshold: long = limit / 10;
+        local lastDigit: long = -(limit % 10);
+        local value: long = 0;
+        loop (start < this.pos) {
+            local c: char = this.src[start];
+            if ((c < '0') || (c > '9')) {
+                this.fail("Expected integer without fraction or exponent");
+                return 0;
             }
-            val = (val * 10) + (cast<int>(c) - 48);
-            has_digits = true;
-            this.next();
+            local digit: long = cast<long>(c) - 48;
+            if ((value < threshold) || ((value == threshold) && (digit > lastDigit))) {
+                this.fail("Integer out of range");
+                return 0;
+            }
+            value = (value * 10) - digit;
+            start = start + 1;
         }
+        if (negative) {
+            return value;
+        }
+        return -value;
+    }
 
-        if (has_digits == false) {
-            this.fail("Expected number");
+    frame parseFloat(this: *JsonParser) ret float {
+        this.skipWs();
+        local start: int = this.pos;
+        this.skipNumber();
+        if (this.has_error) {
+            return 0.0;
         }
-        return val * sign;
+        local end: *char = nullptr;
+        local value: float = strtod(cast<string>(&this.src[start]), &end);
+        if (end != &this.src[this.pos]) {
+            this.fail("Invalid floating-point conversion (C numeric locale required)");
+            return 0.0;
+        }
+        local bits: ulong = *cast<*ulong>(&value);
+        local exponentMask: ulong = cast<ulong>(0x7ff0000000000000);
+        if ((bits & exponentMask) == exponentMask) {
+            this.fail("Floating-point number out of range");
+            return 0.0;
+        }
+        return value;
     }
 
     frame parseBool(this: *JsonParser) ret bool {
@@ -603,8 +637,11 @@ struct JSON {
                             local bytes: char[64];
                             local buf: string = cast<string>(&bytes[0]);
                             local written: int = snprintf(buf, 64, "%.17g", f);
-                            if ((written < 0) || (written >= 64)) { sb.append("null"); }
-                            else { sb.append(buf); }
+                            if ((written < 0) || (written >= 64)) {
+                                sb.append("null");
+                            } else {
+                                sb.append(buf);
+                            }
                         }
                     } else {
                         if ((strcmp(info.name, "long") == 0) || (strcmp(info.name, "i64") == 0)) {
@@ -992,8 +1029,12 @@ struct JSON {
 
     frame parsePrimitive(p: *JsonParser, ptr: ulong, info: *TypeInfo) {
         if ((strcmp(info.name, "int") == 0) || (strcmp(info.name, "i32") == 0)) {
-            local val: int = p.parseInt();
+            local val: int = cast<int>(p.parseInteger(-2147483648, 2147483647));
             *cast<*int>(ptr) = val;
+        } else if ((strcmp(info.name, "long") == 0) || (strcmp(info.name, "i64") == 0)) {
+            *cast<*long>(ptr) = p.parseInteger(cast<long>(0x8000000000000000), cast<long>(0x7fffffffffffffff));
+        } else if ((strcmp(info.name, "float") == 0) || (strcmp(info.name, "double") == 0) || (strcmp(info.name, "f64") == 0)) {
+            *cast<*float>(ptr) = p.parseFloat();
         } else {
             if (strcmp(info.name, "string") == 0) {
                 local s: string = p.parseString();

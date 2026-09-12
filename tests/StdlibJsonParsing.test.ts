@@ -25,8 +25,8 @@ const invalidCases = [
     "[1e]",
     "[01]",
   ].map((input) => ({ type: "Array<int>", input })),
-  { type: "FloatPair", input: "[1.25]" },
-  { type: "Array<float>", input: "[1.25]" },
+  { type: "CharPair", input: "[1.25]" },
+  { type: "Array<char>", input: "[1.25]" },
   ...[
     '{"id":1,}',
     '{"id":1 "extra":2}',
@@ -49,15 +49,15 @@ test("JSON rejects malformed containers, unsupported elements, and invalid skipp
     import [Array] from "std/array.bpl";
     import printf from "std/c.bpl";
     type Pair = int[2];
-    type FloatPair = float[2];
+    type CharPair = char[2];
     struct Record { id: int }
     struct PointerRecord { value: *int }
     frame main() ret int {
       ${invalidCases
         .map(
           ({ type, input }, index) => `
-        local value${index}: *${type} = JSON.parse<${type === "Pair" ? "int[2]" : type === "FloatPair" ? "float[2]" : type}>(${JSON.stringify(input)});
-        if (value${index} != nullptr) { JSON.free<${type === "Pair" ? "int[2]" : type === "FloatPair" ? "float[2]" : type}>(value${index}); return ${index + 1}; }
+        local value${index}: *${type} = JSON.parse<${type === "Pair" ? "int[2]" : type === "CharPair" ? "char[2]" : type}>(${JSON.stringify(input)});
+        if (value${index} != nullptr) { JSON.free<${type === "Pair" ? "int[2]" : type === "CharPair" ? "char[2]" : type}>(value${index}); return ${index + 1}; }
       `,
         )
         .join("\n")}
