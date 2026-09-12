@@ -1296,6 +1296,18 @@ Exports:
 
 ```bpl
 export [IO];
+export [LineReadResult];
+```
+
+### LineReadResult
+
+```bpl
+enum LineReadResult
+Line(int)
+Truncated(int)
+EndOfFile
+Error
+InvalidBuffer
 ```
 
 ### IO
@@ -1314,7 +1326,7 @@ frame printFloat(f: float)
 frame printFloatLn(f: float)
 frame printBool(b: bool)
 frame printBoolLn(b: bool)
-frame readLine(buf: string) ret int
+frame readLine(buf: string, capacity: int) ret LineReadResult
 frame bpl_printf(fmt: string, args: *Any, args_count: int)
 ```
 
@@ -2575,6 +2587,7 @@ export [Result];
 export [Vec2];
 export [Vec3];
 export [IO];
+export [LineReadResult];
 export [FS];
 export [Path];
 export [Math];

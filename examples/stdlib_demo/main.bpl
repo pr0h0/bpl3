@@ -1,6 +1,6 @@
 import [Array] from "std/array.bpl";
 import [String] from "std/string.bpl";
-import [IO] from "std/io.bpl";
+import [LineReadResult], [IO] from "std/io.bpl";
 
 import [malloc] from "std/c.bpl";
 import [free] from "std/c.bpl";
@@ -97,13 +97,10 @@ frame demoIo() {
     # Test readLine
     IO.log("Enter text:");
     local buf: string = cast<string>(malloc(cast<long>(100)));
-    # Note: gets is unsafe, but used here for simplicity in demo
-    local len: int = IO.readLine(buf);
-    # Remove newline if present (gets usually keeps it or not? gets removes newline, fgets keeps it.
-    # Wait, C gets() removes the newline. But IO.readLine calls gets.
-    # Let's assume input "input" results in "input" in buffer.
-
-    IO.printf("Read %d chars: ", len);
+    match (IO.readLine(buf, 100)) {
+        LineReadResult.Line(len) => IO.printf("Read %d chars: ", len),
+        _ => IO.printf("Could not read a complete line (%d): ", -1),
+    };
     IO.printString(buf);
 
     free(cast<*void>(buf));

@@ -350,3 +350,28 @@ void __bpl_assert(int condition, const char *message, const char *file, int32_t 
         abort();
     }
 }
+
+/* Bounded stdin line input. Status values match std/io.bpl. */
+int32_t __bpl_read_line(char *buffer, int32_t capacity, int32_t *length) {
+    if (!buffer || capacity <= 0 || !length) return 4;
+    *length = 0;
+    buffer[0] = '\0';
+    int truncated = 0;
+    int saw_byte = 0;
+    for (;;) {
+        int ch = fgetc(stdin);
+        if (ch == EOF) {
+            if (ferror(stdin)) return 3;
+            if (!saw_byte) return 1;
+            return truncated ? 2 : 0;
+        }
+        if (ch == '\n') return truncated ? 2 : 0;
+        saw_byte = 1;
+        if (*length < capacity - 1) {
+            buffer[(*length)++] = (char)ch;
+            buffer[*length] = '\0';
+        } else {
+            truncated = 1;
+        }
+    }
+}

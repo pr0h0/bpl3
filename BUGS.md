@@ -3341,13 +3341,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-270: IO.readLine has no input bound and mishandles EOF
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
 **Observed (2026-09-11)**: `IO.readLine` calls `gets(buf)` without a capacity, ignores the return value, and calls strlen on the buffer. The former documentation presented a 100-byte buffer as sufficient for arbitrary line input.
 
 **Documentation/workaround**: Replaced the example with a width-limited token read and documented the unsafe legacy method. A replacement API needs a buffer capacity and explicit EOF/error handling.
+
+**Resolution (2026-09-12)**: Replace the unsafe one-argument API with readLine(buffer, capacity), returning LineReadResult for complete/truncated input, EOF, native errors, and invalid buffers. Drain oversized lines, NUL-terminate valid buffers, and migrate the demo/docs.
 
 ### BUG-271: FS.mkdirp loses absolute roots and ignores creation failures
 

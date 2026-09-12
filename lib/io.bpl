@@ -2,14 +2,24 @@
 import [String] from "std/string.bpl";
 import [Any] from "std/type.bpl";
 export [IO];
+export [LineReadResult];
 
 extern printf(fmt: string, ...) ret int;
 extern scanf(fmt: string, ...) ret int;
-extern gets(buf: string) ret string;
+extern __bpl_read_line(buf: string, capacity: int, length: *int) ret int;
 extern strlen(s: string) ret int;
 
 extern write(fd: int, buf: *char, count: int) ret int;
 extern dprintf(fd: int, fmt: *char, ...) ret int;
+
+# Line and Truncated contain the number of stored bytes, excluding NUL/newline.
+enum LineReadResult {
+    Line(int),
+    Truncated(int),
+    EndOfFile,
+    Error,
+    InvalidBuffer,
+}
 
 /#
 # Input/Output Utilities
@@ -121,15 +131,18 @@ struct IO {
     }
 
     /#
-    # Read Line
-    Reads a line from stdin into the buffer.
-
-    ## Returns
-    The length of the string read.
+    Read a line into a caller-owned buffer with capacity including its NUL byte.
+    Removes LF, preserves other bytes, and drains excess input through LF/EOF.
+    Valid buffers are always NUL-terminated. Invalid buffers consume no input.
     #/
-    frame readLine(buf: string) ret int {
-        gets(buf);
-        return strlen(buf);
+    frame readLine(buf: string, capacity: int) ret LineReadResult {
+        local length: int = 0;
+        local status: int = __bpl_read_line(buf, capacity, &length);
+        if (status == 0) { return LineReadResult.Line(length); }
+        if (status == 1) { return LineReadResult.EndOfFile; }
+        if (status == 2) { return LineReadResult.Truncated(length); }
+        if (status == 4) { return LineReadResult.InvalidBuffer; }
+        return LineReadResult.Error;
     }
 
     frame bpl_printf(fmt: string, args: *Any, args_count: int) {

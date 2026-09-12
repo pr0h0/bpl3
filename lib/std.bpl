@@ -113,8 +113,9 @@ import [Vec3] from "std/vec3.bpl";
 export [Vec3];
 
 # Utilities
-import [IO] from "std/io.bpl";
+import [IO], [LineReadResult] from "std/io.bpl";
 export [IO];
+export [LineReadResult];
 
 import [FS] from "std/fs.bpl";
 export [FS];

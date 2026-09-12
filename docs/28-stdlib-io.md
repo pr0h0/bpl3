@@ -26,32 +26,45 @@ import [IO] from "std/io.bpl";
 
 ## Reading Functions
 
-| Function                                      | Description                                     |
-| --------------------------------------------- | ----------------------------------------------- |
-| `IO.read(format: string, ptr: *void) ret int` | Formatted read (wrapper around C scanf)         |
-| `IO.readLine(buf: string) ret int`            | Unbounded legacy read; avoid for external input |
+| Function                                                     | Description                             |
+| ------------------------------------------------------------ | --------------------------------------- |
+| `IO.read(format: string, ptr: *void) ret int`                | Formatted read (wrapper around C scanf) |
+| `IO.readLine(buf: string, capacity: int) ret LineReadResult` | Bounded line input with explicit status |
 
 ## Bounded input example
 
-`IO.readLine` calls the unbounded C `gets` function and has no capacity argument.
-It can overflow its destination; it also does not handle EOF robustly. Use a
-bounded native read or a width-limited formatted token read instead. `IO.read`
-returns the native `scanf` result: check the assignment count before using input.
+`IO.readLine` requires the allocated buffer capacity, including space for the NUL
+terminator. It replaces the unsafe one-argument API. Import `LineReadResult` from
+`std/io.bpl` or `std` and handle its variants:
+
+- `Line(n)`: a complete line or final unterminated line; `n` stored bytes.
+- `Truncated(n)`: the prefix fit, and the remainder was consumed through LF/EOF.
+- `EndOfFile`: EOF before any bytes of a new line.
+- `Error`: a native stream error; do not treat the buffer as a complete line.
+- `InvalidBuffer`: null buffer or nonpositive capacity; no input consumed.
+
+Valid buffers are always NUL-terminated, including on EOF/error. LF is removed;
+other bytes (including CR and embedded NUL) are preserved and counted. A capacity
+of one stores only the terminator. The caller must pass the actual buffer size.
+The native runtime provides this API on supported Linux/macOS hosts.
 
 ```bpl
-import [IO] from "std/io.bpl";
+import [IO], [LineReadResult] from "std/io.bpl";
 
 frame main() ret int {
     local buf: char[100];
-    IO.print("Enter one word: ");
-    if (IO.read("%99s", cast<*void>(&buf[0])) != 1) { return 1; }
-    IO.printString(cast<string>(&buf[0]));
+    match (IO.readLine(cast<string>(&buf[0]), 100)) {
+        LineReadResult.Line(n) => IO.printString(cast<string>(&buf[0])),
+        LineReadResult.Truncated(n) => IO.log("Line too long"),
+        LineReadResult.EndOfFile => IO.log("End of input"),
+        _ => IO.log("Input error"),
+    };
     return 0;
 }
 ```
 
-This reads a whitespace-delimited token, not an entire line. Keep format strings
-trusted and match each conversion to the destination type and buffer size.
+`IO.read` returns the native `scanf` assignment count. Keep format strings trusted
+and match each conversion to the destination type and buffer size.
 `IO.printf` accepts one integer argument; use the native variadic `printf` for
 other argument lists.
 

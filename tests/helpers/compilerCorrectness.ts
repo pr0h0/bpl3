@@ -29,6 +29,7 @@ export interface SanitizerSupportResult {
 }
 
 interface RunCommandOptions {
+  input?: string;
   timeout?: number;
   env?: NodeJS.ProcessEnv;
 }
@@ -80,8 +81,7 @@ export interface SeededDifferentialProgram extends CorrectnessProgram {
   expectedStdout: string;
 }
 
-export interface SeededDifferentialResult
-  extends CorrectnessProgramResult {
+export interface SeededDifferentialResult extends CorrectnessProgramResult {
   seed: number;
   family: SeededDifferentialFamily;
   source: string;
@@ -128,6 +128,7 @@ function runCommand(
     encoding: "utf8",
     timeout: normalizedOptions.timeout ?? 30000,
     env: normalizedOptions.env,
+    input: normalizedOptions.input,
     maxBuffer: 1024 * 1024 * 16,
   });
 
@@ -138,10 +139,10 @@ function runCommand(
   };
 }
 
-function withSourceFile<T>(source: string, callback: (paths: {
-  dir: string;
-  sourcePath: string;
-}) => T): T {
+function withSourceFile<T>(
+  source: string,
+  callback: (paths: { dir: string; sourcePath: string }) => T,
+): T {
   const dir = mkdtempSync(join(tmpdir(), "bpl-correctness-"));
   const sourcePath = join(dir, "main.bpl");
   writeFileSync(sourcePath, source);
@@ -153,7 +154,10 @@ function withSourceFile<T>(source: string, callback: (paths: {
   }
 }
 
-function failWithResult(message: string, result: CorrectnessCommandResult): never {
+function failWithResult(
+  message: string,
+  result: CorrectnessCommandResult,
+): never {
   throw new Error(
     [
       message,
@@ -181,11 +185,13 @@ function assertNoInternalException(result: CorrectnessCommandResult): void {
 export function runBplAtOptimization(
   source: string,
   optimizationLevel: 0 | 3,
+  input?: string,
 ): CorrectnessCommandResult {
   return withSourceFile(source, ({ dir, sourcePath }) =>
     runCommand(
       ["bun", BPL_CLI, "run", sourcePath, "-O", String(optimizationLevel)],
       dir,
+      { input },
     ),
   );
 }
@@ -561,10 +567,7 @@ function generatePointerArrayProgram(
   const row = nextInt(rng, 0, 1);
   const col = nextInt(rng, 0, 2);
   const replacement = nextInt(rng, 20, 60);
-  const matrix = [
-    values.slice(0, 3),
-    values.slice(3, 6),
-  ];
+  const matrix = [values.slice(0, 3), values.slice(3, 6)];
   matrix[row]![col] = replacement;
   const diagonal = matrix[0]![0]! + matrix[1]![2]!;
 
