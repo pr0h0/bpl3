@@ -263,6 +263,31 @@ struct JsonParser {
         return -value;
     }
 
+    frame parseUnsigned(this: *JsonParser, maximum: ulong) ret ulong {
+        this.skipWs();
+        local start: int = this.pos;
+        this.skipNumber();
+        if (this.has_error) { return 0; }
+        local threshold: ulong = maximum / 10;
+        local lastDigit: ulong = maximum % 10;
+        local value: ulong = 0;
+        loop (start < this.pos) {
+            local c: char = this.src[start];
+            if ((c < '0') || (c > '9')) {
+                this.fail("Expected unsigned integer without sign, fraction, or exponent");
+                return 0;
+            }
+            local digit: ulong = cast<ulong>(c) - 48;
+            if ((value > threshold) || ((value == threshold) && (digit > lastDigit))) {
+                this.fail("Unsigned integer out of range");
+                return 0;
+            }
+            value = value * 10 + digit;
+            start = start + 1;
+        }
+        return value;
+    }
+
     frame parseFloat(this: *JsonParser) ret float {
         this.skipWs();
         local start: int = this.pos;
@@ -455,6 +480,21 @@ struct JsonParser {
     }
 }
 
+# Decimal unsigned formatting keeps all 64 bits without a float conversion or locale.
+frame appendJsonUnsigned(sb: *StringBuilder, value: ulong) {
+    local bytes: char[21];
+    local pos: int = 20;
+    bytes[pos] = cast<char>(0);
+    local remaining: ulong = value;
+    loop {
+        pos = pos - 1;
+        bytes[pos] = cast<char>(48 + cast<int>(remaining % 10));
+        remaining = remaining / 10;
+        if (remaining == 0) { break; }
+    }
+    sb.append(cast<string>(&bytes[pos]));
+}
+
 struct JSON {
     # Generic entry point for serializing any object to JSON
     frame stringify<T>(obj: *T) ret String {
@@ -559,6 +599,18 @@ struct JSON {
             # Load int value from pointer
             local val: int = *cast<*int>(ptr);
             sb.appendInt(val);
+        } else if ((strcmp(info.name, "i8") == 0) || (strcmp(info.name, "char") == 0)) {
+            sb.appendInt(cast<int>(*cast<*i8>(ptr)));
+        } else if ((strcmp(info.name, "i16") == 0) || (strcmp(info.name, "short") == 0)) {
+            sb.appendInt(cast<int>(*cast<*i16>(ptr)));
+        } else if ((strcmp(info.name, "u8") == 0) || (strcmp(info.name, "uchar") == 0)) {
+            appendJsonUnsigned(sb, cast<ulong>(*cast<*u8>(ptr)));
+        } else if ((strcmp(info.name, "u16") == 0) || (strcmp(info.name, "ushort") == 0)) {
+            appendJsonUnsigned(sb, cast<ulong>(*cast<*u16>(ptr)));
+        } else if ((strcmp(info.name, "u32") == 0) || (strcmp(info.name, "uint") == 0)) {
+            appendJsonUnsigned(sb, cast<ulong>(*cast<*u32>(ptr)));
+        } else if ((strcmp(info.name, "u64") == 0) || (strcmp(info.name, "ulong") == 0)) {
+            appendJsonUnsigned(sb, cast<ulong>(*cast<*u64>(ptr)));
         } else {
             if (strcmp(info.name, "bool") == 0) {
                 local b: bool = *cast<*bool>(ptr);
@@ -1031,6 +1083,18 @@ struct JSON {
         if ((strcmp(info.name, "int") == 0) || (strcmp(info.name, "i32") == 0)) {
             local val: int = cast<int>(p.parseInteger(-2147483648, 2147483647));
             *cast<*int>(ptr) = val;
+        } else if ((strcmp(info.name, "i8") == 0) || (strcmp(info.name, "char") == 0)) {
+            *cast<*i8>(ptr) = cast<i8>(p.parseInteger(-128, 127));
+        } else if ((strcmp(info.name, "i16") == 0) || (strcmp(info.name, "short") == 0)) {
+            *cast<*i16>(ptr) = cast<i16>(p.parseInteger(-32768, 32767));
+        } else if ((strcmp(info.name, "u8") == 0) || (strcmp(info.name, "uchar") == 0)) {
+            *cast<*u8>(ptr) = cast<u8>(p.parseUnsigned(cast<ulong>(255)));
+        } else if ((strcmp(info.name, "u16") == 0) || (strcmp(info.name, "ushort") == 0)) {
+            *cast<*u16>(ptr) = cast<u16>(p.parseUnsigned(cast<ulong>(65535)));
+        } else if ((strcmp(info.name, "u32") == 0) || (strcmp(info.name, "uint") == 0)) {
+            *cast<*u32>(ptr) = cast<u32>(p.parseUnsigned(cast<ulong>(0xffffffff)));
+        } else if ((strcmp(info.name, "u64") == 0) || (strcmp(info.name, "ulong") == 0)) {
+            *cast<*u64>(ptr) = cast<u64>(p.parseUnsigned(cast<ulong>(0xffffffffffffffff)));
         } else if ((strcmp(info.name, "long") == 0) || (strcmp(info.name, "i64") == 0)) {
             *cast<*long>(ptr) = p.parseInteger(cast<long>(0x8000000000000000), cast<long>(0x7fffffffffffffff));
         } else if ((strcmp(info.name, "float") == 0) || (strcmp(info.name, "double") == 0) || (strcmp(info.name, "f64") == 0)) {

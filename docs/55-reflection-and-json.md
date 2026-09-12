@@ -132,16 +132,18 @@ The destination belongs to the parser. Use allocation/ownership conventions that
 
 The implementation is experimental; it is not a general, strict JSON validator.
 
-| Value                           | Serialization                         | Parsing                                                    |
-| ------------------------------- | ------------------------------------- | ---------------------------------------------------------- |
-| `int` / `i32`, `bool`, `string` | Implemented                           | Implemented                                                |
-| `long` / `i64`                  | Implemented with C formatting         | Checked signed 64-bit integers                             |
-| `float` / `double` / `f64`      | Bounded binary64 formatting           | JSON fractions and exponents; finite binary64 results      |
-| Other primitive kinds           | Unsupported kinds fall back to `null` | No general primitive conversion                            |
-| Structs                         | Reflected fields or a custom hook     | Reflected fields; unknown keys are skipped                 |
-| Fixed arrays, `Array<T>`        | Recursive elements                    | Subject to element support and parser limits               |
-| Pointers                        | Pointee value or `null`               | Allocated pointee; requires supported element type         |
-| Enums                           | Variant name only                     | Variant-name lookup; payloads are not a general round trip |
+| Value                                                             | Serialization                         | Parsing                                                    |
+| ----------------------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------- |
+| `int` / `i32`, `bool`, `string`                                   | Implemented                           | Implemented                                                |
+| `long` / `i64`                                                    | Implemented with C formatting         | Checked signed 64-bit integers                             |
+| `i8` / `char`, `i16` / `short`                                    | Decimal numbers                       | Checked signed 8-/16-bit integers                          |
+| `u8` / `uchar`, `u16` / `ushort`, `u32` / `uint`, `u64` / `ulong` | Exact decimal numbers                 | Checked unsigned integers                                  |
+| `float` / `double` / `f64`                                        | Bounded binary64 formatting           | JSON fractions and exponents; finite binary64 results      |
+| Other primitive kinds                                             | Unsupported kinds fall back to `null` | No general primitive conversion                            |
+| Structs                                                           | Reflected fields or a custom hook     | Reflected fields; unknown keys are skipped                 |
+| Fixed arrays, `Array<T>`                                          | Recursive elements                    | Subject to element support and parser limits               |
+| Pointers                                                          | Pointee value or `null`               | Allocated pointee; requires supported element type         |
+| Enums                                                             | Variant name only                     | Variant-name lookup; payloads are not a general round trip |
 
 Missing fields are not required-field validation. Cyclic graphs are unsupported:
 recursive serialization/freeing has no cycle detection. Fixed arrays reject
@@ -176,4 +178,16 @@ to signed zero. Overflow to infinity is rejected. JSON text such as `"1e100"` ca
 be parsed even though BPL source literals do not support exponent notation.
 Leading plus signs, leading zeros, incomplete fractions/exponents, `NaN`, and
 `Infinity` are rejected. These numeric rules also apply to fields and supported
-array elements. Other widths and unsigned primitive destinations remain unsupported.
+array elements. Binary32 (`f32`) remains unsupported by the JSON converter.
+
+Signed 8-/16-bit integers accept -128 through 127 and -32768 through 32767,
+respectively. Unsigned integers accept 0 through 2^N - 1 for their width N,
+including the full `u64`/`ulong` maximum 18446744073709551615. Unsigned destinations
+reject any minus sign, including `-0`. All integer widths reject fractional and
+exponent spellings. `char` and `uchar` serialize as numeric byte values, not as
+one-character strings; use `string` for text.
+
+Unsigned serialization uses exact integer arithmetic. Consumers using binary64
+for JSON numbers can still round large integers; use a lossless numeric decoder
+when preserving all 64 bits matters. See [RFC 8259's numeric interoperability
+notes](https://www.rfc-editor.org/rfc/rfc8259.html#section-6).
