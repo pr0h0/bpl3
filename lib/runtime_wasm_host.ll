@@ -674,3 +674,10 @@ entry:
   call void @__bpl_host_error(i32 %code, i8* %detail, i8* %func, i32 %line, i32 %col)
   ret void
 }
+
+; Runtime diagnostics share the existing fd-based host output contract.
+define void @__bpl_write_stderr(i8* %message) {
+entry:
+  %written = call i32 @__bpl_host_write_cstr(i32 2, i8* %message)
+  ret void
+}

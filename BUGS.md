@@ -3585,3 +3585,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Resolution**: Derive reflected struct and array byte sizes from LLVM getelementptr constant expressions. This also uses the actual target layout rather than manual alignment estimates. Other consumers of the compiler's approximate size helper have not been comprehensively audited.
 
+### BUG-293: Wasm lacks the runtime stderr writer used by exception fallback
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-12)**: The BUG-289 compiler fix caused hosted String programs to import an undefined env.__bpl_write_stderr symbol. Native runtime support supplied this function, but neither Wasm runtime did.
+
+**Resolution**: Provide a weak no-output writer for freestanding Wasm and a hosted override forwarding to the existing fd-2 host write hook. Tests exercise both modes, and the affected String-based hosted programs are rerun.
+

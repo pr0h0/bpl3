@@ -577,3 +577,9 @@ entry:
   call void @__bpl_report_error(i32 5, i8* null, i8* %func, i32 %line, i32 %col)
   unreachable
 }
+
+; Freestanding builds have no output host. Hosted builds override this writer.
+define weak void @__bpl_write_stderr(i8* %message) {
+entry:
+  ret void
+}

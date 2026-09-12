@@ -507,6 +507,31 @@ frame main() ret int {
     expect(host.stderr()).toBe("stderr line\n");
   });
 
+  wasmIt(
+    "handles uncaught string throws in freestanding and hosted wasm",
+    async () => {
+      const source = 'frame main() ret int { throw "problem"; }';
+      const standalone = await compileWasmSource(source);
+      expect(() => getMain(standalone)(0, 0)).toThrow(WebAssembly.RuntimeError);
+      const host = createHostImports();
+      const hosted = await compileWasmSource(source, {
+        wasmRuntime: "host",
+        imports: host.imports,
+      });
+      host.attach(hosted);
+      let code: number | undefined;
+      try {
+        getMain(hosted)(0, 0);
+      } catch (error) {
+        expect(error).toBeInstanceOf(WasmExit);
+        code = (error as WasmExit).code;
+      }
+      expect(code).toBe(1);
+      expect(host.stdout()).toBe("");
+      expect(host.stderr()).toBe("Uncaught exception\n");
+    },
+  );
+
   wasmIt("formats hosted wasm printf and dprintf dynamic arguments", async () => {
     const host = createHostImports();
     const exports = await compileWasmSource(
