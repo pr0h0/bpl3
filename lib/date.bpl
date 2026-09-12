@@ -116,6 +116,7 @@ struct Date {
 
     # Get day of year (1-366)
     frame dayOfYear(this: *Date) ret int {
+        if (!this.isValid()) { throw "Date.dayOfYear: invalid date"; }
         local total: int = 0;
         local m: int = 1;
         loop (m < this.month) {
@@ -125,43 +126,33 @@ struct Date {
         return total + this.day;
     }
 
-    # Get day of week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
-    # Using Zeller's congruence (adjusted for Gregorian calendar)
+    # Get day of week (0 = Sunday, 1 = Monday, ..., 6 = Saturday).
     frame dayOfWeek(this: *Date) ret int {
-        local y: int = this.year;
-        local m: int = this.month;
-        local d: int = this.day;
-
-        if (m < 3) {
-            m = m + 12;
-            y = y - 1;
-        }
-        local k: int = y % 100;
-        local j: int = y / 100;
-
-        local h: int = ((d + ((13 * (m + 1)) / 5) + k + (k / 4) + (j / 4)) - (2 * j)) % 7;
-
-        # Convert from Zeller (0=Saturday) to standard (0=Sunday)
-        local dow: int = (h + 6) % 7;
+        local days: long = this.toTimestamp() / cast<long>(86400);
+        local dow: int = cast<int>((days + 4) % 7);
+        if (dow < 0) { dow = dow + 7; }
         return dow;
     }
 
-    # Get the week number (ISO 8601)
+    # ISO week number (1-53); early January / late December may belong
+    # to the adjacent ISO week-year rather than this calendar year.
     frame weekOfYear(this: *Date) ret int {
         local doy: int = this.dayOfYear();
         local dow: int = this.dayOfWeek();
-
-        # Adjust Sunday from 0 to 7
-        if (dow == 0) {
-            dow = 7;
-        }
-        local week: int = ((doy - dow) + 10) / 7;
-
+        local januaryFirst: int = (dow - (doy - 1) % 7 + 7) % 7;
+        if (dow == 0) { dow = 7; }
+        local week: int = (doy - dow + 10) / 7;
         if (week < 1) {
-            return 52; # Last week of previous year
+            # Widen before subtraction so the minimum int year is supported.
+            local previousYear: long = cast<long>(this.year) - 1;
+            local previousLeap: bool = previousYear % 4 == 0 && (previousYear % 100 != 0 || previousYear % 400 == 0);
+            if (januaryFirst == 5 || (januaryFirst == 6 && previousLeap)) {
+                return 53;
+            }
+            return 52;
         }
-        if (week > 52) {
-            return 1; # First week of next year
+        if (week == 53 && januaryFirst != 4 && !(januaryFirst == 3 && this.isLeapYear())) {
+            return 1;
         }
         return week;
     }

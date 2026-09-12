@@ -381,9 +381,14 @@ a `T` separator but does not add a timezone suffix or normalize expanded years
 to an interchange standard. All formatting buffers accommodate every stored
 `int` value. `formatSep(0)` omits separators. Allocation failure throws a string.
 
-Calendar arithmetic and week-number helpers still have edge-case limitations
-recorded in BUGS.md; conversion support does not imply every operation supports
-the full year range.
+`dayOfYear()`, `dayOfWeek()`, and `weekOfYear()` reject invalid dates with string
+exceptions. Weekdays use Sunday = 0 through Saturday = 6. ISO week numbers range
+from 1 to 53; an early-January or late-December date can belong to the adjacent
+ISO week-year, so `date.year` is not necessarily the year of that ISO week.
+
+Calendar arithmetic still has overflow and negative-month limitations recorded
+in BUG-297; conversion support does not imply every operation supports the full
+year range.
 
 **Creation:**
 

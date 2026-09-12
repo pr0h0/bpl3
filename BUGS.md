@@ -3639,11 +3639,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-298: Date week helpers mishandle ISO week 53 and negative years
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-12)**: weekOfYear unconditionally maps week 53 to 1 and dates in the preceding ISO year to 52. dayOfWeek uses signed remainders and subtracts one from the int year, which fails for some negative years and the minimum year.
+
+**Resolution**: Derive weekdays from normalized Gregorian epoch days, retain valid ISO week 53, and account for the preceding year's leap status at January boundaries. O0/O3 LLVM-verified tests compare 358 cases against an independent JavaScript Thursday-based oracle, including negative years and both int year limits. Invalid date queries throw strings.
 
 ### BUG-299: Literal-left arithmetic with long operands can emit mismatched LLVM types
 
