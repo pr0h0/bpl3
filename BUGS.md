@@ -3688,3 +3688,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-13)**: listDir reads names at byte offset 19, which is not portable to macOS.
 
 **Resolution**: A native accessor uses the platform's struct dirent.d_name field.
+
+### BUG-303: Time arithmetic wraps and elapsed timers use the wall clock
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-13)**: Duration factories/operators silently wrap; sleep multiplies in int and ignores interruption/failure. Stopwatch and measure can jump with wall-clock adjustments. gettimeofday errors and platform-specific layout are unchecked.
+
+**Resolution**: Checked Duration arithmetic; native clock_gettime wrappers and 64-bit nowSeconds; monotonic Stopwatch/measure; long sleep arguments with checked scaling and EINTR retry. Clock and sleep failures throw strings. Stopped timers retain elapsed time; legacy Time.now throws outside its int range.

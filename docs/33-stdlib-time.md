@@ -10,27 +10,37 @@ import [Time], [Duration], [Stopwatch] from "std/time.bpl";
 
 ## Clock and ownership limitations
 
-`nowMs`/`nowUs` use the wall clock (`gettimeofday`), not a monotonic clock, so
-Stopwatch and `measure` can be affected by clock adjustments. `Time.now` returns
-a signed 32-bit `int`; it is not a general 64-bit timestamp API. Duration values
-store milliseconds and conversions to larger units truncate toward zero.
+`nowSeconds`, `nowMs`, and `nowUs` return signed 64-bit Unix wall-clock timestamps.
+`monotonicMs` and `monotonicUs` use an unspecified system epoch: use their differences
+for elapsed time. Stopwatch and `measure` use this monotonic clock. Clock access
+failures throw strings. These APIs require the native Linux/macOS runtime.
+`Time.now` is the legacy signed 32-bit seconds API and throws outside its range;
+use `nowSeconds` for timestamps beyond 2038.
+
+Duration stores signed 64-bit milliseconds. Factories and addition/subtraction
+throw strings on overflow; conversions to larger units truncate toward zero.
+Sleep accepts nonnegative long values, checks unit conversion, and retries the
+remaining interval after signal interruption. Invalid values and native failures
+throw strings. Scheduling can make a sleep longer than requested.
+
 `formatTimestamp` returns an allocation that callers must free. It formats UTC
 Unix seconds with the same proleptic Gregorian conversion as `DateTime`, including
 negative timestamps and year zero. It throws a string when the resulting year
 falls outside the signed `int` range.
-Sleep wrappers use POSIX APIs and do not promise exact scheduling or retry
-interrupted sleeps.
 
 ## Time Static Methods
 
 | Method                                             | Description                      |
 | -------------------------------------------------- | -------------------------------- |
 | `Time.now() ret int`                               | Current Unix timestamp (seconds) |
+| `Time.nowSeconds() ret long` | Unix timestamp in seconds |
+| `Time.monotonicMs() ret long` | Monotonic milliseconds |
+| `Time.monotonicUs() ret long` | Monotonic microseconds |
 | `Time.nowMs() ret long`                            | Current time in milliseconds     |
 | `Time.nowUs() ret long`                            | Current time in microseconds     |
-| `Time.sleep(ms: int)`                              | Sleep for milliseconds           |
-| `Time.sleepUs(usec: int)`                          | Sleep for microseconds           |
-| `Time.sleepSeconds(sec: int)`                      | Sleep for seconds                |
+| `Time.sleep(ms: long)`                              | Sleep for milliseconds           |
+| `Time.sleepUs(usec: long)`                          | Sleep for microseconds           |
+| `Time.sleepSeconds(sec: long)`                      | Sleep for seconds                |
 | `Time.formatTimestamp(timestamp: long) ret string` | Format as "YYYY-MM-DD HH:MM:SS"  |
 | `Time.measure(action: Lambda<void>()) ret long`    | Measure execution time in ms     |
 
@@ -70,7 +80,9 @@ if (d1 > d2) { ... }
 
 ## Stopwatch
 
-For measuring elapsed time:
+For measuring elapsed time. Both `start` and `restart` begin a new interval.
+`stop` freezes the elapsed duration; repeated stops and elapsed queries return
+that duration until reset or started again:
 
 ```bpl
 local sw: Stopwatch = Stopwatch.new();
@@ -101,12 +113,15 @@ sw.restart(); # Reset and start again
 import [Time], [Duration], [Stopwatch] from "std/time.bpl";
 
 extern printf(fmt: string, ...);
+extern free(ptr: string);
 
 frame main() {
     # Get current time
-    local now: int = Time.now();
-    printf("Current timestamp: %d\n", now);
-    printf("Formatted: %s\n", Time.formatTimestamp(cast<long>(now)));
+    local now: long = Time.nowSeconds();
+    printf("Current timestamp: %ld\n", now);
+    local formatted: string = Time.formatTimestamp(now);
+    printf("Formatted: %s\n", formatted);
+    free(formatted);
 
     # Measure execution time with stopwatch
     local sw: Stopwatch = Stopwatch.new();

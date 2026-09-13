@@ -2846,6 +2846,7 @@ frame __ge__(this: *Duration, other: *Duration) ret bool
 struct Stopwatch
 startTime: long
 running: bool
+elapsedTime: long
 frame new() ret Stopwatch
 frame start(this: *Stopwatch)
 frame elapsed(this: *Stopwatch) ret Duration
@@ -2860,11 +2861,14 @@ frame restart(this: *Stopwatch)
 ```bpl
 struct Time
 frame now() ret int
+frame nowSeconds() ret long
 frame nowMs() ret long
 frame nowUs() ret long
-frame sleep(ms: int)
-frame sleepUs(usec: int)
-frame sleepSeconds(sec: int)
+frame monotonicMs() ret long
+frame monotonicUs() ret long
+frame sleep(ms: long)
+frame sleepUs(usec: long)
+frame sleepSeconds(sec: long)
 frame formatTimestamp(timestamp: long) ret string
 frame measure(action: Lambda<void>()) ret long
 ```

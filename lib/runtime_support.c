@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <limits.h>
+#include <time.h>
 
 #ifdef __linux__
 #include <execinfo.h>
@@ -475,4 +476,34 @@ int32_t __bpl_write_file(const char *path, const void *data, int64_t length) {
 
 const char *__bpl_dirent_name(const struct dirent *entry) {
     return entry ? entry->d_name : NULL;
+}
+
+/* Avoid exposing platform-specific timespec/timeval layouts to BPL. */
+int32_t __bpl_clock(int32_t monotonic, int32_t units, int64_t *result) {
+    if (!result || (units != 1 && units != 1000 && units != 1000000)) return EINVAL;
+    *result = 0;
+    struct timespec now;
+    if (clock_gettime(monotonic ? CLOCK_MONOTONIC : CLOCK_REALTIME, &now) != 0)
+        return errno ? errno : EIO;
+    int64_t seconds = (int64_t)now.tv_sec;
+    int64_t fraction = now.tv_nsec / (1000000000 / units);
+    if (seconds > INT64_MAX / units || seconds < INT64_MIN / units)
+        return EOVERFLOW;
+    int64_t whole = seconds * units;
+    if (whole > INT64_MAX - fraction) return EOVERFLOW;
+    *result = whole + fraction;
+    return 0;
+}
+
+int32_t __bpl_sleep_us(int64_t microseconds) {
+    if (microseconds < 0) return EINVAL;
+    struct timespec request;
+    int64_t seconds = microseconds / 1000000;
+    request.tv_sec = (time_t)seconds;
+    if ((int64_t)request.tv_sec != seconds) return EOVERFLOW;
+    request.tv_nsec = (long)((microseconds % 1000000) * 1000);
+    while (nanosleep(&request, &request) != 0) {
+        if (errno != EINTR) return errno ? errno : EIO;
+    }
+    return 0;
 }
