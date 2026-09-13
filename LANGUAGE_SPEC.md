@@ -62,6 +62,13 @@ This section defines the semantic contract the compiler currently implements. Sy
 Implicit conversions are intentionally narrow:
 
 - Integer types with compatible scalar integer shapes may be implicitly converted.
+  Integer arithmetic, bitwise operations, and comparisons convert the right
+  operand to the left operand's type. Widening follows the source signedness;
+  narrowing retains the low bits. Arithmetic results use the left type, while
+  comparisons return bool. Shift counts use the left width and retain the
+  documented shift-count validation/masking rules. An assignment destination
+  does not widen an already-computed binary operation; cast the left operand
+  explicitly when a wider operation is intended.
 - Fixed arrays may decay to a raw pointer when the destination type is the matching `*T`.
 - Fixed arrays may convert to slices when the destination type is the matching `T[]`.
 - Slice-to-pointer conversion is not implicit. Use explicit pointer extraction APIs when they exist.

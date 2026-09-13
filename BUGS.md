@@ -3649,10 +3649,12 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-299: Literal-left arithmetic with long operands can emit mismatched LLVM types
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-12)**: The date conversion expression `5 * dayOfYear`, with dayOfYear declared long, emitted `mul i32 5, %55` where %55 had type i64. Clang rejected the LLVM IR.
 
 **Workaround**: Explicitly widen the literal (`cast<long>(5) * dayOfYear`). Date conversion uses explicit casts for these expressions.
+
+**Resolution (2026-09-13)**: Materialize the compatible RHS conversion to the checked left operand type before integer arithmetic, comparisons, bitwise operations, shift masking, and runtime guards. Constant division proofs normalize values through source and operation widths; cached nonzero facts include the operation width. O0/O3 tests cover 896 BigInt-oracle results across all signed/unsigned width pairs, literal-left and nested expressions, single left-to-right evaluation, mixed-width shifts, and converted zero/overflow divisors. The language spec and operator guide document the existing left-type rule and explicit casts for wider operations.

@@ -56,13 +56,6 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     structType: AST.BasicTypeNode,
     specType: AST.BasicTypeNode,
   ): string;
-  protected abstract emitCast(
-    val: string,
-    srcType: string,
-    destType: string,
-    srcTypeNode: AST.TypeNode,
-    destTypeNode: AST.TypeNode,
-  ): string;
   protected abstract generateTupleLiteralForTarget(
     expr: AST.TupleLiteralExpr,
     targetTypeNode: AST.TupleTypeNode,

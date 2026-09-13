@@ -35,6 +35,10 @@ You are working with BPL, a statically-typed, compiled programming language that
 - `void` (empty type)
 - `nullptr` (null pointer)
 
+Integer binary operations use the left operand's type, converting the right
+operand to it. Cast the left operand explicitly for wider arithmetic; assigning
+the result to a wider variable happens after the operation.
+
 #### Composite Types
 
 - **Pointers**: `*T` (e.g., `*int`, `**char`)

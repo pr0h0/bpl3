@@ -97,7 +97,7 @@ local count: int = 0;
 
 ### Type Promotion
 
-BPL requires explicit casts for mixed-type arithmetic:
+BPL requires explicit casts between integer and floating-point arithmetic:
 
 ```bpl
 local i: int = 10;
@@ -107,7 +107,25 @@ local result: float = cast<float>(i) + f;  # Explicit cast required
 
 **Promotion Rules:**
 
-BPL does not perform broad C-style arithmetic promotion for mixed numeric expressions. Use explicit casts when operands have different numeric families or sizes. The compiler still supports limited implicit conversions documented in [LANGUAGE_SPEC.md](../LANGUAGE_SPEC.md#conversion-semantics), such as compatible integer aliases and fixed-array to slice views.
+BPL does not perform C-style arithmetic promotion. For compatible scalar integer
+operands, the operation uses the left operand's type and converts the right
+operand to it. Widening sign-extends signed sources and zero-extends unsigned
+sources; narrowing keeps the low bits. Integer comparisons use the same operand
+conversion and return bool. Use explicit casts to choose the intended width and
+signedness, especially for comparisons or values that might be narrowed.
+
+```bpl
+local wide: long = 4294967297;
+local narrowResult: int = 1 + wide;                 # 2: RHS narrows to int
+local wideResult: long = cast<long>(1) + wide;      # 4294967298
+local stillNarrow: long = 1 + wide;                # 2: assignment happens later
+```
+
+Integer literals normally have type int, so `5 * wide` uses int arithmetic.
+Use `cast<long>(5) * wide` for a long operation. These rules also apply to
+integer bitwise operations; shifts retain their separate count validation and
+masking rules. Other limited implicit conversions are documented in
+[LANGUAGE_SPEC.md](../LANGUAGE_SPEC.md#conversion-semantics).
 
 ## Comparison Operators
 

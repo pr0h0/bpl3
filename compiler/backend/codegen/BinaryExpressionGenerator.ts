@@ -17,6 +17,14 @@ import { AddressExpressionGenerator } from "./AddressExpressionGenerator";
 import { isEnumType } from "./utils";
 
 export abstract class BinaryExpressionGenerator extends AddressExpressionGenerator {
+  protected abstract emitCast(
+    val: string,
+    srcType: string,
+    destType: string,
+    srcTypeNode: AST.TypeNode,
+    destTypeNode: AST.TypeNode,
+  ): string;
+
   /**
    * Generate logical AND with short-circuit evaluation
    */
@@ -113,8 +121,20 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     );
     if (ptrResult !== null) return ptrResult;
 
-    // Standard binary operations
-    return this.generateStandardBinaryOp(expr, leftRaw, rightRaw, leftType);
+    // Integer operations use the left operand's checked type. Materialize the
+    // compatible RHS conversion before arithmetic, comparisons, and their
+    // runtime guards. Shift masking also consumes this converted value.
+    const right =
+      /^i\d+$/.test(leftType) && /^i\d+$/.test(rightType)
+        ? this.emitCast(
+            rightRaw,
+            rightType,
+            leftType,
+            expr.right.resolvedType!,
+            expr.left.resolvedType!,
+          )
+        : rightRaw;
+    return this.generateStandardBinaryOp(expr, leftRaw, right, leftType);
   }
 
   /**
@@ -1069,7 +1089,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         op = "shl";
         finalRight = this.maskShiftAmount(
           right,
-          this.resolveType(expr.right.resolvedType!),
+          leftType,
           leftType,
         );
         break;
@@ -1077,7 +1097,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         op = this.isSigned(expr.left.resolvedType!) ? "ashr" : "lshr";
         finalRight = this.maskShiftAmount(
           right,
-          this.resolveType(expr.right.resolvedType!),
+          leftType,
           leftType,
         );
         break;
@@ -1472,8 +1492,16 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return "fdiv";
     }
 
-    const constantLeft = this.getConstantIntegerValue(expr.left);
-    const constantRight = this.getConstantIntegerValue(expr.right);
+    const constantLeft = this.getConvertedIntegerConstant(
+      expr.left,
+      valueType,
+      isUnsigned,
+    );
+    const constantRight = this.getConvertedIntegerConstant(
+      expr.right,
+      valueType,
+      isUnsigned,
+    );
     const nonZeroDivisorKey = this.emitDivisionByZeroCheckIfNeeded(
       expr.right,
       right,
@@ -1511,8 +1539,16 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return "frem";
     }
 
-    const constantLeft = this.getConstantIntegerValue(expr.left);
-    const constantRight = this.getConstantIntegerValue(expr.right);
+    const constantLeft = this.getConvertedIntegerConstant(
+      expr.left,
+      valueType,
+      isUnsigned,
+    );
+    const constantRight = this.getConvertedIntegerConstant(
+      expr.right,
+      valueType,
+      isUnsigned,
+    );
     const nonZeroDivisorKey = this.emitDivisionByZeroCheckIfNeeded(
       expr.right,
       right,
@@ -1547,7 +1583,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
     const expressionKey =
       constantDivisor === undefined
-        ? this.getBasicBlockNonZeroIntegerExpressionKey(divisorExpr)
+        ? this.getBasicBlockNonZeroIntegerExpressionKey(divisorExpr, divisorType)
         : undefined;
     if (
       expressionKey !== undefined &&
@@ -1565,16 +1601,38 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
   private getBasicBlockNonZeroIntegerExpressionKey(
     expr: AST.Expression,
+    valueType: string,
   ): string | undefined {
     if (expr.kind === "Group") {
       return this.getBasicBlockNonZeroIntegerExpressionKey(
         (expr as AST.GroupExpr).expression,
+        valueType,
       );
     }
     if (expr.kind === "Identifier") {
-      return this.exprToDescription(expr);
+      // A nonzero wide value may become zero when narrowed for another op.
+      // Keep the expression prefix so assignment invalidates every width.
+      return `${this.exprToDescription(expr)}.integer:${valueType}`;
     }
     return undefined;
+  }
+
+  private getConvertedIntegerConstant(
+    expr: AST.Expression,
+    valueType: string,
+    isUnsigned: boolean,
+  ): bigint | undefined {
+    const value = this.getConstantIntegerValue(expr);
+    if (value === undefined || !expr.resolvedType) return undefined;
+    const sourceWidth = this.getBitWidth(this.resolveType(expr.resolvedType));
+    const targetWidth = this.getBitWidth(valueType);
+    if (sourceWidth <= 0 || targetWidth <= 0) return undefined;
+    const source = this.isSigned(expr.resolvedType)
+      ? BigInt.asIntN(sourceWidth, value)
+      : BigInt.asUintN(sourceWidth, value);
+    return isUnsigned
+      ? BigInt.asUintN(targetWidth, source)
+      : BigInt.asIntN(targetWidth, source);
   }
 
   private getConstantIntegerValue(expr: AST.Expression): bigint | undefined {
