@@ -446,16 +446,21 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       const ident = callee as AST.IdentifierExpr;
       funcName = ident.name;
 
+      // Only resolved extern declarations name intrinsics. User frames and
+      // local callable values must retain normal call semantics.
+      const intrinsicName = expr.resolvedDeclaration?.kind === "Extern"
+        ? expr.resolvedDeclaration.name
+        : "";
       // Handle intrinsics
-      if (funcName === "likely" || funcName === "unlikely") {
+      if (intrinsicName === "likely" || intrinsicName === "unlikely") {
         const cond = this.generateExpression(expr.args[0]!);
-        const expected = funcName === "likely" ? "1" : "0";
+        const expected = intrinsicName === "likely" ? "1" : "0";
         const reg = this.newRegister();
         this.emit(
           `  ${reg} = call i1 @llvm.expect.i1(i1 ${cond}, i1 ${expected})`,
         );
         return reg;
-      } else if (funcName === "prefetch") {
+      } else if (intrinsicName === "prefetch") {
         const ptr = this.generateExpression(expr.args[0]!);
         const rw = this.generateExpression(expr.args[1]!);
         const locality = this.generateExpression(expr.args[2]!);
@@ -472,11 +477,11 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           `  call void @llvm.prefetch(i8* ${ptrI8}, i32 ${rw}, i32 ${locality}, i32 1)`,
         );
         return "0"; // void
-      } else if (funcName === "trap") {
+      } else if (intrinsicName === "trap") {
         this.emit(`  call void @llvm.trap()`);
         this.emit(`  unreachable`);
         return "0";
-      } else if (funcName === "debugtrap") {
+      } else if (intrinsicName === "debugtrap") {
         this.emit(`  call void @llvm.debugtrap()`);
         return "0";
       } else if (
@@ -490,23 +495,23 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           "ceil",
           "round",
           "fabs",
-        ].includes(funcName)
+        ].includes(intrinsicName)
       ) {
         const arg = this.generateExpression(expr.args[0]!);
         const reg = this.newRegister();
         this.emit(
-          `  ${reg} = call double @llvm.${funcName}.f64(double ${arg})`,
+          `  ${reg} = call double @llvm.${intrinsicName}.f64(double ${arg})`,
         );
         return reg;
-      } else if (["pow", "minnum", "maxnum", "copysign"].includes(funcName)) {
+      } else if (["pow", "minnum", "maxnum", "copysign"].includes(intrinsicName)) {
         const arg1 = this.generateExpression(expr.args[0]!);
         const arg2 = this.generateExpression(expr.args[1]!);
         const reg = this.newRegister();
         this.emit(
-          `  ${reg} = call double @llvm.${funcName}.f64(double ${arg1}, double ${arg2})`,
+          `  ${reg} = call double @llvm.${intrinsicName}.f64(double ${arg1}, double ${arg2})`,
         );
         return reg;
-      } else if (funcName === "fma") {
+      } else if (intrinsicName === "fma") {
         const arg1 = this.generateExpression(expr.args[0]!);
         const arg2 = this.generateExpression(expr.args[1]!);
         const arg3 = this.generateExpression(expr.args[2]!);
@@ -515,16 +520,16 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           `  ${reg} = call double @llvm.fma.f64(double ${arg1}, double ${arg2}, double ${arg3})`,
         );
         return reg;
-      } else if (funcName === "frameaddress" || funcName === "returnaddress") {
+      } else if (intrinsicName === "frameaddress" || intrinsicName === "returnaddress") {
         const level = this.generateExpression(expr.args[0]!);
         const reg = this.newRegister();
-        this.emit(`  ${reg} = call i8* @llvm.${funcName}(i32 ${level})`);
+        this.emit(`  ${reg} = call i8* @llvm.${intrinsicName}(i32 ${level})`);
         return reg;
-      } else if (funcName === "stacksave") {
+      } else if (intrinsicName === "stacksave") {
         const reg = this.newRegister();
         this.emit(`  ${reg} = call i8* @llvm.stacksave()`);
         return reg;
-      } else if (funcName === "stackrestore") {
+      } else if (intrinsicName === "stackrestore") {
         const ptr = this.generateExpression(expr.args[0]!);
         const ptrType = this.resolveType(expr.args[0]!.resolvedType!);
         let finalPtr = ptr;
@@ -535,21 +540,21 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         this.emit(`  call void @llvm.stackrestore(i8* ${finalPtr})`);
         return "0";
       } else if (
-        ["ctpop", "ctlz", "cttz", "bswap", "bitreverse"].includes(funcName)
+        ["ctpop", "ctlz", "cttz", "bswap", "bitreverse"].includes(intrinsicName)
       ) {
         const arg = this.generateExpression(expr.args[0]!);
         const reg = this.newRegister();
         // For ctlz and cttz, the second argument is is_zero_undef (i1). We set it to false (0) to be safe (return bit width if zero).
-        if (funcName === "ctlz" || funcName === "cttz") {
+        if (intrinsicName === "ctlz" || intrinsicName === "cttz") {
           this.emit(
-            `  ${reg} = call i32 @llvm.${funcName}.i32(i32 ${arg}, i1 0)`,
+            `  ${reg} = call i32 @llvm.${intrinsicName}.i32(i32 ${arg}, i1 0)`,
           );
         } else {
-          this.emit(`  ${reg} = call i32 @llvm.${funcName}.i32(i32 ${arg})`);
+          this.emit(`  ${reg} = call i32 @llvm.${intrinsicName}.i32(i32 ${arg})`);
         }
         return reg;
       } else if (
-        funcName === "strlen" &&
+        intrinsicName === "strlen" &&
         this.target?.toLowerCase().includes("wasm")
       ) {
         const arg = this.generateExpression(expr.args[0]!);
@@ -572,8 +577,8 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           return len32;
         }
         return len64;
-      } else if (funcName === "memcpy" || funcName === "memmove") {
-        this.usedLlvmMemIntrinsics.add(funcName);
+      } else if (intrinsicName === "memcpy" || intrinsicName === "memmove") {
+        this.usedLlvmMemIntrinsics.add(intrinsicName);
         const dest = this.generateExpression(expr.args[0]!);
         const src = this.generateExpression(expr.args[1]!);
         let len = this.generateExpression(expr.args[2]!);
@@ -605,7 +610,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         }
 
         this.emit(
-          `  call void @llvm.${funcName}.p0i8.p0i8.i64(i8* ${finalDest}, i8* ${finalSrc}, i64 ${len}, i1 ${isVolatile})`,
+          `  call void @llvm.${intrinsicName}.p0i8.p0i8.i64(i8* ${finalDest}, i8* ${finalSrc}, i64 ${len}, i1 ${isVolatile})`,
         );
         const resultType = this.resolveType(expr.resolvedType!);
         if (resultType === "void") {
@@ -622,11 +627,11 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           return castResult;
         }
         throw this.createError(
-          `Unsupported return type '${resultType}' for ${funcName} intrinsic lowering`,
+          `Unsupported return type '${resultType}' for ${intrinsicName} intrinsic lowering`,
           expr,
           "Declare memcpy/memmove as returning void or a pointer type, or rename the extern if it is not the standard memory intrinsic.",
         );
-      } else if (funcName === "memset") {
+      } else if (intrinsicName === "memset") {
         this.usedLlvmMemIntrinsics.add("memset");
         const dest = this.generateExpression(expr.args[0]!);
         let val = this.generateExpression(expr.args[1]!);

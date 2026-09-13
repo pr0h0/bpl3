@@ -715,10 +715,11 @@ frame processItems(items: *Item, len: int, handler: Lambda<void>(Item)) ret void
 
 **Next:** Learn about [String Interpolation](54-string-interpolation.md) for embedding expressions in strings.
 
-## Current compiler limitations
+## Conversion and ignored parameters
 
-Use distinct names such as `_a`, `_b`, `_c` for ignored lambda parameters;
-repeated `_` names can produce invalid LLVM argument names (BUG-273).
-Casting a local `Func` value directly to `Lambda` can also produce invalid LLVM;
-use an explicit closure wrapper as above (BUG-275). See [the bug log](../BUGS.md).
+Repeated `_` parameters are supported and receive distinct generated LLVM names.
+A local `Func` can be cast directly to the matching `Lambda` signature, including
+zero-argument functions and functions returning `void` or structs. The adapter
+stores the function pointer as its context. Lambda-to-Func conversion remains
+forbidden because a raw function pointer cannot carry a closure context.
 The pointer sizes in the comparison table assume a 64-bit target.

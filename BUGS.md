@@ -3379,13 +3379,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-273: Repeated ignored lambda parameters produce duplicate LLVM names
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-11)**: A lambda such as `|_: int, _: int| ret int { return 1; }` passes the frontend but Clang rejects duplicate `%_` parameters in the generated function.
 
 **Documentation/workaround**: Use distinct ignored names, such as `_a` and `_b`. The lambda guide now demonstrates this form.
+
+**Resolution (2026-09-13)**: Lambda lowering gives each ignored parameter a unique generated name.
 
 ### BUG-274: Some interpolation expressions cannot resolve primitive conversion
 
@@ -3399,7 +3401,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-275: Casting a local Func value to Lambda generates invalid return IR
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
@@ -3407,15 +3409,19 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Documentation/workaround**: Use an explicit lambda that calls the function pointer. The conversion example now demonstrates this workaround.
 
+**Resolution (2026-09-13)**: Adapters call the raw pointer using its return type; zero-argument signatures omit the extra comma. Verified integer, long, void, and aggregate returns at O0/O3.
+
 ### BUG-276: User function named log is lowered as the math intrinsic
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-11)**: A user-defined `frame log(level: string, message: string)` can be lowered as `llvm.log.f64` when `std` is imported. A call with two strings then fails LLVM validation because a pointer is supplied as a double.
 
 **Documentation/workaround**: The interpolation logging example now uses `logMessage`. Intrinsic selection needs to respect the resolved declaration rather than matching a function name alone.
+
+**Resolution (2026-09-13)**: Intrinsic lowering uses the resolved extern declaration, preserving user frames and local function pointers even when their names match intrinsics.
 
 ### BUG-277: JSON array parsing can loop without consuming input
 
@@ -3698,3 +3704,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-13)**: Duration factories/operators silently wrap; sleep multiplies in int and ignores interruption/failure. Stopwatch and measure can jump with wall-clock adjustments. gettimeofday errors and platform-specific layout are unchecked.
 
 **Resolution**: Checked Duration arithmetic; native clock_gettime wrappers and 64-bit nowSeconds; monotonic Stopwatch/measure; long sleep arguments with checked scaling and EINTR retry. Clock and sleep failures throw strings. Stopped timers retain elapsed time; legacy Time.now throws outside its int range.
+
+### BUG-304: Zero-argument Func-to-Lambda casts emit a dangling comma
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-13)**: The adapter pointer signature is emitted as ret(i8*, ) for functions without parameters.
+
+**Resolution**: Reuse the complete context-plus-parameters signature; removed the duplicate unreachable conversion branch. O0/O3 and LLVM verification cover zero-argument long and void calls.

@@ -1486,9 +1486,9 @@ export class CodeGenerator extends StatementGenerator {
       isStatic: true,
       genericParams: [],
       attributes: [],
-      params: expr.params.map((p) => ({
+      params: expr.params.map((p, index) => ({
         kind: "Parameter",
-        name: p.name,
+        name: p.name === "_" ? `__ignored.lambda.${index}` : p.name,
         type: p.type!,
         location: p.location,
       })),
