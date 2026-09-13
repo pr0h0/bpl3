@@ -3668,3 +3668,23 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-13)**: For type Pair<T> = T[2], indexing a **Pair<int> is checked as the scalar element instead of *Pair<int>. The pointer-to-alias indexing helper removes all outer pointer levels when selecting an element. The same helper handles non-generic array aliases.
 
 **Resolution (2026-09-13)**: Indexing consumes one outer pointer level while retaining alias metadata until reaching the array. Address generation distinguishes actual LLVM array values from pointers carrying array dimensions. O0/O3 LLVM-verified tests cover generic/non-generic aliases, double/triple pointers, generic forwarding, pointer-valued elements, writes, and null/bounds runtime guards.
+
+### BUG-301: Filesystem reads trust unchecked sizes and writes ignore failure
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-13)**: readFile uses the wrong ftell ABI, unchecked seek/size/allocation/read results, and int length+1 arithmetic. writeFile reports success after failed writes or close. File.write/close discard status.
+
+**Resolution**: Native streaming reads validate allocation, size, read, and close results, returning an owned buffer or IOError with a native error code. Whole-file and handle writes report errors; close consumes the handle and reports buffered failures. Added binary readBytes/writeBytes APIs and rejected invalid readLine buffers/limits.
+
+### BUG-302: Directory listing assumes Linux x86-64 dirent layout
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-13)**: listDir reads names at byte offset 19, which is not portable to macOS.
+
+**Resolution**: A native accessor uses the platform's struct dirent.d_name field.

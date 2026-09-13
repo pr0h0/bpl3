@@ -1048,8 +1048,9 @@ export [File];
 struct File
 handle: *void
 frame open(path: string, mode: string) ret File
-frame close(this: *File)
-frame write(this: *File, data: string)
+frame close(this: *File) ret bool
+frame write(this: *File, data: string) ret bool
+frame writeBytes(this: *File, data: *u8, length: int) ret bool
 frame readLine(this: *File, buf: string, max_len: int) ret bool
 ```
 
@@ -1059,6 +1060,8 @@ frame readLine(this: *File, buf: string, max_len: int) ret bool
 struct FS
 frame exists(path: string) ret bool
 frame writeFile(path: string, data: string) ret bool
+frame writeBytes(path: string, data: *u8, length: int) ret bool
+frame readBytes(path: string) ret Array<u8>
 frame readFile(path: string) ret String
 frame mkdir(path: string) ret bool
 frame mkdirp(path: string) ret bool

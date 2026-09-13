@@ -1,7 +1,7 @@
 # Standard Library: File System
 
 `std/fs.bpl` exports `FS` and `File`. These are small wrappers over C/POSIX file
-operations, with limited error checking and platform assumptions.
+operations on the native Linux/macOS runtime.
 
 ```bpl
 import [FS], [File] from "std/fs.bpl";
@@ -13,7 +13,7 @@ import [FS], [File] from "std/fs.bpl";
 | --------------------------------------------------- | --------------------------------------------------------------------------- |
 | `FS.exists(path: string) ret bool`                  | Attempts to open for reading; false can mean inaccessible, not just missing |
 | `FS.writeFile(path: string, data: string) ret bool` | Opens with `"w"`, writes NUL-terminated text, then closes                   |
-| `FS.readFile(path: string) ret String`              | Reads a seekable file into an owned String; open failure throws `IOError`   |
+| `FS.readFile(path: string) ret String`              | Reads a stream into an owned String; native failures throw `IOError`   |
 | `FS.mkdir(path: string) ret bool`                   | Calls POSIX `mkdir(path, 511)`; false includes already-existing directories |
 | `FS.mkdirp(path: string) ret bool`                  | Creates missing directories; checks errors and existing directory types     |
 | `FS.listDir(path: string) ret Array<String>`        | Owned entry names excluding `.` and `..`; empty array on open failure       |
@@ -22,10 +22,19 @@ There are no `FS.appendFile`, `deleteFile`, `copyFile`, `isDir`, or `fileSize`
 methods. For append, open a `File` with mode `"a"`. Other operations require
 appropriate native APIs or additional application code.
 
-`writeFile` reports whether opening succeeded; it does not check short writes
-or close errors. `readFile` does not validate all seek, size, allocation, or read
-results. It uses an int-sized file length and is not a large-file or binary-data
-API: embedded NUL truncates the resulting String.
+`writeFile` checks writes and close, returning false on failure. This includes
+buffered errors reported only when closing, but does not guarantee disk durability.
+`readFile` checks allocation, size, read, and close results without requiring seeks.
+Failures throw `IOError` with a nonzero native error code. Embedded NUL truncates
+the text view, preserving the existing text API behavior.
+
+`FS.readBytes(path) ret Array<u8>` preserves every byte, including NUL. Destroy the
+returned Array after use. `FS.writeBytes(path, data: *u8, length: int) ret bool`
+writes exactly the supplied byte count. Null data is accepted only for zero length;
+negative lengths fail. Callers must supply a readable buffer of the stated length.
+Whole-file reads are limited to 2,147,483,646 bytes to leave room for a terminator
+within the stdlib's int-sized storage. Allocation failure may impose a lower limit.
+Read failure frees the temporary buffer. Failed writes can leave a partial file.
 
 `mkdirp` preserves absolute roots and accepts relative paths, repeated separators,
 and trailing slashes. It succeeds for existing directories (including symlinks to
@@ -35,18 +44,22 @@ a later failure remain in place. It follows normal filesystem path resolution,
 including symlinks and `..`; it does not confine paths to a directory. This helper
 uses the native Linux/macOS runtime; rebuild runtime support after updating it.
 
-`listDir` assumes the Linux x86-64 `dirent` name offset. Do not assume this helper
-works on macOS or Windows. Entry order is unspecified. Destroy each returned
+`listDir` accesses names using the native platform's `dirent` layout. Entry order
+is unspecified. Destroy each returned
 String before destroying the Array that stores them.
 
 ## File handles
 
 - `File.open(path, mode)` returns a `File`; inspect `handle != nullptr` for success.
-- `file.write(data)` writes text when open; it returns no status.
+- `file.write(data) ret bool` writes text; false indicates an invalid handle/data or write failure.
+- `file.writeBytes(data: *u8, length: int) ret bool` writes binary data with the same buffer contract as `FS.writeBytes`.
 - `file.readLine(buf, max_len)` uses `fgets`, retains the newline when present,
   and returns false for EOF, read failure, or a closed handle. Provide a writable
-  buffer with at least `max_len` bytes and a positive limit.
-- `file.close()` closes a non-null handle and resets it. It ignores close errors.
+  buffer with at least `max_len` bytes and a limit greater than one. Null buffers
+  and smaller limits return false.
+- `file.close() ret bool` closes and resets the handle, returning false on close
+  failure. Closing an already closed handle succeeds. Always check close after
+  writing: successful buffered writes can still fail when flushed.
 
 Use `"r"` to read, `"w"` to create/truncate, and `"a"` to append. Binary modes
 `"rb"`/`"wb"` are accepted by the underlying C library, but `File.write` still
@@ -67,8 +80,9 @@ frame main() ret int {
     }
     local file: File = File.open("notes.txt", "a");
     if (file.handle == nullptr) { return 2; }
-    file.write("second line\n");
-    file.close();
+    local written: bool = file.write("second line\n");
+    local closed: bool = file.close();
+    if (!written || !closed) { return 4; }
     try {
         local content: String = FS.readFile("notes.txt");
         printf("%s", content.toString());

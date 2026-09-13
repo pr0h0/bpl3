@@ -8,21 +8,17 @@ import [Array] from "std/array.bpl";
 import [IOError] from "std/errors.bpl";
 extern fopen(path: string, mode: string) ret *void;
 extern fclose(file: *void) ret int;
-extern fseek(file: *void, offset: long, whence: int) ret int;
-extern ftell(file: *void) ret int;
-extern rewind(file: *void) ret void;
-extern fread(ptr: *void, size: long, nmemb: long, file: *void) ret long;
-extern fwrite(ptr: *void, size: long, nmemb: long, file: *void) ret long;
+extern __bpl_read_file(path: string, data: *string, length: *int) ret int;
+extern __bpl_write_file(path: string, data: *void, length: long) ret int;
+extern __bpl_file_write(file: *void, data: *void, length: long) ret int;
+extern __bpl_dirent_name(entry: *void) ret string;
 extern strlen(s: string) ret int;
-extern malloc(size: long) ret string;
-extern free(ptr: string) ret void;
 extern fgets(str: string, n: int, stream: *void) ret string;
 extern mkdir(path: string, mode: int) ret int;
 extern __bpl_mkdirp(path: string) ret int;
 extern opendir(name: string) ret *void;
 extern readdir(dir: *void) ret *void;
 extern closedir(dir: *void) ret int;
-extern strcpy(dest: string, src: string) ret string;
 
 struct File {
     handle: *void,
@@ -32,22 +28,25 @@ struct File {
         return f;
     }
 
-    frame close(this: *File) {
-        if (this.handle != nullptr) {
-            fclose(this.handle);
-            this.handle = nullptr;
-        }
+    # Closing consumes the handle even when buffered writes fail.
+    frame close(this: *File) ret bool {
+        if (this.handle == nullptr) { return true; }
+        local result: int = fclose(this.handle);
+        this.handle = nullptr;
+        return result == 0;
     }
 
-    frame write(this: *File, data: string) {
-        if (this.handle != nullptr) {
-            local len: int = strlen(data);
-            fwrite(cast<*void>(data), cast<long>(1), cast<long>(len), this.handle);
-        }
+    frame write(this: *File, data: string) ret bool {
+        if (data == nullptr) { return false; }
+        return __bpl_file_write(this.handle, cast<*void>(data), cast<long>(strlen(data))) == 0;
+    }
+
+    frame writeBytes(this: *File, data: *u8, length: int) ret bool {
+        return __bpl_file_write(this.handle, cast<*void>(data), cast<long>(length)) == 0;
     }
 
     frame readLine(this: *File, buf: string, max_len: int) ret bool {
-        if (this.handle == nullptr) 
+        if (this.handle == nullptr || buf == nullptr || max_len <= 1)
             return false;
         local res: string = fgets(buf, max_len, this.handle);
         return res != nullptr;
@@ -65,33 +64,42 @@ struct FS {
     }
 
     frame writeFile(path: string, data: string) ret bool {
-        local f: *void = fopen(path, "w");
-        if (f == nullptr) {
-            return false;
-        }
-        local len: int = strlen(cast<string>(data));
-        fwrite(cast<*void>(data), cast<long>(1), cast<long>(len), f);
-        fclose(f);
-        return true;
+        if (data == nullptr) { return false; }
+        return __bpl_write_file(path, cast<*void>(data), cast<long>(strlen(data))) == 0;
     }
 
-    frame readFile(path: string) ret String {
-        local f: *void = fopen(path, "rb");
-        if (f == nullptr) {
-            # cannot open
-            throw IOError { code: -1, message: "Cannot open file" };
+    # Writes exactly length bytes, including embedded NULs. Checks close errors.
+    frame writeBytes(path: string, data: *u8, length: int) ret bool {
+        return __bpl_write_file(path, cast<*void>(data), cast<long>(length)) == 0;
+    }
+
+    # Caller owns the returned Array; destroy it after use.
+    frame readBytes(path: string) ret Array<u8> {
+        local buffer: string = nullptr;
+        local length: int = 0;
+        local error: int = __bpl_read_file(path, &buffer, &length);
+        if (error != 0) {
+            throw IOError { code: error, message: "Cannot read file" };
         }
-        # SEEK_END = 2
-        fseek(f, cast<long>(0), cast<int>(2));
-        local len: int = ftell(f);
-        rewind(f);
-        local buf: string = malloc(cast<long>(len + 1));
-        fread(cast<*void>(buf), cast<long>(1), cast<long>(len), f);
-        buf[len] = cast<char>(0);
-        local s: String = String.new(buf);
-        free(buf);
-        fclose(f);
-        return s;
+        local result: Array<u8>;
+        result.data = cast<*u8>(buffer);
+        result.length = length;
+        result.capacity = length;
+        return result;
+    }
+
+    # Text retains the historical first-NUL termination behavior.
+    frame readFile(path: string) ret String {
+        local buffer: string = nullptr;
+        local length: int = 0;
+        local error: int = __bpl_read_file(path, &buffer, &length);
+        if (error != 0) {
+            throw IOError { code: error, message: "Cannot read file" };
+        }
+        local result: String;
+        result.data = buffer;
+        result.length = strlen(buffer);
+        return result;
     }
 
     frame mkdir(path: string) ret bool {
@@ -115,11 +123,7 @@ struct FS {
             if (ent == nullptr) {
                 break;
             }
-            # struct dirent linux x64: d_ino (8), d_off (8), d_reclen (2), d_type (1), d_name (offset 19)
-            # We assume offset 19 for d_name and it is null terminated
-            local ptr: *u8 = cast<*u8>(ent);
-            local namePtr: *u8 = &(ptr[19]);
-            local nameStr: string = cast<string>(namePtr);
+            local nameStr: string = __bpl_dirent_name(ent);
 
             # Skip . and ..
             if (strlen(nameStr) > 0) {

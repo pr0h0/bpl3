@@ -20,6 +20,8 @@
 #include <stdint.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <dirent.h>
+#include <limits.h>
 
 #ifdef __linux__
 #include <execinfo.h>
@@ -404,4 +406,73 @@ int32_t __bpl_mkdirp(const char *path) {
     if (result == 0) result = __bpl_ensure_directory(copy);
     free(copy);
     return result;
+}
+
+/* Whole-file buffers fit the stdlib's signed int lengths, with room for NUL.
+ * Read streams incrementally: procfs, pipes, and changing files need no seek. */
+int32_t __bpl_read_file(const char *path, char **data, int32_t *length) {
+    if (!data || !length) return EINVAL;
+    *data = NULL;
+    *length = 0;
+    if (!path) return EINVAL;
+    FILE *file = fopen(path, "rb");
+    if (!file) return errno ? errno : EIO;
+    size_t capacity = 4096, used = 0;
+    const size_t limit = INT32_MAX - 1;
+    char *buffer = malloc(capacity + 1);
+    int error = buffer ? 0 : ENOMEM;
+    while (!error) {
+        if (used == capacity) {
+            /* Probe EOF before rejecting an exactly-at-limit stream. */
+            int byte = fgetc(file);
+            if (byte == EOF) {
+                if (ferror(file)) error = errno ? errno : EIO;
+                break;
+            }
+            if (capacity == limit) { error = EFBIG; break; }
+            size_t next = capacity > limit / 2 ? limit : capacity * 2;
+            char *grown = realloc(buffer, next + 1);
+            if (!grown) { error = ENOMEM; break; }
+            buffer = grown;
+            capacity = next;
+            buffer[used++] = (char)byte;
+        }
+        size_t count = fread(buffer + used, 1, capacity - used, file);
+        used += count;
+        if (ferror(file)) { error = errno ? errno : EIO; break; }
+        if (feof(file)) break;
+        if (!count) { error = EIO; break; }
+    }
+    if (fclose(file) != 0 && !error) error = errno ? errno : EIO;
+    if (error) { free(buffer); return error; }
+    buffer[used] = 0;
+    *data = buffer;
+    *length = (int32_t)used;
+    return 0;
+}
+
+int32_t __bpl_file_write(FILE *file, const void *data, int64_t length) {
+    if (!file || length < 0 || (!data && length)) return EINVAL;
+    if ((uint64_t)length > SIZE_MAX) return EFBIG;
+    size_t written = 0;
+    while (written < (size_t)length) {
+        size_t count = fwrite((const char *)data + written, 1,
+                              (size_t)length - written, file);
+        written += count;
+        if (ferror(file) || !count) return errno ? errno : EIO;
+    }
+    return ferror(file) ? EIO : 0;
+}
+
+int32_t __bpl_write_file(const char *path, const void *data, int64_t length) {
+    if (!path || length < 0 || (!data && length)) return EINVAL;
+    FILE *file = fopen(path, "wb");
+    if (!file) return errno ? errno : EIO;
+    int error = __bpl_file_write(file, data, length);
+    if (fclose(file) != 0 && !error) error = errno ? errno : EIO;
+    return error;
+}
+
+const char *__bpl_dirent_name(const struct dirent *entry) {
+    return entry ? entry->d_name : NULL;
 }
