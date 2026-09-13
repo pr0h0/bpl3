@@ -386,9 +386,13 @@ exceptions. Weekdays use Sunday = 0 through Saturday = 6. ISO week numbers range
 from 1 to 53; an early-January or late-December date can belong to the adjacent
 ISO week-year, so `date.year` is not necessarily the year of that ISO week.
 
-Calendar arithmetic still has overflow and negative-month limitations recorded
-in BUG-297; conversion support does not imply every operation supports the full
-year range.
+Date arithmetic validates its inputs and throws a string if the resulting year
+is outside the supported range. `addMonths()` and `addYears()` clamp the day to
+the last day of the target month (for example, January 31 plus one month becomes
+February 28 or 29). Negative offsets are supported. `diffDays()` throws if the
+signed result does not fit int; `diffDaysLong()` returns the exact difference
+across the full supported year range. These operations return new values and do
+not change their inputs. DateTime offset overflow is still tracked in BUG-297.
 
 **Creation:**
 
@@ -414,9 +418,11 @@ year range.
 **Operations:**
 
 - `date.addDays(days: int) ret Date`
+- `date.subDays(days: int) ret Date`
 - `date.addMonths(months: int) ret Date`
 - `date.addYears(years: int) ret Date`
 - `date.diffDays(other: *Date) ret int`
+- `date.diffDaysLong(other: *Date) ret long`
 
 ### DateTime (`std/date.bpl`)
 

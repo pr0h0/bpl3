@@ -698,6 +698,7 @@ frame subDays(this: *Date, days: int) ret Date
 frame addMonths(this: *Date, months: int) ret Date
 frame addYears(this: *Date, years: int) ret Date
 frame diffDays(this: *Date, other: *Date) ret int
+frame diffDaysLong(this: *Date, other: *Date) ret long
 frame isValid(this: *Date) ret bool
 frame format(this: *Date) ret string
 frame formatSep(this: *Date, sep: u8) ret string

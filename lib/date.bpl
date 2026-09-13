@@ -165,14 +165,22 @@ struct Date {
 
     # Subtract days from the date
     frame subDays(this: *Date, days: int) ret Date {
-        return this.addDays(-days);
+        local ts: long = this.toTimestamp() - cast<long>(days) * cast<long>(86400);
+        return Date.fromTimestamp(ts);
     }
 
     # Add months (adjusts day if needed)
     frame addMonths(this: *Date, months: int) ret Date {
-        local totalMonths: int = (((this.year * 12) + this.month) - 1) + months;
-        local newYear: int = totalMonths / 12;
-        local newMonth: int = (totalMonths % 12) + 1;
+        if (!this.isValid()) { throw "Date.addMonths: invalid date"; }
+        local totalMonths: long = cast<long>(this.year) * 12 + cast<long>(this.month) - 1 + cast<long>(months);
+        local year: long = totalMonths / 12;
+        local month: long = totalMonths % 12;
+        if (month < 0) { month = month + 12; year = year - 1; }
+        if (year < -2147483648 || year > 2147483647) {
+            throw "Date.addMonths: year is outside the int range";
+        }
+        local newYear: int = cast<int>(year);
+        local newMonth: int = cast<int>(month) + 1;
 
         local maxDay: int = Date.daysInMonthStatic(newYear, newMonth);
         local newDay: int = this.day;
@@ -184,7 +192,12 @@ struct Date {
 
     # Add years
     frame addYears(this: *Date, years: int) ret Date {
-        local newYear: int = this.year + years;
+        if (!this.isValid()) { throw "Date.addYears: invalid date"; }
+        local year: long = cast<long>(this.year) + cast<long>(years);
+        if (year < -2147483648 || year > 2147483647) {
+            throw "Date.addYears: year is outside the int range";
+        }
+        local newYear: int = cast<int>(year);
         local maxDay: int = Date.daysInMonthStatic(newYear, this.month);
         local newDay: int = this.day;
         if (newDay > maxDay) {
@@ -195,9 +208,16 @@ struct Date {
 
     # Calculate difference in days between two dates
     frame diffDays(this: *Date, other: *Date) ret int {
-        local ts1: long = this.toTimestamp();
-        local ts2: long = other.toTimestamp();
-        return cast<int>((ts1 - ts2) / cast<long>(86400));
+        local days: long = this.diffDaysLong(other);
+        if (days < -2147483648 || days > 2147483647) {
+            throw "Date.diffDays: difference is outside the int range";
+        }
+        return cast<int>(days);
+    }
+
+    # Exact signed day difference across the full supported year range.
+    frame diffDaysLong(this: *Date, other: *Date) ret long {
+        return (this.toTimestamp() - other.toTimestamp()) / cast<long>(86400);
     }
 
     # Check if date is valid
