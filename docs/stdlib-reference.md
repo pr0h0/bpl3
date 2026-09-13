@@ -734,6 +734,8 @@ frame addSeconds(this: *DateTime, seconds: long) ret DateTime
 frame addMinutes(this: *DateTime, minutes: long) ret DateTime
 frame addHours(this: *DateTime, hours: long) ret DateTime
 frame addDays(this: *DateTime, days: long) ret DateTime
+frame addMonths(this: *DateTime, months: int) ret DateTime
+frame addYears(this: *DateTime, years: int) ret DateTime
 frame diffSeconds(this: *DateTime, other: *DateTime) ret long
 frame format(this: *DateTime) ret string
 frame formatISO(this: *DateTime) ret string

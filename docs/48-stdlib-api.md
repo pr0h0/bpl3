@@ -392,7 +392,7 @@ the last day of the target month (for example, January 31 plus one month becomes
 February 28 or 29). Negative offsets are supported. `diffDays()` throws if the
 signed result does not fit int; `diffDaysLong()` returns the exact difference
 across the full supported year range. These operations return new values and do
-not change their inputs. DateTime offset overflow is still tracked in BUG-297.
+not change their inputs.
 
 **Creation:**
 
@@ -426,7 +426,11 @@ not change their inputs. DateTime offset overflow is still tracked in BUG-297.
 
 ### DateTime (`std/date.bpl`)
 
-Date and time combined.
+Date and time combined. Offset methods validate the stored date/time and reject
+out-of-range results with string exceptions before arithmetic can overflow.
+Seconds, minutes, hours, and days are fixed UTC durations; a day is 86400 seconds.
+Calendar month/year additions preserve the clock fields and clamp the day using
+the same rules as Date. Operations return new values without mutating the input.
 
 **Creation:**
 
@@ -444,6 +448,16 @@ Date and time combined.
 - `dt.toDate() ret Date`
 - `dt.format() ret string` - Owned YYYY-MM-DD HH:MM:SS text
 - `dt.formatISO() ret string`, `dt.formatTime() ret string` - Owned formatted text
+
+**Operations:**
+
+- `dt.addSeconds(seconds: long) ret DateTime`
+- `dt.addMinutes(minutes: long) ret DateTime`
+- `dt.addHours(hours: long) ret DateTime`
+- `dt.addDays(days: long) ret DateTime`
+- `dt.addMonths(months: int) ret DateTime`
+- `dt.addYears(years: int) ret DateTime`
+- `dt.diffSeconds(other: *DateTime) ret long` - Exact signed difference; validates both inputs
 
 ---
 

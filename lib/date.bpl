@@ -398,23 +398,38 @@ struct DateTime {
 
     # Add seconds
     frame addSeconds(this: *DateTime, seconds: long) ret DateTime {
-        local ts: long = this.toTimestamp() + seconds;
-        return DateTime.fromTimestamp(ts);
+        return addDateTimeUnits(this, seconds, 1);
     }
 
     # Add minutes
     frame addMinutes(this: *DateTime, minutes: long) ret DateTime {
-        return this.addSeconds(minutes * cast<long>(60));
+        return addDateTimeUnits(this, minutes, 60);
     }
 
     # Add hours
     frame addHours(this: *DateTime, hours: long) ret DateTime {
-        return this.addSeconds(hours * cast<long>(3600));
+        return addDateTimeUnits(this, hours, 3600);
     }
 
     # Add days
     frame addDays(this: *DateTime, days: long) ret DateTime {
-        return this.addSeconds(days * cast<long>(86400));
+        return addDateTimeUnits(this, days, 86400);
+    }
+
+    # Add calendar months, clamping the day and preserving the clock fields.
+    frame addMonths(this: *DateTime, months: int) ret DateTime {
+        if (!this.isValid()) { throw "DateTime.addMonths: invalid date or time"; }
+        local date: Date = this.toDate();
+        local result: Date = date.addMonths(months);
+        return DateTime.new(result.year, result.month, result.day, this.hour, this.minute, this.second);
+    }
+
+    # Add calendar years, clamping February 29 when necessary.
+    frame addYears(this: *DateTime, years: int) ret DateTime {
+        if (!this.isValid()) { throw "DateTime.addYears: invalid date or time"; }
+        local date: Date = this.toDate();
+        local result: Date = date.addYears(years);
+        return DateTime.new(result.year, result.month, result.day, this.hour, this.minute, this.second);
     }
 
     # Calculate difference in seconds
@@ -493,4 +508,20 @@ struct DateTime {
     frame clone(this: *DateTime) ret DateTime {
         return DateTime.new(this.year, this.month, this.day, this.hour, this.minute, this.second);
     }
+}
+
+# Private helper: secondsPerUnit is a positive constant supplied by DateTime.
+frame addDateTimeUnits(value: *DateTime, amount: long, secondsPerUnit: long) ret DateTime {
+    local timestamp: long = value.toTimestamp();
+    local first: DateTime = DateTime.new(cast<int>(0x80000000), 1, 1, 0, 0, 0);
+    local last: DateTime = DateTime.new(2147483647, 12, 31, 23, 59, 59);
+    # Both differences fit long. Truncation rounds the nonpositive lower bound
+    # up and the nonnegative upper bound down, so these are inclusive limits.
+    local minimum: long = (first.toTimestamp() - timestamp) / secondsPerUnit;
+    local maximum: long = (last.toTimestamp() - timestamp) / secondsPerUnit;
+    if (amount < minimum || amount > maximum) {
+        throw "DateTime arithmetic: result is outside the int year range";
+    }
+    # The checked offset and resulting timestamp are now both safe in long.
+    return DateTime.fromTimestamp(timestamp + amount * secondsPerUnit);
 }

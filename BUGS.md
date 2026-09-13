@@ -3629,13 +3629,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-297: Calendar arithmetic wraps at integer boundaries
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-12)**: Date.subDays negates an int before widening; addMonths multiplies the int year by 12 and uses truncating division for negative months; addYears adds in int; diffDays narrows without a range check. DateTime additions multiply/add long values without overflow checks.
 
-**Progress (2026-09-13)**: Date arithmetic widens before calculation, normalizes negative months with floor division, checks resulting years, and rejects invalid dates. diffDays checks before narrowing; new diffDaysLong supports the full year range. O0/O3 regression tests cover int limits, negative years, leap-day clamping, invalid inputs, and exact full-range differences. DateTime offset overflow remains open.
+**Resolution (2026-09-13)**: Date arithmetic widens before calculation, normalizes negative months with floor division, checks resulting years, and rejects invalid dates. diffDays checks before narrowing; new diffDaysLong supports the full year range. O0/O3 regression tests cover int limits, negative years, leap-day clamping, invalid inputs, and exact full-range differences. DateTime checks offsets against inclusive supported timestamp bounds before scaling and addition. O0/O3 BigInt-oracle tests cover exact limits, just-outside limits, long extrema, wrap-to-zero products, and unchanged inputs. New DateTime.addMonths/addYears reuse the checked calendar rules and preserve clock fields.
 
 ### BUG-298: Date week helpers mishandle ISO week 53 and negative years
 
