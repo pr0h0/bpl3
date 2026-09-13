@@ -719,6 +719,14 @@ export class TypeSubstitution {
             ],
             location: type.location,
             resolvedDeclaration: subst.resolvedDeclaration,
+            ...(type.aliasTarget
+              ? {
+                  aliasDeclaration: type.aliasDeclaration,
+                  aliasTarget: TypeSubstitution.substituteType(
+                    type.aliasTarget, map,
+                  ),
+                }
+              : {}),
           };
         }
         return subst;
@@ -731,6 +739,17 @@ export class TypeSubstitution {
             TypeSubstitution.substituteType(arg, map),
           ),
           resolvedDeclaration: type.resolvedDeclaration,
+          ...(type.aliasTarget
+            ? {
+                aliasTarget: TypeSubstitution.substituteType(type.aliasTarget, map),
+              }
+            : {}),
+        };
+      }
+      if (type.aliasTarget) {
+        return {
+          ...type,
+          aliasTarget: TypeSubstitution.substituteType(type.aliasTarget, map),
         };
       }
     } else if (type.kind === "TupleType") {

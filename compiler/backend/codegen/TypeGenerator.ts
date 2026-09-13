@@ -1310,10 +1310,17 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
       if (this.typeAliasMap.has(basic.name)) {
         const alias = this.typeAliasMap.get(basic.name)!;
-        // Only recurse if not generic, or if we can handle it.
-        // For now, assume non-generic recursion is safe.
-        if (!alias.genericParams || alias.genericParams.length === 0) {
-          const inner = this.getEffectiveModifiers(alias.type);
+        const parameters = alias.genericParams ?? [];
+        if (parameters.length === basic.genericArgs.length) {
+          const argumentsMap = new Map<string, AST.TypeNode>();
+          parameters.forEach((parameter, index) => {
+            argumentsMap.set(
+              parameter.name,
+              this.substituteType(basic.genericArgs[index]!, this.currentTypeMap),
+            );
+          });
+          const target = this.substituteType(alias.type, argumentsMap);
+          const inner = this.getEffectiveModifiers(target);
           ptr += inner.pointerDepth;
           arr = [...inner.arrayDimensions, ...arr];
         }
@@ -1423,15 +1430,17 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         // Check for aliasDeclaration (from TypeChecker) to preserve alias structure (e.g. pointer to array)
         if (
           basicType.aliasDeclaration &&
-          (!basicType.aliasDeclaration.genericParams ||
+          (basicType.aliasTarget ||
+            !basicType.aliasDeclaration.genericParams ||
             basicType.aliasDeclaration.genericParams.length === 0)
         ) {
           const aliasDecl = basicType.aliasDeclaration;
-          // Resolve the alias base type
-          const baseTypeStr = this.resolveType(aliasDecl.type);
+          // Use the instantiated target rather than reopening generic parameters.
+          const aliasTarget = basicType.aliasTarget ?? aliasDecl.type;
+          const baseTypeStr = this.resolveType(aliasTarget);
 
           // Calculate modifier diff
-          const aliasMods = this.getEffectiveModifiers(aliasDecl.type);
+          const aliasMods = this.getEffectiveModifiers(aliasTarget);
           // basicType is the resolved/flattened type, so its modifiers include the alias modifiers
           const totalMods = {
             pointerDepth: basicType.pointerDepth,

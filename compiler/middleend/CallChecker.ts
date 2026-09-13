@@ -26,6 +26,7 @@ import {
 function withoutAliasShape(type: AST.BasicTypeNode): AST.BasicTypeNode {
   const result = { ...type };
   delete result.aliasDeclaration;
+  delete result.aliasTarget;
   delete result.variableDeclaration;
   return result;
 }
@@ -36,7 +37,9 @@ function getPointerToAliasedArrayElementType(
 ): AST.BasicTypeNode | undefined {
   if (!type.aliasDeclaration || type.pointerDepth === 0) return undefined;
 
-  const aliasedType = context.resolveType(type.aliasDeclaration.type);
+  const aliasedType = context.resolveType(
+    type.aliasTarget ?? type.aliasDeclaration.type,
+  );
   const pointsToAliasedArray =
     aliasedType.kind === "BasicType" &&
     aliasedType.arrayDimensions.length > 0 &&

@@ -41,6 +41,8 @@ export interface BasicTypeNode extends ASTNode {
     | VariableDecl
     | Parameter;
   aliasDeclaration?: TypeAliasDecl;
+  // Instantiated alias target, before modifiers added at the use site.
+  aliasTarget?: TypeNode;
   variableDeclaration?: VariableDecl | Parameter;
   isConst?: boolean;
   isPointerToArray?: boolean;

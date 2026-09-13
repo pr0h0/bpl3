@@ -1059,6 +1059,7 @@ export abstract class TypeCheckerBase {
                 ],
                 location: type.location,
                 aliasDeclaration: decl,
+                aliasTarget: resolvedSubstituted,
               };
             }
             return resolvedSubstituted;

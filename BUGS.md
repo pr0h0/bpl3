@@ -3559,13 +3559,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-290: Generic fixed-array aliases lose element substitution through pointers
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-12)**: For type GenericPair<T> = T[2], indexing a *GenericPair<int> is checked as T rather than int. JSON.parse<GenericPair<int>> also encounters incompatible pointer-to-array versus array-of-pointer casts during code generation.
 
-**Workaround**: Use concrete fixed-array types for generic alias pointer operations and JSON root parsing. Non-generic fixed-array aliases are covered by the BUG-284 fix.
+**Resolution (2026-09-13)**: Preserve each instantiated alias target separately from its generic declaration, carry that target through subsequent substitution, and use it for pointer indexing and LLVM layout. Address-of modifier calculation now substitutes generic alias arguments instead of duplicating array dimensions. O0/O3 LLVM-verified tests cover alias chains, generic forwarding, pointer-valued elements, rectangular arrays, and JSON root/field parse, stringify, and free. Multiple outer pointer levels are tracked separately in BUG-300.
 
 ### BUG-291: Reflected aggregate sizes can underestimate array-alias fields
 
@@ -3658,3 +3658,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Workaround**: Explicitly widen the literal (`cast<long>(5) * dayOfYear`). Date conversion uses explicit casts for these expressions.
 
 **Resolution (2026-09-13)**: Materialize the compatible RHS conversion to the checked left operand type before integer arithmetic, comparisons, bitwise operations, shift masking, and runtime guards. Constant division proofs normalize values through source and operation widths; cached nonzero facts include the operation width. O0/O3 tests cover 896 BigInt-oracle results across all signed/unsigned width pairs, literal-left and nested expressions, single left-to-right evaluation, mixed-width shifts, and converted zero/overflow divisors. The language spec and operator guide document the existing left-type rule and explicit casts for wider operations.
+
+### BUG-300: Indexing a pointer to an array-alias pointer drops indirection
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-13)**: For type Pair<T> = T[2], indexing a **Pair<int> is checked as the scalar element instead of *Pair<int>. The pointer-to-alias indexing helper removes all outer pointer levels when selecting an element. The same helper handles non-generic array aliases.
+
+**Workaround**: Avoid indexing multiple pointer levels through fixed-array aliases until the indirection handling is corrected.

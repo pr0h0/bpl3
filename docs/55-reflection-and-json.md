@@ -154,9 +154,12 @@ returns `nullptr` rather than leaving an array parser stuck (BUG-277/283).
 
 Fixed-array aliases and alias chains are supported: for `type Pair = int[2]`,
 `JSON.parse<Pair>` and `JSON.free<Pair>` use the array's metadata. Reflected struct
-and array sizes come from LLVM's layout. Generic array aliases still have a
-separate pointer/type-substitution limitation (BUG-290); use the concrete array
-type as the JSON generic argument for those cases.
+and array sizes come from LLVM's layout. Generic fixed-array aliases and their
+chains also preserve their instantiated element types: for
+`type PairOf<T> = T[2]`, use `JSON.parse<PairOf<int>>`,
+`JSON.stringify<PairOf<int>>`, and `JSON.free<PairOf<int>>`. A returned
+`*PairOf<int>` supports element indexing. Multiple pointer levels through array
+aliases are tracked separately in BUG-300.
 
 Serialization escapes quotes, backslashes, and all representable control bytes
 below 0x20. Valid UTF-8 bytes are preserved; embedded NUL remains unsupported.
