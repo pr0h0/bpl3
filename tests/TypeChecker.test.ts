@@ -1540,7 +1540,7 @@ describe("TypeChecker", () => {
     const knownStructGuard = methodPrefix.indexOf(
       'objectType.resolvedDeclaration?.kind !== "StructDecl"',
     );
-    const primitiveSwitch = methodPrefix.indexOf("switch (objectType.name)");
+    const primitiveSwitch = methodPrefix.indexOf("PRIMITIVE_STRUCT_MAP[objectType.name]");
 
     expect(methodStart).toBeGreaterThanOrEqual(0);
     expect(moduleBranch).toBeGreaterThan(methodStart);
