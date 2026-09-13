@@ -163,28 +163,17 @@ describe("CodeGenerator", () => {
     expect(sameTypeReturn).toBeLessThan(conversionLowering);
   });
 
-  it("resolves standard binary right types only for shift masking", () => {
-    const source = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/BinaryExpressionGenerator.ts",
-      ),
-      "utf8",
-    );
-    const methodStart = source.indexOf(" generateStandardBinaryOp(");
-    const methodEnd = source.indexOf("\n  /**", methodStart);
-    const methodSource = source.slice(methodStart, methodEnd);
-
-    expect(methodStart).toBeGreaterThanOrEqual(0);
-    expect(methodEnd).toBeGreaterThan(methodStart);
-    expect(methodSource).not.toContain(
-      "const rightType = this.resolveType(expr.right.resolvedType!)",
-    );
-    expect(
-      methodSource.match(
-        /this\.resolveType\(expr\.right\.resolvedType!\)/g,
-      ),
-    ).toHaveLength(2);
+  it("converts mixed-width shift counts before masking in the operation width", () => {
+    const ir = compile(`
+      frame narrow(value: int, count: long) ret int { return value << count; }
+      frame widen(value: long, count: uchar) ret long { return value >> count; }
+    `);
+    expect(ir).toMatch(/trunc i64 %\w+ to i32/);
+    expect(ir).toMatch(/and i32 %\w+, 31/);
+    expect(ir).toMatch(/shl i32 %\w+, %\w+/);
+    expect(ir).toMatch(/zext i8 %\w+ to i64/);
+    expect(ir).toMatch(/and i64 %\w+, 63/);
+    expect(ir).toMatch(/ashr i64 %\w+, %\w+/);
   });
 
   it("defers standard binary signedness classification to consuming operators", () => {
