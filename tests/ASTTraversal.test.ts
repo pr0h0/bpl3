@@ -33,6 +33,28 @@ function loc(
 }
 
 describe("AST traversal", () => {
+  it("keeps instantiated alias targets out of syntax traversal and position lookup", () => {
+    const target = {
+      kind: "BasicType" as const,
+      name: "int",
+      genericArgs: [],
+      pointerDepth: 0,
+      arrayDimensions: [2],
+      location,
+    };
+    const node = {
+      ...target,
+      aliasTarget: target,
+    };
+    const visited: object[] = [];
+    walkAST(node, (entry) => {
+      visited.push(entry);
+    });
+    expect(visited).toEqual([node]);
+    expect(getChildren(node)).toEqual([]);
+    expect(findNodeAtPosition(node, 1, 1)).toEqual([node]);
+  });
+
   it("walks AST nodes stored inside literal field wrapper objects", () => {
     const structLiteral = {
       kind: "StructLiteral",

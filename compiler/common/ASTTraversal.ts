@@ -27,6 +27,7 @@ const DEFAULT_SKIP_PROPERTIES = [
   "resolvedDeclaration",
   "documentation",
   "aliasDeclaration",
+  "aliasTarget",
   "variableDeclaration",
   "declaration",
   "bindingDeclaration",
