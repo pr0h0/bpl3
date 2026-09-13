@@ -40,7 +40,7 @@ test("JSON parses and frees generic array aliases at roots and in fields", () =>
       source: `import [JSON] from "std/json.bpl";import [String] from "std/string.bpl";
       import printf from "std/c.bpl";
       type Pair<T> = T[2];type Chain<U> = Pair<U>;
-      struct Record {values:Pair<ushort>,optional:*Chain<int>}
+      struct Record<T> {values:Pair<T>,optional:*Chain<int>}
       frame main() ret int {
         local p:*Pair<int>=JSON.parse<Pair<int>>("[1,2]");
         if(p==nullptr || p[1]!=2) {return 1;}
@@ -52,9 +52,9 @@ test("JSON parses and frees generic array aliases at roots and in fields", () =>
         local f:*Chain<float>=JSON.parse<Chain<float>>("[1.5,2.5]");
         if(f==nullptr || f[1]!=2.5) {return 2;}
         text=JSON.stringify<Chain<float>>(f);printf("%s\\n",text.toString());text.destroy();JSON.free<Chain<float>>(f);
-        local r:*Record=JSON.parse<Record>("{\\"values\\":[1,65535],\\"optional\\":[3,4]}");
+        local r:*Record<ushort>=JSON.parse<Record<ushort>>("{\\"values\\":[1,65535],\\"optional\\":[3,4]}");
         if(r==nullptr || r.values[1]!=cast<ushort>(65535) || r.optional==nullptr || r.optional[1]!=4) {return 3;}
-        text=JSON.stringify<Record>(r);printf("%s\\n",text.toString());text.destroy();JSON.free<Record>(r);
+        text=JSON.stringify<Record<ushort>>(r);printf("%s\\n",text.toString());text.destroy();JSON.free<Record<ushort>>(r);
         return 0;
       }`,
       expectedStdout:

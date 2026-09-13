@@ -326,14 +326,10 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
         objType,
       );
     } else if (isPointer && !pointerToArray) {
-      // True single-level pointer (could be pointer to element or array of pointers)
-      // This includes both:
-      // - Regular pointers: int* -> direct GEP
-      // - Array of pointers: [2 x i32*] -> GEP on array stored locally
-      // We'll handle both in generatePointerIndexAddress or generateArrayIndexAddress
-
-      if (hasArrayDims) {
-        // Array of pointers - treat as array (no load needed)
+      // Alias metadata includes the pointee's dimensions even for **ArrayAlias.
+      // Only an LLVM array value is an array of pointers; outer pointers must
+      // be loaded and indexed one level at a time.
+      if (hasArrayDims && !llvmType?.endsWith("*")) {
         addr = this.generateArrayIndexAddress(
           indexExpr,
           objectAddr,

@@ -3661,10 +3661,10 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-300: Indexing a pointer to an array-alias pointer drops indirection
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-13)**: For type Pair<T> = T[2], indexing a **Pair<int> is checked as the scalar element instead of *Pair<int>. The pointer-to-alias indexing helper removes all outer pointer levels when selecting an element. The same helper handles non-generic array aliases.
 
-**Workaround**: Avoid indexing multiple pointer levels through fixed-array aliases until the indirection handling is corrected.
+**Resolution (2026-09-13)**: Indexing consumes one outer pointer level while retaining alias metadata until reaching the array. Address generation distinguishes actual LLVM array values from pointers carrying array dimensions. O0/O3 LLVM-verified tests cover generic/non-generic aliases, double/triple pointers, generic forwarding, pointer-valued elements, writes, and null/bounds runtime guards.

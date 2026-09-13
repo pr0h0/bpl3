@@ -158,8 +158,10 @@ and array sizes come from LLVM's layout. Generic fixed-array aliases and their
 chains also preserve their instantiated element types: for
 `type PairOf<T> = T[2]`, use `JSON.parse<PairOf<int>>`,
 `JSON.stringify<PairOf<int>>`, and `JSON.free<PairOf<int>>`. A returned
-`*PairOf<int>` supports element indexing. Multiple pointer levels through array
-aliases are tracked separately in BUG-300.
+`*PairOf<int>` supports element indexing. With additional indirection, each
+index first removes one pointer level: for `pp: **PairOf<int>`, `pp[0]` is a
+`*PairOf<int>` and `pp[0][1]` selects its second array element. Null checks apply
+to pointer traversal and bounds checks apply inside the fixed array.
 
 Serialization escapes quotes, backslashes, and all representable control bytes
 below 0x20. Valid UTF-8 bytes are preserved; embedded NUL remains unsupported.

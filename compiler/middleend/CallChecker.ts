@@ -47,6 +47,12 @@ function getPointerToAliasedArrayElementType(
 
   if (!pointsToAliasedArray) return undefined;
 
+  if (type.pointerDepth > aliasedType.pointerDepth + 1) {
+    const pointerElement = { ...type, pointerDepth: type.pointerDepth - 1 };
+    delete pointerElement.variableDeclaration;
+    return pointerElement;
+  }
+
   return withoutAliasShape({
     ...aliasedType,
     arrayDimensions: aliasedType.arrayDimensions.slice(1),
