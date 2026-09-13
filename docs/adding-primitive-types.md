@@ -62,26 +62,18 @@ const symbolsToExport = ["Int", "Bool", "Double", "Long"]; // Add "Long"
 Update `compiler/middleend/CallChecker.ts` to handle the mapping during member access.
 
 ```typescript
-// In checkMember()
-switch (objectType.name) {
-  case "int":
-  case "i32":
-    structName = "Int";
-    break;
-  case "long": // Add these cases
-  case "i64":
-    structName = "Long";
-    break;
-  // ...
-}
+// In BuiltinTypes.ts, extend PRIMITIVE_STRUCT_MAP:
+long: "Long",
+i64: "Long",
 ```
 
 ## Usage
 
-Import the wrapper explicitly when calling its methods. In particular, the
-current implicit `Long` lookup can disagree with code generation about
-`toString`’s return type (BUG-281 in [the bug log](../BUGS.md)).
-The explicit import below selects the standard-library declaration:
+Primitive member lookup uses `PRIMITIVE_STRUCT_MAP`. The module pipeline loads
+needed wrappers and replaces internal fallback declarations with checked stdlib
+symbols. Explicit wrapper imports remain useful when naming wrapper types; they
+are not required merely to call `long.toString()`. That method returns an owned
+`String`, which must be destroyed after use.
 
 ```bpl
 import [IO], [String], [Long] from "std";

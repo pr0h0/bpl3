@@ -42,6 +42,7 @@ export const PRIMITIVE_STRUCT_MAP: Record<string, string> = {
   bool: "Bool",
   double: "Double",
   float: "Double",
+  f64: "Double",
   i64: "Long",
   long: "Long",
   i8: "Char",

@@ -5,6 +5,7 @@ import * as AST from "../common/AST";
 import { CompilerError } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { TypeUtils } from "./TypeUtils";
+import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import type { CheckerContext } from "./CheckerContext";
 import {
   ARRAY_INDEX_TYPE_MISMATCH_CODE,
@@ -655,56 +656,11 @@ export function checkMember(
     objectType.pointerDepth === 0 &&
     objectType.arrayDimensions.length === 0
   ) {
-    let structName: string | undefined;
-    switch (objectType.name) {
-      case "int":
-      case "i32":
-        structName = "Int";
-        break;
-      case "long":
-      case "i64":
-        structName = "Long";
-        break;
-      case "char":
-      case "i8":
-        structName = "Char";
-        break;
-      case "uchar":
-      case "u8":
-        structName = "UChar";
-        break;
-      case "short":
-      case "i16":
-        structName = "Short";
-        break;
-      case "ushort":
-      case "u16":
-        structName = "UShort";
-        break;
-      case "uint":
-      case "u32":
-        structName = "UInt";
-        break;
-      case "ulong":
-      case "u64":
-        structName = "ULong";
-        break;
-      case "bool":
-      case "i1":
-        structName = "Bool";
-        break;
-      case "double":
-      case "f64":
-        structName = "Double";
-        break;
-    }
+    const structName = PRIMITIVE_STRUCT_MAP[objectType.name];
 
     if (structName) {
+      this.ensureImplicitPrimitiveWrappersLoaded(structName);
       let symbol = this.currentScope.resolve(structName);
-      if (!symbol) {
-        this.ensureImplicitPrimitiveWrappersLoaded(structName);
-        symbol = this.currentScope.resolve(structName);
-      }
       if (!symbol) {
         const stdSymbol = this.currentScope.resolve("std");
         if (stdSymbol && stdSymbol.kind === "Module" && stdSymbol.moduleScope) {

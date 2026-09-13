@@ -3391,13 +3391,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-274: Some interpolation expressions cannot resolve primitive conversion
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-11)**: Interpolating `${cast<float>(items) * price}` fails with `BPL_INSTANCE_METHOD_NOT_COMPATIBLE` for float.toString. Isolated interpolation of String.toString calls succeeds; the logging failure was caused by the separate intrinsic-name collision in BUG-276.
 
 **Documentation/workaround**: Bind computed values to typed locals before interpolation. The repaired guide exercises that form. Importing only String's module also does not load all primitive conversion wrappers; examples using primitive interpolation import from `std`.
+
+**Resolution (2026-09-13)**: Primitive member lookup now uses the shared wrapper map, including float/f64, so computed float interpolation selects Double.toString.
 
 ### BUG-275: Casting a local Func value to Lambda generates invalid return IR
 
@@ -3471,13 +3473,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-281: Implicit Long method lookup disagrees with generated return types
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-11)**: With only `IO` and `String` imported from `std`, assigning `x.toString()` for `x: long` to `String` is rejected as pointer-to-String mismatch. Assigning it to `string` passes checking but produces invalid LLVM because the actual call returns the String struct.
 
 **Documentation/workaround**: Explicitly import `[Long]` from `std` before using its methods. The contributor example compiles with this import and destroys the returned owned Strings.
+
+**Resolution (2026-09-13)**: Checked stdlib wrapper declarations replace internal fallback symbols in the global scope. Implicit Long methods now agree with backend String returns; direct checking also loads wrappers before lookup.
 
 ### BUG-282: Documentation maintenance helpers violate the release tools inventory
 

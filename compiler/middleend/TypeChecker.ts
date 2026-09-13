@@ -179,8 +179,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     for (const name of symbolsToExport) {
       const symbol = moduleScope.resolve(name);
       if (symbol) {
-        // Define in global scope if not already defined
-        if (!this.globalScope.resolve(name)) {
+        // Replace internal fallback declarations with the checked stdlib type.
+        const existing = this.globalScope.resolve(name);
+        if (!existing || existing.declaration?.location.file === "internal") {
           this.globalScope.define({
             name,
             kind: symbol.kind,
