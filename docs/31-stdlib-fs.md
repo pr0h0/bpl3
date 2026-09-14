@@ -57,6 +57,13 @@ String before destroying the Array that stores them.
   A null path or mode returns a closed handle.
 - `file.write(data) ret bool` writes text; false indicates an invalid handle/data or write failure.
 - `file.writeBytes(data: *u8, length: int) ret bool` writes binary data with the same buffer contract as `FS.writeBytes`.
+- `file.readBytes(data: *u8, length: int) ret int` reads into caller-owned storage
+  and returns the actual byte count. With a positive length, zero means EOF.
+  It preserves embedded NULs, requires no seeking, and allocates no buffer.
+  Invalid arguments, a closed handle, or native read failure throw `IOError`.
+  A failure may consume input and partially modify the buffer. A zero-length
+  request on an open handle succeeds without consuming input, including when
+  data is null. Negative lengths and null data with positive lengths fail.
 - `file.readLine(buf, max_len)` uses `fgets`, retains the newline when present,
   and returns false for EOF, read failure, or a closed handle. Provide a writable
   buffer with at least `max_len` bytes and a limit greater than one. Null buffers
@@ -69,6 +76,33 @@ Use `"r"` to read, `"w"` to create/truncate, and `"a"` to append. Binary modes
 `"rb"`/`"wb"` are accepted by the underlying C library, but `File.write` still
 uses NUL-terminated text. File values shallow-copy the handle; close each opened
 handle once and do not use copies after closing it.
+
+## Reading binary data in chunks
+
+Provide a writable buffer with at least the requested number of bytes. Reads may
+block until the requested count, EOF, or an error; this is buffered file I/O, not
+a nonblocking socket API. Only the returned prefix is valid after a successful
+short read. Unlike `FS.readBytes`, the method takes a buffer and returns a count,
+so callers can process files larger than the whole-file read limit with bounded
+memory. Close the File on every exit path, including exceptions.
+
+```bpl
+import [File] from "std/fs.bpl";
+import printf from "std/c.bpl";
+
+frame main() ret int {
+    local file: File = File.open("input.bin", "rb");
+    if (file.handle == nullptr) { return 1; }
+    defer { file.close(); }
+    local buffer: u8[4096];
+    loop {
+        local count: int = file.readBytes(&buffer[0], 4096);
+        if (count == 0) { break; }
+        printf("Read %d bytes\n", count);
+    }
+    return 0;
+}
+```
 
 ## Checked-open example
 

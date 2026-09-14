@@ -11,6 +11,7 @@ extern fclose(file: *void) ret int;
 extern __bpl_read_file(path: string, data: *string, length: *int) ret int;
 extern __bpl_write_file(path: string, data: *void, length: long) ret int;
 extern __bpl_file_write(file: *void, data: *void, length: long) ret int;
+extern __bpl_file_read(file: *void, data: *void, length: int, count: *int) ret int;
 extern __bpl_dirent_name(entry: *void) ret string;
 extern strlen(s: string) ret int;
 extern fgets(str: string, n: int, stream: *void) ret string;
@@ -45,6 +46,17 @@ struct File {
 
     frame writeBytes(this: *File, data: *u8, length: int) ret bool {
         return __bpl_file_write(this.handle, cast<*void>(data), cast<long>(length)) == 0;
+    }
+
+    # Read up to length bytes into caller-owned storage; zero indicates EOF
+    # for positive length. Errors throw IOError; the buffer may be partly filled.
+    frame readBytes(this: *File, data: *u8, length: int) ret int {
+        local count: int = 0;
+        local error: int = __bpl_file_read(this.handle, cast<*void>(data), length, &count);
+        if (error != 0) {
+            throw IOError { code: error, message: "Cannot read from file" };
+        }
+        return count;
     }
 
     frame readLine(this: *File, buf: string, max_len: int) ret bool {

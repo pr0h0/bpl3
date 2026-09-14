@@ -63,8 +63,16 @@ int main(int argc,char **argv) {
  const char text[]={'a',0,'b','c','d','e','f',0,'g'};
  assert(__bpl_file_write(output,text,sizeof(text))==0);
  assert(fseek(output,0,SEEK_SET)==0);
- char actual[sizeof(text)];assert(fread(actual,1,sizeof(actual),output)==sizeof(actual));
- assert(memcmp(text,actual,sizeof(text))==0);fclose(output);
+ char actual[sizeof(text)+3];memset(actual,0x55,sizeof(actual));int32_t count=99;
+ assert(__bpl_file_read(output,NULL,0,&count)==0 && count==0);
+ assert(__bpl_file_read(output,NULL,1,&count)==EINVAL && count==0);
+ assert(__bpl_file_read(output,actual,-1,&count)==EINVAL && count==0);
+ assert(__bpl_file_read(output,actual,sizeof(actual),&count)==0 && count==sizeof(text));
+ assert(memcmp(text,actual,sizeof(text))==0);
+ for(size_t i=sizeof(text);i<sizeof(actual);i++)assert(actual[i]==0x55);
+ assert(__bpl_file_read(output,actual,sizeof(actual),&count)==0 && count==0);
+ assert(__bpl_file_read(NULL,actual,1,&count)==EBADF && count==0);
+ assert(__bpl_file_read(output,actual,1,NULL)==EINVAL);fclose(output);
  assert(__bpl_file_write(NULL,text,sizeof(text))==EINVAL);
  assert(!live);return 0;
 }`,

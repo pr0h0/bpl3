@@ -452,6 +452,22 @@ int32_t __bpl_read_file(const char *path, char **data, int32_t *length) {
     return 0;
 }
 
+/* Read into caller-owned storage without seeking or allocating. A failed
+ * read may already have consumed bytes and modified the destination buffer. */
+int32_t __bpl_file_read(FILE *file, void *data, int32_t length, int32_t *count) {
+    if (!count) return EINVAL;
+    *count = 0;
+    if (!file) return EBADF;
+    if (length < 0 || (!data && length)) return EINVAL;
+    if (!length) return 0;
+    if (ferror(file)) return EIO;
+    errno = 0;
+    size_t actual = fread(data, 1, (size_t)length, file);
+    *count = (int32_t)actual;
+    if (ferror(file)) return errno ? errno : EIO;
+    return 0;
+}
+
 int32_t __bpl_file_write(FILE *file, const void *data, int64_t length) {
     if (!file || length < 0 || (!data && length)) return EINVAL;
     if ((uint64_t)length > SIZE_MAX) return EFBIG;
