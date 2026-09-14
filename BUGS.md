@@ -3778,3 +3778,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-14)**: test:ci passed but the separate GitHub lint step rejected three unused payload-size variables, a duplicate CompilerError import, and two nested ternaries. The separate lint command was omitted from the initial validation.
 
 **Resolution**: Remove obsolete locals, combine imports, and express layout branches without nested ternaries. bun run lint, TypeScript checking, 414 compiler tests, and five targeted layout/match tests pass after the cleanup.
+
+### BUG-311: File.open passes null mode strings to libc and crashes
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-14)**: File.open("/dev/null", nullptr) reaches _IO_file_fopen and raises SIGSEGV. Other path wrappers also pass null pointers to native APIs without defining their behavior.
+
+**Resolution**: File.open returns a closed handle for null path/mode. FS.exists/mkdir return false and listDir returns an empty owned array for null paths. Regression tests cover null arguments across filesystem operations, preserving existing false/IOError conventions.

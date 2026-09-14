@@ -56,3 +56,29 @@ frame main() ret int {
     rmSync(dir, { recursive: true, force: true });
   }
 }, 60000);
+
+test("filesystem null arguments fail without entering unsafe native calls", () => {
+  expectCorrectnessSuite([
+    {
+      name: "filesystem-null-arguments",
+      validateLlvm: true,
+      source: `import [FS], [File] from "std/fs.bpl";
+import [String] from "std/string.bpl";import [Array] from "std/array.bpl";
+import [IOError] from "std/errors.bpl";
+frame main() ret int {
+ local file:File=File.open("/dev/null",nullptr);
+ if(file.handle!=nullptr || !file.close()) {return 1;}
+ file=File.open(nullptr,"r");if(file.handle!=nullptr) {return 2;}
+ file=File.open(nullptr,nullptr);if(file.handle!=nullptr) {return 3;}
+ if(FS.exists(nullptr) || FS.mkdir(nullptr) || FS.mkdirp(nullptr)) {return 4;}
+ local names:Array<String>=FS.listDir(nullptr);if(names.length!=0) {return 5;}names.destroy();
+ if(FS.writeFile(nullptr,"text") || FS.writeFile("/dev/null",nullptr) || FS.writeBytes(nullptr,nullptr,0)) {return 6;}
+ local caught:bool=false;try {local content:String=FS.readFile(nullptr);content.destroy();}catch(e:IOError) {caught=e.code!=0;}
+ if(!caught) {return 7;}
+ caught=false;try {local bytes:Array<u8>=FS.readBytes(nullptr);bytes.destroy();}catch(e:IOError) {caught=e.code!=0;}
+ if(!caught) {return 8;}return 0;
+}`,
+      expectedStdout: "",
+    },
+  ]);
+}, 60000);

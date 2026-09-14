@@ -36,6 +36,9 @@ Whole-file reads are limited to 2,147,483,646 bytes to leave room for a terminat
 within the stdlib's int-sized storage. Allocation failure may impose a lower limit.
 Read failure frees the temporary buffer. Failed writes can leave a partial file.
 
+Null paths make `exists`, `mkdir`, and writes return false; `listDir` returns an
+empty array. Whole-file reads throw `IOError` for null paths.
+
 `mkdirp` preserves absolute roots and accepts relative paths, repeated separators,
 and trailing slashes. It succeeds for existing directories (including symlinks to
 directories), but rejects file collisions, null/empty paths, and native failures.
@@ -51,6 +54,7 @@ String before destroying the Array that stores them.
 ## File handles
 
 - `File.open(path, mode)` returns a `File`; inspect `handle != nullptr` for success.
+  A null path or mode returns a closed handle.
 - `file.write(data) ret bool` writes text; false indicates an invalid handle/data or write failure.
 - `file.writeBytes(data: *u8, length: int) ret bool` writes binary data with the same buffer contract as `FS.writeBytes`.
 - `file.readLine(buf, max_len)` uses `fgets`, retains the newline when present,

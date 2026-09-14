@@ -24,6 +24,8 @@ struct File {
     handle: *void,
     frame open(path: string, mode: string) ret File {
         local f: File;
+        f.handle = nullptr;
+        if (path == nullptr || mode == nullptr) { return f; }
         f.handle = fopen(path, mode);
         return f;
     }
@@ -55,6 +57,7 @@ struct File {
 
 struct FS {
     frame exists(path: string) ret bool {
+        if (path == nullptr) { return false; }
         local f: *void = fopen(path, "r");
         if (f != nullptr) {
             fclose(f);
@@ -103,6 +106,7 @@ struct FS {
     }
 
     frame mkdir(path: string) ret bool {
+        if (path == nullptr) { return false; }
         # 0777 octal = 511 decimal
         return mkdir(path, 511) == 0;
     }
@@ -113,6 +117,7 @@ struct FS {
     }
 
     frame listDir(path: string) ret Array<String> {
+        if (path == nullptr) { return Array<String>.new(0); }
         local dir: *void = opendir(path);
         if (dir == nullptr) {
             return Array<String>.new(0);
