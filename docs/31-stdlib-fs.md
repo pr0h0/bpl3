@@ -12,7 +12,7 @@ import [FS], [File] from "std/fs.bpl";
 | Method                                              | Current behavior                                                            |
 | --------------------------------------------------- | --------------------------------------------------------------------------- |
 | `FS.exists(path: string) ret bool`                  | Attempts to open for reading; false can mean inaccessible, not just missing |
-| `FS.writeFile(path: string, data: string) ret bool` | Opens with `"w"`, writes NUL-terminated text, then closes                   |
+| `FS.writeFile(path: string, data: string) ret bool` | Opens with `"wb"`, writes NUL-terminated text, then closes                  |
 | `FS.readFile(path: string) ret String`              | Reads a stream into an owned String; native failures throw `IOError`   |
 | `FS.mkdir(path: string) ret bool`                   | Calls POSIX `mkdir(path, 511)`; false includes already-existing directories |
 | `FS.mkdirp(path: string) ret bool`                  | Creates missing directories; checks errors and existing directory types     |
