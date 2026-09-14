@@ -1067,6 +1067,7 @@ frame readFile(path: string) ret String
 frame mkdir(path: string) ret bool
 frame mkdirp(path: string) ret bool
 frame listDir(path: string) ret Array<String>
+frame listDirChecked(path: string) ret Array<String>
 ```
 
 ## std/hash.bpl

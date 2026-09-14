@@ -16,7 +16,8 @@ import [FS], [File] from "std/fs.bpl";
 | `FS.readFile(path: string) ret String`              | Reads a stream into an owned String; native failures throw `IOError`   |
 | `FS.mkdir(path: string) ret bool`                   | Calls POSIX `mkdir(path, 511)`; false includes already-existing directories |
 | `FS.mkdirp(path: string) ret bool`                  | Creates missing directories; checks errors and existing directory types     |
-| `FS.listDir(path: string) ret Array<String>`        | Owned entry names excluding `.` and `..`; empty array on open failure       |
+| `FS.listDir(path: string) ret Array<String>`        | Owned entry names excluding `.` and `..`; empty array on failure            |
+| `FS.listDirChecked(path: string) ret Array<String>` | Same names; throws `IOError` on open, read, close, size, or allocation failure |
 
 There are no `FS.appendFile`, `deleteFile`, `copyFile`, `isDir`, or `fileSize`
 methods. For append, open a `File` with mode `"a"`. Other operations require
@@ -37,7 +38,7 @@ within the stdlib's int-sized storage. Allocation failure may impose a lower lim
 Read failure frees the temporary buffer. Failed writes can leave a partial file.
 
 Null paths make `exists`, `mkdir`, and writes return false; `listDir` returns an
-empty array. Whole-file reads throw `IOError` for null paths.
+empty array. Whole-file reads and `listDirChecked` throw `IOError` for null paths.
 
 `mkdirp` preserves absolute roots and accepts relative paths, repeated separators,
 and trailing slashes. It succeeds for existing directories (including symlinks to
@@ -47,9 +48,45 @@ a later failure remain in place. It follows normal filesystem path resolution,
 including symlinks and `..`; it does not confine paths to a directory. This helper
 uses the native Linux/macOS runtime; rebuild runtime support after updating it.
 
-`listDir` accesses names using the native platform's `dirent` layout. Entry order
-is unspecified. Destroy each returned
-String before destroying the Array that stores them.
+Both listing methods use the native platform's `dirent` layout. Entry order is
+unspecified; hidden entries other than `.` and `..` are included. Names are owned
+copies and remain valid after the directory closes. Destroy each returned String
+before destroying the Array that stores them.
+
+Use `listDirChecked` when an empty directory must be distinguishable from a failed
+listing. It throws `IOError` with a nonzero native error code and releases temporary
+names and storage on failure. The legacy `listDir` catches these errors and returns
+an empty array. Neither method returns a partial listing after a reported failure.
+Listings are not atomic snapshots: concurrent directory changes follow the native
+filesystem's enumeration behavior. Counts and name lengths must fit the stdlib's
+int-sized storage, and available memory can impose a lower limit.
+
+```bpl
+import [FS] from "std/fs.bpl";
+import [Array] from "std/array.bpl";
+import [String] from "std/string.bpl";
+import [IOError] from "std/errors.bpl";
+import printf from "std/c.bpl";
+
+frame main() ret int {
+    try {
+        local names: Array<String> = FS.listDirChecked(".");
+        defer {
+            loop (local i: int = 0; i < names.length; i = i + 1) {
+                names.data[i].destroy();
+            }
+            names.destroy();
+        }
+        loop (local i: int = 0; i < names.length; i = i + 1) {
+            printf("%s\n", names.data[i].data);
+        }
+    } catch (error: IOError) {
+        printf("Listing failed: %s (code %d)\n", error.message, error.code);
+        return 1;
+    }
+    return 0;
+}
+```
 
 ## File handles
 

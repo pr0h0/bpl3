@@ -3788,3 +3788,21 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-14)**: File.open("/dev/null", nullptr) reaches _IO_file_fopen and raises SIGSEGV. Other path wrappers also pass null pointers to native APIs without defining their behavior.
 
 **Resolution**: File.open returns a closed handle for null path/mode. FS.exists/mkdir return false and listDir returns an empty owned array for null paths. Regression tests cover null arguments across filesystem operations, preserving existing false/IOError conventions.
+
+### BUG-312: Directory listing silently returns partial results after read failure
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-14)**: FS.listDir treats every null readdir result as EOF, ignores closedir errors, and copies entries through unchecked allocations. Callers cannot distinguish a complete empty directory from a failed listing, and allocation failure can crash while copying names.
+
+**Resolution**: Add FS.listDirChecked with native error codes, checked allocation and size limits, and cleanup on every failure. The legacy listDir returns an empty array on failure instead of a partial result. Native fault-injection tests cover every allocation point, read/close failures, error precedence, and resource release under ASan/UBSan; BPL tests verify owned names and invalid paths at O0/O3 with LLVM verification.
+
+### BUG-313: Return analysis rejects functions whose try and catch branches return
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-14)**: A function ending in try { return value; } catch (error: IOError) { return fallback; } is rejected with "may not return a value on all code paths". A temporary workaround is assigning a result in the try/catch and returning it afterwards.

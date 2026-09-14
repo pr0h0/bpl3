@@ -494,6 +494,71 @@ const char *__bpl_dirent_name(const struct dirent *entry) {
     return entry ? entry->d_name : NULL;
 }
 
+/* Checked raw storage for BPL-owned entries; their layout stays in BPL. */
+int32_t __bpl_fs_allocate_entries(int32_t count, int64_t width, void **data) {
+    if (!data) return EINVAL;
+    *data = NULL;
+    if (count < 0 || width <= 0) return EINVAL;
+    if (!count) return 0;
+    if ((uint64_t)width > SIZE_MAX / (uint32_t)count) return EOVERFLOW;
+    *data = malloc((size_t)count * (size_t)width);
+    return *data ? 0 : ENOMEM;
+}
+
+void __bpl_free_dir_names(char **names, int32_t count) {
+    for (int32_t i = 0; i < count; ++i) free(names[i]);
+    free(names);
+}
+
+/* Own every name, distinguish EOF from failure, and publish only complete
+ * results. No dirent or BPL String layout crosses the native ABI. */
+int32_t __bpl_list_dir(const char *path, char ***names, int32_t *count) {
+    if (!names || !count) return EINVAL;
+    *names = NULL;
+    *count = 0;
+    if (!path) return EINVAL;
+    DIR *dir = opendir(path);
+    if (!dir) return errno ? errno : EIO;
+    char **entries = NULL;
+    size_t used = 0, capacity = 0;
+    size_t limit = SIZE_MAX / sizeof(char *);
+    if (limit > INT32_MAX) limit = INT32_MAX;
+    int error = 0;
+    for (;;) {
+        errno = 0;
+        struct dirent *entry = readdir(dir);
+        if (!entry) { error = errno; break; }
+        const char *name = entry->d_name;
+        if (!strcmp(name, ".") || !strcmp(name, "..")) continue;
+        size_t length = strlen(name);
+        if (length > INT32_MAX - 1 || used == limit) {
+            error = EOVERFLOW;
+            break;
+        }
+        if (used == capacity) {
+            size_t next = capacity ? (capacity > limit / 2 ? limit : capacity * 2) : 16;
+            if (next > limit) next = limit;
+            char **grown = realloc(entries, next * sizeof(char *));
+            if (!grown) { error = ENOMEM; break; }
+            entries = grown;
+            capacity = next;
+        }
+        char *copy = malloc(length + 1);
+        if (!copy) { error = ENOMEM; break; }
+        memcpy(copy, name, length + 1);
+        entries[used++] = copy;
+    }
+    errno = 0;
+    if (closedir(dir) != 0 && !error) error = errno ? errno : EIO;
+    if (error) {
+        __bpl_free_dir_names(entries, (int32_t)used);
+        return error;
+    }
+    *names = entries;
+    *count = (int32_t)used;
+    return 0;
+}
+
 /* Avoid exposing platform-specific timespec/timeval layouts to BPL. */
 int32_t __bpl_clock(int32_t monotonic, int32_t units, int64_t *result) {
     if (!result || (units != 1 && units != 1000 && units != 1000000)) return EINVAL;

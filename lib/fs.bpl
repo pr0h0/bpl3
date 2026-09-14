@@ -12,14 +12,13 @@ extern __bpl_read_file(path: string, data: *string, length: *int) ret int;
 extern __bpl_write_file(path: string, data: *void, length: long) ret int;
 extern __bpl_file_write(file: *void, data: *void, length: long) ret int;
 extern __bpl_file_read(file: *void, data: *void, length: int, count: *int) ret int;
-extern __bpl_dirent_name(entry: *void) ret string;
+extern __bpl_list_dir(path: string, names: **string, count: *int) ret int;
+extern __bpl_free_dir_names(names: *string, count: int);
+extern __bpl_fs_allocate_entries(count: int, width: long, data: **void) ret int;
 extern strlen(s: string) ret int;
 extern fgets(str: string, n: int, stream: *void) ret string;
 extern mkdir(path: string, mode: int) ret int;
 extern __bpl_mkdirp(path: string) ret int;
-extern opendir(name: string) ret *void;
-extern readdir(dir: *void) ret *void;
-extern closedir(dir: *void) ret int;
 
 struct File {
     handle: *void,
@@ -129,35 +128,43 @@ struct FS {
     }
 
     frame listDir(path: string) ret Array<String> {
-        if (path == nullptr) { return Array<String>.new(0); }
-        local dir: *void = opendir(path);
-        if (dir == nullptr) {
-            return Array<String>.new(0);
+        local result: Array<String>;
+        result.data = nullptr;
+        result.length = 0;
+        result.capacity = 0;
+        try {
+            result = FS.listDirChecked(path);
+        } catch (error: IOError) {
+            # Preserve the legacy empty-on-error result.
         }
-        local result: Array<String> = Array<String>.new(10);
-        loop {
-            local ent: *void = readdir(dir);
-            if (ent == nullptr) {
-                break;
-            }
-            local nameStr: string = __bpl_dirent_name(ent);
+        return result;
+    }
 
-            # Skip . and ..
-            if (strlen(nameStr) > 0) {
-                local skip: bool = false;
-                if (nameStr[0] == cast<char>(46)) {
-                    # .
-                    if (nameStr[1] == cast<char>(0)) 
-                        skip = true;
-                    else if ((nameStr[1] == cast<char>(46)) && (nameStr[2] == cast<char>(0))) 
-                        skip = true;
-                }
-                if (!skip) {
-                    result.push(String.new(nameStr));
-                }
-            }
+    # Owned names excluding . and ..; failures throw without partial results.
+    frame listDirChecked(path: string) ret Array<String> {
+        local names: *string = nullptr;
+        local count: int = 0;
+        local error: int = __bpl_list_dir(path, &names, &count);
+        if (error != 0) {
+            throw IOError { code: error, message: "Cannot list directory" };
         }
-        closedir(dir);
+        defer { __bpl_free_dir_names(names, count); }
+        local storage: *void = nullptr;
+        error = __bpl_fs_allocate_entries(count, cast<long>(sizeof<String>()), &storage);
+        if (error != 0) {
+            throw IOError { code: error, message: "Cannot allocate directory entries" };
+        }
+        local result: Array<String>;
+        result.data = cast<*String>(storage);
+        result.length = count;
+        result.capacity = count;
+        loop (local i: int = 0; i < count; i = i + 1) {
+            local name: String;
+            name.data = names[i];
+            name.length = strlen(names[i]);
+            result.data[i] = name;
+            names[i] = nullptr;
+        }
         return result;
     }
 }
