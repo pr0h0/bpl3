@@ -499,10 +499,12 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
   protected getEnumPayloadLayout(decl: AST.EnumDecl): TypeLayout {
     let size = 0, alignment = 1;
     for (const variant of decl.variants) {
-      const fields = variant.dataType?.kind === "EnumVariantTuple"
-        ? variant.dataType.types
-        : variant.dataType?.kind === "EnumVariantStruct"
-          ? variant.dataType.fields.map(field => field.type) : [];
+      let fields: AST.TypeNode[] = [];
+      if (variant.dataType?.kind === "EnumVariantTuple") {
+        fields = variant.dataType.types;
+      } else if (variant.dataType?.kind === "EnumVariantStruct") {
+        fields = variant.dataType.fields.map(field => field.type);
+      }
       const layout = this.getLayoutCalculator().aggregate(fields.map(type => this.getTypeLayout(type)));
       size = Math.max(size, layout.size);
       alignment = Math.max(alignment, layout.alignment);
@@ -544,7 +546,7 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     this.enumDataSizes.set(enumName, maxSize);
     this.enumDataAlignments.set(enumName, payload.alignment);
 
-    // Generate enum as: { i32 tag, [maxSize x i8] data }
+    // Generate an i32 tag followed by naturally aligned payload storage.
     // If maxSize is 0 (all unit variants), just use { i32 }
     const enumType =
       maxSize > 0

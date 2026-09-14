@@ -97,7 +97,6 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     );
 
     const enumName = enumType.substring(6);
-    const dataArraySize = this.enumDataSizes.get(enumName) || 64;
     const bytePtr = this.newRegister();
     this.emit(
       `  ${bytePtr} = bitcast ${this.getEnumDataType(enumName)}* ${dataPtr} to i8*`,
@@ -2033,7 +2032,6 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
     // Get enum name from type (strip "%enum." prefix)
     const enumName = enumType.substring(6);
-    const dataArraySize = this.enumDataSizes.get(enumName) || 64;
 
     // Cast to i8* for easier manipulation
     const bytePtr = this.newRegister();
@@ -2109,7 +2107,6 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     );
 
     const enumName = enumType.substring(6);
-    const dataArraySize = this.enumDataSizes.get(enumName) || 64;
 
     // Cast the data pointer to i8* to work with aligned byte offsets.
     const bytePtr = this.newRegister();

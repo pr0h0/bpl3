@@ -40,7 +40,8 @@ export class LLVMTypeLayout {
     if (type === "void") return { size: 0, alignment: 1 };
     const scalar = /^(?:i([0-9]+)|(float|double))$/.exec(type);
     if (scalar) {
-      const bits = scalar[1] ? Number(scalar[1]) : type === "float" ? 32 : 64;
+      const floatingBits = type === "float" ? 32 : 64;
+      const bits = scalar[1] ? Number(scalar[1]) : floatingBits;
       const prefix = scalar[1] ? "i" : "f";
       const explicit = this.dataLayout.match(
         new RegExp(`(?:^|-)${prefix}${bits}:([0-9]+)`),

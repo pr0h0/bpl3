@@ -3768,3 +3768,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-14)**: The library-system integration loses active loan rows after payload alignment is corrected because compare_values reads integers at byte offset four. Its fallback nested match results are also discarded.
 
 **Resolution**: Use nested value-returning matches to compare payloads without inspecting enum representation. Removed obsolete workaround dispatch and debug prints. Updated the filesystem error example to expect the checked read diagnostic and a platform-native code.
+
+### BUG-310: Aggregate-layout changes fail the separate ESLint gate
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-14)**: test:ci passed but the separate GitHub lint step rejected three unused payload-size variables, a duplicate CompilerError import, and two nested ternaries. The separate lint command was omitted from the initial validation.
+
+**Resolution**: Remove obsolete locals, combine imports, and express layout branches without nested ternaries. bun run lint, TypeScript checking, 414 compiler tests, and five targeted layout/match tests pass after the cleanup.

@@ -1,6 +1,5 @@
-import { CompilerError } from "../../common/CompilerError";
+import { CompilerError, type SourceLocation } from "../../common/CompilerError";
 import type * as AST from "../../common/AST";
-import type { SourceLocation } from "../../common/CompilerError";
 import { DebugInfoGenerator } from "./DebugInfoGenerator";
 
 import { FunctionAttributeGroups } from "./attributes/FunctionAttributeGroups";
