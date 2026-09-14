@@ -3758,3 +3758,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-14)**: Directly importing target layout helpers from BaseCodeGenerator throws Cannot access BaseCodeGenerator before initialization because its CompilerError import traverses the compiler barrel.
 
 **Resolution**: Import CompilerError and AST types from their defining modules. The layout oracle exercises direct import.
+
+### BUG-309: Database example reads enum payloads at a hard-coded byte offset
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-14)**: The library-system integration loses active loan rows after payload alignment is corrected because compare_values reads integers at byte offset four. Its fallback nested match results are also discarded.
+
+**Resolution**: Use nested value-returning matches to compare payloads without inspecting enum representation. Removed obsolete workaround dispatch and debug prints. Updated the filesystem error example to expect the checked read diagnostic and a platform-native code.

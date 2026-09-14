@@ -2,7 +2,7 @@
   "expectedOutput": [
     "Caught OptionUnwrapError: Called unwrap on None",
     "Caught ResultUnwrapError: Called unwrapErr on Ok",
-    "Caught IOError: Cannot open file (code: -1)",
+    "Caught IOError: Cannot read file (code:",
     "Caught IndexOutOfBoundsError: Custom index error message (index 0, size 0)",
     "Caught EmptyError: Pop from empty array",
     "Caught NullAccessError: Attempted to access member of nullptr",

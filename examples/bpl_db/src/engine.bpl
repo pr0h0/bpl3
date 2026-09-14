@@ -8,121 +8,35 @@ import [String] from "std/string.bpl";
 
 import [printf] from "std/c.bpl";
 
-frame use_value(v: Value) {
-    local p: *Value = &v;
-    if (p == nullptr) {
-    }
-}
-
 frame compare_values(v1: *Value, v2: *Value) ret int {
-    # Returns -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2
-    # -2 if types mismatch or null
-
-    # Dummy usage
-    local _v1: long = cast<long>(v1);
-    local _v2: long = cast<long>(v2);
-    if ((_v1 == 0) || (_v2 == 0)) 
-        return -2;
-    local val1: Value = *v1;
-    local val2: Value = *v2;
-    use_value(val1);
-    use_value(val2);
-
-    # Manual dispatch because match seems broken
-    local ptr1: *int = cast<*int>(&val1);
-    local tag1: int = ptr1[0];
-    local ptr2: *int = cast<*int>(&val2);
-    local tag2: int = ptr2[0];
-
-    if (tag1 == 0) {
-        # Int
-        if (tag2 == 0) {
-            # Extract int payload. Tag is 4 bytes (i32). Payload follows.
-            # Assuming packed or 4-byte aligned.
-            # Pointer arithmetic in BPL: ptr + N adds N * sizeof(T).
-            # cast<long> + 4 adds 4 bytes.
-            local p1: *int = cast<*int>(cast<long>(&val1) + 4);
-            local p2: *int = cast<*int>(cast<long>(&val2) + 4);
-            local i1: int = p1[0];
-            local i2: int = p2[0];
-
-            # printf("Manual Int: %d vs %d\n", i1, i2);
-
-            # Workaround for unused variable check
-            if (i1 == i1) {
-            }
-            if (i2 == i2) {
-            }
-            local res: int = 0;
-            if (i1 < i2) {
-                res = -1;
-            } else {
-                if (i1 > i2) {
-                    res = 1;
-                } else {
-                    res = 0;
-                }
-            }
-            return res;
-        }
-        return -2;
-    }
-    # Fallback to match for others (or just return -2 if I only use Ints in example)
-    match (val1) {
-        Value.Int(i1) => {
-            match (val2) {
-                Value.Int(i2) => {
-                    printf("Compare Int: %d vs %d\n", i1, i2);
-                    if (i1 < i2) 
-                        return -1;
-                    if (i1 > i2) 
-                        return 1;
-                    return 0;
-                },
-                _ => -2,
-            };
-            return -2;
+    # Integer ordering: -1, 0, 1. Other values support equality;
+    # incompatible types and unequal non-integers return -2.
+    if (v1 == nullptr || v2 == nullptr) { return -2; }
+    return match (*v1) {
+        Value.Int(left) => match (*v2) {
+            Value.Int(right) => {
+                if (left < right) { return -1; }
+                if (left > right) { return 1; }
+                return 0;
+            },
+            _ => -2,
         },
-        Value.Str(s1) => {
-            printf("Matched Str\n");
-            match (val2) {
-                Value.Str(s2) => {
-                    if (s1 == s2) 
-                        return 0;
-                    return -2;
-                },
-                _ => -2,
-            };
-            return -2;
+        Value.Str(left) => match (*v2) {
+            Value.Str(right) => {
+                if (left == right) { return 0; }
+                return -2;
+            },
+            _ => -2,
         },
-        Value.Bool(b1) => {
-            printf("Matched Bool\n");
-            match (val2) {
-                Value.Bool(b2) => {
-                    if (b1 == b2) 
-                        return 0;
-                    return -2;
-                },
-                _ => -2,
-            };
-            return -2;
+        Value.Bool(left) => match (*v2) {
+            Value.Bool(right) => {
+                if (left == right) { return 0; }
+                return -2;
+            },
+            _ => -2,
         },
-        Value.Null => {
-            printf("Matched Null\n");
-            match (val2) {
-                Value.Null => {
-                    return 0;
-                },
-                _ => -2,
-            };
-            return -2;
-        },
-        _ => {
-            printf("Matched Default (Unknown Tag?)\n");
-            return -2;
-        },
+        Value.Null => match (*v2) { Value.Null => 0, _ => -2, },
     };
-    return -2;
 }
 
 struct Engine {
