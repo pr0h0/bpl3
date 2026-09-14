@@ -1302,44 +1302,33 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     left: string,
     right: string,
     typeNode: AST.TypeNode,
+    resolvedLLVMType?: string,
   ): string {
-    const llvmType = this.resolveType(typeNode);
+    const llvmType = resolvedLLVMType ?? this.resolveType(typeNode);
 
-    if (
-      typeNode.kind === "BasicType" &&
-      typeNode.arrayDimensions.length > 0 &&
-      typeNode.pointerDepth === 0
-    ) {
-      return this.generateArrayValueEquality(
-        left,
-        right,
-        llvmType,
-        typeNode as AST.BasicTypeNode,
-      );
+    if (llvmType.startsWith("[") && !llvmType.endsWith("*")) {
+      const array = /^\[(\d+) x (.*)\]$/.exec(llvmType)!;
+      let result = "true";
+      for (let i = 0; i < Number(array[1]); i++) {
+        const leftElement = this.newRegister();
+        const rightElement = this.newRegister();
+        this.emit(`  ${leftElement} = extractvalue ${llvmType} ${left}, ${i}`);
+        this.emit(`  ${rightElement} = extractvalue ${llvmType} ${right}, ${i}`);
+        const equal = this.generateValueEquality(leftElement, rightElement, typeNode, array[2]!);
+        const next = this.newRegister();
+        this.emit(`  ${next} = and i1 ${result}, ${equal}`);
+        result = next;
+      }
+      return result;
     }
 
-    // Primitives
-    if (
-      this.isPrimitive(
-        typeNode.kind === "BasicType"
-          ? (typeNode as AST.BasicTypeNode).name
-          : "",
-      ) &&
-      (typeNode as any).pointerDepth === 0
-    ) {
-      if (llvmType === "double" || llvmType === "float") {
-        const cmp = this.newRegister();
-        this.emit(`  ${cmp} = fcmp oeq ${llvmType} ${left}, ${right}`);
-        return cmp;
-      }
+    // Classify the lowered value, including aliases and pointer-valued elements.
+    if (llvmType === "double" || llvmType === "float") {
       const cmp = this.newRegister();
-      this.emit(`  ${cmp} = icmp eq ${llvmType} ${left}, ${right}`);
+      this.emit(`  ${cmp} = fcmp oeq ${llvmType} ${left}, ${right}`);
       return cmp;
     }
-
-    // Pointers
-    const ptrDepth = (typeNode as any).pointerDepth || 0;
-    if (ptrDepth > 0) {
+    if (/^i\d+$/.test(llvmType) || llvmType.endsWith("*")) {
       const cmp = this.newRegister();
       this.emit(`  ${cmp} = icmp eq ${llvmType} ${left}, ${right}`);
       return cmp;

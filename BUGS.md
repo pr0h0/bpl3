@@ -3731,11 +3731,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-306: Equality of array-alias fields emits scalar comparisons on arrays
 
-**Status**: In progress
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-13)**: Comparing enum payload structs with int[9] alias fields generates icmp eq [9 x i32], which LLVM rejects.
+
+**Resolution (2026-09-14)**: Classify recursively compared values by their lowered LLVM shape. Array aliases compare elements, including floating-point values, rather than emitting scalar icmp on aggregate values.
 
 ### BUG-307: Partially returning match arms emit incomplete phi nodes
 
