@@ -3741,11 +3741,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-307: Partially returning match arms emit incomplete phi nodes
 
-**Status**: In progress
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-13)**: A match block with an if-return and an implicit fallthrough infers a value type, but emits a merge phi missing the fallthrough predecessor. Block return yields a match value; use throw for assertion failures.
+
+**Resolution (2026-09-14)**: Reject reachable value-producing arm fallthrough during lowering with an explicit diagnostic. When both if branches terminate, mark the unused continuation unreachable instead of creating a spurious phi predecessor. Regressions cover enum, scalar, tuple, fully returning, and void arms.
 
 ### BUG-308: Importing the codegen base directly triggers a module initialization cycle
 

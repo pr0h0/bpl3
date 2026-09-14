@@ -1161,3 +1161,12 @@ i = 1;
 - [Functions](08-functions-basics.md) - Function declarations, recursion, and calls
 - [Function Pointers](19-function-pointers.md) - First-class function values
 - [Operators](06-operators.md) - Operator reference
+
+### Values returned from match blocks
+
+A `return value;` inside a match arm block yields that match expression's value.
+Every reachable path through a value-producing arm must yield a value or terminate
+(for example, by throwing). Conditional returns with a path that reaches the end
+of the arm are rejected during code generation. For side-effect-only arms, use
+blocks without value returns. To report assertion failures inside such blocks,
+throw an error rather than returning a failure code from the enclosing function.

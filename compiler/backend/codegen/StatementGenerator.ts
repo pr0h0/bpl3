@@ -2291,6 +2291,10 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
 
     this.emit(`${mergeLabel}:`);
+    if (hasElse && thenTerminates && elseTerminates) {
+      this.emit("  unreachable");
+      return;
+    }
     if (tracksPointerExpressionProofs) {
       this.markBasicBlockPointerExpressionsNonNull(
         this.intersectPointerExpressionProofs(

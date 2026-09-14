@@ -679,7 +679,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
             lastLine.startsWith("unreachable"));
 
         if (!isTerminated) {
-          this.emit(`  br label %${mergeLabel}`);
+          this.emitMatchFallthrough(resultType, arm.body, mergeLabel);
         }
       }
     }
@@ -717,6 +717,21 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     this.emit(`  ${result} = phi ${resultType} ${phiEntries}`);
 
     return result;
+  }
+
+  private emitMatchFallthrough(
+    resultType: string,
+    body: AST.Expression | AST.BlockStmt,
+    mergeLabel: string,
+  ): void {
+    if (resultType !== "void") {
+      throw this.createError(
+        "Value-producing match arm can finish without returning a value",
+        body,
+        "Return a value on every path, or use a void match arm for side effects.",
+      );
+    }
+    this.emit(`  br label %${mergeLabel}`);
   }
 
   protected generateMatchArmBody(
@@ -929,7 +944,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         !this.isTerminator(this.output[this.output.length - 1] || "")
       ) {
         // If block didn't return, jump to merge (for void)
-        this.emit(`  br label %${mergeLabel}`);
+        this.emitMatchFallthrough(resultType, arm.body, mergeLabel);
       }
 
       // Start next block
@@ -1089,7 +1104,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       } else if (
         !this.isTerminator(this.output[this.output.length - 1] || "")
       ) {
-        this.emit(`  br label %${mergeLabel}`);
+        this.emitMatchFallthrough(resultType, arm.body, mergeLabel);
       }
 
       // Next check
@@ -1231,7 +1246,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       } else if (
         !this.isTerminator(this.output[this.output.length - 1] || "")
       ) {
-        this.emit(`  br label %${mergeLabel}`);
+        this.emitMatchFallthrough(resultType, arm.body, mergeLabel);
       }
 
       // Next check
