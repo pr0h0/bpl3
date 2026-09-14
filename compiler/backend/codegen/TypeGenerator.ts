@@ -702,7 +702,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
               8,
             );
 
-            // Payload offset: 32 bits (4 bytes)
+            // Payload offset includes padding required by its alignment.
             const payloadMember = this.debugInfoGenerator.createMemberType(
               "payload",
               fileId,
@@ -737,7 +737,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         maxSize = size;
 
         // Create DWARF struct
-        // { i32 tag, [maxSize x i8] data }
+        // Tag plus aligned payload storage; expose payload bytes in DWARF.
         const elements: number[] = [];
 
         // Tag (i32)

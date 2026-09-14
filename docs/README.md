@@ -110,6 +110,7 @@ or historical results rather than guarantees about the current implementation.
 - [Build Systems](50-build-systems.md) - Integration with make, cmake, etc.
 - [Debugging](51-debugging.md) - Troubleshooting techniques
 - [Extending the Compiler](57-extending-compiler.md) - Adding primitives and features
+- [Compiler Data Layout](compiler-data-layout.md) - Aggregate storage, enum alignment, and debugger offsets
 - [Compiler Correctness and Fuzz Triage](60-compiler-correctness.md) - Cross-platform correctness CI, fuzz replay, and repro promotion
 - [Native Runtime Plan](52-native-runtime-plan.md) - Future runtime architecture
 
