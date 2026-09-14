@@ -1409,7 +1409,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       const dataArraySize = this.enumDataSizes.get(enumName) || 64;
       const bytePtr = this.newRegister();
       this.emit(
-        `  ${bytePtr} = bitcast [${dataArraySize} x i8]* ${dataPtr} to i8*`,
+        `  ${bytePtr} = bitcast ${this.getEnumDataType(enumName)}* ${dataPtr} to i8*`,
       );
       this.usedLlvmMemIntrinsics.add("memset");
       this.emit(

@@ -100,7 +100,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     const dataArraySize = this.enumDataSizes.get(enumName) || 64;
     const bytePtr = this.newRegister();
     this.emit(
-      `  ${bytePtr} = bitcast [${dataArraySize} x i8]* ${dataPtr} to i8*`,
+      `  ${bytePtr} = bitcast ${this.getEnumDataType(enumName)}* ${dataPtr} to i8*`,
     );
 
     const values: { value: string; llvmType: string; typeNode: AST.TypeNode }[] =
@@ -2023,7 +2023,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     // Cast to i8* for easier manipulation
     const bytePtr = this.newRegister();
     this.emit(
-      `  ${bytePtr} = bitcast [${dataArraySize} x i8]* ${dataPtr} to i8*`,
+      `  ${bytePtr} = bitcast ${this.getEnumDataType(enumName)}* ${dataPtr} to i8*`,
     );
 
     // For each binding, extract the value from the data array with proper byte offsets
@@ -2099,7 +2099,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     // Cast the data pointer to i8* to work with aligned byte offsets.
     const bytePtr = this.newRegister();
     this.emit(
-      `  ${bytePtr} = bitcast [${dataArraySize} x i8]* ${dataPtr} to i8*`,
+      `  ${bytePtr} = bitcast ${this.getEnumDataType(enumName)}* ${dataPtr} to i8*`,
     );
 
     // For each field binding, extract the value

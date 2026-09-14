@@ -279,7 +279,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           // Store each argument in sequence in the data array with proper byte offsets
           const bytePtr = this.newRegister();
           this.emit(
-            `  ${bytePtr} = bitcast [${dataSize} x i8]* ${dataPtr} to i8*`,
+            `  ${bytePtr} = bitcast ${this.getEnumDataType(enumName)}* ${dataPtr} to i8*`,
           );
           this.usedLlvmMemIntrinsics.add("memset");
           this.emit(

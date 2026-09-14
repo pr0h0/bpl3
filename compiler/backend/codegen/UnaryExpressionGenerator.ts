@@ -1027,7 +1027,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       // Create destination value with the same tag
       let destValue = this.newRegister();
       this.emit(
-        `  ${destValue} = insertvalue ${destType} undef, i32 ${tag}, 0`,
+        `  ${destValue} = insertvalue ${destType} zeroinitializer, i32 ${tag}, 0`,
       );
 
       // If both enums have data payloads (index 1), copy the data as well
@@ -1044,11 +1044,11 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
           this.emit(`  ${srcData} = extractvalue ${srcType} ${val}, 1`);
 
           // Bitcast data arrays to match types if sizes differ
-          if (srcDataSize === destDataSize) {
+          if (this.getEnumDataType(srcEnumName) === this.getEnumDataType(destEnumName)) {
             // Same size, insert directly
             const destWithData = this.newRegister();
             this.emit(
-              `  ${destWithData} = insertvalue ${destType} ${destValue}, [${destDataSize} x i8] ${srcData}, 1`,
+              `  ${destWithData} = insertvalue ${destType} ${destValue}, ${this.getEnumDataType(destEnumName)} ${srcData}, 1`,
             );
             destValue = destWithData;
           } else {
@@ -1065,7 +1065,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
             );
             const srcDataI8Ptr = this.newRegister();
             this.emit(
-              `  ${srcDataI8Ptr} = bitcast [${srcDataSize} x i8]* ${srcDataPtr} to i8*`,
+              `  ${srcDataI8Ptr} = bitcast ${this.getEnumDataType(srcEnumName)}* ${srcDataPtr} to i8*`,
             );
 
             const destPtr = this.allocateStack(
@@ -1082,7 +1082,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
             );
             const destDataI8Ptr = this.newRegister();
             this.emit(
-              `  ${destDataI8Ptr} = bitcast [${destDataSize} x i8]* ${destDataPtr} to i8*`,
+              `  ${destDataI8Ptr} = bitcast ${this.getEnumDataType(destEnumName)}* ${destDataPtr} to i8*`,
             );
 
             // Copy min(srcDataSize, destDataSize) bytes

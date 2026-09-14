@@ -1,6 +1,7 @@
 import type { AST } from "../..";
 import { codeGenLog } from "../../common/Logger";
-import { BaseCodeGenerator } from "./BaseCodeGenerator";
+import { BaseCodeGenerator, getDataLayoutForTarget } from "./BaseCodeGenerator";
+import { LLVMTypeLayout, alignTo, type TypeLayout } from "./LLVMTypeLayout";
 
 /**
  * StructEnumGenerator handles the generation of struct and enum definitions,
@@ -462,214 +463,72 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
   // Enum Generation
   // ============================================================
 
-  protected calculateEnumMaxSize(decl: AST.EnumDecl): number {
-    let maxSize = 0;
-    for (const variant of decl.variants) {
-      let variantSize = 0;
+  protected enumDataAlignments = new Map<string, number>();
 
-      if (variant.dataType) {
-        if (variant.dataType.kind === "EnumVariantTuple") {
-          // Tuple variant: calculate size with alignment
-          let offset = 0;
-          for (const fieldType of variant.dataType.types) {
-            // Use getTypeSizeInBits to accurately calculate size (including vtables of nested structs)
-            const fieldSize = this.getTypeSizeInBits(fieldType) / 8;
-
-            const alignment = this.getAlignmentForSize(fieldSize);
-            if (offset % alignment !== 0) {
-              offset = Math.ceil(offset / alignment) * alignment;
-            }
-
-            offset += fieldSize;
-          }
-          variantSize = offset;
-        } else if (variant.dataType.kind === "EnumVariantStruct") {
-          // Struct variant: calculate size with alignment
-          let offset = 0;
-          for (const field of variant.dataType.fields) {
-            // Use getTypeSizeInBits to accurately calculate size
-            const fieldSize = this.getTypeSizeInBits(field.type) / 8;
-
-            const alignment = this.getAlignmentForSize(fieldSize);
-            if (offset % alignment !== 0) {
-              offset = Math.ceil(offset / alignment) * alignment;
-            }
-
-            offset += fieldSize;
-          }
-          variantSize = offset;
+  protected getLayoutCalculator(): LLVMTypeLayout {
+    return new LLVMTypeLayout(getDataLayoutForTarget(this.target), (name) => {
+      // Prefer the exact emitted representation (aliases, slices and closures
+      // have already been lowered here).
+      const prefix = `${name} = type `;
+      const emitted = this.declarationsOutput.find((line) => line.startsWith(prefix));
+      if (emitted) return emitted.slice(prefix.length).trim();
+      if (name.startsWith("%struct.")) {
+        const decl = this.structMap.get(name.slice(8));
+        if (decl) {
+          this.computeVTableLayout(decl.name);
+          const fields = this.getAllStructFields(decl).map(field => this.resolveType(field.type));
+          if (this.vtableLayouts.get(decl.name)?.length) fields.unshift("i8*");
+          return `{ ${fields.length ? fields.join(", ") : "i8"} }`;
         }
       }
-      // Unit variants have size 0
-
-      if (variantSize > maxSize) {
-        maxSize = variantSize;
+      if (name.startsWith("%enum.")) {
+        const decl = this.enumDeclMap.get(name.slice(6));
+        if (decl) {
+          const payload = this.getEnumPayloadLayout(decl);
+          return payload.size ? `{ i32, [${payload.size / payload.alignment} x i${payload.alignment * 8}] }` : "{ i32 }";
+        }
       }
-    }
-    return maxSize;
+      throw new Error(`Missing LLVM layout declaration: ${name}`);
+    });
   }
 
-  protected getEnumDataFieldByteOffset(
-    fieldTypes: AST.TypeNode[],
-    fieldIndex: number,
-  ): number {
-    let offset = 0;
+  protected getTypeLayout(type: AST.TypeNode): TypeLayout {
+    return this.getLayoutCalculator().get(this.resolveType(type));
+  }
 
-    for (let i = 0; i <= fieldIndex; i++) {
-      const fieldType = fieldTypes[i];
-      if (!fieldType) {
-        throw new Error(`Invalid enum data field index: ${fieldIndex}`);
-      }
-
-      const fieldSize = this.getTypeSizeInBits(fieldType) / 8;
-      const alignment = this.getAlignmentForSize(fieldSize);
-      if (offset % alignment !== 0) {
-        offset = Math.ceil(offset / alignment) * alignment;
-      }
-
-      if (i === fieldIndex) {
-        return offset;
-      }
-
-      offset += fieldSize;
+  protected getEnumPayloadLayout(decl: AST.EnumDecl): TypeLayout {
+    let size = 0, alignment = 1;
+    for (const variant of decl.variants) {
+      const fields = variant.dataType?.kind === "EnumVariantTuple"
+        ? variant.dataType.types
+        : variant.dataType?.kind === "EnumVariantStruct"
+          ? variant.dataType.fields.map(field => field.type) : [];
+      const layout = this.getLayoutCalculator().aggregate(fields.map(type => this.getTypeLayout(type)));
+      size = Math.max(size, layout.size);
+      alignment = Math.max(alignment, layout.alignment);
     }
+    return {size: alignTo(size, alignment), alignment};
+  }
 
+  protected calculateEnumMaxSize(decl: AST.EnumDecl): number {
+    return this.getEnumPayloadLayout(decl).size;
+  }
+
+  protected getEnumDataType(enumName: string): string {
+    const size = this.enumDataSizes.get(enumName) ?? 0;
+    const alignment = this.enumDataAlignments.get(enumName) ?? 1;
+    return `[${size / alignment} x i${alignment * 8}]`;
+  }
+
+  protected getEnumDataFieldByteOffset(fieldTypes: AST.TypeNode[], fieldIndex: number): number {
+    const layout = this.getLayoutCalculator().aggregate(fieldTypes.map(type => this.getTypeLayout(type)));
+    const offset = layout.offsets?.[fieldIndex];
+    if (offset === undefined) throw new Error(`Invalid enum data field index: ${fieldIndex}`);
     return offset;
   }
 
-  protected calculateStructSize(decl: AST.StructDecl): number {
-    let offset = 0;
-    let maxAlign = 1;
-
-    // Check for VTable
-    if (!this.vtableLayouts.has(decl.name)) {
-      try {
-        this.computeVTableLayout(decl.name);
-      } catch (e) {
-        // VTable computation may fail for incomplete types, this is expected in some cases
-        codeGenLog.debug(`VTable computation skipped for ${decl.name}:`, {
-          error: String(e),
-        });
-      }
-    }
-
-    if (
-      this.vtableLayouts.has(decl.name) &&
-      this.vtableLayouts.get(decl.name)!.length > 0
-    ) {
-      // VTable pointer
-      const ptrSize = 8;
-      const ptrAlign = 8;
-
-      const padding = (ptrAlign - (offset % ptrAlign)) % ptrAlign;
-      offset += padding;
-      offset += ptrSize;
-
-      if (ptrAlign > maxAlign) maxAlign = ptrAlign;
-    }
-
-    const fields = this.getAllStructFields(decl);
-    for (const field of fields) {
-      const sizeBytes = this.getTypeSizeInBits(field.type) / 8;
-
-      // Estimate alignment
-      let align = 1;
-      if (sizeBytes >= 8) align = 8;
-      else if (sizeBytes >= 4) align = 4;
-      else if (sizeBytes >= 2) align = 2;
-
-      // Fix for arrays: alignment determines by element, not total size
-      // But for size calculation, using size-based alignment estimate is usually safe
-      // (allocating more padding than needed is safe).
-      // Exception: large struct with small alignment?
-      // If we pad it to 8 bytes boundary always, it's safe.
-
-      const padding = (align - (offset % align)) % align;
-      offset += padding;
-      offset += sizeBytes;
-
-      if (align > maxAlign) maxAlign = align;
-    }
-
-    // Tail padding
-    const tailPadding = (maxAlign - (offset % maxAlign)) % maxAlign;
-    offset += tailPadding;
-
-    return offset * 8;
-  }
-
   protected getTypeSizeInBits(type: AST.TypeNode): number {
-    if (type.kind === "BasicType") {
-      if (type.pointerDepth > 0) return 64;
-
-      if (type.arrayDimensions && type.arrayDimensions.length > 0) {
-        let totalElements = 1;
-        for (const dim of type.arrayDimensions) {
-          if (dim === null) return 128; // Slice {ptr, len} (simplified)
-          totalElements *= dim;
-        }
-
-        const elementType: AST.BasicTypeNode = {
-          ...type,
-          arrayDimensions: [],
-        };
-        return totalElements * this.getTypeSizeInBits(elementType);
-      }
-
-      switch (type.name) {
-        case "i64":
-        case "u64":
-        case "double":
-        case "float":
-          return 64;
-        case "int":
-        case "uint":
-        case "i32":
-        case "u32":
-          return 32;
-        case "i16":
-        case "u16":
-          return 16;
-        case "i8":
-        case "u8":
-        case "char":
-        case "bool":
-          return 8;
-        case "void":
-          return 0;
-      }
-
-      const structDecl = this.structMap.get(type.name);
-      if (structDecl) return this.calculateStructSize(structDecl);
-
-      const enumDecl = this.enumDeclMap.get(type.name);
-      if (enumDecl) return (this.calculateEnumMaxSize(enumDecl) + 4) * 8;
-
-      return 64; // Default
-    }
-
-    if (type.kind === "FunctionType") return 64; // Raw function pointer
-    if (type.kind === "LambdaType") return 128; // Closure { func_ptr, env_ptr }
-    if (type.kind === "TupleType") {
-      let offset = 0;
-      let maxAlign = 1;
-
-      for (const elementType of type.types) {
-        const sizeBytes = this.getTypeSizeInBits(elementType) / 8;
-        const alignment = this.getAlignmentForSize(sizeBytes);
-        if (offset % alignment !== 0) {
-          offset = Math.ceil(offset / alignment) * alignment;
-        }
-
-        offset += sizeBytes;
-        if (alignment > maxAlign) maxAlign = alignment;
-      }
-
-      const tailPadding = (maxAlign - (offset % maxAlign)) % maxAlign;
-      return (offset + tailPadding) * 8;
-    }
-
-    return 64;
+    return this.getTypeLayout(type).size * 8;
   }
 
   protected generateEnum(decl: AST.EnumDecl, mangledName?: string) {
@@ -680,13 +539,16 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     this.generatedStructs.add(enumName);
 
     // Calculate maximum variant data size with proper alignment
-    const maxSize = this.calculateEnumMaxSize(decl);
+    const payload = this.getEnumPayloadLayout(decl);
+    const maxSize = payload.size;
+    this.enumDataSizes.set(enumName, maxSize);
+    this.enumDataAlignments.set(enumName, payload.alignment);
 
     // Generate enum as: { i32 tag, [maxSize x i8] data }
     // If maxSize is 0 (all unit variants), just use { i32 }
     const enumType =
       maxSize > 0
-        ? `%enum.${enumName} = type { i32, [${maxSize} x i8] }`
+        ? `%enum.${enumName} = type { i32, ${this.getEnumDataType(enumName)} }`
         : `%enum.${enumName} = type { i32 }`;
 
     this.emitDeclaration(enumType);
@@ -744,24 +606,6 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
    * Get proper alignment for a given size in bytes.
    * Follows standard alignment rules: 8-byte types align to 8, 4-byte to 4, etc.
    */
-  protected getAlignmentForSize(size: number): number {
-    if (size >= 8) return 8;
-    if (size >= 4) return 4;
-    if (size >= 2) return 2;
-    return 1;
-  }
-
-  protected getDataArraySize(enumTypeName: string): number {
-    // Extract the data array size from enum type string like "%enum.Color = type { i32, [16 x i8] }"
-    // or from just the type name "%enum.Color"
-    const match = enumTypeName.match(/\[(\d+) x i8\]/);
-    if (match && match[1]) {
-      return parseInt(match[1], 10);
-    }
-    // If no match, the enum might not have a data field (unit-only enum)
-    return 0;
-  }
-
   protected generateEnumVariantConstruction(
     enumDecl: AST.EnumDecl,
     variant: AST.EnumVariant,
@@ -814,7 +658,7 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
       );
       const bytePtr = this.newRegister();
       this.emit(
-        `  ${bytePtr} = bitcast [${dataSize} x i8]* ${dataPtr} to i8*`,
+        `  ${bytePtr} = bitcast ${this.getEnumDataType(enumName)}* ${dataPtr} to i8*`,
       );
       this.usedLlvmMemIntrinsics.add("memset");
       this.emit(

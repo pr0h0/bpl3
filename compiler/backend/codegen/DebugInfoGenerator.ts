@@ -180,13 +180,13 @@ export class DebugInfoGenerator {
     return id;
   }
 
-  public createPointerType(pointeeTypeId: number): number {
+  public createPointerType(pointeeTypeId: number, sizeInBits = 64): number {
     // !5 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !4, size: 64)
-    const key = `ptr:${pointeeTypeId}`;
+    const key = `ptr:${pointeeTypeId}:${sizeInBits}`;
     if (this.typeCache.has(key)) return this.typeCache.get(key)!;
 
     const baseType = pointeeTypeId === 0 ? "null" : `!${pointeeTypeId}`;
-    const content = `!DIDerivedType(tag: DW_TAG_pointer_type, baseType: ${baseType}, size: 64)`;
+    const content = `!DIDerivedType(tag: DW_TAG_pointer_type, baseType: ${baseType}, size: ${sizeInBits})`;
     const id = this.addNode(content);
     this.typeCache.set(key, id);
     return id;

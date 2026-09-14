@@ -186,6 +186,7 @@ export class CodeGenerator extends StatementGenerator {
     this.emittedMemIsZero = false;
     this.enumVariants.clear();
     this.enumDataSizes.clear();
+    this.enumDataAlignments.clear();
     this.definedFunctions.clear();
     this.emittedFunctions.clear();
     this.typeAliasMap.clear();

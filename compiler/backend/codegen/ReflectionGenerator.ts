@@ -433,7 +433,8 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     decl: AST.EnumDecl,
   ) {
     const nameStrVar = this.getOrCreateStringLiteral(decl.name);
-    const size = this.getTypeSizeInBits(type) / 8;
+    const llvmType = this.resolveType(type);
+    const size = `ptrtoint (${llvmType}* getelementptr (${llvmType}, ${llvmType}* null, i32 1) to i64)`;
 
     // Generate variants as fields
     const fieldInfos: string[] = [];

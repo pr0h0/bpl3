@@ -627,7 +627,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       );
       const leftDataI8Ptr = this.newRegister();
       this.emit(
-        `  ${leftDataI8Ptr} = bitcast [${dataSize} x i8]* ${leftDataPtr} to i8*`,
+        `  ${leftDataI8Ptr} = bitcast ${this.getEnumDataType(enumName)}* ${leftDataPtr} to i8*`,
       );
 
       const rightDataPtr = this.newRegister();
@@ -636,7 +636,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       );
       const rightDataI8Ptr = this.newRegister();
       this.emit(
-        `  ${rightDataI8Ptr} = bitcast [${dataSize} x i8]* ${rightDataPtr} to i8*`,
+        `  ${rightDataI8Ptr} = bitcast ${this.getEnumDataType(enumName)}* ${rightDataPtr} to i8*`,
       );
 
       const dataEqual =

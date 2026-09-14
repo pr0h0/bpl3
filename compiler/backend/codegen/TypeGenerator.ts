@@ -216,6 +216,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     }
 
     const resolvedName = this.resolveType(type);
+    const pointerBits = this.getLayoutCalculator().get("i8*").size * 8;
 
     // Pointers
     if (resolvedName.endsWith("*")) {
@@ -230,13 +231,13 @@ export abstract class TypeGenerator extends StructEnumGenerator {
             pointerDepth: type.pointerDepth - 1,
           };
           const pointeeId = this.getDwarfTypeId(pointeeType, depth + 1);
-          return this.debugInfoGenerator.createPointerType(pointeeId);
+          return this.debugInfoGenerator.createPointerType(pointeeId, pointerBits);
         }
       }
       // Fallback for other pointer types (e.g. function pointers, or if we can't deduce)
       // Just use void*
       const voidId = 0;
-      return this.debugInfoGenerator.createPointerType(voidId);
+      return this.debugInfoGenerator.createPointerType(voidId, pointerBits);
     }
 
     // Basic Types
@@ -271,7 +272,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     }
 
     // Check primitive type using lookup table
-    if (primitiveName) {
+    if (primitiveName && type.kind === "BasicType" && type.arrayDimensions.length === 0) {
       const dwarfInfo = DWARF_BASIC_TYPES[primitiveName];
       if (dwarfInfo) {
         return this.debugInfoGenerator.createBasicType(
@@ -301,12 +302,12 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     // Function Types (Raw Pointers)
     if (type.kind === "FunctionType") {
       // Treat as void* for now in debug info
-      return this.debugInfoGenerator.createPointerType(0);
+      return this.debugInfoGenerator.createPointerType(0, pointerBits);
     }
 
     // Lambda Types (Closures)
     if (type.kind === "LambdaType") {
-      const voidPtrId = this.debugInfoGenerator.createPointerType(0);
+      const voidPtrId = this.debugInfoGenerator.createPointerType(0, pointerBits);
       const fileId = this.debugInfoGenerator.getFileNodeId(
         this.currentFilePath,
       );
@@ -316,7 +317,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         "func_ptr",
         fileId,
         0,
-        64,
+        pointerBits,
         0,
         voidPtrId,
       );
@@ -324,8 +325,8 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         "env_ptr",
         fileId,
         0,
-        64,
-        64,
+        pointerBits,
+        pointerBits,
         voidPtrId,
       );
 
@@ -341,7 +342,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
       return this.debugInfoGenerator.createStructType(
         closureName,
-        128,
+        pointerBits * 2,
         fileId,
         0,
         [funcMember, envMember],
@@ -375,7 +376,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
         const elementTypeId = this.getDwarfTypeId(elementTypeNode, depth + 1);
         const ptrTypeId =
-          this.debugInfoGenerator.createPointerType(elementTypeId);
+          this.debugInfoGenerator.createPointerType(elementTypeId, pointerBits);
         const i64TypeId = this.debugInfoGenerator.createBasicType(
           "long",
           64,
@@ -386,12 +387,13 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           this.currentFilePath,
         );
 
+        const sliceLayout = this.getTypeLayout(type);
         // Create members
         const dataMember = this.debugInfoGenerator.createMemberType(
           "data",
           fileId,
           0,
-          64,
+          pointerBits,
           0,
           ptrTypeId,
         );
@@ -400,7 +402,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           fileId,
           0,
           64,
-          64,
+          sliceLayout.offsets![1]! * 8,
           i64TypeId,
         );
 
@@ -412,7 +414,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
         return this.debugInfoGenerator.createStructType(
           `slice_${elementTypeName}`,
-          128, // Size (64 + 64)
+          sliceLayout.size * 8,
           fileId,
           0,
           [dataMember, lenMember],
@@ -436,7 +438,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
       const elementTypeId = this.getDwarfTypeId(elementTypeNode, depth + 1);
       const elementSizeInBits = this.getTypeSizeInBits(elementTypeNode);
       const sizeInBits = size! * elementSizeInBits;
-      const alignInBits = elementSizeInBits >= 64 ? 64 : elementSizeInBits;
+      const alignInBits = this.getTypeLayout(elementTypeNode).alignment * 8;
 
       return this.debugInfoGenerator.createArrayType(
         size!,
@@ -506,19 +508,13 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         const elements: number[] = [];
         let offset = 0;
 
-        for (const field of fields) {
+        const layout = this.getTypeLayout(type);
+        const hiddenFields = (layout.offsets?.length ?? fields.length) - fields.length;
+        for (let i = 0; i < fields.length; i++) {
+          const field = fields[i]!;
           const fieldTypeId = this.getDwarfTypeId(field.type, depth + 1);
-          // Compute size and alignment (simplified)
-          let size = 64; // Default to 64 bits for pointers/i64/double
-          const fieldTypeName = this.resolveType(field.type);
-          if (fieldTypeName === "i32") size = 32;
-          if (fieldTypeName === "i16") size = 16;
-          if (fieldTypeName === "i8" || fieldTypeName === "i1") size = 8;
-
-          // Alignment padding (simplified)
-          // Assume packed or natural alignment. LLVM handles layout, but DWARF needs offsets.
-          // For now, let's assume 64-bit alignment for everything to keep it simple,
-          // or just increment offset by size.
+          const size = this.getTypeSizeInBits(field.type);
+          offset = layout.offsets![i + hiddenFields]! * 8;
 
           const memberId = this.debugInfoGenerator.createMemberType(
             field.name,
@@ -529,12 +525,12 @@ export abstract class TypeGenerator extends StructEnumGenerator {
             fieldTypeId,
           );
           elements.push(memberId);
-          offset += size;
+
         }
 
         return this.debugInfoGenerator.createStructType(
           structName,
-          offset, // Total size
+          layout.size * 8, // Includes tail padding and the hidden vtable.
           fileId,
           structDecl.location?.startLine || 0,
           elements,
@@ -547,7 +543,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     if (type.kind === "TupleType") {
       const tupleType = type as AST.TupleTypeNode;
       const elements: number[] = [];
-      let offset = 0;
+      const layout = this.getTypeLayout(type);
       const fileId = this.debugInfoGenerator.getFileNodeId(
         this.currentFilePath,
       );
@@ -562,16 +558,16 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           fileId,
           0,
           fieldSize,
-          offset,
+          layout.offsets![i]! * 8,
           fieldTypeId,
         );
         elements.push(memberId);
-        offset += fieldSize;
+
       }
 
       return this.debugInfoGenerator.createStructType(
         `tuple_${elements.length}`, // Simplified name
-        offset,
+        layout.size * 8,
         fileId,
         0,
         elements,
@@ -712,7 +708,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
               fileId,
               enumDecl.location.startLine,
               payloadSize * 8,
-              32,
+              this.getTypeLayout(type).offsets![1]! * 8,
               payloadArrayTypeId,
             );
             elements.push(payloadMember);
@@ -720,7 +716,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
           return this.debugInfoGenerator.createStructType(
             enumName,
-            32 + payloadSize * 8,
+            this.getTypeSizeInBits(type),
             fileId,
             enumDecl.location.startLine,
             elements,
@@ -775,13 +771,13 @@ export abstract class TypeGenerator extends StructEnumGenerator {
             fileId,
             enumDecl.location.startLine,
             maxSize * 8,
-            32, // Offset after tag (32 bits)
+            this.getTypeLayout(type).offsets![1]! * 8,
             arrayTypeId,
           );
           elements.push(dataMember);
         }
 
-        const totalSize = 32 + maxSize * 8;
+        const totalSize = this.getTypeSizeInBits(type);
 
         return this.debugInfoGenerator.createStructType(
           enumName,
@@ -1133,23 +1129,6 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     return (
       getPrimitiveType(name) !== undefined || name === "void" || name === "string"
     );
-  }
-
-  protected getASTTypeSize(type: AST.TypeNode): number {
-    const typeStr = this.resolveType(type);
-
-    // Map LLVM types to sizes
-    if (typeStr === "i1") return 1;
-    if (typeStr === "i8") return 1;
-    if (typeStr === "i16") return 2;
-    if (typeStr === "i32") return 4;
-    if (typeStr === "i64") return 8;
-    if (typeStr === "float") return 4;
-    if (typeStr === "double") return 8;
-    if (typeStr.includes("*")) return 8; // Pointers are 8 bytes
-
-    // For structs and other types, return a default
-    return 0;
   }
 
   protected findMethodOwner(

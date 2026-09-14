@@ -3579,13 +3579,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-291: Reflected aggregate sizes can underestimate array-alias fields
 
-**Status**: Fixed (reflection); manual compiler size estimates remain approximate
+**Status**: Fixed
 
 **Priority**: P1
 
 **Observed (2026-09-12)**: A struct with int[2] and float[2] aliases plus a pointer occupies 32 bytes in LLVM but reflection reports 24. JSON allocation can corrupt the heap when filling its final field.
 
-**Resolution**: Derive reflected struct and array byte sizes from LLVM getelementptr constant expressions. This also uses the actual target layout rather than manual alignment estimates. Other consumers of the compiler's approximate size helper have not been comprehensively audited.
+**Resolution**: Derive reflected struct and array byte sizes from LLVM getelementptr constant expressions. This also uses the actual target layout rather than manual alignment estimates. The follow-up layout audit replaces remaining size/alignment estimates with a shared calculator over emitted LLVM types and target data layouts. Enum reflection uses LLVM size expressions; enum storage and DWARF use checked layout calculations (BUG-305).
 
 ### BUG-292: CLI subcommand discovery duplicates variadic compiler options
 
@@ -3718,3 +3718,39 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-13)**: The adapter pointer signature is emitted as ret(i8*, ) for functions without parameters.
 
 **Resolution**: Reuse the complete context-plus-parameters signature; removed the duplicate unreachable conversion branch. O0/O3 and LLVM verification cover zero-argument long and void calls.
+
+### BUG-305: Enum payload storage underestimates aggregates and misaligns fields
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-13)**: Manual size estimates lose array-alias and generic layouts; alignment is guessed from total size. Byte-array payload storage starts at offset four even for eight-byte fields. DWARF repeats size/offset guesses and assumes 64-bit pointers.
+
+**Resolution (2026-09-14)**: Resolve aliases/generics through emitted LLVM types; compute field alignment, offsets, padding, and target pointer widths centrally. Enum payload arrays carry their required alignment, and enum reflection uses LLVM sizeof expressions. DWARF uses real field offsets and aggregate sizes. Clang C ABI oracle tests cover all eight supported target families; native O0/O3 tests exercise nested aliases and generic enum payloads. This changes enum layout: rebuild dependent code together.
+
+### BUG-306: Equality of array-alias fields emits scalar comparisons on arrays
+
+**Status**: In progress
+
+**Priority**: P2
+
+**Observed (2026-09-13)**: Comparing enum payload structs with int[9] alias fields generates icmp eq [9 x i32], which LLVM rejects.
+
+### BUG-307: Partially returning match arms emit incomplete phi nodes
+
+**Status**: In progress
+
+**Priority**: P2
+
+**Observed (2026-09-13)**: A match block with an if-return and an implicit fallthrough infers a value type, but emits a merge phi missing the fallthrough predecessor. Block return yields a match value; use throw for assertion failures.
+
+### BUG-308: Importing the codegen base directly triggers a module initialization cycle
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-14)**: Directly importing target layout helpers from BaseCodeGenerator throws Cannot access BaseCodeGenerator before initialization because its CompilerError import traverses the compiler barrel.
+
+**Resolution**: Import CompilerError and AST types from their defining modules. The layout oracle exercises direct import.
