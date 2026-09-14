@@ -28,6 +28,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
   protected generateTry(stmt: AST.TryStmt) {
     const catchLabel = this.newLabel("try.catch");
     const endLabel = this.newLabel("try.end");
+    let hasContinuation = false;
 
     // 1. Allocate ExceptionFrame
     const framePtr = this.allocateStack(
@@ -95,6 +96,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
     // Block cleanup restores the previous handler on all normal scope exits.
     if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
+      hasContinuation = true;
       this.emit(`  br label %${endLabel}`);
     }
 
@@ -234,6 +236,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
       this.generateBlock(clause.body);
       if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
+        hasContinuation = true;
         this.emit(`  br label %${endLabel}`);
       }
     }
@@ -246,6 +249,9 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     }
 
     this.emit(`${endLabel}:`);
+    if (!hasContinuation) {
+      this.emit(`  unreachable`);
+    }
   }
 
   protected generateThrow(stmt: AST.ThrowStmt) {

@@ -1085,6 +1085,14 @@ export function checkAllPathsReturn(
     case "Loop":
       // Loops don't guarantee return
       return false;
+    case "Try":
+      // An unmatched exception propagates; it cannot fall through the try.
+      return (
+        checkAllPathsReturn.call(this, stmt.tryBlock) &&
+        stmt.catchClauses.every((clause) =>
+          checkAllPathsReturn.call(this, clause.body),
+        )
+      );
     case "Switch":
       // Check if all cases return (simplified)
       if (!stmt.cases || stmt.cases.length === 0) return false;

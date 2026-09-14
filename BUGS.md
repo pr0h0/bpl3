@@ -3801,8 +3801,10 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-313: Return analysis rejects functions whose try and catch branches return
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-14)**: A function ending in try { return value; } catch (error: IOError) { return fallback; } is rejected with "may not return a value on all code paths". A temporary workaround is assigning a result in the try/catch and returning it afterwards.
+
+**Resolution**: Return analysis checks the try block and all catch bodies, with unmatched exceptions propagating. Codegen marks the continuation unreachable when every branch terminates; without this, fully yielding try/catch blocks inside match arms were incorrectly rejected too. Regressions cover typed and catch-all handlers, nesting, rethrowing, deferred cleanup, match yields, and rejected reachable fallthrough.
