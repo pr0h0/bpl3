@@ -17,6 +17,7 @@ test("native file helpers clean up allocation/read/close failures and complete s
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
+#include <unistd.h>
 static int allocation_count, fail_after=-1, live, close_error;
 static void *test_malloc(size_t n) {
  if(allocation_count++==fail_after) return NULL;
@@ -73,6 +74,13 @@ int main(int argc,char **argv) {
  assert(__bpl_file_read(output,actual,sizeof(actual),&count)==0 && count==0);
  assert(__bpl_file_read(NULL,actual,1,&count)==EBADF && count==0);
  assert(__bpl_file_read(output,actual,1,NULL)==EINVAL);fclose(output);
+ int descriptors[2];assert(pipe(descriptors)==0);
+ assert(write(descriptors[1],text,sizeof(text))==sizeof(text));close(descriptors[1]);
+ FILE *stream=fdopen(descriptors[0],"rb");assert(stream);
+ assert(__bpl_file_read(stream,actual,sizeof(actual),&count)==0 && count==sizeof(text));
+ assert(memcmp(text,actual,sizeof(text))==0);
+ assert(__bpl_file_read(stream,actual,sizeof(actual),&count)==0 && count==0);
+ fclose(stream);
  assert(__bpl_file_write(NULL,text,sizeof(text))==EINVAL);
  assert(!live);return 0;
 }`,
