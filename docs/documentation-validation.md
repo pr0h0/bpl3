@@ -27,8 +27,8 @@ contracts belong in the prose guides and require source review and behavioral
 tests. Some declarations are stubs; a declaration is not a functionality promise.
 
 `tests/DocumentationExamples.test.ts` discovers BPL code fences containing
-`frame main(...)` in README, all numbered guides, and the primitive-extension
-and companion type-matching guides. Positive programs compile with the real CLI
+`frame main(...)` in README, LANGUAGE_SPEC.md, all numbered guides, and the
+primitive-extension and companion type-matching guides. Positive programs compile with the real CLI
 and Clang in temporary directories. Seven representative programs also run at
 O0/O3 with exact stdout and LLVM verification, including JSON hooks and assembly
 floating-point examples. Compilation alone does not verify all printed comments,
@@ -66,6 +66,47 @@ it, or document the actual feature limitation with a usable alternative.
 When adding a runtime example, add its ID and expected output to the test's
 `expectedOutputs` map. The discovery test rejects missing or duplicate run IDs.
 Only choose programs whose effects are appropriate for automated local tests.
+
+## Specification rule IDs
+
+Normative statements in [LANGUAGE_SPEC.md](../LANGUAGE_SPEC.md) start with a
+bold rule marker such as `**[R-TYPE-1]**`. The prefix names the area (`R-LEX`,
+`R-TYPE`, `R-ARR`, `R-CONV`, `R-ABI`, `R-EXTERN`, `R-SLICE`, `R-DECL`, `R-FN`,
+`R-STRUCT`, `R-SPEC`, `R-ENUM`, `R-CTRL`, `R-DEFER`, `R-EXC`, `R-EXPR`,
+`R-LAMBDA`, `R-MATCH`, `R-MOD`, `R-ASM`), and the number is unique within the
+area. Sections without markers and sections labelled _Informative_ are not
+normative.
+
+Tests reference the rules they verify with a comment directly above the
+`test`, `it`, or `describe` call:
+
+```ts
+// spec: R-TYPE-13, R-TYPE-15
+test("integer wrapping and shift counts", () => {
+```
+
+`tests/LanguageSpecRules.test.ts` fails when a rule ID is duplicated, when an
+annotation is malformed, not directly above a test call, or names a rule that
+does not exist, and when a rule has no referencing test. A rule that cannot be
+tested yet goes in that file's `PENDING_RULES` with a reason; the check fails
+once a pending rule gains a test, so the list only shrinks.
+
+Maintain the IDs as follows:
+
+- Never renumber existing rules. Append new rules with the next unused number
+  in their area, even if that places them out of numeric order.
+- When a rule's wording changes but it describes the same obligation, keep its
+  ID and update its tests.
+- When a rule is removed or replaced by a different obligation, delete its
+  marker, add the ID to `RETIRED_RULES` in `tests/LanguageSpecRules.test.ts`,
+  and never reuse it.
+- Change the compiler and the rule in the same commit, with a test that
+  references the rule.
+
+Most rule tests live in `tests/LanguageSpec*.test.ts`. They group several
+programs per test, run them at O0 and O3 through
+`tests/helpers/compilerCorrectness.ts`, and check rejected programs with one
+`bpl check --json` process through `tests/helpers/languageSpec.ts`.
 
 ## Historical documents and reports
 

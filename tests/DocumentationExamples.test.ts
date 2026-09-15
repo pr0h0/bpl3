@@ -24,6 +24,7 @@ const expectedOutputs: Record<string, string> = {
   "json-hook": '"redacted"\n',
   "simd-f32": "Results: 6.000000, 8.000000, 10.000000, 12.000000\n",
   "llvm-sqrt": "sqrt(2.0) = 1.414214\n",
+  "spec-methods": "5 5\n",
 };
 
 test("documentation discovery includes programs by default and validates explicit classifications", () => {

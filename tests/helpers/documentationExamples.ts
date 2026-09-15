@@ -19,6 +19,7 @@ export interface DocumentationExample {
 export function documentationFiles(): string[] {
   return [
     "README.md",
+    "LANGUAGE_SPEC.md",
     ...readdirSync(resolve(DOCUMENTATION_ROOT, "docs"))
       .filter((file) => /^\d.*\.md$/.test(file))
       .sort()
