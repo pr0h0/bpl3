@@ -8,6 +8,7 @@
  * 4. Linking: Link LLVM IR with object files
  */
 
+import { uniqueModuleSymbols } from "./middleend/ModuleSymbolUniquer";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -333,6 +334,38 @@ export class Compiler {
   /**
    * Compile with full module resolution (two-phase compilation)
    */
+  /** Renames colliding private declarations before modules are merged. */
+  private uniqueModuleSymbols(
+    modules: { path: string; ast: AST.Program }[],
+    typeChecker: TypeChecker,
+  ): void {
+    const stdLibPath = path.resolve(resolveBplPath("lib")) + path.sep;
+    const entryPath = modules[modules.length - 1]?.path;
+    const { renamed } = uniqueModuleSymbols(
+      modules.map((module) => ({
+        path: module.path,
+        ast: module.ast,
+        scope: typeChecker.modules.get(module.path),
+        isStandardLibrary: path.resolve(module.path).startsWith(stdLibPath),
+        isEntry: module.path === entryPath,
+      })),
+    );
+    // Renames depend on every module in the build, so cached objects must be
+    // keyed on them in addition to each module's own source.
+    this.moduleSymbolRenameKey = [...renamed.values()]
+      .map(({ from, to }) => `${from}->${to}`)
+      .sort()
+      .join("\n");
+  }
+
+  private moduleSymbolRenameKey = "";
+
+  private withRenameKey(content: string): string {
+    return this.moduleSymbolRenameKey
+      ? `${content}\n#renames\n${this.moduleSymbolRenameKey}`
+      : content;
+  }
+
   private compileWithModuleResolution(): CompilationResult {
     try {
       if (this.options.verbose) {
@@ -401,6 +434,7 @@ export class Compiler {
 
       // 3. Merge all module ASTs into a single program for code generation
       const entryModule = modules[modules.length - 1]; // Last in topo order is entry point
+      this.uniqueModuleSymbols(modules, typeChecker);
 
       if (!entryModule) {
         throw new CompilerError(
@@ -579,7 +613,7 @@ export class Compiler {
       cache.resetStats(1);
       const objectFile = cache.compileModule(
         entryModule.path,
-        allContent,
+        this.withRenameKey(allContent),
         llvmIR,
         this.options.verbose,
         this.options.target,
@@ -687,7 +721,9 @@ export class Compiler {
 
         return {
           modulePath: module.path,
-          content: createModuleCacheContent(modules, module),
+          content: this.withRenameKey(
+            createModuleCacheContent(modules, module),
+          ),
           llvmIR,
           target: this.options.target,
           optimizationLevel: this.options.optimizationLevel,
@@ -790,6 +826,7 @@ export class Compiler {
       return { success: false, errors: [...typeErrors, ...linkerErrors] };
     }
 
+    this.uniqueModuleSymbols(modules, typeChecker);
     return { success: true };
   }
 

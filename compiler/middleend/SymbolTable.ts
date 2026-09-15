@@ -58,6 +58,14 @@ export class SymbolTable {
     this.invalidateResolutionCacheFor(symbol.name);
   }
 
+  /** Symbols defined directly in this scope, including overloads. */
+  public *ownSymbols(): IterableIterator<Symbol> {
+    for (const symbol of this.symbols.values()) {
+      yield symbol;
+      if (symbol.overloads) yield* symbol.overloads;
+    }
+  }
+
   public getInCurrentScope(name: string): Symbol | undefined {
     return this.symbols.get(name);
   }

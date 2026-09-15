@@ -3960,3 +3960,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-15)**: `printf("%d", kind)` for a payload-free enum passed the LLVM aggregate `%enum.Kind = { i32 }` to a C variadic function, relying on target aggregate classification.
 
 **Resolution**: Direct extern variadic calls pass the i32 tag. Tagged enums with payloads remain rejected with BPL_EXTERN_ABI_UNSUPPORTED.
+
+### BUG-340: Same-named private declarations in different modules silently replace each other
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-15)**: Type checking scopes names per module, but code generation merged all modules into one flat namespace, de-duplicating structs by bare name and skipping functions whose mangled name was already defined. An importer's own `helper()` ran an imported module's private `helper()`; two modules with private `struct Hid { x: int }` and `struct Hid { x: long }` shared one layout, so the `long` store wrote past the 4-byte field; a private struct replaced an importer's struct of the same name ("Unknown field"). `bpl check` also reported false "Duplicate symbol definition … in module unknown" errors.
+
+**Resolution**: After type checking, compiler/middleend/ModuleSymbolUniquer.ts renames colliding module-level declarations (standard library first, then the entry module keep their names) to `Name__N` and rewrites every reference by resolved declaration or module-visible name; reflection keeps the source name. Cached builds key objects on the rename set. Lazily loaded modules in `bpl check` now record their own module path. tests/ModuleSymbolIsolation.test.ts covers importer, sibling, method-private-type, transitive, reflection, and `--cache` cases.

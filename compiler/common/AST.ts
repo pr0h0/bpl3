@@ -450,6 +450,8 @@ export interface FunctionDecl extends ASTNode {
 export interface StructDecl extends ASTNode {
   kind: "StructDecl";
   name: string;
+  /** Name written in source when module uniquing renamed the declaration. */
+  sourceName?: string;
   genericParams: GenericParam[];
   inheritanceList: TypeNode[]; // First element (if struct) is parent, rest are specs
   members: (StructField | FunctionDecl)[];
@@ -480,6 +482,8 @@ export interface SpecMethod extends ASTNode {
 export interface EnumDecl extends ASTNode {
   kind: "EnumDecl";
   name: string;
+  /** Name written in source when module uniquing renamed the declaration. */
+  sourceName?: string;
   genericParams: GenericParam[];
   implements: TypeNode[];
   variants: EnumVariant[];

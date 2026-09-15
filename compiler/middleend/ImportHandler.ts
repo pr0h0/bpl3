@@ -35,6 +35,7 @@ export interface ImportHandlerContext {
   skipImportResolution: boolean;
   currentScope: SymbolTable;
   globalScope: SymbolTable;
+  currentModulePath: string;
   hoistDeclaration: (stmt: AST.Statement) => void;
   checkStatement: (stmt: AST.Statement) => void;
   defineSymbol: (
@@ -310,9 +311,11 @@ export class ImportHandler {
     const prevGlobal = this.ctx.globalScope;
     const prevCurrent = this.ctx.currentScope;
 
-    // Temporarily switch scopes
+    // Temporarily switch scopes and the module that owns new linker symbols
+    const prevModulePath = this.ctx.currentModulePath;
     this.ctx.globalScope = moduleScope;
     this.ctx.currentScope = moduleScope;
+    this.ctx.currentModulePath = importPath;
 
     // Hoist declarations in the imported module
     for (const s of moduleAst.statements) {
@@ -328,6 +331,7 @@ export class ImportHandler {
     // Restore context
     this.ctx.globalScope = prevGlobal;
     this.ctx.currentScope = prevCurrent;
+    this.ctx.currentModulePath = prevModulePath;
 
     return moduleScope;
   }

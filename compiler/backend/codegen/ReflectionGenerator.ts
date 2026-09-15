@@ -274,7 +274,9 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     type: AST.BasicTypeNode,
     decl: AST.StructDecl,
   ) {
-    const nameStrVar = this.getOrCreateStringLiteral(decl.name);
+    const nameStrVar = this.getOrCreateStringLiteral(
+      decl.sourceName ?? decl.name,
+    );
     const llvmSizeType = this.resolveType(type);
     const size = `ptrtoint (${llvmSizeType}* getelementptr (${llvmSizeType}, ${llvmSizeType}* null, i32 1) to i64)`;
 
@@ -432,7 +434,9 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     type: AST.BasicTypeNode,
     decl: AST.EnumDecl,
   ) {
-    const nameStrVar = this.getOrCreateStringLiteral(decl.name);
+    const nameStrVar = this.getOrCreateStringLiteral(
+      decl.sourceName ?? decl.name,
+    );
     const llvmType = this.resolveType(type);
     const size = `ptrtoint (${llvmType}* getelementptr (${llvmType}, ${llvmType}* null, i32 1) to i64)`;
 

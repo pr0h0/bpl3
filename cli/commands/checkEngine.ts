@@ -20,6 +20,7 @@ export function checkSource(
     skipImportResolution,
     collectAllErrors: true,
   });
+  typeChecker.setCurrentModulePath(filePath);
   typeChecker.checkProgram(ast);
   return typeChecker.getErrors();
 }
