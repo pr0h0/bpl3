@@ -36,7 +36,7 @@ is `.`. Extensions come from the final component's last dot, excluding an initia
 dot and the special components `.` and `..`.
 
 These four methods reject null strings and allocation/size failures by throwing
-strings. Path results are limited to 2,147,483,646 bytes. `isAbsolute` tests only
+strings. Path inputs and results are limited to 2,147,483,646 bytes. `isAbsolute` tests only
 whether the first byte is `/`, and returns false for null or empty inputs.
 
 ```bpl
