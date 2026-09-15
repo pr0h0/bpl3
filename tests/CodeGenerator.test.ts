@@ -2314,7 +2314,7 @@ describe("CodeGenerator", () => {
     expect(collectorSource).not.toContain("queue.shift()");
     expect(collectorSource).toMatch(/let queueIndex = 0;/);
     expect(collectorSource).toMatch(
-      /while \(queueIndex < queue\.length\) \{\s+const decl = queue\[queueIndex\+\+\]!;/,
+      /while \(queueIndex < queue\.length\) \{\s+scan\(queue\[queueIndex\+\+\]\);/,
     );
   });
 

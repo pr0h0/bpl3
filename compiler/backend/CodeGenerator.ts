@@ -8,11 +8,12 @@ import {
   createBoolStructDecl,
   createDoubleStructDecl,
   createStringStructDecl,
+  PRIMITIVE_STRUCT_MAP,
 } from "../middleend/BuiltinTypes";
 import { StatementGenerator } from "./codegen/StatementGenerator";
+import { isImplicitlyCalledMethodName } from "./codegen/StructEnumGenerator";
 import { CompilerError } from "../common/CompilerError";
 import { codeGenLog } from "../common/Logger";
-import { walkAST } from "../common/ASTTraversal";
 import { DebugInfoGenerator } from "./codegen/DebugInfoGenerator";
 import { getDataLayoutForTarget } from "./codegen/BaseCodeGenerator";
 import { findSymlinkedPathComponent } from "../common/PathSafety";
@@ -124,6 +125,14 @@ type LlvmReferenceTargets = {
  * - → MatchExpressionGenerator → UnaryExpressionGenerator → ExpressionGenerator
  * - → ExceptionGenerator → AsmGenerator → StatementGenerator → **CodeGenerator**
  */
+// Types the compiler uses by name or through primitive values.
+const ALWAYS_REACHABLE_TYPES = [
+  "Type",
+  "Error",
+  "String",
+  ...Object.values(PRIMITIVE_STRUCT_MAP),
+];
+
 export class CodeGenerator extends StatementGenerator {
   private prunableImplicitCDeclarations: Set<string> = new Set();
   private generatedBodyUsesArgcRuntimeHelper = false;
@@ -216,6 +225,13 @@ export class CodeGenerator extends StatementGenerator {
       }
     }
 
+    // Reachability decides which methods built-in and user types emit.
+    this.layoutOnlyTypes = new Set();
+    this.emittedMethodNames = undefined;
+    this.deferredMethods.clear();
+    const reachableTopLevelFunctions =
+      this.collectReachableTopLevelFunctions(program);
+
     // Emitting layouts for built-ins is required even if we don't emit their methods.
     // This allows LLVM to know the size and fields of these structs.
 
@@ -250,8 +266,6 @@ export class CodeGenerator extends StatementGenerator {
       }
     }
 
-    const reachableTopLevelFunctions =
-      this.collectReachableTopLevelFunctions(program);
     for (const stmt of program.statements) {
       if (
         reachableTopLevelFunctions &&
@@ -380,6 +394,7 @@ export class CodeGenerator extends StatementGenerator {
     // This is necessary because monomorphized functions might generate lambdas,
     // and lambdas might trigger new monomorphizations.
     let iterationCount = 0;
+    do {
     while (
       this.pendingLambdas.length > 0 ||
       this.pendingGenerations.length > 0
@@ -412,6 +427,7 @@ export class CodeGenerator extends StatementGenerator {
         task();
       }
     }
+    } while (this.emitReferencedDeferredMethods());
 
     if (this.usedLlvmMemIntrinsics.has("memcpy")) {
       this.emitDeclaration(
@@ -563,6 +579,42 @@ export class CodeGenerator extends StatementGenerator {
 
     this.pruneUnusedInternalRuntimeStructs(generatedBodyReferences);
     this.pruneUnusedImplicitCStructs(generatedBodyReferences);
+  }
+
+  /**
+   * Generates methods skipped by reachability that emitted code references
+   * anyway (implicit calls, reflection tables). Returns true when any method
+   * was generated, because its body may require further generation.
+   */
+  private emitReferencedDeferredMethods(): boolean {
+    if (this.deferredMethods.size === 0) return false;
+    const referenced = new Set<string>();
+    for (const line of [...this.output, ...this.declarationsOutput]) {
+      for (const match of line.matchAll(/@([A-Za-z0-9_.]+)/g)) {
+        referenced.add(match[1]!);
+      }
+    }
+    const generated: string[] = [];
+    for (const [prefix, generate] of this.deferredMethods) {
+      let hit = false;
+      for (const symbol of referenced) {
+        if (symbol.startsWith(prefix)) {
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) continue;
+      this.deferredMethods.delete(prefix);
+      generated.push(prefix);
+      this.pendingGenerations.push(generate);
+    }
+    if (generated.length === 0) return false;
+    // Calls to a not-yet-generated method may have declared it.
+    this.declarationsOutput = this.declarationsOutput.filter((line) => {
+      const name = this.getDeclaredFunctionName(line);
+      return !name || !generated.some((prefix) => name.startsWith(prefix));
+    });
+    return true;
   }
 
   private emitPrunableImplicitCDeclaration(line: string): void {
@@ -1165,6 +1217,13 @@ export class CodeGenerator extends StatementGenerator {
     );
   }
 
+  /**
+   * Computes the functions, structs, and enums reachable from `main` (plus
+   * exported functions and global initializers). Unreachable top-level
+   * functions are skipped, and unreachable structs and enums are emitted as
+   * layouts only, without methods or vtables, so importing one item does not
+   * compile everything else its module defines.
+   */
   private collectReachableTopLevelFunctions(
     program: AST.Program,
   ): Set<AST.FunctionDecl> | undefined {
@@ -1180,30 +1239,33 @@ export class CodeGenerator extends StatementGenerator {
 
     const topLevelFunctions = new Set<AST.FunctionDecl>();
     const functionsByName = new Map<string, AST.FunctionDecl[]>();
-    const generatedMethodRoots: AST.FunctionDecl[] = [];
+    const typesByName = new Map<string, AST.StructDecl | AST.EnumDecl>();
+    const methodOwners = new Map<
+      AST.FunctionDecl,
+      AST.StructDecl | AST.EnumDecl
+    >();
+    const globals: AST.VariableDecl[] = [];
 
     for (const stmt of program.statements) {
       if (stmt.kind === "StructDecl") {
-        for (const member of (stmt as AST.StructDecl).members) {
-          if (member.kind === "FunctionDecl") {
-            generatedMethodRoots.push(member);
-          }
+        const decl = stmt as AST.StructDecl;
+        typesByName.set(decl.name, decl);
+        for (const member of decl.members) {
+          if (member.kind === "FunctionDecl") methodOwners.set(member, decl);
         }
-        continue;
+      } else if (stmt.kind === "EnumDecl") {
+        const decl = stmt as AST.EnumDecl;
+        typesByName.set(decl.name, decl);
+        for (const method of decl.methods) methodOwners.set(method, decl);
+      } else if (stmt.kind === "VariableDecl") {
+        globals.push(stmt as AST.VariableDecl);
+      } else if (stmt.kind === "FunctionDecl") {
+        const decl = stmt as AST.FunctionDecl;
+        topLevelFunctions.add(decl);
+        const overloads = functionsByName.get(decl.name) ?? [];
+        overloads.push(decl);
+        functionsByName.set(decl.name, overloads);
       }
-
-      if (stmt.kind === "EnumDecl") {
-        generatedMethodRoots.push(...(stmt as AST.EnumDecl).methods);
-        continue;
-      }
-
-      if (stmt.kind !== "FunctionDecl") continue;
-
-      const decl = stmt as AST.FunctionDecl;
-      topLevelFunctions.add(decl);
-      const overloads = functionsByName.get(decl.name) ?? [];
-      overloads.push(decl);
-      functionsByName.set(decl.name, overloads);
     }
 
     if (topLevelFunctions.size === 0) {
@@ -1211,107 +1273,167 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     const reachable = new Set<AST.FunctionDecl>();
-    const queue: AST.FunctionDecl[] = [];
+    const reachableTypes = new Set<AST.StructDecl | AST.EnumDecl>();
+    const calledMethodNames = new Set<string>();
+    const scannedMethods = new Set<AST.FunctionDecl>();
+    const queue: unknown[] = [];
 
-    const mark = (decl: AST.FunctionDecl | undefined): void => {
-      if (!decl || !topLevelFunctions.has(decl) || reachable.has(decl)) {
-        return;
+    const typeMethods = (
+      decl: AST.StructDecl | AST.EnumDecl,
+    ): AST.FunctionDecl[] =>
+      decl.kind === "StructDecl"
+        ? (decl.members.filter(
+            (member) => member.kind === "FunctionDecl",
+          ) as AST.FunctionDecl[])
+        : decl.methods;
+
+    const queueMethod = (method: AST.FunctionDecl): void => {
+      if (scannedMethods.has(method)) return;
+      scannedMethods.add(method);
+      queue.push(method);
+    };
+
+    const markMethodName = (name: string): void => {
+      if (calledMethodNames.has(name)) return;
+      calledMethodNames.add(name);
+      for (const type of reachableTypes) {
+        for (const method of typeMethods(type)) {
+          if (method.name === name) queueMethod(method);
+        }
       }
-      reachable.add(decl);
-      queue.push(decl);
+    };
+
+    const markType = (decl: AST.StructDecl | AST.EnumDecl): void => {
+      if (reachableTypes.has(decl)) return;
+      reachableTypes.add(decl);
+      // Layout: fields, parents, specs, and enum payloads.
+      if (decl.kind === "StructDecl") {
+        queue.push(
+          decl.inheritanceList,
+          decl.members.filter((member) => member.kind === "StructField"),
+        );
+      } else {
+        queue.push(decl.variants, decl.implements);
+      }
+      for (const method of typeMethods(decl)) {
+        if (
+          calledMethodNames.has(method.name) ||
+          isImplicitlyCalledMethodName(method.name)
+        ) {
+          queueMethod(method);
+        }
+      }
+    };
+
+    const markDeclaration = (decl: AST.ASTNode | undefined): void => {
+      if (!decl) return;
+      if (decl.kind === "FunctionDecl") {
+        const fn = decl as AST.FunctionDecl;
+        const owner = methodOwners.get(fn);
+        if (owner) {
+          markType(owner);
+          markMethodName(fn.name);
+        } else if (topLevelFunctions.has(fn) && !reachable.has(fn)) {
+          reachable.add(fn);
+          queue.push(fn);
+        }
+      } else if (decl.kind === "StructDecl" || decl.kind === "EnumDecl") {
+        markType(decl as AST.StructDecl | AST.EnumDecl);
+      }
     };
 
     const markByName = (name: string): void => {
       for (const decl of functionsByName.get(name) ?? []) {
-        mark(decl);
+        markDeclaration(decl);
+      }
+    };
+
+    const markTypeName = (name: string): void => {
+      const direct = typesByName.get(name);
+      if (direct) {
+        markType(direct);
+        return;
+      }
+      const dot = name.indexOf(".");
+      if (dot > 0) {
+        const head = typesByName.get(name.slice(0, dot));
+        if (head) markType(head);
+        const tail = typesByName.get(name.slice(name.lastIndexOf(".") + 1));
+        if (tail) markType(tail);
+      }
+    };
+
+    const visited = new Set<object>();
+    const scan = (value: unknown): void => {
+      if (value === null || typeof value !== "object") return;
+      if (visited.has(value)) return;
+      visited.add(value);
+      if (Array.isArray(value)) {
+        for (const item of value) scan(item);
+        return;
+      }
+      const node = value as Record<string, unknown> & { kind?: string };
+      switch (node.kind) {
+        case "BasicType":
+          if (typeof node.name === "string") markTypeName(node.name);
+          break;
+        case "Member":
+          if (typeof node.property === "string") markMethodName(node.property);
+          break;
+        case "Call": {
+          const callee = (node as unknown as AST.CallExpr).callee;
+          if (callee.kind === "Identifier") {
+            markByName((callee as AST.IdentifierExpr).name);
+          } else if (callee.kind === "GenericInstantiation") {
+            const base = (callee as AST.GenericInstantiationExpr).base;
+            if (base.kind === "Identifier") {
+              markByName((base as AST.IdentifierExpr).name);
+            }
+          }
+          break;
+        }
+      }
+      for (const key of ["structName", "enumName"]) {
+        if (typeof node[key] === "string") markTypeName(node[key] as string);
+      }
+      for (const [key, child] of Object.entries(node)) {
+        if (key === "location" || key === "moduleScope") continue;
+        if (key === "resolvedDeclaration" || key === "declaration") {
+          markDeclaration(child as AST.ASTNode | undefined);
+          continue;
+        }
+        if (key === "methodDeclaration") {
+          markDeclaration(child as AST.ASTNode | undefined);
+        }
+        scan(child);
       }
     };
 
     markByName("main");
     for (const stmt of program.statements) {
       if (stmt.kind !== "Export") continue;
-
       for (const item of (stmt as AST.ExportStmt).items) {
-        if (!item.isType) {
-          markByName(item.name);
-        }
+        if (!item.isType) markByName(item.name);
       }
     }
-
     if (queue.length === 0) {
       return undefined;
     }
-
-    const markResolvedFunction = (
-      decl:
-        | AST.IdentifierExpr["resolvedDeclaration"]
-        | AST.FunctionDecl
-        | AST.ExternDecl
-        | undefined,
-    ): void => {
-      if (decl?.kind === "FunctionDecl") {
-        mark(decl);
-      }
-    };
-
-    const markCalleeBySyntax = (callee: AST.Expression): void => {
-      if (callee.kind === "Identifier") {
-        markByName((callee as AST.IdentifierExpr).name);
-        return;
-      }
-
-      if (callee.kind === "GenericInstantiation") {
-        const base = (callee as AST.GenericInstantiationExpr).base;
-        if (base.kind === "Identifier") {
-          markByName((base as AST.IdentifierExpr).name);
-        }
-      }
-    };
-
-    const scanReachableFunctionBody = (decl: AST.FunctionDecl): void => {
-      walkAST(decl.body, (node) => {
-        switch (node.kind) {
-          case "Identifier":
-            markResolvedFunction(
-              (node as AST.IdentifierExpr).resolvedDeclaration,
-            );
-            break;
-          case "Call": {
-            const call = node as AST.CallExpr;
-            markResolvedFunction(call.resolvedDeclaration);
-            markResolvedFunction(call.operatorOverload?.methodDeclaration);
-            markCalleeBySyntax(call.callee);
-            break;
-          }
-          case "Binary":
-            markResolvedFunction(
-              (node as AST.BinaryExpr).operatorOverload?.methodDeclaration,
-            );
-            break;
-          case "Unary":
-            markResolvedFunction(
-              (node as AST.UnaryExpr).operatorOverload?.methodDeclaration,
-            );
-            break;
-          case "Index":
-            markResolvedFunction(
-              (node as AST.IndexExpr).operatorOverload?.methodDeclaration,
-            );
-            break;
-        }
-      });
-    };
-
-    for (const method of generatedMethodRoots) {
-      scanReachableFunctionBody(method);
+    for (const name of ALWAYS_REACHABLE_TYPES) {
+      const decl = typesByName.get(name);
+      if (decl) markType(decl);
     }
+    for (const global of globals) scan(global);
 
     let queueIndex = 0;
     while (queueIndex < queue.length) {
-      const decl = queue[queueIndex++]!;
-      scanReachableFunctionBody(decl);
+      scan(queue[queueIndex++]);
     }
 
+    this.layoutOnlyTypes = new Set(
+      [...typesByName.values()].filter((decl) => !reachableTypes.has(decl)),
+    );
+    this.emittedMethodNames = calledMethodNames;
     return reachable;
   }
 

@@ -1969,7 +1969,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           );
           // this.definedFunctions.add(fullMangledName); // Removed to allow generation
 
-          this.pendingGenerations.push(() => {
+          const generate = () => {
             const oldName = method.name;
             method.name = `${mangledName}_${method.name}`;
             const prevMap = this.currentTypeMap;
@@ -1981,7 +1981,12 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
             this.currentTypeMap = prevMap;
             method.name = oldName;
-          });
+          };
+          if (this.isMethodEmitted(method.name)) {
+            this.pendingGenerations.push(generate);
+          } else {
+            this.deferredMethods.set(`${methodName}_`, generate);
+          }
         }
         // If method IS generic, we don't generate it here.
         // It will be generated when called, via resolveMonomorphizedFunction.
@@ -2120,7 +2125,11 @@ export abstract class TypeGenerator extends StructEnumGenerator {
       for (const method of decl.methods) {
         const mangledMethodName = `${mangledName}_${method.name}`;
 
-        this.pendingGenerations.push(() => {
+        const queue = this.isMethodEmitted(method.name)
+          ? (generate: () => void) => this.pendingGenerations.push(generate)
+          : (generate: () => void) =>
+              this.deferredMethods.set(`${mangledMethodName}_`, generate);
+        queue(() => {
           const innerPrevMap = this.currentTypeMap;
           this.currentTypeMap = typeMap;
 

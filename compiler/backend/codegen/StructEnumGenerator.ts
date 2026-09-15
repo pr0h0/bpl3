@@ -10,6 +10,24 @@ import { LLVMTypeLayout, alignTo, type TypeLayout } from "./LLVMTypeLayout";
  * Inheritance chain:
  * BaseCodeGenerator -> StructEnumGenerator -> TypeGenerator -> ...
  */
+/** Methods the compiler calls without a source-level reference. */
+export function isImplicitlyCalledMethodName(name: string): boolean {
+  return (
+    (name.startsWith("__") && name.endsWith("__")) ||
+    IMPLICITLY_CALLED_METHOD_NAMES.has(name)
+  );
+}
+
+const IMPLICITLY_CALLED_METHOD_NAMES = new Set([
+  "new",
+  "destroy",
+  "toString",
+  "getTypeName",
+  "printStack",
+  "init",
+  "cleanup",
+]);
+
 export abstract class StructEnumGenerator extends BaseCodeGenerator {
   // Abstract methods that will be implemented in child classes
   protected abstract generateFunction(
@@ -343,6 +361,10 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
         continue;
       }
 
+      if (!this.isMethodEmitted(methodDecl.name)) {
+        ptrs.push("i8* null");
+        continue;
+      }
       const funcName = methodDecl.name; // Use original name, not mangled name as base
       let mangled = funcName;
       if (
@@ -387,6 +409,33 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
   // Struct Generation
   // ============================================================
 
+  /**
+   * Structs and enums unreachable from the program's entry points. They keep
+   * their layouts but get no methods or vtables.
+   */
+  protected layoutOnlyTypes = new Set<AST.StructDecl | AST.EnumDecl>();
+
+  /**
+   * Method names referenced by reachable code; undefined keeps every method.
+   * Unreferenced methods are not generated and leave null vtable slots.
+   */
+  protected emittedMethodNames?: Set<string>;
+
+  /**
+   * Generators for methods skipped by reachability, keyed by symbol prefix
+   * (`Owner_method_`). Code generation can still reference such a method
+   * implicitly, so CodeGenerator emits any skipped method the IR references.
+   */
+  protected deferredMethods = new Map<string, () => void>();
+
+  protected isMethodEmitted(simpleName: string): boolean {
+    return (
+      this.emittedMethodNames === undefined ||
+      this.emittedMethodNames.has(simpleName) ||
+      isImplicitlyCalledMethodName(simpleName)
+    );
+  }
+
   protected generateStruct(decl: AST.StructDecl, mangledName?: string) {
     const structName = mangledName || decl.name;
 
@@ -429,6 +478,8 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     fields.forEach((f, i) => layout.set(f.name, i + offset));
     this.structLayouts.set(structName, layout);
 
+    if (!mangledName && this.layoutOnlyTypes.has(decl)) return;
+
     // VTable generation disabled for POD structs
     if (this.vtableLayouts.has(structName)) {
       this.generateVTable(structName, decl);
@@ -444,8 +495,17 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
       ) as AST.FunctionDecl[];
 
       for (const method of methods) {
-        const originalName = method.name;
         const methodMangledName = `${structName}_${method.name}`;
+        if (!this.isMethodEmitted(method.name)) {
+          this.deferredMethods.set(`${methodMangledName}_`, () => {
+            const oldName = method.name;
+            method.name = methodMangledName;
+            this.generateFunction(method, decl);
+            method.name = oldName;
+          });
+          continue;
+        }
+        const originalName = method.name;
 
         if (this.currentFunctionName) {
           this.pendingGenerations.push(() => {
@@ -594,10 +654,24 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     // Only generate methods for non-generic enums.
     // For monomorphized enums (when mangledName is provided), methods are queued
     // separately in instantiateGenericEnum() with proper type substitution.
-    if (decl.genericParams.length === 0 && !mangledName && decl.methods) {
+    if (
+      decl.genericParams.length === 0 &&
+      !mangledName &&
+      decl.methods &&
+      !this.layoutOnlyTypes.has(decl)
+    ) {
       for (const method of decl.methods) {
-        const originalName = method.name;
         const methodMangledName = `${enumName}_${method.name}`;
+        if (!this.isMethodEmitted(method.name)) {
+          this.deferredMethods.set(`${methodMangledName}_`, () => {
+            const oldName = method.name;
+            method.name = methodMangledName;
+            this.generateFunction(method, decl);
+            method.name = oldName;
+          });
+          continue;
+        }
+        const originalName = method.name;
 
         if (this.currentFunctionName) {
           this.pendingGenerations.push(() => {

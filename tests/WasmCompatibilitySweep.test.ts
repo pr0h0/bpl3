@@ -50,6 +50,14 @@ interface WasmBuildResult {
 }
 
 const HOST_API_IMPORTS = new Set([
+  // Native runtime filesystem helpers (lib/runtime_support.c).
+  "__bpl_file_read",
+  "__bpl_file_write",
+  "__bpl_list_dir",
+  "__bpl_mkdirp",
+  "__bpl_path_exists",
+  "__bpl_read_file",
+  "__bpl_write_file",
   "accept",
   "bind",
   "close",
