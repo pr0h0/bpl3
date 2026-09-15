@@ -663,10 +663,13 @@ function peg$parse(input, options) {
   function peg$f87(expr, semi) {    return expressionStmt(expr, location());  }
   function peg$f88(head, tail) {
     if (tail.length === 0) return head;
-    let result = head;
-    for (const [, op, , right] of tail) {
+    // Assignment is right-associative: a = b = c parses as a = (b = c).
+    let result = tail[tail.length - 1][3];
+    for (let i = tail.length - 1; i >= 0; i--) {
+      const [, op] = tail[i];
+      const target = i === 0 ? head : tail[i - 1][3];
       const opToken = makeOperatorTokenFromPos(op.op, op.pos, op.type);
-      result = assignment(result, opToken, right, mergeLoc(result.location, right.location));
+      result = assignment(target, opToken, result, mergeLoc(target.location, result.location));
     }
     return result;
   }
@@ -5980,34 +5983,46 @@ function peg$parse(input, options) {
   }
 
   function peg$parseAssignment() {
-    let result = peg$parseTernary();
-    if (result === peg$FAILED) {
+    const head = peg$parseTernary();
+    if (head === peg$FAILED) {
       return peg$FAILED;
     }
 
+    const operands = [head];
+    const operators = [];
     while (true) {
       const tailStartPos = peg$currPos;
       peg$parse_();
       const operator = peg$scanBplAssignmentOperator();
       if (operator === peg$FAILED) {
         peg$currPos = tailStartPos;
-        return result;
+        break;
       }
 
       peg$parse_();
       const right = peg$parseTernary();
       if (right === peg$FAILED) {
         peg$currPos = tailStartPos;
-        return result;
+        break;
       }
 
+      operators.push(operator);
+      operands.push(right);
+    }
+
+    // Assignment is right-associative: a = b = c parses as a = (b = c).
+    let result = operands[operands.length - 1];
+    for (let i = operators.length - 1; i >= 0; i--) {
+      const operator = operators[i];
+      const target = operands[i];
       result = assignment(
-        result,
+        target,
         makeOperatorTokenFromPos(operator.op, operator.pos, operator.type),
-        right,
-        mergeLoc(result.location, right.location),
+        result,
+        mergeLoc(target.location, result.location),
       );
     }
+    return result;
   }
 
   function peg$failBplAssignmentOperatorExpectation() {
@@ -10112,10 +10127,6 @@ function peg$parse(input, options) {
     return peg$isBplDigitCode(code) || (code >= 65 && code <= 70) || (code >= 97 && code <= 102);
   }
 
-  function peg$isBplNumberTriviaStartCode(code) {
-    return code === 32 || code === 9 || code === 10 || code === 13 || code === 35 || code === 47;
-  }
-
   function peg$scanBplDecimalDigitTail(pos) {
     while (pos < input.length) {
       const code = input.charCodeAt(pos);
@@ -10123,18 +10134,10 @@ function peg$parse(input, options) {
         pos++;
         continue;
       }
-      if (!peg$isBplNumberTriviaStartCode(code)) {
-        break;
-      }
-      const digitStartPos = pos;
-      peg$currPos = pos;
-      peg$parse_();
-      if (peg$isBplDigitCode(input.charCodeAt(peg$currPos))) {
-        peg$currPos++;
-        pos = peg$currPos;
+      if (code === 95 && peg$isBplDigitCode(input.charCodeAt(pos + 1))) {
+        pos += 2;
         continue;
       }
-      peg$currPos = digitStartPos;
       break;
     }
     peg$currPos = pos;
@@ -13439,6 +13442,7 @@ function peg$parse(input, options) {
   }
 
   function parseBplDecimalNumber(raw) {
+    if (raw.indexOf("_") !== -1) return Number(raw.replace(/_/g, ""));
     let value = 0;
     for (let i = 0; i < raw.length; i++) {
       const code = raw.charCodeAt(i);
