@@ -3831,11 +3831,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-316: Path.normalize leaks its temporary strings and arrays
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-15)**: Normalization creates a source String, split component Strings, two Arrays, a StringBuilder, and joined Strings without releasing their storage. Absolute and empty-result branches abandon additional allocations.
+
+**Resolution**: Normalize directly into one checked output buffer. Resolve destroys its joined temporary on both success and exception paths. An allocation-tracking regression reproduces the old leak and checks zero live allocations after repeated calls and injected failures at O0/O3. A seeded POSIX lexical oracle checks normalization output with BPL's existing trailing-separator removal convention.
 
 ### BUG-317: Path.relative only strips literal prefixes
 

@@ -1,6 +1,4 @@
 import [String] from "std/string.bpl";
-import [Array] from "std/array.bpl";
-import [StringBuilder] from "std/string_builder.bpl";
 
 extern strlen(s: string) ret int;
 extern malloc(size: long) ret *void;
@@ -107,83 +105,55 @@ struct Path {
         return copyPathRange("", 0, 0);
     }
 
+    # Normalize in one owned buffer, without allocating component Strings.
     frame normalize(path: string) ret String {
-        local s: String = String.new(path);
-        local parts: Array<String> = s.split(cast<char>(47));
-        local stack: Array<String> = Array<String>.new(parts.length);
-
-        local isAbs: bool = Path.isAbsolute(path);
-
-        local i: int = 0;
-        loop (i < parts.length) {
-            local part: String = parts.get(i);
-
-            if (part.length > 0) {
-                if (part == "..") {
-                    local popped: bool = false;
-                    if (stack.length > 0) {
-                        local top: String = stack.get(stack.length - 1);
-                        if (top == "..") {
-                            # cannot pop '..'
-                        } else {
-                            # pop
-                            stack.pop();
-                            popped = true;
-                        }
-                    }
-                    if (!popped) {
-                        if (stack.length > 0) {
-                            local top: String = stack.get(stack.length - 1);
-                            if (top == "..") {
-                                stack.push(part);
-                            }
-                        } else {
-                            if (!isAbs) {
-                                stack.push(part);
-                            }
-                        }
-                    }
-                } else {
-                    if (!(part == ".")) {
-                        stack.push(part);
+        local length: int = pathLength(path);
+        local capacity: int = length;
+        if (capacity == 0) { capacity = 1; }
+        local result: String = allocatePath(cast<long>(capacity));
+        local root: int = 0;
+        if (Path.isAbsolute(path)) { root = 1; result.data[0] = cast<char>(47); }
+        local used: int = root;
+        local cursor: int = 0;
+        loop (cursor < length) {
+            loop (cursor < length && path[cursor] == cast<char>(47)) { cursor = cursor + 1; }
+            if (cursor == length) { break; }
+            local start: int = cursor;
+            loop (cursor < length && path[cursor] != cast<char>(47)) { cursor = cursor + 1; }
+            local count: int = cursor - start;
+            if (count == 1 && path[start] == cast<char>(46)) { continue; }
+            local parent: bool = count == 2 && path[start] == cast<char>(46) && path[start + 1] == cast<char>(46);
+            if (parent) {
+                if (used > root) {
+                    local previous: int = pathComponentStart(result.data, used);
+                    local previousParent: bool = used - previous == 2 && result.data[previous] == cast<char>(46) && result.data[previous + 1] == cast<char>(46);
+                    if (!previousParent) {
+                        used = previous;
+                        if (used > root) { used = used - 1; }
+                        continue;
                     }
                 }
+                if (root != 0) { continue; }
             }
-            i = i + 1;
-        }
-
-        local joinedSb: StringBuilder = StringBuilder.new(strlen(path) + 16);
-        local m: int = 0;
-        loop (m < stack.length) {
-            if (m > 0) {
-                joinedSb.append("/");
+            if (used > root) { result.data[used] = cast<char>(47); used = used + 1; }
+            loop (local i: int = start; i < cursor; i = i + 1) {
+                result.data[used] = path[i];
+                used = used + 1;
             }
-            joinedSb.append(stack.get(m).toString());
-            m = m + 1;
         }
-
-        local joined: String = String.new(joinedSb.toString());
-
-        if (isAbs) {
-            if (joined.length == 0) {
-                return String.new("/");
-            }
-            return String.new("/") + joined;
-        }
-        if (joined.length == 0) {
-            return String.new(".");
-        }
-        return joined;
+        if (used == 0) { result.data[0] = cast<char>(46); used = 1; }
+        result.data[used] = cast<char>(0);
+        result.length = used;
+        return result;
     }
 
     frame resolve(base: string, target: string) ret String {
-        if (Path.isAbsolute(target)) {
-            return Path.normalize(target);
-        }
+        pathLength(base);
+        pathLength(target);
+        if (Path.isAbsolute(target)) { return Path.normalize(target); }
         local joined: String = Path.join(base, target);
-        local normalized: String = Path.normalize(joined.data);
-        joined.destroy();
-        return normalized;
+        defer { joined.destroy(); }
+        return Path.normalize(joined.data);
     }
 
     frame relative(src: string, dest: string) ret String {

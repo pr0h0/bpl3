@@ -53,3 +53,25 @@ frame main() ret int {
     return 0;
 }
 ```
+
+## Normalization and resolution
+
+`normalize` collapses repeated slashes, removes `.` components, and processes
+`..` lexically. Absolute paths cannot traverse above `/`; relative paths retain
+unresolved leading `..` components. Empty results become `.` or `/` as appropriate.
+Trailing slashes are removed except for the root. For example:
+
+- `normalize("/a/b/../c/")` returns `/a/c`.
+- `normalize("../../a/../b")` returns `../../b`.
+- `normalize("a/..")` returns `.`.
+
+`resolve(base, target)` normalizes an absolute target directly, otherwise joins
+it to the base and normalizes the result. It does not consult the process working
+directory: `resolve("", "file")` returns the relative path `file`.
+
+Both methods reject null arguments, unsupported lengths, and allocation failures
+by throwing strings. Normalization uses one owned output buffer; resolution also
+releases its temporary joined path, including when normalization throws.
+
+These operations do not resolve symlinks or prove that a path stays inside a
+directory. Lexically removing `..` can change actual traversal through symlinks.
