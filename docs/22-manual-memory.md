@@ -22,3 +22,26 @@ frame main() ret void {
 - Always pair `malloc` with `free`.
 - Avoid double-freeing.
 - Initialize pointers to `nullptr` after freeing if they might be accessed again.
+
+
+## Manual allocator contracts
+
+ArenaAllocator, StackAllocator, and PoolAllocator use native Linux/macOS mapping
+helpers. Sizes are checked before alignment and mapping arithmetic; zero-byte
+requests and unsupported sizes return nullptr. Callers must check returned
+pointers. These allocators provide eight-byte alignment, not arbitrary over-aligned
+type support. No allocation owns or destroys the values stored inside it.
+
+Call init before first use and destroy before reinitializing a live allocator.
+Arena reset and stack rewind/reset invalidate affected pointers. Pool free accepts
+only a currently allocated block from that same pool; duplicate or foreign frees
+are invalid. Do not shallow-copy allocator objects with live allocations.
+
+Pool and arena destroy clear their bookkeeping and may be called again. Stack
+destroy also clears its capacity and marker. Stack free_to_marker rejects forward
+or unaligned markers by throwing a string without changing the current marker;
+use a marker obtained from get_marker in the current allocation lifetime.
+
+The public bookkeeping fields remain low-level implementation state. Manually
+corrupting them, using expired pointers, or writing past an allocation is outside
+these contracts and is not made memory-safe by the allocation size checks.

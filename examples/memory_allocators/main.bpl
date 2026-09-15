@@ -77,5 +77,9 @@ frame main() ret int {
     pool.destroy();
     printf("Pool destroyed\n\n");
 
+    arena.init(1024);
+    if (arena.alloc(cast<ulong>(0xffffffffffffffff)) != nullptr) { return 1; }
+    arena.destroy();
+    printf("Oversized allocation rejected\n");
     return 0;
 }

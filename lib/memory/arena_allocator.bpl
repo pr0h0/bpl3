@@ -2,14 +2,11 @@ export [ArenaAllocator];
 
 import [Allocator] from "./allocator.bpl";
 
-extern mmap(addr: *void, len: ulong, prot: int, flags: int, fd: int, offset: ulong) ret *void;
-extern munmap(addr: *void, len: ulong) ret int;
+extern __bpl_memory_map(size: ulong) ret *void;
+extern __bpl_memory_unmap(ptr: *void, size: ulong);
 
-local const PROT_READ: int = 1;
-local const PROT_WRITE: int = 2;
-local const MAP_PRIVATE: int = 2;
-local const MAP_ANONYMOUS: int = 32;
-local const MAP_FAILED: ulong = 18446744073709551615;
+# Keep mapping sizes and pointer differences within signed 64-bit range.
+local const MAX_ALLOCATION: ulong = 0x7ffffffffffff000;
 
 struct ArenaBlock {
     next: *ArenaBlock,
@@ -30,7 +27,7 @@ struct ArenaAllocator: Allocator {
     default_block_size: ulong,
 
     # Initialize the arena.
-    # @param block_size: Minimum size for new underlying memory blocks. 
+    # @param block_size: Minimum size for new underlying memory blocks.
     #                    If 0, defaults to 1MB.
     frame init(this: *ArenaAllocator, block_size: ulong) {
         this.head = nullptr;
@@ -46,10 +43,10 @@ struct ArenaAllocator: Allocator {
     # @param size: Number of bytes to allocate.
     # @returns Pointer to aligned memory, or nullptr if allocation fails.
     frame alloc(this: *ArenaAllocator, size: ulong) ret *void {
-        if (size == 0) 
+        if ((size == 0) || (size > MAX_ALLOCATION - 7))
             return nullptr;
         # Align to 8 bytes
-        if ((size % 8) != 0) 
+        if ((size % 8) != 0)
             size = size + (cast<ulong>(8) - (size % 8));
         # 1. Large allocation: If size is > default block size, allocate separate block
         #    This prevents a huge allocation from filling a standard block and causing fragmentation
@@ -71,12 +68,15 @@ struct ArenaAllocator: Allocator {
     # Internal: Allocate a dedicated large block.
     # Does NOT update `this.current`, but prepends to `this.head` for cleanup.
     frame alloc_large(this: *ArenaAllocator, size: ulong) ret *void {
+        if ((size == 0) || (size > MAX_ALLOCATION - 7)) return nullptr;
+        size = ((size + 7) / 8) * 8;
+        if (size > MAX_ALLOCATION - sizeof(ArenaBlock) - 4095) return nullptr;
         local total_req: ulong = size + sizeof(ArenaBlock);
         local pages_needed: ulong = ((total_req + 4096) - 1) / 4096;
         local real_size: ulong = pages_needed * 4096;
 
-        local raw_mem: *void = mmap(nullptr, real_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (cast<ulong>(raw_mem) == MAP_FAILED) 
+        local raw_mem: *void = __bpl_memory_map(real_size);
+        if (raw_mem == nullptr)
             return nullptr;
         local new_block: *ArenaBlock = cast<*ArenaBlock>(raw_mem);
         new_block.capacity = real_size - sizeof(ArenaBlock);
@@ -92,13 +92,17 @@ struct ArenaAllocator: Allocator {
 
     # Internal: Allocate a new standard block from OS and allocate from it.
     frame grow_and_alloc(this: *ArenaAllocator, size: ulong) ret *void {
+        if ((size == 0) || (size > MAX_ALLOCATION - 7)) return nullptr;
+        size = ((size + 7) / 8) * 8;
         local alloc_size: ulong = this.default_block_size;
+        if (size > alloc_size) alloc_size = size;
+        if (alloc_size > MAX_ALLOCATION - sizeof(ArenaBlock) - 4095) return nullptr;
         local total_req: ulong = alloc_size + sizeof(ArenaBlock);
         local pages_needed: ulong = ((total_req + 4096) - 1) / 4096;
         local real_size: ulong = pages_needed * 4096;
 
-        local raw_mem: *void = mmap(nullptr, real_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (cast<ulong>(raw_mem) == MAP_FAILED) 
+        local raw_mem: *void = __bpl_memory_map(real_size);
+        if (raw_mem == nullptr)
             return nullptr;
         local new_block: *ArenaBlock = cast<*ArenaBlock>(raw_mem);
         new_block.capacity = real_size - sizeof(ArenaBlock);
@@ -122,7 +126,7 @@ struct ArenaAllocator: Allocator {
 
     # No-op for ArenaAllocator. Individual items cannot be freed.
     frame free(this: *ArenaAllocator, ptr: *void) {
-        if (ptr == nullptr) 
+        if (ptr == nullptr)
             return;
         # No-op in Arena
     }
@@ -145,7 +149,7 @@ struct ArenaAllocator: Allocator {
         loop (iter != nullptr) {
             local next: *ArenaBlock = iter.next;
             local total_size: ulong = iter.capacity + sizeof(ArenaBlock);
-            munmap(cast<*void>(iter), total_size);
+            __bpl_memory_unmap(cast<*void>(iter), total_size);
             iter = next;
         }
         this.head = nullptr;

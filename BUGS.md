@@ -3872,13 +3872,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-320: Arena and stack allocation sizes wrap and overlap later allocations
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
 **Observed (2026-09-15)**: On Linux x86-64 at O0 and O3, initialize an ArenaAllocator or StackAllocator with 4096 bytes, then call `alloc(cast<ulong>(0xffffffffffffffff))` followed by `alloc(8)`. Both calls return the same non-null pointer. Rounding the huge request to eight-byte alignment wraps to zero. Stack capacity checks also add sizes without overflow guards. No out-of-bounds writes were needed to reproduce the incorrect successful allocation.
 
 **Next step**: Check alignment rounding, header/page arithmetic, and capacity subtraction before allocation. Extend the audit to pool/page allocators and reject unsupported sizes without changing state. Reproduction is preserved in the comparative language audit report.
+
+**Resolution**: Guard alignment, mapping headers, capacity checks, and pool chunk arithmetic before mutation. O0/O3 LLVM-verified regressions exercise near-UINT64_MAX requests, preserved data, capacity exhaustion, and allocation after rejected requests.
 
 ### BUG-321: PageAllocator returns storage that violates its page-alignment promise
 
@@ -3910,3 +3912,16 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-15)**: On Linux x86-64 with Clang 21, a separately compiled C function `int sum_pair(struct Pair p)` for `struct Pair { int x; int y; };` returns 7 when BPL passes `Pair { x: 7, y: 11 }`, instead of 18. Reproduced at O0 and O3. Matching field layout does not establish the platform's function-call ABI: the C function receives the two fields packed into an i64 while BPL declares and passes an LLVM aggregate.
 
 **Next step**: Introduce target-specific C ABI argument/result classification, including coercions and indirect passing, with bidirectional C/BPL fixtures. Until supported, reject aggregate-by-value extern signatures or document and enforce pointer-based wrappers. Aggregate returns and other target ABIs require separate tests; this reproduction proves the two-i32 argument case only.
+
+
+### BUG-324: Manual allocator lifecycle and native mapping contracts are unsafe
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: PoolAllocator.destroy leaves chunk_head/free_head pointing into unmapped memory, so repeated destruction or subsequent allocation can access freed storage. StackAllocator accepts forward or unaligned rewind markers. Allocators hard-code Linux MAP_ANONYMOUS=32 instead of using the host platform's native constant.
+
+**Next step**: Clear released pool bookkeeping, reject invalid rewind markers without state changes, and move OS mapping constants and native size validation into runtime helpers. Keep allocation ownership manual and require destroy before reinitialization.
+
+**Resolution**: Use checked native Linux/macOS mapping helpers, clear pool state after destruction, and reject forward/unaligned stack markers. O0/O3 tests cover repeated destruction, pool reuse, marker failure atomicity, and native mapping failure; native checks also support ASan/UBSan.

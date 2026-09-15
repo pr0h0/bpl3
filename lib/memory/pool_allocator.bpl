@@ -2,13 +2,11 @@ export [PoolAllocator];
 
 import [Allocator] from "./allocator.bpl";
 
-extern mmap(addr: *void, len: ulong, prot: int, flags: int, fd: int, offset: ulong) ret *void;
-extern munmap(addr: *void, len: ulong) ret int;
-local const PROT_READ: int = 1;
-local const PROT_WRITE: int = 2;
-local const MAP_PRIVATE: int = 2;
-local const MAP_ANONYMOUS: int = 32;
-local const MAP_FAILED: ulong = 18446744073709551615;
+extern __bpl_memory_map(size: ulong) ret *void;
+extern __bpl_memory_unmap(ptr: *void, size: ulong);
+
+# Keep mapping sizes and pointer differences within signed 64-bit range.
+local const MAX_ALLOCATION: ulong = 0x7ffffffffffff000;
 
 struct PoolNode {
     next: *PoolNode,
@@ -38,11 +36,15 @@ struct PoolAllocator: Allocator {
     # @param item_size: Size of each item in bytes. Will be aligned to 8 bytes.
     #                   Minimum size is 8 bytes (to hold pointer).
     frame init(this: *PoolAllocator, item_size: ulong) {
+        this.block_size = 0;
+        this.free_head = nullptr;
+        this.chunk_head = nullptr;
+        if (item_size > (MAX_ALLOCATION - sizeof(PoolChunk) - 4095) / 10 - 7) return;
         # Ensure item size is at least size of pointer (nested instruction)
-        if (item_size < 8) 
+        if (item_size < 8)
             item_size = 8;
         # Align to 8
-        if ((item_size % 8) != 0) 
+        if ((item_size % 8) != 0)
             item_size = item_size + (cast<ulong>(8) - (item_size % 8));
         this.block_size = item_size;
         this.free_head = nullptr;
@@ -54,13 +56,13 @@ struct PoolAllocator: Allocator {
     # @returns Pointer to memory block.
     frame alloc(this: *PoolAllocator, size: ulong) ret *void {
         # Pool can only alloc blocks of its exact size (or smaller)
-        if (size > this.block_size) 
+        if ((size == 0) || (this.block_size == 0) || (size > this.block_size))
             return nullptr;
         if (this.free_head == nullptr) {
             this.grow();
         }
         # OOM
-        if (this.free_head == nullptr) 
+        if (this.free_head == nullptr)
             return nullptr;
         local ptr: *PoolNode = this.free_head;
         this.free_head = this.free_head.next;
@@ -70,6 +72,7 @@ struct PoolAllocator: Allocator {
 
     # Internal: Allocate a new chunk from OS and slice it into nodes.
     frame grow(this: *PoolAllocator) {
+        if ((this.block_size < 8) || (this.block_size > (MAX_ALLOCATION - sizeof(PoolChunk) - 4095) / 10)) return;
         # Allocate a new page (4KB)
         # Or larger if block_size is huge
         local chunk_size: ulong = 4096;
@@ -78,8 +81,8 @@ struct PoolAllocator: Allocator {
             # Align to page
             chunk_size = ((chunk_size + 4095) / 4096) * 4096;
         }
-        local raw: *void = mmap(nullptr, chunk_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (cast<ulong>(raw) == MAP_FAILED) 
+        local raw: *void = __bpl_memory_map(chunk_size);
+        if (raw == nullptr)
             return;
         # Setup Chunk Header
         local chunk: *PoolChunk = cast<*PoolChunk>(raw);
@@ -96,7 +99,7 @@ struct PoolAllocator: Allocator {
         # Add new nodes to FRONT of free_head
 
         local curr_addr: ulong = start_addr;
-        loop ((curr_addr + this.block_size) <= end_addr) {
+        loop (this.block_size <= end_addr - curr_addr) {
             local node: *PoolNode = cast<*PoolNode>(curr_addr);
             node.next = this.free_head;
             this.free_head = node;
@@ -108,7 +111,7 @@ struct PoolAllocator: Allocator {
     # Free a block back to the pool.
     # @param ptr: Pointer to free. Must have been allocated by this pool.
     frame free(this: *PoolAllocator, ptr: *void) {
-        if (ptr == nullptr) 
+        if (ptr == nullptr)
             return;
         local node: *PoolNode = cast<*PoolNode>(ptr);
         node.next = this.free_head;
@@ -127,8 +130,10 @@ struct PoolAllocator: Allocator {
         local iter: *PoolChunk = this.chunk_head;
         loop (iter != nullptr) {
             local next: *PoolChunk = iter.next;
-            munmap(cast<*void>(iter), iter.size);
+            __bpl_memory_unmap(cast<*void>(iter), iter.size);
             iter = next;
         }
+        this.free_head = nullptr;
+        this.chunk_head = nullptr;
     }
 }

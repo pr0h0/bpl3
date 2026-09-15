@@ -26,7 +26,8 @@
     "Alloc item 2: 0x",
     "Freed item 1",
     "Alloc item 3: 0x",
-    "Pool destroyed"
+    "Pool destroyed",
+    "Oversized allocation rejected"
   ],
   "args": [],
   "env": {},

@@ -20,6 +20,8 @@
 #include <stdint.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #include <dirent.h>
 #include <limits.h>
 #include <time.h>
@@ -612,4 +614,26 @@ int32_t __bpl_sleep_us(int64_t microseconds) {
         if (errno != EINTR) return errno ? errno : EIO;
     }
     return 0;
+}
+
+/* Mapping boundary for the manual allocators: fixed-width BPL sizes must fit
+ * both native size_t and pointer differences before reaching the OS. */
+void *__bpl_memory_map(uint64_t size) {
+    if (size == 0 || size > SIZE_MAX || size > PTRDIFF_MAX) {
+        return NULL;
+    }
+    void *ptr = mmap(NULL, (size_t)size, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    return ptr == MAP_FAILED ? NULL : ptr;
+}
+
+void __bpl_memory_unmap(void *ptr, uint64_t size) {
+    if (ptr && size && size <= SIZE_MAX && size <= PTRDIFF_MAX) {
+        munmap(ptr, (size_t)size);
+    }
+}
+
+uint64_t __bpl_memory_page_size(void) {
+    long size = sysconf(_SC_PAGESIZE);
+    return size > 0 ? (uint64_t)size : 0;
 }
