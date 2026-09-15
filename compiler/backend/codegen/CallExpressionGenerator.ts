@@ -1901,7 +1901,11 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       // Special handling for String passed to variadic function (like printf)
       if (funcType.isVariadic && srcType === "%struct.String") {
         const strData = this.newRegister();
-        this.emit(`  ${strData} = extractvalue %struct.String ${val}, 0`);
+        // Spec-implementing structs place their vtable before `data`.
+        const dataIndex = this.structLayouts.get("String")?.get("data") ?? 0;
+        this.emit(
+          `  ${strData} = extractvalue %struct.String ${val}, ${dataIndex}`,
+        );
         return `i8* ${strData}`;
       }
 
@@ -1921,6 +1925,17 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         const promoted = this.newRegister();
         this.emit(`  ${promoted} = zext i1 ${val} to i32`);
         return `i32 ${promoted}`;
+      }
+
+      // Payload-free enums are `{ i32 }`; C varargs receive the tag itself.
+      if (
+        isExternVariadic &&
+        srcType.startsWith("%enum.") &&
+        (this.enumDataSizes.get(srcType.slice("%enum.".length)) ?? 1) === 0
+      ) {
+        const tag = this.newRegister();
+        this.emit(`  ${tag} = extractvalue ${srcType} ${val}, 0`);
+        return `i32 ${tag}`;
       }
 
       if ((srcType === "i8" || srcType === "i16") && isExternVariadic) {

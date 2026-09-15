@@ -86,8 +86,20 @@ The LLVM lowering is part of the language contract for v0.1 features that intero
 - `Func<R>(...)` lowers to a thin function pointer; concretely, `Func<R>(Args...)` lowers to a raw pointer with signature `R (Args...)*`.
 - `Lambda<R>(...)` lowers to a closure value; concretely, `Lambda<R>(Args...)` lowers to `{ R (i8*, Args...)*, i8* }`.
 - The first lambda field is the thunk/function pointer. The second field is the erased capture context pointer.
-- Passing a `Func` to C ABI code passes only the raw function pointer.
+- Passing a `Func` to C ABI code passes only the raw function pointer. Its signature must also satisfy the external ABI restrictions below.
 - Passing a `Lambda` passes the closure value and is not C ABI compatible by default.
+
+### External ABI restrictions
+
+Extern declarations support scalar and pointer parameters/results, including
+function pointers with supported signatures. Aggregate values (structs, enums,
+tuples, fixed arrays, slices, and Lambdas) are rejected with
+`BPL_EXTERN_ABI_UNSUPPORTED`; use C wrappers with pointers/output buffers. Matching
+LLVM aggregate layout does not implement platform-specific C argument/result
+classification. Direct extern variadic calls also reject aggregate arguments,
+except `String` (passed as its data pointer) and payload-free enums (passed as
+their `i32` tag).
+These restrictions do not change ordinary BPL aggregate calls.
 
 ### Slice ABI
 

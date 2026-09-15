@@ -30,6 +30,7 @@ import { OverloadResolver } from "./OverloadResolver";
 import { ImportHandler } from "./ImportHandler";
 import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import type { CheckerContext } from "./CheckerContext";
+import { validateExternAbiType } from "./validators/ExternAbiValidator";
 import { validateFunctionAttributes } from "./validators/FunctionAttributeValidator";
 
 // Import checker functions
@@ -557,8 +558,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         break;
       case "Import":
       case "Export":
-      case "Extern":
         // Already handled in hoisting phase
+        break;
+      case "Extern":
+        if (stmt.resolvedType) {
+          validateExternAbiType(stmt.resolvedType, stmt.location);
+        }
         break;
     }
   }

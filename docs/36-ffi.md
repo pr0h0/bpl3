@@ -2,6 +2,22 @@
 
 BPL can call functions written in C and other languages that support the C ABI.
 
+## Supported ABI boundary
+
+External signatures support scalar values, raw pointers, and function pointers
+whose parameters and results meet the same restriction. Structs, enums, tuples,
+slices, fixed arrays, and capturing Lambda values passed or returned by value
+are rejected with `BPL_EXTERN_ABI_UNSUPPORTED`. The restriction also covers
+aggregate callback signatures and aggregate arguments to direct extern variadic
+calls. Use pointer parameters and output buffers in a C wrapper for aggregates.
+Direct variadic calls lower two value types instead of rejecting them: `String`
+passes its data pointer, and enums without payloads pass their `i32` tag.
+
+This prevents silent ABI mismatches: an LLVM struct matching C field layout does
+not establish how the native calling convention passes or returns it. Ordinary
+BPL-to-BPL aggregate calls remain supported. Binding generation is not proof that
+every generated declaration has a supported native ABI; check generated bindings.
+
 ## Declaring External Functions
 
 Use the `extern` keyword.

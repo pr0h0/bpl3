@@ -111,7 +111,7 @@ export function createNullAccessErrorDecl(): AST.StructDecl {
       {
         kind: "StructField",
         name: "message",
-        type: createBasicType("String"),
+        type: createBasicType("string"),
         location: INTERNAL_LOCATION,
       },
       {
@@ -135,13 +135,13 @@ export function createNullAccessErrorDecl(): AST.StructDecl {
       {
         kind: "StructField",
         name: "function",
-        type: createBasicType("String"),
+        type: createBasicType("string"),
         location: INTERNAL_LOCATION,
       },
       {
         kind: "StructField",
         name: "expression",
-        type: createBasicType("String"),
+        type: createBasicType("string"),
         location: INTERNAL_LOCATION,
       },
       {
@@ -427,7 +427,7 @@ export function createIndexOutOfBoundsErrorDecl(): AST.StructDecl {
       {
         kind: "StructField",
         name: "message",
-        type: createBasicType("String"),
+        type: createBasicType("string"),
         location: INTERNAL_LOCATION,
       },
       {
@@ -483,7 +483,7 @@ export function createDivisionByZeroErrorDecl(): AST.StructDecl {
       {
         kind: "StructField",
         name: "message",
-        type: createBasicType("String"),
+        type: createBasicType("string"),
         location: INTERNAL_LOCATION,
       },
       {

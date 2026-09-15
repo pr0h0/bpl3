@@ -3907,7 +3907,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-323: C aggregate arguments use incompatible ABI lowering
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
@@ -3915,6 +3915,8 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Next step**: Introduce target-specific C ABI argument/result classification, including coercions and indirect passing, with bidirectional C/BPL fixtures. Until supported, reject aggregate-by-value extern signatures or document and enforce pointer-based wrappers. Aggregate returns and other target ABIs require separate tests; this reproduction proves the two-i32 argument case only.
 
+
+**Resolution**: Reject unsupported aggregate-by-value extern arguments/results and callback signatures with BPL_EXTERN_ABI_UNSUPPORTED, and guard aggregate direct-extern varargs. Variadic extern calls still accept `String` (lowered to its data pointer), payload-free enums (lowered to their i32 tag), and unresolved generic parameters. Tests cover aliases, arrays/slices, enums, tuples, Lambda values, callback signatures, and JSON diagnostics. Separately compiled C pointer wrappers and scalar callbacks execute correctly at O0/O3. Full target-specific aggregate ABI support remains intentionally unsupported.
 
 ### BUG-324: Manual allocator lifecycle and native mapping contracts are unsafe
 
@@ -3927,3 +3929,33 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Next step**: Clear released pool bookkeeping, reject invalid rewind markers without state changes, and move OS mapping constants and native size validation into runtime helpers. Keep allocation ownership manual and require destroy before reinitialization.
 
 **Resolution**: Use checked native Linux/macOS mapping helpers, clear pool state after destruction, and reject forward/unaligned stack markers. O0/O3 tests cover repeated destruction, pool reuse, marker failure atomicity, and native mapping failure; native checks also support ASan/UBSan.
+
+### BUG-325: Variadic String arguments pass the vtable pointer instead of text
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-15)**: `printf("%s", s)` with `s: String` printed garbage at O0 and O3. Code generation extracted field 0 of `%struct.String`, but String implements specs, so field 0 is its vtable pointer and `data` is field 1.
+
+**Resolution**: Extract the `data` field using the struct layout index. Covered by tests/ExternAbiSafety.test.ts.
+
+### BUG-326: Builtin runtime error declarations type text fields as String
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: The checker's builtin NullAccessError, IndexOutOfBoundsError, and DivisionByZeroError declarations typed `message`, `function`, and `expression` as the `String` struct, while lib/errors.bpl and generated LLVM use `string` (`i8*`). `local m: string = e.message` was rejected with a type mismatch, and String members were offered on C string values.
+
+**Resolution**: Declare those builtin fields as `string`. Covered by tests/BuiltinErrorFieldTypes.test.ts at O0/O3 with LLVM validation.
+
+### BUG-327: Payload-free enums pass to C varargs as aggregates
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: `printf("%d", kind)` for a payload-free enum passed the LLVM aggregate `%enum.Kind = { i32 }` to a C variadic function, relying on target aggregate classification.
+
+**Resolution**: Direct extern variadic calls pass the i32 tag. Tagged enums with payloads remain rejected with BPL_EXTERN_ABI_UNSUPPORTED.

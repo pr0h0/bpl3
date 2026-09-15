@@ -7,6 +7,7 @@ import { TokenType } from "../frontend/TokenType";
 import { TypeUtils } from "./TypeUtils";
 import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import type { CheckerContext } from "./CheckerContext";
+import { validateExternVariadicArguments } from "./validators/ExternAbiValidator";
 import {
   ARRAY_INDEX_TYPE_MISMATCH_CODE,
   CALL_ARGUMENT_COUNT_MISMATCH_CODE,
@@ -166,6 +167,14 @@ export function checkCall(
         | AST.FunctionDecl
         | AST.ExternDecl;
       expr.callee.resolvedType = match.type;
+
+      if (match.declaration.kind === "Extern") {
+        validateExternVariadicArguments(
+          argTypes,
+          expr.args,
+          match.type.paramTypes.length,
+        );
+      }
 
       // Handle Variadic Argument Packing
       if (match.type.isVariadic && match.declaration.kind === "FunctionDecl") {
@@ -608,6 +617,13 @@ function validateFunctionCall(
   funcType: AST.FunctionTypeNode | AST.LambdaTypeNode,
   argTypes: (AST.TypeNode | undefined)[],
 ): AST.TypeNode {
+  if (expr.resolvedDeclaration?.kind === "Extern") {
+    validateExternVariadicArguments(
+      argTypes,
+      expr.args,
+      funcType.paramTypes.length,
+    );
+  }
   if (
     funcType.paramTypes.length !== expr.args.length &&
     !funcType.isVariadic
