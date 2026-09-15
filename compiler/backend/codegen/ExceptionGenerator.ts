@@ -467,9 +467,8 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     const ctxPtr = this.newRegister();
     this.emit(`  ${ctxPtr} = load i8*, i8** ${ctxPtrPtr}`);
 
-    this.emit(`  call void ${funcPtr}(i8* ${ctxPtr})`);
-
-    // Move to next
+    // Unlink and release the node before calling user code. A throwing
+    // callback must not run this same node again during nested unwinding.
     const nextPtrPtr = this.newRegister();
     this.emit(
       `  ${nextPtrPtr} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${currentDefer}, i32 0, i32 2`,
@@ -481,6 +480,10 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     this.emit(
       `  store %struct.DeferNode* ${nextPtr}, %struct.DeferNode** @defer_top`,
     );
+    const currentVoid = this.newRegister();
+    this.emit(`  ${currentVoid} = bitcast %struct.DeferNode* ${currentDefer} to i8*`);
+    this.emit(`  call void @free(i8* ${currentVoid})`);
+    this.emit(`  call void ${funcPtr}(i8* ${ctxPtr})`);
 
     this.emit(`  br label %${loopCondLabel}`);
 
@@ -811,6 +814,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
     const lambdaExpr: AST.LambdaExpr = {
       kind: "LambdaExpression",
+      isDeferred: true,
       params: [],
       returnType: {
         kind: "BasicType",
@@ -865,6 +869,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     const nodeSize = 24; // 8 ptr + 8 ptr + 8 ptr
     const nodeVoidPtr = this.newRegister();
     this.emit(`  ${nodeVoidPtr} = call i8* @malloc(i64 ${nodeSize})`);
+    this.guardAllocation(nodeVoidPtr, stmt, "Cannot allocate defer node", ctxVal);
     const nodePtr = this.newRegister();
     this.emit(
       `  ${nodePtr} = bitcast i8* ${nodeVoidPtr} to %struct.DeferNode*`,
@@ -919,11 +924,6 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
         {
           kind: "LambdaCall",
           funcVal: funcVal,
-          ctxVal: ctxVal,
-          location: stmt.location,
-        } as any,
-        {
-          kind: "FreeCaptureStruct",
           ctxVal: ctxVal,
           location: stmt.location,
         } as any,

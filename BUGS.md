@@ -3851,10 +3851,20 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-318: Lambda capture and defer registration allocations are unchecked
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-15)**: Injecting malloc failure while registering a captured defer in Path.resolve causes SIGSEGV at address 0x10. ExpressionGenerator.generateLambda stores captures through an unchecked malloc result; generateDefer also fills an unchecked allocated DeferNode.
 
-**Workaround**: Path.resolve uses explicit typed error cleanup instead of allocating a deferred closure. Apply the same approach when cleanup must work under allocation failure. Compiler-wide allocation guards remain to be implemented.
+**Resolution**: Check capture and defer-node allocations before storing through them. Failures throw strings; a failed node allocation releases its capture context before propagating. O0/O3 fault injection covers regular captures, captured and capture-free defers, and cleanup of previously registered defers. Path operations retain explicit cleanup to avoid allocating deferred closures for internal temporary buffers.
+
+### BUG-319: Exception unwinding leaks deferred storage and can re-enter a throwing defer
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: Allocation tracking detects a live DeferNode after exception-driven cleanup. emitExceptionTransfer calls the deferred callback before unlinking its node and never frees the node or capture storage. A callback that throws can therefore encounter the same node again during nested unwinding.
+
+**Resolution**: Unlink and free each node before invoking its callback. Compiler-generated defer callbacks copy captures to local storage and release their capture allocation before running user code. Remove the redundant normal-return free. Allocation tracking and O0/O3 execution cover normal exits, exception unwinding, throwing callbacks, earlier registered cleanup, and zero remaining allocations.

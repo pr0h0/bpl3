@@ -35,6 +35,44 @@ const COMPOUND_BINARY_OPERATORS: Partial<Record<TokenType, TokenType>> = {
 
 export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
   protected abstract generateBlock(block: AST.BlockStmt): void;
+  protected abstract generateThrow(stmt: AST.ThrowStmt): void;
+
+  protected guardAllocation(
+    pointer: string,
+    node: AST.ASTNode,
+    message: string,
+    cleanupPointer?: string,
+  ): void {
+    const failed = this.newRegister();
+    const failureLabel = this.newLabel("allocation.failed");
+    const successLabel = this.newLabel("allocation.ready");
+    this.emit(`  ${failed} = icmp eq i8* ${pointer}, null`);
+    this.emit(`  br i1 ${failed}, label %${failureLabel}, label %${successLabel}`);
+    this.emit(`${failureLabel}:`);
+    if (cleanupPointer) {
+      this.emit(`  call void @free(i8* ${cleanupPointer})`);
+    }
+    this.generateThrow({
+      kind: "Throw",
+      location: node.location,
+      expression: {
+        kind: "Literal",
+        type: "string",
+        value: message,
+        raw: JSON.stringify(message),
+        location: node.location,
+        resolvedType: {
+          kind: "BasicType",
+          name: "string",
+          genericArgs: [],
+          pointerDepth: 0,
+          arrayDimensions: [],
+          location: node.location,
+        },
+      },
+    });
+    this.emit(`${successLabel}:`);
+  }
 
   protected generateExpression(expr: AST.Expression): string {
     switch (expr.kind) {
@@ -268,6 +306,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
       const mallocReg = this.newRegister();
       this.emit(`  ${mallocReg} = call i8* @malloc(i64 ${sizeReg})`);
+      this.guardAllocation(mallocReg, expr, "Cannot allocate lambda capture");
       const structPtr = this.newRegister();
       this.emit(
         `  ${structPtr} = bitcast i8* ${mallocReg} to ${captureStructType}*`,

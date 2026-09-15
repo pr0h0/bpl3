@@ -1500,13 +1500,18 @@ export class CodeGenerator extends StatementGenerator {
     };
 
     let captureInfo:
-      | { name: string; fields: { name: string; type: string }[] }
+      | {
+          name: string;
+          fields: { name: string; type: string }[];
+          releaseOnEntry?: boolean;
+        }
       | undefined;
     const captureStructName = expr.captureStructName;
 
     if (captureStructName && expr.capturedVariables) {
       captureInfo = {
         name: captureStructName,
+        releaseOnEntry: expr.isDeferred,
         fields: expr.capturedVariables.map((decl) => ({
           name: decl.name as string,
           type: this.resolveType(

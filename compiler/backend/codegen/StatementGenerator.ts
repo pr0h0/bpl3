@@ -728,7 +728,11 @@ export abstract class StatementGenerator extends AsmGenerator {
   private getPreStackLimitBaseCase(
     decl: AST.FunctionDecl,
     parentStruct?: AST.StructDecl | AST.EnumDecl,
-    captureInfo?: { name: string; fields: { name: string; type: string }[] },
+    captureInfo?: {
+      name: string;
+      fields: { name: string; type: string }[];
+      releaseOnEntry?: boolean;
+    },
   ): AST.IfStmt | undefined {
     if (!this.currentFunctionEmitsStackFrameHooks) return undefined;
     if (!this.shouldUseStackLimitProbe()) return undefined;
@@ -2665,7 +2669,11 @@ export abstract class StatementGenerator extends AsmGenerator {
   protected generateFunction(
     decl: AST.FunctionDecl,
     parentStruct?: AST.StructDecl | AST.EnumDecl,
-    captureInfo?: { name: string; fields: { name: string; type: string }[] },
+    captureInfo?: {
+      name: string;
+      fields: { name: string; type: string }[];
+      releaseOnEntry?: boolean;
+    },
   ) {
     // Skip generic templates unless we are instantiating them (map is populated)
     if (decl.genericParams.length > 0) {
@@ -2949,6 +2957,11 @@ export abstract class StatementGenerator extends AsmGenerator {
           this.locals.add(field.name);
           this.localPointers.set(field.name, alloca);
         });
+        if (captureInfo.releaseOnEntry) {
+          // Captures have been copied into locals. Release before user code so
+          // a throw or return cannot abandon the deferred capture allocation.
+          this.emit(`  call void @free(i8* %__closure_ctx)`);
+        }
       }
 
       // Stack overflow check

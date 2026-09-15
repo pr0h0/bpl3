@@ -1102,6 +1102,14 @@ The `defer` statement schedules a function call or block to be executed when the
 
 `defer` is useful for cleanup tasks like closing files, freeing memory, or unlocking mutexes.
 
+Registration allocates runtime bookkeeping and, when needed, capture storage.
+If either allocation fails, it throws a string (`Cannot allocate lambda capture`
+or `Cannot allocate defer node`) before registering the new callback. Previously
+registered callbacks still participate in exception cleanup. A deferred callback
+is removed from the pending list before it runs, so throwing from that callback
+does not execute it again. Its capture storage is released before the callback's
+body runs, after copying the captured values into local storage.
+
 ### Basic Usage
 
 ```bpl

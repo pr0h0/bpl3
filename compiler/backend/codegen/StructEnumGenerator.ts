@@ -15,7 +15,11 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
   protected abstract generateFunction(
     decl: AST.FunctionDecl,
     parentStruct?: AST.StructDecl | AST.EnumDecl,
-    captureInfo?: { name: string; fields: { name: string; type: string }[] },
+    captureInfo?: {
+      name: string;
+      fields: { name: string; type: string }[];
+      releaseOnEntry?: boolean;
+    },
   ): void;
 
   protected abstract resolveType(type: AST.TypeNode): string;

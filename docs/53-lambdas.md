@@ -166,6 +166,10 @@ frame main() ret int {
 
 ## Variable Capture (Closures)
 
+Capturing lambdas allocate storage for their captured values. If this allocation
+fails, construction throws the string `Cannot allocate lambda capture` before
+storing captures or publishing the closure.
+
 Lambdas can capture variables from their enclosing scope, creating closures.
 
 ### Capture by Value (Default)

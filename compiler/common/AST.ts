@@ -372,6 +372,8 @@ export interface LambdaExpr extends ASTNode {
   capturedVariables?: (VariableDecl | Parameter | LambdaParameter)[];
   closureStructType?: BasicTypeNode;
   captureStructName?: string;
+  // Compiler-generated defer callbacks consume their capture storage on entry.
+  isDeferred?: boolean;
 }
 
 // --- Statements ---
