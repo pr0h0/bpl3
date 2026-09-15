@@ -20,6 +20,7 @@ it("promotes f32 variadic arguments while preserving fixed f32 parameters", () =
   }]);
 }, 60000);
 
+// spec: R-TYPE-9
 it("keeps scalar and aggregate NaN inequality complementary to equality", () => {
   expectCorrectnessSuite([{
     name: "NaN equality laws",
@@ -41,6 +42,7 @@ it("keeps scalar and aggregate NaN inequality complementary to equality", () => 
   }]);
 }, 60000);
 
+// spec: R-TYPE-8
 it("preserves signed zero through floating-point negation", () => {
   expectCorrectnessSuite([{
     name: "signed zero negation",
@@ -60,6 +62,7 @@ it("preserves signed zero through floating-point negation", () => {
   }]);
 }, 60000);
 
+// spec: R-TYPE-6, R-TYPE-7
 it("supports every float spelling through arithmetic, calls, and explicit conversions", () => {
   expectCorrectnessSuite([{
     name: "f32 and f64 arithmetic",

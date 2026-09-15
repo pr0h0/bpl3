@@ -3961,6 +3961,126 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Resolution**: Direct extern variadic calls pass the i32 tag. Tagged enums with payloads remain rejected with BPL_EXTERN_ABI_UNSUPPORTED.
 
+### BUG-328: Decimal digit separators fail and spaced digits merge into one literal
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-15)**: `local d: int = 1_000;` failed with `Unexpected syntax`, although the token lexer and docs/04-syntax-comments.md accept underscores in decimal literals. The Peggy rule `[0-9] (_?[0-9])*` used the whitespace rule `_` instead of a literal underscore, so the parser joined digits separated by whitespace or comments: `local d: double = 1.5 5;` compiled and printed `nan`, and `1 2` reported a confusing invalid-literal error.
+
+**Resolution**: The grammar and the optimized number scanner accept one `_` between decimal digits and never skip trivia inside a literal. Decimal parsing strips separators. Covered by tests/LanguageSpecCore.test.ts (R-LEX-5).
+
+### BUG-329: Indexing through a slice type alias reads the wrong element type
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-15)**: With `type IntArr = int[];`, `frame sum(v: IntArr) ret int { return v[0] + v[1]; }` returned garbage for `[5, 6]` at O0 and O3. Slice index lowering derived the element type by dropping one array dimension from the alias node, which resolved back to the whole `{ i32*, i64 }` slice, so the `getelementptr` stepped by 16 bytes.
+
+**Resolution**: Slice indexing uses the checked element type of the index expression. Covered by tests/LanguageSpecCore.test.ts (R-DECL-4, R-ARR-8).
+
+### BUG-330: Specs after a parent struct are ignored and extra parent structs are accepted
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: For `struct Circle : Shape, Drawable`, `render<Circle>` with `T: Drawable` failed with `Type argument 'Circle' does not satisfy constraint 'Drawable'`, because subtyping only followed the first inheritance entry. `struct C : A, B` with two structs compiled and silently ignored `B` (`Unknown field 'y'`), and a parent struct listed after a spec was ignored the same way.
+
+**Resolution**: Subtyping walks every inheritance entry, including parent specs. The checker rejects a second parent struct and a parent struct that is not listed first. Covered by tests/LanguageSpecDeclarations.test.ts (R-STRUCT-6, R-FN-9, R-SPEC-3).
+
+### BUG-331: break and continue inside defer or lambda bodies pass checking
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: `loop { defer { break; } }` and a lambda body containing `break` inside a loop passed `bpl check`, then code generation failed with `Break statement outside of loop or switch`.
+
+**Resolution**: The checker clears loop and switch context while checking deferred statements and lambda bodies. Covered by tests/LanguageSpecControlFlow.test.ts (R-CTRL-5).
+
+### BUG-332: Increment and decrement accept constants, non-lvalues, and non-numeric operands
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-15)**: `local const c: int = 1; c++;` compiled and printed 2. `(a + 1)++` and `5++` passed checking and failed in code generation. `bool` increments wrapped silently, pointer and string increments produced LLVM IR that Clang rejected, and `f32` increments emitted an integer constant.
+
+**Resolution**: `++` and `--` require an assignable, mutable integer or floating-point operand, with `BPL_ASSIGNMENT_TARGET_INVALID` and `BPL_ASSIGNMENT_TARGET_CONSTANT` diagnostics. Code generation uses a floating-point constant for `f32`. Covered by tests/LanguageSpecExpressions.test.ts (R-EXPR-6) and tests/LanguageSpecDeclarations.test.ts (R-DECL-7).
+
+### BUG-333: Exporting an undefined symbol is accepted
+
+**Status**: Open
+
+**Priority**: P3
+
+**Observed (2026-09-15)**: `export g;` in a module without `g` compiles without a diagnostic; only a module that imports `g` fails with `BPL_IMPORT_EXPORT_NOT_FOUND`. examples/bpl_db/src/types.bpl exports a nonexistent `ValueType`.
+
+**Next step**: Rejecting such exports broke dozens of package-manager and release-smoke fixtures that use placeholder modules such as `export test;`, and `bpl check` has no non-failing warning channel. Migrate those fixtures and the example, then reject undefined exports after all module declarations are checked (globals are not hoisted, so exports may precede them). LANGUAGE_SPEC.md R-MOD-2 documents the current behavior.
+
+### BUG-334: The raw assembly flavor emits invalid IR and unknown flavors are accepted
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: `asm("raw") { "store i32 5, i32* (d)" }` emitted the quoted line verbatim, so Clang failed with `expected instruction opcode`, although the guides describe `raw` as an alias of `llvm`. `asm("foo")` compiled as raw LLVM.
+
+**Resolution**: `raw` uses the `llvm` path, including quote stripping and interpolation, and the checker rejects unknown flavors. Covered by tests/LanguageSpecModules.test.ts (R-ASM-1, R-ASM-2).
+
+### BUG-335: Struct literals leave omitted inherited fields undefined
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-15)**: The checker requires fields declared directly on a struct but allows inherited fields to be omitted, as in `throw IOError { message: "..." }`. Code generation built the literal from `undef`, so `B { y: 1 }` for `struct B : A` read an unpredictable `x`.
+
+**Resolution**: Struct literals that omit a field start from `zeroinitializer`; complete literals keep their previous IR. Covered by tests/LanguageSpecDeclarations.test.ts (R-STRUCT-3).
+
+### BUG-336: Chained assignment assigns only the leftmost target
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-15)**: `x = y = 7;` parsed as `(x = y) = 7`, leaving `y` unchanged and assigning 7 to `x`. `c += d += 3` also left `d` unchanged.
+
+**Resolution**: The grammar and the optimized assignment parser build right-associative assignment trees. Covered by tests/LanguageSpecExpressions.test.ts (R-EXPR-5).
+
+### BUG-337: Explicit dereference of a null pointer is not checked
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: Member access and indexing through a null pointer stop with a null-access runtime failure, but `local n: *int = nullptr; printf("%d", *n);` segfaults at O0 and prints an arbitrary value at O3. Unary `*` loads directly without `__bpl_check_null`.
+
+**Next step**: Decide whether `*pointer` gets the same null check (and the same basic-block proof elision) as member access. LANGUAGE_SPEC.md R-ARR-10 documents the current undefined behavior.
+
+### BUG-338: Implicit integer-to-bool conversion keeps only the low bit
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: `local i: int = 2; local b: bool = i;` compiles, and `b` is `false`, because `bool` participates in implicit integer narrowing. Conditions reject integers, but assignments and arguments do not.
+
+**Next step**: Decide whether integer-to-bool conversion should be rejected or should compare with zero. LANGUAGE_SPEC.md R-CONV-1 documents the current behavior.
+
+### BUG-339: Slices of fixed-array aliases pass checking but fail code generation
+
+**Status**: Open
+
+**Priority**: P3
+
+**Observed (2026-09-15)**: With `type Row = int[2];`, passing `local grid: int[2][2]` to `frame cell(m: Row[], i: int, j: int)` passes `bpl check`, then `bpl run` fails with `Unsupported cast from [2 x [2 x i32]] to { [2 x i32]*, i64 }`.
+
+**Next step**: Normalize array dimensions of aliased element types in the checker and the slice conversion lowering, then add an O0/O3 regression.
+
 ### BUG-340: Same-named private declarations in different modules silently replace each other
 
 **Status**: Fixed

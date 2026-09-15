@@ -1896,15 +1896,26 @@ describe("Parser", () => {
     expect(values).toEqual(["plain text", "a\nbAB\\q"]);
   });
 
-  it("preserves generated number-token trivia boundary behavior", () => {
-    expect(() =>
-      new Parser("frame main() ret int { return 1_2; }", "number-boundary.bpl")
-        .parse(),
-    ).toThrow();
+  // spec: R-LEX-4, R-LEX-5, R-LEX-6
+  it("scans decimal separators without joining digits across trivia", () => {
+    const separated = parseReturnedNumberLiteral("1_2");
+    expect(separated.raw).toBe("1_2");
+    expect(separated.value).toBe(12);
 
-    const spacedInteger = parseReturnedNumberLiteral("1 2");
-    expect(spacedInteger.raw).toBe("1 2");
-    expect(Number.isNaN(spacedInteger.value as number)).toBe(true);
+    const separatedDecimal = parseReturnedNumberLiteral("1_0.2_5");
+    expect(separatedDecimal.raw).toBe("1_0.2_5");
+    expect(separatedDecimal.value).toBe(10.25);
+
+    for (const invalid of ["1 2", "1 # c\n2", "1.5 5", "1_", "1__2", "0xF_F"]) {
+      expect(
+        () =>
+          new Parser(
+            `frame main() ret int { return ${invalid}; }`,
+            "number-boundary.bpl",
+          ).parse(),
+        invalid,
+      ).toThrow();
+    }
 
     const decimal = parseReturnedNumberLiteral("1.2");
     expect(decimal.raw).toBe("1.2");
@@ -2684,26 +2695,33 @@ describe("Parser", () => {
     )?.[0];
 
     expect(generatorSource).toContain("optimizeGeneratedAssignmentParsing");
-    expect(assignmentHelper).toContain("let result = peg$parseTernary();");
+    expect(assignmentHelper).toContain("const head = peg$parseTernary();");
     expect(assignmentHelper).toContain("peg$scanBplAssignmentOperator()");
     expect(assignmentHelper).toContain("result = assignment(");
     expect(assignmentHelper).not.toContain("s2 = []");
     expect(assignmentHelper).not.toContain("s2.push");
     expect(assignmentHelper).not.toContain("[s4, s5, s6, s7]");
 
-    expect(() =>
-      new Parser(
-        [
-          "frame main() ret int {",
-          "  local a: int = 1;",
-          "  local b: int = 2;",
-          "  a = b = 3;",
-          "  return a;",
-          "}",
-        ].join("\n"),
-        "assignment-fast-path.bpl",
-      ).parse(),
-    ).not.toThrow();
+    const program = new Parser(
+      [
+        "frame main() ret int {",
+        "  local a: int = 1;",
+        "  local b: int = 2;",
+        "  a = b += 3;",
+        "  return a;",
+        "}",
+      ].join("\n"),
+      "assignment-fast-path.bpl",
+    ).parse();
+    const body = (program.statements[0] as FunctionDecl).body as BlockStmt;
+    const statement = body.statements[2] as any;
+    // Assignment is right-associative: a = (b += 3).
+    expect(statement.expression.kind).toBe("Assignment");
+    expect(statement.expression.assignee.name).toBe("a");
+    expect(statement.expression.operator.lexeme).toBe("=");
+    expect(statement.expression.value.kind).toBe("Assignment");
+    expect(statement.expression.value.assignee.name).toBe("b");
+    expect(statement.expression.value.operator.lexeme).toBe("+=");
   });
 
   it("gates optional generic parameter lists by their opening delimiter", () => {

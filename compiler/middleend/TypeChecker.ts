@@ -1423,6 +1423,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
     }
 
+    let explicitStructParentCount = 0;
     for (let i = 0; i < decl.inheritanceList.length; i++) {
       const parentType = decl.inheritanceList[i]!;
       const resolvedParent = this.resolveType(parentType);
@@ -1430,6 +1431,31 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       // Update inheritance list with resolved type to ensure resolvedDeclaration is available
       if (resolvedParent.kind === "BasicType") {
         decl.inheritanceList[i] = resolvedParent as AST.BasicTypeNode;
+      }
+
+      // Member lookup, layout, and subtyping treat the first inheritance entry
+      // as the parent struct, so a parent struct must be unique and first.
+      // The implicit root `Type` is exempt because it is injected after specs.
+      if (
+        resolvedParent.kind === "BasicType" &&
+        resolvedParent.name !== "Type" &&
+        resolvedParent.resolvedDeclaration?.kind === "StructDecl"
+      ) {
+        explicitStructParentCount++;
+        if (explicitStructParentCount > 1) {
+          throw new CompilerError(
+            `Struct '${decl.name}' cannot inherit from more than one struct`,
+            "A struct may inherit from one parent struct and implement any number of specs.",
+            parentType.location || decl.location,
+          );
+        }
+        if (i !== 0) {
+          throw new CompilerError(
+            `Parent struct '${resolvedParent.name}' must be listed first in the inheritance list of '${decl.name}'`,
+            "List the parent struct before any specs, for example: struct Circle : Shape, Drawable { ... }",
+            parentType.location || decl.location,
+          );
+        }
       }
 
       if (
@@ -1736,7 +1762,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Complex Expression Checkers ==========
   // These need to remain in the main class due to complexity
 
-  private checkIsMutable(expr: AST.Expression): void {
+  public checkIsMutable(expr: AST.Expression): void {
     if (expr.kind === "Identifier") {
       if (
         expr.resolvedType?.kind === "BasicType" &&

@@ -18,6 +18,7 @@ function generate(
 }
 
 describe("CodeGen - Bounds Check", () => {
+  // spec: R-ARR-5
   it("should generate bounds check for fixed-size array access", () => {
     const source = `
       frame main() {

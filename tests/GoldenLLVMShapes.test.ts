@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import { compileToLLVM, countMatches } from "./helpers";
 
 describe("Golden LLVM Shape Checks", () => {
+  // spec: R-SLICE-1, R-SLICE-2, R-SLICE-3
   it("lowers fixed arrays assigned to slices as pointer-length views", () => {
     const ir = compileToLLVM(`
       extern printf(fmt: string, ...) ret int;
@@ -26,6 +27,7 @@ describe("Golden LLVM Shape Checks", () => {
     expect(ir).not.toContain("memcpy");
   });
 
+  // spec: R-SLICE-2, R-SLICE-3
   it("passes fixed arrays to slice parameters without copying the array", () => {
     const ir = compileToLLVM(`
       frame sum(values: int[]) ret int {
@@ -67,6 +69,7 @@ describe("Golden LLVM Shape Checks", () => {
     expect(ir).not.toContain("memcpy");
   });
 
+  // spec: R-ARR-9, R-SLICE-1
   it("materializes slice literals once and lowers them as pointer-length views", () => {
     const ir = compileToLLVM(`
       frame readLast(values: int[]) ret int {
@@ -89,6 +92,7 @@ describe("Golden LLVM Shape Checks", () => {
     expect(ir).not.toContain("memcpy");
   });
 
+  // spec: R-ABI-1
   it("keeps Func values as thin function pointers", () => {
     const ir = compileToLLVM(`
       type Binary = Func<int>(int, int);
@@ -107,6 +111,7 @@ describe("Golden LLVM Shape Checks", () => {
     expect(ir).not.toContain("{ i32 (i8*, i32, i32)*, i8* }");
   });
 
+  // spec: R-ABI-2
   it("keeps Lambda values as fat closures", () => {
     const ir = compileToLLVM(`
       frame makeAdder(base: int) ret Lambda<int>(int) {

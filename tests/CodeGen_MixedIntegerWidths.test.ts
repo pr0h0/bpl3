@@ -74,6 +74,7 @@ for (const [leftName, bits, signed] of types) {
   }
 }
 
+// spec: R-CONV-1, R-CONV-2
 test("integer binary operations convert RHS to the checked left type across widths and signedness", () => {
   expectCorrectnessSuite([
     {

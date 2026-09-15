@@ -1144,7 +1144,17 @@ export function checkAllPathsReturn(
 /**
  * Check an asm block statement
  */
+const ASM_FLAVORS = new Set(["llvm", "raw", "intel", "x86", "att"]);
+
 export function checkAsm(this: CheckerContext, stmt: AST.AsmBlockStmt): void {
+  if (stmt.flavor !== undefined && !ASM_FLAVORS.has(stmt.flavor)) {
+    throw new CompilerError(
+      `Unknown asm flavor '${stmt.flavor}'`,
+      'Use one of "llvm" (default), "raw", "intel", "x86", or "att".',
+      stmt.location,
+    );
+  }
+
   // Match the operand forms accepted by codegen:
   // (varName), (&varName), (=varName), and optional LLVM constraints.
   const regex = /\((=?)(&?)(\w+)(?::\s*"([^"]+)")?\)/g;
@@ -1167,11 +1177,19 @@ export function checkAsm(this: CheckerContext, stmt: AST.AsmBlockStmt): void {
  */
 export function checkDefer(this: CheckerContext, stmt: AST.DeferStmt): void {
   const prevInDefer = this.inDefer;
+  const prevLoopDepth = this.loopDepth;
+  const prevSwitchDepth = this.switchDepth;
   this.inDefer = true;
+  // Deferred code runs during scope exit, so break/continue/fallthrough cannot
+  // target loops or switches that enclose the defer statement.
+  this.loopDepth = 0;
+  this.switchDepth = 0;
   try {
     this.checkStatement(stmt.statement);
   } finally {
     this.inDefer = prevInDefer;
+    this.loopDepth = prevLoopDepth;
+    this.switchDepth = prevSwitchDepth;
   }
 }
 

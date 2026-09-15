@@ -46,16 +46,19 @@ function abiErrors(declaration: string) {
 }
 
 for (const declaration of invalid) {
+  // spec: R-EXTERN-7
   test(`rejects unsupported C value ABI: ${declaration}`, () => {
     expect(abiErrors(declaration).length).toBeGreaterThan(0);
   });
 }
 for (const declaration of valid) {
+  // spec: R-EXTERN-1, R-EXTERN-6
   test(`accepts C-compatible value ABI: ${declaration}`, () => {
     expect(abiErrors(declaration).map((error) => error.message)).toEqual([]);
   });
 }
 
+// spec: R-EXTERN-6
 test("C-compatible structs cross the C ABI by value at O0 and O3", () => {
   const dir = mkdtempSync(join(tmpdir(), "bpl-extern-struct-abi-"));
   try {
@@ -98,6 +101,7 @@ test("C-compatible structs cross the C ABI by value at O0 and O3", () => {
   }
 }, 90000);
 
+// spec: R-EXTERN-6, R-EXTERN-7
 test("structs with a hidden vtable are rejected at the C ABI boundary", () => {
   const dir = mkdtempSync(join(tmpdir(), "bpl-extern-vtable-"));
   try {
@@ -121,6 +125,7 @@ frame main() ret int {local p:P; p.x=1; return takes(p);}`,
   }
 }, 60000);
 
+// spec: R-EXTERN-1, R-EXTERN-5, R-EXTERN-7
 test("C ABI diagnostics are parseable and pointer wrappers and scalar callbacks execute", () => {
   const dir = mkdtempSync(join(tmpdir(), "bpl-extern-abi-"));
   try {
@@ -194,6 +199,7 @@ frame main() ret int {
   }
 }, 60000);
 
+// spec: R-EXTERN-4
 test("lowered variadic extern arguments are accepted and execute", () => {
   const dir = mkdtempSync(join(tmpdir(), "bpl-extern-varargs-"));
   try {

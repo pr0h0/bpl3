@@ -16,17 +16,8 @@ import { ExceptionGenerator } from "./ExceptionGenerator";
 
 export abstract class AsmGenerator extends ExceptionGenerator {
   protected generateAsm(stmt: AST.AsmBlockStmt) {
-    if (stmt.flavor === "raw") {
-      // Inject raw LLVM IR
-      const lines = stmt.content.split("\n");
-      for (const line of lines) {
-        if (line.trim()) {
-          this.emit(line);
-        }
-      }
-      return;
-    }
-
+    // "raw" is an alias for the default "llvm" flavor and shares its quote
+    // stripping and variable interpolation (see the final branch below).
     if (
       stmt.flavor === "x86" ||
       stmt.flavor === "intel" ||

@@ -309,6 +309,7 @@
   }
 
   function parseBplDecimalNumber(raw) {
+    if (raw.indexOf("_") !== -1) return Number(raw.replace(/_/g, ""));
     let value = 0;
     for (let i = 0; i < raw.length; i++) {
       const code = raw.charCodeAt(i);
@@ -1095,10 +1096,13 @@ Expression
 Assignment
   = head:Ternary tail:(_ op:AssignmentOperator _ right:Ternary)* {
       if (tail.length === 0) return head;
-      let result = head;
-      for (const [, op, , right] of tail) {
+      // Assignment is right-associative: a = b = c parses as a = (b = c).
+      let result = tail[tail.length - 1][3];
+      for (let i = tail.length - 1; i >= 0; i--) {
+        const [, op] = tail[i];
+        const target = i === 0 ? head : tail[i - 1][3];
         const opToken = makeOperatorTokenFromPos(op.op, op.pos, op.type);
-        result = assignment(result, opToken, right, mergeLoc(result.location, right.location));
+        result = assignment(target, opToken, result, mergeLoc(target.location, result.location));
       }
       return result;
     }
@@ -1573,7 +1577,7 @@ NumberToken
   = ("0x" / "0X") [0-9a-fA-F]+
   / ("0b" / "0B") [01]+
   / ("0o" / "0O") [0-7]+
-  / [0-9] (_?[0-9])* ("." [0-9] (_?[0-9])*)?
+  / [0-9] ("_"? [0-9])* ("." [0-9] ("_"? [0-9])*)?
 
 ParameterList
   = head:Parameter tail:(_ "," _ Parameter)* {
