@@ -3808,3 +3808,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-14)**: A function ending in try { return value; } catch (error: IOError) { return fallback; } is rejected with "may not return a value on all code paths". A temporary workaround is assigning a result in the try/catch and returning it afterwards.
 
 **Resolution**: Return analysis checks the try block and all catch bodies, with unmatched exceptions propagating. Codegen marks the continuation unreachable when every branch terminates; without this, fully yielding try/catch blocks inside match arms were incorrectly rejected too. Regressions cover typed and catch-all handlers, nesting, rethrowing, deferred cleanup, match yields, and rejected reachable fallthrough.
+
+### BUG-314: FS.exists opens files and blocks on named pipes without a writer
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: FS.exists calls fopen(path, "r") to test existence. A compiled program checking an existing FIFO with no writer remains blocked until killed. This also confuses existence with file read permission and cannot correctly recognize filesystem sockets.
+
+**Resolution**: Use native stat metadata without opening the file. Preserve false-on-error and symlink-following behavior. O0/O3 LLVM-verified regressions cover an unconnected FIFO, a mode-000 file, directories, symlinks, invalid paths, and non-directory path components.

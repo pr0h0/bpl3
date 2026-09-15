@@ -11,7 +11,7 @@ import [FS], [File] from "std/fs.bpl";
 
 | Method                                              | Current behavior                                                            |
 | --------------------------------------------------- | --------------------------------------------------------------------------- |
-| `FS.exists(path: string) ret bool`                  | Attempts to open for reading; false can mean inaccessible, not just missing |
+| `FS.exists(path: string) ret bool`                  | Checks native metadata without opening the file; follows symlinks          |
 | `FS.writeFile(path: string, data: string) ret bool` | Opens with `"wb"`, writes NUL-terminated text, then closes                  |
 | `FS.readFile(path: string) ret String`              | Reads a stream into an owned String; native failures throw `IOError`   |
 | `FS.mkdir(path: string) ret bool`                   | Calls POSIX `mkdir(path, 511)`; false includes already-existing directories |
@@ -22,6 +22,12 @@ import [FS], [File] from "std/fs.bpl";
 There are no `FS.appendFile`, `deleteFile`, `copyFile`, `isDir`, or `fileSize`
 methods. For append, open a `File` with mode `"a"`. Other operations require
 appropriate native APIs or additional application code.
+
+`exists` checks metadata with POSIX `stat` without opening or reading the file.
+It recognizes directories and special files, including named pipes without a
+writer, and does not require read permission on the file itself. False can mean
+missing, an inaccessible path component, a broken symlink, or another metadata
+error. Success does not guarantee that a later open will succeed.
 
 `writeFile` checks writes and close, returning false on failure. This includes
 buffered errors reported only when closing, but does not guarantee disk durability.

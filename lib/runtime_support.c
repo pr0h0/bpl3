@@ -409,6 +409,12 @@ int32_t __bpl_mkdirp(const char *path) {
     return result;
 }
 
+/* Inspect metadata without opening devices or waiting for a FIFO peer. */
+int32_t __bpl_path_exists(const char *path) {
+    struct stat info;
+    return path && stat(path, &info) == 0;
+}
+
 /* Whole-file buffers fit the stdlib's signed int lengths, with room for NUL.
  * Read streams incrementally: procfs, pipes, and changing files need no seek. */
 int32_t __bpl_read_file(const char *path, char **data, int32_t *length) {

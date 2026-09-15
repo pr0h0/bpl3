@@ -19,6 +19,7 @@ extern strlen(s: string) ret int;
 extern fgets(str: string, n: int, stream: *void) ret string;
 extern mkdir(path: string, mode: int) ret int;
 extern __bpl_mkdirp(path: string) ret int;
+extern __bpl_path_exists(path: string) ret int;
 
 struct File {
     handle: *void,
@@ -68,13 +69,7 @@ struct File {
 
 struct FS {
     frame exists(path: string) ret bool {
-        if (path == nullptr) { return false; }
-        local f: *void = fopen(path, "r");
-        if (f != nullptr) {
-            fclose(f);
-            return true;
-        }
-        return false;
+        return __bpl_path_exists(path) != 0;
     }
 
     frame writeFile(path: string, data: string) ret bool {
