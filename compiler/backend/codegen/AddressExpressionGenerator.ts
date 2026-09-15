@@ -411,7 +411,9 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     objType: AST.BasicTypeNode,
   ): string {
     const sliceType = this.resolveType(objType);
-    const elementType = this.resolveType(this.getArrayElementTypeNode(objType));
+    const elementType = this.resolveType(
+      indexExpr.resolvedType ?? this.getArrayElementTypeNode(objType),
+    );
 
     const sliceVal = this.newRegister();
     this.emit(`  ${sliceVal} = load ${sliceType}, ${sliceType}* ${objectAddr}`);

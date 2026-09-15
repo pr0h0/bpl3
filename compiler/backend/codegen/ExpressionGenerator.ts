@@ -1213,6 +1213,20 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
     const sortedFields = this.getSortedStructLayoutEntries(structName, layout);
 
+    // The checker requires every field declared directly on the struct, but
+    // inherited fields may be omitted. Omitted fields are zero-initialized
+    // instead of being left undefined.
+    const omitsField = sortedFields.some(
+      ([fieldName]) =>
+        fieldName !== "__vtable__" &&
+        !(fieldValues
+          ? fieldValues.has(fieldName)
+          : expr.fields.some((field) => field.name === fieldName)),
+    );
+    if (omitsField) {
+      structVal = "zeroinitializer";
+    }
+
     // Get struct definition for field type info
     const baseStructName = expr.structName;
     const baseStructDef = this.structMap.get(baseStructName);

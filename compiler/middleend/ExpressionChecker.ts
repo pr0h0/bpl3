@@ -16,6 +16,7 @@ import type { CheckerContext } from "./CheckerContext";
 import {
   ADDRESS_OF_CONSTANT_CODE,
   ADDRESS_OF_TARGET_INVALID_CODE,
+  ASSIGNMENT_TARGET_INVALID_CODE,
   ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
   ARRAY_LITERAL_TYPE_MISMATCH_CODE,
   BINARY_OPERAND_TYPE_MISMATCH_CODE,
@@ -1004,6 +1005,40 @@ export function checkUnary(
     return operandType;
   }
 
+  // Increment/decrement (prefix and postfix ++/--)
+  if (op === TokenType.PlusPlus || op === TokenType.MinusMinus) {
+    let operand = expr.operand;
+    while (operand.kind === "Group") {
+      operand = (operand as AST.GroupExpr).expression;
+    }
+    const isLvalue =
+      operand.kind === "Identifier" ||
+      operand.kind === "Member" ||
+      operand.kind === "Index" ||
+      (operand.kind === "Unary" &&
+        (operand as AST.UnaryExpr).operator.type === TokenType.Star);
+    if (!isLvalue) {
+      throw new CompilerError(
+        `Operator '${expr.operator.lexeme}' requires an assignable operand`,
+        "Increment and decrement apply to a variable, member, array element, or pointer dereference.",
+        operand.location,
+        ASSIGNMENT_TARGET_INVALID_CODE,
+      );
+    }
+    if (
+      !TypeUtils.isNumericType(operandType) ||
+      this.isBoolType(operandType)
+    ) {
+      throw new CompilerError(
+        `Operator '${expr.operator.lexeme}' cannot be applied to type '${this.typeToString(operandType)}'`,
+        "Increment and decrement require an integer or floating-point operand. Use explicit arithmetic for pointers.",
+        expr.location,
+      );
+    }
+    this.checkIsMutable(operand);
+    return operandType;
+  }
+
   // Unary plus (+) - not supported, it's a no-op
   if (op === TokenType.Plus) {
     throw new CompilerError(
@@ -1897,6 +1932,12 @@ export function checkLambda(
 
   // Lambda body allows returns with values, even if we're inside a defer block
   checker.inDefer = false;
+  // A lambda body is a separate function: break/continue/fallthrough cannot
+  // target loops or switches that enclose the lambda expression.
+  const prevLoopDepth = checker.loopDepth;
+  const prevSwitchDepth = checker.switchDepth;
+  checker.loopDepth = 0;
+  checker.switchDepth = 0;
 
   if (expr.returnType) {
     checker.currentFunctionReturnType = this.resolveType(expr.returnType);
@@ -1924,6 +1965,8 @@ export function checkLambda(
   } finally {
     checker.matchContext = savedMatchContext;
     checker.inDefer = prevInDefer; // Restore defer state
+    checker.loopDepth = prevLoopDepth;
+    checker.switchDepth = prevSwitchDepth;
   }
 
   const returnType = checker.currentFunctionReturnType;

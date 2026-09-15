@@ -66,6 +66,7 @@ export interface CheckerContext {
 
   // Type Helpers
   isBoolType(type: AST.TypeNode): boolean;
+  checkIsMutable(expr: AST.Expression): void;
   makeVoidType(): AST.TypeNode;
   isIntegerTypeCompatible(val: bigint, targetType: AST.TypeNode): boolean;
   getIntegerConstantValue(expr: AST.Expression): bigint | undefined;

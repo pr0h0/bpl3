@@ -557,7 +557,7 @@ describe("TypeChecker", () => {
       join(process.cwd(), "compiler/middleend/TypeChecker.ts"),
       "utf8",
     );
-    const methodStart = source.indexOf("private checkIsMutable");
+    const methodStart = source.indexOf("public checkIsMutable");
     const identifierBranch = source.indexOf(
       'if (expr.kind === "Identifier")',
       methodStart,

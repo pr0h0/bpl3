@@ -113,7 +113,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     ) {
       const addr = this.generateAddress(expr.operand);
       const type = this.resolveType(expr.operand.resolvedType!);
-      const isFloat = type === "double";
+      const isFloat = type === "double" || type === "float";
       const one = isFloat ? "1.0" : "1";
 
       const currentValue = this.newRegister();

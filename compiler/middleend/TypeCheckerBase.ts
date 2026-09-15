@@ -1727,27 +1727,43 @@ export abstract class TypeCheckerBase {
       return true;
     }
 
-    const childDecl = childSymbol.declaration as AST.StructDecl;
-    if (!childDecl.inheritanceList || childDecl.inheritanceList.length === 0)
-      return false;
+    return this.inheritsFrom(
+      childSymbol.declaration as AST.StructDecl,
+      parent.name,
+      new Set(),
+    );
+  }
 
-    // First element in inheritanceList is the parent struct (if any)
-    const parentType = childDecl.inheritanceList[0] as AST.BasicTypeNode;
-    if (parentType.name === parent.name) return true;
+  /**
+   * Walk every inheritance entry: the parent struct chain and every
+   * implemented spec (including specs implemented after a parent struct and
+   * specs extended by those specs).
+   */
+  private inheritsFrom(
+    decl: AST.StructDecl | AST.SpecDecl,
+    parentName: string,
+    visited: Set<string>,
+  ): boolean {
+    if (visited.has(decl.name)) return false;
+    visited.add(decl.name);
 
-    // Check inheritance chain
-    let current: AST.BasicTypeNode | undefined = parentType;
-    while (current) {
-      if (current.name === parent.name) return true;
-      const currentSymbol = this.currentScope.resolve(current.name);
-      if (!currentSymbol || currentSymbol.kind !== "Struct") break;
-      const currentDecl = currentSymbol.declaration as AST.StructDecl;
+    const entries =
+      decl.kind === "StructDecl" ? decl.inheritanceList : decl.extends;
+    for (const entry of entries ?? []) {
+      if (entry.kind !== "BasicType") continue;
+      if (entry.name === parentName) return true;
+      const entrySymbol = this.currentScope.resolve(entry.name);
       if (
-        !currentDecl.inheritanceList ||
-        currentDecl.inheritanceList.length === 0
-      )
-        break;
-      current = currentDecl.inheritanceList[0] as AST.BasicTypeNode | undefined;
+        entrySymbol &&
+        (entrySymbol.kind === "Struct" || entrySymbol.kind === "Spec") &&
+        this.inheritsFrom(
+          entrySymbol.declaration as AST.StructDecl | AST.SpecDecl,
+          parentName,
+          visited,
+        )
+      ) {
+        return true;
+      }
     }
 
     return false;
