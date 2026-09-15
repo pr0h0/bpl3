@@ -3818,3 +3818,29 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-15)**: FS.exists calls fopen(path, "r") to test existence. A compiled program checking an existing FIFO with no writer remains blocked until killed. This also confuses existence with file read permission and cannot correctly recognize filesystem sockets.
 
 **Resolution**: Use native stat metadata without opening the file. Preserve false-on-error and symlink-following behavior. O0/O3 LLVM-verified regressions cover an unconnected FIFO, a mode-000 file, directories, symlinks, invalid paths, and non-directory path components.
+
+### BUG-315: Path helpers mishandle empty bases, trailing separators, and dotfiles
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: Path.join("", "file.txt") returns /file.txt, basename("/a/b/") returns an empty string, dirname("/a/b/") returns /a/b, and extname(".profile") returns .profile. The helpers also pass null arguments to strlen and allocate intermediate copies without checks.
+
+**Resolution**: Define slash-separated lexical behavior for empty inputs, roots, separator boundaries, trailing separators, and extensions. Reject null inputs, bound sizes before arithmetic, and allocate each returned String once with a checked allocation. O0/O3 LLVM-verified regressions cover components, joining, UTF-8 byte preservation, backslashes, and invalid arguments.
+
+### BUG-316: Path.normalize leaks its temporary strings and arrays
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: Normalization creates a source String, split component Strings, two Arrays, a StringBuilder, and joined Strings without releasing their storage. Absolute and empty-result branches abandon additional allocations.
+
+### BUG-317: Path.relative only strips literal prefixes
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: Path.relative("/a/b", "/a/c") returns /a/c instead of ../c. It does not normalize inputs, count parent traversals, or define incompatible absolute/relative input behavior.

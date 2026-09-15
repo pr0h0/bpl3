@@ -519,7 +519,7 @@ omitted areas:
 | `char_utils.bpl`, `string_utils.bpl`, `string_builder.bpl`, `fmt.bpl`                                           | Character/string helpers and formatting; inspect ownership per API                   |
 | `utf8.bpl`                                                                                                      | Byte/codepoint helpers; `encode` borrows its input and `decode` copies into a String |
 | `vec2.bpl`, `vec3.bpl`, `range.bpl`                                                                             | Vector and range utilities                                                           |
-| `path.bpl`, `args.bpl`, `arg_parser.bpl`                                                                        | Path and command-line helpers                                                        |
+| `path.bpl`, `args.bpl`, `arg_parser.bpl`                                                                        | [Path helpers](62-stdlib-path.md) and command-line helpers                             |
 | `memory/allocator.bpl`, `memory/arena_allocator.bpl`, `memory/pool_allocator.bpl`, `memory/stack_allocator.bpl` | Manual allocator interfaces and implementations; allocations have explicit lifetimes |
 | `memory/page_allocator.bpl`, `memory/syscalls.bpl`                                                              | mmap-backed allocation with Linux-specific constants                                 |
 | `iter_specs.bpl`, `core_specs.bpl`                                                                              | Interfaces used by implemented collections                                           |
