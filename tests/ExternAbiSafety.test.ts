@@ -8,45 +8,124 @@ import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
 
 const invalid = [
-  "extern bad(p: Pair) ret int;",
-  "extern bad() ret Pair;",
-  "type Alias=Pair; extern bad(p:Alias);",
   "extern bad(p:(int,int));",
   "extern bad(p:int[]);",
   "extern bad(p:int[2]);",
-  "enum E { A, B } extern bad(p:E);",
   "extern bad(p:Lambda<int>(int));",
   "extern bad(p:Func<Pair>(int));",
   "extern bad(p:Func<int>(Pair));",
   "extern bad(count:int,...); frame main() {bad(1,Pair {x:7,y:11});}",
   "enum T { I(int), N } extern bad(count:int,...); frame main() {local t:T=T.N; bad(1,t);}",
+  "enum T { I(int), N } extern bad(t:T);",
+  "struct M {x:int, frame get(this:*M) ret int {return this.x;}} extern bad(m:M);",
+  "struct Base {x:int,} struct Child: Base {y:int,} extern bad(c:Child);",
+  "struct Box<T> {v:T,} extern bad(b:Box<int>);",
+  "struct Holder {pair:(int,int),} extern bad(h:Holder);",
+  "extern bad(p:Pair,...);",
 ];
+const valid = [
+  "extern ok(p: Pair) ret int;",
+  "extern ok() ret Pair;",
+  "type Alias=Pair; extern ok(p:Alias) ret Alias;",
+  "enum E { A, B } extern ok(e:E) ret E;",
+  "struct Nested {pair:Pair, tag:char[3], flag:bool, ptr:*void,} extern ok(n:Nested) ret Nested;",
+];
+
+function abiErrors(declaration: string) {
+  const source = `struct Pair {x:int,y:int,} ${declaration}`;
+  const program = new Parser(
+    source,
+    "abi.bpl",
+    lexWithGrammar(source, "abi.bpl"),
+  ).parse();
+  const checker = new TypeChecker({ collectAllErrors: true });
+  checker.checkProgram(program);
+  return checker
+    .getErrors()
+    .filter((error) => error.code === "BPL_EXTERN_ABI_UNSUPPORTED");
+}
+
 for (const declaration of invalid) {
   test(`rejects unsupported C value ABI: ${declaration}`, () => {
-    const source = `struct Pair {x:int,y:int,} ${declaration}`;
-    const program = new Parser(
-      source,
-      "abi.bpl",
-      lexWithGrammar(source, "abi.bpl"),
-    ).parse();
-    const checker = new TypeChecker({ collectAllErrors: true });
-    checker.checkProgram(program);
-    expect(
-      checker
-        .getErrors()
-        .some((error) => error.code === "BPL_EXTERN_ABI_UNSUPPORTED"),
-    ).toBe(true);
+    expect(abiErrors(declaration).length).toBeGreaterThan(0);
   });
 }
+for (const declaration of valid) {
+  test(`accepts C-compatible value ABI: ${declaration}`, () => {
+    expect(abiErrors(declaration).map((error) => error.message)).toEqual([]);
+  });
+}
+
+test("C-compatible structs cross the C ABI by value at O0 and O3", () => {
+  const dir = mkdtempSync(join(tmpdir(), "bpl-extern-struct-abi-"));
+  try {
+    const fixtures = resolve("tests/fixtures/c-abi");
+    const object = join(dir, "native.o");
+    const compiled = spawnSync(
+      process.env.CC || "clang",
+      ["-c", join(fixtures, "native.c"), "-o", object],
+      { encoding: "utf8" },
+    );
+    expect(compiled.stderr).toBe("");
+    expect(compiled.status).toBe(0);
+    for (const opt of [0, 3]) {
+      const binary = join(dir, `struct-abi-${opt}`);
+      const build = spawnSync(
+        "bun",
+        [
+          resolve("index.ts"),
+          "build",
+          join(fixtures, "main.bpl"),
+          "-O",
+          String(opt),
+          "--object",
+          object,
+          "-o",
+          binary,
+        ],
+        { encoding: "utf8", timeout: 30000 },
+      );
+      expect(build.stderr).toBe("");
+      expect(build.status).toBe(0);
+      const run = spawnSync(binary, [], { encoding: "utf8", timeout: 5000 });
+      expect(run.status).toBe(0);
+      expect(run.stdout).toBe(
+        "18\n11 7\n1.5 3.0 4.5\n42 4.50\nCBA\n40 1.5 ZBC 1\n103 207 318 472\nred\n42\n",
+      );
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}, 90000);
+
+test("structs with a hidden vtable are rejected at the C ABI boundary", () => {
+  const dir = mkdtempSync(join(tmpdir(), "bpl-extern-vtable-"));
+  try {
+    const source = join(dir, "main.bpl");
+    writeFileSync(
+      source,
+      `struct P {x:int,}
+struct C: P {y:int,}
+extern takes(p:P) ret int;
+frame main() ret int {local p:P; p.x=1; return takes(p);}`,
+    );
+    const build = spawnSync(
+      "bun",
+      [resolve("index.ts"), "build", source, "-o", join(dir, "out")],
+      { encoding: "utf8", timeout: 30000 },
+    );
+    expect(build.status).not.toBe(0);
+    expect(build.stdout + build.stderr).toContain("BPL_EXTERN_ABI_UNSUPPORTED");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}, 60000);
 
 test("C ABI diagnostics are parseable and pointer wrappers and scalar callbacks execute", () => {
   const dir = mkdtempSync(join(tmpdir(), "bpl-extern-abi-"));
   try {
     const source = join(dir, "main.bpl");
-    writeFileSync(
-      source,
-      "struct Pair {x:int,y:int,} extern bad(p:Pair) ret int;",
-    );
+    writeFileSync(source, "extern bad(p:(int,int)) ret int;");
     const checked = spawnSync(
       "bun",
       [resolve("index.ts"), "check", source, "--json"],

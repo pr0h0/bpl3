@@ -495,7 +495,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         expr.resolvedDeclaration &&
         expr.resolvedDeclaration.kind === "Extern"
       ) {
-        funcName = expr.resolvedDeclaration.name;
+        funcName =
+          this.getCAbiExternWrapper(expr.resolvedDeclaration) ??
+          expr.resolvedDeclaration.name;
       }
 
       // Function identifier: return raw pointer address

@@ -4,19 +4,45 @@ BPL can call functions written in C and other languages that support the C ABI.
 
 ## Supported ABI boundary
 
-External signatures support scalar values, raw pointers, and function pointers
-whose parameters and results meet the same restriction. Structs, enums, tuples,
-slices, fixed arrays, and capturing Lambda values passed or returned by value
-are rejected with `BPL_EXTERN_ABI_UNSUPPORTED`. The restriction also covers
-aggregate callback signatures and aggregate arguments to direct extern variadic
-calls. Use pointer parameters and output buffers in a C wrapper for aggregates.
-Direct variadic calls lower two value types instead of rejecting them: `String`
-passes its data pointer, and enums without payloads pass their `i32` tag.
+Extern parameters and results may be:
 
-This prevents silent ABI mismatches: an LLVM struct matching C field layout does
-not establish how the native calling convention passes or returns it. Ordinary
-BPL-to-BPL aggregate calls remain supported. Binding generation is not proof that
-every generated declaration has a supported native ABI; check generated bindings.
+- scalars, raw pointers, and `string`;
+- enums without payloads, passed as a C `int`;
+- C-compatible structs, passed and returned by value.
+
+A struct is C-compatible when it has at least one field, every field is a
+scalar, pointer, `string`, payload-free enum, fixed array of those, or another
+C-compatible struct, and it has no methods, specs, parent struct, child
+structs, or generic parameters. Methods and inheritance add a hidden vtable
+pointer, so such structs have no C equivalent.
+
+The compiler lowers by-value structs to the target's C calling convention
+(x86-64 System V, Windows x64, AArch64 AAPCS and Apple arm64, i386 System V,
+and WebAssembly): small structs travel in registers, larger ones through
+caller-owned copies and hidden result pointers. `tests/CAbiLowering.test.ts`
+checks the lowered declarations against clang for every supported target.
+
+```bpl
+struct Vec3 {
+    x: double,
+    y: double,
+    z: double,
+}
+
+extern scale(v: Vec3, k: double) ret Vec3;
+```
+
+The following are rejected with `BPL_EXTERN_ABI_UNSUPPORTED`:
+
+- tuples, slices, fixed arrays, and Lambda values in extern signatures (pass a
+  pointer instead);
+- enums with payloads, and structs that are not C-compatible;
+- aggregates in callback (`Func`) signatures and in variadic extern
+  declarations, which cannot be adapted by a wrapper.
+
+Direct variadic calls such as `printf` accept `String`, passed as its data
+pointer, and payload-free enums, passed as their `i32` tag. Other aggregate
+variadic arguments are rejected.
 
 ## Declaring External Functions
 
@@ -129,6 +155,6 @@ semantics.
 
 Review generated pointer, enum-value, and platform-sized integer mappings before
 publishing bindings for a library. Complex macros, inline functions, function
-pointer callback parameters or fields, packed layouts, bitfields, nested
-anonymous structs/unions, and ABI-sensitive structs still need manual wrappers
-or a future libclang-backed binding pass.
+pointer callback parameters or fields, packed layouts, bitfields, and nested
+anonymous structs/unions still need manual wrappers or a future libclang-backed
+binding pass.

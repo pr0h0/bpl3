@@ -8,6 +8,25 @@ export interface TypeLayout {
 export const alignTo = (size: number, alignment: number): number =>
   Math.ceil(size / alignment) * alignment;
 
+/** Top-level field types of a literal `{ ... }` or packed `<{ ... }>` type. */
+export function splitLlvmAggregateFields(type: string): string[] {
+  const packed = type.startsWith("<{");
+  const body = type.slice(packed ? 2 : 1, packed ? -2 : -1);
+  const fields: string[] = [];
+  let start = 0,
+    depth = 0;
+  for (let i = 0; i < body.length; i++) {
+    if ("([{<".includes(body[i]!)) depth++;
+    else if (")]}>".includes(body[i]!)) depth--;
+    else if (body[i] === "," && depth === 0) {
+      fields.push(body.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  if (body.slice(start).trim()) fields.push(body.slice(start).trim());
+  return fields;
+}
+
 export class LLVMTypeLayout {
   constructor(
     private readonly dataLayout: string,
@@ -62,21 +81,10 @@ export class LLVMTypeLayout {
     }
     const packed = type.startsWith("<{") && type.endsWith("}>");
     if (packed || (type.startsWith("{") && type.endsWith("}"))) {
-      const body = type.slice(packed ? 2 : 1, packed ? -2 : -1);
-      const fields: string[] = [];
-      let start = 0,
-        depth = 0;
-      for (let i = 0; i < body.length; i++) {
-        if ("([{<".includes(body[i]!)) depth++;
-        else if (")]}>".includes(body[i]!)) depth--;
-        else if (body[i] === "," && depth === 0) {
-          fields.push(body.slice(start, i));
-          start = i + 1;
-        }
-      }
-      if (body.slice(start).trim()) fields.push(body.slice(start));
       return this.aggregate(
-        fields.map((field) => this.get(field, visiting)),
+        splitLlvmAggregateFields(type).map((field) =>
+          this.get(field, visiting),
+        ),
         packed,
       );
     }

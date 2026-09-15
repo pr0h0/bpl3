@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import { needsCAbiLowering } from "./codegen/abi/CAbi";
 import * as path from "path";
 import * as AST from "../common/AST";
 import {
@@ -1378,12 +1379,17 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     if (this.declaredFunctions.has(name)) return;
-    this.declaredFunctions.add(name);
 
     const funcType = decl.resolvedType as AST.FunctionTypeNode;
     const retType = this.resolveType(funcType.returnType);
 
     const params = funcType.paramTypes.map((p) => this.resolveType(p));
+    // By-value struct signatures are declared with their C ABI lowering
+    // when first used (see getCAbiExternWrapper).
+    if (needsCAbiLowering({ name, returnType: retType, paramTypes: params })) {
+      return;
+    }
+    this.declaredFunctions.add(name);
     const paramStr = this.formatFunctionDeclarationParameters(
       params,
       decl.isVariadic,

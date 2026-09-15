@@ -19,6 +19,13 @@ import { codeGenLog } from "../../common/Logger";
 import { PRIMITIVE_STRUCT_MAP } from "../../middleend/BuiltinTypes";
 import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConversions";
 import { BinaryExpressionGenerator } from "./BinaryExpressionGenerator";
+import {
+  CAbiLowering,
+  CAbiUnsupportedError,
+  getCAbiKind,
+  needsCAbiLowering,
+} from "./abi/CAbi";
+import { EXTERN_ABI_UNSUPPORTED_CODE } from "../../middleend/validators/ExternAbiValidator";
 import { RTTI } from "../../middleend/RTTI";
 import {
   emitVirtualCall,
@@ -2079,6 +2086,16 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       args = argsToGenerate.map((arg, i) => generateArg(arg, i)).join(", ");
     }
 
+    if (
+      isExtern &&
+      callTarget === `@${(expr.resolvedDeclaration as AST.ExternDecl).name}`
+    ) {
+      const wrapper = this.getCAbiExternWrapper(
+        expr.resolvedDeclaration as AST.ExternDecl,
+      );
+      if (wrapper) callTarget = `@${wrapper}`;
+    }
+
     // Prepend closure context if needed
     let finalArgs = args;
     const isMain = funcName === "main";
@@ -2298,4 +2315,65 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     return reg;
   }
 
+
+  private readonly cAbiWrappers = new Map<string, string | undefined>();
+
+  /**
+   * Returns the internal wrapper that adapts an extern with by-value struct
+   * parameters or results to the target C ABI, emitting it on first use.
+   * Externs with only scalar signatures are called directly.
+   */
+  protected getCAbiExternWrapper(decl: AST.ExternDecl): string | undefined {
+    if (this.cAbiWrappers.has(decl.name)) {
+      return this.cAbiWrappers.get(decl.name);
+    }
+    const funcType = decl.resolvedType as AST.FunctionTypeNode;
+    const signature = {
+      name: decl.name,
+      returnType: this.resolveType(funcType.returnType),
+      paramTypes: funcType.paramTypes.map((type) => this.resolveType(type)),
+    };
+    if (!needsCAbiLowering(signature)) {
+      this.cAbiWrappers.set(decl.name, undefined);
+      return undefined;
+    }
+    const lowering = new CAbiLowering(
+      getCAbiKind(this.target),
+      this.getLayoutCalculator(),
+      (name) => {
+        if (name.startsWith("%struct.")) {
+          const structName = name.slice("%struct.".length);
+          if (this.computeVTableLayout(structName).length > 0) {
+            throw new CompilerError(
+              `Struct '${structName}' is not C-compatible`,
+              "Structs with methods or inheritance carry a hidden vtable pointer and cannot cross the C ABI by value.",
+              decl.location,
+              EXTERN_ABI_UNSUPPORTED_CODE,
+            );
+          }
+        }
+        return this.resolveLlvmTypeBody(name);
+      },
+    );
+    let lowered;
+    try {
+      lowered = lowering.lower(signature);
+    } catch (error) {
+      if (!(error instanceof CAbiUnsupportedError)) throw error;
+      throw new CompilerError(
+        error.message,
+        "Use scalar values or pointers and a C wrapper for this signature.",
+        decl.location,
+        EXTERN_ABI_UNSUPPORTED_CODE,
+      );
+    }
+    this.emitDeclaration(lowered.declaration);
+    this.emitDeclaration("");
+    for (const line of lowered.wrapper) this.emitDeclaration(line);
+    this.emitDeclaration("");
+    this.declaredFunctions.add(decl.name);
+    this.definedFunctions.add(lowered.wrapperName);
+    this.cAbiWrappers.set(decl.name, lowered.wrapperName);
+    return lowered.wrapperName;
+  }
 }

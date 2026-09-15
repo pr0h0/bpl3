@@ -91,15 +91,16 @@ The LLVM lowering is part of the language contract for v0.1 features that intero
 
 ### External ABI restrictions
 
-Extern declarations support scalar and pointer parameters/results, including
-function pointers with supported signatures. Aggregate values (structs, enums,
-tuples, fixed arrays, slices, and Lambdas) are rejected with
-`BPL_EXTERN_ABI_UNSUPPORTED`; use C wrappers with pointers/output buffers. Matching
-LLVM aggregate layout does not implement platform-specific C argument/result
-classification. Direct extern variadic calls also reject aggregate arguments,
-except `String` (passed as its data pointer) and payload-free enums (passed as
-their `i32` tag).
-These restrictions do not change ordinary BPL aggregate calls.
+Extern parameters and results may be scalars, pointers, `string`, payload-free
+enums (passed as C `int`), and C-compatible structs. A struct is C-compatible
+when it has at least one field, all fields are themselves C-compatible values
+or fixed arrays of them, and it has no methods, specs, parent or child structs,
+or generic parameters. By-value structs are lowered to the target C calling
+convention. Tuples, slices, fixed arrays, Lambdas, enums with payloads, and
+other structs are rejected with `BPL_EXTERN_ABI_UNSUPPORTED`. Callback (`Func`)
+signatures and variadic extern declarations accept only scalars and pointers.
+Direct extern variadic calls reject aggregate arguments, except `String`
+(passed as its data pointer) and payload-free enums (passed as their `i32` tag).
 
 ### Slice ABI
 

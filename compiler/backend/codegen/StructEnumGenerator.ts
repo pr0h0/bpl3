@@ -470,7 +470,14 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
   protected enumDataAlignments = new Map<string, number>();
 
   protected getLayoutCalculator(): LLVMTypeLayout {
-    return new LLVMTypeLayout(getDataLayoutForTarget(this.target), (name) => {
+    return new LLVMTypeLayout(getDataLayoutForTarget(this.target), (name) =>
+      this.resolveLlvmTypeBody(name),
+    );
+  }
+
+  /** Body of a named LLVM type such as `%struct.Point`. */
+  protected resolveLlvmTypeBody(name: string): string {
+    {
       // Prefer the exact emitted representation (aliases, slices and closures
       // have already been lowered here).
       const prefix = `${name} = type `;
@@ -493,7 +500,7 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
         }
       }
       throw new Error(`Missing LLVM layout declaration: ${name}`);
-    });
+    }
   }
 
   protected getTypeLayout(type: AST.TypeNode): TypeLayout {
