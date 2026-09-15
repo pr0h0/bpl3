@@ -3868,3 +3868,45 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-15)**: Allocation tracking detects a live DeferNode after exception-driven cleanup. emitExceptionTransfer calls the deferred callback before unlinking its node and never frees the node or capture storage. A callback that throws can therefore encounter the same node again during nested unwinding.
 
 **Resolution**: Unlink and free each node before invoking its callback. Compiler-generated defer callbacks copy captures to local storage and release their capture allocation before running user code. Remove the redundant normal-return free. Allocation tracking and O0/O3 execution cover normal exits, exception unwinding, throwing callbacks, earlier registered cleanup, and zero remaining allocations.
+
+
+### BUG-320: Arena and stack allocation sizes wrap and overlap later allocations
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed (2026-09-15)**: On Linux x86-64 at O0 and O3, initialize an ArenaAllocator or StackAllocator with 4096 bytes, then call `alloc(cast<ulong>(0xffffffffffffffff))` followed by `alloc(8)`. Both calls return the same non-null pointer. Rounding the huge request to eight-byte alignment wraps to zero. Stack capacity checks also add sizes without overflow guards. No out-of-bounds writes were needed to reproduce the incorrect successful allocation.
+
+**Next step**: Check alignment rounding, header/page arithmetic, and capacity subtraction before allocation. Extend the audit to pool/page allocators and reject unsupported sizes without changing state. Reproduction is preserved in the comparative language audit report.
+
+### BUG-321: PageAllocator returns storage that violates its page-alignment promise
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: `PageAllocator.alloc(16)` returns an address whose remainder modulo 4096 is 8, at both O0 and O3 on Linux x86-64. The implementation stores an eight-byte header and returns the mapping address plus eight despite documenting that memory is always page-aligned.
+
+**Next step**: Define the allocator alignment contract, preserve it while storing metadata, and test alignment and size overflow. Review other allocators' fixed eight-byte alignment before using them for arbitrary types.
+
+### BUG-322: Language specification and comparison documentation contradict implemented contracts
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: LANGUAGE_SPEC.md says all structs implicitly inherit Type, but a method-free `struct Plain { x: int, }` has size 4 on Linux x86-64, consistent with the POD implementation. docs/06-operators.md calls negative/out-of-width shifts undefined or implementation-defined, while invalid constant counts are rejected and dynamic counts are masked; `shift(32)` for `1 << n` returns 1 and `shift(-1)` returns -2147483648 at O0/O3. README's comparison labels Go exceptions without distinguishing panic/recover and presents unmeasured ordinal compilation/performance ratings. The numbered specification guide calls the partial language document a formal specification.
+
+**Next step**: Consolidate the normative contract, correct these claims, include specification programs in executable documentation coverage, and replace unsupported comparison ratings with scoped evidence. No compiler behavior changes were made during this comparative audit.
+
+
+### BUG-323: C aggregate arguments use incompatible ABI lowering
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed (2026-09-15)**: On Linux x86-64 with Clang 21, a separately compiled C function `int sum_pair(struct Pair p)` for `struct Pair { int x; int y; };` returns 7 when BPL passes `Pair { x: 7, y: 11 }`, instead of 18. Reproduced at O0 and O3. Matching field layout does not establish the platform's function-call ABI: the C function receives the two fields packed into an i64 while BPL declares and passes an LLVM aggregate.
+
+**Next step**: Introduce target-specific C ABI argument/result classification, including coercions and indirect passing, with bidirectional C/BPL fixtures. Until supported, reject aggregate-by-value extern signatures or document and enforce pointer-based wrappers. Aggregate returns and other target ABIs require separate tests; this reproduction proves the two-i32 argument case only.
