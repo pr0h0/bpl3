@@ -35,6 +35,14 @@ frame main() ret int {
  catch(error:string) {caught=error!=nullptr;}
  tracking_fail(-1);
  if(!caught || tracking_live()!=0) {return 4;}
+ local relative:String=Path.relative("/a/b","/a/c");relative.destroy();
+ if(tracking_live()!=0) {return 5;}
+ loop(local failure:int=0;failure<3;failure=failure+1) {
+  tracking_fail(failure);caught=false;
+  try {local value:String=Path.relative("/a/b","/a/c");value.destroy();}
+  catch(error:string) {caught=error!=nullptr;}
+  tracking_fail(-1);if(!caught || tracking_live()!=0) {return 6;}
+ }
  return 0;
 }`,
     );

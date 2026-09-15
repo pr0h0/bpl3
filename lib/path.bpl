@@ -1,8 +1,6 @@
 import [String] from "std/string.bpl";
 
-extern strlen(s: string) ret int;
 extern malloc(size: long) ret *void;
-extern free(ptr: *void) ret void;
 
 # Bound lengths before int arithmetic and reject null C strings consistently.
 frame pathLength(path: string) ret int {
@@ -164,46 +162,73 @@ struct Path {
     }
 
     frame relative(src: string, dest: string) ret String {
-        local la: int = strlen(src);
-        local lb: int = strlen(dest);
-
-        if (la == 0) {
-            return String.new(dest);
+        pathLength(src);
+        pathLength(dest);
+        if (Path.isAbsolute(src) != Path.isAbsolute(dest)) {
+            throw "Relative paths require matching roots";
         }
-        local i: int = 0;
-        local matches: bool = true;
-        loop (i < la) {
-            if (i >= lb) {
-                matches = false;
-                break;
-            }
-            if (src[i] != dest[i]) {
-                matches = false;
-                break;
-            }
-            i = i + 1;
-        }
-
-        if (matches) {
-            if (la == lb) {
-                return String.new("");
-            }
-            if (dest[la] == cast<char>(47)) {
-                local start: int = la + 1;
-                local subLen: int = lb - start;
-                local buf: string = malloc(cast<long>(subLen + 1));
-                local k: int = 0;
-                loop (k < subLen) {
-                    buf[k] = dest[start + k];
-                    k = k + 1;
-                }
-                buf[subLen] = cast<char>(0);
-                local res: String = String.new(buf);
-                free(buf);
-                return res;
-            }
-        }
-        return String.new(dest);
+        local source: String = Path.normalize(src);
+        local target: String;
+        try { target = Path.normalize(dest); }
+        catch (error: string) { source.destroy(); throw error; }
+        local result: String;
+        try { result = relativeNormalized(source, target); }
+        catch (error: string) { source.destroy(); target.destroy(); throw error; }
+        source.destroy();
+        target.destroy();
+        return result;
     }
+}
+
+# Inputs are canonical lexical paths with the same absolute/relative form.
+frame relativeNormalized(source: String, target: String) ret String {
+    local sourceEnd: int = source.length;
+    local targetEnd: int = target.length;
+    if (sourceEnd == 1 && source.data[0] == cast<char>(46)) { sourceEnd = 0; }
+    if (targetEnd == 1 && target.data[0] == cast<char>(46)) { targetEnd = 0; }
+    local sourceIndex: int = 0;
+    if (Path.isAbsolute(source.data)) { sourceIndex = 1; }
+    local targetIndex: int = sourceIndex;
+    loop (sourceIndex < sourceEnd && targetIndex < targetEnd) {
+        local fromEnd: int = sourceIndex;
+        local toEnd: int = targetIndex;
+        loop (fromEnd < sourceEnd && source.data[fromEnd] != cast<char>(47)) { fromEnd = fromEnd + 1; }
+        loop (toEnd < targetEnd && target.data[toEnd] != cast<char>(47)) { toEnd = toEnd + 1; }
+        if (fromEnd - sourceIndex != toEnd - targetIndex) { break; }
+        local equal: bool = true;
+        loop (local i: int = 0; i < fromEnd - sourceIndex; i = i + 1) {
+            if (source.data[sourceIndex + i] != target.data[targetIndex + i]) { equal = false; break; }
+        }
+        if (!equal) { break; }
+        sourceIndex = fromEnd;
+        targetIndex = toEnd;
+        if (sourceIndex < sourceEnd) { sourceIndex = sourceIndex + 1; }
+        if (targetIndex < targetEnd) { targetIndex = targetIndex + 1; }
+    }
+    local parents: int = 0;
+    local cursor: int = sourceIndex;
+    loop (cursor < sourceEnd) {
+        local start: int = cursor;
+        loop (cursor < sourceEnd && source.data[cursor] != cast<char>(47)) { cursor = cursor + 1; }
+        if (cursor - start == 2 && source.data[start] == cast<char>(46) && source.data[start + 1] == cast<char>(46)) {
+            throw "Cannot compute relative path from unresolved parents";
+        }
+        parents = parents + 1;
+        if (cursor < sourceEnd) { cursor = cursor + 1; }
+    }
+    local suffix: int = targetEnd - targetIndex;
+    local length: long = cast<long>(parents) * 3 + suffix;
+    if (parents > 0 && suffix == 0) { length = length - 1; }
+    local result: String = allocatePath(length);
+    local used: int = 0;
+    loop (local i: int = 0; i < parents; i = i + 1) {
+        result.data[used] = cast<char>(46); result.data[used + 1] = cast<char>(46);
+        used = used + 2;
+        if (used < result.length) { result.data[used] = cast<char>(47); used = used + 1; }
+    }
+    loop (local i: int = targetIndex; i < targetEnd; i = i + 1) {
+        result.data[used] = target.data[i]; used = used + 1;
+    }
+    return result;
 }
 export [Path];

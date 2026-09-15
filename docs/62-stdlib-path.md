@@ -75,3 +75,22 @@ releases its temporary joined path, including when normalization throws.
 
 These operations do not resolve symlinks or prove that a path stays inside a
 directory. Lexically removing `..` can change actual traversal through symlinks.
+
+## Relative paths
+
+`relative(source, target)` normalizes both inputs, compares complete components,
+and returns the traversals from source to target. Identical normalized paths
+produce an empty String. Examples:
+
+- `relative("/a/b", "/a/c")` returns `../c`.
+- `relative("/a", "/abc")` returns `../abc`.
+- `relative("a/b", "a/c")` returns `../c`.
+- `relative("../a", "../b")` returns `../b`.
+
+Both inputs must be absolute or both relative. For relative inputs, any leading
+`..` components in the normalized source must be part of the shared prefix.
+Otherwise the result depends on unknown ancestor names, so the method throws a
+string; for example `relative("../a", "b")` fails. It does not consult the working
+directory to resolve this ambiguity. Null inputs, allocation failures, and
+unsupported result lengths also throw strings. Temporary normalized paths are
+released on success and on error.

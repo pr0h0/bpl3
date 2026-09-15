@@ -3841,11 +3841,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-317: Path.relative only strips literal prefixes
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-15)**: Path.relative("/a/b", "/a/c") returns /a/c instead of ../c. It does not normalize inputs, count parent traversals, or define incompatible absolute/relative input behavior.
+
+**Resolution**: Compare normalized components, emit parent traversals and the target suffix, and reject incompatible roots or unresolved source parents requiring unknown ancestor names. Free normalized temporaries on every error. O0/O3 LLVM-verified tests cover a 100-pair absolute-path oracle and explicit relative cases; allocation tracking injects failure at all three allocations.
 
 ### BUG-318: Lambda capture and defer registration allocations are unchecked
 
