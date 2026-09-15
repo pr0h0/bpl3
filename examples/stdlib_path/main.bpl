@@ -45,5 +45,17 @@ frame main() ret int {
     printf("Resolve: %s\n", res.toString());
     res.destroy();
 
+    # Empty bases stay relative, and trailing separators are ignored by basename.
+    local relativeFile: String = Path.join("", "report.txt");
+    printf("Empty base: %s\n", relativeFile.data);
+    relativeFile.destroy();
+    local directoryName: String = Path.basename("/home/user/docs///");
+    printf("Directory basename: %s\n", directoryName.data);
+    directoryName.destroy();
+
+    local sibling: String = Path.relative("/home/user/docs", "/home/user/src");
+    printf("Sibling: %s\n", sibling.data);
+    sibling.destroy();
+
     return 0;
 }
