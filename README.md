@@ -1164,21 +1164,22 @@ Run `./benchmark/run_all.sh --language bpl,c --runs 5` to refresh local numbers,
 
 ## 🔍 Comparison with Other Languages
 
-| Feature             | BPL    | C      | C++        | Rust     | Go     |
-| ------------------- | ------ | ------ | ---------- | -------- | ------ |
-| Manual memory mgmt  | ✅     | ✅     | ✅         | ✅\*     | ❌     |
-| Generics            | ✅     | ❌     | ✅         | ✅       | ✅     |
-| Inheritance         | ✅     | ❌     | ✅         | ❌       | ❌     |
-| Exceptions          | ✅     | ❌     | ✅         | ❌       | ✅     |
-| Module system       | ✅     | ❌     | ⚠️         | ✅       | ✅     |
-| Package manager     | ✅     | ❌     | ⚠️         | ✅       | ✅     |
-| Memory safety\*\*   | ⚠️     | ❌     | ❌         | ✅       | ✅     |
-| Learning curve      | ⭐⭐   | ⭐⭐   | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐   |
-| Compile speed       | ⚡⚡   | ⚡⚡⚡ | ⚡         | ⚡       | ⚡⚡⚡ |
-| Runtime performance | ⚡⚡⚡ | ⚡⚡⚡ | ⚡⚡⚡     | ⚡⚡⚡   | ⚡⚡   |
+| Feature            | BPL | C   | C++ | Rust | Go       |
+| ------------------ | --- | --- | --- | ---- | -------- |
+| Manual memory mgmt | ✅  | ✅  | ✅  | ✅\* | ❌       |
+| Generics           | ✅  | ❌  | ✅  | ✅   | ✅       |
+| Inheritance        | ✅  | ❌  | ✅  | ❌   | ❌       |
+| Exceptions         | ✅  | ❌  | ✅  | ❌   | ⚠️\*\*\* |
+| Module system      | ✅  | ❌  | ⚠️  | ✅   | ✅       |
+| Package manager    | ✅  | ❌  | ⚠️  | ✅   | ✅       |
+| Memory safety\*\*  | ⚠️  | ❌  | ❌  | ✅   | ✅       |
 
 \*Rust uses ownership/borrowing instead of GC  
-\*\*Planned for BPL
+\*\*BPL provides runtime null and bounds checks, but no ownership or lifetime checking\
+\*\*\*Go uses error values plus panic/recover rather than try/catch exceptions
+
+Performance numbers are limited to the microbenchmarks above; compile speed and
+learning curve are not measured.
 
 ## 📝 License
 

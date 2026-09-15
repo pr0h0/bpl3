@@ -218,7 +218,10 @@ frame identity<T>(val: T) ret T {
 
 ## 7. Structs
 
-Structs can contain fields and methods. Structs can inherit from a single parent struct using the `:` operator. All structs implicitly inherit from the root `Type` struct.
+Structs can contain fields and methods. Structs can inherit from a single parent struct using the `:` operator. For type checking, every struct is a subtype of the root `Type` struct. Storage
+is separate from that relationship: a struct that declares or inherits methods
+begins with a hidden vtable pointer, while a struct with only fields has no
+hidden storage (`struct Plain { x: int, }` is 4 bytes on Linux x86-64).
 
 ```bpl
 struct Point {

@@ -3896,7 +3896,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-322: Language specification and comparison documentation contradict implemented contracts
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
@@ -3904,6 +3904,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Next step**: Consolidate the normative contract, correct these claims, include specification programs in executable documentation coverage, and replace unsupported comparison ratings with scoped evidence. No compiler behavior changes were made during this comparative audit.
 
+**Resolution**: LANGUAGE_SPEC.md now separates the `Type` subtyping relationship from storage (only structs that declare or inherit methods carry a vtable pointer). docs/06-operators.md documents the verified shift contract: constant invalid counts are rejected, runtime counts are masked, signed `>>` is arithmetic, and left shifts wrap. README qualifies Go's panic/recover model and BPL's memory-safety scope and removes unmeasured ratings. docs/44-language-spec.md no longer calls the partial document formal. Linking specification rules to executable tests remains future work.
 
 ### BUG-323: C aggregate arguments use incompatible ABI lowering
 

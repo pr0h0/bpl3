@@ -245,8 +245,12 @@ local right: int = x >> 1;  # Right shift: 0b10 (2)
 
 - Left shift multiplies by powers of 2: `x << n` ≈ `x * 2^n`
 - Right shift divides by powers of 2: `x >> n` ≈ `x / 2^n`
-- Shifting negative numbers is implementation-defined
-- Shifting by negative or >= bit-width is undefined
+- Left shifts wrap in two's complement: `-1 << 1` is `-2`
+- `>>` is arithmetic for signed operands and logical for unsigned operands
+- A constant count that is negative or at least the operand bit width is a
+  compile error (`BPL_SHIFT_COUNT_INVALID`)
+- A count computed at runtime is masked to the operand width, so for `int`
+  `1 << n` with `n = 32` yields `1` and with `n = -1` yields `-2147483648`
 
 ### Common Bit Manipulation
 
