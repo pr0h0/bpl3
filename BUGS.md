@@ -3884,13 +3884,15 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-321: PageAllocator returns storage that violates its page-alignment promise
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-15)**: `PageAllocator.alloc(16)` returns an address whose remainder modulo 4096 is 8, at both O0 and O3 on Linux x86-64. The implementation stores an eight-byte header and returns the mapping address plus eight despite documenting that memory is always page-aligned.
 
 **Next step**: Define the allocator alignment contract, preserve it while storing metadata, and test alignment and size overflow. Review other allocators' fixed eight-byte alignment before using them for arbitrary types.
+
+**Resolution**: Query the native page size, reserve a leading metadata page, and return the next page boundary. Guard rounding and header arithmetic before mapping. O0/O3 LLVM-verified tests cover page boundaries, writable payload ends, zero and oversized requests.
 
 ### BUG-322: Language specification and comparison documentation contradict implemented contracts
 

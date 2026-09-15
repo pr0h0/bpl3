@@ -15,9 +15,9 @@ frame main() ret int {
     local page_alloc: PageAllocator;
 
     printf("--- Testing PageAllocator ---\n");
-    # Alloc requests pages, so even 1 byte -> 4KB
+    # Alloc requests pages, so payloads are rounded to native pages plus a metadata page
     local p1: *void = page_alloc.alloc(100);
-    printf("Allocated 100 bytes (1 page) at %p\n", p1);
+    printf("Allocated 100 page-aligned bytes at %p\n", p1);
     page_alloc.free(p1);
     printf("Freed page\n\n");
 

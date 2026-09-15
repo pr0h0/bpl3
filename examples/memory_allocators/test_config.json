@@ -2,7 +2,7 @@
   "expectedOutput": [
     "=== Memory Allocator Showcase ===",
     "--- Testing PageAllocator ---",
-    "Allocated 100 bytes (1 page) at 0x",
+    "Allocated 100 page-aligned bytes at 0x",
     "Freed page",
     "--- Testing ArenaAllocator ---",
     "Alloc 1 byte: stored 42 at 0x",

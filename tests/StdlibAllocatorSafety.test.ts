@@ -53,3 +53,33 @@ frame main() ret int {
     },
   ]);
 }, 60000);
+
+test("page allocations preserve native page alignment and reject size overflow", () => {
+  expectCorrectnessSuite([
+    {
+      name: "page-allocation-alignment",
+      validateLlvm: true,
+      expectedStdout: "",
+      source: `import [PageAllocator] from "std/memory/page_allocator.bpl";
+extern __bpl_memory_page_size() ret ulong;
+frame main() ret int {
+ local alloc:PageAllocator;
+ local page:ulong=__bpl_memory_page_size();
+ if(page==0) {return 1;}
+ local sizes:ulong[5]=[cast<ulong>(1), page-1, page, page+1, page*3];
+ loop(local i:int=0;i<5;i+=1) {
+  local data:*u8=cast<*u8>(alloc.alloc(sizes[i]));
+  if(data==nullptr || cast<ulong>(data)%page!=0) {return 2;}
+  data[0]=cast<u8>(42);data[sizes[i]-1]=cast<u8>(99);
+  if(data[sizes[i]-1]!=99) {return 3;}
+  alloc.free(data);
+ }
+ if(alloc.alloc(0)!=nullptr) {return 4;}
+ local max:ulong=cast<ulong>(0xffffffffffffffff);
+ loop(local i:ulong=0;i<16;i+=1) {if(alloc.alloc(max-i)!=nullptr) {return 5;}}
+ if(alloc.alloc(cast<ulong>(0x7fffffffffffffff))!=nullptr) {return 6;}
+ alloc.free(nullptr);return 0;
+}`,
+    },
+  ]);
+}, 60000);

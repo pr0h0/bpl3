@@ -2,60 +2,44 @@ export [PageAllocator];
 
 import [Allocator] from "./allocator.bpl";
 
-# Syscalls
-extern mmap(addr: *void, len: ulong, prot: int, flags: int, fd: int, offset: ulong) ret *void;
-extern munmap(addr: *void, len: ulong) ret int;
-local const PROT_READ: int = 1;
-local const PROT_WRITE: int = 2;
-local const MAP_PRIVATE: int = 2;
-local const MAP_ANONYMOUS: int = 32;
-local const MAP_FAILED: ulong = 18446744073709551615;
+extern __bpl_memory_map(size: ulong) ret *void;
+extern __bpl_memory_unmap(ptr: *void, size: ulong);
+extern __bpl_memory_page_size() ret ulong;
 
-local const PAGE_SIZE: ulong = 4096;
+struct PageHeader {
+    base: *void,
+    size: ulong,
+}
 
 /# Page Allocator
-   Allocates memory directly from the OS in page-sized chunks (4KB).
-   Features:
-   - Slow allocation (syscall per alloc).
-   - Memory is always page-aligned.
-   - Can free individual items (returns pages to OS).
-   - Good for large allocations. #/
+   Allocates memory directly from the OS in native page-sized chunks.
+   Returned storage is page-aligned. A separate leading page stores metadata.
+   Individual allocations must be returned to the same allocator with free. #/
 struct PageAllocator: Allocator {
-    # Allocate memory directly from OS.
-    # Rounds up size to nearest page multiple.
+    # Return nullptr for zero bytes, unsupported sizes, or mapping failure.
     frame alloc(this: *PageAllocator, size: ulong) ret *void {
-        local total_size: ulong = size + 8; # Header
-
-        # Round up
-        local pages: ulong = ((total_size + PAGE_SIZE) - 1) / PAGE_SIZE;
-        local real_size: ulong = pages * PAGE_SIZE;
-
-        local ptr: *ulong = cast<*ulong>(mmap(nullptr, real_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
-
-        if (cast<ulong>(ptr) == MAP_FAILED) {
-            return nullptr;
-        }
-        # Store full size (for munmap)
-        *ptr = real_size;
-
-        return cast<*void>(cast<ulong>(ptr) + 8);
+        local page: ulong = __bpl_memory_page_size();
+        local max: ulong = cast<ulong>(0x7fffffffffffffff);
+        if ((size == 0) || (page < sizeof(PageHeader)) || (page > max / 2)) return nullptr;
+        if (size > max - page - (page - 1)) return nullptr;
+        local payload: ulong = ((size + page - 1) / page) * page;
+        local total: ulong = payload + page;
+        local base: *void = __bpl_memory_map(total);
+        if (base == nullptr) return nullptr;
+        local data: *void = cast<*void>(cast<ulong>(base) + page);
+        local header: *PageHeader = cast<*PageHeader>(cast<ulong>(data) - sizeof(PageHeader));
+        *header = PageHeader { base: base, size: total };
+        return data;
     }
 
-    # Free memory returned by alloc.
-    # Unmaps the pages from the OS.
-    # @param ptr: Pointer returned by alloc (must not be nullptr).
+    # Accept nullptr or an allocation returned by alloc that has not been freed.
     frame free(this: *PageAllocator, ptr: *void) {
-        if (ptr == nullptr) 
-            return;
-        local real_ptr: *ulong = cast<*ulong>(cast<ulong>(ptr) - 8);
-        local size: ulong = *real_ptr;
-
-        munmap(cast<*void>(real_ptr), size);
+        if (ptr == nullptr) return;
+        local header: *PageHeader = cast<*PageHeader>(cast<ulong>(ptr) - sizeof(PageHeader));
+        __bpl_memory_unmap(header.base, header.size);
     }
 
-    # No-op for PageAllocator.
-    # Since it doesn't track allocations, it cannot free them all at once.
+    # No-op: this allocator does not track its outstanding allocations.
     frame reset(this: *PageAllocator) {
-        # Stateless, cannot reset all
     }
 }

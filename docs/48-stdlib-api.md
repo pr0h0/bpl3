@@ -521,7 +521,7 @@ omitted areas:
 | `vec2.bpl`, `vec3.bpl`, `range.bpl`                                                                             | Vector and range utilities                                                           |
 | `path.bpl`, `args.bpl`, `arg_parser.bpl`                                                                        | [Path helpers](62-stdlib-path.md) and command-line helpers                             |
 | `memory/allocator.bpl`, `memory/arena_allocator.bpl`, `memory/pool_allocator.bpl`, `memory/stack_allocator.bpl` | [Manual allocator contracts](22-manual-memory.md#manual-allocator-contracts); explicit lifetimes and checked sizes |
-| `memory/page_allocator.bpl`, `memory/syscalls.bpl`                                                              | mmap-backed allocation with Linux-specific constants                                 |
+| `memory/page_allocator.bpl`, `memory/syscalls.bpl`                                                              | PageAllocator uses native page alignment; raw syscalls declarations remain low-level                                 |
 | `iter_specs.bpl`, `core_specs.bpl`                                                                              | Interfaces used by implemented collections                                           |
 | `iter.bpl`                                                                                                      | `Iter.map`, `filter`, and `reduce` are stubs that throw 999                          |
 | `thread.bpl`, `sync.bpl`                                                                                        | Threading and synchronization are stubs that throw 999                               |

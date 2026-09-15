@@ -45,3 +45,11 @@ use a marker obtained from get_marker in the current allocation lifetime.
 The public bookkeeping fields remain low-level implementation state. Manually
 corrupting them, using expired pointers, or writing past an allocation is outside
 these contracts and is not made memory-safe by the allocation size checks.
+
+
+PageAllocator returns storage aligned to the native OS page size on Linux/macOS.
+It rounds payload storage to pages and reserves an additional leading metadata
+page. Zero-size requests, unsupported sizes, page-size lookup failure, and mapping
+failure return nullptr. Free each allocation exactly once; reset is a no-op.
+Pointers must be freed by the allocator implementation that created them: the
+metadata layout is not a stable binary interface across compiler/library updates.
