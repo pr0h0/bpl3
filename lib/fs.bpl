@@ -2,6 +2,7 @@
 
 export [FS];
 export [File];
+export [FileInfo];
 
 import [String] from "std/string.bpl";
 import [Array] from "std/array.bpl";
@@ -20,6 +21,30 @@ extern fgets(str: string, n: int, stream: *void) ret string;
 extern mkdir(path: string, mode: int) ret int;
 extern __bpl_mkdirp(path: string) ret int;
 extern __bpl_path_exists(path: string) ret int;
+extern __bpl_file_info(path: string, followLinks: int, size: *long, kind: *int) ret int;
+
+# Metadata value with no owned resources. Size is the native st_size.
+struct FileInfo {
+    size: long,
+    isFile: bool,
+    isDir: bool,
+    isSymlink: bool,
+}
+
+frame readFileInfo(path: string, followLinks: int) ret FileInfo {
+    local size: long = 0;
+    local kind: int = 0;
+    local error: int = __bpl_file_info(path, followLinks, &size, &kind);
+    if (error != 0) {
+        throw IOError { code: error, message: "Cannot read file metadata" };
+    }
+    return FileInfo {
+        size: size,
+        isFile: kind == 1,
+        isDir: kind == 2,
+        isSymlink: kind == 3
+    };
+}
 
 struct File {
     handle: *void,
@@ -70,6 +95,16 @@ struct File {
 struct FS {
     frame exists(path: string) ret bool {
         return __bpl_path_exists(path) != 0;
+    }
+
+    # Follow symlinks; throw IOError if metadata cannot be read.
+    frame stat(path: string) ret FileInfo {
+        return readFileInfo(path, 1);
+    }
+
+    # Inspect the final symlink itself using native lstat semantics.
+    frame lstat(path: string) ret FileInfo {
+        return readFileInfo(path, 0);
     }
 
     frame writeFile(path: string, data: string) ret bool {

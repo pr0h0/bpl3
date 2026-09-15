@@ -1040,6 +1040,17 @@ Exports:
 ```bpl
 export [FS];
 export [File];
+export [FileInfo];
+```
+
+### FileInfo
+
+```bpl
+struct FileInfo
+size: long
+isFile: bool
+isDir: bool
+isSymlink: bool
 ```
 
 ### File
@@ -1060,6 +1071,8 @@ frame readLine(this: *File, buf: string, max_len: int) ret bool
 ```bpl
 struct FS
 frame exists(path: string) ret bool
+frame stat(path: string) ret FileInfo
+frame lstat(path: string) ret FileInfo
 frame writeFile(path: string, data: string) ret bool
 frame writeBytes(path: string, data: *u8, length: int) ret bool
 frame readBytes(path: string) ret Array<u8>

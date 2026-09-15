@@ -1,6 +1,6 @@
 # Standard Library: File System
 
-`std/fs.bpl` exports `FS` and `File`. These are small wrappers over C/POSIX file
+`std/fs.bpl` exports `FS`, `File`, and `FileInfo`. These wrap C/POSIX file
 operations on the native Linux/macOS runtime.
 
 ```bpl
@@ -12,6 +12,8 @@ import [FS], [File] from "std/fs.bpl";
 | Method                                              | Current behavior                                                            |
 | --------------------------------------------------- | --------------------------------------------------------------------------- |
 | `FS.exists(path: string) ret bool`                  | Checks native metadata without opening the file; follows symlinks          |
+| `FS.stat(path: string) ret FileInfo`                | Checked metadata for the resolved target; follows symlinks                   |
+| `FS.lstat(path: string) ret FileInfo`               | Checked metadata using native `lstat`; can inspect a symlink itself          |
 | `FS.writeFile(path: string, data: string) ret bool` | Opens with `"wb"`, writes NUL-terminated text, then closes                  |
 | `FS.readFile(path: string) ret String`              | Reads a stream into an owned String; native failures throw `IOError`   |
 | `FS.mkdir(path: string) ret bool`                   | Calls POSIX `mkdir(path, 511)`; false includes already-existing directories |
@@ -20,14 +22,60 @@ import [FS], [File] from "std/fs.bpl";
 | `FS.listDirChecked(path: string) ret Array<String>` | Same names; throws `IOError` on open, read, close, size, or allocation failure |
 
 There are no `FS.appendFile`, `deleteFile`, `copyFile`, `isDir`, or `fileSize`
-methods. For append, open a `File` with mode `"a"`. Other operations require
-appropriate native APIs or additional application code.
+methods. For append, open a `File` with mode `"a"`. Inspect `FS.stat(path).isDir`
+and `.size` for directory classification and native file size. Deletion and
+copying require appropriate native APIs or additional application code.
 
 `exists` checks metadata with POSIX `stat` without opening or reading the file.
 It recognizes directories and special files, including named pipes without a
 writer, and does not require read permission on the file itself. False can mean
 missing, an inaccessible path component, a broken symlink, or another metadata
 error. Success does not guarantee that a later open will succeed.
+
+## File metadata
+
+`FS.stat` and `FS.lstat` return a `FileInfo` value without opening the file or
+allocating an owned resource. No `destroy` or `close` is needed for the result.
+Native errors, null/empty paths, and sizes outside the supported nonnegative
+signed 64-bit range throw `IOError` with a nonzero native error code.
+
+| Field | Meaning |
+| --- | --- |
+| `size: long` | Native `st_size`; regular-file logical length in bytes, including sparse regions |
+| `isFile: bool` | True for a regular file |
+| `isDir: bool` | True for a directory |
+| `isSymlink: bool` | True for a symbolic link returned by `lstat` |
+
+Other kinds, such as FIFOs, sockets, and devices, have all three flags false.
+Their size and directory sizes are platform metadata, not a count of bytes that
+can necessarily be read. Even a regular procfs file can report size zero while
+producing data, so do not use metadata size as an EOF test. The size field supports
+files larger than the whole-file read limit; inspect it without loading file data.
+
+`stat` follows symlinks and fails on dangling links or symlink loops. `lstat`
+can inspect the final symlink even when its target is missing or loops; its size
+is the stored target path's byte length. Parent components and trailing slashes
+follow normal native path-resolution rules. These are observations at the time
+of the call, not guarantees about later filesystem operations.
+
+```bpl
+import [FS], [FileInfo] from "std/fs.bpl";
+import [IOError] from "std/errors.bpl";
+import printf from "std/c.bpl";
+
+frame main() ret int {
+    try {
+        local info: FileInfo = FS.stat(".");
+        if (info.isDir) { printf("The current path is a directory\n"); }
+    } catch (error: IOError) {
+        printf("Metadata failed: %s (code %d)\n", error.message, error.code);
+        return 1;
+    }
+    return 0;
+}
+```
+
+## Reading, writing, and directories
 
 `writeFile` checks writes and close, returning false on failure. This includes
 buffered errors reported only when closing, but does not guarantee disk durability.

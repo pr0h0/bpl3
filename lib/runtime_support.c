@@ -415,6 +415,25 @@ int32_t __bpl_path_exists(const char *path) {
     return path && stat(path, &info) == 0;
 }
 
+/* Keep struct stat and mode constants native. Kinds: other=0, file=1,
+ * directory=2, symlink=3. Publish outputs only after all checks succeed. */
+int32_t __bpl_file_info(const char *path, int32_t follow_links,
+                        int64_t *size, int32_t *kind) {
+    if (!size || !kind) return EINVAL;
+    *size = 0;
+    *kind = 0;
+    if (!path || (follow_links != 0 && follow_links != 1)) return EINVAL;
+    struct stat info;
+    int result = follow_links ? stat(path, &info) : lstat(path, &info);
+    if (result != 0) return errno ? errno : EIO;
+    if (info.st_size < 0 || (uintmax_t)info.st_size > INT64_MAX) return EOVERFLOW;
+    *size = (int64_t)info.st_size;
+    if (S_ISREG(info.st_mode)) *kind = 1;
+    else if (S_ISDIR(info.st_mode)) *kind = 2;
+    else if (S_ISLNK(info.st_mode)) *kind = 3;
+    return 0;
+}
+
 /* Whole-file buffers fit the stdlib's signed int lengths, with room for NUL.
  * Read streams incrementally: procfs, pipes, and changing files need no seek. */
 int32_t __bpl_read_file(const char *path, char **data, int32_t *length) {
