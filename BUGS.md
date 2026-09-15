@@ -3846,3 +3846,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Priority**: P2
 
 **Observed (2026-09-15)**: Path.relative("/a/b", "/a/c") returns /a/c instead of ../c. It does not normalize inputs, count parent traversals, or define incompatible absolute/relative input behavior.
+
+### BUG-318: Lambda capture and defer registration allocations are unchecked
+
+**Status**: Open
+
+**Priority**: P2
+
+**Observed (2026-09-15)**: Injecting malloc failure while registering a captured defer in Path.resolve causes SIGSEGV at address 0x10. ExpressionGenerator.generateLambda stores captures through an unchecked malloc result; generateDefer also fills an unchecked allocated DeferNode.
+
+**Workaround**: Path.resolve uses explicit typed error cleanup instead of allocating a deferred closure. Apply the same approach when cleanup must work under allocation failure. Compiler-wide allocation guards remain to be implemented.

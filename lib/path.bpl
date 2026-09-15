@@ -152,8 +152,15 @@ struct Path {
         pathLength(target);
         if (Path.isAbsolute(target)) { return Path.normalize(target); }
         local joined: String = Path.join(base, target);
-        defer { joined.destroy(); }
-        return Path.normalize(joined.data);
+        local result: String;
+        try {
+            result = Path.normalize(joined.data);
+        } catch (error: string) {
+            joined.destroy();
+            throw error;
+        }
+        joined.destroy();
+        return result;
     }
 
     frame relative(src: string, dest: string) ret String {
