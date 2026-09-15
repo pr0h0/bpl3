@@ -16,6 +16,7 @@ function generateOptimized(source: string): string {
 }
 
 describe("CodeGen - Signed Overflow Semantics", () => {
+  // spec: R-TYPE-13
   it("does not mark ordinary signed arithmetic as no-signed-wrap", () => {
     const ir = generateOptimized(`
       frame main() ret int {

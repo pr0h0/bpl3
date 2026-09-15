@@ -22,6 +22,7 @@ function countOccurrences(source: string, needle: string): number {
 }
 
 describe("CodeGen - Division By Zero", () => {
+  // spec: R-TYPE-14
   it("should generate zero check for division", () => {
     const source = `
       frame main() {
