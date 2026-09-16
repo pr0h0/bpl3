@@ -129,7 +129,8 @@ Triggered when the call stack exceeds the active stack guard. O0, DWARF, and
 wasm builds use the runtime depth counter with a 10,000-frame native limit. O3
 native builds use a generated stack-limit probe to avoid per-call runtime
 helper overhead while still routing failures through the same `STACK OVERFLOW`
-runtime error.
+runtime error. Each catch restores the saved depth of its handler so unwound
+calls do not accumulate toward the limit.
 
 ```bpl
 frame recursiveCall(n: int) {

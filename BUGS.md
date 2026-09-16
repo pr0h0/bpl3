@@ -4120,3 +4120,21 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-16)**: A deferred callback updates a stack local through a captured pointer, then a checked null store transfers control into a typed catch. At O0 the catch sees the update; at O3 LLVM reuses the local's value from before `setjmp`. Ordinary local assignments in a try body have the same risk. The runtime-helper rewrite makes checked failures unwind correctly, but handler functions still need to preserve memory across the nonlocal return.
 
 **Resolution**: Functions containing their own try/catch lower memory loads and stores as volatile, preventing promotion or reuse of pre-throw stack values. This deliberately includes indirect accesses to cover aliases. Nested generated functions independently determine whether they need the protection. O0/O3 execution and LLVM verification cover scalar and parameter writes, aggregate aliases, deferred writes on checked runtime failure, nested rethrows, repeated loop handlers, and handlers inside deferred functions. The conservative policy can limit memory optimizations in handler functions; a future precise liveness analysis could narrow it without changing the guarantee.
+
+### BUG-344: Caught exceptions leak the runtime stack-depth counter
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-16)**: A loop making 10,010 sequential calls to a frame that throws `7`, catching each `int`, terminates with an uncaught stack-overflow exception at O0. Each call increments the runtime depth, while `longjmp` skips its exit hook. Actual call depth stays constant. The inlined counter used at O2 has the same issue.
+
+**Resolution**: Every handler saves the runtime depth before `setjmp` and restores it on its catch entry, before catch dispatch or rethrow. Regressions exercise repeated calls and nested propagation through recursive frames at O0/O3 with LLVM verification; O2 is checked separately.
+
+### BUG-345: Handler frames allocated inside loops accumulate stack storage
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed (2026-09-16)**: After fixing BUG-344, 10,010 iterations of a try/catch around a throwing call still fail at O3. `allocateStack` emits fixed-size `alloca` instructions at their use sites: the exception frame allocates another 256 bytes on every loop iteration and does not release it until the function returns. Local variables and compiler temporaries allocated inside loops have the same lifetime problem. LLVM cannot reliably hoist these allocations around `setjmp`, and the O3 stack-limit probe reports overflow despite bounded live local storage.

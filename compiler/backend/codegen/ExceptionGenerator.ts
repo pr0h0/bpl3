@@ -68,6 +68,11 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
       `  store %struct.ExceptionFrame* ${framePtr}, %struct.ExceptionFrame** @exception_top`,
     );
 
+    // A nonlocal return skips the exit hooks of every unwound function. Save
+    // this handler's depth before setjmp and restore it on the catch path.
+    const savedStackDepth = this.newRegister();
+    this.emit(`  ${savedStackDepth} = load i32, i32* @__bpl_stack_depth`);
+
     // 4. Call setjmp on buf
     const bufFieldPtr = this.newRegister();
     this.emit(
@@ -102,6 +107,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
     // Catch Block
     this.emit(`${catchLabel}:`);
+    this.emit(`  store i32 ${savedStackDepth}, i32* @__bpl_stack_depth`);
     // NOTE: setjmp returning != 0 means we are back here.
     // The exception_top is still pointing to our frame because longjmp unwound to here.
     // We must restore exception_top to prev before executing catch block (so catching doesn't loop?)
