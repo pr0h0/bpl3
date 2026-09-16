@@ -106,10 +106,22 @@ export abstract class TypeGenerator extends StructEnumGenerator {
   protected getArrayElementTypeNode(
     type: AST.BasicTypeNode,
   ): AST.BasicTypeNode {
-    return {
+    const element = {
       ...type,
       arrayDimensions: type.arrayDimensions.slice(1),
     };
+    if (type.aliasDeclaration) {
+      const alias = type.aliasTarget ?? type.aliasDeclaration.type;
+      const aliasDimensions = this.getEffectiveModifiers(alias).arrayDimensions;
+      if (type.arrayDimensions.length <= aliasDimensions.length) {
+        // Indexing inside the alias consumes part of its own shape. Reopening
+        // the original alias would incorrectly restore the removed dimension.
+        delete element.aliasDeclaration;
+        delete element.aliasTarget;
+        delete element.variableDeclaration;
+      }
+    }
+    return element;
   }
 
   protected emitSliceFromArrayAddress(
@@ -1303,7 +1315,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           const target = this.substituteType(alias.type, argumentsMap);
           const inner = this.getEffectiveModifiers(target);
           ptr += inner.pointerDepth;
-          arr = [...inner.arrayDimensions, ...arr];
+          arr = [...arr, ...inner.arrayDimensions];
         }
       }
       return { pointerDepth: ptr, arrayDimensions: arr };
@@ -1376,7 +1388,8 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
           const ptrDiff = totalMods.pointerDepth - declMods.pointerDepth;
           const arrDiff = totalMods.arrayDimensions.slice(
-            declMods.arrayDimensions.length,
+            0,
+            totalMods.arrayDimensions.length - declMods.arrayDimensions.length,
           );
 
           let llvmType = baseTypeStr;
@@ -1429,9 +1442,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           };
 
           const ptrDiff = totalMods.pointerDepth - aliasMods.pointerDepth;
-          // Array dimensions are appended, so we slice off the prefix
+          // Use-site dimensions wrap the alias, so they precede its dimensions.
           const arrDiff = totalMods.arrayDimensions.slice(
-            aliasMods.arrayDimensions.length,
+            0,
+            totalMods.arrayDimensions.length - aliasMods.arrayDimensions.length,
           );
 
           // Apply diff to baseTypeStr
@@ -1586,7 +1600,8 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
             const ptrDiff = totalMods.pointerDepth - declMods.pointerDepth;
             const arrDiff = totalMods.arrayDimensions.slice(
-              declMods.arrayDimensions.length,
+              0,
+              totalMods.arrayDimensions.length - declMods.arrayDimensions.length,
             );
             codeGenLog.debug(`Diff: ptr=${ptrDiff}, arr=${arrDiff}`);
 

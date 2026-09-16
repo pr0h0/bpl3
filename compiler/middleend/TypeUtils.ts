@@ -717,8 +717,8 @@ export class TypeSubstitution {
               ? { isPointerToArray: true }
               : {}),
             arrayDimensions: [
-              ...subst.arrayDimensions,
               ...type.arrayDimensions,
+              ...subst.arrayDimensions,
             ],
             location: type.location,
             resolvedDeclaration: subst.resolvedDeclaration,

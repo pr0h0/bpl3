@@ -181,7 +181,11 @@ export class OverloadResolver {
     const substitutedCandidates = viableCandidates.map((vc) => {
       const c = vc.symbol;
       const decl = c.declaration as AST.FunctionDecl | AST.ExternDecl;
-      const args = genericArgs.length > 0 ? genericArgs : vc.inferredArgs;
+      // Resolve aliases before substitution so the checked signature and code
+      // generator receive the same concrete dimensions and element type.
+      const args = (genericArgs.length > 0 ? genericArgs : vc.inferredArgs)?.map(
+        (arg) => this.ctx.resolveType(arg),
+      );
 
       if (args && decl.kind === "FunctionDecl") {
         const map = new Map<string, AST.TypeNode>();

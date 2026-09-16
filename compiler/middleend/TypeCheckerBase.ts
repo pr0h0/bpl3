@@ -1054,8 +1054,8 @@ export abstract class TypeCheckerBase {
                 pointerDepth:
                   resolvedSubstituted.pointerDepth + type.pointerDepth,
                 arrayDimensions: [
-                  ...resolvedSubstituted.arrayDimensions,
                   ...type.arrayDimensions,
+                  ...resolvedSubstituted.arrayDimensions,
                 ],
                 location: type.location,
                 aliasDeclaration: decl,
@@ -1081,8 +1081,8 @@ export abstract class TypeCheckerBase {
               ],
               pointerDepth: resolvedBase.pointerDepth + type.pointerDepth,
               arrayDimensions: [
-                ...resolvedBase.arrayDimensions,
                 ...type.arrayDimensions,
+                ...resolvedBase.arrayDimensions,
               ],
               location: type.location,
               isConst: type.isConst || resolvedBase.isConst,
@@ -1100,8 +1100,8 @@ export abstract class TypeCheckerBase {
             const result = { ...resolvedBase } as any;
             if (type.arrayDimensions && type.arrayDimensions.length > 0) {
               result.arrayDimensions = [
-                ...(result.arrayDimensions || []),
                 ...type.arrayDimensions,
+                ...(result.arrayDimensions || []),
               ];
             }
             if ("isConst" in type && type.isConst) {

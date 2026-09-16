@@ -271,6 +271,8 @@ global MAX: int = 100;
 - **[R-DECL-4]** `type Name = Type;` and `type Name<T> = Type;` introduce a
   name that is interchangeable with the aliased type, including primitive,
   tuple, function, slice, and generic types.
+  Dimensions at an alias use wrap the aliased element shape: for
+  `type Row = int[2];`, `Row[3]` is `int[3][2]` and `Row[]` is `int[][2]`.
 
 ```bpl
 type ID = int;

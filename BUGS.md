@@ -4073,13 +4073,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-339: Slices of fixed-array aliases pass checking but fail code generation
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P3
 
 **Observed (2026-09-15)**: With `type Row = int[2];`, passing `local grid: int[2][2]` to `frame cell(m: Row[], i: int, j: int)` passes `bpl check`, then `bpl run` fails with `Unsupported cast from [2 x [2 x i32]] to { [2 x i32]*, i64 }`.
 
-**Next step**: Normalize array dimensions of aliased element types in the checker and the slice conversion lowering, then add an O0/O3 regression.
+**Resolution (2026-09-16)**: Alias expansion and generic substitution prepend use-site dimensions to the aliased element shape. LLVM modifier differences consume that outer prefix, and slice element extraction removes consumed alias metadata. Explicit generic arguments are resolved before signature substitution so checking and code generation share the concrete shape. O0/O3 execution and LLVM verification cover rectangular arrays, generic aliases, alias chains, local views, reassignment, and independent inner/outer bounds checks; pointer-to-array regressions remain covered.
 
 ### BUG-340: Same-named private declarations in different modules silently replace each other
 
