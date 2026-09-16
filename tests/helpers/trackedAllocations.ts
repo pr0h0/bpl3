@@ -75,7 +75,6 @@ void tracked_free(void *value) {
           "-Wno-override-module",
           llvm,
           trackerObject,
-          resolve("lib/runtime.ll"),
           resolve("lib/runtime_support.o"),
           "-lm",
           ...(process.platform === "linux" ? ["-ldl"] : []),

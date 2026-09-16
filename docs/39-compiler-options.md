@@ -254,7 +254,7 @@ stable `id: "sanitizer-runtime-support"` and reports
 `libclang_rt` sanitizer runtime for the host target.
 
 `bpl doctor` also validates path safety for `BPL_HOME` and bundled runtime
-resources. The BPL home path and runtime files such as `lib/runtime.ll`,
+resources. The BPL home path and runtime files such as
 `lib/runtime_support.o`, `lib/runtime_wasm.ll`, and
 `lib/runtime_wasm_host.ll` must not be reached through symlinked parent path
 components. Final broken symlinks, directories, and missing files keep their

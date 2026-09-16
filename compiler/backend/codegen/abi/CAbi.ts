@@ -81,6 +81,7 @@ export interface LoweredExtern {
 }
 
 export function isByValueAggregate(type: string): boolean {
+  if (type.endsWith("*")) return false;
   return type.startsWith("%struct.") || type.startsWith("%enum.");
 }
 

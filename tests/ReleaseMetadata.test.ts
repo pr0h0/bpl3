@@ -1197,9 +1197,6 @@ describe("Release metadata", () => {
       expect(byPath.get("bpl")?.sha256).toBe(
         createHash("sha256").update("standalone compiler\n").digest("hex"),
       );
-      expect(byPath.get("lib/runtime.ll")?.sha256).toBe(
-        createHash("sha256").update("runtime ir\n").digest("hex"),
-      );
       expect(byPath.get("lib/runtime_wasm.ll")?.sha256).toBe(
         createHash("sha256").update("wasm runtime ir\n").digest("hex"),
       );
@@ -1324,8 +1321,12 @@ describe("Release metadata", () => {
       writeReleaseFixture(tempRoot);
       const outsideRuntime = join(tempRoot, "outside-runtime.ll");
       writeFileSync(outsideRuntime, "outside runtime\n");
-      rmSync(join(tempRoot, "lib", "runtime.ll"));
-      symlinkSync(outsideRuntime, join(tempRoot, "lib", "runtime.ll"), "file");
+      rmSync(join(tempRoot, "lib", "runtime_wasm.ll"));
+      symlinkSync(
+        outsideRuntime,
+        join(tempRoot, "lib", "runtime_wasm.ll"),
+        "file",
+      );
 
       expect(() =>
         createReleaseManifest({
@@ -1765,7 +1766,6 @@ function writeReleaseFixture(tempRoot: string): void {
     join(tempRoot, "compiler", "common", "ProcessErrors.ts"),
     "process errors helper\n",
   );
-  writeFileSync(join(tempRoot, "lib", "runtime.ll"), "runtime ir\n");
   writeFileSync(join(tempRoot, "lib", "runtime_wasm.ll"), "wasm runtime ir\n");
   writeFileSync(
     join(tempRoot, "lib", "runtime_wasm_host.ll"),

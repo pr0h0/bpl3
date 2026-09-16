@@ -465,8 +465,6 @@ export function createIndexOutOfBoundsErrorDecl(): AST.StructDecl {
   };
 }
 
-const INDEX_OUT_OF_BOUNDS_ERROR_DECL = createIndexOutOfBoundsErrorDecl();
-
 export function createDivisionByZeroErrorDecl(): AST.StructDecl {
   return {
     kind: "StructDecl",
@@ -561,32 +559,6 @@ export function initializeBuiltinsInScope(scope: SymbolTable): void {
       name: "string",
       type: stringType,
     } as any,
-  });
-
-  // Register NullAccessError struct type
-  const nullAccessErrorDecl = createNullAccessErrorDecl();
-  scope.define({
-    name: "NullAccessError",
-    kind: "Struct",
-    type: createBasicType("NullAccessError"),
-    declaration: nullAccessErrorDecl,
-  });
-
-  // Register IndexOutOfBoundsError struct type
-  scope.define({
-    name: "IndexOutOfBoundsError",
-    kind: "Struct",
-    type: createBasicType("IndexOutOfBoundsError"),
-    declaration: INDEX_OUT_OF_BOUNDS_ERROR_DECL,
-  });
-
-  // Register DivisionByZeroError struct type
-  const divisionByZeroErrorDecl = createDivisionByZeroErrorDecl();
-  scope.define({
-    name: "DivisionByZeroError",
-    kind: "Struct",
-    type: createBasicType("DivisionByZeroError"),
-    declaration: divisionByZeroErrorDecl,
   });
 
   // Register Type struct (Root of type hierarchy)

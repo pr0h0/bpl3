@@ -14,6 +14,7 @@
  * @extends AsmGenerator
  * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
+import { isRuntimeHelperName } from "./TypeGenerator";
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
@@ -181,6 +182,11 @@ export abstract class StatementGenerator extends AsmGenerator {
     if (decl.name === "main" || emittedName === "main") {
       return !this.isRuntimeFreeNativeMain(decl);
     }
+    // Runtime helpers and the builtin Type methods must not recurse into the
+    // stack-depth check they support.
+    if (isRuntimeHelperName(decl.name) || emittedName.startsWith("Type_")) {
+      return false;
+    }
 
     return (
       !this.isTrivialLeafReturnFunction(decl) &&
@@ -248,7 +254,17 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
 
     if (!this.shouldInlineStackFrameChecks()) {
-      this.emit(`  call void @__bpl_enter_stack_frame()`);
+      const overflow = this.newRegister();
+      const overflowLabel = this.newLabel("stack.check.overflow");
+      const continueLabel = this.newLabel("stack.check.cont");
+      this.emit(`  ${overflow} = call i1 @__bpl_enter_stack_frame()`);
+      this.emit(
+        `  br i1 ${overflow}, label %${overflowLabel}, label %${continueLabel}`,
+      );
+      this.emit(`${overflowLabel}:`);
+      this.emit(`  call void @__bpl_throw_stack_overflow()`);
+      this.emit(`  unreachable`);
+      this.emit(`${continueLabel}:`);
       return;
     }
 
@@ -2902,13 +2918,18 @@ export abstract class StatementGenerator extends AsmGenerator {
 
       // Built-in runtime functions are now external (linked from runtime.ll)
       // So we just declare them and skip body generation
-      if (decl.location && decl.location.file === "internal") {
+      if (
+        decl.location &&
+        decl.location.file === "internal" &&
+        !isRuntimeHelperName(name) &&
+        !name.startsWith("Type_")
+      ) {
         this.emitDeclaration(`declare ${retType} @${name}(${params})`);
         return;
       }
 
       let linkage = "";
-      if (name.startsWith("Type_")) {
+      if (name.startsWith("Type_") || isRuntimeHelperName(name)) {
         linkage += "linkonce_odr ";
       } else if (
         this.useLinkOnceOdrForStdLib &&

@@ -447,11 +447,18 @@ export class ModuleResolver {
   /**
    * Load a module and its dependencies recursively
    */
+  private virtualSources = new Map<
+    string,
+    { content: string; displayPath: string }
+  >();
+
   private loadModule(
     modulePath: string,
     visited: Set<string> = new Set(),
   ): ModuleInfo {
-    this.assertReadableModuleFile(modulePath);
+    if (!this.virtualSources.has(modulePath)) {
+      this.assertReadableModuleFile(modulePath);
+    }
 
     // Check cache
     if (this.modules.has(modulePath)) {
@@ -475,8 +482,9 @@ export class ModuleResolver {
     visited.add(modulePath);
 
     // Read and parse
-    const content = fs.readFileSync(modulePath, "utf-8");
-    const parser = new Parser(content, modulePath);
+    const virtual = this.virtualSources.get(modulePath);
+    const content = virtual?.content ?? fs.readFileSync(modulePath, "utf-8");
+    const parser = new Parser(content, virtual?.displayPath ?? modulePath);
     const ast = parser.parse(true);
 
     // Create module info
@@ -637,9 +645,21 @@ export class ModuleResolver {
    * Resolve all modules starting from entry point
    * Returns modules in dependency order
    */
-  resolveModules(entryFile: string): ModuleInfo[] {
+  /**
+   * @param entrySource Source of the entry module when it has no file on disk
+   *   (stdin, `--eval`, playground). Imports still resolve from its path.
+   */
+  resolveModules(entryFile: string, entrySource?: string): ModuleInfo[] {
     // Normalize entry file path
     const entryPath = this.normalizePath(path.resolve(entryFile));
+
+    if (entrySource !== undefined) {
+      // Diagnostics keep the name the caller used, such as `<stdin>`.
+      this.virtualSources.set(entryPath, {
+        content: entrySource,
+        displayPath: entryFile,
+      });
+    }
 
     // Load entry module recursively
     this.loadModule(entryPath);

@@ -73,3 +73,6 @@ lib/*.o
 lib/*.a
 lib/*.so
 lib/*.bc
+
+# Agent Files
+.claude

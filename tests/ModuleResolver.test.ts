@@ -85,7 +85,9 @@ describe("ModuleResolver", () => {
     const separatorFreeGuard = functionSource.indexOf(
       'if (!relativePath.includes("/") && !relativePath.includes("\\\\"))',
     );
-    const absoluteCheck = functionSource.indexOf("path.isAbsolute(relativePath)");
+    const absoluteCheck = functionSource.indexOf(
+      "path.isAbsolute(relativePath)",
+    );
 
     expect(functionStart).toBeGreaterThanOrEqual(0);
     expect(emptyGuard).toBeGreaterThanOrEqual(0);
@@ -156,9 +158,13 @@ describe("ModuleResolver", () => {
     const resolver = new ModuleResolver({ stdLibPath: tempDir });
     const modules = resolver.resolveModules(mainPath);
 
-    expect(modules).toHaveLength(1);
-    expect(modules[0]!.path).toBe(mainPath);
-    expect(modules[0]!.dependencies.size).toBe(0);
+    // Every module implicitly imports the error prelude.
+    const entry = modules[modules.length - 1]!;
+    expect(modules.map((module) => path.basename(module.path))).toEqual([
+      "errors.bpl",
+      "main.bpl",
+    ]);
+    expect(entry.path).toBe(mainPath);
   });
 
   it("does not load primitive wrappers for modules that only import C extern declarations", () => {
@@ -171,28 +177,19 @@ describe("ModuleResolver", () => {
     fs.mkdirSync(stdDir, { recursive: true });
     fs.writeFileSync(
       path.join(stdDir, "errors.bpl"),
-      [
-        "struct Error {",
-        "  message: string,",
-        "}",
-        "export [Error];",
-      ].join("\n"),
+      ["struct Error {", "  message: string,", "}", "export [Error];"].join(
+        "\n",
+      ),
     );
     fs.writeFileSync(
       path.join(stdDir, "c.bpl"),
-      [
-        "export [printf];",
-        "extern printf(fmt: string, ...) ret int;",
-      ].join("\n"),
+      ["export [printf];", "extern printf(fmt: string, ...) ret int;"].join(
+        "\n",
+      ),
     );
     fs.writeFileSync(
       path.join(stdDir, "primitives.bpl"),
-      [
-        "export [Int];",
-        "struct Int {",
-        "  value: int,",
-        "}",
-      ].join("\n"),
+      ["export [Int];", "struct Int {", "  value: int,", "}"].join("\n"),
     );
     fs.writeFileSync(
       mainPath,
@@ -213,7 +210,7 @@ describe("ModuleResolver", () => {
 
       expect(moduleNames).toContain("c.bpl");
       expect(moduleNames).toContain("main.bpl");
-      expect(moduleNames).not.toContain("errors.bpl");
+      expect(moduleNames).toContain("errors.bpl");
       expect(moduleNames).not.toContain("primitives.bpl");
     } finally {
       fs.rmSync(scopedStdLib, { recursive: true, force: true });
@@ -230,21 +227,13 @@ describe("ModuleResolver", () => {
     fs.mkdirSync(stdDir, { recursive: true });
     fs.writeFileSync(
       path.join(stdDir, "errors.bpl"),
-      [
-        "struct Error {",
-        "  message: string,",
-        "}",
-        "export [Error];",
-      ].join("\n"),
+      ["struct Error {", "  message: string,", "}", "export [Error];"].join(
+        "\n",
+      ),
     );
     fs.writeFileSync(
       path.join(stdDir, "primitives.bpl"),
-      [
-        "export [Int];",
-        "struct Int {",
-        "  value: int,",
-        "}",
-      ].join("\n"),
+      ["export [Int];", "struct Int {", "  value: int,", "}"].join("\n"),
     );
     fs.writeFileSync(
       mainPath,
@@ -265,7 +254,7 @@ describe("ModuleResolver", () => {
 
       expect(moduleNames).toContain("primitives.bpl");
       expect(moduleNames).toContain("main.bpl");
-      expect(moduleNames).not.toContain("errors.bpl");
+      expect(moduleNames).toContain("errors.bpl");
     } finally {
       fs.rmSync(scopedStdLib, { recursive: true, force: true });
     }
@@ -281,21 +270,13 @@ describe("ModuleResolver", () => {
     fs.mkdirSync(stdDir, { recursive: true });
     fs.writeFileSync(
       path.join(stdDir, "errors.bpl"),
-      [
-        "struct Error {",
-        "  message: string,",
-        "}",
-        "export [Error];",
-      ].join("\n"),
+      ["struct Error {", "  message: string,", "}", "export [Error];"].join(
+        "\n",
+      ),
     );
     fs.writeFileSync(
       path.join(stdDir, "primitives.bpl"),
-      [
-        "export [Int];",
-        "struct Int {",
-        "  value: int,",
-        "}",
-      ].join("\n"),
+      ["export [Int];", "struct Int {", "  value: int,", "}"].join("\n"),
     );
     fs.writeFileSync(
       mainPath,
@@ -316,7 +297,7 @@ describe("ModuleResolver", () => {
 
       expect(moduleNames).toContain("primitives.bpl");
       expect(moduleNames).toContain("main.bpl");
-      expect(moduleNames).not.toContain("errors.bpl");
+      expect(moduleNames).toContain("errors.bpl");
     } finally {
       fs.rmSync(scopedStdLib, { recursive: true, force: true });
     }
@@ -392,10 +373,10 @@ describe("ModuleResolver", () => {
     const resolver = new ModuleResolver({ stdLibPath: tempDir });
     const modules = resolver.resolveModules(mainPath);
 
-    expect(modules).toHaveLength(3);
-    expect(path.basename(modules[0]!.path)).toBe("moduleA.bpl");
-    expect(path.basename(modules[1]!.path)).toBe("moduleB.bpl");
-    expect(path.basename(modules[2]!.path)).toBe("main2.bpl");
+    const userModules = modules
+      .map((module) => path.basename(module.path))
+      .filter((name) => name !== "errors.bpl");
+    expect(userModules).toEqual(["moduleA.bpl", "moduleB.bpl", "main2.bpl"]);
   });
 
   it("should detect circular dependencies", () => {
@@ -490,8 +471,11 @@ describe("ModuleResolver", () => {
     const modules = resolver.resolveModules(mainPath);
 
     // Common should appear first, then left and right, then main.
-    expect(modules).toHaveLength(4);
-    expect(path.basename(modules[0]!.path)).toBe("common.bpl");
+    const userModules = modules
+      .map((module) => path.basename(module.path))
+      .filter((name) => name !== "errors.bpl");
+    expect(userModules).toHaveLength(4);
+    expect(userModules[0]).toBe("common.bpl");
     // Left and right can be in either order
     const lastModule = path.basename(modules[modules.length - 1]!.path);
     expect(lastModule).toBe("diamond_main.bpl");
@@ -989,10 +973,7 @@ describe("ModuleResolver", () => {
 
   it("should surface case-mismatched global versioned package diagnostics", () => {
     const appDir = path.join(tempDir, "global-version-case-app");
-    const globalPackageDir = path.join(
-      tempDir,
-      "global-version-case-packages",
-    );
+    const globalPackageDir = path.join(tempDir, "global-version-case-packages");
     const mismatchedPackageDir = path.join(globalPackageDir, "Math-9.0.0");
     const requestedMismatchedPackageDir = path.join(
       globalPackageDir,

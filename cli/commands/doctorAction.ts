@@ -43,8 +43,6 @@ import {
 const log = new Logger("Doctor");
 const DOCTOR_COMMAND_TIMEOUT_MS = 2000;
 const DOCTOR_COMMAND_MAX_BUFFER = 1024 * 1024;
-const RUNTIME_IR_HINT =
-  "Run `bpl doctor` to inspect runtime assets, then reinstall BPL or restore the missing runtime IR from the release package.";
 const NATIVE_RUNTIME_SUPPORT_HINT =
   "Run `bun run build:runtime`, then `bpl doctor`; reinstall BPL if runtime_support.o is still missing.";
 const WASM_RUNTIME_HINT =
@@ -183,11 +181,6 @@ function createDoctorReport(
       "Temporary directory",
       os.tmpdir(),
       "Set TMPDIR, TEMP, or TMP to a writable directory with enough free space.",
-    ),
-    checkFile(
-      "Runtime IR",
-      path.join(bplHome, "lib", "runtime.ll"),
-      RUNTIME_IR_HINT,
     ),
     checkFile(
       "Runtime support object",

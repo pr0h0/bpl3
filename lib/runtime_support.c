@@ -40,8 +40,16 @@
 #define BPL_MAX_BACKTRACE_FRAMES 64
 #define BPL_MAX_STACK_DEPTH 10000
 
-/* ============ External Variables (defined in runtime.ll) ============ */
-extern int32_t __bpl_stack_depth;
+/* ============ Runtime State ============ */
+/* Shared with generated code, which declares these as external globals. */
+int32_t __bpl_stack_depth;
+void *__bpl_stack_limit;
+int32_t __bpl_argc_value;
+char **__bpl_argv_value;
+void *defer_top;
+void *exception_top;
+int64_t exception_value;
+int32_t exception_type;
 
 /* ============ Local State for BPL Stack Trace ============ */
 static const char **__bpl_frame_names;
@@ -637,3 +645,103 @@ uint64_t __bpl_memory_page_size(void) {
     long size = sysconf(_SC_PAGESIZE);
     return size > 0 ? (uint64_t)size : 0;
 }
+
+/* ============ Program Arguments ============ */
+
+int32_t __bpl_argc(void) { return __bpl_argc_value; }
+
+char *__bpl_argv_get(int32_t index) {
+    if (!__bpl_argv_value || index < 0 || index >= __bpl_argc_value) return NULL;
+    return __bpl_argv_value[index];
+}
+
+/* ============ Memory Helpers ============ */
+
+/* Used by `struct == null` comparisons in generated code. */
+_Bool __bpl_mem_is_zero(const unsigned char *data, uint64_t length) {
+    for (uint64_t index = 0; index < length; index++) {
+        if (data[index] != 0) return 0;
+    }
+    return 1;
+}
+
+/* ============ Runtime Check Support ============ */
+
+/*
+ * The runtime check helpers themselves live in lib/errors.bpl so that the
+ * error types, their vtables, and their type ids have a single definition.
+ * They construct and throw an error when a handler is active, and otherwise
+ * report through the panics below, which never return.
+ */
+
+_Bool __bpl_has_exception_handler(void) { return exception_top != NULL; }
+
+static void __bpl_report_location(const char *function, const char *expression,
+                                  int32_t line, int32_t column) {
+    if (function) __bpl_print_error_detail("Function", function);
+    if (expression) __bpl_print_error_detail("Expression", expression);
+    __bpl_print_error_location(line, column);
+    __bpl_print_bpl_stack_trace();
+    __bpl_print_stack_trace();
+}
+
+__attribute__((noreturn))
+void __bpl_panic_null_access(const char *function, const char *expression,
+                             int32_t line, int32_t column) {
+    __bpl_print_error_box("NULL POINTER ACCESS");
+    fprintf(stderr, "%sAttempted to access member of nullptr%s\n", COLOR_YELLOW, COLOR_RESET);
+    __bpl_report_location(function, expression, line, column);
+    exit(1);
+}
+
+__attribute__((noreturn))
+void __bpl_panic_index_out_of_bounds(int32_t index, int32_t size,
+                                     const char *function, int32_t line,
+                                     int32_t column) {
+    __bpl_print_error_box("INDEX OUT OF BOUNDS");
+    fprintf(stderr, "%sArray index %d is out of bounds for size %d%s\n",
+            COLOR_YELLOW, index, size, COLOR_RESET);
+    __bpl_report_location(function, NULL, line, column);
+    exit(1);
+}
+
+__attribute__((noreturn))
+void __bpl_panic_division_by_zero(const char *function, int32_t line,
+                                  int32_t column) {
+    __bpl_print_error_box("DIVISION BY ZERO");
+    fprintf(stderr, "%sDivision by zero%s\n", COLOR_YELLOW, COLOR_RESET);
+    __bpl_report_location(function, NULL, line, column);
+    exit(1);
+}
+
+__attribute__((noreturn))
+void __bpl_panic_stack_overflow(void) {
+    __bpl_print_error_box("STACK OVERFLOW");
+    fprintf(stderr, "%sStack overflow%s\n", COLOR_YELLOW, COLOR_RESET);
+    __bpl_print_bpl_stack_trace();
+    __bpl_print_stack_trace();
+    exit(139);
+}
+
+/* Integer overflow is never catchable; it always reports and exits. */
+__attribute__((noreturn))
+void __bpl_throw_integer_overflow(const char *function, int32_t line,
+                                  int32_t column) {
+    __bpl_print_error_box("INTEGER OVERFLOW");
+    fprintf(stderr, "%sInteger division overflow%s\n", COLOR_YELLOW, COLOR_RESET);
+    __bpl_report_location(function, NULL, line, column);
+    exit(1);
+}
+
+/* ============ Stack Depth ============ */
+
+/*
+ * Returns 1 when the call would exceed the depth limit. Generated code then
+ * calls the BPL throw helper, so overflow stays catchable at every
+ * optimization level.
+ */
+_Bool __bpl_enter_stack_frame(void) {
+    return ++__bpl_stack_depth > BPL_MAX_STACK_DEPTH;
+}
+
+void __bpl_exit_stack_frame(void) { __bpl_stack_depth--; }

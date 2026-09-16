@@ -69,6 +69,14 @@ function resolveSimpleBuiltinLlvmType(
  * @extends StructEnumGenerator
  * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
+/**
+ * Runtime check helpers defined in lib/errors.bpl. They keep their symbol
+ * names, skip stack-depth hooks, and are emitted only when referenced.
+ */
+export function isRuntimeHelperName(name: string): boolean {
+  return name.startsWith("__bpl_");
+}
+
 export abstract class TypeGenerator extends StructEnumGenerator {
   protected abstract allocateStack(name: string, type: string): string;
 
@@ -190,7 +198,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     isExtern: boolean = false,
     genericArgs: AST.TypeNode[] = [],
   ): string {
-    if (name === "main" || isExtern) return name;
+    if (name === "main" || isExtern || isRuntimeHelperName(name)) return name;
     let mangled = `${name}_${this.mangleTypeList(type.paramTypes)}`;
     if (genericArgs.length > 0) {
       mangled += "_" + this.mangleTypeList(genericArgs);
@@ -801,12 +809,6 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     if (typeName === "i1") return 2;
     if (typeName === "double") return 3;
     if (typeName === "i8*") return 4;
-
-    // Built-in Exceptions (Must match runtime.ll)
-    if (typeName === "%struct.NullAccessError") return 3266311688;
-    if (typeName === "%struct.StackOverflowError") return 2060636097;
-    if (typeName === "%struct.DivisionByZeroError") return 3968367666;
-    if (typeName === "%struct.IndexOutOfBoundsError") return 2320298516;
 
     if (!this.typeIdMap.has(typeName)) {
       this.typeIdMap.set(typeName, this.nextTypeId++);
@@ -1985,7 +1987,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           if (this.isMethodEmitted(method.name)) {
             this.pendingGenerations.push(generate);
           } else {
-            this.deferredMethods.set(`${methodName}_`, generate);
+            this.deferDefinition(`${methodName}_`, generate);
           }
         }
         // If method IS generic, we don't generate it here.
@@ -2128,7 +2130,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         const queue = this.isMethodEmitted(method.name)
           ? (generate: () => void) => this.pendingGenerations.push(generate)
           : (generate: () => void) =>
-              this.deferredMethods.set(`${mangledMethodName}_`, generate);
+              this.deferDefinition(`${mangledMethodName}_`, generate);
         queue(() => {
           const innerPrevMap = this.currentTypeMap;
           this.currentTypeMap = typeMap;

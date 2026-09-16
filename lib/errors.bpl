@@ -182,3 +182,78 @@ struct DivisionByZeroError: Error {
 
 struct StackOverflowError: Error {
 }
+
+# ---------------------------------------------------------------------------
+# Runtime check support
+#
+# The compiler inserts calls to these frames for null, bounds, division, and
+# stack-depth checks. Frames named __bpl_* keep their symbol names, never get
+# stack-depth hooks, and are emitted only into programs that call them. Without
+# an active try/catch handler they report through the native runtime and exit.
+# ---------------------------------------------------------------------------
+
+extern __bpl_has_exception_handler() ret bool;
+extern __bpl_panic_null_access(function: string, expression: string, line: int, column: int);
+extern __bpl_panic_index_out_of_bounds(index: int, size: int, function: string, line: int, column: int);
+extern __bpl_panic_division_by_zero(function: string, line: int, column: int);
+extern __bpl_panic_stack_overflow();
+
+frame __bpl_check_null(pointer: *void, function: string, expression: string, line: int, column: int) {
+    if (pointer == nullptr) {
+        __bpl_throw_null_access(function, expression, line, column);
+    }
+}
+
+frame __bpl_throw_null_access(function: string, expression: string, line: int, column: int) {
+    if (!__bpl_has_exception_handler()) {
+        __bpl_panic_null_access(function, expression, line, column);
+    }
+    local error: NullAccessError;
+    error.message = "Attempted to access member of nullptr";
+    error.code = 7;
+    error.stack_frames = nullptr;
+    error.stack_depth = 0;
+    error.function = function;
+    error.expression = expression;
+    error.line = line;
+    error.column = column;
+    throw error;
+}
+
+frame __bpl_throw_index_out_of_bounds(index: int, size: int, function: string, line: int, column: int) {
+    if (!__bpl_has_exception_handler()) {
+        __bpl_panic_index_out_of_bounds(index, size, function, line, column);
+    }
+    local error: IndexOutOfBoundsError;
+    error.message = "Index out of bounds";
+    error.code = 0;
+    error.stack_frames = nullptr;
+    error.stack_depth = 0;
+    error.index = index;
+    error.size = size;
+    throw error;
+}
+
+frame __bpl_throw_division_by_zero(function: string, line: int, column: int) {
+    if (!__bpl_has_exception_handler()) {
+        __bpl_panic_division_by_zero(function, line, column);
+    }
+    local error: DivisionByZeroError;
+    error.message = "Division by zero";
+    error.code = 1;
+    error.stack_frames = nullptr;
+    error.stack_depth = 0;
+    throw error;
+}
+
+frame __bpl_throw_stack_overflow() {
+    if (!__bpl_has_exception_handler()) {
+        __bpl_panic_stack_overflow();
+    }
+    local error: StackOverflowError;
+    error.message = "Stack overflow";
+    error.code = 139;
+    error.stack_frames = nullptr;
+    error.stack_depth = 0;
+    throw error;
+}

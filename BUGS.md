@@ -4090,3 +4090,23 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-15)**: Type checking scopes names per module, but code generation merged all modules into one flat namespace, de-duplicating structs by bare name and skipping functions whose mangled name was already defined. An importer's own `helper()` ran an imported module's private `helper()`; two modules with private `struct Hid { x: int }` and `struct Hid { x: long }` shared one layout, so the `long` store wrote past the 4-byte field; a private struct replaced an importer's struct of the same name ("Unknown field"). `bpl check` also reported false "Duplicate symbol definition … in module unknown" errors.
 
 **Resolution**: After type checking, compiler/middleend/ModuleSymbolUniquer.ts renames colliding module-level declarations (standard library first, then the entry module keep their names) to `Name__N` and rewrites every reference by resolved declaration or module-visible name; reflection keeps the source name. Cached builds key objects on the rename set. Lazily loaded modules in `bpl check` now record their own module path. tests/ModuleSymbolIsolation.test.ts covers importer, sibling, method-private-type, transitive, reflection, and `--cache` cases.
+
+### BUG-341: Generic struct method signatures fail their own constraint in module builds
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-16)**: `struct Wrapper<T: Printable> { frame display(this: *Wrapper<T>) {...} }` compiled through module resolution failed with "Type 'T' does not satisfy constraint 'Printable'", while the same program passed `bpl check`. Resolving a method's parameter and return types switched to the defining module's scope, which has no generic parameters of the owning type, so `Wrapper<T>` was constraint-checked with `T` unknown. The failure was previously visible only in programs with imports; it reached every program once builds always resolve modules.
+
+**Resolution**: compiler/middleend/CallChecker.ts resolves method types in module context without constraint checking; declarations and instantiation sites still check constraints. Covered by tests/GenericsConstraints.test.ts.
+
+### BUG-342: Runtime error helpers built errors that did not match the language's error types
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-16)**: `lib/runtime.ll` rebuilt `NullAccessError`, `IndexOutOfBoundsError`, `DivisionByZeroError`, and `StackOverflowError` by hand, duplicating layouts, vtables, and type ids that also exist in lib/errors.bpl and compiler/middleend/BuiltinTypes.ts. The copies had drifted: `__bpl_throw_division_by_zero` and `__bpl_throw_index_out_of_bounds` stored the `NullAccessError` vtable, left `code`, `stack_frames`, and `stack_depth` uninitialized from `malloc`, and skipped defer unwinding, so `defer` blocks did not run when those errors were caught. Panic text went to stdout, `runtime.ll` hardcoded the x86-64 Linux target triple, and its `destroy` methods freed the error a catch clause had copied. The wasm runtime's `__bpl_check_null` took `(expr, func)` while generated code passed `(func, expr)`, so its reports swapped the two.
+
+**Resolution**: The check helpers are written in BPL in lib/errors.bpl (`__bpl_check_null`, `__bpl_throw_null_access`, `__bpl_throw_index_out_of_bounds`, `__bpl_throw_division_by_zero`, `__bpl_throw_stack_overflow`), so every error has one definition, throws through the normal lowering including defer unwinding, and is caught with all fields set. Without an active handler they call C panics that print to stderr and exit. `lib/runtime.ll` and the dead `lib/runtime.c` are deleted; runtime state, argc/argv, stack-depth helpers, and panics live in lib/runtime_support.c.

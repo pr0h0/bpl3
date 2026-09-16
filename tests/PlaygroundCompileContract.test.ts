@@ -267,9 +267,6 @@ describe("Playground compile API contract", () => {
 
     expect(serverSource).toContain("resolvePlaygroundNativeRuntimeFiles");
     expect(serverSource).not.toContain("const runtimeFiles: string[] = []");
-    expect(serverSource).not.toContain(
-      '"runtime.ll");\n      if (fs.existsSync',
-    );
   });
 
   test("fast-paths no-import artifact-free native compiles", () => {

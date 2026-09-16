@@ -1,49 +1,29 @@
 import { describe, expect, test } from "bun:test";
-import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
-import { Parser } from "../compiler/frontend/Parser";
-import { TypeChecker } from "../compiler/middleend/TypeChecker";
-import { CodeGenerator } from "../compiler/backend/CodeGenerator";
-import { execSync } from "child_process";
+import { spawnSync } from "child_process";
 import { writeFileSync, mkdtempSync, rmSync } from "fs";
-import { join } from "path";
+import { join, resolve } from "path";
 import { tmpdir } from "os";
 
+// Builds through the CLI so the program gets the implicit prelude that
+// provides the runtime check helpers, then reports the program's exit status.
 function check(source: string): number {
-  const tokens = lexWithGrammar(source, "test.bpl");
-  const parser = new Parser(source, "test.bpl", tokens);
-  const program = parser.parse();
-  const typeChecker = new TypeChecker();
-  typeChecker.checkProgram(program);
-  const typeErrors = typeChecker.getErrors();
-  if (typeErrors.length > 0) {
-    throw typeErrors[0];
-  }
-
-  const codeGen = new CodeGenerator();
-  const llvmIR = codeGen.generate(program);
-
-  // Create temp directory and files
   const tempDir = mkdtempSync(join(tmpdir(), "bpl-test-"));
-  const llFile = join(tempDir, "test.ll");
-  const exeFile = join(tempDir, "test");
+  const sourceFile = join(tempDir, "main.bpl");
+  const exeFile = join(tempDir, "main");
 
   try {
-    writeFileSync(llFile, llvmIR);
-    const runtimePath = join(process.cwd(), "lib/runtime.ll");
-    const runtimeSupportPath = join(process.cwd(), "lib/runtime_support.o");
-    execSync(
-      `clang -Wno-override-module ${llFile} "${runtimePath}" "${runtimeSupportPath}" -o ${exeFile} -rdynamic`,
-      {
-        stdio: "pipe",
-      },
+    writeFileSync(sourceFile, source);
+    const build = spawnSync(
+      "bun",
+      [resolve("index.ts"), "build", sourceFile, "-o", exeFile],
+      { encoding: "utf8", timeout: 60000 },
     );
-    const result = execSync(exeFile, { stdio: "pipe" });
-    return result.length > 0 ? result[0]! : 0;
-  } catch (error: any) {
-    if (error.status !== undefined) {
-      return error.status;
+    if (build.status !== 0) {
+      throw new Error(`Build failed: ${build.stdout}${build.stderr}`);
     }
-    throw error;
+    return (
+      spawnSync(exeFile, [], { encoding: "utf8", timeout: 10000 }).status ?? 0
+    );
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

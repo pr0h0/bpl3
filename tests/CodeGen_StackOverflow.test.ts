@@ -48,7 +48,7 @@ describe("CodeGen - Stack Overflow", () => {
     const ir = generate(source);
 
     // Check for runtime calls
-    expect(ir).toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).toContain("call i1 @__bpl_enter_stack_frame()");
     expect(ir).toContain("call void @__bpl_exit_stack_frame()");
   });
 
@@ -63,7 +63,7 @@ describe("CodeGen - Stack Overflow", () => {
     `;
     const ir = generate(source);
 
-    expect(ir).not.toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).not.toContain("call i1 @__bpl_enter_stack_frame()");
     expect(ir).not.toContain("call void @__bpl_exit_stack_frame()");
     expect(ir).not.toContain("declare void @__bpl_enter_stack_frame()");
     expect(ir).not.toContain("declare void @__bpl_exit_stack_frame()");
@@ -102,7 +102,7 @@ describe("CodeGen - Stack Overflow", () => {
     expect(ir).toContain("call void @__bpl_throw_stack_overflow()");
     expect(ir).not.toContain("@__bpl_stack_depth = external global i32");
     expect(ir).not.toContain("@__bpl_stack_base = external global i8*");
-    expect(ir).not.toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).not.toContain("call i1 @__bpl_enter_stack_frame()");
     expect(ir).not.toContain("call void @__bpl_exit_stack_frame()");
 
     const fibBody = ir.match(
@@ -304,7 +304,7 @@ describe("CodeGen - Stack Overflow", () => {
 
     for (const ir of [wasmIr, dwarfIr]) {
       const printValueBody = functionBody(ir, "print_value_i32");
-      expect(printValueBody).toContain("call void @__bpl_enter_stack_frame()");
+      expect(printValueBody).toContain("call i1 @__bpl_enter_stack_frame()");
       expect(printValueBody).toContain("call void @__bpl_exit_stack_frame()");
     }
   });
@@ -348,11 +348,11 @@ describe("CodeGen - Stack Overflow", () => {
     const ir = generate(source);
 
     const helperBody = functionBody(ir, "helper_i32");
-    expect(helperBody).not.toContain("call void @__bpl_enter_stack_frame()");
+    expect(helperBody).not.toContain("call i1 @__bpl_enter_stack_frame()");
     expect(helperBody).not.toContain("call void @__bpl_exit_stack_frame()");
 
     const mainBody = functionBody(ir, "main");
-    expect(mainBody).toContain("call void @__bpl_enter_stack_frame()");
+    expect(mainBody).toContain("call i1 @__bpl_enter_stack_frame()");
     expect(mainBody).toContain("call void @__bpl_exit_stack_frame()");
   });
 
@@ -369,7 +369,7 @@ describe("CodeGen - Stack Overflow", () => {
     const ir = generate(source);
 
     const helperBody = functionBody(ir, "helper_i32");
-    expect(helperBody).toContain("call void @__bpl_enter_stack_frame()");
+    expect(helperBody).toContain("call i1 @__bpl_enter_stack_frame()");
     expect(helperBody).toContain("call void @__bpl_exit_stack_frame()");
     expect(helperBody).toContain("call void @__bpl_throw_division_by_zero");
   });
@@ -393,7 +393,7 @@ describe("CodeGen - Stack Overflow", () => {
     });
 
     const helperBody = functionBody(ir, "helper_i32");
-    expect(helperBody).toContain("call void @__bpl_enter_stack_frame()");
+    expect(helperBody).toContain("call i1 @__bpl_enter_stack_frame()");
     expect(helperBody).toContain("call void @__bpl_exit_stack_frame()");
   });
 
@@ -413,7 +413,7 @@ describe("CodeGen - Stack Overflow", () => {
     const ir = generateWithOptions(source, { dwarf: true });
 
     const helperBody = functionBody(ir, "helper_i32");
-    expect(helperBody).toContain("call void @__bpl_enter_stack_frame()");
+    expect(helperBody).toContain("call i1 @__bpl_enter_stack_frame()");
     expect(helperBody).toContain("call void @__bpl_exit_stack_frame()");
   });
 

@@ -3,6 +3,15 @@ import { parseWithPeggy } from "./PeggyParser";
 import { Token } from "./Token";
 import { TokenType } from "./TokenType";
 
+/** Error types every module can name without importing them. */
+const PRELUDE_ERROR_TYPES = [
+  "Error",
+  "NullAccessError",
+  "IndexOutOfBoundsError",
+  "DivisionByZeroError",
+  "StackOverflowError",
+];
+
 export class Parser {
   private readonly source: string;
   private readonly filePath: string;
@@ -23,31 +32,41 @@ export class Parser {
       hasCommentMarker,
     });
 
-    // Import Error on demand; sources that cannot reference it skip stdlib work.
-    const isErrorsBpl =
+    // Implicit prelude: the Error hierarchy used by try/catch and by the
+    // runtime checks the compiler inserts (see lib/errors.bpl). Names the
+    // file declares itself are not imported.
+    const isPreludeProvider =
       this.filePath.endsWith("errors.bpl") ||
       this.filePath.endsWith("errors.x") ||
       this.filePath.endsWith("intrinsics.bpl");
-    if (
-      injectImplicitImports &&
-      !isErrorsBpl &&
-      this.source.includes("Error")
-    ) {
-      const errorImport: AST.ImportStmt = {
-        kind: "Import",
-        items: [{ name: "Error", isType: true, isWrapped: false }],
-        source: "std/errors.bpl",
-        importAll: false,
-        isImplicit: true,
-        location: {
-          file: this.filePath,
-          startLine: 0,
-          startColumn: 0,
-          endLine: 0,
-          endColumn: 0,
-        },
-      };
-      ast.statements.unshift(errorImport);
+    if (injectImplicitImports && !isPreludeProvider) {
+      const declared = new Set(
+        ast.statements
+          .map((stmt) => (stmt as { name?: unknown }).name)
+          .filter((name): name is string => typeof name === "string"),
+      );
+      const items = PRELUDE_ERROR_TYPES.filter((name) => !declared.has(name));
+      if (items.length > 0) {
+        const errorImport: AST.ImportStmt = {
+          kind: "Import",
+          items: items.map((name) => ({
+            name,
+            isType: true,
+            isWrapped: false,
+          })),
+          source: "std/errors.bpl",
+          importAll: false,
+          isImplicit: true,
+          location: {
+            file: this.filePath,
+            startLine: 0,
+            startColumn: 0,
+            endLine: 0,
+            endColumn: 0,
+          },
+        };
+        ast.statements.unshift(errorImport);
+      }
     }
 
     const tokenComments =

@@ -445,12 +445,7 @@ function buildClangArgs(
 
   // Link runtime logic unless skipped
   if (!options.skipRuntime && !wasmTarget) {
-    for (const runtimeFile of resolveNativeRuntimeFiles({
-      irPath,
-      target,
-      compileOptions: options,
-      warn: (message) => log.warn(message),
-    })) {
+    for (const runtimeFile of resolveNativeRuntimeFiles({ irPath })) {
       const alreadyLinkedSupport =
         (options.object &&
           normalizeArrayOption(options.object).includes(runtimeFile)) ||

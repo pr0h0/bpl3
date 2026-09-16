@@ -4,7 +4,6 @@ import { join } from "path";
 
 import {
   createBasicType,
-  createIndexOutOfBoundsErrorDecl,
   createTypeStructDecl,
   initializeBuiltinsInScope,
 } from "../compiler/middleend/BuiltinTypes";
@@ -87,23 +86,19 @@ describe("BuiltinTypes", () => {
     );
   });
 
-  it("reuses the immutable index error declaration only across builtin scopes", () => {
-    const firstFactoryDeclaration = createIndexOutOfBoundsErrorDecl();
-    const secondFactoryDeclaration = createIndexOutOfBoundsErrorDecl();
-    expect(firstFactoryDeclaration).not.toBe(secondFactoryDeclaration);
+  it("leaves runtime error types to the std/errors.bpl prelude", () => {
+    const scope = new SymbolTable();
+    initializeBuiltinsInScope(scope);
 
-    const firstScope = new SymbolTable();
-    const secondScope = new SymbolTable();
-    initializeBuiltinsInScope(firstScope);
-    initializeBuiltinsInScope(secondScope);
-
-    const firstScopeDeclaration = firstScope.getInCurrentScope(
+    // These used to be declared twice: here and in lib/errors.bpl, which
+    // drifted apart (BUG-326). The prelude import is now the only source.
+    for (const name of [
+      "NullAccessError",
       "IndexOutOfBoundsError",
-    )?.declaration;
-    const secondScopeDeclaration = secondScope.getInCurrentScope(
-      "IndexOutOfBoundsError",
-    )?.declaration;
-    expect(firstScopeDeclaration).toBeDefined();
-    expect(firstScopeDeclaration).toBe(secondScopeDeclaration);
+      "DivisionByZeroError",
+    ]) {
+      expect(scope.getInCurrentScope(name)).toBeUndefined();
+    }
+    expect(scope.getInCurrentScope("Type")).toBeDefined();
   });
 });

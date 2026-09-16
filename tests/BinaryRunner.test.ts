@@ -137,7 +137,9 @@ describe("BinaryRunner", () => {
     const irPath = path.join(tempDir, "main.ll");
 
     try {
-      fs.mkdirSync(path.join(libDir, "runtime.ll"), { recursive: true });
+      fs.mkdirSync(path.join(libDir, "runtime_support.o"), {
+        recursive: true,
+      });
       fs.writeFileSync(
         irPath,
         [
@@ -155,16 +157,16 @@ describe("BinaryRunner", () => {
       const result = compileToBinary(irPath, {});
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("Runtime IR is not a file");
-      expect(result.error).toContain(path.join(libDir, "runtime.ll"));
+      expect(result.error).toContain("Runtime support object is not a file");
+      expect(result.error).toContain(path.join(libDir, "runtime_support.o"));
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
-  test("links native builds with a cached runtime object instead of recompiling runtime.ll", () => {
+  test("links the runtime support object without compiling runtime IR", () => {
     const tempDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), "bpl-binary-runtime-cache-"),
+      path.join(os.tmpdir(), "bpl-binary-runtime-link-"),
     );
     const bplHome = path.join(tempDir, "bpl-home");
     const libDir = path.join(bplHome, "lib");
@@ -174,10 +176,6 @@ describe("BinaryRunner", () => {
 
     try {
       fs.mkdirSync(libDir, { recursive: true });
-      fs.writeFileSync(
-        path.join(libDir, "runtime.ll"),
-        "define void @__bpl_runtime_stub() { ret void }\n",
-      );
       fs.writeFileSync(path.join(libDir, "runtime_support.o"), "obj\n");
       fs.writeFileSync(
         irPath,
@@ -208,13 +206,12 @@ describe("BinaryRunner", () => {
         .readFileSync(compilerLogPath, "utf8")
         .trim()
         .split("\n");
-      const runtimeCompileArgs = invocations[0]!;
-      const finalLinkArgs = invocations.at(-1)!;
+      // Only the final link runs; there is no runtime IR to precompile.
+      expect(invocations).toHaveLength(1);
+      const finalLinkArgs = invocations[0]!;
       for (const flag of getNativeCodegenFlags()) {
-        expect(runtimeCompileArgs).toContain(flag);
+        expect(finalLinkArgs).toContain(flag);
       }
-      expect(finalLinkArgs).not.toContain(path.join(libDir, "runtime.ll"));
-      expect(finalLinkArgs).toContain(".o");
       expect(finalLinkArgs).toContain(path.join(libDir, "runtime_support.o"));
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -233,10 +230,6 @@ describe("BinaryRunner", () => {
 
     try {
       fs.mkdirSync(libDir, { recursive: true });
-      fs.writeFileSync(
-        path.join(libDir, "runtime.ll"),
-        "define void @__bpl_runtime_stub() { ret void }\n",
-      );
       fs.writeFileSync(path.join(libDir, "runtime_support.o"), "obj\n");
       fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
       writeNodeCommandShim(fakeCompiler, [
@@ -258,7 +251,6 @@ describe("BinaryRunner", () => {
         .split("\n");
       expect(invocations).toHaveLength(1);
       const finalLinkArgs = invocations[0]!;
-      expect(finalLinkArgs).not.toContain(path.join(libDir, "runtime.ll"));
       expect(finalLinkArgs).not.toContain(".o");
       expect(finalLinkArgs).not.toContain(path.join(libDir, "runtime_support.o"));
     } finally {
@@ -278,10 +270,6 @@ describe("BinaryRunner", () => {
 
     try {
       fs.mkdirSync(libDir, { recursive: true });
-      fs.writeFileSync(
-        path.join(libDir, "runtime.ll"),
-        "define void @__bpl_runtime_stub() { ret void }\n",
-      );
       fs.writeFileSync(path.join(libDir, "runtime_support.o"), "obj\n");
       fs.writeFileSync(
         irPath,
@@ -313,7 +301,6 @@ describe("BinaryRunner", () => {
         .trim()
         .split("\n")
         .at(-1)!;
-      expect(finalLinkArgs).not.toContain(path.join(libDir, "runtime.ll"));
       expect(finalLinkArgs).toContain(".o");
       expect(finalLinkArgs).toContain(path.join(libDir, "runtime_support.o"));
     } finally {
@@ -334,10 +321,6 @@ describe("BinaryRunner", () => {
       fs.mkdirSync(bplHome, { recursive: true });
       fs.mkdirSync(runtimeTarget);
       fs.symlinkSync(runtimeTarget, libLink, "dir");
-      fs.writeFileSync(
-        path.join(runtimeTarget, "runtime.ll"),
-        "define void @__bpl_runtime_stub() { ret void }\n",
-      );
       fs.writeFileSync(path.join(runtimeTarget, "runtime_support.o"), "obj\n");
       fs.writeFileSync(
         irPath,
@@ -358,7 +341,7 @@ describe("BinaryRunner", () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain(
-        `Runtime IR parent path contains a symbolic link: ${libLink}`,
+        `Runtime support object parent path contains a symbolic link: ${libLink}`,
       );
       expect(result.error).not.toContain("missing-cc");
     } finally {
@@ -377,11 +360,10 @@ describe("BinaryRunner", () => {
     try {
       fs.mkdirSync(libDir, { recursive: true });
       fs.symlinkSync(
-        path.join(libDir, "missing-runtime.ll"),
-        path.join(libDir, "runtime.ll"),
+        path.join(libDir, "missing-runtime.o"),
+        path.join(libDir, "runtime_support.o"),
         "file",
       );
-      fs.writeFileSync(path.join(libDir, "runtime_support.o"), "obj\n");
       fs.writeFileSync(
         irPath,
         [
@@ -400,8 +382,10 @@ describe("BinaryRunner", () => {
       const result = compileToBinary(irPath, {});
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("Runtime IR is a broken symbolic link");
-      expect(result.error).toContain(path.join(libDir, "runtime.ll"));
+      expect(result.error).toContain(
+        "Runtime support object is a broken symbolic link",
+      );
+      expect(result.error).toContain(path.join(libDir, "runtime_support.o"));
       expect(result.error).not.toContain("missing-cc");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });

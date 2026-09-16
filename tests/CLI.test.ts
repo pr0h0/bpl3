@@ -4574,7 +4574,6 @@ describe("CLI Tests", () => {
       expect.arrayContaining([
         "BPL home",
         "Temporary directory",
-        "Runtime IR",
         "Runtime support object",
         "WebAssembly runtime IR",
         "Hosted WebAssembly runtime IR",
@@ -4750,7 +4749,7 @@ describe("CLI Tests", () => {
       expect(homeCheck?.detail).toContain("is not a directory");
 
       fs.mkdirSync(path.join(runtimeBplHome, "lib"), { recursive: true });
-      fs.mkdirSync(path.join(runtimeBplHome, "lib", "runtime.ll"));
+      fs.mkdirSync(path.join(runtimeBplHome, "lib", "runtime_support.o"));
       const runtimeResult = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
         encoding: "utf-8",
         env: {
@@ -4765,18 +4764,18 @@ describe("CLI Tests", () => {
         success: false,
       });
       const runtimeCheck = runtimeReport.checks.find(
-        (check) => check.name === "Runtime IR",
+        (check) => check.name === "Runtime support object",
       );
       expect(runtimeCheck?.ok).toBe(false);
       expect(runtimeCheck?.detail).toContain("is not a file");
 
-      fs.rmSync(path.join(runtimeBplHome, "lib", "runtime.ll"), {
+      fs.rmSync(path.join(runtimeBplHome, "lib", "runtime_support.o"), {
         recursive: true,
         force: true,
       });
       fs.symlinkSync(
-        path.join(runtimeBplHome, "lib", "missing-runtime.ll"),
-        path.join(runtimeBplHome, "lib", "runtime.ll"),
+        path.join(runtimeBplHome, "lib", "missing-runtime.o"),
+        path.join(runtimeBplHome, "lib", "runtime_support.o"),
         "file",
       );
       const brokenRuntimeResult = spawnSync(
@@ -4797,7 +4796,7 @@ describe("CLI Tests", () => {
         success: false,
       });
       const brokenRuntimeCheck = brokenRuntimeReport.checks.find(
-        (check) => check.name === "Runtime IR",
+        (check) => check.name === "Runtime support object",
       );
       expect(brokenRuntimeCheck?.ok).toBe(false);
       expect(brokenRuntimeCheck?.detail).toContain("broken symbolic link");
@@ -4825,7 +4824,6 @@ describe("CLI Tests", () => {
       );
       fs.symlinkSync(runtimeTarget, libLink, "dir");
       for (const entry of [
-        "runtime.ll",
         "runtime_support.o",
         "runtime_wasm.ll",
         "runtime_wasm_host.ll",
@@ -4847,7 +4845,7 @@ describe("CLI Tests", () => {
         success: false,
       });
       const runtimeCheck = report.checks.find(
-        (check) => check.name === "Runtime IR",
+        (check) => check.name === "Runtime support object",
       );
       expect(runtimeCheck?.ok).toBe(false);
       expect(runtimeCheck?.detail).toContain(

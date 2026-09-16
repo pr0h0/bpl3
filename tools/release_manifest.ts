@@ -120,7 +120,6 @@ export function createReleaseManifest(
   const binaryName = process.platform === "win32" ? "bpl.exe" : "bpl";
   const artifacts: ReleaseManifestArtifact[] = [
     artifactFor(repoRoot, join(repoRoot, binaryName), "binary"),
-    artifactFor(repoRoot, join(repoRoot, "lib", "runtime.ll"), "runtime"),
     artifactFor(
       repoRoot,
       join(repoRoot, "lib", "runtime_wasm.ll"),

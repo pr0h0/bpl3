@@ -2,6 +2,20 @@
 
 BPL modules are ordinary `.bpl` files. Each file has its own scope, and symbols are private unless the file exports them explicitly.
 
+Privacy holds through code generation. Modules that happen to declare the same
+private name keep separate structs, functions, and globals: the compiler renames
+colliding module-level declarations to `Name__N` before merging modules, and
+reflection still reports the name written in source. Two modules can define
+different private `struct Buffer` types, and an importer can define its own
+`helper()` without shadowing a dependency's.
+
+Importing one item does not compile the rest of its module. Code generation
+keeps only what the program reaches: unused functions are dropped, unused
+structs and enums keep their layout but get no methods or vtables, and a used
+type's methods are emitted only when reachable code references them by name.
+Methods the compiler calls implicitly, such as `destroy`, `toString`, and the
+`__op__` operator methods, are always kept for reachable types.
+
 ## Import Syntax
 
 Import functions, globals, and other value symbols by name:

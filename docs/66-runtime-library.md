@@ -4,18 +4,29 @@ The BPL runtime library provides essential runtime support for BPL programs, inc
 
 ## Architecture Overview
 
-The runtime is split into two components:
+The runtime has three parts:
 
-| Component               | Language | Purpose                                                   |
-| ----------------------- | -------- | --------------------------------------------------------- |
-| `lib/runtime.ll`        | LLVM IR  | Core exception handling, defer, try/catch, longjmp/setjmp |
-| `lib/runtime_support.c` | C        | Signal handlers, stack traces, formatted error printing   |
+| Component               | Language | Purpose                                                                          |
+| ----------------------- | -------- | -------------------------------------------------------------------------------- |
+| `lib/errors.bpl`        | BPL      | Error types and the check helpers that throw them (`__bpl_check_null`, `__bpl_throw_*`) |
+| `lib/runtime_support.c` | C        | Runtime state, panics, signal handlers, stack traces, filesystem and time helpers |
+| `lib/runtime_wasm.ll`   | LLVM IR  | Freestanding wasm substitutes for the C runtime and libc                          |
 
-This split architecture ensures:
+Writing the check helpers in BPL keeps one definition of each error type, its
+fields, its vtable, and its type id, so a thrown `NullAccessError` is the same
+type a `catch` clause names. Earlier versions rebuilt those structs by hand in
+`lib/runtime.ll`, which drifted from `lib/errors.bpl`; that file is gone.
 
-- **Correct LLVM Integration**: Exception handling primitives remain in LLVM IR for proper integration with generated code
-- **Rich Diagnostics**: C library provides portable access to `backtrace()`, `dladdr()`, and signal handling
-- **Cross-Platform Support**: C code handles platform-specific details (Linux, macOS)
+The helpers are compiled into a program only when generated code calls them,
+and each one throws only when a `try` block is active:
+
+- with an active handler, the helper builds the error and throws it, so `defer`
+  blocks run and a matching `catch` receives a fully populated value;
+- with no handler, it calls a C panic (`__bpl_panic_*`), which prints a
+  formatted report with stack traces to stderr and exits.
+
+Programs that never trigger a check, such as a hello world, link no runtime at
+all.
 
 ## Runtime Error Types
 
@@ -205,11 +216,24 @@ The formatting degrades gracefully on terminals without color support.
 
 ## API Reference
 
-### Core Functions (runtime.ll)
+### Runtime check helpers (lib/errors.bpl)
+
+The compiler inserts calls to these; they are emitted only when called.
+
+```bpl
+frame __bpl_check_null(pointer: *void, function: string, expression: string, line: int, column: int)
+frame __bpl_throw_null_access(function: string, expression: string, line: int, column: int)
+frame __bpl_throw_index_out_of_bounds(index: int, size: int, function: string, line: int, column: int)
+frame __bpl_throw_division_by_zero(function: string, line: int, column: int)
+frame __bpl_throw_stack_overflow()
+```
+
+### Core functions (runtime_support.c)
 
 ```llvm
-; Enter a stack frame (call at function entry)
-declare void @__bpl_enter_stack_frame()
+; Enter a stack frame; returns 1 when the depth limit is exceeded, and the
+; caller then calls @__bpl_throw_stack_overflow
+declare i1 @__bpl_enter_stack_frame()
 
 ; Leave a stack frame (call at function exit)
 declare void @__bpl_exit_stack_frame()
@@ -217,17 +241,17 @@ declare void @__bpl_exit_stack_frame()
 ; Optimized native stack-limit probe state
 @__bpl_stack_limit = external global i8*
 
-; Throw null pointer access error
-declare void @__bpl_throw_null_access(i8* %func, i8* %expr, i32 %line, i32 %col)
+; True while a try block is active; the BPL helpers throw only then
+declare i1 @__bpl_has_exception_handler()
 
-; Throw index out of bounds error
-declare void @__bpl_throw_index_out_of_bounds(i32 %index, i32 %size, i8* %func, i32 %line, i32 %col)
+; Report an unhandled runtime error and exit; these never return
+declare void @__bpl_panic_null_access(i8* %func, i8* %expr, i32 %line, i32 %col)
+declare void @__bpl_panic_index_out_of_bounds(i32 %index, i32 %size, i8* %func, i32 %line, i32 %col)
+declare void @__bpl_panic_division_by_zero(i8* %func, i32 %line, i32 %col)
+declare void @__bpl_panic_stack_overflow()
 
-; Throw division by zero error
-declare void @__bpl_throw_division_by_zero(i8* %func, i32 %line, i32 %col)
-
-; Throw stack overflow error
-declare void @__bpl_throw_stack_overflow()
+; Integer division overflow is never catchable
+declare void @__bpl_throw_integer_overflow(i8* %func, i32 %line, i32 %col)
 ```
 
 ### Support Functions (runtime_support.c)
@@ -288,10 +312,11 @@ CC=clang-18 BPL_RUNTIME_BUILD=debug ./build_runtime.sh
 
 ## Linking
 
-The BPL compiler automatically links both runtime components:
+The compiler links `lib/runtime_support.o` when the generated IR references a
+runtime symbol, and omits it otherwise:
 
 ```bash
-clang -o program program.ll lib/runtime.ll lib/runtime_support.o \
+clang -o program program.ll lib/runtime_support.o \
   -ffunction-sections -fdata-sections \
   -Wl,--gc-sections -Wl,--no-export-dynamic -lm -ldl
 ```
@@ -325,7 +350,9 @@ frame example() {
 }
 ```
 
-Both `defer` and `try/catch` are implemented using `setjmp`/`longjmp` in `runtime.ll`.
+Both `defer` and `try/catch` are implemented with `setjmp`/`longjmp` in the
+code the compiler generates; the C runtime holds the shared handler and defer
+state (`exception_top`, `defer_top`).
 
 ## Debugging Tips
 

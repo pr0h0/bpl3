@@ -1392,9 +1392,14 @@ function resolveMethodTypesInModuleContext(
       const oldScope = (context as any).currentScope;
       (context as any).currentScope = moduleScope;
       try {
+        // The module scope has no generic parameters of the owning type, so a
+        // signature such as `this: *Wrapper<T>` cannot be constraint-checked
+        // here; declarations and instantiations check those.
         return {
-          returnType: context.resolveType(returnType),
-          paramTypes: method.params.map((p) => context.resolveType(p.type)),
+          returnType: context.resolveType(returnType, false),
+          paramTypes: method.params.map((p) =>
+            context.resolveType(p.type, false),
+          ),
         };
       } finally {
         (context as any).currentScope = oldScope;

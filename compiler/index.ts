@@ -158,12 +158,12 @@ export class Compiler {
 
       // Check if we should use cached compilation
       if (this.options.useCache) {
-        return this.compileWithCache();
+        return this.compileWithCache(sourceCode);
       }
 
       // Check if we should use full module resolution
       if (this.options.resolveImports) {
-        return this.compileWithModuleResolution();
+        return this.compileWithModuleResolution(sourceCode);
       }
 
       if (this.options.emitType === "tokens") {
@@ -325,7 +325,7 @@ export class Compiler {
     }
 
     if (this.options.useCache && this.normalizeJobs(this.options.jobs) > 1) {
-      return await this.compileWithCacheAsync();
+      return await this.compileWithCacheAsync(sourceCode);
     }
 
     return this.compile(sourceCode);
@@ -366,7 +366,7 @@ export class Compiler {
       : content;
   }
 
-  private compileWithModuleResolution(): CompilationResult {
+  private compileWithModuleResolution(sourceCode: string): CompilationResult {
     try {
       if (this.options.verbose) {
         compilerLog.info("Resolving dependencies...");
@@ -374,7 +374,7 @@ export class Compiler {
 
       // 1. Resolve all modules
       const resolver = new ModuleResolver();
-      const modules = resolver.resolveModules(this.options.filePath);
+      const modules = resolver.resolveModules(this.options.filePath, sourceCode);
 
       if (this.options.verbose) {
         compilerLog.info(`Found ${modules.length} modules`);
@@ -533,7 +533,7 @@ export class Compiler {
   /**
    * Compile with module caching for incremental builds
    */
-  private compileWithCache(): CompilationResult {
+  private compileWithCache(sourceCode: string): CompilationResult {
     try {
       const projectRoot = path.dirname(this.options.filePath);
       const cache = new ModuleCache(projectRoot);
@@ -544,7 +544,7 @@ export class Compiler {
 
       // 1. Resolve all modules
       const resolver = new ModuleResolver();
-      const modules = resolver.resolveModules(this.options.filePath);
+      const modules = resolver.resolveModules(this.options.filePath, sourceCode);
 
       if (this.options.verbose) {
         compilerLog.info(`Found ${modules.length} modules`);
@@ -676,7 +676,9 @@ export class Compiler {
   /**
    * Compile resolved modules as independent cached objects with parallel clang jobs.
    */
-  private async compileWithCacheAsync(): Promise<CompilationResult> {
+  private async compileWithCacheAsync(
+    sourceCode: string,
+  ): Promise<CompilationResult> {
     try {
       const projectRoot = path.dirname(this.options.filePath);
       const cache = new ModuleCache(projectRoot);
@@ -686,7 +688,7 @@ export class Compiler {
       }
 
       const resolver = new ModuleResolver();
-      const modules = resolver.resolveModules(this.options.filePath);
+      const modules = resolver.resolveModules(this.options.filePath, sourceCode);
 
       if (this.options.verbose) {
         compilerLog.info(`Found ${modules.length} modules`);

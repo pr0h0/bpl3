@@ -1649,7 +1649,7 @@ describe("TypeChecker", () => {
     const helperSource = source.slice(helperStart, helperEnd);
     const moduleLookup = helperSource.indexOf("const moduleScope =");
     const resolvedParamMap = helperSource.indexOf(
-      "method.params.map((p) => context.resolveType(p.type))",
+      "context.resolveType(p.type, false)",
     );
     const rawParamMap = helperSource.indexOf(
       "method.params.map((p) => p.type)",

@@ -430,10 +430,9 @@ function processCodeInternal(
   options: CompileOptions,
   programArgs?: string[],
 ): void {
-  // Check if file has imports - if so, use module resolution
-  const hasImports =
-    shouldResolveImportsForCompilation(options) &&
-    sourceContainsImportDeclaration(content, filePath);
+  // Every build resolves modules: the implicit Error prelude provides the
+  // runtime check helpers that generated code calls.
+  const hasImports = shouldResolveImportsForCompilation(options);
 
   if (shouldInjectNativeRuntimeObjects(options, hasImports)) {
     injectRuntimeObjects(options);
@@ -455,9 +454,7 @@ async function processCodeInternalAsync(
   options: CompileOptions,
   programArgs?: string[],
 ): Promise<void> {
-  const hasImports =
-    shouldResolveImportsForCompilation(options) &&
-    sourceContainsImportDeclaration(content, filePath);
+  const hasImports = shouldResolveImportsForCompilation(options);
 
   if (shouldInjectNativeRuntimeObjects(options, hasImports)) {
     injectRuntimeObjects(options);
@@ -483,18 +480,13 @@ function injectRuntimeObjects(options: CompileOptions): void {
       : [options.object as string];
   }
 
-  const hostDefaults = getHostDefaults();
   const addObject = (objectPath: string) => {
     if (!objects.includes(objectPath)) {
       objects.push(objectPath);
     }
   };
 
-  for (const runtimeFile of resolveNativeRuntimeFiles({
-    target: options.target || hostDefaults.target,
-    compileOptions: options,
-    warn: (message) => log.warn(message),
-  })) {
+  for (const runtimeFile of resolveNativeRuntimeFiles()) {
     addObject(runtimeFile);
   }
 

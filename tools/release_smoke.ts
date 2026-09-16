@@ -564,7 +564,6 @@ function runPackedPackageSmoke(): void {
       "docs/60-compiler-correctness.md",
       ...discoverDedicatedWasmExampleFiles(repoRoot),
       "grammar/grammar.bpl",
-      "lib/runtime.ll",
       "lib/runtime_wasm.ll",
       "lib/runtime_wasm_host.ll",
       "lib/runtime_support.o",
@@ -724,7 +723,6 @@ function assertReleaseManifest(
   );
   for (const artifactPath of [
     process.platform === "win32" ? "bpl.exe" : "bpl",
-    "lib/runtime.ll",
     "lib/runtime_wasm.ll",
     "lib/runtime_wasm_host.ll",
     "lib/runtime_support.o",

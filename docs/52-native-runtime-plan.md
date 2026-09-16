@@ -7,9 +7,12 @@
 
 Before pursuing full `libc` independence, we've implemented a robust runtime error handling system:
 
-- **`lib/runtime.ll`**: Core LLVM IR runtime for exception handling, defer, try/catch
-- **`lib/runtime_support.c`**: C support library for signal handlers, stack traces, formatted errors
+- **`lib/errors.bpl`**: Error types and the runtime check helpers that throw them
+- **`lib/runtime_support.c`**: C runtime state, panics, signal handlers, stack traces
 - **`lib/build_runtime.sh`**: Build script for the C support library
+
+Exception handling, defer, and try/catch are generated inline by the compiler;
+the former `lib/runtime.ll` has been removed.
 
 This hybrid approach provides excellent error diagnostics while maintaining compatibility with existing code.
 

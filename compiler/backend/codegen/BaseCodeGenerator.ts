@@ -4,9 +4,6 @@ import { DebugInfoGenerator } from "./DebugInfoGenerator";
 
 import { FunctionAttributeGroups } from "./attributes/FunctionAttributeGroups";
 import {
-  createIndexOutOfBoundsErrorDecl,
-  createDivisionByZeroErrorDecl,
-  createNullAccessErrorDecl,
 } from "../../middleend/BuiltinTypes";
 import {
   parseTargetTriple,
@@ -224,9 +221,7 @@ export class BaseCodeGenerator {
   }
 
   protected registerBuiltinLayouts() {
-    this.registerBuiltinLayout(createIndexOutOfBoundsErrorDecl());
-    this.registerBuiltinLayout(createDivisionByZeroErrorDecl());
-    this.registerBuiltinLayout(createNullAccessErrorDecl());
+    // Error layouts come from lib/errors.bpl through the implicit prelude.
   }
 
   protected registerBuiltinLayout(decl: AST.StructDecl) {

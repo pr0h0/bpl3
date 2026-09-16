@@ -507,19 +507,15 @@ done:
   ret i32 %result
 }
 
-define void @__bpl_enter_stack_frame() {
+; Returns 1 when the call would exceed the depth limit; generated code then
+; calls the BPL throw helper from lib/errors.bpl.
+define i1 @__bpl_enter_stack_frame() {
 entry:
   %depth = load i32, i32* @__bpl_stack_depth
   %next = add i32 %depth, 1
   store i32 %next, i32* @__bpl_stack_depth
   %overflow = icmp sgt i32 %next, 1048576
-  br i1 %overflow, label %trap, label %ok
-
-trap:
-  unreachable
-
-ok:
-  ret void
+  ret i1 %overflow
 }
 
 define void @__bpl_exit_stack_frame() {
@@ -530,51 +526,45 @@ entry:
   ret void
 }
 
-define void @__bpl_check_null(i8* %ptr, i8* %expr, i8* %func, i32 %line, i32 %col) {
-entry:
-  %is_null = icmp eq i8* %ptr, null
-  br i1 %is_null, label %trap, label %ok
-
-trap:
-  call void @__bpl_report_error(i32 2, i8* %expr, i8* %func, i32 %line, i32 %col)
-  unreachable
-
-ok:
-  ret void
-}
-
 define weak void @__bpl_report_error(i32 %code, i8* %detail, i8* %func, i32 %line, i32 %col) {
 entry:
   ret void
 }
 
-define void @__bpl_throw_stack_overflow() {
+; Exceptions need setjmp/longjmp, which freestanding wasm lacks, so runtime
+; checks always report and trap instead of throwing.
+define i1 @__bpl_has_exception_handler() {
 entry:
-  call void @__bpl_report_error(i32 1, i8* null, i8* null, i32 0, i32 0)
-  unreachable
+  ret i1 0
 }
 
-define void @__bpl_throw_null_access(i8* %expr, i8* %func, i32 %line, i32 %col) {
+define void @__bpl_panic_null_access(i8* %func, i8* %expr, i32 %line, i32 %col) {
 entry:
   call void @__bpl_report_error(i32 2, i8* %expr, i8* %func, i32 %line, i32 %col)
   unreachable
 }
 
-define void @__bpl_throw_division_by_zero(i8* %func, i32 %line, i32 %col) {
+define void @__bpl_panic_index_out_of_bounds(i32 %index, i32 %size, i8* %func, i32 %line, i32 %col) {
+entry:
+  call void @__bpl_report_error(i32 5, i8* null, i8* %func, i32 %line, i32 %col)
+  unreachable
+}
+
+define void @__bpl_panic_division_by_zero(i8* %func, i32 %line, i32 %col) {
 entry:
   call void @__bpl_report_error(i32 3, i8* null, i8* %func, i32 %line, i32 %col)
+  unreachable
+}
+
+define void @__bpl_panic_stack_overflow() {
+entry:
+  call void @__bpl_report_error(i32 1, i8* null, i8* null, i32 0, i32 0)
   unreachable
 }
 
 define void @__bpl_throw_integer_overflow(i8* %func, i32 %line, i32 %col) {
 entry:
   call void @__bpl_report_error(i32 4, i8* null, i8* %func, i32 %line, i32 %col)
-  unreachable
-}
-
-define void @__bpl_throw_index_out_of_bounds(i32 %index, i32 %size, i8* %func, i32 %line, i32 %col) {
-entry:
-  call void @__bpl_report_error(i32 5, i8* null, i8* %func, i32 %line, i32 %col)
   unreachable
 }
 

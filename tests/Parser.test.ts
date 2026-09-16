@@ -4,7 +4,11 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 
 import { CompilerError } from "../compiler/common/CompilerError";
-import type { BlockStmt, FunctionDecl, LiteralExpr } from "../compiler/common/AST";
+import type {
+  BlockStmt,
+  FunctionDecl,
+  LiteralExpr,
+} from "../compiler/common/AST";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { generateBplParserSource } from "../tools/generate_peggy_parser";
@@ -42,8 +46,7 @@ function parseReturnedNumberLiteral(source: string): LiteralExpr {
 
 function getGrammarRuleSource(grammarSource: string, ruleName: string): string {
   const match = new RegExp(`(^|\\n)${ruleName}\\n`).exec(grammarSource);
-  const start =
-    match === null ? -1 : match.index + (match[1]?.length ?? 0);
+  const start = match === null ? -1 : match.index + (match[1]?.length ?? 0);
   expect(start).toBeGreaterThanOrEqual(0);
   const end = grammarSource.indexOf("\n\n", start);
   expect(end).toBeGreaterThan(start);
@@ -66,14 +69,43 @@ describe("Parser", () => {
     }
   });
 
-  it("defers the implicit Error import for sources that cannot reference Error", () => {
+  it("imports the error prelude into every source", () => {
     const program = new Parser(
       "frame main() ret int { return 0; }",
       "test.bpl",
     ).parse(true);
 
-    expect(program.statements).toHaveLength(1);
-    expect(program.statements[0]!.kind).toBe("FunctionDecl");
+    // The prelude provides the error types and the runtime check helpers the
+    // compiler inserts, so it is no longer conditional on mentioning Error.
+    expect(program.statements[0]).toMatchObject({
+      kind: "Import",
+      source: "std/errors.bpl",
+      isImplicit: true,
+    });
+    expect(
+      (program.statements[0] as { items: { name: string }[] }).items.map(
+        (item) => item.name,
+      ),
+    ).toEqual([
+      "Error",
+      "NullAccessError",
+      "IndexOutOfBoundsError",
+      "DivisionByZeroError",
+      "StackOverflowError",
+    ]);
+  });
+
+  it("omits prelude names the source declares itself", () => {
+    const program = new Parser(
+      "struct Error { code: int, }\nframe main() ret int { return 0; }",
+      "test.bpl",
+    ).parse(true);
+
+    expect(
+      (program.statements[0] as { items: { name: string }[] }).items.map(
+        (item) => item.name,
+      ),
+    ).not.toContain("Error");
   });
 
   it("keeps the implicit Error import when a source references Error", () => {
@@ -95,13 +127,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const directFunctionDeclReturn =
@@ -109,9 +135,7 @@ describe("Parser", () => {
 
     expect(grammarSource).toMatch(directFunctionDeclReturn);
     expect(generatedSource).toMatch(directFunctionDeclReturn);
-    expect(grammarSource).not.toContain(
-      'const node = { kind: "FunctionDecl"',
-    );
+    expect(grammarSource).not.toContain('const node = { kind: "FunctionDecl"');
     expect(generatedSource).not.toContain(
       'const node = { kind: "FunctionDecl"',
     );
@@ -123,17 +147,14 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const grammarStart = grammarSource.indexOf("Primary\n  =");
-    const grammarEnd = grammarSource.indexOf("\n\nTupleOrGrouped", grammarStart);
+    const grammarEnd = grammarSource.indexOf(
+      "\n\nTupleOrGrouped",
+      grammarStart,
+    );
     const generatedStart = generatedSource.indexOf(
       "function peg$parsePrimary()",
     );
@@ -222,13 +243,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const expressionStart = grammarSource.indexOf("\nLogicalOr\n");
@@ -237,7 +252,10 @@ describe("Parser", () => {
     expect(expressionStart).toBeGreaterThanOrEqual(0);
     expect(expressionEnd).toBeGreaterThan(expressionStart);
 
-    const expressionGrammar = grammarSource.slice(expressionStart, expressionEnd);
+    const expressionGrammar = grammarSource.slice(
+      expressionStart,
+      expressionEnd,
+    );
     expect(grammarSource).toContain("function foldBinaryTail");
     expect(grammarSource).toContain("function foldTypeCheckTail");
     expect(expressionGrammar).not.toContain("tail.reduce");
@@ -253,13 +271,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const binaryLevels = [
@@ -331,13 +343,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const helper = generatedSource.match(
@@ -350,9 +356,7 @@ describe("Parser", () => {
     expect(helper).not.toContain("!peg$hasBplCommentMarker &&");
     expect(helper).toContain("tailCode !== 35");
     expect(helper).toContain("tailCode !== 47 ||");
-    expect(helper).toContain(
-      "input.charCodeAt(tailStartPos + 1) !== 35",
-    );
+    expect(helper).toContain("input.charCodeAt(tailStartPos + 1) !== 35");
 
     expect(() =>
       new Parser(
@@ -374,13 +378,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const helper = generatedSource.match(
@@ -422,13 +420,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const helper = generatedSource.match(
@@ -448,9 +440,7 @@ describe("Parser", () => {
     expect(postTriviaGuard).toBeGreaterThan(trivia);
     expect(scanner).toBeGreaterThan(postTriviaGuard);
     expect(helper).toContain("operatorCode !== 38 ||");
-    expect(helper).toContain(
-      "input.charCodeAt(peg$currPos + 1) !== 38",
-    );
+    expect(helper).toContain("input.charCodeAt(peg$currPos + 1) !== 38");
     expect(helper).toContain("!peg$collectExpected &&");
     expect(helper).toContain("peg$currPos = tailStartPos;");
     expect(helper).toContain("return result;");
@@ -475,13 +465,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const helper = generatedSource.match(
@@ -527,13 +511,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const helper = generatedSource.match(
@@ -576,13 +554,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
 
@@ -598,13 +570,7 @@ describe("Parser", () => {
 
   it("keeps generated parser location helper on the BPL SourceLocation fast path", () => {
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
 
@@ -615,11 +581,7 @@ describe("Parser", () => {
     expect(locationHelper).toContain("file: parserFilePath,");
     expect(locationHelper).not.toContain("options.filePath");
     expect(generatedSource).toContain(
-      [
-        "function makeLoc(loc) {",
-        "    return loc;",
-        "  }",
-      ].join("\n"),
+      ["function makeLoc(loc) {", "    return loc;", "  }"].join("\n"),
     );
     expect(generatedSource).not.toContain("startLine: 0");
     expect(generatedSource).not.toContain("loc && loc.start && loc.end");
@@ -631,13 +593,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
 
@@ -655,13 +611,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const programRuleSource = getGrammarRuleSource(grammarSource, "Program");
@@ -685,13 +635,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
 
@@ -713,13 +657,7 @@ describe("Parser", () => {
 
   it("keeps generated operator and merged locations on the direct SourceLocation fast path", () => {
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const makeOperatorTokenHelper = generatedSource.match(
@@ -758,15 +696,21 @@ describe("Parser", () => {
     expect(makeTypedOperatorTokenFromPosHelper).toContain(
       "peg$lastBplLinePos = startPos;",
     );
-    expect(makeTypedOperatorTokenFromPosHelper).toContain("line: lineIndex + 1,");
+    expect(makeTypedOperatorTokenFromPosHelper).toContain(
+      "line: lineIndex + 1,",
+    );
     expect(makeTypedOperatorTokenFromPosHelper).toContain(
       "column: startPos - lineStart + 1,",
     );
     expect(makeOperatorTokenFromPosHelper).not.toContain("location()");
     expect(makeTypedOperatorTokenFromPosHelper).toContain("type,");
     expect(makeTypedOperatorTokenFromPosHelper).toContain("lexeme: op,");
-    expect(makeTypedOperatorTokenFromPosHelper).toContain("line: lineIndex + 1,");
-    expect(makeTypedOperatorTokenFromPosHelper).not.toContain("operatorTypeMap");
+    expect(makeTypedOperatorTokenFromPosHelper).toContain(
+      "line: lineIndex + 1,",
+    );
+    expect(makeTypedOperatorTokenFromPosHelper).not.toContain(
+      "operatorTypeMap",
+    );
     expect(makeTypedOperatorTokenFromPosHelper).not.toContain("resolvedType");
     expect(mergeLocHelper).toContain("startLine: startLoc.startLine,");
     expect(mergeLocHelper).toContain("startColumn: startLoc.startColumn,");
@@ -819,13 +763,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
 
@@ -842,13 +780,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const locationHelper = generatedSource.match(
@@ -857,7 +789,9 @@ describe("Parser", () => {
 
     expect(generatorSource).toContain("optimizeGeneratedBplLocationLines");
     expect(generatedSource).toContain("const peg$bplLineStarts = [0];");
-    expect(generatedSource).toContain("const peg$bplInputLength = input.length;");
+    expect(generatedSource).toContain(
+      "const peg$bplInputLength = input.length;",
+    );
     expect(generatedSource).toContain("let peg$lastBplLineIndex = 0;");
     expect(generatedSource).toContain("let peg$lastBplLinePos = 0;");
     expect(generatedSource).toContain("function peg$findBplLineIndex(pos)");
@@ -899,22 +833,14 @@ describe("Parser", () => {
     expect(locationHelper).toContain(
       "startColumn: startPos - startLineStart + 1,",
     );
-    expect(locationHelper).toContain(
-      "endColumn: endPos - endLineStart + 1,",
-    );
+    expect(locationHelper).toContain("endColumn: endPos - endLineStart + 1,");
     expect(locationHelper).not.toContain("peg$isBplPosInLine");
     expect(locationHelper).not.toContain("peg$computePosDetails");
   });
 
   it("keeps generated parser literal matches allocation-free", () => {
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
 
@@ -928,13 +854,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const identHelper = generatedSource.match(
@@ -954,10 +874,14 @@ describe("Parser", () => {
     expect(generatedSource).toContain("function peg$scanBplIdentToken()");
     expect(generatedSource).toContain("function peg$isBplIdentStartCode(code)");
     expect(generatedSource).toContain("function peg$isBplIdentPartCode(code)");
-    expect(generatedSource).toContain("const peg$bplReservedKeywords = new Set");
+    expect(generatedSource).toContain(
+      "const peg$bplReservedKeywords = new Set",
+    );
     expect(identifierHelper).toContain("let endPos = startPos + 1;");
     expect(identifierHelper).toContain("while (endPos < peg$bplInputLength)");
-    expect(identifierHelper).not.toContain("peg$scanBplIdentTokenEnd(firstCode)");
+    expect(identifierHelper).not.toContain(
+      "peg$scanBplIdentTokenEnd(firstCode)",
+    );
     expect(identifierHelper).not.toContain("peg$parseKeywordReserved()");
     expect(identScanner).toContain("input.slice(startPos, endPos)");
     expect(identHelper).toContain("return peg$scanBplIdentToken();");
@@ -978,13 +902,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const identifierHelper = generatedSource.match(
@@ -1004,8 +922,12 @@ describe("Parser", () => {
     expect(identifierHelper).toContain(
       "if (peg$collectExpected && peg$silentFails === 0)",
     );
-    expect(identifierHelper).toContain("const value = input.slice(startPos, endPos);");
-    expect(identifierHelper).toContain("peg$bplLastIdentifierStart = startPos;");
+    expect(identifierHelper).toContain(
+      "const value = input.slice(startPos, endPos);",
+    );
+    expect(identifierHelper).toContain(
+      "peg$bplLastIdentifierStart = startPos;",
+    );
     expect(identifierHelper).toContain("peg$bplLastIdentifierEnd = endPos;");
     expect(identifierHelper).toContain("peg$bplLastIdentifierValue = value;");
     expect(identifierHelper).toContain("return value;");
@@ -1028,7 +950,9 @@ describe("Parser", () => {
       throw new Error("Expected return statement");
     }
     expect(returnStatement.value?.kind).toBe("Identifier");
-    expect(returnStatement.value?.location.file).toBe("identifier-location.bpl");
+    expect(returnStatement.value?.location.file).toBe(
+      "identifier-location.bpl",
+    );
     expect(returnStatement.value?.location.startLine).toBe(1);
     expect(returnStatement.value?.location.startColumn).toBeGreaterThan(0);
   });
@@ -1039,13 +963,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const identifierExprHelper = generatedSource.match(
@@ -1092,13 +1010,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const identifierHelper = generatedSource.match(
@@ -1123,13 +1035,7 @@ describe("Parser", () => {
 
   it("rejects reserved words in Identifier without slicing a token name first", () => {
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const identifierHelper = generatedSource.match(
@@ -1191,21 +1097,17 @@ describe("Parser", () => {
     expect(identScanner).toContain("input.slice(startPos, endPos)");
     expect(identTokenHelper).toContain("return peg$scanBplIdentToken();");
 
-    expect(() => new Parser("local frame: int = 1;", "reserved.bpl").parse())
-      .toThrow(CompilerError);
-    expect(() => new Parser("local framex: int = 1;", "reserved.bpl").parse())
-      .not.toThrow();
+    expect(() =>
+      new Parser("local frame: int = 1;", "reserved.bpl").parse(),
+    ).toThrow(CompilerError);
+    expect(() =>
+      new Parser("local framex: int = 1;", "reserved.bpl").parse(),
+    ).not.toThrow();
   });
 
   it("keeps the identifier fast path independent from the shared token scanner", () => {
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const identifierHelper = generatedSource.match(
@@ -1259,13 +1161,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const identEndStart = generatedSource.indexOf(
@@ -1301,13 +1197,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const identEndStart = generatedSource.indexOf(
@@ -1324,7 +1214,9 @@ describe("Parser", () => {
     const identEndScanner = generatedSource.slice(identEndStart, identEndEnd);
     expect(generatorSource).toContain("let pos = peg$currPos;");
     expect(identEndScanner).toContain("let pos = peg$currPos;");
-    expect(generatedSource).toContain("const peg$bplInputLength = input.length;");
+    expect(generatedSource).toContain(
+      "const peg$bplInputLength = input.length;",
+    );
     expect(identEndScanner).toContain("while (pos < peg$bplInputLength)");
     expect(identEndScanner).not.toContain("const inputLength = input.length;");
     expect(identEndScanner).toContain("peg$currPos = pos;");
@@ -1339,13 +1231,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const qualifiedHelper = generatedSource.match(
@@ -1377,13 +1263,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const postfixTailHelper = generatedSource.match(
@@ -1415,7 +1295,9 @@ describe("Parser", () => {
     expect(postfixTailHelper).toContain("case 46:");
     expect(postfixTailHelper).toContain("case 43:");
     expect(postfixTailHelper).toContain("case 45:");
-    expect(postfixTailHelper).toContain("s2 = peg$parsePostfixTailAfterTrivia()");
+    expect(postfixTailHelper).toContain(
+      "s2 = peg$parsePostfixTailAfterTrivia()",
+    );
     expect(postfixTailHelper).toContain("s2.startPos = s0");
     expect(postfixTailHelper).toContain("s2.endPos = peg$currPos");
     expect(postfixTailHelper).toContain("return s2");
@@ -1436,11 +1318,11 @@ describe("Parser", () => {
     expect(postfixTailAfterTriviaHelper).toContain(
       "input.charCodeAt(peg$currPos) !== 123",
     );
-    expect(postfixTailAfterTriviaHelper).toContain("return peg$f120(memberProperty)");
-    expect(postfixTailAfterTriviaHelper).toContain("peg$currPos = memberStart");
-    expect(generatedSource).not.toContain(
-      "tail.startPos = peg$savedPos;",
+    expect(postfixTailAfterTriviaHelper).toContain(
+      "return peg$f120(memberProperty)",
     );
+    expect(postfixTailAfterTriviaHelper).toContain("peg$currPos = memberStart");
+    expect(generatedSource).not.toContain("tail.startPos = peg$savedPos;");
 
     expect(() =>
       new Parser(
@@ -1466,13 +1348,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const postfixHelper = generatedSource.match(
@@ -1540,13 +1416,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const postfixHelper = generatedSource.match(
@@ -1600,13 +1470,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const structLiteralHelper = generatedSource.match(
@@ -1669,13 +1533,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const ternaryHelper = generatedSource.match(
@@ -1721,13 +1579,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const numberHelper = generatedSource.match(
@@ -1753,13 +1605,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const stringHelper = generatedSource.match(
@@ -1804,13 +1650,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const scanner = generatedSource.match(
@@ -1941,24 +1781,22 @@ describe("Parser", () => {
     expect(largeDecimal.value).toBe(Number("9007199254740993"));
 
     expect(() =>
-      new Parser("frame main() ret int { return 0x; }", "number-boundary.bpl")
-        .parse(),
+      new Parser(
+        "frame main() ret int { return 0x; }",
+        "number-boundary.bpl",
+      ).parse(),
     ).toThrow();
     expect(() =>
-      new Parser("frame main() ret int { return 0b1021; }", "number-boundary.bpl")
-        .parse(),
+      new Parser(
+        "frame main() ret int { return 0b1021; }",
+        "number-boundary.bpl",
+      ).parse(),
     ).toThrow();
   });
 
   it("keeps generated number literal conversion on the direct parser fast path", () => {
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const parseNumberHelper = generatedSource.match(
@@ -1969,7 +1807,9 @@ describe("Parser", () => {
     );
     const twoDigitCase = parseNumberHelper?.indexOf("if (rawLength === 2 &&");
     const fourDigitCase = parseNumberHelper?.indexOf("if (rawLength === 4 &&");
-    const decimalCall = parseNumberHelper?.indexOf("parseBplDecimalNumber(raw)");
+    const decimalCall = parseNumberHelper?.indexOf(
+      "parseBplDecimalNumber(raw)",
+    );
 
     expect(parseReturnedNumberLiteral("12345").value).toBe(12345);
     expect(parseReturnedNumberLiteral("42").value).toBe(42);
@@ -2003,13 +1843,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const statementStartHelper = generatedSource.match(
@@ -2033,16 +1867,10 @@ describe("Parser", () => {
         "function peg$matchBplStatementStartKeyword(keyword)",
       ),
     ).toBe(false);
-    expect(statementStartScanner).toContain(
-      "const startPos = peg$currPos;",
-    );
-    expect(statementStartScanner).toContain(
-      "input.charCodeAt(startPos + 1)",
-    );
+    expect(statementStartScanner).toContain("const startPos = peg$currPos;");
+    expect(statementStartScanner).toContain("input.charCodeAt(startPos + 1)");
     expect(
-      statementStartScanner?.includes(
-        "peg$matchBplStatementStartKeyword(",
-      ),
+      statementStartScanner?.includes("peg$matchBplStatementStartKeyword("),
     ).toBe(false);
     expect(statementStartScanner?.includes("input.startsWith")).toBe(false);
     expect(statementStartHelper).toContain(
@@ -2058,13 +1886,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const statementHelper = generatedSource.match(
@@ -2090,13 +1912,7 @@ describe("Parser", () => {
 
   it("dispatches comment-free non-keyword statements before fallback", () => {
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const statementHelper = generatedSource.match(
@@ -2117,13 +1933,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const functionHelper = generatedSource.match(
@@ -2170,13 +1980,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const importHelper = generatedSource.match(
@@ -2216,13 +2020,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const switchHelper = generatedSource.match(
@@ -2260,13 +2058,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const specHelper = generatedSource.match(
@@ -2306,13 +2098,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const enumHelper = generatedSource.match(
@@ -2331,10 +2117,7 @@ describe("Parser", () => {
 
     expect(() =>
       new Parser(
-        [
-          "enum Empty {}",
-          "enum Result<T> { Ok(T), Error(string) }",
-        ].join("\n"),
+        ["enum Empty {}", "enum Result<T> { Ok(T), Error(string) }"].join("\n"),
         "enum-declaration-guard.bpl",
       ).parse(),
     ).not.toThrow();
@@ -2352,20 +2135,16 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const tryHelper = generatedSource.match(
       /function peg\$parseTryStatement\(\)[\s\S]*?\n  }/,
     )?.[0];
 
-    expect(generatorSource).toContain("optimizeGeneratedTryStatementFailureGuard");
+    expect(generatorSource).toContain(
+      "optimizeGeneratedTryStatementFailureGuard",
+    );
     expect(tryHelper).toContain("if (!peg$collectExpected)");
     expect(tryHelper).toContain("input.charCodeAt(startPos) !== 116");
     expect(tryHelper).toContain(
@@ -2393,13 +2172,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const boolHelper = generatedSource.match(
@@ -2429,13 +2202,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const constKeywordHelper = generatedSource.match(
@@ -2460,13 +2227,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const funcKeywordHelper = generatedSource.match(
@@ -2491,13 +2252,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const scopeScanner = generatedSource.match(
@@ -2517,9 +2272,7 @@ describe("Parser", () => {
     expect(scopeScanner).toContain(
       "if (startPos === peg$bplLastVariableScopeStart)",
     );
-    expect(scopeScanner).toContain(
-      "peg$isBplIdentifierContinuationCode",
-    );
+    expect(scopeScanner).toContain("peg$isBplIdentifierContinuationCode");
     expect(globalHelper).toContain("peg$scanBplVariableScopeKeyword()");
     expect(globalHelper).toContain("scope === 1");
     expect(localHelper).toContain("peg$scanBplVariableScopeKeyword()");
@@ -2563,18 +2316,14 @@ describe("Parser", () => {
     const rule = grammarSource.slice(ruleStart, ruleEnd);
     expect(rule.match(/\bK_global\b/g)).toHaveLength(1);
     expect(rule.match(/\bK_local\b/g)).toHaveLength(1);
-    expect(rule).toContain("scope:(K_global { return true; } / K_local { return false; })");
+    expect(rule).toContain(
+      "scope:(K_global { return true; } / K_local { return false; })",
+    );
   });
 
   it("keeps generated identifier boundary checks off regex dispatch", () => {
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const boundaryHelper = generatedSource.match(
@@ -2590,16 +2339,10 @@ describe("Parser", () => {
     expect(boundaryHelper).not.toContain("input.charAt");
 
     expect(() =>
-      new Parser(
-        "frame main() ret int { return 0; }",
-        "boundary.bpl",
-      ).parse(),
+      new Parser("frame main() ret int { return 0; }", "boundary.bpl").parse(),
     ).not.toThrow();
     expect(() =>
-      new Parser(
-        "framex main() ret int { return 0; }",
-        "boundary.bpl",
-      ).parse(),
+      new Parser("framex main() ret int { return 0; }", "boundary.bpl").parse(),
     ).toThrow(CompilerError);
   });
 
@@ -2609,13 +2352,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const helper = generatedSource.match(
@@ -2638,13 +2375,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const assignmentOperatorHelper = generatedSource.match(
@@ -2681,13 +2412,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const assignmentHelper = generatedSource.match(
@@ -2730,13 +2455,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const gates =
@@ -2756,13 +2475,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const basicTypeHelper = generatedSource.match(
@@ -2810,13 +2523,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const baseTypeHelper = generatedSource.match(
@@ -2845,13 +2552,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const operatorNames = [
@@ -2876,7 +2577,9 @@ describe("Parser", () => {
         new RegExp(`function peg\\$parse${operatorName}\\(\\)[\\s\\S]*?\\n  }`),
       )?.[0];
       const scanner = generatedSource.match(
-        new RegExp(`function peg\\$scanBpl${operatorName}\\(\\)[\\s\\S]*?\\n  }`),
+        new RegExp(
+          `function peg\\$scanBpl${operatorName}\\(\\)[\\s\\S]*?\\n  }`,
+        ),
       )?.[0];
 
       expect(generatedSource).toContain(
@@ -2904,13 +2607,7 @@ describe("Parser", () => {
 
   it("skips operator expectation dispatch during the fast parser pass", () => {
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const operatorNames = [
@@ -2931,7 +2628,9 @@ describe("Parser", () => {
 
     for (const operatorName of operatorNames) {
       const scanner = generatedSource.match(
-        new RegExp(`function peg\\$scanBpl${operatorName}\\(\\)[\\s\\S]*?\\n  }`),
+        new RegExp(
+          `function peg\\$scanBpl${operatorName}\\(\\)[\\s\\S]*?\\n  }`,
+        ),
       )?.[0];
 
       expect(scanner).toContain(
@@ -2955,13 +2654,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const unguardedFailures = generatedSource.match(
@@ -2988,13 +2681,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const additiveParser = generatedSource.match(
@@ -3004,7 +2691,9 @@ describe("Parser", () => {
       /function peg\$scanBplAdditiveOperator\(\)[\s\S]*?\n  }/,
     )?.[0];
 
-    expect(generatorSource).toContain("optimizeGeneratedAdditiveOperatorTokens");
+    expect(generatorSource).toContain(
+      "optimizeGeneratedAdditiveOperatorTokens",
+    );
     expect(additiveScanner).toContain(
       'return makeTypedOperatorTokenFromPos("Plus", "+", startPos);',
     );
@@ -3028,13 +2717,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const relationalParser = generatedSource.match(
@@ -3074,13 +2757,12 @@ describe("Parser", () => {
       "local defer: int = 1;",
       "local void: int = 1;",
     ]) {
-      expect(() => new Parser(source, "keyword-boundary.bpl").parse()).not.toThrow();
+      expect(() =>
+        new Parser(source, "keyword-boundary.bpl").parse(),
+      ).not.toThrow();
     }
 
-    for (const source of [
-      "local Self: int = 1;",
-      "local frame: int = 1;",
-    ]) {
+    for (const source of ["local Self: int = 1;", "local frame: int = 1;"]) {
       expect(() => new Parser(source, "keyword-boundary.bpl").parse()).toThrow(
         CompilerError,
       );
@@ -3089,13 +2771,7 @@ describe("Parser", () => {
 
   it("keeps generated parser trivia skipping on the manual fast path", () => {
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const triviaHelper = generatedSource.match(
@@ -3121,9 +2797,7 @@ describe("Parser", () => {
     expect(whitespaceHelper).not.toContain("pushCommentToken");
     expect(triviaHelper).toContain("while (peg$currPos < input.length)");
     expect(triviaHelper).toContain("pushCommentToken");
-    expect(triviaHelper).toContain(
-      "currentCode === 32 || currentCode === 9",
-    );
+    expect(triviaHelper).toContain("currentCode === 32 || currentCode === 9");
     expect(triviaHelper).toContain(
       "if (!peg$hasBplCommentMarker) return peg$parseWhitespaceOnly();",
     );
@@ -3185,13 +2859,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const failHelper = generatedSource.match(
@@ -3218,13 +2886,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const literalExpectationHelper = generatedSource.match(
@@ -3244,7 +2906,9 @@ describe("Parser", () => {
       literalExpectationHelper!.indexOf(
         "if (options.bplCollectExpected === false) return undefined;",
       ),
-    ).toBeLessThan(literalExpectationHelper!.indexOf('return { type: "literal"'));
+    ).toBeLessThan(
+      literalExpectationHelper!.indexOf('return { type: "literal"'),
+    );
     expect(failHelper).toContain("if (!peg$collectExpected) { return; }");
     expect(() =>
       new Parser("frame main() { return; }", "literal-expectation.bpl").parse(),
@@ -3304,13 +2968,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
     const programSource = generatedSource.match(
@@ -3369,13 +3027,7 @@ describe("Parser", () => {
       "utf8",
     );
     const generatedSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler",
-        "frontend",
-        "generated",
-        "BplParser.js",
-      ),
+      join(process.cwd(), "compiler", "frontend", "generated", "BplParser.js"),
       "utf8",
     );
 

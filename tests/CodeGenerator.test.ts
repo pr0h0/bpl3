@@ -1221,7 +1221,7 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("declare void @__bpl_throw_stack_overflow()");
     expect(ir).not.toContain("call void @__bpl_throw_stack_overflow()");
     expect(ir).not.toContain("alloca i8");
-    expect(ir).not.toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).not.toContain("call i1 @__bpl_enter_stack_frame()");
     expect(ir).not.toContain("call void @__bpl_exit_stack_frame()");
     expect(ir).not.toContain("declare void @__bpl_enter_stack_frame()");
     expect(ir).not.toContain("declare void @__bpl_exit_stack_frame()");
@@ -1905,7 +1905,7 @@ describe("CodeGenerator", () => {
       "@__bpl_stack_limit = external dso_local global i8*",
     );
     expect(ir).toContain("call void @__bpl_throw_stack_overflow()");
-    expect(ir).not.toContain("call void @__bpl_enter_stack_frame()");
+    expect(ir).not.toContain("call i1 @__bpl_enter_stack_frame()");
     expect(ir).not.toContain("call void @__bpl_exit_stack_frame()");
     expect(ir).toContain("define dso_local i32 @helper_i32");
     expect(ir).toContain("define dso_local i32 @main");

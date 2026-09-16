@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import { isRuntimeHelperName } from "./codegen/TypeGenerator";
 import { needsCAbiLowering } from "./codegen/abi/CAbi";
 import * as path from "path";
 import * as AST from "../common/AST";
@@ -8,7 +9,6 @@ import {
   createBoolStructDecl,
   createDoubleStructDecl,
   createStringStructDecl,
-  PRIMITIVE_STRUCT_MAP,
 } from "../middleend/BuiltinTypes";
 import { StatementGenerator } from "./codegen/StatementGenerator";
 import { isImplicitlyCalledMethodName } from "./codegen/StructEnumGenerator";
@@ -125,13 +125,6 @@ type LlvmReferenceTargets = {
  * - → MatchExpressionGenerator → UnaryExpressionGenerator → ExpressionGenerator
  * - → ExceptionGenerator → AsmGenerator → StatementGenerator → **CodeGenerator**
  */
-// Types the compiler uses by name or through primitive values.
-const ALWAYS_REACHABLE_TYPES = [
-  "Type",
-  "Error",
-  "String",
-  ...Object.values(PRIMITIVE_STRUCT_MAP),
-];
 
 export class CodeGenerator extends StatementGenerator {
   private prunableImplicitCDeclarations: Set<string> = new Set();
@@ -228,7 +221,7 @@ export class CodeGenerator extends StatementGenerator {
     // Reachability decides which methods built-in and user types emit.
     this.layoutOnlyTypes = new Set();
     this.emittedMethodNames = undefined;
-    this.deferredMethods.clear();
+    this.deferredMethods = [];
     const reachableTopLevelFunctions =
       this.collectReachableTopLevelFunctions(program);
 
@@ -247,31 +240,33 @@ export class CodeGenerator extends StatementGenerator {
       if (!this.structMap.has(decl.name)) {
         this.registerBuiltinLayout(decl);
       }
-      this.generateStruct(this.structMap.get(decl.name)!);
+      const registered = this.structMap.get(decl.name)!;
+      // Compiler-provided declarations emit methods and vtables only when
+      // something references them. A program's own type of the same name
+      // follows normal reachability.
+      if (registered.location?.file === "internal") {
+        this.layoutOnlyTypes.add(registered);
+      }
+      this.generateStruct(registered);
     }
-
-    // 2. Errors
-    const builtinErrorNames = [
-      "DivisionByZeroError",
-      "NullAccessError",
-      "IndexOutOfBoundsError",
-    ];
 
     this.computeVTableLayouts(program);
     this.collectStructLayouts(program);
 
-    for (const name of builtinErrorNames) {
-      if (this.structMap.has(name)) {
-        this.generateStruct(this.structMap.get(name)!);
-      }
-    }
-
     for (const stmt of program.statements) {
+      if (stmt.kind === "FunctionDecl" && isRuntimeHelperName(stmt.name)) {
+        // Runtime check helpers are emitted only when generated code calls them.
+        this.deferDefinition(stmt.name, () => this.generateTopLevel(stmt));
+        continue;
+      }
       if (
         reachableTopLevelFunctions &&
         stmt.kind === "FunctionDecl" &&
         !reachableTopLevelFunctions.has(stmt as AST.FunctionDecl)
       ) {
+        this.deferDefinition(`${stmt.name}_`, () =>
+          this.generateTopLevel(stmt),
+        );
         continue;
       }
       this.generateTopLevel(stmt);
@@ -370,7 +365,7 @@ export class CodeGenerator extends StatementGenerator {
     this.declaredFunctions.add("__bpl_throw_index_out_of_bounds");
 
     // Runtime Checks Declarations
-    this.emitDeclaration(`declare void @__bpl_enter_stack_frame()`);
+    this.emitDeclaration(`declare i1 @__bpl_enter_stack_frame()`);
     this.declaredFunctions.add("__bpl_enter_stack_frame");
 
     this.emitDeclaration(`declare void @__bpl_exit_stack_frame()`);
@@ -582,32 +577,41 @@ export class CodeGenerator extends StatementGenerator {
   }
 
   /**
-   * Generates methods skipped by reachability that emitted code references
-   * anyway (implicit calls, reflection tables). Returns true when any method
+   * Generates skipped methods and runtime check helpers that emitted code
+   * references (implicit calls, reflection tables, inserted checks). Returns true when any method
    * was generated, because its body may require further generation.
    */
   private emitReferencedDeferredMethods(): boolean {
-    if (this.deferredMethods.size === 0) return false;
+    if (this.deferredMethods.length === 0) return false;
     const referenced = new Set<string>();
     for (const line of [...this.output, ...this.declarationsOutput]) {
+      // A declaration is not a use; vtables and other globals are. A global's
+      // own name on its definition line is not a use of itself either.
+      if (line.startsWith("declare ")) continue;
+      const defined = this.getDefinedGlobalName(line);
       for (const match of line.matchAll(/@([A-Za-z0-9_.]+)/g)) {
+        if (match[1] === defined && match.index === 0) continue;
         referenced.add(match[1]!);
       }
     }
     const generated: string[] = [];
-    for (const [prefix, generate] of this.deferredMethods) {
+    const pending: { prefix: string; generate: () => void }[] = [];
+    for (const entry of this.deferredMethods) {
       let hit = false;
       for (const symbol of referenced) {
-        if (symbol.startsWith(prefix)) {
+        if (symbol.startsWith(entry.prefix)) {
           hit = true;
           break;
         }
       }
-      if (!hit) continue;
-      this.deferredMethods.delete(prefix);
-      generated.push(prefix);
-      this.pendingGenerations.push(generate);
+      if (!hit) {
+        pending.push(entry);
+        continue;
+      }
+      generated.push(entry.prefix);
+      this.pendingGenerations.push(entry.generate);
     }
+    this.deferredMethods = pending;
     if (generated.length === 0) return false;
     // Calls to a not-yet-generated method may have declared it.
     this.declarationsOutput = this.declarationsOutput.filter((line) => {
@@ -1419,10 +1423,6 @@ export class CodeGenerator extends StatementGenerator {
     if (queue.length === 0) {
       return undefined;
     }
-    for (const name of ALWAYS_REACHABLE_TYPES) {
-      const decl = typesByName.get(name);
-      if (decl) markType(decl);
-    }
     for (const global of globals) scan(global);
 
     let queueIndex = 0;
@@ -1434,6 +1434,14 @@ export class CodeGenerator extends StatementGenerator {
       [...typesByName.values()].filter((decl) => !reachableTypes.has(decl)),
     );
     this.emittedMethodNames = calledMethodNames;
+    if (process.env.DCEDBG) {
+      console.error(
+        "reachableTypes",
+        [...reachableTypes].map((d) => d.name).join(","),
+        "| methodNames",
+        [...calledMethodNames].join(","),
+      );
+    }
     return reachable;
   }
 
@@ -1530,7 +1538,9 @@ export class CodeGenerator extends StatementGenerator {
       funcType,
       true,
     );
-    this.emitDeclaration(
+    // Unused extern declarations are dropped: an unused `declare @__bpl_*`
+    // would otherwise make the linker pull in the native runtime.
+    this.emitPrunableImplicitCDeclaration(
       `declare ${returnAttributes}${retType} @${name}(${paramStr})${functionAttributes}`,
     );
     this.emitDeclaration("");

@@ -426,7 +426,12 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
    * (`Owner_method_`). Code generation can still reference such a method
    * implicitly, so CodeGenerator emits any skipped method the IR references.
    */
-  protected deferredMethods = new Map<string, () => void>();
+  protected deferredMethods: { prefix: string; generate: () => void }[] = [];
+
+  /** Registers a definition emitted only if generated code references it. */
+  protected deferDefinition(prefix: string, generate: () => void): void {
+    this.deferredMethods.push({ prefix, generate });
+  }
 
   protected isMethodEmitted(simpleName: string): boolean {
     return (
@@ -478,7 +483,26 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     fields.forEach((f, i) => layout.set(f.name, i + offset));
     this.structLayouts.set(structName, layout);
 
-    if (!mangledName && this.layoutOnlyTypes.has(decl)) return;
+    if (!mangledName && this.layoutOnlyTypes.has(decl)) {
+      // Unreachable from source, but generated code (runtime helpers,
+      // reflection) may still reference the vtable or a method.
+      if (this.vtableLayouts.get(structName)?.length) {
+        this.deferDefinition(`${structName}_vtable`, () =>
+          this.generateVTable(structName, decl),
+        );
+      }
+      for (const member of decl.members) {
+        if (member.kind !== "FunctionDecl") continue;
+        const methodMangledName = `${structName}_${member.name}`;
+        this.deferDefinition(`${methodMangledName}_`, () => {
+          const oldName = member.name;
+          member.name = methodMangledName;
+          this.generateFunction(member, decl);
+          member.name = oldName;
+        });
+      }
+      return;
+    }
 
     // VTable generation disabled for POD structs
     if (this.vtableLayouts.has(structName)) {
@@ -497,7 +521,7 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
       for (const method of methods) {
         const methodMangledName = `${structName}_${method.name}`;
         if (!this.isMethodEmitted(method.name)) {
-          this.deferredMethods.set(`${methodMangledName}_`, () => {
+          this.deferDefinition(`${methodMangledName}_`, () => {
             const oldName = method.name;
             method.name = methodMangledName;
             this.generateFunction(method, decl);
@@ -657,13 +681,15 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     if (
       decl.genericParams.length === 0 &&
       !mangledName &&
-      decl.methods &&
-      !this.layoutOnlyTypes.has(decl)
+      decl.methods
     ) {
       for (const method of decl.methods) {
         const methodMangledName = `${enumName}_${method.name}`;
-        if (!this.isMethodEmitted(method.name)) {
-          this.deferredMethods.set(`${methodMangledName}_`, () => {
+        if (
+          this.layoutOnlyTypes.has(decl) ||
+          !this.isMethodEmitted(method.name)
+        ) {
+          this.deferDefinition(`${methodMangledName}_`, () => {
             const oldName = method.name;
             method.name = methodMangledName;
             this.generateFunction(method, decl);
