@@ -723,7 +723,7 @@ export function checkMember(
     }
 
     if (symbol.kind === "Variable") {
-      expr.resolvedDeclaration = symbol.declaration;
+      expr.resolvedDeclaration = symbol.declaration as AST.VariableDecl;
     }
 
     if (symbol.kind === "Enum") {

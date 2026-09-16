@@ -191,6 +191,8 @@ export interface MemberExpr extends ASTNode {
   kind: "Member";
   object: Expression;
   property: string;
+  /** Defining global for namespace member access, including re-exports. */
+  resolvedDeclaration?: VariableDecl;
 }
 
 export interface IndexExpr extends ASTNode {
