@@ -4160,3 +4160,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-16)**: Overload argument checking accepts integer arrays and slices as scalar widening conversions without comparing dimensions or element storage. For example, `int[3][3]` passes checking as an argument to `int[][2]`, even though the row widths differ. The shared widening helper rejects pointers but fails to exclude arrays.
 
 **Resolution**: Implicit integer widening applies only to scalar, non-pointer types. Array arguments must pass normal shape and element compatibility checks. Negative checking tests cover mismatched row widths, lengths, element widths, and scalar/array arguments; O0/O3 execution with LLVM verification covers valid array overloads and scalar widening.
+
+### BUG-348: Imported constant globals lose assignment protection
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-16)**: Importing `global const value:int=42` as `alias` permits `alias=0` in the importing module. `bpl check` reports success because imported symbols do not retain the source symbol's constant flag. Code generation can then store through the constant's address.
+
+**Resolution**: Import bindings preserve `isConst` in both checker import paths. Namespace global expressions carry constant type metadata, and mutation checks consult the resolved global declaration. Regressions cover assignment, compound assignment, increments, aggregate member/index writes, pointer rebinding, and address-taking through direct imports, re-exports, and namespaces. Valid reads and constant-pointer pointee updates execute at O0/O3.

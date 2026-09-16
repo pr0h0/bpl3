@@ -50,6 +50,7 @@ export interface ImportHandlerContext {
     type: AST.TypeNode | undefined,
     declaration: AST.ASTNode,
     moduleScope?: SymbolTable,
+    isConst?: boolean,
   ) => void;
 }
 
@@ -89,6 +90,7 @@ export class ImportHandler {
         type: symbol.type,
         declaration: symbol.declaration,
         moduleScope: symbol.moduleScope,
+        isConst: symbol.isConst,
       });
     } else {
       this.ctx.defineSymbol(
@@ -97,6 +99,7 @@ export class ImportHandler {
         symbol.type,
         symbol.declaration!,
         symbol.moduleScope,
+        symbol.isConst,
       );
     }
 
@@ -114,6 +117,7 @@ export class ImportHandler {
             type: overload.type,
             declaration: overload.declaration,
             moduleScope: overload.moduleScope,
+            isConst: overload.isConst,
           });
         } else {
           this.ctx.defineSymbol(
@@ -122,6 +126,7 @@ export class ImportHandler {
             overload.type,
             overload.declaration!,
             overload.moduleScope,
+            overload.isConst,
           );
         }
       }

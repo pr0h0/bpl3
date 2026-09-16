@@ -1766,6 +1766,18 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // These need to remain in the main class due to complexity
 
   public checkIsMutable(expr: AST.Expression): void {
+    if (
+      (expr.kind === "Identifier" || expr.kind === "Member") &&
+      expr.resolvedDeclaration?.kind === "VariableDecl" &&
+      expr.resolvedDeclaration.isConst
+    ) {
+      throw new CompilerError(
+        `Cannot assign to constant '${expr.kind === "Identifier" ? expr.name : expr.property}'`,
+        "Constants cannot be modified.",
+        expr.location,
+        ASSIGNMENT_TARGET_CONSTANT_CODE,
+      );
+    }
     if (expr.kind === "Identifier") {
       if (
         expr.resolvedType?.kind === "BasicType" &&

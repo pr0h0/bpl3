@@ -44,7 +44,8 @@ import "std/errors.bpl";
 
 Global imports, including renamed imports and re-exports, refer to the defining
 module's storage. Reading, updating, or taking the address through an alias uses
-that same variable.
+that same variable. A `const` global retains its assignment and address-taking
+restrictions through named imports, aliases, re-exports, and namespaces.
 
 Repeated imports of the same exported declaration are idempotent, including
 repeated `import * as namespace` imports of the same module. The compiler

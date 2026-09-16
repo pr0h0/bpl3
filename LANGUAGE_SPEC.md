@@ -302,7 +302,8 @@ local (x: int, y: int) = (1, 2);
 - **[R-DECL-7]** `const` prohibits reassignment of a local, global, or
   parameter binding, including through `++`, `--`, compound assignment, or
   assignment to a field of a `const` struct value. Violations are rejected with
-  `BPL_ASSIGNMENT_TARGET_CONSTANT`.
+  `BPL_ASSIGNMENT_TARGET_CONSTANT`. Imports, aliases, re-exports, and namespace
+  access preserve the defining global's constant protection.
 - **[R-DECL-8]** A constant pointer binding, including a `const *T` parameter,
   does not by itself make its pointee immutable.
 

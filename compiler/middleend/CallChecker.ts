@@ -724,6 +724,9 @@ export function checkMember(
 
     if (symbol.kind === "Variable") {
       expr.resolvedDeclaration = symbol.declaration as AST.VariableDecl;
+      if (symbol.isConst && symbol.type?.kind === "BasicType") {
+        return { ...symbol.type, isConst: true };
+      }
     }
 
     if (symbol.kind === "Enum") {

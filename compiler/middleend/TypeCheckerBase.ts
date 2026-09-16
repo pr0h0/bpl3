@@ -1385,6 +1385,7 @@ export abstract class TypeCheckerBase {
       type: symbol.type,
       declaration: symbol.declaration,
       moduleScope: symbol.moduleScope,
+      isConst: symbol.isConst,
     });
 
     if (symbol.overloads) {
@@ -1395,6 +1396,7 @@ export abstract class TypeCheckerBase {
           type: overload.type,
           declaration: overload.declaration,
           moduleScope: overload.moduleScope,
+          isConst: overload.isConst,
         });
       }
     }
