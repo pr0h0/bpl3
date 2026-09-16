@@ -137,10 +137,11 @@ Tests and code generation must preserve it.
   visible in the array.
 - **[R-ARR-9]** Initializing a slice from an array literal materializes backing
   storage for the literal and creates a slice view over it.
-- **[R-ARR-10]** Member access and indexing through a null pointer stop the
-  program with a null-access runtime failure. An explicit `*pointer`
-  dereference is not null-checked; dereferencing a null pointer that way is
-  undefined behavior.
+- **[R-ARR-10]** Member access, indexing, and explicit `*pointer` indirection
+  check for null pointers, including indirect stores and updates. A null pointer
+  raises NullAccessError when a handler is active, otherwise it stops the program
+  with a null-access runtime failure. The pointer expression is evaluated once.
+  These checks do not validate non-null addresses, lifetimes, or allocation bounds.
 
 `Array<T>` is the standard library's owning growable array.
 

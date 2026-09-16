@@ -530,13 +530,26 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
 
   private generateUnaryAddress(expr: AST.UnaryExpr): string {
     if (expr.operator.type === TokenType.Star) {
-      return this.generateExpression(expr.operand);
+      return this.generateCheckedDereferencePointer(expr);
     }
     throw new CompilerError(
       "Address of non-lvalue unary expression",
       "This unary expression does not yield an lvalue.",
       expr.location,
     );
+  }
+
+  protected generateCheckedDereferencePointer(expr: AST.UnaryExpr): string {
+    const pointer = this.generateExpression(expr.operand);
+    this.emitNullPointerCheck(
+      pointer,
+      this.resolveType(expr.operand.resolvedType!),
+      expr.location,
+      this.exprToDescription(expr.operand),
+      "Cannot dereference a null pointer",
+      this.getBasicBlockPointerExpressionKey(expr.operand),
+    );
+    return pointer;
   }
 
   protected exprToDescription(expr: AST.Expression): string {

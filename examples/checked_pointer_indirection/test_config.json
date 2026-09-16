@@ -1,0 +1,6 @@
+{
+  "expectedOutput": ["Caught null store: 7"],
+  "args": [],
+  "env": {},
+  "input": ""
+}

@@ -649,6 +649,12 @@ loop (it.hasNext()) {
 
 ## Pointer Safety
 
+Explicit dereferences (`*p`), including stores and updates, check for null just
+like member access and indexing. A null pointer raises `NullAccessError` when
+a handler is active; otherwise the program exits with a null-access diagnostic.
+This does not detect dangling pointers, use after free, or out-of-bounds raw
+pointer arithmetic.
+
 ### Common Mistakes
 
 #### 1. Dereferencing Nullptr Pointer
@@ -656,7 +662,7 @@ loop (it.hasNext()) {
 ```bpl
 # WRONG
 local p: int* = nullptr;
-printf("%d\n", *p);  # CRASH!
+printf("%d\n", *p);  # Null-access runtime failure
 
 # CORRECT
 local p: int* = nullptr;

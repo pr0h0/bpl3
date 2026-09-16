@@ -137,7 +137,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       this.noteAddressEscapedIdentifier(expr.operand);
       return this.generateAddress(expr.operand);
     } else if (expr.operator.type === TokenType.Star) {
-      const ptr = this.generateExpression(expr.operand);
+      const ptr = this.generateCheckedDereferencePointer(expr);
       const type = this.resolveType(expr.resolvedType!);
       const reg = this.newRegister();
       this.emit(`  ${reg} = load ${type}, ${type}* ${ptr}`);

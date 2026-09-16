@@ -4053,13 +4053,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-337: Explicit dereference of a null pointer is not checked
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-15)**: Member access and indexing through a null pointer stop with a null-access runtime failure, but `local n: *int = nullptr; printf("%d", *n);` segfaults at O0 and prints an arbitrary value at O3. Unary `*` loads directly without `__bpl_check_null`.
 
-**Next step**: Decide whether `*pointer` gets the same null check (and the same basic-block proof elision) as member access. LANGUAGE_SPEC.md R-ARR-10 documents the current undefined behavior.
+**Resolution (2026-09-16)**: Explicit pointer loads and lvalue addresses share the existing null-check/proof path. O0/O3 regressions cover loads, stores, compound assignments, increments, nested pointers, single evaluation, and defer cleanup with typed catches. R-ARR-10 now specifies this behavior. Non-null dangling or invalid pointers remain outside the guarantee.
 
 ### BUG-338: Implicit integer-to-bool conversion keeps only the low bit
 
