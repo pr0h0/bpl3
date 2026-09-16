@@ -364,6 +364,18 @@ export class BaseCodeGenerator {
   // catch blocks read updates made by the try body or unwinding callbacks.
   // Cover indirect accesses too: aliases can refer to the same stack locals.
   protected currentFunctionHasExceptionHandler = false;
+  protected currentFunctionStackAllocations: string[] | undefined;
+
+  protected allocateStackSlot(type: string, name = "temporary"): string {
+    const pointer = `%${name}_ptr.${this.stackAllocCount++}`;
+    const instruction = `  ${pointer} = alloca ${type}`;
+    if (this.currentFunctionStackAllocations) {
+      this.currentFunctionStackAllocations.push(instruction);
+    } else {
+      this.emit(instruction);
+    }
+    return pointer;
+  }
 
   protected emit(line: string, node?: AST.ASTNode) {
     if (this.currentFunctionHasExceptionHandler) {

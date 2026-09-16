@@ -665,8 +665,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
 
     // Implicit address-of (T -> *T)
     if (destType === srcType + "*") {
-      const ptr = this.newRegister();
-      this.emit(`  ${ptr} = alloca ${srcType}`);
+      const ptr = this.allocateStackSlot(srcType);
       this.emit(`  store ${srcType} ${val}, ${srcType}* ${ptr}`);
       return ptr;
     }
@@ -687,8 +686,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       // 1. Get pointer to object
       let objPtr: string;
       if (!srcType.endsWith("*")) {
-        const alloca = this.newRegister();
-        this.emit(`  ${alloca} = alloca ${srcType}`);
+        const alloca = this.allocateStackSlot(srcType);
         this.emit(`  store ${srcType} ${val}, ${srcType}* ${alloca}`);
         const castPtr = this.newRegister();
         this.emit(`  ${castPtr} = bitcast ${srcType}* ${alloca} to i8*`);

@@ -2727,6 +2727,8 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
 
     // Save state for re-entrancy (e.g. when resolving types triggers monomorphization)
+    const prevCurrentFunctionStackAllocations =
+      this.currentFunctionStackAllocations;
     const prevCurrentFunctionHasExceptionHandler =
       this.currentFunctionHasExceptionHandler;
     const prevRegisterCount = this.registerCount;
@@ -2756,6 +2758,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.currentFunctionUsesAllocaStackLimitProbe;
 
     try {
+      this.currentFunctionStackAllocations = [];
       this.currentFunctionHasExceptionHandler = false;
       walkAST(decl.body, (node, ancestors) => {
         // Nested lambdas and defer bodies are generated as separate functions.
@@ -2970,6 +2973,8 @@ export abstract class StatementGenerator extends AsmGenerator {
         `define ${linkage}${retType} @${name}(${params})${attrSuffix}${alignSuffix}${dbgSuffix} {`,
       );
       this.emit("entry:");
+      const stackAllocationIndex = this.output.length;
+      this.emit(""); // Reserve one output entry without shifting tracked indices.
 
       // Unpack closure context if present
       if (captureInfo) {
@@ -3205,10 +3210,16 @@ export abstract class StatementGenerator extends AsmGenerator {
         }
       }
 
+      // Fixed-size slots belong to the entry block. Allocating them at their
+      // use site would consume more stack on every loop iteration, especially
+      // around setjmp where LLVM cannot reliably move the allocations itself.
+      this.output[stackAllocationIndex] =
+        this.currentFunctionStackAllocations.join("\n");
       this.emit("}");
       this.emit("");
     } finally {
       // Restore state
+      this.currentFunctionStackAllocations = prevCurrentFunctionStackAllocations;
       this.currentFunctionHasExceptionHandler =
         prevCurrentFunctionHasExceptionHandler;
       this.registerCount = prevRegisterCount;

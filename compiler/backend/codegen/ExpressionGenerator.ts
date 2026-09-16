@@ -803,8 +803,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         basePtr = this.generateExpression(expr.object);
       } else {
         // Allocate space, store the value, and use it as the struct base.
-        basePtr = this.newRegister();
-        this.emit(`  ${basePtr} = alloca ${llvmObjType}`);
+        basePtr = this.allocateStackSlot(llvmObjType);
         const valueReg = this.generateExpression(expr.object);
         this.emit(
           `  store ${llvmObjType} ${valueReg}, ${llvmObjType}* ${basePtr}`,
@@ -919,8 +918,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         valPtrType = llvmObjType;
       } else {
         // Result is value. Store in alloca.
-        valPtr = this.newRegister();
-        this.emit(`  ${valPtr} = alloca ${llvmObjType}`);
+        valPtr = this.allocateStackSlot(llvmObjType);
         const val = this.generateExpression(expr.object);
         this.emit(`  store ${llvmObjType} ${val}, ${llvmObjType}* ${valPtr}`);
         valPtrType = llvmObjType + "*";
@@ -937,8 +935,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       } catch {
         // Not an l-value (e.g. struct literal)
         const val = this.generateExpression(expr.object);
-        valPtr = this.newRegister();
-        this.emit(`  ${valPtr} = alloca ${llvmObjType}`);
+        valPtr = this.allocateStackSlot(llvmObjType);
         this.emit(`  store ${llvmObjType} ${val}, ${llvmObjType}* ${valPtr}`);
         valPtrType = llvmObjType + "*";
       }
@@ -1414,8 +1411,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     const enumType = this.resolveType(expr.resolvedType!);
 
     // Allocate space on stack to build the enum value
-    const enumPtr = this.newRegister();
-    this.emit(`  ${enumPtr} = alloca ${enumType}`);
+    const enumPtr = this.allocateStackSlot(enumType);
 
     // Get pointer to tag field and store the discriminant
     const tagPtr = this.newRegister();

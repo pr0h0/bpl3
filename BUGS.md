@@ -4133,8 +4133,10 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-345: Handler frames allocated inside loops accumulate stack storage
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P1
 
 **Observed (2026-09-16)**: After fixing BUG-344, 10,010 iterations of a try/catch around a throwing call still fail at O3. `allocateStack` emits fixed-size `alloca` instructions at their use sites: the exception frame allocates another 256 bytes on every loop iteration and does not release it until the function returns. Local variables and compiler temporaries allocated inside loops have the same lifetime problem. LLVM cannot reliably hoist these allocations around `setjmp`, and the O3 stack-limit probe reports overflow despite bounded live local storage.
+
+**Resolution**: Fixed-size local, handler, pattern-binding, and expression-temporary slots are collected per generated function and emitted at entry. Named temporary slots preserve LLVM register numbering; reserving an output entry also preserves the compiler's instruction-index bookkeeping. Initializers and stores remain at their original execution sites. O0/O3 execution and LLVM verification cover 10,010 loop-local handlers, repeated 1 KiB arrays, and enum construction/matching with 1 KiB payloads.

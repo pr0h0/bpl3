@@ -751,8 +751,7 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     }
 
     // Allocate space for the enum value
-    const enumPtr = this.newRegister();
-    this.emit(`  ${enumPtr} = alloca ${enumType}`);
+    const enumPtr = this.allocateStackSlot(enumType);
 
     // Get pointer to tag field (index 0)
     const tagPtr = this.newRegister();

@@ -1046,8 +1046,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
    * Allocate stack space for a local variable
    */
   protected allocateStack(name: string, type: string): string {
-    const ptr = `%${name}_ptr.${this.stackAllocCount++}`;
-    this.emit(`  ${ptr} = alloca ${type}`);
+    const ptr = this.allocateStackSlot(type, name);
     this.locals.add(name);
     this.localPointers.set(name, ptr);
     return ptr;

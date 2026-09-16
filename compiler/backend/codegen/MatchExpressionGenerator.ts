@@ -226,8 +226,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       if (!variant || !variantInfo) return "never";
 
       const runtimeEnumType = `%enum.${enumName}`;
-      const tempPtr = this.newRegister();
-      this.emit(`  ${tempPtr} = alloca ${runtimeEnumType}`);
+      const tempPtr = this.allocateStackSlot(runtimeEnumType);
       this.emit(
         `  store ${runtimeEnumType} ${value}, ${runtimeEnumType}* ${tempPtr}`,
       );
@@ -373,8 +372,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       if (!variantInfo) return;
 
       const runtimeEnumType = `%enum.${enumName}`;
-      const tempPtr = this.newRegister();
-      this.emit(`  ${tempPtr} = alloca ${runtimeEnumType}`);
+      const tempPtr = this.allocateStackSlot(runtimeEnumType);
       this.emit(
         `  store ${runtimeEnumType} ${value}, ${runtimeEnumType}* ${tempPtr}`,
       );
@@ -489,8 +487,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
     // Allocate space for match value and extract discriminant
     const enumType = `%enum.${enumName}`;
-    const matchPtr = this.newRegister();
-    this.emit(`  ${matchPtr} = alloca ${enumType}`);
+    const matchPtr = this.allocateStackSlot(enumType);
     this.emit(`  store ${enumType} ${matchValue}, ${enumType}* ${matchPtr}`);
 
     const tagPtr = this.newRegister();
@@ -773,8 +770,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     const anyType = `%struct.Any`;
 
     // Allocate space for Any value to extract fields (if it's passed by value)
-    const anyPtr = this.newRegister();
-    this.emit(`  ${anyPtr} = alloca ${anyType}`);
+    const anyPtr = this.allocateStackSlot(anyType);
     this.emit(`  store ${anyType} ${matchValue}, ${anyType}* ${anyPtr}`);
 
     // Extract type_info (index 0)
@@ -1551,8 +1547,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
     // Allocate space for the enum value and extract discriminant
     const enumType = `%enum.${resolvedEnumName}`;
-    const matchPtr = this.newRegister();
-    this.emit(`  ${matchPtr} = alloca ${enumType}`);
+    const matchPtr = this.allocateStackSlot(enumType);
     this.emit(`  store ${enumType} ${matchValue}, ${enumType}* ${matchPtr}`);
 
     const tagPtr = this.newRegister();
@@ -2075,8 +2070,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       );
 
       // Allocate stack space and store the value
-      const ptr = `%pattern_${bindingName}_${this.stackAllocCount++}`;
-      this.emit(`  ${ptr} = alloca ${llvmType}`);
+      const ptr = this.allocateStackSlot(llvmType, `pattern_${bindingName}`);
       this.emit(`  store ${llvmType} ${value}, ${llvmType}* ${ptr}`);
 
       // Register the binding so it can be used in the arm body
@@ -2157,8 +2151,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       );
 
       // Allocate stack space and store the value
-      const ptr = `%pattern_${bindingName}_${this.stackAllocCount++}`;
-      this.emit(`  ${ptr} = alloca ${llvmType}`);
+      const ptr = this.allocateStackSlot(llvmType, `pattern_${bindingName}`);
       this.emit(`  store ${llvmType} ${value}, ${llvmType}* ${ptr}`);
 
       // Register the binding so it can be used in the arm body

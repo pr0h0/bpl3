@@ -28,7 +28,9 @@ A catch sees local-variable updates made before the throw, including updates
 through pointers and by deferred cleanup during unwinding. This holds at every
 optimization level. Handler functions currently use conservative volatile
 memory accesses to preserve that state across the runtime's nonlocal return;
-functions without handlers retain ordinary memory optimization.
+functions without handlers retain ordinary memory optimization. Fixed-size local
+and handler storage is reserved once per function call, so repeated try/catch
+blocks inside a loop do not accumulate stack allocations.
 
 Floating-point payloads retain their original bits, including fractional
 values, negative zero, infinities, and NaNs, for both `f32` and `f64`.

@@ -260,8 +260,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       const enumType = this.resolveType(expr.resolvedType!);
 
       // Allocate space on stack to build the enum value
-      const enumPtr = this.newRegister();
-      this.emit(`  ${enumPtr} = alloca ${enumType}`);
+      const enumPtr = this.allocateStackSlot(enumType);
 
       // Get pointer to tag field and store the discriminant
       const tagPtr = this.newRegister();
