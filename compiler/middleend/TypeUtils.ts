@@ -317,6 +317,9 @@ export class TypeUtils {
 
     if (rs.kind !== "BasicType" || rt.kind !== "BasicType") return false;
     if (rs.pointerDepth !== 0 || rt.pointerDepth !== 0) return false;
+    if (rs.arrayDimensions.length !== 0 || rt.arrayDimensions.length !== 0) {
+      return false;
+    }
 
     const sourceSize = TypeUtils.getIntegerSize(rs);
     const targetSize = TypeUtils.getIntegerSize(rt);

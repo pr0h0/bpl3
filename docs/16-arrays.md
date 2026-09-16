@@ -311,6 +311,11 @@ frame main() ret int {
 
 ## Passing Arrays to Functions
 
+Array arguments must have compatible dimensions and element storage. Scalar integer
+widening does not convert whole arrays: an `int[3]` cannot be passed as `long[]`,
+and `int[3][3]` cannot be passed as `int[][2]`.
+
+
 Arrays decay to pointers when passed to functions. Always pass the length separately:
 
 ```bpl

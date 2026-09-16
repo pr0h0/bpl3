@@ -4150,3 +4150,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-16)**: A module imports global `value` as `forwarded` and exports `forwarded`. An entry module importing that re-export passes checking but fails to link with `undefined reference to forwarded`. Global address generation uses the identifier's visible spelling instead of its resolved declaration; a coincidentally matching local or global can also select the wrong storage.
 
 **Resolution**: Global reads, writes, and address-taking use the resolved global declaration's linker name before name-only local/global lookup. Direct aliases, transitive re-exports, and namespace access are covered at O0/O3, including updates observed through multiple imports.
+
+### BUG-347: Scalar integer widening bypasses array argument compatibility
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-16)**: Overload argument checking accepts integer arrays and slices as scalar widening conversions without comparing dimensions or element storage. For example, `int[3][3]` passes checking as an argument to `int[][2]`, even though the row widths differ. The shared widening helper rejects pointers but fails to exclude arrays.
+
+**Resolution**: Implicit integer widening applies only to scalar, non-pointer types. Array arguments must pass normal shape and element compatibility checks. Negative checking tests cover mismatched row widths, lengths, element widths, and scalar/array arguments; O0/O3 execution with LLVM verification covers valid array overloads and scalar widening.
