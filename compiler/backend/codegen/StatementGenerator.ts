@@ -3012,7 +3012,10 @@ export abstract class StatementGenerator extends AsmGenerator {
         this.locals.add(param.name);
         this.localTypes.set(param.name, effectiveFuncType.paramTypes[i]!);
         const type = this.resolveType(effectiveFuncType.paramTypes[i]!);
-        const paramReg = `%${param.name}`;
+        let paramReg = `%${param.name}`;
+        if (name === "main") {
+          paramReg = i === 0 ? "%argc" : "%argv";
+        }
         let stackAddr: string;
 
         if (param.isVariadic) {

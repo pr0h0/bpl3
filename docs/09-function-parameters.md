@@ -104,3 +104,10 @@ frame main() {
     printAll(42, "Hello", 3.14);
 }
 ```
+
+## Entry-point parameter names
+
+For `frame main(count: int, arguments: **char) ret int`, the first parameter
+receives the argument count and the second receives the argument vector. Their
+names are ordinary parameter names; use a leading underscore for an unused
+parameter, such as `_arguments`.

@@ -4170,3 +4170,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-16)**: Importing `global const value:int=42` as `alias` permits `alias=0` in the importing module. `bpl check` reports success because imported symbols do not retain the source symbol's constant flag. Code generation can then store through the constant's address.
 
 **Resolution**: Import bindings preserve `isConst` in both checker import paths. Namespace global expressions carry constant type metadata, and mutation checks consult the resolved global declaration. Regressions cover assignment, compound assignment, increments, aggregate member/index writes, pointer rebinding, and address-taking through direct imports, re-exports, and namespaces. Valid reads and constant-pointer pointee updates execute at O0/O3.
+
+### BUG-349: Renamed main parameters produce undefined LLVM registers
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-16)**: `frame main(argc:int, _argv:**char)` passes checking but compilation fails at both O0 and O3: parameter initialization references `%_argv` while the native entry signature declares `%argv`. Discovered while measuring runtime overhead.
+
+**Resolution**: Main parameter locals read the fixed ABI argument registers by position rather than by source spelling. O0/O3 execution with LLVM verification covers renamed arguments, ignored underscore names, swapped spellings, and mutation of the count parameter.
