@@ -24,7 +24,7 @@
 - **Phase Breakdown**: Separate timing for lexing, parsing, compilation, and execution
 - **Success Rate Tracking**: Real-time compilation success/failure statistics
 - **Fast Run Responses**: Run Code returns execution output without IR/AST/token payloads; debug tabs request those artifacts lazily
-- **Runtime Object Cache**: Native playground links reuse a cached object form of `runtime.ll` when the host compiler can produce it
+- **Native Runtime Object**: Native playground links reuse the prebuilt `lib/runtime_support.o` when generated IR references runtime symbols
 
 ### 🔌 Extended API Endpoints
 

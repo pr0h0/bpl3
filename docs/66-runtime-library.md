@@ -29,8 +29,9 @@ An uncaught `throw` of an `Error` prints its stack trace through
 `Error.printStack`, also on stderr, so diagnostics never mix into a program's
 own output.
 
-Programs that never trigger a check, such as a hello world, link no runtime at
-all.
+Programs whose generated IR references no native runtime symbols omit the
+native runtime object. This is a compile-time link decision; it does not depend
+on whether a runtime check fails during execution.
 
 ## Runtime Error Types
 
@@ -38,7 +39,8 @@ The runtime detects and handles four types of runtime errors:
 
 ### 1. NULL Pointer Access
 
-Triggered when code attempts to access a member of a null pointer.
+Triggered by member access, indexing, or explicit indirection through a null
+pointer, including indirect stores and updates.
 
 ```bpl
 struct Point { x: int, y: int }
@@ -295,7 +297,7 @@ cd lib
 
 This produces:
 
-- `runtime_support.o` - Object file linked into every BPL program
+- `runtime_support.o` - Object file linked when generated IR needs native runtime symbols
 - `libbpl_runtime_support.a` - Static library (optional)
 
 ### Compilation Flags
