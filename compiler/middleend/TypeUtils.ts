@@ -10,6 +10,7 @@ import { TokenType } from "../frontend/TokenType";
 import type { SymbolTable } from "./SymbolTable";
 import {
   areArrayDimensionsAssignable,
+  isImplicitIntegerToBool,
   lowerImplicitConversion,
 } from "./lowering/ImplicitConversions";
 
@@ -314,6 +315,7 @@ export class TypeUtils {
   ): boolean {
     const rs = resolveType(source);
     const rt = resolveType(target);
+    if (isImplicitIntegerToBool(rt, rs)) return false;
 
     if (rs.kind !== "BasicType" || rt.kind !== "BasicType") return false;
     if (rs.pointerDepth !== 0 || rt.pointerDepth !== 0) return false;
@@ -436,6 +438,7 @@ export class TypeComparison {
   ): boolean {
     const rt1 = this.resolveTypeFn(t1, checkConstraints);
     const rt2 = this.resolveTypeFn(t2, checkConstraints);
+    if (isImplicitIntegerToBool(rt1, rt2)) return false;
 
     // 1. Check basic kind
     if (rt1.kind !== rt2.kind) {

@@ -38,6 +38,8 @@ You are working with BPL, a statically-typed, compiled programming language that
 Integer binary operations use the left operand's type, converting the right
 operand to it. Cast the left operand explicitly for wider arithmetic; assigning
 the result to a wider variable happens after the operation.
+Integer-to-`bool` conversion must be explicit; use `value != 0` for zero/nonzero
+semantics. Explicit integer-to-`bool` casts retain the low bit.
 
 #### Composite Types
 

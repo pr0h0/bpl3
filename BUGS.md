@@ -4063,13 +4063,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-338: Implicit integer-to-bool conversion keeps only the low bit
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P2
 
 **Observed (2026-09-15)**: `local i: int = 2; local b: bool = i;` compiles, and `b` is `false`, because `bool` participates in implicit integer narrowing. Conditions reject integers, but assignments and arguments do not.
 
-**Next step**: Decide whether integer-to-bool conversion should be rejected or should compare with zero. LANGUAGE_SPEC.md R-CONV-1 documents the current behavior.
+**Resolution (2026-09-16)**: Per the user's language-policy decision, implicit integer-to-bool conversions are rejected. Shared compatibility and lowering reject scalar integer sources, and initializer literal handling cannot bypass this for zero. Regressions check literals, aliases, globals, assignments, arguments, returns, aggregates, and expressions. O0/O3 execution and LLVM verification retain explicit cast low-bit behavior, zero/nonzero comparisons, and bool-to-integer conversion. R-CONV-1 and the variable guide describe the revised rule.
 
 ### BUG-339: Slices of fixed-array aliases pass checking but fail code generation
 

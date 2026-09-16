@@ -511,25 +511,34 @@ The rejected example reports `BPL_VARIABLE_TYPE_ANNOTATION_MISSING`.
 
 ### Implicit Conversions
 
-BPL allows very few implicit conversions:
+Integer conversions between widths and signedness are implicit. Widening follows
+source signedness; narrowing retains the low bits. Integer-to-`bool` conversion
+is rejected, including `0` and `1`. Use a comparison such as `value != 0`.
+A `bool` still converts to an integer as `0` or `1`.
 
 ```bpl
-# ✅ Numeric widening (smaller to larger)
+# Numeric widening
 local i: i32 = 42;
-local l: i64 = i;  # i32 → i64 allowed
+local wide: i64 = i;
 
-# ✅ Array to pointer decay
+# Narrowing retains the low bits
+local large: i64 = 4294967297;
+local narrow: i32 = large;  # 1
+
+# Changing signedness preserves the low bits at equal width
+local negative: int = -1;
+local unsigned: uint = negative;  # 4294967295
+
+# A comparison explicitly expresses integer truthiness
+local enabled: bool = i != 0;
+
+# Array to pointer decay
 local arr: int[10];
-local ptr: *int = arr;  # array → pointer
-
-# ❌ No narrowing without cast
-local l: i64 = 1000;
-local i: i32 = l;  # Error: i64 → i32 requires cast
-
-# ❌ No sign conversions
-local i: int = -1;
-local u: uint = i;  # Error: requires cast
+local ptr: *int = arr;
 ```
+
+An explicit integer-to-`bool` cast retains the low bit: `cast<bool>(2)` is
+`false`. It is different from `2 != 0`, which is `true`.
 
 ### Explicit Conversions (Casting)
 

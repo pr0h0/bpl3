@@ -53,6 +53,23 @@ export function isFixedArrayTypeNode(
   );
 }
 
+/** Resolved scalar integer values require an explicit conversion to bool. */
+export function isImplicitIntegerToBool(
+  target: AST.TypeNode,
+  source: AST.TypeNode,
+): boolean {
+  return (
+    target.kind === "BasicType" &&
+    (target.name === "bool" || target.name === "i1") &&
+    target.pointerDepth === 0 &&
+    target.arrayDimensions.length === 0 &&
+    source.kind === "BasicType" &&
+    source.name !== "bool" &&
+    source.name !== "i1" &&
+    isIntegerScalar(source)
+  );
+}
+
 export function lowerImplicitConversion(
   targetType: AST.TypeNode,
   sourceType: AST.TypeNode,
@@ -62,6 +79,10 @@ export function lowerImplicitConversion(
   }
 
   if (targetType.kind !== "BasicType" || sourceType.kind !== "BasicType") {
+    return { kind: "unsupported", targetType, sourceType };
+  }
+
+  if (isImplicitIntegerToBool(targetType, sourceType)) {
     return { kind: "unsupported", targetType, sourceType };
   }
 

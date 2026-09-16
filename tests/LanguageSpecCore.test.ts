@@ -290,7 +290,7 @@ frame main() ret int {
   local neg: int = -1;
   local asUlong: ulong = neg;
   local two: int = 2;
-  local asBool: bool = two;
+  local asBool: bool = cast<bool>(two);
   local one: int = true;
   printf("%d %ld %lu %d %d %d\\n", asInt, asLong, asUlong, asBool, one, narrow(4294967297));
   local small: char = 100;

@@ -6,6 +6,7 @@
 import * as AST from "../common/AST";
 import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
 import { INTEGER_TYPES } from "./TypeUtils";
+import { isImplicitIntegerToBool } from "./lowering/ImplicitConversions";
 import type { CheckerContext } from "./CheckerContext";
 import type { Symbol } from "./SymbolTable";
 import {
@@ -927,7 +928,9 @@ export function checkVariableDecl(
         const resolvedDecl = declaredType;
 
         // Check for integer constant compatibility
-        const constVal = this.getIntegerConstantValue(decl.initializer);
+        const constVal = isImplicitIntegerToBool(resolvedDecl, resolvedInit)
+          ? undefined
+          : this.getIntegerConstantValue(decl.initializer);
         if (constVal !== undefined) {
           if (
             constVal === 0n ||

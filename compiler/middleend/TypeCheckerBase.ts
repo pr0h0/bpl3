@@ -22,6 +22,7 @@ import {
 } from "./TypeUtils";
 import {
   areArrayDimensionsAssignable,
+  isImplicitIntegerToBool,
   lowerImplicitConversion,
 } from "./lowering/ImplicitConversions";
 
@@ -1432,6 +1433,7 @@ export abstract class TypeCheckerBase {
 
     const rt1 = this.resolveType(t1, checkConstraints);
     const rt2 = this.resolveType(t2, checkConstraints);
+    if (isImplicitIntegerToBool(rt1, rt2)) return false;
 
     if (rt1.kind !== rt2.kind) {
       // Allow FunctionType vs LambdaType

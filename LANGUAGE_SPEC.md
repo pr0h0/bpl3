@@ -149,11 +149,12 @@ Tests and code generation must preserve it.
 
 Implicit conversions are intentionally narrow:
 
-- **[R-CONV-1]** Values of different integer types, including `bool` as a
-  1-bit integer, convert implicitly in initialization, assignment, argument
-  passing, and `return`. Widening follows the source signedness; narrowing
-  retains the low bits, so assigning the `int` value `2` to a `bool` yields
-  `false`.
+- **[R-CONV-1]** Integer values convert implicitly between integer types in
+  initialization, assignment, argument passing, and `return`. Widening follows
+  the source signedness; narrowing retains the low bits. Integer-to-`bool`
+  conversion is never implicit, including literals `0` and `1`. Write
+  `value != 0` for zero/nonzero semantics or use an explicit cast. `bool` to
+  integer conversion remains implicit (`false` is `0`, `true` is `1`).
 - **[R-CONV-2]** Integer arithmetic, bitwise operations, and comparisons
   convert the right operand to the left operand's type. Arithmetic results use
   the left type, while comparisons return `bool`. An assignment destination
@@ -179,7 +180,8 @@ Implicit conversions are intentionally narrow:
   function converts to both a matching `Func` and a matching `Lambda`.
 - **[R-CONV-10]** `cast<T>(value)` and `(value as T)` are equivalent explicit
   conversions. Integer casts keep the low bits or extend according to the
-  source signedness. Floating-point to integer casts truncate toward zero and
+  source signedness. Explicit integer-to-`bool` casts retain the low bit, so
+  `cast<bool>(2)` is `false`. Floating-point to integer casts truncate toward zero and
   saturate at the destination range; NaN converts to `0`. Casting an integer to
   `string` is rejected with `BPL_CAST_INTEGER_TO_STRING`.
 
