@@ -16,7 +16,6 @@
  */
 import { isRuntimeHelperName } from "./TypeGenerator";
 import * as AST from "../../common/AST";
-import { walkAST } from "../../common/ASTTraversal";
 import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
 import { TokenType } from "../../frontend/TokenType";
@@ -2760,18 +2759,6 @@ export abstract class StatementGenerator extends AsmGenerator {
     try {
       this.currentFunctionStackAllocations = [];
       this.currentFunctionHasExceptionHandler = false;
-      walkAST(decl.body, (node, ancestors) => {
-        // Nested lambdas and defer bodies are generated as separate functions.
-        if (
-          node.kind === "Try" &&
-          !ancestors.some((ancestor) =>
-            ["LambdaExpression", "Defer", "FunctionDecl"].includes(ancestor.kind),
-          )
-        ) {
-          this.currentFunctionHasExceptionHandler = true;
-          return false;
-        }
-      });
     this.registerCount = 0;
     this.labelCount = 0;
     this.stackAllocCount = 0;
@@ -2935,8 +2922,8 @@ export abstract class StatementGenerator extends AsmGenerator {
         }
       }
 
-      // Built-in runtime functions are now external (linked from runtime.ll)
-      // So we just declare them and skip body generation
+      // Internal external functions need declarations only; BPL runtime
+      // helpers and Type methods retain their generated bodies.
       if (
         decl.location &&
         decl.location.file === "internal" &&
@@ -3215,6 +3202,20 @@ export abstract class StatementGenerator extends AsmGenerator {
       // around setjmp where LLVM cannot reliably move the allocations itself.
       this.output[stackAllocationIndex] =
         this.currentFunctionStackAllocations.join("\n");
+      // generateTry marks the function during normal emission. Only handler
+      // functions need this pass; no eager body/semantic-graph walk is needed.
+      if (this.currentFunctionHasExceptionHandler) {
+        for (
+          let index = stackAllocationIndex + 1;
+          index < this.output.length;
+          index++
+        ) {
+          this.output[index] = this.output[index]!.replace(
+            /^(\s*(?:%[^=]+ = load|store) )(?!volatile\b|atomic\b)/gm,
+            "$1volatile ",
+          );
+        }
+      }
       this.emit("}");
       this.emit("");
     } finally {

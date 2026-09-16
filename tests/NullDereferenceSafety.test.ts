@@ -4,8 +4,8 @@ import {
   expectRuntimeFailureSuite,
 } from "./helpers/compilerCorrectness";
 
-// spec: R-ARR-10
 // Loads and lvalues must use the same checked dereference path.
+// spec: R-ARR-10
 test("explicit null indirection fails consistently at O0/O3", () => {
   expectRuntimeFailureSuite(
     [

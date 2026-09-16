@@ -26,6 +26,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
   protected abstract generateStatement(stmt: AST.Statement): void;
 
   protected generateTry(stmt: AST.TryStmt) {
+    this.currentFunctionHasExceptionHandler = true;
     const catchLabel = this.newLabel("try.catch");
     const endLabel = this.newLabel("try.end");
     let hasContinuation = false;

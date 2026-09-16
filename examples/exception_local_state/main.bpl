@@ -1,4 +1,4 @@
-extern printf(format: string, ...) ret int;
+import printf from "std/c.bpl";
 
 frame main() ret int {
     local changed: int = 0;

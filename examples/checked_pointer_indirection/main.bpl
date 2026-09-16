@@ -1,4 +1,4 @@
-extern printf(format: string, ...);
+import printf from "std/c.bpl";
 frame main() ret int {
     local pointer: *int = nullptr;
     try {

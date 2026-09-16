@@ -378,12 +378,6 @@ export class BaseCodeGenerator {
   }
 
   protected emit(line: string, node?: AST.ASTNode) {
-    if (this.currentFunctionHasExceptionHandler) {
-      line = line.replace(
-        /^(\s*(?:%[^=]+ = load|store) )(?!volatile\b|atomic\b)/,
-        "$1volatile ",
-      );
-    }
     if (this.generateDwarf && this.currentSubprogramId !== -1) {
       // If node is provided, use its location.
       // If not, check if we have a "current statement" location set by generateStatement
