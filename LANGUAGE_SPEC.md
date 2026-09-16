@@ -616,7 +616,9 @@ frame processFile(path: string) {
 - **[R-EXC-2]** A `try` block is followed by one or more `catch` clauses.
   `catch (name: Type)` handles a thrown value whose type is exactly `Type`; a
   parent-struct clause does not catch a child struct value. `catch` without a
-  type handles any value. Clauses are tested in order.
+  type handles any value. Clauses are tested in order. A catch observes writes
+  made before the throw and by deferred cleanup during unwinding, including
+  writes to local variables through pointers.
 - **[R-EXC-3]** An exception that no clause handles propagates to the caller,
   including an exception thrown from a `catch` block. An exception that reaches
   the top of the program prints `Uncaught exception` and exits with status 1.

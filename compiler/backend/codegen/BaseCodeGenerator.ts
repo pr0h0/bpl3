@@ -359,7 +359,19 @@ export class BaseCodeGenerator {
 
   protected currentSubprogramId: number = -1;
 
+  // setjmp/longjmp adds a return path that ordinary LLVM control flow cannot
+  // describe. Keep memory accesses observable in functions with handlers so
+  // catch blocks read updates made by the try body or unwinding callbacks.
+  // Cover indirect accesses too: aliases can refer to the same stack locals.
+  protected currentFunctionHasExceptionHandler = false;
+
   protected emit(line: string, node?: AST.ASTNode) {
+    if (this.currentFunctionHasExceptionHandler) {
+      line = line.replace(
+        /^(\s*(?:%[^=]+ = load|store) )(?!volatile\b|atomic\b)/,
+        "$1volatile ",
+      );
+    }
     if (this.generateDwarf && this.currentSubprogramId !== -1) {
       // If node is provided, use its location.
       // If not, check if we have a "current statement" location set by generateStatement

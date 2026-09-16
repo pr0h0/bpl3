@@ -16,6 +16,7 @@
  */
 import { isRuntimeHelperName } from "./TypeGenerator";
 import * as AST from "../../common/AST";
+import { walkAST } from "../../common/ASTTraversal";
 import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
 import { TokenType } from "../../frontend/TokenType";
@@ -2726,6 +2727,8 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
 
     // Save state for re-entrancy (e.g. when resolving types triggers monomorphization)
+    const prevCurrentFunctionHasExceptionHandler =
+      this.currentFunctionHasExceptionHandler;
     const prevRegisterCount = this.registerCount;
     const prevLabelCount = this.labelCount;
     const prevStackAllocCount = this.stackAllocCount;
@@ -2753,6 +2756,19 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.currentFunctionUsesAllocaStackLimitProbe;
 
     try {
+      this.currentFunctionHasExceptionHandler = false;
+      walkAST(decl.body, (node, ancestors) => {
+        // Nested lambdas and defer bodies are generated as separate functions.
+        if (
+          node.kind === "Try" &&
+          !ancestors.some((ancestor) =>
+            ["LambdaExpression", "Defer", "FunctionDecl"].includes(ancestor.kind),
+          )
+        ) {
+          this.currentFunctionHasExceptionHandler = true;
+          return false;
+        }
+      });
     this.registerCount = 0;
     this.labelCount = 0;
     this.stackAllocCount = 0;
@@ -3193,6 +3209,8 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.emit("");
     } finally {
       // Restore state
+      this.currentFunctionHasExceptionHandler =
+        prevCurrentFunctionHasExceptionHandler;
       this.registerCount = prevRegisterCount;
       this.labelCount = prevLabelCount;
       this.stackAllocCount = prevStackAllocCount;

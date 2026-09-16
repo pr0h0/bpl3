@@ -4110,3 +4110,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-16)**: `lib/runtime.ll` rebuilt `NullAccessError`, `IndexOutOfBoundsError`, `DivisionByZeroError`, and `StackOverflowError` by hand, duplicating layouts, vtables, and type ids that also exist in lib/errors.bpl and compiler/middleend/BuiltinTypes.ts. The copies had drifted: `__bpl_throw_division_by_zero` and `__bpl_throw_index_out_of_bounds` stored the `NullAccessError` vtable, left `code`, `stack_frames`, and `stack_depth` uninitialized from `malloc`, and skipped defer unwinding, so `defer` blocks did not run when those errors were caught. Panic text went to stdout, `runtime.ll` hardcoded the x86-64 Linux target triple, and its `destroy` methods freed the error a catch clause had copied. The wasm runtime's `__bpl_check_null` took `(expr, func)` while generated code passed `(func, expr)`, so its reports swapped the two.
 
 **Resolution**: The check helpers are written in BPL in lib/errors.bpl (`__bpl_check_null`, `__bpl_throw_null_access`, `__bpl_throw_index_out_of_bounds`, `__bpl_throw_division_by_zero`, `__bpl_throw_stack_overflow`), so every error has one definition, throws through the normal lowering including defer unwinding, and is caught with all fields set. Without an active handler they call C panics that print to stderr and exit. `lib/runtime.ll` and the dead `lib/runtime.c` are deleted; runtime state, argc/argv, stack-depth helpers, and panics live in lib/runtime_support.c.
+
+### BUG-343: Optimized catches lose local updates made before a throw
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-16)**: A deferred callback updates a stack local through a captured pointer, then a checked null store transfers control into a typed catch. At O0 the catch sees the update; at O3 LLVM reuses the local's value from before `setjmp`. Ordinary local assignments in a try body have the same risk. The runtime-helper rewrite makes checked failures unwind correctly, but handler functions still need to preserve memory across the nonlocal return.
+
+**Resolution**: Functions containing their own try/catch lower memory loads and stores as volatile, preventing promotion or reuse of pre-throw stack values. This deliberately includes indirect accesses to cover aliases. Nested generated functions independently determine whether they need the protection. O0/O3 execution and LLVM verification cover scalar and parameter writes, aggregate aliases, deferred writes on checked runtime failure, nested rethrows, repeated loop handlers, and handlers inside deferred functions. The conservative policy can limit memory optimizations in handler functions; a future precise liveness analysis could narrow it without changing the guarantee.

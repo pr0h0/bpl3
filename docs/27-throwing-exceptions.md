@@ -24,6 +24,12 @@ typed catches matches, the exception continues to the next enclosing handler.
 Deferred cleanup runs as the intervening scopes unwind. Use `catch { ... }`
 to handle any exception at that level.
 
+A catch sees local-variable updates made before the throw, including updates
+through pointers and by deferred cleanup during unwinding. This holds at every
+optimization level. Handler functions currently use conservative volatile
+memory accesses to preserve that state across the runtime's nonlocal return;
+functions without handlers retain ordinary memory optimization.
+
 Floating-point payloads retain their original bits, including fractional
 values, negative zero, infinities, and NaNs, for both `f32` and `f64`.
 
