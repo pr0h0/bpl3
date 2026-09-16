@@ -77,6 +77,26 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
 
   private generateIdentifierAddress(expr: AST.IdentifierExpr): string {
     const name = expr.name;
+    const declaration = expr.resolvedDeclaration;
+    if (
+      declaration?.kind === "VariableDecl" &&
+      declaration.isGlobal &&
+      typeof declaration.name === "string"
+    ) {
+      // Imports and re-exports can expose another spelling of this global.
+      // Its resolved declaration owns the linker name, even when a local or
+      // unrelated global happens to use the imported spelling.
+      const globalName = declaration.name;
+      if (!this.globals.has(globalName)) {
+        const type = this.resolveType(
+          declaration.typeAnnotation ?? declaration.resolvedType!,
+        );
+        const keyword = declaration.isConst ? "constant" : "global";
+        this.emitDeclaration(`@${globalName} = external ${keyword} ${type}`);
+        this.globals.add(globalName);
+      }
+      return `@${globalName}`;
+    }
     if (this.locals.has(name)) {
       const ptr = this.localPointers.get(name);
       if (ptr) return ptr;
@@ -86,22 +106,6 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       return `@${name}`;
     }
 
-    // Check if it is an imported global variable
-    if (
-      expr.resolvedDeclaration &&
-      expr.resolvedDeclaration.kind === "VariableDecl"
-    ) {
-      const decl = expr.resolvedDeclaration as AST.VariableDecl;
-      if (decl.isGlobal) {
-        const type = this.resolveType(
-          decl.typeAnnotation ?? decl.resolvedType!,
-        );
-        const keyword = decl.isConst ? "constant" : "global";
-        this.emitDeclaration(`@${name} = external ${keyword} ${type}`);
-        this.globals.add(name);
-        return `@${name}`;
-      }
-    }
 
     const ptr = this.localPointers.get(name);
     if (ptr) return ptr;
@@ -153,6 +157,15 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       objType &&
       (objType as unknown as { kind: string }).kind === "ModuleType"
     ) {
+      if (memberExpr.resolvedDeclaration?.kind === "VariableDecl") {
+        return this.generateIdentifierAddress({
+          kind: "Identifier",
+          name: memberExpr.property,
+          resolvedDeclaration: memberExpr.resolvedDeclaration,
+          resolvedType: memberExpr.resolvedType,
+          location: memberExpr.location,
+        });
+      }
       return `@${memberExpr.property}`;
     }
 

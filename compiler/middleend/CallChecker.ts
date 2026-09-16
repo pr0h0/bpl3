@@ -722,6 +722,10 @@ export function checkMember(
       );
     }
 
+    if (symbol.kind === "Variable") {
+      expr.resolvedDeclaration = symbol.declaration;
+    }
+
     if (symbol.kind === "Enum") {
       const enumDecl = symbol.declaration as AST.EnumDecl;
       return {
