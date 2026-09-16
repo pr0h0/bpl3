@@ -44,7 +44,6 @@ import {
 } from "../compiler/common/JsonContracts";
 import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
 import { updateConfig } from "../compiler/common/Config";
-import { resolveNativeRuntimeFiles } from "./NativeRuntimeFiles";
 import {
   BUILD_CONFLICTING_INPUTS_CODE,
   BUILD_NO_INPUTS_CODE,
@@ -434,10 +433,6 @@ function processCodeInternal(
   // runtime check helpers that generated code calls.
   const hasImports = shouldResolveImportsForCompilation(options);
 
-  if (shouldInjectNativeRuntimeObjects(options, hasImports)) {
-    injectRuntimeObjects(options);
-  }
-
   if (hasImports) {
     compileWithModules(content, filePath, options, programArgs);
   } else {
@@ -456,10 +451,6 @@ async function processCodeInternalAsync(
 ): Promise<void> {
   const hasImports = shouldResolveImportsForCompilation(options);
 
-  if (shouldInjectNativeRuntimeObjects(options, hasImports)) {
-    injectRuntimeObjects(options);
-  }
-
   if (hasImports) {
     await compileWithModulesAsync(content, filePath, options, programArgs);
   } else {
@@ -467,40 +458,8 @@ async function processCodeInternalAsync(
   }
 }
 
-function injectRuntimeObjects(options: CompileOptions): void {
-  // Inject runtime library unless skipped
-  if (!needsNativeRuntimeObjects(options)) {
-    return;
-  }
 
-  let objects: string[] = [];
-  if (options.object) {
-    objects = Array.isArray(options.object)
-      ? options.object
-      : [options.object as string];
-  }
-
-  const addObject = (objectPath: string) => {
-    if (!objects.includes(objectPath)) {
-      objects.push(objectPath);
-    }
-  };
-
-  for (const runtimeFile of resolveNativeRuntimeFiles()) {
-    addObject(runtimeFile);
-  }
-
-  options.object = objects;
-}
-
-export function shouldInjectNativeRuntimeObjects(
-  options: CompileOptions,
-  hasImports: boolean,
-): boolean {
-  return Boolean(options.cache) && hasImports && needsNativeRuntimeObjects(options);
-}
-
-function needsNativeRuntimeObjects(options: CompileOptions): boolean {
+export function needsNativeRuntimeObjects(options: CompileOptions): boolean {
   if (options.skipRuntime || isWasmTarget(options.target)) {
     return false;
   }

@@ -374,7 +374,10 @@ export class CodeGenerator extends StatementGenerator {
     this.emitDeclaration(
       `declare void @__bpl_check_null(i8*, i8*, i8*, i32, i32)`,
     );
-    this.emitDeclaration(`declare void @__bpl_write_stderr(i8*)`);
+    if (!this.declaredFunctions.has("__bpl_write_stderr")) {
+      this.emitDeclaration(`declare void @__bpl_write_stderr(i8*)`);
+      this.declaredFunctions.add("__bpl_write_stderr");
+    }
     this.declaredFunctions.add("__bpl_check_null");
 
     this.emitDeclaration("");

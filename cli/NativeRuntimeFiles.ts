@@ -1,12 +1,12 @@
 import { existsSync, lstatSync, readFileSync, statSync } from "fs";
-import { join } from "path";
 
-import { getBplHome } from "../compiler/common/PathResolver";
+import {
+  getNativeRuntimeSupportObjectPath,
+  irNeedsNativeRuntime,
+} from "../compiler/common/NativeRuntime";
 import { findSymlinkedParentPath } from "../compiler/common/PathSafety";
 
 const runtimeObjectCache = new Map<string, string | undefined>();
-const BPL_NATIVE_RUNTIME_SYMBOL_PATTERN =
-  /@(?:__bpl_[A-Za-z0-9_]+|defer_top|exception_top|exception_value|exception_type)\b/;
 
 export interface NativeRuntimeFileOptions {
   /** When given, the runtime links only if this IR references its symbols. */
@@ -24,14 +24,13 @@ export function resolveNativeRuntimeFiles(
     return [];
   }
 
-  const bplHome = options.bplHome ?? getBplHome();
-  const runtimeSupportPath = join(bplHome, "lib", "runtime_support.o");
+  const runtimeSupportPath = getNativeRuntimeSupportObjectPath(options.bplHome);
   assertReadableRuntimeInput(runtimeSupportPath, "Runtime support object");
   return [runtimeSupportPath];
 }
 
 export function nativeIrNeedsBplRuntime(irPath: string): boolean {
-  return BPL_NATIVE_RUNTIME_SYMBOL_PATTERN.test(readFileSync(irPath, "utf8"));
+  return irNeedsNativeRuntime(readFileSync(irPath, "utf8"));
 }
 
 export function resetNativeRuntimeFileCacheForTests(): void {

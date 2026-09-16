@@ -18,6 +18,7 @@ extern snprintf(str: *i8, size: long, format: *i8, ...) ret int;
 extern malloc(size: long) ret *void;
 extern free(ptr: *void);
 extern printf(fmt: string, ...) ret int;
+extern __bpl_write_stderr(message: string);
 
 struct Error {
     message: string,
@@ -125,10 +126,10 @@ struct Error {
         return this.getStackTrace();
     }
 
+    # Diagnostics go to stderr so they never mix into program output.
     frame printStack(this: *Error) {
-        extern printf(fmt: string, ...) ret int;
         local trace: string = this.getStackTrace();
-        printf("%s", trace);
+        __bpl_write_stderr(trace);
         free(cast<*void>(trace));
     }
 }

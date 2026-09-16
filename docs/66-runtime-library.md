@@ -25,6 +25,10 @@ and each one throws only when a `try` block is active:
 - with no handler, it calls a C panic (`__bpl_panic_*`), which prints a
   formatted report with stack traces to stderr and exits.
 
+An uncaught `throw` of an `Error` prints its stack trace through
+`Error.printStack`, also on stderr, so diagnostics never mix into a program's
+own output.
+
 Programs that never trigger a check, such as a hello world, link no runtime at
 all.
 

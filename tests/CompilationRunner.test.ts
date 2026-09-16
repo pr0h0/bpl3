@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
 
+import { irNeedsNativeRuntime } from "../compiler/common/NativeRuntime";
 import {
-  shouldInjectNativeRuntimeObjects,
   sourceContainsImportDeclaration,
   sourceMightContainImportDeclaration,
   sourceStartsWithImportDeclaration,
@@ -47,36 +47,31 @@ describe("Compilation runner", () => {
     expect(sourceStartsWithImportDeclaration).toBeFunction();
     expect(
       sourceStartsWithImportDeclaration(
-        " \n\timport [printf] from \"std/c.bpl\";",
+        ' \n\timport [printf] from "std/c.bpl";',
       ),
     ).toBe(true);
     expect(sourceStartsWithImportDeclaration("important_value")).toBe(false);
     expect(sourceStartsWithImportDeclaration("import_thing")).toBe(false);
     expect(sourceStartsWithImportDeclaration("import2")).toBe(false);
     expect(
-      sourceStartsWithImportDeclaration(
-        "# import [printf] from \"std/c.bpl\";",
-      ),
+      sourceStartsWithImportDeclaration('# import [printf] from "std/c.bpl";'),
     ).toBe(false);
     expect(source).toContain(
       "if (sourceStartsWithImportDeclaration(content)) return true;",
     );
   });
 
-  it("pre-injects native runtime objects only for cached module links", () => {
-    expect(shouldInjectNativeRuntimeObjects({ O: "3" }, false)).toBe(false);
-    expect(shouldInjectNativeRuntimeObjects({ O: "3" }, true)).toBe(false);
+  it("links the native runtime only for IR that references it", () => {
+    // Cached builds add the runtime object after code generation, so a
+    // program that triggers no runtime check links nothing extra.
+    expect(irNeedsNativeRuntime("define i32 @main() { ret i32 0 }")).toBe(
+      false,
+    );
     expect(
-      shouldInjectNativeRuntimeObjects({ O: "3", cache: true }, false),
-    ).toBe(false);
-    expect(
-      shouldInjectNativeRuntimeObjects({ O: "3", cache: true }, true),
+      irNeedsNativeRuntime("  call void @__bpl_throw_stack_overflow()"),
     ).toBe(true);
-    expect(
-      shouldInjectNativeRuntimeObjects(
-        { O: "3", cache: true, emit: "ast" },
-        true,
-      ),
-    ).toBe(false);
+    expect(irNeedsNativeRuntime("@exception_top = external global i8*")).toBe(
+      true,
+    );
   });
 });

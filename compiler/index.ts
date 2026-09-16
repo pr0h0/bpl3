@@ -8,6 +8,10 @@
  * 4. Linking: Link LLVM IR with object files
  */
 
+import {
+  getNativeRuntimeSupportObjectPath,
+  irNeedsNativeRuntime,
+} from "./common/NativeRuntime";
 import { uniqueModuleSymbols } from "./middleend/ModuleSymbolUniquer";
 import * as fs from "fs";
 import * as os from "os";
@@ -360,6 +364,20 @@ export class Compiler {
 
   private moduleSymbolRenameKey = "";
 
+  /**
+   * Cached builds link objects directly, so the runtime object is added here
+   * once the IR exists rather than up front by the CLI.
+   */
+  private linkNativeRuntimeIfNeeded(llvmModules: string[]): void {
+    if (this.options.target?.toLowerCase().includes("wasm")) return;
+    if (!llvmModules.some((llvmIr) => irNeedsNativeRuntime(llvmIr))) return;
+    const runtimeObject = getNativeRuntimeSupportObjectPath();
+    const objectFiles = this.options.objectFiles ?? [];
+    if (!objectFiles.includes(runtimeObject)) {
+      this.options.objectFiles = [...objectFiles, runtimeObject];
+    }
+  }
+
   private withRenameKey(content: string): string {
     return this.moduleSymbolRenameKey
       ? `${content}\n#renames\n${this.moduleSymbolRenameKey}`
@@ -610,6 +628,7 @@ export class Compiler {
       });
       const llvmIR = codeGenerator.generate(combinedAST, entryModule.path);
 
+      this.linkNativeRuntimeIfNeeded([llvmIR]);
       cache.resetStats(1);
       const objectFile = cache.compileModule(
         entryModule.path,
@@ -738,6 +757,9 @@ export class Compiler {
         );
       }
 
+      this.linkNativeRuntimeIfNeeded(
+        compileInputs.map((input) => input.llvmIR),
+      );
       const objectFiles = await cache.compileModules(compileInputs, {
         jobs: this.normalizeJobs(this.options.jobs),
         verbose: this.options.verbose,
