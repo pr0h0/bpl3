@@ -1445,7 +1445,7 @@ function runPackedPackageDoctorSmoke(
       2,
     ) + "\n",
   );
-  writeFileSync(join(driftPackageDir, "index.bpl"), "export original;\n");
+  writeFileSync(join(driftPackageDir, "index.bpl"), "frame original() {} export original;\n");
 
   runStep("pack package doctor lock drift fixture", installedBpl, ["pack"], {
     cwd: driftPackageDir,
@@ -1467,7 +1467,7 @@ function runPackedPackageDoctorSmoke(
   );
   writeFileSync(
     join(driftProjectDir, "bpl_modules", "doctor-lock-drift", "index.bpl"),
-    "export tampered;\n",
+    "frame tampered() {} export tampered;\n",
   );
 
   const driftDoctor = runJsonFailureStep(
@@ -1597,7 +1597,7 @@ function runPackedPackageInstallJsonSmoke(installedBpl: string): void {
         2,
       ) + "\n",
     );
-    writeFileSync(join(packageDir, "index.bpl"), "export value;\n");
+    writeFileSync(join(packageDir, "index.bpl"), "frame value() {} export value;\n");
 
     runStep("pack package install JSON fixture", installedBpl, ["pack"], {
       cwd: packageDir,
@@ -1679,7 +1679,7 @@ function runPackedPackageInstallJsonSmoke(installedBpl: string): void {
 
     writeFileSync(
       join(appDir, "bpl_modules", "release-smoke-install-json", "index.bpl"),
-      "export tampered;\n",
+      "frame tampered() {} export tampered;\n",
     );
     const lockedFailure = runJsonFailureStep(
       "check packed npm CLI locked package verification failure JSON",
@@ -1756,7 +1756,7 @@ function runPackedPackagePackJsonSmoke(installedBpl: string): void {
         2,
       ) + "\n",
     );
-    writeFileSync(join(packageDir, "index.bpl"), "export value;\n");
+    writeFileSync(join(packageDir, "index.bpl"), "frame value() {} export value;\n");
 
     const pack = runStep(
       "check packed npm CLI package pack JSON",
@@ -2080,7 +2080,7 @@ function runPackedPackageUninstallJsonSmoke(installedBpl: string): void {
         2,
       ) + "\n",
     );
-    writeFileSync(join(packageDir, "index.bpl"), "export value;\n");
+    writeFileSync(join(packageDir, "index.bpl"), "frame value() {} export value;\n");
 
     runStep("pack package uninstall JSON fixture", installedBpl, ["pack"], {
       cwd: packageDir,
@@ -2570,7 +2570,7 @@ function runPackedPackageListDuplicateJsonSmoke(
         2,
       ) + "\n",
     );
-    writeFileSync(join(packageDir, "index.bpl"), "export value;\n");
+    writeFileSync(join(packageDir, "index.bpl"), "frame value() {} export value;\n");
   }
 
   const duplicateList = runJsonFailureStep(
@@ -2997,7 +2997,7 @@ function runPackedPackageCacheBinInvalidArchiveJsonSmoke(
       join(packageRoot, "bpl.json"),
       JSON.stringify(manifest, null, 2),
     );
-    writeFileSync(join(packageRoot, "index.bpl"), "export root;\n");
+    writeFileSync(join(packageRoot, "index.bpl"), "frame root() {} export root;\n");
 
     const tarResult = spawnSync(
       "tar",
@@ -3201,7 +3201,7 @@ function runPackedLockedInstallSafetySmoke(installedBpl: string): void {
         2,
       ) + "\n",
     );
-    writeFileSync(join(packageDir, "index.bpl"), "export stable;\n");
+    writeFileSync(join(packageDir, "index.bpl"), "frame stable() {} export stable;\n");
 
     runStep("pack locked install safety fixture", installedBpl, ["pack"], {
       cwd: packageDir,
@@ -3550,7 +3550,7 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
         2,
       ) + "\n",
     );
-    writeFileSync(join(packageDir, "index.bpl"), "export root;\n");
+    writeFileSync(join(packageDir, "index.bpl"), "frame root() {} export root;\n");
     mkdirSync(join(packageDir, "features", "increment"), {
       recursive: true,
     });
@@ -3784,7 +3784,7 @@ function writePackedPackageRoot(packageDir: string, version: string): void {
       2,
     ) + "\n",
   );
-  writeFileSync(join(packageDir, "index.bpl"), "export value;\n");
+  writeFileSync(join(packageDir, "index.bpl"), "frame value() {} export value;\n");
 }
 
 function assertPackageSearchDirectoryNotDirectoryReport(

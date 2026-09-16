@@ -30,6 +30,7 @@ import { OverloadResolver } from "./OverloadResolver";
 import { ImportHandler } from "./ImportHandler";
 import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import type { CheckerContext } from "./CheckerContext";
+import { validateModuleExports } from "./validators/ExportValidator";
 import { validateExternSignature } from "./validators/ExternAbiValidator";
 import { validateFunctionAttributes } from "./validators/FunctionAttributeValidator";
 
@@ -272,6 +273,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         throw e;
       }
     }
+
+    validateModuleExports(program, moduleScope, (error) => this.addError(error));
 
     // BUG-128: Check for main function in entry point
     if (options?.isEntryPoint) {

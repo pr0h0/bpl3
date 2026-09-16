@@ -64,7 +64,10 @@ import add as sum from "./math.bpl";
 
 ## Export Syntax
 
-Declare the symbol first, then export it with a separate `export` statement. Inline exports such as `export frame foo()` and `export struct Foo` are not part of the current grammar.
+Export a declared or imported symbol with a separate `export` statement. The
+export may appear before its declaration, including a global declared later in
+the module. An undefined export produces `BPL_EXPORT_SYMBOL_NOT_FOUND` even
+when no other module imports it. Inline exports such as `export frame foo()` and `export struct Foo` are not part of the current grammar.
 
 ```bpl
 # math.bpl

@@ -120,7 +120,7 @@ function writePackageFixture(
   const relativeEntryPath = options.entryPath ?? main;
   const entryPath = path.join(packageDir, ...relativeEntryPath.split(/[\\/]/));
   fs.mkdirSync(path.dirname(entryPath), { recursive: true });
-  fs.writeFileSync(entryPath, options.entrySource ?? "export value;");
+  fs.writeFileSync(entryPath, options.entrySource ?? "frame value() {} export value;");
 }
 
 function writeDuplicateInstalledPackageFixture(
@@ -143,7 +143,7 @@ function writeDuplicateInstalledPackageFixture(
       path.join(packageDir, "bpl.json"),
       JSON.stringify({ name: packageName, version: "1.0.0", main: "index.bpl" }),
     );
-    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
   }
 
   return duplicatePaths;
@@ -944,7 +944,7 @@ describe("CLI JSON parseability", () => {
         "locked-json-failure-package",
         "index.bpl",
       ),
-      "export tampered;\n",
+      "frame tampered() {} export tampered;\n",
     );
 
     const lockedResult = runCli(["install", "--locked", "--json"], {
@@ -2267,7 +2267,7 @@ describe("CLI JSON parseability", () => {
       ].join("\n"),
     );
     fs.symlinkSync(path.join(symlinkDir, "missing-linked.bpl"), brokenCandidate);
-    fs.writeFileSync(fallbackCandidate, "export value;\n");
+    fs.writeFileSync(fallbackCandidate, "frame value() {} export value;\n");
 
     const symlinkCheck = runCli(["check", "--json", symlinkFile]);
     const symlinkDiagnostic = expectSingleCheckJsonDiagnostic(
@@ -2302,7 +2302,7 @@ describe("CLI JSON parseability", () => {
         "}",
       ].join("\n"),
     );
-    fs.writeFileSync(realCaseModule, "export value;\n");
+    fs.writeFileSync(realCaseModule, "frame value() {} export value;\n");
 
     const caseCheck = runCli(["check", "--json", caseFile]);
     const caseDiagnostic = expectSingleCheckJsonDiagnostic(caseCheck, caseFile);
@@ -6190,7 +6190,7 @@ describe("CLI JSON parseability", () => {
     const sourceFile = path.join(sourceDir, "entrypoint_symlink_import.bpl");
     fs.mkdirSync(sourceDir, { recursive: true });
     writePackageFixture(packageDir, { entrySource: null });
-    fs.writeFileSync(outsideEntrypoint, "export value;");
+    fs.writeFileSync(outsideEntrypoint, "frame value() {} export value;");
     fs.symlinkSync(outsideEntrypoint, linkedEntrypoint, "file");
     fs.writeFileSync(
       sourceFile,
@@ -6231,8 +6231,8 @@ describe("CLI JSON parseability", () => {
     );
     fs.mkdirSync(sourceDir, { recursive: true });
     fs.mkdirSync(outsideFeatureDir);
-    writePackageFixture(packageDir, { entrySource: "export root;" });
-    fs.writeFileSync(path.join(outsideFeatureDir, "add.bpl"), "export value;");
+    writePackageFixture(packageDir, { entrySource: "frame root() {} export root;" });
+    fs.writeFileSync(path.join(outsideFeatureDir, "add.bpl"), "frame value() {} export value;");
     fs.symlinkSync(outsideFeatureDir, linkedFeatureDir, "dir");
     fs.writeFileSync(
       sourceFile,
@@ -6282,9 +6282,9 @@ describe("CLI JSON parseability", () => {
         2,
       ),
     );
-    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
-    fs.writeFileSync(path.join(featureDir, "public.bpl"), "export value;");
-    fs.writeFileSync(path.join(featureDir, "private.bpl"), "export value;");
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
+    fs.writeFileSync(path.join(featureDir, "public.bpl"), "frame value() {} export value;");
+    fs.writeFileSync(path.join(featureDir, "private.bpl"), "frame value() {} export value;");
     fs.writeFileSync(
       sourceFile,
       [
@@ -6320,7 +6320,7 @@ describe("CLI JSON parseability", () => {
       main: "../outside.bpl",
       entrySource: null,
     });
-    fs.writeFileSync(outsideEntrypoint, "export value;");
+    fs.writeFileSync(outsideEntrypoint, "frame value() {} export value;");
     fs.writeFileSync(
       sourceFile,
       [
@@ -6369,8 +6369,8 @@ describe("CLI JSON parseability", () => {
         2,
       ),
     );
-    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
-    fs.writeFileSync(outsideEntrypoint, "export value;");
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+    fs.writeFileSync(outsideEntrypoint, "frame value() {} export value;");
     fs.writeFileSync(
       sourceFile,
       [
@@ -6404,8 +6404,8 @@ describe("CLI JSON parseability", () => {
     const requestedSubpath = path.join(packageDir, "features", "add.bpl");
     fs.mkdirSync(path.dirname(realSubpath), { recursive: true });
     fs.mkdirSync(sourceDir, { recursive: true });
-    writePackageFixture(packageDir, { entrySource: "export root;" });
-    fs.writeFileSync(realSubpath, "export value;");
+    writePackageFixture(packageDir, { entrySource: "frame root() {} export root;" });
+    fs.writeFileSync(realSubpath, "frame value() {} export value;");
     fs.writeFileSync(
       sourceFile,
       [
@@ -6443,16 +6443,16 @@ describe("CLI JSON parseability", () => {
       "shadow.bpl",
     );
     fs.mkdirSync(sourceDir, { recursive: true });
-    writePackageFixture(packageDir, { entrySource: "export root;" });
+    writePackageFixture(packageDir, { entrySource: "frame root() {} export root;" });
     fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
     fs.writeFileSync(
       path.join(packageDir, "features", "add.bpl"),
-      "export value;",
+      "frame value() {} export value;",
     );
     fs.mkdirSync(explicitSourceFileDirectory, { recursive: true });
     fs.writeFileSync(
       path.join(explicitSourceFileDirectory, "index.bpl"),
-      "export shadowed;",
+      "frame shadowed() {} export shadowed;",
     );
 
     const seeds = [
@@ -6528,7 +6528,7 @@ describe("CLI JSON parseability", () => {
       }),
     );
     fs.symlinkSync(outsideManifest, linkedManifest, "file");
-    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
     fs.writeFileSync(
       sourceFile,
       [
@@ -6566,7 +6566,7 @@ describe("CLI JSON parseability", () => {
     fs.mkdirSync(sourceDir, { recursive: true });
     fs.mkdirSync(packageDir, { recursive: true });
     fs.writeFileSync(manifestPath, "{not-json");
-    fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+    fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
     fs.writeFileSync(
       sourceFile,
       [
@@ -6638,7 +6638,7 @@ describe("CLI JSON parseability", () => {
     const sourceFile = path.join(sourceDir, "missing_manifest_import.bpl");
     fs.mkdirSync(sourceDir, { recursive: true });
     fs.mkdirSync(localPackageDir, { recursive: true });
-    fs.writeFileSync(path.join(localPackageDir, "index.bpl"), "export value;");
+    fs.writeFileSync(path.join(localPackageDir, "index.bpl"), "frame value() {} export value;");
     writePackageFixture(workspacePackageDir, { version: "2.0.0" });
     writePackageFixture(globalPackageRoot, { version: "9.0.0" });
     fs.writeFileSync(
@@ -6678,11 +6678,11 @@ describe("CLI JSON parseability", () => {
     const outsideFeature = path.join(tempDir, "outside-add.bpl");
     const sourceFile = path.join(sourceDir, "subpath_file_symlink_import.bpl");
     fs.mkdirSync(sourceDir, { recursive: true });
-    writePackageFixture(packageDir, { entrySource: "export root;" });
+    writePackageFixture(packageDir, { entrySource: "frame root() {} export root;" });
     fs.mkdirSync(featureDir);
-    fs.writeFileSync(outsideFeature, "export value;");
+    fs.writeFileSync(outsideFeature, "frame value() {} export value;");
     fs.symlinkSync(outsideFeature, linkedFeature, "file");
-    fs.writeFileSync(fallbackFeature, "export legacy;");
+    fs.writeFileSync(fallbackFeature, "frame legacy() {} export legacy;");
     fs.writeFileSync(
       sourceFile,
       [

@@ -4013,13 +4013,13 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 ### BUG-333: Exporting an undefined symbol is accepted
 
-**Status**: Open
+**Status**: Fixed
 
 **Priority**: P3
 
 **Observed (2026-09-15)**: `export g;` in a module without `g` compiles without a diagnostic; only a module that imports `g` fails with `BPL_IMPORT_EXPORT_NOT_FOUND`. examples/bpl_db/src/types.bpl exports a nonexistent `ValueType`.
 
-**Next step**: Rejecting such exports broke dozens of package-manager and release-smoke fixtures that use placeholder modules such as `export test;`, and `bpl check` has no non-failing warning channel. Migrate those fixtures and the example, then reject undefined exports after all module declarations are checked (globals are not hoisted, so exports may precede them). LANGUAGE_SPEC.md R-MOD-2 documents the current behavior.
+**Resolution (2026-09-16)**: Both complete-program checking and on-demand module loading validate exports after all declarations, preserving exports before globals and imported re-exports. Undefined symbols receive `BPL_EXPORT_SYMBOL_NOT_FOUND`. Package and release fixtures now declare their exported placeholders, and the stale `ValueType` export was removed. Failed on-demand module loads restore checker scopes and discard partially checked cache entries. Tests cover all export forms, forward globals, aliases, and failure recovery.
 
 ### BUG-334: The raw assembly flavor emits invalid IR and unknown flavors are accepted
 

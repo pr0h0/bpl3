@@ -234,7 +234,7 @@ const CLI_JSON_ERROR_CODE_LISTS = [
   },
   {
     name: "import-handler",
-    codes: ["BPL_IMPORT_EXPORT_NOT_FOUND"],
+    codes: ["BPL_IMPORT_EXPORT_NOT_FOUND", "BPL_EXPORT_SYMBOL_NOT_FOUND"],
   },
   {
     name: "type-checker",

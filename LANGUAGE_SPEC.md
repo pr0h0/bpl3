@@ -741,8 +741,8 @@ match (opt) {
   the module unless exported.
 - **[R-MOD-2]** `export name;`, `export [Name];`, and `export { name };` each
   export one symbol. An export may appear before the declaration it names. An
-  export that names no declaration is not diagnosed in the exporting module;
-  importing that name is rejected with `BPL_IMPORT_EXPORT_NOT_FOUND`. Inline
+  export that names no declaration or imported symbol is rejected in the
+  exporting module with `BPL_EXPORT_SYMBOL_NOT_FOUND`. Inline
   forms such as `export frame f()` and lists such as `export a, b;` are syntax
   errors.
 

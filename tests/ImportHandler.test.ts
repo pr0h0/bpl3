@@ -9,6 +9,7 @@ import {
   type ImportHandlerContext,
   ImportHandler,
 } from "../compiler/middleend/ImportHandler";
+import { Parser } from "../compiler/frontend/Parser";
 import { SymbolTable } from "../compiler/middleend/SymbolTable";
 
 interface ImportHandlerInternals {
@@ -42,14 +43,6 @@ function makeProgram(statements: AST.Statement[], file: string): AST.Program {
   return {
     kind: "Program",
     statements,
-    location: makeLocation(file),
-  };
-}
-
-function makeExport(items: string[], file: string): AST.ExportStmt {
-  return {
-    kind: "Export",
-    items: items.map((name) => ({ name, isType: false })),
     location: makeLocation(file),
   };
 }
@@ -88,7 +81,15 @@ function makeHandlerWithPreloadedModule(
     currentModulePath: "test.bpl",
     currentScope: globalScope,
     globalScope,
-    hoistDeclaration: () => {},
+    hoistDeclaration: (statement) => {
+      if (statement.kind === "FunctionDecl") {
+        context.currentScope.define({
+          name: statement.name,
+          kind: "Function",
+          declaration: statement,
+        });
+      }
+    },
     checkStatement: () => {},
     defineSymbol: () => {},
   };
@@ -200,10 +201,10 @@ describe("ImportHandler", () => {
   it("reports a stable code and available exports when a named import is not exported", () => {
     const sourceFile = path.join(os.tmpdir(), "import-handler-main.bpl");
     const modulePath = path.join(os.tmpdir(), "import-handler-module.bpl");
-    const moduleAst = makeProgram(
-      [makeExport(["zeta", "available"], modulePath)],
+    const moduleAst = new Parser(
+      "frame zeta() {} frame available() {} export zeta; export available;",
       modulePath,
-    );
+    ).parse();
     const importStmt = makeImport("./import-handler-module.bpl", sourceFile);
     importStmt.items = [{ name: "missing", isType: false }];
 

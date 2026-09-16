@@ -20,10 +20,16 @@ import {
   ModuleResolver,
 } from "./ModuleResolver";
 
+import {
+  EXPORT_SYMBOL_NOT_FOUND_CODE,
+  validateModuleExports,
+} from "./validators/ExportValidator";
+
 export const IMPORT_EXPORT_NOT_FOUND_CODE = "BPL_IMPORT_EXPORT_NOT_FOUND";
 
 export const IMPORT_HANDLER_FAILURE_CODES = [
   IMPORT_EXPORT_NOT_FOUND_CODE,
+  EXPORT_SYMBOL_NOT_FOUND_CODE,
 ] as const;
 
 /**
@@ -317,23 +323,25 @@ export class ImportHandler {
     this.ctx.currentScope = moduleScope;
     this.ctx.currentModulePath = importPath;
 
-    // Hoist declarations in the imported module
-    for (const s of moduleAst.statements) {
-      this.ctx.hoistDeclaration(s);
+    try {
+      // Exports may precede globals, so validate after both checking passes.
+      for (const statement of moduleAst.statements) {
+        this.ctx.hoistDeclaration(statement);
+      }
+      for (const statement of moduleAst.statements) {
+        this.ctx.checkStatement(statement);
+      }
+      validateModuleExports(moduleAst, moduleScope);
+      return moduleScope;
+    } catch (error) {
+      // A failed load must not leave a cached, partially checked module.
+      this.ctx.modules.delete(importPath);
+      throw error;
+    } finally {
+      this.ctx.globalScope = prevGlobal;
+      this.ctx.currentScope = prevCurrent;
+      this.ctx.currentModulePath = prevModulePath;
     }
-
-    // Check statements (Pass 2) to resolve methods in structs
-    // This ensures that methods in implicitly loaded modules have their resolvedType set
-    for (const s of moduleAst.statements) {
-      this.ctx.checkStatement(s);
-    }
-
-    // Restore context
-    this.ctx.globalScope = prevGlobal;
-    this.ctx.currentScope = prevCurrent;
-    this.ctx.currentModulePath = prevModulePath;
-
-    return moduleScope;
   }
 
   /**

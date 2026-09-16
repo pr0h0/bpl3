@@ -107,7 +107,7 @@ describe("PackageManager", () => {
         2,
       ),
     );
-    fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export cached;");
+    fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame cached() {} export cached;");
 
     const packResult = spawnSync(
       "tar",
@@ -373,7 +373,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export first;");
+      fs.writeFileSync("index.bpl", "frame first() {} export first;");
 
       const tarballPath = packageManager.pack(tempDir);
       const provenancePath = `${tarballPath}.bplmeta.json`;
@@ -382,7 +382,7 @@ describe("PackageManager", () => {
       );
       fs.chmodSync(provenancePath, 0o640);
 
-      fs.writeFileSync("index.bpl", "export second;");
+      fs.writeFileSync("index.bpl", "frame second() {} export second;");
       expect(packageManager.pack(tempDir)).toBe(tarballPath);
 
       expect(fs.statSync(provenancePath).mode & 0o777).toBe(0o640);
@@ -417,12 +417,12 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export first;");
+      fs.writeFileSync("index.bpl", "frame first() {} export first;");
 
       const tarballPath = packageManager.pack(tempDir);
       fs.chmodSync(tarballPath, 0o640);
 
-      fs.writeFileSync("index.bpl", "export second;");
+      fs.writeFileSync("index.bpl", "frame second() {} export second;");
       expect(packageManager.pack(tempDir)).toBe(tarballPath);
 
       expect(fs.statSync(tarballPath).mode & 0o777).toBe(0o640);
@@ -448,7 +448,7 @@ describe("PackageManager", () => {
       const originalBplTar = process.env.BPL_TAR;
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       process.env.BPL_TAR = missingTar;
       try {
@@ -486,7 +486,7 @@ describe("PackageManager", () => {
       ]);
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       process.env.BPL_TAR = fakeTar;
       process.env.BPL_PACKAGE_TOOL_TIMEOUT_MS = "100";
@@ -528,7 +528,7 @@ describe("PackageManager", () => {
       ]);
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
       fs.writeFileSync(tarballPath, "existing archive\n");
 
       process.env.BPL_TAR = fakeTar;
@@ -573,7 +573,7 @@ describe("PackageManager", () => {
       ]);
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       process.env.BPL_TAR = fakeTar;
       try {
@@ -606,7 +606,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
       fs.writeFileSync("utils.bpl", "frame helper() ret int { return 1; }");
       fs.writeFileSync("README.md", "# Test Package");
 
@@ -621,7 +621,7 @@ describe("PackageManager", () => {
         "bpl.json",
         JSON.stringify({ name: "output-dir-pkg", version: "1.0.0" }, null, 2),
       );
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       const tarballPath = packageManager.pack(tempDir, outputDir);
 
@@ -638,7 +638,7 @@ describe("PackageManager", () => {
         "bpl.json",
         JSON.stringify({ name: "bad-output-pkg", version: "1.0.0" }, null, 2),
       );
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
       fs.writeFileSync(outputPath, "not a directory");
 
       expect(() => packageManager.pack(tempDir, outputPath)).toThrow(
@@ -657,7 +657,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
       fs.writeFileSync(parentPath, "not a directory");
 
       let errorMessage = "";
@@ -683,7 +683,7 @@ describe("PackageManager", () => {
         "bpl.json",
         JSON.stringify({ name: "bad-output-link-pkg", version: "1.0.0" }),
       );
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       expect(() => packageManager.pack(tempDir, outputPath)).toThrow(
         /Package output path is a symbolic link/,
@@ -700,7 +700,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
       fs.mkdirSync(path.join(tempDir, "archive-output-dir-pkg-1.0.0.tgz"));
 
       expect(() => packageManager.pack(tempDir)).toThrow(
@@ -718,7 +718,7 @@ describe("PackageManager", () => {
         "bpl.json",
         JSON.stringify({ name: "archive-output-link-pkg", version: "1.0.0" }),
       );
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
       fs.symlinkSync(targetPath, archivePath, "file");
 
       expect(() => packageManager.pack(tempDir)).toThrow(
@@ -738,7 +738,7 @@ describe("PackageManager", () => {
         "bpl.json",
         JSON.stringify({ name: "provenance-pkg", version: "1.0.0" }, null, 2),
       );
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       expect(() => packageManager.pack(tempDir, outputDir)).toThrow(
         /Package provenance path is not a file/,
@@ -762,7 +762,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       expect(() => packageManager.pack(tempDir, outputDir)).toThrow(
         /Package provenance path is a symbolic link/,
@@ -840,7 +840,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
       fs.writeFileSync(
         path.join(tempDir, "outside-tool.sh"),
         "#!/usr/bin/env sh\necho outside\n",
@@ -869,7 +869,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
       fs.writeFileSync(outsideTool, "#!/usr/bin/env sh\necho outside\n");
 
       try {
@@ -904,7 +904,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
       fs.symlinkSync(
         path.join(tempDir, "missing-tool.sh"),
         path.join(tempDir, "bin", "tool.sh"),
@@ -932,7 +932,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
 
       expect(() => packageManager.pack(packageDir)).toThrow(
         /Missing package bin entry/,
@@ -963,7 +963,7 @@ describe("PackageManager", () => {
       );
       fs.writeFileSync(
         path.join(directoryProject, "index.bpl"),
-        "export test;",
+        "frame test() {} export test;",
       );
 
       expect(() => packageManager.pack(directoryProject)).toThrow(
@@ -982,7 +982,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(missingProject, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(missingProject, "index.bpl"), "frame test() {} export test;");
 
       expect(() => packageManager.pack(missingProject)).toThrow(
         /Missing package export entry: features\/missing\.bpl/,
@@ -1000,7 +1000,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(symlinkProject, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(symlinkProject, "index.bpl"), "frame test() {} export test;");
       fs.symlinkSync(
         path.join(symlinkProject, "missing-public.bpl"),
         path.join(symlinkProject, "features", "public.bpl"),
@@ -1025,8 +1025,8 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync("index.bpl", "export root;");
-      fs.writeFileSync("features/public.bpl", "export publicFeature;");
+      fs.writeFileSync("index.bpl", "frame root() {} export root;");
+      fs.writeFileSync("features/public.bpl", "frame publicFeature() {} export publicFeature;");
       fs.writeFileSync("features/native.x", "extern nativeFeature;");
 
       const tarballPath = packageManager.pack(tempDir);
@@ -1057,7 +1057,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
 
       return new PackageManager(packageDir).pack(packageDir);
     }
@@ -1071,7 +1071,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       const tarballPath = packageManager.pack(tempDir);
 
@@ -1117,11 +1117,11 @@ describe("PackageManager", () => {
 
       const originalTarball = createPackageArchive(
         "copy-failure-original",
-        "export original;",
+        "frame original() {} export original;",
       );
       const updatedTarball = createPackageArchive(
         "copy-failure-updated",
-        "export updated;",
+        "frame updated() {} export updated;",
       );
       const installDir = path.join(tempDir, "copy-failure-install");
       fs.mkdirSync(installDir);
@@ -1137,7 +1137,7 @@ describe("PackageManager", () => {
       );
       expect(
         fs.readFileSync(path.join(installedPath, "index.bpl"), "utf-8"),
-      ).toBe("export original;");
+      ).toBe("frame original() {} export original;");
 
       const patchedPM = localPM as unknown as {
         copyDir: (src: string, dest: string) => void;
@@ -1151,7 +1151,7 @@ describe("PackageManager", () => {
       ).toThrow(/simulated staged copy failure/);
       expect(
         fs.readFileSync(path.join(installedPath, "index.bpl"), "utf-8"),
-      ).toBe("export original;");
+      ).toBe("frame original() {} export original;");
       expect(
         fs
           .readdirSync(path.join(installDir, "bpl_modules"))
@@ -1175,7 +1175,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
 
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
       const targetPath = path.join(
@@ -1214,7 +1214,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
 
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
       const targetPath = path.join(
@@ -1329,7 +1329,7 @@ describe("PackageManager", () => {
       );
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       const tarballPath = packageManager.pack(tempDir);
       const installDir = path.join(tempDir, "stale-temp-install");
@@ -1373,7 +1373,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       expect(() => packageManager.loadManifest(tempDir)).toThrow(
         /Invalid 'bin' command/,
@@ -1399,7 +1399,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
       fs.writeFileSync(
         path.join(packageDir, "bin", "tool.sh"),
         "#!/usr/bin/env sh\necho tool\n",
@@ -1440,7 +1440,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
       fs.writeFileSync(
         path.join(packageDir, "bin", "tool.sh"),
         "#!/usr/bin/env sh\necho tool\n",
@@ -1478,7 +1478,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
       fs.writeFileSync(
         path.join(packageDir, "bin", "tool.sh"),
         "#!/usr/bin/env sh\necho tool\n",
@@ -1515,7 +1515,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
       fs.writeFileSync(
         path.join(packageDir, "bin", "tool.sh"),
         "#!/usr/bin/env sh\necho tool\n",
@@ -1570,8 +1570,8 @@ describe("PackageManager", () => {
         return new PackageManager(packageDir).pack(packageDir);
       };
 
-      const firstTarball = createPackage("1.0.0", "export old;");
-      const secondTarball = createPackage("2.0.0", "export new;");
+      const firstTarball = createPackage("1.0.0", "frame old() {} export old;");
+      const secondTarball = createPackage("2.0.0", "frame new() {} export new;");
       const manager = new PackageManager(installDir);
       manager.install(firstTarball, { global: false, verbose: false });
 
@@ -1594,7 +1594,7 @@ describe("PackageManager", () => {
       expect(installedManifest.version).toBe("1.0.0");
       expect(
         fs.readFileSync(path.join(installedPath, "index.bpl"), "utf-8"),
-      ).toBe("export old;");
+      ).toBe("frame old() {} export old;");
     });
 
     test("should reuse existing current binary links without staging new links", () => {
@@ -1626,8 +1626,8 @@ describe("PackageManager", () => {
         return new PackageManager(packageDir).pack(packageDir);
       };
 
-      const firstTarball = createPackage("1.0.0", "export old;");
-      const secondTarball = createPackage("2.0.0", "export new;");
+      const firstTarball = createPackage("1.0.0", "frame old() {} export old;");
+      const secondTarball = createPackage("2.0.0", "frame new() {} export new;");
       const manager = new PackageManager(installDir);
       manager.install(firstTarball, { global: false, verbose: false });
 
@@ -1672,7 +1672,7 @@ describe("PackageManager", () => {
           path.join(installDir, "bpl_modules", "bin-link-preserve", "index.bpl"),
           "utf-8",
         ),
-      ).toBe("export new;");
+      ).toBe("frame new() {} export new;");
     });
 
     test("should reject first-time installs when staged binary link creation fails", () => {
@@ -1694,7 +1694,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export first;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame first() {} export first;");
       fs.writeFileSync(
         path.join(packageDir, "bin", "tool.sh"),
         "#!/usr/bin/env sh\necho tool\n",
@@ -1763,7 +1763,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame test() {} export test;");
 
       const packResult = spawnSync(
         "tar",
@@ -1831,7 +1831,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export test;");
+        fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame test() {} export test;");
         testCase.setup(packageRoot);
 
         const packResult = spawnSync(
@@ -1884,7 +1884,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export old;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame old() {} export old;");
       const goodTarballPath = new PackageManager(packageDir).pack(packageDir);
       const installer = new PackageManager(installDir);
       installer.install(goodTarballPath, { global: false, verbose: false });
@@ -1902,7 +1902,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export new;");
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame new() {} export new;");
       const packResult = spawnSync(
         "tar",
         ["-czf", badTarballPath, "-C", sourceDir, "package"],
@@ -1923,7 +1923,7 @@ describe("PackageManager", () => {
           ),
           "utf-8",
         ),
-      ).toBe("export old;");
+      ).toBe("frame old() {} export old;");
     });
 
     test("should track exported non-bpl files in installed package hashes", () => {
@@ -1944,7 +1944,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
       fs.writeFileSync(
         path.join(packageDir, "features", "native.x"),
         "extern nativeFeature;",
@@ -1989,7 +1989,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
       fs.mkdirSync(path.join(globalPackageDir, "global-cache-target-1.0.0.tgz"));
 
@@ -2022,7 +2022,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export old;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame old() {} export old;");
 
       const localPM = new PackageManager(tempDir);
       localPM["globalPackageDir"] = globalPackageDir;
@@ -2037,7 +2037,7 @@ describe("PackageManager", () => {
       );
       fs.chmodSync(cachedArchivePath, 0o640);
 
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export new;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame new() {} export new;");
       const replacementTarball = new PackageManager(packageDir).pack(packageDir);
       localPM.install(replacementTarball, { global: true, verbose: false });
 
@@ -2047,7 +2047,7 @@ describe("PackageManager", () => {
           path.join(globalPackageDir, "global-cache-mode", "index.bpl"),
           "utf8",
         ),
-      ).toBe("export new;");
+      ).toBe("frame new() {} export new;");
       expect(
         fs
           .readdirSync(globalPackageDir)
@@ -2076,7 +2076,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export oldVersion;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame oldVersion() {} export oldVersion;");
       const firstTarballPath = new PackageManager(packageDir).pack(packageDir);
 
       const localPM = new PackageManager(tempDir);
@@ -2095,7 +2095,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export newVersion;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame newVersion() {} export newVersion;");
       const secondTarballPath = new PackageManager(packageDir).pack(packageDir);
       const blockedProvenancePath = path.join(
         globalPackageDir,
@@ -2113,7 +2113,7 @@ describe("PackageManager", () => {
           path.join(globalPackageDir, "global-provenance", "index.bpl"),
           "utf8",
         ),
-      ).toBe("export oldVersion;");
+      ).toBe("frame oldVersion() {} export oldVersion;");
     });
 
     test("should not follow atomic temp symlinks while caching global package archives", () => {
@@ -2138,7 +2138,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
 
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
       const cachedArchivePath = path.join(
@@ -2189,7 +2189,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(sourceDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(sourceDir, "index.bpl"), "frame test() {} export test;");
       fs.writeFileSync(path.join(sourceDir, "escaped.txt"), "escaped");
 
       spawnSync(
@@ -2241,7 +2241,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(externalSourcePath, "export escaped;");
+      fs.writeFileSync(externalSourcePath, "frame escaped() {} export escaped;");
       fs.symlinkSync(externalSourcePath, path.join(sourceDir, "index.bpl"));
 
       spawnSync(
@@ -2292,8 +2292,8 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(sourceDir, "index.bpl"), "export root;");
-      fs.writeFileSync(externalSourcePath, "export escaped;");
+      fs.writeFileSync(path.join(sourceDir, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(externalSourcePath, "frame escaped() {} export escaped;");
       fs.symlinkSync(
         externalSourcePath,
         path.join(sourceDir, "features", "public.bpl"),
@@ -2349,7 +2349,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
       fs.linkSync(
         path.join(packageDir, "index.bpl"),
         path.join(packageDir, "alias.bpl"),
@@ -2398,7 +2398,7 @@ describe("PackageManager", () => {
         main: "index.bpl",
       };
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
       const tarballPath = packageManager.pack(tempDir);
       const linkedArchivePath = path.join(tempDir, "archive-link.tgz");
       fs.symlinkSync(tarballPath, linkedArchivePath, "file");
@@ -2429,7 +2429,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
 
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
       const linkedParentArchivePath = path.join(
@@ -2469,7 +2469,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       const tarballPath = packageManager.pack(tempDir);
 
@@ -2528,7 +2528,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export direct;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame direct() {} export direct;");
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
       fs.copyFileSync(tarballPath, path.join(depsDir, path.basename(tarballPath)));
 
@@ -2590,7 +2590,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export direct;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame direct() {} export direct;");
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
       fs.copyFileSync(tarballPath, path.join(depsDir, path.basename(tarballPath)));
 
@@ -2643,7 +2643,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export cached;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame cached() {} export cached;");
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
       const archiveName = path.basename(tarballPath);
       const appArchivePath = path.join(depsDir, archiveName);
@@ -2735,7 +2735,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export oldVersion;");
+      fs.writeFileSync("index.bpl", "frame oldVersion() {} export oldVersion;");
       const firstTarballPath = packageManager.pack(tempDir);
 
       const installDir = path.join(tempDir, "lock-preflight-install");
@@ -2750,7 +2750,7 @@ describe("PackageManager", () => {
         "bpl.json",
         JSON.stringify({ ...manifest, version: "2.0.0" }, null, 2),
       );
-      fs.writeFileSync("index.bpl", "export newVersion;");
+      fs.writeFileSync("index.bpl", "frame newVersion() {} export newVersion;");
       const secondTarballPath = packageManager.pack(tempDir);
 
       process.chdir(installDir);
@@ -2772,7 +2772,7 @@ describe("PackageManager", () => {
           ),
           "utf8",
         ),
-      ).toBe("export oldVersion;");
+      ).toBe("frame oldVersion() {} export oldVersion;");
     });
 
     test("should restore local packages from bpl.lock", () => {
@@ -2783,7 +2783,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export restored;");
+      fs.writeFileSync("index.bpl", "frame restored() {} export restored;");
 
       const tarballPath = packageManager.pack(tempDir);
 
@@ -2820,7 +2820,7 @@ describe("PackageManager", () => {
       );
       expect(fs.existsSync(restoredPath)).toBe(true);
       expect(fs.readFileSync(restoredPath, "utf8")).toContain(
-        "export restored;",
+        "frame restored() {} export restored;",
       );
     });
 
@@ -2842,7 +2842,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
       fs.writeFileSync(
         path.join(appDir, "bpl.json"),
@@ -2901,7 +2901,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export original;");
+      fs.writeFileSync("index.bpl", "frame original() {} export original;");
 
       const tarballPath = packageManager.pack(tempDir);
 
@@ -2916,7 +2916,7 @@ describe("PackageManager", () => {
 
       fs.writeFileSync(
         path.join(installDir, "bpl_modules", "verify-test-pkg", "index.bpl"),
-        "export tampered;",
+        "frame tampered() {} export tampered;",
       );
 
       const verification = localPM.verifyLockFile();
@@ -2961,7 +2961,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export stable;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame stable() {} export stable;");
       }
 
       const localPM = new PackageManager(appDir);
@@ -3023,7 +3023,7 @@ describe("PackageManager", () => {
         JSON.stringify({ lockfileVersion: 1, packages: {} }, null, 2),
       );
       fs.writeFileSync(path.join(invalidPackageDir, "bpl.json"), "{ invalid");
-      fs.writeFileSync(path.join(invalidPackageDir, "index.bpl"), "export bad;");
+      fs.writeFileSync(path.join(invalidPackageDir, "index.bpl"), "frame bad() {} export bad;");
 
       const localPM = new PackageManager(appDir);
       const verification = localPM.verifyLockFile();
@@ -3118,7 +3118,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
       }
 
       const localPM = new PackageManager(appDir);
@@ -3196,7 +3196,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
       }
 
       const localPM = new PackageManager(appDir);
@@ -3233,7 +3233,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export stable;");
+      fs.writeFileSync("index.bpl", "frame stable() {} export stable;");
 
       const tarballPath = packageManager.pack(tempDir);
 
@@ -3319,7 +3319,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
         testCase.setup(packageDir);
         packages[testCase.packageName] = {
           version: "1.0.0",
@@ -3374,7 +3374,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
 
       const localPM = new PackageManager(appDir);
       fs.writeFileSync(
@@ -3466,7 +3466,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
         testCase.setup(packageDir);
         packages[testCase.packageName] = {
           version: "1.0.0",
@@ -3525,7 +3525,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(installedDir, "index.bpl"), "export stable;");
+      fs.writeFileSync(path.join(installedDir, "index.bpl"), "frame stable() {} export stable;");
 
       const localPM = new PackageManager(appDir);
       const hash = localPM["calculatePackageHash"](installedDir);
@@ -3595,7 +3595,7 @@ describe("PackageManager", () => {
       );
       fs.writeFileSync(
         path.join(outsidePackageDir, "index.bpl"),
-        "export stable;",
+        "frame stable() {} export stable;",
       );
 
       const localPM = new PackageManager(appDir);
@@ -3666,7 +3666,7 @@ describe("PackageManager", () => {
       );
       fs.writeFileSync(
         path.join(outsidePackageDir, "index.bpl"),
-        "export stable;",
+        "frame stable() {} export stable;",
       );
 
       const localPM = new PackageManager(appDir);
@@ -3752,7 +3752,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export stable;");
+      fs.writeFileSync("index.bpl", "frame stable() {} export stable;");
       fs.mkdirSync("bin");
       fs.writeFileSync("bin/tool.sh", "#!/usr/bin/env sh\necho original\n");
 
@@ -3783,7 +3783,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export stable;");
+      fs.writeFileSync("index.bpl", "frame stable() {} export stable;");
 
       const tarballPath = packageManager.pack(tempDir);
       const installDir = path.join(tempDir, "source-lock-app");
@@ -3836,7 +3836,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(installedDir, "index.bpl"), "export stable;");
+      fs.writeFileSync(path.join(installedDir, "index.bpl"), "frame stable() {} export stable;");
 
       const localPM = new PackageManager(appDir);
       const hash = localPM["calculatePackageHash"](installedDir);
@@ -3911,7 +3911,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(installedDir, "index.bpl"), "export stable;");
+      fs.writeFileSync(path.join(installedDir, "index.bpl"), "frame stable() {} export stable;");
 
       const localPM = new PackageManager(appDir);
       const hash = localPM["calculatePackageHash"](installedDir);
@@ -3966,7 +3966,7 @@ describe("PackageManager", () => {
         );
         fs.writeFileSync(
           path.join(packageDir, "index.bpl"),
-          `export ${exportName};`,
+          `frame ${exportName}() {} export ${exportName};`,
         );
 
         const packer = new PackageManager(packageDir);
@@ -4002,7 +4002,7 @@ describe("PackageManager", () => {
 
       expect(installedManifest.name).toBe("math");
       expect(installedManifest.version).toBe("1.10.0");
-      expect(installedSource).toContain("export v1100;");
+      expect(installedSource).toContain("frame v1100() {} export v1100;");
       expect(lock.packages.math.source).toBe("math-1.10.0.tgz");
     });
 
@@ -4046,7 +4046,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "cache-select",
         "1.0.0",
-        "export realVersion;",
+        "frame realVersion() {} export realVersion;",
         globalPackageDir,
       );
 
@@ -4066,7 +4066,7 @@ describe("PackageManager", () => {
       );
 
       expect(installedManifest.version).toBe("1.0.0");
-      expect(installedSource).toContain("export realVersion;");
+      expect(installedSource).toContain("frame realVersion() {} export realVersion;");
     });
 
     test("should reject broken symlink file dependency archives", () => {
@@ -4120,7 +4120,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(sourceDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(sourceDir, "index.bpl"), "frame test() {} export test;");
 
       const tarballPath = new PackageManager(sourceDir).pack(sourceDir);
       const linkedParentArchivePath = path.join(
@@ -4167,19 +4167,19 @@ describe("PackageManager", () => {
       createCachedPackage(
         "range-math",
         "1.2.0",
-        "export oldVersion;",
+        "frame oldVersion() {} export oldVersion;",
         globalPackageDir,
       );
       createCachedPackage(
         "range-math",
         "1.5.0",
-        "export selectedVersion;",
+        "frame selectedVersion() {} export selectedVersion;",
         globalPackageDir,
       );
       createCachedPackage(
         "range-math",
         "2.0.0",
-        "export wrongMajor;",
+        "frame wrongMajor() {} export wrongMajor;",
         globalPackageDir,
       );
 
@@ -4225,7 +4225,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "large-range-math",
         "9007199254740993.0.0",
-        "export selectedVersion;",
+        "frame selectedVersion() {} export selectedVersion;",
         globalPackageDir,
       );
 
@@ -4292,7 +4292,7 @@ describe("PackageManager", () => {
         createCachedPackage(
           packageName,
           "2.0.0",
-          "export latestFallback;",
+          "frame latestFallback() {} export latestFallback;",
           globalPackageDir,
         );
 
@@ -4341,7 +4341,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame add() {} export add;");
 
       const packer = new PackageManager(packageDir);
       const tarballPath = packer.pack(packageDir);
@@ -4410,7 +4410,7 @@ describe("PackageManager", () => {
         );
         fs.writeFileSync(
           path.join(packageDir, "index.bpl"),
-          `export ${exportName};`,
+          `frame ${exportName}() {} export ${exportName};`,
         );
 
         const packer = new PackageManager(packageDir);
@@ -4451,7 +4451,7 @@ describe("PackageManager", () => {
       );
 
       expect(installedManifest.version).toBe("1.0.0");
-      expect(installedSource).toContain("export v100;");
+      expect(installedSource).toContain("frame v100() {} export v100;");
       expect(lock.packages["locked-math"].version).toBe("1.0.0");
     });
 
@@ -4464,7 +4464,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "update-math",
         "1.0.0",
-        "export firstVersion;",
+        "frame firstVersion() {} export firstVersion;",
         globalPackageDir,
       );
       fs.writeFileSync(
@@ -4489,7 +4489,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "update-math",
         "1.5.0",
-        "export secondVersion;",
+        "frame secondVersion() {} export secondVersion;",
         globalPackageDir,
       );
       localPM.installProject({ global: false, verbose: false });
@@ -4525,7 +4525,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "repair-math",
         "1.0.0",
-        "export original;",
+        "frame original() {} export original;",
         globalPackageDir,
       );
       fs.writeFileSync(
@@ -4549,7 +4549,7 @@ describe("PackageManager", () => {
 
       fs.writeFileSync(
         path.join(appDir, "bpl_modules", "repair-math", "index.bpl"),
-        "export repaired;",
+        "frame repaired() {} export repaired;",
       );
       const lockPath = path.join(appDir, "bpl.lock");
       const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
@@ -4595,7 +4595,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
 
       const localPM = new PackageManager(appDir);
 
@@ -4632,7 +4632,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
 
       const localPM = new PackageManager(appDir);
 
@@ -4692,7 +4692,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
         testCase.setup(packageDir);
       }
 
@@ -4753,7 +4753,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
       fs.writeFileSync(
         path.join(packageDir, "features", "native.x"),
         "extern nativeFeature;",
@@ -4791,7 +4791,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
       }
 
       const localPM = new PackageManager(appDir);
@@ -4954,7 +4954,7 @@ describe("PackageManager", () => {
       );
       fs.writeFileSync(
         path.join(globalShadowDir, "index.bpl"),
-        "export wrongValue;",
+        "frame wrongValue() {} export wrongValue;",
       );
 
       fs.rmSync(path.join(appDir, "bpl_modules"), {
@@ -5009,7 +5009,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(depBDir, "index.bpl"), "export value;");
+      fs.writeFileSync(path.join(depBDir, "index.bpl"), "frame value() {} export value;");
       const depBTarball = new PackageManager(depBDir).pack(depBDir);
 
       fs.writeFileSync(
@@ -5085,7 +5085,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
       const appRelativeTarballPath = path.join(
         depsDir,
@@ -5135,7 +5135,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "locked-graph-b",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
       );
       createCachedPackage(
@@ -5191,7 +5191,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "locked-invalid-root-b",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
       );
       createCachedPackage(
@@ -5270,7 +5270,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "locked-complete-b",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
       );
       createCachedPackage(
@@ -5332,7 +5332,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "tree-graph-b",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
       );
       createCachedPackage(
@@ -5425,7 +5425,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
         setup?.(packageDir);
       };
 
@@ -5458,7 +5458,7 @@ describe("PackageManager", () => {
           fs.mkdirSync(path.join(packageDir, "features"));
           fs.writeFileSync(
             path.join(packageDir, "features", "actual.bpl"),
-            "export actual;",
+            "frame actual() {} export actual;",
           );
           fs.symlinkSync(
             "actual.bpl",
@@ -5509,7 +5509,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "tree-broken-lock-pkg",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
       );
       fs.writeFileSync(
@@ -5571,7 +5571,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export x;");
+      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "frame x() {} export x;");
 
       const localPM = new PackageManager(appDir);
       const linkedPackagePath = path.join(
@@ -5617,7 +5617,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
       }
 
       const localPM = new PackageManager(appDir);
@@ -5636,14 +5636,14 @@ describe("PackageManager", () => {
       createCachedPackage(
         "cycle-a",
         "1.0.0",
-        "export a;",
+        "frame a() {} export a;",
         globalPackageDir,
         { "cycle-b": "1.0.0" },
       );
       createCachedPackage(
         "cycle-b",
         "1.0.0",
-        "export b;",
+        "frame b() {} export b;",
         globalPackageDir,
         { "cycle-a": "1.0.0" },
       );
@@ -5685,7 +5685,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
 
       fs.writeFileSync(
@@ -5718,13 +5718,13 @@ describe("PackageManager", () => {
       createCachedPackage(
         "cache-math",
         "1.0.0",
-        "export oldVersion;",
+        "frame oldVersion() {} export oldVersion;",
         globalPackageDir,
       );
       createCachedPackage(
         "cache-math",
         "2.0.0",
-        "export newVersion;",
+        "frame newVersion() {} export newVersion;",
         globalPackageDir,
       );
 
@@ -5788,7 +5788,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "cache-root-name",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         outsideCacheRoot,
       );
 
@@ -5822,7 +5822,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "cache-root-exact",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         outsideCacheRoot,
       );
 
@@ -5865,7 +5865,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "cache-parent-verify",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         outsideCacheRoot,
       );
 
@@ -5883,7 +5883,7 @@ describe("PackageManager", () => {
       const cachePath = createCachedPackage(
         "cache-parent-repair",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         outsideCacheRoot,
       );
       fs.unlinkSync(`${cachePath}.bplmeta.json`);
@@ -5903,7 +5903,7 @@ describe("PackageManager", () => {
       const cachePath = createCachedPackage(
         "cache-parent-clean",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         outsideCacheRoot,
       );
 
@@ -5934,7 +5934,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
 
       const localPM = new PackageManager(tempDir);
@@ -5960,7 +5960,7 @@ describe("PackageManager", () => {
       const cachePath = createCachedPackage(
         "cache-provenance-dir",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
       );
       const provenancePath = `${cachePath}.bplmeta.json`;
@@ -5987,7 +5987,7 @@ describe("PackageManager", () => {
       const cachePath = createCachedPackage(
         "cache-provenance-link",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
       );
       const provenancePath = `${cachePath}.bplmeta.json`;
@@ -6040,7 +6040,7 @@ describe("PackageManager", () => {
       const cachePath = createCachedPackage(
         "cache-broken-provenance-link",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
       );
       const provenancePath = `${cachePath}.bplmeta.json`;
@@ -6075,7 +6075,7 @@ describe("PackageManager", () => {
       const cachePath = createCachedPackage(
         "cache-provenance",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
       );
 
@@ -6127,7 +6127,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+        fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame root() {} export root;");
         setupExportPath(packageRoot);
 
         const packResult = spawnSync(
@@ -6205,7 +6205,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame root() {} export root;");
 
       const packResult = spawnSync(
         "tar",
@@ -6262,7 +6262,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame root() {} export root;");
 
       const packResult = spawnSync(
         "tar",
@@ -6317,7 +6317,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame root() {} export root;");
       fs.writeFileSync(
         path.join(packageRoot, "bin", "actual.sh"),
         "#!/usr/bin/env sh\necho tool\n",
@@ -6363,7 +6363,7 @@ describe("PackageManager", () => {
       createCachedPackage(
         "cache-tar-tool",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
       );
 
@@ -6401,7 +6401,7 @@ describe("PackageManager", () => {
       const cachePath = createCachedPackage(
         "cache-repair-tar-tool",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
       );
       fs.unlinkSync(`${cachePath}.bplmeta.json`);
@@ -6452,7 +6452,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame root() {} export root;");
 
       const packResult = spawnSync(
         "tar",
@@ -6502,7 +6502,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame root() {} export root;");
 
       const packResult = spawnSync(
         "tar",
@@ -6558,7 +6558,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame root() {} export root;");
 
       const packResult = spawnSync(
         "tar",
@@ -6612,7 +6612,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame root() {} export root;");
       fs.writeFileSync(
         path.join(packageRoot, "bin", "actual.sh"),
         "#!/usr/bin/env sh\necho tool\n",
@@ -6703,7 +6703,7 @@ describe("PackageManager", () => {
       const cachePath = createCachedPackage(
         "cache-repair-unchanged",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
         { "cache-dep": "^1.0.0" },
       );
@@ -6732,7 +6732,7 @@ describe("PackageManager", () => {
       const cachePath = createCachedPackage(
         "cache-repair",
         "1.0.0",
-        "export value;",
+        "frame value() {} export value;",
         globalPackageDir,
       );
       fs.unlinkSync(`${cachePath}.bplmeta.json`);
@@ -6775,7 +6775,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
       fs.writeFileSync(
         path.join(packageDir, "features", "native.x"),
         "extern nativeFeature;",
@@ -6829,7 +6829,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
       }
 
       const report = new PackageManager(appDir).doctorPackages();
@@ -6868,7 +6868,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
       }
 
       const originalReaddirSync = fs.readdirSync;
@@ -6925,7 +6925,7 @@ describe("PackageManager", () => {
             fs.mkdirSync(path.join(appDir, "features"));
             fs.writeFileSync(
               path.join(appDir, "features", "actual.bpl"),
-              "export actual;",
+              "frame actual() {} export actual;",
             );
             fs.symlinkSync(
               "actual.bpl",
@@ -6952,7 +6952,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(appDir, "index.bpl"), "export root;");
+        fs.writeFileSync(path.join(appDir, "index.bpl"), "frame root() {} export root;");
         testCase.setup(appDir);
 
         const report = new PackageManager(appDir).doctorPackages();
@@ -7021,7 +7021,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(appDir, "index.bpl"), "export root;");
+        fs.writeFileSync(path.join(appDir, "index.bpl"), "frame root() {} export root;");
         testCase.setup(appDir);
 
         const report = new PackageManager(appDir).doctorPackages();
@@ -7068,7 +7068,7 @@ describe("PackageManager", () => {
             fs.mkdirSync(path.join(packageDir, "features"));
             fs.writeFileSync(
               path.join(packageDir, "features", "actual.bpl"),
-              "export actual;",
+              "frame actual() {} export actual;",
             );
             fs.symlinkSync(
               "actual.bpl",
@@ -7101,7 +7101,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
         testCase.setup(packageDir);
       }
 
@@ -7184,7 +7184,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
         testCase.setup(packageDir);
       }
 
@@ -7238,10 +7238,10 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
       fs.writeFileSync(
         path.join(packageDir, "features", "public.bpl"),
-        "export publicFeature;",
+        "frame publicFeature() {} export publicFeature;",
       );
       fs.writeFileSync(
         path.join(packageDir, "features", "native.x"),
@@ -7273,7 +7273,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export x;");
+      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "frame x() {} export x;");
 
       const localPM = new PackageManager(appDir);
       fs.symlinkSync(
@@ -7318,7 +7318,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export x;");
+      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "frame x() {} export x;");
       fs.symlinkSync(outsidePackageRoot, localPackageDir, "dir");
 
       const report = localPM.doctorPackages();
@@ -7414,7 +7414,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export original;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame original() {} export original;");
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
 
       const appDir = path.join(tempDir, "doctor-lock-detail-app");
@@ -7424,7 +7424,7 @@ describe("PackageManager", () => {
 
       fs.writeFileSync(
         path.join(appDir, "bpl_modules", "doctor-lock-detail", "index.bpl"),
-        "export tampered;",
+        "frame tampered() {} export tampered;",
       );
 
       const report = localPM.doctorPackages();
@@ -7698,7 +7698,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       const tarballPath = packageManager.pack(tempDir);
 
@@ -7741,7 +7741,7 @@ describe("PackageManager", () => {
             fs.mkdirSync(path.join(packageDir, "features"));
             fs.writeFileSync(
               path.join(packageDir, "features", "actual.bpl"),
-              "export actual;",
+              "frame actual() {} export actual;",
             );
             fs.symlinkSync(
               "actual.bpl",
@@ -7774,7 +7774,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
         testCase.setup(packageDir);
       }
 
@@ -7792,7 +7792,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(validDir, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(validDir, "index.bpl"), "frame root() {} export root;");
 
       const packages = new PackageManager(appDir).list({ global: false });
       const packageByName = new Map(
@@ -7863,7 +7863,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
         testCase.setup(packageDir);
       }
 
@@ -7882,7 +7882,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(validDir, "index.bpl"), "export root;");
+      fs.writeFileSync(path.join(validDir, "index.bpl"), "frame root() {} export root;");
       fs.writeFileSync(
         path.join(validDir, "bin", "tool.sh"),
         "#!/usr/bin/env sh\necho tool\n",
@@ -7924,7 +7924,7 @@ describe("PackageManager", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
       }
 
       const originalReaddirSync = fs.readdirSync;
@@ -7968,7 +7968,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export x;");
+      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "frame x() {} export x;");
 
       const localPM = new PackageManager(appDir);
       fs.symlinkSync(
@@ -7998,7 +7998,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export x;");
+      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "frame x() {} export x;");
       fs.symlinkSync(outsidePackageRoot, localPackageDir, "dir");
 
       expect(() => localPM.list({ global: false })).toThrow(
@@ -8023,7 +8023,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
 
       return new PackageManager(packageDir).pack(packageDir);
     }
@@ -8049,7 +8049,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
       fs.writeFileSync(
         path.join(packageDir, "bin", "tool.sh"),
         "#!/usr/bin/env sh\necho tool\n",
@@ -8073,7 +8073,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packagePath, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packagePath, "index.bpl"), "frame test() {} export test;");
       return packagePath;
     }
 
@@ -8085,7 +8085,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       const tarballPath = packageManager.pack(tempDir);
 
@@ -8299,7 +8299,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export value;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
 
       const tarballPath = new PackageManager(packageDir).pack(packageDir);
       const localPM = new PackageManager(appDir);
@@ -8384,7 +8384,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "export x;");
+      fs.writeFileSync(path.join(outsidePackageDir, "index.bpl"), "frame x() {} export x;");
       fs.symlinkSync(outsidePackageDir, packagePath, "dir");
 
       expect(() => {
@@ -8415,7 +8415,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
       fs.writeFileSync(
         path.join(packageDir, "bin", "tool.sh"),
         "#!/usr/bin/env sh\necho tool\n",
@@ -8457,7 +8457,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
       fs.writeFileSync(
         path.join(packageDir, "bin", "tool.sh"),
         "#!/usr/bin/env sh\necho tool\n",
@@ -8492,7 +8492,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       const tarballPath = packageManager.pack(tempDir);
 
@@ -8533,7 +8533,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export test;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
 
       const resolved = packageManager.resolvePackage(
         "workspace-pkg",
@@ -8562,7 +8562,7 @@ describe("PackageManager", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "export add;");
+      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame add() {} export add;");
 
       const resolved = packageManager.resolvePackage(
         "nested-math",
@@ -8601,7 +8601,7 @@ describe("PackageManager", () => {
         );
         fs.writeFileSync(
           path.join(packageDir, "index.bpl"),
-          `export ${marker};`,
+          `frame ${marker}() {} export ${marker};`,
         );
       }
 
@@ -8637,9 +8637,9 @@ describe("PackageManager", () => {
       );
       fs.writeFileSync(
         path.join(appDir, "bpl_modules", "subpath-pkg", "index.bpl"),
-        "export root;",
+        "frame root() {} export root;",
       );
-      fs.writeFileSync(path.join(featureDir, "index.bpl"), "export add;");
+      fs.writeFileSync(path.join(featureDir, "index.bpl"), "frame add() {} export add;");
 
       const resolved = packageManager.resolvePackage(
         "subpath-pkg/features/math",
@@ -9041,7 +9041,7 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       const hash1 = packageManager["calculatePackageHash"](tempDir);
       const hash2 = packageManager["calculatePackageHash"](tempDir);
@@ -9056,12 +9056,12 @@ describe("PackageManager", () => {
       };
 
       fs.writeFileSync("bpl.json", JSON.stringify(manifest, null, 2));
-      fs.writeFileSync("index.bpl", "export test;");
+      fs.writeFileSync("index.bpl", "frame test() {} export test;");
 
       const hash1 = packageManager["calculatePackageHash"](tempDir);
 
       // Modify content
-      fs.writeFileSync("index.bpl", "export modified;");
+      fs.writeFileSync("index.bpl", "frame modified() {} export modified;");
 
       const hash2 = packageManager["calculatePackageHash"](tempDir);
 

@@ -1,6 +1,5 @@
 export [DataType];
 export [Value];
-export [ValueType];
 export serialize_value;
 export deserialize_value;
 
