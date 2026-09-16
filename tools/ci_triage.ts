@@ -263,6 +263,8 @@ const STDLIB_PACKAGE_COLLISION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const EXPORT_VALIDATION_STEP_PATTERN =
+  /BPL_EXPORT_SYMBOL_NOT_FOUND|ExportValidation\.test|undefined exports|Cannot export undefined symbol/i;
 const IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN = new RegExp(
   [
     "BPL_IMPORT_EXPORT_NOT_FOUND",
@@ -1622,6 +1624,8 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "missing imported-export"',
   ],
   [IMPORT_EXPORT_NOT_FOUND_STEP_PATTERN, "bun run check"],
+  [EXPORT_VALIDATION_STEP_PATTERN, "bun test tests/ExportValidation.test.ts"],
+  [EXPORT_VALIDATION_STEP_PATTERN, "bun run check"],
   [
     DUPLICATE_SYMBOL_STEP_PATTERN,
     "bun test tests/TypeCheckerDuplicateSymbols.test.ts",

@@ -590,6 +590,22 @@ describe("CI triage helper", () => {
     }
   });
 
+  test("maps undefined-export diagnostics to the export validation regressions", () => {
+    for (const failure of [
+      "BPL_EXPORT_SYMBOL_NOT_FOUND",
+      "tests/ExportValidation.test.ts",
+      "undefined exports are diagnosed in the exporting module",
+      "Cannot export undefined symbol 'missing'",
+    ]) {
+      expect(localCommandsForStep(failure), failure).toEqual(
+        expect.arrayContaining([
+          "bun test tests/ExportValidation.test.ts",
+          "bun run check",
+        ]),
+      );
+    }
+  });
+
   test("maps import idempotency diagnostics to focused reproduction commands", () => {
     const expectedCommands = [
       "bun test tests/ImportIdempotency.test.ts",
