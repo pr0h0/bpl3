@@ -38,7 +38,7 @@ UTF-8 module when you need codepoint operations.
 | `s.includes(text: string) ret bool`                         | Substring containment                                 |
 | `s.indexOf(text: string) ret int`                           | First match, or -1                                    |
 | `s.lastIndexOf(text: string) ret int`                       | Last match, or -1                                     |
-| `s.count(text: string) ret int`                             | Count non-overlapping matches                         |
+| `s.count(text: string) ret int`                             | Count non-overlapping matches; zero for an empty text |
 | `s.startsWith(text: string) ret bool`                       | Prefix test                                           |
 | `s.endsWith(text: string) ret bool`                         | Suffix test                                           |
 | `s.trim()`, `s.trimLeft()`, `s.trimRight()`                 | Return newly allocated trimmed Strings                |
@@ -51,6 +51,12 @@ UTF-8 module when you need codepoint operations.
 | `s.replaceAll(old: string, replacement: string) ret String` | Replace non-overlapping matches in the original input |
 | `s.split(delimiter: char) ret Array<String>`                | Split on one byte; each element owns storage          |
 | `s.isDigits()`, `s.isAlpha()`, `s.isAlphanumeric()`         | ASCII classification                                  |
+
+An empty search text is contained in every string: `includes` is true,
+`indexOf` is 0, `startsWith` and `endsWith` are true, and `lastIndexOf` is the
+string's length. `count` is the exception and reports zero, because the number
+of empty matches is not meaningful. A null search text is not an empty one:
+every search rejects it, reporting false or -1.
 
 `replaceAll` returns an owned result and leaves the original unchanged. Replacement
 text is never searched again: replacing `"a"` with `"aa"` terminates. Matches are

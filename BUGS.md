@@ -4502,3 +4502,23 @@ frame leakElement() ret *int {
 **Resolution**: The check resolves an address-of expression to the variable whose storage it refers to, walking through field and element access (`rootStackOperand` in compiler/middleend/StatementChecker.ts). The walk stops at a pointer, so `&pointer.field` and `&pointer[i]` remain valid: what a pointer refers to is not this frame's storage. Verified that returning through a pointer parameter, a global, and a pointer element still compiles and returns the right values. The existing `_` prefix still suppresses the check.
 
 **Remaining gap**: this is a storage check, not an escape analysis. An address assigned to a local pointer and then returned (`local p: *int = &x; return p;`), or written through an out-parameter (`*out = &x;`), is still accepted. Both need dataflow through pointer values, which this check does not do; docs/15-pointers.md states the limit and shows the undetected form.
+
+### BUG-364: `String.includes` disagrees with `indexOf` about the empty text
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-17)**: Four search methods on `String` answered the same question differently for an empty search text:
+
+| Call | Result before | Convention |
+| --- | --- | --- |
+| `s.includes("")` | `false` | true |
+| `s.indexOf("")` | `0` | 0 |
+| `s.startsWith("")` | `true` | true |
+| `s.endsWith("")` | `true` | true |
+| `s.lastIndexOf("")` | `s.length` | length |
+
+`includes(x)` should agree with `indexOf(x) >= 0`, and for every other method in the same file an empty text is present. Only `includes` treated it as absent, which silently reverses code such as a filter that includes everything when its query is empty.
+
+**Resolution**: `includes` returns true for an empty text, matching `indexOf` and the behavior of C `strstr` and the containment operations of other languages. A null text is still rejected rather than treated as empty, and a non-empty text is unaffected. `count` deliberately keeps reporting zero for an empty text, since a count of empty matches is not meaningful; docs/29-stdlib-string.md now states the whole family's behavior, including that exception. Covered by tests/StdlibStringEmptyNeedle.test.ts at O0/O3 with LLVM validation.

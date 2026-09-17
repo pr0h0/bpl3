@@ -87,7 +87,12 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             return false;
         }
         local substrLen: int = strlen(substr);
-        if ((substrLen == 0) || (substrLen > this.length)) {
+        # Every string contains the empty string, which is also what
+        # indexOf, startsWith, and endsWith report for an empty argument.
+        if (substrLen == 0) {
+            return true;
+        }
+        if (substrLen > this.length) {
             return false;
         }
         local i: int = 0;
