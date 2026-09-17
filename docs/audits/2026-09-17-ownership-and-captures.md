@@ -192,6 +192,13 @@ Environment: Linux x86-64, Bun 1.4.2, Clang 21.1.8.
   moves, loops, and nested handlers.
 - Two differential fuzz campaigns over six seeds, 300 iterations each: 0
   crashes, 0 mismatches.
+- Five destructor programs built to IR and run under AddressSanitizer and
+  UndefinedBehaviorSanitizer, covering arrays, nested fields, generics, tuples,
+  by-value parameters, catch bindings, moves, and nested handlers: no errors,
+  and the same output as the unsanitized builds.
+- The CI stages that the chunked runs do not cover were run directly: the
+  VS Code extension tests (236 passing), the CLI registry shim check, the
+  runtime build, and the sanitizer runtime tests.
 - Type checking and lint clean at every commit.
 
 Nothing in the standard library, the examples, or the packages uses
