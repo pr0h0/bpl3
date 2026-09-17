@@ -697,9 +697,14 @@ try {
   for a `void` result.
 - **[R-LAMBDA-2]** A lambda captures the outer locals it uses by value when it
   is created. Later changes to the outer variable are not visible to the
-  lambda, and assignments inside the lambda do not change the outer variable.
+  lambda.
 - **[R-LAMBDA-3]** A lambda can be returned from the function that created it
   and called after that function returns.
+- **[R-LAMBDA-4]** Assigning to a captured variable inside a lambda is rejected
+  (`BPL_CAPTURED_VALUE_ASSIGNED`), because the lambda holds a copy and the
+  write would be discarded. Capture a pointer and write through it to change
+  the original. Writing through a captured pointer, to a global, or to the
+  lambda's own parameters and locals is allowed.
 
 ### Pattern Matching
 

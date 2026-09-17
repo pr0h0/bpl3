@@ -15,6 +15,7 @@ import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import type { CheckerContext } from "./CheckerContext";
 import {
   ADDRESS_OF_CONSTANT_CODE,
+  CAPTURED_VALUE_ASSIGNED_CODE,
   ADDRESS_OF_TARGET_INVALID_CODE,
   ASSIGNMENT_TARGET_INVALID_CODE,
   ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
@@ -1986,6 +1987,19 @@ export function checkLambda(
   const analyzer = new CaptureAnalyzer(expr);
   const capturedVars = analyzer.analyze();
   expr.capturedVariables = capturedVars;
+
+  // A capture is a copy, so a write that does not go through a pointer is
+  // discarded when the lambda returns. Reject it instead of losing the value.
+  for (const write of analyzer.getCapturedAssignments()) {
+    checker.addError(
+      new CompilerError(
+        `Cannot assign to captured variable '${write.name}'`,
+        "A lambda captures by value, so this write would be discarded. Capture a pointer to the variable and write through it.",
+        write.node.location,
+        CAPTURED_VALUE_ASSIGNED_CODE,
+      ),
+    );
+  }
 
   // 5. Construct Function Type
   // Always return LambdaType for consistency.

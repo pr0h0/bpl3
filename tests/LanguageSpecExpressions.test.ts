@@ -164,7 +164,7 @@ frame main() ret int {
 });
 
 describe("language specification: lambdas", () => {
-  // spec: R-LAMBDA-1, R-LAMBDA-2, R-LAMBDA-3
+  // spec: R-LAMBDA-1, R-LAMBDA-2, R-LAMBDA-3, R-LAMBDA-4
   test("lambda syntax, by-value capture, and escaping closures", () => {
     expectCorrectnessSuite([
       {
@@ -177,9 +177,10 @@ frame main() ret int {
   local k: int = 10;
   local add: Lambda<int>(int) = |x: int| ret int { return x + k; };
   local noArgs: Lambda<void>() = || { printf("void-lambda "); };
-  local mutateCopy: Lambda<void>() = || { k = k + 1; };
+  local kPtr: *int = &k;
+  local mutateOriginal: Lambda<void>() = || { *kPtr = *kPtr + 1; };
   noArgs();
-  mutateCopy();
+  mutateOriginal();
   k = 20;
   local two: Lambda<int>(int, int) = |a: int, b: int| ret int { return a * b; };
   local adder: Lambda<int>(int) = makeAdder(3);
@@ -187,6 +188,53 @@ frame main() ret int {
   return 0;
 }`,
         expectedStdout: "void-lambda 11 12 12 7 20\n",
+      },
+    ]);
+  }, 120000);
+
+  // spec: R-LAMBDA-4
+  test("assigning to a captured variable is rejected", () => {
+    expectCheckDiagnostics([
+      {
+        name: "assign-captured-scalar",
+        source: `frame main() ret int {
+  local k: int = 1;
+  local f: Lambda<void>() = || { k = k + 1; };
+  f();
+  return k;
+}`,
+        code: "BPL_CAPTURED_VALUE_ASSIGNED",
+      },
+      {
+        name: "assign-captured-field",
+        source: `struct Point { x: int, y: int }
+frame main() ret int {
+  local p: Point;
+  local f: Lambda<void>() = || { p.x = 1; };
+  f();
+  return p.x;
+}`,
+        code: "BPL_CAPTURED_VALUE_ASSIGNED",
+      },
+      {
+        name: "assign-captured-element",
+        source: `frame main() ret int {
+  local values: int[2];
+  local f: Lambda<void>() = || { values[0] = 1; };
+  f();
+  return values[0];
+}`,
+        code: "BPL_CAPTURED_VALUE_ASSIGNED",
+      },
+      {
+        name: "update-captured-scalar",
+        source: `frame main() ret int {
+  local k: int = 1;
+  local f: Lambda<void>() = || { k++; };
+  f();
+  return k;
+}`,
+        code: "BPL_CAPTURED_VALUE_ASSIGNED",
       },
     ]);
   }, 120000);

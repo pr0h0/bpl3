@@ -196,6 +196,22 @@ frame main() ret int {
 }
 ```
 
+Because the capture is a copy, a write to a captured variable inside the lambda
+would be discarded rather than reaching the variable it names. Such a write is
+rejected (`BPL_CAPTURED_VALUE_ASSIGNED`):
+
+```bpl
+local count: int = 0;
+local f: Lambda<void>() = || ret void {
+    count = count + 1;   # error: cannot assign to captured variable 'count'
+};
+```
+
+The same applies to writing a field or element of a captured value
+(`captured.field = x`, `captured[0] = x`). Writing through a captured pointer,
+assigning to a global, and assigning to the lambda's own parameters and locals
+are all allowed.
+
 ### Capture by Reference (via Pointers)
 
 To capture by reference and observe/modify changes, capture a pointer:

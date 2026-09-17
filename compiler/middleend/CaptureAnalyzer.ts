@@ -1,14 +1,25 @@
 import * as AST from "../common/AST";
+import { TokenType } from "../frontend/TokenType";
 
 export class CaptureAnalyzer {
   private capturedVariables: Set<AST.ASTNode> = new Set();
   private localDeclarations: Set<AST.ASTNode> = new Set();
+  private capturedAssignments: { node: AST.ASTNode; name: string }[] = [];
   private lambdaExpr: AST.LambdaExpr;
 
   constructor(lambdaExpr: AST.LambdaExpr) {
     this.lambdaExpr = lambdaExpr;
     // Add params to local declarations
     lambdaExpr.params.forEach((p) => this.localDeclarations.add(p));
+  }
+
+  /**
+   * Writes that target a captured variable without going through a pointer.
+   * The lambda holds its own copy of the capture, so such a write is
+   * discarded rather than reaching the variable it names.
+   */
+  public getCapturedAssignments(): { node: AST.ASTNode; name: string }[] {
+    return this.capturedAssignments;
   }
 
   public analyze(): (AST.VariableDecl | AST.Parameter | AST.LambdaParameter)[] {
@@ -50,9 +61,18 @@ export class CaptureAnalyzer {
         this.visit((node as AST.BinaryExpr).left);
         this.visit((node as AST.BinaryExpr).right);
         break;
-      case "Unary":
-        this.visit((node as AST.UnaryExpr).operand);
+      case "Unary": {
+        const unary = node as AST.UnaryExpr;
+        // `captured++` writes to the operand just as an assignment would.
+        if (
+          unary.operator.type === TokenType.PlusPlus ||
+          unary.operator.type === TokenType.MinusMinus
+        ) {
+          this.noteCapturedAssignment(unary.operand);
+        }
+        this.visit(unary.operand);
         break;
+      }
       case "InterpolatedString":
         (node as AST.InterpolatedStringExpr).parts.forEach((part) =>
           this.visit(part),
@@ -100,6 +120,7 @@ export class CaptureAnalyzer {
         this.visit((node as AST.ExpressionStmt).expression);
         break;
       case "Assignment":
+        this.noteCapturedAssignment((node as AST.AssignmentExpr).assignee);
         this.visit((node as AST.AssignmentExpr).assignee);
         this.visit((node as AST.AssignmentExpr).value);
         break;
@@ -283,6 +304,63 @@ export class CaptureAnalyzer {
     } finally {
       for (const declaration of added) {
         this.localDeclarations.delete(declaration);
+      }
+    }
+  }
+
+  /** True when the value this expression names lives behind a pointer. */
+  private writesThroughPointer(expr: AST.Expression): boolean {
+    const type = expr.resolvedType;
+    return (
+      !!type && type.kind === "BasicType" && (type as AST.BasicTypeNode).pointerDepth > 0
+    );
+  }
+
+  /**
+   * Records a write whose target is a captured variable reached without a
+   * pointer. Writing through a captured pointer reaches the original value,
+   * so those targets stop the walk.
+   */
+  private noteCapturedAssignment(target: AST.Expression): void {
+    let current: AST.Expression | undefined = target;
+
+    while (current) {
+      switch (current.kind) {
+        case "Group":
+          current = (current as AST.GroupExpr).expression;
+          continue;
+        case "Member": {
+          const object: AST.Expression = (current as AST.MemberExpr).object;
+          if (this.writesThroughPointer(object)) return;
+          current = object;
+          continue;
+        }
+        case "Index": {
+          const object: AST.Expression = (current as AST.IndexExpr).object;
+          if (this.writesThroughPointer(object)) return;
+          current = object;
+          continue;
+        }
+        // `*pointer = value` reaches the value the pointer refers to.
+        case "Unary":
+          return;
+
+        case "Identifier": {
+          const identifier = current as AST.IdentifierExpr;
+          const decl = identifier.resolvedDeclaration;
+          if (!decl || this.localDeclarations.has(decl)) return;
+          if (decl.kind === "VariableDecl" && (decl as AST.VariableDecl).isGlobal) {
+            return;
+          }
+          if (decl.kind === "Extern") return;
+          this.capturedAssignments.push({
+            node: identifier,
+            name: identifier.name,
+          });
+          return;
+        }
+        default:
+          return;
       }
     }
   }

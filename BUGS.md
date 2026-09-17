@@ -4294,3 +4294,28 @@ Three further defects surfaced while fixing this. Cleanup entries run in reverse
 **Follow-up (same day)**: ownership was not followed through generic type arguments. A field declared as the struct's type parameter (`Box<Resource>.item`), and a local declared as a generic function's type parameter (`local held: T` in `holdsTypeParameter<Resource>`), were both left undestroyed, because the walk read the declared field types without substituting the arguments of the instantiation being generated. Field types are now substituted from the struct's type arguments (`getAutoDestroyFields`), and every type the walk visits is resolved through the instantiation's `currentTypeMap` (`concreteAutoDestroyType`). The cycle guard keys on the instantiation rather than the declaration, so `Box<Box<Resource>>` is walked to full depth instead of stopping at the repeated declaration.
 
 **Remaining gap**: cleanup is still per-frame and static. A local whose ownership was moved by anything other than returning or throwing it directly, such as storing it into a longer-lived structure, is still destroyed at scope exit. Dynamically sized storage is not walked: only fixed array dimensions are unrolled, so elements reached through a pointer or a slice are not destroyed.
+
+### BUG-355: Writes to a captured variable are silently discarded
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: A lambda captures by value, and the body reads its captures from a copy. A write to a captured variable therefore changed only that copy: the outer variable kept its old value, and the write was not even visible to the next call of the same lambda.
+
+```bpl
+frame main() ret int {
+    local count: int = 41;
+    local next: Lambda<int>() = || ret int {
+        count = count + 1;
+        return count;
+    };
+    printf("%d %d %d\n", next(), next(), count);   # 42 42 41
+}
+```
+
+The same loss applied to a field or element of a captured value (`captured.field = x`, `captured[0] = x`) and to `captured++`. Nothing reported it: the program compiled, ran, and quietly produced a value the source does not describe. `examples/func_lambda_closure_mut` asserted the discarded result as expected output.
+
+**Resolution**: Such a write is rejected during checking with `BPL_CAPTURED_VALUE_ASSIGNED`. Capture analysis already walks the lambda body, so it now also records writes whose target resolves to a captured declaration (`noteCapturedAssignment` in compiler/middleend/CaptureAnalyzer.ts), including the `++` and `--` forms, which are unary nodes rather than assignments. The walk stops at a pointer: writing through a captured pointer reaches the original value, so `*ptr = x`, `ptr.field = x`, and `ptr[i] = x` stay valid, as do writes to globals and to the lambda's own parameters and locals. LANGUAGE_SPEC.md R-LAMBDA-4 states the rule and R-LAMBDA-2 no longer claims the write happens; docs/53-lambdas.md shows the rejected form and the pointer form. The example now captures a pointer and prints the incremented value. Covered by tests/LanguageSpecExpressions.test.ts, which rejects the scalar, field, element, and `++` forms and runs the pointer form at O0/O3.
+
+**Remaining gap**: `defer` blocks copy their captures the same way, so a write to an outer local inside a `defer` block is still discarded, and is not yet rejected. Defer capture collection lives in code generation and is name-based rather than declaration-based, so it needs a separate checker-side walk. Tracked as BUG-356.

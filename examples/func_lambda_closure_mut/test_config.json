@@ -1,3 +1,5 @@
 {
-  "expectedOutput": ["10"]
+  "expectedOutput": [
+    "12"
+  ]
 }
