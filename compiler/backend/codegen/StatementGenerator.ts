@@ -128,13 +128,63 @@ export abstract class StatementGenerator extends AsmGenerator {
   }
 
   /**
+   * The fields of a struct type as seen at this use, with the type arguments
+   * of a generic instantiation substituted into the field types.
+   */
+  private getAutoDestroyFields(
+    typeNode: AST.BasicTypeNode,
+    structDecl: AST.StructDecl,
+  ): { name: string; type: AST.TypeNode | undefined }[] {
+    const typeMap = new Map<string, AST.TypeNode>();
+    for (let i = 0; i < structDecl.genericParams.length; i++) {
+      const arg = typeNode.genericArgs[i];
+      if (arg) typeMap.set(structDecl.genericParams[i]!.name, arg);
+    }
+
+    return this.getAllStructFields(structDecl).map((field) => {
+      const fieldType = field.resolvedType ?? field.type;
+      return {
+        name: field.name,
+        type:
+          typeMap.size > 0 && fieldType
+            ? this.substituteType(fieldType, typeMap)
+            : fieldType,
+      };
+    });
+  }
+
+  /** Identifies one generic instantiation, so the cycle guard is per-use. */
+  private autoDestroyVisitKey(
+    typeNode: AST.BasicTypeNode,
+    structDecl: AST.StructDecl,
+  ): string {
+    const args = typeNode.genericArgs
+      .map((arg) => (arg.kind === "BasicType" ? arg.name : arg.kind))
+      .join(",");
+    return `${structDecl.name}<${args}>`;
+  }
+
+  /**
+   * Resolves a type parameter to the argument of the instantiation being
+   * generated, so a local declared as `T` in a generic function is destroyed
+   * when the `T` of this instance owns a destructor.
+   */
+  private concreteAutoDestroyType(
+    typeNode: AST.TypeNode | undefined,
+  ): AST.TypeNode | undefined {
+    if (!typeNode || this.currentTypeMap.size === 0) return typeNode;
+    return this.substituteType(typeNode, this.currentTypeMap);
+  }
+
+  /**
    * True when destroying a value of this type runs anything: its own
    * `@[auto_destroy]` method, or one belonging to something it owns.
    */
   private ownsAutoDestroy(
-    typeNode: AST.TypeNode | undefined,
-    visiting: Set<AST.StructDecl> = new Set(),
+    type: AST.TypeNode | undefined,
+    visiting: Set<string> = new Set(),
   ): boolean {
+    const typeNode = this.concreteAutoDestroyType(type);
     if (!typeNode || typeNode.kind !== "BasicType") return false;
     if (typeNode.pointerDepth > 0) return false;
     if (typeNode.arrayDimensions.length > 0) {
@@ -146,12 +196,14 @@ export abstract class StatementGenerator extends AsmGenerator {
     if (this.findAutoDestroyMethod(typeNode)) return true;
 
     const structDecl = this.getStructDeclForAutoDestroy(typeNode);
-    if (!structDecl || visiting.has(structDecl)) return false;
-    visiting.add(structDecl);
-    const owns = this.getAllStructFields(structDecl).some((field) =>
-      this.ownsAutoDestroy(field.resolvedType ?? field.type, visiting),
+    if (!structDecl) return false;
+    const key = this.autoDestroyVisitKey(typeNode, structDecl);
+    if (visiting.has(key)) return false;
+    visiting.add(key);
+    const owns = this.getAutoDestroyFields(typeNode, structDecl).some((field) =>
+      this.ownsAutoDestroy(field.type, visiting),
     );
-    visiting.delete(structDecl);
+    visiting.delete(key);
     return owns;
   }
 
@@ -163,10 +215,11 @@ export abstract class StatementGenerator extends AsmGenerator {
   private registerAutoDestroy(
     name: string,
     address: string,
-    typeNode: AST.TypeNode | undefined,
+    declaredType: AST.TypeNode | undefined,
     location: AST.ASTNode["location"],
     ownerAddress: string = address,
   ): void {
+    const typeNode = this.concreteAutoDestroyType(declaredType);
     if (this.scopeStack.length === 0 || !typeNode) return;
     if (!this.ownsAutoDestroy(typeNode)) return;
 
@@ -189,25 +242,27 @@ export abstract class StatementGenerator extends AsmGenerator {
     // registered first: the value's own destructor observes its fields intact,
     // and the fields are then destroyed in reverse declaration order.
     const structDecl = this.getStructDeclForAutoDestroy(typeNode);
-    if (structDecl) {
+    if (structDecl && typeNode.kind === "BasicType") {
       const structType = this.resolveType(typeNode);
       const hasVTable =
         (this.vtableLayouts.get(structDecl.name)?.length ?? 0) > 0;
-      this.getAllStructFields(structDecl).forEach((field, index) => {
-        const fieldType = field.resolvedType ?? field.type;
-        if (!this.ownsAutoDestroy(fieldType)) return;
-        const fieldAddress = this.newRegister();
-        this.emit(
-          `  ${fieldAddress} = getelementptr inbounds ${structType}, ${structType}* ${address}, i32 0, i32 ${index + (hasVTable ? 1 : 0)}`,
-        );
-        this.registerAutoDestroy(
-          `${name}.${field.name}`,
-          fieldAddress,
-          fieldType,
-          location,
-          ownerAddress,
-        );
-      });
+      this.getAutoDestroyFields(typeNode, structDecl).forEach(
+        (field, index) => {
+          const fieldType = field.type;
+          if (!this.ownsAutoDestroy(fieldType)) return;
+          const fieldAddress = this.newRegister();
+          this.emit(
+            `  ${fieldAddress} = getelementptr inbounds ${structType}, ${structType}* ${address}, i32 0, i32 ${index + (hasVTable ? 1 : 0)}`,
+          );
+          this.registerAutoDestroy(
+            `${name}.${field.name}`,
+            fieldAddress,
+            fieldType,
+            location,
+            ownerAddress,
+          );
+        },
+      );
     }
 
     const method = this.findAutoDestroyMethod(typeNode);

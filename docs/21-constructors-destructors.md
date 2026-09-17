@@ -90,6 +90,10 @@ its elements or fields in that frame. A local that a destructor will read is
 zeroed at its declaration, so an unassigned one is destroyed as a zeroed value
 rather than as whatever the stack held.
 
+Generic type arguments are followed too: `Box<Resource>` destroys the
+`Resource` it holds, and a local declared as a generic function's type
+parameter is destroyed when that instance's argument owns a destructor.
+
 Only fixed array dimensions are walked. Values reached through a pointer or a
 slice are not owned by the local, so they are not destroyed; free those
 explicitly or with `defer`.

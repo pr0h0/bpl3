@@ -401,4 +401,83 @@ frame main() ret int {
       },
     ]);
   }, 60000);
+  it("destroys owned values reached through generic type arguments", () => {
+    expectCorrectnessSuite([
+      {
+        name: "auto-destroy-generic-arguments",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...) ret int;
+
+struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void {
+    printf("destroy %d\\n", this.value);
+  }
+}
+
+struct Box<T> {
+  item: T,
+}
+
+struct Pair<A, B> {
+  left: A,
+  right: B,
+}
+
+frame boxed() ret void {
+  local box: Box<Resource>;
+  box.item.value = 70;
+}
+
+frame nested() ret void {
+  local box: Box<Box<Resource>>;
+  box.item.item.value = 71;
+}
+
+frame paired() ret void {
+  local pair: Pair<int, Resource>;
+  pair.left = 1;
+  pair.right.value = 72;
+  printf("left %d\\n", pair.left);
+}
+
+frame elements() ret void {
+  local boxes: Box<Resource>[2];
+  boxes[0].item.value = 73;
+  boxes[1].item.value = 74;
+}
+
+frame holdsTypeParameter<T>(seed: int) ret int {
+  local held: T;
+  local probe: *T = &held;
+  return seed + cast<int>(probe != nullptr);
+}
+
+frame main() ret int {
+  boxed();
+  nested();
+  paired();
+  elements();
+  # The type parameter is only known for this instance, and its value is
+  # never assigned, so the zeroed storage is what gets destroyed.
+  printf("held %d\\n", holdsTypeParameter<Resource>(10));
+  printf("done\\n");
+  return 0;
+}`,
+        expectedStdout: [
+          "destroy 70",
+          "destroy 71",
+          "left 1",
+          "destroy 72",
+          "destroy 74",
+          "destroy 73",
+          "destroy 0",
+          "held 11",
+          "done",
+          "",
+        ].join("\n"),
+      },
+    ]);
+  }, 60000);
 });
