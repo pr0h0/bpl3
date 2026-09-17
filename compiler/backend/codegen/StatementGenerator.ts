@@ -3274,11 +3274,6 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
 
       // Allocate stack space for parameters to make them mutable
-      const ownedParameters: {
-        name: string;
-        address: string;
-        type: AST.TypeNode;
-      }[] = [];
       for (let i = 0; i < decl.params.length; i++) {
         const param = decl.params[i]!;
         this.locals.add(param.name);
@@ -3316,14 +3311,6 @@ export abstract class StatementGenerator extends AsmGenerator {
         } else {
           stackAddr = this.allocateStack(param.name, type);
           this.emit(`  store ${type} ${paramReg}, ${type}* ${stackAddr}`);
-          const paramTypeNode = effectiveFuncType.paramTypes[i]!;
-          if (this.ownsAutoDestroy(paramTypeNode)) {
-            ownedParameters.push({
-              name: param.name,
-              address: stackAddr,
-              type: paramTypeNode,
-            });
-          }
         }
 
         // DWARF: Parameter debug info
@@ -3447,19 +3434,9 @@ export abstract class StatementGenerator extends AsmGenerator {
           },
           false,
           true,
-          false,
-          undefined,
-          ownedParameters,
         );
       } else {
-        this.generateBlock(
-          decl.body,
-          false,
-          true,
-          false,
-          undefined,
-          ownedParameters,
-        );
+        this.generateBlock(decl.body, false, true);
       }
 
       // Handle implicit returns based on function type

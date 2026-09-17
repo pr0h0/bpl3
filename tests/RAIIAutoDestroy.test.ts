@@ -568,7 +568,11 @@ frame main() ret int {
       },
     ]);
   }, 60000);
-  it("destroys a by-value parameter when the callee returns", () => {
+  // A by-value argument is a bitwise copy, and BPL has no move semantics, so
+  // destroying the callee's copy double-frees whatever the caller still owns.
+  // Callee-side parameter cleanup is therefore withheld until copying an owning
+  // value is rejected; see BUG-367.
+  it.skip("destroys a by-value parameter when the callee returns", () => {
     expectCorrectnessSuite([
       {
         name: "auto-destroy-parameters",

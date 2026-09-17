@@ -4638,3 +4638,50 @@ array rather than a discarded value copy. `CaptureAnalyzer` stops at raw
 pointers but not slice element access. The same helper is used for lambda
 captures. Rebinding a captured slice and mutating a captured fixed array must
 remain distinguished from writing through a slice.
+
+### BUG-367: Destroying a by-value parameter double-frees the caller's resource
+
+**Status**: Fixed (cleanup withheld; copy rejection tracked below)
+
+**Priority**: P0
+
+**Observed (2026-09-17)**: BUG-360 made a callee destroy its by-value parameters. A by-value argument is a bitwise copy and BPL has no move semantics, so the caller kept owning the same resource and both copies freed it:
+
+```bpl
+struct Resource {
+    data: *void,
+    @[auto_destroy]
+    frame destroy(this: *Resource) ret void { free(this.data); }
+}
+frame use(r: Resource) ret void { printf("%p\n", r.data); }
+frame main() ret int {
+    local r: Resource = Resource { data: malloc(16) };
+    use(r);          # double free at O0 and O3
+    return 0;
+}
+```
+
+The change turned a leak into memory corruption, which is strictly worse. It was not caught because the destructor tests print counters rather than freeing an allocation, so duplicated ownership looked like an extra line of output rather than a fault. A callee cannot tell whether its argument was a temporary it may consume or a copy the caller still owns, so callee-side cleanup cannot be made correct on its own.
+
+**Resolution**: The parameter cleanup from BUG-360 is withheld. The reproduction above exits cleanly at O0 and O3, and under AddressSanitizer. The test for it is skipped rather than deleted, with the reason recorded, because the cleanup becomes correct once copying an owning value is rejected: every by-value argument is then necessarily a fresh value whose ownership transfers.
+
+**Remaining gap**: the leak BUG-360 described is back. An owning temporary passed directly to a frame, as in `use(make())`, is destroyed by nobody. More importantly, the same duplicated ownership exists wherever an owning value is copied, which predates this batch: `local copy: Resource = original;` frees the same allocation twice at every optimization level. Copying an owning value is what has to be rejected; that is tracked as BUG-372.
+
+### BUG-372: Copying a value that owns a destructor duplicates ownership
+
+**Status**: Open
+
+**Priority**: P0
+
+**Observed (2026-09-17)**: A value whose type has an `@[auto_destroy]` destructor is copied bitwise, and every copy is destroyed:
+
+```bpl
+local original: Resource = Resource { data: malloc(16) };
+local copy: Resource = original;    # both destroyed, same allocation freed twice
+```
+
+This is not specific to parameters (BUG-367); it applies to initializing a local from another, assigning one, storing one into a field, an array element, or a tuple, and passing one as an argument. It predates the ownership work: the baseline destroyed directly-typed locals, so two locals holding the same resource already double-freed.
+
+The destructor tests did not detect it because they count destructor calls instead of releasing a resource, so a duplicated owner reads as an extra counter increment.
+
+**Planned resolution**: reject copying an owning value in the type checker. Producing one fresh, returning a local, and throwing a local remain valid, because each transfers ownership rather than duplicating it. Once copies are rejected, every by-value argument and every stored owning value is a transfer, which makes the withheld parameter cleanup from BUG-367 correct and lets it be restored.
