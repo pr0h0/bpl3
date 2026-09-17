@@ -40,6 +40,53 @@ function isUnsafeStackAddressSymbol(symbol: Symbol | undefined): boolean {
   return !decl.isGlobal && !decl.isConst;
 }
 
+/**
+ * The variable whose storage an address-of expression refers to. A field or
+ * element belongs to the variable that holds it, so `&local.field` and
+ * `&local[0]` point into that variable's frame storage. A pointer stops the
+ * walk: what it refers to is not this frame's to begin with.
+ */
+function rootStackOperand(
+  expr: AST.Expression | undefined,
+): AST.IdentifierExpr | undefined {
+  let current: AST.Expression | undefined = expr;
+
+  while (current) {
+    switch (current.kind) {
+      case "Identifier":
+        return current as AST.IdentifierExpr;
+      case "Group":
+        current = (current as AST.GroupExpr).expression;
+        continue;
+      case "Member": {
+        const object: AST.Expression = (current as AST.MemberExpr).object;
+        if (isPointerExpression(object)) return undefined;
+        current = object;
+        continue;
+      }
+      case "Index": {
+        const object: AST.Expression = (current as AST.IndexExpr).object;
+        if (isPointerExpression(object)) return undefined;
+        current = object;
+        continue;
+      }
+      default:
+        return undefined;
+    }
+  }
+
+  return undefined;
+}
+
+function isPointerExpression(expr: AST.Expression): boolean {
+  const type = expr.resolvedType;
+  return (
+    !!type &&
+    type.kind === "BasicType" &&
+    (type as AST.BasicTypeNode).pointerDepth > 0
+  );
+}
+
 function findReturnedStackAddress(
   context: CheckerContext,
   expr: AST.Expression | undefined,
@@ -47,8 +94,8 @@ function findReturnedStackAddress(
   if (!expr) return undefined;
 
   if (expr.kind === "Unary" && expr.operator.type === "Ampersand") {
-    const operand = expr.operand;
-    if (operand.kind === "Identifier") {
+    const operand = rootStackOperand(expr.operand);
+    if (operand) {
       const symbol = context.currentScope.resolve(operand.name);
       if (
         isUnsafeStackAddressSymbol(symbol) &&

@@ -4479,3 +4479,26 @@ An interpolated `(res)` is the variable's own storage, and LLVM pointers carry n
 Found by a differential sweep that ran all 479 examples at `-O 0` and `-O 3` and compared output and exit status. It was the only real difference; three other examples differed solely in printed stack or heap addresses, which vary per run.
 
 **Resolution**: The example uses `i32` and `%eax` to match the width of `int`, and prints `Result: 42` at O0, O1, O2, and O3. docs/35-inline-assembly.md states that the interpolated pointer is unchecked and that a store wider than the variable overruns it silently. The compiler is unchanged: a raw assembly block is an escape hatch whose contents it does not type-check.
+
+### BUG-363: Returning the address of a local's field or element is accepted
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: Returning `&local` was rejected, but the check matched only an address-of applied directly to an identifier. Taking the address of a field or an element of that same local produced the same dangling pointer and compiled without complaint:
+
+```bpl
+frame leakField() ret *int {
+    local holder: Holder;
+    return &holder.field;   # accepted
+}
+frame leakElement() ret *int {
+    local values: int[2];
+    return &values[0];      # accepted
+}
+```
+
+**Resolution**: The check resolves an address-of expression to the variable whose storage it refers to, walking through field and element access (`rootStackOperand` in compiler/middleend/StatementChecker.ts). The walk stops at a pointer, so `&pointer.field` and `&pointer[i]` remain valid: what a pointer refers to is not this frame's storage. Verified that returning through a pointer parameter, a global, and a pointer element still compiles and returns the right values. The existing `_` prefix still suppresses the check.
+
+**Remaining gap**: this is a storage check, not an escape analysis. An address assigned to a local pointer and then returned (`local p: *int = &x; return p;`), or written through an out-parameter (`*out = &x;`), is still accepted. Both need dataflow through pointer values, which this check does not do; docs/15-pointers.md states the limit and shows the undetected form.

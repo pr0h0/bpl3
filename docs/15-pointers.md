@@ -688,6 +688,24 @@ frame getGoodPointer() ret int* {
 }
 ```
 
+Returning the address of a local is rejected, including the address of one of
+its fields or elements (`&local.field`, `&local[0]`) and one hidden inside a
+returned struct, tuple, array, or enum value. Prefixing the variable name with
+`_` suppresses the check, which is unsafe.
+
+The check follows storage, not syntax: `&pointer.field` and `&pointer[i]` are
+accepted, because what a pointer refers to is not this frame's storage. It is
+also not an escape analysis. An address stored into a local pointer first, or
+written through an out-parameter, is not detected:
+
+```bpl
+frame notDetected() ret *int {
+    local x: int = 5;
+    local p: *int = &x;
+    return p;             # accepted, and still dangling
+}
+```
+
 #### 3. Use After Free
 
 ```bpl

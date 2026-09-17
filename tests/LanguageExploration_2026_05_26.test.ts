@@ -111,6 +111,77 @@ describe("Language Exploration 2026-05-26", () => {
       `, "local");
     });
 
+    it("BUG-363: rejects returning the address of a local's field or element", () => {
+      expectCompilationFailure(`
+        struct Holder {
+          field: int,
+        }
+
+        frame leakField() ret *int {
+          local holder: Holder;
+          holder.field = 1;
+          return &holder.field;
+        }
+
+        frame main() ret int {
+          return *leakField();
+        }
+      `, "local");
+
+      expectCompilationFailure(`
+        frame leakElement() ret *int {
+          local values: int[2];
+          values[0] = 1;
+          return &values[0];
+        }
+
+        frame main() ret int {
+          return *leakElement();
+        }
+      `, "local");
+    });
+
+    it("BUG-363: allows returning an address that is not this frame's storage", () => {
+      const output = compileAndRun(`
+        extern printf(fmt: string, ...) ret int;
+
+        struct Holder {
+          field: int,
+          other: int,
+        }
+
+        global shared: Holder;
+
+        # The pointer's target belongs to the caller, so it outlives this frame.
+        frame throughParameter(holder: *Holder) ret *int {
+          return &holder.field;
+        }
+
+        frame throughGlobal() ret *int {
+          return &shared.field;
+        }
+
+        frame throughPointerElement(values: *int) ret *int {
+          return &values[1];
+        }
+
+        frame main() ret int {
+          local holder: Holder;
+          holder.field = 7;
+          local values: int[3];
+          values[1] = 9;
+          shared.field = 5;
+          printf("%d %d %d\\n",
+            *throughParameter(&holder),
+            *throughGlobal(),
+            *throughPointerElement(&values[0]));
+          return 0;
+        }
+      `);
+
+      expect(output).toBe("7 5 9\n");
+    });
+
     it("BUG-144: rejects pointer subtraction across incompatible pointee types", () => {
       expectCompilationFailure(`
         frame main() ret int {
