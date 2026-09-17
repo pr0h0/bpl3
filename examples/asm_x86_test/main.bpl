@@ -20,9 +20,12 @@ frame main() ret int {
     # But currently BPL only supports raw injection.
     # So we have to write the LLVM IR wrapper ourselves inside the asm block.
 
+    # 'int' is a 32-bit value, so the asm result and the store must be i32.
+    # Writing an i64 here overruns the local's storage: with opaque pointers
+    # nothing rejects it, and the program only appears to work unoptimized.
     asm {
-        %res_val = call i64 asm sideeffect "movq $$42, %rax; movq %rax, $0", "=r,~{rax},~{dirflag},~{fpsr},~{flags}"()
-        store i64 %res_val, i64* (res)
+        %res_val = call i32 asm sideeffect "movl $$42, %eax; movl %eax, $0", "=r,~{eax},~{dirflag},~{fpsr},~{flags}"()
+        store i32 %res_val, i32* (res)
     }
 
     printf("Result: %d\n", res);

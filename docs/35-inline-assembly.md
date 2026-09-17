@@ -242,6 +242,12 @@ frame main() ret int {
 }
 ```
 
+The interpolated pointer is the variable's own storage, and nothing checks the
+type you write against it. LLVM pointers carry no element type, so a store
+wider than the variable overruns its slot without any diagnostic. `int` is
+32 bits, so use `i32` for it; a program that stores `i64` into an `int` may
+appear to work unoptimized and produce a different value at `-O 3`.
+
 ## Input and Output Constraints
 
 ### Default Constraints

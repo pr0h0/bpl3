@@ -4458,3 +4458,24 @@ Once the exception storage is released, the handler holds the only copy, so noth
 **Resolution**: A catch binding whose type owns a destructor is registered with the handler's block scope, so it is destroyed when the handler exits, including when the handler leaves by throwing again. Registration goes through a new `ownedStorage` argument to block generation, which covers storage that belongs to a scope although it was allocated before that scope was pushed. By-value parameters (BUG-360) were moved onto the same argument, replacing the field they used, so the entries cannot be picked up by an unrelated block generated in between. Covered by tests/RAIIAutoDestroy.test.ts, which checks a nested handler that rethrows and a multi-clause catch at O0/O3 with LLVM validation.
 
 **Remaining gap**: two positions still have no owner. A value returned into a discarded expression statement, as in `makeResource();`, is not destroyed, since nothing binds it and there is no temporary lifetime to attach cleanup to. A global with a destructor is never destroyed, because program exit runs no cleanup. Both are documented in docs/21-constructors-destructors.md.
+
+### BUG-362: An inline-assembly example overran a local's storage
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-17)**: `examples/asm_x86_test` stored an `i64` result into `res`, declared `local res: int`, which is 32 bits:
+
+```bpl
+asm {
+    %res_val = call i64 asm sideeffect "movq $$42, %rax; movq %rax, $0", "=r,~{rax},..."()
+    store i64 %res_val, i64* (res)
+}
+```
+
+An interpolated `(res)` is the variable's own storage, and LLVM pointers carry no element type, so nothing rejected an eight-byte store into a four-byte slot. The program printed `Result: 42` unoptimized and `Result: 0` at `-O 3`. The integration suite runs examples at the default optimization level, so it never saw the second result.
+
+Found by a differential sweep that ran all 479 examples at `-O 0` and `-O 3` and compared output and exit status. It was the only real difference; three other examples differed solely in printed stack or heap addresses, which vary per run.
+
+**Resolution**: The example uses `i32` and `%eax` to match the width of `int`, and prints `Result: 42` at O0, O1, O2, and O3. docs/35-inline-assembly.md states that the interpolated pointer is unchecked and that a store wider than the variable overruns it silently. The compiler is unchanged: a raw assembly block is an escape hatch whose contents it does not type-check.
