@@ -94,9 +94,19 @@ Generic type arguments are followed too: `Box<Resource>` destroys the
 `Resource` it holds, and a local declared as a generic function's type
 parameter is destroyed when that instance's argument owns a destructor.
 
+Tuple elements are followed like struct fields, and a local bound by tuple
+destructuring is an ordinary local that destroys what it holds.
+
 Only fixed array dimensions are walked. Values reached through a pointer or a
 slice are not owned by the local, so they are not destroyed; free those
 explicitly or with `defer`.
+
+An enum payload cannot hold a type with `@[auto_destroy]`
+(`BPL_AUTO_DESTROY_ENUM_PAYLOAD`). Which payload is present is only known at
+run time, so cleanup would have to choose a destructor from the tag, which is
+not implemented. Rather than skip it silently and leak, the enum declaration is
+rejected. Hold a pointer in the payload and free it explicitly, or drop the
+attribute and call `destroy` yourself.
 
 A `throw` also destroys the live locals of the frame it leaves: cleanup runs from
 the innermost scope out to the nearest enclosing `try` in that frame, or to the

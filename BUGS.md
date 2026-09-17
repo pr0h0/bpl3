@@ -4378,3 +4378,41 @@ A child that declared every required method itself worked, and a child that decl
 **Resolution**: The method-table builder resolves each required method through the inheritance chain and calls the implementation belonging to the nearest ancestor that declares it (`findSpecMethodImplementation` in compiler/backend/codegen/UnaryExpressionGenerator.ts). The thunk's callee is mangled with that ancestor's name rather than the converted struct's, since the inherited symbol belongs to the ancestor, and its `this` parameter already has the ancestor's type, so the thunk casts to the right struct. A generic ancestor is monomorphized first, so the mangled name matches the instantiated symbol.
 
 Covered by tests/LanguageSpecDeclarations.test.ts, which converts a three-level chain where the middle struct overrides one required method and inherits the other, and the leaf inherits that override and overrides the other. Dispatch is checked through `*Spec`, through the leaf directly, and through a pointer to the middle struct, at O0/O3 with LLVM validation.
+
+### BUG-358: Destructors skip tuple elements and destructured locals
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: The ownership walk from BUG-354 covered structs and fixed arrays but not tuples, so a tuple holding a destructible value leaked it, and a local bound by tuple destructuring was never registered for cleanup at all:
+
+```bpl
+local r: Res;
+local t: (Res, int) = (r, 5);        # t's copy of Res never destroyed
+local (first: Res, second: int) = t; # first never destroyed
+```
+
+**Resolution**: A tuple lowers to a plain aggregate, so its elements are reached with `getelementptr` exactly as struct fields are, and the walk recurses through them (`registerAutoDestroy` in compiler/backend/codegen/StatementGenerator.ts). The tuple-destructuring branch of variable generation now registers each target, since a destructured target is an ordinary local. Each copy is destroyed once, in reverse declaration order. Covered by tests/RAIIAutoDestroy.test.ts, which checks tuple elements, nested destructuring, and ordering at O0/O3 with LLVM validation; the same program was verified to produce identical output at O0, O1, O2, and O3.
+
+### BUG-359: An enum payload silently skips its destructor
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: An enum payload holding a type with `@[auto_destroy]` was never destroyed, with no diagnostic:
+
+```bpl
+enum Slot { Has(Res), Empty }
+frame scoped() {
+    local r: Res;
+    local s: Slot = Slot.Has(r);   # the copy inside s is never destroyed
+}
+```
+
+Unlike a struct field or an array element, which payload is present is known only at run time, so cleanup has to select a destructor from the variant tag. Nothing did, and the value leaked.
+
+**Resolution**: The enum declaration is rejected with `BPL_AUTO_DESTROY_ENUM_PAYLOAD`, naming the variant and the owning struct, and pointing at the alternatives: hold a pointer in the payload and free it explicitly, or drop the attribute and call `destroy` directly. The check walks the payload type through fields, array elements, tuple elements, and inherited fields, stopping at pointers, which do not own their target (`findAutoDestroyOwner` in compiler/middleend/TypeChecker.ts). Rejecting was chosen over implementing tag-directed cleanup because the latter is a new mechanism in the unwinding path rather than a fix, and a silent leak is worse than a clear error. Covered by tests/RAIIAutoDestroy.test.ts for both tuple and struct payload forms.
+
+**Remaining gap**: tag-directed cleanup is still unimplemented, so an owning enum payload cannot be expressed at all. Lifting the restriction means emitting a switch on the tag at every cleanup site, including the throw path.

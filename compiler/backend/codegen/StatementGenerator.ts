@@ -185,6 +185,11 @@ export abstract class StatementGenerator extends AsmGenerator {
     visiting: Set<string> = new Set(),
   ): boolean {
     const typeNode = this.concreteAutoDestroyType(type);
+    if (typeNode && typeNode.kind === "TupleType") {
+      return (typeNode as AST.TupleTypeNode).types.some((element) =>
+        this.ownsAutoDestroy(element, visiting),
+      );
+    }
     if (!typeNode || typeNode.kind !== "BasicType") return false;
     if (typeNode.pointerDepth > 0) return false;
     if (typeNode.arrayDimensions.length > 0) {
@@ -235,6 +240,27 @@ export abstract class StatementGenerator extends AsmGenerator {
         location,
         ownerAddress,
       );
+      return;
+    }
+
+    // A tuple lowers to a plain aggregate, so its elements are reached the same
+    // way a struct's fields are.
+    if (typeNode.kind === "TupleType") {
+      const tupleType = this.resolveType(typeNode);
+      (typeNode as AST.TupleTypeNode).types.forEach((elementType, index) => {
+        if (!this.ownsAutoDestroy(elementType)) return;
+        const elementAddress = this.newRegister();
+        this.emit(
+          `  ${elementAddress} = getelementptr inbounds ${tupleType}, ${tupleType}* ${address}, i32 0, i32 ${index}`,
+        );
+        this.registerAutoDestroy(
+          `${name}.${index}`,
+          elementAddress,
+          elementType,
+          location,
+          ownerAddress,
+        );
+      });
       return;
     }
 
@@ -2102,6 +2128,15 @@ export abstract class StatementGenerator extends AsmGenerator {
                 `  call void @llvm.dbg.declare(metadata ${targetType}* ${addr}, metadata !${varId}, metadata !DIExpression())`,
               );
             }
+
+            // A destructured target is an ordinary local and owns what it
+            // holds, so it takes part in cleanup like any other.
+            this.registerAutoDestroy(
+              target.name,
+              addr,
+              targetTypeNode,
+              decl.location,
+            );
           }
         }
       };

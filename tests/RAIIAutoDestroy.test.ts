@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 import { compileAndRun } from "./helpers";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
+import { expectCheckDiagnostics } from "./helpers/languageSpec";
 
 describe("RAII automatic destroy", () => {
   it("destroys value locals when a scope falls through", () => {
@@ -477,6 +478,91 @@ frame main() ret int {
           "done",
           "",
         ].join("\n"),
+      },
+    ]);
+  }, 60000);
+  it("destroys owned tuple elements and destructured locals", () => {
+    expectCorrectnessSuite([
+      {
+        name: "auto-destroy-tuples",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...) ret int;
+
+struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void {
+    printf("d%d ", this.value);
+  }
+}
+
+struct Pair {
+  left: Resource,
+  right: Resource,
+}
+
+frame tuples() ret void {
+  local a: Resource;
+  a.value = 1;
+  local b: Resource;
+  b.value = 2;
+  local both: (Resource, int, Resource) = (a, 9, b);
+  local (ta: Resource, tn: int, tb: Resource) = both;
+  printf("t%d%d%d ", ta.value, tn, tb.value);
+}
+
+frame destructured() ret void {
+  local p: Pair;
+  p.left.value = 4;
+  p.right.value = 5;
+  local (x: Resource, y: Resource) = (p.left, p.right);
+  printf("x%d y%d ", x.value, y.value);
+}
+
+frame main() ret int {
+  tuples();
+  printf("| ");
+  destructured();
+  printf("\\n");
+  return 0;
+}`,
+        // Each copy is destroyed once, in reverse declaration order: the
+        // destructured locals, then the tuple's elements, then the originals.
+        expectedStdout: "t192 d2 d1 d2 d1 d2 d1 | x4 y5 d5 d4 d5 d4 \n",
+      },
+    ]);
+  }, 60000);
+
+  it("rejects an enum payload that owns a destructor", () => {
+    expectCheckDiagnostics([
+      {
+        name: "auto-destroy-enum-tuple-payload",
+        source: `struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void { this.value = 0; }
+}
+enum Slot { Has(Resource), Empty }
+frame main() ret int {
+  local s: Slot = Slot.Empty;
+  return match (s) { Slot.Has(r) => r.value, Slot.Empty => 0, };
+}`,
+        code: "BPL_AUTO_DESTROY_ENUM_PAYLOAD",
+      },
+      {
+        name: "auto-destroy-enum-struct-payload",
+        source: `struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void { this.value = 0; }
+}
+struct Holder { inner: Resource }
+enum Slot { Has { held: Holder }, Empty }
+frame main() ret int {
+  local s: Slot = Slot.Empty;
+  return match (s) { Slot.Has { held: h } => h.inner.value, Slot.Empty => 0, };
+}`,
+        code: "BPL_AUTO_DESTROY_ENUM_PAYLOAD",
       },
     ]);
   }, 60000);
