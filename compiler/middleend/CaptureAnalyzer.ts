@@ -1,5 +1,6 @@
 import * as AST from "../common/AST";
 import { TokenType } from "../frontend/TokenType";
+import { TypeUtils } from "./TypeUtils";
 
 export class CaptureAnalyzer {
   private capturedVariables: Set<AST.ASTNode> = new Set();
@@ -327,18 +328,10 @@ export class CaptureAnalyzer {
     }
   }
 
-  /** True when the value this expression names lives behind a pointer. */
-  private writesThroughPointer(expr: AST.Expression): boolean {
-    const type = expr.resolvedType;
-    return (
-      !!type && type.kind === "BasicType" && (type as AST.BasicTypeNode).pointerDepth > 0
-    );
-  }
-
   /**
-   * Records a write whose target is a captured variable reached without a
-   * pointer. Writing through a captured pointer reaches the original value,
-   * so those targets stop the walk.
+   * Records a write whose target is a captured variable reached without an
+   * indirection. Writing through a captured pointer or slice reaches the
+   * original value rather than the copy, so those targets stop the walk.
    */
   private noteCapturedAssignment(target: AST.Expression): void {
     let current: AST.Expression | undefined = target;
@@ -350,13 +343,13 @@ export class CaptureAnalyzer {
           continue;
         case "Member": {
           const object: AST.Expression = (current as AST.MemberExpr).object;
-          if (this.writesThroughPointer(object)) return;
+          if (TypeUtils.isBorrowedIndirection(object)) return;
           current = object;
           continue;
         }
         case "Index": {
           const object: AST.Expression = (current as AST.IndexExpr).object;
-          if (this.writesThroughPointer(object)) return;
+          if (TypeUtils.isBorrowedIndirection(object)) return;
           current = object;
           continue;
         }

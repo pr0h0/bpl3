@@ -612,7 +612,8 @@ switch (val) {
   rejected (`BPL_CAPTURED_VALUE_ASSIGNED`), because the block runs against
   copies of the values it uses and the write would be discarded. Capture a
   pointer and write through it to change the original. Writing through a
-  pointer, to a global, or to the block's own locals is allowed.
+  pointer or a slice element, to a global, or to the block's own locals is
+  allowed, because a slice borrows storage it does not own (R-ARR-3).
 
 ```bpl
 frame processFile(path: string) {
@@ -708,8 +709,8 @@ try {
 - **[R-LAMBDA-4]** Assigning to a captured variable inside a lambda is rejected
   (`BPL_CAPTURED_VALUE_ASSIGNED`), because the lambda holds a copy and the
   write would be discarded. Capture a pointer and write through it to change
-  the original. Writing through a captured pointer, to a global, or to the
-  lambda's own parameters and locals is allowed.
+  the original. Writing through a captured pointer or slice element, to a
+  global, or to the lambda's own parameters and locals is allowed.
 
 ### Pattern Matching
 

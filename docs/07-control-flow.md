@@ -1196,8 +1196,10 @@ local donePtr: *bool = &done;
 defer { *donePtr = true; }   # runs at scope exit and updates 'done'
 ```
 
-Writing through a pointer, assigning to a global, and assigning to the block's
-own locals are all allowed. A `return` value is evaluated before deferred code
+Writing through a pointer or a slice element, assigning to a global, and
+assigning to the block's own locals are all allowed. A slice borrows its
+backing storage, so `deferred_slice[0] = value` reaches the array the caller
+owns; a captured fixed array is a copy, so writing to its elements is rejected. A `return` value is evaluated before deferred code
 runs, so a deferred write through a pointer does not change the value already
 returned.
 

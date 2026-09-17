@@ -208,9 +208,11 @@ local f: Lambda<void>() = || ret void {
 ```
 
 The same applies to writing a field or element of a captured value
-(`captured.field = x`, `captured[0] = x`). Writing through a captured pointer,
-assigning to a global, and assigning to the lambda's own parameters and locals
-are all allowed.
+(`captured.field = x`, `captured[0] = x`) when that value is a fixed array or a
+struct, which the lambda holds a copy of. Writing through a captured pointer or
+a captured slice, assigning to a global, and assigning to the lambda's own
+parameters and locals are all allowed: a slice borrows its backing storage, so
+the write reaches the array its owner sees.
 
 ### Capture by Reference (via Pointers)
 

@@ -182,6 +182,26 @@ describe("Language Exploration 2026-05-26", () => {
       expect(output).toBe("7 5 9\n");
     });
 
+    it("BUG-369: allows returning an address into a borrowed slice", () => {
+      const output = compileAndRun(`
+        extern printf(fmt: string, ...) ret int;
+
+        # The elements belong to the caller's array; only the descriptor is
+        # local, so the address outlives this frame legitimately.
+        frame first(xs: int[]) ret *int {
+          return &xs[0];
+        }
+
+        frame main() ret int {
+          local xs: int[2] = [7, 2];
+          printf("%d\\n", *first(xs));
+          return 0;
+        }
+      `);
+
+      expect(output).toBe("7\n");
+    });
+
     it("BUG-144: rejects pointer subtraction across incompatible pointee types", () => {
       expectCompilationFailure(`
         frame main() ret int {

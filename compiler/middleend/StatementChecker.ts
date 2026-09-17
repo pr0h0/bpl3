@@ -5,7 +5,7 @@
 
 import * as AST from "../common/AST";
 import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
-import { INTEGER_TYPES } from "./TypeUtils";
+import { INTEGER_TYPES, TypeUtils } from "./TypeUtils";
 import { isImplicitIntegerToBool } from "./lowering/ImplicitConversions";
 import type { CheckerContext } from "./CheckerContext";
 import type { Symbol } from "./SymbolTable";
@@ -43,8 +43,9 @@ function isUnsafeStackAddressSymbol(symbol: Symbol | undefined): boolean {
 /**
  * The variable whose storage an address-of expression refers to. A field or
  * element belongs to the variable that holds it, so `&local.field` and
- * `&local[0]` point into that variable's frame storage. A pointer stops the
- * walk: what it refers to is not this frame's to begin with.
+ * `&local[0]` point into that variable's frame storage. A pointer or a slice
+ * stops the walk: both borrow storage that is not this frame's to begin with,
+ * so an address taken through one may legitimately outlive the frame.
  */
 function rootStackOperand(
   expr: AST.Expression | undefined,
@@ -60,13 +61,13 @@ function rootStackOperand(
         continue;
       case "Member": {
         const object: AST.Expression = (current as AST.MemberExpr).object;
-        if (isPointerExpression(object)) return undefined;
+        if (TypeUtils.isBorrowedIndirection(object)) return undefined;
         current = object;
         continue;
       }
       case "Index": {
         const object: AST.Expression = (current as AST.IndexExpr).object;
-        if (isPointerExpression(object)) return undefined;
+        if (TypeUtils.isBorrowedIndirection(object)) return undefined;
         current = object;
         continue;
       }
@@ -78,14 +79,7 @@ function rootStackOperand(
   return undefined;
 }
 
-function isPointerExpression(expr: AST.Expression): boolean {
-  const type = expr.resolvedType;
-  return (
-    !!type &&
-    type.kind === "BasicType" &&
-    (type as AST.BasicTypeNode).pointerDepth > 0
-  );
-}
+
 
 function findReturnedStackAddress(
   context: CheckerContext,

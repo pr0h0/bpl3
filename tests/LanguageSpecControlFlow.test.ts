@@ -257,6 +257,29 @@ frame main() ret int {
     ]);
   }, 120000);
 
+  // spec: R-DEFER-5, R-ARR-3
+  test("allows a deferred write through a borrowed slice", () => {
+    expectCorrectnessSuite([
+      {
+        name: "defer-slice-write",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...) ret int;
+# A captured slice keeps the backing pointer, so the write reaches the
+# caller's array rather than a copy of it.
+frame update(xs: int[]) {
+  defer { xs[0] = 42; }
+}
+frame main() ret int {
+  local xs: int[1] = [0];
+  update(xs);
+  printf("%d\\n", xs[0]);
+  return 0;
+}`,
+        expectedStdout: "42\n",
+      },
+    ]);
+  }, 120000);
+
   // spec: R-DEFER-5
   test("rejects assigning to an outer variable from deferred code", () => {
     expectCheckDiagnostics([

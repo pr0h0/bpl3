@@ -693,8 +693,10 @@ its fields or elements (`&local.field`, `&local[0]`) and one hidden inside a
 returned struct, tuple, array, or enum value. Prefixing the variable name with
 `_` suppresses the check, which is unsafe.
 
-The check follows storage, not syntax: `&pointer.field` and `&pointer[i]` are
-accepted, because what a pointer refers to is not this frame's storage. It is
+The check follows storage, not syntax: `&pointer.field`, `&pointer[i]`, and
+`&slice[i]` are accepted, because a pointer and a slice both borrow storage
+that is not this frame's. Returning `&slice[0]` from a frame that received the
+slice is valid: the elements belong to whoever owns the backing array. It is
 also not an escape analysis. An address stored into a local pointer first, or
 written through an out-parameter, is not detected:
 

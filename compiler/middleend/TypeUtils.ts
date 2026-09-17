@@ -33,6 +33,21 @@ export class TypeUtils {
   /**
    * Check if a type is a numeric type (integer or float)
    */
+  /**
+   * True when reading through this expression reaches storage the current
+   * frame does not own: a pointer, or a slice, which is a borrowed view of
+   * someone else's array (R-ARR-3). Indexing either one leaves this frame's
+   * storage, so an address taken there can outlive the frame, and a write
+   * there is visible to whoever owns the backing array.
+   */
+  static isBorrowedIndirection(expr: AST.Expression): boolean {
+    const type = expr.resolvedType;
+    if (!type || type.kind !== "BasicType") return false;
+    const basic = type as AST.BasicTypeNode;
+    if (basic.pointerDepth > 0) return true;
+    return basic.arrayDimensions.length > 0 && basic.arrayDimensions[0] === null;
+  }
+
   static isNumericType(type: AST.TypeNode): boolean {
     if (type.kind !== "BasicType") return false;
     if (type.pointerDepth > 0 || type.arrayDimensions.length > 0) return false;

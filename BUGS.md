@@ -4685,3 +4685,33 @@ This is not specific to parameters (BUG-367); it applies to initializing a local
 The destructor tests did not detect it because they count destructor calls instead of releasing a resource, so a duplicated owner reads as an extra counter increment.
 
 **Planned resolution**: reject copying an owning value in the type checker. Producing one fresh, returning a local, and throwing a local remain valid, because each transfers ownership rather than duplicating it. Once copies are rejected, every by-value argument and every stored owning value is a transfer, which makes the withheld parameter cleanup from BUG-367 correct and lets it be restored.
+
+### BUG-369: Returning an address into a borrowed slice is rejected
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-17)**: BUG-363 taught the stack-address check to walk through field and element access to the variable that owns the storage, but it treated slice indexing like indexing a local fixed array:
+
+```bpl
+frame first(xs: int[]) ret *int { return &xs[0]; }   # rejected
+```
+
+A slice is a non-owning view (R-ARR-3): only the descriptor is local, and the elements belong to whoever owns the backing array, so the address legitimately outlives the frame. The program compiled at the baseline.
+
+### BUG-371: A deferred write through a slice is rejected
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-17)**: BUG-356 rejects writes to a captured variable because the block holds a copy, and the walk stopped at a pointer but not at a slice:
+
+```bpl
+frame update(xs: int[]) { defer { xs[0] = 42; } }   # rejected
+```
+
+A captured slice descriptor still carries the backing pointer, so the write reaches the caller's array and is observable (R-ARR-8). The program printed 42 at the baseline. The same shared walk affects lambda captures.
+
+**Resolution (both)**: The two walks share one predicate, `TypeUtils.isBorrowedIndirection`, which is true for a pointer and for a slice, so reaching through either stops the search for owned storage. A fixed array keeps its previous treatment in both checks: returning `&local[0]` is still rejected, and writing to a captured fixed array's element is still rejected, because that storage is the frame's own. LANGUAGE_SPEC.md R-LAMBDA-4 and R-DEFER-5, docs/15-pointers.md, docs/07-control-flow.md, and docs/53-lambdas.md now distinguish borrowed slices from owned arrays. Covered by tests/LanguageExploration_2026_05_26.test.ts and tests/LanguageSpecControlFlow.test.ts.
