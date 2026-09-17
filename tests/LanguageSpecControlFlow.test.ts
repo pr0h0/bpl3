@@ -181,7 +181,7 @@ frame main() ret int {
 });
 
 describe("language specification: defer", () => {
-  // spec: R-DEFER-1, R-DEFER-2, R-DEFER-3, R-DEFER-4
+  // spec: R-DEFER-1, R-DEFER-2, R-DEFER-3, R-DEFER-4, R-DEFER-5
   test("deferred code runs in LIFO order on every block exit", () => {
     expectCorrectnessSuite([
       {
@@ -219,7 +219,9 @@ frame thrower() {
 }
 frame returnValue() ret int {
   local x: int = 1;
-  defer { x = 100; }
+  local p: *int = &x;
+  # The deferred write happens, but after the return value is evaluated.
+  defer { *p = 100; }
   return x;
 }
 frame deferredThrow() {
@@ -251,6 +253,39 @@ frame main() ret int {
         source:
           "frame f() ret int { defer { return 1; } return 0; }\nframe main() ret int { return f(); }\n",
         code: "BPL_DEFER_RETURN_VALUE_INVALID",
+      },
+    ]);
+  }, 120000);
+
+  // spec: R-DEFER-5
+  test("rejects assigning to an outer variable from deferred code", () => {
+    expectCheckDiagnostics([
+      {
+        name: "defer-assign-outer-scalar",
+        source: `frame main() ret int {
+  local x: int = 1;
+  defer { x = 100; }
+  return x;
+}`,
+        code: "BPL_CAPTURED_VALUE_ASSIGNED",
+      },
+      {
+        name: "defer-assign-outer-element",
+        source: `frame main() ret int {
+  local values: int[2];
+  defer { values[0] = 1; }
+  return values[0];
+}`,
+        code: "BPL_CAPTURED_VALUE_ASSIGNED",
+      },
+      {
+        name: "defer-update-outer-scalar",
+        source: `frame main() ret int {
+  local x: int = 1;
+  defer { x++; }
+  return x;
+}`,
+        code: "BPL_CAPTURED_VALUE_ASSIGNED",
       },
     ]);
   }, 120000);

@@ -9,7 +9,9 @@ import { INTEGER_TYPES } from "./TypeUtils";
 import { isImplicitIntegerToBool } from "./lowering/ImplicitConversions";
 import type { CheckerContext } from "./CheckerContext";
 import type { Symbol } from "./SymbolTable";
+import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import {
+  CAPTURED_VALUE_ASSIGNED_CODE,
   BREAK_OUTSIDE_CONTEXT_CODE,
   CONDITION_TYPE_MISMATCH_CODE,
   CONTINUE_OUTSIDE_LOOP_CODE,
@@ -1200,6 +1202,20 @@ export function checkDefer(this: CheckerContext, stmt: AST.DeferStmt): void {
     this.inDefer = prevInDefer;
     this.loopDepth = prevLoopDepth;
     this.switchDepth = prevSwitchDepth;
+  }
+
+  // The block runs against copies of the values it uses, so a write that does
+  // not go through a pointer is discarded rather than reaching the variable it
+  // names.
+  for (const write of CaptureAnalyzer.findDiscardedWrites(stmt.statement)) {
+    this.addError(
+      new CompilerError(
+        `Cannot assign to '${write.name}' inside a defer block`,
+        "A defer block runs against copies of the values it uses, so this write would be discarded. Capture a pointer to the variable and write through it.",
+        write.node.location,
+        CAPTURED_VALUE_ASSIGNED_CODE,
+      ),
+    );
   }
 }
 

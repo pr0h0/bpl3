@@ -22,6 +22,25 @@ export class CaptureAnalyzer {
     return this.capturedAssignments;
   }
 
+  /**
+   * Writes that a deferred statement would discard. A `defer` block copies the
+   * values it uses, exactly as a lambda does, so it needs the same rule; the
+   * copy is what lets the unwinder run the block after the frame that
+   * registered it is gone.
+   */
+  public static findDiscardedWrites(
+    statement: AST.Statement,
+  ): { node: AST.ASTNode; name: string }[] {
+    const analyzer = new CaptureAnalyzer({
+      kind: "LambdaExpression",
+      params: [],
+      body: statement,
+      location: statement.location,
+    } as unknown as AST.LambdaExpr);
+    analyzer.analyze();
+    return analyzer.getCapturedAssignments();
+  }
+
   public analyze(): (AST.VariableDecl | AST.Parameter | AST.LambdaParameter)[] {
     this.visit(this.lambdaExpr.body);
     // Return as VariableDecl[] (casting needed as we store ASTNode)

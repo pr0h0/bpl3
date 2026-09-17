@@ -1179,6 +1179,28 @@ i = 1;
 # Output: 0
 ```
 
+Because the block runs against those copies, a write to a variable declared
+outside it would be discarded rather than reaching the variable it names. Such
+a write is rejected (`BPL_CAPTURED_VALUE_ASSIGNED`):
+
+```bpl
+local done: bool = false;
+defer { done = true; }   # error: cannot assign to 'done' inside a defer block
+```
+
+Capture a pointer and write through it to change the original:
+
+```bpl
+local done: bool = false;
+local donePtr: *bool = &done;
+defer { *donePtr = true; }   # runs at scope exit and updates 'done'
+```
+
+Writing through a pointer, assigning to a global, and assigning to the block's
+own locals are all allowed. A `return` value is evaluated before deferred code
+runs, so a deferred write through a pointer does not change the value already
+returned.
+
 ## Next Steps
 
 - [Functions Basics](08-functions-basics.md) - Function declarations and calls

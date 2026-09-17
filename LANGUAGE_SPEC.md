@@ -608,6 +608,11 @@ switch (val) {
 - **[R-DEFER-4]** A deferred block cannot return a value
   (`BPL_DEFER_RETURN_VALUE_INVALID`). An exception thrown by deferred code
   propagates like any other exception.
+- **[R-DEFER-5]** Assigning to a variable declared outside a deferred block is
+  rejected (`BPL_CAPTURED_VALUE_ASSIGNED`), because the block runs against
+  copies of the values it uses and the write would be discarded. Capture a
+  pointer and write through it to change the original. Writing through a
+  pointer, to a global, or to the block's own locals is allowed.
 
 ```bpl
 frame processFile(path: string) {

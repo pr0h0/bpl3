@@ -4318,4 +4318,31 @@ The same loss applied to a field or element of a captured value (`captured.field
 
 **Resolution**: Such a write is rejected during checking with `BPL_CAPTURED_VALUE_ASSIGNED`. Capture analysis already walks the lambda body, so it now also records writes whose target resolves to a captured declaration (`noteCapturedAssignment` in compiler/middleend/CaptureAnalyzer.ts), including the `++` and `--` forms, which are unary nodes rather than assignments. The walk stops at a pointer: writing through a captured pointer reaches the original value, so `*ptr = x`, `ptr.field = x`, and `ptr[i] = x` stay valid, as do writes to globals and to the lambda's own parameters and locals. LANGUAGE_SPEC.md R-LAMBDA-4 states the rule and R-LAMBDA-2 no longer claims the write happens; docs/53-lambdas.md shows the rejected form and the pointer form. The example now captures a pointer and prints the incremented value. Covered by tests/LanguageSpecExpressions.test.ts, which rejects the scalar, field, element, and `++` forms and runs the pointer form at O0/O3.
 
-**Remaining gap**: `defer` blocks copy their captures the same way, so a write to an outer local inside a `defer` block is still discarded, and is not yet rejected. Defer capture collection lives in code generation and is name-based rather than declaration-based, so it needs a separate checker-side walk. Tracked as BUG-356.
+**Remaining gap**: none. The `defer` form of the same loss is BUG-356, fixed directly after this one.
+
+### BUG-356: Writes to an outer variable inside a defer block are silently discarded
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: A `defer` block runs against copies of the values it uses, the same way a lambda does, so a write to a variable declared outside the block changed only the copy:
+
+```bpl
+frame main() ret int {
+    local n: int = 1;
+    {
+        defer {
+            n = 99;
+            printf("in defer n=%d\n", n);   # 99
+        }
+    }
+    printf("after block n=%d\n", n);        # 1
+}
+```
+
+The block observed its own write, so the value looked correct from inside, and the variable it named never changed. `tests/LanguageSpecControlFlow.test.ts` asserted the discarded result while demonstrating R-DEFER-3.
+
+**Resolution**: Rejected during checking with the same `BPL_CAPTURED_VALUE_ASSIGNED` diagnostic as BUG-355, worded for defer. Capture analysis is reused rather than duplicated: `CaptureAnalyzer.findDiscardedWrites` runs the existing walk over the deferred statement, treating anything not declared inside it as a capture, and `checkDefer` reports what it returns. The pointer, global, and block-local forms stay valid. The copy is not a defect to remove: it is what lets the unwinder run a deferred block after the frame that registered it is gone.
+
+LANGUAGE_SPEC.md R-DEFER-5 states the rule, and docs/07-control-flow.md shows the rejected form and the pointer form. The R-DEFER-3 demonstration now writes through a pointer, which proves the ordering rule more directly: the write happens, and the returned value was evaluated before it. Covered by tests/LanguageSpecControlFlow.test.ts, which rejects the scalar, element, and `++` forms and runs the pointer form at O0/O3.
