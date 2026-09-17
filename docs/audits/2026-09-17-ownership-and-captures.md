@@ -3,12 +3,13 @@
 This continues [the takeover review](2026-09-16-takeover-review.md) under the
 same instruction: no new features until the compiler is free of known defects,
 and breaking changes are acceptable where they make the language more reliable.
-Nine defects were reproduced and fixed. Each has its own commit, a BUGS.md
+Ten defects were reproduced and fixed. Each has its own commit, a BUGS.md
 entry, documentation, and executable regression coverage.
 
-Two themes account for all of them. Cleanup followed a value's declared type
-but not what the value owned, and two constructs accepted writes whose effect
-was silently discarded.
+Three themes account for them. Cleanup followed a value's declared type but not
+what the value owned; two constructs accepted writes whose effect was silently
+discarded; and two checks matched the shape of an expression rather than the
+storage or the methods behind it.
 
 ## Automatic destruction
 
@@ -95,22 +96,68 @@ broken: a struct that lists a spec must declare every required method itself
 inherits from an implementing parent gets them for free. That is a language
 design question, not a defect, and it fails loudly either way.
 
-## Optimization sweep
+## Escaping stack addresses
 
-Integration tests run the examples at the default optimization level, so a
-defect that only appears optimized would not be seen. All 479 examples were
-run at `-O 0` and `-O 3` and their output and exit status compared. One real
-difference turned up: `examples/asm_x86_test` stored an `i64` asm result into
-an `int`, overrunning the four-byte slot, and printed `42` unoptimized and `0`
-at `-O 3` (BUG-362). An interpolated `(variable)` is that variable's own
-storage, and LLVM pointers carry no element type, so nothing rejects a store
-wider than the target. The example now uses `i32`, and
+Returning `&local` was rejected, but the check matched an address-of applied
+directly to an identifier, so `&local.field` and `&local[0]` produced the same
+dangling pointer and compiled (BUG-363). The check now resolves an address-of
+expression to the variable whose storage it refers to, walking through field
+and element access and stopping at a pointer, since what a pointer refers to is
+not this frame's storage. Returning through a pointer parameter, a global, or
+an element of a pointer still compiles.
+
+This is a storage check, not an escape analysis, and the boundary is now stated
+in [the pointer guide](../15-pointers.md): an address assigned to a local
+pointer and then returned, or written through an out-parameter, is still
+accepted. Both need dataflow through pointer values.
+
+## Sweeps
+
+Three repository-wide sweeps ran against all 479 examples.
+
+Optimization: integration tests run examples at the default optimization level,
+so a defect that only appears optimized would not be seen. Running every example
+at `-O 0` and `-O 3` and comparing output and exit status turned up one real
+difference. `examples/asm_x86_test` stored an `i64` asm result into an `int`,
+overrunning the four-byte slot, and printed `42` unoptimized and `0` at `-O 3`
+(BUG-362). An interpolated `(variable)` is that variable's own storage, and
+LLVM pointers carry no element type, so nothing rejects a store wider than the
+target. The example now uses `i32`, and
 [the assembly guide](../35-inline-assembly.md) states the hazard. The compiler
 is unchanged: a raw assembly block is an escape hatch whose contents it does
-not type-check.
+not type-check. Three further examples differed only in printed stack or heap
+addresses, which vary between runs.
 
-Three further examples differed only in printed stack or heap addresses, which
-vary between runs; they are identical once addresses are normalized.
+IR verification: every example was built to LLVM IR and run through the module
+verifier. All 479 passed. Seventeen builds failed by design: fifteen are
+negative examples that assert a compiler error, and two are package fixtures
+with no runnable configuration.
+
+Module cache: a comparison of cached and uncached builds was attempted and
+abandoned. `run --cache` does not have the same semantics as `run`, so the
+comparison was not meaningful, and the sweep is not reported as a result.
+
+## Open questions
+
+Four decisions are left to the maintainer. None is a defect; each is a place
+where the language could be made safer at a cost.
+
+1. **Uninitialized locals.** R-DECL-2 states that reading a local before
+   assigning it is undefined and not diagnosed, and it is not: the value is
+   whatever the stack held. A definite-assignment analysis would reject those
+   reads, at the cost of a dataflow pass and the false positives it brings.
+   Zero-initializing every local is the cheaper alternative and hides the
+   mistake instead of reporting it.
+2. **Escape analysis for pointers.** The stack-address check now follows
+   storage but not dataflow, so laundering an address through a local pointer
+   or an out-parameter still compiles (BUG-363).
+3. **Owning enum payloads.** These are rejected rather than leaked (BUG-359).
+   Supporting them means a switch on the variant tag at every cleanup site,
+   including the throw path.
+4. **Spec implementation asymmetry.** A struct that lists a spec must declare
+   every required method itself (R-SPEC-2), even when it inherits a working
+   one, while a struct that inherits from an implementing parent gets them for
+   free. Both fail loudly, so this is a design question rather than a defect.
 
 ## Validation
 
@@ -118,6 +165,7 @@ Environment: Linux x86-64, Bun 1.4.2, Clang 21.1.8.
 
 - Full suite after each change, run in chunks: 4302 passing, 0 failing at the
   final commit, growing from 4294 as regressions were added.
+- Every example built to LLVM IR and checked with the module verifier.
 - New regression coverage executes at O0 and O3 with LLVM validation.
   Destructor ordering was additionally verified byte-identical at O0, O1, O2,
   and O3, including a program combining arrays, nested fields, generics,
