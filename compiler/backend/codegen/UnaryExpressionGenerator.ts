@@ -226,6 +226,55 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
   }
 
   /** The spec declaration a type node denotes, if it denotes one. */
+  /**
+   * Finds the declaration that implements a spec method for this struct,
+   * following the inheritance chain, and the mangled name of the struct that
+   * owns it. An inherited method's symbol belongs to the ancestor, not to the
+   * struct being converted.
+   */
+  protected findSpecMethodImplementation(
+    structDecl: AST.StructDecl,
+    structMangledName: string,
+    methodName: string,
+  ): { method: AST.FunctionDecl; owner: string } | undefined {
+    const declared = structDecl.members.find(
+      (member) =>
+        member.kind === "FunctionDecl" &&
+        (member as AST.FunctionDecl).name === methodName,
+    ) as AST.FunctionDecl | undefined;
+    if (declared) {
+      return { method: declared, owner: structMangledName };
+    }
+
+    for (const parent of structDecl.inheritanceList ?? []) {
+      if (parent.kind !== "BasicType") continue;
+      const parentDecl =
+        (parent.resolvedDeclaration as AST.StructDecl | undefined) ??
+        this.structMap.get(parent.name);
+      if (!parentDecl || parentDecl.kind !== "StructDecl") continue;
+
+      let parentMangled = parentDecl.name;
+      if (parent.genericArgs && parent.genericArgs.length > 0) {
+        const resolved = this.resolveMonomorphizedType(
+          parentDecl,
+          parent.genericArgs,
+        );
+        parentMangled = resolved.startsWith("%struct.")
+          ? resolved.slice("%struct.".length)
+          : resolved;
+      }
+
+      const inherited = this.findSpecMethodImplementation(
+        parentDecl,
+        parentMangled,
+        methodName,
+      );
+      if (inherited) return inherited;
+    }
+
+    return undefined;
+  }
+
   protected getSpecDeclarationForType(
     typeNode: AST.TypeNode,
   ): AST.SpecDecl | undefined {
@@ -342,15 +391,22 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     const allMethods = this.getAllSpecMethods(specDecl);
 
     for (const method of allMethods) {
-      const implMethod = structDecl.members.find(
-        (m) => m.kind === "FunctionDecl" && m.name === method.name,
-      ) as AST.FunctionDecl;
+      // A struct satisfies a spec with the methods it inherits as well as the
+      // ones it declares, so the search walks up to the nearest ancestor that
+      // declares the method and calls that one's implementation.
+      const implementation = this.findSpecMethodImplementation(
+        structDecl,
+        structMangledName,
+        method.name,
+      );
 
-      if (!implMethod) {
+      if (!implementation) {
         throw new Error(
           `Struct ${structName} does not implement method ${method.name} of spec ${specName}`,
         );
       }
+
+      const implMethod = implementation.method;
 
       const thunkName = `__thunk_${vtableName}_${method.name}`;
 
@@ -405,7 +461,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
 
       // Get mangled name of implementation
       // We already substituted funcType.
-      const methodName = `${structMangledName}_${implMethod.name}`;
+      const methodName = `${implementation.owner}_${implMethod.name}`;
       const implName = this.getMangledName(methodName, funcType, false, []);
 
       const _args = [thisArg, ...paramNames].join(", ");

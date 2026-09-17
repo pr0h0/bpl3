@@ -4346,3 +4346,35 @@ The block observed its own write, so the value looked correct from inside, and t
 **Resolution**: Rejected during checking with the same `BPL_CAPTURED_VALUE_ASSIGNED` diagnostic as BUG-355, worded for defer. Capture analysis is reused rather than duplicated: `CaptureAnalyzer.findDiscardedWrites` runs the existing walk over the deferred statement, treating anything not declared inside it as a capture, and `checkDefer` reports what it returns. The pointer, global, and block-local forms stay valid. The copy is not a defect to remove: it is what lets the unwinder run a deferred block after the frame that registered it is gone.
 
 LANGUAGE_SPEC.md R-DEFER-5 states the rule, and docs/07-control-flow.md shows the rejected form and the pointer form. The R-DEFER-3 demonstration now writes through a pointer, which proves the ordering rule more directly: the write happens, and the returned value was evaluated before it. Covered by tests/LanguageSpecControlFlow.test.ts, which rejects the scalar, element, and `++` forms and runs the pointer form at O0/O3.
+
+### BUG-357: A spec conversion ignores inherited methods
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: R-SPEC-3 states that a child struct implements the specs of its parent, and calling an inherited method directly worked. Converting that child to a spec pointer did not: building the method table looked only at the methods the struct declared itself, so a child that overrode part of a spec and inherited the rest was rejected during code generation.
+
+```bpl
+spec Shape { frame area(this: *Self) ret int; frame name(this: *Self) ret string; }
+struct Base : Shape {
+    w: int,
+    frame area(this: *Base) ret int { return this.w; }
+    frame name(this: *Base) ret string { return "base"; }
+}
+struct Middle : Base {
+    h: int,
+    frame area(this: *Middle) ret int { return this.w * this.h; }
+}
+frame describe(s: *Shape) { printf("%s %d\n", s.name(), s.area()); }
+frame main() ret int {
+    local m: Middle;
+    describe(&m);   # Error: Struct Middle does not implement method name of spec Shape
+}
+```
+
+A child that declared every required method itself worked, and a child that declared none of them also worked, because the parent's own table was reused. The failure needed a partial override, which is the ordinary reason to derive from an implementing struct. The type checker accepted the program; only code generation rejected it, and the failure was a bare error without source location.
+
+**Resolution**: The method-table builder resolves each required method through the inheritance chain and calls the implementation belonging to the nearest ancestor that declares it (`findSpecMethodImplementation` in compiler/backend/codegen/UnaryExpressionGenerator.ts). The thunk's callee is mangled with that ancestor's name rather than the converted struct's, since the inherited symbol belongs to the ancestor, and its `this` parameter already has the ancestor's type, so the thunk casts to the right struct. A generic ancestor is monomorphized first, so the mangled name matches the instantiated symbol.
+
+Covered by tests/LanguageSpecDeclarations.test.ts, which converts a three-level chain where the middle struct overrides one required method and inherits the other, and the leaf inherits that override and overrides the other. Dispatch is checked through `*Spec`, through the leaf directly, and through a pointer to the middle struct, at O0/O3 with LLVM validation.

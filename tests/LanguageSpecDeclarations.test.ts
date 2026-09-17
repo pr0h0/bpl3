@@ -320,6 +320,55 @@ frame main() ret int {
     ]);
   }, 120000);
 
+  // spec: R-SPEC-3
+  test("a child struct satisfies its parent's spec with inherited methods", () => {
+    expectCorrectnessSuite([
+      {
+        name: "spec-inherited-methods",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...);
+spec Shape {
+  frame area(this: *Self) ret int;
+  frame name(this: *Self) ret string;
+}
+struct Base : Shape {
+  w: int,
+  frame area(this: *Base) ret int { return this.w; }
+  frame name(this: *Base) ret string { return "base"; }
+}
+# Overrides one required method and inherits the other.
+struct Middle : Base {
+  h: int,
+  frame area(this: *Middle) ret int { return this.w * this.h; }
+}
+# Inherits the override from Middle and overrides the other method.
+struct Leaf : Middle {
+  d: int,
+  frame name(this: *Leaf) ret string { return "leaf"; }
+}
+frame describe(s: *Shape) { printf("%s:%d ", s.name(), s.area()); }
+frame main() ret int {
+  local b: Base;
+  b.w = 2;
+  local m: Middle;
+  m.w = 3;
+  m.h = 4;
+  local l: Leaf;
+  l.w = 5;
+  l.h = 6;
+  l.d = 7;
+  describe(&b);
+  describe(&m);
+  describe(&l);
+  local asMiddle: *Middle = &l;
+  printf("| %d %s | %d %s\\n", l.area(), l.name(), asMiddle.area(), asMiddle.name());
+  return 0;
+}`,
+        expectedStdout: "base:2 base:12 leaf:30 | 30 leaf | 30 leaf\n",
+      },
+    ]);
+  }, 120000);
+
   // spec: R-SPEC-4
   test("spec pointers dispatch through every conversion site", () => {
     expectCorrectnessSuite([
