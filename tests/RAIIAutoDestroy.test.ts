@@ -566,4 +566,60 @@ frame main() ret int {
       },
     ]);
   }, 60000);
+  it("destroys a by-value parameter when the callee returns", () => {
+    expectCorrectnessSuite([
+      {
+        name: "auto-destroy-parameters",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...) ret int;
+
+struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void {
+    printf("d%d ", this.value);
+  }
+  frame consume(this: *Resource, other: Resource) ret int {
+    return this.value + other.value;
+  }
+}
+
+frame passThrough(r: Resource) ret Resource {
+  return r;
+}
+
+frame two(a: Resource, b: Resource) ret int {
+  return a.value + b.value;
+}
+
+frame throwsHolding(r: Resource) ret int {
+  if (r.value > 0) { throw 5; }
+  return 0;
+}
+
+frame main() ret int {
+  local x: Resource;
+  x.value = 1;
+  local y: Resource;
+  y.value = 2;
+  {
+    # The parameter is returned, so the callee moves it instead of destroying it.
+    local moved: Resource = passThrough(x);
+    printf("moved%d ", moved.value);
+  }
+  printf("| ");
+  # 'this' is a pointer and is not owned; the by-value argument is.
+  printf("m%d ", x.consume(y));
+  printf("| ");
+  printf("n%d ", two(x, y));
+  printf("| ");
+  try { throwsHolding(x); } catch (e: int) { printf("c%d ", e); }
+  printf("| end\\n");
+  return 0;
+}`,
+        // main's own locals are destroyed after the final newline is printed.
+        expectedStdout: "moved1 d1 | d2 m3 | d2 d1 n3 | d1 c5 | end\nd2 d1 ",
+      },
+    ]);
+  }, 60000);
 });

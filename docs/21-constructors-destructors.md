@@ -97,6 +97,11 @@ parameter is destroyed when that instance's argument owns a destructor.
 Tuple elements are followed like struct fields, and a local bound by tuple
 destructuring is an ordinary local that destroys what it holds.
 
+A by-value parameter is the callee's own copy, so it is destroyed when the
+callee returns, including when it leaves through a `throw`. Returning the
+parameter moves it instead. A `this` parameter is a pointer, so a method does
+not destroy the value it was called on.
+
 Only fixed array dimensions are walked. Values reached through a pointer or a
 slice are not owned by the local, so they are not destroyed; free those
 explicitly or with `defer`.

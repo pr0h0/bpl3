@@ -4416,3 +4416,23 @@ Unlike a struct field or an array element, which payload is present is known onl
 **Resolution**: The enum declaration is rejected with `BPL_AUTO_DESTROY_ENUM_PAYLOAD`, naming the variant and the owning struct, and pointing at the alternatives: hold a pointer in the payload and free it explicitly, or drop the attribute and call `destroy` directly. The check walks the payload type through fields, array elements, tuple elements, and inherited fields, stopping at pointers, which do not own their target (`findAutoDestroyOwner` in compiler/middleend/TypeChecker.ts). Rejecting was chosen over implementing tag-directed cleanup because the latter is a new mechanism in the unwinding path rather than a fix, and a silent leak is worse than a clear error. Covered by tests/RAIIAutoDestroy.test.ts for both tuple and struct payload forms.
 
 **Remaining gap**: tag-directed cleanup is still unimplemented, so an owning enum payload cannot be expressed at all. Lifting the restriction means emitting a switch on the tag at every cleanup site, including the throw path.
+
+### BUG-360: A by-value parameter is never destroyed
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: Passing a value with an `@[auto_destroy]` destructor to a frame gave the callee its own copy, and that copy was never destroyed:
+
+```bpl
+frame takesByValue(r: Res) ret int { return r.id; }   # r's copy leaks
+frame main() ret int {
+    local a: Res;
+    takesByValue(a);     # only main's 'a' is ever destroyed
+}
+```
+
+Cleanup was registered from variable declarations only, and a parameter is not one, even though parameter storage is an ordinary stack slot the callee owns.
+
+**Resolution**: Parameters whose type owns a destructor are registered when the body's scope is pushed, since their storage is allocated before that scope exists (`pendingParameterAutoDestroy` in compiler/backend/codegen/StatementGenerator.ts). They are then cleaned up like a local declared at the top of the body: destroyed when the frame returns, destroyed when a `throw` leaves it, and moved rather than destroyed when the parameter itself is returned. A pointer parameter owns nothing, so `this` is unaffected and a method does not destroy its receiver. Covered by tests/RAIIAutoDestroy.test.ts, which checks the move, the method receiver, two parameters destroyed in reverse order, and the throw path at O0/O3 with LLVM validation; the same program was verified to produce identical output at O0 and O3.

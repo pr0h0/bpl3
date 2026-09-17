@@ -165,6 +165,16 @@ export abstract class StatementGenerator extends AsmGenerator {
   }
 
   /**
+   * By-value parameters whose cleanup is registered once the function's body
+   * scope exists. Parameter storage is allocated before that scope is pushed.
+   */
+  private pendingParameterAutoDestroy: {
+    name: string;
+    address: string;
+    type: AST.TypeNode;
+  }[] = [];
+
+  /**
    * Resolves a type parameter to the argument of the instantiation being
    * generated, so a local declared as `T` in a generic function is destroyed
    * when the `T` of this instance owns a destructor.
@@ -1516,6 +1526,21 @@ export abstract class StatementGenerator extends AsmGenerator {
       isSwitch,
       previousExceptionFrame,
     });
+
+    // A by-value parameter is the callee's own copy, so it is destroyed when
+    // the function returns, like a local declared at the top of the body.
+    if (isFunction && this.pendingParameterAutoDestroy.length > 0) {
+      const parameters = this.pendingParameterAutoDestroy;
+      this.pendingParameterAutoDestroy = [];
+      for (const parameter of parameters) {
+        this.registerAutoDestroy(
+          parameter.name,
+          parameter.address,
+          parameter.type,
+          block.location,
+        );
+      }
+    }
 
     let declaredInBlock: Set<string> | undefined;
 
@@ -3253,6 +3278,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
 
       // Allocate stack space for parameters to make them mutable
+      this.pendingParameterAutoDestroy = [];
       for (let i = 0; i < decl.params.length; i++) {
         const param = decl.params[i]!;
         this.locals.add(param.name);
@@ -3290,6 +3316,14 @@ export abstract class StatementGenerator extends AsmGenerator {
         } else {
           stackAddr = this.allocateStack(param.name, type);
           this.emit(`  store ${type} ${paramReg}, ${type}* ${stackAddr}`);
+          const paramTypeNode = effectiveFuncType.paramTypes[i]!;
+          if (this.ownsAutoDestroy(paramTypeNode)) {
+            this.pendingParameterAutoDestroy.push({
+              name: param.name,
+              address: stackAddr,
+              type: paramTypeNode,
+            });
+          }
         }
 
         // DWARF: Parameter debug info
