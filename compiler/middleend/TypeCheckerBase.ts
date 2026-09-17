@@ -38,6 +38,7 @@ export const SPEC_POINTER_ESCAPES_CODE = "BPL_SPEC_POINTER_ESCAPES";
 export const CAPTURED_VALUE_ASSIGNED_CODE = "BPL_CAPTURED_VALUE_ASSIGNED";
 export const AUTO_DESTROY_ENUM_PAYLOAD_CODE =
   "BPL_AUTO_DESTROY_ENUM_PAYLOAD";
+export const OWNING_VALUE_COPIED_CODE = "BPL_OWNING_VALUE_COPIED";
 export const SYMBOL_NOT_FOUND_CODE = "BPL_SYMBOL_NOT_FOUND";
 export const VOID_TYPE_INVALID_CODE = "BPL_VOID_TYPE_INVALID";
 export const BUILTIN_TYPE_REDEFINITION_CODE =
@@ -629,6 +630,8 @@ export abstract class TypeCheckerBase {
   public loopDepth: number = 0;
   public switchDepth: number = 0;
   public inDefer: boolean = false;
+  /** Parameters the frame being checked assigns to; see CheckerContext. */
+  public reboundParameters: Set<string> = new Set();
   private failedImportSymbolsByFile: Map<string, Set<string>> = new Map();
   private structFieldLookupCache: Map<
     AST.StructDecl,
@@ -2276,6 +2279,55 @@ export abstract class TypeCheckerBase {
     }
 
     return undefined;
+  }
+
+  /**
+   * True when this expression names existing storage rather than producing a
+   * fresh value. Reading one copies what is there; a call or a literal hands
+   * over something new instead.
+   */
+  protected isPlaceExpression(expr: AST.Expression): boolean {
+    switch (expr.kind) {
+      case "Identifier":
+      case "Member":
+      case "Index":
+        return true;
+      case "Group":
+        return this.isPlaceExpression((expr as AST.GroupExpr).expression);
+      case "Unary":
+        return (
+          (expr as AST.UnaryExpr).operator.type === TokenType.Star &&
+          this.isPlaceExpression((expr as AST.UnaryExpr).operand)
+        );
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Rejects copying a value that owns a destructor. Aggregates are copied
+   * bitwise and there are no move semantics, so a copy leaves two owners and
+   * the resource is released twice. Producing a value fresh, and returning or
+   * throwing a local, hand ownership over instead of duplicating it.
+   */
+  public rejectOwningCopy(
+    expr: AST.Expression | undefined,
+    type: AST.TypeNode | undefined,
+    position: string,
+    location: AST.ASTNode["location"],
+  ): void {
+    if (!expr || !this.isPlaceExpression(expr)) return;
+    const owner = this.findAutoDestroyOwner(type ?? expr.resolvedType);
+    if (!owner) return;
+
+    this.addError(
+      new CompilerError(
+        `Cannot copy '${owner.name}', which has an '@[auto_destroy]' destructor, ${position}`,
+        "Copying it would leave two owners and free the same resource twice. Pass a pointer to it, or produce a new value instead of copying this one.",
+        location,
+        OWNING_VALUE_COPIED_CODE,
+      ),
+    );
   }
 
   /**

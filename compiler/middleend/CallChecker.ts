@@ -168,6 +168,16 @@ export function checkCall(
         | AST.ExternDecl;
       expr.callee.resolvedType = match.type;
 
+      // Passing a value by value copies it into the callee's own storage.
+      expr.args.forEach((argument, index) => {
+        this.rejectOwningCopy(
+          argument,
+          match.type.paramTypes[index] ?? argTypes[index],
+          "into an argument",
+          argument.location,
+        );
+      });
+
       if (match.declaration.kind === "Extern") {
         validateExternVariadicArguments(
           argTypes,
@@ -639,6 +649,15 @@ function validateFunctionCall(
   for (let i = 0; i < funcType.paramTypes.length; i++) {
     const paramType = funcType.paramTypes[i]!;
     const argType = argTypes[i];
+    const argument = expr.args[i];
+    if (argument) {
+      this.rejectOwningCopy(
+        argument,
+        paramType ?? argType,
+        "into an argument",
+        argument.location,
+      );
+    }
     if (argType && !this.areTypesCompatible(paramType, argType)) {
       throw new CompilerError(
         `Argument ${i + 1} type mismatch: expected ${this.typeToString(

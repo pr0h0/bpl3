@@ -15,6 +15,11 @@ export interface CheckerContext {
   loopDepth: number;
   switchDepth: number;
   inDefer: boolean;
+  /**
+   * Parameters the current frame assigns to. A slice parameter normally views
+   * the caller's storage, but one that is rebound may view this frame's own.
+   */
+  reboundParameters: Set<string>;
   errors: CompilerError[];
   warnings: CompilerError[];
   collectAllErrors: boolean;
@@ -91,6 +96,12 @@ export interface CheckerContext {
     genericArgs?: AST.TypeNode[];
   };
   rejectEscapingSpecPointer(
+    type: AST.TypeNode | undefined,
+    position: string,
+    location: AST.ASTNode["location"],
+  ): void;
+  rejectOwningCopy(
+    expr: AST.Expression | undefined,
     type: AST.TypeNode | undefined,
     position: string,
     location: AST.ASTNode["location"],

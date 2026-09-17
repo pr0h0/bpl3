@@ -1063,8 +1063,20 @@ export function checkArrayLiteral(
   if (expr.elements.length === 0) return undefined;
 
   const firstType = this.checkExpression(expr.elements[0]!);
+  this.rejectOwningCopy(
+    expr.elements[0]!,
+    firstType,
+    "into an array element",
+    expr.elements[0]!.location,
+  );
   for (let i = 1; i < expr.elements.length; i++) {
     const elemType = this.checkExpression(expr.elements[i]!);
+    this.rejectOwningCopy(
+      expr.elements[i]!,
+      elemType,
+      "into an array element",
+      expr.elements[i]!.location,
+    );
     if (
       firstType &&
       elemType &&
@@ -1213,6 +1225,12 @@ export function checkStructLiteral(
     const { type: memberType } = memberResult;
 
     const valueType = this.checkExpression(field.value);
+    this.rejectOwningCopy(
+      field.value,
+      memberType ?? valueType,
+      "into a struct field",
+      field.value.location,
+    );
     if (valueType) {
       let resolvedMemberType = this.resolveType(memberType);
       if (genericMap) {
@@ -1257,6 +1275,12 @@ export function checkTupleLiteral(
 
   for (const elem of expr.elements) {
     const elemType = this.checkExpression(elem);
+    this.rejectOwningCopy(
+      elem,
+      elemType,
+      "into a tuple element",
+      elem.location,
+    );
     if (elemType) {
       types.push(elemType);
     } else {

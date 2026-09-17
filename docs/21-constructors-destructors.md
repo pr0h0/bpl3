@@ -97,10 +97,32 @@ parameter is destroyed when that instance's argument owns a destructor.
 Tuple elements are followed like struct fields, and a local bound by tuple
 destructuring is an ordinary local that destroys what it holds.
 
-A by-value parameter is the callee's own copy, so it is destroyed when the
-callee returns, including when it leaves through a `throw`. Returning the
-parameter moves it instead. A `this` parameter is a pointer, so a method does
+A value with an `@[auto_destroy]` destructor cannot be copied
+(`BPL_OWNING_VALUE_COPIED`). Copying is what reading one out of existing
+storage does, so these are all rejected:
+
+```bpl
+local copy: Resource = original;          # into a new variable
+existing = original;                      # on the right of an assignment
+use(original);                            # into an argument
+local held: Holder = Holder { inner: r }; # into a struct field
+local pair: (Resource, int) = (r, 1);     # into a tuple element
+local (part: Resource) = ownedTuple;      # out of a destructured value
+```
+
+Handing ownership over is allowed, because it leaves one owner rather than two:
+producing a value fresh from a call or a literal, returning a local or a
+parameter, and throwing one. So `local r: Resource = make();`, `use(make())`,
+and `return r;` are all valid, and passing a pointer copies nothing.
+
+A by-value parameter is therefore always a transfer, and the callee destroys it
+when it returns, including when it leaves through a `throw`. Returning the
+parameter hands it on instead. A `this` parameter is a pointer, so a method does
 not destroy the value it was called on.
+
+One consequence is worth knowing: a tuple holding owning values can be built
+and destroyed but not read, because destructuring it would copy the elements
+out. Use a struct and read its fields, or hold pointers.
 
 A `catch` binding owns the value it caught and destroys it when the handler
 exits, including when the handler itself throws.

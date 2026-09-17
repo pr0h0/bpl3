@@ -498,26 +498,27 @@ struct Resource {
   }
 }
 
-struct Pair {
-  left: Resource,
-  right: Resource,
+frame make(value: int) ret Resource {
+  local r: Resource;
+  r.value = value;
+  return r;
 }
 
+frame makePair() ret (Resource, Resource) {
+  return (make(4), make(5));
+}
+
+# Each element is produced fresh, so the tuple is the only owner.
+# Reading the elements back out would copy them, so the tuple is only held
+# and destroyed. The name is underscore-prefixed because it is never read.
 frame tuples() ret void {
-  local a: Resource;
-  a.value = 1;
-  local b: Resource;
-  b.value = 2;
-  local both: (Resource, int, Resource) = (a, 9, b);
-  local (ta: Resource, tn: int, tb: Resource) = both;
-  printf("t%d%d%d ", ta.value, tn, tb.value);
+  local _both: (Resource, int, Resource) = (make(1), 9, make(2));
+  printf("t ");
 }
 
+# Destructuring a value produced fresh hands each part to its own local.
 frame destructured() ret void {
-  local p: Pair;
-  p.left.value = 4;
-  p.right.value = 5;
-  local (x: Resource, y: Resource) = (p.left, p.right);
+  local (x: Resource, y: Resource) = makePair();
   printf("x%d y%d ", x.value, y.value);
 }
 
@@ -528,9 +529,8 @@ frame main() ret int {
   printf("\\n");
   return 0;
 }`,
-        // Each copy is destroyed once, in reverse declaration order: the
-        // destructured locals, then the tuple's elements, then the originals.
-        expectedStdout: "t192 d2 d1 d2 d1 d2 d1 | x4 y5 d5 d4 d5 d4 \n",
+        // Elements and destructured locals are destroyed in reverse order.
+        expectedStdout: "t d2 d1 | x4 y5 d5 d4 \n",
       },
     ]);
   }, 60000);
@@ -669,11 +669,9 @@ frame main() ret int {
       },
     ]);
   }, 60000);
-  // A by-value argument is a bitwise copy, and BPL has no move semantics, so
-  // destroying the callee's copy double-frees whatever the caller still owns.
-  // Callee-side parameter cleanup is therefore withheld until copying an owning
-  // value is rejected; see BUG-367.
-  it.skip("destroys a by-value parameter when the callee returns", () => {
+  // Restored once copying an owning value became an error (BUG-372): every
+  // by-value argument is now a transfer, so the callee is the only owner.
+  it("destroys a by-value parameter when the callee returns", () => {
     expectCorrectnessSuite([
       {
         name: "auto-destroy-parameters",
@@ -704,28 +702,34 @@ frame throwsHolding(r: Resource) ret int {
   return 0;
 }
 
+frame make(value: int) ret Resource {
+  local r: Resource;
+  r.value = value;
+  return r;
+}
+
 frame main() ret int {
-  local x: Resource;
-  x.value = 1;
-  local y: Resource;
-  y.value = 2;
+  local x: Resource = make(1);
   {
-    # The parameter is returned, so the callee moves it instead of destroying it.
-    local moved: Resource = passThrough(x);
+    # The parameter is returned, so the callee hands it back rather than
+    # destroying it.
+    local moved: Resource = passThrough(make(6));
     printf("moved%d ", moved.value);
   }
   printf("| ");
   # 'this' is a pointer and is not owned; the by-value argument is.
-  printf("m%d ", x.consume(y));
+  printf("m%d ", x.consume(make(2)));
   printf("| ");
-  printf("n%d ", two(x, y));
+  printf("n%d ", two(make(3), make(4)));
   printf("| ");
-  try { throwsHolding(x); } catch (e: int) { printf("c%d ", e); }
+  try { throwsHolding(make(5)); } catch (e: int) { printf("c%d ", e); }
   printf("| end\\n");
   return 0;
 }`,
-        // main's own locals are destroyed after the final newline is printed.
-        expectedStdout: "moved1 d1 | d2 m3 | d2 d1 n3 | d1 c5 | end\nd2 d1 ",
+        // Each argument is a fresh value the callee owns and destroys; main's
+        // own local is destroyed after the final newline is printed.
+        expectedStdout:
+          "moved6 d6 | d2 m3 | d4 d3 n7 | d5 c5 | end\nd1 ",
       },
     ]);
   }, 60000);

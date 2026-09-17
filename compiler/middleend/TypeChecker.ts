@@ -117,6 +117,58 @@ function inferEnumGenericArgsFromType(
 /**
  * TypeChecker implementation that uses modular checker functions
  */
+
+/**
+ * Parameter names the function assigns to as a whole. Writing through a
+ * parameter (`xs[0] = v`) does not rebind it; replacing it (`xs = items`) does,
+ * and a slice rebound to this frame's array no longer views the caller's.
+ */
+function collectReboundParameters(decl: AST.FunctionDecl): Set<string> {
+  const parameterNames = new Set(decl.params.map((param) => param.name));
+  const rebound = new Set<string>();
+  if (parameterNames.size === 0) return rebound;
+
+  const seen = new WeakSet<object>();
+  const skippedKeys = new Set([
+    "resolvedDeclaration",
+    "resolvedType",
+    "declaration",
+    "aliasDeclaration",
+    "capturedVariables",
+  ]);
+
+  const visit = (node: unknown): void => {
+    if (!node || typeof node !== "object") return;
+    if (seen.has(node as object)) return;
+    seen.add(node as object);
+
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item);
+      return;
+    }
+
+    const candidate = node as { kind?: string; assignee?: AST.Expression };
+    if (candidate.kind === "Assignment") {
+      let target: AST.Expression | undefined = candidate.assignee;
+      while (target && target.kind === "Group") {
+        target = (target as AST.GroupExpr).expression;
+      }
+      if (target && target.kind === "Identifier") {
+        const name = (target as AST.IdentifierExpr).name;
+        if (parameterNames.has(name)) rebound.add(name);
+      }
+    }
+
+    for (const [key, value] of Object.entries(node)) {
+      if (skippedKeys.has(key)) continue;
+      visit(value);
+    }
+  };
+
+  visit(decl.body);
+  return rebound;
+}
+
 export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private importHandler: ImportHandler;
   private overloadResolver: OverloadResolver;
@@ -886,8 +938,14 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
     const prevReturnType = this.currentFunctionReturnType;
     this.currentFunctionReturnType = decl.returnType;
+    const prevReboundParameters = this.reboundParameters;
+    this.reboundParameters = collectReboundParameters(decl);
 
-    StmtChecker.checkBlock.call(this, decl.body, false);
+    try {
+      StmtChecker.checkBlock.call(this, decl.body, false);
+    } finally {
+      this.reboundParameters = prevReboundParameters;
+    }
 
     // Check return path for non-void functions
     if (
@@ -1843,6 +1901,13 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   }
 
   private checkAssignment(expr: AST.AssignmentExpr): AST.TypeNode | undefined {
+    this.rejectOwningCopy(
+      expr.value,
+      expr.value.resolvedType,
+      "on the right of an assignment",
+      expr.value.location,
+    );
+
     // Check if assignee is an l-value
     if (
       expr.assignee.kind !== "Identifier" &&

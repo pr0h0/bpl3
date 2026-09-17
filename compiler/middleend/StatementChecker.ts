@@ -100,11 +100,14 @@ function findReturnedStackAddress(
       // A slice parameter views storage the caller owns, so an address into
       // its elements outlives this frame. A slice held in a local may view
       // this frame's own array, so it is treated as frame storage.
+      // A slice parameter views storage the caller owns, unless this frame
+      // rebound it, in which case it may view the frame's own array.
       const borrowedFromCaller =
         operand.throughSlice &&
         !!symbol &&
         (symbol.kind === "Parameter" ||
-          symbol.declaration?.kind === "Parameter");
+          symbol.declaration?.kind === "Parameter") &&
+        !context.reboundParameters.has(operand.root.name);
       if (
         isUnsafeStackAddressSymbol(symbol) &&
         !borrowedFromCaller &&
@@ -542,6 +545,17 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
       );
     }
 
+    // Returning a local or a parameter hands ownership to the caller; any
+    // other place expression copies the value and leaves two owners.
+    if (stmt.value && !isOwnershipTransfer(this, stmt.value)) {
+      this.rejectOwningCopy(
+        stmt.value,
+        this.currentFunctionReturnType,
+        "out of a frame",
+        stmt.value.location,
+      );
+    }
+
     // Safety check: BUG-106/BUG-143 Prevent returning stack addresses directly
     // or hidden inside aggregate literals.
     let stackAddressName: string | undefined;
@@ -593,7 +607,42 @@ export function checkTry(this: CheckerContext, stmt: AST.TryStmt): void {
  * Check a throw statement
  */
 export function checkThrow(this: CheckerContext, stmt: AST.ThrowStmt): void {
-  this.checkExpression(stmt.expression);
+  const type = this.checkExpression(stmt.expression);
+  // Throwing a local hands the value over; anything else copies it.
+  if (!isOwnershipTransfer(this, stmt.expression)) {
+    this.rejectOwningCopy(
+      stmt.expression,
+      type,
+      "into a thrown value",
+      stmt.expression.location,
+    );
+  }
+}
+
+/**
+ * True when reading this expression hands ownership over rather than
+ * duplicating it: a local or a parameter that the frame is finished with,
+ * which code generation already excludes from its own cleanup.
+ */
+function isOwnershipTransfer(
+  context: CheckerContext,
+  expr: AST.Expression | undefined,
+): boolean {
+  let current: AST.Expression | undefined = expr;
+  while (current && current.kind === "Group") {
+    current = (current as AST.GroupExpr).expression;
+  }
+  if (!current || current.kind !== "Identifier") return false;
+
+  const symbol = context.currentScope.resolve(
+    (current as AST.IdentifierExpr).name,
+  );
+  if (!symbol) return false;
+  if (symbol.kind === "Parameter" || symbol.declaration?.kind === "Parameter") {
+    return true;
+  }
+  if (symbol.kind !== "Variable") return false;
+  return !(symbol.declaration as AST.VariableDecl).isGlobal;
 }
 
 /**
@@ -848,6 +897,17 @@ export function checkVariableDecl(
       ? this.checkExpression(decl.initializer)
       : undefined;
 
+    // Destructuring copies each element out of the source, so a source that
+    // owns a destructor would leave the parts and the whole both owning it.
+    if (decl.initializer) {
+      this.rejectOwningCopy(
+        decl.initializer,
+        initType,
+        "out of a destructured value",
+        decl.initializer.location,
+      );
+    }
+
     if (initType && initType.kind === "TupleType") {
       const validateAndAssignTypes = (
         nestedTargets: AST.DestructuringPattern[],
@@ -960,6 +1020,12 @@ export function checkVariableDecl(
     }
     try {
       initType = this.checkExpression(decl.initializer);
+      this.rejectOwningCopy(
+        decl.initializer,
+        declaredType ?? initType,
+        "into a new variable",
+        decl.initializer.location,
+      );
     } finally {
       if (declaredType && this.matchContext) {
         this.matchContext.pop();

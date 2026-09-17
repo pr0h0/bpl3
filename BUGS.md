@@ -4869,3 +4869,44 @@ symbol is a parameter, without considering reassignment. The new local-slice
 regression test does not cover this case. No implementation change was made
 during validation. Until origin tracking exists, the exemption must account
 for writes to the parameter or conservatively reject this return path.
+
+### BUG-376: A rebound slice parameter escapes as a dangling pointer
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-17)**: The correction for BUG-374 exempts a slice parameter from the stack-address check, because it views storage the caller owns. Assigning the parameter first defeats that:
+
+```bpl
+frame first(xs: int[]) ret *int {
+    local items: int[3];
+    xs = items;
+    return &xs[0];      # accepted, and dangling
+}
+```
+
+**Resolution**: The exemption applies only to a parameter the frame never assigns to. Each function's body is scanned once for assignments that replace a parameter as a whole, and a rebound parameter is treated as this frame's storage. Writing through a parameter, `xs[0] = value`, does not rebind it and keeps the exemption. Covered by tests/LanguageExploration_2026_05_26.test.ts.
+
+### BUG-372: Copying a value that owns a destructor duplicates ownership
+
+**Status**: Fixed
+
+**Priority**: P0
+
+**Observed (2026-09-17)**: A value whose type has an `@[auto_destroy]` destructor was copied bitwise, and every copy was destroyed, so the same resource was released twice:
+
+```bpl
+local original: Resource = Resource { data: malloc(16) };
+local copy: Resource = original;    # double free at O0 and O3
+```
+
+This predates the ownership work, applied to every position that stores a value, and was the reason a callee could not safely destroy its by-value parameters (BUG-367). AddressSanitizer confirmed the double free. The destructor tests counted destructor calls instead of releasing a resource, so a duplicated owner looked like an extra line of output.
+
+**Resolution**: Reading an owning value out of existing storage is rejected with `BPL_OWNING_VALUE_COPIED`, at every position that would store the result: a variable initializer, the right of an assignment, a call argument, a struct field, a tuple or array element, and the source of a destructuring. Handing ownership over is unaffected, because it leaves a single owner: a value produced fresh by a call or a literal, a returned local or parameter, and a thrown local.
+
+With copies rejected, a by-value argument is necessarily a transfer, so the parameter cleanup withheld for BUG-367 is correct and has been restored. That also closes the leak it was introduced for: `use(make())` now frees the temporary in the callee, verified under AddressSanitizer.
+
+Breaking change. Nothing in the standard library, the examples, or the packages uses `@[auto_destroy]`, so no existing program changed; three of this session's own tests did, because they were written against the unsound behaviour, and they now pass fresh values instead of copying named ones.
+
+**Remaining gaps**: assigning over a value that already owns a resource does not destroy the old one first, so the overwritten resource leaks. A tuple of owning values can be built and destroyed but not read, since destructuring copies its elements. Both are recorded in docs/21-constructors-destructors.md.
