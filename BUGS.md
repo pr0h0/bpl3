@@ -4753,3 +4753,31 @@ use(&c);   # error: use of undefined type named 'struct.Base_T'
 Checking succeeded and code generation emitted a thunk casting to `%struct.Base_T`, which does not exist. A generic child of a generic parent, `Wrapper<U> : Base<U>` used as `Wrapper<int>`, failed the same way with `%struct.Base_U`. Both failed at the baseline too, in an earlier phase, so this was incomplete generic support rather than a new defect.
 
 **Resolution**: The search up the inheritance chain now carries substitutions. Each parent's type parameters are bound to the arguments the child supplies, resolved through the bindings gathered so far, and the walk starts from the converted struct's own substitutions so a parent named `Base<U>` resolves `U` to the concrete argument. The implementation's signature is substituted with those bindings as well as the struct's, so the thunk casts to the instantiated ancestor and calls its monomorphized symbol. Covered by tests/LanguageSpecDeclarations.test.ts, which dispatches through a spec for a non-generic child of `Base<int>` and a generic child passing its own argument, at O0/O3 with LLVM validation.
+
+### BUG-368 revalidation: generic enum ownership guard remains incomplete
+
+**Status**: Reopened after validating `305d0375`
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: The original direct generic, alias, and single-wrapper
+reproductions are now rejected, but three additional cases pass `check`, compile,
+and exit at O0/O3 without invoking the payload's destructor:
+
+- Declare `Slot<*Resource>` before constructing `Slot<Resource>`.
+- Declare `Slot<Box<int>>` before constructing `Slot<Box<Resource>>`.
+- Declare `enum Slot<T> { Has(Box<Box<T>>), Empty }` and construct
+  `Slot<Resource>.Has(...)` from fresh nested wrapper literals.
+
+The first two are order-dependent: removing the earlier safe declaration makes
+the unsafe construction fail with `BPL_AUTO_DESTROY_ENUM_PAYLOAD` as intended.
+`recordEnumInstantiation` keys basic arguments by name alone, discarding pointer
+depth and nested generic arguments, so distinct instantiations collide. The
+nested wrapper case also loses enclosing substitutions while following bindings;
+the ownership walk's recursion key similarly omits complete type structure.
+
+The guard additionally rejects a non-owning `Resource[]` slice payload as if it
+owned its elements; the walk stops at pointers but does not stop at slices.
+That false positive predates the latest fixes. The compiler implementation is
+unchanged by this validation; these findings remain open. Reproductions and
+validation scope are appended to docs/audits/2026-09-17-last-15-review.md.
