@@ -9,6 +9,17 @@ reflection still reports the name written in source. Two modules can define
 different private `struct Buffer` types, and an importer can define its own
 `helper()` without shadowing a dependency's.
 
+A type reached through a namespace keeps its own module's declaration, even when
+the importer has another type of that name in scope:
+
+```bpl
+import [Wrap] from "./a.bpl";
+import * as b from "./b.bpl";
+
+local fromA: Wrap<int> = ...;      # a.bpl's Wrap
+local fromB: b.Wrap<int> = ...;    # b.bpl's Wrap
+```
+
 Importing one item does not compile the rest of its module. Code generation
 keeps only what the program reaches: unused functions are dropped, unused
 structs and enums keep their layout but get no methods or vtables, and a used

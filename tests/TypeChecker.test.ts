@@ -1287,8 +1287,10 @@ describe("TypeChecker", () => {
     const resolveType = source.indexOf("public resolveType");
     const nextMethod = source.indexOf("\n  protected", resolveType);
     const resolveTypeSource = source.slice(resolveType, nextMethod);
+    // The lookup now prefers a declaration the node already recorded, so a
+    // qualified name keeps its module (see recordedDeclarationSymbol).
     const initialLookup = resolveTypeSource.indexOf(
-      "let resolvedSymbol = this.currentScope.resolve(name);",
+      "recordedDeclarationSymbol(type) ?? this.currentScope.resolve(name);",
     );
     const initialMissBranch = resolveTypeSource.indexOf(
       "if (!resolvedSymbol) {",

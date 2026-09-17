@@ -158,6 +158,20 @@ function moduleTypeRenames(
       if (rename && TYPE_DECLARATION_KINDS.has(symbol.declaration.kind)) {
         names.set(symbol.name, rename.to);
       }
+      // `import * as ns` makes types reachable as `ns.Type`.
+      if (symbol.kind !== "Module" || !symbol.moduleScope) continue;
+      for (const exported of symbol.moduleScope.ownSymbols()) {
+        const exportedRename = renamed.get(exported.declaration);
+        if (
+          exportedRename &&
+          TYPE_DECLARATION_KINDS.has(exported.declaration.kind)
+        ) {
+          names.set(
+            `${symbol.name}.${exported.name}`,
+            `${symbol.name}.${exportedRename.to}`,
+          );
+        }
+      }
     }
   }
   return names;

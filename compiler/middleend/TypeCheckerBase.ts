@@ -531,6 +531,28 @@ function resolveSimpleBuiltinBasicType(
   return type;
 }
 
+/** Symbol for the declaration a type node already resolved to, if any. */
+function recordedDeclarationSymbol(
+  type: AST.BasicTypeNode,
+): Symbol | undefined {
+  const decl = type.resolvedDeclaration;
+  if (!decl) return undefined;
+  const kindByDeclaration: Record<string, SymbolKind> = {
+    StructDecl: "Struct",
+    EnumDecl: "Enum",
+    SpecDecl: "Spec",
+  };
+  const kind = kindByDeclaration[decl.kind];
+  if (!kind) return undefined;
+  const declaredName = (decl as { name?: unknown }).name;
+  if (typeof declaredName !== "string") return undefined;
+  // Only when the node still names this declaration. `Message.Quit` records
+  // the enum but names a variant, and must keep resolving by name.
+  const lastPart = type.name.slice(type.name.lastIndexOf(".") + 1);
+  if (lastPart !== declaredName) return undefined;
+  return { name: declaredName, kind, declaration: decl } as Symbol;
+}
+
 function canReuseResolvedBasicType(type: AST.BasicTypeNode): boolean {
   const decl = type.resolvedDeclaration;
   if (!decl) {
@@ -803,7 +825,12 @@ export abstract class TypeCheckerBase {
       }
 
       const name = type.name;
-      let resolvedSymbol = this.currentScope.resolve(name);
+      // A node that already records its declaration keeps it. Re-resolving the
+      // bare name can find another module's type of the same name, which is
+      // how `ns.Type` lost its module after the qualifier was dropped.
+      let resolvedSymbol =
+        recordedDeclarationSymbol(type) ?? this.currentScope.resolve(name);
+
       let isQualifiedTypeName = false;
       let constraintResolvedArgs: AST.TypeNode[] | undefined;
 

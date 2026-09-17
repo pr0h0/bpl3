@@ -4225,3 +4225,13 @@ Locals of a `try` block were also left undestroyed when a throw inside the block
 **Resolution**: A throw now destroys the live `@[auto_destroy]` locals of its own frame before transferring control, from the innermost scope out to the nearest enclosing `try` in that frame, or to the function scope when the frame has no handler. Only locals declared before the throw are registered, so an uninitialized local is never destroyed, and a local moved into the thrown value is skipped. Covered by tests/RAIIAutoDestroy.test.ts (throw after acquiring, throw inside a `try`, moved throw, and a throw from a loop body) at O0/O3.
 
 **Remaining gap**: a frame between the throwing function and the handler that has no `try` of its own is skipped entirely by `longjmp`, so its locals are still not destroyed. Fixing that requires registering destructors in the runtime unwind list like `defer`, which currently allocates a node per entry. Destructor and `defer` ordering also differs on the throw path: destructors of the throwing frame run first, then the unwinder runs defer entries.
+
+### BUG-352: Namespace-qualified types resolve to another module's type of the same name
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: With `import * as bmod from "./b.bpl"`, the type `bmod.Wrap<int>` resolved to a different `Wrap` that the importer had in scope from another module. Type checking reported `Cannot access member 'first' on type 'Wrap<i32>'` for a field that `b.bpl`'s `Wrap` declares. Qualified lookup itself was correct; resolving the qualified name rewrote the node to the bare name `Wrap`, and a later resolution of that node looked the bare name up again in the importer's scope and found the other module's declaration. The reuse guard that would have prevented the second lookup skipped any type with generic arguments, so generic types were affected while non-generic ones were not.
+
+**Resolution**: Type resolution now prefers the declaration a type node already recorded, instead of resolving the bare name again (`recordedDeclarationSymbol` in compiler/middleend/TypeCheckerBase.ts). Module symbol uniquing also rewrites namespace-qualified references (`ns.Type`) when that module's declaration is renamed for a collision. Covered by tests/ModuleSymbolIsolation.test.ts, which checks, builds, and runs two modules that both declare a generic `Wrap`, one reached through a namespace import.

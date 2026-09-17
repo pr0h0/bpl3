@@ -122,6 +122,32 @@ frame main() ret int { printf("%d %d\\n", mid(), deep()); return 0; }
     stdout: "4 50\n",
   },
   {
+    name: "namespace access keeps its own module's type of a shared name",
+    files: {
+      "a.bpl": `export [Wrap];
+export [makeWrap];
+struct Wrap<T> { value: T, frame get(this: *Wrap<T>) ret T { return this.value; } }
+frame makeWrap(v: int) ret Wrap<int> { local w: Wrap<int>; w.value = v; return w; }
+`,
+      "b.bpl": `export [Wrap];
+struct Wrap<T> { first: T, second: T, frame total(this: *Wrap<T>) ret T { return this.first + this.second; } }
+`,
+      "main.bpl": `import [printf] from "std/c.bpl";
+import [Wrap], makeWrap from "./a.bpl";
+import * as bmod from "./b.bpl";
+frame main() ret int {
+    local fromA: Wrap<int> = makeWrap(5);
+    local fromB: bmod.Wrap<int>;
+    fromB.first = 3;
+    fromB.second = 4;
+    printf("%d %d\\n", fromA.get(), fromB.total());
+    return 0;
+}
+`,
+    },
+    stdout: "5 7\n",
+  },
+  {
     name: "renamed struct keeps its source name in reflection",
     files: {
       "lib.bpl": `import [TypeInfo] from "std/reflection.bpl";
