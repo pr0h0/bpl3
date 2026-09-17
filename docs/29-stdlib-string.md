@@ -34,7 +34,7 @@ UTF-8 module when you need codepoint operations.
 | `s.isEmpty() ret bool`                                      | Test length                                           |
 | `s.toString() ret string`, `s.cstr() ret string`            | Borrow underlying bytes                               |
 | `s.get(index: int) ret char`                                | Byte at index; zero when out of range                 |
-| `s.substring(start: int, len: int) ret String`              | Copy up to `len` bytes; second argument is a length   |
+| `s.substring(start: int, len: int) ret String`              | Copy up to `len` bytes, clamped to the end; second argument is a length |
 | `s.includes(text: string) ret bool`                         | Substring containment                                 |
 | `s.indexOf(text: string) ret int`                           | First match, or -1                                    |
 | `s.lastIndexOf(text: string) ret int`                       | Last match, or -1                                     |

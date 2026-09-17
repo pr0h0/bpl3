@@ -311,9 +311,12 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         if (len <= 0) {
             return String.new("");
         }
+        # Compare against the bytes remaining rather than adding to start:
+        # 'start + len' overflows for a large length and skips the clamp.
+        local remaining: int = this.length - start;
         local realLen: int = len;
-        if ((start + realLen) > this.length) {
-            realLen = this.length - start;
+        if (realLen > remaining) {
+            realLen = remaining;
         }
         local buf: string = malloc(cast<long>(realLen + 1));
         local ptr: *u8 = cast<*u8>(this.data);

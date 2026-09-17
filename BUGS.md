@@ -4522,3 +4522,20 @@ frame leakElement() ret *int {
 `includes(x)` should agree with `indexOf(x) >= 0`, and for every other method in the same file an empty text is present. Only `includes` treated it as absent, which silently reverses code such as a filter that includes everything when its query is empty.
 
 **Resolution**: `includes` returns true for an empty text, matching `indexOf` and the behavior of C `strstr` and the containment operations of other languages. A null text is still rejected rather than treated as empty, and a non-empty text is unaffected. `count` deliberately keeps reporting zero for an empty text, since a count of empty matches is not meaningful; docs/29-stdlib-string.md now states the whole family's behavior, including that exception. Covered by tests/StdlibStringEmptyNeedle.test.ts at O0/O3 with LLVM validation.
+
+### BUG-365: `String.substring` crashes on a length near the integer maximum
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: `substring` clamped its copy length by comparing `start + len` against the string's length. That sum overflows for a large length, so the comparison failed, the clamp was skipped, and the copy length stayed enormous:
+
+```bpl
+local text: String = String.new("hello");
+local part: String = text.substring(1, 2147483647);   # SIGSEGV
+```
+
+With `start` at 0 the sum still fit and the call behaved; any non-zero start overflowed. The oversized allocation that followed failed, and the copy loop wrote through the resulting null pointer, so the program died with a segmentation fault. Had the allocation succeeded, the loop would have read far past the end of the source.
+
+**Resolution**: The length is compared against the bytes remaining, `this.length - start`, which cannot overflow because `start` is already known to be within the string. The out-of-range guards are unchanged, so a negative start, a start at or past the end, and a non-positive length still return an empty String. docs/29-stdlib-string.md states that the length is clamped to the end. Covered by tests/StdlibStringSubstringBounds.test.ts, which checks whole, oversized, interior, trailing, maximum-length, zero, negative, and out-of-range arguments, plus an empty receiver, at O0/O3 with LLVM validation.
