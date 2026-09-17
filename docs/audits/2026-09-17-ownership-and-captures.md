@@ -1,5 +1,10 @@
 # Value ownership and captured writes — 2026-09-17
 
+Follow-up: [the independent last-15-commit review](2026-09-17-last-15-review.md)
+reproduced three regressions and two incomplete fixes (BUG-367 through BUG-371).
+The ownership, enum rejection, generic dispatch, and slice claims below must be
+read with those findings; the recorded test passes do not establish safety.
+
 This continues [the takeover review](2026-09-16-takeover-review.md) under the
 same instruction: no new features until the compiler is free of known defects,
 and breaking changes are acceptable where they make the language more reliable.

@@ -4555,3 +4555,86 @@ String.new("ab").repeat(2000000000);   # SIGSEGV
 A wrapped size is either negative, so the allocation fails and the copy loops write through the resulting null pointer, or small and positive, so the allocation succeeds and the loops overrun it by the full untruncated length. The second case is a heap buffer overflow driven by the `count` argument. `replaceAll` in the same file already guarded its size and threw; `repeat` did not.
 
 **Resolution**: The size is computed in `long`, so it cannot wrap, and is rejected before allocating if it would not fit in the signed `int` length of a `String`, throwing `"String.repeat result too large"`. A failed allocation throws as well, matching `replaceAll`. A count of zero or less still returns an empty String, and ordinary repeats are unchanged. docs/29-stdlib-string.md states that `repeat` and `replaceAll` throw when the result would not fit or the allocation fails. Covered by tests/StdlibStringSubstringBounds.test.ts at O0/O3 with LLVM validation.
+
+### BUG-367: By-value automatic-destructor parameters duplicate heap ownership
+
+**Status**: Open — confirmed during review of `c5911822`
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: A struct with a heap pointer and an `@[auto_destroy]`
+method calling `free(this.data)` is shallow-copied when passed to a by-value
+parameter. The new parameter cleanup frees that pointer when the callee returns;
+the caller still owns its original local and frees the same allocation again.
+A minimal program allocating 16 bytes, calling `use(r)`, and returning from
+`main` passes `check` and aborts with `free(): double free detected in tcache 2`.
+The parameter regression tests use printing destructors, so they do not detect
+this resource-ownership failure. Returning the copied parameter to another local
+also duplicates ownership. Pass a pointer and keep one explicit owner as a
+workaround. A fix must coordinate copying/moving and cleanup, rather than only
+adding destructor calls.
+
+Baseline comparison: the same observable allocation program passes at
+`2ff45b01` and double-frees at `004ef27c`, at both O0 and O3, with and without
+AddressSanitizer. Printing the passed pointer prevents optimization from
+eliminating the allocation and masking the defect. Complete reproductions and
+review coverage are in docs/audits/2026-09-17-last-15-review.md.
+
+### BUG-368: Owning enum rejection misses aliases and generic payloads
+
+**Status**: Open — confirmed during review of `bffa7fe1`
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: `findAutoDestroyOwner` inspects raw declaration types
+without resolving aliases or substituting generic arguments. All three forms
+below pass `check`, compile, and exit without invoking `Resource.destroy`:
+`enum Slot<T> { Has(T), Empty }` instantiated with `Resource`,
+`enum Slot { Has(Box<Resource>), Empty }` where `Box<T>` owns a `T` field, and
+`enum Slot { Has(R), Empty }` where `type R = Resource`. `Resource` declares an
+`@[auto_destroy]` method. Payloads are constructed from temporaries, so no other
+local owns or destroys the value. The documented blanket rejection is therefore
+incomplete. Until fixed, avoid owned enum payloads, including indirect ones.
+
+### BUG-369: Stack-address validation rejects borrowed slice elements
+
+**Status**: Open — confirmed during review of `93a113d4`
+
+**Priority**: P2
+
+**Observed (2026-09-17)**: `frame first(xs: int[]) ret *int { return &xs[0]; }`
+is rejected as returning stack storage even when `xs` borrows an array in the
+caller. `rootStackOperand` stops at pointer types but walks through slice
+indexing, mistaking the borrowed element's address for the local slice
+descriptor's address. Slice element access must be distinguished from fixed-array
+storage; returning an address into a local fixed array must remain rejected.
+
+### BUG-370: Inherited spec dispatch leaves ancestor generic types unresolved
+
+**Status**: Open — confirmed during review of `72d7ab70`
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: `Base<T>` implements a spec and `Child : Base<int>`
+inherits its method. Converting `&child` to the spec pointer passes `check` but
+fails native compilation: the generated thunk references undefined
+`%struct.Base_T`. `findSpecMethodImplementation` identifies the ancestor's
+symbol, but the thunk substitutes the child's generic map into the ancestor's
+method signature instead of the ancestor's concrete arguments. A generic
+`Child<U> : Base<U>` also fails with unresolved `%struct.Base_U`. The added
+regression covers only non-generic ancestors, so inherited dispatch is still
+incomplete.
+
+### BUG-371: Deferred slice element writes are rejected as discarded captures
+
+**Status**: Open — confirmed during review of `315ff3d8`
+
+**Priority**: P2
+
+**Observed (2026-09-17)**: `frame update(xs: int[]) { defer { xs[0] = 42; } }`
+is rejected with `BPL_CAPTURED_VALUE_ASSIGNED`. Copying the slice descriptor
+preserves the borrowed data pointer, so this writes to the original backing
+array rather than a discarded value copy. `CaptureAnalyzer` stops at raw
+pointers but not slice element access. The same helper is used for lambda
+captures. Rebinding a captured slice and mutating a captured fixed array must
+remain distinguished from writing through a slice.
