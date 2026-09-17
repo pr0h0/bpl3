@@ -3,7 +3,7 @@
 This continues [the takeover review](2026-09-16-takeover-review.md) under the
 same instruction: no new features until the compiler is free of known defects,
 and breaking changes are acceptable where they make the language more reliable.
-Eleven defects were reproduced and fixed. Each has its own commit, a BUGS.md
+Thirteen defects were reproduced and fixed. Each has its own commit, a BUGS.md
 entry, documentation, and executable regression coverage.
 
 Three themes account for them. Cleanup followed a value's declared type but not
@@ -151,6 +151,28 @@ the rest of the family's behavior in
 [the string guide](../29-stdlib-string.md).
 
 A null search text remains distinct from an empty one: every search rejects it.
+
+Two size computations in the same file wrapped. `substring` clamped its copy
+length by comparing `start + len` against the string's length, and that sum
+overflows for a large length, so the clamp was skipped and the copy length
+stayed enormous (BUG-365). `repeat` computed `this.length * count` in `int`,
+which wraps to a negative or small value (BUG-366). Both then allocated from
+the wrapped number: a negative size fails to allocate and is written through,
+and a small positive size allocates a buffer that the copy loops overrun, which
+is a heap overflow driven by an ordinary argument.
+
+`substring` now compares against the bytes remaining, which cannot overflow
+because the start is already inside the string. `repeat` computes its size in
+`long` and throws when the result would not fit a `String`, following
+`replaceAll` in the same file, which already guarded its size that way. Both
+were reachable by passing a large number to a plain string operation, and
+neither was caught by the existing tests, which used small arguments.
+
+This pattern is worth looking for elsewhere: a bound checked by adding to an
+index, or a size computed by multiplying a length, is safe only while the
+arguments are small. A sweep of the rest of the library found one other
+instance, in UTF-8 validation, where both operands are bounded and the
+arithmetic cannot wrap.
 
 ## Open questions
 
