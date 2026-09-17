@@ -906,6 +906,15 @@ export abstract class TypeCheckerBase {
               mapping.set(genericParams[i]!.name, resolvedArgs[i]!);
             }
 
+            if (resolvedSymbol.kind === "Enum") {
+              this.recordEnumInstantiation(
+                name,
+                decl as AST.EnumDecl,
+                resolvedArgs,
+                type.location,
+              );
+            }
+
             for (let i = 0; i < genericParams.length; i++) {
               const param = genericParams[i]!;
               const arg = resolvedArgs[i]!;
@@ -986,6 +995,8 @@ export abstract class TypeCheckerBase {
           constraintResolvedArgs ??
           type.genericArgs.map((t) => this.resolveType(t, checkConstraints));
 
+        // The declaration could not see what a type parameter stands for, so
+        // an owning payload is rejected here, where the argument is known.
         const basicType = { ...type } as AST.BasicTypeNode;
         basicType.name = resolvedSymbol.name;
         basicType.resolvedDeclaration = declaration;
@@ -1892,6 +1903,7 @@ export abstract class TypeCheckerBase {
     );
   }
 
+
   public resolveMemberWithContext(
     baseType: AST.BasicTypeNode,
     memberName: string,
@@ -2045,6 +2057,236 @@ export abstract class TypeCheckerBase {
   }
 
   // ========== Cast Checking ==========
+
+  /**
+   * Generic enum instantiations seen while resolving types, examined after
+   * checking rather than during it. Type resolution is hot and re-entrant, so
+   * the ownership walk runs once per distinct instantiation, in a later pass.
+   */
+  private pendingEnumInstantiations = new Map<
+    string,
+    {
+      declaration: AST.EnumDecl;
+      args: AST.TypeNode[];
+      location: AST.ASTNode["location"];
+    }
+  >();
+
+  /** Notes a generic enum use for the deferred payload-ownership check. */
+  protected recordEnumInstantiation(
+    name: string,
+    declaration: AST.EnumDecl,
+    args: AST.TypeNode[],
+    location: AST.ASTNode["location"],
+  ): void {
+    if (
+      declaration.kind !== "EnumDecl" ||
+      args.length === 0 ||
+      (declaration.genericParams?.length ?? 0) === 0
+    ) {
+      return;
+    }
+    const key = `${name}<${args
+      .map((arg) =>
+        arg.kind === "BasicType" ? (arg as AST.BasicTypeNode).name : arg.kind,
+      )
+      .join(",")}>`;
+    if (this.pendingEnumInstantiations.has(key)) return;
+    this.pendingEnumInstantiations.set(key, { declaration, args, location });
+  }
+
+  /**
+   * Runs the payload-ownership check for every generic enum instantiation seen
+   * while checking. A type parameter hides an owning payload from the
+   * declaration, so the arguments have to be known for the walk to see it.
+   */
+  protected checkRecordedEnumInstantiations(): void {
+    const pending = Array.from(this.pendingEnumInstantiations.values());
+    this.pendingEnumInstantiations.clear();
+    for (const { declaration, args, location } of pending) {
+      this.checkEnumPayloadOwnership(
+        declaration,
+        this.bindGenericArguments(declaration.genericParams, args, new Map()),
+        location,
+      );
+    }
+  }
+
+  /**
+   * Binds a declaration's type parameters to the arguments at a use. An
+   * argument that names an outer parameter is resolved through the enclosing
+   * bindings first, so a nested use such as `Box<U>` inside `Outer<U>` sees the
+   * concrete type rather than the parameter name.
+   */
+  protected bindGenericArguments(
+    params: AST.GenericParam[] | undefined,
+    args: AST.TypeNode[] | undefined,
+    outer: Map<string, AST.TypeNode>,
+  ): Map<string, AST.TypeNode> {
+    const bindings = new Map<string, AST.TypeNode>();
+    const names = params ?? [];
+    const values = args ?? [];
+    for (let i = 0; i < names.length; i++) {
+      const arg = values[i];
+      if (!arg) continue;
+      const resolved =
+        arg.kind === "BasicType" &&
+        (arg as AST.BasicTypeNode).pointerDepth === 0 &&
+        outer.get((arg as AST.BasicTypeNode).name);
+      bindings.set(names[i]!.name, resolved || arg);
+    }
+    return bindings;
+  }
+
+  /**
+   * Finds the struct whose `@[auto_destroy]` method a value of this type would
+   * run, following owned fields, array elements, tuple elements, and inherited
+   * fields, through type aliases and generic arguments. Pointers stop the
+   * walk, since a pointer does not own its target.
+   */
+  protected findAutoDestroyOwner(
+    type: AST.TypeNode | undefined,
+    bindings: Map<string, AST.TypeNode> = new Map(),
+    visiting: Set<string> = new Set(),
+  ): AST.StructDecl | undefined {
+    if (!type) return undefined;
+
+    if (type.kind === "TupleType") {
+      for (const element of (type as AST.TupleTypeNode).types) {
+        const owner = this.findAutoDestroyOwner(element, bindings, visiting);
+        if (owner) return owner;
+      }
+      return undefined;
+    }
+
+    if (type.kind !== "BasicType") return undefined;
+    const basic = type as AST.BasicTypeNode;
+    if (basic.pointerDepth > 0) return undefined;
+
+    // A type parameter stands for whatever this use supplies for it.
+    const bound = bindings.get(basic.name);
+    if (bound) {
+      const inner = new Map(bindings);
+      inner.delete(basic.name);
+      return this.findAutoDestroyOwner(bound, inner, visiting);
+    }
+
+    const declaration =
+      basic.resolvedDeclaration ??
+      (this.currentScope.resolve(basic.name)?.declaration as
+        | AST.ASTNode
+        | undefined);
+    if (!declaration) return undefined;
+
+    // An alias names another type; follow it with its own arguments bound. A
+    // generic parameter is registered as an alias of itself, so the name is
+    // marked before recursing to keep that from looping.
+    if (declaration.kind === "TypeAlias") {
+      const alias = declaration as AST.TypeAliasDecl;
+      const aliasKey = `alias:${alias.name}`;
+      if (visiting.has(aliasKey)) return undefined;
+      visiting.add(aliasKey);
+      try {
+        return this.findAutoDestroyOwner(
+          alias.type,
+          this.bindGenericArguments(
+            alias.genericParams,
+            basic.genericArgs,
+            bindings,
+          ),
+          visiting,
+        );
+      } finally {
+        visiting.delete(aliasKey);
+      }
+    }
+
+    if (declaration.kind !== "StructDecl") return undefined;
+    const structDecl = declaration as AST.StructDecl;
+
+    const key = `${structDecl.name}<${(basic.genericArgs ?? [])
+      .map((arg) =>
+        arg.kind === "BasicType" ? (arg as AST.BasicTypeNode).name : arg.kind,
+      )
+      .join(",")}>`;
+    if (visiting.has(key)) return undefined;
+    visiting.add(key);
+
+    const fieldBindings = this.bindGenericArguments(
+      structDecl.genericParams,
+      basic.genericArgs,
+      bindings,
+    );
+
+    try {
+      const declaresAutoDestroy = structDecl.members.some(
+        (member) =>
+          member.kind === "FunctionDecl" &&
+          (member as AST.FunctionDecl).name === "destroy" &&
+          ((member as AST.FunctionDecl).attributes ?? []).some(
+            (attribute) => attribute.name === "auto_destroy",
+          ),
+      );
+      if (declaresAutoDestroy) return structDecl;
+
+      for (const member of structDecl.members) {
+        if (member.kind !== "StructField") continue;
+        const owner = this.findAutoDestroyOwner(
+          (member as AST.StructField).type,
+          fieldBindings,
+          visiting,
+        );
+        if (owner) return owner;
+      }
+
+      for (const parent of structDecl.inheritanceList ?? []) {
+        const owner = this.findAutoDestroyOwner(parent, fieldBindings, visiting);
+        if (owner) return owner;
+      }
+    } finally {
+      visiting.delete(key);
+    }
+
+    return undefined;
+  }
+
+  /**
+   * An enum payload is only valid for the variant that is active, so cleanup
+   * would have to select a destructor from the tag at run time. That is not
+   * implemented, and silently skipping it would leak, so the declaration is
+   * rejected instead. Generic payloads are checked again at each
+   * instantiation, where the arguments are known.
+   */
+  protected checkEnumPayloadOwnership(
+    decl: AST.EnumDecl,
+    bindings: Map<string, AST.TypeNode>,
+    location: AST.ASTNode["location"],
+  ): void {
+    for (const variant of decl.variants) {
+      const payloadTypes: AST.TypeNode[] = [];
+      const data = variant.dataType;
+      if (data?.kind === "EnumVariantTuple") {
+        payloadTypes.push(...(data as AST.EnumVariantTuple).types);
+      } else if (data?.kind === "EnumVariantStruct") {
+        payloadTypes.push(
+          ...(data as AST.EnumVariantStruct).fields.map((field) => field.type),
+        );
+      }
+
+      for (const payloadType of payloadTypes) {
+        const owner = this.findAutoDestroyOwner(payloadType, bindings);
+        if (!owner) continue;
+        this.addError(
+          new CompilerError(
+            `Enum variant '${decl.name}.${variant.name}' cannot hold '${owner.name}', which has an '@[auto_destroy]' destructor`,
+            "Which payload is present is only known at run time, so the destructor would not run and the value would leak. Hold a pointer to the value and free it explicitly, or remove the '@[auto_destroy]' attribute and call 'destroy' yourself.",
+            variant.location ?? location,
+            AUTO_DESTROY_ENUM_PAYLOAD_CODE,
+          ),
+        );
+      }
+    }
+  }
 
   public isCastAllowed(source: AST.TypeNode, target: AST.TypeNode): boolean {
     const resolvedSource = this.resolveType(source);

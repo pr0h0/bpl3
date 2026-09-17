@@ -19,7 +19,6 @@ import {
   MATCH_TUPLE_PATTERN_ARITY_MISMATCH_CODE,
   MATCH_TUPLE_PATTERN_TYPE_MISMATCH_CODE,
   RESERVED_BUILTIN_TYPE_NAMES,
-  AUTO_DESTROY_ENUM_PAYLOAD_CODE,
   SYMBOL_ALREADY_DEFINED_CODE,
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
   TYPE_RECURSION_CYCLE_CODE,
@@ -276,6 +275,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     validateModuleExports(program, moduleScope, (error) => this.addError(error));
+
+    // Generic enum payloads are checked once the arguments of every use are
+    // known, which the declaration alone cannot show.
+    this.checkRecordedEnumInstantiations();
 
     // BUG-128: Check for main function in entry point
     if (options?.isEntryPoint) {
@@ -1565,101 +1568,6 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   // ========== Enum Body Checking ==========
 
-  /**
-   * Finds the struct whose `@[auto_destroy]` method a value of this type would
-   * run, following owned fields, array elements, tuple elements, and inherited
-   * fields. Pointers stop the walk, since a pointer does not own its target.
-   */
-  private findAutoDestroyOwner(
-    type: AST.TypeNode | undefined,
-    visiting: Set<string> = new Set(),
-  ): AST.StructDecl | undefined {
-    if (!type) return undefined;
-
-    if (type.kind === "TupleType") {
-      for (const element of (type as AST.TupleTypeNode).types) {
-        const owner = this.findAutoDestroyOwner(element, visiting);
-        if (owner) return owner;
-      }
-      return undefined;
-    }
-
-    if (type.kind !== "BasicType") return undefined;
-    const basic = type as AST.BasicTypeNode;
-    if (basic.pointerDepth > 0) return undefined;
-
-    const declaration = (basic.resolvedDeclaration ??
-      this.currentScope.resolve(basic.name)?.declaration) as
-      | AST.StructDecl
-      | undefined;
-    if (!declaration || declaration.kind !== "StructDecl") return undefined;
-    if (visiting.has(declaration.name)) return undefined;
-    visiting.add(declaration.name);
-
-    try {
-      const declaresAutoDestroy = declaration.members.some(
-        (member) =>
-          member.kind === "FunctionDecl" &&
-          (member as AST.FunctionDecl).name === "destroy" &&
-          ((member as AST.FunctionDecl).attributes ?? []).some(
-            (attribute) => attribute.name === "auto_destroy",
-          ),
-      );
-      if (declaresAutoDestroy) return declaration;
-
-      for (const member of declaration.members) {
-        if (member.kind !== "StructField") continue;
-        const owner = this.findAutoDestroyOwner(
-          (member as AST.StructField).type,
-          visiting,
-        );
-        if (owner) return owner;
-      }
-
-      for (const parent of declaration.inheritanceList ?? []) {
-        const owner = this.findAutoDestroyOwner(parent, visiting);
-        if (owner) return owner;
-      }
-    } finally {
-      visiting.delete(declaration.name);
-    }
-
-    return undefined;
-  }
-
-  /**
-   * An enum payload is only valid for the variant that is active, so cleanup
-   * would have to select a destructor from the tag at run time. That is not
-   * implemented, and silently skipping it would leak, so the declaration is
-   * rejected instead.
-   */
-  private rejectAutoDestroyEnumPayload(decl: AST.EnumDecl): void {
-    for (const variant of decl.variants) {
-      const payloadTypes: AST.TypeNode[] = [];
-      const data = variant.dataType;
-      if (data?.kind === "EnumVariantTuple") {
-        payloadTypes.push(...(data as AST.EnumVariantTuple).types);
-      } else if (data?.kind === "EnumVariantStruct") {
-        payloadTypes.push(
-          ...(data as AST.EnumVariantStruct).fields.map((field) => field.type),
-        );
-      }
-
-      for (const payloadType of payloadTypes) {
-        const owner = this.findAutoDestroyOwner(payloadType);
-        if (!owner) continue;
-        this.addError(
-          new CompilerError(
-            `Enum variant '${decl.name}.${variant.name}' cannot hold '${owner.name}', which has an '@[auto_destroy]' destructor`,
-            "Which payload is present is only known at run time, so the destructor would not run and the value would leak. Hold a pointer to the value and free it explicitly, or remove the '@[auto_destroy]' attribute and call 'destroy' yourself.",
-            variant.location,
-            AUTO_DESTROY_ENUM_PAYLOAD_CODE,
-          ),
-        );
-      }
-    }
-  }
-
   private checkEnumBody(decl: AST.EnumDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
@@ -1695,7 +1603,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     // Check for infinite size cycles in enum variants
     if (hasVariantPayload) {
       this.detectEnumCycle(decl.name, decl);
-      this.rejectAutoDestroyEnumPayload(decl);
+      this.checkEnumPayloadOwnership(decl, new Map(), decl.location);
     }
 
     // Check for duplicate generic parameter names

@@ -4715,3 +4715,23 @@ frame update(xs: int[]) { defer { xs[0] = 42; } }   # rejected
 A captured slice descriptor still carries the backing pointer, so the write reaches the caller's array and is observable (R-ARR-8). The program printed 42 at the baseline. The same shared walk affects lambda captures.
 
 **Resolution (both)**: The two walks share one predicate, `TypeUtils.isBorrowedIndirection`, which is true for a pointer and for a slice, so reaching through either stops the search for owned storage. A fixed array keeps its previous treatment in both checks: returning `&local[0]` is still rejected, and writing to a captured fixed array's element is still rejected, because that storage is the frame's own. LANGUAGE_SPEC.md R-LAMBDA-4 and R-DEFER-5, docs/15-pointers.md, docs/07-control-flow.md, and docs/53-lambdas.md now distinguish borrowed slices from owned arrays. Covered by tests/LanguageExploration_2026_05_26.test.ts and tests/LanguageSpecControlFlow.test.ts.
+
+### BUG-368: The enum ownership guard misses aliases and generic arguments
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: The rejection added for BUG-359 walked the payload types a variant declared, without resolving aliases or substituting generic arguments, so three ways of naming the same owning type passed:
+
+```bpl
+enum Slot<T> { Has(T), Empty }              # Slot<Resource> accepted
+struct Box<T> { value: T }
+enum Slot { Has(Box<Resource>), Empty }     # accepted
+type Held = Resource;
+enum Slot { Has(Held), Empty }              # accepted
+```
+
+Each compiled and leaked at O0 and O3. All three leaked at the baseline as well, so this was an incomplete fix rather than a new defect, but the destructor guide claimed owning payloads were rejected, which was too broad.
+
+**Resolution**: The walk resolves type aliases and binds a declaration's type parameters to the arguments at each use (`findAutoDestroyOwner` and `bindGenericArguments`, now shared in compiler/middleend/TypeCheckerBase.ts). A generic parameter is registered as an alias of itself, so alias names are marked while following them; without that the walk did not terminate. Payloads that mention a type parameter are checked again at each instantiation: uses are recorded while types are resolved and examined in a pass after checking, since type resolution is hot and re-entrant, and running the walk inside it hung the compiler. Covered by tests/RAIIAutoDestroy.test.ts for the generic argument, the generic wrapper, and the alias, alongside the direct forms.

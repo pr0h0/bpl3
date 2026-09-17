@@ -552,6 +552,52 @@ frame main() ret int {
         code: "BPL_AUTO_DESTROY_ENUM_PAYLOAD",
       },
       {
+        name: "auto-destroy-enum-generic-argument",
+        // The declaration cannot see what T stands for, so the instantiation
+        // is what reveals the owning payload.
+        source: `struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void { this.value = 0; }
+}
+enum Slot<T> { Has(T), Empty }
+frame main() ret int {
+  local s: Slot<Resource> = Slot<Resource>.Empty;
+  return match (s) { Slot<Resource>.Has(r) => r.value, Slot<Resource>.Empty => 0, };
+}`,
+        code: "BPL_AUTO_DESTROY_ENUM_PAYLOAD",
+      },
+      {
+        name: "auto-destroy-enum-generic-wrapper",
+        source: `struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void { this.value = 0; }
+}
+struct Box<T> { value: T }
+enum Slot { Has(Box<Resource>), Empty }
+frame main() ret int {
+  local s: Slot = Slot.Empty;
+  return match (s) { Slot.Has(b) => b.value.value, Slot.Empty => 0, };
+}`,
+        code: "BPL_AUTO_DESTROY_ENUM_PAYLOAD",
+      },
+      {
+        name: "auto-destroy-enum-alias-payload",
+        source: `struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void { this.value = 0; }
+}
+type Held = Resource;
+enum Slot { Has(Held), Empty }
+frame main() ret int {
+  local s: Slot = Slot.Empty;
+  return match (s) { Slot.Has(r) => r.value, Slot.Empty => 0, };
+}`,
+        code: "BPL_AUTO_DESTROY_ENUM_PAYLOAD",
+      },
+      {
         name: "auto-destroy-enum-struct-payload",
         source: `struct Resource {
   value: int,
