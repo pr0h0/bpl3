@@ -862,4 +862,83 @@ frame main() ret int {
       },
     ]);
   }, 60000);
+  it("rejects every position that would copy an owning value", () => {
+    const prelude = `struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void { this.value = 0; }
+}
+struct Holder { inner: Resource }
+frame make(v: int) ret Resource { local r: Resource; r.value = v; return r; }
+frame use(r: Resource) ret int { return r.value; }
+`;
+    const cases: [string, string][] = [
+      ["initializer", "local b: Resource = a; return b.value;"],
+      ["assignment", "local b: Resource = make(2); b = a; return b.value;"],
+      ["argument", "return use(a);"],
+      ["struct-field", "local h: Holder = Holder { inner: a }; return h.inner.value;"],
+      ["tuple-element", "local t: (Resource, int) = (a, 1); return 0;"],
+      ["array-element", "local xs: Resource[2] = [a, make(3)]; return 0;"],
+      [
+        "destructuring",
+        "local t: (Resource, int) = (make(4), 1); local (p: Resource, q: int) = t; return q;",
+      ],
+      ["returned-field", "local h: Holder = Holder { inner: make(5) }; return escape(h).value;"],
+    ];
+
+    expectCheckDiagnostics(
+      cases.map(([name, body]) => ({
+        name: `owning-copy-${name}`,
+        source: `${prelude}frame escape(h: Holder) ret Resource { return h.inner; }
+frame main() ret int {
+  local a: Resource = make(1);
+  ${body}
+}`,
+        code: "BPL_OWNING_VALUE_COPIED",
+      })),
+    );
+  }, 60000);
+
+  it("allows every position that transfers an owning value", () => {
+    expectCorrectnessSuite([
+      {
+        name: "owning-transfer",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...) ret int;
+
+struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void { printf("d%d ", this.value); }
+}
+
+struct Holder { inner: Resource }
+
+frame make(value: int) ret Resource {
+  local r: Resource;
+  r.value = value;
+  return r;
+}
+
+frame borrow(r: *Resource) ret int { return r.value; }
+frame consume(r: Resource) ret int { return r.value; }
+frame passOn(r: Resource) ret Resource { return r; }
+
+frame main() ret int {
+  local fresh: Resource = make(1);
+  local held: Holder = Holder { inner: make(2) };
+  local _pair: (Resource, int) = (make(3), 9);
+  # A pointer copies nothing, so the caller keeps the only owner.
+  printf("%d ", borrow(&fresh));
+  # A fresh value hands ownership to the callee, which destroys it.
+  printf("%d ", consume(make(4)));
+  # Returning the parameter hands it back instead.
+  local moved: Resource = passOn(make(5));
+  printf("%d %d | ", moved.value, held.inner.value);
+  return 0;
+}`,
+        expectedStdout: "1 d4 4 5 2 | d5 d3 d2 d1 ",
+      },
+    ]);
+  }, 60000);
 });

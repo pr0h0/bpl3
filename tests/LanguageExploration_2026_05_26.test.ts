@@ -219,6 +219,45 @@ describe("Language Exploration 2026-05-26", () => {
       `, "local");
     });
 
+    it("BUG-376: rejects an address into a slice parameter the frame rebound", () => {
+      expectCompilationFailure(`
+        frame first(xs: int[]) ret *int {
+          local items: int[3];
+          items[0] = 7;
+          # Rebinding the parameter points it at this frame's array, so the
+          # exemption that a slice parameter borrows no longer holds.
+          xs = items;
+          return &xs[0];
+        }
+
+        frame main() ret int {
+          local caller: int[2] = [1, 2];
+          return *first(caller);
+        }
+      `, "xs");
+    });
+
+    it("BUG-376: keeps the exemption when a slice parameter is only written through", () => {
+      const output = compileAndRun(`
+        extern printf(fmt: string, ...) ret int;
+
+        # Writing through the parameter does not rebind it, so its elements
+        # still belong to the caller.
+        frame firstAfterWrite(xs: int[]) ret *int {
+          xs[0] = 5;
+          return &xs[0];
+        }
+
+        frame main() ret int {
+          local caller: int[2] = [1, 2];
+          printf("%d\\n", *firstAfterWrite(caller));
+          return 0;
+        }
+      `);
+
+      expect(output).toBe("5\n");
+    });
+
     it("BUG-144: rejects pointer subtraction across incompatible pointee types", () => {
       expectCompilationFailure(`
         frame main() ret int {

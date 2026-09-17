@@ -1901,13 +1901,6 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   }
 
   private checkAssignment(expr: AST.AssignmentExpr): AST.TypeNode | undefined {
-    this.rejectOwningCopy(
-      expr.value,
-      expr.value.resolvedType,
-      "on the right of an assignment",
-      expr.value.location,
-    );
-
     // Check if assignee is an l-value
     if (
       expr.assignee.kind !== "Identifier" &&
@@ -1953,6 +1946,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     this.checkIsMutable(expr.assignee);
 
     const valueType = this.checkExpression(expr.value);
+    this.rejectOwningCopy(
+      expr.value,
+      valueType,
+      "on the right of an assignment",
+      expr.value.location,
+    );
 
     if (targetType && valueType) {
       const isBitwiseCompound =
