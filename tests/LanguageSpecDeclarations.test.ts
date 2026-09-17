@@ -369,6 +369,38 @@ frame main() ret int {
     ]);
   }, 120000);
 
+  // spec: R-SPEC-3
+  test("a child of a generic parent dispatches through an inherited method", () => {
+    expectCorrectnessSuite([
+      {
+        name: "spec-inherited-generic-ancestor",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...);
+spec Value { frame get(this: *Self) ret int; }
+struct Base<T> : Value {
+  value: T,
+  frame get(this: *Base<T>) ret int { return cast<int>(this.value); }
+}
+# A non-generic child of a concrete instantiation.
+struct Child : Base<int> { tag: int }
+# A generic child that passes its own argument to the parent.
+struct Wrapper<U> : Base<U> { note: int }
+frame use(v: *Value) ret int { return v.get(); }
+frame main() ret int {
+  local c: Child;
+  c.value = 42;
+  c.tag = 0;
+  local w: Wrapper<int>;
+  w.value = 7;
+  w.note = 0;
+  printf("%d %d\\n", use(&c), use(&w));
+  return 0;
+}`,
+        expectedStdout: "42 7\n",
+      },
+    ]);
+  }, 120000);
+
   // spec: R-SPEC-4
   test("spec pointers dispatch through every conversion site", () => {
     expectCorrectnessSuite([

@@ -236,14 +236,19 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     structDecl: AST.StructDecl,
     structMangledName: string,
     methodName: string,
-  ): { method: AST.FunctionDecl; owner: string } | undefined {
+    bindings: Map<string, AST.TypeNode> = new Map(),
+  ): {
+    method: AST.FunctionDecl;
+    owner: string;
+    bindings: Map<string, AST.TypeNode>;
+  } | undefined {
     const declared = structDecl.members.find(
       (member) =>
         member.kind === "FunctionDecl" &&
         (member as AST.FunctionDecl).name === methodName,
     ) as AST.FunctionDecl | undefined;
     if (declared) {
-      return { method: declared, owner: structMangledName };
+      return { method: declared, owner: structMangledName, bindings };
     }
 
     for (const parent of structDecl.inheritanceList ?? []) {
@@ -253,12 +258,21 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
         this.structMap.get(parent.name);
       if (!parentDecl || parentDecl.kind !== "StructDecl") continue;
 
+      // The parent's own type parameters are bound to the arguments this
+      // child supplies, resolved through the bindings gathered so far, so a
+      // method inherited from `Base<T>` is emitted for the concrete `Base<int>`.
+      const parentArgs = (parent.genericArgs ?? []).map((arg) =>
+        bindings.size > 0 ? this.substituteType(arg, bindings) : arg,
+      );
+      const parentBindings = new Map<string, AST.TypeNode>();
+      (parentDecl.genericParams ?? []).forEach((param, index) => {
+        const arg = parentArgs[index];
+        if (arg) parentBindings.set(param.name, arg);
+      });
+
       let parentMangled = parentDecl.name;
-      if (parent.genericArgs && parent.genericArgs.length > 0) {
-        const resolved = this.resolveMonomorphizedType(
-          parentDecl,
-          parent.genericArgs,
-        );
+      if (parentArgs.length > 0) {
+        const resolved = this.resolveMonomorphizedType(parentDecl, parentArgs);
         parentMangled = resolved.startsWith("%struct.")
           ? resolved.slice("%struct.".length)
           : resolved;
@@ -268,6 +282,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
         parentDecl,
         parentMangled,
         methodName,
+        parentBindings,
       );
       if (inherited) return inherited;
     }
@@ -394,10 +409,14 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       // A struct satisfies a spec with the methods it inherits as well as the
       // ones it declares, so the search walks up to the nearest ancestor that
       // declares the method and calls that one's implementation.
+      // Seed the walk with the converted struct's own substitutions, so a
+      // parent named as `Base<U>` resolves through `U` to the concrete
+      // argument this instantiation supplies.
       const implementation = this.findSpecMethodImplementation(
         structDecl,
         structMangledName,
         method.name,
+        new Map(typeMap),
       );
 
       if (!implementation) {
@@ -410,12 +429,18 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
 
       const thunkName = `__thunk_${vtableName}_${method.name}`;
 
-      // Resolve implementation function type with substitutions
+      // Resolve implementation function type with substitutions. An inherited
+      // method is declared in terms of its own struct's type parameters, so
+      // the bindings collected while walking up are applied as well.
       let funcType = implMethod.resolvedType as AST.FunctionTypeNode;
-      if (typeMap.size > 0) {
+      const implementationMap = new Map([
+        ...typeMap,
+        ...implementation.bindings,
+      ]);
+      if (implementationMap.size > 0) {
         funcType = this.substituteType(
           funcType,
-          typeMap,
+          implementationMap,
         ) as AST.FunctionTypeNode;
       }
 

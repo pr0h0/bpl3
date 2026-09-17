@@ -4735,3 +4735,21 @@ enum Slot { Has(Held), Empty }              # accepted
 Each compiled and leaked at O0 and O3. All three leaked at the baseline as well, so this was an incomplete fix rather than a new defect, but the destructor guide claimed owning payloads were rejected, which was too broad.
 
 **Resolution**: The walk resolves type aliases and binds a declaration's type parameters to the arguments at each use (`findAutoDestroyOwner` and `bindGenericArguments`, now shared in compiler/middleend/TypeCheckerBase.ts). A generic parameter is registered as an alias of itself, so alias names are marked while following them; without that the walk did not terminate. Payloads that mention a type parameter are checked again at each instantiation: uses are recorded while types are resolved and examined in a pass after checking, since type resolution is hot and re-entrant, and running the walk inside it hung the compiler. Covered by tests/RAIIAutoDestroy.test.ts for the generic argument, the generic wrapper, and the alias, alongside the direct forms.
+
+### BUG-370: An inherited spec method keeps its ancestor's type parameters
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: BUG-357 made a spec's method table use a method inherited from an ancestor, but built the thunk with the converted struct's own substitutions. A method inherited from a generic ancestor therefore kept that ancestor's type parameters:
+
+```bpl
+struct Base<T> : Value { value: T, frame get(this: *Base<T>) ret int { ... } }
+struct Child : Base<int> { tag: int }
+use(&c);   # error: use of undefined type named 'struct.Base_T'
+```
+
+Checking succeeded and code generation emitted a thunk casting to `%struct.Base_T`, which does not exist. A generic child of a generic parent, `Wrapper<U> : Base<U>` used as `Wrapper<int>`, failed the same way with `%struct.Base_U`. Both failed at the baseline too, in an earlier phase, so this was incomplete generic support rather than a new defect.
+
+**Resolution**: The search up the inheritance chain now carries substitutions. Each parent's type parameters are bound to the arguments the child supplies, resolved through the bindings gathered so far, and the walk starts from the converted struct's own substitutions so a parent named `Base<U>` resolves `U` to the concrete argument. The implementation's signature is substituted with those bindings as well as the struct's, so the thunk casts to the instantiated ancestor and calls its monomorphized symbol. Covered by tests/LanguageSpecDeclarations.test.ts, which dispatches through a spec for a non-generic child of `Base<int>` and a generic child passing its own argument, at O0/O3 with LLVM validation.
