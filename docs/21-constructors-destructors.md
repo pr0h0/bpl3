@@ -74,6 +74,26 @@ frame main() ret int {
 
 Destructors are methods that clean up resources. By default, a `destroy(this: *T)` method is just an ordinary method and must be called manually. If it is marked with `@[auto_destroy]`, BPL automatically calls it for value locals when their scope exits, including early returns. Returned locals are treated as moved and are not destroyed before the caller receives them.
 
+Ownership is followed into the value. A local destroys the marked types it holds
+in fixed-size array elements and in struct fields, at any depth, even when the
+local's own type declares no destructor:
+
+```bpl
+local items: Resource[2];   # both elements destroyed at scope exit
+local holder: Holder;       # holder.inner destroyed if Resource is marked
+```
+
+The order is the reverse of construction: a value's own destructor runs first,
+then the elements and fields it owns, each in reverse declaration order. Moving
+a local moves everything it owns, so returning or throwing it destroys none of
+its elements or fields in that frame. A local that a destructor will read is
+zeroed at its declaration, so an unassigned one is destroyed as a zeroed value
+rather than as whatever the stack held.
+
+Only fixed array dimensions are walked. Values reached through a pointer or a
+slice are not owned by the local, so they are not destroyed; free those
+explicitly or with `defer`.
+
 A `throw` also destroys the live locals of the frame it leaves: cleanup runs from
 the innermost scope out to the nearest enclosing `try` in that frame, or to the
 whole function when the frame has no handler. A local moved into the thrown value

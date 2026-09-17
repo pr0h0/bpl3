@@ -127,25 +127,131 @@ export abstract class StatementGenerator extends AsmGenerator {
     return methodType;
   }
 
+  /**
+   * True when destroying a value of this type runs anything: its own
+   * `@[auto_destroy]` method, or one belonging to something it owns.
+   */
+  private ownsAutoDestroy(
+    typeNode: AST.TypeNode | undefined,
+    visiting: Set<AST.StructDecl> = new Set(),
+  ): boolean {
+    if (!typeNode || typeNode.kind !== "BasicType") return false;
+    if (typeNode.pointerDepth > 0) return false;
+    if (typeNode.arrayDimensions.length > 0) {
+      return this.ownsAutoDestroy(
+        { ...typeNode, arrayDimensions: [] },
+        visiting,
+      );
+    }
+    if (this.findAutoDestroyMethod(typeNode)) return true;
+
+    const structDecl = this.getStructDeclForAutoDestroy(typeNode);
+    if (!structDecl || visiting.has(structDecl)) return false;
+    visiting.add(structDecl);
+    const owns = this.getAllStructFields(structDecl).some((field) =>
+      this.ownsAutoDestroy(field.resolvedType ?? field.type, visiting),
+    );
+    visiting.delete(structDecl);
+    return owns;
+  }
+
+  /**
+   * Registers cleanup for a value local: its own destructor, then the
+   * destructors of the array elements and fields it owns. Element and field
+   * addresses are computed here, where the storage is in scope.
+   */
   private registerAutoDestroy(
     name: string,
     address: string,
     typeNode: AST.TypeNode | undefined,
     location: AST.ASTNode["location"],
+    ownerAddress: string = address,
   ): void {
     if (this.scopeStack.length === 0 || !typeNode) return;
+    if (!this.ownsAutoDestroy(typeNode)) return;
+
+    if (
+      typeNode.kind === "BasicType" &&
+      typeNode.arrayDimensions.length > 0 &&
+      typeNode.pointerDepth === 0
+    ) {
+      this.registerArrayElementAutoDestroy(
+        name,
+        address,
+        typeNode,
+        location,
+        ownerAddress,
+      );
+      return;
+    }
+
+    // Cleanup runs in reverse registration order, so the owned fields are
+    // registered first: the value's own destructor observes its fields intact,
+    // and the fields are then destroyed in reverse declaration order.
+    const structDecl = this.getStructDeclForAutoDestroy(typeNode);
+    if (structDecl) {
+      const structType = this.resolveType(typeNode);
+      const hasVTable =
+        (this.vtableLayouts.get(structDecl.name)?.length ?? 0) > 0;
+      this.getAllStructFields(structDecl).forEach((field, index) => {
+        const fieldType = field.resolvedType ?? field.type;
+        if (!this.ownsAutoDestroy(fieldType)) return;
+        const fieldAddress = this.newRegister();
+        this.emit(
+          `  ${fieldAddress} = getelementptr inbounds ${structType}, ${structType}* ${address}, i32 0, i32 ${index + (hasVTable ? 1 : 0)}`,
+        );
+        this.registerAutoDestroy(
+          `${name}.${field.name}`,
+          fieldAddress,
+          fieldType,
+          location,
+          ownerAddress,
+        );
+      });
+    }
 
     const method = this.findAutoDestroyMethod(typeNode);
-    if (!method) return;
+    if (method) {
+      this.scopeStack[this.scopeStack.length - 1]!.deferred.push({
+        kind: "AutoDestroy",
+        name,
+        address,
+        ownerAddress,
+        type: typeNode,
+        method,
+        location,
+      } as AST.AutoDestroyStmt);
+    }
+  }
 
-    this.scopeStack[this.scopeStack.length - 1]!.deferred.push({
-      kind: "AutoDestroy",
-      name,
-      address,
-      type: typeNode,
-      method,
-      location,
-    } as AST.AutoDestroyStmt);
+  /** Registers cleanup for each element of a fixed-size array local. */
+  private registerArrayElementAutoDestroy(
+    name: string,
+    address: string,
+    typeNode: AST.BasicTypeNode,
+    location: AST.ASTNode["location"],
+    ownerAddress: string,
+  ): void {
+    const dimension = typeNode.arrayDimensions[0];
+    const elementType: AST.BasicTypeNode = {
+      ...typeNode,
+      arrayDimensions: typeNode.arrayDimensions.slice(1),
+    };
+    if (typeof dimension !== "number" || dimension <= 0) return;
+    const arrayType = this.resolveType(typeNode);
+    for (let index = 0; index < dimension; index++) {
+      const elementAddress = this.newRegister();
+      this.emit(
+        `  ${elementAddress} = getelementptr inbounds ${arrayType}, ${arrayType}* ${address}, i32 0, i32 ${index}`,
+      );
+      this.registerAutoDestroy(
+        `${name}[${index}]`,
+        elementAddress,
+        elementType,
+        location,
+        ownerAddress,
+      );
+    }
   }
 
   /** A thrown local is moved into the exception, so it is not destroyed. */
@@ -172,7 +278,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     const identifier = expr as AST.IdentifierExpr;
     const address = this.localPointers.get(identifier.name);
     const localType = this.localTypes.get(identifier.name);
-    if (!address || !localType || !this.findAutoDestroyMethod(localType)) {
+    if (!address || !localType || !this.ownsAutoDestroy(localType)) {
       return undefined;
     }
 
@@ -583,7 +689,7 @@ export abstract class StatementGenerator extends AsmGenerator {
   private variableDeclMayEmitAutoDestroy(decl: AST.VariableDecl): boolean {
     const typeNode =
       decl.resolvedType || decl.typeAnnotation || decl.initializer?.resolvedType;
-    return !!this.findAutoDestroyMethod(typeNode);
+    return this.ownsAutoDestroy(typeNode);
   }
 
   private expressionBlocksStackHookElision(
@@ -1430,7 +1536,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       const statement = deferred[i]!;
       if (
         statement.kind === "AutoDestroy" &&
-        (statement as AST.AutoDestroyStmt).address === movedAddress
+        (statement as AST.AutoDestroyStmt).ownerAddress === movedAddress
       ) {
         continue;
       }
@@ -1461,7 +1567,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       for (let j = deferred.length - 1; j >= 0; j--) {
         const statement = deferred[j]!;
         if (statement.kind !== "AutoDestroy") continue;
-        if ((statement as AST.AutoDestroyStmt).address === movedAddress) {
+        if ((statement as AST.AutoDestroyStmt).ownerAddress === movedAddress) {
           continue;
         }
         this.generateStatement(statement);
@@ -2004,6 +2110,17 @@ export abstract class StatementGenerator extends AsmGenerator {
           `  call void @llvm.dbg.declare(metadata ${type}* ${addr}, metadata !${varId}, metadata !DIExpression())`,
         );
       }
+    }
+
+    // A destructor must never observe uninitialized storage. Locals are
+    // otherwise left undefined, so zero the ones whose cleanup will read them
+    // before any default value, vtable, or constructor writes to the storage.
+    if (
+      !decl.initializer &&
+      !type.endsWith("*") &&
+      this.ownsAutoDestroy(decl.resolvedType || decl.typeAnnotation)
+    ) {
+      this.emit(`  store ${type} zeroinitializer, ${type}* ${addr}`);
     }
 
     // Initialize uninitialized struct variables with default values (only if needed, e.g. vtables)

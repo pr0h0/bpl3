@@ -634,6 +634,13 @@ export interface AutoDestroyStmt extends ASTNode {
   kind: "AutoDestroy";
   name: string;
   address: string;
+  /**
+   * Address of the local this cleanup belongs to. For the local's own
+   * destructor it equals `address`; for an owned element or field it is the
+   * enclosing local's address, so moving that local suppresses the whole
+   * subtree rather than just the outermost destructor.
+   */
+  ownerAddress: string;
   type: TypeNode;
   method: FunctionDecl;
 }

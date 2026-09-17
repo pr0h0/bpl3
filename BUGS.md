@@ -4260,3 +4260,35 @@ Local initializers, assignments, array elements, `cast<*Shape>(...)`, and return
 **Resolution**: The conversion is one helper (`emitSpecFatPointer`) used by the argument path and by `emitCast`, so every value conversion builds the pair: arguments, local initializers and assignments, array elements, and explicit casts. Positions that outlive the frame that builds the pair are rejected during checking with `BPL_SPEC_POINTER_ESCAPES`: a `*Spec` return type, global type, or struct field type. No standard library, example, or package used those positions. LANGUAGE_SPEC.md R-SPEC-4 states the rule; covered by tests/LanguageSpecDeclarations.test.ts, which runs dispatch through every supported conversion at O0/O3 with LLVM validation and checks the three rejected positions.
 
 **Remaining gap**: the restriction, rather than a representation change, is what keeps spec pointers safe. Representing `*Spec` as the pair by value would allow returns and stored fields; that changes the ABI of every spec-typed value and its null handling, so it is not done here.
+
+### BUG-354: Destructors skip owned array elements and struct fields
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: `@[auto_destroy]` ran only for a local whose own type declared the marked method. A local holding the same type inside an array or a struct field was never destroyed, so the resource it owned leaked with no diagnostic:
+
+```bpl
+struct Resource {
+    handle: int,
+    @[auto_destroy]
+    frame destroy(this: *Resource) ret void { printf("destroy %d\n", this.handle); }
+}
+struct Holder { inner: Resource }
+
+frame main() ret int {
+    local items: Resource[2];   # neither element destroyed
+    local holder: Holder;       # holder.inner never destroyed
+    items[0].handle = 1;
+    items[1].handle = 2;
+    holder.inner.handle = 3;
+    return 0;                   # prints nothing
+}
+```
+
+Three further defects surfaced while fixing this. Cleanup entries run in reverse registration order, so registering a value's own destructor before its fields ran the fields first, and the outer destructor then observed already-destroyed members. The move check that suppresses cleanup for a returned or thrown local compared only that local's own cleanup entry, so returning a struct destroyed its fields in the callee and again in the caller: a double destroy. Locals are not zero-initialized, so a destructor for a local that was never assigned read whatever the previous frame left on the stack.
+
+**Resolution**: Registration walks the type: fixed-array dimensions are unrolled into one cleanup entry per element, and struct fields are reached with `getelementptr`, both recursively and cycle-guarded (`ownsAutoDestroy` and `registerAutoDestroy` in compiler/backend/codegen/StatementGenerator.ts). Owned entries are registered before the value's own destructor, so cleanup runs the owner first and then its elements and fields in reverse declaration order. Every entry records the address of the local it belongs to (`AutoDestroyStmt.ownerAddress`), and moving a local suppresses that whole subtree, on both the return and throw paths. A local whose cleanup will read it is zeroed at its declaration, before any default value, vtable, or `new` constructor writes to the same storage. Covered by tests/RAIIAutoDestroy.test.ts, which runs elements, nested arrays, fields, destruction order, the throw path, moved returns, and zeroed storage at O0/O3 with LLVM validation.
+
+**Remaining gap**: cleanup is still per-frame and static. A local whose ownership was moved by anything other than returning or throwing it directly, such as storing it into a longer-lived structure, is still destroyed at scope exit. Dynamically sized storage is not walked: only fixed array dimensions are unrolled, so elements reached through a pointer or a slice are not destroyed.
