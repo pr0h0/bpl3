@@ -165,16 +165,6 @@ export abstract class StatementGenerator extends AsmGenerator {
   }
 
   /**
-   * By-value parameters whose cleanup is registered once the function's body
-   * scope exists. Parameter storage is allocated before that scope is pushed.
-   */
-  private pendingParameterAutoDestroy: {
-    name: string;
-    address: string;
-    type: AST.TypeNode;
-  }[] = [];
-
-  /**
    * Resolves a type parameter to the argument of the instantiation being
    * generated, so a local declared as `T` in a generic function is destroyed
    * when the `T` of this instance owns a destructor.
@@ -190,7 +180,7 @@ export abstract class StatementGenerator extends AsmGenerator {
    * True when destroying a value of this type runs anything: its own
    * `@[auto_destroy]` method, or one belonging to something it owns.
    */
-  private ownsAutoDestroy(
+  protected ownsAutoDestroy(
     type: AST.TypeNode | undefined,
     visiting: Set<string> = new Set(),
   ): boolean {
@@ -1512,6 +1502,15 @@ export abstract class StatementGenerator extends AsmGenerator {
     isFunction: boolean = false,
     isSwitch: boolean = false,
     previousExceptionFrame?: string,
+    /**
+     * Storage that belongs to this scope although it was allocated before the
+     * scope was pushed: by-value parameters and a catch clause's binding.
+     */
+    ownedStorage?: readonly {
+      name: string;
+      address: string;
+      type: AST.TypeNode;
+    }[],
   ) {
     // Scope management:
     // We need to track variables declared in this block so we can restore their previous state (if any)
@@ -1527,19 +1526,16 @@ export abstract class StatementGenerator extends AsmGenerator {
       previousExceptionFrame,
     });
 
-    // A by-value parameter is the callee's own copy, so it is destroyed when
-    // the function returns, like a local declared at the top of the body.
-    if (isFunction && this.pendingParameterAutoDestroy.length > 0) {
-      const parameters = this.pendingParameterAutoDestroy;
-      this.pendingParameterAutoDestroy = [];
-      for (const parameter of parameters) {
-        this.registerAutoDestroy(
-          parameter.name,
-          parameter.address,
-          parameter.type,
-          block.location,
-        );
-      }
+    // Storage owned by this scope but allocated before it was pushed is
+    // registered first, so it is destroyed when the scope exits like a local
+    // declared at the top of the block.
+    for (const owned of ownedStorage ?? []) {
+      this.registerAutoDestroy(
+        owned.name,
+        owned.address,
+        owned.type,
+        block.location,
+      );
     }
 
     let declaredInBlock: Set<string> | undefined;
@@ -3278,7 +3274,11 @@ export abstract class StatementGenerator extends AsmGenerator {
       }
 
       // Allocate stack space for parameters to make them mutable
-      this.pendingParameterAutoDestroy = [];
+      const ownedParameters: {
+        name: string;
+        address: string;
+        type: AST.TypeNode;
+      }[] = [];
       for (let i = 0; i < decl.params.length; i++) {
         const param = decl.params[i]!;
         this.locals.add(param.name);
@@ -3318,7 +3318,7 @@ export abstract class StatementGenerator extends AsmGenerator {
           this.emit(`  store ${type} ${paramReg}, ${type}* ${stackAddr}`);
           const paramTypeNode = effectiveFuncType.paramTypes[i]!;
           if (this.ownsAutoDestroy(paramTypeNode)) {
-            this.pendingParameterAutoDestroy.push({
+            ownedParameters.push({
               name: param.name,
               address: stackAddr,
               type: paramTypeNode,
@@ -3447,9 +3447,19 @@ export abstract class StatementGenerator extends AsmGenerator {
           },
           false,
           true,
+          false,
+          undefined,
+          ownedParameters,
         );
       } else {
-        this.generateBlock(decl.body, false, true);
+        this.generateBlock(
+          decl.body,
+          false,
+          true,
+          false,
+          undefined,
+          ownedParameters,
+        );
       }
 
       // Handle implicit returns based on function type

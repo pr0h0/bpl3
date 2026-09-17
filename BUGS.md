@@ -4436,3 +4436,25 @@ frame main() ret int {
 Cleanup was registered from variable declarations only, and a parameter is not one, even though parameter storage is an ordinary stack slot the callee owns.
 
 **Resolution**: Parameters whose type owns a destructor are registered when the body's scope is pushed, since their storage is allocated before that scope exists (`pendingParameterAutoDestroy` in compiler/backend/codegen/StatementGenerator.ts). They are then cleaned up like a local declared at the top of the body: destroyed when the frame returns, destroyed when a `throw` leaves it, and moved rather than destroyed when the parameter itself is returned. A pointer parameter owns nothing, so `this` is unaffected and a method does not destroy its receiver. Covered by tests/RAIIAutoDestroy.test.ts, which checks the move, the method receiver, two parameters destroyed in reverse order, and the throw path at O0/O3 with LLVM validation; the same program was verified to produce identical output at O0 and O3.
+
+### BUG-361: A caught value is never destroyed
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: A `catch` clause copies the thrown value into its binding, and that binding was never destroyed:
+
+```bpl
+try {
+    throw make(4);
+} catch (caught: Res) {
+    printf("%d\n", caught.value);
+}   # nothing destroys 'caught'
+```
+
+Once the exception storage is released, the handler holds the only copy, so nothing else could destroy it.
+
+**Resolution**: A catch binding whose type owns a destructor is registered with the handler's block scope, so it is destroyed when the handler exits, including when the handler leaves by throwing again. Registration goes through a new `ownedStorage` argument to block generation, which covers storage that belongs to a scope although it was allocated before that scope was pushed. By-value parameters (BUG-360) were moved onto the same argument, replacing the field they used, so the entries cannot be picked up by an unrelated block generated in between. Covered by tests/RAIIAutoDestroy.test.ts, which checks a nested handler that rethrows and a multi-clause catch at O0/O3 with LLVM validation.
+
+**Remaining gap**: two positions still have no owner. A value returned into a discarded expression statement, as in `makeResource();`, is not destroyed, since nothing binds it and there is no temporary lifetime to attach cleanup to. A global with a destructor is never destroyed, because program exit runs no cleanup. Both are documented in docs/21-constructors-destructors.md.

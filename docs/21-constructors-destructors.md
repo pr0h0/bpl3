@@ -102,6 +102,14 @@ callee returns, including when it leaves through a `throw`. Returning the
 parameter moves it instead. A `this` parameter is a pointer, so a method does
 not destroy the value it was called on.
 
+A `catch` binding owns the value it caught and destroys it when the handler
+exits, including when the handler itself throws.
+
+Two positions are not covered. A value returned into a discarded expression
+statement, as in `makeResource();`, has no owner and is not destroyed; bind it
+to a local instead. A global is never destroyed, since program exit does not
+run cleanup.
+
 Only fixed array dimensions are walked. Values reached through a pointer or a
 slice are not owned by the local, so they are not destroyed; free those
 explicitly or with `defer`.

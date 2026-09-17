@@ -188,6 +188,8 @@ describe("RAII automatic destroy", () => {
         "destroy 2",
         "destroy 5",
         "caught res 4",
+        // The handler owns the caught value and destroys it on exit.
+        "destroy 4",
         "destroy 10",
         "destroy 11",
         "caught 7",
@@ -619,6 +621,58 @@ frame main() ret int {
 }`,
         // main's own locals are destroyed after the final newline is printed.
         expectedStdout: "moved1 d1 | d2 m3 | d2 d1 n3 | d1 c5 | end\nd2 d1 ",
+      },
+    ]);
+  }, 60000);
+  it("destroys a caught value when its handler exits", () => {
+    expectCorrectnessSuite([
+      {
+        name: "auto-destroy-catch-binding",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...) ret int;
+
+struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void {
+    printf("d%d ", this.value);
+  }
+}
+
+frame make(value: int) ret Resource {
+  local r: Resource;
+  r.value = value;
+  return r;
+}
+
+frame thrower(value: int) ret int {
+  throw make(value);
+}
+
+frame main() ret int {
+  try {
+    try {
+      thrower(7);
+    } catch (first: Resource) {
+      printf("f%d ", first.value);
+      # The handler is left by a throw, and its binding is still destroyed.
+      throw make(8);
+    }
+  } catch (second: Resource) {
+    printf("s%d ", second.value);
+  }
+  printf("| ");
+  try {
+    thrower(9);
+  } catch (e: int) {
+    printf("never ");
+  } catch (r: Resource) {
+    printf("r%d ", r.value);
+  }
+  printf("end\\n");
+  return 0;
+}`,
+        expectedStdout: "f7 d7 s8 d8 | r9 d9 end\n",
       },
     ]);
   }, 60000);

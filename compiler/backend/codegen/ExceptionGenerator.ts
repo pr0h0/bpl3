@@ -22,7 +22,13 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     isFunction?: boolean,
     isSwitch?: boolean,
     previousExceptionFrame?: string,
+    ownedStorage?: readonly {
+      name: string;
+      address: string;
+      type: AST.TypeNode;
+    }[],
   ): void;
+  protected abstract ownsAutoDestroy(type: AST.TypeNode | undefined): boolean;
   protected abstract generateStatement(stmt: AST.Statement): void;
   protected abstract emitAutoDestroyCleanupForThrow(
     movedAddress?: string,
@@ -154,6 +160,9 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
     for (let i = 0; i < stmt.catchClauses.length; i++) {
       const clause = stmt.catchClauses[i]!;
+      let caughtStorage:
+        | { name: string; address: string; type: AST.TypeNode }[]
+        | undefined;
       const labels = clauseLabels[i]!;
       const isCatchAll = clause.type === null;
 
@@ -222,6 +231,18 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
           this.emit(
             `  store ${targetTypeStr} ${structVal}, ${targetTypeStr}* ${localVar}`,
           );
+
+          // The handler holds the only copy of the caught value once the
+          // exception storage is released, so the binding owns it.
+          if (this.ownsAutoDestroy(clause.type!)) {
+            caughtStorage = [
+              {
+                name: clause.variable!,
+                address: localVar,
+                type: clause.type!,
+              },
+            ];
+          }
         } else {
           // For primitive types, cast to i64
           const convertedVal = this.emitCast(
@@ -248,7 +269,14 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
       }
       // For catch-all, no variable binding needed
 
-      this.generateBlock(clause.body);
+      this.generateBlock(
+        clause.body,
+        false,
+        false,
+        false,
+        undefined,
+        caughtStorage,
+      );
       if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
         hasContinuation = true;
         this.emit(`  br label %${endLabel}`);
