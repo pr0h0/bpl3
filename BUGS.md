@@ -4202,3 +4202,26 @@ frame described(s: Shape) ret int {
 `described(Shape.Circle(2.5))` ran the arm and then returned `-2` at O0 and O3. There was no other way to return from inside a match arm, so any such function silently produced the wrong value. Checking also validated those returns against the arm type instead of the function's return type.
 
 **Resolution**: Matches in statement position are marked during checking (`MatchExpr.isStatementPosition`). Their arm blocks check `return` against the enclosing function's return type, and code generation emits a real function return, including scope cleanup and the stack-depth exit, instead of a branch to the match merge block. Expression matches keep yielding arm values, which remains the only way for a block arm to produce one. LANGUAGE_SPEC.md R-MATCH-4 now states both cases. Covered by tests/LanguageSpecExpressions.test.ts at O0/O3 with LLVM validation.
+
+### BUG-351: Throwing skips automatic destructors
+
+**Status**: Fixed (partial: see remaining gap)
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: `@[auto_destroy]` cleanup was emitted only on normal control flow, so a throw leaked every resource it unwound past, although `defer` in the same position still ran:
+
+```bpl
+frame thrower() ret int {
+    local t: Res;          # t.destroy() never ran
+    t.id = 30;
+    defer { printf("defer\n"); }   # this did run
+    throw 5;
+}
+```
+
+Locals of a `try` block were also left undestroyed when a throw inside the block reached its handler. `defer` is precise here because its cleanup is a runtime list the unwinder walks; destructor cleanup is emitted statically at scope exits, and the throw path had none.
+
+**Resolution**: A throw now destroys the live `@[auto_destroy]` locals of its own frame before transferring control, from the innermost scope out to the nearest enclosing `try` in that frame, or to the function scope when the frame has no handler. Only locals declared before the throw are registered, so an uninitialized local is never destroyed, and a local moved into the thrown value is skipped. Covered by tests/RAIIAutoDestroy.test.ts (throw after acquiring, throw inside a `try`, moved throw, and a throw from a loop body) at O0/O3.
+
+**Remaining gap**: a frame between the throwing function and the handler that has no `try` of its own is skipped entirely by `longjmp`, so its locals are still not destroyed. Fixing that requires registering destructors in the runtime unwind list like `defer`, which currently allocates a node per entry. Destructor and `defer` ordering also differs on the throw path: destructors of the throwing frame run first, then the unwinder runs defer entries.

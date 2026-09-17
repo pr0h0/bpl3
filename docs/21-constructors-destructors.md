@@ -74,6 +74,15 @@ frame main() ret int {
 
 Destructors are methods that clean up resources. By default, a `destroy(this: *T)` method is just an ordinary method and must be called manually. If it is marked with `@[auto_destroy]`, BPL automatically calls it for value locals when their scope exits, including early returns. Returned locals are treated as moved and are not destroyed before the caller receives them.
 
+A `throw` also destroys the live locals of the frame it leaves: cleanup runs from
+the innermost scope out to the nearest enclosing `try` in that frame, or to the
+whole function when the frame has no handler. A local moved into the thrown value
+is not destroyed. Two limits apply on that path: a frame between the throwing
+function and the handler that has no `try` of its own is skipped by the unwinder,
+so its locals are not destroyed, and destructors of the throwing frame run before
+`defer` blocks rather than interleaving with them in declaration order. Use
+`defer` for cleanup that must run in every one of those cases.
+
 If a struct inherits from other structs, calling its destructor also runs parent destructors through the generated destructor chain.
 
 ```bpl

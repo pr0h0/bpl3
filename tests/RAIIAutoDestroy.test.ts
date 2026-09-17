@@ -119,4 +119,78 @@ describe("RAII automatic destroy", () => {
 
     expect(output).toBe("0\n");
   });
+
+  it("destroys value locals when a throw leaves their scope", () => {
+    const output = compileAndRun(`
+      extern printf(fmt: string, ...) ret int;
+
+      struct Resource {
+        value: int,
+        @[auto_destroy]
+        frame destroy(this: *Resource) ret void {
+          printf("destroy %d\\n", this.value);
+        }
+      }
+
+      frame throwsAfterAcquiring() ret int {
+        local held: Resource;
+        held.value = 1;
+        throw 5;
+      }
+
+      frame throwsInsideTry() ret int {
+        local outer: Resource;
+        outer.value = 2;
+        try {
+          local inner: Resource;
+          inner.value = 3;
+          throw 6;
+        } catch (e: int) {
+          printf("caught %d\\n", e);
+        }
+        return 0;
+      }
+
+      frame movesIntoThrow() ret int {
+        local moved: Resource;
+        moved.value = 4;
+        local kept: Resource;
+        kept.value = 5;
+        throw moved;
+      }
+
+      frame loopThrow() ret int {
+        loop (local i: int = 0; i < 3; i += 1) {
+          local each: Resource;
+          each.value = 10 + i;
+          if (i == 1) { throw 7; }
+        }
+        return 0;
+      }
+
+      frame main() ret int {
+        try { throwsAfterAcquiring(); } catch (e: int) { printf("caught %d\\n", e); }
+        throwsInsideTry();
+        try { movesIntoThrow(); } catch (r: Resource) { printf("caught res %d\\n", r.value); }
+        try { loopThrow(); } catch (e: int) { printf("caught %d\\n", e); }
+        return 0;
+      }
+    `);
+
+    expect(output).toBe(
+      [
+        "destroy 1",
+        "caught 5",
+        "destroy 3",
+        "caught 6",
+        "destroy 2",
+        "destroy 5",
+        "caught res 4",
+        "destroy 10",
+        "destroy 11",
+        "caught 7",
+        "",
+      ].join("\n"),
+    );
+  });
 });

@@ -148,6 +148,14 @@ export abstract class StatementGenerator extends AsmGenerator {
     } as AST.AutoDestroyStmt);
   }
 
+  /** A thrown local is moved into the exception, so it is not destroyed. */
+  protected getThrownAutoDestroyAddress(
+    expr: AST.Expression,
+    destTypeNode: AST.TypeNode,
+  ): string | undefined {
+    return this.getMovedAutoDestroyAddress(expr, destTypeNode);
+  }
+
   private getMovedAutoDestroyAddress(
     expr: AST.Expression | undefined,
     destTypeNode: AST.TypeNode,
@@ -1427,6 +1435,37 @@ export abstract class StatementGenerator extends AsmGenerator {
         continue;
       }
       this.generateStatement(statement);
+    }
+  }
+
+  /**
+   * Destroys this function's live `@[auto_destroy]` locals before a throw
+   * transfers control. Runtime defer nodes are left to the unwinder, which
+   * walks them across frames; destructor cleanup is static, so a frame that
+   * throws has to run its own. Only locals declared before the throw are
+   * registered, so this cannot destroy an uninitialized value.
+   */
+  protected emitAutoDestroyCleanupForThrow(movedAddress?: string): void {
+    // A handler in this frame keeps the scopes outside it alive, so cleanup
+    // stops at the innermost `try`. Without one the frame is left for good and
+    // cleanup runs out to the function scope.
+    let lowestDepth = Math.max(0, this.findEnclosingScopeDepth("isFunction"));
+    for (let i = this.scopeStack.length - 1; i >= lowestDepth; i--) {
+      if (this.scopeStack[i]!.previousExceptionFrame !== undefined) {
+        lowestDepth = i;
+        break;
+      }
+    }
+    for (let i = this.scopeStack.length - 1; i >= lowestDepth; i--) {
+      const deferred = this.scopeStack[i]!.deferred;
+      for (let j = deferred.length - 1; j >= 0; j--) {
+        const statement = deferred[j]!;
+        if (statement.kind !== "AutoDestroy") continue;
+        if ((statement as AST.AutoDestroyStmt).address === movedAddress) {
+          continue;
+        }
+        this.generateStatement(statement);
+      }
     }
   }
 

@@ -427,7 +427,7 @@ free(cast<*void>(p));
 
 ## Constructors and Destructors
 
-BPL supports constructor-style methods and opt-in automatic destructor cleanup. A `new(this: *T)` method can initialize locals declared without an explicit initializer. A `destroy(this: *T)` method runs automatically only when it is marked `@[auto_destroy]`; unmarked cleanup methods must still be called manually.
+BPL supports constructor-style methods and opt-in automatic destructor cleanup. A `new(this: *T)` method can initialize locals declared without an explicit initializer. A `destroy(this: *T)` method runs automatically only when it is marked `@[auto_destroy]`; unmarked cleanup methods must still be called manually. Automatic cleanup also runs when a `throw` leaves the scope, with the limits described in [Constructors and Destructors](21-constructors-destructors.md#destructors).
 
 ### Constructor Pattern
 

@@ -24,6 +24,13 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     previousExceptionFrame?: string,
   ): void;
   protected abstract generateStatement(stmt: AST.Statement): void;
+  protected abstract emitAutoDestroyCleanupForThrow(
+    movedAddress?: string,
+  ): void;
+  protected abstract getThrownAutoDestroyAddress(
+    expr: AST.Expression,
+    destTypeNode: AST.TypeNode,
+  ): string | undefined;
 
   protected generateTry(stmt: AST.TryStmt) {
     this.currentFunctionHasExceptionHandler = true;
@@ -264,6 +271,12 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
   protected generateThrow(stmt: AST.ThrowStmt) {
     // 1. Evaluate
     const val = this.generateExpression(stmt.expression);
+    const movedAddress = stmt.expression.resolvedType
+      ? this.getThrownAutoDestroyAddress(
+          stmt.expression,
+          stmt.expression.resolvedType,
+        )
+      : undefined;
     if (!stmt.expression.resolvedType) {
       throw this.createError(
         "Throw expression has no resolved type",
@@ -328,6 +341,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
       this.emit(`  store i64 ${castVal}, i64* @exception_value`);
     }
 
+    this.emitAutoDestroyCleanupForThrow(movedAddress);
     this.emitExceptionTransfer(type);
   }
 
