@@ -44,7 +44,7 @@ UTF-8 module when you need codepoint operations.
 | `s.trim()`, `s.trimLeft()`, `s.trimRight()`                 | Return newly allocated trimmed Strings                |
 | `s.toUpper()`, `s.toLower()`                                | Return newly allocated ASCII case conversions         |
 | `s.reverse() ret String`                                    | Reverse bytes                                         |
-| `s.repeat(count: int) ret String`                           | Repeat bytes in a new allocation                      |
+| `s.repeat(count: int) ret String`                           | Repeat bytes in a new allocation; throws when the result would not fit |
 | `s.padLeft(width: int, pad: char) ret String`               | Pad to a byte width                                   |
 | `s.padRight(width: int, pad: char) ret String`              | Pad to a byte width                                   |
 | `s.replace(old: string, replacement: string) ret String`    | Replace the first match                               |
@@ -57,6 +57,9 @@ An empty search text is contained in every string: `includes` is true,
 string's length. `count` is the exception and reports zero, because the number
 of empty matches is not meaningful. A null search text is not an empty one:
 every search rejects it, reporting false or -1.
+
+`repeat` and `replaceAll` throw a string when the result would not fit in a
+`String`, whose length is a signed `int`, or when the allocation fails.
 
 `replaceAll` returns an owned result and leaves the original unchanged. Replacement
 text is never searched again: replacing `"a"` with `"aa"` terminates. Matches are

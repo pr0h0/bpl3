@@ -518,8 +518,14 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         if ((this.data == nullptr) || (this.length == 0) || (count <= 0)) {
             return String.new("");
         }
-        local newLen: int = this.length * count;
-        local buf: string = malloc(cast<long>(newLen + 1));
+        # Compute the size in long: 'this.length * count' overflows, and a
+        # wrapped result allocates a small buffer that the loops below overrun.
+        local size: long = cast<long>(this.length) * cast<long>(count);
+        # String lengths are signed int; leave room for the terminator.
+        if (size > 2147483646) { throw "String.repeat result too large"; }
+        local newLen: int = cast<int>(size);
+        local buf: string = malloc(size + 1);
+        if (buf == nullptr) { throw "String.repeat allocation failed"; }
 
         local i: int = 0;
         loop (i < count) {
