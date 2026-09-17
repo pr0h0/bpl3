@@ -820,4 +820,42 @@ frame main() ret int {
       },
     ]);
   }, 60000);
+  it("destroys an owner nested under repeated generic wrappers", () => {
+    expectCorrectnessSuite([
+      {
+        name: "auto-destroy-repeated-wrappers",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...) ret int;
+
+struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void {
+    printf("d%d ", this.value);
+  }
+}
+
+struct Box<T> { value: T }
+struct Pair<A, B> { first: A, second: B }
+
+frame main() ret int {
+  # Each wrapper repeats the same declaration, so a cycle guard that keys on
+  # names alone mistakes the field for its own enclosing type.
+  local deep: Box<Box<Box<Resource>>>;
+  deep.value.value.value.value = 9;
+
+  local mixed: Pair<Box<int>, Box<Resource>>;
+  mixed.second.value.value = 2;
+
+  local both: Pair<Box<Resource>, Box<Resource>>;
+  both.first.value.value = 3;
+  both.second.value.value = 4;
+
+  printf("| ");
+  return 0;
+}`,
+        expectedStdout: "| d4 d3 d2 d9 ",
+      },
+    ]);
+  }, 60000);
 });

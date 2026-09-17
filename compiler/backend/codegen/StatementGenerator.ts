@@ -153,15 +153,31 @@ export abstract class StatementGenerator extends AsmGenerator {
     });
   }
 
-  /** Identifies one generic instantiation, so the cycle guard is per-use. */
-  private autoDestroyVisitKey(
-    typeNode: AST.BasicTypeNode,
-    structDecl: AST.StructDecl,
-  ): string {
-    const args = typeNode.genericArgs
-      .map((arg) => (arg.kind === "BasicType" ? arg.name : arg.kind))
-      .join(",");
-    return `${structDecl.name}<${args}>`;
+  /**
+   * Identifies one instantiation exactly, so the cycle guard is per-use. The
+   * arguments are rendered at every depth: a key built from argument names
+   * alone gives `Box<Box<Resource>>` and its own field the same identity, and
+   * the guard then mistakes the field for a cycle and skips its destructor.
+   */
+  private autoDestroyVisitKey(typeNode: AST.TypeNode | undefined): string {
+    if (!typeNode) return "?";
+    if (typeNode.kind === "TupleType") {
+      return `(${(typeNode as AST.TupleTypeNode).types
+        .map((element) => this.autoDestroyVisitKey(element))
+        .join(",")})`;
+    }
+    if (typeNode.kind !== "BasicType") return typeNode.kind;
+
+    const basic = typeNode as AST.BasicTypeNode;
+    const args = (basic.genericArgs ?? []).length
+      ? `<${(basic.genericArgs ?? [])
+          .map((arg) => this.autoDestroyVisitKey(arg))
+          .join(",")}>`
+      : "";
+    const dimensions = (basic.arrayDimensions ?? [])
+      .map((dimension) => (dimension === null ? "[]" : `[${dimension}]`))
+      .join("");
+    return `${"*".repeat(basic.pointerDepth)}${basic.name}${args}${dimensions}`;
   }
 
   /**
@@ -193,6 +209,9 @@ export abstract class StatementGenerator extends AsmGenerator {
     if (!typeNode || typeNode.kind !== "BasicType") return false;
     if (typeNode.pointerDepth > 0) return false;
     if (typeNode.arrayDimensions.length > 0) {
+      // A slice borrows its elements, so it owns nothing to destroy; a fixed
+      // array is storage of its own.
+      if (typeNode.arrayDimensions[0] === null) return false;
       return this.ownsAutoDestroy(
         { ...typeNode, arrayDimensions: [] },
         visiting,
@@ -202,7 +221,7 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     const structDecl = this.getStructDeclForAutoDestroy(typeNode);
     if (!structDecl) return false;
-    const key = this.autoDestroyVisitKey(typeNode, structDecl);
+    const key = this.autoDestroyVisitKey(typeNode);
     if (visiting.has(key)) return false;
     visiting.add(key);
     const owns = this.getAutoDestroyFields(typeNode, structDecl).some((field) =>

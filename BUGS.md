@@ -4827,3 +4827,19 @@ frame descriptor() ret *int {
 ```
 
 **Resolution**: The walk no longer stops at a slice. It continues to the root and records that it passed through one, and the root decides: a slice parameter views storage the caller owns, so an address into its elements is accepted, while a slice held in a local is treated as this frame's storage. Pointers are unchanged. The remaining imprecision is conservative rather than unsafe: a local slice that views a caller's array is rejected, and the `_` prefix allows it. Distinguishing that case needs the pointer escape analysis that BUG-363 records as absent. docs/15-pointers.md shows both forms. Covered by tests/LanguageExploration_2026_05_26.test.ts alongside the accepted slice-parameter case.
+
+### BUG-375: A repeated generic wrapper skips its nested destructor
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: The cycle guard in the code generator's ownership walk keyed an instantiation by the plain names of its arguments, which gives a type and its own field the same identity when a wrapper repeats:
+
+```bpl
+local deep: Box<Box<Box<Resource>>>;   # nothing destroyed
+```
+
+`Box<Box<Box<Resource>>>` keyed as `Box<Box>`, and so did its field `Box<Box<Resource>>`, so the guard treated the field as a cycle and stopped. Two levels of nesting worked, which is why the earlier generic test passed; three did not. This is the code generator's instance of the defect that BUG-373 fixed in the checker.
+
+**Resolution**: The key renders the type at every depth, including pointer depth and array or slice dimensions, so a field can no longer collide with its enclosing type. The walk also treats a slice as owning nothing, matching the checker: a fixed array is storage of its own, a slice borrows its elements. Covered by tests/RAIIAutoDestroy.test.ts, which nests three wrappers and pairs distinct instantiations of the same wrapper in one program, at O0/O3 with LLVM validation.
