@@ -4843,3 +4843,29 @@ local deep: Box<Box<Box<Resource>>>;   # nothing destroyed
 `Box<Box<Box<Resource>>>` keyed as `Box<Box>`, and so did its field `Box<Box<Resource>>`, so the guard treated the field as a cycle and stopped. Two levels of nesting worked, which is why the earlier generic test passed; three did not. This is the code generator's instance of the defect that BUG-373 fixed in the checker.
 
 **Resolution**: The key renders the type at every depth, including pointer depth and array or slice dimensions, so a field can no longer collide with its enclosing type. The walk also treats a slice as owning nothing, matching the checker: a fixed array is storage of its own, a slice borrows its elements. Covered by tests/RAIIAutoDestroy.test.ts, which nests three wrappers and pairs distinct instantiations of the same wrapper in one program, at O0/O3 with LLVM validation.
+
+### BUG-376: Reassigned slice parameters bypass the returned-stack-address check
+
+**Status**: Open
+
+**Priority**: P1
+
+**Observed (2026-09-17, reviewing `c6c851a4`)**: The slice-origin check from
+BUG-374 assumes that every slice parameter still borrows the caller's storage.
+Parameters are mutable, so a parameter can be redirected to a local array:
+
+```bpl
+frame leak(xs: int[]) ret *int {
+    local own: int[1] = [42];
+    xs = own;
+    return &xs[0];
+}
+```
+
+This passes `check` and compiles at O0/O3. Dereferencing the returned pointer
+in the caller produced invalid values at both levels. `borrowedFromCaller` in
+compiler/middleend/StatementChecker.ts exempts the root solely because its
+symbol is a parameter, without considering reassignment. The new local-slice
+regression test does not cover this case. No implementation change was made
+during validation. Until origin tracking exists, the exemption must account
+for writes to the parameter or conservatively reject this return path.
