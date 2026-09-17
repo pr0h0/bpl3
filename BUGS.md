@@ -2797,7 +2797,7 @@ runtime support layer using the host libc's public `stderr` interface.
 
 ## Audit findings — 2026-09-08
 
-Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) for complete reproductions, validation scope, and repair priorities. Original observations are retained below; each entry records its current status and resolution.
+Source revision: `23e88536`. See [the audit report](https://github.com/pr0h0/bpl3/blob/8e04706b25bb14dc4a4dc80cc836235d75835732/docs/audits/2026-09-08.md) for complete reproductions, validation scope, and repair priorities. Original observations are retained below; each entry records its current status and resolution.
 
 ### BUG-226: Switch fallthrough skips deferred cleanup
 
@@ -2813,7 +2813,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Suggested resolution**: Emit cleanup for every scope exited by fallthrough before branching. Share scope-exit lowering with break, continue, return, and match yields; preserve LIFO order.
 
-**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-226).
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](https://github.com/pr0h0/bpl3/blob/8e04706b25bb14dc4a4dc80cc836235d75835732/docs/audits/2026-09-08.md#bug-226).
 
 **Resolution (2026-09-08)**: Fallthrough now emits LIFO cleanup for the exited case scopes through a shared scope-exit helper. Numeric/string switch regression and existing defer suite: 14 tests passed; bun run check passed.
 
@@ -2831,7 +2831,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Suggested resolution**: Track the scope depth at match entry and unwind the scopes exited by a yield. Keep enclosing function cleanup pending.
 
-**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-227).
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](https://github.com/pr0h0/bpl3/blob/8e04706b25bb14dc4a4dc80cc836235d75835732/docs/audits/2026-09-08.md#bug-227).
 
 **Resolution (2026-09-08)**: Match contexts now record retained scope depth. Yields clean only exited scopes and exclude a moved result from destruction. Nested primitive, enum, string, tuple, and resource-yield tests pass at O0/O3 with LLVM verification; 15 cleanup tests and typecheck passed.
 
@@ -2849,7 +2849,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Suggested resolution**: Make the return-value cleanup exclusion local to each emitted exit, or introduce control-flow-aware move state with explicit branch merges. Test both flag values and nested branches.
 
-**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-228).
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](https://github.com/pr0h0/bpl3/blob/8e04706b25bb14dc4a4dc80cc836235d75835732/docs/audits/2026-09-08.md#bug-228).
 
 **Resolution (2026-09-08)**: Removed function-wide moved-address state. Each return now passes its own cleanup exclusion into the shared exit helper. Both conditional return paths and nested branches pass at O0/O3 with LLVM verification; 33 tests and typecheck passed.
 
@@ -2867,7 +2867,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Suggested resolution**: Define an explicit default-key capability, supply correct hash/equality for permitted keys, and reject unsupported default constructors at compile time. Keep the custom hasher/equaler overload available.
 
-**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-229).
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](https://github.com/pr0h0/bpl3/blob/8e04706b25bb14dc4a4dc80cc836235d75835732/docs/audits/2026-09-08.md#bug-229).
 
 **Resolution (2026-09-08)**: Default equality now supports boolean/narrow integer and equality-comparable compound keys. Numeric hashes cover all integer widths and f32/f64; signed zeros and NaNs have documented map equivalence. Compound-key fallback uses a correct constant hash with custom hashing documented for performance. Reflection now uses shared primitive metadata, fixing f32 aggregate comparisons exposed by Map. Five map/numeric runtime tests and typecheck passed.
 
@@ -2885,7 +2885,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Suggested resolution**: Use fcmp une for scalar floating-point != and lock down NaN behavior for scalar and aggregate comparisons. See [LLVM fcmp semantics](https://llvm.org/docs/LangRef.html#fcmp-instruction).
 
-**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-230).
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](https://github.com/pr0h0/bpl3/blob/8e04706b25bb14dc4a4dc80cc836235d75835732/docs/audits/2026-09-08.md#bug-230).
 
 **Resolution (2026-09-08)**: Scalar floating-point inequality now uses fcmp une. Scalar/aggregate NaN and finite comparison regressions pass at O0/O3 with LLVM verification; 3 tests and typecheck passed.
 
@@ -2903,7 +2903,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Suggested resolution**: Use LLVM fneg for floating-point negation. It flips the sign bit and preserves the remaining representation. See [LLVM fneg semantics](https://llvm.org/docs/LangRef.html#fneg-instruction).
 
-**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-231).
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](https://github.com/pr0h0/bpl3/blob/8e04706b25bb14dc4a4dc80cc836235d75835732/docs/audits/2026-09-08.md#bug-231).
 
 **Resolution (2026-09-08)**: Floating negation now emits fneg for both LLVM float widths. Signed-zero and finite negation regressions pass at O0/O3. Removed an obsolete codegen test assertion requiring the function-wide move state eliminated by BUG-228. All 90 selected numeric/codegen tests and typecheck passed.
 
@@ -2921,7 +2921,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Suggested resolution**: Centralize builtin type definitions: category, width, signedness, canonical aliases, conversion rules, LLVM type, and debug metadata. Exercise all documented numeric spellings through arithmetic and conversions. Runtime reproduction here covers f32; f64 omission is source evidence.
 
-**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-232).
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](https://github.com/pr0h0/bpl3/blob/8e04706b25bb14dc4a4dc80cc836235d75835732/docs/audits/2026-09-08.md#bug-232).
 
 **Resolution (2026-09-08)**: Added a shared primitive-type registry used by builtin registration, numeric checking, aliases, integer conversion eligibility, LLVM lowering, signedness, and DWARF metadata. Implemented f32/f64 conversions and clarified widths in the spec/type guide. Numeric and compiler selection: 282 tests passed; typecheck passed.
 
@@ -2939,7 +2939,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Suggested resolution**: Decode four-digit Unicode escapes, combine valid surrogate pairs, and encode the resulting code points consistently with the string representation. Reject invalid escapes instead of silently changing text. See [RFC 8259 section 7](https://www.rfc-editor.org/rfc/rfc8259#section-7).
 
-**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-233).
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](https://github.com/pr0h0/bpl3/blob/8e04706b25bb14dc4a4dc80cc836235d75835732/docs/audits/2026-09-08.md#bug-233).
 
 **Resolution (2026-09-08)**: JSON strings now decode Unicode escapes and surrogate pairs through UTF8.encodeCodepoint. Invalid escapes, malformed surrogates, and raw controls report errors; U+0000 is explicitly rejected because primitive strings are null-terminated. Parser callers propagate failed key decoding. Valid/invalid Unicode regressions passed at O0/O3; typecheck passed; behavior documented.
 
@@ -2957,7 +2957,7 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 
 **Suggested resolution**: Choose and publish one contract. Either remove the unsupported inference claim and repair examples, or implement local initializer-based inference. Compile documented snippets in CI, including deliberately invalid examples with expected diagnostics.
 
-**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](docs/audits/2026-09-08.md#bug-234).
+**Validation**: Reproduced using source CLI at both `-O0` and `-O3`. [Full reproduction](https://github.com/pr0h0/bpl3/blob/8e04706b25bb14dc4a4dc80cc836235d75835732/docs/audits/2026-09-08.md#bug-234).
 
 **Resolution (2026-09-08)**: Kept the existing explicit-local-type language contract; corrected README/AGENTS/type-guide claims and examples, including float widths and runtime safety/overhead wording. Added executable README and typed-generic examples plus the expected missing-type diagnostic. Both new doc tests and typecheck pass. Existing MarkdownDocs has 94 passing tests and one Git-tracked-link check blocked because the new audit report cannot be staged in this read-only .git session.
 

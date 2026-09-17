@@ -76,3 +76,6 @@ lib/*.bc
 
 # Agent Files
 .claude
+
+# Local audit reports
+/docs/audits/
