@@ -466,6 +466,13 @@ struct Box<T> {
   a missing method or a different parameter count is rejected.
 - **[R-SPEC-3]** A struct can implement any number of specs, and a child
   struct also implements the specs of its parent.
+- **[R-SPEC-4]** A `*Spec` value holds the data pointer and the implementation's
+  method table, and calls through it dispatch dynamically. A pointer to an
+  implementing struct converts to `*Spec` in arguments, local initializers and
+  assignments, local array elements, and explicit `cast<*Spec>`. The method
+  table is built in the frame performing the conversion, so `*Spec` cannot be a
+  return type, a global type, or a struct field type; those are rejected with
+  `BPL_SPEC_POINTER_ESCAPES`.
 
 ```bpl
 spec Drawable {

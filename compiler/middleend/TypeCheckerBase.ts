@@ -34,6 +34,7 @@ export const SYMBOL_ALREADY_DEFINED_CODE = "BPL_SYMBOL_ALREADY_DEFINED";
 export const TYPE_RECURSION_CYCLE_CODE = "BPL_TYPE_RECURSION_CYCLE";
 export const GENERIC_ARITY_MISMATCH_CODE = "BPL_GENERIC_ARITY_MISMATCH";
 export const TYPE_NOT_FOUND_CODE = "BPL_TYPE_NOT_FOUND";
+export const SPEC_POINTER_ESCAPES_CODE = "BPL_SPEC_POINTER_ESCAPES";
 export const SYMBOL_NOT_FOUND_CODE = "BPL_SYMBOL_NOT_FOUND";
 export const VOID_TYPE_INVALID_CODE = "BPL_VOID_TYPE_INVALID";
 export const BUILTIN_TYPE_REDEFINITION_CODE =
@@ -1855,6 +1856,37 @@ export abstract class TypeCheckerBase {
 
       currentDecl = parentDecl;
     }
+  }
+
+  /**
+   * A `*Spec` value points at a method table built where the conversion
+   * happens, which lives in that frame. Storing one somewhere that outlives
+   * the frame would leave a dangling pointer, so those positions are rejected.
+   */
+  public isSpecPointerType(type: AST.TypeNode | undefined): boolean {
+    if (!type || type.kind !== "BasicType" || type.pointerDepth < 1) {
+      return false;
+    }
+    const declaration =
+      type.resolvedDeclaration ??
+      this.currentScope.resolve(type.name)?.declaration;
+    return declaration?.kind === "SpecDecl";
+  }
+
+  public rejectEscapingSpecPointer(
+    type: AST.TypeNode | undefined,
+    position: string,
+    location: AST.ASTNode["location"],
+  ): void {
+    if (!this.isSpecPointerType(type)) return;
+    this.addError(
+      new CompilerError(
+        `A spec pointer cannot be used as ${position}`,
+        "A spec pointer refers to a method table created in the current frame. Pass it as a parameter, or keep it in a local or a local array.",
+        location,
+        SPEC_POINTER_ESCAPES_CODE,
+      ),
+    );
   }
 
   public resolveMemberWithContext(

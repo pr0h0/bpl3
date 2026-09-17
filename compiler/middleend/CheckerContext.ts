@@ -90,6 +90,11 @@ export interface CheckerContext {
     declaration: AST.ASTNode;
     genericArgs?: AST.TypeNode[];
   };
+  rejectEscapingSpecPointer(
+    type: AST.TypeNode | undefined,
+    position: string,
+    location: AST.ASTNode["location"],
+  ): void;
   resolveMemberWithContext(
     baseType: AST.BasicTypeNode,
     memberName: string,

@@ -874,6 +874,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       // an explicit count parameter for native variadics.
     }
 
+    this.rejectEscapingSpecPointer(
+      decl.returnType,
+      "a return type",
+      decl.location,
+    );
+
     const prevReturnType = this.currentFunctionReturnType;
     this.currentFunctionReturnType = decl.returnType;
 
@@ -1484,6 +1490,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (member.kind === "StructField") {
         this.ensureKnownType(member.type);
         const fieldType = this.resolveType(member.type);
+        this.rejectEscapingSpecPointer(
+          fieldType,
+          "a struct field type",
+          member.location,
+        );
         if (
           fieldType.kind === "BasicType" &&
           fieldType.name === "void" &&

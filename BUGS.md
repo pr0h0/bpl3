@@ -4235,3 +4235,28 @@ Locals of a `try` block were also left undestroyed when a throw inside the block
 **Observed (2026-09-17)**: With `import * as bmod from "./b.bpl"`, the type `bmod.Wrap<int>` resolved to a different `Wrap` that the importer had in scope from another module. Type checking reported `Cannot access member 'first' on type 'Wrap<i32>'` for a field that `b.bpl`'s `Wrap` declares. Qualified lookup itself was correct; resolving the qualified name rewrote the node to the bare name `Wrap`, and a later resolution of that node looked the bare name up again in the importer's scope and found the other module's declaration. The reuse guard that would have prevented the second lookup skipped any type with generic arguments, so generic types were affected while non-generic ones were not.
 
 **Resolution**: Type resolution now prefers the declaration a type node already recorded, instead of resolving the bare name again (`recordedDeclarationSymbol` in compiler/middleend/TypeCheckerBase.ts). Module symbol uniquing also rewrites namespace-qualified references (`ns.Type`) when that module's declaration is renamed for a collision. Covered by tests/ModuleSymbolIsolation.test.ts, which checks, builds, and runs two modules that both declare a generic `Wrap`, one reached through a namespace import.
+
+### BUG-353: Spec pointers crash outside call arguments
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: A `*Spec` value is a pointer to a `{ data, method table }` pair, and only the call-argument path built that pair. Every other conversion produced a bare struct pointer, so dispatching through it read the struct's first field as a method table and crashed:
+
+```bpl
+spec Shape { frame area(this: *Self) ret int; }
+struct Sq: Shape { side: int, frame area(this: *Sq) ret int { return this.side * this.side; } }
+frame main() ret int {
+    local sq: Sq;
+    sq.side = 4;
+    local direct: *Shape = &sq;   # SIGSEGV on the call below
+    return direct.area();
+}
+```
+
+Local initializers, assignments, array elements, `cast<*Shape>(...)`, and returns all segfaulted at O0 and O3, while passing the same pointer as an argument worked. Returning was worse than the others: the pair is built in the frame performing the conversion, so a returned `*Spec` pointed into the callee's dead frame.
+
+**Resolution**: The conversion is one helper (`emitSpecFatPointer`) used by the argument path and by `emitCast`, so every value conversion builds the pair: arguments, local initializers and assignments, array elements, and explicit casts. Positions that outlive the frame that builds the pair are rejected during checking with `BPL_SPEC_POINTER_ESCAPES`: a `*Spec` return type, global type, or struct field type. No standard library, example, or package used those positions. LANGUAGE_SPEC.md R-SPEC-4 states the rule; covered by tests/LanguageSpecDeclarations.test.ts, which runs dispatch through every supported conversion at O0/O3 with LLVM validation and checks the three rejected positions.
+
+**Remaining gap**: the restriction, rather than a representation change, is what keeps spec pointers safe. Representing `*Spec` as the pair by value would allow returns and stored fields; that changes the ABI of every spec-typed value and its null handling, so it is not done here.

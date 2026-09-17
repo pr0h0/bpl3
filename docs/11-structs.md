@@ -427,6 +427,19 @@ free(cast<*void>(p));
 
 ## Constructors and Destructors
 
+A pointer to a struct converts to a pointer to any spec it implements, and calls
+through that pointer dispatch to the struct's method. The method table is built
+where the conversion happens and lives in that frame, so a `*Spec` works as an
+argument, a local, or an element of a local array, but cannot be returned,
+stored in a global, or held in a struct field (`BPL_SPEC_POINTER_ESCAPES`).
+
+```bpl
+spec Shape { frame area(this: *Self) ret int; }
+struct Sq: Shape { side: int, frame area(this: *Sq) ret int { return this.side * this.side; } }
+
+frame total(s: *Shape) ret int { return s.area(); }
+```
+
 BPL supports constructor-style methods and opt-in automatic destructor cleanup. A `new(this: *T)` method can initialize locals declared without an explicit initializer. A `destroy(this: *T)` method runs automatically only when it is marked `@[auto_destroy]`; unmarked cleanup methods must still be called manually. Automatic cleanup also runs when a `throw` leaves the scope, with the limits described in [Constructors and Destructors](21-constructors-destructors.md#destructors).
 
 ### Constructor Pattern

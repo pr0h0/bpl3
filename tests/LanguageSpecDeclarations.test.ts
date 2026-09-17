@@ -320,6 +320,62 @@ frame main() ret int {
     ]);
   }, 120000);
 
+  // spec: R-SPEC-4
+  test("spec pointers dispatch through every conversion site", () => {
+    expectCorrectnessSuite([
+      {
+        name: "spec-pointer-conversions",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...);
+spec Shape { frame area(this: *Self) ret int; }
+struct Sq: Shape { side: int, frame area(this: *Sq) ret int { return this.side * this.side; } }
+struct Rect: Shape { w: int, h: int, frame area(this: *Rect) ret int { return this.w * this.h; } }
+frame viaArgument(s: *Shape) ret int { return s.area(); }
+frame main() ret int {
+  local sq: Sq;
+  sq.side = 3;
+  local rect: Rect;
+  rect.w = 2;
+  rect.h = 5;
+  local assigned: *Shape = &sq;
+  local casted: *Shape = cast<*Shape>(&rect);
+  local shapes: *Shape[2];
+  shapes[0] = &sq;
+  shapes[1] = &rect;
+  local total: int = 0;
+  loop (local i: int = 0; i < 2; i += 1) { total = total + shapes[i].area(); }
+  printf("%d %d %d %d %d\\n", viaArgument(&sq), viaArgument(&rect), assigned.area(), casted.area(), total);
+  return 0;
+}`,
+        expectedStdout: "9 10 9 10 19\n",
+      },
+    ]);
+  }, 120000);
+
+  // spec: R-SPEC-4
+  test("rejects spec pointers that outlive the frame that built them", () => {
+    expectCheckDiagnostics([
+      {
+        name: "spec-pointer-return",
+        source:
+          "spec Shape { frame area(this: *Self) ret int; }\nstruct Sq: Shape { side: int, frame area(this: *Sq) ret int { return this.side; } }\nframe make(sq: *Sq) ret *Shape { return sq; }\nframe main() ret int { local s: Sq; s.side = 1; return make(&s).area(); }\n",
+        code: "BPL_SPEC_POINTER_ESCAPES",
+      },
+      {
+        name: "spec-pointer-global",
+        source:
+          "spec Shape { frame area(this: *Self) ret int; }\nglobal current: *Shape = nullptr;\nframe main() ret int { return 0; }\n",
+        code: "BPL_SPEC_POINTER_ESCAPES",
+      },
+      {
+        name: "spec-pointer-field",
+        source:
+          "spec Shape { frame area(this: *Self) ret int; }\nstruct Holder { shape: *Shape, }\nframe main() ret int { local h: Holder; return 0; }\n",
+        code: "BPL_SPEC_POINTER_ESCAPES",
+      },
+    ]);
+  }, 120000);
+
   // spec: R-STRUCT-1, R-STRUCT-2, R-STRUCT-3, R-STRUCT-6, R-STRUCT-9, R-SPEC-2, R-ENUM-2
   test("rejects invalid struct, spec, and enum usage", () => {
     expectCheckDiagnostics([

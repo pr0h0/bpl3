@@ -183,6 +183,61 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     }
   }
 
+  /**
+   * Builds the `{ data, vtable }` value a spec-typed pointer holds. Every
+   * conversion from a struct pointer to `*Spec` goes through here; a plain
+   * bitcast would leave the vtable slot pointing at struct data.
+   */
+  protected emitSpecFatPointer(
+    structPointer: string,
+    structPointerType: string,
+    structTypeNode: AST.BasicTypeNode,
+    specTypeNode: AST.BasicTypeNode,
+    specDecl: AST.SpecDecl,
+  ): string {
+    const vtableName = this.getOrGenerateSpecVTable(structTypeNode, specTypeNode);
+    const fatPtr = this.allocateStack(
+      `fat_ptr_${this.labelCount++}`,
+      "{ i8*, i8* }",
+    );
+
+    const dataPtrPtr = this.newRegister();
+    this.emit(
+      `  ${dataPtrPtr} = getelementptr inbounds { i8*, i8* }, { i8*, i8* }* ${fatPtr}, i32 0, i32 0`,
+    );
+    const dataVoidPtr = this.newRegister();
+    this.emit(
+      `  ${dataVoidPtr} = bitcast ${structPointerType} ${structPointer} to i8*`,
+    );
+    this.emit(`  store i8* ${dataVoidPtr}, i8** ${dataPtrPtr}`);
+
+    const vtablePtrPtr = this.newRegister();
+    this.emit(
+      `  ${vtablePtrPtr} = getelementptr inbounds { i8*, i8* }, { i8*, i8* }* ${fatPtr}, i32 0, i32 1`,
+    );
+    const vtableType = `[${this.getAllSpecMethods(specDecl).length} x i8*]`;
+    const vtableVoidPtr = this.newRegister();
+    this.emit(
+      `  ${vtableVoidPtr} = bitcast ${vtableType}* @${vtableName} to i8*`,
+    );
+    this.emit(`  store i8* ${vtableVoidPtr}, i8** ${vtablePtrPtr}`);
+
+    return fatPtr;
+  }
+
+  /** The spec declaration a type node denotes, if it denotes one. */
+  protected getSpecDeclarationForType(
+    typeNode: AST.TypeNode,
+  ): AST.SpecDecl | undefined {
+    if (typeNode.kind !== "BasicType") return undefined;
+    const byName = this.specMap.get(typeNode.name);
+    if (byName) return byName;
+    if (typeNode.resolvedDeclaration?.kind === "SpecDecl") {
+      return typeNode.resolvedDeclaration as AST.SpecDecl;
+    }
+    return undefined;
+  }
+
   protected getAllSpecMethods(specDecl: AST.SpecDecl): AST.SpecMethod[] {
     let methods: AST.SpecMethod[] = [];
 
@@ -509,8 +564,37 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
         .type;
     }
 
-    if (srcTypeNode.kind === "FunctionType") {
-      // debug log removed
+    // Struct pointer to spec pointer: build the { data, vtable } value that
+    // dispatch reads. Without this an assignment, return, or explicit cast
+    // produced a bare struct pointer and calling through it crashed.
+    if (
+      effectiveDest.kind === "BasicType" &&
+      effectiveDest.pointerDepth === 1 &&
+      effectiveSource.kind === "BasicType" &&
+      effectiveSource.pointerDepth === 1
+    ) {
+      const specDecl = this.getSpecDeclarationForType({
+        ...effectiveDest,
+        pointerDepth: 0,
+      });
+      const structTypeNode = {
+        ...(effectiveSource as AST.BasicTypeNode),
+        pointerDepth: 0,
+      };
+      const structDecl =
+        this.structMap.get(structTypeNode.name) ??
+        (structTypeNode.resolvedDeclaration?.kind === "StructDecl"
+          ? (structTypeNode.resolvedDeclaration as AST.StructDecl)
+          : undefined);
+      if (specDecl && structDecl) {
+        return this.emitSpecFatPointer(
+          val,
+          srcType,
+          structTypeNode,
+          { ...(effectiveDest as AST.BasicTypeNode), pointerDepth: 0 },
+          specDecl,
+        );
+      }
     }
 
     // Function (Raw Pointer) to Lambda (Fat Pointer)
