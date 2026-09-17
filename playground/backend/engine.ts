@@ -92,10 +92,6 @@ function getNativeBinaryCacheKey(code: string): string {
     .digest("hex");
 }
 
-function sourceMayUseBplImport(source: string): boolean {
-  return /\bimport\b/.test(source);
-}
-
 function getCachedNativeBinary(
   key: string,
 ): NativeBinaryCacheEntry | undefined {
@@ -266,7 +262,9 @@ export async function compileAndRun(
   const includeArtifacts = req.includeArtifacts === true;
   const execute = req.execute !== false;
   const treeShakeTopLevelFunctions = execute && !includeArtifacts;
-  const resolveImports = includeArtifacts || sourceMayUseBplImport(req.code);
+  // Always resolve modules: the implicit prelude provides the runtime check
+  // helpers that generated code calls, so single-file sources need it too.
+  const resolveImports = true;
   const hostTarget = getHostDefaults().target;
   let bplHome: string | undefined;
   const getRequestBplHome = () => {

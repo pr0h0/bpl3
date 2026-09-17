@@ -269,7 +269,10 @@ describe("Playground compile API contract", () => {
     expect(serverSource).not.toContain("const runtimeFiles: string[] = []");
   });
 
-  test("fast-paths no-import artifact-free native compiles", () => {
+  test("resolves modules for every compile so the runtime prelude is available", () => {
+    // Runtime check helpers live in std/errors.bpl, which reaches a program
+    // through the implicit prelude. Skipping module resolution for sources
+    // without an `import` left calls to __bpl_throw_* undefined at link time.
     const serverSource = readFileSync("playground/backend/engine.ts", "utf8");
     const compileStart = serverSource.indexOf("async function compileAndRun");
     const compileEnd = serverSource.indexOf(
@@ -281,16 +284,12 @@ describe("Playground compile API contract", () => {
     expect(compileEnd).toBeGreaterThan(compileStart);
 
     const compileSource = serverSource.slice(compileStart, compileEnd);
-    expect(serverSource).toContain("function sourceMayUseBplImport");
-    expect(serverSource).toContain("/\\bimport\\b/.test(source)");
-    expect(compileSource).toContain(
-      "const resolveImports = includeArtifacts || sourceMayUseBplImport(req.code);",
-    );
+    expect(serverSource).not.toContain("function sourceMayUseBplImport");
+    expect(compileSource).toContain("const resolveImports = true;");
     expect(compileSource.indexOf("const resolveImports")).toBeLessThan(
       compileSource.indexOf("new Compiler"),
     );
     expect(compileSource).toContain("resolveImports,");
-    expect(compileSource).not.toContain("resolveImports: true");
   });
 
   test("caches artifact-free native binaries before creating request temp dirs", () => {

@@ -5,8 +5,8 @@ Date: 2026-09-16. Reviewed baseline: `21fea06e`.
 The intervening work fixes real defects and adds useful regression coverage.
 It is worth retaining, but passing those tests did not establish that exception
 handling was correct at all optimization levels. This review reproduced and
-fixed nine defects, including three previously documented issues. The integer-to-bool
-conversion policy remains undecided.
+fixed nine defects, including three previously documented issues. A subsequent
+user decision approved rejecting implicit integer-to-bool conversions.
 
 ## Scope and findings
 
@@ -105,12 +105,19 @@ Environment: Linux x86-64, Bun 1.4.2, Ubuntu Clang 21.1.8.
   tests: 4,456 passes in total, with 16 opt-in unit tests skipped and zero failures.
   This run includes the corrected CI-triage mapping and all continuation fixes.
 
-## Remaining known issues
+## Follow-up after the language-policy decision
 
-- **BUG-338:** implicit integer-to-bool conversion keeps the low bit, so `2`
-  becomes `false`. A language-policy choice is pending: reject the implicit
-  conversion, or define zero/nonzero conversion. Rejecting implicit conversion
-  is the recommendation already presented to the user.
+BUG-338 is now fixed: implicit integer-to-bool conversion is rejected, including
+literals `0` and `1`. Use `value != 0` for zero/nonzero semantics; explicit casts
+keep their existing low-bit semantics. The new regression suite covers scalar
+and aggregate conversion sites and O0/O3 execution.
+
+A runtime-size probe also found BUG-349: renamed `main` parameters produced
+undefined LLVM registers. Main locals now bind the ABI arguments by position,
+with O0/O3 execution and LLVM verification for renamed, ignored, and swapped names.
+
+Runtime footprint measurements and remaining overhead are documented in
+[the runtime report](2026-09-16-runtime-footprint.md).
 
 This is a targeted source review and regression run, not a guarantee that the
 whole compiler or standard library is free of defects. Native execution results
