@@ -568,6 +568,61 @@ frame main() ret int {
         code: "BPL_AUTO_DESTROY_ENUM_PAYLOAD",
       },
       {
+        name: "auto-destroy-enum-safe-instantiation-first",
+        // A safe instantiation must not stand in for an unsafe one: the two
+        // differ only by pointer depth, which a name-only key discards.
+        source: `struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void { this.value = 0; }
+}
+enum Slot<T> { Has(T), Empty }
+frame main() ret int {
+  local safe: Slot<*Resource> = Slot<*Resource>.Empty;
+  local bad: Slot<Resource> = Slot<Resource>.Empty;
+  return match (safe) { Slot<*Resource>.Has(r) => 1, Slot<*Resource>.Empty => 0, }
+    + match (bad) { Slot<Resource>.Has(r) => r.value, Slot<Resource>.Empty => 0, };
+}`,
+        code: "BPL_AUTO_DESTROY_ENUM_PAYLOAD",
+      },
+      {
+        name: "auto-destroy-enum-nested-argument-differs",
+        // Box<int> and Box<Resource> differ only in a nested argument.
+        source: `struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void { this.value = 0; }
+}
+struct Box<T> { value: T }
+enum Slot<T> { Has(T), Empty }
+frame main() ret int {
+  local safe: Slot<Box<int>> = Slot<Box<int>>.Empty;
+  local bad: Slot<Box<Resource>> = Slot<Box<Resource>>.Empty;
+  return match (safe) { Slot<Box<int>>.Has(b) => b.value, Slot<Box<int>>.Empty => 0, }
+    + match (bad) { Slot<Box<Resource>>.Has(b) => b.value.value, Slot<Box<Resource>>.Empty => 0, };
+}`,
+        code: "BPL_AUTO_DESTROY_ENUM_PAYLOAD",
+      },
+      {
+        name: "auto-destroy-enum-nested-wrapper-substitution",
+        // The parameter sits two wrappers deep in the payload type.
+        source: `struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void { this.value = 0; }
+}
+struct Box<T> { value: T }
+enum Slot<T> { Has(Box<Box<T>>), Empty }
+frame main() ret int {
+  local bad: Slot<Resource> = Slot<Resource>.Empty;
+  return match (bad) {
+    Slot<Resource>.Has(b) => b.value.value.value,
+    Slot<Resource>.Empty => 0,
+  };
+}`,
+        code: "BPL_AUTO_DESTROY_ENUM_PAYLOAD",
+      },
+      {
         name: "auto-destroy-enum-generic-wrapper",
         source: `struct Resource {
   value: int,
@@ -723,6 +778,45 @@ frame main() ret int {
   return 0;
 }`,
         expectedStdout: "f7 d7 s8 d8 | r9 d9 end\n",
+      },
+    ]);
+  }, 60000);
+  it("allows an enum payload that only borrows an owning type", () => {
+    expectCorrectnessSuite([
+      {
+        name: "auto-destroy-enum-slice-payload",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...) ret int;
+
+struct Resource {
+  value: int,
+  @[auto_destroy]
+  frame destroy(this: *Resource) ret void {
+    printf("d%d ", this.value);
+  }
+}
+
+# A slice borrows its elements, so the enum owns nothing and cleanup has
+# nothing to select from the tag.
+enum Slot { Has(Resource[]), Empty }
+
+frame describe(s: Slot) ret int {
+  return match (s) {
+    Slot.Has(items) => items[0].value,
+    Slot.Empty => 0,
+  };
+}
+
+frame main() ret int {
+  local items: Resource[2];
+  items[0].value = 1;
+  items[1].value = 2;
+  local held: Slot = Slot.Has(items);
+  printf("%d %d | ", describe(held), describe(Slot.Empty));
+  return 0;
+}`,
+        // Only the array's own elements are destroyed, in reverse order.
+        expectedStdout: "1 0 | d2 d1 ",
       },
     ]);
   }, 60000);

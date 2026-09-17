@@ -116,10 +116,16 @@ explicitly or with `defer`.
 
 An enum payload cannot hold a type with `@[auto_destroy]`
 (`BPL_AUTO_DESTROY_ENUM_PAYLOAD`), whether it names that type directly, reaches
-it through an alias or a generic wrapper such as `Box<Resource>`, or receives
-it as a type argument, as in `Slot<Resource>`. A generic payload is checked at
-each instantiation, because the declaration alone cannot show what a type
-parameter stands for. Which payload is present is only known at
+it through an alias or a generic wrapper such as `Box<Box<Resource>>`, or
+receives it as a type argument, as in `Slot<Resource>`. A generic payload is
+checked at each instantiation, because the declaration alone cannot show what a
+type parameter stands for, and instantiations are told apart by their full
+types: `Slot<*Resource>` and `Slot<Box<int>>` are accepted while
+`Slot<Resource>` and `Slot<Box<Resource>>` are not.
+
+A payload that only borrows is allowed: a pointer owns nothing, and neither
+does a slice, so `Has(*Resource)` and `Has(Resource[])` are both valid. A fixed
+array is storage of its own, so `Has(Resource[2])` is rejected. Which payload is present is only known at
 run time, so cleanup would have to choose a destructor from the tag, which is
 not implemented. Rather than skip it silently and leak, the enum declaration is
 rejected. Hold a pointer in the payload and free it explicitly, or drop the

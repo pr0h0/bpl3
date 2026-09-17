@@ -2072,6 +2072,35 @@ export abstract class TypeCheckerBase {
     }
   >();
 
+  /**
+   * A string that identifies a type exactly, including pointer depth, array
+   * and slice dimensions, and generic arguments at every depth. Keys built
+   * from a name alone conflate `Resource` with `*Resource` and `Box<int>`
+   * with `Box<Resource>`, which lets a safe instantiation stand in for an
+   * unsafe one.
+   */
+  protected typeIdentityKey(type: AST.TypeNode | undefined): string {
+    if (!type) return "?";
+
+    if (type.kind === "TupleType") {
+      return `(${(type as AST.TupleTypeNode).types
+        .map((element) => this.typeIdentityKey(element))
+        .join(",")})`;
+    }
+    if (type.kind !== "BasicType") return type.kind;
+
+    const basic = type as AST.BasicTypeNode;
+    const args = (basic.genericArgs ?? []).length
+      ? `<${(basic.genericArgs ?? [])
+          .map((arg) => this.typeIdentityKey(arg))
+          .join(",")}>`
+      : "";
+    const dimensions = (basic.arrayDimensions ?? [])
+      .map((dimension) => (dimension === null ? "[]" : `[${dimension}]`))
+      .join("");
+    return `${"*".repeat(basic.pointerDepth)}${basic.name}${args}${dimensions}`;
+  }
+
   /** Notes a generic enum use for the deferred payload-ownership check. */
   protected recordEnumInstantiation(
     name: string,
@@ -2087,9 +2116,7 @@ export abstract class TypeCheckerBase {
       return;
     }
     const key = `${name}<${args
-      .map((arg) =>
-        arg.kind === "BasicType" ? (arg as AST.BasicTypeNode).name : arg.kind,
-      )
+      .map((arg) => this.typeIdentityKey(arg))
       .join(",")}>`;
     if (this.pendingEnumInstantiations.has(key)) return;
     this.pendingEnumInstantiations.set(key, { declaration, args, location });
@@ -2129,11 +2156,12 @@ export abstract class TypeCheckerBase {
     for (let i = 0; i < names.length; i++) {
       const arg = values[i];
       if (!arg) continue;
-      const resolved =
-        arg.kind === "BasicType" &&
-        (arg as AST.BasicTypeNode).pointerDepth === 0 &&
-        outer.get((arg as AST.BasicTypeNode).name);
-      bindings.set(names[i]!.name, resolved || arg);
+      // Substitute rather than look the argument up by name: an argument can
+      // be a wrapper such as `Box<Box<T>>` whose parameters sit at any depth.
+      bindings.set(
+        names[i]!.name,
+        outer.size > 0 ? this.substituteType(arg, outer) : arg,
+      );
     }
     return bindings;
   }
@@ -2162,6 +2190,10 @@ export abstract class TypeCheckerBase {
     if (type.kind !== "BasicType") return undefined;
     const basic = type as AST.BasicTypeNode;
     if (basic.pointerDepth > 0) return undefined;
+
+    // A slice borrows its elements (R-ARR-3), so holding one owns nothing. A
+    // fixed array is storage of its own, so the walk continues into it.
+    if ((basic.arrayDimensions ?? [])[0] === null) return undefined;
 
     // A type parameter stands for whatever this use supplies for it.
     const bound = bindings.get(basic.name);
@@ -2204,11 +2236,7 @@ export abstract class TypeCheckerBase {
     if (declaration.kind !== "StructDecl") return undefined;
     const structDecl = declaration as AST.StructDecl;
 
-    const key = `${structDecl.name}<${(basic.genericArgs ?? [])
-      .map((arg) =>
-        arg.kind === "BasicType" ? (arg as AST.BasicTypeNode).name : arg.kind,
-      )
-      .join(",")}>`;
+    const key = this.typeIdentityKey(basic);
     if (visiting.has(key)) return undefined;
     visiting.add(key);
 

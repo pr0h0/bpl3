@@ -41,11 +41,28 @@ export class TypeUtils {
    * there is visible to whoever owns the backing array.
    */
   static isBorrowedIndirection(expr: AST.Expression): boolean {
+    return (
+      TypeUtils.isPointerExpression(expr) || TypeUtils.isSliceExpression(expr)
+    );
+  }
+
+  /** True when this expression is a raw pointer. */
+  static isPointerExpression(expr: AST.Expression): boolean {
+    const type = expr.resolvedType;
+    if (!type || type.kind !== "BasicType") return false;
+    return (type as AST.BasicTypeNode).pointerDepth > 0;
+  }
+
+  /** True when this expression is a slice, a borrowed view of an array. */
+  static isSliceExpression(expr: AST.Expression): boolean {
     const type = expr.resolvedType;
     if (!type || type.kind !== "BasicType") return false;
     const basic = type as AST.BasicTypeNode;
-    if (basic.pointerDepth > 0) return true;
-    return basic.arrayDimensions.length > 0 && basic.arrayDimensions[0] === null;
+    if (basic.pointerDepth > 0) return false;
+    return (
+      (basic.arrayDimensions ?? []).length > 0 &&
+      basic.arrayDimensions[0] === null
+    );
   }
 
   static isNumericType(type: AST.TypeNode): boolean {

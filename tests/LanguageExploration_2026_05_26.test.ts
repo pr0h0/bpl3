@@ -202,6 +202,23 @@ describe("Language Exploration 2026-05-26", () => {
       expect(output).toBe("7\n");
     });
 
+    it("BUG-373: rejects an address into a slice that views this frame", () => {
+      expectCompilationFailure(`
+        frame descriptor() ret *int {
+          local items: int[3];
+          items[0] = 1;
+          # The slice is local and views a local array, so the elements are
+          # this frame's storage even though a slice usually borrows.
+          local view: int[] = items;
+          return &view[0];
+        }
+
+        frame main() ret int {
+          return *descriptor();
+        }
+      `, "local");
+    });
+
     it("BUG-144: rejects pointer subtraction across incompatible pointee types", () => {
       expectCompilationFailure(`
         frame main() ret int {

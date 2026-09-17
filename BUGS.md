@@ -4781,3 +4781,49 @@ owned its elements; the walk stops at pointers but does not stop at slices.
 That false positive predates the latest fixes. The compiler implementation is
 unchanged by this validation; these findings remain open. Reproductions and
 validation scope are appended to docs/audits/2026-09-17-last-15-review.md.
+
+### BUG-373: The enum ownership guard conflates instantiations and loses nested substitutions
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: The guard from BUG-368 keyed each instantiation by the plain name of its arguments and substituted only a directly named parameter, so three cases slipped through:
+
+```bpl
+enum Slot<T> { Has(T), Empty }
+local _safe: Slot<*Resource> = ...;      # checked, correctly accepted
+local _bad: Slot<Resource> = ...;        # skipped: same key as Slot<*Resource>
+
+local _safe: Slot<Box<int>> = ...;       # checked
+local _bad: Slot<Box<Resource>> = ...;   # skipped: both keyed as Slot<Box>
+
+enum Slot<T> { Has(Box<Box<T>>), Empty }
+local _bad: Slot<Resource> = ...;        # accepted: T lost two wrappers deep
+```
+
+The first two only leaked when the safe instantiation came first, which is why a single-declaration test passed. The third failed regardless of order, because binding a parameter to a wrapper argument dropped the enclosing bindings.
+
+The same guard also had a false positive: `enum Slot { Has(Resource[]), Empty }` was rejected although a slice borrows its elements, which contradicted the ownership distinction used for the slice fixes.
+
+**Resolution**: Instantiations and walked types are identified by a full type identity, `typeIdentityKey`, covering pointer depth, array and slice dimensions, and generic arguments at every depth. Binding a declaration's parameters substitutes the enclosing bindings into each argument instead of looking it up by name, so a parameter is followed through wrappers of any depth. A slice payload is treated as borrowed and accepted; a fixed array is still owned and rejected.
+
+Covered by tests/RAIIAutoDestroy.test.ts, which puts the safe instantiation first in both conflating cases, nests a parameter two wrappers deep, and runs a slice payload at O0/O3 with LLVM validation.
+
+### BUG-374: An address into a slice over local storage is accepted
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-17)**: The correction for BUG-369 stopped the stack-address walk at every slice, which also accepted a slice that views this frame's own array:
+
+```bpl
+frame descriptor() ret *int {
+    local items: int[3];
+    local view: int[] = items;
+    return &view[0];      # accepted, and dangling
+}
+```
+
+**Resolution**: The walk no longer stops at a slice. It continues to the root and records that it passed through one, and the root decides: a slice parameter views storage the caller owns, so an address into its elements is accepted, while a slice held in a local is treated as this frame's storage. Pointers are unchanged. The remaining imprecision is conservative rather than unsafe: a local slice that views a caller's array is rejected, and the `_` prefix allows it. Distinguishing that case needs the pointer escape analysis that BUG-363 records as absent. docs/15-pointers.md shows both forms. Covered by tests/LanguageExploration_2026_05_26.test.ts alongside the accepted slice-parameter case.

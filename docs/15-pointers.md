@@ -693,10 +693,24 @@ its fields or elements (`&local.field`, `&local[0]`) and one hidden inside a
 returned struct, tuple, array, or enum value. Prefixing the variable name with
 `_` suppresses the check, which is unsafe.
 
-The check follows storage, not syntax: `&pointer.field`, `&pointer[i]`, and
-`&slice[i]` are accepted, because a pointer and a slice both borrow storage
-that is not this frame's. Returning `&slice[0]` from a frame that received the
-slice is valid: the elements belong to whoever owns the backing array. It is
+The check follows storage, not syntax. `&pointer.field` and `&pointer[i]` are
+accepted, because what a pointer refers to is not this frame's. A slice is
+judged by where it came from: `&slice[i]` is accepted when the slice is a
+parameter, since the caller owns the elements, and rejected when the slice is
+a local, since it may view this frame's own array:
+
+```bpl
+frame first(xs: int[]) ret *int { return &xs[0]; }   # accepted: caller's array
+
+frame bad() ret *int {
+    local items: int[3];
+    local view: int[] = items;
+    return &view[0];                                 # rejected: this frame's
+}
+```
+
+A local slice that views a caller's array is rejected as well, which is
+conservative; prefix the name with `_` to allow it. It is
 also not an escape analysis. An address stored into a local pointer first, or
 written through an out-parameter, is not detected:
 

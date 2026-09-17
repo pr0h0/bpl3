@@ -43,31 +43,37 @@ function isUnsafeStackAddressSymbol(symbol: Symbol | undefined): boolean {
 /**
  * The variable whose storage an address-of expression refers to. A field or
  * element belongs to the variable that holds it, so `&local.field` and
- * `&local[0]` point into that variable's frame storage. A pointer or a slice
- * stops the walk: both borrow storage that is not this frame's to begin with,
- * so an address taken through one may legitimately outlive the frame.
+ * `&local[0]` point into that variable's frame storage.
+ *
+ * A pointer stops the walk, because what it refers to is not this frame's to
+ * begin with. A slice does not stop it: the descriptor is local but the
+ * elements may not be, so the walk continues and reports that it passed
+ * through one, leaving the decision to the root it reaches.
  */
 function rootStackOperand(
   expr: AST.Expression | undefined,
-): AST.IdentifierExpr | undefined {
+): { root: AST.IdentifierExpr; throughSlice: boolean } | undefined {
   let current: AST.Expression | undefined = expr;
+  let throughSlice = false;
 
   while (current) {
     switch (current.kind) {
       case "Identifier":
-        return current as AST.IdentifierExpr;
+        return { root: current as AST.IdentifierExpr, throughSlice };
       case "Group":
         current = (current as AST.GroupExpr).expression;
         continue;
       case "Member": {
         const object: AST.Expression = (current as AST.MemberExpr).object;
-        if (TypeUtils.isBorrowedIndirection(object)) return undefined;
+        if (TypeUtils.isPointerExpression(object)) return undefined;
+        if (TypeUtils.isSliceExpression(object)) throughSlice = true;
         current = object;
         continue;
       }
       case "Index": {
         const object: AST.Expression = (current as AST.IndexExpr).object;
-        if (TypeUtils.isBorrowedIndirection(object)) return undefined;
+        if (TypeUtils.isPointerExpression(object)) return undefined;
+        if (TypeUtils.isSliceExpression(object)) throughSlice = true;
         current = object;
         continue;
       }
@@ -90,12 +96,21 @@ function findReturnedStackAddress(
   if (expr.kind === "Unary" && expr.operator.type === "Ampersand") {
     const operand = rootStackOperand(expr.operand);
     if (operand) {
-      const symbol = context.currentScope.resolve(operand.name);
+      const symbol = context.currentScope.resolve(operand.root.name);
+      // A slice parameter views storage the caller owns, so an address into
+      // its elements outlives this frame. A slice held in a local may view
+      // this frame's own array, so it is treated as frame storage.
+      const borrowedFromCaller =
+        operand.throughSlice &&
+        !!symbol &&
+        (symbol.kind === "Parameter" ||
+          symbol.declaration?.kind === "Parameter");
       if (
         isUnsafeStackAddressSymbol(symbol) &&
-        !operand.name.startsWith("_")
+        !borrowedFromCaller &&
+        !operand.root.name.startsWith("_")
       ) {
-        return operand.name;
+        return operand.root.name;
       }
     }
   }
