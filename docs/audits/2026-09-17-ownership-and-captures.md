@@ -22,7 +22,6 @@ resource leaked while the program looked correct.
 | BUG-354 | — | Own destructor now runs before the fields it owns; fields destroyed in reverse declaration order |
 | BUG-354 | — | A moved value suppresses its whole subtree, so returning a struct no longer destroys its fields twice |
 | BUG-354 | — | A local whose cleanup will read it is zeroed at its declaration, so a destructor never reads stale stack |
-| BUG-355 | — | (see captures below) |
 | BUG-358 | Tuple elements and destructured locals | Tuples are aggregates, so elements are reached like fields; destructuring targets register like locals |
 | BUG-359 | Enum payloads | Rejected with `BPL_AUTO_DESTROY_ENUM_PAYLOAD`; tag-directed cleanup is not implemented |
 | BUG-360 | By-value parameters | Registered with the body scope, since parameter storage predates it |
