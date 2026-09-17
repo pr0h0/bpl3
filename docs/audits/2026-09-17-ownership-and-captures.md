@@ -3,7 +3,7 @@
 This continues [the takeover review](2026-09-16-takeover-review.md) under the
 same instruction: no new features until the compiler is free of known defects,
 and breaking changes are acceptable where they make the language more reliable.
-Ten defects were reproduced and fixed. Each has its own commit, a BUGS.md
+Eleven defects were reproduced and fixed. Each has its own commit, a BUGS.md
 entry, documentation, and executable regression coverage.
 
 Three themes account for them. Cleanup followed a value's declared type but not
@@ -137,6 +137,21 @@ Module cache: a comparison of cached and uncached builds was attempted and
 abandoned. `run --cache` does not have the same semantics as `run`, so the
 comparison was not meaningful, and the sweep is not reported as a result.
 
+## Standard library
+
+`String` has five ways to search, and they disagreed about an empty search
+text: `indexOf("")` was 0, `startsWith("")` and `endsWith("")` were true,
+`lastIndexOf("")` was the length, and `includes("")` was false (BUG-364).
+Since `includes(x)` answers the same question as `indexOf(x) >= 0`, `includes`
+was the one that disagreed, and the result silently reverses code such as a
+filter meant to match everything when its query is empty. It now reports the
+empty text as present. `count` still reports zero, because a count of empty
+matches is not meaningful, and that exception is now written down along with
+the rest of the family's behavior in
+[the string guide](../29-stdlib-string.md).
+
+A null search text remains distinct from an empty one: every search rejects it.
+
 ## Open questions
 
 Four decisions are left to the maintainer. None is a defect; each is a place
@@ -154,7 +169,12 @@ where the language could be made safer at a cost.
 3. **Owning enum payloads.** These are rejected rather than leaked (BUG-359).
    Supporting them means a switch on the variant tag at every cleanup site,
    including the throw path.
-4. **Spec implementation asymmetry.** A struct that lists a spec must declare
+4. **Allocation failure in collections.** `Array.push` and `String.new` do not
+   check `malloc`. A failure surfaces as a diagnosed null-pointer access rather
+   than a thrown error. Reporting it properly means an error type and a
+   throwing signature for every allocating method, so it is a library-wide
+   decision rather than a local fix.
+5. **Spec implementation asymmetry.** A struct that lists a spec must declare
    every required method itself (R-SPEC-2), even when it inherits a working
    one, while a struct that inherits from an implementing parent gets them for
    free. Both fail loudly, so this is a design question rather than a defect.
