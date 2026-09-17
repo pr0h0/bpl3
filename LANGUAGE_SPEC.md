@@ -708,9 +708,11 @@ try {
   catch-all arm. Other matches must include an unguarded `_` or identifier arm.
   Guarded arms do not count toward exhaustiveness. Violations are rejected with
   `BPL_MATCH_EXHAUSTIVENESS_MISMATCH`.
-- **[R-MATCH-4]** An arm body may be a block. Inside a block arm,
-  `return expression;` yields the arm's value rather than returning from the
-  enclosing function.
+- **[R-MATCH-4]** An arm body may be a block. Inside a block arm of a match
+  used as an expression, `return expression;` yields the arm's value rather
+  than returning from the enclosing function. A match used as a statement has
+  no value to yield, so `return` there returns from the enclosing function and
+  is checked against its return type.
 
 ```bpl
 # Primitive patterns (int, float, bool, string, char)

@@ -272,6 +272,11 @@ export interface MatchExpr extends ASTNode {
   kind: "Match";
   value: Expression;
   arms: MatchArm[];
+  /**
+   * Set when the match is a statement rather than a value. `return` in an arm
+   * then returns from the enclosing function instead of yielding an arm value.
+   */
+  isStatementPosition?: boolean;
 }
 
 export interface MatchArm extends ASTNode {

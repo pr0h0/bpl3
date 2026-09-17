@@ -553,6 +553,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       resultType,
       resultTypeNode: expr.resolvedType!,
       results: [],
+      isStatementPosition: expr.isStatementPosition === true,
     });
 
     for (let i = 0; i < expr.arms.length; i++) {
@@ -809,6 +810,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       results: [],
       resultType,
       resultTypeNode: expr.resolvedType!,
+      isStatementPosition: expr.isStatementPosition === true,
     });
 
     // Generate checks for each arm
@@ -996,6 +998,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       results: [],
       resultType,
       resultTypeNode: expr.resolvedType!,
+      isStatementPosition: expr.isStatementPosition === true,
     });
 
     // Start matching
@@ -1167,6 +1170,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       results: [],
       resultType,
       resultTypeNode: expr.resolvedType!,
+      isStatementPosition: expr.isStatementPosition === true,
     });
 
     // Start matching

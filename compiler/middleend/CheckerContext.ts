@@ -118,5 +118,6 @@ export interface CheckerContext {
   ): void;
   checkMatchArmBody(
     body: AST.Expression | AST.BlockStmt,
+    isStatementPosition?: boolean,
   ): AST.TypeNode | undefined;
 }

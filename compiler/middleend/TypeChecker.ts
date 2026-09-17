@@ -521,6 +521,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         this.checkTypeAlias(stmt);
         break;
       case "ExpressionStmt":
+        if (stmt.expression.kind === "Match") {
+          // A match used as a statement has no value to yield, so `return`
+          // inside an arm returns from the enclosing function.
+          (stmt.expression as AST.MatchExpr).isStatementPosition = true;
+        }
         this.checkExpression(stmt.expression);
         break;
       case "Block":
@@ -2712,8 +2717,14 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   public checkMatchArmBody(
     body: AST.Expression | AST.BlockStmt,
+    isStatementPosition: boolean = false,
   ): AST.TypeNode | undefined {
     if (body.kind === "Block") {
+      if (isStatementPosition) {
+        // No arm value to yield: `return` belongs to the enclosing function.
+        StmtChecker.checkBlock.call(this, body);
+        return this.makeVoidType();
+      }
       // Push context for collecting return types
       this.matchContext.push({ inferredTypes: [] });
       try {

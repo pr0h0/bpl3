@@ -74,7 +74,8 @@ frame main() ret int {
     local f: float = 0;
     printf("float: %.1f\n", f);
 
-    local b: bool = 0;
+    # bool has no implicit conversion from 0; its zero value is false.
+    local b: bool = false;
     printf("bool: %s\n", b ? "true" : "false");
 
     local c: char = 0;

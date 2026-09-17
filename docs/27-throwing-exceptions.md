@@ -58,9 +58,11 @@ frame main() ret int {
 }
 ```
 
-Deferred cleanup runs before leaving each scope. Inside a match arm's block,
-`return` yields the arm's value, including when nested in try/catch; the enclosing
-function needs its own return.
+Deferred cleanup runs before leaving each scope. Inside a block arm of a match
+used as an expression, `return` yields the arm's value, including when nested in
+try/catch, so the enclosing function needs its own return. In a match used as a
+statement there is no arm value, and `return` returns from the enclosing
+function.
 
 ## Runtime-Generated Exceptions
 

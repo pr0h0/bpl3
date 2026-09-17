@@ -260,6 +260,50 @@ frame main() ret int {
     ]);
   }, 120000);
 
+  // spec: R-MATCH-4
+  test("return in a match statement leaves the enclosing function", () => {
+    expectCorrectnessSuite([
+      {
+        name: "match-statement-return",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...);
+enum Shape { Circle(double), Empty }
+frame described(s: Shape) ret int {
+  match (s) {
+    Shape.Circle(r) => { return cast<int>(r) * 2; },
+    Shape.Empty => { printf("empty\\n"); },
+  };
+  return 42;
+}
+frame guarded(x: int) ret int {
+  match (x) {
+    n if n > 10 => { return n * 3; },
+    _ => {},
+  };
+  return -1;
+}
+frame nested(s: Shape) ret int {
+  match (s) {
+    Shape.Circle(r) => {
+      local doubled: int = match (cast<int>(r)) { 2 => { return 20; }, _ => 1, };
+      return doubled + 5;
+    },
+    Shape.Empty => { return 0; },
+  };
+  return -7;
+}
+frame main() ret int {
+  printf("%d %d\\n", described(Shape.Circle(4.0)), described(Shape.Empty));
+  printf("%d %d\\n", guarded(11), guarded(2));
+  printf("%d %d\\n", nested(Shape.Circle(2.0)), nested(Shape.Circle(7.0)));
+  return 0;
+}`,
+        // Circle returns from inside the arm; Empty falls through to 42.
+        expectedStdout: "empty\n8 42\n33 -1\n25 6\n",
+      },
+    ]);
+  }, 120000);
+
   // spec: R-MATCH-3
   test("rejects non-exhaustive matches", () => {
     expectCheckDiagnostics([

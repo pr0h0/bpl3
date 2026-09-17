@@ -583,8 +583,9 @@ describe("TypeChecker", () => {
       "utf8",
     );
     const checkVariableDecl = source.indexOf("export function checkVariableDecl");
+    // The constant check now skips implicit integer-to-bool initializers.
     const constValueCheck = source.indexOf(
-      "const constVal = this.getIntegerConstantValue",
+      "const constVal = isImplicitIntegerToBool(resolvedDecl, resolvedInit)",
       checkVariableDecl,
     );
 

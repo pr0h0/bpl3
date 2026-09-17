@@ -331,6 +331,8 @@ export class BaseCodeGenerator {
     resultType: string;
     resultTypeNode: AST.TypeNode;
     results: { value: string; label: string; type: string }[];
+    /** A match statement yields nothing, so `return` leaves the function. */
+    isStatementPosition: boolean;
   }[] = [];
   protected pendingLambdas: {
     name: string;

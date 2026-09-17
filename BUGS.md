@@ -4180,3 +4180,25 @@ Source revision: `23e88536`. See [the audit report](docs/audits/2026-09-08.md) f
 **Observed (2026-09-16)**: `frame main(argc:int, _argv:**char)` passes checking but compilation fails at both O0 and O3: parameter initialization references `%_argv` while the native entry signature declares `%argv`. Discovered while measuring runtime overhead.
 
 **Resolution**: Main parameter locals read the fixed ABI argument registers by position rather than by source spelling. O0/O3 execution with LLVM verification covers renamed arguments, ignored underscore names, swapped spellings, and mutation of the count parameter.
+
+### BUG-350: `return` in a match statement is discarded
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-17)**: Code generation treated every `return` inside a match arm as the arm's value, including matches used as statements, which have no value. The arm body ran, the returned value was computed and dropped, and execution continued after the match:
+
+```bpl
+frame described(s: Shape) ret int {
+    match (s) {
+        Shape.Circle(r) => { return cast<int>(r) * 2; },
+        Shape.Empty => { return -1; },
+    };
+    return -2;
+}
+```
+
+`described(Shape.Circle(2.5))` ran the arm and then returned `-2` at O0 and O3. There was no other way to return from inside a match arm, so any such function silently produced the wrong value. Checking also validated those returns against the arm type instead of the function's return type.
+
+**Resolution**: Matches in statement position are marked during checking (`MatchExpr.isStatementPosition`). Their arm blocks check `return` against the enclosing function's return type, and code generation emits a real function return, including scope cleanup and the stack-depth exit, instead of a branch to the match merge block. Expression matches keep yielding arm values, which remains the only way for a block arm to produce one. LANGUAGE_SPEC.md R-MATCH-4 now states both cases. Covered by tests/LanguageSpecExpressions.test.ts at O0/O3 with LLVM validation.

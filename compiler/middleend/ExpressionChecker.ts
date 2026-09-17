@@ -1845,10 +1845,17 @@ export function checkMatchExpr(
       }
     }
 
-    const armType = this.checkMatchArmBody(arm.body);
+    const armType = this.checkMatchArmBody(
+      arm.body,
+      expr.isStatementPosition === true,
+    );
 
     this.currentScope = this.currentScope.exitScope();
 
+    if (expr.isStatementPosition) {
+      // A match statement discards arm values, so they need no common type.
+      continue;
+    }
     if (!resultType) {
       resultType = armType;
     } else if (armType && !this.areTypesCompatible(resultType, armType)) {

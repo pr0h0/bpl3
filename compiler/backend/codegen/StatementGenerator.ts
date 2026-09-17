@@ -2166,10 +2166,10 @@ export abstract class StatementGenerator extends AsmGenerator {
     let destType = this.resolveType(destTypeNode);
     let isMatchYield = false;
 
-    if (this.matchStack.length > 0) {
-      const matchContext = this.matchStack[this.matchStack.length - 1]!;
-      destTypeNode = matchContext.resultTypeNode;
-      destType = matchContext.resultType;
+    const enclosingMatch = this.matchStack[this.matchStack.length - 1];
+    if (enclosingMatch && !enclosingMatch.isStatementPosition) {
+      destTypeNode = enclosingMatch.resultTypeNode;
+      destType = enclosingMatch.resultType;
       isMatchYield = true;
     }
 

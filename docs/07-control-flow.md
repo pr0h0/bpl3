@@ -706,7 +706,10 @@ match ((x, y)) {
 
 ### Match Arms with Blocks and Explicit Returns
 
-Match arms can contain blocks of code. Inside these blocks, you can use the `return` statement to yield a value for the match expression. This is different from returning from the function.
+Match arms can contain blocks of code. When the match is used as an expression,
+`return` inside such a block yields a value for the match expression rather than
+returning from the function. When the match is used as a statement, there is no
+arm value to yield, so `return` returns from the enclosing function.
 
 ```bpl
 enum Status {
@@ -730,11 +733,24 @@ local result: string = match(s) {
 };
 ```
 
-> **Note:** A `return` statement inside a match arm block returns a value to the `match` expression, NOT the enclosing function. To return from the function inside a match arm, you must use a control flow flag or structure your code differently.
+> **Note:** In a match used as an expression, `return` inside an arm block
+> returns a value to the `match` expression, NOT the enclosing function. Write
+> the match as a statement when an arm should return from the function:
+>
+> ```bpl
+> frame describe(s: Status) ret string {
+>     match (s) {
+>         Status.Ok => { return "All good"; },   # returns from describe
+>         Status.Error(code) => { printf("error %d\n", code); },
+>     };
+>     return "unknown";
+> }
+> ```
 
 ### Nested Matches
 
-You can nest match expressions. Explicit returns will yield to the nearest enclosing match expression.
+You can nest match expressions. Explicit returns yield to the nearest enclosing
+match expression; a return inside a match statement returns from the function.
 
 ```bpl
 enum Inner {
