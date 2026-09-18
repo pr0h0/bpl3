@@ -362,3 +362,189 @@ test("arc tangent matches the platform implementation and stays continuous", () 
     },
   ]);
 }, 60000);
+
+test("statistics hold for opposite-sign extremes and subnormals", () => {
+  expectCorrectnessSuite([
+    {
+      name: "stats-extreme-pairs",
+      validateLlvm: true,
+      source: `
+      import [Stats] from "std/stats.bpl";
+      import printf from "std/c.bpl";
+      extern atof(text: string) ret float;
+      frame main() ret int {
+        local big: float = atof("1e308");
+        local tiny: float = atof("5e-324");
+        # The mean is exactly zero, but the difference between the samples is
+        # not representable.
+        local opposite: float[2] = [-big, big];
+        # Halving each subnormal first rounds both to zero.
+        local subnormal: float[2] = [tiny, tiny];
+        local ordinary: float[2] = [2.0, 4.0];
+        printf("%.1f %d %d %.1f %.1f\\n",
+          Stats.mean(&opposite[0], 2),
+          cast<int>(Stats.median(&subnormal[0], 2) == tiny),
+          cast<int>(Stats.mean(&subnormal[0], 2) == tiny),
+          Stats.mean(&ordinary[0], 2),
+          Stats.median(&ordinary[0], 2));
+        return 0;
+      }`,
+      expectedStdout: "0.0 1 1 3.0 3.0\n",
+    },
+  ]);
+}, 60000);
+
+test("rational addition reduces a sum that exceeds the signed range", () => {
+  expectCorrectnessSuite([
+    {
+      name: "rational-large-proper-sum",
+      validateLlvm: true,
+      source: `
+      import [Rational] from "std/rational.bpl";
+      import printf from "std/c.bpl";
+      frame main() ret int {
+        # The numerators sum past the signed limit, while the reduced answer
+        # fits: 9223372036854775805/4611686018427387903.
+        local near: Rational = Rational.new(9223372036854775805, 9223372036854775806);
+        local doubled: Rational = near.add(near);
+        local half: Rational = Rational.new(1, 2);
+        local whole: Rational = half.add(half);
+        local third: Rational = Rational.new(1, 3);
+        local mixed: Rational = half.add(third);
+        printf("%ld %ld %ld %ld %ld %ld\\n",
+          doubled.num, doubled.den, whole.num, whole.den, mixed.num, mixed.den);
+        return 0;
+      }`,
+      expectedStdout: "9223372036854775805 4611686018427387903 1 1 5 6\n",
+    },
+  ]);
+}, 60000);
+
+test("complex division holds for divisors near the finite limit", () => {
+  expectCorrectnessSuite([
+    {
+      name: "complex-near-max-division",
+      validateLlvm: true,
+      source: `
+      import [Complex] from "std/complex.bpl";
+      import printf from "std/c.bpl";
+      extern atof(text: string) ret float;
+      frame main() ret int {
+        local big: float = atof("1e308");
+        # Both components near the limit: scaling only the ratio still let the
+        # denominator overflow.
+        local huge: Complex = Complex.new(big, big);
+        local quotient: Complex = huge.div(huge);
+        local inverse: Complex = huge.reciprocal();
+        local ordinary: Complex = Complex.new(3.0, 4.0);
+        local control: Complex = ordinary.div(ordinary);
+        printf("%.1f %.1f %.1e %.1e %.1f\\n",
+          quotient.real, quotient.imag, inverse.real, inverse.imag, control.real);
+        return 0;
+      }`,
+      expectedStdout: "1.0 0.0 5.0e-309 -5.0e-309 1.0\n",
+    },
+  ]);
+}, 60000);
+
+test("integer gcd and lcm keep representable answers", () => {
+  expectCorrectnessSuite([
+    {
+      name: "integer-gcd-lcm",
+      validateLlvm: true,
+      source: `
+      import [Math] from "std/math.bpl";
+      import printf from "std/c.bpl";
+      frame main() ret int {
+        # The magnitude of the minimum int is not an int, and a shared large
+        # factor makes the product overflow while the multiple does not.
+        printf("%d %d %d %d %d %d\\n",
+          Math.gcd(cast<int>(-2147483648), 6),
+          Math.lcm(50000, 50000),
+          Math.gcd(54, 24),
+          Math.lcm(4, 6),
+          Math.gcd(-54, 24),
+          Math.lcm(0, 5));
+        return 0;
+      }`,
+      expectedStdout: "2 50000 6 12 6 0\n",
+    },
+  ]);
+}, 60000);
+
+test("float modulo, interpolation, and atan2 stay well defined at the extremes", () => {
+  expectCorrectnessSuite([
+    {
+      name: "math-extremes",
+      validateLlvm: true,
+      source: `
+      import [Math] from "std/math.bpl";
+      import printf from "std/c.bpl";
+      extern atof(text: string) ret float;
+      extern atan2(y: float, x: float) ret float;
+      frame main() ret int {
+        local big: float = atof("1e308");
+        local small: float = atof("1e-308");
+        local infinity: float = atof("inf");
+        local notANumber: float = atof("nan");
+        local negativeZero: float = atof("-0");
+
+        # The quotient overflows, but the remainder is finite and in range.
+        local remainder: float = Math.mod(big, small);
+        printf("%d %.1f %.1e %.1e %.1e %d %d %d %.1f\\n",
+          cast<int>((remainder >= 0.0) && (remainder < small)),
+          Math.mod(-5.5, 2.0),
+          Math.lerp(-big, big, 0.0),
+          Math.lerp(-big, big, 0.5),
+          Math.lerp(-big, big, 1.0),
+          cast<int>(Math.atan2(infinity, infinity) == atan2(infinity, infinity)),
+          cast<int>(Math.isNan(Math.atan2(1.0, notANumber))),
+          cast<int>(Math.atan2(negativeZero, -1.0) == atan2(negativeZero, -1.0)),
+          Math.lerp(2.0, 4.0, 0.5));
+        return 0;
+      }`,
+      expectedStdout: "1 0.5 -1.0e+308 0.0e+00 1.0e+308 1 1 1 3.0\n",
+    },
+  ]);
+}, 60000);
+
+test("UTF-8 validation rejects non-scalar and malformed encodings", () => {
+  expectCorrectnessSuite([
+    {
+      name: "utf8-validation",
+      validateLlvm: true,
+      source: `
+      import [UTF8] from "std/utf8.bpl";
+      import printf from "std/c.bpl";
+      frame main() ret int {
+        # Isolated continuation, unusable lead, overlong three-byte, surrogate,
+        # overlong four-byte, above U+10FFFF, truncated, then valid ones.
+        local continuation: u8[2] = [cast<u8>(0x80), cast<u8>(0)];
+        local unusable: u8[2] = [cast<u8>(0xFF), cast<u8>(0)];
+        local overlong3: u8[4] = [cast<u8>(0xE0), cast<u8>(0x9F), cast<u8>(0xBF), cast<u8>(0)];
+        local surrogate: u8[4] = [cast<u8>(0xED), cast<u8>(0xA0), cast<u8>(0x80), cast<u8>(0)];
+        local overlong4: u8[5] = [cast<u8>(0xF0), cast<u8>(0x8F), cast<u8>(0xBF), cast<u8>(0xBF), cast<u8>(0)];
+        local tooLarge: u8[5] = [cast<u8>(0xF4), cast<u8>(0x90), cast<u8>(0x80), cast<u8>(0x80), cast<u8>(0)];
+        local truncated: u8[3] = [cast<u8>(0xE1), cast<u8>(0x80), cast<u8>(0)];
+        local belowSurrogate: u8[4] = [cast<u8>(0xED), cast<u8>(0x9F), cast<u8>(0xBF), cast<u8>(0)];
+        local maximum: u8[5] = [cast<u8>(0xF4), cast<u8>(0x8F), cast<u8>(0xBF), cast<u8>(0xBF), cast<u8>(0)];
+        local emoji: u8[5] = [cast<u8>(0xF0), cast<u8>(0x9F), cast<u8>(0x98), cast<u8>(0x80), cast<u8>(0)];
+        printf("%d%d%d%d%d%d%d%d%d%d%d\\n",
+          cast<int>(UTF8.isValid(cast<string>(&continuation[0]))),
+          cast<int>(UTF8.isValid(cast<string>(&unusable[0]))),
+          cast<int>(UTF8.isValid(cast<string>(&overlong3[0]))),
+          cast<int>(UTF8.isValid(cast<string>(&surrogate[0]))),
+          cast<int>(UTF8.isValid(cast<string>(&overlong4[0]))),
+          cast<int>(UTF8.isValid(cast<string>(&tooLarge[0]))),
+          cast<int>(UTF8.isValid(cast<string>(&truncated[0]))),
+          cast<int>(UTF8.isValid(cast<string>(&belowSurrogate[0]))),
+          cast<int>(UTF8.isValid(cast<string>(&maximum[0]))),
+          cast<int>(UTF8.isValid(cast<string>(&emoji[0]))),
+          cast<int>(UTF8.isValid("abc")));
+        return 0;
+      }`,
+      // Verified against Python's strict UTF-8 decoder for all eleven inputs.
+      expectedStdout: "00000001111\n",
+    },
+  ]);
+}, 60000);

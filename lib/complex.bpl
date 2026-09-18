@@ -79,20 +79,35 @@ struct Complex {
             return Complex.new(zero / zero, zero / zero);
         }
 
-        if (Math.abs(other.real) >= Math.abs(other.imag)) {
-            local ratio: float = other.imag / other.real;
-            local denom: float = other.real + (other.imag * ratio);
+        # Divide everything by the divisor's largest component first. Scaling
+        # only the ratio still leaves `real + imag * ratio` able to overflow
+        # when both components are near the limit, as for (1e308, 1e308).
+        # After this the divisor's components are at most one.
+        local scale: float = Math.abs(other.real);
+        local otherImagSize: float = Math.abs(other.imag);
+        if (scale < otherImagSize) {
+            scale = otherImagSize;
+        }
+
+        local cr: float = other.real / scale;
+        local ci: float = other.imag / scale;
+        local ar: float = this.real / scale;
+        local ai: float = this.imag / scale;
+
+        if (Math.abs(cr) >= Math.abs(ci)) {
+            local ratio: float = ci / cr;
+            local denom: float = cr + (ci * ratio);
             return Complex.new(
-                (this.real + (this.imag * ratio)) / denom,
-                (this.imag - (this.real * ratio)) / denom,
+                (ar + (ai * ratio)) / denom,
+                (ai - (ar * ratio)) / denom,
             );
         }
 
-        local ratio: float = other.real / other.imag;
-        local denom: float = (other.real * ratio) + other.imag;
+        local ratio: float = cr / ci;
+        local denom: float = (cr * ratio) + ci;
         return Complex.new(
-            ((this.real * ratio) + this.imag) / denom,
-            ((this.imag * ratio) - this.real) / denom,
+            ((ar * ratio) + ai) / denom,
+            ((ai * ratio) - ar) / denom,
         );
     }
 

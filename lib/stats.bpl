@@ -36,7 +36,11 @@ struct Stats {
         local i: int = 0;
         loop (i < length) {
             local count: float = cast<float>(i + 1);
-            running = running + ((*(data + i) - running) / count);
+            # Scale both terms before combining them. Taking the difference
+            # between the sample and the running mean first overflows for
+            # operands of opposite sign near the limit, such as -1e308 and
+            # 1e308, whose mean is exactly zero.
+            running = (running - (running / count)) + (*(data + i) / count);
             i = i + 1;
         }
         return running;
@@ -362,9 +366,17 @@ struct Stats {
             return *(data + (length / 2));
         } else {
             local mid: int = length / 2;
-            # Halve each value before adding: their sum can exceed the range
-            # while the midpoint itself is finite. Halving is exact.
-            return (*((data + mid) - 1) / 2.0) + (*(data + mid) / 2.0);
+            local lower: float = *((data + mid) - 1);
+            local upper: float = *(data + mid);
+            # Halve after adding where the sum is finite, which keeps the
+            # midpoint of two subnormals exact; halving each one first would
+            # round both to zero. Fall back to halving first only when the sum
+            # itself cannot be represented.
+            local total: float = lower + upper;
+            if (Math.isInfinite(total)) {
+                return (lower / 2.0) + (upper / 2.0);
+            }
+            return total / 2.0;
         }
     }
 
@@ -419,7 +431,9 @@ struct Stats {
         if (upper >= length) {
             return *((data + length) - 1);
         }
-        return *(data + lower) + (fraction * (*(data + upper) - *(data + lower)));
+        # Weight each endpoint rather than adding a scaled difference, which
+        # overflows for opposite-sign extremes and loses the endpoints.
+        return Math.lerp(*(data + lower), *(data + upper), fraction);
     }
 
     # Calculate the covariance between two float arrays

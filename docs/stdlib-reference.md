@@ -2256,6 +2256,7 @@ frame zero() ret Rational
 frame one() ret Rational
 frame gcd(a: long, b: long) ret long
 frame simplify(this: *Rational)
+frame gcdWide(a: u64, b: u64) ret u64
 frame addFractions(an: long, ad: long, bn: long, bd: long) ret Rational
 frame add(this: *Rational, other: Rational) ret Rational
 frame sub(this: *Rational, other: Rational) ret Rational

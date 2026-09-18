@@ -94,6 +94,16 @@ struct Rational {
         representable. The whole parts are added separately, and only the
         proper fractions are combined over the least common denominator.
     #/
+    /# Greatest common divisor of two unsigned values. #/
+    frame gcdWide(a: u64, b: u64) ret u64 {
+        loop (b != cast<u64>(0)) {
+            local temp: u64 = b;
+            b = a % b;
+            a = temp;
+        }
+        return a;
+    }
+
     frame addFractions(an: long, ad: long, bn: long, bd: long) ret Rational {
         local aWhole: long = Rational.floorDiv(an, ad);
         local bWhole: long = Rational.floorDiv(bn, bd);
@@ -104,23 +114,31 @@ struct Rational {
         local aScale: long = ad / common;
         local bScale: long = bd / common;
         local restDen: long = ad * bScale;
-        local restNum: long = (aRest * bScale) + (bRest * aScale);
+
+        # Both parts are non-negative and each is below the common
+        # denominator, so their sum fits u64 even when it exceeds long. It is
+        # reduced there before being brought back.
+        local restNum: u64 = cast<u64>(aRest * bScale) + cast<u64>(bRest * aScale);
+        local restDenWide: u64 = cast<u64>(restDen);
 
         local whole: long = aWhole + bWhole;
-        if (restNum >= restDen) {
+        if (restNum >= restDenWide) {
             whole = whole + cast<long>(1);
-            restNum = restNum - restDen;
+            restNum = restNum - restDenWide;
         }
 
-        local restFactor: long = Rational.gcd(restNum, restDen);
-        if (restFactor != cast<long>(0)) {
+        local restFactor: u64 = Rational.gcdWide(restNum, restDenWide);
+        if (restFactor != cast<u64>(0)) {
             restNum = restNum / restFactor;
-            restDen = restDen / restFactor;
+            restDenWide = restDenWide / restFactor;
         }
-        if (restDen == cast<long>(1)) {
-            return Rational.new(whole + restNum, cast<long>(1));
+
+        local reducedNum: long = cast<long>(restNum);
+        local reducedDen: long = cast<long>(restDenWide);
+        if (reducedDen == cast<long>(1)) {
+            return Rational.new(whole + reducedNum, cast<long>(1));
         }
-        return Rational.new((whole * restDen) + restNum, restDen);
+        return Rational.new((whole * reducedDen) + reducedNum, reducedDen);
     }
 
     frame add(this: *Rational, other: Rational) ret Rational {

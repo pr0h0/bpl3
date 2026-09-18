@@ -66,7 +66,16 @@ struct UTF8 {
         return 1; # Invalid, treat as single byte
     }
 
-    # Validates if a string is valid UTF-8
+    /#
+        Validates if a string is valid UTF-8.
+
+        The leading byte fixes both the length and the range its second byte
+        may take, and those ranges are what exclude overlong encodings, the
+        surrogate block, and anything above U+10FFFF. The previous check asked
+        codepointByteLength for a length, which reports one for any byte it
+        does not recognise, so an isolated continuation byte, an FF, a
+        surrogate encoded as ED A0 80, and F4 90 80 80 were all accepted.
+    #/
     frame isValid(s: string) ret bool {
         if (s == nullptr) 
             return true;
@@ -77,35 +86,61 @@ struct UTF8 {
         local len: int = strlen(s);
 
         loop (i < len) {
-            local byte: u8 = ptr[i];
-            local cpLen: int = UTF8.codepointByteLength(byte);
+            local first: u8 = ptr[i];
+            local following: int = 0;
+            local secondLow: u8 = cast<u8>(0x80);
+            local secondHigh: u8 = cast<u8>(0xBF);
 
-            # Check if we have enough bytes
-            if ((i + cpLen) > len) 
+            if (first <= cast<u8>(0x7F)) {
+                following = 0;
+            } else if ((first >= cast<u8>(0xC2)) && (first <= cast<u8>(0xDF))) {
+                following = 1;
+            } else if (first == cast<u8>(0xE0)) {
+                # A second byte below A0 would be an overlong two-byte value.
+                following = 2;
+                secondLow = cast<u8>(0xA0);
+            } else if ((first >= cast<u8>(0xE1)) && (first <= cast<u8>(0xEC))) {
+                following = 2;
+            } else if (first == cast<u8>(0xED)) {
+                # A0 and above here encodes a surrogate, which is not a scalar.
+                following = 2;
+                secondHigh = cast<u8>(0x9F);
+            } else if ((first >= cast<u8>(0xEE)) && (first <= cast<u8>(0xEF))) {
+                following = 2;
+            } else if (first == cast<u8>(0xF0)) {
+                # Below 90 would be an overlong three-byte value.
+                following = 3;
+                secondLow = cast<u8>(0x90);
+            } else if ((first >= cast<u8>(0xF1)) && (first <= cast<u8>(0xF3))) {
+                following = 3;
+            } else if (first == cast<u8>(0xF4)) {
+                # Above 8F would exceed U+10FFFF.
+                following = 3;
+                secondHigh = cast<u8>(0x8F);
+            } else {
+                # 80 to C1 are continuation or overlong leads; F5 to FF are
+                # beyond the encodable range.
                 return false;
-            # Validate continuation bytes
+            }
+
+            if ((i + following) >= len) 
+                return false;
+
             local j: int = 1;
-            loop (j < cpLen) {
-                local contByte: u8 = ptr[i + j];
-                # Continuation bytes must be 10xxxxxx
-                if ((contByte & cast<u8>(0xC0)) != cast<u8>(0x80)) 
+            loop (j <= following) {
+                local continuation: u8 = ptr[i + j];
+                local low: u8 = cast<u8>(0x80);
+                local high: u8 = cast<u8>(0xBF);
+                if (j == 1) {
+                    low = secondLow;
+                    high = secondHigh;
+                }
+                if ((continuation < low) || (continuation > high)) 
                     return false;
                 j = j + 1;
             }
 
-            # Check for overlong encodings (simplified check)
-            if (cpLen == 2) {
-                if ((byte & cast<u8>(0x1E)) == cast<u8>(0)) 
-                    return false;
-                # Overlong
-            } else if (cpLen == 3) {
-                if ((byte == cast<u8>(0xE0)) && ((ptr[i + 1] & cast<u8>(0x20)) == cast<u8>(0))) 
-                    return false;
-            } else if (cpLen == 4) {
-                if ((byte == cast<u8>(0xF0)) && ((ptr[i + 1] & cast<u8>(0x30)) == cast<u8>(0))) 
-                    return false;
-            }
-            i = i + cpLen;
+            i = i + following + 1;
         }
 
         return true;

@@ -5,6 +5,8 @@ import sqrt, sin, cos, pow, exp, log, floor, ceil, round, fabs, minnum, maxnum, 
 # Arc tangent has no LLVM intrinsic mapping here, so it comes from the
 # platform math library, as the accuracy note on Math.atan explains.
 extern atan(x: float) ret float;
+extern atan2(y: float, x: float) ret float;
+extern fmod(x: float, y: float) ret float;
 
 export [Math];
 
@@ -175,24 +177,17 @@ struct Math {
         return atan(x);
     }
 
+    /#
+        Two-argument arc tangent, from the platform math library.
+
+        The quadrant logic this replaces divided the arguments before choosing
+        a branch, so infinity over infinity became indeterminate, a NaN
+        argument fell through every comparison to zero, and a negative zero
+        numerator on the negative real axis satisfied `y >= 0` and gave +pi
+        where -pi is required. Complex.phase is built on this.
+    #/
     frame atan2(y: float, x: float) ret float {
-        if (x > 0.0) {
-            return Math.atan(y / x);
-        }
-        if ((x < 0.0) && (y >= 0.0)) {
-            return Math.atan(y / x) + PI;
-        }
-        if ((x < 0.0) && (y < 0.0)) {
-            return Math.atan(y / x) - PI;
-        }
-        if ((x == 0.0) && (y > 0.0)) {
-            return PI / 2.0;
-        }
-        if ((x == 0.0) && (y < 0.0)) {
-            return -PI / 2.0;
-        }
-        # undefined (0, 0)
-        return 0.0;
+        return atan2(y, x);
     }
 
     # Logarithmic functions
@@ -221,8 +216,19 @@ struct Math {
         return x;
     }
 
+    /#
+        Linear interpolation. Weighting each endpoint separately keeps the
+        difference `b - a` from overflowing when the endpoints have opposite
+        signs near the limit; the endpoints themselves are returned exactly.
+    #/
     frame lerp(a: float, b: float, t: float) ret float {
-        return a + ((b - a) * t);
+        if (t == 0.0) {
+            return a;
+        }
+        if (t == 1.0) {
+            return b;
+        }
+        return (a * (1.0 - t)) + (b * t);
     }
 
     frame sign(x: float) ret float {
@@ -241,8 +247,24 @@ struct Math {
         return 0;
     }
 
+    /#
+        Floor modulo: the result takes the sign of the divisor.
+
+        Forming the quotient first overflows for a large dividend and a small
+        divisor, as with 1e308 and 1e-308, and the remainder then came back
+        infinite. The platform remainder never materializes the quotient; its
+        result truncates toward zero, so one divisor is added back when the
+        signs differ.
+    #/
     frame mod(x: float, y: float) ret float {
-        return x - (floor(x / y) * y);
+        local remainder: float = fmod(x, y);
+        if (remainder == 0.0) {
+            return remainder;
+        }
+        if ((remainder < 0.0) != (y < 0.0)) {
+            return remainder + y;
+        }
+        return remainder;
     }
 
     frame degToRad(deg: float) ret float {
@@ -267,21 +289,47 @@ struct Math {
         return n + 1;
     }
 
+    /#
+        Greatest common divisor. The magnitudes are taken in long: the
+        magnitude of the minimum int is not an int, and taking it there left a
+        negative value that produced a negative divisor.
+    #/
     frame gcd(a: int, b: int) ret int {
-        local x: int = Math.abs(a);
-        local y: int = Math.abs(b);
-        loop (y != 0) {
-            local temp: int = y;
+        local x: long = cast<long>(a);
+        local y: long = cast<long>(b);
+        if (x < cast<long>(0)) {
+            x = -x;
+        }
+        if (y < cast<long>(0)) {
+            y = -y;
+        }
+        loop (y != cast<long>(0)) {
+            local temp: long = y;
             y = x % y;
             x = temp;
         }
-        return x;
+        return cast<int>(x);
     }
 
+    /#
+        Least common multiple. The common factor is divided out before
+        multiplying: forming the product first overflows whenever the two
+        share a large factor, so lcm(50000, 50000) did not return 50000.
+    #/
     frame lcm(a: int, b: int) ret int {
-        if ((a == 0) || (b == 0)) 
+        if ((a == 0) || (b == 0)) {
             return 0;
-        return Math.abs(a * b) / Math.gcd(a, b);
+        }
+        local common: long = cast<long>(Math.gcd(a, b));
+        local x: long = cast<long>(a);
+        local y: long = cast<long>(b);
+        if (x < cast<long>(0)) {
+            x = -x;
+        }
+        if (y < cast<long>(0)) {
+            y = -y;
+        }
+        return cast<int>((x / common) * y);
     }
 
     frame factorial(n: int) ret long {

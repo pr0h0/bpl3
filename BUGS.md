@@ -5111,3 +5111,85 @@ The reported classification was an improvement rather than a defect, because the
 **Observed (2026-09-18)**: Both `median` overloads and `percentile` ran a full bubble sort whatever the input, needing n*(n-1)/2 adjacent comparisons: about five billion to take the median of 100,000 samples, and the same quadratic cost for an already sorted one.
 
 **Resolution**: The three sites share an in-place heapsort, which is O(n log n) in the worst case and still leaves the array fully sorted, since callers may depend on that. Sorting 20,000 samples went from 693 ms to 15 ms, with identical results. Covered by tests/StdlibNumericBoundaries.test.ts for duplicates, already sorted and reversed input, single and paired elements, and a check that the array is left in order.
+
+### BUG-392: Streaming mean and midpoint lose opposite-sign extremes and subnormals
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: The overflow repairs in BUG-388 introduced two failures of their own, confirmed against the previous implementation, which handled both.
+
+The mean subtracted the running value from the next sample. For `[-1e308, 1e308]` that difference is not representable although the mean is exactly zero, so the result was infinity. The median halved each central value before adding them, and halving is not exact for subnormals: the two smallest positive subnormals each rounded to zero, so their median became zero instead of that same value. The comment claiming halving is always exact was wrong.
+
+**Resolution**: The mean scales both terms before combining them, `running - running/count + sample/count`, which never forms a difference of two extremes. The median adds first and halves the sum, which keeps subnormals exact, and falls back to halving each value only when the sum itself is not representable.
+
+### BUG-393: Rational addition still overflows before reducing
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: Splitting off whole parts in BUG-386 left the proper fractions to be added directly. For `9223372036854775805/9223372036854775806` added to itself, that sum exceeds the signed range while the reduced answer, `9223372036854775805/4611686018427387903`, does not.
+
+**Resolution**: Both parts are non-negative and each is below the common denominator, so their sum fits an unsigned 64-bit value even when it exceeds the signed range. It is formed and reduced there, then brought back.
+
+### BUG-394: Complex division overflows for divisors near the limit
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: The scaled division in BUG-389 divides the smaller component by the larger, but still forms `real + imag * ratio`, which overflows when both components are near the finite limit. Dividing `(1e308, 1e308)` by itself gave NaN, and its reciprocal zero.
+
+**Resolution**: Both operands are divided by the divisor's largest component before the ratio is taken, so the divisor's components are at most one and the denominator cannot overflow.
+
+### BUG-395: UTF-8 validation accepts non-scalar and malformed encodings
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: `UTF8.isValid` asked `codepointByteLength` for a length, and that reports one for any byte it does not recognise, so an isolated continuation byte and an `FF` were read as single characters and accepted. The multi-byte branches also had no surrogate exclusion or upper limit, so `ED A0 80` (U+D800) and `F4 90 80 80` (above U+10FFFF) passed.
+
+**Resolution**: Validation derives both the length and the permitted range of the second byte from the leading byte, which is what excludes overlong forms, the surrogate block, and anything above U+10FFFF. `codepointByteLength` is unchanged, since other callers depend on its current behaviour. Checked against Python's strict decoder over 25 sequences, including every boundary: `E0 9F BF` and `F0 8F BF BF` overlong, `ED 9F BF` and `F4 8F BF BF` valid, truncated sequences, and `C0`/`C1`/`F5`-`FF` leads.
+
+### BUG-396: Integer gcd and lcm lose representable answers
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: `Math.gcd` took magnitudes in `int`, and the magnitude of the minimum int is not one, so `gcd(-2147483648, 6)` returned `-2`. `Math.lcm` multiplied before dividing by the common factor, so `lcm(50000, 50000)` overflowed although the answer is 50000.
+
+**Resolution**: Magnitudes are taken in `long`, and the common factor is divided out before multiplying.
+
+### BUG-397: Float modulo forms an overflowing quotient
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: `Math.mod` computed `x - floor(x / y) * y`. For `x = 1e308` and `y = 1e-308` the quotient is not representable, so the remainder came back infinite rather than lying in `[0, y)`.
+
+**Resolution**: The platform remainder is used, which never materializes the quotient, and one divisor is added back when the signs differ, preserving the floor-modulo convention the previous implementation had.
+
+### BUG-398: Interpolation loses endpoints for opposite-sign extremes
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: `Math.lerp` and `Stats.percentile` scaled the difference between the endpoints. For `-1e308` and `1e308` that difference is infinite, so even the zero and one positions returned NaN or infinity instead of the endpoints themselves, and the midpoint, exactly zero, was lost.
+
+**Resolution**: Each endpoint is weighted separately, and the two endpoint positions return their endpoint exactly. `percentile` shares `Math.lerp` rather than repeating the formula.
+
+### BUG-399: atan2 mishandles infinities, NaN, and signed zero
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: Replacing the arc tangent in BUG-390 left `atan2` with its own quadrant logic, which divides before selecting a branch. Infinity over infinity was indeterminate, a NaN argument fell through every comparison to zero, and a negative zero numerator on the negative real axis satisfied `y >= 0` and gave `+pi` where `-pi` is required. `Complex.phase` inherited all three.
+
+**Resolution**: `Math.atan2` calls the platform implementation, as `atan` now does.
