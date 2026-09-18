@@ -1642,6 +1642,8 @@ global const LN10: float = 2.30258509299404568402
 ```bpl
 struct Math
 frame abs(x: int) ret int
+frame isNan(x: float) ret bool
+frame isInfinite(x: float) ret bool
 frame abs(x: float) ret float
 frame min(a: int, b: int) ret int
 frame max(a: int, b: int) ret int
@@ -2217,7 +2219,7 @@ export [Range];
 struct Range
 start: int
 end: long
-step: int
+step: long
 frame new(start: int, end: int, step: int) ret Range
 frame until(end: int) ret Range
 frame between(start: int, end: int) ret Range
@@ -2254,6 +2256,7 @@ frame zero() ret Rational
 frame one() ret Rational
 frame gcd(a: long, b: long) ret long
 frame simplify(this: *Rational)
+frame addFractions(an: long, ad: long, bn: long, bd: long) ret Rational
 frame add(this: *Rational, other: Rational) ret Rational
 frame sub(this: *Rational, other: Rational) ret Rational
 frame mul(this: *Rational, other: Rational) ret Rational

@@ -3,6 +3,7 @@
 export [Vec2];
 
 import [Equatable], [Cloneable] from "std/core_specs.bpl";
+import [Math] from "std/math.bpl";
 
 extern printf(fmt: string, ...) ret int;
 
@@ -46,19 +47,26 @@ struct Vec2: Equatable<Vec2>, Cloneable<Vec2> {
         return (this.x * other.x) + (this.y * other.y);
     }
 
+    /#
+        Length of the vector. The previous implementation ran ten Newton steps
+        from an initial guess of half the sum of squares, which is nowhere near
+        the root for large components: a vector of length one million reported
+        488281932. The square root is taken directly, with the larger component
+        factored out so squaring cannot overflow or underflow on its own.
+    #/
     frame length(this: *Vec2) ret float {
-        local sum: float = (this.x * this.x) + (this.y * this.y);
-        # Simple sqrt via Newton (inline)
-        if (sum == 0.0) {
+        local larger: float = Math.abs(this.x);
+        local smaller: float = Math.abs(this.y);
+        if (larger < smaller) {
+            local swap: float = larger;
+            larger = smaller;
+            smaller = swap;
+        }
+        if (larger == 0.0) {
             return 0.0;
         }
-        local guess: float = sum / 2.0;
-        local i: int = 0;
-        loop (i < 10) {
-            guess = 0.5 * (guess + (sum / guess));
-            i = i + 1;
-        }
-        return guess;
+        local ratio: float = smaller / larger;
+        return larger * Math.sqrt(1.0 + (ratio * ratio));
     }
 
     frame normalize(this: *Vec2) ret Vec2 {

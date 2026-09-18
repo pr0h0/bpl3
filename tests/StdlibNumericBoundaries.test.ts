@@ -114,3 +114,188 @@ test("complex power and magnitude survive extreme operands", () => {
     },
   ]);
 }, 60000);
+
+test("complex magnitude classifies non-finite components", () => {
+  expectCorrectnessSuite([
+    {
+      name: "complex-nonfinite-magnitude",
+      validateLlvm: true,
+      source: `
+      import [Complex] from "std/complex.bpl";
+      import printf from "std/c.bpl";
+      extern atof(text: string) ret float;
+      frame main() ret int {
+        local infinity: float = atof("inf");
+        local notANumber: float = atof("nan");
+        # An infinite component wins over anything, including NaN; a NaN
+        # component otherwise makes the magnitude NaN, even beside a zero.
+        local bothInfinite: Complex = Complex.new(infinity, infinity);
+        local infiniteReal: Complex = Complex.new(infinity, 1.0);
+        local infiniteBesideNaN: Complex = Complex.new(infinity, notANumber);
+        local imaginaryNaN: Complex = Complex.new(0.0, notANumber);
+        local realNaN: Complex = Complex.new(notANumber, 0.0);
+        local finite: Complex = Complex.new(3.0, 4.0);
+        printf("%d %d %d %d %d %.1f\\n",
+          cast<int>(bothInfinite.abs() == infinity),
+          cast<int>(infiniteReal.abs() == infinity),
+          cast<int>(infiniteBesideNaN.abs() == infinity),
+          cast<int>(imaginaryNaN.abs() != imaginaryNaN.abs()),
+          cast<int>(realNaN.abs() != realNaN.abs()),
+          finite.abs());
+        return 0;
+      }`,
+      expectedStdout: "1 1 1 1 1 5.0\n",
+    },
+  ]);
+}, 60000);
+
+test("complex division and reciprocal keep finite results", () => {
+  expectCorrectnessSuite([
+    {
+      name: "complex-division-scaling",
+      validateLlvm: true,
+      source: `
+      import [Complex] from "std/complex.bpl";
+      import printf from "std/c.bpl";
+      extern atof(text: string) ret float;
+      frame main() ret int {
+        local large: Complex = Complex.new(atof("3e200"), atof("4e200"));
+        local quotient: Complex = large.div(large);
+        # 1/(3e200 + 4e200i) = (3e200 - 4e200i)/25e400.
+        local inverse: Complex = large.reciprocal();
+        local product: Complex = large.mul(inverse);
+        local ordinary: Complex = Complex.new(3.0, 4.0);
+        local control: Complex = ordinary.div(ordinary);
+        local smallDivisor: Complex = Complex.new(atof("3e-200"), atof("4e-200"));
+        local scaled: Complex = smallDivisor.div(smallDivisor);
+        printf("%.1f %.1f %.1e %.1e %.1f %.1f %.1f %.1f\\n",
+          quotient.real, quotient.imag,
+          inverse.real, inverse.imag,
+          product.real, control.real, control.imag, scaled.real);
+        return 0;
+      }`,
+      expectedStdout: "1.0 0.0 1.2e-201 -1.6e-201 1.0 1.0 0.0 1.0\n",
+    },
+  ]);
+}, 60000);
+
+test("rational construction, comparison, and arithmetic hold at the limits", () => {
+  expectCorrectnessSuite([
+    {
+      name: "rational-limits",
+      validateLlvm: true,
+      source: `
+      import [Rational] from "std/rational.bpl";
+      import printf from "std/c.bpl";
+      frame main() ret int {
+        # Reducing before normalizing the sign keeps the minimum long usable.
+        local extreme: Rational = Rational.new(cast<long>(-9223372036854775808), -2);
+        # Each of these has a representable answer with unrepresentable
+        # intermediates if the operands are cross-multiplied.
+        local half: Rational = Rational.new(9223372036854775807, 2);
+        local twoThirds: Rational = Rational.new(2, 3);
+        local threeHalves: Rational = Rational.new(3, 2);
+        local sum: Rational = half.add(half);
+        local product: Rational = half.mul(twoThirds);
+        local quotient: Rational = half.div(threeHalves);
+        # The invalid sentinel is ordered rather than divided by.
+        local invalid: Rational = Rational.new(1, 0);
+        local ordinary: Rational = Rational.new(1, 2);
+        printf("%ld %ld %ld %ld %ld %ld %ld %ld %d %d %d\\n",
+          extreme.num, extreme.den,
+          sum.num, sum.den,
+          product.num, product.den,
+          quotient.num, quotient.den,
+          invalid.compare(&ordinary),
+          ordinary.compare(&invalid),
+          invalid.compare(&invalid));
+        return 0;
+      }`,
+      expectedStdout:
+        "4611686018427387904 1 9223372036854775807 1 9223372036854775807 3 9223372036854775807 3 -1 1 0\n",
+    },
+  ]);
+}, 60000);
+
+test("vector lengths converge for large and ordinary magnitudes", () => {
+  expectCorrectnessSuite([
+    {
+      name: "vector-length",
+      validateLlvm: true,
+      source: `
+      import [Vec2] from "std/vec2.bpl";
+      import [Vec3] from "std/vec3.bpl";
+      import printf from "std/c.bpl";
+      frame main() ret int {
+        local wide2: Vec2 = Vec2.new(1000000.0, 0.0);
+        local wide3: Vec3 = Vec3.new(1000000.0, 0.0, 0.0);
+        local unit2: Vec2 = wide2.normalize();
+        local unit3: Vec3 = wide3.normalize();
+        local plain2: Vec2 = Vec2.new(3.0, 4.0);
+        local plain3: Vec3 = Vec3.new(3.0, 4.0, 0.0);
+        local zero2: Vec2 = Vec2.new(0.0, 0.0);
+        local negative3: Vec3 = Vec3.new(-3.0, -4.0, 0.0);
+        printf("%.6f %.6f %.6f %.6f %.1f %.1f %.1f %.1f\\n",
+          wide2.length(), wide3.length(), unit2.x, unit3.x,
+          plain2.length(), plain3.length(), zero2.length(), negative3.length());
+        return 0;
+      }`,
+      expectedStdout:
+        "1000000.000000 1000000.000000 1.000000 1.000000 5.0 5.0 0.0 5.0\n",
+    },
+  ]);
+}, 60000);
+
+test("float statistics stay finite for large constant samples", () => {
+  expectCorrectnessSuite([
+    {
+      name: "float-statistics",
+      validateLlvm: true,
+      source: `
+      import [Stats] from "std/stats.bpl";
+      import printf from "std/c.bpl";
+      extern atof(text: string) ret float;
+      frame main() ret int {
+        local large: float = atof("1e308");
+        local constant: float[2] = [large, large];
+        local ordinary: float[5] = [2.0, 4.0, 4.0, 4.0, 5.0];
+        local pair: float[2] = [2.0, 4.0];
+        printf("%.1e %.1e %.1f %.4f %.4f %.1f\\n",
+          Stats.mean(&constant[0], 2),
+          Stats.median(&constant[0], 2),
+          Stats.variance(&constant[0], 2),
+          Stats.mean(&ordinary[0], 5),
+          Stats.variance(&ordinary[0], 5),
+          Stats.median(&pair[0], 2));
+        return 0;
+      }`,
+      expectedStdout: "1.0e+308 1.0e+308 0.0 3.8000 0.9600 3.0\n",
+    },
+  ]);
+}, 60000);
+
+test("range reversal handles the minimum step", () => {
+  expectCorrectnessSuite([
+    {
+      name: "range-reverse-min-step",
+      validateLlvm: true,
+      source: `
+      import [Range] from "std/range.bpl";
+      import printf from "std/c.bpl";
+      frame main() ret int {
+        # Reversing this range needs a step of +2147483648.
+        local extreme: Range = Range.new(2147483647, -2147483648, cast<int>(-2147483648));
+        local reversed: Range = extreme.reverse();
+        local ordinary: Range = Range.new(1, 5, 2);
+        local ordinaryReversed: Range = ordinary.reverse();
+        printf("%d %d %d %d %d %d %d\\n",
+          extreme.len(), reversed.len(),
+          cast<int>(reversed.contains(-1)),
+          cast<int>(reversed.contains(2147483647)),
+          reversed.get(0), ordinaryReversed.len(), ordinaryReversed.get(0));
+        return 0;
+      }`,
+      expectedStdout: "2 2 1 1 -1 2 3\n",
+    },
+  ]);
+}, 60000);

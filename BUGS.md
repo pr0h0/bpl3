@@ -5007,3 +5007,85 @@ Covered by tests/StdlibNumericBoundaries.test.ts at O0/O3 with LLVM validation, 
 **Observed (2026-09-18)**: `matchFlag` accepted any argument beginning with a flag's name or alias, without checking what followed. An unregistered `--outline=file` was accepted as `--out`, and when one flag's name was a prefix of another's, registration order decided which won, so `--output=file` selected `--out`.
 
 **Resolution**: An argument names a flag when it is exactly the name, or the name followed by `=` introducing a value (`namesFlag` in lib/arg_parser.bpl). Aliases are matched the same way, so `-op` no longer selects `-o`. Covered by tests/ArgParser.test.ts, which registers the prefix flag first and checks the overlapping name, the unregistered name, the bare name, and both alias forms.
+
+### BUG-382: Complex magnitude mishandles infinite and NaN components
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: The scaled magnitude introduced for BUG-380 dropped the non-finite cases the previous implementation handled. `Complex.new(inf, inf).abs()` divided infinity by infinity and returned NaN instead of infinity, and `Complex.new(0.0, nan).abs()` returned zero: comparисons against NaN are unordered, so the components were not ordered and the zero shortcut answered before the NaN was seen.
+
+This was introduced by that fix; the implementation before it returned infinity and NaN for these inputs.
+
+**Resolution**: An infinite component returns an infinite magnitude before the ratio is formed, whatever the other component is, and a NaN component returns NaN before the zero shortcut. `Math.isNan` and `Math.isInfinite` are new predicates: NaN is the only value unequal to itself, and halving any finite non-zero value changes it while halving an infinity does not. Covered by tests/StdlibNumericBoundaries.test.ts for both component orders, both infinite, infinite beside NaN, NaN beside zero, and an ordinary magnitude.
+
+### BUG-383: Comparing an invalid rational divides by zero
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: The comparison introduced for BUG-380 divides by each denominator. The constructor represents a zero denominator as the invalid `0/0` value, which other methods guard, so comparing one stopped the program with a division-by-zero failure. The cross-multiplying comparison it replaced never divided.
+
+**Resolution**: An invalid operand is ordered rather than divided by: two invalid values compare equal, and an invalid value orders below every valid one, which keeps the comparison total and deterministic for `lessThan` and the other callers built on it.
+
+### BUG-384: Range reversal cannot negate the minimum step
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: `reverse` negated the step in `int`, and negating the minimum leaves it negative, so reversing a range whose step is `-2147483648` produced a range that stepped the wrong way, reported itself empty, and rejected both of its own elements.
+
+**Resolution**: The step is held as `long`, as the exclusive end already was for BUG-380, so `+2147483648` is representable. Covered by tests/StdlibNumericBoundaries.test.ts, which checks the reversed length, membership of both elements, the first element, and an ordinary reversal.
+
+### BUG-385: Rational sign normalization corrupts the minimum long
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: The constructor negated the numerator to make a negative denominator positive. Negating the minimum long wraps, so `Rational.new(-9223372036854775808, -2)` stayed negative although its reduced value, `4611686018427387904`, is representable. `gcd` had the same problem: it took magnitudes before reducing.
+
+**Resolution**: The fraction is reduced before its sign is normalized, and `gcd` takes magnitudes only after the first remainder step, which brings the operands into a range whose magnitude is representable.
+
+### BUG-386: Rational arithmetic overflows before reducing
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: `add`, `sub`, `mul`, and `div` formed cross products before the constructor reduced them, so representable answers were lost: `(MAX/2) + (MAX/2)` is exactly `MAX`, and `(MAX/2) * (2/3)` is `MAX/3`, but each returned `-1` over its denominator.
+
+**Resolution**: Multiplication and division cancel across the two fractions before multiplying, so a representable result never passes through an unrepresentable product. Addition and subtraction add the whole parts separately and combine only the proper fractions over their least common denominator. The remaining gap is unchanged and now deliberate: when even the reduced result is unrepresentable, the value wraps rather than reporting failure.
+
+### BUG-387: Vector lengths do not converge
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-18)**: `Vec2.length` and `Vec3.length` ran exactly ten Newton iterations starting from half the sum of squares, regardless of error. For a vector of length one million the estimate starts at 500 billion, so ten halvings come nowhere near: the length was reported as 488281932, and `normalize` returned a vector of length 0.002 instead of one. No extreme input was needed, only an ordinary large magnitude.
+
+**Resolution**: Both take the square root directly through `Math.sqrt`, with the largest component factored out so no square overflows on its own. Covered by tests/StdlibNumericBoundaries.test.ts for a large magnitude, unit normalization, ordinary vectors, negative components, and a zero vector.
+
+### BUG-388: Float statistics overflow for finite samples
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: The float `mean` summed before dividing and the float `median` added its central pair before halving, so two copies of `1e308` gave infinity for both although the answer is finite. `variance` then used that infinite mean and returned infinity rather than zero for a constant sample. The integer median repair in BUG-380 did not cover the float overload.
+
+**Resolution**: The mean accumulates one sample at a time, the median halves each central value before adding them, and the variance uses Welford's method, so neither a large sum nor a large mean times a large count is formed. Covered by tests/StdlibNumericBoundaries.test.ts alongside ordinary samples checked against independently computed values.
+
+### BUG-389: Complex division and reciprocal lose finite results
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: `div` and `reciprocal` formed the sum of squares of the divisor, which overflows for large components and underflows for small ones. Dividing `3e200 + 4e200i` by itself gave NaN instead of one, and its reciprocal gave zero. Correcting `abs` for BUG-380 did not cover these.
+
+**Resolution**: Both use the scaled method: the smaller part of the divisor is divided by the larger first, so nothing is squared at full magnitude. `reciprocal` is now one divided by the value, sharing that path. Covered by tests/StdlibNumericBoundaries.test.ts, which checks a large divisor, a small divisor, the reciprocal, the product of a value and its reciprocal, and an ordinary control.

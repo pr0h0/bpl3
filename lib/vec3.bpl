@@ -3,6 +3,7 @@
 export [Vec3];
 
 import [Equatable], [Cloneable] from "std/core_specs.bpl";
+import [Math] from "std/math.bpl";
 
 extern printf(fmt: string, ...) ret int;
 
@@ -58,18 +59,29 @@ struct Vec3: Equatable<Vec3>, Cloneable<Vec3> {
         return r;
     }
 
+    /#
+        Length of the vector. The previous implementation ran a fixed ten
+        Newton steps from half the sum of squares, which does not converge for
+        large components. The square root is taken directly, with the largest
+        component factored out so no square overflows on its own.
+    #/
     frame length(this: *Vec3) ret float {
-        local sum: float = (this.x * this.x) + (this.y * this.y) + (this.z * this.z);
-        if (sum == 0.0) {
+        local largest: float = Math.abs(this.x);
+        local absY: float = Math.abs(this.y);
+        local absZ: float = Math.abs(this.z);
+        if (largest < absY) {
+            largest = absY;
+        }
+        if (largest < absZ) {
+            largest = absZ;
+        }
+        if (largest == 0.0) {
             return 0.0;
         }
-        local guess: float = sum / 2.0;
-        local i: int = 0;
-        loop (i < 10) {
-            guess = 0.5 * (guess + (sum / guess));
-            i = i + 1;
-        }
-        return guess;
+        local rx: float = this.x / largest;
+        local ry: float = this.y / largest;
+        local rz: float = this.z / largest;
+        return largest * Math.sqrt((rx * rx) + (ry * ry) + (rz * rz));
     }
 
     frame normalize(this: *Vec3) ret Vec3 {

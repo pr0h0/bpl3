@@ -20,12 +20,16 @@ struct Rational {
         r.num = numerator;
         r.den = denominator;
 
+        # Reduce before normalizing the sign. Negating the minimum long wraps,
+        # so a value such as new(-9223372036854775808, -2) has to lose its
+        # common factor before either side is negated.
+        r.simplify();
+
         # Normalize sign (denominator always positive)
         if (r.den < cast<long>(0)) {
             r.num = -r.num;
             r.den = -r.den;
         }
-        r.simplify();
         return r;
     }
 
@@ -50,17 +54,20 @@ struct Rational {
     }
 
     # Calculate GCD using Euclidean algorithm
+    /#
+        Greatest common divisor, taking magnitudes only after the first
+        remainder step. Negating the minimum long wraps, so taking magnitudes
+        first would corrupt it; one remainder brings the operands into a range
+        whose magnitude is representable.
+    #/
     frame gcd(a: long, b: long) ret long {
-        if (a < cast<long>(0)) {
-            a = -a;
-        }
-        if (b < cast<long>(0)) {
-            b = -b;
-        }
         loop (b != cast<long>(0)) {
             local temp: long = b;
             b = a % b;
             a = temp;
+        }
+        if (a < cast<long>(0)) {
+            a = -a;
         }
         return a;
     }
@@ -80,27 +87,108 @@ struct Rational {
     }
 
     # Add two rationals
+    /#
+        Addition that reduces as it goes. Multiplying each numerator by the
+        other denominator overflows long before the reduced answer needs to:
+        MAX/2 + MAX/2 is exactly MAX, but the cross products are not
+        representable. The whole parts are added separately, and only the
+        proper fractions are combined over the least common denominator.
+    #/
+    frame addFractions(an: long, ad: long, bn: long, bd: long) ret Rational {
+        local aWhole: long = Rational.floorDiv(an, ad);
+        local bWhole: long = Rational.floorDiv(bn, bd);
+        local aRest: long = an - (aWhole * ad);
+        local bRest: long = bn - (bWhole * bd);
+
+        local common: long = Rational.gcd(ad, bd);
+        local aScale: long = ad / common;
+        local bScale: long = bd / common;
+        local restDen: long = ad * bScale;
+        local restNum: long = (aRest * bScale) + (bRest * aScale);
+
+        local whole: long = aWhole + bWhole;
+        if (restNum >= restDen) {
+            whole = whole + cast<long>(1);
+            restNum = restNum - restDen;
+        }
+
+        local restFactor: long = Rational.gcd(restNum, restDen);
+        if (restFactor != cast<long>(0)) {
+            restNum = restNum / restFactor;
+            restDen = restDen / restFactor;
+        }
+        if (restDen == cast<long>(1)) {
+            return Rational.new(whole + restNum, cast<long>(1));
+        }
+        return Rational.new((whole * restDen) + restNum, restDen);
+    }
+
     frame add(this: *Rational, other: Rational) ret Rational {
-        local newNum: long = (this.num * other.den) + (other.num * this.den);
-        local newDen: long = this.den * other.den;
-        return Rational.new(newNum, newDen);
+        if ((this.den == cast<long>(0)) || (other.den == cast<long>(0))) {
+            return Rational.new(cast<long>(0), cast<long>(0));
+        }
+        return Rational.addFractions(this.num, this.den, other.num, other.den);
     }
 
     # Subtract two rationals
     frame sub(this: *Rational, other: Rational) ret Rational {
-        local newNum: long = (this.num * other.den) - (other.num * this.den);
-        local newDen: long = this.den * other.den;
-        return Rational.new(newNum, newDen);
+        if ((this.den == cast<long>(0)) || (other.den == cast<long>(0))) {
+            return Rational.new(cast<long>(0), cast<long>(0));
+        }
+        # Negate the denominator rather than the numerator: negating the
+        # minimum long wraps, and a denominator is never that value here.
+        return Rational.addFractions(
+            this.num,
+            this.den,
+            other.num,
+            -other.den,
+        );
     }
 
     # Multiply two rationals
+    /#
+        Multiplication that cancels across the two fractions first, so a
+        representable product does not pass through an unrepresentable one.
+    #/
     frame mul(this: *Rational, other: Rational) ret Rational {
-        return Rational.new(this.num * other.num, this.den * other.den);
+        if ((this.den == cast<long>(0)) || (other.den == cast<long>(0))) {
+            return Rational.new(cast<long>(0), cast<long>(0));
+        }
+        local crossA: long = Rational.gcd(this.num, other.den);
+        local crossB: long = Rational.gcd(other.num, this.den);
+        if (crossA == cast<long>(0)) {
+            crossA = cast<long>(1);
+        }
+        if (crossB == cast<long>(0)) {
+            crossB = cast<long>(1);
+        }
+        return Rational.new(
+            (this.num / crossA) * (other.num / crossB),
+            (this.den / crossB) * (other.den / crossA),
+        );
     }
 
     # Divide two rationals
     frame div(this: *Rational, other: Rational) ret Rational {
-        return Rational.new(this.num * other.den, this.den * other.num);
+        if ((this.den == cast<long>(0)) || (other.den == cast<long>(0))) {
+            return Rational.new(cast<long>(0), cast<long>(0));
+        }
+        if (other.num == cast<long>(0)) {
+            return Rational.new(cast<long>(0), cast<long>(0));
+        }
+        # Dividing is multiplying by the reciprocal, cancelled the same way.
+        local crossA: long = Rational.gcd(this.num, other.num);
+        local crossB: long = Rational.gcd(other.den, this.den);
+        if (crossA == cast<long>(0)) {
+            crossA = cast<long>(1);
+        }
+        if (crossB == cast<long>(0)) {
+            crossB = cast<long>(1);
+        }
+        return Rational.new(
+            (this.num / crossA) * (other.den / crossB),
+            (this.den / crossB) * (other.num / crossA),
+        );
     }
 
     # Negate the rational
@@ -261,6 +349,19 @@ struct Rational {
         product here can overflow.
     #/
     frame compare(this: *Rational, other: *Rational) ret int {
+        # A zero denominator is the invalid sentinel this file's constructor
+        # produces, and dividing by it would stop the program. Order it below
+        # every valid value so the comparison stays total and deterministic.
+        if (this.den == cast<long>(0)) {
+            if (other.den == cast<long>(0)) {
+                return 0;
+            }
+            return -1;
+        }
+        if (other.den == cast<long>(0)) {
+            return 1;
+        }
+
         local an: long = this.num;
         local ad: long = this.den;
         local bn: long = other.num;

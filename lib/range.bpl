@@ -7,7 +7,9 @@ struct Range {
     # Held as long so an inclusive endpoint at the maximum int is
     # representable: its exclusive end is one past that value.
     end: long,
-    step: int,
+    # Held as long for the same reason: reversing a range whose step is the
+    # minimum int needs a step of +2147483648.
+    step: long,
     /#
         Creates a new range from start (inclusive) to end (exclusive) with step
     #/
@@ -50,14 +52,14 @@ struct Range {
         Returns the number of elements in the range
     #/
     frame len(this: *Range) ret int {
-        if (this.step == 0) {
+        if (this.step == cast<long>(0)) {
             return 0;
         }
         # The distance between the endpoints can exceed int even when the
         # number of elements does not, so the count is computed in long.
         local start: long = cast<long>(this.start);
-        local step: long = cast<long>(this.step);
-        if (this.step > 0) {
+        local step: long = this.step;
+        if (step > cast<long>(0)) {
             if (start >= this.end) {
                 return 0;
             }
@@ -77,13 +79,13 @@ struct Range {
         # The offset from the start can exceed int for a wide range.
         local position: long = cast<long>(value);
         local start: long = cast<long>(this.start);
-        local step: long = cast<long>(this.step);
-        if (this.step > 0) {
+        local step: long = this.step;
+        if (step > cast<long>(0)) {
             if ((position < start) || (position >= this.end)) {
                 return false;
             }
             return ((position - start) % step) == 0;
-        } else if (this.step < 0) {
+        } else if (step < cast<long>(0)) {
             if ((position > start) || (position <= this.end)) {
                 return false;
             }
@@ -96,7 +98,7 @@ struct Range {
         Returns the element at the given index (0-based)
     #/
     frame get(this: *Range, index: int) ret int {
-        return this.start + (index * this.step);
+        return cast<int>(cast<long>(this.start) + (cast<long>(index) * this.step));
     }
 
     /#
@@ -109,10 +111,12 @@ struct Range {
             return *this;
         }
         local last: long = cast<long>(this.start)
-            + (cast<long>(len - 1) * cast<long>(this.step));
+            + (cast<long>(len - 1) * this.step);
         local reversed: Range;
         reversed.start = cast<int>(last);
-        reversed.end = cast<long>(this.start) - cast<long>(this.step);
+        reversed.end = cast<long>(this.start) - this.step;
+        # Negating the minimum int does not fit an int, which left the reversed
+        # range stepping the wrong way and reporting itself empty.
         reversed.step = -this.step;
         return reversed;
     }

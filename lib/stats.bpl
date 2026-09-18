@@ -23,17 +23,23 @@ struct Stats {
     }
 
     # Calculate the mean of a float array
+    /#
+        Arithmetic mean, accumulated one sample at a time. Summing first and
+        dividing afterwards overflows for large samples even when the mean is
+        finite: two copies of 1e308 summed to infinity.
+    #/
     frame mean(data: *float, length: int) ret float {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        local sum: float = 0.0;
+        local running: float = 0.0;
         local i: int = 0;
         loop (i < length) {
-            sum = sum + *(data + i);
+            local count: float = cast<float>(i + 1);
+            running = running + ((*(data + i) - running) / count);
             i = i + 1;
         }
-        return sum / cast<float>(length);
+        return running;
     }
 
     # Calculate the sum of an integer array
@@ -159,15 +165,21 @@ struct Stats {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        local mean: float = Stats.mean(data, length);
-        local sumSquares: float = 0.0;
+        # Welford's method: the mean and the sum of squared deviations are
+        # updated together, so neither a large sum nor a large mean times a
+        # large count is ever formed.
+        local running: float = 0.0;
+        local squares: float = 0.0;
         local i: int = 0;
         loop (i < length) {
-            local diff: float = *(data + i) - mean;
-            sumSquares = sumSquares + (diff * diff);
+            local sample: float = *(data + i);
+            local count: float = cast<float>(i + 1);
+            local delta: float = sample - running;
+            running = running + (delta / count);
+            squares = squares + (delta * (sample - running));
             i = i + 1;
         }
-        return sumSquares / cast<float>(length);
+        return squares / cast<float>(length);
     }
 
     # Calculate the sample variance of an integer array
@@ -278,7 +290,9 @@ struct Stats {
             return *(data + (length / 2));
         } else {
             local mid: int = length / 2;
-            return (*((data + mid) - 1) + *(data + mid)) / 2.0;
+            # Halve each value before adding: their sum can exceed the range
+            # while the midpoint itself is finite. Halving is exact.
+            return (*((data + mid) - 1) / 2.0) + (*(data + mid) / 2.0);
         }
     }
 

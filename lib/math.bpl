@@ -39,6 +39,27 @@ struct Math {
     # Absolute Value (Float)
     Returns the absolute value of a float.
     #/
+    /#
+        True when x is NaN, which is the only value unequal to itself.
+    #/
+    frame isNan(x: float) ret bool {
+        return x != x;
+    }
+
+    /#
+        True when x is positive or negative infinity. Halving any finite
+        non-zero value changes it; halving an infinity does not.
+    #/
+    frame isInfinite(x: float) ret bool {
+        if (x != x) {
+            return false;
+        }
+        if (x == 0.0) {
+            return false;
+        }
+        return (x * 0.5) == x;
+    }
+
     frame abs(x: float) ret float {
         return fabs(x);
     }

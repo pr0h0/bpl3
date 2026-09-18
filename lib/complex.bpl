@@ -65,15 +65,35 @@ struct Complex {
 
     # Divide two complex numbers
     # (a + bi)/(c + di) = ((ac + bd) + (bc - ad)i) / (c² + d²)
+    /#
+        Division by the scaled method: the smaller part of the divisor is
+        divided by the larger one first, so nothing is squared at full
+        magnitude. Forming the sum of squares directly overflows for large
+        divisors and underflows for small ones, turning representable
+        quotients into NaN or zero.
+    #/
     frame div(this: *Complex, other: Complex) ret Complex {
-        local denom: float = (other.real * other.real) + (other.imag * other.imag);
-        if (denom == 0.0) {
+        if ((other.real == 0.0) && (other.imag == 0.0)) {
             # Division by zero - return NaN-like values
-            return Complex.new(0.0 / 0.0, 0.0 / 0.0);
+            local zero: float = 0.0;
+            return Complex.new(zero / zero, zero / zero);
         }
-        local r: float = ((this.real * other.real) + (this.imag * other.imag)) / denom;
-        local i: float = ((this.imag * other.real) - (this.real * other.imag)) / denom;
-        return Complex.new(r, i);
+
+        if (Math.abs(other.real) >= Math.abs(other.imag)) {
+            local ratio: float = other.imag / other.real;
+            local denom: float = other.real + (other.imag * ratio);
+            return Complex.new(
+                (this.real + (this.imag * ratio)) / denom,
+                (this.imag - (this.real * ratio)) / denom,
+            );
+        }
+
+        local ratio: float = other.real / other.imag;
+        local denom: float = (other.real * ratio) + other.imag;
+        return Complex.new(
+            ((this.real * ratio) + this.imag) / denom,
+            ((this.imag * ratio) - this.real) / denom,
+        );
     }
 
     # Multiply by a scalar
@@ -90,6 +110,22 @@ struct Complex {
         squared.
     #/
     frame abs(this: *Complex) ret float {
+        # An infinite component gives an infinite magnitude whatever the other
+        # one is, including NaN. Checking this first also keeps the ratio below
+        # from dividing infinity by infinity.
+        if (Math.isInfinite(this.real)) {
+            return Math.abs(this.real);
+        }
+        if (Math.isInfinite(this.imag)) {
+            return Math.abs(this.imag);
+        }
+        # A NaN component makes the magnitude NaN. Comparisons against NaN are
+        # unordered, so it would otherwise fall through the ordering below and
+        # be lost to the zero shortcut.
+        if (Math.isNan(this.real) || Math.isNan(this.imag)) {
+            return this.real + this.imag;
+        }
+
         local larger: float = Math.abs(this.real);
         local smaller: float = Math.abs(this.imag);
         if (larger < smaller) {
@@ -126,11 +162,12 @@ struct Complex {
 
     # Calculate the reciprocal 1/z
     frame reciprocal(this: *Complex) ret Complex {
-        local denom: float = (this.real * this.real) + (this.imag * this.imag);
-        if (denom == 0.0) {
-            return Complex.new(0.0 / 0.0, 0.0 / 0.0);
+        if ((this.real == 0.0) && (this.imag == 0.0)) {
+            local zero: float = 0.0;
+            return Complex.new(zero / zero, zero / zero);
         }
-        return Complex.new(this.real / denom, -this.imag / denom);
+        # One divided by this value, scaled the same way as div.
+        return Complex.one().div(*this);
     }
 
     # Calculate e^z = e^a * (cos(b) + i*sin(b))
