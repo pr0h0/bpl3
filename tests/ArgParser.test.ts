@@ -87,3 +87,50 @@ describe("ArgParser", () => {
     expect(result.stdout).not.toContain("verbose:true\n");
   });
 });
+
+describe("flag name matching", () => {
+  // matchFlag accepted any argument starting with a flag's name, so an
+  // unregistered --outline chose --out, and which of two overlapping flags
+  // won depended on the order they were registered.
+  it("matches a complete flag name, not a prefix of one", () => {
+    const result = compileAndRunFull(`
+      import [ArgParser], [Command], [Flag] from "std/arg_parser.bpl";
+      import [Option] from "std/option.bpl";
+
+      extern printf(fmt: string, ...) ret int;
+      extern free(ptr: *void) ret void;
+
+      frame show(parser: *ArgParser, root: *Command, text: string) {
+        local choice: Option<*Flag> = parser.matchFlag(root, text);
+        match (choice) {
+          Option.Some(flag) => printf("%s\\n", flag.name.data),
+          Option.None => printf("none\\n"),
+        };
+      }
+
+      frame main() ret int {
+        local root: *Command = Command.new("tool", "test");
+        # --out is registered first and is a prefix of --output.
+        root.addFlag(Flag.new("--out", "-o", "short name", true));
+        root.addFlag(Flag.new("--output", "-p", "long name", true));
+        local parser: ArgParser = ArgParser.new(root);
+
+        show(&parser, root, "--output=file");
+        show(&parser, root, "--outline=file");
+        show(&parser, root, "--out=file");
+        show(&parser, root, "--out");
+        show(&parser, root, "-o=file");
+        show(&parser, root, "-op");
+
+        root.destroy();
+        free(cast<*void>(root));
+        return 0;
+      }
+    `);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe(
+      ["--output", "none", "--out", "--out", "--out", "none", ""].join("\n"),
+    );
+  });
+});

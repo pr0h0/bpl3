@@ -195,17 +195,21 @@ struct Rational {
     }
 
     # Round to nearest integer
+    /#
+        Round to nearest, halves away from the lower value. The remainder is
+        compared against what is left of the denominator rather than doubling
+        the numerator, which overflows for a large whole part.
+    #/
     frame round(this: *Rational) ret long {
         if (this.den == cast<long>(0)) {
             return cast<long>(0);
         }
-        local doubled: Rational = Rational.new(this.num * cast<long>(2), this.den);
-        local f: long = doubled.floor();
-        if ((f % cast<long>(2)) == cast<long>(0)) {
-            return f / cast<long>(2);
-        } else {
-            return (f + cast<long>(1)) / cast<long>(2);
+        local whole: long = Rational.floorDiv(this.num, this.den);
+        local remainder: long = this.num - (whole * this.den);
+        if (remainder >= (this.den - remainder)) {
+            return whole + cast<long>(1);
         }
+        return whole;
     }
 
     # Check if valid (denominator != 0)
@@ -235,14 +239,66 @@ struct Rational {
 
     # Compare two rationals
     # Returns -1 if this < other, 0 if equal, 1 if this > other
-    frame compare(this: *Rational, other: *Rational) ret int {
-        local lhs: long = this.num * other.den;
-        local rhs: long = other.num * this.den;
-        if (lhs < rhs) {
-            return -1;
+    /#
+        Floor division for a positive divisor. Division truncates toward zero,
+        so a negative dividend needs one subtracted when it does not divide
+        evenly.
+    #/
+    frame floorDiv(value: long, divisor: long) ret long {
+        local q: long = value / divisor;
+        if ((value < cast<long>(0)) && ((value % divisor) != cast<long>(0))) {
+            q = q - cast<long>(1);
         }
-        if (lhs > rhs) {
-            return 1;
+        return q;
+    }
+
+    /#
+        Compare two fractions without cross-multiplying, which overflows for
+        large numerators even when the answer is obvious. Compares whole parts
+        first, then the remainders through their reciprocals, which reverses
+        the ordering at each step. Denominators are normalized positive, and
+        each quotient times its denominator is bounded by its numerator, so no
+        product here can overflow.
+    #/
+    frame compare(this: *Rational, other: *Rational) ret int {
+        local an: long = this.num;
+        local ad: long = this.den;
+        local bn: long = other.num;
+        local bd: long = other.den;
+        local flip: int = 1;
+
+        loop (true) {
+            local aq: long = Rational.floorDiv(an, ad);
+            local bq: long = Rational.floorDiv(bn, bd);
+            if (aq != bq) {
+                if (aq < bq) {
+                    return -flip;
+                }
+                return flip;
+            }
+
+            local ar: long = an - (aq * ad);
+            local br: long = bn - (bq * bd);
+            if ((ar == cast<long>(0)) && (br == cast<long>(0))) {
+                return 0;
+            }
+            if (ar == cast<long>(0)) {
+                return -flip;
+            }
+            if (br == cast<long>(0)) {
+                return flip;
+            }
+
+            # Compare the reciprocals of the remainders instead.
+            local nextAn: long = ad;
+            local nextAd: long = ar;
+            local nextBn: long = bd;
+            local nextBd: long = br;
+            an = nextAn;
+            ad = nextAd;
+            bn = nextBn;
+            bd = nextBd;
+            flip = -flip;
         }
         return 0;
     }

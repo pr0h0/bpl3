@@ -15,6 +15,7 @@ import [StringUtils] from "std/string_utils.bpl";
 import [Args] from "std/args.bpl";
 import [Destructible] from "std/core_specs.bpl";
 
+extern strlen(s: string) ret int;
 extern printf(fmt: string, ...) ret int;
 extern sprintf(buf: string, fmt: string, ...) ret int;
 extern malloc(size: long) ret *void;
@@ -353,19 +354,35 @@ struct ArgParser {
     }
 
     # Matches a raw string arg against a flag definition
+    /#
+        True when the argument is exactly this name, or the name followed by
+        '=' introducing a value. Matching a bare prefix would let --outline
+        select --out, and would make the winner depend on registration order
+        when one flag's name is a prefix of another's.
+    #/
+    frame namesFlag(argStr: string, name: string) ret bool {
+        if (!StringUtils.startsWith(argStr, name)) {
+            return false;
+        }
+        local nameLen: int = strlen(name);
+        if (argStr[nameLen] == 0) {
+            return true;
+        }
+        return argStr[nameLen] == '=';
+    }
+
     frame matchFlag(this: *ArgParser, currentCmd: *Command, argStr: string) ret Option<*Flag> {
         local i: int = 0;
         local flags: *Array<*Flag> = &currentCmd.flags;
         loop (i < flags.len()) {
             local f: *Flag = flags.get(i);
             # Check full name
-            if (StringUtils.startsWith(argStr, f.name.data)) {
-                # Exact match or starts with (for --flag=value)
+            if (ArgParser.namesFlag(argStr, f.name.data)) {
                 return Option<*Flag>.Some(f);
             }
             # Check alias
             if (!f.alias.isEmpty()) {
-                if (StringUtils.startsWith(argStr, f.alias.data)) {
+                if (ArgParser.namesFlag(argStr, f.alias.data)) {
                     return Option<*Flag>.Some(f);
                 }
             }

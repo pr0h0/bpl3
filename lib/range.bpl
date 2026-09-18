@@ -4,7 +4,9 @@ export [Range];
 
 struct Range {
     start: int,
-    end: int,
+    # Held as long so an inclusive endpoint at the maximum int is
+    # representable: its exclusive end is one past that value.
+    end: long,
     step: int,
     /#
         Creates a new range from start (inclusive) to end (exclusive) with step
@@ -35,7 +37,13 @@ struct Range {
         Creates a range from start to end (inclusive) with step 1
     #/
     frame betweenInclusive(start: int, end: int) ret Range {
-        return Range.new(start, end + 1, 1);
+        local r: Range;
+        r.start = start;
+        # Widen before adding: an inclusive maximum int would wrap to the
+        # minimum and silently describe an empty range.
+        r.end = cast<long>(end) + 1;
+        r.step = 1;
+        return r;
     }
 
     /#
@@ -45,16 +53,20 @@ struct Range {
         if (this.step == 0) {
             return 0;
         }
+        # The distance between the endpoints can exceed int even when the
+        # number of elements does not, so the count is computed in long.
+        local start: long = cast<long>(this.start);
+        local step: long = cast<long>(this.step);
         if (this.step > 0) {
-            if (this.start >= this.end) {
+            if (start >= this.end) {
                 return 0;
             }
-            return (((this.end - this.start) + this.step) - 1) / this.step;
+            return cast<int>((((this.end - start) + step) - 1) / step);
         } else {
-            if (this.start <= this.end) {
+            if (start <= this.end) {
                 return 0;
             }
-            return (this.start - this.end - this.step - 1) / -this.step;
+            return cast<int>(((start - this.end - step) - 1) / -step);
         }
     }
 
@@ -62,18 +74,20 @@ struct Range {
         Checks if a value is contained in the range
     #/
     frame contains(this: *Range, value: int) ret bool {
+        # The offset from the start can exceed int for a wide range.
+        local position: long = cast<long>(value);
+        local start: long = cast<long>(this.start);
+        local step: long = cast<long>(this.step);
         if (this.step > 0) {
-            if ((value < this.start) || (value >= this.end)) {
+            if ((position < start) || (position >= this.end)) {
                 return false;
             }
-            local offset: int = value - this.start;
-            return (offset % this.step) == 0;
+            return ((position - start) % step) == 0;
         } else if (this.step < 0) {
-            if ((value > this.start) || (value <= this.end)) {
+            if ((position > start) || (position <= this.end)) {
                 return false;
             }
-            local offset: int = this.start - value;
-            return (offset % -this.step) == 0;
+            return ((start - position) % -step) == 0;
         }
         return false;
     }
@@ -94,8 +108,13 @@ struct Range {
         if (len == 0) {
             return *this;
         }
-        local last: int = this.start + ((len - 1) * this.step);
-        return Range.new(last, this.start - this.step, -this.step);
+        local last: long = cast<long>(this.start)
+            + (cast<long>(len - 1) * cast<long>(this.step));
+        local reversed: Range;
+        reversed.start = cast<int>(last);
+        reversed.end = cast<long>(this.start) - cast<long>(this.step);
+        reversed.step = -this.step;
+        return reversed;
     }
 
     # Operator overloading: Index access with []

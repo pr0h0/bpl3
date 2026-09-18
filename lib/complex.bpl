@@ -81,9 +81,27 @@ struct Complex {
         return Complex.new(this.real * scalar, this.imag * scalar);
     }
 
-    # Calculate the magnitude (absolute value) |z| = sqrt(a² + b²)
+    /#
+        Calculate the magnitude (absolute value) |z| = sqrt(a² + b²).
+
+        Squaring both components directly overflows for large ones and
+        underflows for small ones, even when the magnitude itself is finite,
+        so the larger component is factored out first and only their ratio is
+        squared.
+    #/
     frame abs(this: *Complex) ret float {
-        return Math.sqrt((this.real * this.real) + (this.imag * this.imag));
+        local larger: float = Math.abs(this.real);
+        local smaller: float = Math.abs(this.imag);
+        if (larger < smaller) {
+            local swap: float = larger;
+            larger = smaller;
+            smaller = swap;
+        }
+        if (larger == 0.0) {
+            return 0.0;
+        }
+        local ratio: float = smaller / larger;
+        return larger * Math.sqrt(1.0 + (ratio * ratio));
     }
 
     # Calculate the magnitude squared |z|² = a² + b²
@@ -133,7 +151,9 @@ struct Complex {
         }
         local result: Complex = Complex.one();
         local base: Complex = *this;
-        local exp: int = n;
+        # Widen before negating: negating the minimum int leaves it negative,
+        # which would skip the loop and return one.
+        local exp: long = cast<long>(n);
 
         if (exp < 0) {
             base = base.reciprocal();

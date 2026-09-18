@@ -4973,3 +4973,37 @@ frame first(xs: int[]) ret *int {
 ```
 
 **Resolution**: The scan follows lexical scope. Declarations in blocks, loop inits, catch clauses, and match arm patterns shadow the parameter name for as long as they are in scope, and a lambda body is skipped entirely because writing to a captured variable is already rejected, so nothing inside one can rebind a parameter. Rebinding from an inner block, or after a shadow has ended, is still detected. Covered by tests/LanguageExploration_2026_05_26.test.ts.
+
+### BUG-380: Standard library arithmetic loses representable answers to intermediate values
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: Five numeric operations produced wrong results for operands whose answers are perfectly representable, because an intermediate value was not. Each was confirmed at O0 and O3, exiting normally with incorrect output.
+
+| Call | Result | Expected |
+| --- | --- | --- |
+| `Stats.median` of two `2147483647` | `-1.0` | `2147483647.0` |
+| `Range.new(-2000000000, 2000000000, 2000000000).len()` | `0` | `2` |
+| `Range.betweenInclusive(2147483646, 2147483647).len()` | `0` | `2` |
+| `Rational.fromLong(4611686018427387904).compare(&half)` | `-1` | `1` |
+| `Rational.fromLong(4611686018427387904).round()` | `-4611686018427387904` | `4611686018427387904` |
+| `Complex.fromReal(2.0).pow(-2147483648)` | `1.0` | `0.0` |
+| `Complex.new(3e200, 4e200).abs()` | `inf` | `5e200` |
+
+The causes differ but share a shape: the median added two `int` values before widening; `Range` computed spans, counts, and membership offsets in `int` although a span can exceed it, and `betweenInclusive` incremented an already maximal endpoint; `Rational.compare` cross-multiplied and `round` doubled the numerator; `Complex.pow` negated an `int` exponent, which leaves the minimum negative so the loop never ran; and `Complex.abs` squared both components at full magnitude.
+
+**Resolution**: Each computes the answer without forming a value it cannot hold. The median widens both operands before adding. `Range` holds its exclusive end as `long`, so an inclusive maximum endpoint is representable, and computes lengths, offsets, and reversal in `long`. `Rational.compare` compares whole parts and then remainders through their reciprocals, and `round` compares the remainder against what is left of the denominator instead of doubling. `Complex.pow` widens the exponent before negating it, and `Complex.abs` factors out the larger component and squares only the ratio.
+
+Covered by tests/StdlibNumericBoundaries.test.ts at O0/O3 with LLVM validation, including ordinary controls, a descending range, negative rounding, and a zero magnitude.
+
+### BUG-381: The argument parser selects flags by prefix
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: `matchFlag` accepted any argument beginning with a flag's name or alias, without checking what followed. An unregistered `--outline=file` was accepted as `--out`, and when one flag's name was a prefix of another's, registration order decided which won, so `--output=file` selected `--out`.
+
+**Resolution**: An argument names a flag when it is exactly the name, or the name followed by `=` introducing a value (`namesFlag` in lib/arg_parser.bpl). Aliases are matched the same way, so `-op` no longer selects `-o`. Covered by tests/ArgParser.test.ts, which registers the prefix flag first and checks the overlapping name, the unregistered name, the bare name, and both alias forms.

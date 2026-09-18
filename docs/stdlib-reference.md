@@ -202,6 +202,7 @@ frame destroy(this: *ParsedArgs)
 struct ArgParser
 root: *Command
 frame new(rootCmd: *Command) ret ArgParser
+frame namesFlag(argStr: string, name: string) ret bool
 frame matchFlag(this: *ArgParser, currentCmd: *Command, argStr: string) ret Option<*Flag>
 frame parse(this: *ArgParser, args: *Args) ret *ParsedArgs
 ```
@@ -2215,7 +2216,7 @@ export [Range];
 ```bpl
 struct Range
 start: int
-end: int
+end: long
 step: int
 frame new(start: int, end: int, step: int) ret Range
 frame until(end: int) ret Range
@@ -2272,6 +2273,7 @@ frame isZero(this: *Rational) ret bool
 frame isPositive(this: *Rational) ret bool
 frame isNegative(this: *Rational) ret bool
 frame isInteger(this: *Rational) ret bool
+frame floorDiv(value: long, divisor: long) ret long
 frame compare(this: *Rational, other: *Rational) ret int
 frame equals(this: *Rational, other: *Rational) ret bool
 frame lessThan(this: *Rational, other: *Rational) ret bool

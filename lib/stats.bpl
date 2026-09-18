@@ -246,7 +246,11 @@ struct Stats {
             return cast<float>(*(data + (length / 2)));
         } else {
             local mid: int = length / 2;
-            return cast<float>(*((data + mid) - 1) + *(data + mid)) / 2.0;
+            # Widen each value before adding: the sum of two int medians can
+            # exceed int even when the median itself is representable.
+            local lower: float = cast<float>(*((data + mid) - 1));
+            local upper: float = cast<float>(*(data + mid));
+            return (lower + upper) / 2.0;
         }
     }
 
