@@ -122,11 +122,79 @@ function inferEnumGenericArgsFromType(
  * Parameter names the function assigns to as a whole. Writing through a
  * parameter (`xs[0] = v`) does not rebind it; replacing it (`xs = items`) does,
  * and a slice rebound to this frame's array no longer views the caller's.
+ *
+ * The walk follows lexical scope: an inner declaration of the same name
+ * shadows the parameter, so assigning that local says nothing about the
+ * parameter. A lambda body cannot rebind an enclosing parameter, because
+ * writing to a captured variable is rejected, so those bodies are skipped.
  */
 function collectReboundParameters(decl: AST.FunctionDecl): Set<string> {
-  const parameterNames = new Set(decl.params.map((param) => param.name));
+  const parameterNames = new Set(
+    decl.params.map((param) => param.name).filter((name) => name !== "_"),
+  );
   const rebound = new Set<string>();
   if (parameterNames.size === 0) return rebound;
+
+  const shadowCounts = new Map<string, number>();
+  const isShadowed = (name: string): boolean =>
+    (shadowCounts.get(name) ?? 0) > 0;
+
+  const shadow = (names: string[]): string[] => {
+    const added: string[] = [];
+    for (const name of names) {
+      if (!parameterNames.has(name)) continue;
+      shadowCounts.set(name, (shadowCounts.get(name) ?? 0) + 1);
+      added.push(name);
+    }
+    return added;
+  };
+
+  const unshadow = (names: string[]): void => {
+    for (const name of names) {
+      const count = shadowCounts.get(name) ?? 0;
+      if (count <= 1) shadowCounts.delete(name);
+      else shadowCounts.set(name, count - 1);
+    }
+  };
+
+  const declaredNames = (declaration: AST.VariableDecl): string[] => {
+    if (typeof declaration.name === "string") {
+      return declaration.name === "_" ? [] : [declaration.name];
+    }
+    const names: string[] = [];
+    const collect = (target: unknown): void => {
+      if (Array.isArray(target)) {
+        for (const item of target) collect(item);
+        return;
+      }
+      const named = target as { name?: string } | undefined;
+      if (named?.name && named.name !== "_") names.push(named.name);
+    };
+    collect(declaration.name);
+    return names;
+  };
+
+  const patternNames = (pattern: AST.Pattern | undefined): string[] => {
+    if (!pattern) return [];
+    switch (pattern.kind) {
+      case "PatternIdentifier":
+        return [(pattern as AST.PatternIdentifier).name];
+      case "PatternEnumTuple":
+        return (pattern as AST.PatternEnumTuple).bindings.flatMap((binding) =>
+          patternNames(binding),
+        );
+      case "PatternEnumStruct":
+        return (pattern as AST.PatternEnumStruct).fields.flatMap((field) =>
+          field.binding ? [field.binding] : [],
+        );
+      case "PatternTuple":
+        return (pattern as AST.PatternTuple).patterns.flatMap((subPattern) =>
+          patternNames(subPattern),
+        );
+      default:
+        return [];
+    }
+  };
 
   const seen = new WeakSet<object>();
   const skippedKeys = new Set([
@@ -139,27 +207,99 @@ function collectReboundParameters(decl: AST.FunctionDecl): Set<string> {
 
   const visit = (node: unknown): void => {
     if (!node || typeof node !== "object") return;
-    if (seen.has(node as object)) return;
-    seen.add(node as object);
-
     if (Array.isArray(node)) {
       for (const item of node) visit(item);
       return;
     }
+    if (seen.has(node as object)) return;
+    seen.add(node as object);
 
-    const candidate = node as { kind?: string; assignee?: AST.Expression };
-    if (candidate.kind === "Assignment") {
-      let target: AST.Expression | undefined = candidate.assignee;
-      while (target && target.kind === "Group") {
-        target = (target as AST.GroupExpr).expression;
+    const candidate = node as {
+      kind?: string;
+      [key: string]: unknown;
+    };
+
+    switch (candidate.kind) {
+      // A lambda holds copies of what it captures, and writing to a captured
+      // variable is rejected, so nothing inside can rebind a parameter.
+      case "LambdaExpression":
+        return;
+
+      case "Assignment": {
+        let target = candidate.assignee as AST.Expression | undefined;
+        while (target && target.kind === "Group") {
+          target = (target as AST.GroupExpr).expression;
+        }
+        if (target && target.kind === "Identifier") {
+          const name = (target as AST.IdentifierExpr).name;
+          if (parameterNames.has(name) && !isShadowed(name)) rebound.add(name);
+        }
+        visit(candidate.assignee);
+        visit(candidate.value);
+        return;
       }
-      if (target && target.kind === "Identifier") {
-        const name = (target as AST.IdentifierExpr).name;
-        if (parameterNames.has(name)) rebound.add(name);
+
+      case "Block": {
+        const added: string[] = [];
+        for (const statement of (candidate.statements ??
+          []) as AST.Statement[]) {
+          if (statement.kind === "VariableDecl") {
+            const declaration = statement as AST.VariableDecl;
+            // The initializer is evaluated before the name comes into scope.
+            visit(declaration.initializer);
+            added.push(...shadow(declaredNames(declaration)));
+            continue;
+          }
+          visit(statement);
+        }
+        unshadow(added);
+        return;
+      }
+
+      case "Loop": {
+        const loop = candidate as unknown as AST.LoopStmt;
+        const added: string[] = [];
+        if (loop.init) {
+          if (loop.init.kind === "VariableDecl") {
+            const declaration = loop.init as AST.VariableDecl;
+            visit(declaration.initializer);
+            added.push(...shadow(declaredNames(declaration)));
+          } else {
+            visit(loop.init);
+          }
+        }
+        visit(loop.condition);
+        visit(loop.step);
+        visit(loop.body);
+        unshadow(added);
+        return;
+      }
+
+      case "Try": {
+        const tryStmt = candidate as unknown as AST.TryStmt;
+        visit(tryStmt.tryBlock);
+        for (const clause of tryStmt.catchClauses) {
+          const added = shadow(clause.variable ? [clause.variable] : []);
+          visit(clause.body);
+          unshadow(added);
+        }
+        return;
+      }
+
+      case "Match": {
+        const match = candidate as unknown as AST.MatchExpr;
+        visit(match.value);
+        for (const arm of match.arms) {
+          const added = shadow(patternNames(arm.pattern));
+          visit(arm.guard);
+          visit(arm.body);
+          unshadow(added);
+        }
+        return;
       }
     }
 
-    for (const [key, value] of Object.entries(node)) {
+    for (const [key, value] of Object.entries(candidate)) {
       if (skippedKeys.has(key)) continue;
       visit(value);
     }

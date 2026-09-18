@@ -258,6 +258,44 @@ describe("Language Exploration 2026-05-26", () => {
       expect(output).toBe("5\n");
     });
 
+    it("C08: a shadowing local does not count as rebinding the parameter", () => {
+      const output = compileAndRun(`
+        extern printf(fmt: string, ...) ret int;
+
+        frame first(xs: int[]) ret *int {
+          # An inner declaration of the same name shadows the parameter, so
+          # assigning it says nothing about the slice.
+          { local xs: int = 1; xs = 2; local _seen: int = xs; }
+          loop (local xs: int = 0; xs < 2; xs = xs + 1) { local _each: int = xs; }
+          return &xs[0];
+        }
+
+        frame main() ret int {
+          local values: int[1] = [4];
+          printf("%d\\n", *first(values));
+          return 0;
+        }
+      `);
+
+      expect(output).toBe("4\n");
+    });
+
+    it("C08: rebinding the parameter is still rejected from an inner block", () => {
+      expectCompilationFailure(`
+        frame first(xs: int[]) ret *int {
+          local items: int[3];
+          items[0] = 1;
+          { xs = items; }
+          return &xs[0];
+        }
+
+        frame main() ret int {
+          local values: int[1] = [0];
+          return *first(values);
+        }
+      `, "xs");
+    });
+
     it("BUG-144: rejects pointer subtraction across incompatible pointee types", () => {
       expectCompilationFailure(`
         frame main() ret int {

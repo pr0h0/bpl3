@@ -4910,3 +4910,66 @@ With copies rejected, a by-value argument is necessarily a transfer, so the para
 Breaking change. Nothing in the standard library, the examples, or the packages uses `@[auto_destroy]`, so no existing program changed; three of this session's own tests did, because they were written against the unsound behaviour, and they now pass fresh values instead of copying named ones.
 
 **Remaining gaps**: assigning over a value that already owns a resource does not destroy the old one first, so the overwritten resource leaks. A tuple of owning values can be built and destroyed but not read, since destructuring copies its elements. Both are recorded in docs/21-constructors-destructors.md.
+
+### BUG-377: A loop's init variable outlives the loop and clobbers the name it shadows
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-18)**: A variable declared in a loop's init is scoped to the loop, but code generation never restored a name it shadowed, so the outer binding kept pointing at the loop's storage:
+
+```bpl
+local i: int = 100;
+loop (local i: int = 0; i < 3; i = i + 1) { }
+printf("after %d\n", i);       # prints 3, not 100
+```
+
+When the shadowed name is a parameter of another type the result is worse than a wrong value. A slice parameter shadowed by an `int` was read as a slice descriptor after the loop, so returning `&xs[0]` faulted:
+
+```bpl
+frame first(xs: int[]) ret *int {
+    loop (local xs: int = 0; xs < 2; xs = xs + 1) { }
+    return &xs[0];              # SIGSEGV, address 0x200000002
+}
+```
+
+Blocks already saved and restored the names they declared; the loop's init was generated without that, since it is not part of the body block.
+
+**Found by**: fixing BUG-379. The false positive in the parameter-rebinding check had been rejecting exactly these programs, so the code generation defect behind them could not be reached. Removing the false positive turned a spurious compile error into a crash, which is how it surfaced.
+
+**Resolution**: The names a loop's init declares are saved before it is generated and restored after the loop ends, matching what block generation already did (`generateLoop` in compiler/backend/codegen/StatementGenerator.ts). Covered by tests/LoopVariableScope.test.ts, which checks the shadowed outer value, an ordinary loop counter, and the slice-parameter case at O0/O3 with LLVM validation.
+
+### BUG-378: Finite nested generic aliases are rejected as recursive
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: `Identity<Identity<int>>` expands finitely to `int`, but was rejected with `Recursive type alias 'Identity' detected`, while `Identity<int>` was accepted:
+
+```bpl
+type Identity<T> = T;
+frame main() ret int { local value: Identity<Identity<int>> = 7; return value; }
+```
+
+Alias resolution added the alias name to its cycle stack before resolving the generic arguments, so a nested use of the same alias in an argument looked like a cycle in its own expansion.
+
+**Resolution**: A generic argument is a type in its own right, so the arguments are resolved before the alias joins the cycle stack. Naming the alias in its own body is still a cycle and still terminates: the guard is in place while the substituted body is resolved. Verified that directly recursive, indirectly recursive, and generic self-referential aliases are rejected exactly as before this change. Covered by tests/TypeAliasRecursion.test.ts, which runs one, two, and three levels of nesting plus a nested array alias, and keeps the three recursive forms rejected.
+
+### BUG-379: A shadowing local is mistaken for rebinding a parameter
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: The rebinding scan added for BUG-376 matched assignments by name, so a local that shadowed a slice parameter made the parameter look rebound and its element addresses were rejected:
+
+```bpl
+frame first(xs: int[]) ret *int {
+    { local xs: int = 1; xs = 2; }
+    return &xs[0];             # rejected: 'xs' treated as rebound
+}
+```
+
+**Resolution**: The scan follows lexical scope. Declarations in blocks, loop inits, catch clauses, and match arm patterns shadow the parameter name for as long as they are in scope, and a lambda body is skipped entirely because writing to a captured variable is already rejected, so nothing inside one can rebind a parameter. Rebinding from an inner block, or after a shadow has ended, is still detected. Covered by tests/LanguageExploration_2026_05_26.test.ts.

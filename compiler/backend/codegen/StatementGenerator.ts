@@ -324,6 +324,23 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
   }
 
+  /** Every variable name a declaration introduces, including destructuring. */
+  private collectDeclaredNames(decl: AST.VariableDecl): string[] {
+    if (typeof decl.name === "string") return [decl.name];
+
+    const names: string[] = [];
+    const collect = (target: unknown): void => {
+      if (Array.isArray(target)) {
+        for (const item of target) collect(item);
+        return;
+      }
+      const named = target as { name?: string } | undefined;
+      if (named?.name) names.push(named.name);
+    };
+    collect(decl.name);
+    return names;
+  }
+
   /** Registers cleanup for each element of a fixed-size array local. */
   private registerArrayElementAutoDestroy(
     name: string,
@@ -2706,6 +2723,21 @@ export abstract class StatementGenerator extends AsmGenerator {
   }
 
   protected generateLoop(stmt: AST.LoopStmt) {
+    // A variable declared in the init belongs to the loop, so a name it
+    // shadows is restored afterwards. Without this the outer binding keeps
+    // pointing at the loop's storage, and a parameter shadowed here is read
+    // as the wrong type once the loop ends.
+    const initNames: string[] =
+      stmt.init?.kind === "VariableDecl"
+        ? this.collectDeclaredNames(stmt.init as AST.VariableDecl)
+        : [];
+    const savedInitPointers = new Map<string, string | undefined>();
+    const savedInitTypes = new Map<string, AST.TypeNode | undefined>();
+    for (const name of initNames) {
+      savedInitPointers.set(name, this.localPointers.get(name));
+      savedInitTypes.set(name, this.localTypes.get(name));
+    }
+
     // Generate init
     if (stmt.init) {
       this.generateStatement(stmt.init);
@@ -2758,6 +2790,16 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
 
     this.loopStack.pop();
+
+    for (const name of initNames) {
+      const pointer = savedInitPointers.get(name);
+      if (pointer === undefined) this.localPointers.delete(name);
+      else this.localPointers.set(name, pointer);
+
+      const type = savedInitTypes.get(name);
+      if (type === undefined) this.localTypes.delete(name);
+      else this.localTypes.set(name, type);
+    }
     this.emit(`${endLabel}:`);
   }
 

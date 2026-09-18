@@ -1053,6 +1053,37 @@ export abstract class TypeCheckerBase {
           return type;
         }
 
+        const decl = resolvedSymbol.declaration as AST.TypeAliasDecl;
+        const isGenericAlias = !!(
+          decl &&
+          decl.genericParams &&
+          decl.genericParams.length > 0
+        );
+
+        // A generic argument is a type in its own right, so it is resolved
+        // before this alias joins the cycle stack. `Identity<Identity<int>>`
+        // expands finitely; naming the alias inside its own argument is not a
+        // cycle, while naming it in its body still is.
+        let aliasTypeMap: Map<string, AST.TypeNode> | undefined;
+        if (isGenericAlias) {
+          if (type.genericArgs.length !== decl.genericParams.length) {
+            throw new CompilerError(
+              `Generic alias '${name}' expects ${decl.genericParams.length} type arguments, but got ${type.genericArgs.length}.`,
+              "Check generic argument count.",
+              type.location,
+              GENERIC_ARITY_MISMATCH_CODE,
+            );
+          }
+
+          aliasTypeMap = new Map<string, AST.TypeNode>();
+          for (let i = 0; i < decl.genericParams.length; i++) {
+            aliasTypeMap.set(
+              decl.genericParams[i]!.name,
+              this.resolveType(type.genericArgs[i]!, checkConstraints),
+            );
+          }
+        }
+
         // Detect recursive type alias cycles
         if (this.typeAliasResolutionStack.has(name)) {
           const cycle = Array.from(this.typeAliasResolutionStack).join(" -> ");
@@ -1065,26 +1096,8 @@ export abstract class TypeCheckerBase {
 
         this.typeAliasResolutionStack.add(name);
         try {
-          const decl = resolvedSymbol.declaration as AST.TypeAliasDecl;
-          if (decl && decl.genericParams && decl.genericParams.length > 0) {
-            // Generic Alias Substitution
-            if (type.genericArgs.length !== decl.genericParams.length) {
-              throw new CompilerError(
-                `Generic alias '${name}' expects ${decl.genericParams.length} type arguments, but got ${type.genericArgs.length}.`,
-                "Check generic argument count.",
-                type.location,
-                GENERIC_ARITY_MISMATCH_CODE,
-              );
-            }
-
-            const typeMap = new Map<string, AST.TypeNode>();
-            for (let i = 0; i < decl.genericParams.length; i++) {
-              typeMap.set(
-                decl.genericParams[i]!.name,
-                this.resolveType(type.genericArgs[i]!, checkConstraints),
-              );
-            }
-
+          if (isGenericAlias) {
+            const typeMap = aliasTypeMap!;
             const substituted = this.substituteType(
               resolvedSymbol.type,
               typeMap,
