@@ -2525,6 +2525,10 @@ frame stddev(data: *int, length: int) ret float
 frame stddev(data: *float, length: int) ret float
 frame sampleStddev(data: *int, length: int) ret float
 frame sampleStddev(data: *float, length: int) ret float
+frame sortInPlace(data: *int, length: int)
+frame siftDown(data: *int, root: int, count: int)
+frame sortInPlace(data: *float, length: int)
+frame siftDownFloat(data: *float, root: int, count: int)
 frame median(data: *int, length: int) ret float
 frame median(data: *float, length: int) ret float
 frame mode(data: *int, length: int) ret int

@@ -234,25 +234,110 @@ struct Stats {
         return Math.sqrt(Stats.sampleVariance(data, length));
     }
 
+    /#
+        Sort an integer array in place with heapsort. The three callers below
+        each ran a complete bubble sort, which needs n*(n-1)/2 comparisons
+        whatever the input: selecting a median from 100,000 samples cost about
+        five billion. Heapsort is O(n log n) in the worst case, sorts in place,
+        and leaves the array fully sorted, which callers may rely on.
+    #/
+    frame sortInPlace(data: *int, length: int) {
+        if ((data == nullptr) || (length <= 1)) {
+            return;
+        }
+
+        # Build a max-heap, then repeatedly move its root to the end.
+        local start: int = (length / 2) - 1;
+        loop (start >= 0) {
+            Stats.siftDown(data, start, length);
+            start = start - 1;
+        }
+
+        local end: int = length - 1;
+        loop (end > 0) {
+            local top: int = *data;
+            *data = *(data + end);
+            *(data + end) = top;
+            Stats.siftDown(data, 0, end);
+            end = end - 1;
+        }
+    }
+
+    /# Restore the heap property at root within the first count elements. #/
+    frame siftDown(data: *int, root: int, count: int) {
+        loop (true) {
+            local largest: int = root;
+            local left: int = (2 * root) + 1;
+            local right: int = left + 1;
+
+            if ((left < count) && (*(data + left) > *(data + largest))) {
+                largest = left;
+            }
+            if ((right < count) && (*(data + right) > *(data + largest))) {
+                largest = right;
+            }
+            if (largest == root) {
+                return;
+            }
+
+            local swap: int = *(data + root);
+            *(data + root) = *(data + largest);
+            *(data + largest) = swap;
+            root = largest;
+        }
+    }
+
+    /# Sort a float array in place, as sortInPlace does for integers. #/
+    frame sortInPlace(data: *float, length: int) {
+        if ((data == nullptr) || (length <= 1)) {
+            return;
+        }
+
+        local start: int = (length / 2) - 1;
+        loop (start >= 0) {
+            Stats.siftDownFloat(data, start, length);
+            start = start - 1;
+        }
+
+        local end: int = length - 1;
+        loop (end > 0) {
+            local top: float = *data;
+            *data = *(data + end);
+            *(data + end) = top;
+            Stats.siftDownFloat(data, 0, end);
+            end = end - 1;
+        }
+    }
+
+    frame siftDownFloat(data: *float, root: int, count: int) {
+        loop (true) {
+            local largest: int = root;
+            local left: int = (2 * root) + 1;
+            local right: int = left + 1;
+
+            if ((left < count) && (*(data + left) > *(data + largest))) {
+                largest = left;
+            }
+            if ((right < count) && (*(data + right) > *(data + largest))) {
+                largest = right;
+            }
+            if (largest == root) {
+                return;
+            }
+
+            local swap: float = *(data + root);
+            *(data + root) = *(data + largest);
+            *(data + largest) = swap;
+            root = largest;
+        }
+    }
+
     # Calculate the median of an integer array (modifies the array - sorts it)
     frame median(data: *int, length: int) ret float {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        # Simple bubble sort for median calculation
-        local i: int = 0;
-        loop (i < (length - 1)) {
-            local j: int = 0;
-            loop (j < (length - i - 1)) {
-                if (*(data + j) > *(data + j + 1)) {
-                    local temp: int = *(data + j);
-                    *(data + j) = *(data + j + 1);
-                    *(data + j + 1) = temp;
-                }
-                j = j + 1;
-            }
-            i = i + 1;
-        }
+        Stats.sortInPlace(data, length);
 
         if ((length % 2) == 1) {
             return cast<float>(*(data + (length / 2)));
@@ -271,20 +356,7 @@ struct Stats {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        # Simple bubble sort for median calculation
-        local i: int = 0;
-        loop (i < (length - 1)) {
-            local j: int = 0;
-            loop (j < (length - i - 1)) {
-                if (*(data + j) > *(data + j + 1)) {
-                    local temp: float = *(data + j);
-                    *(data + j) = *(data + j + 1);
-                    *(data + j + 1) = temp;
-                }
-                j = j + 1;
-            }
-            i = i + 1;
-        }
+        Stats.sortInPlace(data, length);
 
         if ((length % 2) == 1) {
             return *(data + (length / 2));
@@ -337,20 +409,7 @@ struct Stats {
         if (p > 100.0) {
             p = 100.0;
         }
-        # Sort the array
-        local i: int = 0;
-        loop (i < (length - 1)) {
-            local j: int = 0;
-            loop (j < (length - i - 1)) {
-                if (*(data + j) > *(data + j + 1)) {
-                    local temp: float = *(data + j);
-                    *(data + j) = *(data + j + 1);
-                    *(data + j + 1) = temp;
-                }
-                j = j + 1;
-            }
-            i = i + 1;
-        }
+        Stats.sortInPlace(data, length);
 
         local index: float = (p / 100.0) * cast<float>(length - 1);
         local lower: int = cast<int>(index);

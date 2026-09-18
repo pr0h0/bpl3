@@ -2,6 +2,10 @@
 
 import sqrt, sin, cos, pow, exp, log, floor, ceil, round, fabs, minnum, maxnum, copysign from "./intrinsics.bpl";
 
+# Arc tangent has no LLVM intrinsic mapping here, so it comes from the
+# platform math library, as the accuracy note on Math.atan explains.
+extern atan(x: float) ret float;
+
 export [Math];
 
 # Mathematical constants
@@ -157,23 +161,18 @@ struct Math {
         return (PI / 2.0) - Math.asin(x);
     }
 
+    /#
+        Arc tangent, from the platform math library.
+
+        This was a four-term Taylor series with the reciprocal identity above
+        one. That series is about 0.0616 radians, or 3.5 degrees, wrong at
+        x = 1, and switching to the identity just past one reversed the sign of
+        that error, so the result jumped by roughly 0.123 radians across an
+        input change of 1e-12. asin, acos, atan2, and complex phase are all
+        built on this function and inherited both problems.
+    #/
     frame atan(x: float) ret float {
-        # Approximation using polynomial (accurate for |x| < 1)
-        local ax: float = fabs(x);
-        local sign: float = 1.0;
-        if (x < 0.0) 
-            sign = -1.0;
-        if (ax > 1.0) {
-            # Use identity: atan(x) = pi/2 - atan(1/x) for |x| > 1
-            return sign * ((PI / 2.0) - Math.atan(1.0 / ax));
-        }
-        # Polynomial approximation for |x| <= 1
-        local x2: float = ax * ax;
-        local result: float = ax;
-        result = result - ((ax * x2) / 3.0);
-        result = result + ((ax * x2 * x2) / 5.0);
-        result = result - ((ax * x2 * x2 * x2) / 7.0);
-        return sign * result;
+        return atan(x);
     }
 
     frame atan2(y: float, x: float) ret float {

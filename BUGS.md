@@ -5089,3 +5089,25 @@ This was introduced by that fix; the implementation before it returned infinity 
 **Observed (2026-09-18)**: `div` and `reciprocal` formed the sum of squares of the divisor, which overflows for large components and underflows for small ones. Dividing `3e200 + 4e200i` by itself gave NaN instead of one, and its reciprocal gave zero. Correcting `abs` for BUG-380 did not cover these.
 
 **Resolution**: Both use the scaled method: the smaller part of the divisor is divided by the larger first, so nothing is squared at full magnitude. `reciprocal` is now one divided by the value, sharing that path. Covered by tests/StdlibNumericBoundaries.test.ts, which checks a large divisor, a small divisor, the reciprocal, the product of a value and its reciprocal, and an ordinary control.
+
+### BUG-390: Arc tangent is inaccurate and discontinuous
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-18)**: `Math.atan` was a four-term Taylor series with the reciprocal identity applied above one. At x = 1 it was about 0.0616 radians, or 3.5 degrees, wrong, and crossing one reversed the sign of that error, so the result jumped by roughly 0.123 radians across an input change of 1e-12. `asin`, `acos`, `atan2`, and `Complex.phase` are built on it and inherited both problems.
+
+The reported classification was an improvement rather than a defect, because the source described itself as an approximation. It is recorded as a bug here: the error was large enough to make a documented example wrong, and the discontinuity is not a matter of precision.
+
+**Resolution**: `Math.atan` calls the platform implementation, as `sqrt`, `sin`, `cos`, and `pow` already did. It now agrees with C `atan` to within 1e-12 across the tested range, and the jump across one is gone. Two expectations in `examples/stdlib_complex` recorded the old error and were corrected against independently computed values: the phase of 3 + 4i is 0.9273, not 0.9330, and the square root of 3 + 4i is exactly 2 + i, where the previous expectation squared back to 2.977 + 4.017i.
+
+### BUG-391: Statistics sort with a complete bubble sort
+
+**Status**: Fixed
+
+**Priority**: P3
+
+**Observed (2026-09-18)**: Both `median` overloads and `percentile` ran a full bubble sort whatever the input, needing n*(n-1)/2 adjacent comparisons: about five billion to take the median of 100,000 samples, and the same quadratic cost for an already sorted one.
+
+**Resolution**: The three sites share an in-place heapsort, which is O(n log n) in the worst case and still leaves the array fully sorted, since callers may depend on that. Sorting 20,000 samples went from 693 ms to 15 ms, with identical results. Covered by tests/StdlibNumericBoundaries.test.ts for duplicates, already sorted and reversed input, single and paired elements, and a check that the array is left in order.

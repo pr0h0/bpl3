@@ -299,3 +299,66 @@ test("range reversal handles the minimum step", () => {
     },
   ]);
 }, 60000);
+
+test("statistics sorting leaves the array ordered for every shape", () => {
+  expectCorrectnessSuite([
+    {
+      name: "stats-sorting",
+      validateLlvm: true,
+      source: `
+      import [Stats] from "std/stats.bpl";
+      import printf from "std/c.bpl";
+      frame main() ret int {
+        # Duplicates, already sorted, reverse sorted, and odd and even counts.
+        local mixed: int[7] = [5, 3, 9, 1, 7, 3, 8];
+        local median7: float = Stats.median(&mixed[0], 7);
+        local ordered: int = 1;
+        loop (local i: int = 0; i < 6; i = i + 1) {
+          if (mixed[i] > mixed[i + 1]) { ordered = 0; }
+        }
+
+        local sorted: float[4] = [1.0, 2.0, 3.0, 4.0];
+        local reversed: float[4] = [4.0, 3.0, 2.0, 1.0];
+        local single: int[1] = [42];
+        local pair: int[2] = [2, 1];
+
+        printf("%.1f %d %.1f %.1f %.1f %.1f %.1f %.1f\\n",
+          median7, ordered,
+          Stats.median(&sorted[0], 4), Stats.median(&reversed[0], 4),
+          Stats.percentile(&reversed[0], 4, 0.0),
+          Stats.percentile(&reversed[0], 4, 100.0),
+          Stats.median(&single[0], 1), Stats.median(&pair[0], 2));
+        return 0;
+      }`,
+      expectedStdout: "5.0 1 2.5 2.5 1.0 4.0 42.0 1.5\n",
+    },
+  ]);
+}, 60000);
+
+test("arc tangent matches the platform implementation and stays continuous", () => {
+  expectCorrectnessSuite([
+    {
+      name: "math-atan",
+      validateLlvm: true,
+      source: `
+      import [Math] from "std/math.bpl";
+      import printf from "std/c.bpl";
+      extern atan(x: float) ret float;
+      extern fabs(x: float) ret float;
+      frame main() ret int {
+        # The old series was 0.06 radians out at one, and crossing one
+        # reversed the sign of that error, so the result jumped.
+        local below: float = Math.atan(1.0);
+        local above: float = Math.atan(1.000000000001);
+        local jump: float = fabs(above - below);
+        printf("%d %d %d %.6f %.6f\\n",
+          cast<int>(fabs(below - atan(1.0)) < 0.000000000001),
+          cast<int>(fabs(Math.atan(0.5) - atan(0.5)) < 0.000000000001),
+          cast<int>(jump < 0.000001),
+          Math.atan(0.0), Math.atan2(1.0, 1.0));
+        return 0;
+      }`,
+      expectedStdout: "1 1 1 0.000000 0.785398\n",
+    },
+  ]);
+}, 60000);
