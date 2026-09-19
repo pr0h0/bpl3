@@ -5385,3 +5385,15 @@ Three attempts at this now: scaling only the ratio, scaling the operands by thei
 **Resolution**: Each operand is scaled by a power of two taken from its largest component, which is exact and leaves both operands with components of magnitude at most one. The two scales cancel into a single exponent shift, applied once with `ldexp`, which never forms the factor itself and so stays correct where that factor is not representable.
 
 All six stored division cases now hold together at O0 and O3: a numerator near the limit over an ordinary divisor, a small component beside a large one, an ordinary numerator over a tiny divisor, a divisor near the limit, a reciprocal of a subnormal-scale value, and equal magnitudes. A sweep of every pair drawn from 1e-300, 1e-150, 1, 1e150 and 1e300 matches Python exactly, as does the existing 4753-value comparison.
+
+### BUG-415: Normalizing the numerator in complex division discards a small component
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-19)**: `(1e200 + 1e-200i) / 1` returned `1e200 + 0i`. The exponent scaling added for BUG-414 divided both operands down by a power of two taken from their own largest component. For the numerator that step is not free: its two components here lie 2^665 apart, so scaling the real part into `[0.5, 1)` pushes the imaginary part to 2^-1329, below the subnormal range, and it rounds to zero before the division ever runs. The divisor cannot suffer this, because after scaling its quotient components are reapplied by the same shift.
+
+**Resolution**: The numerator is only scaled when it would otherwise overflow during the division, that is when its exponent exceeds 1000; the shift taken is just the excess over that threshold rather than the whole exponent. Below the threshold the numerator is used as it stands, so a small component keeps every bit it has. The divisor is still normalized in full, and both shifts are still folded into one `ldexp` on the result.
+
+**Coverage**: `tests/StdlibNumericBoundaries.test.ts` now divides `(1e200 + 1e-200i)` by one alongside the five regimes it already pinned, so any future rescaling that rounds a component away fails there. A 147-case sweep over component magnitudes from 1e-300 to 1e300 against divisors 1, 1e150 and 1e-150 matches Python exactly, as do the six stored fixtures at O0 and O3 and the 4753-value comparison.

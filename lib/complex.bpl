@@ -85,17 +85,23 @@ struct Complex {
             return Complex.new(zero / zero, zero / zero);
         }
 
-        # Scale each operand by a power of two taken from its largest
-        # component, so both scaled operands have components of magnitude at
-        # most one and the quotient below stays near one. Powers of two are
-        # exact, and the two scales cancel into a single exponent shift that
-        # ldexp applies at the end without ever forming the factor itself.
+        # Only the divisor is normalized, by a power of two taken from its
+        # largest component, which puts that component in [0.5, 1). The ratio
+        # is then at most one and the denominator is in [0.5, 2], so the
+        # quotient is at most four times the numerator's largest component.
         #
-        # Scaling by the magnitudes and reapplying them as two operations
-        # cannot be made to work in either order: multiplying first overflows
-        # for a large numerator over a small divisor, and dividing first
-        # underflows a small component away, as for (1e200 + 1i) / (1e200),
-        # whose imaginary part is 1e-200.
+        # The numerator is left alone unless that bound would leave the range.
+        # Scaling it by its own magnitude, as the previous attempt did, rounds
+        # a small component away: in (1e200 + 1e-200i) the second component is
+        # 2^665 times smaller, so normalizing the first pushes it below the
+        # smallest subnormal and the imaginary part of the quotient was lost.
+        # When the numerator really is near the top of the range it is shifted
+        # down just far enough to keep the bound, and the shift is undone at
+        # the end.
+        #
+        # Powers of two are exact, and every scale here cancels into a single
+        # exponent shift that ldexp applies at the end without forming the
+        # factor itself.
         local valueMax: float = Math.abs(this.real);
         local valueImagSize: float = Math.abs(this.imag);
         if (valueMax < valueImagSize) {
@@ -118,8 +124,15 @@ struct Complex {
         frexp(valueMax, &valueExponent);
         frexp(divisorMax, &divisorExponent);
 
-        local ar: float = ldexp(this.real, -valueExponent);
-        local ai: float = ldexp(this.imag, -valueExponent);
+        # The quotient stays below four times the numerator's largest
+        # component, so a numerator below 2^1000 needs no headroom at all.
+        local headroom: int = 0;
+        if (valueExponent > 1000) {
+            headroom = valueExponent - 1000;
+        }
+
+        local ar: float = ldexp(this.real, -headroom);
+        local ai: float = ldexp(this.imag, -headroom);
         local cr: float = ldexp(other.real, -divisorExponent);
         local ci: float = ldexp(other.imag, -divisorExponent);
 
@@ -137,7 +150,7 @@ struct Complex {
             imagPart = ((ai * ratio) - ar) / denom;
         }
 
-        local shift: int = valueExponent - divisorExponent;
+        local shift: int = headroom - divisorExponent;
         return Complex.new(ldexp(realPart, shift), ldexp(imagPart, shift));
     }
 
