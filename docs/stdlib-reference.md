@@ -1676,8 +1676,8 @@ frame degToRad(deg: float) ret float
 frame radToDeg(rad: float) ret float
 frame isPowerOfTwo(x: int) ret bool
 frame nextPowerOfTwo(x: int) ret int
-frame gcd(a: int, b: int) ret int
-frame lcm(a: int, b: int) ret int
+frame gcd(a: int, b: int) ret long
+frame lcm(a: int, b: int) ret long
 frame factorial(n: int) ret long
 frame fibonacci(n: int) ret long
 frame isEven(x: int) ret bool

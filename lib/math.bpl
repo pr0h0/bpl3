@@ -271,7 +271,10 @@ struct Math {
     frame mod(x: float, y: float) ret float {
         local remainder: float = fmod(x, y);
         if (remainder == 0.0) {
-            return remainder;
+            # A zero remainder takes the sign of the divisor under this
+            # convention; the platform remainder gives it the sign of the
+            # dividend instead.
+            return 0.0 * y;
         }
         if ((remainder < 0.0) != (y < 0.0)) {
             return remainder + y;
@@ -304,9 +307,11 @@ struct Math {
     /#
         Greatest common divisor. The magnitudes are taken in long: the
         magnitude of the minimum int is not an int, and taking it there left a
-        negative value that produced a negative divisor.
+        negative value that produced a negative divisor. The result is a long
+        for the same reason: the greatest common divisor of the minimum int
+        with itself is 2147483648, which an int cannot hold.
     #/
-    frame gcd(a: int, b: int) ret int {
+    frame gcd(a: int, b: int) ret long {
         local x: long = cast<long>(a);
         local y: long = cast<long>(b);
         if (x < cast<long>(0)) {
@@ -320,19 +325,21 @@ struct Math {
             y = x % y;
             x = temp;
         }
-        return cast<int>(x);
+        return x;
     }
 
     /#
         Least common multiple. The common factor is divided out before
         multiplying: forming the product first overflows whenever the two
-        share a large factor, so lcm(50000, 50000) did not return 50000.
+        share a large factor, so lcm(50000, 50000) did not return 50000. The
+        result is a long because the multiple of two coprime ints does not fit
+        an int.
     #/
-    frame lcm(a: int, b: int) ret int {
+    frame lcm(a: int, b: int) ret long {
         if ((a == 0) || (b == 0)) {
-            return 0;
+            return cast<long>(0);
         }
-        local common: long = cast<long>(Math.gcd(a, b));
+        local common: long = Math.gcd(a, b);
         local x: long = cast<long>(a);
         local y: long = cast<long>(b);
         if (x < cast<long>(0)) {
@@ -341,7 +348,7 @@ struct Math {
         if (y < cast<long>(0)) {
             y = -y;
         }
-        return cast<int>((x / common) * y);
+        return (x / common) * y;
     }
 
     frame factorial(n: int) ret long {

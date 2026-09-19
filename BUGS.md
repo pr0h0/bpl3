@@ -5249,3 +5249,49 @@ tests/StdlibRationalIdentities.test.ts is the response to how this was missed: i
 This is the same mistake as BUG-392, made again in a different function: assuming that scaling each operand separately is free.
 
 **Resolution**: Identical endpoints return that endpoint. Otherwise the span is used directly, which is exact for ordinary values, and the weighted form is kept only for endpoints too far apart to subtract.
+
+### BUG-405: Streaming mean drifts for ordinary samples
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-19)**: Accumulating the mean one sample at a time, introduced to survive extreme operands, rounds at every step. The mean of `-3, -1, 1, 3` came out as `-2.2e-16` rather than exactly zero. Summing and dividing once, which it replaced, was exact for those values.
+
+Found by comparing against Python's `statistics.fmean` over a grid of samples rather than by a reported case: the printed value at nine decimal places read as `-0.000000000`, which looks like a signed zero and hides the drift.
+
+**Resolution**: The largest magnitude decides the method. When the samples cannot sum past the range, which is the ordinary case, they are summed and divided once, exactly as before. The scaled accumulation is kept only for samples large enough to overflow, where its rounding is the price of getting an answer at all.
+
+### BUG-406: Complex division discards the sign of a zero
+
+**Status**: Fixed
+
+**Priority**: P3
+
+**Observed (2026-09-19)**: Dividing a zero numerator returned a fixed `(0, 0)`, so the sign the quotient should carry was lost. Twenty-seven of 4753 grid cases disagreed with the same divisions in Python, all of them differing only in the sign of a zero component.
+
+**Resolution**: The shortcut is gone. The scale is set to one when the numerator is zero and the ordinary path runs on the signed zeros themselves, which carries their signs through division as IEEE arithmetic requires.
+
+### BUG-407: Float modulo gives a zero the wrong sign
+
+**Status**: Fixed
+
+**Priority**: P3
+
+**Observed (2026-09-19)**: A zero remainder was returned straight from the platform remainder, which gives it the sign of the dividend. Under the floor convention this function implements, a zero takes the sign of the divisor, so ten of the grid cases disagreed with Python.
+
+**Resolution**: A zero remainder is returned as `0.0 * y`, which carries the divisor's sign.
+
+### BUG-408: Integer gcd and lcm silently wrap
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-19)**: `Math.gcd` and `Math.lcm` returned `int`, but neither result fits one in general. The greatest common divisor of the minimum int with itself is 2147483648, and the least common multiple of two coprime ints can approach 2^62; both wrapped silently, so `gcd(-2147483648, -2147483648)` returned `-2147483648`.
+
+The earlier repair for these functions widened their intermediates and left the return type alone, which fixed the reported values and left this one reachable.
+
+**Resolution**: Both return `long`, which every result of two ints fits. Breaking change: the two call sites in the repository, an example and a test, print with `%ld`.
+
+**Validation for all four**: rational addition, subtraction, multiplication and division were compared against Python's `Fraction` over 5040 operations covering every sign combination, complex multiplication and division against Python's `complex` over 4753 operations, statistics against `statistics.fmean`, `pvariance`, `median` and `harmonic_mean`, and `gcd`, `lcm`, `mod`, `lerp`, `atan` and `atan2` against the `math` module over 531 cases. All four groups now agree exactly.

@@ -32,14 +32,40 @@ struct Stats {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
+        # Summing and dividing once is exact for ordinary samples, and
+        # accumulating a scaled running mean instead is not: it drifts by
+        # about one rounding step per sample, so the mean of -3, -1, 1, 3 came
+        # out as -2.2e-16 rather than zero. The scaled form is only needed when
+        # a plain sum would leave the range, so the largest magnitude decides
+        # which to use.
+        local largest: float = 0.0;
+        local scan: int = 0;
+        loop (scan < length) {
+            local magnitude: float = Math.abs(*(data + scan));
+            if (magnitude > largest) {
+                largest = magnitude;
+            }
+            scan = scan + 1;
+        }
+
+        local span: float = largest * cast<float>(length);
+        if (Math.isInfinite(largest) || !Math.isInfinite(span)) {
+            local sum: float = 0.0;
+            local j: int = 0;
+            loop (j < length) {
+                sum = sum + *(data + j);
+                j = j + 1;
+            }
+            return sum / cast<float>(length);
+        }
+
+        # The samples are large enough that their sum would overflow, so each
+        # one is scaled as it is folded in. This cannot overflow, at the cost
+        # of the rounding the direct path avoids.
         local running: float = 0.0;
         local i: int = 0;
         loop (i < length) {
             local count: float = cast<float>(i + 1);
-            # Scale both terms before combining them. Taking the difference
-            # between the sample and the running mean first overflows for
-            # operands of opposite sign near the limit, such as -1e308 and
-            # 1e308, whose mean is exactly zero.
             running = (running - (running / count)) + (*(data + i) / count);
             i = i + 1;
         }

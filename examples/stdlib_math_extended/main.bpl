@@ -57,8 +57,8 @@ frame main() ret int {
 
     # Test GCD and LCM
     printf("\n--- GCD and LCM ---\n");
-    printf("gcd(48, 18) = %d\n", Math.gcd(48, 18));
-    printf("lcm(4, 6) = %d\n", Math.lcm(4, 6));
+    printf("gcd(48, 18) = %ld\n", Math.gcd(48, 18));
+    printf("lcm(4, 6) = %ld\n", Math.lcm(4, 6));
 
     # Test factorial and fibonacci
     printf("\n--- Factorial and Fibonacci ---\n");

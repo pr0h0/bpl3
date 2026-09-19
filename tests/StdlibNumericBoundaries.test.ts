@@ -458,16 +458,20 @@ test("integer gcd and lcm keep representable answers", () => {
       frame main() ret int {
         # The magnitude of the minimum int is not an int, and a shared large
         # factor makes the product overflow while the multiple does not.
-        printf("%d %d %d %d %d %d\\n",
+        # gcd and lcm return long: the divisor of the minimum int with
+        # itself, and the multiple of two coprime ints, both exceed int.
+        printf("%ld %ld %ld %ld %ld %ld %ld %ld\\n",
           Math.gcd(cast<int>(-2147483648), 6),
           Math.lcm(50000, 50000),
           Math.gcd(54, 24),
           Math.lcm(4, 6),
           Math.gcd(-54, 24),
-          Math.lcm(0, 5));
+          Math.lcm(0, 5),
+          Math.gcd(cast<int>(-2147483648), cast<int>(-2147483648)),
+          Math.lcm(2147483647, 2147483646));
         return 0;
       }`,
-      expectedStdout: "2 50000 6 12 6 0\n",
+      expectedStdout: "2 50000 6 12 6 0 2147483648 4611686011984936962\n",
     },
   ]);
 }, 60000);

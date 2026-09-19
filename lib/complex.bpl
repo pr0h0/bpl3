@@ -96,8 +96,12 @@ struct Complex {
         if (valueScale < valueImagSize) {
             valueScale = valueImagSize;
         }
+        # A zero numerator still has signed components, and IEEE division
+        # carries those signs into the quotient. Returning a fixed (0, 0) here
+        # would discard them, so the scale is set to one instead and the
+        # ordinary path runs on the zeros themselves.
         if (valueScale == 0.0) {
-            return Complex.new(0.0, 0.0);
+            valueScale = 1.0;
         }
 
         local cr: float = other.real / divisorScale;
