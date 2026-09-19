@@ -677,3 +677,52 @@ test("complex division and harmonic mean hold across mixed magnitudes", () => {
     },
   ]);
 }, 60000);
+
+test("complex division holds across every magnitude regime", () => {
+  expectCorrectnessSuite([
+    {
+      name: "complex-division-regimes",
+      validateLlvm: true,
+      source: `
+      import [Complex] from "std/complex.bpl";
+      import printf from "std/c.bpl";
+      extern atof(text: string) ret float;
+
+      frame main() ret int {
+        # Each of these broke a previous scaling scheme. Scaling by magnitudes
+        # and reapplying them cannot satisfy all of them in either order:
+        # multiplying first overflows the second, dividing first underflows
+        # the third.
+        local huge: float = atof("1.6e308");
+        local large: Complex = Complex.new(huge, huge);
+        local ordinary: Complex = Complex.new(2.0, 1.0);
+
+        local big: float = atof("1e200");
+        local mixed: Complex = Complex.new(big, 1.0);
+        local realOnly: Complex = Complex.new(big, 0.0);
+
+        local tiny: float = atof("1e-308");
+        local unit: Complex = Complex.new(1.0, 1.0);
+        local small: Complex = Complex.new(tiny, tiny);
+
+        local nearMax: Complex = Complex.new(atof("1e308"), atof("1e308"));
+
+        # large over ordinary, mixed over real-only, unit over tiny,
+        # near-limit over itself, and an ordinary control.
+        local a: Complex = large.div(ordinary);
+        local b: Complex = mixed.div(realOnly);
+        local c: Complex = unit.div(small);
+        local d: Complex = nearMax.div(nearMax);
+        local e: Complex = Complex.new(3.0, 4.0).div(Complex.new(3.0, 4.0));
+
+        printf("%.1e %.1e | %.1f %.1e | %.1e %.1f | %.1f %.1f | %.1f %.1f\\n",
+          a.real, a.imag, b.real, b.imag, c.real, c.imag,
+          d.real, d.imag, e.real, e.imag);
+        return 0;
+      }`,
+      // Confirmed with 50-digit decimal arithmetic on the binary64 inputs.
+      expectedStdout:
+        "9.6e+307 3.2e+307 | 1.0 1.0e-200 | 1.0e+308 0.0 | 1.0 0.0 | 1.0 0.0\n",
+    },
+  ]);
+}, 60000);

@@ -5371,3 +5371,17 @@ Scaling the operands separately is not enough on its own: the order in which the
 **Observed (2026-09-19)**: The scaling added for BUG-402 divides the largest sample by each one, and that ratio overflows as soon as the samples span a wide range. For `[1e-308, 1e308]` the harmonic mean is about `2e-308`, but `largest / smallest` is not representable, so the result was zero. The comment claiming no individual ratio could overflow was wrong: it holds only while the samples are close together, which was the case in the reported reproduction.
 
 **Resolution**: The scale is the smallest sample rather than the largest, which makes every term at most one, with at least one term exactly one, so the sum lies between one and the count. The count is divided by that sum before being scaled back, since forming the count times the smallest sample first could leave the range. Covered by tests/StdlibNumericBoundaries.test.ts for samples spanning the whole range, identical tiny samples, and an ordinary pair.
+
+### BUG-414: Complex division underflows a small component
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-19)**: Choosing the order of the two rescaling steps by the divisor's magnitude, as BUG-412 did, avoids one overflow and introduces the opposite failure. For `(1e200 + 1i) / (1e200 + 0i)` the quotient is `1 + 1e-200i`, but dividing the scaled imaginary part by `1e200` before multiplying by the same value rounds it to zero, so the imaginary part was lost.
+
+Three attempts at this now: scaling only the ratio, scaling the operands by their magnitudes and reapplying in a fixed order, and choosing that order by magnitude. Each fixed the case in front of it and broke another, because no order of two separate operations on a representable quotient is safe when each of them can leave the range.
+
+**Resolution**: Each operand is scaled by a power of two taken from its largest component, which is exact and leaves both operands with components of magnitude at most one. The two scales cancel into a single exponent shift, applied once with `ldexp`, which never forms the factor itself and so stays correct where that factor is not representable.
+
+All six stored division cases now hold together at O0 and O3: a numerator near the limit over an ordinary divisor, a small component beside a large one, an ordinary numerator over a tiny divisor, a divisor near the limit, a reciprocal of a subnormal-scale value, and equal magnitudes. A sweep of every pair drawn from 1e-300, 1e-150, 1, 1e150 and 1e300 matches Python exactly, as does the existing 4753-value comparison.

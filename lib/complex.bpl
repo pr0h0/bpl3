@@ -4,6 +4,12 @@ export [Complex];
 
 import [Math] from "std/math.bpl";
 
+# Scaling by a power of two is exact, and ldexp applies an exponent shift
+# without forming the power itself, so a shift whose factor would not be
+# representable still yields a representable result.
+extern frexp(value: float, exponent: *int) ret float;
+extern ldexp(value: float, exponent: int) ret float;
+
 struct Complex {
     real: float,
     imag: float,
@@ -79,35 +85,43 @@ struct Complex {
             return Complex.new(zero / zero, zero / zero);
         }
 
-        # Scale the two operands independently, each by its own largest
-        # component, so neither the denominator nor the numerator can leave the
-        # range: dividing the numerator by the divisor's scale overflows when
-        # the divisor is tiny, and not scaling the numerator at all overflows
-        # when both are near the limit. The scaled components are at most one,
-        # so the quotient below is at most about two.
-        local divisorScale: float = Math.abs(other.real);
-        local divisorImagSize: float = Math.abs(other.imag);
-        if (divisorScale < divisorImagSize) {
-            divisorScale = divisorImagSize;
-        }
-
-        local valueScale: float = Math.abs(this.real);
+        # Scale each operand by a power of two taken from its largest
+        # component, so both scaled operands have components of magnitude at
+        # most one and the quotient below stays near one. Powers of two are
+        # exact, and the two scales cancel into a single exponent shift that
+        # ldexp applies at the end without ever forming the factor itself.
+        #
+        # Scaling by the magnitudes and reapplying them as two operations
+        # cannot be made to work in either order: multiplying first overflows
+        # for a large numerator over a small divisor, and dividing first
+        # underflows a small component away, as for (1e200 + 1i) / (1e200),
+        # whose imaginary part is 1e-200.
+        local valueMax: float = Math.abs(this.real);
         local valueImagSize: float = Math.abs(this.imag);
-        if (valueScale < valueImagSize) {
-            valueScale = valueImagSize;
+        if (valueMax < valueImagSize) {
+            valueMax = valueImagSize;
         }
-        # A zero numerator still has signed components, and IEEE division
-        # carries those signs into the quotient. Returning a fixed (0, 0) here
-        # would discard them, so the scale is set to one instead and the
-        # ordinary path runs on the zeros themselves.
-        if (valueScale == 0.0) {
-            valueScale = 1.0;
+        # A zero numerator keeps the signs of its components through the
+        # ordinary path below.
+        if (valueMax == 0.0) {
+            valueMax = 1.0;
         }
 
-        local cr: float = other.real / divisorScale;
-        local ci: float = other.imag / divisorScale;
-        local ar: float = this.real / valueScale;
-        local ai: float = this.imag / valueScale;
+        local divisorMax: float = Math.abs(other.real);
+        local divisorImagSize: float = Math.abs(other.imag);
+        if (divisorMax < divisorImagSize) {
+            divisorMax = divisorImagSize;
+        }
+
+        local valueExponent: int = 0;
+        local divisorExponent: int = 0;
+        frexp(valueMax, &valueExponent);
+        frexp(divisorMax, &divisorExponent);
+
+        local ar: float = ldexp(this.real, -valueExponent);
+        local ai: float = ldexp(this.imag, -valueExponent);
+        local cr: float = ldexp(other.real, -divisorExponent);
+        local ci: float = ldexp(other.imag, -divisorExponent);
 
         local realPart: float = 0.0;
         local imagPart: float = 0.0;
@@ -123,22 +137,8 @@ struct Complex {
             imagPart = ((ai * ratio) - ar) / denom;
         }
 
-        # Reapply the two scales in separate steps, dividing first when that
-        # brings the value down and multiplying first when it does not.
-        # Combining them into one factor overflows when the numerator is large
-        # and the divisor small; always multiplying first overflows the other
-        # way, as for (1.6e308 + 1.6e308i) / (2 + i), whose quotient is
-        # finite but whose scaled part times 1.6e308 is not.
-        if (divisorScale > 1.0) {
-            return Complex.new(
-                (realPart / divisorScale) * valueScale,
-                (imagPart / divisorScale) * valueScale,
-            );
-        }
-        return Complex.new(
-            (realPart * valueScale) / divisorScale,
-            (imagPart * valueScale) / divisorScale,
-        );
+        local shift: int = valueExponent - divisorExponent;
+        return Complex.new(ldexp(realPart, shift), ldexp(imagPart, shift));
     }
 
     # Multiply by a scalar
