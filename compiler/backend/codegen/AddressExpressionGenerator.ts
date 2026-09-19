@@ -279,7 +279,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     indexExpr: AST.IndexExpr,
     skipNullObjectCheck: boolean,
   ): string {
-    const objectAddr = this.generateAddress(
+    const objectAddr = this.generateIndexObjectAddress(
       indexExpr.object,
       skipNullObjectCheck,
     );
@@ -385,6 +385,41 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     }
 
     return addr;
+  }
+
+  /**
+   * The location holding the value being indexed.
+   *
+   * Indexing loads its base from a slot, so the object has to be one. A call
+   * produces a value rather than a location: treating the returned pointer as
+   * that slot loads through it, so `makeInts()[1]` read the first element and
+   * then used it as an address. The value is materialized into a slot instead.
+   * Member access is unaffected, because there the returned pointer really is
+   * the address the field is measured from.
+   */
+  private generateIndexObjectAddress(
+    object: AST.Expression,
+    skipNullObjectCheck: boolean,
+  ): string {
+    if (object.kind === "Group") {
+      return this.generateIndexObjectAddress(
+        (object as AST.GroupExpr).expression,
+        skipNullObjectCheck,
+      );
+    }
+
+    if (object.kind === "Call" && object.resolvedType) {
+      const type = this.resolveType(object.resolvedType);
+      const value = this.generateExpression(object);
+      const slot = this.allocateStack(
+        `index_base_${this.labelCount++}`,
+        type,
+      );
+      this.emit(`  store ${type} ${value}, ${type}* ${slot}`);
+      return slot;
+    }
+
+    return this.generateAddress(object, skipNullObjectCheck);
   }
 
   private generateArrayIndexAddress(

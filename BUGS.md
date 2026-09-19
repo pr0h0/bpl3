@@ -5330,3 +5330,22 @@ Found while probing the standard library rather than the compiler: `PriorityQueu
 The repository already settled this question for the runtime: `Error.printStack` writes to stderr, with the comment that diagnostics must never mix into program output. These three call sites predate that decision.
 
 **Resolution**: Both modules format their message and write it through the runtime's stderr writer. `JSON.parse` still returns a null pointer, so failure handling is unchanged for callers; only the destination of the text moved. Seven test files asserted the messages on stdout and now assert them on stderr, including two that required stderr to be empty and now require it to contain nothing but those diagnostics.
+
+### BUG-411: Indexing a value returned by a call reads through it
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-19)**: `makeInts()[1]` faulted, and `makeText()[0]` faulted at address `0x41`, which is the character `A` the expression should have produced. Indexing takes its base from a slot holding the value, but a call produces a value rather than a location, and the returned pointer was used as that slot: the load read the first element and the index then used it as an address.
+
+```bpl
+frame makeText() ret string { ... }          # returns "AB"
+printf("%c\n", makeText()[0]);               # SIGSEGV at 0x41
+```
+
+Every shape of indexed call was affected, including pointers, arrays returned by value, slices, and strings, as well as writes through one. Member access on a call result was always correct, because there the returned pointer really is the address the field is measured from, and so was dereferencing one.
+
+Found by probing `StringBuilder`, where a test expression indexed `toString()` directly.
+
+**Resolution**: The object of an index is materialized into a slot when it is a call, so the base has the location the index path expects. Member access is untouched. Covered by tests/IndexCallResult.test.ts for pointer, array, slice and string results, a grouped call, a write through a call result, and the unaffected member-access forms, with a separate check that bounds checking still applies to an indexed call result.
