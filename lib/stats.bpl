@@ -519,20 +519,22 @@ struct Stats {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        # Reciprocals are accumulated relative to the largest sample, so no
-        # individual one can overflow: 1/1e-309 is not representable, which
-        # made the harmonic mean of that value zero rather than the value
-        # itself. Scaling turns each term into largest/sample, which is at
-        # least one, and the scale is reapplied at the end.
-        local largest: float = 0.0;
+        # Reciprocals are accumulated relative to the smallest sample, not the
+        # largest. Scaling by the largest makes each term largest/sample,
+        # which overflows as soon as the samples span a wide range: with
+        # 1e-308 and 1e308 that ratio is not representable, and the harmonic
+        # mean came out as zero. Against the smallest, every term is at most
+        # one and at least one term is exactly one, so the sum is between one
+        # and the count.
+        local smallest: float = 0.0;
         local scan: int = 0;
         loop (scan < length) {
             local sample: float = *(data + scan);
             if (sample <= 0.0) {
                 return 0.0; # Harmonic mean undefined for non-positive values
             }
-            if (sample > largest) {
-                largest = sample;
+            if ((smallest == 0.0) || (sample < smallest)) {
+                smallest = sample;
             }
             scan = scan + 1;
         }
@@ -540,11 +542,14 @@ struct Stats {
         local scaledSum: float = 0.0;
         local i: int = 0;
         loop (i < length) {
-            scaledSum = scaledSum + (largest / *(data + i));
+            scaledSum = scaledSum + (smallest / *(data + i));
             i = i + 1;
         }
 
-        return (cast<float>(length) / scaledSum) * largest;
+        # Divide before scaling back: the count over the sum is never larger
+        # than the count, so this cannot leave the range, while forming
+        # count * smallest first could.
+        return (cast<float>(length) / scaledSum) * smallest;
     }
 
     # Calculate the skewness of a float array

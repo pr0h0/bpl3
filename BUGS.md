@@ -5349,3 +5349,25 @@ Every shape of indexed call was affected, including pointers, arrays returned by
 Found by probing `StringBuilder`, where a test expression indexed `toString()` directly.
 
 **Resolution**: The object of an index is materialized into a slot when it is a call, so the base has the location the index path expects. Member access is untouched. Covered by tests/IndexCallResult.test.ts for pointer, array, slice and string results, a grouped call, a write through a call result, and the unaffected member-access forms, with a separate check that bounds checking still applies to an indexed call result.
+
+### BUG-412: Complex division overflows when rescaling a large quotient
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-19)**: The independent operand scaling from BUG-401 reapplies the two scales as `part * valueScale / divisorScale`, which overflows when the numerator is large and the divisor is small but greater than one. `(1.6e308 + 1.6e308i) / (2 + i)` is `9.6e307 + 3.2e307i`, well inside the range, but the scaled real part is about 1.2 and multiplying that by 1.6e308 is not representable, so the real part came back infinite.
+
+Scaling the operands separately is not enough on its own: the order in which the scales are reapplied decides whether the intermediate stays in range.
+
+**Resolution**: The division is applied first when the divisor's scale is greater than one, and the multiplication first otherwise. Each of the four regimes now holds together: a divisor near the limit, an ordinary divisor with a large numerator, a tiny divisor, and equal magnitudes. Verified against 50-digit decimal arithmetic on the binary64 inputs, and the 4753-value comparison against Python's complex type still matches exactly.
+
+### BUG-413: Harmonic mean scaled by the wrong end of the range
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-19)**: The scaling added for BUG-402 divides the largest sample by each one, and that ratio overflows as soon as the samples span a wide range. For `[1e-308, 1e308]` the harmonic mean is about `2e-308`, but `largest / smallest` is not representable, so the result was zero. The comment claiming no individual ratio could overflow was wrong: it holds only while the samples are close together, which was the case in the reported reproduction.
+
+**Resolution**: The scale is the smallest sample rather than the largest, which makes every term at most one, with at least one term exactly one, so the sum lies between one and the count. The count is divided by that sum before being scaled back, since forming the count times the smallest sample first could leave the range. Covered by tests/StdlibNumericBoundaries.test.ts for samples spanning the whole range, identical tiny samples, and an ordinary pair.

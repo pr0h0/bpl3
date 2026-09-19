@@ -636,3 +636,44 @@ test("complex division holds for tiny divisors as well as huge ones", () => {
     },
   ]);
 }, 60000);
+
+test("complex division and harmonic mean hold across mixed magnitudes", () => {
+  expectCorrectnessSuite([
+    {
+      name: "mixed-magnitude-scaling",
+      validateLlvm: true,
+      source: `
+      import [Complex] from "std/complex.bpl";
+      import [Stats] from "std/stats.bpl";
+      import printf from "std/c.bpl";
+      extern atof(text: string) ret float;
+
+      frame main() ret int {
+        # A large numerator over a small divisor: the quotient is finite, but
+        # the scaled part times the numerator's scale is not, so the two
+        # scales have to be reapplied in the order that keeps it in range.
+        # (1.6e308 + 1.6e308i)/(2 + i) = 1.6e308 * (3 + i)/5.
+        local big: float = atof("1.6e308");
+        local numerator: Complex = Complex.new(big, big);
+        local divisor: Complex = Complex.new(2.0, 1.0);
+        local quotient: Complex = numerator.div(divisor);
+        local control: Complex = divisor.div(divisor);
+
+        # Samples spanning the whole range: scaling by the largest makes
+        # largest/smallest overflow, so the smallest is the scale.
+        local spread: float[2] = [atof("1e-308"), atof("1e308")];
+        local tiny: float[2] = [atof("1e-309"), atof("1e-309")];
+        local ordinary: float[2] = [2.0, 6.0];
+
+        printf("%.1e %.1e %.1f %.1f %.1e %.1e %.1f\\n",
+          quotient.real, quotient.imag, control.real, control.imag,
+          Stats.harmonicMean(&spread[0], 2),
+          Stats.harmonicMean(&tiny[0], 2),
+          Stats.harmonicMean(&ordinary[0], 2));
+        return 0;
+      }`,
+      // Verified with 50-digit decimal arithmetic on the binary64 inputs.
+      expectedStdout: "9.6e+307 3.2e+307 1.0 0.0 2.0e-308 1.0e-309 3.0\n",
+    },
+  ]);
+}, 60000);

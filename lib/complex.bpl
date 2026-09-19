@@ -123,9 +123,18 @@ struct Complex {
             imagPart = ((ai * ratio) - ar) / denom;
         }
 
-        # Reapply the two scales in separate steps. Combining them into one
-        # factor first would overflow when the numerator is large and the
-        # divisor small, even where the quotient itself is representable.
+        # Reapply the two scales in separate steps, dividing first when that
+        # brings the value down and multiplying first when it does not.
+        # Combining them into one factor overflows when the numerator is large
+        # and the divisor small; always multiplying first overflows the other
+        # way, as for (1.6e308 + 1.6e308i) / (2 + i), whose quotient is
+        # finite but whose scaled part times 1.6e308 is not.
+        if (divisorScale > 1.0) {
+            return Complex.new(
+                (realPart / divisorScale) * valueScale,
+                (imagPart / divisorScale) * valueScale,
+            );
+        }
         return Complex.new(
             (realPart * valueScale) / divisorScale,
             (imagPart * valueScale) / divisorScale,
