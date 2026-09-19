@@ -548,3 +548,87 @@ test("UTF-8 validation rejects non-scalar and malformed encodings", () => {
     },
   ]);
 }, 60000);
+
+test("interpolation, harmonic mean, and normalization hold for identical and extreme inputs", () => {
+  expectCorrectnessSuite([
+    {
+      name: "scaling-identities",
+      validateLlvm: true,
+      source: `
+      import [Math] from "std/math.bpl";
+      import [Stats] from "std/stats.bpl";
+      import [Vec2] from "std/vec2.bpl";
+      import [Vec3] from "std/vec3.bpl";
+      import printf from "std/c.bpl";
+      extern atof(text: string) ret float;
+
+      frame main() ret int {
+        local tiny: float = atof("5e-324");
+        local small: float = atof("1e-309");
+        local huge: float = atof("1.5e308");
+
+        # Interpolating between identical endpoints returns that endpoint,
+        # which halving each one separately would round to zero.
+        local pair: float[2] = [tiny, tiny];
+        local identical: int = cast<int>(Math.lerp(tiny, tiny, 0.5) == tiny);
+        local percentileIdentical: int =
+          cast<int>(Stats.percentile(&pair[0], 2, 50.0) == tiny);
+
+        # A reciprocal of the sample itself would overflow.
+        local repeated: float[2] = [small, small];
+        local harmonicOne: int = cast<int>(Stats.harmonicMean(&repeated[0], 1) == small);
+        local harmonicTwo: int = cast<int>(Stats.harmonicMean(&repeated[0], 2) == small);
+
+        # The magnitude is unrepresentable, but the direction is not.
+        local wide2: Vec2 = Vec2.new(huge, huge);
+        local wide3: Vec3 = Vec3.new(huge, huge, 0.0);
+        local unit2: Vec2 = wide2.normalize();
+        local unit3: Vec3 = wide3.normalize();
+        local plain: Vec2 = Vec2.new(3.0, 4.0);
+        local unitPlain: Vec2 = plain.normalize();
+        local zero: Vec2 = Vec2.new(0.0, 0.0);
+        local unitZero: Vec2 = zero.normalize();
+
+        local ordinaryHarmonic: float[2] = [2.0, 6.0];
+        printf("%d %d %d %d %.6f %.6f %.6f %.1f %.1f %.1f\\n",
+          identical, percentileIdentical, harmonicOne, harmonicTwo,
+          unit2.x, unit3.y, unitZero.x,
+          unitPlain.x * 5.0, unitPlain.y * 5.0,
+          Stats.harmonicMean(&ordinaryHarmonic[0], 2));
+        return 0;
+      }`,
+      expectedStdout: "1 1 1 1 0.707107 0.707107 0.000000 3.0 4.0 3.0\n",
+    },
+  ]);
+}, 60000);
+
+test("complex division holds for tiny divisors as well as huge ones", () => {
+  expectCorrectnessSuite([
+    {
+      name: "complex-divisor-range",
+      validateLlvm: true,
+      source: `
+      import [Complex] from "std/complex.bpl";
+      import printf from "std/c.bpl";
+      extern atof(text: string) ret float;
+      frame main() ret int {
+        local tiny: float = atof("1e-308");
+        local halfTiny: float = atof("5e-309");
+        # An ordinary numerator over a tiny divisor: scaling the numerator by
+        # the divisor's magnitude would overflow before dividing.
+        local numerator: Complex = Complex.new(1.0, 1.0);
+        local divisor: Complex = Complex.new(tiny, tiny);
+        local quotient: Complex = numerator.div(divisor);
+        local inverse: Complex = Complex.new(halfTiny, halfTiny).reciprocal();
+        local control: Complex = numerator.div(numerator);
+        local zeroOverOne: Complex = Complex.new(0.0, 0.0).div(numerator);
+        printf("%.1e %.1f %.1e %.1e %.1f %.1f %.1f\\n",
+          quotient.real, quotient.imag,
+          inverse.real, inverse.imag,
+          control.real, control.imag, zeroOverOne.real);
+        return 0;
+      }`,
+      expectedStdout: "1.0e+308 0.0 1.0e+308 -1.0e+308 1.0 0.0 0.0\n",
+    },
+  ]);
+}, 60000);

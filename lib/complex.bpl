@@ -79,35 +79,52 @@ struct Complex {
             return Complex.new(zero / zero, zero / zero);
         }
 
-        # Divide everything by the divisor's largest component first. Scaling
-        # only the ratio still leaves `real + imag * ratio` able to overflow
-        # when both components are near the limit, as for (1e308, 1e308).
-        # After this the divisor's components are at most one.
-        local scale: float = Math.abs(other.real);
-        local otherImagSize: float = Math.abs(other.imag);
-        if (scale < otherImagSize) {
-            scale = otherImagSize;
+        # Scale the two operands independently, each by its own largest
+        # component, so neither the denominator nor the numerator can leave the
+        # range: dividing the numerator by the divisor's scale overflows when
+        # the divisor is tiny, and not scaling the numerator at all overflows
+        # when both are near the limit. The scaled components are at most one,
+        # so the quotient below is at most about two.
+        local divisorScale: float = Math.abs(other.real);
+        local divisorImagSize: float = Math.abs(other.imag);
+        if (divisorScale < divisorImagSize) {
+            divisorScale = divisorImagSize;
         }
 
-        local cr: float = other.real / scale;
-        local ci: float = other.imag / scale;
-        local ar: float = this.real / scale;
-        local ai: float = this.imag / scale;
+        local valueScale: float = Math.abs(this.real);
+        local valueImagSize: float = Math.abs(this.imag);
+        if (valueScale < valueImagSize) {
+            valueScale = valueImagSize;
+        }
+        if (valueScale == 0.0) {
+            return Complex.new(0.0, 0.0);
+        }
 
+        local cr: float = other.real / divisorScale;
+        local ci: float = other.imag / divisorScale;
+        local ar: float = this.real / valueScale;
+        local ai: float = this.imag / valueScale;
+
+        local realPart: float = 0.0;
+        local imagPart: float = 0.0;
         if (Math.abs(cr) >= Math.abs(ci)) {
             local ratio: float = ci / cr;
             local denom: float = cr + (ci * ratio);
-            return Complex.new(
-                (ar + (ai * ratio)) / denom,
-                (ai - (ar * ratio)) / denom,
-            );
+            realPart = (ar + (ai * ratio)) / denom;
+            imagPart = (ai - (ar * ratio)) / denom;
+        } else {
+            local ratio: float = cr / ci;
+            local denom: float = (cr * ratio) + ci;
+            realPart = ((ar * ratio) + ai) / denom;
+            imagPart = ((ai * ratio) - ar) / denom;
         }
 
-        local ratio: float = cr / ci;
-        local denom: float = (cr * ratio) + ci;
+        # Reapply the two scales in separate steps. Combining them into one
+        # factor first would overflow when the numerator is large and the
+        # divisor small, even where the quotient itself is representable.
         return Complex.new(
-            ((ar * ratio) + ai) / denom,
-            ((ai * ratio) - ar) / denom,
+            (realPart * valueScale) / divisorScale,
+            (imagPart * valueScale) / divisorScale,
         );
     }
 

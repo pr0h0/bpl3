@@ -69,14 +69,33 @@ struct Vec2: Equatable<Vec2>, Cloneable<Vec2> {
         return larger * Math.sqrt(1.0 + (ratio * ratio));
     }
 
+    /#
+        Unit vector in the same direction. The components are scaled by their
+        largest magnitude before the length is taken: a vector whose length
+        exceeds the range, such as (1.5e308, 1.5e308), still has a
+        representable direction, and dividing by an infinite length gave the
+        zero vector instead.
+    #/
     frame normalize(this: *Vec2) ret Vec2 {
-        local len: float = this.length();
+        local largest: float = Math.abs(this.x);
+        local absY: float = Math.abs(this.y);
+        if (largest < absY) {
+            largest = absY;
+        }
+        if (largest == 0.0) {
+            return Vec2.new(0.0, 0.0);
+        }
+
+        local sx: float = this.x / largest;
+        local sy: float = this.y / largest;
+        local len: float = Math.sqrt((sx * sx) + (sy * sy));
         if (len == 0.0) {
             return Vec2.new(0.0, 0.0);
         }
+
         local r: Vec2;
-        r.x = this.x / len;
-        r.y = this.y / len;
+        r.x = sx / len;
+        r.y = sy / len;
         return r;
     }
 

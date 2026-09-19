@@ -493,18 +493,32 @@ struct Stats {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        local recipSum: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local val: float = *(data + i);
-            if (val <= 0.0) {
+        # Reciprocals are accumulated relative to the largest sample, so no
+        # individual one can overflow: 1/1e-309 is not representable, which
+        # made the harmonic mean of that value zero rather than the value
+        # itself. Scaling turns each term into largest/sample, which is at
+        # least one, and the scale is reapplied at the end.
+        local largest: float = 0.0;
+        local scan: int = 0;
+        loop (scan < length) {
+            local sample: float = *(data + scan);
+            if (sample <= 0.0) {
                 return 0.0; # Harmonic mean undefined for non-positive values
             }
-            recipSum = recipSum + (1.0 / val);
+            if (sample > largest) {
+                largest = sample;
+            }
+            scan = scan + 1;
+        }
+
+        local scaledSum: float = 0.0;
+        local i: int = 0;
+        loop (i < length) {
+            scaledSum = scaledSum + (largest / *(data + i));
             i = i + 1;
         }
 
-        return cast<float>(length) / recipSum;
+        return (cast<float>(length) / scaledSum) * largest;
     }
 
     # Calculate the skewness of a float array

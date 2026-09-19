@@ -228,7 +228,19 @@ struct Math {
         if (t == 1.0) {
             return b;
         }
-        return (a * (1.0 - t)) + (b * t);
+        # Identical endpoints interpolate to themselves at any position.
+        # Weighting them separately would halve each one, and halving is not
+        # exact for subnormals, so both halves would round to zero.
+        if (a == b) {
+            return a;
+        }
+        local span: float = b - a;
+        if (Math.isInfinite(span)) {
+            # The endpoints are too far apart to subtract, so weight them
+            # instead. This is the only case where that is needed.
+            return (a * (1.0 - t)) + (b * t);
+        }
+        return a + (span * t);
     }
 
     frame sign(x: float) ret float {

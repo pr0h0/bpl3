@@ -5193,3 +5193,59 @@ The mean subtracted the running value from the next sample. For `[-1e308, 1e308]
 **Observed (2026-09-18)**: Replacing the arc tangent in BUG-390 left `atan2` with its own quadrant logic, which divides before selecting a branch. Infinity over infinity was indeterminate, a NaN argument fell through every comparison to zero, and a negative zero numerator on the negative real axis satisfied `y >= 0` and gave `+pi` where `-pi` is required. `Complex.phase` inherited all three.
 
 **Resolution**: `Math.atan2` calls the platform implementation, as `atan` now does.
+
+### BUG-400: Rational subtraction returns an unrelated fraction
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-19)**: `1/2 - 1/3` returned `3689348814741910323/3689348814741910322`. The unsigned accumulation added for BUG-393 requires a positive denominator, but `sub` was passing a negated one, so the remainders were floored against a negative value and then read as unsigned.
+
+This is ordinary arithmetic, not a boundary case, and it was introduced by the previous fix. It survived a full suite because the rational tests only covered the specific extreme values each report had named; none of them subtracted two ordinary fractions.
+
+**Resolution**: `sub` negates the numerator, which is what `addFractions` is built to accept, and keeps the denominator positive. The minimum long has no positive counterpart, so that one value is subtracted in two halves, which is exact because it is even.
+
+tests/StdlibRationalIdentities.test.ts is the response to how this was missed: it walks every sign combination over a grid of numerators and denominators, 1296 pairs, and checks the laws the operations must obey, including that addition and subtraction invert each other and that reversing a subtraction negates it. It was confirmed to fail against the broken implementation before being kept.
+
+### BUG-401: Complex division overflows for a tiny divisor
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-19)**: The scaling added for BUG-394 divides the numerator by the divisor's magnitude, which overflows when the divisor is tiny: `(1 + i) / (1e-308 + 1e-308i)` is about `1e308` and representable, but the scaled numerator was not.
+
+**Resolution**: The two operands are scaled independently, each by its own largest component, so neither can leave the range, and the two scales are reapplied in separate steps afterwards. Combining them into one factor first would overflow for exactly the case that motivated the change. All three divisor regimes now hold together: near the limit, ordinary, and near zero.
+
+### BUG-402: Harmonic mean returns zero for small positive samples
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-19)**: `harmonicMean` accumulated `1 / value`, and the reciprocal of `1e-309` is not representable, so the harmonic mean of that value was zero rather than the value itself, even for a single sample.
+
+**Resolution**: The reciprocals are accumulated relative to the largest sample, which makes each term at least one, and the scale is reapplied at the end.
+
+### BUG-403: Vector normalization collapses large vectors to zero
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-19)**: `normalize` divided by `length()`. For `(1.5e308, 1.5e308)` the magnitude is not representable although the direction is, so the length came back infinite and the result was the zero vector. Both Vec2 and Vec3 were affected; scaling inside `length` alone does not help, because the value it must return is the part that overflows.
+
+**Resolution**: The components are scaled by their largest magnitude first, and the unit vector is computed from those scaled values, so the unrepresentable magnitude is never formed. The zero-vector policy is unchanged.
+
+### BUG-404: Interpolating identical subnormal endpoints returns zero
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-19)**: The weighted endpoint form introduced for BUG-398 halves each endpoint, and halving is not exact for subnormals, so `lerp(x, x, 0.5)` returned zero for the smallest positive subnormal, and `percentile` inherited it for a constant sample.
+
+This is the same mistake as BUG-392, made again in a different function: assuming that scaling each operand separately is free.
+
+**Resolution**: Identical endpoints return that endpoint. Otherwise the span is used directly, which is exact for ordinary values, and the weighted form is kept only for endpoints too far apart to subtract.

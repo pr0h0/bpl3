@@ -153,14 +153,28 @@ struct Rational {
         if ((this.den == cast<long>(0)) || (other.den == cast<long>(0))) {
             return Rational.new(cast<long>(0), cast<long>(0));
         }
-        # Negate the denominator rather than the numerator: negating the
-        # minimum long wraps, and a denominator is never that value here.
-        return Rational.addFractions(
-            this.num,
-            this.den,
-            other.num,
-            -other.den,
+
+        # Negate the numerator, not the denominator: addFractions floors
+        # against the denominator and accumulates the remainders unsigned, so
+        # it requires a positive one. A negative numerator is ordinary.
+        if (other.num != cast<long>(-9223372036854775808)) {
+            return Rational.addFractions(
+                this.num,
+                this.den,
+                -other.num,
+                other.den,
+            );
+        }
+
+        # The minimum long has no positive counterpart. It is always even, so
+        # subtracting half of it twice gives the same result with values that
+        # can be negated.
+        local half: Rational = Rational.new(
+            other.num / cast<long>(2),
+            other.den,
         );
+        local once: Rational = this.sub(half);
+        return once.sub(half);
     }
 
     # Multiply two rationals

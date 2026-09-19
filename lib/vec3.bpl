@@ -84,15 +84,33 @@ struct Vec3: Equatable<Vec3>, Cloneable<Vec3> {
         return largest * Math.sqrt((rx * rx) + (ry * ry) + (rz * rz));
     }
 
+    /# Unit vector in the same direction, scaled as Vec2.normalize is. #/
     frame normalize(this: *Vec3) ret Vec3 {
-        local len: float = this.length();
+        local largest: float = Math.abs(this.x);
+        local absY: float = Math.abs(this.y);
+        local absZ: float = Math.abs(this.z);
+        if (largest < absY) {
+            largest = absY;
+        }
+        if (largest < absZ) {
+            largest = absZ;
+        }
+        if (largest == 0.0) {
+            return Vec3.new(0.0, 0.0, 0.0);
+        }
+
+        local sx: float = this.x / largest;
+        local sy: float = this.y / largest;
+        local sz: float = this.z / largest;
+        local len: float = Math.sqrt((sx * sx) + (sy * sy) + (sz * sz));
         if (len == 0.0) {
             return Vec3.new(0.0, 0.0, 0.0);
         }
+
         local r: Vec3;
-        r.x = this.x / len;
-        r.y = this.y / len;
-        r.z = this.z / len;
+        r.x = sx / len;
+        r.y = sy / len;
+        r.z = sz / len;
         return r;
     }
 
