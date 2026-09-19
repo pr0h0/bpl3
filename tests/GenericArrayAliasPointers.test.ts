@@ -58,7 +58,7 @@ test("JSON parses and frees generic array aliases at roots and in fields", () =>
         return 0;
       }`,
       expectedStdout:
-        '[1, 2]\nJSON Parse Error: Too many fixed-array elements at line 1, column 6\n[1.5, 2.5]\n{"values": [1, 65535], "optional": [3, 4]}\n',
+        '[1, 2]\n[1.5, 2.5]\n{"values": [1, 65535], "optional": [3, 4]}\n',
     },
   ]);
 }, 60000);

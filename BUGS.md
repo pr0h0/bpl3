@@ -5318,3 +5318,15 @@ Found while probing the standard library rather than the compiler: `PriorityQueu
 **Resolution**: The classifier resolves a type parameter to the argument of the instantiation being generated before classifying it, the same way the rest of code generation resolves parameters. All fourteen signedness decisions share that one helper, so comparison, division, remainder, shift, and widening are all covered. Covered by tests/GenericSignedOperations.test.ts, which checks each operation through a type parameter at `int`, `long`, and `i8`, leaves `u32` and `float` unaffected, and orders a priority queue containing negative elements.
 
 **Note**: `%` and `>>` on an unconstrained type parameter are rejected during checking, since nothing establishes that the parameter is an integer. That is a separate limitation, not part of this defect.
+
+### BUG-410: Library diagnostics are written to standard output
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-19)**: `JSON.parse` and the argument parser reported failures with `printf`, so a parse error or a flag complaint landed in the middle of a program's own output. A tool that emits JSON on stdout would have produced invalid output whenever it was handed a malformed document, and the caller had no way to separate the two streams.
+
+The repository already settled this question for the runtime: `Error.printStack` writes to stderr, with the comment that diagnostics must never mix into program output. These three call sites predate that decision.
+
+**Resolution**: Both modules format their message and write it through the runtime's stderr writer. `JSON.parse` still returns a null pointer, so failure handling is unchanged for callers; only the destination of the text moved. Seven test files asserted the messages on stdout and now assert them on stderr, including two that required stderr to be empty and now require it to contain nothing but those diagnostics.

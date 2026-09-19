@@ -15,6 +15,9 @@ extern strcmp(s1: string, s2: string) ret int;
 extern sprintf(str: string, format: string, ...) ret int;
 extern snprintf(str: string, size: long, format: string, ...) ret int;
 extern printf(fmt: string, ...) ret int;
+# Diagnostics go to stderr so they never mix into a program's own output:
+# a caller emitting JSON on stdout would otherwise have it corrupted.
+extern __bpl_write_stderr(message: string);
 extern strtod(text: string, end: **char) ret float;
 
 extern strlen(s: string) ret int;
@@ -881,7 +884,14 @@ struct JSON {
                 i = i + 1;
             }
 
-            printf("JSON Parse Error: %s at line %d, column %d\n", p.error_msg, line, col);
+            local report: string = malloc(cast<long>(512));
+            if (report != nullptr) {
+                snprintf(report, cast<long>(512),
+                    "JSON Parse Error: %s at line %d, column %d\n",
+                    p.error_msg, line, col);
+                __bpl_write_stderr(report);
+                free(report);
+            }
             return nullptr;
         }
         return cast<*T>(ptr);

@@ -42,8 +42,10 @@ test("JSON.parse requires one complete value and permits trailing whitespace", (
   `;
   for (const opt of [0, 3] as const) {
     const result = runBplAtOptimization(source, opt);
-    expect(result).toMatchObject({ exitCode: 0, stderr: "" });
-    expect(result.stdout.match(/JSON Parse Error:/g)?.length).toBe(
+    expect(result.exitCode).toBe(0);
+    // Parse diagnostics are written to stderr, so stderr holds those alone.
+    expect(result.stderr.replace(/JSON Parse Error:[^\n]*\n/g, "")).toBe("");
+    expect(result.stderr.match(/JSON Parse Error:/g)?.length).toBe(
       cases.length * 2,
     );
     expect(result.stdout.endsWith("complete values only\n")).toBe(true);

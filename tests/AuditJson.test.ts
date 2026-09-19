@@ -35,8 +35,10 @@ it("rejects invalid escapes and strings that cannot be represented", () => {
   for (const opt of [0, 3] as const) {
     const result = runBplAtOptimization(source, opt);
     expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(result.stdout.match(/JSON Parse Error:/g)?.length).toBe(cases.length);
+    // Parse diagnostics go to stderr so they cannot corrupt program output,
+    // so stderr holds those and nothing else.
+    expect(result.stderr.replace(/JSON Parse Error:[^\n]*\n/g, "")).toBe("");
+    expect(result.stderr.match(/JSON Parse Error:/g)?.length).toBe(cases.length);
     expect(result.stdout.endsWith("rejected all\n")).toBe(true);
   }
 }, 60000);

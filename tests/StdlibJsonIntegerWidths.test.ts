@@ -25,7 +25,9 @@ test("JSON round-trips every added signed/unsigned width and alias without preci
    .join("\n")} return 0;}`;
   for (const opt of [0, 3] as const) {
     const result = runBplAtOptimization(source, opt);
-    expect(result).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(result.exitCode).toBe(0);
+    // Parse diagnostics are written to stderr, so stderr holds those alone.
+    expect(result.stderr.replace(/JSON Parse Error:[^\n]*\n/g, "")).toBe("");
     expect(result.stdout.trim().split("\n")).toEqual(
       valid.map(({ value }) => String(value)),
     );
@@ -49,8 +51,10 @@ test("JSON rejects added integer widths outside their ranges and rejects unsigne
  return 0;}`;
   for (const opt of [0, 3] as const) {
     const result = runBplAtOptimization(source, opt);
-    expect(result).toMatchObject({ exitCode: 0, stderr: "" });
-    expect(result.stdout.match(/JSON Parse Error:/g)).toHaveLength(
+    expect(result.exitCode).toBe(0);
+    // Parse diagnostics are written to stderr, so stderr holds those alone.
+    expect(result.stderr.replace(/JSON Parse Error:[^\n]*\n/g, "")).toBe("");
+    expect(result.stderr.match(/JSON Parse Error:/g)).toHaveLength(
       invalid.length,
     );
   }

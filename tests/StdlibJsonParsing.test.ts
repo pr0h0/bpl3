@@ -67,8 +67,10 @@ test("JSON rejects malformed containers, unsupported elements, and invalid skipp
   `;
   for (const opt of [0, 3] as const) {
     const result = runBplAtOptimization(source, opt);
-    expect(result).toMatchObject({ exitCode: 0, stderr: "" });
-    expect(result.stdout.match(/JSON Parse Error:/g)?.length).toBe(
+    expect(result.exitCode).toBe(0);
+    // Parse diagnostics are written to stderr, so stderr holds those alone.
+    expect(result.stderr.replace(/JSON Parse Error:[^\n]*\n/g, "")).toBe("");
+    expect(result.stderr.match(/JSON Parse Error:/g)?.length).toBe(
       invalidCases.length,
     );
     expect(result.stdout.endsWith("rejected malformed values\n")).toBe(true);

@@ -17,6 +17,10 @@ import [Destructible] from "std/core_specs.bpl";
 
 extern strlen(s: string) ret int;
 extern printf(fmt: string, ...) ret int;
+# Diagnostics go to stderr, as elsewhere in the library, so a parser message
+# cannot land in the middle of a program's own output.
+extern __bpl_write_stderr(message: string);
+extern snprintf(str: string, size: long, format: string, ...) ret int;
 extern sprintf(buf: string, fmt: string, ...) ret int;
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
@@ -360,6 +364,17 @@ struct ArgParser {
         select --out, and would make the winner depend on registration order
         when one flag's name is a prefix of another's.
     #/
+    /# Writes a one-argument diagnostic to stderr. #/
+    frame reportError(format: string, argument: string) {
+        local report: string = malloc(cast<long>(512));
+        if (report == nullptr) {
+            return;
+        }
+        snprintf(report, cast<long>(512), format, argument);
+        __bpl_write_stderr(report);
+        free(cast<*void>(report));
+    }
+
     frame namesFlag(argStr: string, name: string) ret bool {
         if (!StringUtils.startsWith(argStr, name)) {
             return false;
@@ -442,7 +457,10 @@ struct ArgParser {
                             if (flag.hasValue) {
                                 val = rawArg.substring(eqIdx + 1, rawArg.length - eqIdx - 1);
                             } else {
-                                printf("Error: Flag %s does not take a value.\n", flag.name.data);
+                                ArgParser.reportError(
+                                    "Error: Flag %s does not take a value.\n",
+                                    flag.name.data,
+                                );
                                 val = String.new("");
                                 shouldSet = false;
                             }
@@ -452,7 +470,10 @@ struct ArgParser {
                                 if (i < argCount) {
                                     val = args.get(i);
                                 } else {
-                                    printf("Error: Flag %s requires a value.\n", flag.name.data);
+                                    ArgParser.reportError(
+                                        "Error: Flag %s requires a value.\n",
+                                        flag.name.data,
+                                    );
                                     val = String.new("");
                                 }
                             } else {

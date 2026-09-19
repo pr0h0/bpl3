@@ -55,7 +55,9 @@ test("JSON parses exact signed integer boundaries and binary64 fractions and exp
   `;
   for (const opt of [0, 3] as const) {
     const result = runBplAtOptimization(source, opt);
-    expect(result).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(result.exitCode).toBe(0);
+    // Parse diagnostics are written to stderr, so stderr holds those alone.
+    expect(result.stderr.replace(/JSON Parse Error:[^\n]*\n/g, "")).toBe("");
     const lines = result.stdout.trim().split("\n");
     expect(lines).toHaveLength(valid.length);
     valid.forEach(({ type, input }, i) => {
@@ -122,8 +124,10 @@ test("JSON rejects malformed numbers and signed integer or binary64 overflow", (
   `;
   for (const opt of [0, 3] as const) {
     const result = runBplAtOptimization(source, opt);
-    expect(result).toMatchObject({ exitCode: 0, stderr: "" });
-    expect(result.stdout.match(/JSON Parse Error:/g)).toHaveLength(
+    expect(result.exitCode).toBe(0);
+    // Parse diagnostics are written to stderr, so stderr holds those alone.
+    expect(result.stderr.replace(/JSON Parse Error:[^\n]*\n/g, "")).toBe("");
+    expect(result.stderr.match(/JSON Parse Error:/g)).toHaveLength(
       invalid.length,
     );
   }

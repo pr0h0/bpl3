@@ -62,8 +62,10 @@ test("JSON Default parsing propagates nested errors", () => {
   `;
   for (const opt of [0, 3] as const) {
     const result = runBplAtOptimization(source, opt);
-    expect(result).toMatchObject({ exitCode: 0, stderr: "" });
-    expect(result.stdout).toContain("JSON Parse Error:");
+    expect(result.exitCode).toBe(0);
+    // Parse diagnostics are written to stderr, so stderr holds those alone.
+    expect(result.stderr.replace(/JSON Parse Error:[^\n]*\n/g, "")).toBe("");
+    expect(result.stderr).toContain("JSON Parse Error:");
     expect(result.stdout.endsWith("1 1\n")).toBe(true);
   }
 }, 60000);

@@ -202,6 +202,7 @@ frame destroy(this: *ParsedArgs)
 struct ArgParser
 root: *Command
 frame new(rootCmd: *Command) ret ArgParser
+frame reportError(format: string, argument: string)
 frame namesFlag(argStr: string, name: string) ret bool
 frame matchFlag(this: *ArgParser, currentCmd: *Command, argStr: string) ret Option<*Flag>
 frame parse(this: *ArgParser, args: *Args) ret *ParsedArgs
