@@ -132,8 +132,12 @@ describe("CodeGenerator", () => {
     expect(addressGeneratorSource).not.toContain(
       "].includes((type as AST.BasicTypeNode).name)",
     );
+    // The classifier still delegates to the shared table rather than listing
+    // type names itself. It now resolves a type parameter to the argument of
+    // the instantiation first, so the name it classifies is a concrete one.
+    expect(typeGeneratorSource).toContain("return isSignedTypeName(basic.name)");
     expect(typeGeneratorSource).toContain(
-      "return isSignedTypeName((type as AST.BasicTypeNode).name)",
+      "this.currentTypeMap.get(basic.name)",
     );
   });
 

@@ -5295,3 +5295,26 @@ The earlier repair for these functions widened their intermediates and left the 
 **Resolution**: Both return `long`, which every result of two ints fits. Breaking change: the two call sites in the repository, an example and a test, print with `%ld`.
 
 **Validation for all four**: rational addition, subtraction, multiplication and division were compared against Python's `Fraction` over 5040 operations covering every sign combination, complex multiplication and division against Python's `complex` over 4753 operations, statistics against `statistics.fmean`, `pvariance`, `median` and `harmonic_mean`, and `gcd`, `lcm`, `mod`, `lerp`, `atan` and `atan2` against the `math` module over 531 cases. All four groups now agree exactly.
+
+### BUG-409: Signed operations become unsigned inside a generic frame
+
+**Status**: Fixed
+
+**Priority**: P0
+
+**Observed (2026-09-19)**: Every operation whose instruction depends on signedness took the unsigned form when its operands were typed as a type parameter. For `T = int`:
+
+| Expression | Result | Correct |
+| --- | --- | --- |
+| `lessThan<int>(-2, 1)` | `false` | true |
+| `greaterThan<int>(1, -2)` | `false` | true |
+| `divide<int>(-7, 2)` | `2147483644` | -3 |
+| `cast<long>` of `-5` | `4294967291` | -5 |
+
+The signedness of an operand was decided by looking up its type name in the table of signed primitives. A type parameter is named `T`, which is not in that table, so the answer was "unsigned" and comparison, division, remainder, shift, and widening all silently took the unsigned instruction. The same expressions outside a generic frame were correct, which is why this survived: the comparison tests all used concrete types.
+
+Found while probing the standard library rather than the compiler: `PriorityQueue<int>` returned its smallest element last, because its sift routines compare values of the element type, so a negative element sank instead of rising. Any generic code ordering, dividing, or widening signed integers was affected; `Algorithm.sortAsc` was not, because it takes a concrete `Array<int>`.
+
+**Resolution**: The classifier resolves a type parameter to the argument of the instantiation being generated before classifying it, the same way the rest of code generation resolves parameters. All fourteen signedness decisions share that one helper, so comparison, division, remainder, shift, and widening are all covered. Covered by tests/GenericSignedOperations.test.ts, which checks each operation through a type parameter at `int`, `long`, and `i8`, leaves `u32` and `float` unaffected, and orders a priority queue containing negative elements.
+
+**Note**: `%` and `>>` on an unconstrained type parameter are rejected during checking, since nothing establishes that the parameter is an integer. That is a separate limitation, not part of this defect.

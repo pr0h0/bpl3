@@ -1774,11 +1774,31 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     }
   }
 
+  /**
+   * True when values of this type are signed, which decides comparison,
+   * division, remainder, shift, and widening instructions.
+   *
+   * A type parameter names no type of its own, so asking whether `T` is a
+   * signed type name answers no and the operation silently becomes unsigned:
+   * inside a generic frame, `-2 < 1` was false for `T = int`. The parameter is
+   * resolved to the argument of the instantiation being generated first.
+   */
   protected isSigned(type: AST.TypeNode): boolean {
-    if (type.kind === "BasicType") {
-      return isSignedTypeName((type as AST.BasicTypeNode).name);
+    if (type.kind !== "BasicType") return false;
+
+    const basic = type as AST.BasicTypeNode;
+    if (basic.pointerDepth === 0 && this.currentTypeMap.size > 0) {
+      const bound = this.currentTypeMap.get(basic.name);
+      if (
+        bound &&
+        bound.kind === "BasicType" &&
+        (bound as AST.BasicTypeNode).name !== basic.name
+      ) {
+        return this.isSigned(bound);
+      }
     }
-    return false;
+
+    return isSignedTypeName(basic.name);
   }
 
   protected isIntegerType(type: string): boolean {
