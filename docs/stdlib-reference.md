@@ -98,8 +98,12 @@ struct Algorithm
 frame reverse(arr: *Array<int>)
 frame sortAsc(arr: *Array<int>)
 frame sortDesc(arr: *Array<int>)
+frame _siftDownIntRange(arr: *Array<int>, low: int, high: int, root: int, ascending: bool)
+frame _heapSortIntRange(arr: *Array<int>, low: int, high: int, ascending: bool)
+frame _insertionSortIntRange(arr: *Array<int>, low: int, high: int)
 frame quickSort(arr: *Array<int>)
-frame _quickSortIntHelper(arr: *Array<int>, low: int, high: int)
+frame _introSortInt(arr: *Array<int>, low: int, high: int, depthLimit: int)
+frame _medianToHighInt(arr: *Array<int>, low: int, high: int)
 frame _partitionInt(arr: *Array<int>, low: int, high: int) ret int
 frame binarySearch(arr: *Array<int>, target: int) ret int
 frame min(arr: *Array<int>) ret int
@@ -116,6 +120,7 @@ frame max(arr: *Array<float>) ret float
 frame sum(arr: *Array<float>) ret float
 frame average(arr: *Array<float>) ret float
 frame sortAsc(arr: *Array<float>)
+frame _siftDownFloat(arr: *Array<float>, root: int, high: int)
 frame range(start: int, end: int) ret Array<int>
 frame rangeStep(start: int, end: int, step: int) ret Array<int>
 frame copy(src: *Array<int>, dest: *Array<int>)

@@ -11,9 +11,16 @@ import [Array] from "std/array.bpl";
 
 ## Preconditions and cost
 
-`sortAsc`/`sortDesc` use quadratic sorting; `quickSort` uses a last-element pivot
-and can take quadratic time and linear recursion depth on unfavorable input.
-`binarySearch` requires ascending order. Empty min/max/average calls return zero.
+`sortAsc`, `sortDesc` and the float `sortAsc` are heapsorts: O(n log n)
+comparisons whatever the input, sorted in place, no recursion. `quickSort` is
+an introsort, so it is O(n log n) as well: it picks the median of the first,
+middle and last elements as its pivot, recurses into the smaller partition and
+loops on the larger so the stack stays at about log2(n) frames, and finishes a
+range with heapsort if the partitions turn out badly anyway. None of the sorts
+is stable, which is unobservable for the numeric arrays they take.
+`binarySearch` requires ascending order. Empty min/max/average calls return
+zero. `rangeStep` with a step of zero produces an empty array, matching
+`Range.len()`.
 `unique` allocates a new Array and uses linear containment checks, so its worst
 case is quadratic. `merge` concatenates; it does not merge sorted runs.
 Destroy arrays returned by `unique`, `range`, `rangeStep`, and `merge`.
@@ -23,9 +30,9 @@ Shuffle inherits the current bias and edge cases of `Rand.range`.
 
 | Function                                                        | Description                                       |
 | --------------------------------------------------------------- | ------------------------------------------------- |
-| `Algorithm.sortAsc(arr: *Array<int>)`                           | Sort ascending (bubble sort)                      |
-| `Algorithm.sortDesc(arr: *Array<int>)`                          | Sort descending                                   |
-| `Algorithm.quickSort(arr: *Array<int>)`                         | Quick sort (ascending)                            |
+| `Algorithm.sortAsc(arr: *Array<int>)`                           | Sort ascending (heapsort)                         |
+| `Algorithm.sortDesc(arr: *Array<int>)`                          | Sort descending (heapsort)                        |
+| `Algorithm.quickSort(arr: *Array<int>)`                         | Introsort (ascending)                             |
 | `Algorithm.reverse(arr: *Array<int>)`                           | Reverse array in place                            |
 | `Algorithm.binarySearch(arr: *Array<int>, target: int) ret int` | Binary search (returns index or -1)               |
 | `Algorithm.min(arr: *Array<int>) ret int`                       | Find minimum value                                |
@@ -42,7 +49,7 @@ Shuffle inherits the current bias and edge cases of `Rand.range`.
 
 | Function                                          | Description         |
 | ------------------------------------------------- | ------------------- |
-| `Algorithm.sortAsc(arr: *Array<float>)`           | Sort ascending      |
+| `Algorithm.sortAsc(arr: *Array<float>)`           | Sort ascending (heapsort) |
 | `Algorithm.min(arr: *Array<float>) ret float`     | Find minimum value  |
 | `Algorithm.max(arr: *Array<float>) ret float`     | Find maximum value  |
 | `Algorithm.sum(arr: *Array<float>) ret float`     | Sum of all elements |

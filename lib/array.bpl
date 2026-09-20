@@ -37,12 +37,20 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
     - `initial_capacity`: The number of elements to reserve memory for.
     #/
     frame new(initial_capacity: int) ret Array<T> {
+        # A negative capacity reached malloc as a huge size_t, which returned
+        # null, and the first push then wrote through it.
+        if (initial_capacity < 0) {
+            initial_capacity = 0;
+        }
         local arr: Array<T>;
         arr.capacity = initial_capacity;
         arr.length = 0;
         # Calculate size in bytes: capacity * sizeof(T)
         local size: long = cast<long>(initial_capacity) * sizeof<T>();
         arr.data = cast<*T>(malloc(size));
+        if ((size > cast<long>(0)) && (arr.data == nullptr)) {
+            throw "Array allocation failed";
+        }
         return arr;
     }
 
@@ -125,9 +133,23 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
     frame push(this: *Array<T>, value: T) {
         if (this.length >= this.capacity) {
             # grow
-            local new_capacity: int = (this.capacity * 2) + 1;
-            local size: long = cast<long>(new_capacity) * sizeof<T>();
+            # Doubling in int wraps negative past 2^30 elements, which turned
+            # a grow into a small or failed allocation that was then written
+            # past. The new size is worked out in long and refused if it
+            # cannot be represented.
+            local grown: long = (cast<long>(this.capacity) * cast<long>(2)) + cast<long>(1);
+            if (grown > cast<long>(2147483646)) {
+                grown = cast<long>(2147483646);
+            }
+            if (grown <= cast<long>(this.length)) {
+                throw "Array capacity exceeded";
+            }
+            local new_capacity: int = cast<int>(grown);
+            local size: long = grown * sizeof<T>();
             local new_data: *T = cast<*T>(malloc(size));
+            if (new_data == nullptr) {
+                throw "Array allocation failed";
+            }
 
             # Copy old data
             local old_size: long = cast<long>(this.length) * sizeof<T>();

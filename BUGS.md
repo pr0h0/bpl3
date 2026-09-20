@@ -5447,3 +5447,41 @@ A caller had no way to tell a failed decode from an empty one, because both retu
 The stdlib is now consistent: `strlen` returns `long` everywhere, which is what C's `size_t` is. The same conflict existed in `packages/bpl-http-parser`, `packages/bpl-db` and `packages/bpl-templ`, and is fixed there too.
 
 **Coverage**: `tests/ExternSignatureConflict.test.ts` builds a three-module program that trips the check, a second that spells the same C types four different ways and must still compile, and a third that imports the stdlib modules which used to disagree.
+
+### BUG-420: Sorting an ordered array overflowed the stack
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-20)**: `Algorithm.quickSort` took the last element as its pivot, which makes an already-sorted array the worst case rather than the easy one: every partition peeled off a single element and the recursion went as deep as the array was long. Sorting 100000 ordered integers crashed with a stack overflow at O0 and O3. Ordered input is the shape a sort is most often handed.
+
+`Algorithm.sortAsc`, `sortDesc` and the float `sortAsc` were bubble sorts with no early exit, so they did not crash but spent n² comparisons regardless of the input; the same 100000 elements cost ten billion comparisons. `Algorithm.binarySearch` computed `(left + right) / 2`, which overflows once an array passes 2^30 elements.
+
+The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was known, but a sort that dies on sorted input is a defect rather than a trade-off.
+
+**Resolution**: The three bubble sorts are heapsorts, which are O(n log n) on every input, sort in place and never recurse. `quickSort` is an introsort: the pivot is the median of the first, middle and last elements, so ordered input splits evenly; recursion goes into the smaller partition and loops on the larger, bounding the stack at about log2(n) frames; a depth limit falls back to heapsort so the comparison count is bounded as well; and short ranges finish with insertion sort. `binarySearch` takes the midpoint as `left + ((right - left) / 2)`. Sorting 200000 elements in four shapes through all three sorts now takes 3.4 seconds at O0.
+
+**Coverage**: `tests/StdlibSorting.test.ts` runs all three integer sorts over six input shapes — ordered, reversed, all equal, heavy duplicates, wide random and organ pipe — at thirteen sizes either side of the insertion-sort cutoff, comparing against the order computed in the test; a second test sorts 50000 elements in four shapes and requires quickSort and sortAsc to agree element for element and sortDesc to be their reverse; a third covers the float sort and binary search. The scale test fails against the previous library.
+
+### BUG-421: An array with an impossible capacity wrote through a null pointer
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-20)**: `Array<T>.new(-5)` passed a negative size to malloc, which became an enormous `size_t` and returned null. The array reported a capacity of -5 with null storage, and the first `push` wrote through that pointer and segfaulted. `push` also doubled the capacity in int, so an array past 2^30 elements wrapped to a negative capacity and then to a small or failed allocation that was written past, and neither allocation was ever checked for failure — an out-of-memory condition silently corrupted memory instead of reporting.
+
+**Resolution**: A negative capacity is an empty array, as it already was for `Deque` and `Queue`. The growth is computed in long and refused above 2147483646, and both allocation sites throw when malloc fails.
+
+### BUG-422: A zero step ended the program instead of producing nothing
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-20)**: `Algorithm.rangeStep(0, 10, 0)` divided by the step to size its result before either of its two branches looked at the sign, so the program stopped with a division by zero. The branch structure shows a zero step was meant to yield an empty array, and `Range.len()` answers 0 for exactly this case.
+
+**Resolution**: A zero step returns an empty array. The size is also computed in long now, since the distance between the endpoints can exceed the int range even when the element count does not.
+
+**Coverage**: `tests/StdlibArrayGrowth.test.ts` covers the array guards and checks `rangeStep` against Python's `range()` for twelve combinations of sign and step, including zero.
