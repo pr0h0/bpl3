@@ -5,7 +5,7 @@ export [UTF8];
 import [String] from "std/string.bpl";
 import [Array] from "std/array.bpl";
 
-extern strlen(s: string) ret int;
+extern strlen(s: string) ret long;
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
 

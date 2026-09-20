@@ -16,7 +16,7 @@ extern __bpl_file_read(file: *void, data: *void, length: int, count: *int) ret i
 extern __bpl_list_dir(path: string, names: **string, count: *int) ret int;
 extern __bpl_free_dir_names(names: *string, count: int);
 extern __bpl_fs_allocate_entries(count: int, width: long, data: **void) ret int;
-extern strlen(s: string) ret int;
+extern strlen(s: string) ret long;
 extern fgets(str: string, n: int, stream: *void) ret string;
 extern mkdir(path: string, mode: int) ret int;
 extern __bpl_mkdirp(path: string) ret int;

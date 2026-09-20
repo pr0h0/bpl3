@@ -5,7 +5,7 @@ export [StringBuilder];
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
 extern memcpy(dest: *void, src: *void, n: long) ret *void;
-extern strlen(s: string) ret int;
+extern strlen(s: string) ret long;
 extern strcpy(dst: string, src: string) ret string;
 extern strcat(dst: string, src: string) ret string;
 
@@ -19,10 +19,18 @@ struct StringBuilder {
         Creates a new StringBuilder with specified initial capacity
     #/
     frame new(initial_capacity: int) ret StringBuilder {
+        # A negative capacity reached malloc as a huge size_t, which returned
+        # null, and the terminator below was then written through it.
+        if (initial_capacity < 0) {
+            initial_capacity = 0;
+        }
         local sb: StringBuilder;
         sb.capacity = initial_capacity;
         sb.length = 0;
-        sb.buffer = cast<string>(malloc(cast<long>(initial_capacity + 1)));
+        sb.buffer = cast<string>(malloc(cast<long>(initial_capacity) + cast<long>(1)));
+        if (sb.buffer == nullptr) {
+            throw "StringBuilder allocation failed";
+        }
         sb.buffer[0] = cast<char>(0); # Null terminator
         return sb;
     }
@@ -50,14 +58,26 @@ struct StringBuilder {
         Ensures the buffer has enough capacity for additional bytes
     #/
     frame ensureCapacity(this: *StringBuilder, additional: int) {
-        local needed: int = this.length + additional;
-        if (needed >= this.capacity) {
+        # The running total and the doubled capacity both leave the int range
+        # for a large builder, so the sizes are computed in long and the
+        # request is refused before it can wrap into a small allocation.
+        local needed: long = cast<long>(this.length) + cast<long>(additional);
+        if (needed > cast<long>(2147483646)) {
+            throw "StringBuilder capacity exceeded";
+        }
+        if (needed >= cast<long>(this.capacity)) {
             # Grow to at least double the current capacity or needed size
-            local new_capacity: int = this.capacity * 2;
+            local new_capacity: long = cast<long>(this.capacity) * cast<long>(2);
             if (new_capacity < needed) {
-                new_capacity = needed + 1;
+                new_capacity = needed + cast<long>(1);
             }
-            local new_buffer: string = cast<string>(malloc(cast<long>(new_capacity + 1)));
+            if (new_capacity > cast<long>(2147483646)) {
+                new_capacity = cast<long>(2147483646);
+            }
+            local new_buffer: string = cast<string>(malloc(new_capacity + cast<long>(1)));
+            if (new_buffer == nullptr) {
+                throw "StringBuilder allocation failed";
+            }
 
             # Copy old content
             if (this.buffer != nullptr) {
@@ -65,7 +85,7 @@ struct StringBuilder {
                 free(cast<*void>(this.buffer));
             }
             this.buffer = new_buffer;
-            this.capacity = new_capacity;
+            this.capacity = cast<int>(new_capacity);
             this.buffer[this.length] = cast<char>(0); # Null terminator
         }
     }

@@ -18,7 +18,7 @@
     "Is 'DEADBEEF' valid: 1",
     "Is '0xabcd' valid: 1",
     "Is 'ghij' valid: 0",
-    "Is '' valid: 0",
+    "Is '' valid: 1",
     "Decoded length of 'deadbeef': 4",
     "Decoded length of '0xdeadbeef': 4",
     "Original: BPL",

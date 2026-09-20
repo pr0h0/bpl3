@@ -5,7 +5,7 @@ struct HTMLEscape {
     # No state
 }
 
-extern strlen(s: string) ret int;
+extern strlen(s: string) ret long;
 
 export HTMLEscape_appendEscaped;
 

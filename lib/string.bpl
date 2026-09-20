@@ -6,7 +6,7 @@ import [Array] from "std/array.bpl";
 export [String];
 
 extern sprintf(str: string, format: string, ...) ret int;
-extern strlen(s: string) ret int;
+extern strlen(s: string) ret long;
 extern strcpy(dst: string, src: string) ret string;
 extern strcmp(s1: string, s2: string) ret int;
 extern strcat(dst: string, src: string) ret string;

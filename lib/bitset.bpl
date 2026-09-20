@@ -13,12 +13,25 @@ struct BitSet {
     numBits: int,
     numWords: int,
     # Create a new BitSet with the specified number of bits
+    # A negative count is an empty set, as it is for the other containers.
     frame new(numBits: int) ret BitSet {
+        if (numBits < 0) {
+            numBits = 0;
+        }
         local bs: BitSet;
         bs.numBits = numBits;
-        bs.numWords = (numBits + 63) / 64;
-        bs.data = cast<*u64>(malloc(cast<long>(bs.numWords) * cast<long>(8)));
-        memset(cast<*void>(bs.data), 0, cast<long>(bs.numWords) * cast<long>(8));
+        # Rounding up in int overflows near the top of the range: 2147483647
+        # + 63 wraps negative, which gave a negative word count and handed
+        # memset a length that wrapped to an enormous size_t.
+        bs.numWords = cast<int>((cast<long>(numBits) + cast<long>(63)) / cast<long>(64));
+        local bytes: long = cast<long>(bs.numWords) * cast<long>(8);
+        bs.data = cast<*u64>(malloc(bytes));
+        if (bytes > cast<long>(0)) {
+            if (bs.data == nullptr) {
+                throw "BitSet allocation failed";
+            }
+            memset(cast<*void>(bs.data), 0, bytes);
+        }
         return bs;
     }
 
@@ -88,18 +101,24 @@ struct BitSet {
 
     # Set all bits to 1
     frame setAll(this: *BitSet) {
-        memset(cast<*void>(this.data), 255, cast<long>(this.numWords) * cast<long>(8));
+        if (this.numWords > 0) {
+            memset(cast<*void>(this.data), 255, cast<long>(this.numWords) * cast<long>(8));
+        }
         this.clearExcessBits();
     }
 
     # Clear all bits to 0
     frame clearAll(this: *BitSet) {
-        memset(cast<*void>(this.data), 0, cast<long>(this.numWords) * cast<long>(8));
+        if (this.numWords > 0) {
+            memset(cast<*void>(this.data), 0, cast<long>(this.numWords) * cast<long>(8));
+        }
     }
 
     # Clear excess bits in the last word (bits beyond numBits)
     frame clearExcessBits(this: *BitSet) {
-        local excessBits: int = (this.numWords * 64) - this.numBits;
+        # numWords * 64 reaches past the int range for a set near the maximum
+        # size, so the difference is taken in long; it is always 0 to 63.
+        local excessBits: int = cast<int>((cast<long>(this.numWords) * cast<long>(64)) - cast<long>(this.numBits));
         if ((excessBits > 0) && (this.numWords > 0)) {
             local validBits: int = 64 - excessBits;
             local mask: u64 = (cast<u64>(1) << cast<u64>(validBits)) - cast<u64>(1);
@@ -274,7 +293,9 @@ struct BitSet {
     # Clone this BitSet
     frame clone(this: *BitSet) ret BitSet {
         local bs: BitSet = BitSet.new(this.numBits);
-        memcpy(cast<*void>(bs.data), cast<*void>(this.data), cast<long>(this.numWords) * cast<long>(8));
+        if (this.numWords > 0) {
+            memcpy(cast<*void>(bs.data), cast<*void>(this.data), cast<long>(this.numWords) * cast<long>(8));
+        }
         return bs;
     }
 }

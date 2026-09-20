@@ -1,6 +1,6 @@
 extern strchr(s: string, c: int) ret string;
 extern strstr(haystack: string, needle: string) ret string;
-extern strlen(s: string) ret int;
+extern strlen(s: string) ret long;
 extern strncmp(s1: string, s2: string, n: long) ret int;
 extern strcmp(s1: string, s2: string) ret int;
 extern strcpy(dest: string, src: string) ret string;

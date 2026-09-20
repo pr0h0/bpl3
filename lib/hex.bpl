@@ -86,43 +86,61 @@ struct Hex {
         return -1;
     }
 
-    # Decode a hex string to bytes
-    # Returns the number of decoded bytes, output must be pre-allocated
-    # Output buffer should be at least (strlen(input) / 2) bytes
-    frame decode(input: string, output: *u8) ret int {
-        if ((input == nullptr) || (output == nullptr)) {
-            return 0;
+    # Whitespace separates byte pairs, as it does for Python's bytes.fromhex,
+    # so "41 42" is two bytes. It may not split a pair: "4 142" is refused.
+    frame isWhitespace(c: u8) ret bool {
+        return (c == cast<u8>(32)) || (c == cast<u8>(10)) || (c == cast<u8>(13)) || (c == cast<u8>(9));
+    }
+
+    # The one place that knows what a valid hex string looks like. decode,
+    # decodedLength and isValid all run this, so a string can never be
+    # accepted by one and refused by another.
+    #
+    # An odd digit, a digit outside the alphabet, or whitespace inside a pair
+    # is refused rather than silently ending the decode, which is what let
+    # `isValid` accept strings the decoder could not finish.
+    #
+    # Returns the number of bytes the input decodes to, or -1 if it is not a
+    # valid hex string. Bytes are written to `output` only when `write` is
+    # set, so the length can be measured without a buffer.
+    frame scan(input: string, output: *u8, write: bool) ret int {
+        if (input == nullptr) {
+            return -1;
         }
-        local inputPtr: *u8 = cast<*u8>(input);
-        local inLen: int = cast<int>(strlen(input));
+        local ptr: *u8 = cast<*u8>(input);
+        local len: int = cast<int>(strlen(input));
 
         # Skip optional 0x prefix
-        if (inLen >= 2) {
-            if ((*inputPtr == cast<u8>(48)) && ((*(inputPtr + 1) == cast<u8>(120)) || (*(inputPtr + 1) == cast<u8>(88)))) {
-                inputPtr = inputPtr + 2;
-                inLen = inLen - 2;
+        if (len >= 2) {
+            if ((*ptr == cast<u8>(48)) && ((*(ptr + 1) == cast<u8>(120)) || (*(ptr + 1) == cast<u8>(88)))) {
+                ptr = ptr + 2;
+                len = len - 2;
             }
         }
         local i: int = 0;
         local j: int = 0;
 
-        loop (i < (inLen - 1)) {
-            local c1: u8 = *(inputPtr + i);
-            local c2: u8 = *(inputPtr + i + 1);
+        loop (i < len) {
+            local c1: u8 = *(ptr + i);
 
-            # Skip whitespace
-            if ((c1 == cast<u8>(32)) || (c1 == cast<u8>(10)) || (c1 == cast<u8>(13)) || (c1 == cast<u8>(9))) {
+            if (Hex.isWhitespace(c1)) {
                 i = i + 1;
                 continue;
             }
+            if ((i + 1) >= len) {
+                # A digit with no partner.
+                return -1;
+            }
+            local c2: u8 = *(ptr + i + 1);
             local hi: int = Hex.hexCharToValue(c1);
             local lo: int = Hex.hexCharToValue(c2);
 
             if ((hi < 0) || (lo < 0)) {
-                # Invalid hex character
-                break;
+                return -1;
             }
-            *(output + j) = cast<u8>((hi << 4) | lo);
+            if (write) {
+                *(output + j) = cast<u8>((hi << 4) | lo);
+            }
             i = i + 2;
             j = j + 1;
         }
@@ -130,17 +148,31 @@ struct Hex {
         return j;
     }
 
-    # Decode hex to a new string (caller must free)
-    frame decodeToString(input: string) ret string {
-        if (input == nullptr) {
-            return Hex.encode(nullptr, 0);
+    # Decode a hex string to bytes
+    # Returns the number of decoded bytes, or -1 if the input is not valid hex
+    # or the output pointer is null. The output buffer must hold at least
+    # decodedLength(input) bytes.
+    frame decode(input: string, output: *u8) ret int {
+        if (output == nullptr) {
+            return -1;
         }
-        local inLen: int = cast<int>(strlen(input));
-        local maxOutLen: int = (inLen / 2) + 1;
-        local output: *u8 = cast<*u8>(malloc(cast<long>(maxOutLen)));
+        return Hex.scan(input, output, true);
+    }
 
-        local decoded: int = Hex.decode(input, output);
-        *(output + decoded) = cast<u8>(0);
+    # Decode hex to a new string (caller must free)
+    # Returns nullptr if the input is not valid hex.
+    frame decodeToString(input: string) ret string {
+        local needed: int = Hex.scan(input, nullptr, false);
+        if (needed < 0) {
+            return cast<string>(nullptr);
+        }
+        local output: *u8 = cast<*u8>(malloc(cast<long>(needed + 1)));
+        if (output == nullptr) {
+            return cast<string>(nullptr);
+        }
+
+        Hex.scan(input, output, true);
+        *(output + needed) = cast<u8>(0);
 
         return cast<string>(output);
     }
@@ -197,48 +229,14 @@ struct Hex {
     }
 
     # Check if a string is valid hex
+    # True exactly when decode would accept the string, empty input included.
     frame isValid(input: string) ret bool {
-        if (input == nullptr) {
-            return false;
-        }
-        local ptr: *u8 = cast<*u8>(input);
-        local len: int = cast<int>(strlen(input));
-
-        # Skip optional 0x prefix
-        if (len >= 2) {
-            if ((*ptr == cast<u8>(48)) && ((*(ptr + 1) == cast<u8>(120)) || (*(ptr + 1) == cast<u8>(88)))) {
-                ptr = ptr + 2;
-                len = len - 2;
-            }
-        }
-        if (len == 0) {
-            return false;
-        }
-        local i: int = 0;
-        loop (i < len) {
-            local c: u8 = *(ptr + i);
-            if (Hex.hexCharToValue(c) < 0) {
-                return false;
-            }
-            i = i + 1;
-        }
-
-        return true;
+        return Hex.scan(input, nullptr, false) >= 0;
     }
 
-    # Calculate the decoded length
+    # Exact number of bytes the input decodes to, or -1 if it is not valid
+    # hex. Whitespace and a 0x prefix are discounted.
     frame decodedLength(input: string) ret int {
-        if (input == nullptr) {
-            return 0;
-        }
-        local len: int = cast<int>(strlen(input));
-        # Account for 0x prefix
-        local ptr: *u8 = cast<*u8>(input);
-        if (len >= 2) {
-            if ((*ptr == cast<u8>(48)) && ((*(ptr + 1) == cast<u8>(120)) || (*(ptr + 1) == cast<u8>(88)))) {
-                len = len - 2;
-            }
-        }
-        return len / 2;
+        return Hex.scan(input, nullptr, false);
     }
 }

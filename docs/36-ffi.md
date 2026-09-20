@@ -53,6 +53,35 @@ extern printf(fmt: string, ...) ret int;
 extern malloc(size: long) ret *void;
 ```
 
+### One symbol, one signature
+
+Only one `strlen` reaches the linker, so every module in a program has to
+describe it the same way. Two modules declaring the same external function
+with different types is rejected with `BPL_EXTERN_SIGNATURE_CONFLICT`,
+because a call made through the second declaration would not match the
+function the first one names.
+
+The comparison is on the C types, not on how they were spelled. `*void`,
+`string` and `*char` are one pointer type, and `long`, `ulong` and `u64` are
+one integer type, so these two modules agree:
+
+```bpl
+# reader.bpl
+extern strlen(s: string) ret long;
+
+# writer.bpl
+extern strlen(s: *char) ret u64;
+```
+
+Leaving the return type off means only that this module ignores the result,
+which is always allowed, so `extern printf(fmt: string, ...);` and
+`extern printf(fmt: string, ...) ret int;` can appear in different modules of
+the same program. A difference in the width or class of the return type, or
+in the parameters, is an error.
+
+The simplest way to stay consistent is to import the declaration instead of
+repeating it: `import printf, malloc from "std/c.bpl";`.
+
 ## Linking
 
 When compiling, you must link against the libraries containing the external functions.

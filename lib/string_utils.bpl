@@ -4,7 +4,7 @@ export [StringUtils];
 
 import [String] from "std/string.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
-extern strlen(s: string) ret int;
+extern strlen(s: string) ret long;
 extern malloc(size: long) ret string;
 extern free(ptr: string) ret void;
 extern printf(fmt: string, ...) ret int;

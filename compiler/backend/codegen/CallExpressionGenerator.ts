@@ -2115,12 +2115,17 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
     if (callTarget.startsWith("@") && (isExtern || isModuleFunction)) {
       const targetName = callTarget.substring(1);
-      if (
-        !this.declaredFunctions.has(targetName) &&
-        !this.definedFunctions.has(targetName) &&
-        !this.globals.has(targetName) &&
-        !this.locals.has(targetName)
-      ) {
+      const shadowed =
+        this.globals.has(targetName) || this.locals.has(targetName);
+      const alreadyKnown =
+        this.declaredFunctions.has(targetName) ||
+        this.definedFunctions.has(targetName) ||
+        shadowed;
+      // An extern's signature is worked out on every call, not just the one
+      // that emits the declaration, so that a second module describing the
+      // same symbol differently is caught rather than silently calling
+      // through the first module's declaration.
+      if (!alreadyKnown || (isExtern && !shadowed)) {
         // Emit declaration
         const paramTypes: string[] = [];
 
@@ -2221,15 +2226,27 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           retTypeStr = this.resolveType(substitutedRet);
         }
 
+        const declarationParams = this.formatFunctionDeclarationParameters(
+          paramTypes,
+          funcType.isVariadic === true && isExtern,
+        );
+
+        // Every module that calls this symbol must describe it the same way,
+        // whether or not this is the call that emits the declaration.
+        if (isExtern && !targetName.startsWith("Type_")) {
+          this.recordExternSignature(
+            targetName,
+            retTypeStr,
+            declarationParams,
+            expr.location,
+          );
+        }
+
         // Check if function is already declared or defined
         if (
           !this.declaredFunctions.has(targetName) &&
           !this.definedFunctions.has(targetName)
         ) {
-          const declarationParams = this.formatFunctionDeclarationParameters(
-            paramTypes,
-            funcType.isVariadic === true && isExtern,
-          );
           const returnAttributes = this.getKnownExternReturnAttributes(
             targetName,
             retTypeStr,

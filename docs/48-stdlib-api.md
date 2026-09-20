@@ -206,29 +206,52 @@ or cursor movement. See the [binary data reference](61-stdlib-binary.md).
 
 Base64 encoding and decoding.
 
-String-returning helpers return caller-owned allocations, including empty
-results and null-input results. Release them with `free(cast<*void>(result))`.
+Encoding helpers return caller-owned allocations, including empty results and
+null-input results. Release them with `free(cast<*void>(result))`.
+
+A string is accepted exactly when it decodes: whitespace anywhere, the
+remaining characters in groups of four, and `=` only in the last one or two
+places of the final group with nothing but whitespace after it. A partial
+group, misplaced padding, or a character outside the alphabet is refused
+rather than skipped. Both the standard and URL-safe alphabets decode.
+
+`isValid`, `decodedLength` and `decode` all run the same scan, so they always
+agree. `decode` and `decodedLength` return `-1` for input that is not valid
+Base64, `decode` also for a null output pointer, and `decodeToString` returns
+`nullptr` in those cases; `decodedLength` is exact, not an upper bound.
 
 - `Base64.encode(data: *u8, length: int) ret string`
 - `Base64.encodeString(str: string) ret string`
-- `Base64.decode(input: string, output: *u8) ret int`
-- `Base64.decodeToString(input: string) ret string`
+- `Base64.decode(input: string, output: *u8) ret int` — bytes written, or `-1`
+- `Base64.decodeToString(input: string) ret string` — owned, or `nullptr`
 - `Base64.encodedLength(inputLength: int) ret int`
-- `Base64.decodedLength(input: string) ret int`
+- `Base64.decodedLength(input: string) ret int` — exact, or `-1`
 - `Base64.isValid(input: string) ret bool`
 
 ### Hex (`std/hex.bpl`)
 
 Hexadecimal encoding and decoding.
 
-String-returning helpers return caller-owned allocations, including empty
-results and null-input results. Release them with `free(cast<*void>(result))`.
+Encoding helpers return caller-owned allocations, including empty results and
+null-input results. Release them with `free(cast<*void>(result))`.
+
+A string is accepted exactly when it decodes: an optional `0x` or `0X` prefix,
+then pairs of hex digits. Whitespace separates pairs but may not split one, so
+`"41 42"` is two bytes and `"4 142"` is refused, matching Python's
+`bytes.fromhex`. An unpaired digit or a character outside the alphabet is
+refused rather than ending the decode early.
+
+`isValid`, `decodedLength` and `decode` all run the same scan, so they always
+agree. `decode` and `decodedLength` return `-1` for input that is not valid
+hex, `decode` also for a null output pointer, and `decodeToString` returns
+`nullptr` in those cases; `decodedLength` discounts whitespace and the prefix.
 
 - `Hex.encode(data: *u8, length: int) ret string`
 - `Hex.encodeUpper(data: *u8, length: int) ret string`
 - `Hex.encodeString(str: string) ret string`
-- `Hex.decode(input: string, output: *u8) ret int`
-- `Hex.decodeToString(input: string) ret string`
+- `Hex.decode(input: string, output: *u8) ret int` — bytes written, or `-1`
+- `Hex.decodeToString(input: string) ret string` — owned, or `nullptr`
+- `Hex.decodedLength(input: string) ret int` — exact, or `-1`
 - `Hex.isValid(input: string) ret bool`
 
 ### Hash (`std/hash.bpl`)

@@ -83,6 +83,8 @@ frame main() ret int {
     printf("Is 'DEADBEEF' valid: %d\n", cast<int>(Hex.isValid("DEADBEEF")));
     printf("Is '0xabcd' valid: %d\n", cast<int>(Hex.isValid("0xabcd")));
     printf("Is 'ghij' valid: %d\n", cast<int>(Hex.isValid("ghij")));
+    # An empty string is a valid encoding of zero bytes, as it is for Base64
+    # and for Python's bytes.fromhex.
     printf("Is '' valid: %d\n", cast<int>(Hex.isValid("")));
 
     # Test length calculation

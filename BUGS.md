@@ -5397,3 +5397,53 @@ All six stored division cases now hold together at O0 and O3: a numerator near t
 **Resolution**: The numerator is only scaled when it would otherwise overflow during the division, that is when its exponent exceeds 1000; the shift taken is just the excess over that threshold rather than the whole exponent. Below the threshold the numerator is used as it stands, so a small component keeps every bit it has. The divisor is still normalized in full, and both shifts are still folded into one `ldexp` on the result.
 
 **Coverage**: `tests/StdlibNumericBoundaries.test.ts` now divides `(1e200 + 1e-200i)` by one alongside the five regimes it already pinned, so any future rescaling that rounds a component away fails there. A 147-case sweep over component magnitudes from 1e-300 to 1e300 against divisors 1, 1e150 and 1e-150 matches Python exactly, as do the six stored fixtures at O0 and O3 and the 4753-value comparison.
+
+### BUG-416: A codec accepted strings its own decoder could not decode
+
+**Status**: Fixed
+
+**Priority**: P2
+
+**Observed (2026-09-20)**: `Base64.isValid` and `Hex.isValid` answered for a grammar their decoders did not implement. `Base64.isValid("QUJ")`, `("QQ=")` and `("Q")` were all true, and each decoded to nothing: the decoder gathered characters into groups of four and silently dropped a partial group. `Hex.isValid("abc")` and `("414")` were true while the decoder dropped the unpaired digit, and `Hex.isValid("")` was false although the decoder accepted it and Base64 called the empty string valid. In the other direction the decoders were too lenient: `Base64.decodeToString("QU!JD")` skipped the `!` and returned `ABC`, and hex decoding stopped at the first bad character and reported the prefix as a successful decode. `Base64.decodedLength` was documented as approximate and returned `(len * 3) / 4` with no account of padding or whitespace.
+
+A caller had no way to tell a failed decode from an empty one, because both returned 0 with no other signal.
+
+**Resolution**: Each codec now has one scanner that knows the grammar, and `isValid`, `decodedLength` and `decode` all run it, so a string is valid exactly when it decodes. Base64 takes whitespace anywhere, then groups of four, with `=` only in the last one or two places of the final group and nothing but whitespace after it; both the standard and URL-safe alphabets decode. Hex takes an optional `0x` prefix and pairs of digits, with whitespace between pairs but not inside one, which is what Python's `bytes.fromhex` accepts. Anything else is refused: `decode` and `decodedLength` return -1, and `decodeToString` returns nullptr rather than a truncated string. `decodedLength` is now exact.
+
+**Coverage**: `tests/StdlibCodecContract.test.ts` pins 46 accepted and rejected strings, each checked against Python's `base64.b64decode(validate=True)` and `bytes.fromhex`, and asserts the four entry points agree on every one; a second test round-trips every length from 0 to 48 through both codecs including the uppercase hex form. A separate 82-case differential run against Python matched exactly. The encoders were unchanged and already matched Python for every length.
+
+### BUG-417: A bit set asked for the largest possible size crashed
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-20)**: `BitSet.new(2147483647)` segfaulted at O0 and O3. The word count was rounded up in int, so `numBits + 63` wrapped negative, the multiplication by 8 stayed negative, and `memset` received a length that became an enormous `size_t`. `BitSet.new(-5)` did not crash but produced a set reporting a size of -5, for which `all()` was false and no operation could ever make it true. `setAll`, `clearAll` and `clone` also called `memset` and `memcpy` on a possibly-null pointer when the set held no words, and `clearExcessBits` computed `numWords * 64` in int, which leaves the range for a set near the maximum size.
+
+**Resolution**: A negative request is an empty set, as it is for `Deque` and `Queue`. The round-up and the excess-bit arithmetic are done in long, allocation failure throws rather than being written through, and the zero-word case skips the memory calls. 2147483647 bits now allocates its 33554432 words and behaves.
+
+**Coverage**: `tests/StdlibBitSet.test.ts` walks every size from 0 to 130, which crosses the word boundary in both directions, checking count, first and last set bit, flip, clone, equality and the masking of the bits past the end, and pins both extremes of the size range.
+
+### BUG-418: A StringBuilder with a negative capacity wrote through a null pointer
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-20)**: `StringBuilder.new(-5)` segfaulted. The capacity reached `malloc` as a huge `size_t`, which returned null, and the null terminator was written through it immediately. `new(-1)` wrote one byte into a zero-byte allocation instead. No allocation in the type was checked for failure, and `ensureCapacity` computed `length + additional` and `capacity * 2` in int, so a large builder could wrap into a small allocation and then be written past.
+
+**Resolution**: A negative capacity is zero, allocation failure throws, and the sizes in `ensureCapacity` are computed in long with the request refused above 2147483646 rather than wrapping.
+
+### BUG-419: Two modules could declare one C function with different types
+
+**Status**: Fixed
+
+**Priority**: P1
+
+**Observed (2026-09-20)**: A module only sees its own `extern` line. Two modules describing the same C function differently were both accepted: the first declaration was the one emitted, and the other module's calls were generated against a signature the callee does not have. `lib/string_builder.bpl` declared `strlen` as returning `int` while `lib/base64.bpl` declared it as returning `long`, and a program importing both produced `declare i64 @strlen(i8*)` next to `call i32 @strlen(i8* %3)`. On x86-64 that happens to read the low half of the return register and gives the right answer for a string under 2GB; for a return type of a different class, such as a float against an integer, it would read the wrong register entirely. Within one file the conflict was already an error; across modules nothing checked.
+
+**Resolution**: Codegen records the LLVM signature each external symbol is called with and reports `BPL_EXTERN_SIGNATURE_CONFLICT` when a later module describes it differently. The comparison is on what LLVM sees, not on how the types were spelled, so `*void`, `string` and `*char` are interchangeable, as are `long`, `ulong` and `u64`. Declaring no return type stays compatible with any return type, since ignoring a result is something every calling convention allows.
+
+The stdlib is now consistent: `strlen` returns `long` everywhere, which is what C's `size_t` is. The same conflict existed in `packages/bpl-http-parser`, `packages/bpl-db` and `packages/bpl-templ`, and is fixed there too.
+
+**Coverage**: `tests/ExternSignatureConflict.test.ts` builds a three-module program that trips the check, a second that spells the same C types four different ways and must still compile, and a third that imports the stdlib modules which used to disagree.

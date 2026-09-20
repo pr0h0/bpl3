@@ -15,7 +15,7 @@ import [StringUtils] from "std/string_utils.bpl";
 import [Args] from "std/args.bpl";
 import [Destructible] from "std/core_specs.bpl";
 
-extern strlen(s: string) ret int;
+extern strlen(s: string) ret long;
 extern printf(fmt: string, ...) ret int;
 # Diagnostics go to stderr, as elsewhere in the library, so a parser message
 # cannot land in the middle of a program's own output.

@@ -20,7 +20,7 @@ extern printf(fmt: string, ...) ret int;
 extern __bpl_write_stderr(message: string);
 extern strtod(text: string, end: **char) ret float;
 
-extern strlen(s: string) ret int;
+extern strlen(s: string) ret long;
 extern memset(dest: string, val: int, n: long) ret string;
 extern strncmp(s1: string, s2: string, n: long) ret int;
 extern memcpy(dest: string, src: string, n: long) ret string;

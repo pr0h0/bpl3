@@ -57,6 +57,8 @@ frame main() ret int {
     # Test validation
     printf("\n--- Validation Tests ---\n");
     printf("Is 'SGVsbG8=' valid: %d\n", cast<int>(Base64.isValid("SGVsbG8=")));
+    # Seven characters cannot be a whole number of groups, so this one is
+    # refused even though every character is in the alphabet.
     printf("Is 'SGVsbG8' valid: %d\n", cast<int>(Base64.isValid("SGVsbG8")));
     printf("Is 'Invalid!!!' valid: %d\n", cast<int>(Base64.isValid("Invalid!!!")));
     printf("Is 'YWJj' valid: %d\n", cast<int>(Base64.isValid("YWJj")));

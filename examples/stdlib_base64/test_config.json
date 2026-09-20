@@ -12,7 +12,7 @@
     "Decode 'YWI=': ab",
     "Decode 'YWJj': abc",
     "Is 'SGVsbG8=' valid: 1",
-    "Is 'SGVsbG8' valid: 1",
+    "Is 'SGVsbG8' valid: 0",
     "Is 'Invalid!!!' valid: 0",
     "Is 'YWJj' valid: 1",
     "Encoded length for 3 bytes: 4",

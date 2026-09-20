@@ -7,7 +7,7 @@ export [LineReadResult];
 extern printf(fmt: string, ...) ret int;
 extern scanf(fmt: string, ...) ret int;
 extern __bpl_read_line(buf: string, capacity: int, length: *int) ret int;
-extern strlen(s: string) ret int;
+extern strlen(s: string) ret long;
 
 extern write(fd: int, buf: *char, count: int) ret int;
 extern dprintf(fd: int, fmt: *char, ...) ret int;

@@ -15,7 +15,7 @@ extern sprintf(str: string, fmt: string, ...) ret int;
 extern malloc(size: long) ret string;
 extern free(ptr: string) ret void;
 extern atoi(s: string) ret int;
-extern strlen(s: string) ret int;
+extern strlen(s: string) ret long;
 extern strcmp(s1: string, s2: string) ret int;
 
 struct Column {

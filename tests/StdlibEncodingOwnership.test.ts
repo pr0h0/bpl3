@@ -1,20 +1,30 @@
 import { it } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
+// Encoding nothing is still an encoding, so these hand back an owned empty
+// string the caller can free like any other result.
 it("returns owned strings for empty, null, and ordinary encoding inputs", () => {
-  const calls = [
+  const owned = [
     "Hex.encode(nullptr, 0)",
     "Hex.encode(nullptr, 3)",
     "Hex.encodeUpper(nullptr, 0)",
     "Hex.encodeString(nullptr)",
     'Hex.encodeString("")',
-    "Hex.decodeToString(nullptr)",
     'Hex.decodeToString("")',
     "Base64.encode(nullptr, 0)",
     "Base64.encodeString(nullptr)",
     'Base64.encodeString("")',
-    "Base64.decodeToString(nullptr)",
     'Base64.decodeToString("")',
+  ];
+  // Decoding, by contrast, can fail, and a null string is not a decodable
+  // one. Failure is nullptr rather than a silently truncated result.
+  const rejected = [
+    "Hex.decodeToString(nullptr)",
+    'Hex.decodeToString("414")',
+    'Hex.decodeToString("41ZZ")',
+    "Base64.decodeToString(nullptr)",
+    'Base64.decodeToString("QUJ")',
+    'Base64.decodeToString("QQ=A")',
   ];
   expectCorrectnessSuite([
     {
@@ -28,12 +38,20 @@ it("returns owned strings for empty, null, and ordinary encoding inputs", () => 
       extern strcmp(a: string, b: string) ret int;
       extern printf(fmt: string, ...);
       frame main() ret int {
-        ${calls
+        ${owned
           .map(
             (call, i) => `
           local s${i}: string = ${call};
           if (s${i} == nullptr || strcmp(s${i}, "") != 0) { return 1; }
           free(cast<*void>(s${i}));
+        `,
+          )
+          .join("\n")}
+        ${rejected
+          .map(
+            (call, i) => `
+          local r${i}: string = ${call};
+          if (r${i} != nullptr) { return 4; }
         `,
           )
           .join("\n")}

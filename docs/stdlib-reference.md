@@ -315,6 +315,8 @@ struct Base64
 frame encode(data: *u8, length: int) ret string
 frame encodeString(str: string) ret string
 frame decodeChar(c: u8) ret int
+frame isWhitespace(c: u8) ret bool
+frame scan(input: string, output: *u8, write: bool) ret int
 frame decode(input: string, output: *u8) ret int
 frame decodeToString(input: string) ret string
 frame decodedLength(input: string) ret int
@@ -509,7 +511,7 @@ extern memset(dest: *void, value: int, n: long) ret *void
 ```
 
 ```bpl
-extern strlen(s: string) ret int
+extern strlen(s: string) ret long
 ```
 
 ```bpl
@@ -1122,6 +1124,8 @@ frame encode(data: *u8, length: int) ret string
 frame encodeUpper(data: *u8, length: int) ret string
 frame encodeString(str: string) ret string
 frame hexCharToValue(c: u8) ret int
+frame isWhitespace(c: u8) ret bool
+frame scan(input: string, output: *u8, write: bool) ret int
 frame decode(input: string, output: *u8) ret int
 frame decodeToString(input: string) ret string
 frame byteToHex(b: u8) ret string

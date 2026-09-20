@@ -12,6 +12,8 @@ import {
   type ParsedTargetTriple,
 } from "../../common/TargetTriple";
 
+export const EXTERN_SIGNATURE_CONFLICT_CODE = "BPL_EXTERN_SIGNATURE_CONFLICT";
+
 export interface CodegenScope {
   deferred: AST.Statement[];
   isLoop: boolean;
@@ -261,6 +263,15 @@ export class BaseCodeGenerator {
   protected loopStack: { continueLabel: string; breakLabel: string }[] = [];
   protected scopeStack: CodegenScope[] = [];
   protected declaredFunctions: Set<string> = new Set();
+  // The LLVM signature each external symbol was first declared with. A module
+  // only sees its own `extern` line, so two modules can describe the same C
+  // function differently; the first declaration is the one emitted, and a call
+  // from the other module would then be made against a signature the callee
+  // does not have. Recorded here so the mismatch is caught instead.
+  protected externSignatures: Map<
+    string,
+    { returnType: string; parameters: string; location?: SourceLocation }
+  > = new Map();
   protected globals: Set<string> = new Set();
   protected locals: Set<string> = new Set();
   protected localPointers: Map<string, string> = new Map(); // Track variable name -> pointer name mapping
@@ -714,6 +725,58 @@ export class BaseCodeGenerator {
 
   protected emitDeclaration(line: string) {
     this.declarationsOutput.push(line);
+  }
+
+  // One symbol reaches the linker once, so every module that calls it has to
+  // describe it the same way. Modules that agree in LLVM terms are fine even
+  // if they spell the BPL types differently — `*void` and `string` are both
+  // i8* — so only a real difference in the emitted signature is reported.
+  protected recordExternSignature(
+    name: string,
+    returnType: string,
+    parameters: string,
+    location: SourceLocation,
+  ) {
+    const previous = this.externSignatures.get(name);
+    if (!previous) {
+      this.externSignatures.set(name, {
+        returnType,
+        parameters,
+        location,
+      });
+      return;
+    }
+
+    // Declaring no return type only means this module ignores the result,
+    // which every calling convention allows: the value is left in the
+    // register the caller does not read. So void is compatible with any
+    // return type, and the value-returning form is the one kept, so that two
+    // modules disagreeing about the *width* are still caught.
+    const returnsAgree =
+      previous.returnType === returnType ||
+      previous.returnType === "void" ||
+      returnType === "void";
+
+    if (returnsAgree && previous.parameters === parameters) {
+      if (previous.returnType === "void" && returnType !== "void") {
+        this.externSignatures.set(name, {
+          returnType,
+          parameters,
+          location,
+        });
+      }
+      return;
+    }
+
+    const where = previous.location?.file
+      ? ` (first declared in ${previous.location.file})`
+      : "";
+    throw new CompilerError(
+      `External function '${name}' is declared as '${previous.returnType} (${previous.parameters})'${where} and as '${returnType} (${parameters})' here.`,
+      `Only one '${name}' reaches the linker, so a call made through the other signature would not match it. Declare this external function identically everywhere, or import the shared declaration.`,
+      location,
+      EXTERN_SIGNATURE_CONFLICT_CODE,
+    );
   }
 
   protected formatFunctionDeclarationParameters(

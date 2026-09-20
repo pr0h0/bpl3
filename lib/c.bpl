@@ -44,7 +44,7 @@ extern memcpy(dest: *void, src: *void, n: long) ret *void;
 extern memmove(dest: *void, src: *void, n: long) ret *void;
 extern memset(dest: *void, value: int, n: long) ret *void;
 
-extern strlen(s: string) ret int;
+extern strlen(s: string) ret long;
 extern strcmp(left: string, right: string) ret int;
 extern strncmp(left: string, right: string, count: long) ret int;
 extern strcpy(dest: string, src: string) ret string;
