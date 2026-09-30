@@ -63,8 +63,10 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
     }
 
     frame assign(this: *String, text: string) {
-        this.destroy();
+        # text may borrow this.data or a suffix of it. Finish the copy while
+        # that allocation is still alive, then release the previous contents.
         local newStr: String = String.new(text);
+        this.destroy();
         this.data = newStr.data;
         this.length = newStr.length;
     }

@@ -30,7 +30,7 @@ UTF-8 module when you need codepoint operations.
 | `String.fromAddress(addr: long) ret String`                 | Format an address                                     |
 | `s.destroy()`                                               | Free owned storage                                    |
 | `s.clone() ret String`                                      | Copy owned bytes                                      |
-| `s.assign(text: string)`                                    | Replace content from an independent C string          |
+| `s.assign(text: string)`                                    | Copy and replace content, including self or a suffix          |
 | `s.isEmpty() ret bool`                                      | Test length                                           |
 | `s.toString() ret string`, `s.cstr() ret string`            | Borrow underlying bytes                               |
 | `s.get(index: int) ret char`                                | Byte at index; zero when out of range                 |
@@ -99,5 +99,6 @@ produces a final empty string.
 
 `+` allocates a new concatenated String. `<<` appends to the receiver. Comparison
 operators use string contents. Results of concatenation need cleanup, and
-assignment of owning String values remains shallow. Do not pass a string's own
-borrowed buffer to `assign`, which frees the previous buffer before copying.
+assignment of owning String values remains shallow. `assign` copies before
+releasing the previous buffer, so assigning its own borrowed buffer or a suffix
+is supported. Previously borrowed pointers become invalid after assignment.
