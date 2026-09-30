@@ -97,8 +97,26 @@ struct StringBuilder {
         if (str == nullptr) {
             return;
         }
-        local str_len: int = strlen(str);
+        local source_length: long = strlen(str);
+        if (source_length > (cast<long>(2147483646) - cast<long>(this.length))) {
+            throw "StringBuilder capacity exceeded";
+        }
+        local str_len: int = cast<int>(source_length);
+        # toString() borrows this buffer. Save an offset before growth can
+        # free it, then resolve the source against the replacement buffer.
+        local offset: long = -1;
+        local source_address: ulong = cast<ulong>(str);
+        local buffer_address: ulong = cast<ulong>(this.buffer);
+        if ((this.buffer != nullptr) && (source_address >= buffer_address)) {
+            local distance: ulong = source_address - buffer_address;
+            if (distance <= cast<ulong>(this.length)) {
+                offset = cast<long>(distance);
+            }
+        }
         this.ensureCapacity(str_len);
+        if (offset >= cast<long>(0)) {
+            str = this.buffer + offset;
+        }
 
         # Copy the string
         local i: int = 0;
@@ -203,7 +221,7 @@ struct StringBuilder {
     }
 
     /#
-        Builds and returns a String object (caller must destroy)
+        Borrows the current buffer. Growth or destruction invalidates it.
     #/
     frame toString(this: *StringBuilder) ret string {
         return this.buffer;
