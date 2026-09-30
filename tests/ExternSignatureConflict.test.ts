@@ -132,3 +132,36 @@ frame main() ret int {
   expect(result.stderr).toBe("");
   expect(result.status).toBe(0);
 });
+
+// Taking an extern's address and reusing a cached C ABI wrapper must validate
+// the source declaration too, before the wrapper cache hides a disagreement.
+test("extern address uses cannot hide a conflicting return width", () => {
+  const result = build({
+    ...widthConflict,
+    "narrow.bpl": widthConflict["narrow.bpl"].replace(
+      'return strlen(text);',
+      'local measure: Func<int>(string) = strlen; return measure(text);',
+    ),
+    "wide.bpl": widthConflict["wide.bpl"].replace(
+      'return strlen(text);',
+      'local measure: Func<long>(string) = strlen; return measure(text);',
+    ),
+  }, "main.bpl");
+  expect(`${result.stdout}${result.stderr}`).toContain("BPL_EXTERN_SIGNATURE_CONFLICT");
+});
+
+test("cached aggregate wrappers cannot hide a scalar declaration", () => {
+  const result = build({
+    "a.bpl": `export [A];
+struct Pair { x: int, y: int }
+extern abs(value: Pair) ret int;
+struct A { frame run() ret int { return abs(Pair {x: 1, y: 2}); } }`,
+    "b.bpl": `export [B];
+extern abs(value: int) ret int;
+struct B { frame run() ret int { return abs(-3); } }`,
+    "main.bpl": `import [A] from "./a.bpl";
+import [B] from "./b.bpl";
+frame main() ret int { return A.run() + B.run(); }`,
+  }, "main.bpl");
+  expect(`${result.stdout}${result.stderr}`).toContain("BPL_EXTERN_SIGNATURE_CONFLICT");
+});

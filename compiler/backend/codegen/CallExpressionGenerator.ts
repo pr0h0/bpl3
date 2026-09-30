@@ -2340,15 +2340,26 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
    * Externs with only scalar signatures are called directly.
    */
   protected getCAbiExternWrapper(decl: AST.ExternDecl): string | undefined {
-    if (this.cAbiWrappers.has(decl.name)) {
-      return this.cAbiWrappers.get(decl.name);
-    }
     const funcType = decl.resolvedType as AST.FunctionTypeNode;
     const signature = {
       name: decl.name,
       returnType: this.resolveType(funcType.returnType),
       paramTypes: funcType.paramTypes.map((type) => this.resolveType(type)),
     };
+    // Address-taking reaches this path without a direct call. Validate each
+    // source signature before consulting the cache, including scalar externs.
+    this.recordExternSignature(
+      decl.name,
+      signature.returnType,
+      this.formatFunctionDeclarationParameters(
+        signature.paramTypes,
+        funcType.isVariadic === true,
+      ),
+      decl.location,
+    );
+    if (this.cAbiWrappers.has(decl.name)) {
+      return this.cAbiWrappers.get(decl.name);
+    }
     if (!needsCAbiLowering(signature)) {
       this.cAbiWrappers.set(decl.name, undefined);
       return undefined;
