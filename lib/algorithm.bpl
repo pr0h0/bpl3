@@ -425,16 +425,20 @@ struct Algorithm {
         if (size < cast<long>(0)) { size = cast<long>(0); }
         if (size > cast<long>(2147483646)) { size = cast<long>(2147483646); }
         local result: Array<int> = Array<int>.new(cast<int>(size));
-        local i: int = start;
+        # Widen the cursor as well: the final step may cross an int boundary
+        # even though every element emitted before the endpoint fits in int.
+        local i: long = cast<long>(start);
+        local stop: long = cast<long>(end);
+        local stride: long = cast<long>(step);
         if (step > 0) {
-            loop (i < end) {
-                result.push(i);
-                i = i + step;
+            loop (i < stop) {
+                result.push(cast<int>(i));
+                i = i + stride;
             }
-        } else if (step < 0) {
-            loop (i > end) {
-                result.push(i);
-                i = i + step;
+        } else {
+            loop (i > stop) {
+                result.push(cast<int>(i));
+                i = i + stride;
             }
         }
         return result;

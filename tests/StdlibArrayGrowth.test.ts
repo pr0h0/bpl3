@@ -65,6 +65,10 @@ const rangeCases: [number, number, number][] = [
   [1, 0, 1],
   [0, -10, -1],
   [-3, -1, 1],
+  [2147483646, 2147483647, 2],
+  [-2147483647, -2147483648, -2],
+  [-2147483648, 2147483647, 2147483647],
+  [2147483647, -2147483648, -2147483648],
 ];
 
 function pythonRange(start: number, stop: number, step: number): number[] {
