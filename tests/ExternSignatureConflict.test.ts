@@ -165,3 +165,19 @@ frame main() ret int { return A.run() + B.run(); }`,
   }, "main.bpl");
   expect(`${result.stdout}${result.stderr}`).toContain("BPL_EXTERN_SIGNATURE_CONFLICT");
 });
+
+test("void is not compatible with a hidden aggregate return parameter", () => {
+  const result = build({
+    "a.bpl": `export [A];
+extern getpid();
+struct A { frame run() { getpid(); } }`,
+    "b.bpl": `export [B];
+struct Large { x: long, y: long, z: long }
+extern getpid() ret Large;
+struct B { frame run() ret long { local value: Large = getpid(); return value.x; } }`,
+    "main.bpl": `import [A] from "./a.bpl";
+import [B] from "./b.bpl";
+frame main() ret int { A.run(); return cast<int>(B.run()); }`,
+  }, "main.bpl");
+  expect(`${result.stdout}${result.stderr}`).toContain("BPL_EXTERN_SIGNATURE_CONFLICT");
+});

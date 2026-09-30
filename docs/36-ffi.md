@@ -73,11 +73,13 @@ extern strlen(s: string) ret long;
 extern strlen(s: *char) ret u64;
 ```
 
-Leaving the return type off means only that this module ignores the result,
-which is always allowed, so `extern printf(fmt: string, ...);` and
+For scalar and pointer returns, leaving the return type off allows this module
+to ignore the result, so `extern printf(fmt: string, ...);` and
 `extern printf(fmt: string, ...) ret int;` can appear in different modules of
 the same program. A difference in the width or class of the return type, or
-in the parameters, is an error.
+in the parameters, is an error. Aggregate returns cannot be omitted this way:
+the C ABI may require a hidden result pointer. These checks also apply when
+taking an extern function address for an indirect call.
 
 The simplest way to stay consistent is to import the declaration instead of
 repeating it: `import printf, malloc from "std/c.bpl";`.

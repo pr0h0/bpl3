@@ -747,15 +747,17 @@ export class BaseCodeGenerator {
       return;
     }
 
-    // Declaring no return type only means this module ignores the result,
-    // which every calling convention allows: the value is left in the
-    // register the caller does not read. So void is compatible with any
-    // return type, and the value-returning form is the one kept, so that two
-    // modules disagreeing about the *width* are still caught.
+    // Preserve the legacy convention of discarding scalar C return values.
+    // Aggregates may require a hidden result pointer, so treating an aggregate
+    // result as void changes the call ABI rather than merely ignoring a value.
+    const canDiscard = (type: string) =>
+      type === "void" ||
+      type.endsWith("*") ||
+      /^(i\d+|float|double)$/.test(type);
     const returnsAgree =
       previous.returnType === returnType ||
-      previous.returnType === "void" ||
-      returnType === "void";
+      (previous.returnType === "void" && canDiscard(returnType)) ||
+      (returnType === "void" && canDiscard(previous.returnType));
 
     if (returnsAgree && previous.parameters === parameters) {
       if (previous.returnType === "void" && returnType !== "void") {
