@@ -590,6 +590,7 @@ frame i() ret Complex
 frame add(this: *Complex, other: Complex) ret Complex
 frame sub(this: *Complex, other: Complex) ret Complex
 frame mul(this: *Complex, other: Complex) ret Complex
+frame _divideProducts(a: float, b: float, c: float, d: float, denominator: float, divisorExponent: int) ret float
 frame div(this: *Complex, other: Complex) ret Complex
 frame scale(this: *Complex, scalar: float) ret Complex
 frame abs(this: *Complex) ret float

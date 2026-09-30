@@ -732,3 +732,33 @@ test("complex division holds across every magnitude regime", () => {
     },
   ]);
 }, 60000);
+
+
+test("complex division preserves products of widely separated components", () => {
+  expectCorrectnessSuite([{
+    name: "complex-separated-products",
+    validateLlvm: true,
+    source: `
+      import [Complex] from "std/complex.bpl";
+      import printf from "std/c.bpl";
+      extern atof(s: string) ret float;
+      frame main() ret int {
+        local a: Complex = Complex.new(atof("1e300"), 0.0);
+        local b: Complex = Complex.new(atof("1e100"), atof("1e-300"));
+        local c: Complex = Complex.new(atof("1e-300"), atof("1e100"));
+        local q: Complex = a.div(b);
+        local r: Complex = a.div(c);
+        printf("%.1e %.1e %.1e %.1e\\n", q.real, q.imag, r.real, r.imag);
+        local modest: Complex = Complex.new(atof("1e150"), 0.0);
+        local mixed: Complex = Complex.new(atof("1e50"), atof("1e-300"));
+        local t: Complex = modest.div(mixed);
+        printf("%.1e %.1e\\n", t.real, t.imag);
+        local zero: Complex = Complex.new(0.0, 0.0);
+        local huge: Complex = Complex.new(atof("-1e300"), atof("1e300"));
+        local z: Complex = zero.div(huge);
+        printf("%.1f %.1f\\n", z.real, z.imag);
+        return 0;
+      }`,
+    expectedStdout: "1.0e+200 -1.0e-200 1.0e-200 -1.0e+200\n1.0e+100 -1.0e-250\n-0.0 -0.0\n",
+  }]);
+}, 60000);

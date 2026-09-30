@@ -71,13 +71,33 @@ struct Complex {
 
     # Divide two complex numbers
     # (a + bi)/(c + di) = ((ac + bd) + (bc - ad)i) / (c² + d²)
-    /#
-        Division by the scaled method: the smaller part of the divisor is
-        divided by the larger one first, so nothing is squared at full
-        magnitude. Forming the sum of squares directly overflows for large
-        divisors and underflows for small ones, turning representable
-        quotients into NaN or zero.
-    #/
+    # Keep each product's exponent separately until the final division. A
+    # shared scale can erase a tiny component that still contributes to a
+    # representable quotient after multiplication by a large component.
+    frame _divideProducts(a: float, b: float, c: float, d: float,
+                          denominator: float, divisorExponent: int) ret float {
+        local ae: int = 0;
+        local be: int = 0;
+        local ce: int = 0;
+        local de: int = 0;
+        local am: float = frexp(a, &ae);
+        local bm: float = frexp(b, &be);
+        local cm: float = frexp(c, &ce);
+        local dm: float = frexp(d, &de);
+        local first: float = am * bm;
+        local second: float = cm * dm;
+        local firstExponent: int = ae + be;
+        local secondExponent: int = ce + de;
+        # Zero must not force a nonzero product into a smaller exponent range.
+        if (first == 0.0) { firstExponent = secondExponent; }
+        if (second == 0.0) { secondExponent = firstExponent; }
+        local exponent: int = firstExponent;
+        if (secondExponent > exponent) { exponent = secondExponent; }
+        local sum: float = ldexp(first, firstExponent - exponent)
+                         + ldexp(second, secondExponent - exponent);
+        return ldexp(sum / denominator, exponent - (2 * divisorExponent));
+    }
+
     frame div(this: *Complex, other: Complex) ret Complex {
         if ((other.real == 0.0) && (other.imag == 0.0)) {
             # Division by zero - return NaN-like values
@@ -85,23 +105,8 @@ struct Complex {
             return Complex.new(zero / zero, zero / zero);
         }
 
-        # Only the divisor is normalized, by a power of two taken from its
-        # largest component, which puts that component in [0.5, 1). The ratio
-        # is then at most one and the denominator is in [0.5, 2], so the
-        # quotient is at most four times the numerator's largest component.
-        #
-        # The numerator is left alone unless that bound would leave the range.
-        # Scaling it by its own magnitude, as the previous attempt did, rounds
-        # a small component away: in (1e200 + 1e-200i) the second component is
-        # 2^665 times smaller, so normalizing the first pushes it below the
-        # smallest subnormal and the imaginary part of the quotient was lost.
-        # When the numerator really is near the top of the range it is shifted
-        # down just far enough to keep the bound, and the shift is undone at
-        # the end.
-        #
-        # Powers of two are exact, and every scale here cancels into a single
-        # exponent shift that ldexp applies at the end without forming the
-        # factor itself.
+        # Ordinary values use Smith's ratio formula. Extreme exponents use
+        # independent product scaling below to retain small contributions.
         local valueMax: float = Math.abs(this.real);
         local valueImagSize: float = Math.abs(this.imag);
         if (valueMax < valueImagSize) {
@@ -124,15 +129,29 @@ struct Complex {
         frexp(valueMax, &valueExponent);
         frexp(divisorMax, &divisorExponent);
 
-        # The quotient stays below four times the numerator's largest
-        # component, so a numerator below 2^1000 needs no headroom at all.
-        local headroom: int = 0;
-        if (valueExponent > 1000) {
-            headroom = valueExponent - 1000;
+        # Use separate product exponents at extreme magnitudes, where even
+        # the smaller divisor component can disappear under a shared scale.
+        # Keep the ordinary path's signed-zero conventions for ordinary data.
+        local small: float = ldexp(1.0, -500);
+        if (((this.real != 0.0) || (this.imag != 0.0))
+            && ((Math.abs(cast<float>(valueExponent)) > 500.0)
+            || (Math.abs(cast<float>(divisorExponent)) > 500.0)
+            || ((this.real != 0.0) && (Math.abs(this.real) < small))
+            || ((this.imag != 0.0) && (Math.abs(this.imag) < small))
+            || ((other.real != 0.0) && (Math.abs(other.real) < small))
+            || ((other.imag != 0.0) && (Math.abs(other.imag) < small)))) {
+            local dr: float = ldexp(other.real, -divisorExponent);
+            local di: float = ldexp(other.imag, -divisorExponent);
+            local denominator: float = (dr * dr) + (di * di);
+            return Complex.new(
+                Complex._divideProducts(this.real, other.real, this.imag, other.imag,
+                                        denominator, divisorExponent),
+                Complex._divideProducts(this.imag, other.real, -this.real, other.imag,
+                                        denominator, divisorExponent));
         }
 
-        local ar: float = ldexp(this.real, -headroom);
-        local ai: float = ldexp(this.imag, -headroom);
+        local ar: float = this.real;
+        local ai: float = this.imag;
         local cr: float = ldexp(other.real, -divisorExponent);
         local ci: float = ldexp(other.imag, -divisorExponent);
 
@@ -150,7 +169,7 @@ struct Complex {
             imagPart = ((ai * ratio) - ar) / denom;
         }
 
-        local shift: int = headroom - divisorExponent;
+        local shift: int = -divisorExponent;
         return Complex.new(ldexp(realPart, shift), ldexp(imagPart, shift));
     }
 
