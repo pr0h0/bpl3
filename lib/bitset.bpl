@@ -41,6 +41,8 @@ struct BitSet {
             free(cast<*void>(this.data));
             this.data = nullptr;
         }
+        this.numBits = 0;
+        this.numWords = 0;
     }
 
     # Set a bit at the given index

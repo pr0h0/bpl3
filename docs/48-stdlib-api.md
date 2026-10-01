@@ -304,7 +304,7 @@ Fixed-size bit array for efficient flag/set operations.
 
 **Cleanup:**
 
-- `bs.destroy()` - Free memory
+- `bs.destroy()` - Free memory and reset to an empty set; repeated cleanup is safe
 
 ---
 
