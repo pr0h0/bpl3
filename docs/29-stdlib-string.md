@@ -126,3 +126,10 @@ returns the first matching `int` index, or -1. Null inputs, negative offsets,
 and offsets past the end return -1. An empty needle matches at any valid offset,
 including the end. Only indices representable by the `int` return type are
 searched.
+
+
+`StringUtils.replace(text, oldText, newText)` uses the same non-overlapping
+replacement rules as `String.replaceAll` and returns an owned `String`. Empty or
+null search patterns return a copy; null replacement text deletes matches.
+Temporary storage is released before returning, and the caller must destroy the
+result.

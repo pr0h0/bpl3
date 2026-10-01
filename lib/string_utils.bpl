@@ -3,7 +3,6 @@
 export [StringUtils];
 
 import [String] from "std/string.bpl";
-import [StringBuilder] from "std/string_builder.bpl";
 extern strlen(s: string) ret long;
 extern malloc(size: long) ret string;
 extern free(ptr: string) ret void;
@@ -135,39 +134,10 @@ struct StringUtils {
         return -1;
     }
 
+    # Share the String implementation's non-overlapping replacement rules.
     frame replace(s: string, oldStr: string, newStr: string) ret String {
-        local sb: StringBuilder = StringBuilder.new(1024);
-        local i: int = 0;
-        local len: int = strlen(s);
-        local oldLen: int = strlen(oldStr);
-
-        loop (i < len) {
-            local pos: int = StringUtils.findString(s, oldStr, i);
-            if (pos == -1) {
-                # No more occurrences, append rest
-                # Pointer arithmetic for suffix workaround: 
-                # We iterate because accessing s+i is unsafe if not handled
-                local k: int = i;
-                loop (k < len) {
-                    sb.appendChar(s[k]);
-                    k = k + 1;
-                }
-                break;
-            }
-            # Append part before match
-            local k: int = i;
-            loop (k < pos) {
-                sb.appendChar(s[k]);
-                k = k + 1;
-            }
-
-            # Append new string
-            sb.append(newStr);
-
-            # Advance
-            i = pos + oldLen;
-        }
-
-        return String.new(sb.toString());
+        local original: String = String.new(s);
+        defer { original.destroy(); }
+        return original.replaceAll(oldStr, newStr);
     }
 }
