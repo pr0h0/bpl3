@@ -2958,6 +2958,7 @@ frame codepointCount(s: string) ret int
 frame codepointByteLength(leadByte: u8) ret int
 frame isValid(s: string) ret bool
 frame decodeCodepoint(s: string, pos: int) ret u32
+frame _decodeCodepoint(s: string, pos: int, length: long) ret u32
 frame encodeCodepoint(codepoint: u32, dest: *u8) ret int
 frame isAscii(codepoint: u32) ret bool
 frame isAsciiString(s: string) ret bool

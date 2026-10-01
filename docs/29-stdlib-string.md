@@ -102,3 +102,18 @@ operators use string contents. Results of concatenation need cleanup, and
 assignment of owning String values remains shallow. `assign` copies before
 releasing the previous buffer, so assigning its own borrowed buffer or a suffix
 is supported. Previously borrowed pointers become invalid after assignment.
+
+
+## UTF-8 codepoints
+
+Import `UTF8` from `std/utf8.bpl` to work with Unicode codepoints.
+`decodeCodepoint(text, byteOffset)` reads one scalar value at a byte offset,
+returning U+FFFD for malformed or truncated sequences, null input, and offsets
+outside the string. `toCodepoints(text)` collects decoded values in an owned
+`Array<u32>`; destroy that array when finished. Bulk decoding scans the byte
+length once.
+
+`encodeCodepoint(value, destination)` writes one to four bytes and returns the
+number written. Provide a writable buffer of at least four bytes. It does not
+append a NUL terminator. Surrogates (U+D800–U+DFFF) and values above U+10FFFF
+encode as U+FFFD rather than producing invalid UTF-8.

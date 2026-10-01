@@ -146,39 +146,41 @@ struct UTF8 {
         return true;
     }
 
-    # Decodes a single UTF-8 codepoint from the given position
-    # Returns the Unicode codepoint value
+    # Decode at a byte offset; malformed text or an invalid offset returns U+FFFD.
     frame decodeCodepoint(s: string, pos: int) ret u32 {
-        local ptr: *u8 = cast<*u8>(s);
-        local byte: u8 = ptr[pos];
+        if ((s == nullptr) || (pos < 0)) { return cast<u32>(0xFFFD); }
+        return UTF8._decodeCodepoint(s, pos, strlen(s));
+    }
 
-        if ((byte & cast<u8>(0x80)) == cast<u8>(0x00)) {
-            # ASCII
-            return cast<u32>(byte);
+    # The caller supplies the byte length so bulk decoding remains linear.
+    frame _decodeCodepoint(s: string, pos: int, length: long) ret u32 {
+        if ((s == nullptr) || (pos < 0) || (cast<long>(pos) >= length)) {
+            return cast<u32>(0xFFFD);
         }
-        if ((byte & cast<u8>(0xE0)) == cast<u8>(0xC0)) {
-            # 2-byte sequence
-            local cp: u32 = cast<u32>(byte & cast<u8>(0x1F)) << 6;
-            cp = cp | cast<u32>(ptr[pos + 1] & cast<u8>(0x3F));
-            return cp;
+        local ptr: *u8 = cast<*u8>(s);
+        local first: u8 = ptr[pos];
+        if (first < cast<u8>(0x80)) { return cast<u32>(first); }
+        local size: int = 0;
+        local cp: u32 = cast<u32>(0);
+        local minimum: u32 = cast<u32>(0);
+        if ((first >= cast<u8>(0xC2)) && (first <= cast<u8>(0xDF))) {
+            size = 2; cp = cast<u32>(first & cast<u8>(0x1F)); minimum = cast<u32>(0x80);
+        } else if ((first >= cast<u8>(0xE0)) && (first <= cast<u8>(0xEF))) {
+            size = 3; cp = cast<u32>(first & cast<u8>(0x0F)); minimum = cast<u32>(0x800);
+        } else if ((first >= cast<u8>(0xF0)) && (first <= cast<u8>(0xF4))) {
+            size = 4; cp = cast<u32>(first & cast<u8>(0x07)); minimum = cast<u32>(0x10000);
+        } else { return cast<u32>(0xFFFD); }
+        if ((length - cast<long>(pos)) < cast<long>(size)) { return cast<u32>(0xFFFD); }
+        loop (local j: int = 1; j < size; j = j + 1) {
+            local byte: u8 = ptr[cast<long>(pos) + cast<long>(j)];
+            if ((byte & cast<u8>(0xC0)) != cast<u8>(0x80)) { return cast<u32>(0xFFFD); }
+            cp = (cp << 6) | cast<u32>(byte & cast<u8>(0x3F));
         }
-        if ((byte & cast<u8>(0xF0)) == cast<u8>(0xE0)) {
-            # 3-byte sequence
-            local cp: u32 = cast<u32>(byte & cast<u8>(0x0F)) << 12;
-            cp = cp | (cast<u32>(ptr[pos + 1] & cast<u8>(0x3F)) << 6);
-            cp = cp | cast<u32>(ptr[pos + 2] & cast<u8>(0x3F));
-            return cp;
+        if ((cp < minimum) || (cp > cast<u32>(0x10FFFF))
+            || ((cp >= cast<u32>(0xD800)) && (cp <= cast<u32>(0xDFFF)))) {
+            return cast<u32>(0xFFFD);
         }
-        if ((byte & cast<u8>(0xF8)) == cast<u8>(0xF0)) {
-            # 4-byte sequence
-            local cp: u32 = cast<u32>(byte & cast<u8>(0x07)) << 18;
-            cp = cp | (cast<u32>(ptr[pos + 1] & cast<u8>(0x3F)) << 12);
-            cp = cp | (cast<u32>(ptr[pos + 2] & cast<u8>(0x3F)) << 6);
-            cp = cp | cast<u32>(ptr[pos + 3] & cast<u8>(0x3F));
-            return cp;
-        }
-        # Replacement character
-        return cast<u32>(0xFFFD);
+        return cp;
     }
 
     # Encodes a Unicode codepoint to UTF-8 bytes
@@ -244,7 +246,7 @@ struct UTF8 {
         local len: int = strlen(s);
 
         loop (i < len) {
-            local cp: u32 = UTF8.decodeCodepoint(s, i);
+            local cp: u32 = UTF8._decodeCodepoint(s, i, cast<long>(len));
             result.push(cp);
             local cpLen: int = UTF8.codepointByteLength(ptr[i]);
             i = i + cpLen;
