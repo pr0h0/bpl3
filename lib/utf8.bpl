@@ -184,6 +184,12 @@ struct UTF8 {
     # Encodes a Unicode codepoint to UTF-8 bytes
     # Returns the number of bytes written (1-4)
     frame encodeCodepoint(codepoint: u32, dest: *u8) ret int {
+        # Surrogates and values outside the Unicode scalar range have no
+        # UTF-8 encoding. Emit the replacement character instead.
+        if ((codepoint > cast<u32>(0x10FFFF))
+            || ((codepoint >= cast<u32>(0xD800)) && (codepoint <= cast<u32>(0xDFFF)))) {
+            codepoint = cast<u32>(0xFFFD);
+        }
         if (codepoint < cast<u32>(0x80)) {
             dest[0] = cast<u8>(codepoint);
             return 1;
