@@ -84,6 +84,9 @@ struct PriorityQueue<T>: Iterable<T>, Destructible {
     frame siftDown(this: *PriorityQueue<T>, index: int) {
         local len: int = this.items.len();
         loop (true) {
+            # The upper half contains only leaves. Stop before doubling the
+            # index: a valid leaf can otherwise overflow to negative children.
+            if (index >= (len / 2)) { return; }
             local left: int = (2 * index) + 1;
             local right: int = (2 * index) + 2;
             local smallest: int = index;
