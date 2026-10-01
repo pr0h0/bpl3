@@ -49,7 +49,7 @@ struct Range {
     }
 
     /#
-        Returns the number of elements in the range
+        Returns the number of elements, or throws if it cannot fit in int.
     #/
     frame len(this: *Range) ret int {
         if (this.step == cast<long>(0)) {
@@ -59,17 +59,24 @@ struct Range {
         # number of elements does not, so the count is computed in long.
         local start: long = cast<long>(this.start);
         local step: long = this.step;
+        local count: long = 0;
         if (step > cast<long>(0)) {
             if (start >= this.end) {
                 return 0;
             }
-            return cast<int>((((this.end - start) + step) - 1) / step);
+            count = ((((this.end - start) + step) - 1) / step);
         } else {
             if (start <= this.end) {
                 return 0;
             }
-            return cast<int>(((start - this.end - step) - 1) / -step);
+            count = (((start - this.end - step) - 1) / -step);
         }
+        # Widening the arithmetic is not enough: narrowing an oversized
+        # count would turn a nonempty range into a negative or zero length.
+        if (count > cast<long>(2147483647)) {
+            throw "Range length exceeds int";
+        }
+        return cast<int>(count);
     }
 
     /#

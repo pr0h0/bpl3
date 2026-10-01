@@ -108,3 +108,12 @@ frame main() {
     range.destroy();
 }
 ```
+
+
+## Range length limits
+
+`Range` from `std/range.bpl` stores integer sequences without allocating their
+contents. Its `len()` result is an `int`: counts up to 2,147,483,647 are supported.
+Larger counts throw `"Range length exceeds int"` rather than wrapping negative
+or appearing empty. `reverse()` uses that count and throws for the same oversized
+ranges. Zero-step ranges continue to report zero length.
