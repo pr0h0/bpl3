@@ -106,15 +106,20 @@ struct StringUtils {
     }
 
     frame findString(haystack: string, needle: string, start: int) ret int {
-        local lh: int = strlen(haystack);
-        local ln: int = strlen(needle);
+        if ((haystack == nullptr) || (needle == nullptr) || (start < 0)) {
+            return -1;
+        }
+        local lh: long = strlen(haystack);
+        local ln: long = strlen(needle);
+        if (cast<long>(start) > lh) { return -1; }
         if (ln == 0) 
             return start;
         if (ln > lh) 
             return -1;
-        local i: int = start;
-        loop (i <= (lh - ln)) {
-            local j: int = 0;
+        # Keep both offsets wide until returning a representable int index.
+        local i: long = cast<long>(start);
+        loop ((i <= (lh - ln)) && (i <= cast<long>(2147483647))) {
+            local j: long = 0;
             local isMatch: bool = true;
             loop (j < ln) {
                 if (haystack[i + j] != needle[j]) {
@@ -124,7 +129,7 @@ struct StringUtils {
                 j = j + 1;
             }
             if (isMatch) 
-                return i;
+                return cast<int>(i);
             i = i + 1;
         }
         return -1;

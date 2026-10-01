@@ -117,3 +117,12 @@ length once.
 number written. Provide a writable buffer of at least four bytes. It does not
 append a NUL terminator. Surrogates (U+D800–U+DFFF) and values above U+10FFFF
 encode as U+FFFD rather than producing invalid UTF-8.
+
+
+## C-string search utilities
+
+`StringUtils.findString(haystack, needle, start)` searches from a byte offset and
+returns the first matching `int` index, or -1. Null inputs, negative offsets,
+and offsets past the end return -1. An empty needle matches at any valid offset,
+including the end. Only indices representable by the `int` return type are
+searched.
