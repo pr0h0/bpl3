@@ -80,6 +80,10 @@ s.destroy();
 
 ## Queue<T>
 
+Queue growth and wrapped indices use wide arithmetic. Once capacity reaches
+2,147,483,647 entries, further growth throws `"Queue capacity exceeded"` before
+changing the existing queue.
+
 A First-In-First-Out (FIFO) data structure. Optimized with a circular buffer.
 
 Non-positive initial capacities create an empty queue that grows on demand.

@@ -15,7 +15,7 @@ struct QueueIterator<T>: Iterator<T> {
         if (this.index >= this.queue.count) {
             return Option<T>.None;
         }
-        local idx: int = (this.queue.head + this.index) % this.queue.inner.capacity;
+        local idx: int = cast<int>((cast<long>(this.queue.head) + cast<long>(this.index)) % cast<long>(this.queue.inner.capacity));
         local val: T = this.queue.inner.get(idx);
         this.index = this.index + 1;
         return Option<T>.Some(val);
@@ -73,16 +73,21 @@ struct Queue<T>: Iterable<T>, Destructible {
     }
 
     frame resize(this: *Queue<T>) {
-        local new_cap: int = this.inner.capacity * 2;
-        if (new_cap == 0) {
-            new_cap = 4;
+        # Compute growth before narrowing, and reject an exhausted capacity
+        # before allocating or changing the current queue.
+        local grown: long = cast<long>(this.inner.capacity) * cast<long>(2);
+        if (grown == cast<long>(0)) { grown = cast<long>(4); }
+        if (grown > cast<long>(2147483647)) { grown = cast<long>(2147483647); }
+        if (grown <= cast<long>(this.inner.capacity)) {
+            throw "Queue capacity exceeded";
         }
+        local new_cap: int = cast<int>(grown);
         local new_arr: Array<T> = Array<T>.new(new_cap);
         new_arr.length = new_cap; # Allow access to all slots
 
         local i: int = 0;
         loop (i < this.count) {
-            local idx: int = (this.head + i) % this.inner.capacity;
+            local idx: int = cast<int>((cast<long>(this.head) + cast<long>(i)) % cast<long>(this.inner.capacity));
             new_arr.set(i, this.inner.get(idx));
             i = i + 1;
         }
