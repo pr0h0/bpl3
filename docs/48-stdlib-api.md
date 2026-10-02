@@ -228,9 +228,13 @@ Base64, `decode` also for a null output pointer, and `decodeToString` returns
 - `Base64.encodeString(str: string) ret string`
 - `Base64.decode(input: string, output: *u8) ret int` — bytes written, or `-1`
 - `Base64.decodeToString(input: string) ret string` — owned, or `nullptr`
-- `Base64.encodedLength(inputLength: int) ret int`
+- `Base64.encodedLength(inputLength: int) ret int` — zero for nonpositive lengths; throws `"Base64 encoded length exceeds int"` above 1,610,612,733 input bytes
 - `Base64.decodedLength(input: string) ret int` — exact, or `-1`
 - `Base64.isValid(input: string) ret bool`
+
+Base64 encoding uses the same checked length calculation before allocating its
+output. `encodeString` checks the byte length before converting it to `int`.
+An allocation failure returns `nullptr`.
 
 ### Hex (`std/hex.bpl`)
 

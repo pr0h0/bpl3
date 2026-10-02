@@ -21,8 +21,9 @@ struct Base64 {
             return cast<string>(empty);
         }
         # Calculate output length: 4 chars for every 3 bytes, rounded up
-        local outLen: int = ((length + 2) / 3) * 4;
-        local output: *u8 = cast<*u8>(malloc(cast<long>(outLen + 1)));
+        local outLen: int = Base64.encodedLength(length);
+        local output: *u8 = cast<*u8>(malloc(cast<long>(outLen) + cast<long>(1)));
+        if (output == nullptr) { return cast<string>(nullptr); }
 
         local alphabet: string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         local alphaPtr: *u8 = cast<*u8>(alphabet);
@@ -75,8 +76,12 @@ struct Base64 {
         if (str == nullptr) {
             return Base64.encode(nullptr, 0);
         }
-        local len: int = cast<int>(strlen(str));
-        return Base64.encode(cast<*u8>(str), len);
+        local len: long = strlen(str);
+        # Check before narrowing a C size_t into the public int length.
+        if (len > cast<long>(1610612733)) {
+            throw "Base64 encoded length exceeds int";
+        }
+        return Base64.encode(cast<*u8>(str), cast<int>(len));
     }
 
     # Decode a Base64 character to its value (0-63), or -1 for padding/invalid
@@ -246,7 +251,12 @@ struct Base64 {
 
     # Calculate the encoded length for given input length
     frame encodedLength(inputLen: int) ret int {
-        return ((inputLen + 2) / 3) * 4;
+        if (inputLen <= 0) { return 0; }
+        local size: long = ((cast<long>(inputLen) + cast<long>(2)) / cast<long>(3)) * cast<long>(4);
+        if (size > cast<long>(2147483647)) {
+            throw "Base64 encoded length exceeds int";
+        }
+        return cast<int>(size);
     }
 
     # Check if a string is valid Base64
