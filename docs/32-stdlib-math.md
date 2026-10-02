@@ -122,3 +122,13 @@ gives NaN. This matches `Complex.abs()` classification.
 
 `normalize()` keeps zero vectors at zero. A vector containing NaN produces NaN
 components rather than silently becoming a zero vector.
+
+
+## Integer sequence limits
+
+`factorial(n)` returns exact signed `long` results through n=20 and throws
+`"Math.factorial result exceeds long"` for larger inputs. `fibonacci(n)` returns
+exact results through n=92 and throws `"Math.fibonacci result exceeds long"`
+above that bound. Both reject oversized inputs before entering their loops.
+The existing nonpositive-input behavior is unchanged: factorial returns 1,
+and Fibonacci returns 0.
