@@ -17,8 +17,12 @@ struct Hex {
             }
             return cast<string>(empty);
         }
+        if (length > 1073741823) {
+            throw "Hex encoded length exceeds int";
+        }
         local outLen: int = length * 2;
-        local output: *u8 = cast<*u8>(malloc(cast<long>(outLen + 1)));
+        local output: *u8 = cast<*u8>(malloc(cast<long>(outLen) + cast<long>(1)));
+        if (output == nullptr) { return cast<string>(nullptr); }
         local hexChars: string = "0123456789abcdef";
         local hexPtr: *u8 = cast<*u8>(hexChars);
 
@@ -41,8 +45,12 @@ struct Hex {
         if ((data == nullptr) || (length <= 0)) {
             return Hex.encode(nullptr, 0);
         }
+        if (length > 1073741823) {
+            throw "Hex encoded length exceeds int";
+        }
         local outLen: int = length * 2;
-        local output: *u8 = cast<*u8>(malloc(cast<long>(outLen + 1)));
+        local output: *u8 = cast<*u8>(malloc(cast<long>(outLen) + cast<long>(1)));
+        if (output == nullptr) { return cast<string>(nullptr); }
         local hexChars: string = "0123456789ABCDEF";
         local hexPtr: *u8 = cast<*u8>(hexChars);
 
@@ -65,8 +73,11 @@ struct Hex {
         if (str == nullptr) {
             return Hex.encode(nullptr, 0);
         }
-        local len: int = cast<int>(strlen(str));
-        return Hex.encode(cast<*u8>(str), len);
+        local len: long = strlen(str);
+        if (len > cast<long>(1073741823)) {
+            throw "Hex encoded length exceeds int";
+        }
+        return Hex.encode(cast<*u8>(str), cast<int>(len));
     }
 
     # Convert a hex character to its value (0-15), or -1 for invalid
@@ -180,6 +191,7 @@ struct Hex {
     # Convert a single byte to 2-char hex string (lowercase)
     frame byteToHex(b: u8) ret string {
         local output: *u8 = cast<*u8>(malloc(cast<long>(3)));
+        if (output == nullptr) { return cast<string>(nullptr); }
         local hexChars: string = "0123456789abcdef";
         local hexPtr: *u8 = cast<*u8>(hexChars);
 
@@ -195,6 +207,7 @@ struct Hex {
     # Convert a u32 to hex string (lowercase, no prefix)
     frame u32ToHex(val: u32) ret string {
         local output: *u8 = cast<*u8>(malloc(cast<long>(9)));
+        if (output == nullptr) { return cast<string>(nullptr); }
         local hexChars: string = "0123456789abcdef";
         local hexPtr: *u8 = cast<*u8>(hexChars);
 
@@ -213,6 +226,7 @@ struct Hex {
     # Convert a u64 to hex string (lowercase, no prefix)
     frame u64ToHex(val: u64) ret string {
         local output: *u8 = cast<*u8>(malloc(cast<long>(17)));
+        if (output == nullptr) { return cast<string>(nullptr); }
         local hexChars: string = "0123456789abcdef";
         local hexPtr: *u8 = cast<*u8>(hexChars);
 

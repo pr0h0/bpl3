@@ -243,6 +243,12 @@ Hexadecimal encoding and decoding.
 Encoding helpers return caller-owned allocations, including empty results and
 null-input results. Release them with `free(cast<*void>(result))`.
 
+Hex encoding returns `nullptr` on allocation failure. `encode` and `encodeUpper`
+throw `"Hex encoded length exceeds int"` for non-null input longer than
+1,073,741,823 bytes. `encodeString` checks this limit before narrowing the string
+length to `int`. Null input or a nonpositive byte count still produces an empty
+result when allocation succeeds.
+
 A string is accepted exactly when it decodes: an optional `0x` or `0X` prefix,
 then pairs of hex digits. Whitespace separates pairs but may not split one, so
 `"41 42"` is two bytes and `"4 142"` is refused, matching Python's
