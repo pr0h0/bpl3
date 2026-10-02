@@ -66,6 +66,11 @@ struct Vec3: Equatable<Vec3>, Cloneable<Vec3> {
         component factored out so no square overflows on its own.
     #/
     frame length(this: *Vec3) ret float {
+        # Classify non-finite components before normalization can form inf/inf.
+        if (Math.isInfinite(this.x)) { return Math.abs(this.x); }
+        if (Math.isInfinite(this.y)) { return Math.abs(this.y); }
+        if (Math.isInfinite(this.z)) { return Math.abs(this.z); }
+        if (Math.isNan(this.x) || Math.isNan(this.y) || Math.isNan(this.z)) { return this.x + this.y + this.z; }
         local largest: float = Math.abs(this.x);
         local absY: float = Math.abs(this.y);
         local absZ: float = Math.abs(this.z);
@@ -86,6 +91,11 @@ struct Vec3: Equatable<Vec3>, Cloneable<Vec3> {
 
     /# Unit vector in the same direction, scaled as Vec2.normalize is. #/
     frame normalize(this: *Vec3) ret Vec3 {
+        # A NaN direction is not the zero vector, even if all other axes are zero.
+        if (Math.isNan(this.x) || Math.isNan(this.y) || Math.isNan(this.z)) {
+            local invalid: float = this.x + this.y + this.z;
+            return Vec3.new(invalid, invalid, invalid);
+        }
         local largest: float = Math.abs(this.x);
         local absY: float = Math.abs(this.y);
         local absZ: float = Math.abs(this.z);

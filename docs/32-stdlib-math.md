@@ -111,3 +111,14 @@ frame main() {
     printf("factorial(5) = %ld\n", Math.factorial(5));
 }
 ```
+
+
+## Vector magnitudes
+
+`Vec2.length()` and `Vec3.length()` scale finite components before squaring to
+avoid unnecessary overflow and underflow. An infinite component gives positive
+infinity, including when another component is NaN. Otherwise, a NaN component
+gives NaN. This matches `Complex.abs()` classification.
+
+`normalize()` keeps zero vectors at zero. A vector containing NaN produces NaN
+components rather than silently becoming a zero vector.

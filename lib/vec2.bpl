@@ -55,6 +55,10 @@ struct Vec2: Equatable<Vec2>, Cloneable<Vec2> {
         factored out so squaring cannot overflow or underflow on its own.
     #/
     frame length(this: *Vec2) ret float {
+        # Classify non-finite components before normalization can form inf/inf.
+        if (Math.isInfinite(this.x)) { return Math.abs(this.x); }
+        if (Math.isInfinite(this.y)) { return Math.abs(this.y); }
+        if (Math.isNan(this.x) || Math.isNan(this.y)) { return this.x + this.y; }
         local larger: float = Math.abs(this.x);
         local smaller: float = Math.abs(this.y);
         if (larger < smaller) {
@@ -77,6 +81,11 @@ struct Vec2: Equatable<Vec2>, Cloneable<Vec2> {
         zero vector instead.
     #/
     frame normalize(this: *Vec2) ret Vec2 {
+        # A NaN direction is not the zero vector, even if all other axes are zero.
+        if (Math.isNan(this.x) || Math.isNan(this.y)) {
+            local invalid: float = this.x + this.y;
+            return Vec2.new(invalid, invalid);
+        }
         local largest: float = Math.abs(this.x);
         local absY: float = Math.abs(this.y);
         if (largest < absY) {
