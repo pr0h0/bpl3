@@ -528,8 +528,10 @@ logarithm. These fixes change generated fractions, ranges, and Gaussian sequence
 from earlier releases. They do not remove the correlations or limited state space
 of the underlying LCG. `nextBool` and `fillBytes` still use its low bits, which
 have short repeating patterns; use OS entropy for security-sensitive randomness.
-`weightedChoice` still requires nonnegative weights with a positive total fitting
-signed int; overflow and invalid weights are not checked.
+`weightedChoice` requires nonnegative weights with a positive total fitting
+signed int. Negative weights, an empty or all-zero array, and a total above
+2,147,483,647 throw a string error before advancing the generator. Valid weights
+retain their deterministic selection sequence; zero-weight entries are not selected.
 
 ## Additional modules and implementation status
 

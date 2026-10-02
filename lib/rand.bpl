@@ -111,12 +111,22 @@ struct Rand {
         local n: int = weights.len();
         local i: int = 0;
         loop (i < n) {
-            total = total + weights.get(i);
+            local weight: int = weights.get(i);
+            if (weight < 0) {
+                throw "Rand.weightedChoice requires nonnegative weights";
+            }
+            # Validate before addition so overflow cannot select a zero-weight
+            # entry. Invalid input must not advance the generator state.
+            if (weight > (2147483647 - total)) {
+                throw "Rand.weightedChoice total exceeds int";
+            }
+            total = total + weight;
             i = i + 1;
         }
 
-        if (total <= 0) 
-            return 0;
+        if (total == 0) {
+            throw "Rand.weightedChoice requires a positive total";
+        }
         local target: int = this.range(0, total);
         local cumulative: int = 0;
         i = 0;
