@@ -166,7 +166,12 @@ struct Stats {
 
     # Calculate the range (max - min) of an integer array
     frame range(data: *int, length: int) ret int {
-        return Stats.max(data, length) - Stats.min(data, length);
+        local span: long = cast<long>(Stats.max(data, length))
+                        - cast<long>(Stats.min(data, length));
+        if (span > cast<long>(2147483647)) {
+            throw "Stats.range result exceeds int";
+        }
+        return cast<int>(span);
     }
 
     # Calculate the range of a float array

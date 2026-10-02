@@ -97,7 +97,7 @@ Statistical functions for numerical analysis.
 - `Stats.min(data: *float, length: int) ret float`
 - `Stats.max(data: *int, length: int) ret int` - Maximum value
 - `Stats.max(data: *float, length: int) ret float`
-- `Stats.range(data: *int, length: int) ret int` - Max - Min
+- `Stats.range(data: *int, length: int) ret int` - Max - Min; throws `"Stats.range result exceeds int"` if the difference exceeds 2,147,483,647
 - `Stats.range(data: *float, length: int) ret float`
 - `Stats.variance(data: *int, length: int) ret float` - Population variance
 - `Stats.variance(data: *float, length: int) ret float`
