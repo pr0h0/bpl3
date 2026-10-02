@@ -77,8 +77,8 @@ global const LN10: float = 2.30258509299404568402;
 
 | Function                              | Description             |
 | ------------------------------------- | ----------------------- |
-| `Math.gcd(a: int, b: int) ret int`    | Greatest common divisor |
-| `Math.lcm(a: int, b: int) ret int`    | Least common multiple   |
+| `Math.gcd(a: int, b: int) ret long`    | Greatest common divisor |
+| `Math.lcm(a: int, b: int) ret long`    | Least common multiple   |
 | `Math.factorial(n: int) ret long`     | Factorial (n!)          |
 | `Math.fibonacci(n: int) ret long`     | Fibonacci number        |
 | `Math.isPowerOfTwo(x: int) ret bool`  | Check if power of two   |
@@ -107,7 +107,7 @@ frame main() {
     # Other functions
     printf("sqrt(16) = %f\n", Math.sqrt(16.0));
     printf("pow(2, 8) = %f\n", Math.pow(2.0, 8.0));
-    printf("gcd(48, 18) = %d\n", Math.gcd(48, 18));
+    printf("gcd(48, 18) = %ld\n", Math.gcd(48, 18));
     printf("factorial(5) = %ld\n", Math.factorial(5));
 }
 ```
