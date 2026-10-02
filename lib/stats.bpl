@@ -301,6 +301,9 @@ struct Stats {
     /# Restore the heap property at root within the first count elements. #/
     frame siftDown(data: *int, root: int, count: int) {
         loop (true) {
+            # Leaf nodes have no children. Stop before doubling a leaf index,
+            # which can otherwise overflow and turn into a negative offset.
+            if (root >= (count / 2)) { return; }
             local largest: int = root;
             local left: int = (2 * root) + 1;
             local right: int = left + 1;
@@ -346,6 +349,9 @@ struct Stats {
 
     frame siftDownFloat(data: *float, root: int, count: int) {
         loop (true) {
+            # Leaf nodes have no children. Stop before doubling a leaf index,
+            # which can otherwise overflow and turn into a negative offset.
+            if (root >= (count / 2)) { return; }
             local largest: int = root;
             local left: int = (2 * root) + 1;
             local right: int = left + 1;
