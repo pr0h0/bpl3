@@ -295,6 +295,9 @@ struct Math {
     }
 
     frame nextPowerOfTwo(x: int) ret int {
+        if (x <= 1) { return 1; }
+        # 2^30 is the largest positive power of two in a signed int.
+        if (x > 1073741824) { throw "Math.nextPowerOfTwo result exceeds int"; }
         local n: int = x - 1;
         n = n | (n >> 1);
         n = n | (n >> 2);

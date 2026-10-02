@@ -132,3 +132,9 @@ exact results through n=92 and throws `"Math.fibonacci result exceeds long"`
 above that bound. Both reject oversized inputs before entering their loops.
 The existing nonpositive-input behavior is unchanged: factorial returns 1,
 and Fibonacci returns 0.
+
+
+`nextPowerOfTwo(x)` returns the smallest positive power of two at least x.
+Inputs at or below 1 return 1. Inputs above 1,073,741,824 throw
+`"Math.nextPowerOfTwo result exceeds int"` because the next power cannot fit
+in a positive signed `int`.
