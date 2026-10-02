@@ -224,6 +224,10 @@ agree. `decode` and `decodedLength` return `-1` for input that is not valid
 Base64, `decode` also for a null output pointer, and `decodeToString` returns
 `nullptr` in those cases; `decodedLength` is exact, not an upper bound.
 
+Encoded input longer than 2,147,483,647 bytes is rejected before scanning:
+`decodedLength` and `decode` return `-1`, `isValid` returns `false`, and
+`decodeToString` returns `nullptr`.
+
 - `Base64.encode(data: *u8, length: int) ret string`
 - `Base64.encodeString(str: string) ret string`
 - `Base64.decode(input: string, output: *u8) ret int` — bytes written, or `-1`
@@ -259,6 +263,10 @@ refused rather than ending the decode early.
 agree. `decode` and `decodedLength` return `-1` for input that is not valid
 hex, `decode` also for a null output pointer, and `decodeToString` returns
 `nullptr` in those cases; `decodedLength` discounts whitespace and the prefix.
+
+Encoded input longer than 2,147,483,647 bytes is rejected before scanning:
+`decodedLength` and `decode` return `-1`, `isValid` returns `false`, and
+`decodeToString` returns `nullptr`.
 
 - `Hex.encode(data: *u8, length: int) ret string`
 - `Hex.encodeUpper(data: *u8, length: int) ret string`

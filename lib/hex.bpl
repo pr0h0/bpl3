@@ -119,7 +119,12 @@ struct Hex {
             return -1;
         }
         local ptr: *u8 = cast<*u8>(input);
-        local len: int = cast<int>(strlen(input));
+        # Reject oversized input before narrowing the scan indices to int.
+        local inputLength: long = strlen(input);
+        if (inputLength > cast<long>(2147483647)) {
+            return -1;
+        }
+        local len: int = cast<int>(inputLength);
 
         # Skip optional 0x prefix
         if (len >= 2) {
