@@ -535,6 +535,7 @@ struct Stats {
         local scan: int = 0;
         loop (scan < length) {
             local sample: float = *(data + scan);
+            if (Math.isNan(sample)) { return sample; }
             if (sample <= 0.0) {
                 return 0.0; # Harmonic mean undefined for non-positive values
             }
@@ -543,6 +544,10 @@ struct Stats {
             }
             scan = scan + 1;
         }
+
+        # All positive samples are infinite: their reciprocals are zero,
+        # so the harmonic mean is positive infinity. Avoid inf/inf below.
+        if (Math.isInfinite(smallest)) { return smallest; }
 
         local scaledSum: float = 0.0;
         local i: int = 0;

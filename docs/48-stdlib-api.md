@@ -108,6 +108,10 @@ Statistical functions for numerical analysis.
 - `Stats.median(data: *int, length: int) ret float` - Median value
 - `Stats.median(data: *float, length: int) ret float`
 
+`Stats.harmonicMean(data: *float, length: int)` returns positive infinity when
+all samples are positive infinity. In a mixture with finite positive samples,
+infinite samples contribute zero reciprocals.
+
 ### Complex (`std/complex.bpl`)
 
 Complex number arithmetic.
