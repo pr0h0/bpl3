@@ -91,7 +91,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         if ((this.data == nullptr) || (substr == nullptr)) {
             return false;
         }
-        local substrLen: int = strlen(substr);
+        local substrLen: long = strlen(substr);
         # Every string contains the empty string, which is also what
         # indexOf, startsWith, and endsWith report for an empty argument.
         if (substrLen == 0) {
@@ -441,7 +441,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
     frame startsWith(this: *String, prefix: string) ret bool {
         if ((this.data == nullptr) || (prefix == nullptr)) 
             return false;
-        local prefixLen: int = strlen(prefix);
+        local prefixLen: long = strlen(prefix);
         if (prefixLen > this.length) 
             return false;
         if (prefixLen == 0) 
@@ -459,7 +459,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
     frame endsWith(this: *String, suffix: string) ret bool {
         if ((this.data == nullptr) || (suffix == nullptr)) 
             return false;
-        local suffixLen: int = strlen(suffix);
+        local suffixLen: long = strlen(suffix);
         if (suffixLen > this.length) 
             return false;
         if (suffixLen == 0) 
@@ -716,7 +716,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
     frame indexOf(this: *String, substr: string) ret int {
         if ((this.data == nullptr) || (substr == nullptr)) 
             return -1;
-        local subLen: int = strlen(substr);
+        local subLen: long = strlen(substr);
         if (subLen == 0) 
             return 0;
         if (subLen > this.length) 
@@ -743,7 +743,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
     frame lastIndexOf(this: *String, substr: string) ret int {
         if ((this.data == nullptr) || (substr == nullptr)) 
             return -1;
-        local subLen: int = strlen(substr);
+        local subLen: long = strlen(substr);
         if (subLen == 0) 
             return this.length;
         if (subLen > this.length) 
@@ -770,7 +770,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
     frame count(this: *String, substr: string) ret int {
         if ((this.data == nullptr) || (substr == nullptr)) 
             return 0;
-        local subLen: int = strlen(substr);
+        local subLen: long = strlen(substr);
         if (subLen == 0) 
             return 0;
         if (subLen > this.length) 
