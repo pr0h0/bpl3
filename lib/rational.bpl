@@ -62,6 +62,9 @@ struct Rational {
     #/
     frame gcd(a: long, b: long) ret long {
         loop (b != cast<long>(0)) {
+            # Every integer is divisible by -1. Avoid LONG_MIN % -1,
+            # whose quotient is outside long even though its remainder is zero.
+            if (b == cast<long>(-1)) { return cast<long>(1); }
             local temp: long = b;
             b = a % b;
             a = temp;
