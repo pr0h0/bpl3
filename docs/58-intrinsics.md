@@ -63,6 +63,14 @@ These methods are available on `int`, `long`, `uint`, and `ulong` types.
 | `byteSwap()`      | Reverses the byte order of the value (useful for endianness conversion).     | `llvm.bswap`      |
 | `reverseBits()`   | Reverses the bits of the value.                                              | `llvm.bitreverse` |
 
+The `Int`, `UInt`, `Long`, `ULong`, `Short`, and `UShort` wrappers in
+`std/primitives.bpl` expose the same five operations on their stored value.
+Operations use the wrapper's width: 16 bits for `Short`/`UShort`, 32 bits for
+`Int`/`UInt`, and 64 bits for `Long`/`ULong`. Leading and trailing zero counts
+of zero equal that width. Signed values are interpreted by their bit pattern.
+`Short` and `UShort` return `uint`, with swapped or reversed bits in the low
+16 bits; `Long` returns `long`, preserving signed 64-bit result patterns.
+
 ### Examples
 
 ```bpl

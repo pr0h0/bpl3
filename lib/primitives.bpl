@@ -157,19 +157,19 @@ struct Long: Comparable<Long> {
 
     # Bit Manipulation Intrinsics
     frame popCount(this: *Long) ret long {
-        return 0;
+        return this.value.popCount();
     }
     frame leadingZeros(this: *Long) ret long {
-        return 0;
+        return this.value.leadingZeros();
     }
     frame trailingZeros(this: *Long) ret long {
-        return 0;
+        return this.value.trailingZeros();
     }
     frame byteSwap(this: *Long) ret long {
-        return 0;
+        return this.value.byteSwap();
     }
     frame reverseBits(this: *Long) ret long {
-        return 0;
+        return this.value.reverseBits();
     }
 }
 
@@ -213,19 +213,25 @@ struct Short {
 
     # Bit Manipulation Intrinsics
     frame popCount(this: *Short) ret uint {
-        return 0;
+        local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
+        return bits.popCount();
     }
     frame leadingZeros(this: *Short) ret uint {
-        return 0;
+        local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
+        return bits.leadingZeros() - cast<uint>(16);
     }
     frame trailingZeros(this: *Short) ret uint {
-        return 0;
+        local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
+        if (bits == cast<uint>(0)) { return cast<uint>(16); }
+        return bits.trailingZeros();
     }
     frame byteSwap(this: *Short) ret uint {
-        return 0;
+        local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
+        return bits.byteSwap() >> cast<uint>(16);
     }
     frame reverseBits(this: *Short) ret uint {
-        return 0;
+        local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
+        return bits.reverseBits() >> cast<uint>(16);
     }
 }
 
@@ -243,19 +249,25 @@ struct UShort {
 
     # Bit Manipulation Intrinsics
     frame popCount(this: *UShort) ret uint {
-        return 0;
+        local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
+        return bits.popCount();
     }
     frame leadingZeros(this: *UShort) ret uint {
-        return 0;
+        local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
+        return bits.leadingZeros() - cast<uint>(16);
     }
     frame trailingZeros(this: *UShort) ret uint {
-        return 0;
+        local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
+        if (bits == cast<uint>(0)) { return cast<uint>(16); }
+        return bits.trailingZeros();
     }
     frame byteSwap(this: *UShort) ret uint {
-        return 0;
+        local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
+        return bits.byteSwap() >> cast<uint>(16);
     }
     frame reverseBits(this: *UShort) ret uint {
-        return 0;
+        local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
+        return bits.reverseBits() >> cast<uint>(16);
     }
 }
 
@@ -272,19 +284,19 @@ struct UInt {
     }
     # Bit Manipulation Intrinsics
     frame popCount(this: *UInt) ret uint {
-        return 0;
+        return this.value.popCount();
     }
     frame leadingZeros(this: *UInt) ret uint {
-        return 0;
+        return this.value.leadingZeros();
     }
     frame trailingZeros(this: *UInt) ret uint {
-        return 0;
+        return this.value.trailingZeros();
     }
     frame byteSwap(this: *UInt) ret uint {
-        return 0;
+        return this.value.byteSwap();
     }
     frame reverseBits(this: *UInt) ret uint {
-        return 0;
+        return this.value.reverseBits();
     }
 }
 
@@ -301,19 +313,19 @@ struct ULong {
     }
     # Bit Manipulation Intrinsics
     frame popCount(this: *ULong) ret ulong {
-        return 0;
+        return this.value.popCount();
     }
     frame leadingZeros(this: *ULong) ret ulong {
-        return 0;
+        return this.value.leadingZeros();
     }
     frame trailingZeros(this: *ULong) ret ulong {
-        return 0;
+        return this.value.trailingZeros();
     }
     frame byteSwap(this: *ULong) ret ulong {
-        return 0;
+        return this.value.byteSwap();
     }
     frame reverseBits(this: *ULong) ret ulong {
-        return 0;
+        return this.value.reverseBits();
     }
 }
 
