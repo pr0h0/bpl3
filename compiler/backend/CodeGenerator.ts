@@ -314,7 +314,9 @@ export class CodeGenerator extends StatementGenerator {
     this.emitDeclaration(`@exception_value = external global i64`);
     this.emitDeclaration(`@exception_type = external global i32`);
     this.emitDeclaration(`@__bpl_stack_depth = external global i32`);
-    this.emitDeclaration(`@__bpl_stack_limit = external dso_local global i8*`);
+    // The runtime may be linked into a shared library. Do not force a local
+    // relocation for its externally defined state; let clang honor -fPIC.
+    this.emitDeclaration(`@__bpl_stack_limit = external global i8*`);
 
     // Global argc/argv for Args library
     this.emitDeclaration(`@__bpl_argc_value = external global i32`);

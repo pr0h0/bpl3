@@ -86,9 +86,9 @@ describe("CodeGen - Stack Overflow", () => {
     const ir = generateOptimized(source);
 
     expect(ir).toContain(
-      "@__bpl_stack_limit = external dso_local global i8*",
+      "@__bpl_stack_limit = external global i8*",
     );
-    expect(ir).not.toContain("@__bpl_stack_limit = external global i8*");
+    expect(ir).not.toContain("@__bpl_stack_limit = external dso_local global i8*");
     expect(ir).toContain("declare void @__bpl_throw_stack_overflow()");
     expect(ir).toContain("call i8* @llvm.stacksave()");
     expect(ir).toContain("declare i8* @llvm.stacksave()");
@@ -174,7 +174,7 @@ describe("CodeGen - Stack Overflow", () => {
     const ir = generateOptimized(source);
 
     expect(ir).toContain(
-      "@__bpl_stack_limit = external dso_local global i8*",
+      "@__bpl_stack_limit = external global i8*",
     );
     expect(ir).toContain("declare void @__bpl_throw_stack_overflow()");
     const recurBody = ir.match(
@@ -429,7 +429,7 @@ describe("CodeGen - Stack Overflow", () => {
     const ir = generateOptimized(source);
 
     expect(ir).not.toContain(
-      "@__bpl_stack_limit = external dso_local global i8*",
+      "@__bpl_stack_limit = external global i8*",
     );
     expect(ir).not.toContain("declare void @__bpl_throw_stack_overflow()");
     expect(ir).not.toContain("call void @__bpl_throw_stack_overflow()");

@@ -189,3 +189,97 @@ publishing bindings for a library. Complex macros, inline functions, function
 pointer callback parameters or fields, packed layouts, bitfields, and nested
 anonymous structs/unions still need manual wrappers or a future libclang-backed
 binding pass.
+
+## Calling BPL from other languages
+
+BPL module `export` declarations do **not** create a stable C export name or
+convert a BPL function's aggregate calling convention into the C ABI. Use a
+small C adapter with scalar/pointer signatures for a foreign-facing library.
+The executable fixtures in `tests/fixtures/interop` show this approach:
+
+1. Compile `library.bpl` with the TypeScript `Compiler` API, setting
+   `resolveImports: true`, `requireEntryPoint: false`, and the desired
+   `optimizationLevel`. Save the returned `output` as LLVM IR.
+2. Compile that IR and `bridge.c` with clang using `-shared -fPIC`, linking the
+   runtime files returned by `resolveNativeRuntimeFiles({ irPath })` and `-lm`.
+3. Foreign callers use the declarations in `bridge.h`. The adapter refers to
+   BPL's generated function names, so rebuild and verify it when those names
+   or signatures change.
+
+`tools/test_interop.ts` implements these steps. This is currently an API-based
+workflow: the executable CLI still requires `main`, and there is no dedicated
+stable C-export/library command. Do not directly declare a by-value BPL struct
+function as a C function; outbound extern lowering does not apply in reverse.
+Pass pointers to plain C-compatible structs through the adapter instead.
+
+### Type and ownership rules
+
+| BPL boundary type | C boundary type | Notes |
+| --- | --- | --- |
+| `int` / `uint` | `int32_t` / `uint32_t` | Use fixed widths in bindings |
+| `long` / `ulong` | `int64_t` / `uint64_t` | C `long` is not 64-bit on every target |
+| `f32` | `float` | 32-bit floating point |
+| `float` / `double` | `double` | 64-bit floating point |
+| `bool` | C `_Bool`, C++ `bool` | Use the declared boolean ABI |
+| `string` | NUL-terminated byte pointer | No ownership transfer is implied |
+| `*T` | Pointer to matching layout | Caller keeps storage alive |
+| `Func<R>(...)` | C function pointer | Scalar/pointer signatures only |
+
+A `Lambda` carries a BPL closure context and cannot replace a C function
+pointer. Python `ctypes` callbacks and Bun `JSCallback` objects must remain
+alive for every native call that can use them. The fixtures use synchronous
+callbacks and release callback resources afterward.
+
+Catch errors before returning across the foreign boundary. Do not unwind C++
+exceptions, Rust panics, Go panics, or BPL exceptions through another language's
+frames. The native runtime currently keeps exception/defer/stack-limit state
+in process-global storage; these tests do not establish thread-safe embedding
+or support for arbitrary foreign-thread callbacks.
+
+### Language-specific adapters
+
+- **C:** use fixed-width types and the C-compatible struct layout.
+- **C++:** expose providers with `extern "C"`; wrap classes, templates, and
+  exceptions behind that interface.
+- **Rust:** expose `extern "C"` functions and use `#[repr(C)]` for structs.
+  The checked fixture uses Rust edition 2021 and `#[no_mangle]`. Keep Rust-owned
+  values alive while BPL borrows their pointers.
+- **Go:** use cgo and `//export` with `-buildmode=c-shared` for providers.
+  Callback invocation needs a small C helper. Respect cgo pointer/lifetime
+  rules; Go's native calling convention is not the C ABI.
+- **Python:** use `ctypes.CDLL`, explicit `argtypes`/`restype`, and `CFUNCTYPE`
+  callbacks. This tests Python calling BPL and BPL calling back into Python,
+  not embedding a Python interpreter in a standalone BPL executable.
+- **JavaScript:** the native fixture uses Bun's `bun:ffi`, with `BigInt` for
+  64-bit integers. It is not a Node.js native-addon test; Node needs a separate
+  addon or an appropriate WebAssembly integration.
+
+## Executable interoperability matrix
+
+Run the Linux x86-64 host checks with installed clang/clang++, Python, and Bun:
+
+```bash
+bun tools/test_interop.ts
+```
+
+To add Go and Rust without installing their compilers on the host:
+
+```bash
+docker pull golang:1-bookworm
+docker pull rust:1-bookworm
+bun tools/test_interop.ts --docker
+```
+
+Containers have networking disabled during compilation and execution, mount
+fixtures read-only, and write into a temporary work directory as the invoking
+user. The directory is removed after the test; downloaded Docker images remain.
+The Docker option deliberately selects these images for reproducible toolchain
+isolation. It is separate from the default CI-safe suite.
+
+The matrix checks `-O0` and `-O3`, 64-bit integer values, `f32`, signed 16-bit
+values and booleans on outbound calls, small and large by-value outbound
+structs, pointer-based inbound structs, and callbacks in both directions.
+`tests/InteropNative.test.ts` runs the host subset in the normal test suite when
+its Linux x86-64 toolchains are available. Cross-target ABI declaration tests
+remain in `tests/CAbiLowering.test.ts`; native execution on Linux does not
+establish runtime compatibility on Windows, macOS, or other architectures.
