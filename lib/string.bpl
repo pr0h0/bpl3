@@ -170,8 +170,11 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         if (other.data == nullptr) {
             return this.clone();
         }
-        local newLen: int = this.length + other.length;
-        local newData: string = malloc(cast<long>(newLen + 1));
+        local size: long = cast<long>(this.length) + cast<long>(other.length);
+        if (size > cast<long>(2147483646)) { throw "String concatenation result too large"; }
+        local newLen: int = cast<int>(size);
+        local newData: string = malloc(size + 1);
+        if (newData == nullptr) { throw "String concatenation allocation failed"; }
         strcpy(newData, this.data);
         strcat(newData, other.data);
         local result: String;
@@ -184,8 +187,8 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
     # Allows: str + "literal" without needing String.new()
     frame __add__(this: *String, other: string) ret String {
         local otherStr: String = String.new(other);
+        defer { otherStr.destroy(); }
         local result: String = this.__add__(otherStr);
-        otherStr.destroy();
         return result;
     }
 
@@ -263,8 +266,11 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             this.length = newStr.length;
             return *this;
         }
-        local newLen: int = this.length + other.length;
-        local newData: string = malloc(cast<long>(newLen + 1));
+        local size: long = cast<long>(this.length) + cast<long>(other.length);
+        if (size > cast<long>(2147483646)) { throw "String concatenation result too large"; }
+        local newLen: int = cast<int>(size);
+        local newData: string = malloc(size + 1);
+        if (newData == nullptr) { throw "String concatenation allocation failed"; }
         strcpy(newData, this.data);
         strcat(newData, other.data);
         free(this.data);
@@ -277,8 +283,8 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
     # Allows: str << "literal" without needing String.new()
     frame __lshift__(this: *String, other: string) ret String {
         local otherStr: String = String.new(other);
+        defer { otherStr.destroy(); }
         local result: String = this.__lshift__(otherStr);
-        otherStr.destroy();
         return result;
     }
 

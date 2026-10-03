@@ -150,3 +150,11 @@ replacement rules as `String.replaceAll` and returns an owned `String`. Empty or
 null search patterns return a copy; null replacement text deletes matches.
 Temporary storage is released before returning, and the caller must destroy the
 result.
+
+## Concatenation failures
+
+`+` and `<<` reject a combined length above 2,147,483,646 bytes with
+`"String concatenation result too large"`. Allocation failure throws
+`"String concatenation allocation failed"`. Failed in-place concatenation leaves
+the original string unchanged, and the C-string overloads release their temporary
+copies on both success and failure.
