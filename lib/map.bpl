@@ -260,18 +260,33 @@ struct Map<K, V>: Iterable<Pair<K, V>>, Destructible, Equatable<Map<K, V>> {
         }
         if (capacity <= cast<long>(this.buckets.len())) { return; }
         local replacement: Array<*MapNode<K, V>> = Array<*MapNode<K, V>>.new(cast<int>(capacity));
+        local replacementPtr: *Array<*MapNode<K, V>> = &replacement;
+        defer { replacementPtr.destroy(); }
         if (replacement.data == nullptr) {
             throw Error.new("Unable to allocate Map buckets");
         }
         loop (local i: int = 0; i < cast<int>(capacity); i = i + 1) {
             replacement.push(nullptr);
         }
+        # Hash every node before changing any links: user hashers can throw.
+        local destinations: Array<int> = Array<int>.new(this.count);
+        local destinationsPtr: *Array<int> = &destinations;
+        defer { destinationsPtr.destroy(); }
         local hash: Func<u64>(*K) = this.hasher;
         loop (local i: int = 0; i < this.buckets.len(); i = i + 1) {
             local node: *MapNode<K, V> = this.buckets.get(i);
             loop (node != nullptr) {
+                destinations.push(cast<int>(hash(&node.key) % cast<u64>(capacity)));
+                node = node.next;
+            }
+        }
+        local destinationIndex: int = 0;
+        loop (local i: int = 0; i < this.buckets.len(); i = i + 1) {
+            local node: *MapNode<K, V> = this.buckets.get(i);
+            loop (node != nullptr) {
                 local next: *MapNode<K, V> = node.next;
-                local bucket: int = cast<int>(hash(&node.key) % cast<u64>(capacity));
+                local bucket: int = destinations.get(destinationIndex);
+                destinationIndex = destinationIndex + 1;
                 node.next = replacement.get(bucket);
                 replacement.set(bucket, node);
                 node = next;
@@ -279,6 +294,10 @@ struct Map<K, V>: Iterable<Pair<K, V>>, Destructible, Equatable<Map<K, V>> {
         }
         this.buckets.destroy();
         this.buckets = replacement;
+        # Ownership has moved to the map; deferred cleanup only owns scratch.
+        replacement.data = nullptr;
+        replacement.length = 0;
+        replacement.capacity = 0;
     }
 
     frame bucketCount(this: *Map<K, V>) ret int {

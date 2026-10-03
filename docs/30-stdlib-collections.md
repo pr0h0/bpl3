@@ -48,6 +48,11 @@ if (m.has("age")) {
 m.destroy();
 ```
 
+`reserve` computes all new bucket destinations before relinking entries. If a
+custom hasher throws or temporary allocation fails, the existing entries and
+bucket count remain unchanged. Temporary rehash storage is released on failure.
+Hash and equality callbacks must not mutate the map while it is operating.
+
 ## Set<T>
 
 A collection of unique values.
