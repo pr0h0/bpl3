@@ -136,7 +136,10 @@ See [the deque example](../examples/stdlib_deque/main.bpl).
 
 ## LinkedList<T>
 
-A doubly linked list.
+A doubly linked list. `pushFront` and `pushBack` throw
+`"LinkedList capacity exceeded"` when the length is already 2,147,483,647, or
+`"LinkedList allocation failed"` when a node cannot be allocated. Either failure
+leaves the list unchanged.
 
 ```bpl
 import [LinkedList] from "std/linked_list.bpl";

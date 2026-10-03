@@ -60,7 +60,9 @@ struct LinkedList<T>: Iterable<T>, Destructible {
     }
 
     frame pushBack(this: *LinkedList<T>, value: T) {
+        if (this.length == 2147483647) { throw "LinkedList capacity exceeded"; }
         local node: *ListNode<T> = cast<*ListNode<T>>(malloc(sizeof<ListNode<T>>()));
+        if (node == nullptr) { throw "LinkedList allocation failed"; }
         node.value = value;
         node.next = nullptr;
         node.prev = this.tail;
@@ -75,7 +77,9 @@ struct LinkedList<T>: Iterable<T>, Destructible {
     }
 
     frame pushFront(this: *LinkedList<T>, value: T) {
+        if (this.length == 2147483647) { throw "LinkedList capacity exceeded"; }
         local node: *ListNode<T> = cast<*ListNode<T>>(malloc(sizeof<ListNode<T>>()));
+        if (node == nullptr) { throw "LinkedList allocation failed"; }
         node.value = value;
         node.next = this.head;
         node.prev = nullptr;
