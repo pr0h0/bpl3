@@ -23,9 +23,12 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             s.length = 0;
             return s;
         }
-        local len: int = strlen(text);
-        s.length = len;
-        s.data = malloc(cast<long>(len + 1));
+        local len: long = strlen(text);
+        # Keep the terminator representable alongside the signed-int length.
+        if (len > cast<long>(2147483646)) { throw "String.new input too large"; }
+        s.length = cast<int>(len);
+        s.data = malloc(len + 1);
+        if (s.data == nullptr) { throw "String.new allocation failed"; }
         strcpy(s.data, text);
         return s;
     }

@@ -10,7 +10,10 @@ import [String] from "std/string.bpl";
 
 ## Ownership and representation
 
-`String.new(text)` copies a non-null C string. `clone()` copies its storage.
+`String.new(text)` copies a non-null C string. It throws
+`"String.new input too large"` above 2,147,483,646 bytes, or
+`"String.new allocation failed"` if allocation fails. `String.new(nullptr)` creates an empty value with no allocation. A failed
+`assign(text)` leaves the previous contents intact. `clone()` copies its storage.
 `toString()` and `cstr()` return borrowed pointers, valid only while the string
 storage remains alive and unchanged. Do not free those borrowed pointers.
 Assigning a `String` value copies its pointer and length; it does not clone its
