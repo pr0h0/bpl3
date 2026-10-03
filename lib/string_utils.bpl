@@ -5,7 +5,6 @@ export [StringUtils];
 import [String] from "std/string.bpl";
 extern strlen(s: string) ret long;
 extern malloc(size: long) ret string;
-extern free(ptr: string) ret void;
 extern printf(fmt: string, ...) ret int;
 
 struct StringUtils {
@@ -53,7 +52,9 @@ struct StringUtils {
     }
 
     frame trim(s: string) ret String {
-        local len: int = strlen(s);
+        local length: long = strlen(s);
+        if (length > cast<long>(2147483646)) { throw "StringUtils.trim input too large"; }
+        local len: int = cast<int>(length);
         local start: int = 0;
         local end: int = len - 1;
         # Trim leading spaces (ASCII 32)
@@ -75,32 +76,40 @@ struct StringUtils {
             return String.new("");
         }
         local buf: string = cast<string>(malloc(cast<long>(newlen + 1)));
+        if (buf == nullptr) { throw "StringUtils.trim allocation failed"; }
         local i: int = 0;
         loop (i < newlen) {
             buf[i] = s[start + i];
             i = i + 1;
         }
         buf[newlen] = 0;
-        local res: String = String.new(buf);
-        free(buf);
+        local res: String;
+        res.data = buf;
+        res.length = newlen;
         return res;
     }
 
     frame replaceChar(s: string, target: char, repl: char) ret String {
-        local len: int = strlen(s);
+        local length: long = strlen(s);
+        if (length > cast<long>(2147483646)) { throw "StringUtils.replaceChar input too large"; }
+        local len: int = cast<int>(length);
         local buf: string = cast<string>(malloc(cast<long>(len + 1)));
+        if (buf == nullptr) { throw "StringUtils.replaceChar allocation failed"; }
         local i: int = 0;
         loop (i < len) {
             local c: char = s[i];
             if (c == target) {
                 c = repl;
             }
+            # Preserve C-string semantics when replacement introduces NUL.
+            if (c == 0) { break; }
             buf[i] = c;
             i = i + 1;
         }
-        buf[len] = 0;
-        local res: String = String.new(buf);
-        free(buf);
+        buf[i] = 0;
+        local res: String;
+        res.data = buf;
+        res.length = i;
         return res;
     }
 

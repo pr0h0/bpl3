@@ -136,7 +136,7 @@ append a NUL terminator. Surrogates (U+D800–U+DFFF) and values above U+10FFFF
 encode as U+FFFD rather than producing invalid UTF-8.
 
 
-## C-string search utilities
+## C-string utilities
 
 `StringUtils.findString(haystack, needle, start)` searches from a byte offset and
 returns the first matching `int` index, or -1. Null inputs, negative offsets,
@@ -150,6 +150,15 @@ replacement rules as `String.replaceAll` and returns an owned `String`. Empty or
 null search patterns return a copy; null replacement text deletes matches.
 Temporary storage is released before returning, and the caller must destroy the
 result.
+
+`StringUtils.trim(text)` removes leading and trailing ASCII spaces (byte 32).
+`StringUtils.replaceChar(text, target, replacement)` replaces matching bytes;
+a NUL replacement ends the result at the first replaced byte. Both take non-null
+C strings and return owned `String` values. Inputs above 2,147,483,646 bytes throw
+`"StringUtils.trim input too large"` or `"StringUtils.replaceChar input too large"`.
+Their direct allocations throw `"StringUtils.trim allocation failed"` or
+`"StringUtils.replaceChar allocation failed"` on failure; an empty trim result
+uses `String.new` and its allocation error.
 
 ## Concatenation failures
 
