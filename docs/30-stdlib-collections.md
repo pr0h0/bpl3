@@ -57,6 +57,10 @@ custom hasher throws or temporary allocation fails, the existing entries and
 bucket count remain unchanged. Temporary rehash storage is released on failure.
 Hash and equality callbacks must not mutate the map while it is operating.
 
+`set` throws `"Map node allocation failed"` if a new entry cannot be allocated.
+Existing entries and the entry count remain intact; bucket capacity may already
+have grown. Updating an existing key does not allocate a node.
+
 ## Set<T>
 
 A collection of unique values.

@@ -325,6 +325,9 @@ struct Map<K, V>: Iterable<Pair<K, V>>, Destructible, Equatable<Map<K, V>> {
         idx = this._getBucketIndex(key);
         head = this.buckets.get(idx);
         local node: *MapNode<K, V> = cast<*MapNode<K, V>>(malloc(sizeof<MapNode<K, V>>()));
+        if (node == nullptr) {
+            throw "Map node allocation failed";
+        }
         node.key = key;
         node.value = value;
         node.next = head;
