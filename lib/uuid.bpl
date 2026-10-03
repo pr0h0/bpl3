@@ -60,6 +60,7 @@ struct UUID {
     # Returns a newly allocated string (caller must free)
     frame toString(this: *UUID) ret string {
         local output: *u8 = cast<*u8>(malloc(cast<long>(37)));
+        if (output == nullptr) { return cast<string>(nullptr); }
         local hexChars: string = "0123456789abcdef";
         local hexPtr: *u8 = cast<*u8>(hexChars);
 

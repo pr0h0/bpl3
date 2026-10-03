@@ -346,7 +346,8 @@ purpose-built authentication-token protocol.
 hyphenated form; hexadecimal letters may be upper- or lowercase. Invalid input
 returns nil. `tryFromString(text, output)` distinguishes invalid input from a valid
 nil UUID, returns false for a null destination, and leaves the destination
-unchanged on failure. `toString()` returns allocated storage that the caller must free.
+unchanged on failure. `toString()` returns allocated storage that the caller must free,
+or `nullptr` if allocation fails.
 
 **Creation:**
 
