@@ -290,6 +290,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     frame fromInt(val: long) ret String {
         local buf: string = malloc(32); # Enough for 64-bit int
+        if (buf == nullptr) { throw "String.fromInt allocation failed"; }
         sprintf(buf, "%ld", val);
         local s: String;
         s.data = buf;
@@ -299,6 +300,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     frame fromAddress(addr: long) ret String {
         local buf: string = malloc(32); # Enough for 64-bit hex
+        if (buf == nullptr) { throw "String.fromAddress allocation failed"; }
         sprintf(buf, "%#lx", addr);
         local s: String;
         s.data = buf;
@@ -330,6 +332,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             realLen = remaining;
         }
         local buf: string = malloc(cast<long>(realLen + 1));
+        if (buf == nullptr) { throw "String.substring allocation failed"; }
         local ptr: *u8 = cast<*u8>(this.data);
         local dest: *u8 = cast<*u8>(buf);
         local i: int = 0;
@@ -480,6 +483,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             return String.new("");
         }
         local buf: string = malloc(cast<long>(this.length + 1));
+        if (buf == nullptr) { throw "String.toUpper allocation failed"; }
         local i: int = 0;
         loop (i < this.length) {
             local c: char = this.get(i);
@@ -505,6 +509,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             return String.new("");
         }
         local buf: string = malloc(cast<long>(this.length + 1));
+        if (buf == nullptr) { throw "String.toLower allocation failed"; }
         local i: int = 0;
         loop (i < this.length) {
             local c: char = this.get(i);
@@ -557,11 +562,13 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Pad string on the left to reach target length
     frame padLeft(this: *String, targetLen: int, padChar: char) ret String {
+        if (targetLen > 2147483646) { throw "String.padLeft result too large"; }
         if (this.length >= targetLen) {
             return this.clone();
         }
         local padCount: int = targetLen - this.length;
-        local buf: string = malloc(cast<long>(targetLen + 1));
+        local buf: string = malloc(cast<long>(targetLen) + 1);
+        if (buf == nullptr) { throw "String.padLeft allocation failed"; }
 
         local i: int = 0;
         loop (i < padCount) {
@@ -584,10 +591,12 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Pad string on the right to reach target length
     frame padRight(this: *String, targetLen: int, padChar: char) ret String {
+        if (targetLen > 2147483646) { throw "String.padRight result too large"; }
         if (this.length >= targetLen) {
             return this.clone();
         }
-        local buf: string = malloc(cast<long>(targetLen + 1));
+        local buf: string = malloc(cast<long>(targetLen) + 1);
+        if (buf == nullptr) { throw "String.padRight allocation failed"; }
 
         local i: int = 0;
         loop (i < this.length) {
@@ -613,6 +622,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             return String.new("");
         }
         local buf: string = malloc(cast<long>(this.length + 1));
+        if (buf == nullptr) { throw "String.reverse allocation failed"; }
         local i: int = 0;
         loop (i < this.length) {
             buf[i] = this.get(this.length - 1 - i);

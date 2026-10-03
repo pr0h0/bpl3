@@ -168,3 +168,13 @@ checked whether a match and its result fit. If replacement would exceed
 `"String.replace allocation failed"` or `"String.replaceAll allocation failed"`.
 If nothing matches, they return an owned copy without inspecting the replacement.
 The source string remains unchanged.
+
+## Transformation allocation failures
+
+`fromInt`, `fromAddress`, `substring`, `toUpper`, `toLower`, `padLeft`, `padRight`,
+and `reverse` throw a string exception when their output allocation fails. On
+paths that allocate directly, the error is `"String.<method> allocation failed"`;
+empty or unchanged-result paths may use `String.new` and its allocation error.
+`padLeft` and `padRight` reject widths above 2,147,483,646 with
+`"String.padLeft result too large"` or `"String.padRight result too large"`.
+These methods leave the source unchanged.
