@@ -8,6 +8,16 @@ cleanup; it is not garbage-collected and its `destroy` method is not marked
 import [String] from "std/string.bpl";
 ```
 
+## Primitive formatting
+
+Numeric and character wrappers in `std/primitives.bpl` return an owned `String`
+from `toString()`. Destroy that result after use. Formatting uses bounded local
+scratch storage and allocates the final string through `String.new`.
+`Double.toString()` retains `%f` formatting (six fractional digits by default),
+including for large finite values. Formatter errors or insufficient scratch
+space throw `"Primitive formatting failed"`; final allocation failures propagate
+from `String.new`.
+
 ## Ownership and representation
 
 `String.new(text)` copies a non-null C string. It throws

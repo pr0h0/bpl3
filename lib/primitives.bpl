@@ -12,11 +12,13 @@ extern free(ptr: string) ret void;
 struct Int: Comparable<Int> {
     value: int,
     frame toString(this: *Int) ret String {
-        local buf: string = malloc(32);
-        sprintf(buf, "%d", this.value);
-        local s: String = String.new(buf);
-        free(buf);
-        return s;
+        local buffer: char[32];
+        local buf: string = cast<string>(&buffer[0]);
+        local written: int = snprintf(buf, 32, "%d", this.value);
+        if ((written < 0) || (written >= 32)) {
+            throw "Primitive formatting failed";
+        }
+        return String.new(buf);
     }
 
     # Comparable implementation
@@ -91,11 +93,13 @@ struct Bool: Comparable<Bool> {
 struct Double: Comparable<Double> {
     value: double,
     frame toString(this: *Double) ret String {
-        local buf: string = malloc(64);
-        sprintf(buf, "%f", this.value);
-        local s: String = String.new(buf);
-        free(buf);
-        return s;
+        local buffer: char[512];
+        local buf: string = cast<string>(&buffer[0]);
+        local written: int = snprintf(buf, 512, "%f", this.value);
+        if ((written < 0) || (written >= 512)) {
+            throw "Primitive formatting failed";
+        }
+        return String.new(buf);
     }
 
     # Comparable implementation
@@ -122,11 +126,13 @@ struct Double: Comparable<Double> {
 struct Long: Comparable<Long> {
     value: long,
     frame toString(this: *Long) ret String {
-        local buf: string = malloc(32);
-        sprintf(buf, "%lld", this.value);
-        local s: String = String.new(buf);
-        free(buf);
-        return s;
+        local buffer: char[32];
+        local buf: string = cast<string>(&buffer[0]);
+        local written: int = snprintf(buf, 32, "%lld", this.value);
+        if ((written < 0) || (written >= 32)) {
+            throw "Primitive formatting failed";
+        }
+        return String.new(buf);
     }
 
     # Comparable implementation
@@ -170,33 +176,39 @@ struct Long: Comparable<Long> {
 struct Char {
     value: char,
     frame toString(this: *Char) ret String {
-        local buf: string = malloc(8);
-        sprintf(buf, "%c", cast<int>(this.value));
-        local s: String = String.new(buf);
-        free(buf);
-        return s;
+        local buffer: char[8];
+        local buf: string = cast<string>(&buffer[0]);
+        local written: int = snprintf(buf, 8, "%c", cast<int>(this.value));
+        if ((written < 0) || (written >= 8)) {
+            throw "Primitive formatting failed";
+        }
+        return String.new(buf);
     }
 }
 
 struct UChar {
     value: uchar,
     frame toString(this: *UChar) ret String {
-        local buf: string = malloc(8);
-        sprintf(buf, "%c", cast<uint>(this.value));
-        local s: String = String.new(buf);
-        free(buf);
-        return s;
+        local buffer: char[8];
+        local buf: string = cast<string>(&buffer[0]);
+        local written: int = snprintf(buf, 8, "%c", cast<uint>(this.value));
+        if ((written < 0) || (written >= 8)) {
+            throw "Primitive formatting failed";
+        }
+        return String.new(buf);
     }
 }
 
 struct Short {
     value: short,
     frame toString(this: *Short) ret String {
-        local buf: string = malloc(16);
-        sprintf(buf, "%hd", cast<int>(this.value));
-        local s: String = String.new(buf);
-        free(buf);
-        return s;
+        local buffer: char[16];
+        local buf: string = cast<string>(&buffer[0]);
+        local written: int = snprintf(buf, 16, "%hd", cast<int>(this.value));
+        if ((written < 0) || (written >= 16)) {
+            throw "Primitive formatting failed";
+        }
+        return String.new(buf);
     }
 
     # Bit Manipulation Intrinsics
@@ -220,11 +232,13 @@ struct Short {
 struct UShort {
     value: ushort,
     frame toString(this: *UShort) ret String {
-        local buf: string = malloc(16);
-        sprintf(buf, "%d", cast<int>(this.value));
-        local s: String = String.new(buf);
-        free(buf);
-        return s;
+        local buffer: char[16];
+        local buf: string = cast<string>(&buffer[0]);
+        local written: int = snprintf(buf, 16, "%d", cast<int>(this.value));
+        if ((written < 0) || (written >= 16)) {
+            throw "Primitive formatting failed";
+        }
+        return String.new(buf);
     }
 
     # Bit Manipulation Intrinsics
@@ -248,11 +262,13 @@ struct UShort {
 struct UInt {
     value: uint,
     frame toString(this: *UInt) ret String {
-        local buf: string = malloc(16);
-        sprintf(buf, "%u", this.value);
-        local s: String = String.new(buf);
-        free(buf);
-        return s;
+        local buffer: char[16];
+        local buf: string = cast<string>(&buffer[0]);
+        local written: int = snprintf(buf, 16, "%u", this.value);
+        if ((written < 0) || (written >= 16)) {
+            throw "Primitive formatting failed";
+        }
+        return String.new(buf);
     }
     # Bit Manipulation Intrinsics
     frame popCount(this: *UInt) ret uint {
@@ -275,11 +291,13 @@ struct UInt {
 struct ULong {
     value: ulong,
     frame toString(this: *ULong) ret String {
-        local buf: string = malloc(32);
-        sprintf(buf, "%llu", this.value);
-        local s: String = String.new(buf);
-        free(buf);
-        return s;
+        local buffer: char[32];
+        local buf: string = cast<string>(&buffer[0]);
+        local written: int = snprintf(buf, 32, "%llu", this.value);
+        if ((written < 0) || (written >= 32)) {
+            throw "Primitive formatting failed";
+        }
+        return String.new(buf);
     }
     # Bit Manipulation Intrinsics
     frame popCount(this: *ULong) ret ulong {
