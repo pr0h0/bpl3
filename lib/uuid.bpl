@@ -196,7 +196,7 @@ struct UUID {
             return false;
         }
         local ptr: *u8 = cast<*u8>(str);
-        local len: int = cast<int>(strlen(str));
+        local len: long = strlen(str);
 
         # Check for standard format with dashes
         if (len == 36) {
