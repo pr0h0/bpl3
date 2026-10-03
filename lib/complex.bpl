@@ -9,6 +9,7 @@ import [Math] from "std/math.bpl";
 # representable still yields a representable result.
 extern frexp(value: float, exponent: *int) ret float;
 extern ldexp(value: float, exponent: int) ret float;
+extern log1p(value: float) ret float;
 
 struct Complex {
     real: float,
@@ -255,7 +256,24 @@ struct Complex {
 
     # Calculate the natural logarithm ln(z) = ln|z| + i*arg(z)
     frame log(this: *Complex) ret Complex {
-        return Complex.new(Math.log(this.abs()), this.phase());
+        # Compute log(magnitude) without first rounding or overflowing the
+        # magnitude itself. log1p preserves tiny corrections near unit size.
+        if (Math.isInfinite(this.real) || Math.isInfinite(this.imag)
+            || Math.isNan(this.real) || Math.isNan(this.imag)) {
+            return Complex.new(Math.log(this.abs()), this.phase());
+        }
+        local larger: float = Math.abs(this.real);
+        local smaller: float = Math.abs(this.imag);
+        if (larger < smaller) {
+            local swap: float = larger;
+            larger = smaller;
+            smaller = swap;
+        }
+        if (larger == 0.0) {
+            return Complex.new(Math.log(larger), this.phase());
+        }
+        local ratio: float = smaller / larger;
+        return Complex.new(Math.log(larger) + (0.5 * log1p(ratio * ratio)), this.phase());
     }
 
     # Calculate z^n for integer n

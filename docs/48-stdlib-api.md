@@ -157,6 +157,11 @@ Complex number arithmetic.
 - `c.sin() ret Complex`
 - `c.cos() ret Complex`
 
+`Complex.log()` computes its real part without materializing the magnitude,
+avoiding intermediate overflow for large finite components and preserving
+small logarithmic corrections near unit magnitude. Its imaginary part is the
+phase returned by `atan2`.
+
 ### Rational (`std/rational.bpl`)
 
 Rational number (fraction) arithmetic.
