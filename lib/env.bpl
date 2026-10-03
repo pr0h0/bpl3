@@ -30,7 +30,7 @@ struct Env {
 
     # Get an environment variable with a default value if not found
     frame getOr(name: string, defaultValue: string) ret string {
-        local val: string = getenv(name);
+        local val: string = Env.get(name);
         if (val == nullptr) {
             return defaultValue;
         }
@@ -66,12 +66,12 @@ struct Env {
 
     # Check if an environment variable exists
     frame has(name: string) ret bool {
-        return getenv(name) != nullptr;
+        return Env.get(name) != nullptr;
     }
 
     # Check if an environment variable exists and is non-empty
     frame hasValue(name: string) ret bool {
-        local val: string = getenv(name);
+        local val: string = Env.get(name);
         if (val == nullptr) {
             return false;
         }
@@ -145,7 +145,7 @@ struct Env {
 
     # Get environment variable as integer, with default
     frame getInt(name: string, defaultValue: int) ret int {
-        local val: string = getenv(name);
+        local val: string = Env.get(name);
         if (val == nullptr) {
             return defaultValue;
         }
@@ -183,7 +183,7 @@ struct Env {
     # Get environment variable as boolean
     # Considers "1", "true", "yes", "on" as true (case insensitive)
     frame getBool(name: string, defaultValue: bool) ret bool {
-        local val: string = getenv(name);
+        local val: string = Env.get(name);
         if (val == nullptr) {
             return defaultValue;
         }

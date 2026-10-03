@@ -376,6 +376,8 @@ or `nullptr` if allocation fails.
 ### Env (`std/env.bpl`)
 
 Environment variable utilities using POSIX `getenv`/`setenv`/`unsetenv`.
+Null names are treated as missing by queries: getters return their supplied
+default, and `has`/`hasValue` return `false`. Mutations return `false` for null names.
 Getters return borrowed environment pointers or supplied/default literals;
 do not free them. Mutating the environment can invalidate borrowed pointers.
 These APIs are not a portable Windows environment abstraction.
