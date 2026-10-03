@@ -103,7 +103,7 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
     #/
     frame get(this: *Array<T>, index: int) ret T {
         if ((index < 0) || (index >= this.length)) {
-            throw IndexOutOfBoundsError { index: index, size: this.length };
+            throw IndexOutOfBoundsError.new(index, this.length);
         }
         return this.data[index];
     }
@@ -115,7 +115,7 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
     #/
     frame getRef(this: *Array<T>, index: int) ret *T {
         if ((index < 0) || (index >= this.length)) {
-            throw IndexOutOfBoundsError { index: index, size: this.length };
+            throw IndexOutOfBoundsError.new(index, this.length);
         }
         return &this.data[index];
     }
@@ -125,7 +125,7 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
     #/
     frame set(this: *Array<T>, index: int, value: T) {
         if ((index < 0) || (index >= this.length)) {
-            throw IndexOutOfBoundsError { index: index, size: this.length };
+            throw IndexOutOfBoundsError.new(index, this.length);
         }
         this.data[index] = value;
     }
@@ -176,7 +176,7 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
     # Removes the element at index by shifting items left.
     frame removeAt(this: *Array<T>, index: int) {
         if ((index < 0) || (index >= this.length)) {
-            throw IndexOutOfBoundsError { index: index, size: this.length };
+            throw IndexOutOfBoundsError.new(index, this.length);
         }
         local i: int = index;
         loop (i < (this.length - 1)) {
