@@ -249,7 +249,8 @@ struct Rational {
         }
         local result: Rational = Rational.one();
         local base: Rational = *this;
-        local exp: int = n;
+        # Widen before negating so INT_MIN becomes a positive magnitude.
+        local exp: long = cast<long>(n);
 
         if (exp < 0) {
             base = base.reciprocal();
