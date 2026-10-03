@@ -150,7 +150,7 @@ struct Env {
             return defaultValue;
         }
         local ptr: *u8 = cast<*u8>(val);
-        local result: int = 0;
+        local result: long = 0;
         local negative: bool = false;
 
         # Handle optional sign
@@ -162,11 +162,16 @@ struct Env {
             # '+'
             ptr = ptr + 1;
         }
+        # Require at least one digit and bound each step before narrowing.
+        if (*ptr == cast<u8>(0)) { return defaultValue; }
+        local limit: long = 2147483647;
+        if (negative) { limit = 2147483648; }
         # Parse digits
         loop (*ptr != cast<u8>(0)) {
             local c: u8 = *ptr;
             if ((c >= cast<u8>(48)) && (c <= cast<u8>(57))) {
-                result = (result * 10) + cast<int>(c - cast<u8>(48));
+                result = (result * 10) + cast<long>(c - cast<u8>(48));
+                if (result > limit) { return defaultValue; }
             } else {
                 # Non-digit encountered
                 return defaultValue;
@@ -177,7 +182,7 @@ struct Env {
         if (negative) {
             result = -result;
         }
-        return result;
+        return cast<int>(result);
     }
 
     # Get environment variable as boolean
