@@ -116,13 +116,19 @@ struct Rational {
         local common: long = Rational.gcd(ad, bd);
         local aScale: long = ad / common;
         local bScale: long = bd / common;
-        local restDen: long = ad * bScale;
-
-        # Both parts are non-negative and each is below the common
-        # denominator, so their sum fits u64 even when it exceeds long. It is
-        # reduced there before being brought back.
         local restNum: u64 = cast<u64>(aRest * bScale) + cast<u64>(bRest * aScale);
-        local restDenWide: u64 = cast<u64>(restDen);
+        # Reduce against the separate denominator factors before multiplying.
+        # The unreduced least common denominator can exceed even u64 while
+        # the reduced result still fits long.
+        local denA: u64 = cast<u64>(ad);
+        local denB: u64 = cast<u64>(bScale);
+        local factor: u64 = Rational.gcdWide(restNum, denA);
+        restNum = restNum / factor;
+        denA = denA / factor;
+        factor = Rational.gcdWide(restNum, denB);
+        restNum = restNum / factor;
+        denB = denB / factor;
+        local restDenWide: u64 = denA * denB;
 
         local whole: long = aWhole + bWhole;
         if (restNum >= restDenWide) {
