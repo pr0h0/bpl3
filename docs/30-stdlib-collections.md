@@ -65,6 +65,10 @@ have grown. Updating an existing key does not allocate a node.
 
 A collection of unique values.
 
+`union`, `difference`, and `intersection` release partially built result storage
+if hashing, equality, or allocation throws. Elements are shallow copies; owned
+resources inside keys remain the caller's responsibility.
+
 ```bpl
 import [Set] from "std/set.bpl";
 

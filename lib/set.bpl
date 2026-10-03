@@ -75,6 +75,10 @@ struct Set<T>: Iterable<T>, Destructible {
     # Returns a new set containing elements from both sets (union)
     frame union(this: *Set<T>, other: *Set<T>) ret Set<T> {
         local result: Set<T> = Set<T>.new(this.size() + other.size(), this.inner.hasher, this.inner.equaler);
+        local resultPtr: *Set<T> = &result;
+        local completed: bool = false;
+        local completedPtr: *bool = &completed;
+        defer { if (!*completedPtr) { resultPtr.destroy(); } }
 
         # Add all elements from this set
         local it: SetIterator<T> = this.iterator();
@@ -96,12 +100,17 @@ struct Set<T>: Iterable<T>, Destructible {
             result.add(opt.unwrap());
         }
 
+        completed = true;
         return result;
     }
 
     # Returns a new set containing elements in this but not in other (difference)
     frame difference(this: *Set<T>, other: *Set<T>) ret Set<T> {
         local result: Set<T> = Set<T>.new(this.size(), this.inner.hasher, this.inner.equaler);
+        local resultPtr: *Set<T> = &result;
+        local completed: bool = false;
+        local completedPtr: *bool = &completed;
+        defer { if (!*completedPtr) { resultPtr.destroy(); } }
 
         local it: SetIterator<T> = this.iterator();
         loop {
@@ -115,12 +124,17 @@ struct Set<T>: Iterable<T>, Destructible {
             }
         }
 
+        completed = true;
         return result;
     }
 
     # Returns a new set containing elements in both sets (intersection)
     frame intersection(this: *Set<T>, other: *Set<T>) ret Set<T> {
         local result: Set<T> = Set<T>.new(this.size(), this.inner.hasher, this.inner.equaler);
+        local resultPtr: *Set<T> = &result;
+        local completed: bool = false;
+        local completedPtr: *bool = &completed;
+        defer { if (!*completedPtr) { resultPtr.destroy(); } }
 
         local it: SetIterator<T> = this.iterator();
         loop {
@@ -134,6 +148,7 @@ struct Set<T>: Iterable<T>, Destructible {
             }
         }
 
+        completed = true;
         return result;
     }
 
