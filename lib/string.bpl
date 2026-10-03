@@ -631,18 +631,24 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         if ((this.data == nullptr) || (old == nullptr)) {
             return this.clone();
         }
-        local oldLen: int = strlen(old);
-        local newLen: int = 0;
-        if (newStr != nullptr) 
-            newLen = strlen(newStr);
-        if (oldLen == 0) 
+        local oldLength: long = strlen(old);
+        if ((oldLength == 0) || (oldLength > cast<long>(this.length))) {
             return this.clone();
+        }
+        local oldLen: int = cast<int>(oldLength);
         # Find first occurrence
         local pos: int = this.indexOf(old);
         if (pos < 0) 
             return this.clone();
-        local resultLen: int = (this.length - oldLen) + newLen;
-        local buf: string = malloc(cast<long>(resultLen + 1));
+        local newLength: long = 0;
+        if (newStr != nullptr) { newLength = strlen(newStr); }
+        if (newLength > cast<long>(2147483646)) { throw "String.replace result too large"; }
+        local size: long = cast<long>(this.length - oldLen) + newLength;
+        if (size > cast<long>(2147483646)) { throw "String.replace result too large"; }
+        local newLen: int = cast<int>(newLength);
+        local resultLen: int = cast<int>(size);
+        local buf: string = malloc(size + 1);
+        if (buf == nullptr) { throw "String.replace allocation failed"; }
 
         # Copy before match
         local i: int = 0;
@@ -675,10 +681,9 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
     # Replace non-overlapping matches in the original input; never rescan replacements.
     frame replaceAll(this: *String, old: string, newStr: string) ret String {
         if ((this.data == nullptr) || (old == nullptr)) { return this.clone(); }
-        local oldLen: int = strlen(old);
-        if (oldLen == 0) { return this.clone(); }
-        local newLen: int = 0;
-        if (newStr != nullptr) { newLen = strlen(newStr); }
+        local oldLength: long = strlen(old);
+        if ((oldLength == 0) || (oldLength > cast<long>(this.length))) { return this.clone(); }
+        local oldLen: int = cast<int>(oldLength);
         local count: int = 0;
         local i: int = 0;
         loop (i <= this.length - oldLen) {
@@ -688,6 +693,10 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             else { i = i + 1; }
         }
         if (count == 0) { return this.clone(); }
+        local newLength: long = 0;
+        if (newStr != nullptr) { newLength = strlen(newStr); }
+        if (newLength > cast<long>(2147483646)) { throw "String.replaceAll result too large"; }
+        local newLen: int = cast<int>(newLength);
         local size: long = cast<long>(this.length) + cast<long>(count) * (cast<long>(newLen) - cast<long>(oldLen));
         # String lengths are signed int; leave room for the terminator.
         if (size > 2147483646) { throw "String.replaceAll result too large"; }

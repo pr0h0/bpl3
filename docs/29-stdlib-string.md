@@ -158,3 +158,13 @@ result.
 `"String concatenation allocation failed"`. Failed in-place concatenation leaves
 the original string unchanged, and the C-string overloads release their temporary
 copies on both success and failure.
+
+## Replacement failures
+
+Both `replace` and `replaceAll` keep the full C-string lengths until they have
+checked whether a match and its result fit. If replacement would exceed
+2,147,483,646 bytes, they throw `"String.replace result too large"` or
+`"String.replaceAll result too large"`. Allocation failure throws the corresponding
+`"String.replace allocation failed"` or `"String.replaceAll allocation failed"`.
+If nothing matches, they return an owned copy without inspecting the replacement.
+The source string remains unchanged.
