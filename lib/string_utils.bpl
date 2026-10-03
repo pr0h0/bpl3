@@ -23,12 +23,12 @@ struct StringUtils {
     }
 
     frame endsWith(s: string, suffix: string) ret bool {
-        local ls: int = strlen(s);
-        local lf: int = strlen(suffix);
+        local ls: long = strlen(s);
+        local lf: long = strlen(suffix);
         if (lf > ls) {
             return false;
         }
-        local i: int = 0;
+        local i: long = 0;
         loop (i < lf) {
             local cs: char = s[(ls - lf) + i];
             local cf: char = suffix[i];
