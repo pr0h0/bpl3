@@ -183,6 +183,9 @@ struct MapIterator<K, V>: Iterator<Pair<K, V>> {
     currentNode: *MapNode<K, V>,
 
     frame next(this: *MapIterator<K, V>) ret Option<Pair<K, V>> {
+        if (this.bucketIndex >= this.map.buckets.len()) {
+            return Option<Pair<K, V>>.None;
+        }
         loop {
             if (this.currentNode != nullptr) {
                 local p: Pair<K, V>;
