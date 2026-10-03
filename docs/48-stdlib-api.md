@@ -407,7 +407,7 @@ These APIs are not a portable Windows environment abstraction.
 **Type Conversion:**
 
 - `Env.getInt(name: string, defaultValue: int) ret int` — optional sign followed by decimal digits; missing, empty, malformed, or out-of-range values return the default
-- `Env.getBool(name: string, defaultValue: bool) ret bool`
+- `Env.getBool(name: string, defaultValue: bool) ret bool` — accepts exactly `1`/`0`, `true`/`false`, `yes`/`no`, or `on`/`off` (words ignore case); otherwise returns the default
 
 ---
 

@@ -196,11 +196,11 @@ struct Env {
         local c: u8 = *ptr;
 
         # Check first character
-        if (c == cast<u8>(49)) {
+        if ((c == cast<u8>(49)) && (*(ptr + 1) == cast<u8>(0))) {
             # '1'
             return true;
         }
-        if (c == cast<u8>(48)) {
+        if ((c == cast<u8>(48)) && (*(ptr + 1) == cast<u8>(0))) {
             # '0'
             return false;
         }
