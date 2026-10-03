@@ -53,7 +53,9 @@ BPL's primitive integer types (`int`, `long`, `uint`, `ulong`) expose built-in m
 
 ### Available Methods
 
-These methods are available on `int`, `long`, `uint`, and `ulong` types.
+These methods are available on `int`, `long`, `uint`, `ulong`, `short`, and
+`ushort` types. Direct `short` and `ushort` calls return `uint`; bit-pattern
+results are zero-extended from 16 bits.
 
 | Method            | Description                                                                  | LLVM Intrinsic    |
 | ----------------- | ---------------------------------------------------------------------------- | ----------------- |

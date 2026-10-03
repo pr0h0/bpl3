@@ -749,46 +749,35 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         if (this.isIntegerType(resolvedType)) {
           const method = memberExpr.property;
 
-          if (method === "popCount") {
+          const bitIntrinsics: Record<string, string> = {
+            popCount: "ctpop",
+            leadingZeros: "ctlz",
+            trailingZeros: "cttz",
+            byteSwap: "bswap",
+            reverseBits: "bitreverse",
+          };
+          const intrinsic = Object.hasOwn(bitIntrinsics, method)
+            ? bitIntrinsics[method]
+            : undefined;
+          if (intrinsic) {
             const val = this.generateExpression(memberExpr.object);
             const width = this.getBitWidth(resolvedType);
             const reg = this.newRegister();
+            const zeroFlag = intrinsic === "ctlz" || intrinsic === "cttz"
+              ? ", i1 false"
+              : "";
             this.emit(
-              `  ${reg} = call ${resolvedType} @llvm.ctpop.i${width}(${resolvedType} ${val})`,
+              `  ${reg} = call ${resolvedType} @llvm.${intrinsic}.i${width}(${resolvedType} ${val}${zeroFlag})`,
             );
-            return reg;
-          } else if (method === "leadingZeros") {
-            const val = this.generateExpression(memberExpr.object);
-            const width = this.getBitWidth(resolvedType);
-            const reg = this.newRegister();
-            this.emit(
-              `  ${reg} = call ${resolvedType} @llvm.ctlz.i${width}(${resolvedType} ${val}, i1 false)`,
-            );
-            return reg;
-          } else if (method === "trailingZeros") {
-            const val = this.generateExpression(memberExpr.object);
-            const width = this.getBitWidth(resolvedType);
-            const reg = this.newRegister();
-            this.emit(
-              `  ${reg} = call ${resolvedType} @llvm.cttz.i${width}(${resolvedType} ${val}, i1 false)`,
-            );
-            return reg;
-          } else if (method === "byteSwap") {
-            const val = this.generateExpression(memberExpr.object);
-            const width = this.getBitWidth(resolvedType);
-            const reg = this.newRegister();
-            this.emit(
-              `  ${reg} = call ${resolvedType} @llvm.bswap.i${width}(${resolvedType} ${val})`,
-            );
-            return reg;
-          } else if (method === "reverseBits") {
-            const val = this.generateExpression(memberExpr.object);
-            const width = this.getBitWidth(resolvedType);
-            const reg = this.newRegister();
-            this.emit(
-              `  ${reg} = call ${resolvedType} @llvm.bitreverse.i${width}(${resolvedType} ${val})`,
-            );
-            return reg;
+            const resultType = this.resolveType(expr.resolvedType!);
+            if (resultType === resolvedType) return reg;
+            // Narrow integer methods inherit a uint return type from their
+            // wrappers. Their intrinsic result is an unsigned bit pattern,
+            // even when the receiver is signed (e.g. short.reverseBits()).
+            const result = this.newRegister();
+            const cast = this.getBitWidth(resultType) > width ? "zext" : "trunc";
+            this.emit(`  ${result} = ${cast} ${resolvedType} ${reg} to ${resultType}`);
+            return result;
           }
         }
       }
