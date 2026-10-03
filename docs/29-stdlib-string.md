@@ -19,6 +19,20 @@ storage remains alive and unchanged. Do not free those borrowed pointers.
 Assigning a `String` value copies its pointer and length; it does not clone its
 storage. Destroying both shallow copies would free the same allocation twice.
 
+`defer` also captures values by copy. If a string's storage may change before
+cleanup, capture a pointer to the variable so cleanup uses its current buffer:
+
+```bpl
+local s: String = String.new("before");
+local sPtr: *String = &s;
+defer { sPtr.destroy(); }
+s.assign("after");
+```
+
+Using `defer { s.destroy(); }` here would retain the old buffer, which `assign`
+already frees. That form is suitable only when the string keeps the same buffer
+until cleanup.
+
 `length` counts bytes. Embedded NUL bytes are not supported as string content.
 Indexing, substring, reversal, and case conversion operate on bytes; case
 conversion handles ASCII letters, not general Unicode case mappings. Use the
