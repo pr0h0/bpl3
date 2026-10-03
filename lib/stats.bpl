@@ -452,6 +452,8 @@ struct Stats {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
+        # A NaN percentile has no meaningful rank, even for a singleton.
+        if (p != p) { return p; }
         if (p < 0.0) {
             p = 0.0;
         }

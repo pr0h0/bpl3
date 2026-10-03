@@ -112,6 +112,10 @@ Statistical functions for numerical analysis.
 all samples are positive infinity. In a mixture with finite positive samples,
 infinite samples contribute zero reciprocals.
 
+`Stats.percentile(data: *float, length: int, p: float)` sorts the samples and
+interpolates at percentile `p`, clamping it to 0–100. A NaN percentile returns
+NaN before sorting nonempty input. Null or empty input returns zero.
+
 ### Complex (`std/complex.bpl`)
 
 Complex number arithmetic.
