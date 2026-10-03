@@ -16,6 +16,10 @@ local val: int = arr.get(0);
 arr.destroy();
 ```
 
+`map` and `filter` release their result-array buffer if a callback throws and
+propagate the original exception. Elements are shallow values: callbacks remain
+responsible for any separately allocated resources they create.
+
 ## Map<K, V>
 
 A key-value store backed by hash buckets and collision chains. Insertion grows

@@ -193,17 +193,26 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
     # Maps elements to a new array using a transformation function
     frame map<U>(this: *Array<T>, transform: Lambda<U>(T, int)) ret Array<U> {
         local result: Array<U> = Array<U>.new(this.capacity);
+        local resultPtr: *Array<U> = &result;
+        local completed: bool = false;
+        local completedPtr: *bool = &completed;
+        defer { if (!*completedPtr) { resultPtr.destroy(); } }
         local i: int = 0;
         loop (i < this.length) {
             result.push(transform(this.data[i], i));
             i = i + 1;
         }
+        completed = true;
         return result;
     }
 
     # Filters elements based on a predicate function
     frame filter(this: *Array<T>, predicate: Lambda<bool>(T, int)) ret Array<T> {
         local result: Array<T> = Array<T>.new(this.capacity);
+        local resultPtr: *Array<T> = &result;
+        local completed: bool = false;
+        local completedPtr: *bool = &completed;
+        defer { if (!*completedPtr) { resultPtr.destroy(); } }
         local i: int = 0;
         loop (i < this.length) {
             if (predicate(this.data[i], i)) {
@@ -211,6 +220,7 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
             }
             i = i + 1;
         }
+        completed = true;
         return result;
     }
 
