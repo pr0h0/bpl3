@@ -1,6 +1,7 @@
 import type * as AST from "../../common/AST";
 import { CompilerError, type SourceLocation } from "../../common/CompilerError";
 import { getPrimitiveType } from "../../common/PrimitiveTypes";
+import { getArrayAliasPointer } from "../../common/ArrayAliasPointer";
 
 export const EXTERN_ABI_UNSUPPORTED_CODE = "BPL_EXTERN_ABI_UNSUPPORTED";
 
@@ -59,7 +60,6 @@ function validateValue(
   if (isScalarOrPointer(type)) return;
   if (
     type.kind === "BasicType" &&
-    type.pointerDepth === 0 &&
     type.arrayDimensions.length > 0
   ) {
     reject(location, "arrays and slices (pass a pointer)");
@@ -72,7 +72,11 @@ function validateValue(
 function isScalarOrPointer(type: AST.TypeNode): boolean {
   if (type.kind !== "BasicType") return false;
   if (type.pointerDepth > 0) {
-    return type.isPointerToArray === true || type.arrayDimensions.length === 0;
+    return (
+      type.isPointerToArray === true ||
+      type.arrayDimensions.length === 0 ||
+      getArrayAliasPointer(type) !== undefined
+    );
   }
   return (
     type.arrayDimensions.length === 0 &&

@@ -11,6 +11,9 @@ const invalid = [
   "extern bad(p:(int,int));",
   "extern bad(p:int[]);",
   "extern bad(p:int[2]);",
+  "type Row=int[2]; extern bad(p:Row);",
+  "type Row=int[2]; extern bad(p:*Row[3]);",
+  "extern bad(p:*int[2]);",
   "extern bad(p:Lambda<int>(int));",
   "extern bad(p:Func<int>(int)[2]);",
   "extern bad(p:Func<int>(int)[]);",
@@ -31,6 +34,10 @@ const invalid = [
 ];
 const valid = [
   "extern ok(p: Pair) ret int;",
+  "type Row=int[2]; extern ok(p:*Row) ret *Row;",
+  "type Row=int[2]; type RowPointer=*Row; extern ok(p:RowPointer);",
+  "type Row=int[2]; type Grid=Row[3]; extern ok(p:**Grid);",
+  "type Fixed<T>=T[2]; extern ok(p:*Fixed<int>);",
   "extern ok() ret Pair;",
   "type Alias=Pair; extern ok(p:Alias) ret Alias;",
   "enum E { A, B } extern ok(e:E) ret E;",

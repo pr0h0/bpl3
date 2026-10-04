@@ -242,6 +242,31 @@ the target C ABI lowering described above.
 can still use the TypeScript `Compiler` API with `resolveImports: true` and
 `requireEntryPoint: false`, then link its IR with the native runtime.
 
+### Fixed-size array pointers
+
+Array aliases can describe fixed-size C buffers without passing arrays by value:
+
+```bpl
+type Row = int[2];
+type Grid = Row[3];
+extern sum_grid(values: *Grid) ret int;
+@[c_export] frame update_row(values: *Row) ret *Row {
+    values[1] = 42;
+    return values;
+}
+```
+
+`*Grid` corresponds to C `int32_t (*)[3][2]`; `*Row` corresponds to
+`int32_t (*)[2]`. Generated headers preserve these dimensions, including returned
+pointers, pointer chains, and instantiated generic array aliases. In C, pass
+`&array` for a pointer to the whole array. In BPL, indexing the innermost array
+pointer accesses its elements directly, as `values[1]` does above.
+
+Arrays passed by value and arrays of pointers remain unsupported at the function
+boundary; a pointer to an array of pointers is supported. BPL slices carry length
+metadata and are not C arrays. Header generation rejects slice storage; use a
+raw element pointer and a separate length for variable-sized buffers.
+
 ### Type and ownership rules
 
 | BPL boundary type | C boundary type | Notes |

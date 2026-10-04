@@ -84,6 +84,49 @@ export function generateCExportHeader(program: AST.Program): string {
   }
   function declaration(input: AST.TypeNode, name: string): string {
     const type = resolveAlias(input);
+    if (type.kind === "BasicType") {
+      if (type.aliasTarget?.kind === "BasicType") {
+        const target = type.aliasTarget;
+        const depth = type.pointerDepth - target.pointerDepth;
+        const dimensions = type.arrayDimensions.slice(
+          0,
+          type.arrayDimensions.length - target.arrayDimensions.length,
+        );
+        if (depth < 0 || dimensions.some((size) => size === null))
+          throw new Error(
+            "C header generation cannot describe this alias; use a raw pointer and length",
+          );
+        const outer = `${name}${dimensions.map((size) => `[${size}]`).join("")}`;
+        return declaration(
+          target,
+          depth ? `(${"*".repeat(depth)}${outer})` : outer,
+        );
+      }
+      if (type.isPointerToArray && type.pointerDepth > 0)
+        return declaration(
+          {
+            ...type,
+            pointerDepth: type.pointerDepth - 1,
+            isPointerToArray: false,
+          },
+          `(*${name})`,
+        );
+      if (type.arrayDimensions.length) {
+        if (type.arrayDimensions.some((size) => size === null))
+          throw new Error(
+            "C header generation cannot describe BPL slice storage; use a raw pointer and length",
+          );
+        return declaration(
+          {
+            ...type,
+            arrayDimensions: [],
+            aliasDeclaration: undefined,
+            aliasTarget: undefined,
+          },
+          `${name}${type.arrayDimensions.map((size) => `[${size}]`).join("")}`,
+        );
+      }
+    }
     if (type.kind === "FunctionType") {
       const parameters =
         type.paramTypes

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "bun:test";
 import { Compiler } from "../compiler";
+import { generateCExportHeader } from "../compiler/common/CExports";
 
 for (const source of [
   "@[c_export] frame main() ret int { return 0; }",
@@ -13,6 +14,7 @@ for (const source of [
   "@[c_export] frame callbacks(f:Func<int>(int)[2]) ret int {return f[0](1);}",
   "@[c_export] frame callbacks(f:Func<int>(int)[]) ret int {return f[0](1);}",
   "@[c_export] frame invoke(f:Func<int>(Func<int>(int)[2])) ret int {return 0;}",
+  "@[c_export] frame pointers(p:*int[2]) ret int {return 0;}",
   "@[c_export] frame closure(f:Lambda<int>(int)) ret int { return f(1); }",
 ]) {
   test(`rejects unsupported C export: ${source}`, () => {
@@ -79,7 +81,9 @@ test.skipIf(spawnSync("clang", ["--version"]).status !== 0)(
           target,
           optimizationLevel: 3,
         }).compile(
-          "@[c_export] frame add(a:long,b:long) ret long { return a + b; }",
+          `@[c_export] frame add(a:long,b:long) ret long { return a + b; }
+           type Row=int[2];
+           @[c_export] frame cell(p:*Row) ret int { return p[1]; }`,
         );
         expect(result.success).toBe(true);
         const file = join(dir, "library.ll");
@@ -98,3 +102,12 @@ test.skipIf(spawnSync("clang", ["--version"]).status !== 0)(
   },
   90000,
 );
+
+test("generated C headers reject pointers to BPL slice storage", () => {
+  const result = new Compiler({ filePath: "exports.bpl" }).compile(`
+    type View = int[];
+    @[c_export] frame view(p:*View) ret *View { return p; }
+  `);
+  expect(result.success).toBe(true);
+  expect(() => generateCExportHeader(result.ast!)).toThrow("slice storage");
+});

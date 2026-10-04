@@ -1146,6 +1146,7 @@ export abstract class TypeCheckerBase {
               location: type.location,
               isConst: type.isConst || resolvedBase.isConst,
               aliasDeclaration: decl,
+              aliasTarget: resolvedBase,
             };
             return result;
           }
