@@ -238,7 +238,7 @@ it must separately agree on the exact C-compatible layout. Inbound by-value
 struct exports are not supported; outbound extern by-value structs still use
 the target C ABI lowering described above.
 
-`tools/test_interop.ts` builds and tests these direct exports. Advanced clients
+`tests/helpers/runInterop.ts` builds and tests these direct exports. Advanced clients
 can still use the TypeScript `Compiler` API with `resolveImports: true` and
 `requireEntryPoint: false`, then link its IR with the native runtime.
 
@@ -289,7 +289,7 @@ or support for arbitrary foreign-thread callbacks.
 Run the Linux x86-64 host checks with installed clang/clang++, Python, and Bun:
 
 ```bash
-bun tools/test_interop.ts
+bun tests/helpers/runInterop.ts
 ```
 
 To add Go and Rust without installing their compilers on the host:
@@ -297,7 +297,7 @@ To add Go and Rust without installing their compilers on the host:
 ```bash
 docker pull golang:1-bookworm
 docker pull rust:1-bookworm
-bun tools/test_interop.ts --docker
+bun tests/helpers/runInterop.ts --docker
 ```
 
 Containers have networking disabled during compilation and execution, mount

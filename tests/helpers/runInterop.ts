@@ -1,4 +1,4 @@
-import { runInteropMatrix } from "../tests/helpers/interopMatrix";
+import { runInteropMatrix } from "./interopMatrix";
 runInteropMatrix({
   docker: process.argv.includes("--docker"),
   log: console.log,
