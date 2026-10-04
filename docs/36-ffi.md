@@ -255,6 +255,10 @@ can still use the TypeScript `Compiler` API with `resolveImports: true` and
 | `*T` | Pointer to matching layout | Caller keeps storage alive |
 | `Func<R>(...)` | C function pointer | Scalar/pointer signatures only |
 
+Arrays and slices of `Func` values cannot cross the C ABI by value, including
+inside another callback signature. They are not interchangeable with one C
+function pointer.
+
 A `Lambda` carries a BPL closure context and cannot replace a C function
 pointer. Python `ctypes` callbacks and Bun `JSCallback` objects must remain
 alive for every native call that can use them. The fixtures use synchronous

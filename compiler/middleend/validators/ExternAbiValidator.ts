@@ -35,6 +35,9 @@ export function validateExternAbiType(
   seen.add(type);
   if (isScalarOrPointer(type)) return;
   if (type.kind === "FunctionType") {
+    // A Func array/slice is an aggregate, not one C function pointer.
+    if (type.arrayDimensions?.length)
+      reject(location, "callback arrays and slices (pass a pointer)");
     validateExternAbiType(type.returnType, location, seen);
     for (const parameter of type.paramTypes)
       validateExternAbiType(parameter, location, seen);

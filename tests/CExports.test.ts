@@ -10,6 +10,9 @@ for (const source of [
   "@[c_export] frame id<T>(x:T) ret T { return x; }",
   "struct Box { value:int, @[c_export] frame read(this:*Box) ret int { return this.value; } }",
   "struct Pair { x:int,y:int, } @[c_export] frame pair(p:Pair) ret Pair { return p; }",
+  "@[c_export] frame callbacks(f:Func<int>(int)[2]) ret int {return f[0](1);}",
+  "@[c_export] frame callbacks(f:Func<int>(int)[]) ret int {return f[0](1);}",
+  "@[c_export] frame invoke(f:Func<int>(Func<int>(int)[2])) ret int {return 0;}",
   "@[c_export] frame closure(f:Lambda<int>(int)) ret int { return f(1); }",
 ]) {
   test(`rejects unsupported C export: ${source}`, () => {
