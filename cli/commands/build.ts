@@ -33,6 +33,7 @@ export function shouldUseFrontendBuildAction(options: CompileOptions): boolean {
     options.clangFlag === undefined &&
     options.wasmRuntime === undefined &&
     options.debugIrPath === undefined &&
+    !options.shared &&
     !options.run &&
     !options.cache &&
     !options.cacheStats &&
@@ -69,6 +70,10 @@ export function registerBuildCommand(program: Command): void {
     .argument("<file>", "BPL file to compile")
     .description("Compile a BPL program")
     .option("-o, --output <file>", "output file path")
+    .option(
+      "--shared",
+      "build a native shared library (requires -o, no main required)",
+    )
     .option("--emit <type>", "emit type: llvm, ast, tokens, formatted")
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
@@ -86,10 +91,7 @@ export function registerBuildCommand(program: Command): void {
       "--clang-flag <flag...>",
       "additional flags forwarded directly to clang",
     )
-    .option(
-      "--wasm-runtime <mode>",
-      "wasm runtime mode: freestanding or host",
-    )
+    .option("--wasm-runtime <mode>", "wasm runtime mode: freestanding or host")
     .option("--debug-ir-path <file>", "write diagnostic LLVM IR to a file")
     .option("-l, --lib <lib...>", "libraries to link with")
     .option("-L, --lib-path <path...>", "library search paths")
@@ -104,35 +106,36 @@ export function registerBuildCommand(program: Command): void {
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")
     .option("--json", "output in JSON format")
-    .action(async (file: string, _options: CompileOptions, command: Command) => {
-      try {
-        // Merge parent options if any
-        const globalOpts = getExplicitParentCompileOptions(command);
-        const localOpts = command.opts<CompileOptions>();
-        const compileOptions: CompileOptions = {
-          ...globalOpts,
-          ...localOpts,
-          dwarf:
-            localOpts.debug ||
-            localOpts.dwarf ||
-            globalOpts.debug ||
-            globalOpts.dwarf,
-        };
-        validateCompileInputSources([file], compileOptions);
+    .action(
+      async (file: string, _options: CompileOptions, command: Command) => {
+        try {
+          // Merge parent options if any
+          const globalOpts = getExplicitParentCompileOptions(command);
+          const localOpts = command.opts<CompileOptions>();
+          const compileOptions: CompileOptions = {
+            ...globalOpts,
+            ...localOpts,
+            dwarf:
+              localOpts.debug ||
+              localOpts.dwarf ||
+              globalOpts.debug ||
+              globalOpts.dwarf,
+          };
+          validateCompileInputSources([file], compileOptions);
 
-        if (shouldUseFrontendBuildAction(compileOptions)) {
-          const { processFrontendBuildFile } = await import(
-            "./frontendBuildAction"
-          );
-          processFrontendBuildFile(file, compileOptions);
-          return;
+          if (shouldUseFrontendBuildAction(compileOptions)) {
+            const { processFrontendBuildFile } =
+              await import("./frontendBuildAction");
+            processFrontendBuildFile(file, compileOptions);
+            return;
+          }
+
+          const { processFileAsync } = await import("../CompilationRunner");
+          await processFileAsync(file, compileOptions);
+        } catch (e) {
+          log.error(`${e instanceof Error ? e.message : String(e)}`);
+          process.exit(1);
         }
-
-        const { processFileAsync } = await import("../CompilationRunner");
-        await processFileAsync(file, compileOptions);
-      } catch (e) {
-        log.error(`${e instanceof Error ? e.message : String(e)}`);
-        process.exit(1);
-      }
-    });
+      },
+    );
 }

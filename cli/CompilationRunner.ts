@@ -66,11 +66,11 @@ type BuildJsonOutput = {
 
 const ANSI_ESCAPE_PATTERN = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 
-export const BUILD_INVALID_OPTIMIZATION_CODE =
-  "BPL_BUILD_INVALID_OPTIMIZATION";
+export const BUILD_INVALID_SHARED_OPTIONS_CODE =
+  "BPL_BUILD_INVALID_SHARED_OPTIONS";
+export const BUILD_INVALID_OPTIMIZATION_CODE = "BPL_BUILD_INVALID_OPTIMIZATION";
 export const BUILD_INVALID_EMIT_CODE = "BPL_BUILD_INVALID_EMIT";
-export const BUILD_INVALID_WASM_RUNTIME_CODE =
-  "BPL_BUILD_INVALID_WASM_RUNTIME";
+export const BUILD_INVALID_WASM_RUNTIME_CODE = "BPL_BUILD_INVALID_WASM_RUNTIME";
 export const BUILD_INVALID_JOBS_CODE = "BPL_BUILD_INVALID_JOBS";
 export const BUILD_UNSUPPORTED_TARGET_CODE = "BPL_BUILD_UNSUPPORTED_TARGET";
 export const BUILD_INPUT_NOT_FOUND_CODE = "BPL_BUILD_INPUT_NOT_FOUND";
@@ -86,6 +86,7 @@ export const BUILD_OUTPUT_PARENT_SYMLINK_CODE =
 export const BUILD_OUTPUT_PARENT_NOT_DIRECTORY_CODE =
   "BPL_BUILD_OUTPUT_PARENT_NOT_DIRECTORY";
 export const BUILD_JSON_ERROR_CODES = [
+  BUILD_INVALID_SHARED_OPTIONS_CODE,
   BUILD_NO_INPUTS_CODE,
   BUILD_CONFLICTING_INPUTS_CODE,
   BUILD_INVALID_OPTIMIZATION_CODE,
@@ -251,7 +252,10 @@ function handleCompilationError(
       error: formatCompilationErrorMessage(e),
       ...formatBuildJsonErrorCode(e),
       ...(diagnostics
-        ? { diagnostics: diagnosticFormatter.formatDiagnosticObjects(diagnostics) }
+        ? {
+            diagnostics:
+              diagnosticFormatter.formatDiagnosticObjects(diagnostics),
+          }
         : {}),
     };
     console.log(
@@ -275,7 +279,9 @@ function handleCompilationError(
   process.exit(1);
 }
 
-function getCompilationDiagnostics(error: unknown): CompilerError[] | undefined {
+function getCompilationDiagnostics(
+  error: unknown,
+): CompilerError[] | undefined {
   if (error instanceof CompilerError) {
     return [error];
   }
@@ -329,6 +335,26 @@ function readInputSourceFile(filePath: string): string {
 
 function normalizeCompileOptions(options: CompileOptions): void {
   options.O = parseOptimizationLevel(options.O);
+  if (options.shared) {
+    if (
+      !options.output ||
+      options.run ||
+      options.cache ||
+      options.watch ||
+      options.emit ||
+      isWasmTarget(options.target)
+    ) {
+      throw new BuildValidationError(
+        "Shared libraries require -o and cannot use --run, --cache, --watch, --emit, or a WebAssembly target.",
+        BUILD_INVALID_SHARED_OPTIONS_CODE,
+      );
+    }
+    const target = options.target || getHostDefaults().target;
+    const sharedFlag = /apple|darwin/.test(target) ? "-dynamiclib" : "-shared";
+    options.clangFlag = [
+      ...new Set([...normalizeArray(options.clangFlag), sharedFlag, "-fPIC"]),
+    ];
+  }
 
   if (options.emit !== undefined) {
     options.emit = parseEmitType(String(options.emit));
@@ -458,7 +484,6 @@ async function processCodeInternalAsync(
   }
 }
 
-
 export function needsNativeRuntimeObjects(options: CompileOptions): boolean {
   if (options.skipRuntime || isWasmTarget(options.target)) {
     return false;
@@ -552,7 +577,7 @@ function compileWithModules(
     optimizationLevel: options.O ? parseInt(options.O) : 0,
     treeShakeTopLevelFunctions: shouldTreeShakeTopLevelFunctions(options),
     jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
-    requireEntryPoint: true,
+    requireEntryPoint: !options.shared,
   });
 
   const endCompilation = startPhaseTimer("Compilation", options);
@@ -643,7 +668,7 @@ async function compileWithModulesAsync(
     optimizationLevel: options.O ? parseInt(options.O) : 0,
     treeShakeTopLevelFunctions: shouldTreeShakeTopLevelFunctions(options),
     jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
-    requireEntryPoint: true,
+    requireEntryPoint: !options.shared,
   });
 
   const endCompilation = startPhaseTimer("Compilation", options);
@@ -762,7 +787,7 @@ function compileSingleFile(
     skipImportResolution: options.prelude === false,
   });
   // BUG-128: Check for main function in entry point files
-  typeChecker.checkProgram(ast, undefined, { isEntryPoint: true });
+  typeChecker.checkProgram(ast, undefined, { isEntryPoint: !options.shared });
   endTypeChecking();
 
   const typeErrors = typeChecker.getErrors();
@@ -816,10 +841,7 @@ function getCompilerDriverFlags(options: CompileOptions): string[] | undefined {
   return flags.length > 0 ? flags : undefined;
 }
 
-function startPhaseTimer(
-  label: string,
-  options: CompileOptions,
-): () => void {
+function startPhaseTimer(label: string, options: CompileOptions): () => void {
   if (options.verbose) {
     return log.time(label);
   }
@@ -996,15 +1018,18 @@ function getCachedExecutablePath(
   options: CompileOptions,
 ): string {
   const execPathBase = options.output || filePath.replace(/\.[^/.]+$/, "");
-  return path.isAbsolute(execPathBase) ? execPathBase : path.resolve(execPathBase);
+  return path.isAbsolute(execPathBase)
+    ? execPathBase
+    : path.resolve(execPathBase);
 }
 
 function shouldEmitBuildJsonReport(options: CompileOptions): boolean {
   return (
     Boolean(options.json) &&
-    options.emit !== "ast" &&
-    options.emit !== "tokens" &&
-    options.emit !== "formatted"
+    (options.shared ||
+      (options.emit !== "ast" &&
+        options.emit !== "tokens" &&
+        options.emit !== "formatted"))
   );
 }
 
@@ -1049,6 +1074,7 @@ function shouldCompileExecutable(options: CompileOptions): boolean {
 
 function shouldTreeShakeTopLevelFunctions(options: CompileOptions): boolean {
   return (
+    !options.shared &&
     shouldCompileExecutable(options) &&
     options.emit !== "llvm" &&
     !options.cache &&

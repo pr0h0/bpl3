@@ -8,6 +8,7 @@
  */
 export interface CompileOptions {
   output?: string;
+  shared?: boolean;
   emit?: "llvm" | "ast" | "tokens" | "formatted";
   target?: string;
   sysroot?: string;
@@ -76,9 +77,7 @@ export type PackageOptionsVerbose = PackageOptionsGlobal & {
   repairLock?: boolean;
 };
 export type PackageOptions =
-  | PackageOptionsOutput
-  | PackageOptionsGlobal
-  | PackageOptionsVerbose;
+  PackageOptionsOutput | PackageOptionsGlobal | PackageOptionsVerbose;
 
 /**
  * Host platform defaults for compilation

@@ -462,7 +462,8 @@ Build validation `errorCode` values are stable when `bpl build --json` can
 classify the validation failure. Option parsing uses
 `BPL_BUILD_NO_INPUTS`, `BPL_BUILD_INVALID_OPTIMIZATION`,
 `BPL_BUILD_CONFLICTING_INPUTS`, `BPL_BUILD_INVALID_EMIT`,
-`BPL_BUILD_INVALID_WASM_RUNTIME`, and `BPL_BUILD_INVALID_JOBS`. Target
+`BPL_BUILD_INVALID_WASM_RUNTIME`, `BPL_BUILD_INVALID_JOBS`, and
+`BPL_BUILD_INVALID_SHARED_OPTIONS` (missing output or incompatible shared-library options). Target
 validation uses
 `BPL_BUILD_UNSUPPORTED_TARGET`. Input file validation uses
 `BPL_BUILD_INPUT_NOT_FOUND`, `BPL_BUILD_INPUT_SYMLINK`, and

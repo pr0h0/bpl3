@@ -20,6 +20,7 @@ const CLI_JSON_ERROR_CODE_LISTS = [
   {
     name: "build",
     codes: [
+      "BPL_BUILD_INVALID_SHARED_OPTIONS",
       "BPL_BUILD_NO_INPUTS",
       "BPL_BUILD_CONFLICTING_INPUTS",
       "BPL_BUILD_INVALID_OPTIMIZATION",

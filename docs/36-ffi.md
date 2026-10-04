@@ -206,9 +206,18 @@ The executable fixtures in `tests/fixtures/interop` show this approach:
    BPL's generated function names, so rebuild and verify it when those names
    or signatures change.
 
-`tools/test_interop.ts` implements these steps. This is currently an API-based
-workflow: the executable CLI still requires `main`, and there is no dedicated
-stable C-export/library command. Do not directly declare a by-value BPL struct
+The CLI can also build the library directly, without a `main` function:
+
+```bash
+bpl build library.bpl --shared --object bridge.c -O3 -o libexample.so
+```
+
+`--shared` supplies position-independent shared-library flags and keeps library
+functions reachable to foreign callers. It requires an explicit output path;
+`--cache`, `--emit`, execution/watch modes, and WebAssembly targets cannot be
+combined with it. Ordinary executable builds still require `main`.
+`tools/test_interop.ts` uses this CLI path. Stable C exports still require the
+adapter described above. Do not directly declare a by-value BPL struct
 function as a C function; outbound extern lowering does not apply in reverse.
 Pass pointers to plain C-compatible structs through the adapter instead.
 

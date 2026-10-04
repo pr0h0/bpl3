@@ -1,9 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { Compiler } from "../../compiler";
-import { resolveNativeRuntimeFiles } from "../../cli/NativeRuntimeFiles";
 
 export function runInteropMatrix(
   options: { docker?: boolean; log?: (line: string) => void } = {},
@@ -65,25 +63,16 @@ export function runInteropMatrix(
   try {
     for (const opt of [0, 3]) {
       const source = join(fixtures, "library.bpl");
-      const result = new Compiler({
-        filePath: source,
-        requireEntryPoint: false,
-        resolveImports: true,
-        optimizationLevel: opt,
-      }).compile(readFileSync(source, "utf8"));
-      if (!result.success || !result.output)
-        throw new Error(JSON.stringify(result.errors));
-      const ir = join(dir, "library.ll");
-      writeFileSync(ir, result.output);
       const shared = join(dir, "libbpl_interop.so");
-      run(cc, [
-        "-shared",
-        "-fPIC",
-        `-O${opt}`,
-        ir,
+      run("bun", [
+        resolve("index.ts"),
+        "build",
+        source,
+        "--shared",
+        "-O",
+        String(opt),
+        "--object",
         join(fixtures, "bridge.c"),
-        ...resolveNativeRuntimeFiles({ irPath: ir }),
-        "-lm",
         "-o",
         shared,
       ]);
