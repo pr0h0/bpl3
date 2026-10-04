@@ -36,6 +36,7 @@ export abstract class StatementGenerator extends AsmGenerator {
   protected switchStack: { labels: string[]; activeIndex: number }[] = [];
   protected currentFunctionEmitsStackFrameHooks = true;
   protected currentFunctionUsesAllocaStackLimitProbe = false;
+  private currentFunctionIsCExport = false;
   private structDefaultInitializationRequiredCache: Map<string, boolean> =
     new Map();
   private autoDestroyMethodCache: Map<
@@ -536,7 +537,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.emit(`  ${limit} = load i8*, i8** @__bpl_stack_limit`);
 
     let effectiveLimit = limit;
-    if (this.currentFunctionName === "main") {
+    if (this.currentFunctionName === "main" || this.currentFunctionIsCExport) {
       const computedLimit = this.newRegister();
       const limitUnset = this.newRegister();
       const initLimitLabel = this.newLabel("stack.limit.init");
@@ -3063,6 +3064,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevStackAllocCount = this.stackAllocCount;
     const prevCurrentFunctionReturnType = this.currentFunctionReturnType;
     const prevCurrentFunctionName = this.currentFunctionName;
+    const prevCurrentFunctionIsCExport = this.currentFunctionIsCExport;
     const prevLocals = this.locals;
     const prevLocalPointers = this.localPointers;
     const prevLocalTypes = this.localTypes;
@@ -3092,6 +3094,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.stackAllocCount = 0;
     this.currentFunctionReturnType = decl.returnType;
     this.currentFunctionName = decl.name;
+    this.currentFunctionIsCExport = Boolean(decl.cExportName);
     this.locals = new Set();
     this.localPointers = new Map();
     this.localTypes = new Map();
@@ -3205,7 +3208,9 @@ export abstract class StatementGenerator extends AsmGenerator {
         retType = "i32";
       }
       this.currentFunctionEmitsStackFrameHooks =
-        this.shouldEmitStackFrameHooksForFunction(decl, name);
+        this.shouldEmitStackFrameHooksForFunction(decl, name) ||
+        // A returned callback may later enter BPL without another public call.
+        (this.currentFunctionIsCExport && effectiveFuncType.returnType.kind === "FunctionType");
       this.currentFunctionUsesAllocaStackLimitProbe = false;
       if (
         this.currentFunctionEmitsStackFrameHooks &&
@@ -3585,6 +3590,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.stackAllocCount = prevStackAllocCount;
       this.currentFunctionReturnType = prevCurrentFunctionReturnType;
       this.currentFunctionName = prevCurrentFunctionName;
+      this.currentFunctionIsCExport = prevCurrentFunctionIsCExport;
       this.locals = prevLocals;
       this.currentSubprogramId = prevSubprogramId;
       this.localPointers = prevLocalPointers;

@@ -1,3 +1,4 @@
+import { getCExportFunctions, C_EXPORT_CONFLICT_CODE } from "../common/CExports";
 import * as fs from "fs";
 import { isRuntimeHelperName } from "./codegen/TypeGenerator";
 import { needsCAbiLowering } from "./codegen/abi/CAbi";
@@ -475,6 +476,44 @@ export class CodeGenerator extends StatementGenerator {
       }
     }
 
+    const cExports = getCExportFunctions(program);
+    const linkerGlobals = new Set<string>();
+    if (cExports.length > 0) {
+      for (const line of [...this.declarationsOutput, ...this.output]) {
+        const symbol = this.getDefinedGlobalName(line);
+        if (symbol) linkerGlobals.add(symbol);
+      }
+    }
+    const cExportNames = new Set<string>();
+    for (const decl of cExports) {
+      const publicName = decl.cExportName!;
+      if (
+        cExportNames.has(publicName) ||
+        this.definedFunctions.has(publicName) ||
+        this.declaredFunctions.has(publicName) ||
+        linkerGlobals.has(publicName)
+      ) {
+        throw new CompilerError(
+          `Conflicting C export '${publicName}'`,
+          "C export names must be unique across all modules and must not collide with other linker symbols.",
+          decl.location,
+          C_EXPORT_CONFLICT_CODE,
+        );
+      }
+      cExportNames.add(publicName);
+      // Cached module builds only define aliases in the owning object.
+      if (decl.location.file === "internal") continue;
+      const signature = decl.resolvedType as AST.FunctionTypeNode;
+      const implementation = this.getMangledName(decl.name, signature);
+      const returnType = this.resolveType(signature.returnType);
+      const parameters = signature.paramTypes
+        .map((type) => this.resolveType(type))
+        .join(", ");
+      const visibility = this.target?.includes("windows") ? "dllexport " : "";
+      this.emit(
+        `@${publicName} = ${visibility}alias ${returnType} (${parameters}), ${returnType} (${parameters})* @${implementation}`,
+      );
+    }
     this.pruneUnusedRuntimeArgStores();
     const generatedBody = this.joinCompactedLines(this.output);
     const generatedBodyReferences =
@@ -1419,6 +1458,7 @@ export class CodeGenerator extends StatementGenerator {
     };
 
     markByName("main");
+    for (const decl of getCExportFunctions(program)) markByName(decl.name);
     for (const stmt of program.statements) {
       if (stmt.kind !== "Export") continue;
       for (const item of (stmt as AST.ExportStmt).items) {

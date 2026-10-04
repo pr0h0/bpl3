@@ -8,7 +8,9 @@ extern foreign_pair(p: Pair) ret Pair;
 extern foreign_triple(p: Triple) ret Triple;
 extern foreign_callback(callback: Func<long>(long), x: long) ret long;
 extern puts(s: string) ret int;
-frame twice(x: long) ret long { return x * 2; }
+frame doubled(x: long) ret long { return x * 2; }
+@[noinline]
+frame twice(x: long) ret long { return doubled(x); }
 frame main() ret int {
     if (foreign_add(cast<long>(4294967296), -7) != cast<long>(4294967289)) { return 1; }
     if (foreign_scale(cast<f32>(2.5)) != cast<f32>(3.75)) { return 2; }

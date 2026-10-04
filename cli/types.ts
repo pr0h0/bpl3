@@ -9,6 +9,7 @@
 export interface CompileOptions {
   output?: string;
   shared?: boolean;
+  header?: string;
   emit?: "llvm" | "ast" | "tokens" | "formatted";
   target?: string;
   sysroot?: string;

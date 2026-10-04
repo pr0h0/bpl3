@@ -34,6 +34,7 @@ export function shouldUseFrontendBuildAction(options: CompileOptions): boolean {
     options.wasmRuntime === undefined &&
     options.debugIrPath === undefined &&
     !options.shared &&
+    options.header === undefined &&
     !options.run &&
     !options.cache &&
     !options.cacheStats &&
@@ -73,6 +74,10 @@ export function registerBuildCommand(program: Command): void {
     .option(
       "--shared",
       "build a native shared library (requires -o, no main required)",
+    )
+    .option(
+      "--header <file>",
+      "write a C header for c_export functions (requires --shared)",
     )
     .option("--emit <type>", "emit type: llvm, ast, tokens, formatted")
     .option("-v, --verbose", "enable verbose output")

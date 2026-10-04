@@ -1,3 +1,5 @@
+import type * as AST from "../compiler/common/AST";
+import { generateCExportHeader } from "../compiler/common/CExports";
 /**
  * Compilation Runner
  * Orchestrates the compilation pipeline for BPL source code
@@ -335,6 +337,12 @@ function readInputSourceFile(filePath: string): string {
 
 function normalizeCompileOptions(options: CompileOptions): void {
   options.O = parseOptimizationLevel(options.O);
+  if (options.header && !options.shared) {
+    throw new BuildValidationError(
+      "--header requires --shared",
+      BUILD_INVALID_SHARED_OPTIONS_CODE,
+    );
+  }
   if (options.shared) {
     if (
       !options.output ||
@@ -597,6 +605,8 @@ function compileWithModules(
     process.exit(1);
   }
 
+  if (result.ast) writeCHeader(result.ast, filePath, options);
+
   // Handle different emit types
   if (options.emit === "ast" && result.ast) {
     console.log(JSON.stringify(result.ast, null, 2));
@@ -687,6 +697,8 @@ async function compileWithModulesAsync(
     }
     process.exit(1);
   }
+
+  if (result.ast) writeCHeader(result.ast, filePath, options);
 
   // Handle different emit types
   if (options.emit === "ast" && result.ast) {
@@ -819,6 +831,7 @@ function compileSingleFile(
   const ir = generator.generate(ast, filePath);
   endCodeGeneration();
 
+  writeCHeader(ast, filePath, options);
   writeLlvmOutputAndMaybeBuild(filePath, options, ir, programArgs);
 }
 
@@ -828,6 +841,28 @@ function compileSingleFile(
 function normalizeArray(value: string | string[] | undefined): string[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
+}
+
+function writeCHeader(
+  program: AST.Program,
+  filePath: string,
+  options: CompileOptions,
+): void {
+  if (!options.header) return;
+  const headerPath = path.resolve(options.header);
+  if (
+    [filePath, options.output!, getLlvmOutputPath(filePath, options)].some(
+      (candidate) => path.resolve(candidate) === headerPath,
+    )
+  ) {
+    throw new BuildValidationError(
+      "Header output must differ from source, library, and LLVM output paths",
+      BUILD_INVALID_SHARED_OPTIONS_CODE,
+    );
+  }
+  const content = generateCExportHeader(program);
+  assertWritableBuildOutputPath(headerPath);
+  writeFileAtomically(headerPath, content);
 }
 
 function getCompilerDriverFlags(options: CompileOptions): string[] | undefined {
@@ -1027,6 +1062,7 @@ function shouldEmitBuildJsonReport(options: CompileOptions): boolean {
   return (
     Boolean(options.json) &&
     (options.shared ||
+      Boolean(options.header) ||
       (options.emit !== "ast" &&
         options.emit !== "tokens" &&
         options.emit !== "formatted"))
@@ -1046,7 +1082,10 @@ function emitBuildJsonSuccess(
         emit: options.emit ?? "binary",
         target: options.target || hostDefaults.target,
         cache: Boolean(options.cache),
-        output,
+        output: {
+          ...output,
+          ...(options.header ? { header: path.resolve(options.header) } : {}),
+        },
       }),
       null,
       2,

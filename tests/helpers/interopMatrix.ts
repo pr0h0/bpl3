@@ -71,8 +71,6 @@ export function runInteropMatrix(
         "--shared",
         "-O",
         String(opt),
-        "--object",
-        join(fixtures, "bridge.c"),
         "-o",
         shared,
       ]);

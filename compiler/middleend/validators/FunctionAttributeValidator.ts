@@ -1,3 +1,4 @@
+import { validateCExport } from "../../common/CExports";
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
 import {
@@ -33,6 +34,7 @@ const ALLOWED_FUNCTION_ATTRIBUTES = new Set([
   "optsize",
   "minsize",
   "auto_destroy",
+  "c_export",
 ]);
 
 const FUNCTION_ATTRIBUTE_CONFLICT_GROUPS = [
@@ -96,6 +98,19 @@ export function validateFunctionAttributes(
     }
   }
 
+  if (seen.has("c_export")) {
+    try {
+      validateCExport(
+        decl,
+        (type) => context.resolveType(type),
+        options.parentType,
+      );
+    } catch (error) {
+      if (error instanceof CompilerError) context.addError(error);
+      else throw error;
+    }
+  }
+
   if (seen.has("auto_destroy")) {
     validateAutoDestroyAttribute(context, decl, options.parentType);
   }
@@ -121,9 +136,7 @@ export function validateFunctionAttributes(
 
 function isVoidType(type: AST.TypeNode): boolean {
   return (
-    type.kind === "BasicType" &&
-    type.name === "void" &&
-    type.pointerDepth === 0
+    type.kind === "BasicType" && type.name === "void" && type.pointerDepth === 0
   );
 }
 

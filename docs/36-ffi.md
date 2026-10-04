@@ -192,34 +192,55 @@ binding pass.
 
 ## Calling BPL from other languages
 
-BPL module `export` declarations do **not** create a stable C export name or
-convert a BPL function's aggregate calling convention into the C ABI. Use a
-small C adapter with scalar/pointer signatures for a foreign-facing library.
-The executable fixtures in `tests/fixtures/interop` show this approach:
+Mark a non-generic free function with `@[c_export]` to publish its source name
+as a C-linkable symbol. Calls inside BPL retain the normal implementation name.
+BPL module `export` declarations still control BPL imports independently.
 
-1. Compile `library.bpl` with the TypeScript `Compiler` API, setting
-   `resolveImports: true`, `requireEntryPoint: false`, and the desired
-   `optimizationLevel`. Save the returned `output` as LLVM IR.
-2. Compile that IR and `bridge.c` with clang using `-shared -fPIC`, linking the
-   runtime files returned by `resolveNativeRuntimeFiles({ irPath })` and `-lm`.
-3. Foreign callers use the declarations in `bridge.h`. The adapter refers to
-   BPL's generated function names, so rebuild and verify it when those names
-   or signatures change.
-
-The CLI can also build the library directly, without a `main` function:
-
-```bash
-bpl build library.bpl --shared --object bridge.c -O3 -o libexample.so
+```bpl
+@[c_export]
+frame add(a: long, b: long) ret long {
+    return a + b;
+}
 ```
 
-`--shared` supplies position-independent shared-library flags and keeps library
-functions reachable to foreign callers. It requires an explicit output path;
-`--cache`, `--emit`, execution/watch modes, and WebAssembly targets cannot be
-combined with it. Ordinary executable builds still require `main`.
-`tools/test_interop.ts` uses this CLI path. Stable C exports still require the
-adapter described above. Do not directly declare a by-value BPL struct
-function as a C function; outbound extern lowering does not apply in reverse.
-Pass pointers to plain C-compatible structs through the adapter instead.
+Build the library and a C/C++ header in one command:
+
+```bash
+bpl build library.bpl --shared --header library.h -O3 -o libexample.so
+```
+
+A C or C++ caller includes `library.h` and links against `libexample.so`.
+Python can load it with `ctypes.CDLL`, declare two `ctypes.c_int64` arguments
+and a `ctypes.c_int64` result, and call `library.add(20, 22)`. Go and Rust use
+the same C ABI entry point; no handwritten forwarding adapter is needed.
+The generated header includes `extern "C"` guards for C++ callers.
+
+`--shared` supplies position-independent shared-library flags, does not require
+`main`, and retains functions for foreign callers. It requires `-o`; `--cache`,
+`--emit`, execution/watch modes, and WebAssembly targets cannot be combined
+with it. Ordinary executable builds still require `main`. `--header` requires
+`--shared`; its output must differ from the source, library, and LLVM paths.
+JSON build success reports include the header path when requested.
+
+C exports accept scalars, raw pointers, and scalar/pointer `Func` callbacks,
+including returned function pointers. Aggregate values, `Lambda` closures,
+methods, and generic functions are rejected with `BPL_C_EXPORT_UNSUPPORTED`.
+Names must be unique across modules and cannot collide with other linker
+symbols (`BPL_C_EXPORT_CONFLICT`). `main` and `__bpl_` names are reserved.
+Exported functions also remain reachable in executable builds; cached objects
+emit their public symbols only in the owning module. Optimized C entry points
+initialize required stack guards even when there is no BPL `main`.
+
+The header generator spells integer widths explicitly and emits opaque struct
+pointer declarations, not struct layouts. Prefer creation/access/destruction
+functions for opaque handles. If foreign code constructs a struct directly,
+it must separately agree on the exact C-compatible layout. Inbound by-value
+struct exports are not supported; outbound extern by-value structs still use
+the target C ABI lowering described above.
+
+`tools/test_interop.ts` builds and tests these direct exports. Advanced clients
+can still use the TypeScript `Compiler` API with `resolveImports: true` and
+`requireEntryPoint: false`, then link its IR with the native runtime.
 
 ### Type and ownership rules
 

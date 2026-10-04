@@ -443,6 +443,8 @@ export interface FunctionAttribute extends ASTNode {
 }
 
 export interface FunctionDecl extends ASTNode {
+  /** Stable public symbol requested by c_export, before module uniquing. */
+  cExportName?: string;
   kind: "FunctionDecl";
   isFrame: boolean; // frame vs static
   isStatic: boolean;
