@@ -287,7 +287,8 @@ raw element pointer and a separate length for variable-sized buffers.
 | `Func<R>(...)` | C function pointer | Scalar/pointer signatures only |
 
 Arrays and slices of `Func` values cannot cross the C ABI by value, including
-inside another callback signature. They are not interchangeable with one C
+inside another callback signature or through generic type aliases. They are not
+interchangeable with one C
 function pointer.
 
 A `Lambda` carries a BPL closure context and cannot replace a C function

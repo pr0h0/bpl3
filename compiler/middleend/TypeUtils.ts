@@ -1,3 +1,4 @@
+import { applyAliasValueModifiers } from "../common/TypeAliasModifiers";
 /**
  * Type utility functions for the BPL type checker
  * Provides type comparison, resolution, and conversion utilities
@@ -767,7 +768,7 @@ export class TypeSubstitution {
               : {}),
           };
         }
-        return subst;
+        return applyAliasValueModifiers(subst, type);
       }
 
       if (type.genericArgs.length > 0) {

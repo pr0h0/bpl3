@@ -1,3 +1,4 @@
+import { applyAliasValueModifiers } from "../common/TypeAliasModifiers";
 /**
  * TypeCheckerBase - Base class with shared state and utility methods for type checking
  * This class provides the foundation for modular type checking with separate
@@ -1121,7 +1122,7 @@ export abstract class TypeCheckerBase {
                 aliasTarget: resolvedSubstituted,
               };
             }
-            return resolvedSubstituted;
+            return applyAliasValueModifiers(resolvedSubstituted, type);
           }
 
           const resolvedBase = this.resolveType(
@@ -1151,30 +1152,7 @@ export abstract class TypeCheckerBase {
             return result;
           }
 
-          // Propagate array dimensions for other types (FunctionType, TupleType, LambdaType)
-          if (
-            resolvedBase.kind === "FunctionType" ||
-            resolvedBase.kind === "TupleType" ||
-            resolvedBase.kind === "LambdaType"
-          ) {
-            const result = { ...resolvedBase } as any;
-            if (type.arrayDimensions && type.arrayDimensions.length > 0) {
-              result.arrayDimensions = [
-                ...type.arrayDimensions,
-                ...(result.arrayDimensions || []),
-              ];
-            }
-            if ("isConst" in type && type.isConst) {
-              result.isConst = true;
-            }
-            return result as AST.TypeNode;
-          }
-
-          // Propagate const for other types
-          if ("isConst" in type && type.isConst) {
-            return { ...resolvedBase, isConst: true } as AST.TypeNode;
-          }
-          return resolvedBase;
+          return applyAliasValueModifiers(resolvedBase, type);
         } finally {
           this.typeAliasResolutionStack.delete(name);
         }

@@ -58,6 +58,7 @@ test.skipIf(process.platform !== "linux")(
         source,
         `
       type Counter = long;
+      type Callback<T> = Func<T>(T);
       @[c_export] frame add64(a: Counter, b: long) ret long { return a + b; }
       @[c_export] frame signed_byte(x: i8) ret i8 { return x; }
       @[c_export] frame unsigned_byte(x: u8) ret u8 { return x; }
@@ -65,8 +66,8 @@ test.skipIf(process.platform !== "linux")(
       @[c_export] frame toggle(x: bool) ret bool { return !x; }
       @[c_export] frame read_int(x: *int) ret int { return *x; }
       frame increment(x: int) ret int { return x + 1; }
-      @[c_export] frame factory() ret Func<int>(int) { return increment; }
-      @[c_export] frame invoke(f: Func<int>(int), x: int) ret int { return f(x); }
+      @[c_export] frame factory() ret Callback<int> { return increment; }
+      @[c_export] frame invoke(f: Callback<int>, x: int) ret int { return f(x); }
     `,
       );
       const host = join(dir, "host.c");
