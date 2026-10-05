@@ -133,12 +133,50 @@ function handleArgumentKey(input: AST.TypeNode): HandleTypeKey {
 export function generateCExportHeader(program: AST.Program): string {
   const handles = new Map<string, string>();
   const keywords = new Set(
-    "auto break case char const continue default do double else enum extern float for goto if inline int long register restrict return short signed sizeof static struct switch typedef union unsigned void volatile while class delete new private protected public template this throw try virtual namespace operator bool true false".split(
-      " ",
-    ),
+    `auto break case char const continue default do double else enum extern
+     float for goto if inline int long register restrict return short signed
+     sizeof static struct switch typedef union unsigned void volatile while
+     _Alignas _Alignof _Atomic _BitInt _Bool _Complex _Decimal32 _Decimal64
+     _Decimal128 _Generic _Imaginary _Noreturn _Static_assert _Thread_local
+     alignas alignof bool constexpr false nullptr static_assert thread_local
+     true typeof typeof_unqual
+     and and_eq asm bitand bitor catch char8_t char16_t char32_t class compl
+     concept const_cast consteval constinit co_await co_return co_yield decltype
+     delete dynamic_cast explicit export friend mutable namespace new noexcept
+     not not_eq operator or or_eq private protected public reinterpret_cast
+     requires static_cast template this throw try typeid typename using virtual
+     wchar_t xor xor_eq`.split(/\s+/),
   );
+  // These headers share the ordinary identifier/macro namespace with functions.
+  const standardNames = new Set([
+    "PTRDIFF_MIN",
+    "PTRDIFF_MAX",
+    "PTRDIFF_WIDTH",
+    "SIZE_MAX",
+    "SIZE_WIDTH",
+    "SIG_ATOMIC_MIN",
+    "SIG_ATOMIC_MAX",
+    "SIG_ATOMIC_WIDTH",
+    "WCHAR_MIN",
+    "WCHAR_MAX",
+    "WCHAR_WIDTH",
+    "WINT_MIN",
+    "WINT_MAX",
+    "WINT_WIDTH",
+    "__bool_true_false_are_defined",
+  ]);
   function identifier(name: string): string {
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) || keywords.has(name))
+    if (
+      !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ||
+      keywords.has(name) ||
+      standardNames.has(name) ||
+      /^(?:u?int(?:_least|_fast)?(?:8|16|32|64)|u?intptr|u?intmax)_t$/.test(
+        name,
+      ) ||
+      /^U?INT(?:8|16|32|64|MAX|PTR|_(?:LEAST|FAST)(?:8|16|32|64))_(?:MIN|MAX|C|WIDTH)$/.test(
+        name,
+      )
+    )
       throw new Error(`Cannot represent '${name}' in a C/C++ header`);
     return name;
   }
@@ -219,7 +257,7 @@ export function generateCExportHeader(program: AST.Program): string {
       const suffix = type.genericArgs.length
         ? `_${createHash("sha256").update(identity).digest("hex").slice(0, 16)}`
         : "";
-      const handle = `bpl_${identifier(type.name)}${suffix}`;
+      const handle = identifier(`bpl_${type.name}${suffix}`);
       if (handles.has(handle) && handles.get(handle) !== identity)
         throw new Error(`Conflicting opaque C handle '${handle}'`);
       handles.set(handle, identity);

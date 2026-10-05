@@ -213,7 +213,10 @@ A C or C++ caller includes `library.h` and links against `libexample.so`.
 Python can load it with `ctypes.CDLL`, declare two `ctypes.c_int64` arguments
 and a `ctypes.c_int64` result, and call `library.add(20, 22)`. Go and Rust use
 the same C ABI entry point; no handwritten forwarding adapter is needed.
-The generated header includes `extern "C"` guards for C++ callers.
+The generated header includes `extern "C"` guards for C++ callers. Header
+generation rejects export names that collide with C/C++ keywords or the
+standard integer types and macros it includes, such as `concept`, `int32_t`,
+and `INT64_C`. Rename such functions before requesting a header.
 
 `--shared` supplies position-independent shared-library flags, does not require
 `main`, and retains functions for foreign callers. It requires `-o`; `--cache`,
