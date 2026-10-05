@@ -6,6 +6,7 @@ extern "C" {
 #endif
 struct Packet { int64_t count; double score; };
 int64_t interop_add(int64_t a, int64_t b);
+int64_t interop_rows(int64_t (*(*rows)[2])[2]);
 float interop_scale(float value);
 void interop_update(struct Packet *packet);
 int64_t interop_run(int64_t (*callback)(int64_t), int64_t value);

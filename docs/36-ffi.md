@@ -338,6 +338,9 @@ isolation. It is separate from the default CI-safe suite.
 The matrix checks `-O0` and `-O3`, 64-bit integer values, `f32`, signed 16-bit
 values and booleans on outbound calls, small and large by-value outbound
 structs, pointer-based inbound structs, and callbacks in both directions.
+Every host also passes a nested row-pointer buffer to BPL and checks reads and
+mutations. The Go fixture uses a small cgo helper with C-owned buffer storage;
+Python, Bun, and Rust keep their buffer owners alive across the native call.
 `tests/InteropNative.test.ts` runs the host subset in the normal test suite when
 its Linux x86-64 toolchains are available. Cross-target ABI declaration tests
 remain in `tests/CAbiLowering.test.ts`; native execution on Linux does not
