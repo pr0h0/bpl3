@@ -1,4 +1,5 @@
 import type * as AST from "./AST";
+import { createHash } from "node:crypto";
 import { CompilerError } from "./CompilerError";
 import { getPrimitiveType } from "./PrimitiveTypes";
 import { validateExternAbiType } from "../middleend/validators/ExternAbiValidator";
@@ -69,9 +70,68 @@ function resolveAlias(type: AST.TypeNode): AST.TypeNode {
   };
 }
 
+type HandleTypeKey = string | number | boolean | null | HandleTypeKey[];
+
+/** A location-independent type identity, preserving pointer/array nesting. */
+function handleArgumentKey(input: AST.TypeNode): HandleTypeKey {
+  const type = resolveAlias(input);
+  const wrap = (
+    base: HandleTypeKey,
+    pointers: number,
+    dimensions: (number | null)[],
+  ) => {
+    for (let i = 0; i < pointers; i++) base = ["pointer", base];
+    for (const size of [...dimensions].reverse()) base = ["array", size, base];
+    return base;
+  };
+  if (type.kind === "BasicType") {
+    if (type.aliasTarget?.kind === "BasicType") {
+      const target = type.aliasTarget;
+      return wrap(
+        handleArgumentKey(target),
+        type.pointerDepth - target.pointerDepth,
+        type.arrayDimensions.slice(
+          0,
+          type.arrayDimensions.length - target.arrayDimensions.length,
+        ),
+      );
+    }
+    if (type.isPointerToArray && type.pointerDepth > 0)
+      return wrap(
+        handleArgumentKey({
+          ...type,
+          pointerDepth: type.pointerDepth - 1,
+          isPointerToArray: false,
+        }),
+        1,
+        [],
+      );
+    const base: HandleTypeKey =
+      type.name === "string"
+        ? wrap(["i8", []], 1, [])
+        : [
+            getPrimitiveType(type.name)?.canonicalName ?? type.name,
+            type.genericArgs.map(handleArgumentKey),
+          ];
+    return wrap(base, type.pointerDepth, type.arrayDimensions);
+  }
+  if (type.kind === "MetaType")
+    return [type.kind, handleArgumentKey(type.type)];
+  const base: HandleTypeKey =
+    type.kind === "TupleType"
+      ? [type.kind, type.types.map(handleArgumentKey)]
+      : [
+          type.kind,
+          handleArgumentKey(type.returnType),
+          type.paramTypes.map(handleArgumentKey),
+          Boolean(type.isVariadic),
+        ];
+  return wrap(base, 0, type.arrayDimensions ?? []);
+}
+
 /** Deliberately emits opaque struct handles: layout remains caller-defined. */
 export function generateCExportHeader(program: AST.Program): string {
-  const handles = new Set<string>();
+  const handles = new Map<string, string>();
   const keywords = new Set(
     "auto break case char const continue default do double else enum extern float for goto if inline int long register restrict return short signed sizeof static struct switch typedef union unsigned void volatile while class delete new private protected public template this throw try virtual namespace operator bool true false".split(
       " ",
@@ -152,8 +212,17 @@ export function generateCExportHeader(program: AST.Program): string {
     } else if (type.name === "void") base = "void";
     else if (type.name === "string") base = "char *";
     else if (type.pointerDepth > 0) {
-      const handle = `bpl_${identifier(type.name)}`;
-      handles.add(handle);
+      const identity = JSON.stringify([
+        type.name,
+        type.genericArgs.map(handleArgumentKey),
+      ]);
+      const suffix = type.genericArgs.length
+        ? `_${createHash("sha256").update(identity).digest("hex").slice(0, 16)}`
+        : "";
+      const handle = `bpl_${identifier(type.name)}${suffix}`;
+      if (handles.has(handle) && handles.get(handle) !== identity)
+        throw new Error(`Conflicting opaque C handle '${handle}'`);
+      handles.set(handle, identity);
       base = `struct ${handle}`;
     } else throw new Error(`Unsupported C header type '${type.name}'`);
     return `${base} ${"*".repeat(type.pointerDepth)}${name}`;
@@ -181,7 +250,7 @@ export function generateCExportHeader(program: AST.Program): string {
     "#ifdef __cplusplus",
     'extern "C" {',
     "#endif",
-    ...[...handles].sort().map((handle) => `struct ${handle};`),
+    ...[...handles.keys()].sort().map((handle) => `struct ${handle};`),
     ...prototypes,
     "#ifdef __cplusplus",
     "}",

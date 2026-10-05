@@ -232,7 +232,10 @@ emit their public symbols only in the owning module. Optimized C entry points
 initialize required stack guards even when there is no BPL `main`.
 
 The header generator spells integer widths explicitly and emits opaque struct
-pointer declarations, not struct layouts. Prefer creation/access/destruction
+pointer declarations, not struct layouts. Generic specializations receive distinct
+opaque tags: a `Box<int>` handle is not a `Box<double>` handle. Equivalent type
+aliases use the same tag. Use the generated declarations rather than hardcoding
+compiler-generated tag names. Prefer creation/access/destruction
 functions for opaque handles. If foreign code constructs a struct directly,
 it must separately agree on the exact C-compatible layout. Inbound by-value
 struct exports are not supported; outbound extern by-value structs still use
