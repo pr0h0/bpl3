@@ -57,3 +57,55 @@ test("array-alias pointer chains retain null and inner-array bounds checks", () 
     },
   ]);
 }, 60000);
+
+test("nested array pointers preserve the indexed element's shape", () => {
+  expectCorrectnessSuite([
+    {
+      name: "nested-row-pointers",
+      validateLlvm: true,
+      source: `
+      type Row=int[2]; type RowPtr=*Row; type Rows=RowPtr[2];
+      type AliasRows=Rows;
+      frame read(p:*AliasRows) ret int {return p[1][1];}
+      frame main() ret int {
+        local first:Row=[1,2]; local second:Row=[3,4];
+        local rows:Rows=[&first,&second]; local p:*Rows=&rows;
+        if(rows[1][1]!=4 || p[1][1]!=4 || read(p)!=4) return 1;
+        local view:RowPtr[]=rows; if(view[1][1]!=4) return 5;
+        local selected:RowPtr=p[1]; if(selected[0]!=3) return 2;
+        p[1][0]=42; if(second[0]!=42) return 3;
+        local direct:*Row[2]=[&first,&second];
+        if(direct[1][0]!=42) return 4;
+        return 0;
+      }`,
+    },
+  ]);
+}, 60000);
+
+test("nested row-pointer indexing checks both array bounds and selected pointers", () => {
+  const setup = `type Row=int[2];type RowPtr=*Row;type Rows=RowPtr[2];
+    frame main() ret int {
+      local row:Row=[1,2];local rows:Rows=[&row,nullptr];local p:*Rows=&rows;`;
+  expectRuntimeFailureSuite([
+    {
+      name: "nested outer bounds",
+      expectedMessage: "INDEX OUT OF BOUNDS",
+      source: setup + "return p[2][0];}",
+    },
+    {
+      name: "nested inner bounds",
+      expectedMessage: "INDEX OUT OF BOUNDS",
+      source: setup + "return p[0][2];}",
+    },
+    {
+      name: "nested selected null",
+      expectedMessage: "NULL POINTER ACCESS",
+      source: setup + "return p[1][0];}",
+    },
+    {
+      name: "nested outer null",
+      expectedMessage: "NULL POINTER ACCESS",
+      source: setup + "p=nullptr;return p[0][0];}",
+    },
+  ]);
+}, 60000);

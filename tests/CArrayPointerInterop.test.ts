@@ -29,6 +29,8 @@ test.skipIf(process.platform !== "linux")(
         type RowPointers = RowPointer[2];
         @[c_export] frame row_alias(p:RowPointer) ret RowPointer { return p; }
         @[c_export] frame nested(p:*RowPointers) ret *RowPointers { return p; }
+        @[c_export] frame nested_read(p:*RowPointers) ret int { return p[1][1]; }
+        @[c_export] frame nested_write(p:*RowPointers) { p[1][0]=77; }
         extern native_sum(p:*Grid) ret int;
         @[c_export] frame sum(p:*Grid) ret int { return native_sum(p); }
         @[c_export] frame update(p:*Row) ret *Row { p[1]=42; return p; }
@@ -65,6 +67,9 @@ test.skipIf(process.platform !== "linux")(
           if(sum(&grid)!=42 || generic_row(row)!=11 || row_alias(row)!=row) return 1;
           if(update(row)!=row || grid[0][1]!=42 || indirect(&row)!=42) return 2;
           if(read_pointer(&pointers)!=32 || nested(&row_pointers)!=&row_pointers) return 3;
+          if(nested_read(&row_pointers)!=32) return 4;
+          nested_write(&row_pointers);
+          if(grid[2][0]!=77) return 5;
           return 0;
         }
       `,

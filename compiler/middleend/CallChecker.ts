@@ -42,8 +42,16 @@ function getPointerToAliasedArrayElementType(
   const aliasedType = context.resolveType(
     type.aliasTarget ?? type.aliasDeclaration.type,
   );
+  if (aliasedType.kind !== "BasicType") return undefined;
+  // An outer array must be indexed before any pointer inside its element.
+  if (type.arrayDimensions.length !== aliasedType.arrayDimensions.length)
+    return undefined;
+  if (type.pointerDepth === aliasedType.pointerDepth)
+    return getPointerToAliasedArrayElementType(context, {
+      ...aliasedType,
+      isConst: type.isConst || aliasedType.isConst,
+    });
   const pointsToAliasedArray =
-    aliasedType.kind === "BasicType" &&
     aliasedType.arrayDimensions.length > 0 &&
     type.pointerDepth > aliasedType.pointerDepth;
 
@@ -55,10 +63,39 @@ function getPointerToAliasedArrayElementType(
     return pointerElement;
   }
 
-  return withoutAliasShape({
-    ...aliasedType,
-    arrayDimensions: aliasedType.arrayDimensions.slice(1),
+  return {
+    ...getAliasedArrayElementType(context, aliasedType),
     location: type.location,
+  };
+}
+
+function getAliasedArrayElementType(
+  context: CheckerContext,
+  type: AST.BasicTypeNode,
+): AST.BasicTypeNode {
+  if (type.aliasDeclaration) {
+    const target = context.resolveType(
+      type.aliasTarget ?? type.aliasDeclaration.type,
+    );
+    if (target.kind === "BasicType") {
+      const outerDimensions =
+        type.arrayDimensions.length - target.arrayDimensions.length;
+      if (outerDimensions === 0 && type.pointerDepth === target.pointerDepth)
+        return getAliasedArrayElementType(context, {
+          ...target,
+          isConst: type.isConst || target.isConst,
+        });
+      if (outerDimensions > 0) {
+        // Preserve the element's alias: it may itself be a pointer to an array.
+        if (outerDimensions === 1 && type.pointerDepth === target.pointerDepth)
+          return { ...target, isConst: type.isConst || target.isConst };
+        return { ...type, arrayDimensions: type.arrayDimensions.slice(1) };
+      }
+    }
+  }
+  return withoutAliasShape({
+    ...type,
+    arrayDimensions: type.arrayDimensions.slice(1),
   });
 }
 
@@ -1219,10 +1256,11 @@ export function checkIndex(
 
   if (!objectType) return undefined;
 
-  if (
-    objectType.kind === "BasicType" &&
-    getPointerToAliasedArrayElementType(this, objectType)
-  ) {
+  const pointerElement =
+    objectType.kind === "BasicType"
+      ? getPointerToAliasedArrayElementType(this, objectType)
+      : undefined;
+  if (pointerElement) {
     if (indexType && !TypeUtils.isIntegerType(indexType)) {
       throw new CompilerError(
         `Pointer index must be an integer, got ${this.typeToString(indexType)}`,
@@ -1231,7 +1269,7 @@ export function checkIndex(
         POINTER_INDEX_TYPE_MISMATCH_CODE,
       );
     }
-    return getPointerToAliasedArrayElementType(this, objectType);
+    return pointerElement;
   }
 
   // Handle pointer indexing before the general array-shape path
@@ -1268,11 +1306,11 @@ export function checkIndex(
         ARRAY_INDEX_TYPE_MISMATCH_CODE,
       );
     }
+    if (objectType.kind === "BasicType") {
+      return getAliasedArrayElementType(this, objectType);
+    }
     const innerType = { ...objectType };
     innerType.arrayDimensions = innerType.arrayDimensions!.slice(1);
-    if (innerType.kind === "BasicType") {
-      return withoutAliasShape(innerType);
-    }
     return innerType;
   }
 
