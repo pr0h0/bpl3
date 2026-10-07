@@ -20,6 +20,7 @@ import { TokenType } from "../../frontend/TokenType";
 import { UnaryExpressionGenerator } from "./UnaryExpressionGenerator";
 import { formatFloatingPointLiteral } from "./FloatingPointLiteral";
 import { getIntegerBitWidth } from "./utils";
+import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConversions";
 
 const STRUCT_LITERAL_FIELD_MAP_THRESHOLD = 4;
 const COMPOUND_BINARY_OPERATORS: Partial<Record<TokenType, TokenType>> = {
@@ -672,19 +673,41 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
     if (expr.operator.type === TokenType.Equal) {
       const destTypeNode = expr.assignee.resolvedType!;
-      const castVal =
-        expr.value.kind === "TupleLiteral" && destTypeNode.kind === "TupleType"
-          ? this.generateTupleLiteralForTarget(
-              expr.value as AST.TupleLiteralExpr,
-              destTypeNode,
-            )
-          : this.emitCast(
-              this.generateExpression(expr.value),
-              this.resolveType(expr.value.resolvedType!),
-              destType,
-              expr.value.resolvedType!,
-              destTypeNode,
-            );
+      const sourceTypeNode = expr.value.resolvedType!;
+      let castVal: string;
+      if (
+        lowerImplicitConversion(destTypeNode, sourceTypeNode).kind ===
+          "array-to-slice" &&
+        this.isSliceTypeNode(destTypeNode) &&
+        this.isFixedArrayTypeNode(sourceTypeNode)
+      ) {
+        try {
+          const sourceAddr = this.generateAddress(expr.value);
+          castVal = this.emitSliceFromArrayAddress(
+            sourceAddr, sourceTypeNode, destTypeNode,
+          );
+        } catch {
+          castVal = this.emitSliceFromArrayValue(
+            this.generateExpression(expr.value),
+            sourceTypeNode,
+            destTypeNode,
+          );
+        }
+      } else {
+        castVal =
+          expr.value.kind === "TupleLiteral" && destTypeNode.kind === "TupleType"
+            ? this.generateTupleLiteralForTarget(
+                expr.value as AST.TupleLiteralExpr,
+                destTypeNode,
+              )
+            : this.emitCast(
+                this.generateExpression(expr.value),
+                this.resolveType(expr.value.resolvedType!),
+                destType,
+                expr.value.resolvedType!,
+                destTypeNode,
+              );
+      }
       this.emit(`  store ${destType} ${castVal}, ${destType}* ${addr}`);
       this.clearBasicBlockIntegerExpressionFact(
         this.exprToDescription(expr.assignee),

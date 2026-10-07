@@ -16,6 +16,13 @@ export interface LoweredImplicitConversion {
 
 const INTEGER_TYPES = new Set(PRIMITIVE_INTEGER_NAMES);
 
+export type ArrayTypeNode = (
+  | AST.BasicTypeNode
+  | AST.FunctionTypeNode
+  | AST.LambdaTypeNode
+  | AST.TupleTypeNode
+) & { arrayDimensions: (number | null)[] };
+
 export function areArrayDimensionsAssignable(
   targetDimensions: (number | null)[],
   sourceDimensions: (number | null)[],
@@ -35,9 +42,11 @@ export function areArrayDimensionsAssignable(
 
 export function isSliceTypeNode(
   type: AST.TypeNode | undefined,
-): type is AST.BasicTypeNode {
+): type is ArrayTypeNode {
   return (
-    type?.kind === "BasicType" &&
+    type !== undefined &&
+    "arrayDimensions" in type &&
+    type.arrayDimensions !== undefined &&
     type.arrayDimensions.length > 0 &&
     type.arrayDimensions[0] === null
   );
@@ -45,9 +54,11 @@ export function isSliceTypeNode(
 
 export function isFixedArrayTypeNode(
   type: AST.TypeNode | undefined,
-): type is AST.BasicTypeNode {
+): type is ArrayTypeNode {
   return (
-    type?.kind === "BasicType" &&
+    type !== undefined &&
+    "arrayDimensions" in type &&
+    type.arrayDimensions !== undefined &&
     type.arrayDimensions.length > 0 &&
     type.arrayDimensions[0] !== null
   );
@@ -76,6 +87,22 @@ export function lowerImplicitConversion(
 ): LoweredImplicitConversion {
   if (areTypeNodesStructurallyEqual(targetType, sourceType)) {
     return { kind: "identity", targetType, sourceType };
+  }
+
+  if (
+    targetType.kind !== "BasicType" &&
+    isSliceTypeNode(targetType) &&
+    isFixedArrayTypeNode(sourceType) &&
+    areArrayDimensionsExactlyEqual(
+      targetType.arrayDimensions.slice(1),
+      sourceType.arrayDimensions.slice(1),
+    ) &&
+    areTypeNodesStructurallyEqual(
+      { ...targetType, arrayDimensions: [] },
+      { ...sourceType, arrayDimensions: [] },
+    )
+  ) {
+    return { kind: "array-to-slice", targetType, sourceType };
   }
 
   if (targetType.kind !== "BasicType" || sourceType.kind !== "BasicType") {
@@ -151,7 +178,8 @@ function isArrayToPointerDecay(
     targetType.pointerDepth === sourceType.pointerDepth + 1 &&
     sourceType.arrayDimensions.length > 0 &&
     sourceType.arrayDimensions[0] !== null &&
-    targetType.arrayDimensions.length === sourceType.arrayDimensions.length - 1 &&
+    targetType.arrayDimensions.length ===
+      sourceType.arrayDimensions.length - 1 &&
     areArrayDimensionsExactlyEqual(
       targetType.arrayDimensions,
       sourceType.arrayDimensions.slice(1),
@@ -174,7 +202,7 @@ function isArrayToSliceConversion(
   );
 }
 
-function areArrayDimensionsExactlyEqual(
+export function areArrayDimensionsExactlyEqual(
   left: (number | null)[],
   right: (number | null)[],
 ): boolean {
@@ -211,6 +239,10 @@ function areTypeNodesStructurallyEqual(
 
   if (left.kind === "TupleType" && right.kind === "TupleType") {
     return (
+      areArrayDimensionsExactlyEqual(
+        left.arrayDimensions ?? [],
+        right.arrayDimensions ?? [],
+      ) &&
       left.types.length === right.types.length &&
       left.types.every((type, index) =>
         areTypeNodesStructurallyEqual(type, right.types[index]!),
@@ -234,8 +266,12 @@ function areCallableTypesStructurallyEqual(
   right: AST.FunctionTypeNode | AST.LambdaTypeNode,
 ): boolean {
   return (
+    areArrayDimensionsExactlyEqual(
+      left.arrayDimensions ?? [],
+      right.arrayDimensions ?? [],
+    ) &&
     left.paramTypes.length === right.paramTypes.length &&
-    left.isVariadic === right.isVariadic &&
+    !!left.isVariadic === !!right.isVariadic &&
     areTypeNodesStructurallyEqual(left.returnType, right.returnType) &&
     left.paramTypes.every((type, index) =>
       areTypeNodesStructurallyEqual(type, right.paramTypes[index]!),

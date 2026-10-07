@@ -5,6 +5,7 @@ import { codeGenLog } from "../../common/Logger";
 import { StructEnumGenerator } from "./StructEnumGenerator";
 import { TypeSubstitution } from "../../middleend/TypeUtils";
 import {
+  type ArrayTypeNode,
   isFixedArrayTypeNode as isLoweredFixedArrayTypeNode,
   isSliceTypeNode as isLoweredSliceTypeNode,
 } from "../../middleend/lowering/ImplicitConversions";
@@ -93,24 +94,28 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
   protected isSliceTypeNode(
     type: AST.TypeNode | undefined,
-  ): type is AST.BasicTypeNode {
+  ): type is ArrayTypeNode {
     return isLoweredSliceTypeNode(type);
   }
 
   protected isFixedArrayTypeNode(
     type: AST.TypeNode | undefined,
-  ): type is AST.BasicTypeNode {
+  ): type is ArrayTypeNode {
     return isLoweredFixedArrayTypeNode(type);
   }
 
   protected getArrayElementTypeNode(
-    type: AST.BasicTypeNode,
-  ): AST.BasicTypeNode {
+    type: ArrayTypeNode,
+  ): ArrayTypeNode {
     const element = {
       ...type,
       arrayDimensions: type.arrayDimensions.slice(1),
     };
-    if (type.aliasDeclaration) {
+    if (
+      type.kind === "BasicType" &&
+      element.kind === "BasicType" &&
+      type.aliasDeclaration
+    ) {
       const alias = type.aliasTarget ?? type.aliasDeclaration.type;
       const aliasDimensions = this.getEffectiveModifiers(alias).arrayDimensions;
       if (type.arrayDimensions.length <= aliasDimensions.length) {
@@ -126,8 +131,8 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
   protected emitSliceFromArrayAddress(
     arrayAddr: string,
-    sourceArrayType: AST.BasicTypeNode,
-    destSliceType: AST.BasicTypeNode,
+    sourceArrayType: ArrayTypeNode,
+    destSliceType: ArrayTypeNode,
   ): string {
     const length = sourceArrayType.arrayDimensions[0];
     if (length === null || length === undefined) {
@@ -163,7 +168,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
   protected emitPointerFromArrayAddress(
     arrayAddr: string,
-    sourceArrayType: AST.BasicTypeNode,
+    sourceArrayType: ArrayTypeNode,
   ): string {
     const sourceType = this.resolveType(sourceArrayType);
     const elementPtr = this.newRegister();
@@ -175,8 +180,8 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
   protected emitSliceFromArrayValue(
     val: string,
-    sourceArrayType: AST.BasicTypeNode,
-    destSliceType: AST.BasicTypeNode,
+    sourceArrayType: ArrayTypeNode,
+    destSliceType: ArrayTypeNode,
   ): string {
     const sourceType = this.resolveType(sourceArrayType);
     const spill = this.allocateStack(
@@ -193,7 +198,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
   protected emitPointerFromArrayValue(
     val: string,
-    sourceArrayType: AST.BasicTypeNode,
+    sourceArrayType: ArrayTypeNode,
   ): string {
     const sourceType = this.resolveType(sourceArrayType);
     const spill = this.allocateStack(

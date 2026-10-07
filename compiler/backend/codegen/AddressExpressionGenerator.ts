@@ -1,3 +1,4 @@
+import type { ArrayTypeNode } from "../../middleend/lowering/ImplicitConversions";
 /**
  * Handles address generation, pointer operations, and null checks.
  *
@@ -456,7 +457,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     indexExpr: AST.IndexExpr,
     objectAddr: string,
     indexVal: string,
-    objType: AST.BasicTypeNode,
+    objType: ArrayTypeNode,
   ): string {
     const sliceType = this.resolveType(objType);
     const elementType = this.resolveType(

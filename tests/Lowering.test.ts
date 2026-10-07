@@ -69,10 +69,7 @@ describe("Incremental implicit conversion lowering", () => {
 
   it("short circuits empty structural type lists before helper traversal", () => {
     const source = readFileSync(
-      join(
-        process.cwd(),
-        "compiler/middleend/lowering/ImplicitConversions.ts",
-      ),
+      join(process.cwd(), "compiler/middleend/lowering/ImplicitConversions.ts"),
       "utf8",
     );
     const functionStart = source.indexOf(
@@ -119,10 +116,7 @@ describe("Incremental implicit conversion lowering", () => {
 
   it("rejects no-array shapes before element and array-conversion helpers", () => {
     const source = readFileSync(
-      join(
-        process.cwd(),
-        "compiler/middleend/lowering/ImplicitConversions.ts",
-      ),
+      join(process.cwd(), "compiler/middleend/lowering/ImplicitConversions.ts"),
       "utf8",
     );
     const functionStart = source.indexOf(
@@ -265,5 +259,45 @@ describe("Incremental implicit conversion lowering", () => {
     expect(lowerImplicitConversion(intToIntFunc, intToIntLambda).kind).toBe(
       "unsupported",
     );
+  });
+  it("preserves callable and tuple array shapes during conversion", () => {
+    for (const element of [
+      func(basic("int"), [basic("int")]),
+      lambda(basic("int"), [basic("int")]),
+      {
+        kind: "TupleType",
+        types: [basic("int"), basic("int")],
+        location: loc,
+      } as AST.TupleTypeNode,
+    ]) {
+      const fixed = { ...element, arrayDimensions: [3, 2] };
+      const slice = { ...element, arrayDimensions: [null, 2] };
+      expect(lowerImplicitConversion(slice, fixed).kind).toBe("array-to-slice");
+      expect(lowerImplicitConversion(fixed, slice).kind).toBe("unsupported");
+      expect(lowerImplicitConversion(element, fixed).kind).toBe("unsupported");
+      expect(
+        lowerImplicitConversion({ ...slice, arrayDimensions: [null, 4] }, fixed)
+          .kind,
+      ).toBe("unsupported");
+      expect(
+        lowerImplicitConversion(
+          { ...slice, arrayDimensions: [null, null] },
+          fixed,
+        ).kind,
+      ).toBe("unsupported");
+    }
+    const source = {
+      ...func(basic("int"), [basic("int")]),
+      isVariadic: false,
+      arrayDimensions: [2],
+    };
+    const target = {
+      ...func(basic("int"), [basic("int")]),
+      arrayDimensions: [null],
+    };
+    expect(lowerImplicitConversion(target, source).kind).toBe("array-to-slice");
+    expect(
+      lowerImplicitConversion({ ...target, isVariadic: true }, source).kind,
+    ).toBe("unsupported");
   });
 });

@@ -26,6 +26,7 @@ import {
 } from "./TypeUtils";
 import {
   areArrayDimensionsAssignable,
+  areArrayDimensionsExactlyEqual,
   isImplicitIntegerToBool,
   lowerImplicitConversion,
 } from "./lowering/ImplicitConversions";
@@ -1624,6 +1625,16 @@ export abstract class TypeCheckerBase {
         return false;
       }
 
+      if (
+        (rt1.arrayDimensions?.length ?? 0) > 0 ||
+        (rt2.arrayDimensions?.length ?? 0) > 0
+      ) {
+        const conversion = lowerImplicitConversion(rt1, rt2);
+        return (
+          conversion.kind === "identity" || conversion.kind === "array-to-slice"
+        );
+      }
+
       const f1 = rt1 as AST.FunctionTypeNode | AST.LambdaTypeNode;
       const f2 = rt2 as AST.FunctionTypeNode | AST.LambdaTypeNode;
 
@@ -1635,6 +1646,16 @@ export abstract class TypeCheckerBase {
       }
       return true;
     } else if (rt1.kind === "TupleType" && rt2.kind === "TupleType") {
+      if (
+        (rt1.arrayDimensions?.length ?? 0) > 0 ||
+        (rt2.arrayDimensions?.length ?? 0) > 0
+      ) {
+        const conversion = lowerImplicitConversion(rt1, rt2);
+        return (
+          conversion.kind === "identity" || conversion.kind === "array-to-slice"
+        );
+      }
+
       if (rt1.types.length !== rt2.types.length) return false;
       for (let i = 0; i < rt1.types.length; i++) {
         if (!this.areTypesCompatible(rt1.types[i]!, rt2.types[i]!))
@@ -1651,6 +1672,14 @@ export abstract class TypeCheckerBase {
     const rt2 = this.resolveType(t2, false);
 
     if (rt1.kind !== rt2.kind) return false;
+    if (
+      !areArrayDimensionsExactlyEqual(
+        "arrayDimensions" in rt1 ? rt1.arrayDimensions ?? [] : [],
+        "arrayDimensions" in rt2 ? rt2.arrayDimensions ?? [] : [],
+      )
+    ) {
+      return false;
+    }
 
     if (rt1.kind === "BasicType" && rt2.kind === "BasicType") {
       if (rt1.name !== rt2.name) return false;

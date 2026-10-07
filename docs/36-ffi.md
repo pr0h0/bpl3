@@ -291,6 +291,13 @@ inside another callback signature or through generic type aliases. They are not
 interchangeable with one C function pointer. Within BPL, fixed callback arrays
 can be initialized with literals such as `[inc, dec]`, indexed, and passed to
 BPL functions as fixed arrays; generic callback aliases are supported too.
+They can also form BPL slices: `local view:Func<int>(int)[] = callbacks;`.
+Slices initialized, assigned, or passed from an existing fixed array view its
+original storage, so replacing `view[0]` updates that array. Array literals
+passed to a slice parameter use temporary storage in the calling function.
+The outer length is checked when indexing; inner dimensions and callback
+signatures must match exactly. Keep the backing storage alive while using the
+slice. These BPL slices cannot cross the C ABI by value.
 
 A `Func` value already represents a C function pointer. Adding `*` to a
 callable or tuple alias is currently unsupported and reports
