@@ -240,6 +240,7 @@ const CLI_JSON_ERROR_CODE_LISTS = [
   {
     name: "type-checker",
     codes: [
+      "BPL_TYPE_ALIAS_POINTER_UNSUPPORTED",
       "BPL_SYMBOL_ALREADY_DEFINED",
       "BPL_TYPE_RECURSION_CYCLE",
       "BPL_GENERIC_ARITY_MISMATCH",

@@ -1,4 +1,7 @@
-import { applyAliasValueModifiers } from "../common/TypeAliasModifiers";
+import {
+  applyAliasValueModifiers,
+  TYPE_ALIAS_POINTER_UNSUPPORTED_CODE,
+} from "../common/TypeAliasModifiers";
 /**
  * TypeCheckerBase - Base class with shared state and utility methods for type checking
  * This class provides the foundation for modular type checking with separate
@@ -176,6 +179,7 @@ export const FUNCTION_ATTRIBUTE_AUTO_DESTROY_RETURN_TYPE_MISMATCH_CODE =
   "BPL_FUNCTION_ATTRIBUTE_AUTO_DESTROY_RETURN_TYPE_MISMATCH";
 
 export const TYPE_CHECKER_FAILURE_CODES = [
+  TYPE_ALIAS_POINTER_UNSUPPORTED_CODE,
   SYMBOL_ALREADY_DEFINED_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   GENERIC_ARITY_MISMATCH_CODE,

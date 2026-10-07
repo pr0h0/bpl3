@@ -291,6 +291,12 @@ inside another callback signature or through generic type aliases. They are not
 interchangeable with one C
 function pointer.
 
+A `Func` value already represents a C function pointer. Adding `*` to a
+callable or tuple alias is currently unsupported and reports
+`BPL_TYPE_ALIAS_POINTER_UNSUPPORTED`, including through generic aliases. For
+an output callback slot, use a struct containing a `Func` field and pass a
+pointer to that struct; the C side must agree on the field layout.
+
 A `Lambda` carries a BPL closure context and cannot replace a C function
 pointer. Python `ctypes` callbacks and Bun `JSCallback` objects must remain
 alive for every native call that can use them. The fixtures use synchronous

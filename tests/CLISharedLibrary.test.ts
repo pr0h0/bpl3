@@ -59,6 +59,9 @@ test.skipIf(process.platform !== "linux")(
         `
       type Counter = long;
       type Callback<T> = Func<T>(T);
+      struct CallbackSlot { value:Callback<int>, }
+      @[c_export] frame invoke_slot(slot:*CallbackSlot,x:int) ret int {return slot.value(x);}
+      @[c_export] frame replace_slot(slot:*CallbackSlot) {slot.value=increment;}
       @[c_export] frame add64(a: Counter, b: long) ret long { return a + b; }
       @[c_export] frame signed_byte(x: i8) ret i8 { return x; }
       @[c_export] frame unsigned_byte(x: u8) ret u8 { return x; }
@@ -75,9 +78,14 @@ test.skipIf(process.platform !== "linux")(
         host,
         `
       #include "api.h"
+      struct bpl_CallbackSlot { int32_t (*value)(int32_t); };
       static int32_t twice(int32_t value) { return value * 2; }
       int main(void) {
         int32_t value = 42;
+        struct bpl_CallbackSlot slot = {twice};
+        if(invoke_slot(&slot,21)!=42) return 5;
+        replace_slot(&slot);
+        if(slot.value(41)!=42) return 6;
         if (add64(INT64_C(4294967296), -7) != INT64_C(4294967289)) return 1;
         if (signed_byte(-128) != -128 || unsigned_byte(255) != 255 || signed_short(-32768) != -32768) return 2;
         if (toggle(true) || !toggle(false)) return 3;

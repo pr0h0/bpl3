@@ -919,6 +919,11 @@ bun test tests/TypeCheckerTuplePatternDiagnostics.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "tuple pattern diagnostics"
 ```
 
+Pointer modifiers on callable or tuple aliases report
+`BPL_TYPE_ALIAS_POINTER_UNSUPPORTED`. These types cannot currently represent the
+extra indirection; use a struct wrapper, or pass a `Func` directly for a C
+callback. Generic aliases follow the same rule.
+
 Type-query failures use `BPL_TYPE_QUERY_ENUM_NOT_FOUND` and `BPL_TYPE_QUERY_TYPE_NOT_FOUND`. This covers unresolved `match<T>(value)` enum paths, unresolved `match<T>(value)` plain types, and unresolved `expr is T` targets. Representative messages include `Cannot find enum 'Missing'`, `Unknown type 'MissingType'`, and `Unknown type: MissingType`. The corresponding hints include `The type 'Missing' in match<Missing.Some> is not a defined enum.`, `The type 'MissingType' in match<MissingType> is not defined.`, and `Ensure the type is defined.`. Valid primitive `is` checks and valid enum-variant `match<T>(value)` checks remain accepted. Reproduce the type-checker and JSON contracts with:
 
 ```bash
