@@ -297,7 +297,9 @@ original storage, so replacing `view[0]` updates that array. Array literals
 passed to a slice parameter use temporary storage in the calling function.
 The outer length is checked when indexing; inner dimensions and callback
 signatures must match exactly. Keep the backing storage alive while using the
-slice. These BPL slices cannot cross the C ABI by value.
+slice. These BPL slices cannot cross the C ABI by value. Select a single
+callback with an index before calling it; calling an entire array or slice
+reports `BPL_CALL_TARGET_NOT_CALLABLE`.
 
 A `Func` value already represents a C function pointer. Adding `*` to a
 callable or tuple alias is currently unsupported and reports

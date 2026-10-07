@@ -268,6 +268,19 @@ export function checkCall(
     }
   }
 
+  if (
+    calleeType &&
+    (calleeType.kind === "FunctionType" || calleeType.kind === "LambdaType") &&
+    (calleeType.arrayDimensions?.length ?? 0) > 0
+  ) {
+    throw new CompilerError(
+      "Cannot call an array or slice of callbacks",
+      "Index the array or slice to select one callback before calling it.",
+      expr.location,
+      CALL_TARGET_NOT_CALLABLE_CODE,
+    );
+  }
+
   // Try __call__ operator overload
   if (
     calleeType &&
