@@ -288,8 +288,9 @@ raw element pointer and a separate length for variable-sized buffers.
 
 Arrays and slices of `Func` values cannot cross the C ABI by value, including
 inside another callback signature or through generic type aliases. They are not
-interchangeable with one C
-function pointer.
+interchangeable with one C function pointer. Within BPL, fixed callback arrays
+can be initialized with literals such as `[inc, dec]`, indexed, and passed to
+BPL functions as fixed arrays; generic callback aliases are supported too.
 
 A `Func` value already represents a C function pointer. Adding `*` to a
 callable or tuple alias is currently unsupported and reports

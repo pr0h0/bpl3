@@ -1093,10 +1093,19 @@ export function checkArrayLiteral(
     }
   }
 
-  if (firstType && firstType.kind === "BasicType") {
+  if (
+    firstType &&
+    (firstType.kind === "BasicType" ||
+      firstType.kind === "FunctionType" ||
+      firstType.kind === "LambdaType" ||
+      firstType.kind === "TupleType")
+  ) {
     return {
       ...firstType,
-      arrayDimensions: [expr.elements.length, ...firstType.arrayDimensions],
+      arrayDimensions: [
+        expr.elements.length,
+        ...(firstType.arrayDimensions ?? []),
+      ],
     };
   }
   return undefined;
