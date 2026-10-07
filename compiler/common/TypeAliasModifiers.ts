@@ -19,5 +19,7 @@ export function applyAliasValueModifiers(
       isConst: usage.isConst || target.isConst,
     };
   }
-  return usage.isConst ? { ...target, isConst: true } : target;
+  return usage.isConst && target.kind === "BasicType"
+    ? { ...target, isConst: true }
+    : target;
 }
