@@ -1879,7 +1879,8 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
                 resolvedArgType,
                 targetTypeNode,
               );
-        return `${destType} ${castVal}`;
+        const extension = this.getCAbiParameterExtension(targetTypeNode);
+        return `${destType} ${extension}${castVal}`;
       }
 
       const val = this.generateExpression(arg);

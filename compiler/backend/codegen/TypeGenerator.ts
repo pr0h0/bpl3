@@ -3,6 +3,7 @@ import type { AST } from "../..";
 import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
 import { StructEnumGenerator } from "./StructEnumGenerator";
+import { getCAbiKind } from "./abi/CAbi";
 import { TypeSubstitution } from "../../middleend/TypeUtils";
 import {
   type ArrayTypeNode,
@@ -1804,6 +1805,20 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     }
 
     return isSignedTypeName(basic.name);
+  }
+
+  /** C callers extend narrow integer parameters on these target ABIs. */
+  protected getCAbiParameterExtension(type: AST.TypeNode): string {
+    const llvmType = this.resolveType(type);
+    if (llvmType !== "i1" && llvmType !== "i8" && llvmType !== "i16") return "";
+    const abi = getCAbiKind(this.target);
+    if (abi === "aarch64-aapcs" || abi === "x86_64-win64") return "";
+    if (type.kind === "BasicType" && type.aliasDeclaration) {
+      return this.getCAbiParameterExtension(
+        type.aliasTarget ?? type.aliasDeclaration.type,
+      );
+    }
+    return this.isSigned(type) ? "signext " : "zeroext ";
   }
 
   protected isIntegerType(type: string): boolean {

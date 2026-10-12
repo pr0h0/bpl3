@@ -290,7 +290,9 @@ Callback parameter and return types must match exactly after resolving aliases,
 including integer widths, nested callable signatures, and whether the function
 is variadic. Assigning or passing a function pointer does not convert the
 function's parameters or result. Ordinary scalar arguments can still convert
-when calling that function.
+when calling that function. Narrow integer callback arguments follow the target
+C ABI's parameter extension rules, so signed `i8` and `short` values retain their
+sign when passed to C, including through `Func`-to-`Lambda` adapters.
 
 Arrays and slices of `Func` values cannot cross the C ABI by value, including
 inside another callback signature or through generic type aliases. They are not

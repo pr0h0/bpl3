@@ -699,10 +699,18 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       const rawFuncPtrType = `${rawFuncSig}*`;
 
       // Unique name for the thunk based on signature
-      const sigHash = hashString(rawFuncPtrType);
+      const paramExtensions = srcFuncType.paramTypes.map((p) =>
+        this.getCAbiParameterExtension(p),
+      );
+      const extensionKey = paramExtensions.some(Boolean)
+        ? paramExtensions.join(",")
+        : "";
+      const sigHash = hashString(rawFuncPtrType + extensionKey);
       const thunkName = `__bpl_thunk_${sigHash}`;
 
-      this.requestThunk(thunkName, retType, paramTypes, rawFuncPtrType);
+      this.requestThunk(
+        thunkName, retType, paramTypes, rawFuncPtrType, paramExtensions,
+      );
       const thunkRef = `@${thunkName}`;
 
       // Logic for the cast itself:
@@ -1280,6 +1288,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     retType: string,
     paramTypes: string[],
     rawFuncPtrType: string,
+    paramExtensions: string[],
   ): void {
     if (this.thunks.has(thunkName)) return;
     this.thunks.add(thunkName);
@@ -1298,7 +1307,9 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     methodBody.push(`  %fn = bitcast i8* %ctx to ${rawFuncPtrType}`);
 
     // Call arguments
-    const callArgs = paramTypes.map((t, i) => `${t} %p${i}`).join(", ");
+    const callArgs = paramTypes
+      .map((t, i) => `${t} ${paramExtensions[i] ?? ""}%p${i}`)
+      .join(", ");
 
     const callInst = retType === "void" ? "call" : "%ret = call";
     methodBody.push(`  ${callInst} ${retType} %fn(${callArgs})`);
