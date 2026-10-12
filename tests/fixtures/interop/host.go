@@ -1,8 +1,10 @@
 package main
 /*
 #include "bridge.h"
+#include <stddef.h>
 extern int64_t go_twice(int64_t);
 static int64_t run_go_callback(void) { return interop_run(go_twice, 20); }
+static int check_callbacks(void) { return interop_factory()(21) == 42 && interop_checked(NULL, 20) == -7; }
 // Keep the pointer graph in C-owned storage for the duration of the call.
 static int check_rows(void) {
     int64_t first[2] = {10, 11}, second[2] = {31, 32};
@@ -22,6 +24,7 @@ func main() {
     if C.interop_scale(2.5) != 3.75 { panic("float32") }
     if packet.count != 42 || packet.score != 2.5 { panic("struct pointer") }
     if C.run_go_callback() != 41 { panic("callback") }
+    if C.check_callbacks() != 1 { panic("returned/null callback") }
     if C.check_rows() != 1 { panic("nested array pointers") }
     fmt.Println("interop-ok")
 }

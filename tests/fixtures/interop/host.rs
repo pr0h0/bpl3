@@ -7,6 +7,8 @@ extern "C" {
     fn interop_scale(value: f32) -> f32;
     fn interop_update(packet: *mut Packet);
     fn interop_run(callback: extern "C" fn(i64) -> i64, value: i64) -> i64;
+    fn interop_factory() -> extern "C" fn(i64) -> i64;
+    fn interop_checked(callback: Option<extern "C" fn(i64) -> i64>, value: i64) -> i64;
 }
 extern "C" fn twice(value: i64) -> i64 { value * 2 }
 fn main() {
@@ -17,6 +19,8 @@ fn main() {
         assert_eq!(interop_scale(2.5), 3.75);
         assert_eq!((packet.count, packet.score), (42, 2.5));
         assert_eq!(interop_run(twice, 20), 41);
+        assert_eq!(interop_factory()(21), 42);
+        assert_eq!(interop_checked(None, 20), -7);
         let mut first = [10i64, 11];
         let mut second = [31i64, 32];
         let mut rows = [&mut first as *mut [i64; 2], &mut second as *mut [i64; 2]];

@@ -23,4 +23,12 @@ public static unsafe class Exports
     public static Triple Double(Triple value) => new Triple { X = value.X * 2, Y = value.Y * 2, Z = value.Z * 2 };
     [UnmanagedCallersOnly(EntryPoint = "foreign_callback", CallConvs = new[] { typeof(CallConvCdecl) })]
     public static long Callback(delegate* unmanaged[Cdecl]<long, long> callback, long value) => callback(value) + 1;
+    [UnmanagedCallersOnly(EntryPoint = "foreign_signed_probe", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int Signed(sbyte value) => value;
+    [UnmanagedCallersOnly(EntryPoint = "foreign_unsigned_probe", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int Unsigned(byte value) => value;
+    [UnmanagedCallersOnly(EntryPoint = "foreign_small_callback", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int SmallCallback(delegate* unmanaged[Cdecl]<sbyte, int> callback, sbyte value) => callback(value);
+    [UnmanagedCallersOnly(EntryPoint = "foreign_callback_factory", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static delegate* unmanaged[Cdecl]<sbyte, int> Factory() => &Signed;
 }

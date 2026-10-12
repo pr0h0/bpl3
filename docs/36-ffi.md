@@ -396,13 +396,16 @@ The Docker option deliberately selects these images for reproducible toolchain
 isolation. It is separate from the default CI-safe suite.
 
 The matrix checks `-O0` and `-O3`, 64-bit integer values, `f32`, signed 16-bit
-values and booleans on outbound calls, small and large by-value outbound
+values and booleans on outbound calls, signed and unsigned byte arguments,
+small and large by-value outbound
 structs, pointer-based inbound structs, and callbacks in both directions.
 Every host also passes a nested row-pointer buffer to BPL and checks reads and
 mutations. The Go fixture uses a small cgo helper with C-owned buffer storage;
 Python, Bun, and Rust keep their buffer owners alive across the native call.
-The optional C# host uses stack-owned buffers and also checks a returned BPL
-function pointer and a caught null-callback error. The complete Docker run
+C, C++, Go, Rust, and C# hosts also check a returned BPL function pointer and
+a caught null-callback error. Their providers return a callback to BPL and call
+BPL callbacks with signed byte arguments. The optional C# host uses stack-owned
+buffers. The complete Docker run
 including C# has 24 configurations; Go/Rust without C# has 20, and the host
 subset has 12.
 `tests/InteropNative.test.ts` runs the host subset in the normal test suite when
