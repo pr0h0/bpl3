@@ -342,6 +342,14 @@ or support for arbitrary foreign-thread callbacks.
 - **Go:** use cgo and `//export` with `-buildmode=c-shared` for providers.
   Callback invocation needs a small C helper. Respect cgo pointer/lifetime
   rules; Go's native calling convention is not the C ABI.
+- **C#:** call BPL shared libraries through P/Invoke with `CallingConvention.Cdecl`.
+  Use sequential blittable structs, fixed-width values, and unmanaged pointers.
+  The checked callback uses `delegate* unmanaged[Cdecl]` and
+  `[UnmanagedCallersOnly]`. To expose C# functions to BPL, publish a Native AOT
+  shared library and give each method an explicit `EntryPoint`. A managed DLL
+  alone does not expose these native symbols. Match C `bool` explicitly: the
+  Native AOT fixture uses a `byte` restricted to 0 or 1; P/Invoke boolean
+  marshalling can use `[MarshalAs(UnmanagedType.I1)]`.
 - **Python:** use `ctypes.CDLL`, explicit `argtypes`/`restype`, and `CFUNCTYPE`
   callbacks. This tests Python calling BPL and BPL calling back into Python,
   not embedding a Python interpreter in a standalone BPL executable.
@@ -365,6 +373,22 @@ docker pull rust:1-bookworm
 bun tests/helpers/runInterop.ts --docker
 ```
 
+To also test C# in both directions, using .NET 10 inside Docker:
+
+```bash
+bun tests/helpers/runInterop.ts --docker --csharp
+```
+
+This builds the `bpl-interop-dotnet:local` image from
+[the .NET fixture Dockerfile](../tests/fixtures/interop/dotnet/Dockerfile).
+Image preparation downloads SDK dependencies and Native AOT packages; subsequent
+builds and execution run without networking, using the cached packages. The C#
+fixtures are [a P/Invoke host](../tests/fixtures/interop/dotnet/Host/Program.cs)
+and [a Native AOT provider](../tests/fixtures/interop/dotnet/Provider/Exports.cs).
+The helper publishes the provider once and links its native library into the
+BPL executable. See Microsoft's [Native AOT library documentation](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/libraries)
+for publishing other C# libraries with native exports.
+
 Containers have networking disabled during compilation and execution, mount
 fixtures read-only, and write into a temporary work directory as the invoking
 user. The directory is removed after the test; downloaded Docker images remain.
@@ -377,6 +401,10 @@ structs, pointer-based inbound structs, and callbacks in both directions.
 Every host also passes a nested row-pointer buffer to BPL and checks reads and
 mutations. The Go fixture uses a small cgo helper with C-owned buffer storage;
 Python, Bun, and Rust keep their buffer owners alive across the native call.
+The optional C# host uses stack-owned buffers and also checks a returned BPL
+function pointer and a caught null-callback error. The complete Docker run
+including C# has 24 configurations; Go/Rust without C# has 20, and the host
+subset has 12.
 `tests/InteropNative.test.ts` runs the host subset in the normal test suite when
 its Linux x86-64 toolchains are available. Cross-target ABI declaration tests
 remain in `tests/CAbiLowering.test.ts`; native execution on Linux does not

@@ -1,11 +1,19 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 export function runInteropMatrix(
-  options: { docker?: boolean; log?: (line: string) => void } = {},
+  options: {
+    docker?: boolean;
+    csharp?: boolean;
+    log?: (line: string) => void;
+  } = {},
 ): string[] {
+  if (options.csharp && !options.docker)
+    throw new Error(
+      "C# interop requires --docker --csharp for the .NET toolchain.",
+    );
   const fixtures = resolve(import.meta.dir, "../fixtures/interop");
   const dir = mkdtempSync(join(tmpdir(), "bpl-interop-"));
   const passed: string[] = [];
@@ -13,10 +21,11 @@ export function runInteropMatrix(
     command: string,
     args: string[],
     env?: NodeJS.ProcessEnv,
+    timeoutMs = 180000,
   ): string {
     const result = spawnSync(command, args, {
       encoding: "utf8",
-      timeout: 180000,
+      timeout: timeoutMs,
       env: { ...process.env, ...env },
     });
     if (result.status !== 0)
@@ -57,10 +66,61 @@ export function runInteropMatrix(
       "CGO_LDFLAGS=-L/work -lbpl_interop",
       "-e",
       "LD_LIBRARY_PATH=/work",
+      "-e",
+      "NUGET_PACKAGES=/opt/nuget",
+      "-e",
+      "DOTNET_CLI_HOME=/tmp/dotnet-home",
+      "-e",
+      "DOTNET_CLI_TELEMETRY_OPTOUT=1",
+      "-e",
+      "DOTNET_NOLOGO=true",
       image,
       ...command,
     ]);
   try {
+    if (options.csharp) {
+      const image = "bpl-interop-dotnet:local";
+      options.log?.(
+        "Preparing the .NET SDK and Native AOT package cache in Docker",
+      );
+      run(
+        "docker",
+        ["build", "-t", image, join(fixtures, "dotnet")],
+        undefined,
+        600000,
+      );
+      for (const project of ["Host", "Provider"]) {
+        cpSync(
+          join(fixtures, "dotnet", project),
+          join(dir, "dotnet", project),
+          { recursive: true },
+        );
+        const path = `/work/dotnet/${project}/${project}.csproj`;
+        docker(image, [
+          "dotnet",
+          "restore",
+          path,
+          "--source",
+          "/opt/empty-feed",
+          ...(project === "Provider" ? ["-r", "linux-x64"] : []),
+        ]);
+        docker(image, [
+          "dotnet",
+          project === "Provider" ? "publish" : "build",
+          path,
+          "-c",
+          "Release",
+          "--no-restore",
+          ...(project === "Provider" ? ["-r", "linux-x64"] : []),
+          "-o",
+          `/work/dotnet-${project}`,
+        ]);
+      }
+      cpSync(
+        join(dir, "dotnet-Provider", "foreign_csharp.so"),
+        join(dir, "libforeign_csharp.so"),
+      );
+    }
     for (const opt of [0, 3]) {
       const source = join(fixtures, "library.bpl");
       const shared = join(dir, "libbpl_interop.so");
@@ -164,7 +224,20 @@ export function runInteropMatrix(
           "/work/libforeign_go.so",
           "/fixtures/provider.go",
         ]);
-        for (const language of ["rust", "go"]) {
+        if (options.csharp) {
+          check(
+            `C#->BPL->C# O${opt}`,
+            docker("bpl-interop-dotnet:local", [
+              "dotnet",
+              "/work/dotnet-Host/Host.dll",
+            ]),
+          );
+        }
+        for (const language of [
+          "rust",
+          "go",
+          ...(options.csharp ? ["csharp"] : []),
+        ]) {
           const binary = join(dir, `outbound-${language}`);
           run("bun", [
             resolve("index.ts"),
