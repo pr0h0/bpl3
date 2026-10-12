@@ -1536,26 +1536,14 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           resolvedArgType.kind === "FunctionType"
         ) {
           const val = this.generateExpression(arg);
-          const expectedFuncPtrType = destType
-            .substring(destType.indexOf("{") + 1, destType.lastIndexOf(","))
-            .trim();
-
-          const castReg = this.newRegister();
-          this.emit(
-            `  ${castReg} = bitcast ${srcType} ${val} to ${expectedFuncPtrType}`,
+          const adapted = this.emitCast(
+            val,
+            srcType,
+            destType,
+            resolvedArgType,
+            targetTypeNode,
           );
-
-          const undef = this.newRegister();
-          this.emit(
-            `  ${undef} = insertvalue ${destType} undef, ${expectedFuncPtrType} ${castReg}, 0`,
-          );
-
-          const result = this.newRegister();
-          this.emit(
-            `  ${result} = insertvalue ${destType} ${undef}, i8* null, 1`,
-          );
-
-          return `${destType} ${result}`;
+          return `${destType} ${adapted}`;
         }
 
         const conversion = lowerImplicitConversion(targetTypeNode, resolvedArgType);
