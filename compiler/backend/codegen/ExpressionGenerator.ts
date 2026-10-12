@@ -480,7 +480,11 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     }
 
     // Special case: function identifiers (not local variables) evaluate to their address directly
-    if (expr.resolvedType.kind === "FunctionType" && !this.locals.has(name)) {
+    if (
+      expr.resolvedType.kind === "FunctionType" &&
+      !this.locals.has(name) &&
+      expr.resolvedDeclaration?.kind !== "VariableDecl"
+    ) {
       let funcName = name;
 
       if (

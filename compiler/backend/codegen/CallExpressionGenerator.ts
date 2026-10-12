@@ -1235,21 +1235,25 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     let isClosureCall = false; // Track if we need to pass context argument
     let _isIndirectCall = false;
 
-    // If identifier and local, indirect call
-    if (callee.kind === "Identifier") {
-      const ident = callee as AST.IdentifierExpr;
-      if (this.locals.has(ident.name)) {
+    // Imports and namespace members can expose a callable global under a
+    // different spelling. Load its value through the resolved declaration.
+    const isGlobalCallable =
+      "resolvedDeclaration" in callee &&
+      callee.resolvedDeclaration?.kind === "VariableDecl" &&
+      callee.resolvedDeclaration.isGlobal;
+    if (callee.kind === "Identifier" || isGlobalCallable) {
+      if (
+        isGlobalCallable ||
+        (callee.kind === "Identifier" && this.locals.has(callee.name))
+      ) {
         // Indirect call
         _isIndirectCall = true;
-        const type = ident.resolvedType!;
+        const type = callee.resolvedType!;
 
         if (type.kind === "FunctionType" || type.kind === "LambdaType") {
           // Fat function pointer / Closure or Raw Function Variable
           const valType = this.resolveType(type);
-          const addr = this.generateAddress(ident);
-          const val = this.newRegister();
-          // addr is valType*
-          this.emit(`  ${val} = load ${valType}, ${valType}* ${addr}`);
+          const val = this.generateExpression(callee);
 
           if (type.kind === "LambdaType") {
             const funcPtr = this.newRegister();
