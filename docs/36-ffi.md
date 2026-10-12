@@ -316,7 +316,10 @@ pointer to that struct; the C side must agree on the field layout.
 A `Lambda` carries a BPL closure context and cannot replace a C function
 pointer. Within BPL, a `Func` with a matching signature can be passed to a
 `Lambda` parameter; the compiler creates an adapter that consumes the closure
-context and forwards the function's arguments. Python `ctypes` callbacks and Bun `JSCallback` objects must remain
+context and forwards the function's arguments. Null `Func` values remain null
+when converted to `Lambda`; conversion alone does not invoke them. Calling a
+null callback raises `NullAccessError`, which BPL code can catch before
+returning to the foreign caller. Python `ctypes` callbacks and Bun `JSCallback` objects must remain
 alive for every native call that can use them. The fixtures use synchronous
 callbacks and release callback resources afterward.
 

@@ -710,12 +710,13 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       const funcPtrAsCtx = this.newRegister();
       this.emit(`  ${funcPtrAsCtx} = bitcast ${srcType} ${val} to i8*`);
 
-      // 2. The lambda function pointer is the Thunk.
+      // 2. Preserve a null callback as a null Lambda function pointer so the
+      // invocation check reports the error at the call site, not conversion.
+      const isNull = this.newRegister();
+      this.emit(`  ${isNull} = icmp eq ${srcType} ${val}, null`);
       const thunkPtr = this.newRegister();
-      // The thunk has signature `ret (i8*, params...)`.
-      // The Lambda expects `ret (i8*, params...)*`. Matches.
       this.emit(
-        `  ${thunkPtr} = bitcast ${thunkSig}* ${thunkRef} to ${thunkSig}*`,
+        `  ${thunkPtr} = select i1 ${isNull}, ${thunkSig}* null, ${thunkSig}* ${thunkRef}`,
       );
 
       // 3. Construct fat pointer { thunk, ctx }

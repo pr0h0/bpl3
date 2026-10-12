@@ -2086,6 +2086,22 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
     const retType = this.resolveType(expr.resolvedType!);
 
+    if (!callTarget.startsWith("@")) {
+      let pointerType = this.resolveType(funcType);
+      if (isClosureCall) {
+        pointerType = pointerType
+          .substring(pointerType.indexOf("{") + 1, pointerType.lastIndexOf(","))
+          .trim();
+      }
+      this.emitNullPointerCheck(
+        callTarget,
+        pointerType,
+        expr.location,
+        this.exprToDescription(expr.callee),
+        "Attempted to invoke null callback",
+      );
+    }
+
     if (callTarget.startsWith("@")) {
       this.noteDirectFunctionCall(callTarget.substring(1));
     }
