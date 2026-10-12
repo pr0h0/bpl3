@@ -286,6 +286,12 @@ raw element pointer and a separate length for variable-sized buffers.
 | `*T` | Pointer to matching layout | Caller keeps storage alive |
 | `Func<R>(...)` | C function pointer | Scalar/pointer signatures only |
 
+Callback parameter and return types must match exactly after resolving aliases,
+including integer widths, nested callable signatures, and whether the function
+is variadic. Assigning or passing a function pointer does not convert the
+function's parameters or result. Ordinary scalar arguments can still convert
+when calling that function.
+
 Arrays and slices of `Func` values cannot cross the C ABI by value, including
 inside another callback signature or through generic type aliases. They are not
 interchangeable with one C function pointer. Within BPL, fixed callback arrays

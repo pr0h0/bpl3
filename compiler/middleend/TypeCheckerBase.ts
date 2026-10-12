@@ -1638,10 +1638,12 @@ export abstract class TypeCheckerBase {
       const f1 = rt1 as AST.FunctionTypeNode | AST.LambdaTypeNode;
       const f2 = rt2 as AST.FunctionTypeNode | AST.LambdaTypeNode;
 
-      if (!this.areTypesCompatible(f1.returnType, f2.returnType)) return false;
+      if (!!f1.isVariadic !== !!f2.isVariadic) return false;
+
+      if (!this.areTypesExactMatch(f1.returnType, f2.returnType)) return false;
       if (f1.paramTypes.length !== f2.paramTypes.length) return false;
       for (let i = 0; i < f1.paramTypes.length; i++) {
-        if (!this.areTypesCompatible(f1.paramTypes[i]!, f2.paramTypes[i]!))
+        if (!this.areTypesExactMatch(f1.paramTypes[i]!, f2.paramTypes[i]!))
           return false;
       }
       return true;
@@ -1695,7 +1697,11 @@ export abstract class TypeCheckerBase {
           return false;
       }
       return true;
-    } else if (rt1.kind === "FunctionType" && rt2.kind === "FunctionType") {
+    } else if (
+      (rt1.kind === "FunctionType" || rt1.kind === "LambdaType") &&
+      (rt2.kind === "FunctionType" || rt2.kind === "LambdaType")
+    ) {
+      if (!!rt1.isVariadic !== !!rt2.isVariadic) return false;
       if (!this.areTypesExactMatch(rt1.returnType, rt2.returnType))
         return false;
       if (rt1.paramTypes.length !== rt2.paramTypes.length) return false;
