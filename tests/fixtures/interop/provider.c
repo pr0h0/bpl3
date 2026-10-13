@@ -11,6 +11,10 @@ struct Triple { double x, y, z; };
 int64_t foreign_add(int64_t a, int64_t b) { return a + b; }
 float foreign_scale(float x) { return x * 1.5f; }
 int16_t foreign_short(int16_t x) { return x; }
+int8_t foreign_byte(void) {return -7;}
+uint16_t foreign_ushort(void) {return 65535;}
+int32_t foreign_narrow_callback(int8_t (*callback)(void)) {return callback();}
+int8_t (*foreign_narrow_factory(void))(void) {return foreign_byte;}
 bool foreign_bool(bool x) { return !x; }
 struct Pair foreign_pair(struct Pair p) { struct Pair result = {p.y, p.x}; return result; }
 int32_t foreign_mixed_signed(int8_t value, struct Pair p) { return value + p.x + p.y; }

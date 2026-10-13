@@ -5,6 +5,10 @@ package main
 #include <stdlib.h>
 struct Pair { int32_t x, y; };
 struct Triple { double x, y, z; };
+typedef int8_t (*NarrowCallback)(void);
+extern int8_t foreign_byte(void);
+static int32_t invoke_narrow(NarrowCallback cb) {return cb();}
+static NarrowCallback narrow_callback(void) {return foreign_byte;}
 typedef int64_t (*Callback)(int64_t);
 static int64_t invoke(Callback cb, int64_t x) { return cb(x); }
 typedef int32_t (*SmallCallback)(int8_t);
@@ -73,3 +77,12 @@ func foreign_thread_callback(cb C.Callback, value C.int64_t) C.int64_t {
     }()
     return <-result + 1
 }
+
+//export foreign_byte
+func foreign_byte() C.int8_t {return -7}
+//export foreign_ushort
+func foreign_ushort() C.uint16_t {return 65535}
+//export foreign_narrow_callback
+func foreign_narrow_callback(callback C.NarrowCallback) C.int32_t {return C.invoke_narrow(callback)}
+//export foreign_narrow_factory
+func foreign_narrow_factory() C.NarrowCallback {return C.narrow_callback()}

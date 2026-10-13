@@ -15,6 +15,12 @@ extern "C" {
     fn interop_alloc(length: u64) -> *mut u8;
     fn interop_free(data: *mut u8);
     fn interop_threaded(value: i64) -> i64;
+    fn interop_signed_byte() -> i8;
+    fn interop_signed_short() -> i16;
+    fn interop_unsigned_byte() -> u8;
+    fn interop_unsigned_short() -> u16;
+    fn interop_boolean() -> bool;
+    fn interop_narrow_factory() -> extern "C" fn() -> i8;
 }
 extern "C" fn twice(value: i64) -> i64 { value * 2 }
 fn main() {
@@ -43,6 +49,10 @@ fn main() {
         assert!(!owned.is_null());
         assert_eq!(std::slice::from_raw_parts(owned, 3), &[10, 11, 12]);
         interop_free(owned);
+        assert_eq!((interop_signed_byte() as i32,interop_signed_short() as i32),(-7,-300));
+        assert_eq!((interop_unsigned_byte() as u32,interop_unsigned_short() as u32),(255,65535));
+        assert!(interop_boolean());
+        assert_eq!(interop_narrow_factory()() as i32,-7);
     }
     std::thread::scope(|scope| {
         for value in 1..=8i64 {

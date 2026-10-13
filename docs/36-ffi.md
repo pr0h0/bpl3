@@ -472,6 +472,11 @@ runtime ABI errors.
 
 The matrix checks `-O0` and `-O3`, 64-bit integer values, `f32`, signed 16-bit
 values and booleans on outbound calls, signed and unsigned byte arguments,
+negative 8-bit and 16-bit results, maximum unsigned 8-bit and 16-bit results,
+and boolean results from BPL. C, C++, Go, Rust, Python, and C# also invoke a
+returned BPL callback with a narrow signed result. C, C++, Go, Rust, and C#
+providers return narrow results directly and through callbacks to BPL, including
+widening results from a BPL callback in foreign code. The matrix also covers
 small and large by-value outbound
 structs, pointer-based inbound structs, and callbacks in both directions.
 Every host also passes a nested row-pointer buffer to BPL and checks reads and

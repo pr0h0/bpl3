@@ -40,6 +40,20 @@ unsafe class Program
     [DllImport(Library, EntryPoint = "interop_threaded", CallingConvention = CallingConvention.Cdecl)]
     static extern long Threaded(long value);
 
+    [DllImport(Library, EntryPoint = "interop_signed_byte", CallingConvention = CallingConvention.Cdecl)]
+    static extern sbyte SignedByte();
+    [DllImport(Library, EntryPoint = "interop_signed_short", CallingConvention = CallingConvention.Cdecl)]
+    static extern short SignedShort();
+    [DllImport(Library, EntryPoint = "interop_unsigned_byte", CallingConvention = CallingConvention.Cdecl)]
+    static extern byte UnsignedByte();
+    [DllImport(Library, EntryPoint = "interop_unsigned_short", CallingConvention = CallingConvention.Cdecl)]
+    static extern ushort UnsignedShort();
+    [DllImport(Library, EntryPoint = "interop_boolean", CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    static extern bool Boolean();
+    [DllImport(Library, EntryPoint = "interop_narrow_factory", CallingConvention = CallingConvention.Cdecl)]
+    static extern delegate* unmanaged[Cdecl]<sbyte> NarrowFactory();
+
     sealed class Holder { public int Value = 7; }
     [MethodImpl(MethodImplOptions.NoInlining)]
     static int ReadValue(Holder value) => value.Value;
@@ -70,6 +84,8 @@ unsafe class Program
         try { _ = ReadValue(null!); }
         catch (NullReferenceException) { caught = true; }
         if (!caught) return 11;
+        if ((int)SignedByte()!=-7 || (int)SignedShort()!=-300 || (int)UnsignedByte()!=255 || (int)UnsignedShort()!=65535 || !Boolean()) return 12;
+        if ((int)NarrowFactory()()!=-7) return 13;
         Parallel.For(1, 9, value => {
             for (int iteration = 0; iteration < 100; iteration++) {
                 if (Threaded(value) != value * 10 + 1 || Run(&Twice, 20) != 41)

@@ -5,6 +5,7 @@ package main
 #include <stdlib.h>
 extern int64_t go_twice(int64_t);
 static int64_t run_go_callback(void) { return interop_run(go_twice, 20); }
+static int check_narrow_callback(void) {return interop_narrow_factory()()==-7;}
 static int check_callbacks(void) { return interop_factory()(21) == 42 && interop_checked(NULL, 20) == -7; }
 // Keep the pointer graph in C-owned storage for the duration of the call.
 static int check_rows(void) {
@@ -41,6 +42,8 @@ func main() {
     view := unsafe.Slice(owned,3)
     if view[0] != 10 || view[2] != 12 { panic("owned buffer") }
     C.interop_free(owned)
+    if int(C.interop_signed_byte()) != -7 || int(C.interop_signed_short()) != -300 || int(C.interop_unsigned_byte()) != 255 || int(C.interop_unsigned_short()) != 65535 || !bool(C.interop_boolean()) {panic("narrow results")}
+    if C.check_narrow_callback() != 1 {panic("narrow callback result")}
     var group sync.WaitGroup
     for worker := 1; worker <= 8; worker++ {
         group.Add(1)

@@ -1,5 +1,10 @@
 import { dlopen, FFIType, JSCallback, ptr } from "bun:ffi";
 const library = dlopen(process.argv[2], {
+  interop_signed_byte: { args: [], returns: FFIType.i8 },
+  interop_signed_short: { args: [], returns: FFIType.i16 },
+  interop_unsigned_byte: { args: [], returns: FFIType.u8 },
+  interop_unsigned_short: { args: [], returns: FFIType.u16 },
+  interop_boolean: { args: [], returns: FFIType.bool },
   interop_add: { args: [FFIType.i64, FFIType.i64], returns: FFIType.i64 },
   interop_rows: { args: [FFIType.ptr], returns: FFIType.i64 },
   interop_scale: { args: [FFIType.f32], returns: FFIType.f32 },
@@ -25,8 +30,20 @@ try {
   const first = new BigInt64Array([10n, 11n]);
   const second = new BigInt64Array([31n, 32n]);
   const rows = new BigUint64Array([BigInt(ptr(first)), BigInt(ptr(second))]);
-  if (api.interop_rows(ptr(rows)) !== 42n || first[1] !== 11n || second[1] !== 84n)
+  if (
+    api.interop_rows(ptr(rows)) !== 42n ||
+    first[1] !== 11n ||
+    second[1] !== 84n
+  )
     throw Error("nested array pointers");
+  if (
+    api.interop_signed_byte() !== -7 ||
+    api.interop_signed_short() !== -300 ||
+    api.interop_unsigned_byte() !== 255 ||
+    api.interop_unsigned_short() !== 65535 ||
+    !api.interop_boolean()
+  )
+    throw Error("narrow results");
   console.log("interop-ok");
 } finally {
   callback.close();

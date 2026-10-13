@@ -40,3 +40,8 @@ pub struct Triple { x: f64, y: f64, z: f64 }
         Err(_) => i64::MIN,
     }
 }
+
+#[no_mangle] pub extern "C" fn foreign_byte() -> i8 {-7}
+#[no_mangle] pub extern "C" fn foreign_ushort() -> u16 {65535}
+#[no_mangle] pub extern "C" fn foreign_narrow_callback(callback:extern "C" fn()->i8) -> i32 {callback() as i32}
+#[no_mangle] pub extern "C" fn foreign_narrow_factory() -> extern "C" fn()->i8 {foreign_byte}

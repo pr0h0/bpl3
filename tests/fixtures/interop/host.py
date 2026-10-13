@@ -28,4 +28,18 @@ first, second = Row(10, 11), Row(31, 32)
 rows = RowPointers(ctypes.pointer(first), ctypes.pointer(second))
 assert library.interop_rows(ctypes.byref(rows)) == 42
 assert first[1] == 11 and second[1] == 84
+for name, result_type, expected in [
+    ("interop_signed_byte",ctypes.c_int8,-7),
+    ("interop_signed_short",ctypes.c_int16,-300),
+    ("interop_unsigned_byte",ctypes.c_uint8,255),
+    ("interop_unsigned_short",ctypes.c_uint16,65535),
+    ("interop_boolean",ctypes.c_bool,True),
+]:
+    function=getattr(library,name)
+    function.argtypes=[]
+    function.restype=result_type
+    assert function()==expected
+library.interop_narrow_factory.argtypes=[]
+library.interop_narrow_factory.restype=ctypes.CFUNCTYPE(ctypes.c_int8)
+assert library.interop_narrow_factory()()==-7
 print("interop-ok")

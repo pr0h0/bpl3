@@ -70,3 +70,19 @@ frame interop_threaded(value: long) ret long {
     catch(result: long) { return result + cleaned; }
     return -99;
 }
+
+# Foreign callers widen narrow results and invoke a returned private callback.
+type SignedByte = i8;
+@[c_export]
+frame interop_signed_byte() ret SignedByte {return cast<SignedByte>(-7);}
+@[c_export]
+frame interop_signed_short() ret short {return cast<short>(-300);}
+@[c_export]
+frame interop_unsigned_byte() ret u8 {return cast<u8>(255);}
+@[c_export]
+frame interop_unsigned_short() ret ushort {return cast<ushort>(65535);}
+@[c_export]
+frame interop_boolean() ret bool {return true;}
+frame narrow_result() ret SignedByte {return cast<SignedByte>(-7);}
+@[c_export]
+frame interop_narrow_factory() ret Func<SignedByte>() {return narrow_result;}

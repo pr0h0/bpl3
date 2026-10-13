@@ -15,6 +15,14 @@ public static unsafe class Exports
     public static float Scale(float value) => value * 1.5f;
     [UnmanagedCallersOnly(EntryPoint = "foreign_short", CallConvs = new[] { typeof(CallConvCdecl) })]
     public static short Short(short value) => value;
+    [UnmanagedCallersOnly(EntryPoint = "foreign_byte", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static sbyte Byte() => -7;
+    [UnmanagedCallersOnly(EntryPoint = "foreign_ushort", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static ushort UShort() => 65535;
+    [UnmanagedCallersOnly(EntryPoint = "foreign_narrow_callback", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int NarrowCallback(delegate* unmanaged[Cdecl]<sbyte> callback) => callback();
+    [UnmanagedCallersOnly(EntryPoint = "foreign_narrow_factory", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static delegate* unmanaged[Cdecl]<sbyte> NarrowFactory() => &Byte;
     // Byte represents the C _Bool transport value: exactly 0 or 1, one byte.
     [UnmanagedCallersOnly(EntryPoint = "foreign_bool", CallConvs = new[] { typeof(CallConvCdecl) })]
     public static byte Bool(byte value) => value == 0 ? (byte)1 : (byte)0;

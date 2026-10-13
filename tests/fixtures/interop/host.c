@@ -30,6 +30,8 @@ int main(void) {
     uint8_t *owned = interop_alloc(3);
     if (!owned || owned[0] != 10 || owned[2] != 12) return 10;
     interop_free(owned);
+    if (interop_signed_byte()!=-7 || interop_signed_short()!=-300 || interop_unsigned_byte()!=255 || interop_unsigned_short()!=65535 || !interop_boolean()) return 13;
+    if (interop_narrow_factory()()!=-7) return 14;
     pthread_t workers[8];
     for (int i = 0; i < 8; i++) if (pthread_create(&workers[i], NULL, worker, (void *)(intptr_t)(i+1))) return 11;
     for (int i = 0; i < 8; i++) { void *result = NULL; if (pthread_join(workers[i], &result) || result) return 12; }

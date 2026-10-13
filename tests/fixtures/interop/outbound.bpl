@@ -3,6 +3,10 @@ struct Triple { x: double, y: double, z: double, }
 extern foreign_add(a: long, b: long) ret long;
 extern foreign_scale(x: f32) ret f32;
 extern foreign_short(x: short) ret short;
+extern foreign_byte() ret i8;
+extern foreign_ushort() ret ushort;
+extern foreign_narrow_callback(callback:Func<i8>()) ret int;
+extern foreign_narrow_factory() ret Func<i8>();
 extern foreign_bool(x: bool) ret bool;
 extern foreign_pair(p: Pair) ret Pair;
 extern foreign_mixed_signed(value: char, p: Pair) ret int;
@@ -25,6 +29,7 @@ extern puts(s: string) ret int;
 frame doubled(x: long) ret long { return x * 2; }
 @[noinline]
 frame twice(x: long) ret long { return doubled(x); }
+frame narrow_result() ret i8 {return cast<i8>(-7);}
 frame signed_value(x: char) ret int { return cast<int>(x); }
 frame main() ret int {
     if (foreign_add(cast<long>(4294967296), -7) != cast<long>(4294967289)) { return 1; }
@@ -54,6 +59,8 @@ frame main() ret int {
     if(foreign_mixed_signed(cast<char>(-128), Pair {x:1,y:2}) != -125) { return 17; }
     if(foreign_mixed_unsigned(cast<uchar>(255), Pair {x:1,y:2}) != 258) { return 18; }
     if(foreign_thread_callback(twice, 20) != 41) {return 19;}
+    if(foreign_byte()!=cast<i8>(-7) || foreign_ushort()!=cast<ushort>(65535)) {return 20;}
+    if(foreign_narrow_callback(narrow_result)!=-7 || foreign_narrow_factory()()!=cast<i8>(-7)) {return 21;}
     puts("interop-ok");
     return 0;
 }
