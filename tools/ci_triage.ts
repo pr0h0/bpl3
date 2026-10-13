@@ -387,6 +387,8 @@ const BUILTIN_TYPE_REDEFINITION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const TYPE_ALIAS_POINTER_UNSUPPORTED_STEP_PATTERN =
+  /BPL_TYPE_ALIAS_POINTER_UNSUPPORTED|unsupported pointer to callable or tuple type alias/i;
 const ARRAY_SIZE_INVALID_STEP_PATTERN = new RegExp(
   [
     "BPL_ARRAY_SIZE_INVALID",
@@ -1639,6 +1641,11 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "duplicate-symbol"',
   ],
   [DUPLICATE_SYMBOL_STEP_PATTERN, "bun run check"],
+  [
+    TYPE_ALIAS_POINTER_UNSUPPORTED_STEP_PATTERN,
+    "bun test tests/CallableAliasPointerSafety.test.ts",
+  ],
+  [TYPE_ALIAS_POINTER_UNSUPPORTED_STEP_PATTERN, "bun run check"],
   [
     TYPE_RECURSION_CYCLE_STEP_PATTERN,
     "bun test tests/TypeCheckerRecursiveTypes.test.ts",
