@@ -3291,8 +3291,11 @@ export abstract class StatementGenerator extends AsmGenerator {
       const attrGroupId = this.getFunctionAttributeGroupId(decl);
       const attrSuffix = attrGroupId === undefined ? "" : ` #${attrGroupId}`;
       const alignSuffix = this.optimizationLevel >= 3 ? " align 64" : "";
+      const returnExtension = this.getCAbiReturnExtension(
+        effectiveFuncType.returnType,
+      );
       this.emit(
-        `define ${linkage}${retType} @${name}(${params})${attrSuffix}${alignSuffix}${dbgSuffix} {`,
+        `define ${linkage}${returnExtension}${retType} @${name}(${params})${attrSuffix}${alignSuffix}${dbgSuffix} {`,
       );
       this.emit("entry:");
       const stackAllocationIndex = this.output.length;

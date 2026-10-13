@@ -318,6 +318,10 @@ when calling that function. Narrow integer callback arguments follow the target
 C ABI's parameter extension rules, so signed `i8` and `short` values retain their
 sign when passed to C, including through `Func`-to-`Lambda` adapters and
 outbound ABI wrappers for signatures that also contain by-value structs.
+Narrow results from BPL frames also obey the target C ABI's return extension
+requirements, including signed aliases, instantiated generic frames, and
+private functions returned as `Func` callbacks. This lets a foreign caller
+widen negative 8-bit or 16-bit results correctly, including on ARM64 macOS.
 Declarations of the same external symbol across modules must also agree on
 these extension attributes. Conflicting signed and unsigned narrow parameter
 declarations report `BPL_EXTERN_SIGNATURE_CONFLICT` before linking, including

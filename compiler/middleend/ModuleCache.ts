@@ -28,7 +28,8 @@ import { formatSpawnFailureReason } from "../common/ProcessErrors";
 // Native control-state symbols use TLS from this ABI revision onward. Do not
 // reuse older objects that referenced those symbols as ordinary globals.
 // Revision 2.1.1 also invalidates the former LP64 layout used for Linux x32.
-export const MODULE_CACHE_VERSION = "2.1.1";
+// Revision 2.1.2 gives narrow frame results the C ABI extension guarantee.
+export const MODULE_CACHE_VERSION = "2.1.2";
 
 export interface CachedModule {
   path: string;
