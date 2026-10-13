@@ -1807,6 +1807,59 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     return isSignedTypeName(basic.name);
   }
 
+  /** Resolve concrete aliases before validating a generic C value boundary. */
+  protected resolveCAbiValueType(
+    input: AST.TypeNode,
+    visiting = new Set<AST.TypeAliasDecl>(),
+  ): AST.TypeNode {
+    const type = this.substituteType(input, this.currentTypeMap);
+    if (type.kind === "BasicType") {
+      if (getPrimitiveType(type.name) || type.name === "string") return type;
+      const alias =
+        type.resolvedDeclaration?.kind === "TypeAlias"
+          ? type.resolvedDeclaration
+          : this.typeAliasMap.get(type.name);
+      if (!alias || visiting.has(alias)) return type;
+      const argumentsMap = new Map<string, AST.TypeNode>();
+      alias.genericParams.forEach((parameter, index) => {
+        const argument = type.genericArgs[index];
+        if (argument) {
+          argumentsMap.set(
+            parameter.name, this.resolveCAbiValueType(argument, visiting),
+          );
+        }
+      });
+      const next = new Set(visiting);
+      next.add(alias);
+      const target = this.resolveCAbiValueType(
+        this.substituteType(alias.type, argumentsMap),
+        next,
+      );
+      return this.substituteType(
+        { ...type, genericArgs: [] },
+        new Map([[type.name, target]]),
+      );
+    }
+    if (type.kind === "FunctionType" || type.kind === "LambdaType") {
+      return {
+        ...type,
+        returnType: this.resolveCAbiValueType(type.returnType, visiting),
+        paramTypes: type.paramTypes.map((parameter) =>
+          this.resolveCAbiValueType(parameter, visiting),
+        ),
+      };
+    }
+    if (type.kind === "TupleType") {
+      return {
+        ...type,
+        types: type.types.map((element) =>
+          this.resolveCAbiValueType(element, visiting),
+        ),
+      };
+    }
+    return type;
+  }
+
   /** C callers extend narrow integer parameters on these target ABIs. */
   protected getCAbiParameterExtension(type: AST.TypeNode): string {
     const llvmType = this.resolveType(type);

@@ -51,6 +51,8 @@ pointer, and payload-free enums, passed as their `i32` tag. Other aggregate
 variadic arguments are rejected. Narrow integers and `f32` follow C's default
 argument promotions; generic frames use the instantiated type's signedness,
 so an unsigned byte value of 255 remains 255 when passed to a C variadic call.
+During code generation, concrete generic arguments are checked again against
+the variadic ABI rules, including aliases and nested callback signatures.
 
 ## Declaring External Functions
 

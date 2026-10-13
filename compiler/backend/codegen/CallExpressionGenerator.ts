@@ -25,7 +25,10 @@ import {
   getCAbiKind,
   needsCAbiLowering,
 } from "./abi/CAbi";
-import { EXTERN_ABI_UNSUPPORTED_CODE } from "../../middleend/validators/ExternAbiValidator";
+import {
+  EXTERN_ABI_UNSUPPORTED_CODE,
+  validateExternVariadicArguments,
+} from "../../middleend/validators/ExternAbiValidator";
 import { RTTI } from "../../middleend/RTTI";
 import {
   emitVirtualCall,
@@ -1875,8 +1878,19 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         return `${destType} ${extension}${castVal}`;
       }
 
+      const isExternVariadic =
+        funcType.isVariadic &&
+        expr.resolvedDeclaration?.kind === "Extern";
+      const resolvedArgType = isExternVariadic
+        ? this.resolveCAbiValueType(arg.resolvedType!)
+        : arg.resolvedType!;
+      if (isExternVariadic) {
+        // The frontend defers generic values; once instantiated they must
+        // satisfy the same scalar-only boundary as direct C varargs.
+        validateExternVariadicArguments([resolvedArgType], [arg], 0);
+      }
       const val = this.generateExpression(arg);
-      const srcType = this.resolveType(arg.resolvedType!);
+      const srcType = this.resolveType(resolvedArgType);
 
       // Special handling for String passed to variadic function (like printf)
       if (funcType.isVariadic && srcType === "%struct.String") {
@@ -1888,11 +1902,6 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         );
         return `i8* ${strData}`;
       }
-
-      const isExternVariadic =
-        funcType.isVariadic &&
-        expr.resolvedDeclaration &&
-        expr.resolvedDeclaration.kind === "Extern";
 
       // For extern variadic calls, apply C default argument promotions.
       if (srcType === "float" && isExternVariadic) {
@@ -1922,7 +1931,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         const promoted = this.newRegister();
         // A generic argument may still be named T here; resolve signedness
         // through the current instantiation rather than its source spelling.
-        const op = this.isSigned(arg.resolvedType!) ? "sext" : "zext";
+        const op = this.isSigned(resolvedArgType) ? "sext" : "zext";
         this.emit(`  ${promoted} = ${op} ${srcType} ${val} to i32`);
         return `i32 ${promoted}`;
       }
