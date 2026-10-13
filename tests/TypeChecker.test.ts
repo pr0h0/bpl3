@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -1701,7 +1701,21 @@ describe("TypeChecker", () => {
     expect(methodSource).toContain(
       "currentSubstitutionMap && currentSubstitutionMap.size > 0",
     );
-    expect(methodSource).toContain(": member.type");
+    const program = parseProgram("type Count=int; struct Packet {value:Count,}");
+    const checker = new TypeChecker();
+    checker.checkProgram(program);
+    const decl = program.statements.find((statement) => statement.kind === "StructDecl");
+    if (!decl || decl.kind !== "StructDecl") throw new Error("Missing Packet");
+    const field = decl.members.find((member) => member.kind === "StructField");
+    if (!field || field.kind !== "StructField") throw new Error("Missing value");
+    expect(field.resolvedType).toBeDefined();
+    const substitution = spyOn(checker, "substituteType");
+    try {
+      expect(checker.resolveStructField(decl, "value", new Map())?.type).toBe(field.resolvedType);
+      expect(substitution).not.toHaveBeenCalled();
+    } finally {
+      substitution.mockRestore();
+    }
     expect(methodSource).toContain("let currentDecl = decl;");
     expect(methodSource).toContain("while (true)");
     expect(methodSource).not.toContain(
