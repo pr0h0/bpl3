@@ -18,6 +18,7 @@ import * as os from "os";
 import * as path from "path";
 
 import { resolveBplPath } from "./common/PathResolver";
+import { getHostTargetTriple } from "./common/HostTarget";
 import { CodeGenerator } from "./backend/CodeGenerator";
 import {
   getUnsupportedCodegenTargetMessage,
@@ -144,7 +145,10 @@ export class Compiler {
   private options: CompilerOptions;
 
   constructor(options: CompilerOptions) {
-    this.options = options;
+    this.options = {
+      ...options,
+      target: options.target ?? getHostTargetTriple(),
+    };
   }
 
   /**

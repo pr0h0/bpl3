@@ -1,6 +1,7 @@
 import { CompilerError, type SourceLocation } from "../../common/CompilerError";
 import type * as AST from "../../common/AST";
 import { DebugInfoGenerator } from "./DebugInfoGenerator";
+import { getHostTargetTriple } from "../../common/HostTarget";
 
 import { FunctionAttributeGroups } from "./attributes/FunctionAttributeGroups";
 import {
@@ -99,12 +100,7 @@ export function getSupportedCodegenTargetSummary(): string {
 }
 
 function resolveDataLayoutForTarget(target?: string): string | undefined {
-  if (target === undefined) {
-    // Default to x86_64-linux-gnu
-    return X86_64_LINUX_DATA_LAYOUT;
-  }
-
-  const parsedTarget = parseTargetTriple(target);
+  const parsedTarget = parseTargetTriple(target ?? getHostTargetTriple());
   if (!parsedTarget) return undefined;
 
   return SUPPORTED_TARGET_DATA_LAYOUTS.find((entry) =>
@@ -171,7 +167,7 @@ export class BaseCodeGenerator {
   ) {
     this.stdLibPath = options.stdLibPath;
     this.useLinkOnceOdrForStdLib = options.useLinkOnceOdrForStdLib || false;
-    this.target = options.target;
+    this.target = options.target ?? getHostTargetTriple();
     if (this.target !== undefined && !isSupportedCodegenTarget(this.target)) {
       raiseUnsupportedTarget(this.target);
     }

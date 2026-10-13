@@ -14,6 +14,7 @@ import {
   splitLlvmAggregateFields,
 } from "../LLVMTypeLayout";
 import { parseTargetTriple } from "../../../common/TargetTriple";
+import { getHostTargetTriple } from "../../../common/HostTarget";
 
 export type CAbiKind =
   | "x86_64-sysv"
@@ -23,8 +24,7 @@ export type CAbiKind =
   | "i386-sysv"
   | "wasm";
 
-export function getCAbiKind(target?: string): CAbiKind {
-  if (target === undefined) return "x86_64-sysv";
+export function getCAbiKind(target = getHostTargetTriple()): CAbiKind {
   const parsed = parseTargetTriple(target);
   const arch = parsed?.arch ?? "";
   const lower = target.toLowerCase();

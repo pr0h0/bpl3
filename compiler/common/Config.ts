@@ -6,6 +6,7 @@
  */
 
 import { existsSync } from "fs";
+import { getHostTargetTriple } from "./HostTarget";
 import { resolve } from "path";
 import { getBplHome, getLibPath, getGrammarPath } from "./PathResolver";
 
@@ -96,33 +97,6 @@ export const ENV_VARS = {
 } as const;
 
 /**
- * Get the default target triple for the current system
- */
-function getDefaultTarget(): string {
-  const platform = process.platform;
-  const arch = process.arch;
-
-  const archMap: Record<string, string> = {
-    x64: "x86_64",
-    arm64: "aarch64",
-    arm: "arm",
-    ia32: "i386",
-  };
-
-  const osMap: Record<string, string> = {
-    linux: "unknown-linux-gnu",
-    darwin: "apple-darwin",
-    win32: "pc-windows-msvc",
-    freebsd: "unknown-freebsd",
-  };
-
-  const mappedArch = archMap[arch] || arch;
-  const mappedOs = osMap[platform] || "unknown";
-
-  return `${mappedArch}-${mappedOs}`;
-}
-
-/**
  * Get the cache directory path
  */
 function getCacheDir(): string {
@@ -201,7 +175,7 @@ export function getConfig(force: boolean = false): CompilerConfig {
     },
     defaults: {
       optimization: "0",
-      target: getDefaultTarget(),
+      target: getHostTargetTriple(),
       emit: "binary",
       outputName: "a.out",
     },

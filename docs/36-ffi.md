@@ -23,6 +23,9 @@ The compiler lowers by-value structs to the target's C calling convention
 and WebAssembly): small structs travel in registers, larger ones through
 caller-owned copies and hidden result pointers. `tests/CAbiLowering.test.ts`
 checks the lowered declarations against clang for every supported target.
+The CLI and compiler API use the native host target when no target is supplied,
+so native aggregate calls use that host's ABI and data layout. An explicit target
+overrides this default; unsupported native or explicit targets are rejected.
 
 ```bpl
 struct Vec3 {

@@ -7,6 +7,7 @@ import * as os from "os";
 import * as fs from "fs";
 import * as path from "path";
 import type { HostDefaults } from "./types";
+import { getHostTargetTriple } from "../compiler/common/HostTarget";
 import { findSymlinkedPathComponent } from "../compiler/common/PathSafety";
 export { getNativeLinkerFlags } from "../compiler/common/NativeLinkerFlags";
 
@@ -18,48 +19,7 @@ export function getHostDefaults(): HostDefaults {
   const platform = os.platform();
   const arch = os.arch();
 
-  let targetArch: string;
-  switch (arch) {
-    case "x64":
-      targetArch = "x86_64";
-      break;
-    case "arm64":
-      targetArch = "aarch64";
-      break;
-    case "arm":
-      targetArch = "arm";
-      break;
-    default:
-      targetArch = arch;
-  }
-
-  let targetOs: string;
-  let targetVendor = "unknown";
-  let targetEnv = "gnu";
-
-  switch (platform) {
-    case "linux":
-      targetOs = "linux";
-      targetVendor = "unknown";
-      targetEnv = "gnu";
-      break;
-    case "darwin":
-      targetOs = "darwin";
-      targetVendor = "apple";
-      targetEnv = "";
-      break;
-    case "win32":
-      targetOs = "windows";
-      targetVendor = "pc";
-      targetEnv = "msvc";
-      break;
-    default:
-      targetOs = platform;
-  }
-
-  const target = targetEnv
-    ? `${targetArch}-${targetVendor}-${targetOs}-${targetEnv}`
-    : `${targetArch}-${targetVendor}-${targetOs}`;
+  const target = getHostTargetTriple(platform, arch);
 
   return {
     os: platform,
