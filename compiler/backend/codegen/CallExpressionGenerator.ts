@@ -2235,7 +2235,14 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           this.recordExternSignature(
             targetName,
             retTypeStr,
-            declarationParams,
+            this.formatFunctionDeclarationParameters(
+              paramTypes.map((type, index) =>
+                `${type} ${this.getCAbiParameterExtension(
+                  funcType.paramTypes[index]!,
+                )}`.trim(),
+              ),
+              funcType.isVariadic === true,
+            ),
             expr.location,
           );
         }
@@ -2353,7 +2360,9 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       decl.name,
       signature.returnType,
       this.formatFunctionDeclarationParameters(
-        signature.paramTypes,
+        signature.paramTypes.map((type, index) =>
+          `${type} ${signature.paramExtensions[index]}`.trim(),
+        ),
         funcType.isVariadic === true,
       ),
       decl.location,

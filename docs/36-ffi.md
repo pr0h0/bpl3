@@ -294,6 +294,10 @@ when calling that function. Narrow integer callback arguments follow the target
 C ABI's parameter extension rules, so signed `i8` and `short` values retain their
 sign when passed to C, including through `Func`-to-`Lambda` adapters and
 outbound ABI wrappers for signatures that also contain by-value structs.
+Declarations of the same external symbol across modules must also agree on
+these extension attributes. Conflicting signed and unsigned narrow parameter
+declarations report `BPL_EXTERN_SIGNATURE_CONFLICT` before linking, including
+when taking the function's address or reusing an aggregate ABI wrapper.
 `void` is valid as a return type, not as a parameter value. Use an empty
 parameter list for a no-argument function or callback, such as `extern tick();`
 or `Func<void>()`. Extern signatures with `void` parameters, including nested

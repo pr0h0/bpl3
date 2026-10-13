@@ -728,9 +728,9 @@ export class BaseCodeGenerator {
   }
 
   // One symbol reaches the linker once, so every module that calls it has to
-  // describe it the same way. Modules that agree in LLVM terms are fine even
-  // if they spell the BPL types differently — `*void` and `string` are both
-  // i8* — so only a real difference in the emitted signature is reported.
+  // describe it the same way, including scalar ABI extension attributes.
+  // Equivalent spellings such as `*void` and `string` still agree as i8*,
+  // but signed and unsigned narrow arguments can have different C ABIs.
   protected recordExternSignature(
     name: string,
     returnType: string,
