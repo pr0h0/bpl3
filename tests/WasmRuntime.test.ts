@@ -532,6 +532,24 @@ frame main() ret int {
     },
   );
 
+  wasmIt("promotes generic narrow arguments in hosted wasm printf", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(`
+extern printf(format:string,...) ret int;
+frame emit<T>(value:T) {printf("%d\\n",value);}
+frame relay<U>(value:U) {emit<U>(value);}
+frame floating<T>(value:T) {printf("%.2f\\n",value);}
+frame main() ret int {
+    emit<u8>(255 as u8); relay<ushort>(65535 as ushort);
+    relay<i8>(-128 as i8); floating<f32>(1.25 as f32);
+    return 0;
+}
+`, {wasmRuntime:"host",imports:host.imports});
+    host.attach(exports);
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("255\n65535\n-128\n1.25\n");
+  });
+
   wasmIt("formats hosted wasm printf and dprintf dynamic arguments", async () => {
     const host = createHostImports();
     const exports = await compileWasmSource(

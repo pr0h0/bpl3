@@ -36,14 +36,6 @@ import {
   type SpecMethodCallHost,
 } from "./calls/SpecMethodCallEmitter";
 
-function shouldZeroExtendForVariadicPromotion(typeNode: AST.TypeNode): boolean {
-  if (typeNode.kind !== "BasicType") {
-    return false;
-  }
-
-  return ["bool", "char", "u8", "u16"].includes(typeNode.name);
-}
-
 export abstract class CallExpressionGenerator extends BinaryExpressionGenerator {
   protected abstract generateBlock(block: AST.BlockStmt): void;
   protected abstract generateExpression(expr: AST.Expression): string;
@@ -1928,9 +1920,9 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
       if ((srcType === "i8" || srcType === "i16") && isExternVariadic) {
         const promoted = this.newRegister();
-        const op = shouldZeroExtendForVariadicPromotion(arg.resolvedType!)
-          ? "zext"
-          : "sext";
+        // A generic argument may still be named T here; resolve signedness
+        // through the current instantiation rather than its source spelling.
+        const op = this.isSigned(arg.resolvedType!) ? "sext" : "zext";
         this.emit(`  ${promoted} = ${op} ${srcType} ${val} to i32`);
         return `i32 ${promoted}`;
       }

@@ -48,7 +48,9 @@ The following are rejected with `BPL_EXTERN_ABI_UNSUPPORTED`:
 
 Direct variadic calls such as `printf` accept `String`, passed as its data
 pointer, and payload-free enums, passed as their `i32` tag. Other aggregate
-variadic arguments are rejected.
+variadic arguments are rejected. Narrow integers and `f32` follow C's default
+argument promotions; generic frames use the instantiated type's signedness,
+so an unsigned byte value of 255 remains 255 when passed to a C variadic call.
 
 ## Declaring External Functions
 
