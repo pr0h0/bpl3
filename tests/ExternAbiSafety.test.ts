@@ -36,10 +36,18 @@ const invalid = [
   "struct Base {x:int,} struct Child: Base {y:int,} extern bad(c:Child);",
   "struct Box<T> {v:T,} extern bad(b:Box<int>);",
   "struct Holder {pair:(int,int),} extern bad(h:Holder);",
+  "struct Holder {values:int[],} extern bad(h:Holder);",
+  "struct Holder {values:*int[],} extern bad(h:Holder);",
+  "struct Holder {values:int[2][],} extern bad(h:Holder);",
+  "struct Inner {values:int[],} struct Holder {inner:Inner,} extern bad(h:Holder);",
+  "struct Holder {values:int[],} extern bad() ret Holder;",
+  "type Slice=int[]; struct Holder {values:Slice,} extern bad(h:Holder);",
   "extern bad(p:Pair,...);",
 ];
 const valid = [
   "extern ok(p: Pair) ret int;",
+  "struct Holder {values:*int[2],} extern ok(h:Holder);",
+  "type Slice=int[]; struct Holder {values:*Slice,} extern ok(h:Holder);",
   "type Row=int[2]; extern ok(p:*Row) ret *Row;",
   "type Row=int[2]; type RowPointer=*Row; extern ok(p:RowPointer);",
   "type Row=int[2]; type Grid=Row[3]; extern ok(p:**Grid);",

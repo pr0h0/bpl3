@@ -127,6 +127,18 @@ function cCompatibilityProblem(
   if (type.kind !== "BasicType") {
     return "tuples, lambdas and other non-C value types";
   }
+  // Pointers to BPL storage remain opaque at this boundary. Arrays of
+  // pointers are values, however, and an unsized dimension carries a slice
+  // descriptor rather than an inline C array.
+  if (
+    type.pointerDepth > 0 &&
+    (type.isPointerToArray === true || getArrayAliasPointer(type) !== undefined)
+  ) {
+    return undefined;
+  }
+  if (type.arrayDimensions.includes(null)) {
+    return "slice fields (pass a pointer and length separately)";
+  }
   if (type.pointerDepth > 0) return undefined;
   if (type.arrayDimensions.length > 0) {
     // Arrays are C-compatible as struct fields; top-level arrays are handled

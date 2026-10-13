@@ -36,7 +36,8 @@ The following are rejected with `BPL_EXTERN_ABI_UNSUPPORTED`:
 
 - tuples, slices, fixed arrays, and Lambda values in extern signatures (pass a
   pointer instead);
-- enums with payloads, and structs that are not C-compatible;
+- enums with payloads, and structs that are not C-compatible, including structs
+  with slice fields (also when nested); fixed arrays may be inline struct fields;
 - aggregates in callback (`Func`) signatures and in variadic extern
   declarations, which cannot be adapted by a wrapper.
 
