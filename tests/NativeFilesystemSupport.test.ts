@@ -43,7 +43,6 @@ static size_t test_write(const void *p,size_t size,size_t n,FILE *f) {
 #undef free
 #undef fclose
 #undef fwrite
-int32_t __bpl_stack_depth=0;
 int main(int argc,char **argv) {
  assert(argc==3);char *data=NULL;int32_t length=0;
  for(int failure=0;failure<3;failure++) {

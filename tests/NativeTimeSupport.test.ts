@@ -22,7 +22,6 @@ int fake_sleep(const struct timespec *, struct timespec *);
 #include "${resolve("lib/runtime_support.c")}" 
 #undef clock_gettime
 #undef nanosleep
-int32_t __bpl_stack_depth = 0;
 static int fail_clock, sleep_calls;
 int fake_clock(clockid_t id, struct timespec *value) {
   if(fail_clock) {errno=EIO;return -1;}

@@ -54,7 +54,6 @@ static int test_closedir(DIR *d) {
 #undef opendir
 #undef readdir
 #undef closedir
-int32_t __bpl_stack_depth=0;
 int main(int argc,char **argv) {
  assert(argc==2);char **names=NULL;int32_t count=0;
  assert(__bpl_list_dir(argv[1],&names,&count)==0);

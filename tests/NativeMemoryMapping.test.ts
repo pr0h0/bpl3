@@ -27,7 +27,6 @@ static long test_sysconf(int name) {return fail_page_size ? -1 : sysconf(name);}
 #include "${resolve("lib/runtime_support.c")}"
 #undef mmap
 #undef sysconf
-int32_t __bpl_stack_depth=0;
 int main(void) {
  assert(!__bpl_memory_map(0));assert(!__bpl_memory_map(UINT64_MAX));
  assert(!__bpl_memory_map((uint64_t)PTRDIFF_MAX+1));assert(mapping_calls==0);

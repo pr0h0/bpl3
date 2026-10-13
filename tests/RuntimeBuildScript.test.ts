@@ -48,17 +48,17 @@ describe("Runtime build script", () => {
 
     expect(source).toContain("__bpl_ensure_frame_storage");
     expect(source).toContain("calloc(BPL_MAX_STACK_DEPTH");
-    expect(source).toContain("static const char **__bpl_frame_names");
-    expect(source).toContain("static const char **__bpl_frame_files");
-    expect(source).toContain("static int32_t *__bpl_frame_lines");
+    expect(source).toContain("static _Thread_local const char **__bpl_frame_names");
+    expect(source).toContain("static _Thread_local const char **__bpl_frame_files");
+    expect(source).toContain("static _Thread_local int32_t *__bpl_frame_lines");
     expect(source).not.toContain(
-      "static const char *__bpl_frame_names[BPL_MAX_STACK_DEPTH]",
+      "__bpl_frame_names[BPL_MAX_STACK_DEPTH]",
     );
     expect(source).not.toContain(
-      "static const char *__bpl_frame_files[BPL_MAX_STACK_DEPTH]",
+      "__bpl_frame_files[BPL_MAX_STACK_DEPTH]",
     );
     expect(source).not.toContain(
-      "static int32_t __bpl_frame_lines[BPL_MAX_STACK_DEPTH]",
+      "__bpl_frame_lines[BPL_MAX_STACK_DEPTH]",
     );
 
     const objectPath = join(import.meta.dir, "../lib/runtime_support.o");

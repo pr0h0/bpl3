@@ -37,7 +37,6 @@ static int test_lstat(const char *path,struct stat *info) {
 #include "${resolve("lib/runtime_support.c")}"
 #undef stat
 #undef lstat
-int32_t __bpl_stack_depth=0;
 int main(int argc,char **argv) {
  assert(argc==2 && chdir(argv[1])==0);
  int64_t size=99;int32_t kind=99;
