@@ -23,7 +23,7 @@ export function validateExternSignature(
   for (const parameter of type.paramTypes) {
     validateValue(parameter, decl.location, resolve, allowAggregates);
   }
-  validateValue(type.returnType, decl.location, resolve, allowAggregates);
+  validateValue(type.returnType, decl.location, resolve, allowAggregates, true);
 }
 
 // Scalar-only boundary: callback signatures and variadic arguments.
@@ -31,7 +31,13 @@ export function validateExternAbiType(
   type: AST.TypeNode,
   location: SourceLocation,
   seen = new Set<AST.TypeNode>(),
+  allowVoid = false,
 ): void {
+  if (isVoidValue(type)) {
+    if (!allowVoid)
+      reject(location, "void parameters (use an empty parameter list)");
+    return;
+  }
   if (seen.has(type)) return;
   seen.add(type);
   if (isScalarOrPointer(type)) return;
@@ -39,7 +45,7 @@ export function validateExternAbiType(
     // A Func array/slice is an aggregate, not one C function pointer.
     if (type.arrayDimensions?.length)
       reject(location, "callback arrays and slices (pass a pointer)");
-    validateExternAbiType(type.returnType, location, seen);
+    validateExternAbiType(type.returnType, location, seen, true);
     for (const parameter of type.paramTypes)
       validateExternAbiType(parameter, location, seen);
     return;
@@ -52,21 +58,33 @@ function validateValue(
   location: SourceLocation,
   resolve: TypeResolver,
   allowAggregates: boolean,
+  allowVoid = false,
 ): void {
+  if (isVoidValue(type)) {
+    if (!allowVoid)
+      reject(location, "void parameters (use an empty parameter list)");
+    return;
+  }
   if (type.kind === "FunctionType") {
     validateExternAbiType(type, location);
     return;
   }
   if (isScalarOrPointer(type)) return;
-  if (
-    type.kind === "BasicType" &&
-    type.arrayDimensions.length > 0
-  ) {
+  if (type.kind === "BasicType" && type.arrayDimensions.length > 0) {
     reject(location, "arrays and slices (pass a pointer)");
   }
   if (!allowAggregates) reject(location, "variadic extern signatures");
   const reason = cCompatibilityProblem(type, resolve, new Set());
   if (reason) reject(location, reason);
+}
+
+function isVoidValue(type: AST.TypeNode): boolean {
+  return (
+    type.kind === "BasicType" &&
+    type.name === "void" &&
+    type.pointerDepth === 0 &&
+    type.arrayDimensions.length === 0
+  );
 }
 
 function isScalarOrPointer(type: AST.TypeNode): boolean {
@@ -81,7 +99,6 @@ function isScalarOrPointer(type: AST.TypeNode): boolean {
   return (
     type.arrayDimensions.length === 0 &&
     (getPrimitiveType(type.name) !== undefined ||
-      type.name === "void" ||
       type.name === "string")
   );
 }

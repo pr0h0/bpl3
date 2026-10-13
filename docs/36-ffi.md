@@ -293,6 +293,11 @@ function's parameters or result. Ordinary scalar arguments can still convert
 when calling that function. Narrow integer callback arguments follow the target
 C ABI's parameter extension rules, so signed `i8` and `short` values retain their
 sign when passed to C, including through `Func`-to-`Lambda` adapters.
+`void` is valid as a return type, not as a parameter value. Use an empty
+parameter list for a no-argument function or callback, such as `extern tick();`
+or `Func<void>()`. Extern signatures with `void` parameters, including nested
+callbacks and generic aliases, report `BPL_EXTERN_ABI_UNSUPPORTED`. A `*void`
+parameter remains a valid raw pointer.
 
 Arrays and slices of `Func` values cannot cross the C ABI by value, including
 inside another callback signature or through generic type aliases. They are not

@@ -26,12 +26,15 @@ export function validateCExport(
       C_EXPORT_UNSUPPORTED_CODE,
     );
   }
-  for (const type of [
-    ...decl.params.map((parameter) => parameter.type),
-    decl.returnType,
+  for (const { type, allowVoid } of [
+    ...decl.params.map((parameter) => ({
+      type: parameter.type,
+      allowVoid: false,
+    })),
+    { type: decl.returnType, allowVoid: true },
   ]) {
     try {
-      validateExternAbiType(resolve(type), decl.location);
+      validateExternAbiType(resolve(type), decl.location, new Set(), allowVoid);
     } catch (error) {
       if (!(error instanceof CompilerError)) throw error;
       throw new CompilerError(
