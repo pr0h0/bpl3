@@ -36,6 +36,10 @@ unsafe class Program
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     static long Twice(long value) => value * 2;
 
+    sealed class Holder { public int Value = 7; }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static int ReadValue(Holder value) => value.Value;
+
     static int Main()
     {
         Packet packet = new Packet { Count = 35, Score = 1.25 };
@@ -57,6 +61,11 @@ unsafe class Program
         if (owned == null) return 9;
         try { if (owned[0] != 10 || owned[2] != 12) return 10; }
         finally { Free(owned); }
+        // Loading the BPL runtime must leave the CLR's exception handling intact.
+        bool caught = false;
+        try { _ = ReadValue(null!); }
+        catch (NullReferenceException) { caught = true; }
+        if (!caught) return 11;
         Console.WriteLine("interop-ok");
         return 0;
     }

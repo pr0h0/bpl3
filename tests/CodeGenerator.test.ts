@@ -136,9 +136,12 @@ describe("CodeGenerator", () => {
     // type names itself. It now resolves a type parameter to the argument of
     // the instantiation first, so the name it classifies is a concrete one.
     expect(typeGeneratorSource).toContain("return isSignedTypeName(basic.name)");
-    expect(typeGeneratorSource).toContain(
-      "this.currentTypeMap.get(basic.name)",
-    );
+    const ir = compile(`
+      type Signed=i8;
+      frame widen<T>(value:T) ret long {return value as long;}
+      frame main() ret int {return widen<Signed>(-1 as Signed) as int;}
+    `);
+    expect(ir).toMatch(/sext i8 %[^ ]+ to i64/);
   });
 
   it("returns identical LLVM casts before semantic lowering", () => {

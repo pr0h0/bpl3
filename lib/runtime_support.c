@@ -280,21 +280,24 @@ static void signal_handler(int sig, siginfo_t *info, void *context) {
 
 /**
  * Install signal handlers for crash detection
- * Called automatically at program startup via constructor attribute
+ * Native BPL main calls this explicitly when it already needs the runtime.
+ * Loading a BPL library must not replace handlers owned by its host runtime.
  */
-__attribute__((constructor))
-static void __bpl_install_signal_handlers(void) {
+void __bpl_install_signal_handlers(void) {
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_sigaction = signal_handler;
     sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
     sigemptyset(&sa.sa_mask);
     
-    sigaction(SIGSEGV, &sa, NULL);
-    sigaction(SIGFPE, &sa, NULL);
-    sigaction(SIGILL, &sa, NULL);
-    sigaction(SIGABRT, &sa, NULL);
-    sigaction(SIGBUS, &sa, NULL);
+    const int signals[] = {SIGSEGV, SIGFPE, SIGILL, SIGABRT, SIGBUS};
+    for (size_t i = 0; i < sizeof(signals) / sizeof(signals[0]); ++i) {
+        struct sigaction current;
+        if (sigaction(signals[i], NULL, &current) == 0 &&
+            current.sa_handler == SIG_DFL) {
+            sigaction(signals[i], &sa, NULL);
+        }
+    }
 }
 
 /* ============ Formatted Error Printing ============ */

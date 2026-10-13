@@ -1,4 +1,5 @@
 import { getCExportFunctions, C_EXPORT_CONFLICT_CODE } from "../common/CExports";
+import { irNeedsNativeRuntime } from "../common/NativeRuntime";
 import * as fs from "fs";
 import { isRuntimeHelperName } from "./codegen/TypeGenerator";
 import { needsCAbiLowering } from "./codegen/abi/CAbi";
@@ -133,6 +134,7 @@ export class CodeGenerator extends StatementGenerator {
   private generatedBodyUsesArgvRuntimeHelper = false;
   private generatedArgcStoreOutputIndex: number | undefined;
   private generatedArgvStoreOutputIndex: number | undefined;
+  private nativeMainEntryOutputIndex: number | undefined;
 
   constructor(
     options: {
@@ -169,6 +171,7 @@ export class CodeGenerator extends StatementGenerator {
     this.generatedBodyUsesArgvRuntimeHelper = false;
     this.generatedArgcStoreOutputIndex = undefined;
     this.generatedArgvStoreOutputIndex = undefined;
+    this.nativeMainEntryOutputIndex = undefined;
     this.stringLiterals.clear();
     this.structLayouts.clear();
     this.structMap.clear();
@@ -515,6 +518,14 @@ export class CodeGenerator extends StatementGenerator {
       );
     }
     this.pruneUnusedRuntimeArgStores();
+    if (
+      this.nativeMainEntryOutputIndex !== undefined &&
+      this.output.some((line) => irNeedsNativeRuntime(line))
+    ) {
+      this.output[this.nativeMainEntryOutputIndex] =
+        "  call void @__bpl_install_signal_handlers()";
+      this.emitDeclaration("declare void @__bpl_install_signal_handlers()");
+    }
     const generatedBody = this.joinCompactedLines(this.output);
     const generatedBodyReferences =
       this.collectFinalPruningLlvmReferences(generatedBody);
@@ -540,6 +551,13 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     return result;
+  }
+
+  protected override noteNativeMainEntryPoint(): void {
+    if (!this.skipRuntime && !this.target?.toLowerCase().includes("wasm")) {
+      this.nativeMainEntryOutputIndex = this.output.length;
+      this.emit("");
+    }
   }
 
   protected override noteDirectFunctionCall(name: string): void {

@@ -3295,6 +3295,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.emit("entry:");
       const stackAllocationIndex = this.output.length;
       this.emit(""); // Reserve one output entry without shifting tracked indices.
+      if (name === "main") this.noteNativeMainEntryPoint();
 
       // Unpack closure context if present
       if (captureInfo) {

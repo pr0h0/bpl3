@@ -219,6 +219,11 @@ Build the library and a C/C++ header in one command:
 bpl build library.bpl --shared --header library.h -O3 -o libexample.so
 ```
 
+Loading a BPL shared library does not install process-wide crash signal
+handlers. Signal setup occurs in generated native `main` when runtime support
+is already needed, preserving handlers owned by another runtime. Simple
+runtime-free executables remain runtime-free.
+
 A C or C++ caller includes `library.h` and links against `libexample.so`.
 Python can load it with `ctypes.CDLL`, declare two `ctypes.c_int64` arguments
 and a `ctypes.c_int64` result, and call `library.add(20, 22)`. Go and Rust use

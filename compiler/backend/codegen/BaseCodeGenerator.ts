@@ -719,6 +719,8 @@ export class BaseCodeGenerator {
     return this.isIdentifierStartCode(code) || (code >= 48 && code <= 57);
   }
 
+  protected noteNativeMainEntryPoint(): void {}
+
   protected emitDeclaration(line: string) {
     this.declarationsOutput.push(line);
   }
