@@ -8,6 +8,10 @@ struct Outer { inner: Inner, tag: char[3], ok: bool, }
 struct Big { a: long, b: long, c: long, d: long, }
 enum Color { Red, Green, Blue }
 struct Float5 {values:f32[5],}
+struct FloatBytes {value:f32,bytes:i8[2],}
+struct CharWord {bytes:char[4],word:long,}
+extern float_bytes(input:FloatBytes) ret FloatBytes;
+extern char_word(input:CharWord) ret CharWord;
 extern increase_floats(input:Float5) ret Float5;
 extern sum_pair(p: Pair) ret int;
 extern swap_pair(p: Pair) ret Pair;
@@ -42,5 +46,14 @@ frame main() ret int {
     loop (local i:int=0; i<5; i++) {floats.values[i]=(i+1) as f32;}
     local increased: Float5 = increase_floats(floats);
     printf("%.1f %.1f\n", increased.values[0], increased.values[4]);
+    local fb: FloatBytes;
+    fb.value=1.5 as f32; fb.bytes[0]=127 as i8; fb.bytes[1]=-128 as i8;
+    local changed: FloatBytes = float_bytes(fb);
+    printf("%.1f %d %d\n", changed.value, changed.bytes[0], changed.bytes[1]);
+    local cw: CharWord;
+    loop (local i:int=0; i<4; i++) {cw.bytes[i]=(87+i) as char;}
+    cw.word=7;
+    local flipped: CharWord = char_word(cw);
+    printf("%c%c%c%c %ld\n", flipped.bytes[0], flipped.bytes[1], flipped.bytes[2], flipped.bytes[3], flipped.word);
     return 0;
 }

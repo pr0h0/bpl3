@@ -28,6 +28,9 @@ const SHAPES: Record<string, { c: string; llvm: string }> = {
   PB: { c: "void *p; _Bool b;", llvm: "{ i8*, i1 }" },
   FA: { c: "float v[3];", llvm: "{ [3 x float] }" },
   C1: { c: "char c;", llvm: "{ i8 }" },
+  FC2: { c: "float f; char c[2];", llvm: "{ float, [2 x i8] }" },
+  C4SC: { c: "char c[4]; short s; char tail;", llvm: "{ [4 x i8], i16, i8 }" },
+  C4L: { c: "char c[4]; long long n;", llvm: "{ [4 x i8], i64 }" },
 };
 
 // Signatures beyond `struct S f_s(struct S)`, covering register exhaustion

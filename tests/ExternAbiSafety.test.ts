@@ -85,7 +85,7 @@ test("C-compatible structs cross the C ABI by value at O0 and O3", () => {
     const object = join(dir, "native.o");
     const compiled = spawnSync(
       process.env.CC || "clang",
-      ["-c", join(fixtures, "native.c"), "-o", object],
+      ["-O3", "-c", join(fixtures, "native.c"), "-o", object],
       { encoding: "utf8" },
     );
     expect(compiled.stderr).toBe("");
@@ -112,7 +112,7 @@ test("C-compatible structs cross the C ABI by value at O0 and O3", () => {
       const run = spawnSync(binary, [], { encoding: "utf8", timeout: 5000 });
       expect(run.status).toBe(0);
       expect(run.stdout).toBe(
-        "18\n11 7\n1.5 3.0 4.5\n42 4.50\nCBA\n40 1.5 ZBC 1\n103 207 318 472\nred\n42\n2.0 6.0\n",
+        "18\n11 7\n1.5 3.0 4.5\n42 4.50\nCBA\n40 1.5 ZBC 1\n103 207 318 472\nred\n42\n2.0 6.0\n3.5 -128 127\nZYXW 4294967303\n",
       );
     }
   } finally {

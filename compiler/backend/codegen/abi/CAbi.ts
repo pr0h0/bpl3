@@ -392,10 +392,16 @@ export class CAbiLowering {
       let type: string;
       if (!sse) {
         const only = inside.length === 1 ? inside[0]! : undefined;
-        type =
-          only?.kind === "ptr" && only.offset === start && only.size === 8
-            ? "i8*"
-            : `i${end * 8}`;
+        // A single primitive can retain its width even when the struct has
+        // trailing padding. Mixed fields use the full eightbyte's storage
+        // extent, including padding, as Clang's integer coercion does.
+        if (only?.offset === start && only.kind === "ptr" && only.size === 8) {
+          type = "i8*";
+        } else if (only?.offset === start && only.kind === "int") {
+          type = `i${only.size * 8}`;
+        } else {
+          type = `i${Math.min(8, info.size - start) * 8}`;
+        }
       } else if (
         inside.length === 1 &&
         inside[0]!.kind === "float" &&

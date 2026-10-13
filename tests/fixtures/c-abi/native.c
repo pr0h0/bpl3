@@ -22,3 +22,20 @@ struct Float5 increase_floats(struct Float5 input) {
   for (int i = 0; i < 5; i++) input.values[i] += 1.0f;
   return input;
 }
+
+struct FloatBytes { float value; signed char bytes[2]; };
+struct FloatBytes float_bytes(struct FloatBytes input) {
+  input.value += 2.0f;
+  signed char swap = input.bytes[0];
+  input.bytes[0] = input.bytes[1]; input.bytes[1] = swap;
+  return input;
+}
+struct CharWord { char bytes[4]; long long word; };
+struct CharWord char_word(struct CharWord input) {
+  for (int i = 0; i < 2; i++) {
+    char swap = input.bytes[i];
+    input.bytes[i] = input.bytes[3-i]; input.bytes[3-i] = swap;
+  }
+  input.word += 4294967296LL;
+  return input;
+}
