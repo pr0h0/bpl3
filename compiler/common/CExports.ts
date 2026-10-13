@@ -184,7 +184,24 @@ export function generateCExportHeader(program: AST.Program): string {
     return name;
   }
   function declaration(input: AST.TypeNode, name: string): string {
-    const type = resolveAlias(input);
+    let type = resolveAlias(input);
+    // Checking lowers the builtin string alias to i8*, but C text APIs use
+    // plain char*, distinct from signed-byte pointers in C++ and cgo.
+    if (
+      type.kind === "BasicType" &&
+      type.aliasDeclaration?.name === "string" &&
+      type.aliasDeclaration.location.file === "internal" &&
+      type.pointerDepth > 0
+    ) {
+      type = {
+        ...type,
+        name: "string",
+        pointerDepth: type.pointerDepth - 1,
+        aliasDeclaration: undefined,
+        aliasTarget: undefined,
+        resolvedDeclaration: undefined,
+      };
+    }
     if (type.kind === "BasicType") {
       if (type.aliasTarget?.kind === "BasicType") {
         const target = type.aliasTarget;

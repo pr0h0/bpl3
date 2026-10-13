@@ -30,7 +30,7 @@ export function runInteropMatrix(
     });
     if (result.status !== 0)
       throw new Error(
-        `${command} ${args.join(" ")}\n${result.error ?? ""}\n${result.stdout}\n${result.stderr}`,
+        `${command} ${args.join(" ")} (exit=${result.status}, signal=${result.signal})\n${result.error ?? ""}\n${result.stdout}\n${result.stderr}`,
       );
     return result.stdout;
   }
@@ -61,7 +61,7 @@ export function runInteropMatrix(
       "-e",
       "CGO_ENABLED=1",
       "-e",
-      "CGO_CFLAGS=-I/fixtures",
+      "CGO_CFLAGS=-I/fixtures -I/work",
       "-e",
       "CGO_LDFLAGS=-L/work -lbpl_interop",
       "-e",
@@ -129,6 +129,8 @@ export function runInteropMatrix(
         "build",
         source,
         "--shared",
+        "--header",
+        join(dir, "bpl_api.h"),
         "-O",
         String(opt),
         "-o",
@@ -143,6 +145,8 @@ export function runInteropMatrix(
           "-x",
           language === "C" ? "c" : "c++",
           join(fixtures, "host.c"),
+          "-I",
+          dir,
           "-L",
           dir,
           "-lbpl_interop",

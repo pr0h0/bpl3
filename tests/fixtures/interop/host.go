@@ -20,7 +20,7 @@ import "unsafe"
 //export go_twice
 func go_twice(value C.int64_t) C.int64_t { return value * 2 }
 func main() {
-    packet := C.struct_Packet{count: 35, score: 1.25}
+    packet := C.struct_bpl_Packet{count: 35, score: 1.25}
     C.interop_update(&packet)
     if C.interop_add(4294967296, -7) != 4294967289 { panic("int64") }
     if C.interop_scale(2.5) != 3.75 { panic("float32") }

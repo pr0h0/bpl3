@@ -339,6 +339,8 @@ or support for arbitrary foreign-thread callbacks.
 
 ### Strings, buffers, and ownership
 
+Generated headers spell BPL `string` as C `char*`, including aliases and nested
+callback signatures. Explicit `*char`/`*i8` byte pointers remain `int8_t*`.
 The text fixtures exchange NUL-terminated UTF-8 strings. `"héλ"` occupies five
 UTF-8 bytes plus its terminator; its character count is not its byte length.
 C# P/Invoke uses `[MarshalAs(UnmanagedType.LPUTF8Str)]` for incoming text and
@@ -424,6 +426,11 @@ fixtures read-only, and write into a temporary work directory as the invoking
 user. The directory is removed after the test; downloaded Docker images remain.
 The Docker option deliberately selects these images for reproducible toolchain
 isolation. It is separate from the default CI-safe suite.
+
+The C, C++, and cgo hosts compile against BPL-generated headers. The fixture
+header only supplies the layout of its opaque Packet handle; it does not repeat
+function declarations. This catches declaration spelling errors as well as
+runtime ABI errors.
 
 The matrix checks `-O0` and `-O3`, 64-bit integer values, `f32`, signed 16-bit
 values and booleans on outbound calls, signed and unsigned byte arguments,
