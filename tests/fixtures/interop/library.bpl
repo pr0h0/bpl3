@@ -27,3 +27,32 @@ frame interop_rows(rows: *RowPointers) ret long {
     rows[1][1] = sum * 2;
     return sum;
 }
+
+extern strlen(text: string) ret ulong;
+extern malloc(size: ulong) ret *uchar;
+extern free(data: *uchar);
+@[c_export]
+frame interop_text_length(text: string) ret ulong { return strlen(text); }
+@[c_export]
+frame interop_message() ret string { return "héλ"; }
+@[c_export]
+frame interop_buffer(data: *uchar, length: ulong) ret ulong {
+    local sum: ulong = 0;
+    local index: ulong = 0;
+    loop(index < length) {
+        data[index] = data[index] ^ cast<uchar>(0x5a);
+        sum += cast<ulong>(data[index]);
+        index++;
+    }
+    return sum;
+}
+@[c_export]
+frame interop_alloc(length: ulong) ret *uchar {
+    local data: *uchar = malloc(length);
+    if(data == nullptr) { return data; }
+    local index: ulong = 0;
+    loop(index < length) { data[index] = cast<uchar>(index + 10); index++; }
+    return data;
+}
+@[c_export]
+frame interop_free(data: *uchar) { free(data); }

@@ -2,6 +2,7 @@ package main
 /*
 #include "bridge.h"
 #include <stddef.h>
+#include <stdlib.h>
 extern int64_t go_twice(int64_t);
 static int64_t run_go_callback(void) { return interop_run(go_twice, 20); }
 static int check_callbacks(void) { return interop_factory()(21) == 42 && interop_checked(NULL, 20) == -7; }
@@ -14,6 +15,7 @@ static int check_rows(void) {
 */
 import "C"
 import "fmt"
+import "unsafe"
 
 //export go_twice
 func go_twice(value C.int64_t) C.int64_t { return value * 2 }
@@ -26,5 +28,16 @@ func main() {
     if C.run_go_callback() != 41 { panic("callback") }
     if C.check_callbacks() != 1 { panic("returned/null callback") }
     if C.check_rows() != 1 { panic("nested array pointers") }
+    text := C.CString("héλ")
+    if C.interop_text_length(text) != 5 || C.GoString(C.interop_message()) != "héλ" { panic("UTF-8") }
+    C.free(unsafe.Pointer(text))
+    bytes := []C.uint8_t{0,127,255}
+    if C.interop_buffer(&bytes[0],3) != 292 || bytes[0] != 90 || bytes[1] != 37 || bytes[2] != 165 { panic("byte buffer") }
+    if C.interop_buffer(nil,0) != 0 { panic("empty buffer") }
+    owned := C.interop_alloc(3)
+    if owned == nil { panic("allocation") }
+    view := unsafe.Slice(owned,3)
+    if view[0] != 10 || view[2] != 12 { panic("owned buffer") }
+    C.interop_free(owned)
     fmt.Println("interop-ok")
 }

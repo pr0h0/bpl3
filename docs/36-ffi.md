@@ -326,10 +326,34 @@ alive for every native call that can use them. The fixtures use synchronous
 callbacks and release callback resources afterward.
 
 Catch errors before returning across the foreign boundary. Do not unwind C++
-exceptions, Rust panics, Go panics, or BPL exceptions through another language's
+or C# exceptions, Rust panics, Go panics, or BPL exceptions through another language's
 frames. The native runtime currently keeps exception/defer/stack-limit state
 in process-global storage; these tests do not establish thread-safe embedding
 or support for arbitrary foreign-thread callbacks.
+
+### Strings, buffers, and ownership
+
+The text fixtures exchange NUL-terminated UTF-8 strings. `"héλ"` occupies five
+UTF-8 bytes plus its terminator; its character count is not its byte length.
+C# P/Invoke uses `[MarshalAs(UnmanagedType.LPUTF8Str)]` for incoming text and
+an unmanaged pointer plus `Marshal.PtrToStringUTF8` for returned text. Rust uses
+`CString` for input and borrows returned text with `CStr`; Go uses `C.CString`
+and `C.GoString`.
+
+Ownership is part of the API contract. The BPL fixture's `interop_message`
+returns a borrowed static string, which the caller must not free. Each provider's
+`foreign_owned_message` allocates text and pairs it with
+`foreign_release_message`. Likewise, buffers from `interop_alloc` are released
+by `interop_free`, and buffers from `foreign_alloc` are released by
+`foreign_free` using their original length. Copying a pointer or decoding text
+does not transfer or release its allocation. Use the matching release API
+instead of substituting a different language's allocator.
+
+Variable-sized binary buffers use an element pointer and an explicit byte
+length. The fixtures check bytes above 127, mutation of the caller's storage,
+and a null pointer with zero length. A nonzero length requires that many valid
+elements; a raw pointer does not carry capacity metadata. Keep backing storage
+alive throughout the call and follow the host language's pinning rules.
 
 ### Language-specific adapters
 
@@ -405,7 +429,9 @@ Python, Bun, and Rust keep their buffer owners alive across the native call.
 C, C++, Go, Rust, and C# hosts also check a returned BPL function pointer and
 a caught null-callback error. Their providers return a callback to BPL and call
 BPL callbacks with signed byte arguments. The optional C# host uses stack-owned
-buffers. The complete Docker run
+buffers. These five native hosts/providers also check UTF-8 text, byte-buffer
+mutation, zero-length null buffers, and matching allocation/release APIs in
+both directions. The complete Docker run
 including C# has 24 configurations; Go/Rust without C# has 20, and the host
 subset has 12.
 `tests/InteropNative.test.ts` runs the host subset in the normal test suite when

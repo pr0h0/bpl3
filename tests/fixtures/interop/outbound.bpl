@@ -11,6 +11,13 @@ extern foreign_signed_probe(x: char) ret int;
 extern foreign_unsigned_probe(x: uchar) ret int;
 extern foreign_small_callback(callback: Func<int>(char), x: char) ret int;
 extern foreign_callback_factory() ret Func<int>(char);
+extern foreign_owned_message() ret string;
+extern foreign_release_message(text: string);
+extern foreign_buffer(data: *uchar, length: ulong) ret ulong;
+extern foreign_alloc(length: ulong) ret *uchar;
+extern foreign_free(data: *uchar, length: ulong);
+extern strlen(text: string) ret ulong;
+extern strcmp(a: string, b: string) ret int;
 extern puts(s: string) ret int;
 frame doubled(x: long) ret long { return x * 2; }
 @[noinline]
@@ -29,6 +36,18 @@ frame main() ret int {
     if (foreign_signed_probe(cast<char>(-128)) != -128 || foreign_unsigned_probe(cast<uchar>(255)) != 255) { return 8; }
     if (foreign_small_callback(signed_value, cast<char>(-128)) != -128) { return 9; }
     if (foreign_callback_factory()(cast<char>(-128)) != -128) { return 10; }
+    local message: string = foreign_owned_message();
+    if(strlen(message) != cast<ulong>(5) || strcmp(message, "héλ") != 0) { return 11; }
+    foreign_release_message(message);
+    local bytes: uchar[3] = [cast<uchar>(0), cast<uchar>(127), cast<uchar>(255)];
+    if(foreign_buffer(bytes, cast<ulong>(3)) != cast<ulong>(292)) { return 12; }
+    if(bytes[0] != cast<uchar>(90) || bytes[1] != cast<uchar>(37) || bytes[2] != cast<uchar>(165)) { return 13; }
+    local owned: *uchar = foreign_alloc(cast<ulong>(3));
+    if(owned == nullptr) { return 14; }
+    if(owned[0] != cast<uchar>(10) || owned[2] != cast<uchar>(12)) { return 15; }
+    foreign_free(owned, cast<ulong>(3));
+    local empty: *uchar = nullptr;
+    if(foreign_buffer(empty, cast<ulong>(0)) != cast<ulong>(0)) { return 16; }
     puts("interop-ok");
     return 0;
 }

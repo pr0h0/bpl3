@@ -22,6 +22,16 @@ unsafe class Program
     static extern delegate* unmanaged[Cdecl]<long, long> Factory();
     [DllImport(Library, EntryPoint = "interop_checked", CallingConvention = CallingConvention.Cdecl)]
     static extern long Checked(delegate* unmanaged[Cdecl]<long, long> callback, long value);
+    [DllImport(Library, EntryPoint = "interop_text_length", CallingConvention = CallingConvention.Cdecl)]
+    static extern ulong TextLength([MarshalAs(UnmanagedType.LPUTF8Str)] string text);
+    [DllImport(Library, EntryPoint = "interop_message", CallingConvention = CallingConvention.Cdecl)]
+    static extern byte* Message();
+    [DllImport(Library, EntryPoint = "interop_buffer", CallingConvention = CallingConvention.Cdecl)]
+    static extern ulong Buffer(byte* data, ulong length);
+    [DllImport(Library, EntryPoint = "interop_alloc", CallingConvention = CallingConvention.Cdecl)]
+    static extern byte* Alloc(ulong length);
+    [DllImport(Library, EntryPoint = "interop_free", CallingConvention = CallingConvention.Cdecl)]
+    static extern void Free(byte* data);
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     static long Twice(long value) => value * 2;
@@ -39,6 +49,14 @@ unsafe class Program
         long** rows = stackalloc long*[2];
         rows[0] = first; rows[1] = second;
         if (Rows(rows) != 42 || first[1] != 11 || second[1] != 84) return 5;
+        if (TextLength("héλ") != 5 || Marshal.PtrToStringUTF8((nint)Message()) != "héλ") return 6;
+        byte* bytes = stackalloc byte[] { 0, 127, 255 };
+        if (Buffer(bytes, 3) != 292 || bytes[0] != 90 || bytes[1] != 37 || bytes[2] != 165) return 7;
+        if (Buffer(null, 0) != 0) return 8;
+        byte* owned = Alloc(3);
+        if (owned == null) return 9;
+        try { if (owned[0] != 10 || owned[2] != 12) return 10; }
+        finally { Free(owned); }
         Console.WriteLine("interop-ok");
         return 0;
     }
