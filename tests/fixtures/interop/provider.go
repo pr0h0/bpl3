@@ -25,6 +25,10 @@ func foreign_short(x C.int16_t) C.int16_t { return x }
 func foreign_bool(x C.bool) C.bool { return !x }
 //export foreign_pair
 func foreign_pair(p C.struct_Pair) C.struct_Pair { p.x, p.y = p.y, p.x; return p }
+//export foreign_mixed_signed
+func foreign_mixed_signed(value C.int8_t, p C.struct_Pair) C.int32_t { return C.int32_t(value) + p.x + p.y }
+//export foreign_mixed_unsigned
+func foreign_mixed_unsigned(value C.uint8_t, p C.struct_Pair) C.int32_t { return C.int32_t(value) + p.x + p.y }
 //export foreign_triple
 func foreign_triple(p C.struct_Triple) C.struct_Triple { p.x *= 2; p.y *= 2; p.z *= 2; return p }
 //export foreign_callback

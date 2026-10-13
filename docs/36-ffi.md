@@ -292,7 +292,8 @@ is variadic. Assigning or passing a function pointer does not convert the
 function's parameters or result. Ordinary scalar arguments can still convert
 when calling that function. Narrow integer callback arguments follow the target
 C ABI's parameter extension rules, so signed `i8` and `short` values retain their
-sign when passed to C, including through `Func`-to-`Lambda` adapters.
+sign when passed to C, including through `Func`-to-`Lambda` adapters and
+outbound ABI wrappers for signatures that also contain by-value structs.
 `void` is valid as a return type, not as a parameter value. Use an empty
 parameter list for a no-argument function or callback, such as `extern tick();`
 or `Func<void>()`. Extern signatures with `void` parameters, including nested

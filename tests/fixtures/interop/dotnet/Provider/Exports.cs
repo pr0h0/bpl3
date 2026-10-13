@@ -19,6 +19,10 @@ public static unsafe class Exports
     public static byte Bool(byte value) => value == 0 ? (byte)1 : (byte)0;
     [UnmanagedCallersOnly(EntryPoint = "foreign_pair", CallConvs = new[] { typeof(CallConvCdecl) })]
     public static Pair Swap(Pair value) => new Pair { X = value.Y, Y = value.X };
+    [UnmanagedCallersOnly(EntryPoint = "foreign_mixed_signed", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int MixedSigned(sbyte value, Pair pair) => value + pair.X + pair.Y;
+    [UnmanagedCallersOnly(EntryPoint = "foreign_mixed_unsigned", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int MixedUnsigned(byte value, Pair pair) => value + pair.X + pair.Y;
     [UnmanagedCallersOnly(EntryPoint = "foreign_triple", CallConvs = new[] { typeof(CallConvCdecl) })]
     public static Triple Double(Triple value) => new Triple { X = value.X * 2, Y = value.Y * 2, Z = value.Z * 2 };
     [UnmanagedCallersOnly(EntryPoint = "foreign_callback", CallConvs = new[] { typeof(CallConvCdecl) })]

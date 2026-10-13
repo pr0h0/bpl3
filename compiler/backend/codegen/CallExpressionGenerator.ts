@@ -2343,6 +2343,9 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       name: decl.name,
       returnType: this.resolveType(funcType.returnType),
       paramTypes: funcType.paramTypes.map((type) => this.resolveType(type)),
+      paramExtensions: funcType.paramTypes.map((type) =>
+        this.getCAbiParameterExtension(type),
+      ),
     };
     // Address-taking reaches this path without a direct call. Validate each
     // source signature before consulting the cache, including scalar externs.

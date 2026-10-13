@@ -147,11 +147,18 @@ test("narrow callback argument extensions match Clang across targets", () => {
       const hasExtension = /define[^\n]*@probe\(i8[^\n]*signext/.test(c.stdout);
       expect(hasExtension).toBe(expected !== "");
       const result = new Compiler({ filePath: "small.bpl", target }).compile(`
+        struct Pair {x:int,y:int,}
+        extern mixed_signed(value:i8,p:Pair) ret int;
+        frame aggregate(p:Pair) ret int {return mixed_signed(-128 as i8,p);}
         frame probe(f:Func<int>(i8)) ret int {return f(-128 as i8);}
       `);
       expect(result.success).toBe(true);
       expect(result.output).toMatch(
         new RegExp(`call i32 %[^\\s(]+\\(i8 ${expected}`),
+      );
+      expect(result.output).toContain(`call i32 @mixed_signed(i8 ${expected}`);
+      expect(result.output).toContain(
+        `declare i32 @mixed_signed(i8${expected ? " " + expected.trim() : ","}`,
       );
       const llvm = join(dir, "small.ll");
       writeFileSync(llvm, result.output!);

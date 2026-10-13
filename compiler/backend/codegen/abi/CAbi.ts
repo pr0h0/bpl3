@@ -72,6 +72,8 @@ export interface CAbiSignature {
   name: string;
   returnType: string;
   paramTypes: string[];
+  /** Scalar parameter attributes from the source type (signedness is lost in LLVM i8/i16). */
+  paramExtensions?: string[];
 }
 
 export interface LoweredExtern {
@@ -461,8 +463,10 @@ export class CAbiLowering {
     }
     args.forEach((arg, index) => {
       const type = signature.paramTypes[index]!;
-      if (arg.kind === "direct") params.push(type);
-      else if (arg.kind === "indirect") params.push(indirectParam(type, arg));
+      if (arg.kind === "direct") {
+        const extension = signature.paramExtensions?.[index]?.trim();
+        params.push(extension ? `${type} ${extension}` : type);
+      } else if (arg.kind === "indirect") params.push(indirectParam(type, arg));
       else {
         for (const param of arg.params) {
           params.push(
@@ -533,7 +537,8 @@ export class CAbiLowering {
       const type = signature.paramTypes[index]!;
       const value = `%a${index}`;
       if (arg.kind === "direct") {
-        callArgs.push(`${type} ${value}`);
+        const extension = signature.paramExtensions?.[index] ?? "";
+        callArgs.push(`${type} ${extension}${value}`);
         return;
       }
       if (arg.kind === "indirect") {

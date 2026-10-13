@@ -5,6 +5,8 @@ extern foreign_scale(x: f32) ret f32;
 extern foreign_short(x: short) ret short;
 extern foreign_bool(x: bool) ret bool;
 extern foreign_pair(p: Pair) ret Pair;
+extern foreign_mixed_signed(value: char, p: Pair) ret int;
+extern foreign_mixed_unsigned(value: uchar, p: Pair) ret int;
 extern foreign_triple(p: Triple) ret Triple;
 extern foreign_callback(callback: Func<long>(long), x: long) ret long;
 extern foreign_signed_probe(x: char) ret int;
@@ -48,6 +50,8 @@ frame main() ret int {
     foreign_free(owned, cast<ulong>(3));
     local empty: *uchar = nullptr;
     if(foreign_buffer(empty, cast<ulong>(0)) != cast<ulong>(0)) { return 16; }
+    if(foreign_mixed_signed(cast<char>(-128), Pair {x:1,y:2}) != -125) { return 17; }
+    if(foreign_mixed_unsigned(cast<uchar>(255), Pair {x:1,y:2}) != 258) { return 18; }
     puts("interop-ok");
     return 0;
 }
