@@ -370,6 +370,16 @@ void __bpl_assert(int condition, const char *message, const char *file, int32_t 
     }
 }
 
+/* Portable descriptor output: BPL lengths/results remain signed 64-bit even
+ * when the native size_t/ssize_t are 32-bit. Preserve write's partial-result
+ * semantics and errno; do not truncate a requested length before validation. */
+int64_t __bpl_write(int32_t fd, const void *buffer, int64_t length) {
+    if (length < 0) { errno = EINVAL; return -1; }
+    if ((uint64_t)length > SIZE_MAX) { errno = EOVERFLOW; return -1; }
+    if (length > 0 && !buffer) { errno = EFAULT; return -1; }
+    return (int64_t)write(fd, buffer, (size_t)length);
+}
+
 /* Bounded stdin line input. Status values match std/io.bpl. */
 int32_t __bpl_read_line(char *buffer, int32_t capacity, int32_t *length) {
     if (!buffer || capacity <= 0 || !length) return 4;

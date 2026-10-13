@@ -532,6 +532,27 @@ frame main() ret int {
     },
   );
 
+  wasmIt("uses portable write counts and rejects invalid hosted descriptors and ranges", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(`
+import write from "std/c.bpl";
+frame main() ret int {
+    local text:string="write";
+    if(write(1,text,5)!=5 || write(2,text,5)!=5) {return 1;}
+    if(write(3,text,5)!=-1 || write(1,text,-1)!=-1) {return 2;}
+    if(write(1,text,4294967296)!=-1 || write(1,nullptr,1)!=-1) {return 3;}
+    if(write(1,nullptr,0)!=0) {return 4;}
+    local invalid:*char=cast<*char>(4294967295 as long);
+    if(write(1,invalid,0)!=0 || write(1,invalid,1)!=-1) {return 5;}
+    return 0;
+}
+`, {wasmRuntime:"host",imports:host.imports});
+    host.attach(exports);
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("write");
+    expect(host.stderr()).toBe("write");
+  });
+
   wasmIt("promotes generic narrow arguments in hosted wasm printf", async () => {
     const host = createHostImports();
     const exports = await compileWasmSource(`

@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 64 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 65 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -25,6 +25,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/binary.bpl](../lib/binary.bpl)
 - [std/bitset.bpl](../lib/bitset.bpl)
 - [std/c.bpl](../lib/c.bpl)
+- [std/c_runtime.bpl](../lib/c_runtime.bpl)
 - [std/char_utils.bpl](../lib/char_utils.bpl)
 - [std/complex.bpl](../lib/complex.bpl)
 - [std/core_specs.bpl](../lib/core_specs.bpl)
@@ -492,10 +493,6 @@ extern gets(buf: string) ret string
 ```
 
 ```bpl
-extern write(fd: int, buf: *char, count: int) ret int
-```
-
-```bpl
 extern malloc(size: long) ret *void
 ```
 
@@ -537,6 +534,20 @@ extern strcat(dest: string, src: string) ret string
 
 ```bpl
 extern atoi(s: string) ret int
+```
+
+## std/c_runtime.bpl
+
+[Source](../lib/c_runtime.bpl)
+
+Exports:
+
+```bpl
+export [__bpl_write];
+```
+
+```bpl
+extern __bpl_write(fd: int, buf: *char, count: long) ret long
 ```
 
 ## std/char_utils.bpl

@@ -83,6 +83,7 @@ const HOST_API_IMPORTS = new Set([
   "time",
   "wait",
   "write",
+  "__bpl_write",
 ]);
 
 function findExampleEntrypoints(dir = EXAMPLES_DIR): string[] {
@@ -124,7 +125,7 @@ function classifyWasmBuildResult(result: {
     return "linker-unavailable";
   }
   if (
-    /undefined symbol: (printf|fprintf|sprintf|snprintf|dprintf|fopen|fclose|fread|fwrite|socket|bind|listen|accept|connect|read|write|open|close|getenv|setenv|system|fork|exec|wait|dladdr|mmap|munmap|tcgetattr|tcsetattr|time|localtime)/.test(
+    /undefined symbol: (printf|fprintf|sprintf|snprintf|dprintf|fopen|fclose|fread|fwrite|socket|bind|listen|accept|connect|read|write|__bpl_write|open|close|getenv|setenv|system|fork|exec|wait|dladdr|mmap|munmap|tcgetattr|tcsetattr|time|localtime)/.test(
       output,
     )
   ) {

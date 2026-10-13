@@ -596,10 +596,49 @@ entry:
   ret i8* %value
 }
 
+declare i32 @llvm.wasm.memory.size.i32(i32)
+
+define i64 @__bpl_write(i32 %fd, i8* %buf, i64 %count) {
+entry:
+  %stdout = icmp eq i32 %fd, 1
+  %stderr = icmp eq i32 %fd, 2
+  %valid_fd = or i1 %stdout, %stderr
+  %nonnegative = icmp sge i64 %count, 0
+  %fits = icmp sle i64 %count, 2147483647
+  %valid_count = and i1 %nonnegative, %fits
+  %valid = and i1 %valid_fd, %valid_count
+  br i1 %valid, label %buffer, label %invalid
+buffer:
+  %empty = icmp eq i64 %count, 0
+  br i1 %empty, label %zero, label %range
+range:
+  %nonnull = icmp ne i8* %buf, null
+  %address = ptrtoint i8* %buf to i32
+  %address64 = zext i32 %address to i64
+  %end = add i64 %address64, %count
+  %pages = call i32 @llvm.wasm.memory.size.i32(i32 0)
+  %pages64 = zext i32 %pages to i64
+  %bytes = shl i64 %pages64, 16
+  %fits_memory = icmp ule i64 %end, %bytes
+  %valid_buffer = and i1 %nonnull, %fits_memory
+  br i1 %valid_buffer, label %write, label %invalid
+write:
+  %count32 = trunc i64 %count to i32
+  call void @__bpl_host_write(i32 %fd, i8* %buf, i32 %count32)
+  ret i64 %count
+zero:
+  ret i64 0
+invalid:
+  ret i64 -1
+}
+
+; Keep the original 32-bit hosted entry point for existing explicit externs.
 define i32 @write(i32 %fd, i8* %buf, i32 %count) {
 entry:
-  call void @__bpl_host_write(i32 %fd, i8* %buf, i32 %count)
-  ret i32 %count
+  %count64 = sext i32 %count to i64
+  %written = call i64 @__bpl_write(i32 %fd, i8* %buf, i64 %count64)
+  %result = trunc i64 %written to i32
+  ret i32 %result
 }
 
 define i32 @puts(i8* %value) {

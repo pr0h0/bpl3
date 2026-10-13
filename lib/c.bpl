@@ -2,6 +2,8 @@
 #
 # This module intentionally exports thin extern declarations instead of wrapper
 # functions so imports lower to the same direct call shape as local externs.
+# write uses a runtime adapter to preserve 64-bit counts/results across native and hosted Wasm ABIs.
+import __bpl_write as write from "std/c_runtime.bpl";
 
 export [printf];
 export [fprintf];
@@ -36,7 +38,6 @@ extern puts(value: string) ret int;
 extern putchar(value: int) ret int;
 extern scanf(fmt: string, ...) ret int;
 extern gets(buf: string) ret string;
-extern write(fd: int, buf: *char, count: int) ret int;
 
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;

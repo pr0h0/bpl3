@@ -1,6 +1,7 @@
 # IO utilities
 import [String] from "std/string.bpl";
 import [Any] from "std/type.bpl";
+import write from "std/c.bpl";
 export [IO];
 export [LineReadResult];
 
@@ -9,7 +10,6 @@ extern scanf(fmt: string, ...) ret int;
 extern __bpl_read_line(buf: string, capacity: int, length: *int) ret int;
 extern strlen(s: string) ret long;
 
-extern write(fd: int, buf: *char, count: int) ret int;
 extern dprintf(fd: int, fmt: *char, ...) ret int;
 
 # Line and Truncated contain the number of stored bytes, excluding NUL/newline.

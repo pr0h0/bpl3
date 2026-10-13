@@ -93,6 +93,15 @@ taking an extern function address for an indirect call.
 
 The simplest way to stay consistent is to import the declaration instead of
 repeating it: `import printf, malloc from "std/c.bpl";`.
+The `write` binding is a direct alias for a runtime adapter with signature
+`(int, *char, long) ret long`, keeping byte counts and results 64-bit even when
+native `size_t` and `ssize_t` are 32-bit. Native calls preserve partial-write
+results and `errno`; negative or unrepresentable counts fail before conversion.
+Hosted Wasm supports descriptors 1 and 2, validates the buffer against memory,
+and returns `-1` for unsupported descriptors, invalid ranges or counts above
+2147483647. Zero-length writes do not access the buffer. The existing explicit
+32-bit hosted `write` entry point remains available.
+
 
 ## Linking
 
