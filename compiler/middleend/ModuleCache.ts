@@ -29,7 +29,8 @@ import { formatSpawnFailureReason } from "../common/ProcessErrors";
 // reuse older objects that referenced those symbols as ordinary globals.
 // Revision 2.1.1 also invalidates the former LP64 layout used for Linux x32.
 // Revision 2.1.2 gives narrow frame results the C ABI extension guarantee.
-export const MODULE_CACHE_VERSION = "2.1.2";
+// Revision 2.1.3 also corrects Windows boolean call argument extension.
+export const MODULE_CACHE_VERSION = "2.1.3";
 
 export interface CachedModule {
   path: string;

@@ -180,3 +180,53 @@ test("narrow callback argument extensions match Clang across targets", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("boolean callback arguments use the same extension guarantee as Clang", () => {
+  for (const target of [
+    "x86_64-unknown-linux-gnu",
+    "arm64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+    "i686-unknown-linux-gnu",
+    "wasm32-unknown-unknown",
+  ]) {
+    const c = spawnSync(
+      "clang",
+      [`--target=${target}`, "-x", "c", "-S", "-emit-llvm", "-o", "-", "-"],
+      {
+        input: "int probe(_Bool x) {return x;}",
+        encoding: "utf8",
+        timeout: 15000,
+      },
+    );
+    expect(c.status).toBe(0);
+    const attributes =
+      /define[^\n]*@probe\(i1(?: noundef)?(?: (zeroext))?/.exec(c.stdout);
+    expect(attributes).not.toBeNull();
+    const extension = attributes![1] ? attributes![1] + " " : "";
+    const result = new Compiler({ filePath: "boolean.bpl", target }).compile(`
+      extern native_boolean(x:bool) ret int;
+      frame as_lambda(f:Lambda<int>(bool)) ret int {return f(true);}
+      @[c_export] frame probe(f:Func<int>(bool)) ret int {return f(true)+native_boolean(false)+as_lambda(f);}
+    `);
+    expect(result.success).toBe(true);
+    expect(result.output).toMatch(
+      new RegExp(`call i32 %[^\\s(]+\\(i1 ${extension}`),
+    );
+    expect(result.output).toContain(`call i32 @native_boolean(i1 ${extension}`);
+    expect(result.output).toContain(`call i32 %fn(i1 ${extension}`);
+    const dir = mkdtempSync(join(tmpdir(), "bpl-bool-callback-target-"));
+    try {
+      const llvm = join(dir, "boolean.ll");
+      writeFileSync(llvm, result.output!);
+      const compiled = spawnSync(
+        "clang",
+        [`--target=${target}`, "-c", llvm, "-o", join(dir, "boolean.o")],
+        { encoding: "utf8", timeout: 15000 },
+      );
+      expect(compiled.status).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});

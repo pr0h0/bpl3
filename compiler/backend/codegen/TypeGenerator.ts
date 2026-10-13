@@ -1862,7 +1862,8 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     const llvmType = this.resolveType(type);
     if (llvmType !== "i1" && llvmType !== "i8" && llvmType !== "i16") return "";
     const abi = getCAbiKind(this.target);
-    if (abi === "aarch64-aapcs" || abi === "x86_64-win64") return "";
+    if (abi === "aarch64-aapcs") return "";
+    if (abi === "x86_64-win64") return llvmType === "i1" ? "zeroext " : "";
     if (type.kind === "BasicType" && type.aliasDeclaration) {
       return this.getCAbiParameterExtension(
         type.aliasTarget ?? type.aliasDeclaration.type,
@@ -1873,12 +1874,6 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
   /** Raw BPL frames can escape as C callbacks, so returns follow the C ABI. */
   protected getCAbiReturnExtension(type: AST.TypeNode): string {
-    if (
-      this.resolveType(type) === "i1" &&
-      getCAbiKind(this.target) === "x86_64-win64"
-    ) {
-      return "zeroext ";
-    }
     return this.getCAbiParameterExtension(type);
   }
 
