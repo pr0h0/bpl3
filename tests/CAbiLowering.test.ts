@@ -20,6 +20,8 @@ const SHAPES: Record<string, { c: string; llvm: string }> = {
   N: { c: "struct I2 p; double d;", llvm: "{ %struct.I2, double }" },
   A: { c: "char s[3]; int n;", llvm: "{ [3 x i8], i32 }" },
   F1: { c: "float f;", llvm: "{ float }" },
+  F5: { c: "float v[5];", llvm: "{ [5 x float] }" },
+  B17: { c: "char v[17];", llvm: "{ [17 x i8] }" },
   D3: { c: "double a, b, c;", llvm: "{ double, double, double }" },
   L3: { c: "long long a, b, c;", llvm: "{ i64, i64, i64 }" },
   I3: { c: "int a, b, c;", llvm: "{ i32, i32, i32 }" },
@@ -169,7 +171,17 @@ describe.skipIf(!hasClang)("C ABI lowering matches clang", () => {
       ];
       const mismatches: string[] = [];
       for (const signature of signatures) {
-        const actual = normalize(lowering.lower(signature).declaration)
+        const lowered = lowering.lower(signature);
+        if (
+          target.startsWith("x86_64") &&
+          !target.includes("windows") &&
+          ["f_F5", "f_B17"].includes(signature.name)
+        ) {
+          expect(lowered.wrapper.join("\n")).toMatch(
+            /alloca %struct\.(F5|B17), align 8/,
+          );
+        }
+        const actual = normalize(lowered.declaration)
           // clang spells i1 struct members as i8 and scalar pointers as ptr.
           .replace(/\bi1\b/g, "i8");
         const want = expected.get(signature.name);

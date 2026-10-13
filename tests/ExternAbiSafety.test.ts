@@ -112,7 +112,7 @@ test("C-compatible structs cross the C ABI by value at O0 and O3", () => {
       const run = spawnSync(binary, [], { encoding: "utf8", timeout: 5000 });
       expect(run.status).toBe(0);
       expect(run.stdout).toBe(
-        "18\n11 7\n1.5 3.0 4.5\n42 4.50\nCBA\n40 1.5 ZBC 1\n103 207 318 472\nred\n42\n",
+        "18\n11 7\n1.5 3.0 4.5\n42 4.50\nCBA\n40 1.5 ZBC 1\n103 207 318 472\nred\n42\n2.0 6.0\n",
       );
     }
   } finally {

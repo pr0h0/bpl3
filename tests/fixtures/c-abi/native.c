@@ -16,3 +16,9 @@ struct Outer outer(struct Outer o) { o.in.a *= 10; o.in.b += 0.5f; o.tag[0] = 'Z
 struct Big big(long long a, long long b, long long c, long long d, long long e, struct Pair p1, struct Big x, struct Pair p2) {
   struct Big r = { x.a + a + b, x.b + c + d, x.c + e + p1.x + p1.y, x.d + p2.x * p2.y }; return r; }
 enum Color next_color(enum Color c) { return (enum Color)((c + 1) % 3); }
+
+struct Float5 { float values[5]; };
+struct Float5 increase_floats(struct Float5 input) {
+  for (int i = 0; i < 5; i++) input.values[i] += 1.0f;
+  return input;
+}

@@ -296,7 +296,13 @@ export class CAbiLowering {
           if (freeInt === 0 && info.size <= 8) {
             return { kind: "coerce", params: [single(`i${info.size * 8}`, 0)] };
           }
-          return { kind: "indirect", byval: true, alignment: info.alignment };
+          // SysV stack arguments occupy eightbyte-aligned slots even when
+          // the source struct itself only needs byte or word alignment.
+          return {
+            kind: "indirect",
+            byval: true,
+            alignment: Math.max(8, info.alignment),
+          };
         }
         case "aarch64-aapcs":
         case "aarch64-darwin": {

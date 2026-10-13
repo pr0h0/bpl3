@@ -7,6 +7,8 @@ struct Inner { a: int, b: f32, }
 struct Outer { inner: Inner, tag: char[3], ok: bool, }
 struct Big { a: long, b: long, c: long, d: long, }
 enum Color { Red, Green, Blue }
+struct Float5 {values:f32[5],}
+extern increase_floats(input:Float5) ret Float5;
 extern sum_pair(p: Pair) ret int;
 extern swap_pair(p: Pair) ret Pair;
 extern scale(v: Vec3, k: double) ret Vec3;
@@ -36,5 +38,9 @@ frame main() ret int {
     local c: Color = next_color(Color.Blue);
     match (c) { Color.Red => printf("red\n"), _ => printf("other\n"), }
     printf("%d\n", call_it(sum_pair, Pair { x: 20, y: 22 }));
+    local floats: Float5;
+    loop (local i:int=0; i<5; i++) {floats.values[i]=(i+1) as f32;}
+    local increased: Float5 = increase_floats(floats);
+    printf("%.1f %.1f\n", increased.values[0], increased.values[4]);
     return 0;
 }
