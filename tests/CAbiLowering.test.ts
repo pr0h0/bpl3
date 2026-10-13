@@ -28,6 +28,7 @@ const SHAPES: Record<string, { c: string; llvm: string }> = {
   PB: { c: "void *p; _Bool b;", llvm: "{ i8*, i1 }" },
   FA: { c: "float v[3];", llvm: "{ [3 x float] }" },
   C1: { c: "char c;", llvm: "{ i8 }" },
+  IP: { c: "int a; void *p;", llvm: "{ i32, i8* }" },
   FC2: { c: "float f; char c[2];", llvm: "{ float, [2 x i8] }" },
   C4SC: { c: "char c[4]; short s; char tail;", llvm: "{ [4 x i8], i16, i8 }" },
   C4L: { c: "char c[4]; long long n;", llvm: "{ [4 x i8], i64 }" },
@@ -74,6 +75,7 @@ const EXTRA = [
 
 const TARGETS = [
   "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-gnux32",
   "x86_64-apple-darwin",
   "aarch64-unknown-linux-gnu",
   "arm64-apple-darwin",
@@ -197,4 +199,30 @@ describe.skipIf(!hasClang)("C ABI lowering matches clang", () => {
       expect(mismatches.join("\n")).toBe("");
     });
   }
+});
+
+test("x32 preserves a lone pointer and packs two pointers in one SysV eightbyte", () => {
+  const shapes: Record<string, string> = {
+    "%struct.Pointer": "{ i8* }",
+    "%struct.Pointers": "{ i8*, i8* }",
+  };
+  const target = "x86_64-unknown-linux-gnux32";
+  const lookup = (name: string) => shapes[name]!;
+  const layout = new LLVMTypeLayout(getDataLayoutForTarget(target), lookup);
+  const lowering = new CAbiLowering(getCAbiKind(target), layout, lookup);
+  expect(layout.get("i8*").size).toBe(4);
+  expect(
+    lowering.lower({
+      name: "pointer",
+      returnType: "%struct.Pointer",
+      paramTypes: ["%struct.Pointer"],
+    }).declaration,
+  ).toBe("declare i8* @pointer(i8*)");
+  expect(
+    lowering.lower({
+      name: "pointers",
+      returnType: "%struct.Pointers",
+      paramTypes: ["%struct.Pointers"],
+    }).declaration,
+  ).toBe("declare i64 @pointers(i64)");
 });

@@ -38,6 +38,15 @@ const X86_64_LINUX_DATA_LAYOUT =
 
 const SUPPORTED_TARGET_DATA_LAYOUTS: TargetDataLayout[] = [
   {
+    family: "x86_64 Linux x32",
+    matches: (target) =>
+      target.arch === "x86_64" &&
+      targetHasComponent(target, "linux") &&
+      targetHasComponent(target, "gnux32"),
+    layout:
+      "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+  },
+  {
     family: "x86_64 Linux",
     matches: (target) =>
       target.arch === "x86_64" && targetHasComponent(target, "linux"),

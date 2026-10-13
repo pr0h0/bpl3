@@ -6,6 +6,7 @@ import { compileToLLVM } from "./helpers";
 
 const targets = [
   "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-gnux32",
   "x86_64-apple-darwin",
   "aarch64-unknown-linux-gnu",
   "arm64-apple-darwin",

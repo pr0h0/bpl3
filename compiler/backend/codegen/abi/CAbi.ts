@@ -395,7 +395,11 @@ export class CAbiLowering {
         // A single primitive can retain its width even when the struct has
         // trailing padding. Mixed fields use the full eightbyte's storage
         // extent, including padding, as Clang's integer coercion does.
-        if (only?.offset === start && only.kind === "ptr" && only.size === 8) {
+        if (
+          only?.offset === start &&
+          only.kind === "ptr" &&
+          only.size === this.layout.get("i8*").size
+        ) {
           type = "i8*";
         } else if (only?.offset === start && only.kind === "int") {
           type = `i${only.size * 8}`;

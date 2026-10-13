@@ -257,12 +257,14 @@ builds; it roots reachability at `main` and exported value symbols, keeps
 function values referenced from reachable code, and disables itself for DWARF.
 
 `target` selects the LLVM target metadata and data layout. Supported target
-families: x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64 macOS, i686 Linux,
+families: x86_64 Linux x32, x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64 macOS, i686 Linux,
 x86_64 Windows, wasm32, wasm64. CodeGenerator rejects unsupported target triples
 instead of silently using an x86_64 Linux data layout. Target matching uses
 triple components, so substring-only matches such as `notlinux` and `notwasm32`
 are rejected. Malformed target strings with empty components, such as
-`x86_64--linux`, are also rejected before IR is generated.
+`x86_64--linux`, are also rejected before IR is generated. Linux x32 uses
+32-bit pointers with the x86-64 register ABI; native linking and execution
+require an x32 toolchain and kernel support.
 
 ---
 

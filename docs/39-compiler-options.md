@@ -1223,10 +1223,11 @@ names that only contain supported components as substrings, such as
 Malformed triples with empty components, such as `x86_64--linux` or `wasm32-`,
 are rejected for the same reason.
 
-Supported target families: x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64
+Supported target families: x86_64 Linux x32, x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64
 macOS, i686 Linux, x86_64 Windows, wasm32, wasm64.
 
 - `x86_64-pc-linux-gnu` (Linux x64)
+- `x86_64-unknown-linux-gnux32` (Linux x32: x86-64 registers, 32-bit pointers; requires an x32 toolchain and kernel for native execution)
 - `aarch64-unknown-linux-gnu` (Linux ARM64)
 - `arm64-apple-darwin` (macOS ARM64)
 - `x86_64-apple-darwin` (macOS x64)

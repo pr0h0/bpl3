@@ -639,7 +639,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Unsupported target triples are rejected before LLVM IR is emitted",
       "BPL_BUILD_UNSUPPORTED_TARGET",
-      "Supported target families: x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64 macOS, i686 Linux, x86_64 Windows, wasm32, wasm64",
+      "Supported target families: x86_64 Linux x32, x86_64 Linux, x86_64 macOS, AArch64 Linux, AArch64 macOS, i686 Linux, x86_64 Windows, wasm32, wasm64",
       "`Compiler`, `CodeGenerator`, and `bpl build` now reject unsupported target triples",
       "empty, whitespace-padded, or empty-component target triples",
       "Target family matching is component-aware",
