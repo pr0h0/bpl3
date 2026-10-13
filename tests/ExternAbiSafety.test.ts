@@ -46,6 +46,9 @@ const invalid = [
 ];
 const valid = [
   "extern ok(p: Pair) ret int;",
+  "type Count=int; type Row=int[3]; struct Holder {count:Count,row:Row,} extern ok(h:Holder) ret Holder;",
+  "type PairAlias=Pair; struct Holder {pair:PairAlias,} extern ok(h:Holder);",
+  "type Fixed<T>=T[3]; struct Holder {values:Fixed<int>,} extern ok(h:Holder);",
   "struct Holder {values:*int[2],} extern ok(h:Holder);",
   "type Slice=int[]; struct Holder {values:*Slice,} extern ok(h:Holder);",
   "type Row=int[2]; extern ok(p:*Row) ret *Row;",

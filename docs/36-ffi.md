@@ -14,7 +14,9 @@ A struct is C-compatible when it has at least one field, every field is a
 scalar, pointer, `string`, payload-free enum, fixed array of those, or another
 C-compatible struct, and it has no methods, specs, parent struct, child
 structs, or generic parameters. Methods and inheritance add a hidden vtable
-pointer, so such structs have no C equivalent.
+pointer, so such structs have no C equivalent. Field type aliases are resolved
+in the struct's declaring module, including aliases for inline fixed arrays;
+the caller does not need to import private aliases used by those fields.
 
 The compiler lowers by-value structs to the target's C calling convention
 (x86-64 System V, Windows x64, AArch64 AAPCS and Apple arm64, i386 System V,

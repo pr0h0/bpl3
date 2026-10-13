@@ -1860,12 +1860,13 @@ export abstract class TypeCheckerBase {
     while (true) {
       const member = this.getDirectStructField(currentDecl, fieldName);
       if (member) {
+        const fieldType = member.resolvedType ?? member.type;
         return {
           field: member,
           type:
             currentSubstitutionMap && currentSubstitutionMap.size > 0
-              ? this.substituteType(member.type, currentSubstitutionMap)
-              : member.type,
+              ? this.substituteType(fieldType, currentSubstitutionMap)
+              : fieldType,
         };
       }
 

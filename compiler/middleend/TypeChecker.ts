@@ -1692,6 +1692,19 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (member.kind === "StructField") {
         this.ensureKnownType(member.type);
         const fieldType = this.resolveType(member.type);
+        // Preserve aliases resolved in the struct's own module. Consumers of
+        // an imported struct cannot resolve its private field aliases by name.
+        const fieldAlias =
+          member.type.kind === "BasicType"
+            ? this.currentScope.resolve(member.type.name)
+            : undefined;
+        if (
+          fieldAlias?.kind === "TypeAlias" &&
+          fieldAlias.declaration?.kind === "TypeAlias" &&
+          fieldAlias.declaration.location.file !== "internal"
+        ) {
+          member.resolvedType = fieldType;
+        }
         this.rejectEscapingSpecPointer(
           fieldType,
           "a struct field type",

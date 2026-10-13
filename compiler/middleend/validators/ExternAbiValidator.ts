@@ -180,7 +180,8 @@ function cCompatibilityProblem(
   );
   if (fields.length === 0) return `empty struct '${type.name}'`;
   for (const field of fields) {
-    const problem = cCompatibilityProblem(field.type, resolve, visiting);
+    const fieldType = field.resolvedType ?? resolve(field.type);
+    const problem = cCompatibilityProblem(fieldType, resolve, visiting);
     if (problem) return problem;
   }
   visiting.delete(declaration);
