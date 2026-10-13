@@ -14,6 +14,7 @@ static SmallCallback small_callback(void) { return foreign_signed_probe; }
 */
 import "C"
 import "unsafe"
+import "runtime"
 
 //export foreign_add
 func foreign_add(a, b C.int64_t) C.int64_t { return a + b }
@@ -61,3 +62,14 @@ func foreign_alloc(length C.uint64_t) *C.uint8_t {
 //export foreign_free
 func foreign_free(data *C.uint8_t, length C.uint64_t) { C.free(unsafe.Pointer(data)) }
 func main() {}
+
+//export foreign_thread_callback
+func foreign_thread_callback(cb C.Callback, value C.int64_t) C.int64_t {
+    result := make(chan C.int64_t)
+    go func() {
+        runtime.LockOSThread()
+        defer runtime.UnlockOSThread()
+        result <- C.invoke(cb, value)
+    }()
+    return <-result + 1
+}

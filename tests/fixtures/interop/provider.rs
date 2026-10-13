@@ -33,3 +33,10 @@ pub struct Triple { x: f64, y: f64, z: f64 }
 #[no_mangle] pub unsafe extern "C" fn foreign_free(data: *mut u8, length: u64) {
     if !data.is_null() { drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(data, length as usize))); }
 }
+
+#[no_mangle] pub extern "C" fn foreign_thread_callback(callback: extern "C" fn(i64) -> i64, value: i64) -> i64 {
+    match std::thread::spawn(move || callback(value)).join() {
+        Ok(result) => result + 1,
+        Err(_) => i64::MIN,
+    }
+}

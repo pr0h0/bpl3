@@ -1,7 +1,16 @@
 #include "bridge.h"
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
 static int64_t twice(int64_t value) { return value * 2; }
+static void *worker(void *arg) {
+    int64_t value = (intptr_t)arg;
+    for (int i = 0; i < 100; i++) {
+        if (interop_threaded(value) != value * 10 + 1 || interop_run(twice, 20) != 41)
+            return (void *)(intptr_t)1;
+    }
+    return NULL;
+}
 int main(void) {
     struct bpl_Packet packet = {35, 1.25};
     interop_update(&packet);
@@ -21,6 +30,9 @@ int main(void) {
     uint8_t *owned = interop_alloc(3);
     if (!owned || owned[0] != 10 || owned[2] != 12) return 10;
     interop_free(owned);
+    pthread_t workers[8];
+    for (int i = 0; i < 8; i++) if (pthread_create(&workers[i], NULL, worker, (void *)(intptr_t)(i+1))) return 11;
+    for (int i = 0; i < 8; i++) { void *result = NULL; if (pthread_join(workers[i], &result) || result) return 12; }
     puts("interop-ok");
     return 0;
 }

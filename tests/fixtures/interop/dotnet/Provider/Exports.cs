@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 
 [StructLayout(LayoutKind.Sequential)]
@@ -62,4 +63,14 @@ public static unsafe class Exports
     }
     [UnmanagedCallersOnly(EntryPoint = "foreign_free", CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void Free(byte* data, ulong length) => NativeMemory.Free(data);
+    [UnmanagedCallersOnly(EntryPoint = "foreign_thread_callback", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static long ThreadCallback(delegate* unmanaged[Cdecl]<long, long> callback, long value)
+    {
+        try {
+            nint address = (nint)callback;
+            return Task.Run(() => ((delegate* unmanaged[Cdecl]<long, long>)address)(value)).GetAwaiter().GetResult() + 1;
+        }
+        catch { return long.MinValue; }
+    }
+
 }

@@ -145,6 +145,7 @@ export function runInteropMatrix(
           "-x",
           language === "C" ? "c" : "c++",
           join(fixtures, "host.c"),
+          "-pthread",
           "-I",
           dir,
           "-L",
@@ -174,6 +175,7 @@ export function runInteropMatrix(
           String(opt),
           "--object",
           provider,
+          "--clang-flag=-pthread",
           "-o",
           binary,
         ]);

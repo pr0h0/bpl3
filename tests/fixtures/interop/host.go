@@ -15,6 +15,8 @@ static int check_rows(void) {
 */
 import "C"
 import "fmt"
+import "runtime"
+import "sync"
 import "unsafe"
 
 //export go_twice
@@ -39,5 +41,18 @@ func main() {
     view := unsafe.Slice(owned,3)
     if view[0] != 10 || view[2] != 12 { panic("owned buffer") }
     C.interop_free(owned)
+    var group sync.WaitGroup
+    for worker := 1; worker <= 8; worker++ {
+        group.Add(1)
+        go func(value int) {
+            defer group.Done()
+            runtime.LockOSThread()
+            defer runtime.UnlockOSThread()
+            for iteration := 0; iteration < 100; iteration++ {
+                if C.interop_threaded(C.int64_t(value)) != C.int64_t(value*10+1) || C.run_go_callback() != 41 {panic("thread state")}
+            }
+        }(worker)
+    }
+    group.Wait()
     fmt.Println("interop-ok")
 }

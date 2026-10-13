@@ -537,7 +537,9 @@ export abstract class StatementGenerator extends AsmGenerator {
     this.emit(`  ${limit} = load i8*, i8** @__bpl_stack_limit`);
 
     let effectiveLimit = limit;
-    if (this.currentFunctionName === "main" || this.currentFunctionIsCExport) {
+    // A private Func callback can be the first BPL call on a foreign thread,
+    // so every guarded entry initializes an unset thread-local limit.
+    {
       const computedLimit = this.newRegister();
       const limitUnset = this.newRegister();
       const initLimitLabel = this.newLabel("stack.limit.init");

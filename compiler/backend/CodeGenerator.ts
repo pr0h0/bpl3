@@ -300,12 +300,16 @@ export class CodeGenerator extends StatementGenerator {
       this.declaredFunctions.add("strcmp");
     }
 
+    const runtimeStorage = this.target?.toLowerCase().includes("wasm")
+      ? "global"
+      : "thread_local global";
+
     // Exception Handling Primitives
     // Defer Node
     this.emitDeclaration(
       `%struct.DeferNode = type { i8*, i8*, %struct.DeferNode* }`,
     );
-    this.emitDeclaration(`@defer_top = external global %struct.DeferNode*`);
+    this.emitDeclaration(`@defer_top = external ${runtimeStorage} %struct.DeferNode*`);
 
     // jmp_buf is platform dependent. [32 x i64] is 256 bytes, sufficient for x64.
     // Added saved_defer_top to restore defer stack on catch
@@ -313,14 +317,14 @@ export class CodeGenerator extends StatementGenerator {
       `%struct.ExceptionFrame = type { [32 x i64], %struct.ExceptionFrame*, %struct.DeferNode* }`,
     );
     this.emitDeclaration(
-      `@exception_top = external global %struct.ExceptionFrame*`,
+      `@exception_top = external ${runtimeStorage} %struct.ExceptionFrame*`,
     );
-    this.emitDeclaration(`@exception_value = external global i64`);
-    this.emitDeclaration(`@exception_type = external global i32`);
-    this.emitDeclaration(`@__bpl_stack_depth = external global i32`);
+    this.emitDeclaration(`@exception_value = external ${runtimeStorage} i64`);
+    this.emitDeclaration(`@exception_type = external ${runtimeStorage} i32`);
+    this.emitDeclaration(`@__bpl_stack_depth = external ${runtimeStorage} i32`);
     // The runtime may be linked into a shared library. Do not force a local
     // relocation for its externally defined state; let clang honor -fPIC.
-    this.emitDeclaration(`@__bpl_stack_limit = external global i8*`);
+    this.emitDeclaration(`@__bpl_stack_limit = external ${runtimeStorage} i8*`);
 
     // Global argc/argv for Args library
     this.emitDeclaration(`@__bpl_argc_value = external global i32`);
@@ -694,7 +698,7 @@ export class CodeGenerator extends StatementGenerator {
 
   private getDeclaredGlobalName(line: string): string | null {
     return (
-      line.match(/^@([A-Za-z0-9_]+) = external(?: dso_local)? global\b/)?.[1] ??
+      line.match(/^@([A-Za-z0-9_]+) = external(?: dso_local)?(?: thread_local(?:\([^)]*\))?)? global\b/)?.[1] ??
       null
     );
   }

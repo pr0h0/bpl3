@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,6 +32,18 @@ uint8_t *foreign_alloc(uint64_t length) {
     return data;
 }
 void foreign_free(uint8_t *data, uint64_t length) { (void)length; free(data); }
+struct ThreadCall { int64_t (*callback)(int64_t); int64_t value; int64_t result; };
+static void *thread_call(void *data) {
+    struct ThreadCall *call = (struct ThreadCall *)data;
+    call->result = call->callback(call->value);
+    return NULL;
+}
+int64_t foreign_thread_callback(int64_t (*callback)(int64_t), int64_t value) {
+    struct ThreadCall call = { callback, value, 0 };
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, thread_call, &call) || pthread_join(thread, NULL)) return -1;
+    return call.result + 1;
+}
 #ifdef __cplusplus
 }
 #endif

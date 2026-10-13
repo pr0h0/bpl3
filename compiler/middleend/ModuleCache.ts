@@ -25,7 +25,9 @@ import {
 import { findSymlinkedParentPath } from "../common/PathSafety";
 import { formatSpawnFailureReason } from "../common/ProcessErrors";
 
-export const MODULE_CACHE_VERSION = "2.0.0";
+// Native control-state symbols use TLS from this ABI revision onward. Do not
+// reuse older objects that referenced those symbols as ordinary globals.
+export const MODULE_CACHE_VERSION = "2.1.0";
 
 export interface CachedModule {
   path: string;

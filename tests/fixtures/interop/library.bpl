@@ -56,3 +56,17 @@ frame interop_alloc(length: ulong) ret *uchar {
 }
 @[c_export]
 frame interop_free(data: *uchar) { free(data); }
+
+@[c_export]
+frame interop_threaded(value: long) ret long {
+    local total: long = 0;
+    local cleaned: long = 0;
+    local cleanup: *long = &cleaned;
+    try {
+        defer { *cleanup = *cleanup + 1; }
+        loop(local index: int = 0; index < 10; index++) { total += value; }
+        throw total;
+    }
+    catch(result: long) { return result + cleaned; }
+    return -99;
+}

@@ -2,7 +2,7 @@
  * BPL Runtime Support Library
  * 
  * This file provides native runtime support:
- * - Shared exception, defer, argument, and stack-depth state
+ * - Thread-local exception, defer, and stack state; process argument state
  * - Signal handlers for crashes (SIGSEGV, SIGFPE, SIGILL, SIGABRT)
  * - Stack trace generation using execinfo
  * - Formatted error printing with colors
@@ -42,20 +42,22 @@
 #define BPL_MAX_STACK_DEPTH 10000
 
 /* ============ Runtime State ============ */
-/* Shared with generated code, which declares these as external globals. */
-int32_t __bpl_stack_depth;
-void *__bpl_stack_limit;
+/* Control state belongs to the OS thread running BPL. argc/argv describe
+ * the process and intentionally remain shared. Generated LLVM uses matching
+ * thread-local declarations for native targets. */
+_Thread_local int32_t __bpl_stack_depth;
+_Thread_local void *__bpl_stack_limit;
 int32_t __bpl_argc_value;
 char **__bpl_argv_value;
-void *defer_top;
-void *exception_top;
-int64_t exception_value;
-int32_t exception_type;
+_Thread_local void *defer_top;
+_Thread_local void *exception_top;
+_Thread_local int64_t exception_value;
+_Thread_local int32_t exception_type;
 
 /* ============ Local State for BPL Stack Trace ============ */
-static const char **__bpl_frame_names;
-static const char **__bpl_frame_files;
-static int32_t *__bpl_frame_lines;
+static _Thread_local const char **__bpl_frame_names;
+static _Thread_local const char **__bpl_frame_files;
+static _Thread_local int32_t *__bpl_frame_lines;
 
 /* Color codes for terminal output */
 #define COLOR_RESET   "\033[0m"
@@ -758,4 +760,16 @@ _Bool __bpl_enter_stack_frame(void) {
     return ++__bpl_stack_depth > BPL_MAX_STACK_DEPTH;
 }
 
-void __bpl_exit_stack_frame(void) { __bpl_stack_depth--; }
+void __bpl_exit_stack_frame(void) {
+    if (--__bpl_stack_depth == 0 && __bpl_frame_names) {
+        /* A normal host-thread return must not abandon trace allocations.
+         * Release at the outermost BPL frame: no TLS destructor or new
+         * pthread/C++ runtime dependency is needed. */
+        free((void *)__bpl_frame_names);
+        free((void *)__bpl_frame_files);
+        free(__bpl_frame_lines);
+        __bpl_frame_names = NULL;
+        __bpl_frame_files = NULL;
+        __bpl_frame_lines = NULL;
+    }
+}

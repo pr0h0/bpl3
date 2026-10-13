@@ -86,7 +86,7 @@ describe("CodeGen - Stack Overflow", () => {
     const ir = generateOptimized(source);
 
     expect(ir).toContain(
-      "@__bpl_stack_limit = external global i8*",
+      "@__bpl_stack_limit = external thread_local global i8*",
     );
     expect(ir).not.toContain("@__bpl_stack_limit = external dso_local global i8*");
     expect(ir).toContain("declare void @__bpl_throw_stack_overflow()");
@@ -100,7 +100,7 @@ describe("CodeGen - Stack Overflow", () => {
     expect(ir).toContain("getelementptr i8, i8*");
     expect(ir).toContain("icmp ult i8*");
     expect(ir).toContain("call void @__bpl_throw_stack_overflow()");
-    expect(ir).not.toContain("@__bpl_stack_depth = external global i32");
+    expect(ir).not.toContain("@__bpl_stack_depth = external thread_local global i32");
     expect(ir).not.toContain("@__bpl_stack_base = external global i8*");
     expect(ir).not.toContain("call i1 @__bpl_enter_stack_frame()");
     expect(ir).not.toContain("call void @__bpl_exit_stack_frame()");
@@ -110,7 +110,7 @@ describe("CodeGen - Stack Overflow", () => {
     )?.[0];
     expect(fibBody).toBeDefined();
     expect(fibBody!).not.toContain("alloca i8");
-    expect(fibBody!).not.toMatch(/br label %stack\.limit\.check/);
+    expect(fibBody!).toMatch(/icmp eq i8\* %[^,]+, null/);
   });
 
   it("defers optimized recursive stack-limit probes until after leading call-free base cases", () => {
@@ -174,7 +174,7 @@ describe("CodeGen - Stack Overflow", () => {
     const ir = generateOptimized(source);
 
     expect(ir).toContain(
-      "@__bpl_stack_limit = external global i8*",
+      "@__bpl_stack_limit = external thread_local global i8*",
     );
     expect(ir).toContain("declare void @__bpl_throw_stack_overflow()");
     const recurBody = ir.match(
@@ -429,7 +429,7 @@ describe("CodeGen - Stack Overflow", () => {
     const ir = generateOptimized(source);
 
     expect(ir).not.toContain(
-      "@__bpl_stack_limit = external global i8*",
+      "@__bpl_stack_limit = external thread_local global i8*",
     );
     expect(ir).not.toContain("declare void @__bpl_throw_stack_overflow()");
     expect(ir).not.toContain("call void @__bpl_throw_stack_overflow()");

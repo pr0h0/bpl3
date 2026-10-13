@@ -14,6 +14,7 @@ extern "C" {
     fn interop_buffer(data: *mut u8, length: u64) -> u64;
     fn interop_alloc(length: u64) -> *mut u8;
     fn interop_free(data: *mut u8);
+    fn interop_threaded(value: i64) -> i64;
 }
 extern "C" fn twice(value: i64) -> i64 { value * 2 }
 fn main() {
@@ -43,5 +44,15 @@ fn main() {
         assert_eq!(std::slice::from_raw_parts(owned, 3), &[10, 11, 12]);
         interop_free(owned);
     }
+    std::thread::scope(|scope| {
+        for value in 1..=8i64 {
+            scope.spawn(move || unsafe {
+                for _ in 0..100 {
+                    assert_eq!(interop_threaded(value), value * 10 + 1);
+                    assert_eq!(interop_run(twice, 20), 41);
+                }
+            });
+        }
+    });
     println!("interop-ok");
 }

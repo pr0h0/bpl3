@@ -9,6 +9,7 @@ extern foreign_mixed_signed(value: char, p: Pair) ret int;
 extern foreign_mixed_unsigned(value: uchar, p: Pair) ret int;
 extern foreign_triple(p: Triple) ret Triple;
 extern foreign_callback(callback: Func<long>(long), x: long) ret long;
+extern foreign_thread_callback(callback: Func<long>(long), x: long) ret long;
 extern foreign_signed_probe(x: char) ret int;
 extern foreign_unsigned_probe(x: uchar) ret int;
 extern foreign_small_callback(callback: Func<int>(char), x: char) ret int;
@@ -52,6 +53,7 @@ frame main() ret int {
     if(foreign_buffer(empty, cast<ulong>(0)) != cast<ulong>(0)) { return 16; }
     if(foreign_mixed_signed(cast<char>(-128), Pair {x:1,y:2}) != -125) { return 17; }
     if(foreign_mixed_unsigned(cast<uchar>(255), Pair {x:1,y:2}) != 258) { return 18; }
+    if(foreign_thread_callback(twice, 20) != 41) {return 19;}
     puts("interop-ok");
     return 0;
 }

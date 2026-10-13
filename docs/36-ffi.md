@@ -361,9 +361,15 @@ callbacks and release callback resources afterward.
 
 Catch errors before returning across the foreign boundary. Do not unwind C++
 or C# exceptions, Rust panics, Go panics, or BPL exceptions through another language's
-frames. The native runtime currently keeps exception/defer/stack-limit state
-in process-global storage; these tests do not establish thread-safe embedding
-or support for arbitrary foreign-thread callbacks.
+frames. Native exception, defer, stack-depth and stack-limit state is local to
+the OS thread running BPL. C/C++, Rust, Go and C# fixtures exercise concurrent
+host calls and callbacks on provider worker threads. A guarded private callback
+can initialize its thread's stack limit without a preceding public BPL call.
+User globals and shared pointed-to storage still need caller synchronization;
+thread-local runtime state does not make unsynchronized application data safe.
+Wasm runtime control state remains local to its module instance.
+Native BPL objects must be rebuilt with the matching compiler/runtime: the
+internal control-state symbols now use TLS rather than ordinary global storage.
 
 ### Strings, buffers, and ownership
 

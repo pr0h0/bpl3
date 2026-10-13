@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 
 [StructLayout(LayoutKind.Sequential)]
@@ -36,6 +37,9 @@ unsafe class Program
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     static long Twice(long value) => value * 2;
 
+    [DllImport(Library, EntryPoint = "interop_threaded", CallingConvention = CallingConvention.Cdecl)]
+    static extern long Threaded(long value);
+
     sealed class Holder { public int Value = 7; }
     [MethodImpl(MethodImplOptions.NoInlining)]
     static int ReadValue(Holder value) => value.Value;
@@ -66,6 +70,12 @@ unsafe class Program
         try { _ = ReadValue(null!); }
         catch (NullReferenceException) { caught = true; }
         if (!caught) return 11;
+        Parallel.For(1, 9, value => {
+            for (int iteration = 0; iteration < 100; iteration++) {
+                if (Threaded(value) != value * 10 + 1 || Run(&Twice, 20) != 41)
+                    throw new Exception("thread state");
+            }
+        });
         Console.WriteLine("interop-ok");
         return 0;
     }
