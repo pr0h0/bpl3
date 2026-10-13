@@ -201,8 +201,8 @@ void **__bpl_capture_stack_frames(int *out_depth) {
  * This supplements the basic __bpl_enter_stack_frame defined below.
  */
 void __bpl_enter_stack_frame_named(const char *name, const char *file, int32_t line) {
-    int idx = __bpl_stack_depth;
-    if (idx < BPL_MAX_STACK_DEPTH && __bpl_ensure_frame_storage()) {
+    int idx = __bpl_stack_depth - 1;
+    if (idx >= 0 && idx < BPL_MAX_STACK_DEPTH && __bpl_ensure_frame_storage()) {
         __bpl_frame_names[idx] = name;
         __bpl_frame_files[idx] = file;
         __bpl_frame_lines[idx] = line;
@@ -213,7 +213,7 @@ void __bpl_enter_stack_frame_named(const char *name, const char *file, int32_t l
  * Clear frame info on exit
  */
 void __bpl_clear_frame_info(void) {
-    int idx = __bpl_stack_depth;
+    int idx = __bpl_stack_depth - 1;
     if (
         idx >= 0 &&
         idx < BPL_MAX_STACK_DEPTH &&
@@ -761,6 +761,8 @@ _Bool __bpl_enter_stack_frame(void) {
 }
 
 void __bpl_exit_stack_frame(void) {
+    if (__bpl_stack_depth <= 0) return;
+    __bpl_clear_frame_info();
     if (--__bpl_stack_depth == 0 && __bpl_frame_names) {
         /* A normal host-thread return must not abandon trace allocations.
          * Release at the outermost BPL frame: no TLS destructor or new
