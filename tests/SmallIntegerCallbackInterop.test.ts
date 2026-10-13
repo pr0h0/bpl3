@@ -28,6 +28,8 @@ test.skipIf(process.platform !== "linux")(
       extern get_signed() ret Func<int>(Signed);
       frame apply_signed(f:Lambda<int>(Signed)) ret int {return f(-128 as Signed);}
       frame apply_unsigned(f:Lambda<int>(u8)) ret int {return f(255 as u8);}
+      frame generic_signed<T>(f:Func<int>(T),value:T) ret int {return f(value);}
+      @[c_export] frame invoke_generic_signed(f:Func<int>(Signed)) ret int {return generic_signed<Signed>(f,-128 as Signed);}
       @[c_export] frame invoke_extern() ret int {return native_signed(-128 as Signed);}
       @[c_export] frame invoke_returned() ret int {return get_signed()(-128 as Signed);}
       @[c_export] frame invoke_signed_lambda(f:Func<int>(Signed)) ret int {return apply_signed(f);}
@@ -76,6 +78,7 @@ test.skipIf(process.platform !== "linux")(
         if(invoke_extern()!=-128 || invoke_returned()!=-128) return 2;
         if(invoke_signed_lambda(signed_probe)!=-128 || invoke_unsigned_lambda(unsigned_probe)!=255) return 3;
         if(signed_factory()(-128)!=-128 || invoke_bool(bool_probe)!=42) return 4;
+        if(invoke_generic_signed(signed_probe)!=-128) return 5;
         return 0;
       }
     `,

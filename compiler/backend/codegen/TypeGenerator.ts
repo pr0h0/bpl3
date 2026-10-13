@@ -1793,22 +1793,19 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     if (type.kind !== "BasicType") return false;
 
     const basic = type as AST.BasicTypeNode;
-    if (basic.pointerDepth === 0 && this.currentTypeMap.size > 0) {
-      const bound = this.currentTypeMap.get(basic.name);
-      if (
-        bound &&
-        bound.kind === "BasicType" &&
-        (bound as AST.BasicTypeNode).name !== basic.name
-      ) {
-        return this.isSigned(bound);
-      }
+    if (
+      basic.pointerDepth === 0 &&
+      (this.currentTypeMap.has(basic.name) || this.typeAliasMap.has(basic.name))
+    ) {
+      const resolved = this.resolveInstantiatedValueType(basic);
+      return resolved.kind === "BasicType" && isSignedTypeName(resolved.name);
     }
 
     return isSignedTypeName(basic.name);
   }
 
-  /** Resolve concrete aliases before validating a generic C value boundary. */
-  protected resolveCAbiValueType(
+  /** Resolve concrete aliases while preserving a value's pointer/array shape. */
+  protected resolveInstantiatedValueType(
     input: AST.TypeNode,
     visiting = new Set<AST.TypeAliasDecl>(),
   ): AST.TypeNode {
@@ -1825,13 +1822,13 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         const argument = type.genericArgs[index];
         if (argument) {
           argumentsMap.set(
-            parameter.name, this.resolveCAbiValueType(argument, visiting),
+            parameter.name, this.resolveInstantiatedValueType(argument, visiting),
           );
         }
       });
       const next = new Set(visiting);
       next.add(alias);
-      const target = this.resolveCAbiValueType(
+      const target = this.resolveInstantiatedValueType(
         this.substituteType(alias.type, argumentsMap),
         next,
       );
@@ -1843,9 +1840,9 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     if (type.kind === "FunctionType" || type.kind === "LambdaType") {
       return {
         ...type,
-        returnType: this.resolveCAbiValueType(type.returnType, visiting),
+        returnType: this.resolveInstantiatedValueType(type.returnType, visiting),
         paramTypes: type.paramTypes.map((parameter) =>
-          this.resolveCAbiValueType(parameter, visiting),
+          this.resolveInstantiatedValueType(parameter, visiting),
         ),
       };
     }
@@ -1853,7 +1850,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
       return {
         ...type,
         types: type.types.map((element) =>
-          this.resolveCAbiValueType(element, visiting),
+          this.resolveInstantiatedValueType(element, visiting),
         ),
       };
     }

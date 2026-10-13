@@ -1882,7 +1882,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         funcType.isVariadic &&
         expr.resolvedDeclaration?.kind === "Extern";
       const resolvedArgType = isExternVariadic
-        ? this.resolveCAbiValueType(arg.resolvedType!)
+        ? this.resolveInstantiatedValueType(arg.resolvedType!)
         : arg.resolvedType!;
       if (isExternVariadic) {
         // The frontend defers generic values; once instantiated they must
