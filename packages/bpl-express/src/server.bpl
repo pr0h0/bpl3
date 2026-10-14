@@ -93,7 +93,7 @@ struct App {
         local root: string = realpath(this.static_dir, nullptr);
         if (root == nullptr) { return false; }
         defer free(root);
-        local relative: string = HttpParser.decode(req.path + prefix, len - prefix);
+        local relative: string = HttpParser.decode(req.path + prefix, len - prefix, false);
         if (relative == nullptr) { res.status(400).text("Invalid path"); return true; }
         defer free(relative);
         local root_len: long = cast<long>(strlen(root));

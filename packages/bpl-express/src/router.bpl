@@ -167,6 +167,15 @@ struct Router {
             s_i = s_i + 1;
         }
 
+        # Explicit HEAD handlers take priority over GET fallback.
+        if (req.method == HttpMethod.HEAD) {
+            loop (local h: int = 0; h < this.routes.len(); h = h + 1) {
+                local candidate: Route = this.routes.get(h);
+                if (candidate.method == HttpMethod.HEAD && this.matchPath(candidate.path, req.path, &req.params)) {
+                    candidate.handler(req, res); return true;
+                }
+            }
+        }
         local i: int = 0;
         loop (i < this.routes.len()) {
             local route: Route = this.routes.get(i);

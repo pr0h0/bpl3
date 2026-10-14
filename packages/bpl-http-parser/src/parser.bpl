@@ -25,14 +25,15 @@ struct HttpParser {
     }
 
     # Owned result; malformed escapes and decoded NUL are rejected.
-    frame decode(raw: string, count: long) ret string {
+    frame decode(raw: string, count: long) ret string { return HttpParser.decode(raw, count, true); }
+    frame decode(raw: string, count: long, plusAsSpace: bool) ret string {
         local result: string = malloc(count + 1);
         if (result == nullptr) { throw "HTTP allocation failed"; }
         local i: long = 0;
         local j: long = 0;
         loop (i < count) {
             local c: char = raw[i];
-            if (c == '+') { c = ' '; }
+            if (c == '+' && plusAsSpace) { c = ' '; }
             else if (c == '%') {
                 if (i + 2 >= count) { free(result); return nullptr; }
                 local a: int = HttpParser.hex(raw[i + 1]);
@@ -110,7 +111,7 @@ struct HttpParser {
         local target: long = m + 1;
         local end: long = target;
         loop (end < line && raw[end] != ' ') {
-            if (raw[end] <= 32 || raw[end] == 127 || raw[end] == '#') { return p; }
+            if (cast<u8>(raw[end]) <= 32 || raw[end] == 127 || raw[end] == '#') { return p; }
             end = end + 1;
         }
         if (end == target || raw[target] != '/' || end + 9 != line) { return p; }

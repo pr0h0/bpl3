@@ -51,6 +51,8 @@ test.skipIf(process.platform !== "linux")("Express serves fragmented requests, s
     mkdirSync(join(dir, "assets"));
     writeFileSync(join(dir, "assets", "data.bin"), Buffer.from([65, 0, 255, 66]));
     writeFileSync(join(dir, "private.txt"), "private");
+    writeFileSync(join(dir, "assets", "a+b.bin"), "plus");
+    writeFileSync(join(dir, "assets", "λ.txt"), "unicode");
     symlinkSync(join(dir, "private.txt"), join(dir, "assets", "escape.txt"));
     writeFileSync(join(dir, "main.bpl"), `
       import [App], [Request], [Response], [Router] from "bpl-express";
@@ -62,6 +64,7 @@ test.skipIf(process.platform !== "linux")("Express serves fragmented requests, s
       frame blocked(_req:*Request,res:*Response) { res.send("WRONG"); }
       frame echo(req:*Request,res:*Response) {res.setHeader("X-Custom","works");res.setHeader("X-Long","xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");local sb:StringBuilder=StringBuilder.new(8);sb.append("owned");res.setHeader("X-Owned",sb.toString());sb.destroy();res.sendBytes(req.body,req.body_length);}
       frame hello(_req:*Request,res:*Response) {res.text("hello");}
+      frame specialHead(_req:*Request,res:*Response) {res.setHeader("X-Explicit-Head","yes");res.send("head");}
       frame stream(_req:*Request,res:*Response) {res.write("a");res.write("b");res.end();}
       frame fail(_req:*Request,_res:*Response) {throw "private error";}
       frame badHeader(_req:*Request,res:*Response) {res.setHeader("X-Foo","a\\r\\nb: c");}
@@ -69,7 +72,7 @@ test.skipIf(process.platform !== "linux")("Express serves fragmented requests, s
       frame main() {
         local app:App=App.new(); app.use(gate); app.useStatic("/assets", "${dir}/assets");
         app.router.get("/blocked",blocked);app.router.post("/echo",echo);
-        app.router.get("/hello",hello);app.router.get("/stream",stream);
+        app.router.get("/hello",hello);app.router.get("/special",hello);app.router.head("/special",specialHead);app.router.get("/stream",stream);
         app.router.get("/fail",fail);app.router.get("/bad-header",badHeader);
         app.router.patch("/users/:id/*",params);
         app.listen(${port});
@@ -107,6 +110,14 @@ test.skipIf(process.platform !== "linux")("Express serves fragmented requests, s
       const response = (await request([`GET ${path} HTTP/1.1\r\nHost: x\r\n\r\n`])).toString();
       expect(response).toContain("403"); expect(response).not.toEndWith("private");
     }
+    expect((await request(["GET /assets/a+b.bin HTTP/1.1\r\nHost: x\r\n\r\n"])).toString()).toEndWith("plus");
+    expect((await request(["GET /assets/λ.txt HTTP/1.1\r\nHost: x\r\n\r\n"])).toString()).toEndWith("unicode");
+    const largeBody = Buffer.alloc(12000, 65);
+    const largeResponse = await request(["POST /echo HTTP/1.1\r\nHost: x\r\nContent-Length: 12000\r\n\r\n", largeBody.subarray(0, 6000), largeBody.subarray(6000)]);
+    expect(largeResponse.subarray(largeResponse.indexOf("\r\n\r\n") + 4)).toEqual(largeBody);
+    const explicitHead = (await request(["HEAD /special HTTP/1.1\r\nHost: x\r\n\r\n"])).toString();
+    expect(explicitHead).toContain("X-Explicit-Head: yes\r\n");
+    expect(explicitHead).toContain("Content-Length: 4\r\n");
     const blocked = (await request(["GET /blocked HTTP/1.1\r\nHost: x\r\n\r\n"])).toString();
     expect(blocked).toContain("403"); expect(blocked).toEndWith("blocked"); expect(blocked).not.toContain("WRONG");
     const head = (await request(["HEAD /hello HTTP/1.1\r\nHost: x\r\n\r\n"])).toString();
