@@ -3,10 +3,10 @@
   "name": "bpl-passport-local",
   "version": "0.1.0",
   "archiveFile": "bpl-passport-local-0.1.0.tgz",
-  "archiveSha256": "a37a8ab56d7e0ac17eeda27b65408b8fbf07e44683340be906741f5e8488aa45",
-  "packageHash": "8686cbcdadd2ac5338b89556ca9591e6d48f3cababb668b631395e0d42702070",
-  "sizeBytes": 1128,
-  "createdAt": "2026-10-14T19:41:45.308Z",
+  "archiveSha256": "31e0cf7906dbfd11af26419bf998de2e2c26573c8a0fe247c4d0dcc5db544d2a",
+  "packageHash": "97f125bb6419d2a3c455cb700a6580b4dfd44bf307a8b539292935a22e30b9ec",
+  "sizeBytes": 1146,
+  "createdAt": "2026-10-14T19:42:47.190Z",
   "manifest": {
     "name": "bpl-passport-local",
     "version": "0.1.0",
@@ -14,7 +14,8 @@
     "main": "index.bpl",
     "license": "MIT",
     "dependencies": {
-      "bpl-passport": "file:../bpl-passport/bpl-passport-0.1.0.tgz"
+      "bpl-passport": "file:../bpl-passport/bpl-passport-0.1.0.tgz",
+      "bpl-express": "file:../bpl-express/bpl-express-0.1.0.tgz"
     }
   }
 }

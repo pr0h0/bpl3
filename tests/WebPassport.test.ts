@@ -33,6 +33,19 @@ frame main()ret int{
   if(!attempt(&passport,"{\"username\":\"student\",\"password\":\"wrong\"}",0,401)){return 2;}
   if(!attempt(&passport,"{\"username\":\"student\"}",0,422)){return 3;}
   if(!attempt(&passport,"{",0,400)){return 4;}
+  if(!attempt(&passport,"{\"username\":\"\",\"password\":\"test-password\"}",0,422)){return 11;}
+  if(!attempt(&passport,"{\"username\":\"student\",\"password\":\"\"}",0,422)){return 12;}
+  if(!attempt(&passport,"{\"username\":\"student\",\"password\":null}",0,400)){return 13;}
+  if(!attempt(&passport,"{\"username\":\"student\",\"password\":\"test-password\\u0000suffix\"}",0,400)){return 14;}
+  local large:char[2050];loop(local i:int=0;i<2049;i=i+1){large[i]='a';}large[2049]=0;
+  if(!attempt(&passport,cast<string>(&large[0]),0,400)){return 15;}
+  local req:Request=Request.new();local res:Response=Response.new(-1);
+  if(passport.authenticate("local",&req,&res)!=0||res.status_code!=400){return 16;}
+  req.destroy();res.destroy();
+  req=Request.new();res=Response.new(-1);req.body=HttpParser.copy("xxxx",0,4);req.body[1]=0;req.body_length=4;
+  if(passport.authenticate("local",&req,&res)!=0||res.status_code!=400){return 17;}
+  loop(local i:int=0;i<4;i=i+1){if(req.body[i]!=0){return 18;}}
+  req.destroy();res.destroy();
   if(calls!=2){return 5;}
   passport.destroy();return 0;
 }`);

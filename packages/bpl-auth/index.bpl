@@ -1,3 +1,5 @@
+import [Passport] from "bpl-passport";
+import [LocalStrategy], [LocalCredentials] from "bpl-passport-local";
 import [RateLimiter], [RateDecision] from "bpl-rate-limit";
 import [AuthCrypto] from "./crypto.bpl";
 import [SQLite], [Statement] from "bpl-sqlite";
@@ -15,10 +17,6 @@ extern time(out: *long) ret long;
 extern strtoll(text: string, end: **char, base: int) ret long;
 export [Auth];
 export [AuthCrypto];
-struct Credentials {
-    username: string,
-    password: string,
-}
 struct AuthUser {
     id: long,
     username: string,
@@ -27,15 +25,9 @@ struct AuthReply {
     user: AuthUser,
     csrf: string,
 }
-frame wipeCredentialsRequest(req: *Request) {
-    AuthCrypto.wipe(req.body, cast<ulong>(req.body_length));
-}
-frame destroyCredentials(body: *Credentials, req: *Request) {
-    if (body.password != nullptr) {
-        AuthCrypto.wipe(body.password, strlen(body.password));
-    }
-    AuthCrypto.wipe(req.body, cast<ulong>(req.body_length));
-    JSON.free<Credentials>(body);
+frame verifyLocalAuth(context: *void, req: *Request, res: *Response, username: string, password: string) ret long {
+    local auth: *Auth = cast<*Auth>(context);
+    return auth.verifyLocal(req, res, username, password);
 }
 struct Auth {
     db: *SQLite,
@@ -89,18 +81,13 @@ struct Auth {
     frame budget(this: *Auth, req: *Request, res: *Response) ret bool {
         return this.limiter.apply(req, res, "auth.peer", 40, 60);
     }
-    frame credentials(req: *Request, res: *Response) ret *Credentials {
-        if ((req.body_length > 2048) || (cast<long>(strlen(req.body)) != req.body_length)) {
-            res.status(400).json("{\"error\":\"invalid credentials\"}");
-            return nullptr;
-        }
-        local body: *Credentials = JSON.parse<Credentials>(req.body);
+    frame credentials(req: *Request, res: *Response) ret *LocalCredentials {
+        local body: *LocalCredentials = LocalCredentials.parse(req, res);
         if (body == nullptr) {
-            res.status(400).json("{\"error\":\"invalid credentials\"}");
             return nullptr;
         }
-        if (!Auth.usernameValid(body.username) || (body.password == nullptr) || (strlen(body.password) < 1) || (strlen(body.password) > 256)) {
-            destroyCredentials(body, req);
+        if (!Auth.usernameValid(body.username)) {
+            body.destroy(req);
             res.status(422).json("{\"error\":\"invalid credentials\"}");
             return nullptr;
         }
@@ -148,15 +135,15 @@ struct Auth {
         json.destroy();
     }
     frame register(this: *Auth, req: *Request, res: *Response) {
-        defer wipeCredentialsRequest(req);
+        defer LocalCredentials.wipe(req);
         if (!this.sameOrigin(req, res) || !this.budget(req, res)) {
             return;
         }
-        local body: *Credentials = Auth.credentials(req, res);
+        local body: *LocalCredentials = Auth.credentials(req, res);
         if (body == nullptr) {
             return;
         }
-        defer destroyCredentials(body, req);
+        defer body.destroy(req);
         if (strlen(body.password) < 12) {
             res.status(422).json("{\"error\":\"password requires at least 12 bytes\"}");
             return;
@@ -178,31 +165,41 @@ struct Auth {
         this.issue(this.db.lastInsertId(), body.username, res);
     }
     frame login(this: *Auth, req: *Request, res: *Response) {
-        defer wipeCredentialsRequest(req);
+        defer LocalCredentials.wipe(req);
         if (!this.sameOrigin(req, res) || !this.budget(req, res)) {
             return;
         }
-        local body: *Credentials = Auth.credentials(req, res);
-        if (body == nullptr) {
-            return;
+        local passport: Passport = Passport.new();
+        local passportOwner: *Passport = &passport;
+        defer passportOwner.destroy();
+        local strategy: LocalStrategy = LocalStrategy.new(cast<*void>(this), verifyLocalAuth);
+        strategy.install(&passport, "local");
+        local user: long = passport.authenticate("local", req, res);
+        if (user > 0) {
+            this.issue(user, req.state.get("auth.login.username").unwrap(), res);
         }
-        defer destroyCredentials(body, req);
+    }
+    frame verifyLocal(this: *Auth, req: *Request, res: *Response, username: string, password: string) ret long {
+        if (!Auth.usernameValid(username)) {
+            res.status(422).json("{\"error\":\"invalid credentials\"}");
+            return 0;
+        }
         local key: StringBuilder = StringBuilder.new(48);
         local keyOwner: *StringBuilder = &key;
         defer keyOwner.destroy();
         key.append(req.peerAddress());
         key.append("/");
-        key.append(body.username);
+        key.append(username);
         local denied: bool = this.limited(key.toString(), 10);
         key.destroy();
         if (denied) {
             res.status(429).setHeader("Retry-After", "60").json("{\"error\":\"try again later\"}");
-            return;
+            return 0;
         }
         local q: Statement = this.db.prepare("SELECT id,password_hash FROM auth_users WHERE username=?");
         local qOwner: *Statement = &q;
         defer qOwner.close();
-        q.bindText(1, body.username);
+        q.bindText(1, username);
         local user: long = 0;
         local hash: String = String.new(this.dummy.data);
         local hashOwner: *String = &hash;
@@ -213,13 +210,13 @@ struct Auth {
             hash = String.new(q.text(1));
         }
         q.close();
-        local valid: bool = AuthCrypto.verify(hash.data, body.password);
+        local valid: bool = AuthCrypto.verify(hash.data, password);
         hash.destroy();
         if (!valid || (user == 0)) {
-            res.status(401).json("{\"error\":\"invalid username or password\"}");
-            return;
+            return 0;
         }
-        this.issue(user, body.username, res);
+        req.setState("auth.login.username", username);
+        return user;
     }
     frame token(req: *Request) ret String {
         local result: String = String.new("");

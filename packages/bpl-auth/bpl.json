@@ -7,6 +7,8 @@
   "dependencies": {
     "bpl-express": "file:../bpl-express/bpl-express-0.1.0.tgz",
     "bpl-sqlite": "file:../bpl-sqlite/bpl-sqlite-0.1.0.tgz",
-    "bpl-rate-limit": "file:../bpl-rate-limit/bpl-rate-limit-0.1.0.tgz"
+    "bpl-rate-limit": "file:../bpl-rate-limit/bpl-rate-limit-0.1.0.tgz",
+    "bpl-passport-local": "file:../bpl-passport-local/bpl-passport-local-0.1.0.tgz",
+    "bpl-passport": "file:../bpl-passport/bpl-passport-0.1.0.tgz"
   }
 }

@@ -66,3 +66,18 @@ all allocator/browser copies are erased, and memory is not locked.
 The app example shows registration, login, logout, expiry, CSRF, and task ownership:
 [College web app](../../examples/college_web/README.md). HTTPS and deployment
 configuration are still required before handling private data publicly.
+
+Login uses [bpl-passport](../bpl-passport/README.md) and the
+[bpl-passport-local](../bpl-passport-local/README.md) strategy internally.
+The strategy decodes and consumes the JSON credentials; Auth's verifier retains
+the username policy, per-peer/username throttle, prepared SQLite lookup, Argon2id
+verification and dummy hash for unknown users. Only a positive verified ID can
+issue a fresh cookie/session. The existing `login(req,res)` API and response
+shape are unchanged, so the college app uses Passport through that call.
+Registration shares the local credential decoder. Existing databases need no
+schema migration for this integration.
+
+For another user store, install the local strategy directly and supply a
+`LocalVerifier` callback. That callback/application must implement its own hash
+verification, throttling, Origin/CSRF rules and session policy; the generic
+registry does not inherit Auth's protections automatically.

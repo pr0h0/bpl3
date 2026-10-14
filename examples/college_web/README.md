@@ -172,3 +172,10 @@ never overwritten. Keep backups private. For restore, stop all workers, validate
 a snapshot in an isolated directory, replace the database offline, and exercise
 app reads/writes before serving traffic. Do not copy only the main file of a live
 WAL database. See [SQLite package](../../packages/bpl-sqlite/README.md) for contracts.
+
+Login is implemented by `bpl-auth` through the `bpl-passport` registry and
+`bpl-passport-local` username/password strategy. The browser API remains
+`POST /auth/login` with JSON credentials; successful verification rotates the
+server-side session and returns the user and CSRF token. See the
+[local strategy package](../../packages/bpl-passport-local/README.md) for a custom
+user-store integration.

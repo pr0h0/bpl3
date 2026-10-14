@@ -18,6 +18,8 @@ packages/package-name -o packages/package-name` before distributing them.
 | [bpl-web-middleware](bpl-web-middleware/README.md) | Headers, explicit CORS, JSON checks, forms | Uses bpl-express |
 | [bpl-tls](bpl-tls/README.md) | Native TLS transport with verified client connections | OpenSSL 3 runtime, loaded on use |
 | [bpl-rate-limit](bpl-rate-limit/README.md) | Shared request throttling middleware | SQLite 3.35+ |
+| [bpl-passport](bpl-passport/README.md) | Named authentication strategies | Uses bpl-express |
+| [bpl-passport-local](bpl-passport-local/README.md) | Bounded username/password JSON strategy | Linux/glibc credential wiping |
 | [bpl-auth](bpl-auth/README.md) | Passwords, revocable sessions, CSRF | SQLite and libsodium |
 | [bpl-csv](bpl-csv/README.md) | Optional CSV downloads and reports | None |
 | [bpl-sqlite](bpl-sqlite/README.md) | Prepared statements, migrations, WAL and online backups | Link native SQLite |

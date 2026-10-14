@@ -143,3 +143,118 @@ test.skipIf(process.platform !== "linux" || !sqlite.includes("/"))(
   },
   90000,
 );
+
+const sodium =
+  spawnSync("clang", ["-print-file-name=libsodium.so.23"], {
+    encoding: "utf8",
+  }).stdout?.trim() ?? "";
+test.skipIf(
+  process.platform !== "linux" ||
+    !sqlite.includes("/") ||
+    !sodium.includes("/"),
+)(
+  "Passport archives install transitively and authenticate outside the checkout",
+  () => {
+    const dir = mkdtempSync(join(tmpdir(), "bpl-passport-install-"));
+    try {
+      writeFileSync(
+        join(dir, "bpl.json"),
+        JSON.stringify({
+          name: "passport-consumer",
+          version: "0.1.0",
+          main: "main.bpl",
+        }),
+      );
+      const install = (name: string) => {
+        const result = spawnSync(
+          "bun",
+          [
+            resolve("index.ts"),
+            "install",
+            resolve(`packages/${name}/${name}-0.1.0.tgz`),
+          ],
+          {
+            cwd: dir,
+            encoding: "utf8",
+            timeout: 60000,
+          },
+        );
+        expect(result.status, result.stdout + result.stderr).toBe(0);
+      };
+      const buildAndRun = (source: string, flags: string[] = []) => {
+        writeFileSync(join(dir, "main.bpl"), source);
+        const build = spawnSync(
+          "bun",
+          [
+            resolve("index.ts"),
+            "build",
+            join(dir, "main.bpl"),
+            "-o",
+            join(dir, "app"),
+            ...flags,
+          ],
+          {
+            cwd: dir,
+            encoding: "utf8",
+            timeout: 60000,
+          },
+        );
+        expect(build.status, build.stdout + build.stderr).toBe(0);
+        const run = spawnSync(join(dir, "app"), [], {
+          cwd: dir,
+          encoding: "utf8",
+          timeout: 10000,
+        });
+        expect(run.status, run.stdout + run.stderr).toBe(0);
+      };
+      install("bpl-passport-local");
+      buildAndRun(String.raw`
+import [Passport] from "bpl-passport";
+import [LocalStrategy] from "bpl-passport-local";
+import [Request], [Response] from "bpl-express";
+import [HttpParser] from "bpl-http-parser";
+import [Array] from "std/array.bpl";
+import [String] from "std/string.bpl";
+extern strlen(text:string)ret ulong;
+frame verify(_context:*void,_req:*Request,_res:*Response,_username:string,_password:string)ret long{return 42;}
+frame main()ret int{
+ local passport:Passport=Passport.new();local strategy:LocalStrategy=LocalStrategy.new(nullptr,verify);strategy.install(&passport,"local");
+ local req:Request=Request.new();local res:Response=Response.new(-1);
+ local payload:string="{\"username\":\"student\",\"password\":\"test-password\"}";
+ req.body_length=cast<long>(strlen(payload));req.body=HttpParser.copy(payload,0,req.body_length);
+ local user:long=passport.authenticate("local",&req,&res);req.destroy();res.destroy();passport.destroy();if(user!=42){return 1;}return 0;
+}`);
+      install("bpl-auth");
+      buildAndRun(
+        String.raw`
+import [Auth], [AuthCrypto] from "bpl-auth";
+import [SQLite], [Statement] from "bpl-sqlite";
+import [Request], [Response] from "bpl-express";
+import [HttpParser] from "bpl-http-parser";
+import [String] from "std/string.bpl";
+import [Map] from "std/map.bpl";
+import [Option] from "std/option.bpl";
+extern strlen(text:string)ret ulong;
+extern strcpy(target:string,source:string)ret string;
+frame main()ret int{
+ local db:SQLite=SQLite.open(":memory:");local auth:Auth=Auth.new(&db,"http://app.example",false);
+ local hash:String=AuthCrypto.passwordHash("test-password");local q:Statement=db.prepare("INSERT INTO auth_users(username,password_hash) VALUES (?,?)");
+ q.bindText(1,"student").bindText(2,hash.data);q.step();q.close();hash.destroy();
+ local req:Request=Request.new();local res:Response=Response.new(-1);
+ strcpy(cast<string>(&req.peer_ip[0]),"127.0.0.1");HttpParser.put(&req.headers,HttpParser.copy("origin",0,6),HttpParser.copy("http://app.example",0,18));
+ local payload:string="{\"username\":\"student\",\"password\":\"test-password\"}";
+ req.body_length=cast<long>(strlen(payload));req.body=HttpParser.copy(payload,0,req.body_length);
+ auth.login(&req,&res);
+ if(res.status_code!=200||!res.headers.get("Set-Cookie").isSome()){return 1;}
+ loop(local i:long=0;i<req.body_length;i=i+1){if(req.body[i]!=0){return 2;}}
+ q=db.prepare("SELECT count(*) FROM auth_sessions");if(!q.step()||q.integer(0)!=1){return 3;}q.close();
+ req.destroy();res.destroy();auth.destroy();db.close();return 0;
+}`,
+        ["--clang-flag=-l:libsqlite3.so.0", "--clang-flag=-l:libsodium.so.23"],
+      );
+    } finally {
+      rmSync(dir, { force: true, recursive: true });
+    }
+  },
+  90000,
+);

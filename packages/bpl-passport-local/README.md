@@ -3,7 +3,8 @@
 Optional username/password strategy for [bpl-passport](../bpl-passport/README.md).
 It accepts JSON `{ "username": "student", "password": "..." }`; both fields
 are required strings of 1–256 bytes. The body is limited to 2 KiB, embedded raw
-NUL bytes are rejected, malformed JSON returns 400 and invalid fields return 422.
+NUL bytes are rejected. Malformed JSON and incompatible field types return 400;
+missing, empty, or oversized credential strings return 422.
 Apply your JSON media-type middleware before the handler. Form bodies, custom
 field names, and JavaScript Passport plugins are not supported.
 
