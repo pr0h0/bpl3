@@ -1,3 +1,7 @@
+import {
+  hasAddressSanitizer,
+  prepareLLVMForAddressSanitizer,
+} from "../compiler/common/LLVMAddressSanitizer";
 /**
  * Binary Runner
  * Handles compilation of LLVM IR to executable and execution
@@ -105,7 +109,9 @@ function resolveExecutablePath(command: string): string | undefined {
   return undefined;
 }
 
-function getWasmClangFuseLdArg(wasmLinker: string | undefined): string | undefined {
+function getWasmClangFuseLdArg(
+  wasmLinker: string | undefined,
+): string | undefined {
   if (!wasmLinker) return undefined;
   if (wasmLinker === "ld.lld") return "-fuse-ld=lld";
 
@@ -148,6 +154,7 @@ export function compileToBinary(
   const execPath = getExecutableOutputPath(irPath, options);
   let tempExecPath: string;
   let clangArgs: string[];
+  let sanitizedIR: string | undefined;
   try {
     assertReadableCompileInput(irPath, "LLVM IR input");
     assertWritableFileOutputPath(execPath);
@@ -162,8 +169,26 @@ export function compileToBinary(
     }
     const hostDefaults = getHostDefaults();
     tempExecPath = createTemporaryOutputPath(execPath);
-    clangArgs = buildClangArgs(irPath, tempExecPath, options, hostDefaults);
+    let compileIR = irPath;
+    const flags = normalizeArrayOption(options.clangFlag);
+    if (hasAddressSanitizer(flags)) {
+      const sanitizedPath = tempExecPath + ".ll";
+      const prepared = prepareLLVMForAddressSanitizer(
+        fs.readFileSync(irPath, "utf8"),
+        flags,
+      );
+      const descriptor = fs.openSync(sanitizedPath, "wx", 0o600);
+      sanitizedIR = sanitizedPath;
+      try {
+        fs.writeFileSync(descriptor, prepared);
+      } finally {
+        fs.closeSync(descriptor);
+      }
+      compileIR = sanitizedIR;
+    }
+    clangArgs = buildClangArgs(compileIR, tempExecPath, options, hostDefaults);
   } catch (error) {
+    if (sanitizedIR) removeBestEffort(sanitizedIR);
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -181,10 +206,15 @@ export function compileToBinary(
     log.debug(`${clangCommand} ${clangArgs.join(" ")}`);
   }
 
-  const compileResult = spawnSync(clangCommand, clangArgs, {
-    stdio: options.verbose ? "inherit" : "pipe",
-    timeout: getCompilerDriverTimeoutMs(),
-  });
+  let compileResult: ReturnType<typeof spawnSync>;
+  try {
+    compileResult = spawnSync(clangCommand, clangArgs, {
+      stdio: options.verbose ? "inherit" : "pipe",
+      timeout: getCompilerDriverTimeoutMs(),
+    });
+  } finally {
+    if (sanitizedIR) removeBestEffort(sanitizedIR);
+  }
 
   if (compileResult.status !== 0) {
     const stderr = compileResult.stderr?.toString() ?? "";
@@ -610,7 +640,9 @@ function getRunTimeoutOption(): { timeout?: number } {
 }
 
 function formatCompileSpawnError(error: Error, command: string): string {
-  return formatCommandSpawnFailure(command, error) ?? `${command}: ${error.message}`;
+  return (
+    formatCommandSpawnFailure(command, error) ?? `${command}: ${error.message}`
+  );
 }
 
 function tryLstat(filePath: string): fs.Stats | null {

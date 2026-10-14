@@ -1,3 +1,4 @@
+import { prepareLLVMForAddressSanitizer } from "../common/LLVMAddressSanitizer";
 /**
  * Linker for BPL3
  *
@@ -135,7 +136,9 @@ export class Linker {
     }
   }
 
-  private validateOptimizationLevel(optimizationLevel: number | undefined): boolean {
+  private validateOptimizationLevel(
+    optimizationLevel: number | undefined,
+  ): boolean {
     if (
       optimizationLevel === undefined ||
       [0, 1, 2, 3].includes(optimizationLevel)
@@ -485,7 +488,10 @@ export class Linker {
     let tempOutputPath: string | undefined;
 
     try {
-      fs.writeFileSync(tmpIRFile, mergedIR);
+      fs.writeFileSync(
+        tmpIRFile,
+        prepareLLVMForAddressSanitizer(mergedIR, options.clangFlags),
+      );
 
       if (options.verbose) {
         compilerLog.info(`Merged IR written to: ${tmpIRFile}`);
@@ -602,7 +608,9 @@ export class Linker {
         fs.rmSync(tempDir, { recursive: true, force: true });
       } catch {
         if (options.verbose) {
-          compilerLog.warn(`Could not clean up temporary directory: ${tempDir}`);
+          compilerLog.warn(
+            `Could not clean up temporary directory: ${tempDir}`,
+          );
         }
       }
     }

@@ -1,3 +1,7 @@
+import {
+  hasAddressSanitizer,
+  prepareLLVMForAddressSanitizer,
+} from "../common/LLVMAddressSanitizer";
 /**
  * Module Cache Manager
  *
@@ -332,6 +336,7 @@ export class ModuleCache {
         compilerDriver: getCompilerDriver(target),
         sysroot: options.sysroot ?? "",
         clangFlags: options.clangFlags ?? [],
+        asanIRVersion: hasAddressSanitizer(options.clangFlags) ? 1 : undefined,
       }),
     );
   }
@@ -363,7 +368,9 @@ export class ModuleCache {
     });
   }
 
-  private validateOptimizationLevel(optimizationLevel: number | undefined): void {
+  private validateOptimizationLevel(
+    optimizationLevel: number | undefined,
+  ): void {
     if (
       optimizationLevel === undefined ||
       [0, 1, 2, 3].includes(optimizationLevel)
@@ -464,7 +471,12 @@ export class ModuleCache {
   ): string {
     this.validateOptimizationLevel(optimizationLevel);
     // Include codegen-affecting options so incompatible object files do not collide.
-    const hash = this.getModuleHash(content, target, optimizationLevel, options);
+    const hash = this.getModuleHash(
+      content,
+      target,
+      optimizationLevel,
+      options,
+    );
     const objectFileName = `${hash}.o`;
     const objectFilePath = path.join(this.cacheDir, objectFileName);
     const tempSuffix = `${process.pid}-${Date.now()}-${Math.random()
@@ -515,7 +527,10 @@ export class ModuleCache {
     let compiled = false;
 
     try {
-      fs.writeFileSync(llFilePath, llvmIR);
+      fs.writeFileSync(
+        llFilePath,
+        prepareLLVMForAddressSanitizer(llvmIR, options.clangFlags),
+      );
 
       // Compile to object file using the selected LLVM-capable compiler driver.
       const clangArgs = ["-c", "-Wno-override-module"];
