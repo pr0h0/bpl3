@@ -137,7 +137,7 @@ The supervisor reaps only its own pool; application child processes remain the
 application's responsibility. Listener sockets are nonblocking to avoid workers
 blocking in accept after another worker consumes a ready connection.
 
-Run `bun tools/benchmark_web.ts` for a disposable local HTTP/HTTPS + SQLite
+Run `bun benchmark/web.ts` for a disposable local HTTP/HTTPS + SQLite
 benchmark across 1/2/4 workers and 1/8/32 concurrent requests. It reports status
 counts, validated database update counts, latency percentiles, throughput, and
 supervisor/worker PSS and summed RSS. Set `BPL_BENCH_REQUESTS` (20–20000),
