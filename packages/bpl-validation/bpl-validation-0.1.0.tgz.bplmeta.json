@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-validation",
+  "version": "0.1.0",
+  "archiveFile": "bpl-validation-0.1.0.tgz",
+  "archiveSha256": "62324ecc1681b8b7bcf755df2dded1002c22d759559e6e3a53bae043d22d76d9",
+  "packageHash": "13b432a0570740024d3f297c1996828d24b5e701fc49c6114560869b5f4075f3",
+  "sizeBytes": 1412,
+  "createdAt": "2026-10-14T15:35:49.430Z",
+  "manifest": {
+    "name": "bpl-validation",
+    "version": "0.1.0",
+    "description": "Optional bounded input validation and structured errors",
+    "main": "index.bpl",
+    "license": "MIT"
+  }
+}
