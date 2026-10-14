@@ -67,9 +67,45 @@ export open;
 export lseek;
 extern send(fd: int, buf: string, count: ulong, flags: int) ret long;
 export send;
-struct timeval { tv_sec: long, tv_usec: long, }
+struct timeval {
+    tv_sec: long,
+    tv_usec: long,
+}
 extern realpath(path: string, resolved: string) ret string;
 extern inet_addr(host: string) ret uint;
 export [timeval];
 export realpath;
 export inet_addr;
+extern fork() ret int;
+extern waitpid(pid: int, status: *int, options: int) ret int;
+extern getpid() ret int;
+extern getppid() ret int;
+extern prctl(option: int, ...) ret int;
+extern _exit(code: int);
+extern usleep(microseconds: uint) ret int;
+extern clock_gettime(clock: int, time: *timespec) ret int;
+extern poll(fds: *pollfd, count: ulong, timeout: int) ret int;
+extern __errno_location() ret *int;
+struct timespec {
+    tv_sec: long,
+    tv_nsec: long,
+}
+struct pollfd {
+    fd: int,
+    events: short,
+    revents: short,
+}
+export fork;
+export waitpid;
+export getpid;
+export getppid;
+export prctl;
+export _exit;
+export usleep;
+export clock_gettime;
+export poll;
+export __errno_location;
+export [timespec];
+export [pollfd];
+extern kill(pid: int, signal: int) ret int;
+export kill;

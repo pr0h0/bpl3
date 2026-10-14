@@ -1,7 +1,8 @@
 # bpl-express
 
 A small Express-inspired HTTP framework. The current socket backend targets
-**Linux IPv4** and handles one connection at a time. It is suitable for local
+**Linux IPv4** and handles one connection at a time in `listen` mode. The optional process
+worker mode handles connections concurrently. It is suitable for local
 projects and small services; it does not provide an asynchronous event loop,
 TLS, HTTP/2, keep-alive, multipart parsing, or production load guarantees.
 Use a reverse proxy for HTTPS and deployment controls.
@@ -24,14 +25,20 @@ through the manifest's local archive reference).
 `listen(port)` binds **127.0.0.1**. Use `listenOn(port, "0.0.0.0")` to bind all
 IPv4 interfaces. `open(port, host)` returns a listener descriptor for embedding;
 `serveConnection(fd)` handles an accepted descriptor without closing it. The
-caller closes both descriptors. Accepted connections have five-second read
-and write inactivity deadlines (`app.timeout_seconds`). Requests are bounded
+caller closes both descriptors. Accepted connections have five-second read/write inactivity deadlines
+(`app.timeout_seconds`) and a ten-second total request assembly deadline
+(`app.request_timeout_seconds`). Each deadline accepts 1–300 seconds. Requests are bounded
 to 16 KiB headers and 1 MiB bodies. Fragmented requests are assembled; unsupported
 request transfer codings return 501. Every response closes the connection.
 
 Routes support `get`, `post`, `put`, `delete`, `patch`, `options`, `head`, and
 `on(method, path, handler)`. Parameters use `/users/:id`; a final `*` matches
 remaining path characters. `req.getParam("id")` returns `Option<string>`.
+`req.state` holds application-owned strings separately from client data.
+`req.setState(key, value)` copies strings for middleware identity/context; the
+request destroys them after handling. Client headers/query parameters cannot
+set these values.
+
 Query parameters decode percent escapes and `+`; header keys are lowercase.
 `req.header("content-type")` returns an option. `body_length` counts bytes,
 including embedded NULs; `body` is also NUL-terminated for text APIs.
@@ -66,3 +73,20 @@ files run before router middleware, so use it for public assets only.
 
 Optional middleware and validation are separate packages. Templates can use
 `bpl-templ`; database integrations can use `bpl-db` or `bpl-sqlite`.
+
+## Process worker mode
+
+`app.listenWorkers(port, host, workers, initialize)` starts a supervisor with
+1–8 Linux process workers sharing the listener. Each worker handles requests
+sequentially; different workers handle connections concurrently. `initialize`
+is an ordinary `Func<void>()` BPL frame called after fork. Open SQLite and other
+worker-local services there. Never inherit a live database connection into a
+worker or use this mode after starting host threads. Route configuration must
+be ready before calling listenWorkers.
+
+Workers have private memory: updates to in-memory globals/caches are not shared.
+Use SQLite or another external store for shared application state. The supervisor
+reaps and restarts workers that exit, with a brief backoff; Linux parent-death
+signals stop workers when the supervisor exits. Shutdown does not drain active
+requests. This is process concurrency through POSIX FFI, not language-level async
+or a thread API. Resource use is bounded by the configured worker count.
