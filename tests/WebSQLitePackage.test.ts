@@ -2,9 +2,11 @@ import { test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { native } from "./helpers/webPackages";
 
-const sqlitePath = spawnSync("clang", ["-print-file-name=libsqlite3.so.0"], {
-  encoding: "utf8",
-}).stdout.trim();
+const sqlitePath =
+  spawnSync("clang", ["-print-file-name=libsqlite3.so.0"], {
+    encoding: "utf8",
+    timeout: 10000,
+  }).stdout?.trim() ?? "";
 test.skipIf(process.platform !== "linux" || !sqlitePath.includes("/"))(
   "SQLite prepared statements copy bindings, enforce state and support transaction rollback",
   () => {

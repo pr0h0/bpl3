@@ -5,9 +5,11 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
 
-const sqlitePath = spawnSync("clang", ["-print-file-name=libsqlite3.so.0"], {
-  encoding: "utf8",
-}).stdout.trim();
+const sqlitePath =
+  spawnSync("clang", ["-print-file-name=libsqlite3.so.0"], {
+    encoding: "utf8",
+    timeout: 10000,
+  }).stdout?.trim() ?? "";
 test.skipIf(process.platform !== "linux" || !sqlitePath.includes("/"))(
   "college web example supports validated CRUD, public assets, pagination and restart persistence",
   async () => {
