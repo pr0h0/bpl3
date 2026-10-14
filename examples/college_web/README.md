@@ -28,6 +28,7 @@ previous session for that account; signing out revokes the current session.
 | BPL_WEB_DB | college.sqlite in the working directory |
 | BPL_WEB_WORKERS | 2, integer 1–8 |
 | BPL_WEB_WAL | 0 leaves journal mode unchanged; 1 enables WAL before migrations |
+| BPL_WEB_COMPRESSION | 0; 1 enables optional gzip for public assets using libz.so.1 |
 | BPL_WEB_ACCESS_LOG | 0; 1 enables JSON completion logs; request IDs are always generated |
 | BPL_WEB_API_LIMIT | 240 API requests per socket peer per minute, health excluded |
 | BPL_WEB_ORIGIN | http://127.0.0.1:PORT, or https with native TLS; must exactly match the browser origin |
@@ -179,3 +180,10 @@ Login is implemented by `bpl-auth` through the `bpl-passport` registry and
 server-side session and returns the user and CSRF token. See the
 [local strategy package](../../packages/bpl-passport-local/README.md) for a custom
 user-store integration.
+
+Public assets now support conditional caching and single byte ranges. Their
+middleware checks Accept and adds Vary: Accept. `BPL_WEB_COMPRESSION=1` enables
+negotiated gzip for buffered public assets, with Vary: Accept-Encoding. Range
+responses remain uncompressed. Authentication and private API responses are not
+attached to compression; their session/CSRF and no-store behavior is retained.
+No zlib linker flags are required: the runtime library loads only on compression.

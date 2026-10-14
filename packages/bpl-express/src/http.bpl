@@ -90,7 +90,14 @@ struct Request {
     }
 }
 
+type SendTransform = Func<bool>(*void, *Response, string, long);
+frame clearTransforming(res: *Response) {
+    res.transforming = false;
+}
 struct Response {
+    send_transform: SendTransform,
+    transform_context: *void,
+    transforming: bool,
     client_fd: int,
     tls: *TlsConnection,
     write_timeout_seconds: long,
@@ -108,6 +115,9 @@ struct Response {
         res.tls = nullptr;
         res.write_timeout_seconds = 5;
         res.status_code = 200;
+        res.send_transform = cast<SendTransform>(cast<*void>(nullptr));
+        res.transform_context = nullptr;
+        res.transforming = false;
         res.headers = HttpHeaders.new();
         res.body_sent = false;
         res.headers_sent = false;
@@ -249,11 +259,22 @@ struct Response {
         if (this.headers_sent) {
             throw "Cannot send after streaming has started";
         }
+        if (!this.transforming && (cast<*void>(this.send_transform) != nullptr)) {
+            if (this.transform(body, size)) {
+                return;
+            }
+        }
         this._writeHeaders(size);
         if (!this.head_only && (this.status_code != 204) && (this.status_code != 304) && (size > 0)) {
             this._output(body, size);
         }
         this.body_sent = true;
+    }
+    frame transform(this: *Response, body: string, size: long) ret bool {
+        this.transforming = true;
+        defer clearTransforming(this);
+        local handled: bool = this.send_transform(this.transform_context, this, body, size);
+        return handled || this.body_sent;
     }
     frame write(this: *Response, body: string) {
         if (this.body_sent) {
@@ -302,3 +323,5 @@ struct Response {
         this.headers.destroy();
     }
 }
+
+export [SendTransform];

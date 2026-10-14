@@ -15,7 +15,7 @@ packages/package-name -o packages/package-name` before distributing them.
 | [bpl-templ](bpl-templ/README.md) | Compiled templates and HTML escaping | Native template CLI |
 | [bpl-db](bpl-db/README.md) | Typed in-memory tables and trusted snapshots | None |
 | [bpl-validation](bpl-validation/README.md) | Input rules and JSON field errors | None |
-| [bpl-web-middleware](bpl-web-middleware/README.md) | Headers, explicit CORS, JSON checks, forms | Uses bpl-express |
+| [bpl-web-middleware](bpl-web-middleware/README.md) | Headers, configurable CORS, negotiation, gzip, JSON checks, forms | Uses bpl-express; optional libz.so.1 |
 | [bpl-tls](bpl-tls/README.md) | Native TLS transport with verified client connections | OpenSSL 3 runtime, loaded on use |
 | [bpl-rate-limit](bpl-rate-limit/README.md) | Shared request throttling middleware | SQLite 3.35+ |
 | [bpl-passport](bpl-passport/README.md) | Named authentication strategies | Uses bpl-express |

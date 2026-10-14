@@ -77,3 +77,11 @@ import [AccessLog], requestId, accessLog from "./logging.bpl";
 export [AccessLog];
 export requestId;
 export accessLog;
+
+import [Negotiation] from "./negotiation.bpl";
+export [Negotiation];
+
+import [Compression], [CompressedBytes], compression from "./compression.bpl";
+export [Compression];
+export [CompressedBytes];
+export compression;

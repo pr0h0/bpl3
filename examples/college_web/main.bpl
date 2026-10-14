@@ -2,7 +2,7 @@ import [App], [Router], [Request], [Response], [HttpMethod] from "bpl-express";
 import [Auth] from "bpl-auth";
 import [SQLite], [Statement], [Migrations] from "bpl-sqlite";
 import [Validator] from "bpl-validation";
-import securityHeaders, requireJson, requestId, accessLog from "bpl-web-middleware";
+import [Compression], [Negotiation], securityHeaders, requireJson, requestId, accessLog from "bpl-web-middleware";
 import [JSON] from "std/json.bpl";
 import [String] from "std/string.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
@@ -18,6 +18,7 @@ global authentication: *Auth;
 global allowedOrigin: string;
 global secureCookies: bool;
 global apiMaximum: int;
+global compressAssets: bool;
 struct TaskInput {
     title: string,
     done: bool,
@@ -89,6 +90,15 @@ frame noCache(_req: *Request, res: *Response) {
 frame webHeaders(req: *Request, res: *Response) {
     securityHeaders(req, res);
     res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+}
+frame staticWebHeaders(req: *Request, res: *Response) {
+    webHeaders(req, res);
+    if (!Negotiation.require(req, res, res.headers.get("content-type").unwrap())) {
+        return;
+    }
+    if (compressAssets) {
+        Compression.attach(req, res);
+    }
 }
 frame notFound(_req: *Request, res: *Response) {
     res.status(404).json("{\"error\":\"not found\"}");
@@ -324,6 +334,11 @@ frame main() {
     if ((strcmp(wal, "0") != 0) && (strcmp(wal, "1") != 0)) {
         throw "Invalid BPL_WEB_WAL";
     }
+    local compressionFlag: string = Env.getOr("BPL_WEB_COMPRESSION", "0");
+    if ((strcmp(compressionFlag, "0") != 0) && (strcmp(compressionFlag, "1") != 0)) {
+        throw "Invalid BPL_WEB_COMPRESSION";
+    }
+    compressAssets = strcmp(compressionFlag, "1") == 0;
     initializeWorker();
     if (strcmp(wal, "1") == 0) {
         database.setWAL(true);
@@ -346,7 +361,7 @@ frame main() {
         app.afterRequest(accessLog);
     }
     app.use(webHeaders);
-    app.useStaticMiddleware(webHeaders);
+    app.useStaticMiddleware(staticWebHeaders);
     app.useStatic("/", "public");
     local api: Router = Router.new();
     local apiOwner: *Router = &api;

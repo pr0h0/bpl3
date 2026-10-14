@@ -85,3 +85,40 @@ preserves existing Vary tokens and avoids duplicates.
 Credentialed CORS does not change Auth's exact Origin/CSRF policy or a cookie's
 SameSite attributes. Configure those application policies deliberately; enabling
 CORS alone does not make cross-site Auth login available.
+
+## Media negotiation and optional gzip
+
+`Negotiation.best(req,&offers)` selects a borrowed string from an Array<string>
+of offered media types using Accept quality values, specificity and matching
+media parameters. Server offer order breaks ties. Missing Accept allows every
+offer; no acceptable candidate returns None. `accepts(req,media)` tests one
+candidate; `require(req,res,media)` adds Vary: Accept and returns false after a
+JSON 406 on rejection. Offers can include parameters, such as
+`application/json;profile=one`. Explicit q=0 overrides a matching wildcard.
+`encoding(req,name)` returns 0–1000 for an Accept-Encoding candidate and accounts
+for identity's implicit acceptance and explicit exclusions. Helpers do not pick
+an application handler or transform a representation automatically.
+
+`compression(req,res)` or `Compression.attach(req,res)` installs a transform for
+buffered send/sendBytes/json/text/html responses. It negotiates gzip versus
+identity, adds Vary: Accept-Encoding, honors no-transform case-insensitively,
+and keeps the uncompressed body when gzip is larger or identity is preferred.
+The gzip envelope is deterministic; zlib provides DEFLATE and CRC32. libz.so.1
+loads dynamically only when encoding a body; no extra linker flag is needed.
+If the library is unavailable, identity remains the fallback when acceptable,
+otherwise the response is 406. Encoding rejects buffers over 8 MiB; middleware
+falls back to acceptable identity. CompressedBytes owns the returned buffer from
+Compression.gzip and must be destroyed.
+
+Compression skips existing Content-Encoding, non-200 and Content-Range responses.
+It does not compress write/end streaming, decode request bodies, or decompress
+HTTP client responses. HEAD calculates the same encoding/length metadata without
+sending body bytes. Strong ETags are weakened after transformation; 204/304 have
+no body to transform. Attach before headers start and keep the borrowed request
+alive through sending. The response transform prevents recursive invocation and
+resets its guard when a transform throws.
+
+Opt in on public/static routes or selected responses. Avoid indiscriminately
+compressing responses containing secrets alongside attacker-controlled text;
+the college app enables compression only for public assets, behind an explicit
+configuration flag. Caching validators belong to the selected representation.
