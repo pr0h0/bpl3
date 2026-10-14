@@ -118,3 +118,29 @@ TLS 1.2 and TLS 1.3 are supported. HTTP routing, middleware, static files, binar
 responses, HEAD, and streaming retain their existing APIs. This remains HTTP/1.1
 with one request per connection, without HTTP/2, mutual TLS, or automatic issuance.
 Configure authentication with the exact HTTPS origin and Secure cookies.
+
+## Graceful shutdown
+
+SIGTERM and SIGINT stop accepting new requests and allow active requests to
+finish. Process-worker listeners share a `shutdown_timeout_seconds` grace period
+(default 10, configurable 1–300); remaining workers are killed and reaped when
+it expires. `app.onWorkerShutdown(cleanup)` registers a worker-local cleanup
+frame, called after a normal drain, before that worker exits. It is not called
+for SIGKILL or a worker that exceeds the grace period. Single-process listeners
+return after their active handler finishes; an arbitrary blocking handler cannot
+be forcibly drained in that mode. Transport deadlines still apply.
+
+Signal handling uses Linux signalfd and restores the calling thread's previous
+signal mask when the listener returns. This assumes a single-threaded server
+entry point. Unexpected supervisor death kills its workers, including stuck ones.
+The supervisor reaps only its own pool; application child processes remain the
+application's responsibility. Listener sockets are nonblocking to avoid workers
+blocking in accept after another worker consumes a ready connection.
+
+Run `bun tools/benchmark_web.ts` for a disposable local HTTP/HTTPS + SQLite
+benchmark across 1/2/4 workers and 1/8/32 concurrent requests. It reports status
+counts, validated database update counts, latency percentiles, throughput, and
+supervisor/worker PSS and summed RSS. Set `BPL_BENCH_REQUESTS` (20–20000),
+`BPL_BENCH_WAL=1`, and optionally `BPL_BENCH_OUTPUT=/path/report.json`.
+It requires Linux, Python 3, OpenSSL 3, and the native SQLite runtime. These
+machine-specific measurements are not a production capacity guarantee.

@@ -1,3 +1,4 @@
+import [ShutdownSignals] from "./shutdown.bpl";
 import [TlsContext], [TlsConnection] from "bpl-tls";
 import [Map] from "std/map.bpl";
 import [Router], [RouteHandler] from "./router.bpl";
@@ -14,10 +15,15 @@ export [Router];
 frame defaultStaticMiddleware(_req: *Request, _res: *Response) {
 }
 
+frame defaultWorkerShutdown() {
+}
+
 struct App {
     router: Router,
     tls: *TlsContext,
     port: int,
+    shutdown_timeout_seconds: long,
+    worker_shutdown: Func<void>(),
     static_url: string,
     static_dir: string,
     static_middleware: RouteHandler,
@@ -28,12 +34,17 @@ struct App {
         app.router = Router.new();
         app.tls = nullptr;
         app.port = 3000;
+        app.shutdown_timeout_seconds = 10;
+        app.worker_shutdown = defaultWorkerShutdown;
         app.static_url = "";
         app.static_dir = "";
         app.static_middleware = defaultStaticMiddleware;
         app.timeout_seconds = 5;
         app.request_timeout_seconds = 10;
         return app;
+    }
+    frame onWorkerShutdown(this: *App, handler: Func<void>()) {
+        this.worker_shutdown = handler;
     }
     frame useStatic(this: *App, url: string, dir: string) {
         this.static_url = url;
@@ -53,7 +64,7 @@ struct App {
         if ((port < 0) || (port > 65535)) {
             throw "Invalid listen port";
         }
-        local fd: int = socket(2, 1, 0);
+        local fd: int = socket(2, 2049, 0);
         if (fd < 0) {
             throw "Socket creation failed";
         }
@@ -82,7 +93,17 @@ struct App {
             protocol = "HTTPS";
         }
         printf("%s listening on %s:%d\n", protocol, host, port);
+        local signals: ShutdownSignals = ShutdownSignals.new();
+        local scope: *ShutdownSignals = &signals;
+        defer scope.destroy();
         loop {
+            local ready: int = signals.wait(fd, -1);
+            if (ready < 0) {
+                break;
+            }
+            if (ready == 0) {
+                continue;
+            }
             local client: int = accept(fd, nullptr, nullptr);
             if (client >= 0) {
                 try {
@@ -118,13 +139,20 @@ struct App {
         if ((workers < 1) || (workers > 8)) {
             throw "Worker count must be 1 to 8";
         }
+        if ((this.shutdown_timeout_seconds < 1) || (this.shutdown_timeout_seconds > 300)) {
+            throw "Shutdown grace must be 1 to 300 seconds";
+        }
         local fd: int = this.open(port, host);
         defer close(fd);
+        local signals: ShutdownSignals = ShutdownSignals.new();
+        local scope: *ShutdownSignals = &signals;
+        defer scope.destroy();
         local parent: int = getpid();
         local pids: int[8] = [0, 0, 0, 0, 0, 0, 0, 0];
-        defer App.stopWorkers(&pids[0], workers, parent);
+        local workerPids: *int = &pids[0];
+        defer App.stopWorkers(workerPids, workers, parent, this.shutdown_timeout_seconds);
         loop (local slot: int = 0; slot < workers; slot = slot + 1) {
-            pids[slot] = this.startWorker(fd, parent, initialize);
+            pids[slot] = this.startWorker(fd, parent, initialize, signals.fd);
             if (pids[slot] < 0) {
                 throw "Cannot start HTTP worker";
             }
@@ -135,26 +163,30 @@ struct App {
         }
         printf("%s listening on %s:%d with %d process workers\n", protocol, host, port, workers);
         loop {
-            local status: int = 0;
-            local ended: int = waitpid(-1, &status, 0);
-            if (ended < 0) {
-                usleep(100000);
-                continue;
+            if (signals.wait(-1, 100) < 0) {
+                break;
             }
             loop (local slot: int = 0; slot < workers; slot = slot + 1) {
-                if (pids[slot] == ended) {
-                    # Back off before restarting an unexpectedly failed worker.
+                local status: int = 0;
+                local ended: int = waitpid(pids[slot], &status, 1);
+                if (ended == pids[slot]) {
+                    pids[slot] = 0;
+                    if (signals.requested()) {
+                        break;
+                    }
                     usleep(100000);
-                    local child: int = this.startWorker(fd, parent, initialize);
-                    if (child < 0) {
+                    if (signals.requested()) {
+                        break;
+                    }
+                    pids[slot] = this.startWorker(fd, parent, initialize, signals.fd);
+                    if (pids[slot] < 0) {
                         throw "Cannot restart HTTP worker";
                     }
-                    pids[slot] = child;
                 }
             }
         }
     }
-    frame stopWorkers(pids: *int, count: int, parent: int) {
+    frame stopWorkers(pids: *int, count: int, parent: int, grace: long) {
         if (getpid() != parent) {
             return;
         }
@@ -163,25 +195,73 @@ struct App {
                 kill(pids[i], 15);
             }
         }
+        local deadline: long = App.monotonicMilliseconds() + (grace * 1000);
+        loop {
+            local remaining: int = 0;
+            loop (local i: int = 0; i < count; i = i + 1) {
+                if (pids[i] > 0) {
+                    local status: int = 0;
+                    local ended: int = waitpid(pids[i], &status, 1);
+                    if (ended == pids[i]) {
+                        pids[i] = 0;
+                    } else if (ended < 0) {
+                        local error: *int = __errno_location();
+                        if (error[0] == 10) {
+                            pids[i] = 0;
+                        }
+                    }
+                    if (pids[i] > 0) {
+                        remaining = remaining + 1;
+                    }
+                }
+            }
+            if (remaining == 0) {
+                return;
+            }
+            if (App.monotonicMilliseconds() >= deadline) {
+                break;
+            }
+            usleep(10000);
+        }
+        loop (local i: int = 0; i < count; i = i + 1) {
+            if (pids[i] > 0) {
+                kill(pids[i], 9);
+            }
+        }
         loop (local i: int = 0; i < count; i = i + 1) {
             if (pids[i] > 0) {
                 local status: int = 0;
-                waitpid(pids[i], &status, 0);
+                loop (waitpid(pids[i], &status, 0) < 0) {
+                    local error: *int = __errno_location();
+                    if (error[0] != 4) {
+                        break;
+                    }
+                }
+                pids[i] = 0;
             }
         }
     }
-    frame startWorker(this: *App, fd: int, parent: int, initialize: Func<void>()) ret int {
+    frame startWorker(this: *App, fd: int, parent: int, initialize: Func<void>(), signal_fd: int) ret int {
         local child: int = fork();
         if (child != 0) {
             return child;
         }
-        # PR_SET_PDEATHSIG closes workers when the supervisor exits.
-        if ((prctl(1, 15, 0, 0, 0) < 0) || (getppid() != parent)) {
+        close(signal_fd);
+        # Unexpected supervisor death must also terminate a stuck worker.
+        if ((prctl(1, 9, 0, 0, 0) < 0) || (getppid() != parent)) {
             _exit(1);
         }
         try {
+            local signals: ShutdownSignals = ShutdownSignals.new();
             initialize();
             loop {
+                local ready: int = signals.wait(fd, -1);
+                if (ready < 0) {
+                    break;
+                }
+                if (ready == 0) {
+                    continue;
+                }
                 local client: int = accept(fd, nullptr, nullptr);
                 if (client >= 0) {
                     try {
@@ -191,6 +271,7 @@ struct App {
                     close(client);
                 }
             }
+            this.worker_shutdown();
         } catch {
             _exit(1);
         }
