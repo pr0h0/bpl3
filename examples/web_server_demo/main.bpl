@@ -83,7 +83,7 @@ frame handleSearch(req: *Request, res: *Response) {
 }
 
 frame handleProtected(req: *Request, res: *Response) {
-    local auth_opt: Option<string> = req.headers.get("Authorization");
+    local auth_opt: Option<string> = req.headers.get("authorization");
     if (auth_opt.isNone()) {
         res.status(401).send("{\"error\":\"No token\"}");
         return;

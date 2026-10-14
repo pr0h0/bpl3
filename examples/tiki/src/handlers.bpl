@@ -29,7 +29,7 @@ extern strstr(haystack: string, needle: string) ret string;
 # Auth Helper
 frame get_current_user(req: *Request) ret *User {
     local cookie: string = "";
-    match (req.headers.get("Cookie")) {
+    match (req.headers.get("cookie")) {
         Option.Some(val) => {
             cookie = val;
         },

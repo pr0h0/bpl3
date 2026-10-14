@@ -8,18 +8,18 @@ import logger from "./middleware.bpl";
 import [printf] from "std/c.bpl";
 
 frame api_handler(_req: *Request, res: *Response) {
-    res.send(_req.path);
-    res.send("\n</br>\n");
+    res.write(_req.path);
+    res.write("\n</br>\n");
     res.send("API1 SUB-ROUTER WORKING");
 }
 frame api_handler2(_req: *Request, res: *Response) {
-    res.send(_req.path);
-    res.send("\n</br>\n");
+    res.write(_req.path);
+    res.write("\n</br>\n");
     res.send("API2 SUB-ROUTER WORKING");
 }
 frame api_handler3(_req: *Request, res: *Response) {
-    res.send(_req.path);
-    res.send("\n</br>\n");
+    res.write(_req.path);
+    res.write("\n</br>\n");
     res.send("API3 SUB-ROUTER WORKING");
 }
 

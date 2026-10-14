@@ -65,3 +65,11 @@ export free;
 
 export open;
 export lseek;
+extern send(fd: int, buf: string, count: ulong, flags: int) ret long;
+export send;
+struct timeval { tv_sec: long, tv_usec: long, }
+extern realpath(path: string, resolved: string) ret string;
+extern inet_addr(host: string) ret uint;
+export [timeval];
+export realpath;
+export inet_addr;

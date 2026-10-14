@@ -3,3 +3,6 @@ import [ParsedRequest] from "./src/types.bpl";
 
 export [HttpParser];
 export [ParsedRequest];
+
+import releaseStrings from "./src/types.bpl";
+export releaseStrings;

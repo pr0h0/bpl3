@@ -1,98 +1,69 @@
 # bpl-express
 
-A lightweight web framework for BPL, inspired by Express.js.
-
-## Features
-
-- **Routing**: Support for GET, POST, PUT, DELETE methods.
-- **Parameters**: URL parameter extraction (e.g., `/users/:id`).
-- **Middleware**: Global and router-level middleware support.
-- **Sub-routers**: Mountable routers for modular API design.
-- **Static Files**: Serve static assets.
-
-## Installation
-
-```bash
-bpl install packages/bpl-express/bpl-express-0.1.0.tgz
-```
-
-## Usage
-
-### Basic Server
+A small Express-inspired HTTP framework. The current socket backend targets
+**Linux IPv4** and handles one connection at a time. It is suitable for local
+projects and small services; it does not provide an asynchronous event loop,
+TLS, HTTP/2, keep-alive, multipart parsing, or production load guarantees.
+Use a reverse proxy for HTTPS and deployment controls.
 
 ```bpl
 import [App], [Request], [Response] from "bpl-express";
-
+frame hello(_req: *Request, res: *Response) { res.text("Hello BPL"); }
 frame main() {
     local app: App = App.new();
-
-    app.router.get("/", |req: *Request, res: *Response| {
-        res.send("Hello World");
-    });
-
+    app.router.get("/", hello);
     app.listen(3000);
 }
 ```
 
-### Middleware
+Run from this repository with `bun index.ts run your-app.bpl`. Workspace imports
+resolve packages directly. For another project, install the packaged archives:
+`bpl install /path/to/bpl-express-0.1.0.tgz` (its parser dependency is included
+through the manifest's local archive reference).
 
-Middleware functions are executed in order before route handlers. They can modify the request/response or handle cross-cutting concerns like logging.
+`listen(port)` binds **127.0.0.1**. Use `listenOn(port, "0.0.0.0")` to bind all
+IPv4 interfaces. `open(port, host)` returns a listener descriptor for embedding;
+`serveConnection(fd)` handles an accepted descriptor without closing it. The
+caller closes both descriptors. Accepted connections have five-second read
+and write inactivity deadlines (`app.timeout_seconds`). Requests are bounded
+to 16 KiB headers and 1 MiB bodies. Fragmented requests are assembled; unsupported
+request transfer codings return 501. Every response closes the connection.
 
-```bpl
-frame logger(req: *Request, res: *Response) {
-    printf("Request: %s\n", req.path);
-}
+Routes support `get`, `post`, `put`, `delete`, `patch`, `options`, `head`, and
+`on(method, path, handler)`. Parameters use `/users/:id`; a final `*` matches
+remaining path characters. `req.getParam("id")` returns `Option<string>`.
+Query parameters decode percent escapes and `+`; header keys are lowercase.
+`req.header("content-type")` returns an option. `body_length` counts bytes,
+including embedded NULs; `body` is also NUL-terminated for text APIs.
 
-app.use(cast<RouteHandler>(logger));
-```
+`app.use(handler)` runs middleware before routing. A terminal response stops
+processing. `app.useRouter("/api", &router)` mounts a borrowed router: keep it
+alive through `listen`. Subrouters run before parent routes. Each router owns
+its arrays; `destroy()` does not destroy mounted routers or borrowed route paths.
 
-### Sub-Routers
+Responses:
 
-You can create modular routers and mount them at specific paths.
+- `status(code)` and `setHeader(name, value)` are chainable before headers start.
+- `send(text)`, `text(text)`, `html(text)`, and `json(text)` end the response.
+  `json` sets the media type; the caller supplies valid JSON.
+- `sendBytes(buffer, length)` sends binary data.
+- `write(text)` streams chunks; call `end()` afterward. The server also ends
+  unfinished responses when a handler returns. **Migration:** older multi-call
+  `send` handlers must use `write` for intermediate chunks.
+- `redirect(location)` sends a 302 redirect. HEAD suppresses bodies; GET routes
+  are available to HEAD requests. 204 and 304 suppress bodies and framing.
 
-```bpl
-local api: Router = Router.new();
-api.get("/users", list_users);
+Custom headers are emitted. Invalid names, control characters in values, and
+manual framing headers are rejected. Header strings are borrowed through response
+completion. A handler exception before headers produces a generic 500; after
+headers it ends the existing response. Requests own parsed allocations and are
+cleaned up after handling; do not retain their pointers in application state.
 
-# Mounts at /api/users
-app.useRouter("/api", &api);
-```
+`useStatic("/assets", "./public")` serves bounded files (8 MiB maximum), including
+binary files. Canonical paths must remain inside the configured directory;
+symlinks that escape it are rejected. Keep the asset tree trusted and immutable
+while serving: canonicalization is not an atomic filesystem sandbox. Static
+files run before router middleware, so use it for public assets only.
 
-### Wildcard Routes
-
-The router supports wildcard matching using `*`. Matches are checked in registration order.
-
-```bpl
-# Matches /files/a.txt, /files/images/b.png, etc.
-app.router.get("/files/*", file_handler);
-```
-
-### View Engine
-
-BPL Express works seamlessly with **bpl-templ**, a compiled template engine for BPL. `bpl-templ` compiles HTML templates into type-safe BPL structs.
-
-**Installation:**
-
-```bash
-bpl install packages/bpl-templ/bpl-templ-0.1.6.tgz
-```
-
-**Example (`views/home.bte`):**
-
-```html
-@args name: string
-<h1>Hello, {{ name }}!</h1>
-```
-
-**Controller:**
-
-```bpl
-import [Home] from "./views/home.bpl";
-
-app.router.get("/", |req: *Request, res: *Response| {
-    local html: string = Home.render("World");
-    res.html(html);
-});
-```
-
-See [bpl-templ](../bpl-templ/README.md) for full documentation.
+Optional middleware and validation are separate packages. Templates can use
+`bpl-templ`; database integrations can use `bpl-db` or `bpl-sqlite`.

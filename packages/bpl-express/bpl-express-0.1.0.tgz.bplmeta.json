@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-express",
+  "version": "0.1.0",
+  "archiveFile": "bpl-express-0.1.0.tgz",
+  "archiveSha256": "ece85d66829436d62d64f6ef372c2808326468b47d2fd598263c90f05cde0a32",
+  "packageHash": "5c55a2357cbabe6e50793451068f5d55b0cbf73502dc4b50738ac3e7b8178c89",
+  "sizeBytes": 7753,
+  "createdAt": "2026-10-14T15:13:47.857Z",
+  "manifest": {
+    "name": "bpl-express",
+    "version": "0.1.0",
+    "description": "A mini web framework for BPL",
+    "entry": "index.bpl",
+    "dependencies": {
+      "bpl-http-parser": "file:../bpl-http-parser/bpl-http-parser-0.1.0.tgz"
+    }
+  }
+}

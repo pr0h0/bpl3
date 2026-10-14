@@ -1,3 +1,4 @@
+import [HttpParser] from "bpl-http-parser";
 import [Request], [Response], [HttpMethod] from "./http.bpl";
 import [Array] from "std/array.bpl";
 import [Map] from "std/map.bpl";
@@ -98,6 +99,15 @@ struct Router {
         this.routes.push(route);
     }
 
+    frame on(this: *Router, method: HttpMethod, path: string, handler: RouteHandler) {
+        local route: Route; route.method = method; route.path = path; route.handler = handler;
+        this.routes.push(route);
+    }
+    frame patch(this: *Router, path: string, handler: RouteHandler) { this.on(HttpMethod.PATCH, path, handler); }
+    frame options(this: *Router, path: string, handler: RouteHandler) { this.on(HttpMethod.OPTIONS, path, handler); }
+    frame head(this: *Router, path: string, handler: RouteHandler) { this.on(HttpMethod.HEAD, path, handler); }
+    frame destroy(this: *Router) { this.routes.destroy(); this.middlewares.destroy(); this.subrouters.destroy(); }
+
     frame tryHandle(this: *Router, req: *Request, res: *Response) ret bool {
         # Run middlewares
         local m_i: int = 0;
@@ -122,6 +132,7 @@ struct Router {
             if (strncmp(req.path, sr.prefix, prefix_len) == 0) {
                 # Check bounds to ensure we match /prefix/ or /prefix exactly
                 # Avoid matching /prefixfoo
+                local is_root: bool = strcmp(sr.prefix, "/") == 0;
                 local is_exact: bool = (path_len == prefix_len);
                 local is_slash: bool = false;
                 if (!is_exact) {
@@ -129,11 +140,13 @@ struct Router {
                         is_slash = true;
                     }
                 }
-                if (is_exact || is_slash) {
+                if (is_exact || is_slash || is_root) {
                     local old_path: string = req.path;
                     local sub: *Router = cast<*Router>(sr.router);
 
-                    if (is_exact) {
+                    defer { req.path = old_path; }
+                    if (is_root) { req.path = old_path; }
+                    else if (is_exact) {
                         # /prefix -> /
                         req.path = "/";
                     } else {
@@ -157,7 +170,7 @@ struct Router {
         local i: int = 0;
         loop (i < this.routes.len()) {
             local route: Route = this.routes.get(i);
-            if (route.method == req.method) {
+            if (route.method == req.method || (req.method == HttpMethod.HEAD && route.method == HttpMethod.GET)) {
                 if (this.matchPath(route.path, req.path, &req.params)) {
                     route.handler(req, res);
                     return true;
@@ -189,11 +202,12 @@ struct Router {
         local q_len: int = cast<int>(strlen(reqPath));
 
         loop ((r_idx < r_len) && (q_idx < q_len)) {
-            if (routePath[r_idx] == '*') {
-                return true;
+            if (routePath[r_idx] == '*' && r_idx == r_len - 1) {
+                r_idx = r_len; q_idx = q_len; break;
             }
             # Check for parameter
             if (routePath[r_idx] == ':') {
+                if (reqPath[q_idx] == '/' || r_idx + 1 == r_len || routePath[r_idx + 1] == '/') { return false; }
                 # Skip route segment
                 loop ((r_idx < r_len) && (routePath[r_idx] != '/')) {
                     r_idx = r_idx + 1;
@@ -213,8 +227,8 @@ struct Router {
 
         # Check for trailing *
         if (r_idx < r_len) {
-            if (routePath[r_idx] == '*') {
-                return true;
+            if (routePath[r_idx] == '*' && r_idx == r_len - 1) {
+                r_idx = r_len; q_idx = q_len;
             }
         }
         # Check if both ended
@@ -244,6 +258,7 @@ struct Router {
                 local key_str: *char = malloc(cast<ulong>(key_len + 1));
                 local val_str: *char = malloc(cast<ulong>(val_len + 1));
 
+                if (key_str == nullptr || val_str == nullptr) { free(key_str); free(val_str); throw "Route parameter allocation failed"; }
                 local k: int = 0;
                 loop (k < key_len) {
                     key_str[k] = routePath[key_start + k];
@@ -258,7 +273,7 @@ struct Router {
                 }
                 val_str[val_len] = '\0';
 
-                params.set(key_str, val_str);
+                HttpParser.put(params, key_str, val_str);
             } else {
                 r_idx = r_idx + 1;
                 q_idx = q_idx + 1;
