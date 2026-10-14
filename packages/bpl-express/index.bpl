@@ -17,3 +17,8 @@ export strcpy;
 export strcat;
 export strlen;
 export strcmp;
+
+import [Representation], [HttpDate], [ByteRange] from "./src/representation.bpl";
+export [Representation];
+export [HttpDate];
+export [ByteRange];

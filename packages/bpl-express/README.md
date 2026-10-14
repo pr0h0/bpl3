@@ -163,3 +163,26 @@ contains separately validated trailer fields. The request wire buffer allows
 and inactivity deadlines also apply to chunked requests. Requests carrying both
 Content-Length and Transfer-Encoding, duplicate encodings, or forbidden trailer
 fields are rejected before a handler runs.
+
+## Conditional responses and byte ranges
+
+Static assets now emit a weak content ETag, Last-Modified from the open file,
+and Accept-Ranges. If-None-Match takes precedence over If-Modified-Since; matching
+GET/HEAD conditions return 304 without a body. If-Match and If-Unmodified-Since
+fail with 412 before range handling. Static roots retain their trusted immutable
+asset contract; weak FNV-1a validators are cache hints, not cryptographic identities.
+
+One `Range: bytes=start-end`, `bytes=start-` or `bytes=-suffix` is supported for
+GET. Satisfiable ranges return 206 and Content-Range, unsatisfiable single ranges
+return 416 with `bytes */size`. Invalid, unknown-unit and multiple ranges fall
+back to the full response; multipart ranges are not generated. HEAD ignores
+Range and sends full-response metadata without body bytes. If-Range requires a
+matching strong ETag or a usable modification date; weak ETags cause a full
+response. The generic helper accepts caller-supplied strong validators.
+
+`Representation.send(req,res,data,size,etag,modifiedSeconds)` applies the same
+conditional/range logic to a caller-owned binary buffer. Pass nullptr for no
+ETag and -1 for an unknown modification time. Evaluate authorization and resource
+existence before calling it. Its validators describe that exact representation;
+it is not a persistence or authorization mechanism. `HttpDate.format` emits
+IMF-fixdate, and parse also accepts obsolete RFC850/asctime formats.

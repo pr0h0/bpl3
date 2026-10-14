@@ -471,6 +471,16 @@ int32_t __bpl_file_info(const char *path, int32_t follow_links,
     return 0;
 }
 
+/* Read modification time from the already opened file, never a second path lookup. */
+int32_t __bpl_file_modified(int32_t fd, int64_t *seconds) {
+    if (!seconds) return EINVAL;
+    *seconds = 0;
+    struct stat info;
+    if (fstat(fd, &info) != 0) return errno ? errno : EIO;
+    *seconds = (int64_t)info.st_mtime;
+    return 0;
+}
+
 /* Whole-file buffers fit the stdlib's signed int lengths, with room for NUL.
  * Read streams incrementally: procfs, pipes, and changing files need no seek. */
 int32_t __bpl_read_file(const char *path, char **data, int32_t *length) {

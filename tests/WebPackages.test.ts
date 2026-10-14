@@ -155,6 +155,32 @@ test.skipIf(process.platform !== "linux")(
       expect(
         staticResponse.subarray(staticResponse.indexOf("\r\n\r\n") + 4),
       ).toEqual(binary);
+      const staticTag = staticResponse
+        .toString("latin1")
+        .match(/ETag: ([^\r\n]+)/)?.[1];
+      expect(staticTag).toBeDefined();
+      const cached = await request([
+        `GET /assets/data.bin HTTP/1.1\r\nHost: x\r\nIf-None-Match: ${staticTag}\r\n\r\n`,
+      ]);
+      expect(cached.toString("latin1")).toContain("304 Response\r\n");
+      expect(cached.subarray(cached.indexOf("\r\n\r\n") + 4)).toHaveLength(0);
+      const partial = await request([
+        "GET /assets/data.bin HTTP/1.1\r\nHost: x\r\nRange: bytes=1-2\r\n\r\n",
+      ]);
+      expect(partial.toString("latin1")).toContain(
+        "Content-Range: bytes 1-2/4\r\n",
+      );
+      expect(partial.subarray(partial.indexOf("\r\n\r\n") + 4)).toEqual(
+        binary.subarray(1, 3),
+      );
+      const modified = staticResponse
+        .toString("latin1")
+        .match(/Last-Modified: ([^\r\n]+)/)?.[1];
+      expect(modified).toBeDefined();
+      const dated = await request([
+        `GET /assets/data.bin HTTP/1.1\r\nHost: x\r\nIf-Modified-Since: ${modified}\r\n\r\n`,
+      ]);
+      expect(dated.toString("latin1")).toContain("304 Response\r\n");
       for (const path of [
         "/assets/../private.txt",
         "/assets/%2e%2e/private.txt",

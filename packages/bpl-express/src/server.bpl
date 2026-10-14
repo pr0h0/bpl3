@@ -1,3 +1,6 @@
+extern __bpl_file_modified(fd: int, seconds: *long) ret int;
+import [Representation] from "./representation.bpl";
+import [String] from "std/string.bpl";
 import [ShutdownSignals] from "./shutdown.bpl";
 import [TlsContext], [TlsConnection] from "bpl-tls";
 import [Array] from "std/array.bpl";
@@ -556,7 +559,14 @@ struct App {
         req.setState("request.route", "[static]");
         this.static_middleware(req, res);
         if (!res.body_sent) {
-            res.sendBytes(content, size);
+            local tag: String = Representation.tag(content, size);
+            local tagOwner: *String = &tag;
+            defer tagOwner.destroy();
+            local modified: long = -1;
+            if (__bpl_file_modified(file, &modified) != 0) {
+                modified = -1;
+            }
+            Representation.send(req, res, content, size, tag.data, modified);
         }
         return true;
     }
