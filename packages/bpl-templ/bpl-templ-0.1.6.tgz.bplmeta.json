@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-templ",
+  "version": "0.1.6",
+  "archiveFile": "bpl-templ-0.1.6.tgz",
+  "archiveSha256": "f58b55043b7f3b47b1c7ba9d04315720365e393f208dd6937b852f10b874bd8e",
+  "packageHash": "a0dc3085a8650ca2de9ebb7321c8e6ebc5bdd01561c6f905022787f92706ece6",
+  "sizeBytes": 66953,
+  "createdAt": "2026-10-14T15:28:56.014Z",
+  "manifest": {
+    "name": "bpl-templ",
+    "version": "0.1.6",
+    "description": "BPL Template Engine Compiler",
+    "bin": {
+      "bpl-templ": "src/bpl-templ"
+    },
+    "main": "src/html.bpl",
+    "exports": [
+      "src/html.bpl"
+    ]
+  }
+}

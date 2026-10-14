@@ -57,7 +57,7 @@ struct App {
         defer free(buffer);
         local used: long = 0;
         local res: Response = Response.new(fd);
-        defer res.destroy();
+        local cleanup_res: *Response = &res; defer cleanup_res.destroy();
         loop {
             local count: long = read(fd, buffer + used, cast<ulong>(1064960 - used));
             if (count <= 0) { res.status(400).text("Incomplete request"); return; }
@@ -71,7 +71,7 @@ struct App {
                 continue;
             }
             local req: Request = this.fromParsed(&parsed);
-            defer req.destroy();
+            local cleanup_req: *Request = &req; defer cleanup_req.destroy();
             res.head_only = req.method == HttpMethod.HEAD;
             try {
                 if (req.method == HttpMethod.UNKNOWN) { res.status(405).text("Unsupported method"); }

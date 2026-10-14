@@ -153,3 +153,18 @@ Ensure your project links against these.
 ## Example
 
 See `examples/tiki/src/views` for a full usage example in a real application.
+
+## Ownership and composition
+
+`Component.render(...)` returns an owned NUL-terminated buffer. Call
+`Component.free(html)` after sending or otherwise consuming it. For repeated
+rendering, use `Component.write(&builder, ...)` with a shared StringBuilder;
+its caller owns and destroys the builder. Zero-argument templates are supported.
+
+Use `@call Navbar.write(_sb, user)` for allocation-free component composition
+(add the component import in the header). Raw `{{ !expression }}` appends the
+expression verbatim and does not rewrite method calls; manage any returned
+allocations yourself. HTML escaping is for HTML text and quoted attributes,
+not JavaScript, CSS, or URL validation. Raw output must come from trusted markup.
+Unclosed or empty interpolations raise a compilation error. Template files are
+trusted source code: directives and expressions can invoke BPL functions.

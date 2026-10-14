@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync, mkdirSync, symlinkSync } from "node
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
-function native(source: string) {
+function native(source: string, flags: string[] = []) {
   // Keep the source in the repository so workspace package resolution is exercised.
   const dir = mkdtempSync(resolve(".web-package-test-"));
   try {
@@ -12,7 +12,7 @@ function native(source: string) {
     writeFileSync(file, source);
     const exe = join(tmpdir(), `bpl-web-${process.pid}-${dir.split("-").at(-1)}`);
     try {
-      const build = spawnSync("bun", [resolve("index.ts"), "build", file, "-o", exe], { encoding: "utf8", timeout: 60000 });
+      const build = spawnSync("bun", [resolve("index.ts"), "build", file, "-o", exe, ...flags], { encoding: "utf8", timeout: 60000 });
       expect(build.status, build.stdout + build.stderr).toBe(0);
       const run = spawnSync(exe, [], { encoding: "utf8", timeout: 10000 });
       expect(run.status, run.stdout + run.stderr).toBe(0);
@@ -74,7 +74,7 @@ test("Express serves fragmented requests, short-circuits middleware and emits co
       extern strcmp(a:string,b:string) ret int;
       frame gate(req:*Request,res:*Response) { if(strcmp(req.path,"/blocked")==0){res.status(403).send("blocked");} }
       frame blocked(_req:*Request,res:*Response) { res.send("WRONG"); }
-      frame echo(req:*Request,res:*Response) {res.setHeader("X-Custom","works");res.sendBytes(req.body,req.body_length);}
+      frame echo(req:*Request,res:*Response) {res.setHeader("X-Custom","works");res.setHeader("X-Long","xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");res.sendBytes(req.body,req.body_length);}
       frame hello(_req:*Request,res:*Response) {res.text("hello");}
       frame stream(_req:*Request,res:*Response) {res.write("a");res.write("b");res.end();}
       frame fail(_req:*Request,_res:*Response) {throw "private error";}
@@ -221,7 +221,7 @@ test("HTTP client sends custom headers and reads a fragmented binary response ov
       extern strcmp(a:string,b:string) ret int;
       frame main() ret int {
         local request:RequestBuilder=RequestBuilder.new("http://127.0.0.1:${address.port}/test");
-        request.header("X-Example","sent");local response:*HttpResponse=request.send();
+        request.header("X-Example","sent");request.header("X-Long","xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");local response:*HttpResponse=request.send();
         if(response.status!=200||response.body_length!=4||response.body[0]!=65||response.body[1]!=0||cast<u8>(response.body[2])!=255||response.body[3]!=66){return 1;}
         if(strcmp(response.headers.get("X-RESULT").unwrap(),"yes")!=0){return 2;}
         response.destroy();request.destroy();return 0;
@@ -237,4 +237,33 @@ test("HTTP client sends custom headers and reads a fragmented binary response ov
     expect(received).toContain("x-example: sent\r\n");
     expect(received).toContain(`Host: 127.0.0.1:${address.port}\r\n`);
   } finally { server.close(); rmSync(dir, { recursive: true, force: true }); }
+}, 90000);
+
+test("template compiler emits valid zero-argument components and escaped UTF-8 HTML", () => {
+  const dir = mkdtempSync(resolve(".web-package-test-"));
+  try {
+    mkdirSync(join(dir, "views")); mkdirSync(join(dir, "output"));
+    writeFileSync(join(dir, "views", "empty.bte"), "<h1>Hello</h1>\n");
+    writeFileSync(join(dir, "views", "greeting.bte"), '@args name: string\n<p>{{ name }}</p>\n');
+    const tool = join(dir, "templ");
+    const build = spawnSync("bun", [resolve("index.ts"), "build", resolve("packages/bpl-templ/src/cli.bpl"), "-o", tool], { encoding: "utf8", timeout: 60000 });
+    expect(build.status, build.stdout + build.stderr).toBe(0);
+    const generation = spawnSync(tool, ["generate", join(dir, "views"), "-o", join(dir, "output")], { encoding: "utf8", timeout: 10000 });
+    expect(generation.status, generation.stdout + generation.stderr).toBe(0);
+    expect(generation.stdout).not.toContain("DEBUG");
+    native(`
+      import [Empty] from "${dir}/output/empty.bpl";
+      import [Greeting] from "${dir}/output/greeting.bpl";
+      import [StringBuilder] from "std/string_builder.bpl";
+      extern strstr(a:string,b:string) ret string;
+      frame main() ret int {
+        local html:string=Empty.render();if(strstr(html,"<h1>Hello</h1>")==nullptr){return 1;}Empty.free(html);
+        local sb:StringBuilder=StringBuilder.new(8);Greeting.write(&sb,"<λ&\\\"'>");
+        if(strstr(sb.toString(),"&lt;λ&amp;&quot;&#39;&gt;")==nullptr){return 2;}sb.destroy();return 0;
+      }
+    `);
+    writeFileSync(join(dir, "views", "broken.bte"), '<p>{{ missing\n');
+    const malformed = spawnSync(tool, ["generate", join(dir, "views"), "-o", join(dir, "output")], { encoding: "utf8", timeout: 10000 });
+    expect(malformed.status).not.toBe(0);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 }, 90000);

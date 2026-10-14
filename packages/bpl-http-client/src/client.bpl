@@ -112,7 +112,7 @@ frame executeRequest(req:*RequestBuilder) ret *HttpResponse {
     local addr:sockaddr_in;memset(&addr,0,sizeof<sockaddr_in>());addr.sin_family=2;addr.sin_port=htons(cast<ushort>(url.port));memcpy(&addr.sin_addr,server.h_addr_list[0],4);
     if(connect(fd,&addr,16)<0){return HttpResponse.failure("Connection failed");}
     local method:string="GET";match(req.method){HttpMethod.GET=>{},HttpMethod.POST=>method="POST",HttpMethod.PUT=>method="PUT",HttpMethod.DELETE=>method="DELETE",HttpMethod.PATCH=>method="PATCH",HttpMethod.OPTIONS=>method="OPTIONS",HttpMethod.HEAD=>method="HEAD",HttpMethod.CUSTOM=>method=req.custom_method,};
-    local sb:StringBuilder=StringBuilder.new(256);defer sb.destroy();local number:char[32];
+    local sb:StringBuilder=StringBuilder.new(256);local cleanup_sb:*StringBuilder=&sb;defer cleanup_sb.destroy();local number:char[32];
     sb.append(method);sb.append(" ");sb.append(url.path);sb.append(" HTTP/1.1\r\nHost: ");sb.append(url.host);
     if(url.port!=80){sprintf(cast<string>(&number[0]),":%d",url.port);sb.append(cast<string>(&number[0]));}
     sb.append("\r\nConnection: close\r\n");
