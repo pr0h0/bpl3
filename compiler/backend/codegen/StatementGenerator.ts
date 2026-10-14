@@ -3284,7 +3284,9 @@ export abstract class StatementGenerator extends AsmGenerator {
       ) {
         linkage += "linkonce_odr ";
       }
-      if (this.optimizationLevel >= 2) {
+      // Weak ODR definitions can be preempted in a shared library. Claiming
+      // dso_local makes i386 emit direct calls requiring text relocations.
+      if (this.optimizationLevel >= 2 && !linkage.includes("linkonce_odr")) {
         linkage += "dso_local ";
       }
       let dbgSuffix = "";

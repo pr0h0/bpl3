@@ -1329,7 +1329,7 @@ describe("CodeGenerator", () => {
     expect(ir).toContain("%struct.Type = type");
     expect(ir).toContain("@Type_vtable =");
     expect(ir).toContain("bitcast ([3 x i8*]* @Type_vtable to i8*)");
-    expect(ir).toContain("define linkonce_odr dso_local i8* @Type_getTypeName_Type_ptr");
+    expect(ir).toContain("define linkonce_odr i8* @Type_getTypeName_Type_ptr");
   });
 
   it("keeps internal runtime helper declarations when generated IR uses them", () => {
