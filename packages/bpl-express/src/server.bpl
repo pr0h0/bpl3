@@ -1,5 +1,7 @@
 import [ShutdownSignals] from "./shutdown.bpl";
 import [TlsContext], [TlsConnection] from "bpl-tls";
+import [Array] from "std/array.bpl";
+import getpeername, inet_ntop from "./libc.bpl";
 import [Map] from "std/map.bpl";
 import [Router], [RouteHandler] from "./router.bpl";
 import [Request], [Response], [HttpMethod] from "./http.bpl";
@@ -20,6 +22,8 @@ frame defaultWorkerShutdown() {
 
 struct App {
     router: Router,
+    before_requests: Array<RouteHandler>,
+    after_requests: Array<RouteHandler>,
     tls: *TlsContext,
     port: int,
     shutdown_timeout_seconds: long,
@@ -32,6 +36,8 @@ struct App {
     frame new() ret App {
         local app: App;
         app.router = Router.new();
+        app.before_requests = Array<RouteHandler>.new(4);
+        app.after_requests = Array<RouteHandler>.new(4);
         app.tls = nullptr;
         app.port = 3000;
         app.shutdown_timeout_seconds = 10;
@@ -42,6 +48,22 @@ struct App {
         app.timeout_seconds = 5;
         app.request_timeout_seconds = 10;
         return app;
+    }
+    frame beforeRequest(this: *App, handler: RouteHandler) {
+        this.before_requests.push(handler);
+    }
+    frame afterRequest(this: *App, handler: RouteHandler) {
+        this.after_requests.push(handler);
+    }
+    frame complete(this: *App, req: *Request, res: *Response) {
+        loop (local i: int = 0; i < this.after_requests.len(); i = i + 1) {
+            local observer: RouteHandler = this.after_requests.get(i);
+            try {
+                observer(req, res);
+            } catch {
+                printf("HTTP completion observer failed\n");
+            }
+        }
     }
     frame onWorkerShutdown(this: *App, handler: Func<void>()) {
         this.worker_shutdown = handler;
@@ -290,7 +312,8 @@ struct App {
         if ((this.timeout_seconds < 1) || (this.timeout_seconds > 300) || (this.request_timeout_seconds < 1) || (this.request_timeout_seconds > 300)) {
             throw "HTTP deadlines must be 1 to 300 seconds";
         }
-        local deadline: long = App.monotonicMilliseconds() + (this.request_timeout_seconds * 1000);
+        local started: long = App.monotonicMilliseconds();
+        local deadline: long = started + (this.request_timeout_seconds * 1000);
         local timeout: timeval;
         timeout.tv_sec = this.timeout_seconds;
         timeout.tv_usec = 0;
@@ -380,15 +403,32 @@ struct App {
             local req: Request = this.fromParsed(&parsed);
             local cleanup_req: *Request = &req;
             defer cleanup_req.destroy();
+            req.started_at = started;
+            local address: sockaddr_in;
+            local address_size: uint = cast<uint>(sizeof<sockaddr_in>());
+            if ((getpeername(fd, &address, &address_size) == 0) && (address.sin_family == 2)) {
+                inet_ntop(2, &address.sin_addr, cast<string>(&req.peer_ip[0]), 16);
+            }
+            defer this.complete(cleanup_req, cleanup_res);
             res.head_only = req.method == HttpMethod.HEAD;
             try {
-                if (req.method == HttpMethod.UNKNOWN) {
-                    res.status(405).text("Unsupported method");
-                } else if (!this.tryServeStatic(&req, &res)) {
-                    this.router.handle(&req, &res);
+                loop (local i: int = 0; i < this.before_requests.len(); i = i + 1) {
+                    local ware: RouteHandler = this.before_requests.get(i);
+                    ware(&req, &res);
+                    if (res.body_sent) {
+                        break;
+                    }
+                }
+                if (!res.body_sent) {
+                    if (req.method == HttpMethod.UNKNOWN) {
+                        res.status(405).text("Unsupported method");
+                    } else if (!this.tryServeStatic(&req, &res)) {
+                        this.router.handle(&req, &res);
+                    }
                 }
                 res.end();
             } catch {
+                res.handler_failed = true;
                 if (!res.headers_sent) {
                     res.status(500).text("Internal server error");
                 } else {
@@ -492,6 +532,7 @@ struct App {
             res.setHeader("Content-Type", "application/javascript");
         }
         res.setHeader("X-Content-Type-Options", "nosniff");
+        req.setState("request.route", "[static]");
         this.static_middleware(req, res);
         if (!res.body_sent) {
             res.sendBytes(content, size);
@@ -508,6 +549,8 @@ struct App {
         req.query = parsed.query;
         req.params = parsed.params;
         req.state = Map<string, string>.new();
+        req.peer_ip[0] = 0;
+        req.started_at = 0;
         req.method = HttpMethod.UNKNOWN;
         if (strcmp(parsed.method, "GET") == 0) {
             req.method = HttpMethod.GET;
@@ -538,5 +581,7 @@ struct App {
     }
     frame destroy(this: *App) {
         this.router.destroy();
+        this.before_requests.destroy();
+        this.after_requests.destroy();
     }
 }

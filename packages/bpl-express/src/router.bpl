@@ -19,6 +19,7 @@ struct SubRouter {
     prefix: string,
     router: *void,
     # *Router
+    # *Router
 }
 
 frame defaultNotFoundHandler(_req: *Request, res: *Response) {
@@ -100,13 +101,26 @@ struct Router {
     }
 
     frame on(this: *Router, method: HttpMethod, path: string, handler: RouteHandler) {
-        local route: Route; route.method = method; route.path = path; route.handler = handler;
+        local route: Route;
+        route.method = method;
+        route.path = path;
+        route.handler = handler;
         this.routes.push(route);
     }
-    frame patch(this: *Router, path: string, handler: RouteHandler) { this.on(HttpMethod.PATCH, path, handler); }
-    frame options(this: *Router, path: string, handler: RouteHandler) { this.on(HttpMethod.OPTIONS, path, handler); }
-    frame head(this: *Router, path: string, handler: RouteHandler) { this.on(HttpMethod.HEAD, path, handler); }
-    frame destroy(this: *Router) { this.routes.destroy(); this.middlewares.destroy(); this.subrouters.destroy(); }
+    frame patch(this: *Router, path: string, handler: RouteHandler) {
+        this.on(HttpMethod.PATCH, path, handler);
+    }
+    frame options(this: *Router, path: string, handler: RouteHandler) {
+        this.on(HttpMethod.OPTIONS, path, handler);
+    }
+    frame head(this: *Router, path: string, handler: RouteHandler) {
+        this.on(HttpMethod.HEAD, path, handler);
+    }
+    frame destroy(this: *Router) {
+        this.routes.destroy();
+        this.middlewares.destroy();
+        this.subrouters.destroy();
+    }
 
     frame tryHandle(this: *Router, req: *Request, res: *Response) ret bool {
         # Run middlewares
@@ -144,9 +158,12 @@ struct Router {
                     local old_path: string = req.path;
                     local sub: *Router = cast<*Router>(sr.router);
 
-                    defer { req.path = old_path; }
-                    if (is_root) { req.path = old_path; }
-                    else if (is_exact) {
+                    defer {
+                        req.path = old_path;
+                    }
+                    if (is_root) {
+                        req.path = old_path;
+                    } else if (is_exact) {
                         # /prefix -> /
                         req.path = "/";
                     } else {
@@ -171,16 +188,19 @@ struct Router {
         if (req.method == HttpMethod.HEAD) {
             loop (local h: int = 0; h < this.routes.len(); h = h + 1) {
                 local candidate: Route = this.routes.get(h);
-                if (candidate.method == HttpMethod.HEAD && this.matchPath(candidate.path, req.path, &req.params)) {
-                    candidate.handler(req, res); return true;
+                if ((candidate.method == HttpMethod.HEAD) && this.matchPath(candidate.path, req.path, &req.params)) {
+                    req.setState("request.route", candidate.path);
+                    candidate.handler(req, res);
+                    return true;
                 }
             }
         }
         local i: int = 0;
         loop (i < this.routes.len()) {
             local route: Route = this.routes.get(i);
-            if (route.method == req.method || (req.method == HttpMethod.HEAD && route.method == HttpMethod.GET)) {
+            if ((route.method == req.method) || ((req.method == HttpMethod.HEAD) && (route.method == HttpMethod.GET))) {
                 if (this.matchPath(route.path, req.path, &req.params)) {
+                    req.setState("request.route", route.path);
                     route.handler(req, res);
                     return true;
                 }
@@ -211,12 +231,16 @@ struct Router {
         local q_len: int = cast<int>(strlen(reqPath));
 
         loop ((r_idx < r_len) && (q_idx < q_len)) {
-            if (routePath[r_idx] == '*' && r_idx == r_len - 1) {
-                r_idx = r_len; q_idx = q_len; break;
+            if ((routePath[r_idx] == '*') && (r_idx == (r_len - 1))) {
+                r_idx = r_len;
+                q_idx = q_len;
+                break;
             }
             # Check for parameter
             if (routePath[r_idx] == ':') {
-                if (reqPath[q_idx] == '/' || r_idx + 1 == r_len || routePath[r_idx + 1] == '/') { return false; }
+                if ((reqPath[q_idx] == '/') || ((r_idx + 1) == r_len) || (routePath[r_idx + 1] == '/')) {
+                    return false;
+                }
                 # Skip route segment
                 loop ((r_idx < r_len) && (routePath[r_idx] != '/')) {
                     r_idx = r_idx + 1;
@@ -236,8 +260,9 @@ struct Router {
 
         # Check for trailing *
         if (r_idx < r_len) {
-            if (routePath[r_idx] == '*' && r_idx == r_len - 1) {
-                r_idx = r_len; q_idx = q_len;
+            if ((routePath[r_idx] == '*') && (r_idx == (r_len - 1))) {
+                r_idx = r_len;
+                q_idx = q_len;
             }
         }
         # Check if both ended
@@ -267,7 +292,11 @@ struct Router {
                 local key_str: *char = malloc(cast<ulong>(key_len + 1));
                 local val_str: *char = malloc(cast<ulong>(val_len + 1));
 
-                if (key_str == nullptr || val_str == nullptr) { free(key_str); free(val_str); throw "Route parameter allocation failed"; }
+                if ((key_str == nullptr) || (val_str == nullptr)) {
+                    free(key_str);
+                    free(val_str);
+                    throw "Route parameter allocation failed";
+                }
                 local k: int = 0;
                 loop (k < key_len) {
                     key_str[k] = routePath[key_start + k];

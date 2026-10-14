@@ -34,3 +34,35 @@ bare key has an empty value. The form owns its strings; `destroy()` releases
 all fields. Verify the request content type yourself. Multipart uploads are
 not supported. Forms and cookie-authenticated mutations need an application
 CSRF policy; this package does not implement sessions or authentication.
+
+## Request IDs and completion logs
+
+```bpl
+import requestId, accessLog from "bpl-web-middleware";
+app.beforeRequest(requestId);
+app.afterRequest(accessLog);
+```
+
+Before-request middleware runs on every successfully parsed request, including
+static assets, and short-circuits when a response is sent. Completion observers
+run after the response attempt, before request/response destruction. Observer
+exceptions are contained and produce a generic diagnostic. App.use and router
+middleware keep their routing behavior.
+
+requestId generates a process/monotonic-time/sequence ID, stores request.id in
+private request state, and sets X-Request-ID. Incoming IDs are not trusted. The
+ID is for correlation, not a secret or an authentication token. accessLog writes
+one bounded JSON line with that ID, method, registered route pattern (relative
+inside mounted routers), status, duration, timestamp, and handler/I/O failure
+flags. Static routes use [static], and unmatched routes use [unmatched]. Actual
+URL parameter values, query strings, headers, bodies, and exception messages are
+omitted. Duration includes TLS/request assembly and response writes after accept.
+Malformed HTTP and failed TLS handshakes do not have parsed-request middleware
+records. Startup/observer diagnostics are separate plain-text messages.
+
+AccessLog.write(req,res,fd) selects a caller-owned log descriptor and returns
+false on failed/partial writes. Records are at most Linux PIPE_BUF bytes and use
+one write so worker JSON records are not interleaved on a shared pipe. A blocking
+log sink can delay a worker; use a dedicated nonblocking pipe if the consumer can
+stall, and monitor dropped records. Log collection and retention are deployment
+choices, not services loaded into the framework.

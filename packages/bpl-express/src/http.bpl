@@ -37,6 +37,8 @@ frame writeAll(fd: int, data: string, size: long) ret bool {
 
 struct Request {
     method: HttpMethod,
+    peer_ip: char[16],
+    started_at: long,
     path: string,
     query: Map<string, string>,
     headers: Map<string, string>,
@@ -47,6 +49,8 @@ struct Request {
     frame new() ret Request {
         local req: Request;
         req.method = HttpMethod.UNKNOWN;
+        req.peer_ip[0] = 0;
+        req.started_at = 0;
         req.path = nullptr;
         req.body = nullptr;
         req.body_length = 0;
@@ -55,6 +59,10 @@ struct Request {
         req.params = Map<string, string>.new();
         req.state = Map<string, string>.new();
         return req;
+    }
+    # Socket peer, never derived from forwarding headers. Empty in synthetic requests.
+    frame peerAddress(this: *Request) ret string {
+        return cast<string>(&this.peer_ip[0]);
     }
     frame getParam(this: *Request, key: string) ret Option<string> {
         return this.params.get(key);
@@ -90,6 +98,7 @@ struct Response {
     is_chunked: bool,
     head_only: bool,
     io_failed: bool,
+    handler_failed: bool,
     frame new(fd: int) ret Response {
         local res: Response;
         res.client_fd = fd;
@@ -102,6 +111,7 @@ struct Response {
         res.is_chunked = false;
         res.head_only = false;
         res.io_failed = false;
+        res.handler_failed = false;
         return res;
     }
     frame status(this: *Response, code: int) ret *Response {

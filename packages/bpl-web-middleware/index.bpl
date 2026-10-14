@@ -104,3 +104,8 @@ struct Form {
         releaseStrings(&this.fields);
     }
 }
+
+import [AccessLog], requestId, accessLog from "./logging.bpl";
+export [AccessLog];
+export requestId;
+export accessLog;

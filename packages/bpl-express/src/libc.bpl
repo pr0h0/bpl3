@@ -99,3 +99,8 @@ export [timespec];
 export [pollfd];
 extern kill(pid: int, signal: int) ret int;
 export kill;
+
+extern getpeername(fd: int, address: *sockaddr_in, size: *uint) ret int;
+extern inet_ntop(family: int, address: *void, buffer: string, size: uint) ret string;
+export getpeername;
+export inet_ntop;
