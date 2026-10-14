@@ -450,6 +450,32 @@ test.skipIf(
         expect(bad.status).toBe(attempt < 10 ? 401 : 429);
         await bad.text();
       }
+
+      // Exhaust one socket peer without locking the same username for another peer.
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const denied = await request("/auth/login", "POST", {}, undefined);
+        await denied.text();
+      }
+      const peerBlocked = await request(
+        "/auth/login",
+        "POST",
+        { username: "unknown", password: "wrong-test-password" },
+        undefined,
+      );
+      expect(peerBlocked.status).toBe(429);
+      await peerBlocked.text();
+      const otherPeer = spawnSync(
+        "node",
+        [
+          "-e",
+          `const http=require('node:http');const body=JSON.stringify({username:'unknown',password:'wrong-test-password'});const req=http.request({host:'127.0.0.1',port:Number(process.argv[1]),path:'/auth/login',method:'POST',localAddress:'127.0.0.2',agent:false,headers:{Origin:process.argv[2],'Content-Type':'application/json','Content-Length':Buffer.byteLength(body),'X-Forwarded-For':'127.0.0.1'}},res=>{res.resume();res.on('end',()=>{if(req.socket.localAddress!=='127.0.0.2')process.exit(2);console.log(res.statusCode);});});req.on('error',()=>process.exit(3));req.end(body);`,
+          String(port),
+          origin,
+        ],
+        { encoding: "utf8", timeout: 10000 },
+      );
+      expect(otherPeer.status, otherPeer.stderr).toBe(0);
+      expect(otherPeer.stdout.trim()).toBe("401");
     } catch (error) {
       child?.kill();
       if (child) {

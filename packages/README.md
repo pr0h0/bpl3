@@ -17,9 +17,10 @@ packages/package-name -o packages/package-name` before distributing them.
 | [bpl-validation](bpl-validation/README.md) | Input rules and JSON field errors | None |
 | [bpl-web-middleware](bpl-web-middleware/README.md) | Headers, explicit CORS, JSON checks, forms | Uses bpl-express |
 | [bpl-tls](bpl-tls/README.md) | Native TLS transport with verified client connections | OpenSSL 3 runtime, loaded on use |
+| [bpl-rate-limit](bpl-rate-limit/README.md) | Shared request throttling middleware | SQLite 3.35+ |
 | [bpl-auth](bpl-auth/README.md) | Passwords, revocable sessions, CSRF | SQLite and libsodium |
 | [bpl-csv](bpl-csv/README.md) | Optional CSV downloads and reports | None |
-| [bpl-sqlite](bpl-sqlite/README.md) | Prepared statements and transactions | Link native SQLite |
+| [bpl-sqlite](bpl-sqlite/README.md) | Prepared statements, migrations, WAL and online backups | Link native SQLite |
 
 Start with the [college task board](../examples/college_web/README.md). Handler
 signatures follow the familiar Express/Gin pattern: `frame handler(req:
@@ -49,8 +50,8 @@ keep-alive, HTTP/2, or multipart uploads. Native HTTPS is available through
 provides bounded process concurrency with private worker memory. The optional
 bpl-auth package supplies password/session/CSRF handling; application queries
 still enforce ownership. It does not include email verification, reset/MFA,
-roles, a connection pool, or a general migration system. The college example
-performs only its specific anonymous-task ownership migration. Transfer-encoded
+roles, a connection pool, or an ORM. The SQLite package offers versioned callback migrations and online
+backups; the college example uses a migration for anonymous-task ownership. Transfer-encoded
 request bodies are rejected explicitly. Public deployment still needs configured certificates and HTTPS,
 traffic management, backups, monitoring, and workload testing. These modules do
 not establish parity with mature frameworks or guarantee a bug-free deployment.

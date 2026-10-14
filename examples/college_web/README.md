@@ -27,6 +27,9 @@ previous session for that account; signing out revokes the current session.
 | PORT | 3000, integer 1–65535 |
 | BPL_WEB_DB | college.sqlite in the working directory |
 | BPL_WEB_WORKERS | 2, integer 1–8 |
+| BPL_WEB_WAL | 0 leaves journal mode unchanged; 1 enables WAL before migrations |
+| BPL_WEB_ACCESS_LOG | 0; 1 enables JSON completion logs; request IDs are always generated |
+| BPL_WEB_API_LIMIT | 240 API requests per socket peer per minute, health excluded |
 | BPL_WEB_ORIGIN | http://127.0.0.1:PORT, or https with native TLS; must exactly match the browser origin |
 | BPL_WEB_TLS_CERT | Unset; PEM certificate chain path enables native HTTPS with the key |
 | BPL_WEB_TLS_KEY | Unset; matching unencrypted PEM private key path |
@@ -139,3 +142,33 @@ native HTTPS and asserts Secure session cookies. A disposable self-signed local
 fixture can use `BPL_BROWSER_SELF_SIGNED=1` to bypass browser certificate trust
 for that test only. Default browser tests enforce certificate trust. Native TLS
 regressions separately verify trusted chains, DNS/IP matching, and expiry.
+
+## Operational helpers
+
+Task schema changes use versioned Migrations.apply before workers start. Existing
+anonymous rows remain preserved and hidden. BPL_WEB_WAL=1 opts into SQLite WAL;
+its shared-memory/journal files must stay with the live database. Login throttles
+are per socket peer and peer/username pair. API limits are also per real socket
+peer; forwarding headers cannot evade them. Behind a proxy, peers share the proxy
+address, so configure a validated identity policy before using these defaults.
+
+SIGTERM/SIGINT drain active worker requests for up to ten seconds. Worker cleanup
+closes authentication and database services. Stuck workers are killed after the
+grace period; an unexpected supervisor death also terminates workers. Optional
+completion logs omit request secrets and include generated IDs, route patterns,
+status, timing, and handler/I/O failure flags. Configure a reliable log sink;
+blocking log collection can delay a worker.
+
+Build the separate backup helper from the repository root:
+
+```bash
+bun index.ts build examples/college_web/backup.bpl --clang-flag=-l:libsqlite3.so.0 -o /tmp/college-backup
+/tmp/college-backup /absolute/path/college.sqlite /absolute/path/new-snapshot.sqlite
+```
+
+It opens the source read-only, checks integrity, backs up live committed data
+(including WAL), and verifies the resulting snapshot. Existing destinations are
+never overwritten. Keep backups private. For restore, stop all workers, validate
+a snapshot in an isolated directory, replace the database offline, and exercise
+app reads/writes before serving traffic. Do not copy only the main file of a live
+WAL database. See [SQLite package](../../packages/bpl-sqlite/README.md) for contracts.

@@ -1,8 +1,8 @@
 import [App], [Router], [Request], [Response], [HttpMethod] from "bpl-express";
 import [Auth] from "bpl-auth";
-import [SQLite], [Statement] from "bpl-sqlite";
+import [SQLite], [Statement], [Migrations] from "bpl-sqlite";
 import [Validator] from "bpl-validation";
-import securityHeaders, requireJson from "bpl-web-middleware";
+import securityHeaders, requireJson, requestId, accessLog from "bpl-web-middleware";
 import [JSON] from "std/json.bpl";
 import [String] from "std/string.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
@@ -11,17 +11,13 @@ import [Option] from "std/option.bpl";
 import [Env] from "std/env.bpl";
 extern umask(mask: uint) ret uint;
 extern chmod(path: string, mode: uint) ret int;
-extern malloc(size: long) ret *void;
-extern free(ptr: *void);
-extern strcmp(a: string, b: string) ret int;
-extern strncmp(a: string, b: string, size: ulong) ret int;
-extern strlen(text: string) ret long;
-extern sprintf(out: string, format: string, ...) ret int;
+import malloc, free, strcmp, strlen, strncmp, sprintf from "std/c.bpl";
 
 global database: *SQLite;
 global authentication: *Auth;
 global allowedOrigin: string;
 global secureCookies: bool;
+global apiMaximum: int;
 struct TaskInput {
     title: string,
     done: bool,
@@ -226,6 +222,11 @@ frame deleteTask(req: *Request, res: *Response) {
     }
     res.status(204).end();
 }
+frame apiBudget(req: *Request, res: *Response) {
+    if ((strncmp(req.path, "/api/", 5) == 0) && (strcmp(req.path, "/api/health") != 0)) {
+        authentication.limiter.apply(req, res, "api.peer", apiMaximum, 60);
+    }
+}
 frame requireAuth(req: *Request, res: *Response) {
     if (strcmp(req.path, "/health") != 0) {
         authentication.require(req, res);
@@ -260,9 +261,9 @@ frame initializeWorker() {
     }
     *authentication = Auth.new(database, allowedOrigin, secureCookies);
 }
-frame migrate() {
-    database.exec("CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY,title TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0 CHECK(done IN (0,1)),owner_id INTEGER REFERENCES auth_users(id))");
-    local columns: Statement = database.prepare("PRAGMA table_info(tasks)");
+frame tasksSchema(db: *SQLite) {
+    db.exec("CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY,title TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0 CHECK(done IN (0,1)),owner_id INTEGER REFERENCES auth_users(id))");
+    local columns: Statement = db.prepare("PRAGMA table_info(tasks)");
     local hasOwner: bool = false;
     loop (columns.step()) {
         if (strcmp(columns.text(1), "owner_id") == 0) {
@@ -271,19 +272,36 @@ frame migrate() {
     }
     columns.close();
     if (!hasOwner) {
-        database.exec("ALTER TABLE tasks ADD COLUMN owner_id INTEGER REFERENCES auth_users(id)");
+        db.exec("ALTER TABLE tasks ADD COLUMN owner_id INTEGER REFERENCES auth_users(id)");
     }
-    database.exec("CREATE INDEX IF NOT EXISTS tasks_owner ON tasks(owner_id,id)");
+    db.exec("CREATE INDEX IF NOT EXISTS tasks_owner ON tasks(owner_id,id)");
+}
+frame migrate() {
+    Migrations.apply(database, 1, "tasks-ownership", "tasks-ownership-v1", tasksSchema);
+}
+frame cleanupWorker() {
+    if (authentication != nullptr) {
+        authentication.destroy();
+        free(authentication);
+        authentication = nullptr;
+    }
+    if (database != nullptr) {
+        database.close();
+        free(database);
+        database = nullptr;
+    }
 }
 frame main() {
     umask(63);
     local config: Validator = Validator.new();
     local port: Option<int> = config.integer("PORT", Env.getOr("PORT", "3000"), 1, 65535);
     local workers: Option<int> = config.integer("BPL_WEB_WORKERS", Env.getOr("BPL_WEB_WORKERS", "2"), 1, 8);
+    local apiLimit: Option<int> = config.integer("BPL_WEB_API_LIMIT", Env.getOr("BPL_WEB_API_LIMIT", "240"), 1, 1000000);
     if (!config.ok()) {
         config.destroy();
-        throw "Invalid PORT or BPL_WEB_WORKERS";
+        throw "Invalid PORT, BPL_WEB_WORKERS or BPL_WEB_API_LIMIT";
     }
+    apiMaximum = apiLimit.unwrap();
     config.destroy();
     local certificateFile: string = Env.getOr("BPL_WEB_TLS_CERT", "");
     local keyFile: string = Env.getOr("BPL_WEB_TLS_KEY", "");
@@ -302,7 +320,14 @@ frame main() {
         throw "Native HTTPS requires an HTTPS BPL_WEB_ORIGIN";
     }
     secureCookies = strcmp(Env.getOr("BPL_WEB_SECURE_COOKIES", "0"), "1") == 0;
+    local wal: string = Env.getOr("BPL_WEB_WAL", "0");
+    if ((strcmp(wal, "0") != 0) && (strcmp(wal, "1") != 0)) {
+        throw "Invalid BPL_WEB_WAL";
+    }
     initializeWorker();
+    if (strcmp(wal, "1") == 0) {
+        database.setWAL(true);
+    }
     migrate();
     authentication.destroy();
     free(authentication);
@@ -314,6 +339,12 @@ frame main() {
     local app: App = App.new();
     local appOwner: *App = &app;
     defer appOwner.destroy();
+    app.onWorkerShutdown(cleanupWorker);
+    app.beforeRequest(requestId);
+    app.beforeRequest(apiBudget);
+    if (strcmp(Env.getOr("BPL_WEB_ACCESS_LOG", "0"), "1") == 0) {
+        app.afterRequest(accessLog);
+    }
     app.use(webHeaders);
     app.useStaticMiddleware(webHeaders);
     app.useStatic("/", "public");

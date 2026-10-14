@@ -5,6 +5,7 @@ import {
   writeFileSync,
   rmSync,
   statSync,
+  readFileSync,
   existsSync,
   readdirSync,
 } from "node:fs";
@@ -72,6 +73,45 @@ frame main()ret int{
       expect(build.status, build.stdout + build.stderr).toBe(0);
       const run = spawnSync(exe, [], { encoding: "utf8", timeout: 15000 });
       expect(run.status, run.stdout + run.stderr).toBe(0);
+
+      const helper = join(dir, "backup-helper");
+      const helperBuild = spawnSync(
+        "bun",
+        [
+          resolve("index.ts"),
+          "build",
+          resolve("examples/college_web/backup.bpl"),
+          "--clang-flag=-l:libsqlite3.so.0",
+          "-o",
+          helper,
+        ],
+        { encoding: "utf8", timeout: 60000 },
+      );
+      expect(helperBuild.status, helperBuild.stdout + helperBuild.stderr).toBe(
+        0,
+      );
+      const helperBackup = join(dir, "helper.sqlite");
+      const helperRun = spawnSync(helper, [path, helperBackup], {
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      expect(helperRun.status, helperRun.stdout + helperRun.stderr).toBe(0);
+      expect(helperRun.stdout).toContain("Backup verified");
+      const before = readFileSync(backup);
+      expect(
+        spawnSync(helper, [path, backup], { encoding: "utf8", timeout: 15000 })
+          .status,
+      ).toBe(1);
+      expect(readFileSync(backup)).toEqual(before);
+      const absent = join(dir, "absent-source.sqlite");
+      expect(
+        spawnSync(helper, [absent, join(dir, "absent-backup.sqlite")], {
+          encoding: "utf8",
+          timeout: 15000,
+        }).status,
+      ).toBe(1);
+      expect(existsSync(absent)).toBe(false);
+      expect(existsSync(join(dir, "absent-backup.sqlite"))).toBe(false);
       expect(statSync(backup).mode & 0o777).toBe(0o600);
       expect(existsSync(missing)).toBe(false);
       expect(existsSync(join(dir, "in-tx.sqlite"))).toBe(false);
