@@ -51,13 +51,15 @@ replaces the user's previous session; there is one active session per account.
 Logout deletes the session and expires the cookie. Invalid/duplicate session
 cookies are rejected.
 
-Limits are persisted in SQLite and shared across workers: 40 login/register
-attempts per minute across the app and 10 login attempts per username per minute,
-including successful attempts. They return 429 with Retry-After. These simple
-fixed-window limits can deny legitimate users during abuse; they are not a full
-traffic management system. Rate limits per client/network should be enforced
-at a trusted reverse proxy for a public deployment. Never trust arbitrary
-forwarded-IP headers. Request credentials are bounded to 2 KiB. Recognized
+Limits use the optional [bpl-rate-limit](../bpl-rate-limit/README.md) middleware
+store and are shared across workers: 40 login/register attempts per socket peer
+per minute, and 10 login attempts per peer/username pair per minute, including
+successful attempts. They return 429 with Retry-After. A single peer cannot consume
+an app-wide login budget or lock a username for every other peer. Peers sharing
+NAT still share the peer budget. Requests behind a proxy share that proxy's socket
+address; choose a separately validated identity policy before using this default
+there. Forwarded-IP headers are ignored. SQLite 3.35+ is required. Old auth_limits
+rows are no longer used and are preserved in existing databases. Request credentials are bounded to 2 KiB. Recognized
 password buffers are overwritten before release; this is not a guarantee that
 all allocator/browser copies are erased, and memory is not locked.
 

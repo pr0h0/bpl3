@@ -3,10 +3,10 @@
   "name": "bpl-auth",
   "version": "0.1.0",
   "archiveFile": "bpl-auth-0.1.0.tgz",
-  "archiveSha256": "b377309fae79a3bce66fc62ea1847cc683598b2bf68cbe3edb953f2776638a6d",
-  "packageHash": "b15578de346dbf1b790b187a36e0509ca6e265053922e979eab2028f31766355",
-  "sizeBytes": 4298,
-  "createdAt": "2026-10-14T16:58:52.331Z",
+  "archiveSha256": "35f3f1390de2b94df2a2b9bd8a9d870a6cb3d0fbc01842d96218446bf1768e09",
+  "packageHash": "636bdc3c0db003185bee81ecda612dd9c0ab45863b38e7b78da39eb06fa669c4",
+  "sizeBytes": 4247,
+  "createdAt": "2026-10-14T18:38:17.305Z",
   "manifest": {
     "name": "bpl-auth",
     "version": "0.1.0",
@@ -15,7 +15,8 @@
     "license": "MIT",
     "dependencies": {
       "bpl-express": "file:../bpl-express/bpl-express-0.1.0.tgz",
-      "bpl-sqlite": "file:../bpl-sqlite/bpl-sqlite-0.1.0.tgz"
+      "bpl-sqlite": "file:../bpl-sqlite/bpl-sqlite-0.1.0.tgz",
+      "bpl-rate-limit": "file:../bpl-rate-limit/bpl-rate-limit-0.1.0.tgz"
     }
   }
 }

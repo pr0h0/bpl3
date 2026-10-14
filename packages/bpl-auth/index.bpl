@@ -1,3 +1,4 @@
+import [RateLimiter], [RateDecision] from "bpl-rate-limit";
 import [AuthCrypto] from "./crypto.bpl";
 import [SQLite], [Statement] from "bpl-sqlite";
 import [Request], [Response], [HttpMethod] from "bpl-express";
@@ -38,6 +39,7 @@ frame destroyCredentials(body: *Credentials, req: *Request) {
 }
 struct Auth {
     db: *SQLite,
+    limiter: RateLimiter,
     origin: string,
     secure: bool,
     dummy: String,
@@ -48,14 +50,14 @@ struct Auth {
         }
         local auth: Auth;
         auth.db = db;
+        auth.limiter = RateLimiter.new(db);
         auth.origin = origin;
         auth.secure = secure || (strncmp(origin, "https://", 8) == 0);
-        auth.dummy = AuthCrypto.passwordHash("invalid-user-dummy-password");
         db.exec("CREATE TABLE IF NOT EXISTS auth_users(id INTEGER PRIMARY KEY,username TEXT NOT NULL UNIQUE,password_hash TEXT NOT NULL)");
         db.exec("CREATE TABLE IF NOT EXISTS auth_sessions(token_hash TEXT PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,csrf TEXT NOT NULL,expires_at INTEGER NOT NULL)");
         db.exec("CREATE UNIQUE INDEX IF NOT EXISTS auth_sessions_user ON auth_sessions(user_id)");
         db.exec("CREATE INDEX IF NOT EXISTS auth_sessions_expiry ON auth_sessions(expires_at)");
-        db.exec("CREATE TABLE IF NOT EXISTS auth_limits(name TEXT PRIMARY KEY,count INTEGER NOT NULL,reset_at INTEGER NOT NULL)");
+        auth.dummy = AuthCrypto.passwordHash("invalid-user-dummy-password");
         return auth;
     }
     frame destroy(this: *Auth) {
@@ -81,34 +83,11 @@ struct Auth {
         return true;
     }
     frame limited(this: *Auth, key: string, maximum: int) ret bool {
-        local now: long = time(nullptr);
-        local q: Statement = this.db.prepare("INSERT INTO auth_limits(name,count,reset_at) VALUES (?,1,?) ON CONFLICT(name) DO UPDATE SET count=CASE WHEN reset_at<=? THEN 1 ELSE count+1 END,reset_at=CASE WHEN reset_at<=? THEN ? ELSE reset_at END");
-        local qOwner: *Statement = &q;
-        defer qOwner.close();
-        q.bindText(1, key).bindInt(2, now + 60).bindInt(3, now).bindInt(4, now).bindInt(5, now + 60);
-        q.step();
-        q.close();
-        q = this.db.prepare("SELECT count FROM auth_limits WHERE name=?");
-        q.bindText(1, key);
-        local denied: bool = !q.step();
-        if (!denied) {
-            denied = q.integer(0) > cast<long>(maximum);
-        }
-        q.close();
-        return denied;
+        local decision: RateDecision = this.limiter.check("auth.login", key, maximum, 60);
+        return !decision.allowed;
     }
-    frame budget(this: *Auth, _req: *Request, res: *Response) ret bool {
-        local q: Statement = this.db.prepare("DELETE FROM auth_limits WHERE reset_at<=?");
-        local qOwner: *Statement = &q;
-        defer qOwner.close();
-        q.bindInt(1, time(nullptr));
-        q.step();
-        q.close();
-        if (this.limited("auth.global", 40)) {
-            res.status(429).setHeader("Retry-After", "60").json("{\"error\":\"try again later\"}");
-            return false;
-        }
-        return true;
+    frame budget(this: *Auth, req: *Request, res: *Response) ret bool {
+        return this.limiter.apply(req, res, "auth.peer", 40, 60);
     }
     frame credentials(req: *Request, res: *Response) ret *Credentials {
         if ((req.body_length > 2048) || (cast<long>(strlen(req.body)) != req.body_length)) {
@@ -209,7 +188,10 @@ struct Auth {
         }
         defer destroyCredentials(body, req);
         local key: StringBuilder = StringBuilder.new(48);
-        key.append("login.");
+        local keyOwner: *StringBuilder = &key;
+        defer keyOwner.destroy();
+        key.append(req.peerAddress());
+        key.append("/");
         key.append(body.username);
         local denied: bool = this.limited(key.toString(), 10);
         key.destroy();
@@ -223,6 +205,8 @@ struct Auth {
         q.bindText(1, body.username);
         local user: long = 0;
         local hash: String = String.new(this.dummy.data);
+        local hashOwner: *String = &hash;
+        defer hashOwner.destroy();
         if (q.step()) {
             user = q.integer(0);
             hash.destroy();
