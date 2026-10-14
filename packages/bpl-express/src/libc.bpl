@@ -83,18 +83,8 @@ extern getppid() ret int;
 extern prctl(option: int, ...) ret int;
 extern _exit(code: int);
 extern usleep(microseconds: uint) ret int;
-extern clock_gettime(clock: int, time: *timespec) ret int;
-extern poll(fds: *pollfd, count: ulong, timeout: int) ret int;
+import clock_gettime, poll, [timespec], [pollfd] from "bpl-tls";
 extern __errno_location() ret *int;
-struct timespec {
-    tv_sec: long,
-    tv_nsec: long,
-}
-struct pollfd {
-    fd: int,
-    events: short,
-    revents: short,
-}
 export fork;
 export waitpid;
 export getpid;

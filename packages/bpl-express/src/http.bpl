@@ -1,3 +1,4 @@
+import [TlsConnection] from "bpl-tls";
 import [Map], [MapNode] from "std/map.bpl";
 import [Array] from "std/array.bpl";
 import [Option] from "std/option.bpl";
@@ -80,6 +81,8 @@ struct Request {
 
 struct Response {
     client_fd: int,
+    tls: *TlsConnection,
+    write_timeout_seconds: long,
     status_code: int,
     headers: Map<string, string>,
     body_sent: bool,
@@ -90,6 +93,8 @@ struct Response {
     frame new(fd: int) ret Response {
         local res: Response;
         res.client_fd = fd;
+        res.tls = nullptr;
+        res.write_timeout_seconds = 5;
         res.status_code = 200;
         res.headers = Map<string, string>.new();
         res.body_sent = false;
@@ -170,7 +175,13 @@ struct Response {
     }
     frame _output(this: *Response, data: string, size: long) {
         if (!this.io_failed) {
-            if (!writeAll(this.client_fd, data, size)) {
+            local ok: bool = false;
+            if (this.tls == nullptr) {
+                ok = writeAll(this.client_fd, data, size);
+            } else {
+                ok = this.tls.writeAll(data, size, TlsConnection.deadline(this.write_timeout_seconds));
+            }
+            if (!ok) {
                 this.io_failed = true;
             }
         }

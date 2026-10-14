@@ -1,3 +1,4 @@
+import [TlsContext], [TlsConnection] from "bpl-tls";
 import [Map] from "std/map.bpl";
 import [Router], [RouteHandler] from "./router.bpl";
 import [Request], [Response], [HttpMethod] from "./http.bpl";
@@ -15,6 +16,7 @@ frame defaultStaticMiddleware(_req: *Request, _res: *Response) {
 
 struct App {
     router: Router,
+    tls: *TlsContext,
     port: int,
     static_url: string,
     static_dir: string,
@@ -24,6 +26,7 @@ struct App {
     frame new() ret App {
         local app: App;
         app.router = Router.new();
+        app.tls = nullptr;
         app.port = 3000;
         app.static_url = "";
         app.static_dir = "";
@@ -74,14 +77,41 @@ struct App {
     frame listenOn(this: *App, port: int, host: string) {
         local fd: int = this.open(port, host);
         defer close(fd);
-        printf("HTTP listening on %s:%d\n", host, port);
+        local protocol: string = "HTTP";
+        if (this.tls != nullptr) {
+            protocol = "HTTPS";
+        }
+        printf("%s listening on %s:%d\n", protocol, host, port);
         loop {
             local client: int = accept(fd, nullptr, nullptr);
             if (client >= 0) {
-                this.serveConnection(client);
+                try {
+                    this.serveConnection(client);
+                } catch {
+                }
                 close(client);
             }
         }
+    }
+    # Native HTTPS. Certificate chain and private key are PEM files.
+    frame listenTLS(this: *App, port: int, host: string, certificateFile: string, keyFile: string) {
+        local context: TlsContext = TlsContext.serverContext(certificateFile, keyFile);
+        local cleanup: *TlsContext = &context;
+        defer cleanup.destroy();
+        this.tls = &context;
+        defer this.clearTLS();
+        this.listenOn(port, host);
+    }
+    frame listenTLSWorkers(this: *App, port: int, host: string, workers: int, initialize: Func<void>(), certificateFile: string, keyFile: string) {
+        local context: TlsContext = TlsContext.serverContext(certificateFile, keyFile);
+        local cleanup: *TlsContext = &context;
+        defer cleanup.destroy();
+        this.tls = &context;
+        defer this.clearTLS();
+        this.listenWorkers(port, host, workers, initialize);
+    }
+    frame clearTLS(this: *App) {
+        this.tls = nullptr;
     }
     # Bounded Linux process workers. Init must open all worker-local connections.
     frame listenWorkers(this: *App, port: int, host: string, workers: int, initialize: Func<void>()) {
@@ -99,7 +129,11 @@ struct App {
                 throw "Cannot start HTTP worker";
             }
         }
-        printf("HTTP listening on %s:%d with %d process workers\n", host, port, workers);
+        local protocol: string = "HTTP";
+        if (this.tls != nullptr) {
+            protocol = "HTTPS";
+        }
+        printf("%s listening on %s:%d with %d process workers\n", protocol, host, port, workers);
         loop {
             local status: int = 0;
             local ended: int = waitpid(-1, &status, 0);
@@ -181,6 +215,15 @@ struct App {
         timeout.tv_usec = 0;
         setsockopt(fd, 1, 20, &timeout, cast<uint>(sizeof<timeval>()));
         setsockopt(fd, 1, 21, &timeout, cast<uint>(sizeof<timeval>()));
+        local tls: TlsConnection = TlsConnection.empty();
+        local cleanup_tls: *TlsConnection = &tls;
+        defer cleanup_tls.destroy();
+        if (this.tls != nullptr) {
+            if (!tls.open(this.tls, fd, nullptr, deadline)) {
+                return;
+            }
+        }
+        defer tls.shutdown(TlsConnection.deadline(this.timeout_seconds));
         local buffer: string = malloc(1064961);
         if (buffer == nullptr) {
             return;
@@ -188,6 +231,10 @@ struct App {
         defer free(buffer);
         local used: long = 0;
         local res: Response = Response.new(fd);
+        res.write_timeout_seconds = this.timeout_seconds;
+        if (this.tls != nullptr) {
+            res.tls = &tls;
+        }
         local cleanup_res: *Response = &res;
         defer cleanup_res.destroy();
         loop {
@@ -199,25 +246,38 @@ struct App {
             if (remaining > (this.timeout_seconds * 1000)) {
                 remaining = this.timeout_seconds * 1000;
             }
-            local ready: pollfd;
-            ready.fd = fd;
-            ready.events = 1;
-            ready.revents = 0;
-            local available: int = poll(&ready, 1, cast<int>(remaining));
-            if (available == 0) {
-                res.status(408).text("Request timed out");
-                return;
-            }
-            if (available < 0) {
-                local error: *int = __errno_location();
-                if (error[0] == 4) {
-                    continue;
+            local count: long = 0;
+            if (this.tls != nullptr) {
+                local read_deadline: long = App.monotonicMilliseconds() + remaining;
+                if (read_deadline > deadline) {
+                    read_deadline = deadline;
                 }
-                return;
+                count = tls.read(buffer + used, 1064960 - used, read_deadline);
+            } else {
+                local ready: pollfd;
+                ready.fd = fd;
+                ready.events = 1;
+                ready.revents = 0;
+                local available: int = poll(&ready, 1, cast<int>(remaining));
+                if (available == 0) {
+                    res.status(408).text("Request timed out");
+                    return;
+                }
+                if (available < 0) {
+                    local error: *int = __errno_location();
+                    if (error[0] == 4) {
+                        continue;
+                    }
+                    return;
+                }
+                count = read(fd, buffer + used, cast<ulong>(1064960 - used));
             }
-            local count: long = read(fd, buffer + used, cast<ulong>(1064960 - used));
             if (count <= 0) {
-                res.status(400).text("Incomplete request");
+                if (count < 0) {
+                    res.status(408).text("Request read failed or timed out");
+                } else {
+                    res.status(400).text("Incomplete request");
+                }
                 return;
             }
             used = used + count;

@@ -93,3 +93,28 @@ reaps and restarts workers that exit, with a brief backoff; Linux parent-death
 signals stop workers when the supervisor exits. Shutdown does not drain active
 requests. This is process concurrency through POSIX FFI, not language-level async
 or a thread API. Resource use is bounded by the configured worker count.
+
+## Native HTTPS
+
+TLS is handled inside the BPL process by the optional `bpl-tls` transport.
+Install OpenSSL 3's runtime (`libssl.so.3`) on Linux; no TLS linker flags are
+needed with glibc 2.34 or newer. Plain HTTP never loads OpenSSL.
+
+```bpl
+# Replace listenOn with:
+app.listenTLS(8443, "127.0.0.1", "fullchain.pem", "key.pem");
+# Or use bounded process workers (initialize opens worker-local services):
+app.listenTLSWorkers(8443, "127.0.0.1", 2, initialize, "fullchain.pem", "key.pem");
+```
+
+Provide a PEM leaf certificate followed by intermediate certificates, and its
+matching unencrypted PEM key. Startup rejects unreadable or mismatched files.
+Certificates are loaded at listener startup; renew them externally and restart
+the service to reload. The TLS handshake and request assembly share the total
+`request_timeout_seconds` deadline. Subsequent reads also obey the inactivity
+limit; response writes use `timeout_seconds` per output operation.
+
+TLS 1.2 and TLS 1.3 are supported. HTTP routing, middleware, static files, binary
+responses, HEAD, and streaming retain their existing APIs. This remains HTTP/1.1
+with one request per connection, without HTTP/2, mutual TLS, or automatic issuance.
+Configure authentication with the exact HTTPS origin and Secure cookies.

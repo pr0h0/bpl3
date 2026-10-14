@@ -3,17 +3,18 @@
   "name": "bpl-express",
   "version": "0.1.0",
   "archiveFile": "bpl-express-0.1.0.tgz",
-  "archiveSha256": "c8cc7ea2d69affa96cbb31965dac1ae5a823c90357d79f1c7957ea412c40b43a",
-  "packageHash": "3461eafefc78a893255bf32b82ccb07d72caff62155e124d84f151d0725361c2",
-  "sizeBytes": 9389,
-  "createdAt": "2026-10-14T17:07:53.051Z",
+  "archiveSha256": "f7bc11780aed7b9b11bc29c988a249fbd824d04517c4a578bde5d3a5cc9cca92",
+  "packageHash": "547eb5723f15c1049e82188a583dbcda1c8ab189dce9607ea18e0b1f4d6ba1ba",
+  "sizeBytes": 9867,
+  "createdAt": "2026-10-14T17:38:56.990Z",
   "manifest": {
     "name": "bpl-express",
     "version": "0.1.0",
     "description": "A mini web framework for BPL",
     "entry": "index.bpl",
     "dependencies": {
-      "bpl-http-parser": "file:../bpl-http-parser/bpl-http-parser-0.1.0.tgz"
+      "bpl-http-parser": "file:../bpl-http-parser/bpl-http-parser-0.1.0.tgz",
+      "bpl-tls": "file:../bpl-tls/bpl-tls-0.1.0.tgz"
     }
   }
 }

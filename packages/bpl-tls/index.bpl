@@ -1,3 +1,7 @@
+export [timespec];
+export [pollfd];
+export clock_gettime;
+export poll;
 # Optional OpenSSL 3 transport. Linux IPv4, memory BIOs: socket writes always use MSG_NOSIGNAL.
 export [TlsContext];
 export [TlsConnection];
@@ -6,18 +10,18 @@ extern dlsym(handle: *void, name: string) ret *void;
 extern dlclose(handle: *void) ret int;
 extern send(fd: int, data: *void, size: ulong, flags: int) ret long;
 extern recv(fd: int, data: *void, size: ulong, flags: int) ret long;
-extern poll(fds: *TlsPoll, count: ulong, timeout: int) ret int;
-extern clock_gettime(clock: int, now: *TlsTime) ret int;
+extern poll(fds: *pollfd, count: ulong, timeout: int) ret int;
+extern clock_gettime(clock: int, now: *timespec) ret int;
 extern __errno_location() ret *int;
 extern inet_pton(family: int, address: string, out: *void) ret int;
-struct TlsPoll {
+struct pollfd {
     fd: int,
     events: short,
     revents: short,
 }
-struct TlsTime {
-    seconds: long,
-    nanoseconds: long,
+struct timespec {
+    tv_sec: long,
+    tv_nsec: long,
 }
 struct TlsApi {
     handle: *void,
@@ -131,6 +135,9 @@ struct TlsContext {
         return context;
     }
     frame initialize(this: *TlsContext, server: bool, certificateFile: string, keyFile: string, caFile: string) {
+        if ((this.ctx != nullptr) || (this.api.handle != nullptr)) {
+            throw "TLS context is already initialized";
+        }
         this.api.load();
         this.server = server;
         try {
@@ -202,11 +209,11 @@ struct TlsConnection {
         return connection;
     }
     frame milliseconds() ret long {
-        local time: TlsTime;
+        local time: timespec;
         if (clock_gettime(1, &time) != 0) {
             return -1;
         }
-        return (time.seconds * 1000) + (time.nanoseconds / 1000000);
+        return (time.tv_sec * 1000) + (time.tv_nsec / 1000000);
     }
     frame deadline(seconds: long) ret long {
         if ((seconds < 1) || (seconds > 300)) {
@@ -228,7 +235,7 @@ struct TlsConnection {
             if (left > 300000) {
                 left = 300000;
             }
-            local fd: TlsPoll;
+            local fd: pollfd;
             fd.fd = this.fd;
             fd.events = events;
             fd.revents = 0;
@@ -248,6 +255,9 @@ struct TlsConnection {
     }
     # SSL owns both BIOs after SSL_set_bio. The socket and context remain caller-owned.
     frame open(this: *TlsConnection, context: *TlsContext, fd: int, host: string, deadline: long) ret bool {
+        if ((this.ssl != nullptr) || (context == nullptr) || (context.ctx == nullptr) || (fd < 0)) {
+            return false;
+        }
         this.context = context;
         this.fd = fd;
         this.ssl = context.api.SSL_new(context.ctx);
