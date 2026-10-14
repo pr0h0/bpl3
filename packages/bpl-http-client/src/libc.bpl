@@ -70,3 +70,9 @@ export free;
 export atoi;
 export strtol;
 export snprintf;
+extern send(fd: int, buf: string, count: ulong, flags: int) ret long;
+extern setsockopt(fd: int, level: int, option: int, value: *void, size: uint) ret int;
+struct timeval { tv_sec: long, tv_usec: long, }
+export send;
+export setsockopt;
+export [timeval];

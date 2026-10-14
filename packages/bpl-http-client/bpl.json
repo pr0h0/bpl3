@@ -2,5 +2,8 @@
   "name": "bpl-http-client",
   "version": "0.1.0",
   "description": "HTTP Client for BPL",
-  "main": "index.bpl"
+  "main": "index.bpl",
+  "dependencies": {
+    "bpl-http-parser": "file:../bpl-http-parser/bpl-http-parser-0.1.0.tgz"
+  }
 }

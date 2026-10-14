@@ -1,100 +1,41 @@
-import strcpy, strlen, strchr, strstr, atoi, malloc, free, strncmp, memcpy from "./libc.bpl";
-
+import strlen, malloc, free, strncmp from "./libc.bpl";
 export [Url];
-
 struct Url {
     host: string,
     port: int,
     path: string,
-
+    valid: bool,
+    owned: bool,
     frame new(host: string, port: int, path: string) ret Url {
-        local u: Url;
-        u.host = host;
-        u.port = port;
-        u.path = path;
-        return u;
+        local u: Url; u.host=host; u.port=port; u.path=path; u.valid=port>0 && port<=65535; u.owned=false; return u;
     }
-
+    # HTTP only. HTTPS must not silently fall back to plaintext.
     frame parse(raw: string) ret Url {
-        # Defaults
-        local host: string = "localhost";
-        local port: int = 80;
-        local path: string = "/";
-
-        # Very basic parser
-        # Expects http://host:port/path or http://host/path
-
-        local ptr: string = raw;
-        if (strncmp(ptr, "http://", 7) == 0) {
-            ptr = cast<string>(cast<*void>(cast<long>(ptr) + 7));
-        } else {
-            if (strncmp(ptr, "https://", 8) == 0) {
-                ptr = cast<string>(cast<*void>(cast<long>(ptr) + 8));
-                port = 443;
-            }
+        local u: Url=Url.new(nullptr,80,nullptr); u.valid=false;
+        if(raw==nullptr || strncmp(raw,"http://",7)!=0){return u;}
+        local len: long=cast<long>(strlen(raw));
+        loop(local i:long=0;i<len;i=i+1){if(raw[i]<=32 || raw[i]==127){return u;}}
+        local end:long=7;
+        loop(end<len && raw[end]!='/' && raw[end]!='?' && raw[end]!='#'){end=end+1;}
+        if(end==7){return u;}
+        local colon:long=7;
+        loop(colon<end && raw[colon]!=':'){if(raw[colon]=='@' || raw[colon]=='[' || raw[colon]==']'){return u;}colon=colon+1;}
+        if(colon==7){return u;}
+        if(colon<end){
+            local port:long=0;local i:long=colon+1;if(i==end){return u;}
+            loop(i<end){if(raw[i]<'0'||raw[i]>'9'){return u;}port=port*10+cast<long>(raw[i]-'0');if(port>65535){return u;}i=i+1;}
+            if(port==0){return u;}u.port=cast<int>(port);
         }
-
-        # Now ptr points to host...
-        local host_start: string = ptr;
-
-        # Find path start '/'
-        local path_start_ptr: string = strchr(ptr, 47); # '/' is 47
-        local port_start_ptr: string = strchr(ptr, 58); # ':' is 58
-
-        if (cast<long>(path_start_ptr) == 0) {
-            # No path, everything is host/port
-            path = "/";
-            if (cast<long>(port_start_ptr) != 0) {
-                # Has port
-                # host is [host_start, port_start_ptr)
-                local hlen: ulong = cast<ulong>(cast<long>(port_start_ptr) - cast<long>(host_start));
-                host = malloc(hlen + 1);
-                memcpy(host, host_start, hlen);
-                local term1: *char = cast<*char>(cast<*void>(cast<long>(host) + cast<long>(hlen)));
-                term1[0] = cast<char>(0);
-
-                port = atoi(cast<string>(cast<*void>(cast<long>(port_start_ptr) + 1)));
-            } else {
-                # No port
-                local hlen: ulong = strlen(host_start);
-                host = malloc(hlen + 1);
-                strcpy(host, host_start);
-            }
-        } else {
-            # slice path
-            local plen: ulong = strlen(path_start_ptr);
-            path = malloc(plen + 1);
-            strcpy(path, path_start_ptr);
-
-            if ((cast<long>(port_start_ptr) != 0) && (cast<long>(port_start_ptr) < cast<long>(path_start_ptr))) {
-                # Has port before path
-                local hlen: ulong = cast<ulong>(cast<long>(port_start_ptr) - cast<long>(host_start));
-                host = malloc(hlen + 1);
-                memcpy(host, host_start, hlen);
-                local termMiddle: *char = cast<*char>(cast<*void>(cast<long>(host) + cast<long>(hlen)));
-                termMiddle[0] = cast<char>(0);
-
-                # Parse port
-                # We need to copy the port string to be safe for atoi? atoi stops at non-digit usually?
-                # ideally we isolate the number.
-                # port is between port_start_ptr+1 and path_start_ptr
-                local port_len: ulong = cast<ulong>(cast<long>(path_start_ptr) - cast<long>(port_start_ptr) - 1);
-                local port_str: string = malloc(port_len + 1);
-                memcpy(port_str, cast<string>(cast<*void>(cast<long>(port_start_ptr) + 1)), port_len);
-                local term2: *char = cast<*char>(cast<*void>(cast<long>(port_str) + cast<long>(port_len)));
-                term2[0] = cast<char>(0);
-                port = atoi(port_str);
-                free(port_str);
-            } else {
-                # No port
-                local hlen: ulong = cast<ulong>(cast<long>(path_start_ptr) - cast<long>(host_start));
-                host = malloc(hlen + 1);
-                memcpy(host, host_start, hlen);
-                local term3: *char = cast<*char>(cast<*void>(cast<long>(host) + cast<long>(hlen)));
-                term3[0] = cast<char>(0);
-            }
-        }
-
-        return Url.new(host, port, path);
+        u.host=malloc(cast<ulong>(colon-7+1));
+        if(u.host==nullptr){throw "URL allocation failed";}
+        loop(local i:long=7;i<colon;i=i+1){u.host[i-7]=raw[i];}u.host[colon-7]=0;
+        local finish:long=end;loop(finish<len && raw[finish]!='#'){finish=finish+1;}
+        local slash:long=0;if(end==finish || raw[end]!='/'){slash=1;}
+        u.path=malloc(cast<ulong>(finish-end+slash+1));
+        if(u.path==nullptr){free(u.host);throw "URL allocation failed";}
+        if(slash==1){u.path[0]='/';}
+        loop(local i:long=end;i<finish;i=i+1){u.path[i-end+slash]=raw[i];}u.path[finish-end+slash]=0;
+        u.valid=true;u.owned=true;return u;
     }
+    frame destroy(this:*Url){if(this.owned){free(this.host);free(this.path);}this.host=nullptr;this.path=nullptr;this.owned=false;this.valid=false;}
 }

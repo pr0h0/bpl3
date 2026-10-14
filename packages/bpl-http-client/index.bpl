@@ -8,3 +8,5 @@ export [RequestBuilder];
 export [HttpHeaders];
 export [HttpMethod];
 export printf;
+import [Url] from "./src/url.bpl";
+export [Url];

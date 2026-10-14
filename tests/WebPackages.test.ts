@@ -170,3 +170,71 @@ test("database validates types, owns strings, compares ordering and round-trips 
     }
   `);
 }, 90000);
+
+test("HTTP client validates URLs and parses bounded binary/chunked responses", () => {
+  native(`
+    import [Url], [HttpResponse], [RequestBuilder] from "bpl-http-client";
+    import [HttpHeaders] from "bpl-http-client";
+    import [Option] from "std/option.bpl";
+    extern strlen(text:string) ret long; extern strcmp(a:string,b:string) ret int;
+    frame main() ret int {
+      local url:Url=Url.parse("http://localhost:8080?x=1#frag");
+      if(!url.valid||url.port!=8080||strcmp(url.host,"localhost")!=0||strcmp(url.path,"/?x=1")!=0){return 1;}url.destroy();
+      url=Url.parse("https://localhost/");if(url.valid){return 2;}url.destroy();
+      url=Url.parse("http://localhost:999999/");if(url.valid){return 3;}url.destroy();
+      local raw:string="HTTP/1.1 200 OK\\r\\ntransfer-encoding: chunked\\r\\nX-Answer: yes\\r\\n\\r\\n2;foo=bar\\r\\nab\\r\\n1\\r\\nc\\r\\n0\\r\\nX-Trailer: done\\r\\n\\r\\n";
+      local r:*HttpResponse=HttpResponse.parseBytes(raw,strlen(raw),false);
+      if(r.status!=200||r.body_length!=3||strcmp(r.body,"abc")!=0||strcmp(r.headers.get("x-answer").unwrap(),"yes")!=0){return 4;}r.destroy();
+      raw="HTTP/1.1 200 OK\\r\\nTransfer-Encoding: chunked\\r\\n\\r\\nFFFFFFF\\r\\nx\\r\\n";
+      r=HttpResponse.parseBytes(raw,strlen(raw),false);if(r.status!=0){return 5;}r.destroy();
+      raw="HTTP/1.1 200 OK\\r\\nContent-Length: 5\\r\\n\\r\\nabc";
+      r=HttpResponse.parseBytes(raw,strlen(raw),false);if(r.status!=0){return 6;}r.destroy();
+      r=HttpResponse.parseBytes(raw,strlen(raw),true);if(r.status!=200||r.body_length!=0){return 7;}r.destroy();
+      local builder:RequestBuilder=RequestBuilder.new("http://localhost/");
+      builder.header("X-Example","one");builder.header("x-example","two");
+      if(strcmp(builder.headers.get("X-EXAMPLE").unwrap(),"two")!=0){return 8;}
+      local caught:bool=false;try{builder.header("X-Test","a\\r\\nb: c");}catch{caught=true;}
+      if(!caught){return 9;}builder.destroy();return 0;
+    }
+  `);
+}, 90000);
+
+test("HTTP client sends custom headers and reads a fragmented binary response over a real socket", async () => {
+  const { createServer } = await import("node:net");
+  let received = "";
+  const server = createServer((socket) => {
+    socket.on("data", async (data) => {
+      received += data.toString();
+      if (!received.includes("\r\n\r\n")) return;
+      socket.write("HTTP/1.1 200 OK\r\nContent-Length: 4\r\nX-Result: yes\r\n\r\n");
+      socket.write(Buffer.from([65, 0])); await Bun.sleep(20); socket.end(Buffer.from([255, 66]));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("No port");
+  const dir = mkdtempSync(resolve(".web-package-test-"));
+  try {
+    writeFileSync(join(dir, "main.bpl"), `
+      import [RequestBuilder],[HttpResponse] from "bpl-http-client";
+      import [HttpHeaders] from "bpl-http-client";import [Option] from "std/option.bpl";
+      extern strcmp(a:string,b:string) ret int;
+      frame main() ret int {
+        local request:RequestBuilder=RequestBuilder.new("http://127.0.0.1:${address.port}/test");
+        request.header("X-Example","sent");local response:*HttpResponse=request.send();
+        if(response.status!=200||response.body_length!=4||response.body[0]!=65||response.body[1]!=0||cast<u8>(response.body[2])!=255||response.body[3]!=66){return 1;}
+        if(strcmp(response.headers.get("X-RESULT").unwrap(),"yes")!=0){return 2;}
+        response.destroy();request.destroy();return 0;
+      }
+    `);
+    const exe = join(dir, "client");
+    const build = spawnSync("bun", [resolve("index.ts"), "build", join(dir, "main.bpl"), "-o", exe], { encoding: "utf8", timeout: 60000 });
+    expect(build.status, build.stdout + build.stderr).toBe(0);
+    const child = Bun.spawn([exe], { stdout: "pipe", stderr: "pipe" });
+    const timer = setTimeout(() => child.kill(), 10000);
+    try { expect(await child.exited, await new Response(child.stderr).text()).toBe(0); }
+    finally { clearTimeout(timer); }
+    expect(received).toContain("x-example: sent\r\n");
+    expect(received).toContain(`Host: 127.0.0.1:${address.port}\r\n`);
+  } finally { server.close(); rmSync(dir, { recursive: true, force: true }); }
+}, 90000);

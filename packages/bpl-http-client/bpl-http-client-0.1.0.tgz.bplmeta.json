@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-http-client",
+  "version": "0.1.0",
+  "archiveFile": "bpl-http-client-0.1.0.tgz",
+  "archiveSha256": "a9d6d9082dbdf8625b7af7f91a930bf7d674255fcb49cf6f782a494a76fdf660",
+  "packageHash": "2f229c8cc9b5904bbecd56e72211b2c1ca7ba9f094118969ca403e04cd0d5a7a",
+  "sizeBytes": 5441,
+  "createdAt": "2026-10-14T15:21:59.347Z",
+  "manifest": {
+    "name": "bpl-http-client",
+    "version": "0.1.0",
+    "description": "HTTP Client for BPL",
+    "main": "index.bpl",
+    "dependencies": {
+      "bpl-http-parser": "file:../bpl-http-parser/bpl-http-parser-0.1.0.tgz"
+    }
+  }
+}
