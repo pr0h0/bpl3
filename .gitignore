@@ -43,6 +43,9 @@ examples/**
 !examples/**/test_config.json
 !examples/**/bpl.json
 !examples/*.json
+!examples/college_web/README.md
+!examples/college_web/.gitignore
+!examples/college_web/public/**
 
 temp/**
 !temp/*.bpl
