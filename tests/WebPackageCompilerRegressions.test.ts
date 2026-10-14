@@ -3,7 +3,8 @@ import { native } from "./helpers/webPackages";
 
 test("factories initialize vtables for structs declared after their callers", () => {
   for (const opt of [0, 3]) {
-    native(`
+    native(
+      `
       struct Factory {
         frame make() ret Later {local value:Later;value.number=42;return value;}
         frame literal() ret Later {return Later {number: 43};}
@@ -14,13 +15,16 @@ test("factories initialize vtables for structs declared after their callers", ()
         local second:Later=Factory.literal();if(second.get()!=43){return 2;}
         return 0;
       }
-    `, ["-O", String(opt)]);
+    `,
+      ["-O", String(opt)],
+    );
   }
 }, 90000);
 
 test("array literals convert compatible integers to their element width", () => {
   for (const opt of [0, 3]) {
-    native(`
+    native(
+      `
       frame main() ret int {
         local chars:char[4]=['a',0,255,127];
         if(chars[0]!='a'||chars[1]!=0||cast<u8>(chars[2])!=255||chars[3]!=127){return 1;}
@@ -32,6 +36,8 @@ test("array literals convert compatible integers to their element width", () => 
         if(nested[0][1]!=0||nested[1][0]!='b'){return 4;}
         return 0;
       }
-    `, ["-O", String(opt)]);
+    `,
+      ["-O", String(opt)],
+    );
   }
 }, 90000);

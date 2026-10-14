@@ -10,13 +10,23 @@ export function native(source: string, flags: string[] = []) {
   try {
     const file = join(dir, "main.bpl");
     writeFileSync(file, source);
-    const exe = join(tmpdir(), `bpl-web-${process.pid}-${dir.split("-").at(-1)}`);
+    const exe = join(
+      tmpdir(),
+      `bpl-web-${process.pid}-${dir.split("-").at(-1)}`,
+    );
     try {
-      const build = spawnSync("bun", [resolve("index.ts"), "build", file, "-o", exe, ...flags], { encoding: "utf8", timeout: 60000 });
+      const build = spawnSync(
+        "bun",
+        [resolve("index.ts"), "build", file, "-o", exe, ...flags],
+        { encoding: "utf8", timeout: 60000 },
+      );
       expect(build.status, build.stdout + build.stderr).toBe(0);
       const run = spawnSync(exe, [], { encoding: "utf8", timeout: 10000 });
       expect(run.status, run.stdout + run.stderr).toBe(0);
-    } finally { rmSync(exe, { force: true }); }
-  } finally { rmSync(dir, { force: true, recursive: true }); }
+    } finally {
+      rmSync(exe, { force: true });
+    }
+  } finally {
+    rmSync(dir, { force: true, recursive: true });
+  }
 }
-
