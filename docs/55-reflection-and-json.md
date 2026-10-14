@@ -55,7 +55,10 @@ Output: `{"id": 1, "name": "Alice", "active": true}`.
 
 ## Parsing and cleanup
 
-`JSON.parse<T>(text: string)` allocates a result. Check for `nullptr` before
+`JSON.parse<T>(text: string)` allocates a result. Null input, a failed root
+allocation, or structural nesting beyond 64 levels returns `nullptr`. The depth
+check includes ignored fields and excludes braces/brackets inside strings; it
+runs before recursive parsing. Check for `nullptr` before
 accessing it. Release a successful result with `JSON.free<T>(ptr)`, which
 recursively releases parsed strings, arrays, and pointer fields before releasing
 the outer allocation. Calling only C `free` on the outer struct leaks nested
