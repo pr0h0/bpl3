@@ -1,0 +1,6 @@
+{
+  "name": "bpl-tls",
+  "version": "0.1.0",
+  "description": "Optional native OpenSSL 3 TLS transport for BPL",
+  "main": "index.bpl"
+}

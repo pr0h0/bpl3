@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-tls",
+  "version": "0.1.0",
+  "archiveFile": "bpl-tls-0.1.0.tgz",
+  "archiveSha256": "77158a11a4d117059b5fc0a02e93e971f44eb2fe8c542ed0bc9af6cf06c60acf",
+  "packageHash": "f6f59f954b5005e9504346e582098d1bd2ff9f43e10b8e32d9c9cf6309d85fa5",
+  "sizeBytes": 3839,
+  "createdAt": "2026-10-14T17:34:19.966Z",
+  "manifest": {
+    "name": "bpl-tls",
+    "version": "0.1.0",
+    "description": "Optional native OpenSSL 3 TLS transport for BPL",
+    "main": "index.bpl"
+  }
+}
