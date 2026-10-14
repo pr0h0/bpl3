@@ -7,12 +7,14 @@ Linux with glibc 2.34 or newer; older glibc builds may need `--clang-flag=-ldl`.
 
 The server supports TLS 1.2 and 1.3 with OpenSSL's default cipher configuration.
 Clients require a trusted certificate chain and a matching DNS hostname or IPv4
-subject alternative name. DNS connections send SNI. There is no verification-disable
+subject alternative name. DNS wildcards must cover an entire label and do not
+match multiple labels. DNS connections send SNI. There is no verification-disable
 option. `TlsContext.client(nullptr)` uses OpenSSL's system trust paths;
 `TlsContext.client("ca.pem")` uses an explicit CA bundle instead.
 
 `TlsContext.serverContext("fullchain.pem", "key.pem")` loads a PEM certificate
-chain and matching unencrypted PEM private key. Keep private keys accessible only
+chain and matching unencrypted PEM private key. Encrypted keys fail without a password
+prompt. Keep private keys accessible only
 to the service account. Certificate issuance and renewal are external; restart
 listeners with renewed files to reload them. Contexts must outlive their connections.
 Do not copy owning contexts or connections and destroy each copy.

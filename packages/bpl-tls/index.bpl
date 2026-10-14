@@ -34,6 +34,7 @@ struct TlsApi {
     SSL_CTX_use_PrivateKey_file: Func<int>(*void, string, int),
     SSL_CTX_check_private_key: Func<int>(*void),
     SSL_CTX_set_verify: Func<void>(*void, int, *void),
+    SSL_CTX_set_default_passwd_cb: Func<void>(*void, *void),
     SSL_CTX_set_default_verify_paths: Func<int>(*void),
     SSL_CTX_load_verify_locations: Func<int>(*void, string, string),
     SSL_new: Func<*void>(*void),
@@ -43,6 +44,7 @@ struct TlsApi {
     SSL_set_accept_state: Func<void>(*void),
     SSL_ctrl: Func<long>(*void, int, long, *void),
     SSL_set1_host: Func<int>(*void, string),
+    SSL_set_hostflags: Func<void>(*void, uint),
     SSL_get0_param: Func<*void>(*void),
     X509_VERIFY_PARAM_set1_ip_asc: Func<int>(*void, string),
     SSL_do_handshake: Func<int>(*void),
@@ -79,6 +81,8 @@ struct TlsApi {
             this.SSL_CTX_use_certificate_chain_file = cast<Func<int>(*void, string)>(this.symbol("SSL_CTX_use_certificate_chain_file"));
             this.SSL_CTX_use_PrivateKey_file = cast<Func<int>(*void, string, int)>(this.symbol("SSL_CTX_use_PrivateKey_file"));
             this.SSL_CTX_check_private_key = cast<Func<int>(*void)>(this.symbol("SSL_CTX_check_private_key"));
+            this.SSL_CTX_set_default_passwd_cb = cast<Func<void>(*void, *void)>(this.symbol("SSL_CTX_set_default_passwd_cb"));
+            this.SSL_set_hostflags = cast<Func<void>(*void, uint)>(this.symbol("SSL_set_hostflags"));
             this.SSL_CTX_set_verify = cast<Func<void>(*void, int, *void)>(this.symbol("SSL_CTX_set_verify"));
             this.SSL_CTX_set_default_verify_paths = cast<Func<int>(*void)>(this.symbol("SSL_CTX_set_default_verify_paths"));
             this.SSL_CTX_load_verify_locations = cast<Func<int>(*void, string, string)>(this.symbol("SSL_CTX_load_verify_locations"));
@@ -110,6 +114,9 @@ struct TlsApi {
             throw "Cannot initialize OpenSSL 3 TLS bindings";
         }
     }
+}
+frame rejectTlsPassword(_buffer: string, _size: int, _writing: int, _userdata: *void) ret int {
+    return 0;
 }
 struct TlsContext {
     api: TlsApi,
@@ -156,6 +163,7 @@ struct TlsContext {
                 throw "Cannot set TLS protocol minimum";
             }
             if (server) {
+                this.api.SSL_CTX_set_default_passwd_cb(this.ctx, cast<*void>(rejectTlsPassword));
                 if ((certificateFile == nullptr) || (keyFile == nullptr)) {
                     throw "TLS certificate and key paths are required";
                 }
@@ -291,6 +299,7 @@ struct TlsConnection {
                     return false;
                 }
             } else {
+                context.api.SSL_set_hostflags(this.ssl, 4);
                 if ((context.api.SSL_set1_host(this.ssl, host) != 1) || (context.api.SSL_ctrl(this.ssl, 55, 0, cast<*void>(host)) != 1)) {
                     return false;
                 }

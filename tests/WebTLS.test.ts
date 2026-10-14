@@ -5,9 +5,21 @@ import { join, resolve } from "node:path";
 import { createServer as tlsServer } from "node:tls";
 import { createServer as tcpServer } from "node:net";
 
-const openssl = spawnSync("openssl", ["version"], { encoding: "utf8" });
+const openssl = spawnSync("openssl", ["version"], {
+  encoding: "utf8",
+  timeout: 10000,
+});
+const sslPath =
+  spawnSync("clang", ["-print-file-name=libssl.so.3"], {
+    encoding: "utf8",
+    timeout: 10000,
+  }).stdout?.trim() ?? "";
 
-test.skipIf(process.platform !== "linux" || openssl.status !== 0)(
+test.skipIf(
+  process.platform !== "linux" ||
+    openssl.status !== 0 ||
+    !sslPath.includes("/"),
+)(
   "native TLS verifies trust, DNS/IP identity and expiry, and bounds stalled handshakes",
   async () => {
     const dir = mkdtempSync(resolve(".web-tls-test-"));
@@ -176,6 +188,83 @@ frame main(argc:int,argv:*string) ret int {
       expect((await run(port, "localhost", join(dir, "leaf.pem"))).status).toBe(
         2,
       );
+
+      writeFileSync(
+        join(dir, "wildcard-ext"),
+        "subjectAltName=DNS:www*.example.test\nextendedKeyUsage=serverAuth\n",
+      );
+      command([
+        "x509",
+        "-req",
+        "-in",
+        "leaf.csr",
+        "-CA",
+        "ca.pem",
+        "-CAkey",
+        "ca.key",
+        "-out",
+        "partial.pem",
+        "-days",
+        "1",
+        "-extfile",
+        "wildcard-ext",
+      ]);
+      const partial = tlsServer({
+        key: readFileSync(join(dir, "leaf.key")),
+        cert: readFileSync(join(dir, "partial.pem")),
+      });
+      partial.on("tlsClientError", () => {});
+      expect(
+        (await run(await listen(partial), "www1.example.test")).status,
+      ).toBe(2);
+      writeFileSync(
+        join(dir, "wildcard-ext"),
+        "subjectAltName=DNS:*.example.test\nextendedKeyUsage=serverAuth\n",
+      );
+      command([
+        "x509",
+        "-req",
+        "-in",
+        "leaf.csr",
+        "-CA",
+        "ca.pem",
+        "-CAkey",
+        "ca.key",
+        "-out",
+        "wildcard.pem",
+        "-days",
+        "1",
+        "-extfile",
+        "wildcard-ext",
+      ]);
+      const wildcard = tlsServer(
+        {
+          key: readFileSync(join(dir, "leaf.key")),
+          cert: readFileSync(join(dir, "wildcard.pem")),
+        },
+        (socket) => {
+          socket.on("error", () => {});
+          socket.once("data", () => socket.end("pong"));
+        },
+      );
+      wildcard.on("tlsClientError", () => {});
+      const wildcardPort = await listen(wildcard);
+      expect((await run(wildcardPort, "www1.example.test")).status).toBe(0);
+      expect((await run(wildcardPort, "www1.sub.example.test")).status).toBe(2);
+      const tls12 = tlsServer(
+        {
+          key: readFileSync(join(dir, "leaf.key")),
+          cert: readFileSync(join(dir, "leaf.pem")),
+          minVersion: "TLSv1.2",
+          maxVersion: "TLSv1.2",
+        },
+        (socket) => {
+          socket.on("error", () => {});
+          socket.once("data", () => socket.end("pong"));
+        },
+      );
+      tls12.on("tlsClientError", () => {});
+      expect((await run(await listen(tls12), "localhost")).status).toBe(0);
       const expired = tlsServer({
         key: readFileSync(join(dir, "leaf.key")),
         cert: readFileSync(join(dir, "expired.pem")),

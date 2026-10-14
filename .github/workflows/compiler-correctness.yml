@@ -89,7 +89,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang llvm lld libclang-rt-dev clang-18 llvm-18 lld-18 libclang-rt-18-dev libsqlite3-dev libsodium-dev
+          sudo apt-get install -y clang llvm lld libclang-rt-dev clang-18 llvm-18 lld-18 libclang-rt-18-dev libsqlite3-dev libsodium-dev openssl ca-certificates
 
       - name: Select clang 18
         if: matrix.toolchain == 'ubuntu-clang-18'

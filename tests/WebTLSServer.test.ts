@@ -6,9 +6,21 @@ import { createServer, createConnection } from "node:net";
 import { request } from "node:https";
 import { connect } from "node:tls";
 
-const openssl = spawnSync("openssl", ["version"], { encoding: "utf8" });
+const openssl = spawnSync("openssl", ["version"], {
+  encoding: "utf8",
+  timeout: 10000,
+});
+const sslPath =
+  spawnSync("clang", ["-print-file-name=libssl.so.3"], {
+    encoding: "utf8",
+    timeout: 10000,
+  }).stdout?.trim() ?? "";
 
-test.skipIf(process.platform !== "linux" || openssl.status !== 0)(
+test.skipIf(
+  process.platform !== "linux" ||
+    openssl.status !== 0 ||
+    !sslPath.includes("/"),
+)(
   "native HTTPS serves streaming/binary/HEAD responses, survives bad peers and isolates stalled handshakes",
   async () => {
     const dir = mkdtempSync(resolve(".web-tls-server-"));
@@ -55,10 +67,10 @@ frame stream(_req:*Request,res:*Response){res.write("one");res.write("two");res.
 frame binary(_req:*Request,res:*Response){local body:char[4]=['a',0,'b',0];res.sendBytes(cast<string>(&body[0]),4);}
 frame echo(req:*Request,res:*Response){res.sendBytes(req.body,req.body_length);}
 frame main(argc:int,argv:*string) ret int {
- if(argc!=4){return 2;}
+ if(argc!=5){return 2;}
  local app:App=App.new();app.timeout_seconds=2;app.request_timeout_seconds=2;
  app.router.get("/",health);app.router.get("/stream",stream);app.router.get("/binary",binary);app.router.post("/echo",echo);
- app.listenTLSWorkers(atoi(argv[1]),"127.0.0.1",2,initialize,argv[2],argv[3]);return 0;
+ if(atoi(argv[4])==1){app.listenTLS(atoi(argv[1]),"127.0.0.1",argv[2],argv[3]);}else{app.listenTLSWorkers(atoi(argv[1]),"127.0.0.1",2,initialize,argv[2],argv[3]);}return 0;
 }`,
       );
       const exe = join(dir, "server");
@@ -78,12 +90,36 @@ frame main(argc:int,argv:*string) ret int {
       expect(build.status, build.stdout + build.stderr).toBe(0);
       const bad = spawnSync(
         exe,
-        [String(port), join(dir, "cert.pem"), join(dir, "missing.pem")],
+        [String(port), join(dir, "cert.pem"), join(dir, "missing.pem"), "1"],
         { encoding: "utf8", timeout: 10000 },
       );
       expect(bad.status).not.toBe(0);
+      const encryptedKey = spawnSync(
+        "openssl",
+        [
+          "pkey",
+          "-in",
+          "key.pem",
+          "-aes-256-cbc",
+          "-passout",
+          "pass:local-fixture",
+          "-out",
+          "encrypted.pem",
+        ],
+        { cwd: dir, encoding: "utf8" },
+      );
+      expect(encryptedKey.status, encryptedKey.stderr).toBe(0);
+      const encrypted = spawnSync(
+        exe,
+        [String(port), join(dir, "cert.pem"), join(dir, "encrypted.pem"), "1"],
+        { encoding: "utf8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"] },
+      );
+      expect(encrypted.error).toBeUndefined();
+      expect(encrypted.status).not.toBeNull();
+      expect(encrypted.status).not.toBe(0);
+      expect(encrypted.stderr).not.toContain("Enter PEM pass phrase");
       child = Bun.spawn(
-        [exe, String(port), join(dir, "cert.pem"), join(dir, "key.pem")],
+        [exe, String(port), join(dir, "cert.pem"), join(dir, "key.pem"), "2"],
         { stdout: "ignore", stderr: "pipe" },
       );
       function get(
@@ -222,6 +258,24 @@ frame main(argc:int,argv:*string) ret int {
       }
       expect((await get()).body.toString()).toBe("ready");
       expect(child.exitCode).toBeNull();
+      child.kill();
+      await child.exited;
+      child = Bun.spawn(
+        [exe, String(port), join(dir, "cert.pem"), join(dir, "key.pem"), "1"],
+        { stdout: "ignore", stderr: "pipe" },
+      );
+      let singleReady = false;
+      for (let i = 0; i < 100; i++) {
+        try {
+          if ((await get()).status === 200) {
+            singleReady = true;
+            break;
+          }
+        } catch {}
+        await Bun.sleep(20);
+      }
+      expect(singleReady).toBe(true);
+      expect((await get("/stream")).body.toString()).toBe("onetwo");
     } finally {
       for (const socket of sockets) socket.destroy();
       child?.kill();

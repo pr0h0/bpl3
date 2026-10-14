@@ -6,9 +6,21 @@ import { createServer } from "node:https";
 import { createServer as tcpServer } from "node:net";
 import { createServer as tlsServer } from "node:tls";
 
-const openssl = spawnSync("openssl", ["version"], { encoding: "utf8" });
+const openssl = spawnSync("openssl", ["version"], {
+  encoding: "utf8",
+  timeout: 10000,
+});
+const sslPath =
+  spawnSync("clang", ["-print-file-name=libssl.so.3"], {
+    encoding: "utf8",
+    timeout: 10000,
+  }).stdout?.trim() ?? "";
 
-test.skipIf(process.platform !== "linux" || openssl.status !== 0)(
+test.skipIf(
+  process.platform !== "linux" ||
+    openssl.status !== 0 ||
+    !sslPath.includes("/"),
+)(
   "HTTPS client sends verified requests, reads large/binary/chunked bodies, and never downgrades failures",
   async () => {
     const dir = mkdtempSync(resolve(".web-tls-client-"));
