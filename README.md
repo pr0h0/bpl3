@@ -656,6 +656,9 @@ bpl uninstall package-name
 
 See the [Package Management Guide](docs/25-package-management.md) for details.
 
+For web applications, see the [web package guide](packages/README.md) and the
+[runnable college task board](examples/college_web/README.md).
+
 ### Shell Completion
 
 BPL provides command-line completion for Bash and Zsh shells:
