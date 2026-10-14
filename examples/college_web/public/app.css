@@ -21,3 +21,9 @@ li span { flex: 1; overflow-wrap: anywhere; }
 nav { display: flex; align-items: center; justify-content: space-between; margin: 1.5rem 0; }
 footer { font-size: .8rem; }
 @media (max-width: 600px) { main { margin: 1rem; padding: 1.25rem; } li { flex-wrap: wrap; } li span { flex-basis: 100%; } h1 { font-size: 2rem; } }
+[hidden] { display: none !important; }
+#sign-in input { width: 100%; }
+#sign-in label:not(:first-child) { margin-top: 1rem; }
+small { display: block; color: #64748b; margin: .5rem 0; }
+.auth-actions, .account-row { display: flex; align-items: center; gap: .7rem; margin-top: 1rem; }
+.account-row { justify-content: space-between; }

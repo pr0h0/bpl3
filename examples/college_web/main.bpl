@@ -1,4 +1,5 @@
 import [App], [Router], [Request], [Response], [HttpMethod] from "bpl-express";
+import [Auth] from "bpl-auth";
 import [SQLite], [Statement] from "bpl-sqlite";
 import [Validator] from "bpl-validation";
 import securityHeaders, requireJson from "bpl-web-middleware";
@@ -8,10 +9,18 @@ import [StringBuilder] from "std/string_builder.bpl";
 import [Map] from "std/map.bpl";
 import [Option] from "std/option.bpl";
 import [Env] from "std/env.bpl";
+extern umask(mask: uint) ret uint;
+extern chmod(path: string, mode: uint) ret int;
+extern malloc(size: long) ret *void;
+extern free(ptr: *void);
+extern strcmp(a: string, b: string) ret int;
 extern strlen(text: string) ret long;
 extern sprintf(out: string, format: string, ...) ret int;
 
 global database: *SQLite;
+global authentication: *Auth;
+global allowedOrigin: string;
+global secureCookies: bool;
 struct TaskInput {
     title: string,
     done: bool,
@@ -48,6 +57,10 @@ frame taskId(req: *Request, res: *Response) ret int {
     return result;
 }
 frame input(req: *Request, res: *Response) ret *TaskInput {
+    if (req.body_length > 4096) {
+        res.status(413).json("{\"error\":\"task input too large\"}");
+        return nullptr;
+    }
     if (strlen(req.body) != req.body_length) {
         res.status(400).json("{\"error\":\"text JSON required\"}");
         return nullptr;
@@ -76,6 +89,10 @@ frame jsonWrites(req: *Request, res: *Response) {
 frame noCache(_req: *Request, res: *Response) {
     res.setHeader("Cache-Control", "no-store");
 }
+frame webHeaders(req: *Request, res: *Response) {
+    securityHeaders(req, res);
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+}
 frame notFound(_req: *Request, res: *Response) {
     res.status(404).json("{\"error\":\"not found\"}");
 }
@@ -92,10 +109,10 @@ frame listTasks(req: *Request, res: *Response) {
         return;
     }
     v.destroy();
-    local q: Statement = database.prepare("SELECT id,title,done FROM tasks ORDER BY id DESC LIMIT ? OFFSET ?");
+    local q: Statement = database.prepare("SELECT id,title,done FROM tasks WHERE owner_id=? ORDER BY id DESC LIMIT ? OFFSET ?");
     local owner: *Statement = &q;
     defer owner.close();
-    q.bindInt(1, cast<long>(limit.unwrap())).bindInt(2, cast<long>((page.unwrap() - 1) * limit.unwrap()));
+    q.bindInt(1, Auth.userId(req)).bindInt(2, cast<long>(limit.unwrap())).bindInt(3, cast<long>((page.unwrap() - 1) * limit.unwrap()));
     local sb: StringBuilder = StringBuilder.new(256);
     local builder: *StringBuilder = &sb;
     defer builder.destroy();
@@ -124,10 +141,10 @@ frame getTask(req: *Request, res: *Response) {
     if (id == 0) {
         return;
     }
-    local q: Statement = database.prepare("SELECT id,title,done FROM tasks WHERE id=?");
+    local q: Statement = database.prepare("SELECT id,title,done FROM tasks WHERE id=? AND owner_id=?");
     local owner: *Statement = &q;
     defer owner.close();
-    q.bindInt(1, cast<long>(id));
+    q.bindInt(1, cast<long>(id)).bindInt(2, Auth.userId(req));
     if (!q.step()) {
         notFound(req, res);
         return;
@@ -146,11 +163,15 @@ frame createTask(req: *Request, res: *Response) {
         return;
     }
     defer JSON.free<TaskInput>(body);
-    local q: Statement = database.prepare("INSERT INTO tasks(title,done) VALUES (?,?)");
+    local q: Statement = database.prepare("INSERT INTO tasks(title,done,owner_id) SELECT ?,?,? WHERE (SELECT count(*) FROM tasks WHERE owner_id=?)<1000");
     local owner: *Statement = &q;
     defer owner.close();
-    q.bindText(1, body.title).bindInt(2, cast<long>(body.done));
+    q.bindText(1, body.title).bindInt(2, cast<long>(body.done)).bindInt(3, Auth.userId(req)).bindInt(4, Auth.userId(req));
     q.step();
+    if (database.changes() == 0) {
+        res.status(409).json("{\"error\":\"task limit reached\"}");
+        return;
+    }
     local task: Task;
     task.id = database.lastInsertId();
     task.title = body.title;
@@ -171,10 +192,10 @@ frame updateTask(req: *Request, res: *Response) {
         return;
     }
     defer JSON.free<TaskInput>(body);
-    local q: Statement = database.prepare("UPDATE tasks SET title=?,done=? WHERE id=?");
+    local q: Statement = database.prepare("UPDATE tasks SET title=?,done=? WHERE id=? AND owner_id=?");
     local owner: *Statement = &q;
     defer owner.close();
-    q.bindText(1, body.title).bindInt(2, cast<long>(body.done)).bindInt(3, cast<long>(id));
+    q.bindText(1, body.title).bindInt(2, cast<long>(body.done)).bindInt(3, cast<long>(id)).bindInt(4, Auth.userId(req));
     q.step();
     if (database.changes() == 0) {
         notFound(req, res);
@@ -193,10 +214,10 @@ frame deleteTask(req: *Request, res: *Response) {
     if (id == 0) {
         return;
     }
-    local q: Statement = database.prepare("DELETE FROM tasks WHERE id=?");
+    local q: Statement = database.prepare("DELETE FROM tasks WHERE id=? AND owner_id=?");
     local owner: *Statement = &q;
     defer owner.close();
-    q.bindInt(1, cast<long>(id));
+    q.bindInt(1, cast<long>(id)).bindInt(2, Auth.userId(req));
     q.step();
     if (database.changes() == 0) {
         notFound(req, res);
@@ -204,21 +225,89 @@ frame deleteTask(req: *Request, res: *Response) {
     }
     res.status(204).end();
 }
+frame requireAuth(req: *Request, res: *Response) {
+    if (strcmp(req.path, "/health") != 0) {
+        authentication.require(req, res);
+    }
+}
+frame register(req: *Request, res: *Response) {
+    authentication.register(req, res);
+}
+frame login(req: *Request, res: *Response) {
+    authentication.login(req, res);
+}
+frame me(req: *Request, res: *Response) {
+    authentication.me(req, res);
+}
+frame logout(req: *Request, res: *Response) {
+    authentication.logout(req, res);
+}
+frame initializeWorker() {
+    database = cast<*SQLite>(malloc(sizeof<SQLite>()));
+    authentication = cast<*Auth>(malloc(sizeof<Auth>()));
+    if ((database == nullptr) || (authentication == nullptr)) {
+        throw "Cannot allocate worker services";
+    }
+    local path: string = Env.getOr("BPL_WEB_DB", "college.sqlite");
+    if ((path[0] == 0) || (strcmp(path, ":memory:") == 0)) {
+        throw "Process workers require a persistent database file";
+    }
+    *database = SQLite.open(path);
+    if ((strcmp(path, ":memory:") != 0) && (chmod(path, 384) != 0)) {
+        database.close();
+        throw "Cannot protect database file permissions";
+    }
+    *authentication = Auth.new(database, allowedOrigin, secureCookies);
+}
+frame migrate() {
+    database.exec("CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY,title TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0 CHECK(done IN (0,1)),owner_id INTEGER REFERENCES auth_users(id))");
+    local columns: Statement = database.prepare("PRAGMA table_info(tasks)");
+    local hasOwner: bool = false;
+    loop (columns.step()) {
+        if (strcmp(columns.text(1), "owner_id") == 0) {
+            hasOwner = true;
+        }
+    }
+    columns.close();
+    if (!hasOwner) {
+        database.exec("ALTER TABLE tasks ADD COLUMN owner_id INTEGER REFERENCES auth_users(id)");
+    }
+    database.exec("CREATE INDEX IF NOT EXISTS tasks_owner ON tasks(owner_id,id)");
+}
 frame main() {
-    local db: SQLite = SQLite.open(Env.getOr("BPL_WEB_DB", "college.sqlite"));
-    database = &db;
-    local dbOwner: *SQLite = &db;
-    defer dbOwner.close();
-    db.exec("CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY,title TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0 CHECK(done IN (0,1)))");
+    umask(63);
+    local config: Validator = Validator.new();
+    local port: Option<int> = config.integer("PORT", Env.getOr("PORT", "3000"), 1, 65535);
+    local workers: Option<int> = config.integer("BPL_WEB_WORKERS", Env.getOr("BPL_WEB_WORKERS", "2"), 1, 8);
+    if (!config.ok()) {
+        config.destroy();
+        throw "Invalid PORT or BPL_WEB_WORKERS";
+    }
+    config.destroy();
+    local origin: char[128];
+    sprintf(cast<string>(&origin[0]), "http://127.0.0.1:%d", port.unwrap());
+    allowedOrigin = Env.getOr("BPL_WEB_ORIGIN", cast<string>(&origin[0]));
+    secureCookies = strcmp(Env.getOr("BPL_WEB_SECURE_COOKIES", "0"), "1") == 0;
+    initializeWorker();
+    migrate();
+    authentication.destroy();
+    free(authentication);
+    database.close();
+    free(database);
+    # No live SQLite connection is inherited by the workers.
+    database = nullptr;
+    authentication = nullptr;
     local app: App = App.new();
     local appOwner: *App = &app;
     defer appOwner.destroy();
-    app.use(securityHeaders);
+    app.use(webHeaders);
+    app.useStaticMiddleware(webHeaders);
     app.useStatic("/", "public");
     local api: Router = Router.new();
     local apiOwner: *Router = &api;
     defer apiOwner.destroy();
     api.addMiddleware(noCache);
+    api.addMiddleware(requireAuth);
     api.addMiddleware(jsonWrites);
     api.get("/health", health);
     api.get("/tasks", listTasks);
@@ -228,12 +317,15 @@ frame main() {
     api.delete("/tasks/:id", deleteTask);
     app.useRouter("/api", &api);
     app.router.useNotFound(notFound);
-    local config: Validator = Validator.new();
-    local port: Option<int> = config.integer("PORT", Env.getOr("PORT", "3000"), 1, 65535);
-    if (!config.ok()) {
-        config.destroy();
-        throw "PORT must be an integer between 1 and 65535";
-    }
-    config.destroy();
-    app.listen(port.unwrap());
+    local authRoutes: Router = Router.new();
+    local authOwner: *Router = &authRoutes;
+    defer authOwner.destroy();
+    authRoutes.addMiddleware(noCache);
+    authRoutes.addMiddleware(jsonWrites);
+    authRoutes.post("/register", register);
+    authRoutes.post("/login", login);
+    authRoutes.get("/me", me);
+    authRoutes.post("/logout", logout);
+    app.useRouter("/auth", &authRoutes);
+    app.listenWorkers(port.unwrap(), "127.0.0.1", workers.unwrap(), initializeWorker);
 }
