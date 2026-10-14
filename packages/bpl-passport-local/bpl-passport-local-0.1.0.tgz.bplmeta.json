@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-passport-local",
+  "version": "0.1.0",
+  "archiveFile": "bpl-passport-local-0.1.0.tgz",
+  "archiveSha256": "a37a8ab56d7e0ac17eeda27b65408b8fbf07e44683340be906741f5e8488aa45",
+  "packageHash": "8686cbcdadd2ac5338b89556ca9591e6d48f3cababb668b631395e0d42702070",
+  "sizeBytes": 1128,
+  "createdAt": "2026-10-14T19:41:45.308Z",
+  "manifest": {
+    "name": "bpl-passport-local",
+    "version": "0.1.0",
+    "description": "Bounded JSON username/password strategy for bpl-passport",
+    "main": "index.bpl",
+    "license": "MIT",
+    "dependencies": {
+      "bpl-passport": "file:../bpl-passport/bpl-passport-0.1.0.tgz"
+    }
+  }
+}

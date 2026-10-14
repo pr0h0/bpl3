@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-passport",
+  "version": "0.1.0",
+  "archiveFile": "bpl-passport-0.1.0.tgz",
+  "archiveSha256": "a66d46b1d1c92693dbf364e596fd3251c96bbb787c59380a05ec681818277df0",
+  "packageHash": "dd4301b1ddaaf61bb48ed0cc860134c273d8548fb5fefeb79c2c0401d773cd89",
+  "sizeBytes": 1145,
+  "createdAt": "2026-10-14T19:41:43.411Z",
+  "manifest": {
+    "name": "bpl-passport",
+    "version": "0.1.0",
+    "description": "Optional named authentication strategies for BPL web applications",
+    "main": "index.bpl",
+    "license": "MIT",
+    "dependencies": {
+      "bpl-express": "file:../bpl-express/bpl-express-0.1.0.tgz"
+    }
+  }
+}

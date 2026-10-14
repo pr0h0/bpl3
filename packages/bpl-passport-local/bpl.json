@@ -1,0 +1,1 @@
+{"name":"bpl-passport-local","version":"0.1.0","description":"Bounded JSON username/password strategy for bpl-passport","main":"index.bpl","license":"MIT","dependencies":{"bpl-passport":"file:../bpl-passport/bpl-passport-0.1.0.tgz"}}
