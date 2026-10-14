@@ -70,6 +70,9 @@ binary files. Canonical paths must remain inside the configured directory;
 symlinks that escape it are rejected. Keep the asset tree trusted and immutable
 while serving: canonicalization is not an atomic filesystem sandbox. Static
 files run before router middleware, so use it for public assets only.
+`useStaticMiddleware(handler)` supplies an optional handler immediately before
+static content is sent; use it to apply CSP/frame/referrer headers to HTML as
+well as API responses. It may send a terminal response instead of the file.
 
 Optional middleware and validation are separate packages. Templates can use
 `bpl-templ`; database integrations can use `bpl-db` or `bpl-sqlite`.

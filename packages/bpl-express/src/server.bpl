@@ -10,11 +10,15 @@ export [Request];
 export [Response];
 export [Router];
 
+frame defaultStaticMiddleware(_req: *Request, _res: *Response) {
+}
+
 struct App {
     router: Router,
     port: int,
     static_url: string,
     static_dir: string,
+    static_middleware: RouteHandler,
     timeout_seconds: long,
     request_timeout_seconds: long,
     frame new() ret App {
@@ -23,6 +27,7 @@ struct App {
         app.port = 3000;
         app.static_url = "";
         app.static_dir = "";
+        app.static_middleware = defaultStaticMiddleware;
         app.timeout_seconds = 5;
         app.request_timeout_seconds = 10;
         return app;
@@ -30,6 +35,9 @@ struct App {
     frame useStatic(this: *App, url: string, dir: string) {
         this.static_url = url;
         this.static_dir = dir;
+    }
+    frame useStaticMiddleware(this: *App, handler: RouteHandler) {
+        this.static_middleware = handler;
     }
     frame use(this: *App, handler: RouteHandler) {
         this.router.addMiddleware(handler);
@@ -307,7 +315,8 @@ struct App {
         if ((strncmp(path, root, cast<ulong>(root_len)) != 0) || ((root_len > 1) && (path[root_len] != '/'))) {
             res.status(403).text("Forbidden");
             return true;
-        } # Linux O_NOFOLLOW
+        }
+        # Linux O_NOFOLLOW
         local file: int = open(path, 131072);
         if (file < 0) {
             return false;
@@ -342,7 +351,10 @@ struct App {
             res.setHeader("Content-Type", "application/javascript");
         }
         res.setHeader("X-Content-Type-Options", "nosniff");
-        res.sendBytes(content, size);
+        this.static_middleware(req, res);
+        if (!res.body_sent) {
+            res.sendBytes(content, size);
+        }
         return true;
     }
     # Moves allocations from parsed into Request. Do not destroy parsed afterward.
