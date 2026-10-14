@@ -101,7 +101,10 @@ frame main(argc:int,argv:*string)ret int{if(argc!=3){return 2;}local app:App=App
         const result = await response;
         expect(exit).toBe(0);
         expect(performance.now() - before).toBeLessThan(4000);
-        const logs = await new Response(child.stdout).text();
+        const stdout = child.stdout;
+        if (!stdout || typeof stdout === "number")
+          throw new Error("Expected captured stdout");
+        const logs = await new Response(stdout).text();
         expect(
           result,
           mode + " elapsed:" + (performance.now() - before) + " logs:" + logs,
