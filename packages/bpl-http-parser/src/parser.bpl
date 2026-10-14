@@ -1,176 +1,187 @@
+import [Array] from "std/array.bpl";
 import [ParsedRequest] from "./types.bpl";
-import [Map] from "std/map.bpl";
-import [String] from "std/string.bpl";
-import [Option] from "std/option.bpl";
-import strchr, strstr, strlen, strncmp, strcmp, strcpy, strncpy, malloc, free, atoi, memset, printf from "./libc.bpl";
-
+import [Map], [MapNode] from "std/map.bpl";
+import strlen, malloc, free, memcpy, strcmp from "./libc.bpl";
 export [HttpParser];
 
 struct HttpParser {
-
-    frame parse(raw_req: string) ret ParsedRequest {
-        local parsed: ParsedRequest = ParsedRequest.new();
-
-        # 1. Split into lines
-        # DEBUG
-        # printf("DEBUG_PARSER: raw_req len %d\n", strlen(raw_req));
-
-        local cursor: string = raw_req;
-
-        # Parse Request Line
-        local line_end: string = strstr(cursor, "\r\n");
-        if (line_end == nullptr) {
-            return parsed;
-        }
-        # Method
-        local method_end: string = strchr(cursor, 32); # space
-        if (method_end == nullptr) {
-            return parsed;
-        }
-        local method_len: long = cast<long>(method_end) - cast<long>(cursor);
-        parsed.method = malloc(method_len + 1);
-        strncpy(parsed.method, cursor, method_len);
-        parsed.method[method_len] = cast<char>(0);
-
-        cursor = cast<string>(cast<*char>(cast<long>(method_end) + 1));
-
-        # Path + Query
-        local path_end: string = strchr(cursor, 32); # space
-        if (path_end == nullptr) {
-            return parsed;
-        }
-        local full_path_len: long = cast<long>(path_end) - cast<long>(cursor);
-        local full_path: string = malloc(full_path_len + 1);
-        strncpy(full_path, cursor, full_path_len);
-        full_path[full_path_len] = cast<char>(0);
-
-        # printf("DEBUG_PARSER: FullPath='%s'\n", full_path);
-
-        # Parse Query String
-        local query_start: string = strchr(full_path, 63); # ?
-
-        # printf("DEBUG_PARSER: FullPath='%s'\n", full_path);
-
-        if (query_start != nullptr) {
-            # Path is up to ?
-            local path_len: long = cast<long>(query_start) - cast<long>(full_path);
-            parsed.path = malloc(path_len + 1);
-            strncpy(parsed.path, full_path, path_len);
-            parsed.path[path_len] = cast<char>(0);
-
-            # Parse Query Params
-            HttpParser.parseQuery(cast<string>(cast<*char>(cast<long>(query_start) + 1)), &parsed.query);
-        } else {
-            parsed.path = malloc(full_path_len + 1);
-            strcpy(parsed.path, full_path);
-        }
-        free(full_path);
-
-        cursor = cast<string>(cast<*char>(cast<long>(line_end) + 2)); # Skip \r\n
-
-        # 2. Parse Headers
-        loop {
-            line_end = strstr(cursor, "\r\n");
-            if (line_end == nullptr) {
-                break;
-            }
-            if (line_end == cursor) {
-                # Empty line, end of headers
-                cursor = cast<string>(cast<*char>(cast<long>(line_end) + 2));
-                break;
-            }
-            # :
-            local colon: string = strchr(cursor, 58);
-            if (colon != nullptr) {
-                local key_len: long = cast<long>(colon) - cast<long>(cursor);
-                local key: string = malloc(key_len + 1);
-                strncpy(key, cursor, key_len);
-                key[key_len] = cast<char>(0);
-
-                local val_start: string = cast<string>(cast<*char>(cast<long>(colon) + 1));
-                # Skip space
-                if (val_start[0] == cast<char>(32)) {
-                    val_start = cast<string>(cast<*char>(cast<long>(val_start) + 1));
-                }
-                local val_len: long = cast<long>(line_end) - cast<long>(val_start);
-                local val: string = malloc(val_len + 1);
-                strncpy(val, val_start, val_len);
-                val[val_len] = cast<char>(0);
-
-                # printf("DEBUG_PARSER: Header '%s'='%s'\n", key, val);
-
-                parsed.headers.set(key, val);
-
-                # free(key); # Map takes ownership or copies? Standard Map usually copies if string keys.
-                # Checking std/map.bpl... it usually copies if designed well, or stores pointer.
-                # Assuming I need to check Map implementation later. For now let's assume it copies or I leak small strings.
-                # Actually std/Map usually stores keys. If it stores char*, we need to see who owns it.
-                # I'll enable cleanup later if needed.
-            }
-            cursor = cast<string>(cast<*char>(cast<long>(line_end) + 2));
-        }
-
-        # 3. Parse Body
-        # Check Content-Length
-        if (parsed.headers.has("Content-Length")) {
-            local cl_opt: Option<string> = parsed.headers.get("Content-Length");
-            local cl_str: string = cl_opt.unwrap();
-            local cl: int = atoi(cl_str);
-            if (cl > 0) {
-                parsed.body = malloc(cast<long>(cl + 1));
-                strncpy(parsed.body, cursor, cast<long>(cl));
-                parsed.body[cl] = cast<char>(0);
-            }
-        } else {
-            # Maybe Read until end? For now handle only if CL provided or assume empty.
-            if (strlen(cursor) > 0) {
-                local len: long = cast<long>(strlen(cursor));
-                parsed.body = malloc(len + 1);
-                strcpy(parsed.body, cursor);
-            }
-        }
-
-        return parsed;
+    frame copy(raw: string, start: long, count: long) ret string {
+        local result: string = malloc(count + 1);
+        if (result == nullptr) { throw "HTTP allocation failed"; }
+        memcpy(result, raw + start, count);
+        result[count] = 0;
+        return result;
     }
 
-    frame parseQuery(qs: string, map: *Map<string, string>) {
-        if (qs == nullptr) {
-            return;
+    frame token(c: char) ret bool {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '!' || c == '#' || c == '$' || c == '%' || c == '&' || c == '\'' || c == '*' || c == '+' || c == '-' || c == '.' || c == '^' || c == '_' || c == '`' || c == '|' || c == '~';
+    }
+
+    frame hex(c: char) ret int {
+        if (c >= '0' && c <= '9') { return cast<int>(c - '0'); }
+        if (c >= 'a' && c <= 'f') { return cast<int>(c - 'a') + 10; }
+        if (c >= 'A' && c <= 'F') { return cast<int>(c - 'A') + 10; }
+        return -1;
+    }
+
+    # Owned result; malformed escapes and decoded NUL are rejected.
+    frame decode(raw: string, count: long) ret string {
+        local result: string = malloc(count + 1);
+        if (result == nullptr) { throw "HTTP allocation failed"; }
+        local i: long = 0;
+        local j: long = 0;
+        loop (i < count) {
+            local c: char = raw[i];
+            if (c == '+') { c = ' '; }
+            else if (c == '%') {
+                if (i + 2 >= count) { free(result); return nullptr; }
+                local a: int = HttpParser.hex(raw[i + 1]);
+                local b: int = HttpParser.hex(raw[i + 2]);
+                if (a < 0 || b < 0 || (a == 0 && b == 0)) { free(result); return nullptr; }
+                c = cast<char>(a * 16 + b);
+                i = i + 2;
+            }
+            result[j] = c;
+            j = j + 1;
+            i = i + 1;
         }
-        local cursor: string = qs;
+        result[j] = 0;
+        return result;
+    }
 
-        loop (true) {
-            local eq: string = strchr(cursor, 61); # =
-            local ampersand: string = strchr(cursor, 38); # &
-
-            if (eq == nullptr) {
-                break;
+    frame put(map: *Map<string, string>, key: string, value: string) {
+        # Maps borrow strings. Keep the existing key on replacement.
+        local i: int = 0;
+        loop (i < map.buckets.len()) {
+            local node: *MapNode<string, string> = map.buckets.get(i);
+            loop (node != nullptr) {
+                if (strcmp(node.key, key) == 0) { free(key); free(node.value); node.value = value; return; }
+                node = node.next;
             }
-            # Key
-            local key_len: long = cast<long>(eq) - cast<long>(cursor);
-            local key: string = malloc(key_len + 1);
-            strncpy(key, cursor, key_len);
-            key[key_len] = cast<char>(0);
-
-            # Value
-            local val_start: string = cast<string>(cast<*char>(cast<long>(eq) + 1));
-            local val_len: long = 0;
-            if (ampersand != nullptr) {
-                val_len = cast<long>(ampersand) - cast<long>(val_start);
-            } else {
-                val_len = cast<long>(strlen(val_start));
-            }
-
-            local val: string = malloc(val_len + 1);
-            strncpy(val, val_start, val_len);
-            val[val_len] = cast<char>(0);
-
-            map.set(key, val);
-
-            if (ampersand == nullptr) {
-                break;
-            }
-            cursor = cast<string>(cast<*char>(cast<long>(ampersand) + 1));
+            i = i + 1;
         }
+        map.set(key, value);
+    }
+
+    frame parseQuery(qs: string, map: *Map<string, string>) ret bool {
+        if (qs == nullptr) { return true; }
+        local len: long = strlen(qs);
+        local start: long = 0;
+        loop (start < len) {
+            local end: long = start;
+            loop (end < len && qs[end] != '&') { end = end + 1; }
+            local eq: long = start;
+            loop (eq < end && qs[eq] != '=') { eq = eq + 1; }
+            local key: string = HttpParser.decode(qs + start, eq - start);
+            local value_start: long = eq;
+            if (eq < end) { value_start = eq + 1; }
+            local value: string = HttpParser.decode(qs + value_start, end - value_start);
+            if (key == nullptr || value == nullptr) { free(key); free(value); return false; }
+            HttpParser.put(map, key, value);
+            start = end + 1;
+        }
+        return true;
+    }
+
+    frame parse(raw: string) ret ParsedRequest {
+        if (raw == nullptr) { return ParsedRequest.new(); }
+        return HttpParser.parseBytes(raw, strlen(raw));
+    }
+
+    # At most 16 KiB headers / 1 MiB body. Incomplete input has error_code=0.
+    # Unsupported transfer codings are explicitly rejected (501).
+    frame parseBytes(raw: string, size: long) ret ParsedRequest {
+        local p: ParsedRequest = ParsedRequest.new();
+        if (raw == nullptr || size < 0) { p.error_code = 400; return p; }
+        local boundary: long = -1;
+        local i: long = 0;
+        loop (i + 3 < size && i < 16384) {
+            if (raw[i] == '\r' && raw[i+1] == '\n' && raw[i+2] == '\r' && raw[i+3] == '\n') { boundary = i; break; }
+            i = i + 1;
+        }
+        if (boundary < 0) { if (size >= 16384) { p.error_code = 431; } return p; }
+        if (boundary + 4 > 16384) { p.error_code = 431; return p; }
+        p.error_code = 400;
+        local line: long = 0;
+        loop (line < boundary && raw[line] != '\r') { line = line + 1; }
+        local m: long = 0;
+        loop (m < line && HttpParser.token(raw[m])) { m = m + 1; }
+        if (m == 0 || m >= line || raw[m] != ' ') { return p; }
+        local target: long = m + 1;
+        local end: long = target;
+        loop (end < line && raw[end] != ' ') {
+            if (raw[end] <= 32 || raw[end] == 127 || raw[end] == '#') { return p; }
+            end = end + 1;
+        }
+        if (end == target || raw[target] != '/' || end + 9 != line) { return p; }
+        local version: string = HttpParser.copy(raw, end + 1, 8);
+        local version_ok: bool = strcmp(version, "HTTP/1.1") == 0 || strcmp(version, "HTTP/1.0") == 0;
+        free(version);
+        if (!version_ok) { return p; }
+        p.method = HttpParser.copy(raw, 0, m);
+        local q: long = target;
+        loop (q < end && raw[q] != '?') { q = q + 1; }
+        p.path = HttpParser.copy(raw, target, q - target);
+        if (q < end) {
+            local query: string = HttpParser.copy(raw, q + 1, end - q - 1);
+            local ok: bool = HttpParser.parseQuery(query, &p.query);
+            free(query);
+            if (!ok) { return p; }
+        }
+        i = line + 2;
+        local length: long = 0;
+        local has_length: bool = false;
+        local has_host: bool = false;
+        loop (i < boundary) {
+            local e: long = i;
+            loop (e < boundary && raw[e] != '\r') { e = e + 1; }
+            if (e > boundary || raw[e+1] != '\n') { return p; }
+            local colon: long = i;
+            loop (colon < e && HttpParser.token(raw[colon])) { colon = colon + 1; }
+            if (colon == i || colon >= e || raw[colon] != ':') { return p; }
+            local key: string = HttpParser.copy(raw, i, colon - i);
+            local k: long = 0;
+            loop (k < colon - i) {
+                if (key[k] >= 'A' && key[k] <= 'Z') { key[k] = key[k] + cast<char>(32); }
+                k = k + 1;
+            }
+            local vs: long = colon + 1;
+            loop (vs < e && (raw[vs] == ' ' || raw[vs] == '\t')) { vs = vs + 1; }
+            local ve: long = e;
+            loop (ve > vs && (raw[ve-1] == ' ' || raw[ve-1] == '\t')) { ve = ve - 1; }
+            k = vs;
+            loop (k < ve) {
+                if ((raw[k] < 32 && raw[k] != '\t') || raw[k] == 127) { free(key); return p; }
+                k = k + 1;
+            }
+            local value: string = HttpParser.copy(raw, vs, ve - vs);
+            if (strcmp(key, "content-length") == 0) {
+                if (has_length || ve == vs) { free(key); free(value); return p; }
+                has_length = true;
+                k = vs;
+                loop (k < ve) {
+                    if (raw[k] < '0' || raw[k] > '9') { free(key); free(value); return p; }
+                    length = length * 10 + cast<long>(raw[k] - '0');
+                    if (length > 1048576) { free(key); free(value); p.error_code = 413; return p; }
+                    k = k + 1;
+                }
+            }
+            if (strcmp(key, "host") == 0) {
+                if (has_host || ve == vs) { free(key); free(value); return p; }
+                has_host = true;
+            }
+            if (strcmp(key, "transfer-encoding") == 0) { free(key); free(value); p.error_code = 501; return p; }
+            HttpParser.put(&p.headers, key, value);
+            i = e + 2;
+        }
+        # HTTP/1.1 requires exactly one Host header.
+        if (version_ok && raw[end+8] == '1' && !has_host) { return p; }
+        if (size - boundary - 4 < length) { p.error_code = 0; return p; }
+        p.body = HttpParser.copy(raw, boundary + 4, length);
+        p.body_length = length;
+        p.message_length = boundary + 4 + length;
+        p.valid = true;
+        p.error_code = 0;
+        return p;
     }
 }

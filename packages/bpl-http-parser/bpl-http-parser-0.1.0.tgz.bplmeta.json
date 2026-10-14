@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-http-parser",
+  "version": "0.1.0",
+  "archiveFile": "bpl-http-parser-0.1.0.tgz",
+  "archiveSha256": "fd01e965fcd9d01f578f399b8efbae229fe5cb5d0933f3304d5b329ec4e7b34a",
+  "packageHash": "42980e650d8c6a996211e27d6e78367472809c3ff3aa437d4148cb35e514e303",
+  "sizeBytes": 3215,
+  "createdAt": "2026-10-14T15:08:31.371Z",
+  "manifest": {
+    "name": "bpl-http-parser",
+    "version": "0.1.0",
+    "description": "HTTP request parsing library for BPL",
+    "main": "index.bpl",
+    "license": "MIT"
+  }
+}

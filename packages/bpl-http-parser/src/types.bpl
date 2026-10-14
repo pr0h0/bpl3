@@ -1,6 +1,17 @@
-import [Map] from "std/map.bpl";
-
+import [Array] from "std/array.bpl";
+import [Map], [MapNode] from "std/map.bpl";
+extern free(ptr: string);
 export [ParsedRequest];
+export releaseStrings;
+
+# Only for maps whose keys and values are individually owned allocations.
+frame releaseStrings(map: *Map<string, string>) {
+    loop (local i: int = 0; i < map.buckets.len(); i = i + 1) {
+        local node: *MapNode<string, string> = map.buckets.get(i);
+        loop (node != nullptr) { free(node.key); free(node.value); node = node.next; }
+    }
+    map.destroy();
+}
 
 struct ParsedRequest {
     method: string,
@@ -9,22 +20,30 @@ struct ParsedRequest {
     headers: Map<string, string>,
     body: string,
     params: Map<string, string>,
-    # For route params like /users/:id
-
+    valid: bool,
+    error_code: int,
+    body_length: long,
+    message_length: long,
     frame new() ret ParsedRequest {
         local req: ParsedRequest;
         req.query = Map<string, string>.new();
         req.headers = Map<string, string>.new();
         req.params = Map<string, string>.new();
-        req.method = "";
-        req.path = "";
-        req.body = "";
+        req.method = nullptr;
+        req.path = nullptr;
+        req.body = nullptr;
+        req.valid = false;
+        req.error_code = 0;
+        req.body_length = 0;
+        req.message_length = 0;
         return req;
     }
-
     frame destroy(this: *ParsedRequest) {
-        this.query.destroy();
-        this.headers.destroy();
-        this.params.destroy();
+        releaseStrings(&this.query);
+        releaseStrings(&this.headers);
+        releaseStrings(&this.params);
+        free(this.method); free(this.path); free(this.body);
+        this.method = nullptr; this.path = nullptr; this.body = nullptr;
+        this.valid = false;
     }
 }

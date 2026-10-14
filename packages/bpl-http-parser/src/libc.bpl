@@ -27,3 +27,5 @@ export printf;
 
 extern fflush(stream: *void) ret int;
 export fflush;
+extern memcpy(dest: string, source: string, count: long) ret string;
+export memcpy;
