@@ -1187,10 +1187,29 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     const type = this.resolveType(expr.resolvedType!);
     let arrayVal = "undef";
 
+    const arrayTypeNode = expr.resolvedType!;
+    if (!("arrayDimensions" in arrayTypeNode)) {
+      throw new CompilerError(
+        "Array literal is missing its array type",
+        "",
+        expr.location,
+      );
+    }
+    const targetTypeNode = {
+      ...arrayTypeNode,
+      arrayDimensions: arrayTypeNode.arrayDimensions!.slice(1),
+    };
+    const elemType = this.resolveType(targetTypeNode);
     for (let i = 0; i < expr.elements.length; i++) {
       const elemExpr = expr.elements[i]!;
-      const elemVal = this.generateExpression(elemExpr);
-      const elemType = this.resolveType(elemExpr.resolvedType!);
+      const sourceTypeNode = elemExpr.resolvedType!;
+      const elemVal = this.emitCast(
+        this.generateExpression(elemExpr),
+        this.resolveType(sourceTypeNode),
+        elemType,
+        sourceTypeNode,
+        targetTypeNode,
+      );
       const nextVal = this.newRegister();
       this.emit(
         `  ${nextVal} = insertvalue ${type} ${arrayVal}, ${elemType} ${elemVal}, ${i}`,
