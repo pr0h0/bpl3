@@ -8,7 +8,8 @@ not a JavaScript Passport plugin adapter.
 `Passport.new()` creates an owning registry. `use(name, handler, context)` copies
 its name and borrows the context pointer. Names must contain 1–64 bytes; duplicate
 names, null handlers, and unknown strategy names throw configuration errors.
-Register strategies during worker initialization, before serving requests.
+For a reused registry, register strategies during worker initialization, before
+serving requests. A registry scoped to a route call is also supported.
 
 A `StrategyHandler` has type `Func<long>(*void, *Request, *Response)`. Return a
 positive application user ID on success, or zero/negative on rejection. Call

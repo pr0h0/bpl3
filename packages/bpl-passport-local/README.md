@@ -1,6 +1,9 @@
 # bpl-passport-local
 
 Optional username/password strategy for [bpl-passport](../bpl-passport/README.md).
+Install `bpl-passport-local-0.1.0.tgz` with `bpl install`; its dependencies
+install transitively from the sibling package archives.
+
 It accepts JSON `{ "username": "student", "password": "..." }`; both fields
 are required strings of 1–256 bytes. The body is limited to 2 KiB, embedded raw
 NUL bytes are rejected. Malformed JSON and incompatible field types return 400;
@@ -41,10 +44,12 @@ The strategy borrows your context. `install` borrows the strategy itself: both
 must stay at stable addresses until all authentications finish. A LocalStrategy
 has no owned resources and needs no destroy call.
 
-Decoded password and raw request body buffers are overwritten before release,
+Successfully decoded passwords and raw request body buffers are overwritten
+before release,
 including when verification throws. Credentials are consumed: later middleware
 must not expect to parse that body again. This does not guarantee erasure of all
-allocator/compiler copies. Linux/glibc `explicit_bzero` prevents these explicit
+allocator/compiler copies or partial decoder allocations on rejected JSON.
+Linux/glibc `explicit_bzero` prevents these explicit
 wipes from being optimized away; no SQLite or libsodium dependency is introduced.
 
 `LocalCredentials.parse(req,res)` and `credentials.destroy(req)` are available
