@@ -55,3 +55,9 @@ returns all cookies without splitting commas in Expires. Destroy the returned
 array; its values borrow the response. Ordinary `get` combines repeated list
 values; Set-Cookie get returns only the first cookie. The same owning HttpHeaders
 API is exported by bpl-http-parser and used across the web stack.
+
+Chunked response decoding shares the incremental bounded decoder with the server.
+Trailers are validated and exposed in `response.trailers`, separately from
+headers; they cannot introduce framing/authentication/representation metadata.
+Chunk extensions accept token and quoted-string values; malformed extensions,
+control characters and excessive metadata are rejected.

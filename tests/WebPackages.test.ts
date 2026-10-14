@@ -31,7 +31,7 @@ test("HTTP parser bounds framing, normalizes headers, decodes query segments and
       p = HttpParser.parse("GET /?x=%00 HTTP/1.1\\r\\nHost: x\\r\\n\\r\\n");
       if (p.valid || p.error_code != 400) { return 7; } p.destroy();
       p = HttpParser.parse("GET / HTTP/1.1\\r\\nHost: x\\r\\nTransfer-Encoding: chunked\\r\\n\\r\\n0\\r\\n\\r\\n");
-      if (p.valid || p.error_code != 501) { return 8; } p.destroy();
+      if (!p.valid || p.body_length != 0) { return 8; } p.destroy();
       p = HttpParser.parse("GET / HTTP/1.1\\r\\nHost: x\\r\\nContent-Length: 999999999999999999\\r\\n\\r\\n");
       if (p.valid || p.error_code != 413) { return 9; } p.destroy();
       p = HttpParser.parse("GET / HTTP/1.1\\r\\n\\r\\n");
@@ -138,6 +138,15 @@ test.skipIf(process.platform !== "linux")(
         binary.subarray(2),
       ]);
       expect(echo.toString("latin1")).toContain("X-Custom: works\r\n");
+      const chunked = await request([
+        "POST /echo HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n2;foo=bar\r\n",
+        binary.subarray(0, 2),
+        "\r\n2\r\n",
+        binary.subarray(2),
+        "\r\n0\r\nX-Checksum: test\r\n\r\n",
+      ]);
+      expect(chunked.subarray(chunked.indexOf("\r\n\r\n") + 4)).toEqual(binary);
+
       expect(echo.toString("latin1")).toContain("X-Owned: owned\r\n");
       expect(echo.subarray(echo.indexOf("\r\n\r\n") + 4)).toEqual(binary);
       const staticResponse = await request([

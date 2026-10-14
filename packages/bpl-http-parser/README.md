@@ -11,11 +11,12 @@ The parser requires an origin-form target and HTTP/1.0 or HTTP/1.1. HTTP/1.1
 requires one nonempty Host header. Headers are limited to 16 KiB and bodies
 to 1 MiB. Duplicate Content-Length, Cookie, Origin, Authorization, or X-CSRF-Token
 headers, invalid lengths, malformed headers, and
-invalid query escapes are rejected. Request transfer encodings return 501;
-chunked request bodies are not supported. `message_length` marks the first
+invalid query escapes are rejected. HTTP/1.1 chunked requests are decoded, including bounded chunk extensions and
+validated trailers. Other transfer codings return 501. Content-Length together
+with Transfer-Encoding is rejected. `message_length` marks the first
 request boundary; extra bytes are not incorporated into the body.
 
-All returned strings and maps belong to the result. Call `destroy()` on
+All returned strings and header collections/maps belong to the result. Call `destroy()` on
 success, failure, or incomplete input. Copying the result does not copy its
 allocations; destroy the owner once. Borrowed fields expire at destruction.
 
@@ -29,3 +30,10 @@ copied, validated and owned until destroy; original wire name casing is retained
 Do not copy the owning collection. Raw Map operations on headers are replaced by
 these methods. Parsed Content-Type, Expect and Access-Control-Request-Method
 also reject duplicates rather than joining ambiguous singleton values.
+
+Decoded chunked bodies are limited to 1 MiB, chunk metadata to 64 KiB, each chunk
+size/extension line to 1 KiB, and trailers to 16 KiB. `trailers` is a separate
+HttpHeaders collection: trailer fields never initialize ordinary headers.
+Framing, routing, authentication and representation metadata are forbidden in
+trailers. `ChunkDecoder.parse(data,size)` exposes the same incremental decoder;
+check valid/error_code, and destroy the owning result even for incomplete input.

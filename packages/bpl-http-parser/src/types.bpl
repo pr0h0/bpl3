@@ -23,6 +23,7 @@ struct ParsedRequest {
     path: string,
     query: Map<string, string>,
     headers: HttpHeaders,
+    trailers: HttpHeaders,
     body: string,
     params: Map<string, string>,
     valid: bool,
@@ -33,6 +34,7 @@ struct ParsedRequest {
         local req: ParsedRequest;
         req.query = Map<string, string>.new();
         req.headers = HttpHeaders.new();
+        req.trailers = HttpHeaders.new();
         req.params = Map<string, string>.new();
         req.method = nullptr;
         req.path = nullptr;
@@ -46,6 +48,7 @@ struct ParsedRequest {
     frame destroy(this: *ParsedRequest) {
         releaseStrings(&this.query);
         this.headers.destroy();
+        this.trailers.destroy();
         releaseStrings(&this.params);
         free(this.method);
         free(this.path);

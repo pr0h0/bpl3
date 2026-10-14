@@ -349,7 +349,7 @@ struct App {
             }
         }
         defer tls.shutdown(TlsConnection.deadline(this.timeout_seconds));
-        local buffer: string = malloc(1064961);
+        local buffer: string = malloc(1130497);
         if (buffer == nullptr) {
             return;
         }
@@ -377,7 +377,7 @@ struct App {
                 if (read_deadline > deadline) {
                     read_deadline = deadline;
                 }
-                count = tls.read(buffer + used, 1064960 - used, read_deadline);
+                count = tls.read(buffer + used, 1130496 - used, read_deadline);
             } else {
                 local ready: pollfd;
                 ready.fd = fd;
@@ -395,7 +395,7 @@ struct App {
                     }
                     return;
                 }
-                count = read(fd, buffer + used, cast<ulong>(1064960 - used));
+                count = read(fd, buffer + used, cast<ulong>(1130496 - used));
             }
             if (count <= 0) {
                 if (count < 0) {
@@ -415,7 +415,7 @@ struct App {
                     res.status(code).text("Invalid request");
                     return;
                 }
-                if (used >= 1064960) {
+                if (used >= 1130496) {
                     res.status(413).text("Request too large");
                     return;
                 }
@@ -567,6 +567,7 @@ struct App {
         req.body = parsed.body;
         req.body_length = parsed.body_length;
         req.headers = parsed.headers;
+        req.trailers = parsed.trailers;
         req.query = parsed.query;
         req.params = parsed.params;
         req.state = Map<string, string>.new();

@@ -5,7 +5,7 @@ import [Map], [MapNode] from "std/map.bpl";
 import [Array] from "std/array.bpl";
 import [Option] from "std/option.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
-import [HttpParser], [HeaderField] from "bpl-http-parser";
+import [HttpParser], [HeaderField], [ChunkDecoder], [ChunkedBody] from "bpl-http-parser";
 import socket, connect, htons, gethostbyname, [sockaddr_in], [hostent], send, read, close, malloc, free, memcpy, memset, sprintf, strlen, strcmp, setsockopt, [timeval] from "./libc.bpl";
 export [HttpMethod];
 export [RequestBuilder];
@@ -25,6 +25,7 @@ enum HttpMethod {
 struct HttpResponse {
     status: int,
     headers: HttpHeaders,
+    trailers: HttpHeaders,
     body: string,
     body_length: long,
     error: string,
@@ -35,6 +36,7 @@ struct HttpResponse {
         }
         r.status = status;
         r.headers = HttpHeaders.new();
+        r.trailers = HttpHeaders.new();
         r.body_length = cast<long>(strlen(body));
         r.body = HttpParser.copy(body, 0, r.body_length);
         r.error = "";
@@ -48,6 +50,7 @@ struct HttpResponse {
     # Destroys the heap response itself; do not call twice or use afterward.
     frame destroy(this: *HttpResponse) {
         this.headers.destroy();
+        this.trailers.destroy();
         free(this.body);
         free(cast<string>(this));
     }
@@ -138,86 +141,30 @@ struct HttpResponse {
         }
         local length: long = available;
         if (r.headers.has("transfer-encoding")) {
-            if ((strcmp(r.headers.get("transfer-encoding").unwrap(), "chunked") != 0) || r.headers.has("content-length")) {
+            local encoding: string = HttpHeaders.copy(r.headers.get("transfer-encoding").unwrap());
+            loop (local n: long = 0; encoding[n] != 0; n = n + 1) {
+                if ((encoding[n] >= 'A') && (encoding[n] <= 'Z')) {
+                    encoding[n] = encoding[n] + cast<char>(32);
+                }
+            }
+            local supported: bool = strcmp(encoding, "chunked") == 0;
+            free(encoding);
+            if (!supported || r.headers.has("content-length")) {
                 r.destroy();
                 return HttpResponse.failure("Unsupported response framing");
             }
-            local output: string = malloc(cast<ulong>(available + 1));
-            if (output == nullptr) {
-                r.destroy();
-                throw "HTTP allocation failed";
-            }
-            local pos: long = 0;
-            local used: long = 0;
-            local done: bool = false;
-            loop (pos < available) {
-                local chunk: long = 0;
-                local digits: int = 0;
-                loop (pos < available) {
-                    local hex: int = HttpParser.hex(data[pos]);
-                    if (hex < 0) {
-                        break;
-                    }
-                    digits = digits + 1;
-                    chunk = (chunk * 16) + cast<long>(hex);
-                    if (chunk > 1048576) {
-                        break;
-                    }
-                    pos = pos + 1;
-                }
-                if ((digits == 0) || (chunk > 1048576)) {
-                    break;
-                }
-                if ((pos < available) && (data[pos] == ';')) {
-                    loop ((pos < available) && (data[pos] != '\r')) {
-                        pos = pos + 1;
-                    }
-                }
-                if (((pos + 1) >= available) || (data[pos] != '\r') || (data[pos + 1] != '\n')) {
-                    break;
-                }
-                pos = pos + 2;
-                if (chunk == 0) {
-                    # Validate the complete trailer section without incorporating it into headers.
-                    loop ((pos + 1) < available) {
-                        if ((data[pos] == '\r') && (data[pos + 1] == '\n')) {
-                            done = true;
-                            break;
-                        }
-                        local e: long = pos;
-                        loop ((e < available) && (data[e] != '\r')) {
-                            e = e + 1;
-                        }
-                        if (((e + 1) >= available) || (data[e + 1] != '\n')) {
-                            break;
-                        }
-                        local c: long = pos;
-                        loop ((c < e) && HttpParser.token(data[c])) {
-                            c = c + 1;
-                        }
-                        if ((c == pos) || (c >= e) || (data[c] != ':')) {
-                            break;
-                        }
-                        pos = e + 2;
-                    }
-                    break;
-                }
-                if ((chunk > (available - pos - 2)) || ((used + chunk) > 1048576) || (data[pos + chunk] != '\r') || (data[pos + chunk + 1] != '\n')) {
-                    break;
-                }
-                memcpy(output + used, data + pos, cast<ulong>(chunk));
-                used = used + chunk;
-                pos = pos + chunk + 2;
-            }
-            if (!done) {
-                free(output);
+            local decoded: ChunkedBody = ChunkDecoder.parse(data, available);
+            if (!decoded.valid) {
+                decoded.destroy();
                 r.destroy();
                 return HttpResponse.failure("Invalid chunked response");
             }
-            output[used] = 0;
             free(r.body);
-            r.body = output;
-            r.body_length = used;
+            r.body = decoded.body;
+            decoded.body = nullptr;
+            r.body_length = decoded.body_length;
+            r.trailers.destroy();
+            r.trailers = decoded.trailers;
             return r;
         }
         if (r.headers.has("content-length")) {

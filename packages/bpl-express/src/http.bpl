@@ -42,6 +42,7 @@ struct Request {
     path: string,
     query: Map<string, string>,
     headers: HttpHeaders,
+    trailers: HttpHeaders,
     body: string,
     body_length: long,
     params: Map<string, string>,
@@ -56,6 +57,7 @@ struct Request {
         req.body_length = 0;
         req.query = Map<string, string>.new();
         req.headers = HttpHeaders.new();
+        req.trailers = HttpHeaders.new();
         req.params = Map<string, string>.new();
         req.state = Map<string, string>.new();
         return req;
@@ -78,6 +80,7 @@ struct Request {
     frame destroy(this: *Request) {
         releaseStrings(&this.query);
         this.headers.destroy();
+        this.trailers.destroy();
         releaseStrings(&this.params);
         releaseStrings(&this.state);
         free(this.path);

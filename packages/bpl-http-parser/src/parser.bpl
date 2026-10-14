@@ -1,3 +1,4 @@
+import [ChunkDecoder], [ChunkedBody] from "./chunked.bpl";
 import [HttpHeaders] from "./headers.bpl";
 import [Array] from "std/array.bpl";
 import [ParsedRequest] from "./types.bpl";
@@ -201,6 +202,7 @@ struct HttpParser {
         i = line + 2;
         local length: long = 0;
         local has_length: bool = false;
+        local chunked: bool = false;
         local has_host: bool = false;
         loop (i < boundary) {
             local e: long = i;
@@ -275,10 +277,26 @@ struct HttpParser {
                 has_host = true;
             }
             if (strcmp(key, "transfer-encoding") == 0) {
-                free(key);
-                free(value);
-                p.error_code = 501;
-                return p;
+                if (chunked) {
+                    free(key);
+                    free(value);
+                    return p;
+                }
+                local encoding: string = HttpHeaders.copy(value);
+                loop (local n: long = 0; encoding[n] != 0; n = n + 1) {
+                    if ((encoding[n] >= 'A') && (encoding[n] <= 'Z')) {
+                        encoding[n] = encoding[n] + cast<char>(32);
+                    }
+                }
+                local supported: bool = strcmp(encoding, "chunked") == 0;
+                free(encoding);
+                if (!supported) {
+                    free(key);
+                    free(value);
+                    p.error_code = 501;
+                    return p;
+                }
+                chunked = true;
             }
             if (((strcmp(key, "cookie") == 0) || (strcmp(key, "origin") == 0) || (strcmp(key, "authorization") == 0) || (strcmp(key, "x-csrf-token") == 0) || (strcmp(key, "content-type") == 0) || (strcmp(key, "expect") == 0) || (strcmp(key, "access-control-request-method") == 0)) && p.headers.has(key)) {
                 free(key);
@@ -292,6 +310,26 @@ struct HttpParser {
         }
         # HTTP/1.1 requires exactly one Host header.
         if (version_ok && (raw[end + 8] == '1') && !has_host) {
+            return p;
+        }
+        if (chunked) {
+            if (has_length || (raw[end + 8] != '1')) {
+                return p;
+            }
+            local decoded: ChunkedBody = ChunkDecoder.parse(raw + boundary + 4, size - boundary - 4);
+            if (!decoded.valid) {
+                p.error_code = decoded.error_code;
+                decoded.destroy();
+                return p;
+            }
+            p.body = decoded.body;
+            decoded.body = nullptr;
+            p.body_length = decoded.body_length;
+            p.message_length = boundary + 4 + decoded.message_length;
+            p.trailers.destroy();
+            p.trailers = decoded.trailers;
+            p.valid = true;
+            p.error_code = 0;
             return p;
         }
         if ((size - boundary - 4) < length) {

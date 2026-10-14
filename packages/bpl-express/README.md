@@ -28,7 +28,7 @@ IPv4 interfaces. `open(port, host)` returns a listener descriptor for embedding;
 caller closes both descriptors. Accepted connections have five-second read/write inactivity deadlines
 (`app.timeout_seconds`) and a ten-second total request assembly deadline
 (`app.request_timeout_seconds`). Each deadline accepts 1–300 seconds. Requests are bounded
-to 16 KiB headers and 1 MiB bodies. Fragmented requests are assembled; unsupported
+to 16 KiB headers and 1 MiB bodies. Fragmented fixed-length and chunked requests are assembled; unsupported
 request transfer codings return 501. Every response closes the connection.
 
 Routes support `get`, `post`, `put`, `delete`, `patch`, `options`, `head`, and
@@ -156,3 +156,10 @@ bpl-http-parser. Use `res.appendHeader("Set-Cookie", value)` for each independen
 cookie; setHeader replaces all values. `req.headers.getAll(name)` preserves
 repeated fields and returns an array owning only its storage; its string values
 borrow the request. Authentication/framing singleton duplicates remain rejected.
+
+Chunked requests expose a decoded binary `body`/`body_length`; `req.trailers`
+contains separately validated trailer fields. The request wire buffer allows
+1 MiB decoded body plus 64 KiB chunk metadata and 16 KiB headers. Total assembly
+and inactivity deadlines also apply to chunked requests. Requests carrying both
+Content-Length and Transfer-Encoding, duplicate encodings, or forbidden trailer
+fields are rejected before a handler runs.
