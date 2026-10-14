@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-csv",
+  "version": "0.1.0",
+  "archiveFile": "bpl-csv-0.1.0.tgz",
+  "archiveSha256": "bf911565a5fada43c649607f714df66cc6a3534c33901ee9c72080da06fd6f23",
+  "packageHash": "34a945957c465f36420580be8dc881f34505b2a2af350a637a777b346f3615d5",
+  "sizeBytes": 825,
+  "createdAt": "2026-10-14T15:56:13.453Z",
+  "manifest": {
+    "name": "bpl-csv",
+    "version": "0.1.0",
+    "description": "Optional CSV report writer with spreadsheet-safe fields",
+    "main": "index.bpl",
+    "license": "MIT"
+  }
+}
