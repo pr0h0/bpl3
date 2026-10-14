@@ -60,3 +60,48 @@ test.skipIf(!support.supported)(
   },
   120000,
 );
+
+test("ASan stack guards probe the real stack without rewriting ordinary local allocations", () => {
+  const ir = `define void @guarded() {
+  %ordinary = alloca i8
+  %probe = alloca i8
+  %limit = load i8*, i8** @__bpl_stack_limit
+  ret void
+}
+`;
+  const tagged = prepareLLVMForAddressSanitizer(ir, ["-fsanitize=address"]);
+  expect(tagged).toContain("%ordinary = alloca i8");
+  expect(tagged).toContain("%probe = call i8* @llvm.stacksave()");
+  expect(tagged.match(/declare i8\* @llvm\.stacksave\(\)/g)).toHaveLength(1);
+  expect(prepareLLVMForAddressSanitizer(tagged, ["-fsanitize=address"])).toBe(
+    tagged,
+  );
+  expect(prepareLLVMForAddressSanitizer(ir, ["-fsanitize=undefined"])).toBe(ir);
+  const declared = "declare i8* @llvm.stacksave()\n" + ir;
+  expect(
+    prepareLLVMForAddressSanitizer(declared, ["-fsanitize=address"]).match(
+      /declare i8\* @llvm\.stacksave\(\)/g,
+    ),
+  ).toHaveLength(1);
+});
+
+test.skipIf(!support.supported)(
+  "optimized stack guards tolerate ASan stack-use-after-return instrumentation",
+  () => {
+    const result = runBplWithSanitizers(
+      String.raw`
+extern write(fd:int,data:*char,size:long)ret long;
+@[noinline]
+frame output(data:*char){write(1,data,1);}
+@[noinline]
+frame guarded(value:int)ret int{local bytes:char[64];bytes[0]='a';output(&bytes[0]);return value;}
+frame main()ret int{local bytes:char[2050];bytes[0]='b';write(1,&bytes[0],1);local value:int=guarded(1);return guarded(value)-1;}
+`,
+      3,
+    );
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(result.stdout).toBe("baa");
+    expect(result.stderr).not.toContain("AddressSanitizer:");
+  },
+  90000,
+);

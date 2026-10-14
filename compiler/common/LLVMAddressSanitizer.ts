@@ -19,6 +19,20 @@ export function prepareLLVMForAddressSanitizer(
   flags: readonly string[] = [],
 ): string {
   if (!hasAddressSanitizer(flags)) return ir;
+  // ASan may relocate an alloca to its fake stack. A stack-limit probe must
+  // observe the machine stack, or a healthy optimized function can report
+  // overflow merely because its fake-stack address is below the cached limit.
+  let replacedProbe = false;
+  ir = ir.replace(
+    /^([ \t]*%[a-zA-Z0-9_.]+ = )alloca i8(?=\r?\n[ \t]*%[a-zA-Z0-9_.]+ = load i8\*, i8\*\* @__bpl_stack_limit\b)/gm,
+    (_match, assignment: string) => {
+      replacedProbe = true;
+      return `${assignment}call i8* @llvm.stacksave()`;
+    },
+  );
+  if (replacedProbe && !/^declare\b[^\n]*@llvm\.stacksave\(/m.test(ir)) {
+    ir += "\ndeclare i8* @llvm.stacksave()\n";
+  }
   const definitions =
     /^[ \t]*define\b[\s\S]*?@(?:"(?:[^"\\]|\\.)*"|[^\s(]+)\s*\(/gm;
   let output = "",

@@ -336,7 +336,7 @@ export class ModuleCache {
         compilerDriver: getCompilerDriver(target),
         sysroot: options.sysroot ?? "",
         clangFlags: options.clangFlags ?? [],
-        asanIRVersion: hasAddressSanitizer(options.clangFlags) ? 1 : undefined,
+        asanIRVersion: hasAddressSanitizer(options.clangFlags) ? 2 : undefined,
       }),
     );
   }
