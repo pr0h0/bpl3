@@ -23,7 +23,6 @@ import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConver
 import { AsmGenerator } from "./AsmGenerator";
 import type { CodegenScope } from "./BaseCodeGenerator";
 
-const OPTIMIZED_NATIVE_STACK_LIMIT_BYTES = 1024 * 1024;
 const LLVM_STACKSAVE_INTRINSIC = "llvm.stacksave";
 const EMPTY_POINTER_EXPRESSION_PROOFS: readonly string[] = [];
 
@@ -500,6 +499,8 @@ export abstract class StatementGenerator extends AsmGenerator {
       return;
     }
 
+    // O2 retains depth accounting, but foreign stacks also need a byte bound.
+    this.emitStackLimitProbe();
     const depth = this.newRegister();
     const nextDepth = this.newRegister();
     const overflow = this.newRegister();
@@ -540,24 +541,26 @@ export abstract class StatementGenerator extends AsmGenerator {
     // A private Func callback can be the first BPL call on a foreign thread,
     // so every guarded entry initializes an unset thread-local limit.
     {
-      const computedLimit = this.newRegister();
       const limitUnset = this.newRegister();
+      const computedLimit = this.newRegister();
       const initLimitLabel = this.newLabel("stack.limit.init");
       effectiveLimit = this.newRegister();
-      this.emit(
-        `  ${computedLimit} = getelementptr i8, i8* ${probe}, i64 -${OPTIMIZED_NATIVE_STACK_LIMIT_BYTES}`,
-      );
+      if (!this.declaredFunctions.has("__bpl_initialize_stack_limit")) {
+        this.emitDeclaration("declare i8* @__bpl_initialize_stack_limit(i8*)");
+        this.declaredFunctions.add("__bpl_initialize_stack_limit");
+      }
       this.emit(`  ${limitUnset} = icmp eq i8* ${limit}, null`);
-      this.emit(
-        `  ${effectiveLimit} = select i1 ${limitUnset}, i8* ${computedLimit}, i8* ${limit}`,
-      );
       this.emit(
         `  br i1 ${limitUnset}, label %${initLimitLabel}, label %${checkLabel}`,
       );
       this.emit(`${initLimitLabel}:`);
+      this.emit(
+        `  ${computedLimit} = call i8* @__bpl_initialize_stack_limit(i8* ${probe})`,
+      );
       this.emit(`  store i8* ${computedLimit}, i8** @__bpl_stack_limit`);
       this.emit(`  br label %${checkLabel}`);
       this.emit(`${checkLabel}:`);
+      this.emit(`  ${effectiveLimit} = load i8*, i8** @__bpl_stack_limit`);
     }
 
     // Supported native targets use downward-growing stacks, so crossing the

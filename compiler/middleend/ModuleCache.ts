@@ -30,7 +30,8 @@ import { formatSpawnFailureReason } from "../common/ProcessErrors";
 // Revision 2.1.1 also invalidates the former LP64 layout used for Linux x32.
 // Revision 2.1.2 gives narrow frame results the C ABI extension guarantee.
 // Revision 2.1.3 also corrects Windows boolean call argument extension.
-export const MODULE_CACHE_VERSION = "2.1.3";
+// Revision 2.1.4 clamps native stack guards to foreign thread stack bounds.
+export const MODULE_CACHE_VERSION = "2.1.4";
 
 export interface CachedModule {
   path: string;

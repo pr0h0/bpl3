@@ -97,7 +97,7 @@ describe("CodeGen - Stack Overflow", () => {
     expect(ir).toContain("load i8*, i8** @__bpl_stack_limit");
     expect(ir).toContain("store i8*");
     expect(ir).toContain("i8** @__bpl_stack_limit");
-    expect(ir).toContain("getelementptr i8, i8*");
+    expect(ir).toContain("call i8* @__bpl_initialize_stack_limit(i8*");
     expect(ir).toContain("icmp ult i8*");
     expect(ir).toContain("call void @__bpl_throw_stack_overflow()");
     expect(ir).not.toContain("@__bpl_stack_depth = external thread_local global i32");

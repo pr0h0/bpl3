@@ -367,7 +367,12 @@ Catch errors before returning across the foreign boundary. Do not unwind C++
 or C# exceptions, Rust panics, Go panics, or BPL exceptions through another language's
 frames. Native exception, defer, stack-depth and stack-limit state is local to
 the OS thread running BPL. C/C++, Rust, Go and C# fixtures exercise concurrent
-host calls and callbacks on provider worker threads. A guarded private callback
+host calls and callbacks on provider worker threads. Native guards clamp the
+usual 1 MiB budget to the host thread's stack bounds on Linux and macOS when
+available, keeping headroom for raising and catching `StackOverflowError`.
+A Linux regression exercises 128 KiB host thread stacks at O0 through O3.
+Older Linux hosts without the optional pthread query symbols retain the
+1 MiB fallback budget. A guarded private callback
 can initialize its thread's stack limit without a preceding public BPL call.
 User globals and shared pointed-to storage still need caller synchronization;
 thread-local runtime state does not make unsynchronized application data safe.

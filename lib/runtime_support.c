@@ -26,6 +26,17 @@
 #include <dirent.h>
 #include <limits.h>
 #include <time.h>
+#if defined(__linux__) || defined(__APPLE__)
+#include <pthread.h>
+#endif
+
+#ifdef __linux__
+/* Older glibc keeps these in libpthread. A non-threaded host must still link. */
+#pragma weak pthread_self
+#pragma weak pthread_getattr_np
+#pragma weak pthread_attr_getstack
+#pragma weak pthread_attr_destroy
+#endif
 
 #ifdef __linux__
 #include <execinfo.h>
@@ -749,6 +760,42 @@ void __bpl_throw_integer_overflow(const char *function, int32_t line,
     exit(1);
 }
 
+/* Cache a bounded budget, clamped to the actual foreign thread stack when
+ * the platform exposes it. Leave headroom for constructing/catching errors. */
+void *__bpl_initialize_stack_limit(void *current_stack) {
+    const uintptr_t current = (uintptr_t)current_stack;
+    const uintptr_t budget = 1024 * 1024;
+    uintptr_t limit = current > budget ? current - budget : 0;
+    uintptr_t bottom = 0;
+    size_t size = 0;
+    const int saved_errno = errno;
+#ifdef __linux__
+    if (pthread_self && pthread_getattr_np && pthread_attr_getstack &&
+        pthread_attr_destroy) {
+        pthread_attr_t attributes;
+        if (pthread_getattr_np(pthread_self(), &attributes) == 0) {
+            void *address = NULL;
+            if (pthread_attr_getstack(&attributes, &address, &size) == 0)
+                bottom = (uintptr_t)address;
+            pthread_attr_destroy(&attributes);
+        }
+    }
+#elif defined(__APPLE__)
+    pthread_t thread = pthread_self();
+    const uintptr_t top = (uintptr_t)pthread_get_stackaddr_np(thread);
+    size = pthread_get_stacksize_np(thread);
+    if (size <= top) bottom = top - size;
+#endif
+    if (bottom && size <= UINTPTR_MAX - bottom && current >= bottom &&
+        current <= bottom + size) {
+        const size_t reserve = size / 4 < 32768 ? size / 4 : 32768;
+        const uintptr_t floor = bottom + reserve;
+        if (floor > limit) limit = floor;
+    }
+    errno = saved_errno;
+    return (void *)limit;
+}
+
 /* ============ Stack Depth ============ */
 
 /*
@@ -757,7 +804,12 @@ void __bpl_throw_integer_overflow(const char *function, int32_t line,
  * optimization level.
  */
 _Bool __bpl_enter_stack_frame(void) {
-    return ++__bpl_stack_depth > BPL_MAX_STACK_DEPTH;
+    /* A local's address may be on an ASan fake stack; use the real frame. */
+    void *current_stack = __builtin_frame_address(0);
+    if (!__bpl_stack_limit)
+        __bpl_stack_limit = __bpl_initialize_stack_limit(current_stack);
+    return ++__bpl_stack_depth > BPL_MAX_STACK_DEPTH ||
+        (uintptr_t)current_stack < (uintptr_t)__bpl_stack_limit;
 }
 
 void __bpl_exit_stack_frame(void) {
