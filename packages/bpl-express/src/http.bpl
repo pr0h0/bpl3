@@ -3,7 +3,7 @@ import [Map], [MapNode] from "std/map.bpl";
 import [Array] from "std/array.bpl";
 import [Option] from "std/option.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
-import [HttpParser] from "bpl-http-parser";
+import [HttpParser], [HttpHeaders], [HeaderField] from "bpl-http-parser";
 import releaseStrings from "bpl-http-parser";
 import send, strlen, sprintf, strcmp, free from "./libc.bpl";
 export [Request];
@@ -41,7 +41,7 @@ struct Request {
     started_at: long,
     path: string,
     query: Map<string, string>,
-    headers: Map<string, string>,
+    headers: HttpHeaders,
     body: string,
     body_length: long,
     params: Map<string, string>,
@@ -55,7 +55,7 @@ struct Request {
         req.body = nullptr;
         req.body_length = 0;
         req.query = Map<string, string>.new();
-        req.headers = Map<string, string>.new();
+        req.headers = HttpHeaders.new();
         req.params = Map<string, string>.new();
         req.state = Map<string, string>.new();
         return req;
@@ -77,7 +77,7 @@ struct Request {
     }
     frame destroy(this: *Request) {
         releaseStrings(&this.query);
-        releaseStrings(&this.headers);
+        this.headers.destroy();
         releaseStrings(&this.params);
         releaseStrings(&this.state);
         free(this.path);
@@ -92,7 +92,7 @@ struct Response {
     tls: *TlsConnection,
     write_timeout_seconds: long,
     status_code: int,
-    headers: Map<string, string>,
+    headers: HttpHeaders,
     body_sent: bool,
     headers_sent: bool,
     is_chunked: bool,
@@ -105,7 +105,7 @@ struct Response {
         res.tls = nullptr;
         res.write_timeout_seconds = 5;
         res.status_code = 200;
-        res.headers = Map<string, string>.new();
+        res.headers = HttpHeaders.new();
         res.body_sent = false;
         res.headers_sent = false;
         res.is_chunked = false;
@@ -166,21 +166,17 @@ struct Response {
         if (Response.equalHeader(key, "content-length") || Response.equalHeader(key, "transfer-encoding") || Response.equalHeader(key, "connection")) {
             throw "Response framing headers are managed by the framework";
         }
-        loop (local b: int = 0; b < this.headers.buckets.len(); b = b + 1) {
-            local node: *MapNode<string, string> = this.headers.buckets.get(b);
-            loop (node != nullptr) {
-                if (Response.equalHeader(node.key, key)) {
-                    local copy: string = HttpParser.copy(value, 0, cast<long>(strlen(value)));
-                    free(node.value);
-                    node.value = copy;
-                    return this;
-                }
-                node = node.next;
-            }
+        this.headers.set(key, value);
+        return this;
+    }
+    frame appendHeader(this: *Response, key: string, value: string) ret *Response {
+        if (this.headers_sent) {
+            throw "Response headers already sent";
         }
-        local name: string = HttpParser.copy(key, 0, cast<long>(strlen(key)));
-        local copy: string = HttpParser.copy(value, 0, cast<long>(strlen(value)));
-        this.headers.set(name, copy);
+        if ((key == nullptr) || Response.equalHeader(key, "content-length") || Response.equalHeader(key, "transfer-encoding") || Response.equalHeader(key, "connection")) {
+            throw "Response framing headers are managed by the framework";
+        }
+        this.headers.append(key, value);
         return this;
     }
     frame _output(this: *Response, data: string, size: long) {
@@ -220,15 +216,12 @@ struct Response {
                 sb.append("\r\n");
             }
         }
-        loop (local i: int = 0; i < this.headers.buckets.len(); i = i + 1) {
-            local node: *MapNode<string, string> = this.headers.buckets.get(i);
-            loop (node != nullptr) {
-                sb.append(node.key);
-                sb.append(": ");
-                sb.append(node.value);
-                sb.append("\r\n");
-                node = node.next;
-            }
+        loop (local i: int = 0; i < this.headers.lines.len(); i = i + 1) {
+            local line: HeaderField = this.headers.lines.get(i);
+            sb.append(line.name);
+            sb.append(": ");
+            sb.append(line.value);
+            sb.append("\r\n");
         }
         sb.append("\r\n");
         this._output(sb.toString(), cast<long>(sb.length));
@@ -303,6 +296,6 @@ struct Response {
     }
     # Header strings are copied and owned by the response.
     frame destroy(this: *Response) {
-        releaseStrings(&this.headers);
+        this.headers.destroy();
     }
 }

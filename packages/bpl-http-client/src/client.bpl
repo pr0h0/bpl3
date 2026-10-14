@@ -5,7 +5,7 @@ import [Map], [MapNode] from "std/map.bpl";
 import [Array] from "std/array.bpl";
 import [Option] from "std/option.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
-import [HttpParser] from "bpl-http-parser";
+import [HttpParser], [HeaderField] from "bpl-http-parser";
 import socket, connect, htons, gethostbyname, [sockaddr_in], [hostent], send, read, close, malloc, free, memcpy, memset, sprintf, strlen, strcmp, setsockopt, [timeval] from "./libc.bpl";
 export [HttpMethod];
 export [RequestBuilder];
@@ -120,7 +120,7 @@ struct HttpResponse {
                 return HttpResponse.failure("Duplicate response framing header");
             }
             try {
-                r.headers.set(name, value);
+                r.headers.append(name, value);
             } catch {
                 free(name);
                 free(value);
@@ -428,15 +428,12 @@ frame executeRequest(req: *RequestBuilder) ret *HttpResponse {
         sb.append(cast<string>(&number[0]));
     }
     sb.append("\r\nConnection: close\r\n");
-    loop (local i: int = 0; i < req.headers.headers.buckets.len(); i = i + 1) {
-        local node: *MapNode<string, string> = req.headers.headers.buckets.get(i);
-        loop (node != nullptr) {
-            sb.append(node.key);
-            sb.append(": ");
-            sb.append(node.value);
-            sb.append("\r\n");
-            node = node.next;
-        }
+    loop (local i: int = 0; i < req.headers.lines.len(); i = i + 1) {
+        local line: HeaderField = req.headers.lines.get(i);
+        sb.append(line.name);
+        sb.append(": ");
+        sb.append(line.value);
+        sb.append("\r\n");
     }
     local length: long = 0;
     if (req.body != nullptr) {

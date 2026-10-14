@@ -6,3 +6,7 @@ export [ParsedRequest];
 
 import releaseStrings from "./src/types.bpl";
 export releaseStrings;
+
+import [HttpHeaders], [HeaderField] from "./src/headers.bpl";
+export [HttpHeaders];
+export [HeaderField];

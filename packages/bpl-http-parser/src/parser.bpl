@@ -1,3 +1,4 @@
+import [HttpHeaders] from "./headers.bpl";
 import [Array] from "std/array.bpl";
 import [ParsedRequest] from "./types.bpl";
 import [Map], [MapNode] from "std/map.bpl";
@@ -279,12 +280,14 @@ struct HttpParser {
                 p.error_code = 501;
                 return p;
             }
-            if (((strcmp(key, "cookie") == 0) || (strcmp(key, "origin") == 0) || (strcmp(key, "authorization") == 0) || (strcmp(key, "x-csrf-token") == 0)) && p.headers.has(key)) {
+            if (((strcmp(key, "cookie") == 0) || (strcmp(key, "origin") == 0) || (strcmp(key, "authorization") == 0) || (strcmp(key, "x-csrf-token") == 0) || (strcmp(key, "content-type") == 0) || (strcmp(key, "expect") == 0) || (strcmp(key, "access-control-request-method") == 0)) && p.headers.has(key)) {
                 free(key);
                 free(value);
                 return p;
             }
-            HttpParser.put(&p.headers, key, value);
+            p.headers.append(key, value);
+            free(key);
+            free(value);
             i = e + 2;
         }
         # HTTP/1.1 requires exactly one Host header.

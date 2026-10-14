@@ -22,7 +22,7 @@ validate the body in the handler.
 
 Wrap `cors(req, res, "https://your-frontend.example")` in a normal RouteHandler
 for a single explicit origin policy. Matching preflights return 204 with the
-listed methods and Content-Type/Authorization headers; mismatches return 403.
+listed methods and Content-Type/Authorization/X-CSRF-Token headers; mismatches return 403.
 The function appends Origin to Vary and does not permit wildcard origins or
 cross-origin cookie credentials. CORS is a browser policy, not authentication
 or authorization. Same-origin applications usually need no CORS middleware.
@@ -66,3 +66,22 @@ one write so worker JSON records are not interleaved on a shared pipe. A blockin
 log sink can delay a worker; use a dedicated nonblocking pipe if the consumer can
 stall, and monitor dropped records. Log collection and retention are deployment
 choices, not services loaded into the framework.
+
+## Configurable CORS
+
+`Cors.new("https://frontend.example")` creates an owning policy. Add explicit
+origins with allowOrigin, methods with allowMethod, header names with allowHeader
+and response headers with exposeHeader. Defaults allow GET/HEAD/POST/PUT/PATCH/
+DELETE/OPTIONS and Content-Type, Authorization, X-CSRF-Token. Set credentials=true
+for Access-Control-Allow-Credentials, and max_age to 0–86400 seconds. Call
+policy.apply(req,res) from a middleware wrapper; destroy the policy after its
+last request. Origin strings are copied. Wildcard and opaque/null origins are
+unsupported. A preflight is OPTIONS with Access-Control-Request-Method; ordinary
+OPTIONS requests remain available to routing. Requested methods and all requested
+headers must be allowed; denied preflights return 403 without allow-origin.
+Vary includes Origin and both preflight request fields. The exported vary helper
+preserves existing Vary tokens and avoids duplicates.
+
+Credentialed CORS does not change Auth's exact Origin/CSRF policy or a cookie's
+SameSite attributes. Configure those application policies deliberately; enabling
+CORS alone does not make cross-site Auth login available.

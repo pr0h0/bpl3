@@ -39,7 +39,7 @@ remaining path characters. `req.getParam("id")` returns `Option<string>`.
 request destroys them after handling. Client headers/query parameters cannot
 set these values.
 
-Query parameters decode percent escapes and `+`; header keys are lowercase.
+Query parameters decode percent escapes and `+`; header access is case-insensitive.
 `req.header("content-type")` returns an option. `body_length` counts bytes,
 including embedded NULs; `body` is also NUL-terminated for text APIs.
 
@@ -50,7 +50,7 @@ its arrays; `destroy()` does not destroy mounted routers or borrowed route paths
 
 Responses:
 
-- `status(code)` and `setHeader(name, value)` are chainable before headers start.
+- `status(code)`, `setHeader(name, value)` and `appendHeader(name, value)` are chainable before headers start.
 - `send(text)`, `text(text)`, `html(text)`, and `json(text)` end the response.
   `json` sets the media type; the caller supplies valid JSON.
 - `sendBytes(buffer, length)` sends binary data.
@@ -150,3 +150,9 @@ Unexpected worker failures are restarted with backoff. `worker_restart_limit`
 window; exceeding it stops the supervisor with an error after cleaning its pool.
 This prevents a repeatedly failing initializer from creating an endless restart
 loop. A deployment supervisor may separately restart the app under its own policy.
+
+Request and response headers use the shared `HttpHeaders` collection from
+bpl-http-parser. Use `res.appendHeader("Set-Cookie", value)` for each independent
+cookie; setHeader replaces all values. `req.headers.getAll(name)` preserves
+repeated fields and returns an array owning only its storage; its string values
+borrow the request. Authentication/framing singleton duplicates remain rejected.

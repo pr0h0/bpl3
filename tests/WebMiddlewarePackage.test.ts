@@ -19,7 +19,7 @@ test("optional middleware preserves Vary, handles preflights and enforces JSON m
     extern read(fd:int,buf:string,size:ulong) ret long;extern close(fd:int) ret int;extern strstr(a:string,b:string) ret string;
     frame main() ret int {
       local app:App=App.new();local fds:int[2];if(socketpair(1,1,0,&fds[0])!=0){return 1;}
-      local req:Request=app.parseRequest("OPTIONS /api HTTP/1.1\\r\\nHost: localhost\\r\\nOrigin: https://frontend.example\\r\\n\\r\\n");
+      local req:Request=app.parseRequest("OPTIONS /api HTTP/1.1\\r\\nHost: localhost\\r\\nOrigin: https://frontend.example\\r\\nAccess-Control-Request-Method: GET\\r\\n\\r\\n");
       local res:Response=Response.new(fds[0]);res.setHeader("Vary","Accept-Encoding");securityHeaders(&req,&res);cors(&req,&res,"https://frontend.example");
       if(res.status_code!=204||!res.body_sent){return 2;}close(fds[0]);
       local bytes:char[4096];local size:long=read(fds[1],cast<string>(&bytes[0]),4095);bytes[size]=0;close(fds[1]);

@@ -241,7 +241,7 @@ frame main()ret int{
  local hash:String=AuthCrypto.passwordHash("test-password");local q:Statement=db.prepare("INSERT INTO auth_users(username,password_hash) VALUES (?,?)");
  q.bindText(1,"student").bindText(2,hash.data);q.step();q.close();hash.destroy();
  local req:Request=Request.new();local res:Response=Response.new(-1);
- strcpy(cast<string>(&req.peer_ip[0]),"127.0.0.1");HttpParser.put(&req.headers,HttpParser.copy("origin",0,6),HttpParser.copy("http://app.example",0,18));
+ strcpy(cast<string>(&req.peer_ip[0]),"127.0.0.1");req.headers.set("origin","http://app.example");
  local payload:string="{\"username\":\"student\",\"password\":\"test-password\"}";
  req.body_length=cast<long>(strlen(payload));req.body=HttpParser.copy(payload,0,req.body_length);
  auth.login(&req,&res);

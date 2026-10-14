@@ -47,42 +47,10 @@ frame requireJson(req: *Request, res: *Response) {
         res.status(415).json("{\"error\":\"application/json required\"}");
     }
 }
-# Explicit one-origin policy. Does not enable cross-origin credential sharing.
-# Wrap this function in a normal middleware frame with your own configured origin.
-frame cors(req: *Request, res: *Response, allowedOrigin: string) {
-    local vary: StringBuilder = StringBuilder.new(32);
-    loop (local i: int = 0; i < res.headers.buckets.len(); i = i + 1) {
-        local node: *MapNode<string, string> = res.headers.buckets.get(i);
-        loop (node != nullptr) {
-            if (Response.equalHeader(node.key, "vary")) {
-                vary.append(node.value);
-                vary.append(", ");
-            }
-            node = node.next;
-        }
-    }
-    vary.append("Origin");
-    res.setHeader("Vary", vary.toString());
-    vary.destroy();
-    local origin: Option<string> = req.header("origin");
-    if (!origin.isSome()) {
-        return;
-    }
-    if ((allowedOrigin == nullptr) || (strcmp(allowedOrigin, "*") == 0)) {
-        throw "CORS requires an explicit origin";
-    }
-    if (strcmp(origin.unwrap(), allowedOrigin) != 0) {
-        res.status(403).json("{\"error\":\"origin denied\"}");
-        return;
-    }
-    res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
-    if (req.method == HttpMethod.OPTIONS) {
-        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS");
-        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        res.setHeader("Access-Control-Max-Age", "600");
-        res.status(204).end();
-    }
-}
+import [Cors], cors, vary from "./cors.bpl";
+export [Cors];
+export vary;
+
 struct Form {
     fields: Map<string, string>,
     frame parse(body: string, bytes: long) ret Form {

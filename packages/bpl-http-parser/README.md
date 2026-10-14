@@ -4,8 +4,7 @@
 `HttpParser.parseBytes(raw, byteCount)` for bounded buffers and binary bodies.
 
 Check `valid` before using fields. When false, `error_code == 0` means more
-bytes are needed; nonzero values are HTTP rejection statuses. Header names
-are lowercase. Query keys and values decode percent escapes and `+`; repeated
+bytes are needed; nonzero values are HTTP rejection statuses. Header lookup is case-insensitive. Query keys and values decode percent escapes and `+`; repeated
 keys keep the last value, and a bare key has an empty value.
 
 The parser requires an origin-form target and HTTP/1.0 or HTTP/1.1. HTTP/1.1
@@ -19,3 +18,14 @@ request boundary; extra bytes are not incorporated into the body.
 All returned strings and maps belong to the result. Call `destroy()` on
 success, failure, or incomplete input. Copying the result does not copy its
 allocations; destroy the owner once. Borrowed fields expire at destruction.
+
+`HttpHeaders` is shared by parsed requests, server requests/responses and the HTTP
+client. `set(name,value)` replaces all lines; `append(name,value)` preserves a
+new line; `getAll(name)` returns an owning array of borrowed strings (destroy
+that array, not its values). `get(name)` combines repeated values with commas,
+except Cookie uses semicolons and Set-Cookie returns the first line: use getAll
+for every cookie. `remove(name)` removes all matching lines. Names/values are
+copied, validated and owned until destroy; original wire name casing is retained.
+Do not copy the owning collection. Raw Map operations on headers are replaced by
+these methods. Parsed Content-Type, Expect and Access-Control-Request-Method
+also reject duplicates rather than joining ambiguous singleton values.

@@ -337,7 +337,7 @@ test.skipIf(process.platform !== "linux")(
       } finally {
         clearTimeout(timer);
       }
-      expect(received).toContain("x-example: sent\r\n");
+      expect(received.toLowerCase()).toContain("x-example: sent\r\n");
       expect(received).toContain(`Host: 127.0.0.1:${address.port}\r\n`);
     } finally {
       server.close();

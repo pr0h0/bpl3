@@ -49,3 +49,9 @@ Destroy every heap response exactly once (`response.destroy()` frees the object
 itself). Destroy each builder to free owned header strings. Response header/body
 pointers expire when the response is destroyed. `Url.parse` returns owned host
 and path strings; call its `destroy`. `Url.new` borrows its strings.
+
+Response headers preserve individual field lines. `response.headers.getAll("Set-Cookie")`
+returns all cookies without splitting commas in Expires. Destroy the returned
+array; its values borrow the response. Ordinary `get` combines repeated list
+values; Set-Cookie get returns only the first cookie. The same owning HttpHeaders
+API is exported by bpl-http-parser and used across the web stack.
