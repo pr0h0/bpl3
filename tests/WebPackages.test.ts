@@ -136,3 +136,37 @@ test("Express serves fragmented requests, short-circuits middleware and emits co
     rmSync(dir, { recursive: true, force: true });
   }
 }, 90000);
+
+test("database validates types, owns strings, compares ordering and round-trips escaped values", () => {
+  native(`
+    import [Database], [Table], [Row], [Value], [DataType], [Engine], [Condition], [Operator] from "bpl-db";
+    import [Array] from "std/array.bpl";
+    extern strcmp(a:string,b:string) ret int;
+    extern unlink(path:string) ret int;
+    extern getpid() ret int; extern sprintf(buf:string,fmt:string,...) ret int;
+    frame main() ret int {
+      local db:Database=Database.new(); local t:*Table=db.create_table("items");
+      t.add_column("title",DataType.Str); local values:Array<Value>=Array<Value>.new(4);
+      local mutable:char[8]=['a','b','c','\\0','\\0','\\0','\\0','\\0'];
+      values.push(Value.Str(cast<string>(&mutable[0])));
+      if(t.insert(&values)!=1 || db.create_table("items") != t){return 1;}
+      mutable[0]='z';
+      local row: *Row = t.rows.getRef(0);
+      local engine:Engine=Engine.new(); local conditions:Array<Condition>=Array<Condition>.new(4);
+      local condition:Condition; condition.column="title"; condition.op=Operator.Lt; condition.value=Value.Str("zzz"); conditions.push(condition);
+      if(!engine.check_row(row,t,&conditions)){return 2;}
+      condition.value=Value.Int(1);condition.op=Operator.Lte;conditions.set(0,condition);
+      if(engine.check_row(row,t,&conditions)){return 3;}
+      values.set(0,Value.Int(3));if(t.insert(&values)!=-1){return 4;}
+      values.set(0,Value.Str("space newline\\nquotes\\\" & λ"));if(t.insert(&values)!=2){return 5;}
+      local path:char[128];
+      sprintf(cast<string>(&path[0]),"/tmp/bpl-db-web-%d.txt",getpid());
+      db.save(cast<string>(&path[0]));
+      local loaded:Database=Database.new();loaded.load(cast<string>(&path[0]));
+      local table:*Table=loaded.get_table("items");if(table==nullptr || table.rows.len()!=2){return 6;}
+      local v:Value=table.rows.getRef(1).values.get(0);
+      match(v){Value.Str(s)=>{if(strcmp(s,"space newline\\nquotes\\\" & λ")!=0){return 7;}},_=>{return 8;},};
+      loaded.destroy();db.destroy();engine.destroy();conditions.destroy();values.destroy();unlink(cast<string>(&path[0]));return 0;
+    }
+  `);
+}, 90000);

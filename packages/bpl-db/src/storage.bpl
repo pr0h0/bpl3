@@ -3,7 +3,7 @@ export [Row];
 export [Table];
 export [Database];
 
-import [Value], [DataType], serialize_value, deserialize_value from "./types.bpl";
+import [Value], [DataType], serialize_value, deserialize_value, clone_value, destroy_value, value_kind, data_kind from "./types.bpl";
 import [Array] from "std/array.bpl";
 import [String] from "std/string.bpl";
 import [Map], [Pair], [MapIterator], [MapNode] from "std/map.bpl";
@@ -43,6 +43,7 @@ struct Row {
     }
 
     frame destroy(this: *Row) {
+        loop(local i: int = 0; i < this.values.len(); i = i + 1) { destroy_value(this.values.getRef(i)); }
         this.values.destroy();
     }
 }
@@ -54,7 +55,7 @@ struct Table {
     next_id: int,
     frame new(name: string) ret Table {
         local t: Table;
-        t.name = name;
+        t.name = db_name(name);
         t.columns = Array<Column>.new(4);
         t.rows = Array<Row>.new(16);
         t.next_id = 1;
@@ -62,13 +63,14 @@ struct Table {
     }
 
     frame add_column(this: *Table, name: string, kind: DataType) {
-        this.columns.push(Column.new(name, kind));
+        if (this.rows.len() != 0 || this.get_column_index(name) >= 0) { throw "Duplicate or late database column"; }
+        this.columns.push(Column.new(db_name(name), kind));
     }
 
     frame get_column_index(this: *Table, name: string) ret int {
         loop (local i: int = 0; i < this.columns.len(); i = i + 1) {
             local c: Column = this.columns.get(i);
-            if (c.name == name) {
+            if (strcmp(c.name, name) == 0) {
                 return i;
             }
         }
@@ -77,17 +79,24 @@ struct Table {
 
     frame insert(this: *Table, values: *Array<Value>) ret int {
         # Validate column count
-        if (values.len() != this.columns.len()) {
+        if (values == nullptr || values.len() != this.columns.len()) {
             # Error: column count mismatch
             return -1;
         }
+        loop(local i: int = 0; i < values.len(); i = i + 1) {
+            local v: *Value = values.getRef(i);
+            local c: Column = this.columns.get(i);
+            local kind: int = value_kind(v);
+            if(kind != 3 && kind != data_kind(c.kind)) {return -1;}
+        }
+        if(this.next_id == 2147483647) {return -1;}
         # Create row
         local row: Row = Row.new(this.next_id);
         this.next_id = this.next_id + 1;
 
         # Copy values
         loop (local i: int = 0; i < values.len(); i = i + 1) {
-            row.values.push(values.get(i));
+            row.values.push(clone_value(values.getRef(i)));
         }
 
         this.rows.push(row);
@@ -95,7 +104,9 @@ struct Table {
     }
 
     frame destroy(this: *Table) {
+        loop(local i: int = 0; i < this.columns.len(); i = i + 1) {local c: Column = this.columns.get(i);free(c.name);}
         this.columns.destroy();
+        free(this.name); this.name = nullptr;
         # Destroy all rows
         loop (local i: int = 0; i < this.rows.len(); i = i + 1) {
             local r: Row = this.rows.get(i);
@@ -125,9 +136,12 @@ struct Database {
     }
 
     frame create_table(this: *Database, name: string) ret *Table {
+        local existing: *Table = this.get_table(name);
+        if(existing != nullptr) { return existing; }
         local t_ptr: *Table = cast<*Table>(malloc(sizeof<Table>()));
+        if(t_ptr == nullptr) { throw "Database allocation failed"; }
         *t_ptr = Table.new(name);
-        this.tables.set(name, t_ptr);
+        this.tables.set(t_ptr.name, t_ptr);
         return t_ptr;
     }
 
@@ -163,7 +177,7 @@ struct Database {
                     # Columns
                     loop (local j: int = 0; j < t.columns.len(); j = j + 1) {
                         local c: Column = t.columns.get(j);
-                        sprintf(buf, "COL %s %d\n", c.name, c.kind);
+                        sprintf(buf, "COL %s %d\n", c.name, data_kind(c.kind));
                         f.write(buf);
                     }
 
@@ -200,11 +214,14 @@ struct Database {
             printf("Error: Cannot open file for reading: %s\n", path);
             return;
         }
-        local buf: string = malloc(4096);
+        local buf: string = malloc(1048577);
+        if(buf == nullptr) {f.close(); throw "Database allocation failed";}
+        defer free(buf); defer f.close();
         local current_table: *Table = nullptr;
 
-        loop (f.readLine(buf, 4096)) {
+        loop (f.readLine(buf, 1048577)) {
             local len: int = strlen(buf);
+            if(len == 1048576 && buf[len-1] != 10) {throw "Database record exceeds 1 MiB";}
             len = len; # Suppress unused variable warning
             # printf("Line len: %d, last: %d\n", len, buf[len-1]);
             if ((len > 0) && (buf[len - 1] == 10)) {
@@ -228,6 +245,7 @@ struct Database {
 
                 # printf("Loading Table: '%s'\n", name);
                 current_table = this.create_table(name);
+                free(name);
             } else {
                 if (StringUtils.startsWith(buf, "COL ")) {
                     if (current_table != nullptr) {
@@ -252,6 +270,7 @@ struct Database {
                             if (type_int == 2) 
                                 type_kind = DataType.Bool;
                             current_table.add_column(name, type_kind);
+                            free(name);
                         }
                     }
                 } else {
@@ -281,6 +300,7 @@ struct Database {
                                     row.values.push(deserialize_value(ptr));
                                     ptr = ptr + space_idx + 1;
                                 }
+                                if(row.values.len() != current_table.columns.len()) {row.destroy(); throw "Database row width mismatch";}
                                 current_table.rows.push(row);
                             }
                         }
@@ -288,7 +308,28 @@ struct Database {
                 }
             }
         }
-        free(buf);
-        f.close();
+
     }
+    frame destroy(this: *Database) {
+        loop(local i: int = 0; i < this.tables.buckets.len(); i = i + 1) {
+            local node: *MapNode<string, *Table> = this.tables.buckets.get(i);
+            loop(node != nullptr) { node.value.destroy(); free(cast<string>(node.value)); node = node.next; }
+        }
+        this.tables.destroy();
+    }
+}
+
+# Persistence uses unquoted identifiers; validate them before allocating.
+frame db_name(name: string) ret string {
+    if(name == nullptr) {throw "Invalid database name";}
+    local len: long = strlen(name);
+    if(len == 0 || len > 128) {throw "Invalid database name";}
+    loop(local i: long = 0; i < len; i = i + 1) {
+        local c: char = name[i];
+        if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) {throw "Invalid database name";}
+    }
+    local copy: string = malloc(len + 1);
+    if(copy == nullptr) {throw "Database allocation failed";}
+    loop(local i: long = 0; i <= len; i = i + 1) {copy[i] = name[i];}
+    return copy;
 }

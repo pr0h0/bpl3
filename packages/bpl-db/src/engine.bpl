@@ -2,7 +2,7 @@ export [Engine];
 
 import [Database], [Table], [Row], [Column] from "./storage.bpl";
 import [Query], [Command], [Condition], [Operator] from "./query.bpl";
-import [Value], [DataType] from "./types.bpl";
+import [Value], [DataType], value_kind, data_kind, clone_value, destroy_value from "./types.bpl";
 import [Array] from "std/array.bpl";
 import [String] from "std/string.bpl";
 
@@ -81,6 +81,8 @@ struct Engine {
             # Column not found
 
             local val: *Value = row.values.getRef(col_idx);
+            local same: bool = value_kind(val) == value_kind(&cond.value);
+            if(!same) {if(cond.op == Operator.Neq) {continue;} return false;}
             local cmp: int = compare_values(val, &cond.value);
             local matched: bool = false;
 
@@ -92,10 +94,10 @@ struct Engine {
                     matched = (cmp != 0);
                 },
                 Operator.Gt => {
-                    matched = (cmp == 1);
+                    matched = (cmp > 0);
                 },
                 Operator.Lt => {
-                    matched = (cmp == -1);
+                    matched = (cmp < 0);
                 },
                 Operator.Gte => {
                     matched = (cmp >= 0);
@@ -178,7 +180,11 @@ struct Engine {
                         loop (local i: int = 0; i < t.rows.len(); i = i + 1) {
                             local r: *Row = t.rows.getRef(i);
                             if (this.check_row(r, t, conditions)) {
-                                r.values.set(update_col_idx, new_val);
+                                local c: Column = t.columns.get(update_col_idx);
+                                if(value_kind(&new_val) != 3 && value_kind(&new_val) != data_kind(c.kind)) {continue;}
+                                local copy: Value = clone_value(&new_val);
+                                destroy_value(r.values.getRef(update_col_idx));
+                                r.values.set(update_col_idx, copy);
                                 count = count + 1;
                             }
                         }
@@ -202,6 +208,7 @@ struct Engine {
                     loop (i >= 0) {
                         local r: *Row = t.rows.getRef(i);
                         if (this.check_row(r, t, conditions)) {
+                            r.destroy();
                             t.rows.removeAt(i);
                             count = count + 1;
                         }
@@ -216,4 +223,5 @@ struct Engine {
             },
         };
     }
+    frame destroy(this: *Engine) {this.db.destroy();}
 }

@@ -1,6 +1,9 @@
 export [DataType];
 export [Value];
-export [ValueType];
+export clone_value;
+export destroy_value;
+export value_kind;
+export data_kind;
 export serialize_value;
 export deserialize_value;
 
@@ -33,20 +36,73 @@ frame get_type(v: *Value) ret DataType {
     };
     return res;
 }
+extern strlen(text: string) ret long;
+extern free(ptr: *void);
+frame clone_value(v: *Value) ret Value {
+    return match(v[0]) {
+        Value.Str(text) => {
+            if (text == nullptr) { throw "Null database string"; }
+            local len: long = strlen(text); local copy: string = malloc(len + 1);
+            if (copy == nullptr) { throw "Database allocation failed"; }
+            loop(local i: long = 0; i <= len; i = i + 1) { copy[i] = text[i]; }
+            return Value.Str(copy);
+        },
+        _ => v[0],
+    };
+}
+frame destroy_value(v: *Value) {
+    match(v[0]) { Value.Str(text) => free(text), _ => {}, };
+    v[0] = Value.Null;
+}
+frame value_kind(v: *Value) ret int {
+    return match(v[0]) { Value.Int(_) => 0, Value.Str(_) => 1, Value.Bool(_) => 2, Value.Null => 3, };
+}
 frame serialize_value(v: *Value) ret string {
-    local buf: string = malloc(256);
-    match (v[0]) {
+    local size: long = 32;
+    match(v[0]) { Value.Str(text) => size = strlen(text) * 2 + 3, _ => {}, };
+    local buf: string = malloc(size);
+    if (buf == nullptr) { throw "Database allocation failed"; }
+    match(v[0]) {
         Value.Int(i) => sprintf(buf, "I:%d", i),
-        Value.Str(s) => sprintf(buf, "S:%s", s),
+        Value.Str(text) => {
+            buf[0] = 'X'; buf[1] = ':';
+            local digits: string = "0123456789abcdef";
+            local len: long = strlen(text);
+            loop(local i: long = 0; i < len; i = i + 1) {
+                local c: int = cast<int>(cast<u8>(text[i]));
+                buf[2+i*2] = digits[c / 16]; buf[3+i*2] = digits[c % 16];
+            }
+            buf[2+len*2] = 0;
+        },
         Value.Bool(b) => sprintf(buf, "B:%d", b),
         Value.Null => sprintf(buf, "N"),
     };
     return buf;
 }
+frame db_hex(c: char) ret int {
+    if(c >= '0' && c <= '9') {return cast<int>(c - '0');}
+    if(c >= 'a' && c <= 'f') {return cast<int>(c - 'a') + 10;}
+    return -1;
+}
 
 extern atoi(s: string) ret int;
 
 frame deserialize_value(s: string) ret Value {
+    if(s == nullptr || s[0] == 0) {return Value.Null;}
+    if(s[0] == 'X' && s[1] == ':') {
+        local len: long = strlen(s + 2);
+        if(len % 2 != 0) {throw "Invalid database hex string";}
+        local result: string = malloc(len / 2 + 1);
+        if(result == nullptr) {throw "Database allocation failed";}
+        loop(local i: long = 0; i < len; i = i + 2) {
+            local a: int = db_hex(s[i+2]); local b: int = db_hex(s[i+3]);
+            if(a < 0 || b < 0 || (a == 0 && b == 0)) {free(result); throw "Invalid database hex string";}
+            result[i/2] = cast<char>(a*16+b);
+        }
+        result[len/2] = 0; return Value.Str(result);
+    }
+    if(s[0] != 'N' && (strlen(s) < 2 || s[1] != ':')) {throw "Invalid database value";}
+
     if (s[0] == 73) {
         # 'I'
         return Value.Int(atoi(s + 2));
@@ -97,3 +153,5 @@ frame value_to_string(v: *Value) ret string {
     };
     return res;
 }
+
+frame data_kind(kind: DataType) ret int {return match(kind) {DataType.Int => 0, DataType.Str => 1, DataType.Bool => 2, };}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-db",
+  "version": "0.1.0",
+  "archiveFile": "bpl-db-0.1.0.tgz",
+  "archiveSha256": "8d24eeab27e1f7ed964ec495547d72d00ad7f5337e13e9dfe89512c92868b6bf",
+  "packageHash": "72144c5bf9aa29bec289475e2062a7c1fb633bdcad82df749a0d1aef332811c1",
+  "sizeBytes": 6612,
+  "createdAt": "2026-10-14T15:18:06.073Z",
+  "manifest": {
+    "name": "bpl-db",
+    "version": "0.1.0",
+    "description": "A simple in-memory database for BPL",
+    "main": "index.bpl",
+    "author": "BPL User",
+    "license": "MIT"
+  }
+}
