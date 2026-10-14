@@ -3,17 +3,18 @@
   "name": "bpl-http-client",
   "version": "0.1.0",
   "archiveFile": "bpl-http-client-0.1.0.tgz",
-  "archiveSha256": "3e757d2570aef50e903442a14406f604d208bc57e82bb40a5df55ba0b66077f9",
-  "packageHash": "4d6759aa32ddcf03fe4b91846ab992e9326367efffb15d42e598b483ed311dc9",
-  "sizeBytes": 5457,
-  "createdAt": "2026-10-14T15:27:15.812Z",
+  "archiveSha256": "8e342d20789658040ec5a734396e590e56caf13573213ebc09452f3536919ae9",
+  "packageHash": "ef0f3b1f8bbe565c93e6d5af959413c7fd4fec493a4eb864218349b65db473f6",
+  "sizeBytes": 6467,
+  "createdAt": "2026-10-14T17:41:10.352Z",
   "manifest": {
     "name": "bpl-http-client",
     "version": "0.1.0",
     "description": "HTTP Client for BPL",
     "main": "index.bpl",
     "dependencies": {
-      "bpl-http-parser": "file:../bpl-http-parser/bpl-http-parser-0.1.0.tgz"
+      "bpl-http-parser": "file:../bpl-http-parser/bpl-http-parser-0.1.0.tgz",
+      "bpl-tls": "file:../bpl-tls/bpl-tls-0.1.0.tgz"
     }
   }
 }

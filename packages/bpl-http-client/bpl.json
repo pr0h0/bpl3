@@ -4,6 +4,7 @@
   "description": "HTTP Client for BPL",
   "main": "index.bpl",
   "dependencies": {
-    "bpl-http-parser": "file:../bpl-http-parser/bpl-http-parser-0.1.0.tgz"
+    "bpl-http-parser": "file:../bpl-http-parser/bpl-http-parser-0.1.0.tgz",
+    "bpl-tls": "file:../bpl-tls/bpl-tls-0.1.0.tgz"
   }
 }

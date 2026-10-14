@@ -15,7 +15,11 @@ test("web extension archives install transitively and compile outside the source
         main: "main.bpl",
       }),
     );
-    for (const name of ["bpl-web-middleware", "bpl-validation"]) {
+    for (const name of [
+      "bpl-web-middleware",
+      "bpl-validation",
+      "bpl-http-client",
+    ]) {
       const install = spawnSync(
         "bun",
         [
@@ -30,11 +34,13 @@ test("web extension archives install transitively and compile outside the source
     writeFileSync(
       join(dir, "main.bpl"),
       `
+      import [RequestBuilder], [HttpResponse] from "bpl-http-client";
       import [Validator] from "bpl-validation";
       import [Form] from "bpl-web-middleware";
       import [Option] from "std/option.bpl";
       extern strcmp(a:string,b:string) ret int;
       frame main() ret int {
+        local request:RequestBuilder=RequestBuilder.new("https://");local response:*HttpResponse=request.send();if(response.status!=0){return 3;}response.destroy();request.destroy();
         local v:Validator=Validator.new();v.required("title","works");if(!v.ok()){return 1;}v.destroy();
         local form:Form=Form.parse("title=a%26b",11);if(strcmp(form.get("title").unwrap(),"a&b")!=0){return 2;}form.destroy();return 0;
       }

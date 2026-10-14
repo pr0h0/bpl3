@@ -262,7 +262,7 @@ test("HTTP client validates URLs and parses bounded binary/chunked responses", (
     frame main() ret int {
       local url:Url=Url.parse("http://localhost:8080?x=1#frag");
       if(!url.valid||url.port!=8080||strcmp(url.host,"localhost")!=0||strcmp(url.path,"/?x=1")!=0){return 1;}url.destroy();
-      url=Url.parse("https://localhost/");if(url.valid){return 2;}url.destroy();
+      url=Url.parse("https://localhost/");if(!url.valid||!url.secure||url.port!=443){return 2;}url.destroy();
       url=Url.parse("http://localhost:999999/");if(url.valid){return 3;}url.destroy();
       local raw:string="HTTP/1.1 200 OK\\r\\ntransfer-encoding: chunked\\r\\nX-Answer: yes\\r\\n\\r\\n2;foo=bar\\r\\nab\\r\\n1\\r\\nc\\r\\n0\\r\\nX-Trailer: done\\r\\n\\r\\n";
       local r:*HttpResponse=HttpResponse.parseBytes(raw,strlen(raw),false);
