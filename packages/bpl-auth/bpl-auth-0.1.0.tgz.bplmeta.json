@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-auth",
+  "version": "0.1.0",
+  "archiveFile": "bpl-auth-0.1.0.tgz",
+  "archiveSha256": "0062a7840ce709c6c8564ebf78fe35554692a35a4d64c13cef2cbec16dfe6dea",
+  "packageHash": "28096fc13ba085de5aae5d3610e13f9c84d6f772ea7e0910cae92986f6408940",
+  "sizeBytes": 4274,
+  "createdAt": "2026-10-14T16:49:45.971Z",
+  "manifest": {
+    "name": "bpl-auth",
+    "version": "0.1.0",
+    "description": "Optional libsodium passwords and SQLite cookie sessions",
+    "main": "index.bpl",
+    "license": "MIT",
+    "dependencies": {
+      "bpl-express": "file:../bpl-express/bpl-express-0.1.0.tgz",
+      "bpl-sqlite": "file:../bpl-sqlite/bpl-sqlite-0.1.0.tgz"
+    }
+  }
+}
