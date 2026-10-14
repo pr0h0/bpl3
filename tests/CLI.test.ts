@@ -4194,7 +4194,7 @@ describe("CLI Tests", () => {
       );
       expect(result.stdout).toContain("global const FILE_MODE: int = 0o755;");
       expect(result.stdout).toContain("global const BIG_COUNT: ulong = 42;");
-      expect(result.stdout).toContain("global const SCALE: float = 1.5;");
+      expect(result.stdout).toContain("global const SCALE: f32 = cast<f32>(1.5);");
       expect(result.stdout).toContain(
         "global const WRAPPED_ANSWER: uint = 42;",
       );
@@ -4205,7 +4205,7 @@ describe("CLI Tests", () => {
         "global const NEGATIVE_LIMIT: long = -7;",
       );
       expect(result.stdout).toContain(
-        "global const SCIENTIFIC_SCALE: float = 1e-3;",
+        "global const SCIENTIFIC_SCALE: f32 = cast<f32>(0.0010000000474974513);",
       );
       expect(result.stdout).toContain(
         "global const SCIENTIFIC_DOUBLE: double = 1e-3;",

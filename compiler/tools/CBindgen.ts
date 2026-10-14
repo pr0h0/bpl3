@@ -27,7 +27,7 @@ const TYPE_MAP: Record<string, string> = {
   "unsigned long long int": "ulong",
   size_t: "ulong",
   ssize_t: "long",
-  float: "float",
+  float: "f32",
   double: "double",
 };
 const NUMERIC_CONSTANT_PATTERN =
@@ -44,7 +44,7 @@ const SCALAR_CONSTANT_TYPES = new Set([
   "uint",
   "long",
   "ulong",
-  "float",
+  "f32",
   "double",
 ]);
 
@@ -306,10 +306,76 @@ function parseConstantValue(rawValue: string): ParsedConstantValue | null {
     return null;
   }
 
+  const value = normalizeConstantValue(normalized.value);
   return {
-    value: normalizeConstantValue(normalized.value),
+    value: /[fF]/.test(getNumericConstantSuffix(normalized.value))
+      ? roundedCFloatLiteral(value)
+      : value,
     type: normalized.castType ?? inferConstantType(normalized.value),
   };
+}
+
+/** C f-suffixed decimal literals round directly to binary32, without a
+ * binary64 intermediate (which can round an above-midpoint decimal down). */
+function roundedCFloatLiteral(value: string): string {
+  const match = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(value);
+  if (!match) return value;
+  const negative = match[1] === "-";
+  const sign = negative ? "-" : "";
+  const fraction = match[3] ?? "";
+  let digits = `${match[2]}${fraction}`.replace(/^0+/, "");
+  if (!digits) return `${sign}0.0`;
+  let decimalExponent = Number(match[4] ?? 0) - fraction.length;
+  const magnitude = decimalExponent + digits.length - 1;
+  if (magnitude > 38) return `${sign}1e39`;
+  if (magnitude < -46) return `${sign}0.0`;
+
+  // Binary32 midpoints terminate within 150 fractional decimal places.
+  // Bound integer work while retaining which side of a midpoint a tail lies on.
+  if (digits.length > 256) {
+    const tail = digits.slice(256);
+    decimalExponent += digits.length - 256;
+    digits = digits.slice(0, 256);
+    if (/[1-9]/.test(tail)) {
+      digits += "1";
+      decimalExponent--;
+    }
+  }
+  let numerator = BigInt(digits);
+  let denominator = 1n;
+  if (decimalExponent >= 0) numerator *= 10n ** BigInt(decimalExponent);
+  else denominator = 10n ** BigInt(-decimalExponent);
+  let exponent = numerator.toString(2).length - denominator.toString(2).length;
+  if (exponent >= 0) {
+    if (numerator < denominator << BigInt(exponent)) exponent--;
+  } else if (numerator << BigInt(-exponent) < denominator) exponent--;
+
+  const subnormal = exponent < -126;
+  const shift = subnormal ? 149 : 23 - exponent;
+  const scaledNumerator = shift >= 0 ? numerator << BigInt(shift) : numerator;
+  const scaledDenominator =
+    shift < 0 ? denominator << BigInt(-shift) : denominator;
+  let significand = scaledNumerator / scaledDenominator;
+  const remainder = scaledNumerator % scaledDenominator;
+  if (
+    remainder * 2n > scaledDenominator ||
+    (remainder * 2n === scaledDenominator && (significand & 1n) !== 0n)
+  ) {
+    significand++;
+  }
+  if (!subnormal && significand === 1n << 24n) {
+    significand >>= 1n;
+    exponent++;
+  }
+  if (exponent > 127) return `${sign}1e39`;
+  const payload = subnormal
+    ? Number(significand)
+    : ((exponent + 127) << 23) | Number(significand - (1n << 23n));
+  const bits = Buffer.alloc(4);
+  bits.writeUInt32LE((payload | (negative ? 0x80000000 : 0)) >>> 0);
+  const rounded = bits.readFloatLE();
+  if (Object.is(rounded, -0)) return "-0.0";
+  return floatingConstantLiteral(String(rounded));
 }
 
 function normalizeConstantExpression(value: string): {
@@ -372,7 +438,7 @@ function isWrappedInSingleParenthesisPair(value: string): boolean {
 function inferConstantType(value: string): string {
   if (value.startsWith('"')) return "string";
   const suffix = getNumericConstantSuffix(value);
-  if (/[fF]/.test(suffix)) return "float";
+  if (/[fF]/.test(suffix)) return "f32";
   if (value.includes(".") || /[eE]/.test(value)) return "double";
   if (/[uU]/.test(suffix) && /[lL]/.test(suffix)) return "ulong";
   if (/[uU]/.test(suffix)) return "uint";
@@ -758,7 +824,38 @@ function sectionBreak(enabled: boolean): string[] {
 }
 
 function formatConstant(constant: CConstant): string {
-  return `global const ${constant.name}: ${constant.type} = ${constant.value};`;
+  // BPL decimal literals are double; C float constants need explicit rounding.
+  const value =
+    constant.type === "f32"
+      ? `cast<f32>(${floatingConstantLiteral(constant.value)})`
+      : constant.value;
+  return `global const ${constant.name}: ${constant.type} = ${value};`;
+}
+
+function floatingConstantLiteral(value: string): string {
+  const sign = /^[+-]/.test(value) ? value[0]! : "";
+  let magnitude = sign ? value.slice(1) : value;
+  if (/^0[xXbBoO]/.test(magnitude)) {
+    magnitude = BigInt(magnitude).toString();
+  }
+  const parsed = Number(magnitude);
+  if (parsed === 0) return `${sign}0.0`;
+  if (!Number.isFinite(parsed)) return `${sign}1${"0".repeat(39)}.0`;
+  if (/[eE]/.test(magnitude)) {
+    const [mantissa, exponent] = magnitude.split(/[eE]/);
+    const digits = mantissa!.replace(".", "");
+    const point =
+      (mantissa!.includes(".") ? mantissa!.indexOf(".") : mantissa!.length) +
+      Number(exponent);
+    if (point <= 0) magnitude = `0.${"0".repeat(-point)}${digits}`;
+    else if (point >= digits.length)
+      magnitude = `${digits}${"0".repeat(point - digits.length)}.0`;
+    else magnitude = `${digits.slice(0, point)}.${digits.slice(point)}`;
+  }
+  if (magnitude.startsWith(".")) magnitude = `0${magnitude}`;
+  if (magnitude.endsWith(".")) magnitude += "0";
+  if (!/[.eE]/.test(magnitude)) magnitude += ".0";
+  return `${sign}${magnitude}`;
 }
 
 function formatTypedef(typedef: CTypedef): string {

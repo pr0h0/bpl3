@@ -194,6 +194,12 @@ extern fill_matrix(matrix: *int[3]) ret void;
 extern printf(fmt: string, ...) ret int;
 ```
 
+C `float` declarations map to BPL `f32`, including typedefs, pointers, and
+struct fields. C `double` maps to BPL `double`. Constants with an `f` or `F`
+suffix round directly to IEEE binary32, then use a literal `cast<f32>`
+initializer; this preserves C rounding at halfway boundaries and for
+subnormal values. Simple `(float)` constant casts also produce `f32`.
+
 For function parameters, C array declarations such as `int values[]` or
 `const int values[4]` are emitted as pointers because the C ABI receives them as
 pointers. Multidimensional parameter arrays decay at the outer dimension, so
