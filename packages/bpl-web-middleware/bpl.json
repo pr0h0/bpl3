@@ -1,0 +1,1 @@
+{"name":"bpl-web-middleware","version":"0.1.0","description":"Optional web middleware and owned form decoding","main":"index.bpl","license":"MIT","dependencies":{"bpl-express":"file:../bpl-express/bpl-express-0.1.0.tgz","bpl-http-parser":"file:../bpl-http-parser/bpl-http-parser-0.1.0.tgz"}}

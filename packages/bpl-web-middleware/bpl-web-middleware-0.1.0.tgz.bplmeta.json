@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-web-middleware",
+  "version": "0.1.0",
+  "archiveFile": "bpl-web-middleware-0.1.0.tgz",
+  "archiveSha256": "5903cd92ef4f36cd993d550a88a23ec9ca3bd40e52fb0583f7c3fe468d544852",
+  "packageHash": "7127e466bbb889a9b6399c5832b6c3157e93d41cae9be8caa6e380a63d4d73ab",
+  "sizeBytes": 1664,
+  "createdAt": "2026-10-14T15:35:50.755Z",
+  "manifest": {
+    "name": "bpl-web-middleware",
+    "version": "0.1.0",
+    "description": "Optional web middleware and owned form decoding",
+    "main": "index.bpl",
+    "license": "MIT",
+    "dependencies": {
+      "bpl-express": "file:../bpl-express/bpl-express-0.1.0.tgz",
+      "bpl-http-parser": "file:../bpl-http-parser/bpl-http-parser-0.1.0.tgz"
+    }
+  }
+}
