@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-sqlite",
+  "version": "0.1.0",
+  "archiveFile": "bpl-sqlite-0.1.0.tgz",
+  "archiveSha256": "e64d8c646ba52b77045b09196e22b503f5fdae06dd3a7f27cf117e25baf97368",
+  "packageHash": "51b86127801d3fd8231686941d8334c2e8d7c677f585bf0461a96e71babfc6ae",
+  "sizeBytes": 1976,
+  "createdAt": "2026-10-14T15:35:48.188Z",
+  "manifest": {
+    "name": "bpl-sqlite",
+    "version": "0.1.0",
+    "description": "Optional SQLite prepared statements and transactions for BPL",
+    "main": "index.bpl",
+    "license": "MIT"
+  }
+}

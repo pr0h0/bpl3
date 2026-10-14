@@ -1,0 +1,1 @@
+{"name":"bpl-sqlite","version":"0.1.0","description":"Optional SQLite prepared statements and transactions for BPL","main":"index.bpl","license":"MIT"}
