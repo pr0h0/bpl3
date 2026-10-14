@@ -4,7 +4,7 @@ const { chromium, firefox } = require("playwright");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const origin = process.env.BPL_BROWSER_ORIGIN || "http://127.0.0.1:31947";
-if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin))
+if (!/^https?:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin))
   throw new Error("Browser regression requires an explicit loopback origin");
 const results = [];
 (async () => {
@@ -14,7 +14,9 @@ const results = [];
   ]) {
     const browser = await engine.launch({ headless: true });
     try {
-      const context = await browser.newContext();
+      const context = await browser.newContext({
+        ignoreHTTPSErrors: process.env.BPL_BROWSER_SELF_SIGNED === "1",
+      });
       const page = await context.newPage();
       const errors = [];
       page.on("pageerror", (error) => errors.push(error.message));
@@ -56,6 +58,11 @@ const results = [];
         cookies.find((cookie) => cookie.name === "bpl_session").sameSite,
         "Strict",
       );
+      if (origin.startsWith("https://"))
+        assert.equal(
+          cookies.find((cookie) => cookie.name === "bpl_session").secure,
+          true,
+        );
       await page.reload();
       await page.getByText(marker, { exact: true }).waitFor();
       await page.getByRole("button", { name: "Complete", exact: true }).click();

@@ -27,13 +27,29 @@ previous session for that account; signing out revokes the current session.
 | PORT | 3000, integer 1–65535 |
 | BPL_WEB_DB | college.sqlite in the working directory |
 | BPL_WEB_WORKERS | 2, integer 1–8 |
-| BPL_WEB_ORIGIN | http://127.0.0.1:PORT; must exactly match the browser origin |
+| BPL_WEB_ORIGIN | http://127.0.0.1:PORT, or https with native TLS; must exactly match the browser origin |
+| BPL_WEB_TLS_CERT | Unset; PEM certificate chain path enables native HTTPS with the key |
+| BPL_WEB_TLS_KEY | Unset; matching unencrypted PEM private key path |
 | BPL_WEB_SECURE_COOKIES | 0 for local HTTP; 1 forces Secure; HTTPS origins also enable it |
 
 Run from this directory so public assets resolve. If you use `localhost` instead
-of `127.0.0.1`, explicitly set BPL_WEB_ORIGIN to that origin. For public use,
-configure HTTPS at a reverse proxy and set both the public origin and Secure
-cookies. The listener remains loopback. Forwarded-origin/IP headers are not
+of `127.0.0.1`, explicitly set BPL_WEB_ORIGIN to that origin. Native HTTPS is
+available inside the app:
+
+```bash
+BPL_WEB_TLS_CERT=/absolute/path/fullchain.pem \
+BPL_WEB_TLS_KEY=/absolute/path/key.pem \
+BPL_WEB_ORIGIN=https://127.0.0.1:3000 ./college-web
+```
+
+Native TLS additionally needs the OpenSSL 3 runtime (`libssl.so.3`). Both paths
+must be configured; a partial configuration fails instead of falling back to
+HTTP. Native TLS defaults the origin to HTTPS and automatically enables Secure
+session cookies. An explicitly configured HTTP origin is rejected in TLS mode.
+The certificate must cover the hostname/IP you open. Issue and renew public
+certificates externally and restart to reload them. The listener remains
+loopback; edit the listen host when exposing the app directly. A reverse proxy
+remains an alternative deployment option. Forwarded-origin/IP headers are not
 trusted automatically.
 
 | Endpoint | Behavior |
@@ -117,3 +133,9 @@ The script is limited to loopback origins and synthetic users. It checks sign-up
 login/logout, reload sessions, task changes, literal markup display, HttpOnly
 cookies, UTF-8 byte validation, mobile width, and browser page errors. It does
 not automate broad scanning or prove that every browser/security case is covered.
+
+For the browser regression, `BPL_BROWSER_ORIGIN=https://127.0.0.1:PORT` tests
+native HTTPS and asserts Secure session cookies. A disposable self-signed local
+fixture can use `BPL_BROWSER_SELF_SIGNED=1` to bypass browser certificate trust
+for that test only. Default browser tests enforce certificate trust. Native TLS
+regressions separately verify trusted chains, DNS/IP matching, and expiry.

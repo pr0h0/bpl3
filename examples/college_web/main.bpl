@@ -14,6 +14,7 @@ extern chmod(path: string, mode: uint) ret int;
 extern malloc(size: long) ret *void;
 extern free(ptr: *void);
 extern strcmp(a: string, b: string) ret int;
+extern strncmp(a: string, b: string, size: ulong) ret int;
 extern strlen(text: string) ret long;
 extern sprintf(out: string, format: string, ...) ret int;
 
@@ -284,9 +285,22 @@ frame main() {
         throw "Invalid PORT or BPL_WEB_WORKERS";
     }
     config.destroy();
+    local certificateFile: string = Env.getOr("BPL_WEB_TLS_CERT", "");
+    local keyFile: string = Env.getOr("BPL_WEB_TLS_KEY", "");
+    if ((certificateFile[0] == 0) != (keyFile[0] == 0)) {
+        throw "Native HTTPS requires both BPL_WEB_TLS_CERT and BPL_WEB_TLS_KEY";
+    }
+    local nativeTLS: bool = certificateFile[0] != 0;
+    local scheme: string = "http";
+    if (nativeTLS) {
+        scheme = "https";
+    }
     local origin: char[128];
-    sprintf(cast<string>(&origin[0]), "http://127.0.0.1:%d", port.unwrap());
+    sprintf(cast<string>(&origin[0]), "%s://127.0.0.1:%d", scheme, port.unwrap());
     allowedOrigin = Env.getOr("BPL_WEB_ORIGIN", cast<string>(&origin[0]));
+    if (nativeTLS && (strncmp(allowedOrigin, "https://", 8) != 0)) {
+        throw "Native HTTPS requires an HTTPS BPL_WEB_ORIGIN";
+    }
     secureCookies = strcmp(Env.getOr("BPL_WEB_SECURE_COOKIES", "0"), "1") == 0;
     initializeWorker();
     migrate();
@@ -327,5 +341,9 @@ frame main() {
     authRoutes.get("/me", me);
     authRoutes.post("/logout", logout);
     app.useRouter("/auth", &authRoutes);
-    app.listenWorkers(port.unwrap(), "127.0.0.1", workers.unwrap(), initializeWorker);
+    if (nativeTLS) {
+        app.listenTLSWorkers(port.unwrap(), "127.0.0.1", workers.unwrap(), initializeWorker, certificateFile, keyFile);
+    } else {
+        app.listenWorkers(port.unwrap(), "127.0.0.1", workers.unwrap(), initializeWorker);
+    }
 }

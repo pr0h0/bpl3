@@ -1,6 +1,12 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, readFileSync, statSync } from "node:fs";
+import {
+  mkdtempSync,
+  rmSync,
+  readFileSync,
+  statSync,
+  existsSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
@@ -49,6 +55,33 @@ test.skipIf(
         { encoding: "utf8", timeout: 60000 },
       );
       expect(build.status, build.stdout + build.stderr).toBe(0);
+
+      for (const tlsConfig of [
+        { BPL_WEB_TLS_CERT: "missing.pem", BPL_WEB_TLS_KEY: "" },
+        { BPL_WEB_TLS_CERT: "", BPL_WEB_TLS_KEY: "missing.pem" },
+        {
+          BPL_WEB_TLS_CERT: "missing.pem",
+          BPL_WEB_TLS_KEY: "missing.pem",
+          BPL_WEB_ORIGIN: "http://127.0.0.1:3000",
+        },
+      ]) {
+        const invalid = spawnSync(exe, [], {
+          cwd: resolve("examples/college_web"),
+          env: {
+            ...process.env,
+            PORT: String(port),
+            BPL_WEB_DB: join(dir, "app.sqlite"),
+            ...tlsConfig,
+          },
+          encoding: "utf8",
+          timeout: 10000,
+        });
+        expect(invalid.error).toBeUndefined();
+        expect(invalid.status).not.toBeNull();
+        expect(invalid.status).not.toBe(0);
+        expect(invalid.status).toBe(1);
+        expect(existsSync(join(dir, "app.sqlite"))).toBe(false);
+      }
       async function start() {
         child = Bun.spawn([exe], {
           cwd: resolve("examples/college_web"),
@@ -57,6 +90,9 @@ test.skipIf(
             PORT: String(port),
             BPL_WEB_DB: join(dir, "app.sqlite"),
             BPL_WEB_WORKERS: "2",
+            BPL_WEB_TLS_CERT: "",
+            BPL_WEB_TLS_KEY: "",
+            BPL_WEB_ORIGIN: `http://127.0.0.1:${port}`,
           },
           stdout: "ignore",
           stderr: "pipe",
