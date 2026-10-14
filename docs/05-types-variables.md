@@ -389,6 +389,7 @@ frame main() ret int {
 **Important Notes:**
 
 - Globals are initialized before `main()` runs
+- A literal floating-point cast such as `global const SCALE: f32 = cast<f32>(1.25);` is rounded at compile time; aliases and signed floating literals are supported.
 - Globals are visible to all functions in the module
 - Globals can be exported to other modules
 - Avoid excessive use (can make code harder to reason about)

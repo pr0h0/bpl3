@@ -19,6 +19,8 @@ import { codeGenLog } from "../common/Logger";
 import { DebugInfoGenerator } from "./codegen/DebugInfoGenerator";
 import { getDataLayoutForTarget } from "./codegen/BaseCodeGenerator";
 import { findSymlinkedPathComponent } from "../common/PathSafety";
+import { formatFloatingPointLiteral } from "./codegen/FloatingPointLiteral";
+import { TokenType } from "../frontend/TokenType";
 
 export const CODEGEN_DEBUG_IR_PATH_SYMLINK_CODE =
   "BPL_CODEGEN_DEBUG_IR_PATH_SYMLINK";
@@ -1628,6 +1630,31 @@ export class CodeGenerator extends StatementGenerator {
     if (decl.initializer) {
       if (decl.initializer.kind === "Literal") {
         init = this.generateLiteral(decl.initializer as AST.LiteralExpr);
+      } else if (decl.initializer.kind === "Cast" && type === "float") {
+        // A constant f64 literal cast to f32 needs no runtime initialization.
+        // Keep calls and arbitrary expressions out of global initializers.
+        let source = decl.initializer.expression;
+        let sign = 1;
+        if (
+          source.kind === "Unary" &&
+          (source.operator.type === TokenType.Minus || source.operator.type === TokenType.Plus)
+        ) {
+          sign = source.operator.type === TokenType.Minus ? -1 : 1;
+          source = source.operand;
+        }
+        if (
+          source.kind !== "Literal" ||
+          source.type !== "number" ||
+          !source.resolvedType ||
+          !["float", "double"].includes(this.resolveType(source.resolvedType))
+        ) {
+          throw new CompilerError(
+            "Global variables must be initialized with literals",
+            "Global f32 casts require a floating-point literal.",
+            decl.location,
+          );
+        }
+        init = formatFloatingPointLiteral(sign * Number(source.value), "float");
       } else {
         throw new CompilerError(
           "Global variables must be initialized with literals",
