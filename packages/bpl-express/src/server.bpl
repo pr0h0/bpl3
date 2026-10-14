@@ -27,6 +27,7 @@ struct App {
     tls: *TlsContext,
     port: int,
     shutdown_timeout_seconds: long,
+    worker_restart_limit: int,
     worker_shutdown: Func<void>(),
     static_url: string,
     static_dir: string,
@@ -41,6 +42,7 @@ struct App {
         app.tls = nullptr;
         app.port = 3000;
         app.shutdown_timeout_seconds = 10;
+        app.worker_restart_limit = 30;
         app.worker_shutdown = defaultWorkerShutdown;
         app.static_url = "";
         app.static_dir = "";
@@ -161,6 +163,9 @@ struct App {
         if ((workers < 1) || (workers > 8)) {
             throw "Worker count must be 1 to 8";
         }
+        if ((this.worker_restart_limit < 1) || (this.worker_restart_limit > 1000)) {
+            throw "Worker restart limit must be 1 to 1000";
+        }
         if ((this.shutdown_timeout_seconds < 1) || (this.shutdown_timeout_seconds > 300)) {
             throw "Shutdown grace must be 1 to 300 seconds";
         }
@@ -184,6 +189,8 @@ struct App {
             protocol = "HTTPS";
         }
         printf("%s listening on %s:%d with %d process workers\n", protocol, host, port, workers);
+        local restart_window: long = App.monotonicMilliseconds();
+        local restarts: int = 0;
         loop {
             if (signals.wait(-1, 100) < 0) {
                 break;
@@ -191,8 +198,22 @@ struct App {
             loop (local slot: int = 0; slot < workers; slot = slot + 1) {
                 local status: int = 0;
                 local ended: int = waitpid(pids[slot], &status, 1);
-                if (ended == pids[slot]) {
+                local missing: bool = false;
+                if (ended < 0) {
+                    local error: *int = __errno_location();
+                    missing = error[0] == 10;
+                }
+                if ((ended == pids[slot]) || missing) {
                     pids[slot] = 0;
+                    local now: long = App.monotonicMilliseconds();
+                    if ((now - restart_window) >= 60000) {
+                        restart_window = now;
+                        restarts = 0;
+                    }
+                    restarts = restarts + 1;
+                    if (restarts > this.worker_restart_limit) {
+                        throw "HTTP worker restart budget exceeded";
+                    }
                     if (signals.requested()) {
                         break;
                     }

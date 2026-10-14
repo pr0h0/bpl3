@@ -144,3 +144,9 @@ supervisor/worker PSS and summed RSS. Set `BPL_BENCH_REQUESTS` (20–20000),
 `BPL_BENCH_WAL=1`, and optionally `BPL_BENCH_OUTPUT=/path/report.json`.
 It requires Linux, Python 3, OpenSSL 3, and the native SQLite runtime. These
 machine-specific measurements are not a production capacity guarantee.
+
+Unexpected worker failures are restarted with backoff. `worker_restart_limit`
+(default 30, range 1–1000) bounds restarts across the whole pool in a 60-second
+window; exceeding it stops the supervisor with an error after cleaning its pool.
+This prevents a repeatedly failing initializer from creating an endless restart
+loop. A deployment supervisor may separately restart the app under its own policy.

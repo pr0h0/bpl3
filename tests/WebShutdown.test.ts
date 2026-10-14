@@ -16,11 +16,11 @@ test.skipIf(process.platform !== "linux")(
         `
 import [App],[Request],[Response] from "bpl-express";
 extern atoi(text:string) ret int;extern usleep(time:uint) ret int;extern printf(fmt:string,...) ret int;extern fflush(stream:*void) ret int;
-frame initialize(){}frame cleanup(){printf("worker cleaned\\n");fflush(nullptr);}
+frame initialize(){}frame broken(){throw "initialization fixture";}frame cleanup(){printf("worker cleaned\\n");fflush(nullptr);}
 frame health(_req:*Request,res:*Response){res.text("ready");}
 frame slow(_req:*Request,res:*Response){res.write("begin");usleep(600000);res.write("end");res.end();}
 frame stuck(_req:*Request,res:*Response){res.write("begin");usleep(10000000);res.write("end");res.end();}
-frame main(argc:int,argv:*string)ret int{if(argc!=3){return 2;}local app:App=App.new();app.shutdown_timeout_seconds=2;app.onWorkerShutdown(cleanup);app.router.get("/",health);app.router.get("/slow",slow);app.router.get("/stuck",stuck);if(atoi(argv[2])==0){app.listenOn(atoi(argv[1]),"127.0.0.1");}else{app.listenWorkers(atoi(argv[1]),"127.0.0.1",2,initialize);}return 0;}`,
+frame main(argc:int,argv:*string)ret int{if(argc!=3){return 2;}local app:App=App.new();app.shutdown_timeout_seconds=2;app.worker_restart_limit=2;app.onWorkerShutdown(cleanup);app.router.get("/",health);app.router.get("/slow",slow);app.router.get("/stuck",stuck);if(atoi(argv[2])==0){app.listenOn(atoi(argv[1]),"127.0.0.1");}else if(atoi(argv[2])==3){app.listenWorkers(atoi(argv[1]),"127.0.0.1",2,broken);}else{app.listenWorkers(atoi(argv[1]),"127.0.0.1",2,initialize);}return 0;}`,
       );
       const exe = join(dir, "server");
       const build = spawnSync(
