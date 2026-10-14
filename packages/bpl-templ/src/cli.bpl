@@ -161,7 +161,7 @@ struct TemplateCompiler {
             } else {
 
             }
-            local trimmed: String = StringUtils.trim(line.data);
+            local trimmed: String = line.trim();
             local cleanup_trimmed: *String = &trimmed;
             defer cleanup_trimmed.destroy();
 
@@ -215,7 +215,7 @@ struct TemplateCompiler {
         loop (i < lines.length) {
             local line: String = lines.get(i);
 
-            local trimmed: String = StringUtils.trim(line.data);
+            local trimmed: String = line.trim();
 
             local cleanup_trimmed: *String = &trimmed;
 
@@ -235,8 +235,13 @@ struct TemplateCompiler {
                     bodyLines.append("\n");
                 }
             } else {
-                if (StringUtils.startsWith(trimmedStr, "@else")) {
-                    bodyLines.append("    } else {\n");
+                if (StringUtils.startsWith(trimmedStr, "@else") || StringUtils.startsWith(trimmedStr, "} @else")) {
+                    bodyLines.append("    } ");
+                    local k: int = 1;
+                    if (StringUtils.startsWith(trimmedStr, "} @else")) { k = 3; }
+                    loop (k < trimmed.length) {bodyLines.appendChar(trimmedStr[k]);k = k + 1;}
+                    if (trimmedStr[trimmed.length - 1] != '{') {bodyLines.append(" {\n");}
+                    else {bodyLines.append("\n");}
                 } else {
                     if (StringUtils.startsWith(trimmedStr, "@loop")) {
                         bodyLines.append("    ");
@@ -413,6 +418,7 @@ struct TemplateCompiler {
     frame processDirectory(baseDir: String, currentDir: String, outputBase: String, ext: String) {
 
         local entries: Array<String> = FS.listDir(currentDir.data);
+        defer {loop(local cleanup:int=0;cleanup<entries.len();cleanup=cleanup+1){local item:String=entries.get(cleanup);item.destroy();}entries.destroy();}
 
         local i: int = 0;
         loop (i < entries.length) {

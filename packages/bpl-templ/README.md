@@ -47,7 +47,8 @@ Arguments:
 
 #### 1. Header Directives
 
-Templates **must** start with header directives to define arguments and imports.
+Templates may start with header directives to define arguments and imports.
+Without an `@args` directive, the component has no arguments.
 
 - **`@args <signature>`**: Defines the arguments for the generated `render` function.
 - **`@import <module>`**: Imports external BPL modules (e.g., structs used in args).
