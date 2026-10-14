@@ -36,6 +36,8 @@ test("HTTP parser bounds framing, normalizes headers, decodes query segments and
       if (p.valid || p.error_code != 413) { return 9; } p.destroy();
       p = HttpParser.parse("GET / HTTP/1.1\\r\\n\\r\\n");
       if (p.valid || p.error_code != 400) { return 10; } p.destroy();
+      p = HttpParser.parse("GET / HTTP/1.1\\r\\nHost: x\\r\\nCookie: a=b\\r\\nCookie: c=d\\r\\n\\r\\n");
+      if(p.valid||p.error_code!=400){return 11;}p.destroy();
       return 0;
     }
   `);
@@ -355,8 +357,14 @@ test("template compiler emits valid zero-argument components and escaped UTF-8 H
       join(dir, "views", "greeting.bte"),
       "@args name: string\n<p>{{ name }}</p>\n",
     );
-    writeFileSync(join(dir, "views", "choice.bte"), '@args mode: int\r\n\t@if (mode == 1) {\r\none\r\n} @else if (mode == 2) {\r\ntwo\r\n} @else {\r\nthree\r\n}\r\n');
-    writeFileSync(join(dir, "views", "parent.bte"), '@import [Empty] from "./empty.bpl"\n@call Empty.write(_sb)\n');
+    writeFileSync(
+      join(dir, "views", "choice.bte"),
+      "@args mode: int\r\n\t@if (mode == 1) {\r\none\r\n} @else if (mode == 2) {\r\ntwo\r\n} @else {\r\nthree\r\n}\r\n",
+    );
+    writeFileSync(
+      join(dir, "views", "parent.bte"),
+      '@import [Empty] from "./empty.bpl"\n@call Empty.write(_sb)\n',
+    );
     const tool = join(dir, "templ");
     const build = spawnSync(
       "bun",
