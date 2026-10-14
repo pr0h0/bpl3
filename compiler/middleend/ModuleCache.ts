@@ -32,7 +32,8 @@ import { formatSpawnFailureReason } from "../common/ProcessErrors";
 // Revision 2.1.3 also corrects Windows boolean call argument extension.
 // Revision 2.1.4 clamps native stack guards to foreign thread stack bounds.
 // Revision 2.1.5 preserves PIC calls to preemptible weak ODR helpers.
-export const MODULE_CACHE_VERSION = "2.1.5";
+// Revision 2.1.6 reserves method tables before forward-type construction.
+export const MODULE_CACHE_VERSION = "2.1.6";
 
 export interface CachedModule {
   path: string;

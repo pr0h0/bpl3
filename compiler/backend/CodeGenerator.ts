@@ -257,6 +257,14 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     this.computeVTableLayouts(program);
+    // Factories can construct a type declared later in the same module.
+    // Reserve its vtable symbol before emitting any function bodies so
+    // default values and struct literals never receive a null vtable.
+    for (const [structName, methods] of this.vtableLayouts) {
+      if (methods.length > 0 && !this.vtableGlobalNames.has(structName)) {
+        this.vtableGlobalNames.set(structName, `@${structName}_vtable`);
+      }
+    }
     this.collectStructLayouts(program);
 
     for (const stmt of program.statements) {
