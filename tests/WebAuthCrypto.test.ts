@@ -25,3 +25,28 @@ test.skipIf(process.platform !== "linux" || !sodium.includes("/"))(
   },
   90000,
 );
+const sqlite =
+  spawnSync("clang", ["-print-file-name=libsqlite3.so.0"], {
+    encoding: "utf8",
+    timeout: 10000,
+  }).stdout?.trim() ?? "";
+test.skipIf(
+  process.platform !== "linux" ||
+    !sodium.includes("/") ||
+    !sqlite.includes("/"),
+)(
+  "HTTPS authentication origins force Secure cookies even when the caller omits the flag",
+  () => {
+    native(
+      `import [Auth] from "bpl-auth";import [SQLite] from "bpl-sqlite";import [Response] from "bpl-express";
+    import [Map] from "std/map.bpl";import [Option] from "std/option.bpl";
+    extern strstr(a:string,b:string) ret string;
+    frame main() ret int {local db:SQLite=SQLite.open(":memory:");local auth:Auth=Auth.new(&db,"https://app.example",false);
+      if(!auth.secure){return 1;}local res:Response=Response.new(-1);auth.cookie(&res,"test","0");
+      if(strstr(res.headers.get("Set-Cookie").unwrap(),"; Secure")==nullptr){return 2;}res.destroy();auth.destroy();db.close();return 0;
+    }`,
+      ["--clang-flag=-l:libsodium.so.23", "--clang-flag=-l:libsqlite3.so.0"],
+    );
+  },
+  90000,
+);

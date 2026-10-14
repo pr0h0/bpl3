@@ -49,7 +49,7 @@ struct Auth {
         local auth: Auth;
         auth.db = db;
         auth.origin = origin;
-        auth.secure = secure;
+        auth.secure = secure || (strncmp(origin, "https://", 8) == 0);
         auth.dummy = AuthCrypto.passwordHash("invalid-user-dummy-password");
         db.exec("CREATE TABLE IF NOT EXISTS auth_users(id INTEGER PRIMARY KEY,username TEXT NOT NULL UNIQUE,password_hash TEXT NOT NULL)");
         db.exec("CREATE TABLE IF NOT EXISTS auth_sessions(token_hash TEXT PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,csrf TEXT NOT NULL,expires_at INTEGER NOT NULL)");

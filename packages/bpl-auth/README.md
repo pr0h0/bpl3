@@ -34,7 +34,8 @@ bind this identity in every application query. Client headers/query/body fields
 cannot initialize request state.
 
 Cookies are `bpl_session`, HttpOnly, SameSite=Strict, Path=/, with a two-hour
-Max-Age. Set `secure=true` for HTTPS; false is for local HTTP development only.
+Max-Age. HTTPS origins automatically enable Secure cookies; `secure=true` also enables
+them explicitly. False is for local HTTP development only.
 The configured origin must exactly match the browser's origin, including port.
 Login/register require an Origin header matching it. Authenticated mutations
 (including logout) also require `X-CSRF-Token` matching the session's random
