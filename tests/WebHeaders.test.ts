@@ -52,3 +52,20 @@ frame main()ret int{
  policy.destroy();app.destroy();return 0;
 }`);
 }, 90000);
+
+test("header values preserve UTF-8 octets while rejecting control bytes", () => {
+  native(String.raw`
+import [HttpHeaders], [HttpParser], [ParsedRequest] from "bpl-http-parser";
+import [HttpResponse] from "bpl-http-client";
+import [Response] from "bpl-express";
+import [Option] from "std/option.bpl";
+extern strcmp(a:string,b:string)ret int;
+extern strlen(text:string)ret long;
+frame main()ret int{
+ local headers:HttpHeaders=HttpHeaders.new();headers.set("X-Name","café");if(strcmp(headers.get("x-name").unwrap(),"café")!=0){return 1;}headers.destroy();
+ local raw:string="GET / HTTP/1.1\r\nHost: example\r\nX-Name: café\r\n\r\n";
+ local req:ParsedRequest=HttpParser.parseBytes(raw,strlen(raw));if(!req.valid||strcmp(req.headers.get("x-name").unwrap(),"café")!=0){return 2;}req.destroy();
+ raw="HTTP/1.1 200 OK\r\nContent-Length: 0\r\nX-Name: café\r\n\r\n";local response:*HttpResponse=HttpResponse.parseBytes(raw,strlen(raw),false);if(response.status!=200||strcmp(response.headers.get("x-name").unwrap(),"café")!=0){return 3;}response.destroy();
+ local server:Response=Response.new(-1);server.setHeader("X-Name","café");local caught:bool=false;try{server.setHeader("X-Test","a\r\nb: c");}catch{caught=true;}if(!caught){return 4;}server.destroy();return 0;
+}`);
+}, 90000);

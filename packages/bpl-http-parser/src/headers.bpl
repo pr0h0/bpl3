@@ -54,7 +54,7 @@ struct HttpHeaders {
             throw "Invalid HTTP header value";
         }
         loop (local i: long = 0; value[i] != 0; i = i + 1) {
-            if (((value[i] < 32) && (value[i] != '\t')) || (value[i] == 127)) {
+            if (((cast<u8>(value[i]) < cast<u8>(32)) && (value[i] != '\t')) || (value[i] == 127)) {
                 throw "Invalid HTTP header value";
             }
         }

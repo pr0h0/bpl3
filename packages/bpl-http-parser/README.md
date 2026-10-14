@@ -37,3 +37,9 @@ HttpHeaders collection: trailer fields never initialize ordinary headers.
 Framing, routing, authentication and representation metadata are forbidden in
 trailers. `ChunkDecoder.parse(data,size)` exposes the same incremental decoder;
 check valid/error_code, and destroy the owning result even for incomplete input.
+
+Header names remain ASCII tokens; values preserve opaque bytes including UTF-8
+and other high octets, while rejecting C0 controls (except horizontal tab) and
+DEL. Per-field encodings such as extended filename parameters remain the
+application's responsibility. Authentication, cache/control and range/conditional
+fields cannot be introduced by trailers.

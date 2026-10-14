@@ -237,7 +237,7 @@ struct HttpParser {
             }
             k = vs;
             loop (k < ve) {
-                if (((raw[k] < 32) && (raw[k] != '\t')) || (raw[k] == 127)) {
+                if (((cast<u8>(raw[k]) < cast<u8>(32)) && (raw[k] != '\t')) || (raw[k] == 127)) {
                     free(key);
                     return p;
                 }

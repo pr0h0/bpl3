@@ -20,6 +20,8 @@ frame main()ret int{
  if(!invalid("POST / HTTP/1.1\r\nHost: app\r\nTransfer-Encoding: chunked\r\n\r\n0\r\nAuthorization: secret\r\n\r\n",400)){return 7;}
  if(!invalid("POST / HTTP/1.1\r\nHost: app\r\nTransfer-Encoding: chunked\r\n\r\n100001\r\n",413)){return 8;}
  if(!invalid("POST / HTTP/1.1\r\nHost: app\r\nTransfer-Encoding: chunked\r\n\r\n1;foo=\"unterminated\r\na\r\n0\r\n\r\n",400)){return 9;}
+ if(!invalid("POST / HTTP/1.1\r\nHost: app\r\nTransfer-Encoding: chunked\r\n\r\n0\r\nSet-Cookie: session=bad\r\n\r\n",400)){return 10;}
+ if(!invalid("POST / HTTP/1.1\r\nHost: app\r\nTransfer-Encoding: chunked\r\n\r\n0\r\nCache-Control: public\r\n\r\n",400)){return 11;}
  return 0;
 }`);
 }, 90000);

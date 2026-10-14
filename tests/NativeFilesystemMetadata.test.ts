@@ -61,6 +61,13 @@ int main(int argc,char **argv) {
   assert(__bpl_file_info(".",1,&size,&kind)==0 && size==INT64_MAX && kind==1);
  }
  fake_size=0;
+ int64_t modified=99;
+ assert(__bpl_file_modified(-1,NULL)==EINVAL);
+ assert(__bpl_file_modified(-1,&modified)==EBADF && modified==0);
+ FILE *modified_file=fopen("modified","wb");assert(modified_file);
+ struct stat modified_info;assert(fstat(fileno(modified_file),&modified_info)==0);
+ assert(__bpl_file_modified(fileno(modified_file),&modified)==0 && modified==(int64_t)modified_info.st_mtime);
+ assert(fclose(modified_file)==0 && unlink("modified")==0);
  assert(mkfifo("fifo",0600)==0);alarm(10);
  assert(__bpl_path_exists("fifo"));
  assert(__bpl_file_info("fifo",1,&size,&kind)==0 && kind==0);

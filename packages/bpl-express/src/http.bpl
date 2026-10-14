@@ -171,7 +171,7 @@ struct Response {
         }
         i = 0;
         loop (value[i] != 0) {
-            if (((value[i] < 32) && (value[i] != '\t')) || (value[i] == 127)) {
+            if (((cast<u8>(value[i]) < cast<u8>(32)) && (value[i] != '\t')) || (value[i] == 127)) {
                 throw "Invalid response header value";
             }
             i = i + 1;

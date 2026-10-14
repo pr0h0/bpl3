@@ -112,7 +112,7 @@ struct ChunkDecoder {
                             c = raw[pos];
                             pos = pos + 1;
                         }
-                        if (((c < 32) && (c != '\t')) || (c == 127)) {
+                        if (((cast<u8>(c) < cast<u8>(32)) && (c != '\t')) || (c == 127)) {
                             return -1;
                         }
                     }
@@ -234,7 +234,7 @@ struct ChunkDecoder {
             # Validate and copy only after the complete message is present.
             local value: long = colon + 1;
             loop (value < end) {
-                if (((raw[value] < 32) && (raw[value] != '\t')) || (raw[value] == 127)) {
+                if (((cast<u8>(raw[value]) < cast<u8>(32)) && (raw[value] != '\t')) || (raw[value] == 127)) {
                     result.error_code = 400;
                     return result;
                 }
@@ -291,7 +291,7 @@ struct ChunkDecoder {
             local lowered: string = HttpHeaders.lower(key);
             free(key);
             # Trailers cannot introduce framing, authentication, routing or representation metadata.
-            if ((strcmp(lowered, "content-length") == 0) || (strcmp(lowered, "transfer-encoding") == 0) || (strcmp(lowered, "host") == 0) || (strcmp(lowered, "cookie") == 0) || (strcmp(lowered, "authorization") == 0) || (strcmp(lowered, "origin") == 0) || (strcmp(lowered, "x-csrf-token") == 0) || (strcmp(lowered, "content-type") == 0) || (strcmp(lowered, "content-encoding") == 0) || (strcmp(lowered, "connection") == 0) || (strcmp(lowered, "trailer") == 0) || (strcmp(lowered, "expect") == 0)) {
+            if ((strcmp(lowered, "content-length") == 0) || (strcmp(lowered, "transfer-encoding") == 0) || (strcmp(lowered, "host") == 0) || (strcmp(lowered, "cookie") == 0) || (strcmp(lowered, "authorization") == 0) || (strcmp(lowered, "origin") == 0) || (strcmp(lowered, "x-csrf-token") == 0) || (strcmp(lowered, "content-type") == 0) || (strcmp(lowered, "content-encoding") == 0) || (strcmp(lowered, "connection") == 0) || (strcmp(lowered, "trailer") == 0) || (strcmp(lowered, "expect") == 0) || (strcmp(lowered, "set-cookie") == 0) || (strcmp(lowered, "www-authenticate") == 0) || (strcmp(lowered, "proxy-authenticate") == 0) || (strcmp(lowered, "proxy-authorization") == 0) || (strcmp(lowered, "authentication-info") == 0) || (strcmp(lowered, "content-range") == 0) || (strcmp(lowered, "content-location") == 0) || (strcmp(lowered, "content-language") == 0) || (strcmp(lowered, "content-disposition") == 0) || (strcmp(lowered, "cache-control") == 0) || (strcmp(lowered, "vary") == 0) || (strcmp(lowered, "range") == 0) || (strcmp(lowered, "if-match") == 0) || (strcmp(lowered, "if-none-match") == 0) || (strcmp(lowered, "if-modified-since") == 0) || (strcmp(lowered, "if-unmodified-since") == 0) || (strcmp(lowered, "if-range") == 0) || (strcmp(lowered, "te") == 0) || (strcmp(lowered, "keep-alive") == 0) || (strcmp(lowered, "upgrade") == 0)) {
                 free(lowered);
                 result.error_code = 400;
                 return result;
