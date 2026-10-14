@@ -93,11 +93,13 @@ struct Response {
         loop (local b: int = 0; b < this.headers.buckets.len(); b = b + 1) {
             local node: *MapNode<string, string> = this.headers.buckets.get(b);
             loop (node != nullptr) {
-                if (Response.equalHeader(node.key, key)) { node.value = value; return this; }
+                if (Response.equalHeader(node.key, key)) { local copy: string = HttpParser.copy(value, 0, cast<long>(strlen(value))); free(node.value); node.value = copy; return this; }
                 node = node.next;
             }
         }
-        this.headers.set(key, value); return this;
+        local name: string = HttpParser.copy(key, 0, cast<long>(strlen(key)));
+        local copy: string = HttpParser.copy(value, 0, cast<long>(strlen(value)));
+        this.headers.set(name, copy); return this;
     }
     frame _output(this: *Response, data: string, size: long) {
         if (!this.io_failed) { if (!writeAll(this.client_fd, data, size)) { this.io_failed = true; } }
@@ -148,6 +150,6 @@ struct Response {
     frame text(this: *Response, body: string) { this.setHeader("Content-Type", "text/plain; charset=utf-8"); this.send(body); }
     frame html(this: *Response, body: string) { this.setHeader("Content-Type", "text/html; charset=utf-8"); this.send(body); }
     frame redirect(this: *Response, location: string) { this.status(302).setHeader("Location", location).end(); }
-    # Header strings are borrowed until the response ends.
-    frame destroy(this: *Response) { this.headers.destroy(); }
+    # Header strings are copied and owned by the response.
+    frame destroy(this: *Response) { releaseStrings(&this.headers); }
 }

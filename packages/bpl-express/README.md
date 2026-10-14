@@ -54,8 +54,7 @@ Responses:
   are available to HEAD requests. 204 and 304 suppress bodies and framing.
 
 Custom headers are emitted. Invalid names, control characters in values, and
-manual framing headers are rejected. Header strings are borrowed through response
-completion. A handler exception before headers produces a generic 500; after
+manual framing headers are rejected. Header strings are copied and owned by the response. A handler exception before headers produces a generic 500; after
 headers it ends the existing response. Requests own parsed allocations and are
 cleaned up after handling; do not retain their pointers in application state.
 
