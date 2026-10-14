@@ -45,7 +45,8 @@ that return no rows. Use prepared queries to inspect SELECT/PRAGMA results.
 `begin()` uses BEGIN IMMEDIATE; `commit()` and `rollback()` are explicit. On an
 application exception, roll back in your catch block. There are no implicit
 transactions or nested transactions. Foreign-key checking is enabled on open.
-The library does not enable WAL or change durability pragmas automatically.
+The library does not enable WAL or change durability pragmas automatically; use
+`setWAL` to opt in.
 
 Statements and connections are owners, not independently copyable handles.
 Close each owner, and do not close borrowed copies. Close is idempotent on the
@@ -58,3 +59,52 @@ For deferred cleanup of mutable owners, defer through a pointer:
 `local owner: *Statement = &stmt; defer owner.close();`.
 The native regression runs when a Linux SQLite runtime is available; other
 platforms require their own library/link configuration and validation.
+
+## Migrations, WAL and backups
+
+`Migrations.apply(&db, version, name, fingerprint, change)` runs a callback inside
+BEGIN IMMEDIATE, records its identity, and commits together. It returns true when
+applied and false when an identical version is already present. Versions start
+at 1 and must be consecutive. Names and caller-supplied content fingerprints are
+1–128 bytes; changing either for an applied version is an error. Keep fingerprints
+immutable and update them when changing unapplied migration contents. They are
+identifiers, not hashes computed automatically from callback code.
+
+Callbacks use the supplied connection and must not close it or execute transaction
+control SQL. The connection's begin/commit/rollback methods reject transaction
+control during a migration. Ordinary SQL/callback failures roll back both schema
+changes and the version record. An existing outer transaction is rejected rather
+than implicitly committed. Serialize migrations before starting app workers.
+
+`db.setWAL(true)` opts into write-ahead logging; `setWAL(false)` requests DELETE
+journal mode. Unsupported modes (including WAL on :memory:) throw. WAL improves
+reader/writer concurrency but still allows only one writer at a time. Use local
+storage with appropriate SQLite locking semantics, and retain its -wal/-shm files
+while the database is live. `db.setBusyTimeout(ms)` accepts 0–300000; zero makes
+lock conflicts return immediately. The default remains 5000 ms.
+
+`db.backupTo("snapshot.sqlite", 10)` uses SQLite's online backup API, including
+committed WAL data. This POSIX helper copies into a private temporary file beside
+the destination, synchronizes it, and atomically publishes a hard link. Existing
+destinations are never overwritten. A published file is complete; an error
+synchronizing its directory can leave that complete file present despite throwing.
+The temporary name is removed on normal success/failure; a process crash can
+leave temporary files, which should be cleaned during maintenance.
+
+The source connection must be outside an explicit transaction. The deadline is
+checked between bounded page-copy steps and lock retries; synchronous filesystem
+I/O itself cannot be interrupted. Source busy-timeout settings are restored after
+success or failure. Use a dedicated connection for backups, and a trusted private
+destination directory. The helper does not support filesystems without hard links
+or directory fsync. Backups contain the original sensitive data and must remain
+private.
+
+`SQLite.openReadOnly(path)` opens an existing database without creating one.
+`db.integrityCheck()` checks SQLite's integrity result. To restore, stop all app
+workers, verify a backup in an isolated directory, and replace the database only
+while it is offline; do not overwrite a live WAL database. Exercise application
+reads and writes on the restored copy before serving traffic. Backups do not
+replace testing restore procedures.
+
+See [SQLite WAL](https://www.sqlite.org/wal.html) and the
+[online backup API](https://www.sqlite.org/c3ref/backup_finish.html).
