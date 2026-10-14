@@ -1,0 +1,1 @@
+{"name":"bpl-rate-limit","version":"0.1.0","description":"Optional shared SQLite request throttling middleware","main":"index.bpl","license":"MIT","dependencies":{"bpl-express":"file:../bpl-express/bpl-express-0.1.0.tgz","bpl-sqlite":"file:../bpl-sqlite/bpl-sqlite-0.1.0.tgz"}}
