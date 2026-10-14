@@ -16,6 +16,7 @@ packages/package-name -o packages/package-name` before distributing them.
 | [bpl-db](bpl-db/README.md) | Typed in-memory tables and trusted snapshots | None |
 | [bpl-validation](bpl-validation/README.md) | Input rules and JSON field errors | None |
 | [bpl-web-middleware](bpl-web-middleware/README.md) | Headers, explicit CORS, JSON checks, forms | Uses bpl-express |
+| [bpl-auth](bpl-auth/README.md) | Passwords, revocable sessions, CSRF | SQLite and libsodium |
 | [bpl-csv](bpl-csv/README.md) | Optional CSV downloads and reports | None |
 | [bpl-sqlite](bpl-sqlite/README.md) | Prepared statements and transactions | Link native SQLite |
 
@@ -41,18 +42,21 @@ defers capture values. For a mutable owner, defer through a pointer to the live
 object (`local owner: *StringBuilder = &sb; defer owner.destroy();`) so cleanup
 observes buffer growth and changed fields.
 
-Current limits are material: the HTTP backend is Linux IPv4 and sequential,
-without TLS, keep-alive, HTTP/2, or multipart uploads. It does not provide an
-authentication/session system, CSRF enforcement, a connection pool, migrations,
-or automatic request schemas. HTTP/1.1 transfer-encoded request bodies are
-rejected explicitly. These packages improve the existing prototype and provide
-a tested project foundation; they do not establish parity with mature frameworks
-or guarantee that a complex deployment is ready without further testing.
+Current limits are material: the HTTP backend is Linux IPv4 without TLS,
+keep-alive, HTTP/2, or multipart uploads. `listen` is sequential; `listenWorkers`
+provides bounded process concurrency with private worker memory. The optional
+bpl-auth package supplies password/session/CSRF handling; application queries
+still enforce ownership. It does not include email verification, reset/MFA,
+roles, a connection pool, or a general migration system. The college example
+performs only its specific anonymous-task ownership migration. Transfer-encoded
+request bodies are rejected explicitly. Public deployment still needs HTTPS,
+traffic management, backups, monitoring, and workload testing. These modules do
+not establish parity with mature frameworks or guarantee a bug-free deployment.
 
 Run package regressions with:
 
 ```bash
-bun test tests/WebPackages.test.ts tests/WebCSVPackage.test.ts tests/WebValidationPackage.test.ts tests/WebMiddlewarePackage.test.ts tests/WebSQLitePackage.test.ts tests/WebCollegeExample.test.ts tests/WebPackageCompilerRegressions.test.ts tests/PackageManifestSchema.test.ts
+bun test tests/WebPackages.test.ts tests/WebAuthCrypto.test.ts tests/WebWorkerPool.test.ts tests/WebJsonInputLimits.test.ts tests/WebCSVPackage.test.ts tests/WebValidationPackage.test.ts tests/WebMiddlewarePackage.test.ts tests/WebSQLitePackage.test.ts tests/WebCollegeExample.test.ts tests/WebPackageCompilerRegressions.test.ts tests/PackageManifestSchema.test.ts
 ```
 
 Socket tests require Linux; SQLite tests skip when the runtime library is absent.

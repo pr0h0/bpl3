@@ -1,58 +1,119 @@
-# College web application starter
+# Authenticated college web application
 
-A working Linux BPL task board with a browser UI, persistent SQLite storage,
-JSON REST handlers, validation, pagination, and public static assets. It is a
-starting point you can adapt to your project domain, not a finished production
-framework or an authenticated multi-user application.
+A Linux BPL task board with private accounts, a browser UI, SQLite persistence,
+validated JSON APIs, and bounded process workers. It demonstrates a project
+foundation; it is not a complete public deployment or account-management system.
 
 From the repository root:
 
 ```bash
-bun index.ts build examples/college_web/main.bpl -l sqlite3 -o examples/college_web/college-web
+bun index.ts build examples/college_web/main.bpl -l sqlite3 -l sodium -o examples/college_web/college-web
 cd examples/college_web
 ./college-web
 ```
 
-Open http://127.0.0.1:3000. You need a native SQLite library; if Linux has only
-`libsqlite3.so.0` without the development linker symlink, replace `-l sqlite3`
-with `--clang-flag=-l:libsqlite3.so.0`. The compiler uses the repository's BPL
-packages directly. No JavaScript server runtime or frontend build is required.
-The native server binary serves plain HTML, CSS, and JavaScript.
+If only Linux runtime libraries are available, replace the two `-l` options with
+`--clang-flag=-l:libsqlite3.so.0 --clang-flag=-l:libsodium.so.23`. No host packages
+are installed by the app. It requires native SQLite and libsodium libraries.
 
-`PORT` selects a port (1–65535). `BPL_WEB_DB` selects a database file (default
-`college.sqlite` in the working directory). Run from this directory so `public`
-resolves correctly. Database files and the compiled app are locally ignored.
-The server binds loopback; change the BPL listen call explicitly for public
-binding and add HTTPS through a reverse proxy for deployment.
+Open **http://127.0.0.1:3000**, create an account, and sign in. Usernames use 3–32
+lowercase letters/digits/underscores; registration passwords require 12–256 UTF-8
+bytes. The UI uses an HttpOnly cookie for the session and keeps CSRF in memory.
+Each account sees and modifies only its own tasks. Signing in again revokes the
+previous session for that account; signing out revokes the current session.
+
+| Configuration | Default / behavior |
+| --- | --- |
+| PORT | 3000, integer 1–65535 |
+| BPL_WEB_DB | college.sqlite in the working directory |
+| BPL_WEB_WORKERS | 2, integer 1–8 |
+| BPL_WEB_ORIGIN | http://127.0.0.1:PORT; must exactly match the browser origin |
+| BPL_WEB_SECURE_COOKIES | 0 for local HTTP; 1 forces Secure; HTTPS origins also enable it |
+
+Run from this directory so public assets resolve. If you use `localhost` instead
+of `127.0.0.1`, explicitly set BPL_WEB_ORIGIN to that origin. For public use,
+configure HTTPS at a reverse proxy and set both the public origin and Secure
+cookies. The listener remains loopback. Forwarded-origin/IP headers are not
+trusted automatically.
 
 | Endpoint | Behavior |
 | --- | --- |
-| GET /api/health | Health JSON |
-| GET /api/tasks?page=1&limit=20 | Paginated tasks, newest first |
-| GET /api/tasks/:id | One task or 404 |
-| POST /api/tasks | Create; returns 201 with Location |
-| PUT /api/tasks/:id | Replace title/done or 404 |
-| DELETE /api/tasks/:id | Delete; returns empty 204 or 404 |
+| POST /auth/register | Public registration; JSON username/password; returns 201 |
+| POST /auth/login | Fresh cookie session; JSON username/password |
+| GET /auth/me | Current user and CSRF token, or 401 |
+| POST /auth/logout | CSRF-protected revocation; returns 204 |
+| GET /api/health | Public health JSON |
+| GET /api/tasks?page=1&limit=20 | Current user's tasks, newest first |
+| GET /api/tasks/:id | Owned task or 404 |
+| POST /api/tasks | Create owned task; 201 with Location |
+| PUT /api/tasks/:id | Replace owned title/done or 404 |
+| DELETE /api/tasks/:id | Delete owned task; empty 204 or 404 |
 
-POST and PUT use `application/json` with `{"title":"Homework","done":false}`.
-Titles must contain 1–120 UTF-8 bytes; page is 1–10000 and limit is 1–100.
-Validation failures return 422 with field codes; malformed JSON returns 400;
-wrong media types return 415. The API disables caching. SQLite bindings separate
-user values from SQL. The UI writes task titles through textContent.
+Task POST/PUT use application/json with `{"title":"Homework","done":false}`.
+Titles contain 1–120 UTF-8 bytes, page is 1–10000, and limit is 1–100.
+Task JSON bodies are limited to 4 KiB and accounts to 1000 tasks; the task quota
+is enforced by a single SQLite insert so concurrent workers cannot exceed it. Invalid input
+returns 422; malformed JSON returns 400; wrong media types return 415.
+Authenticated mutations require the configured Origin and X-CSRF-Token. Login
+and registration require the matching Origin even before a session exists.
+New files use a private umask, and the app requires the database file to be mode
+0600 (including existing anonymous databases). Use a trusted, private database
+directory; file permissions do not encrypt its contents.
 
-Modules stay optional: bpl-express routes, bpl-sqlite persists, bpl-validation
-checks input, and bpl-web-middleware supplies JSON checks and response headers.
-The sample has no users, passwords, sessions, permission rules, uploads, or
-background jobs. All callers reaching the API can modify all tasks. Add your
-application's ownership and authentication design before exposing private data.
-The current server handles connections sequentially; test your workload before
-using it for a larger service.
+Tokens expire after two hours; only their SHA-256 digests are stored. Passwords
+use salted Argon2id. Login/registration limits are shared across workers in SQLite.
+See [bpl-auth](../../packages/bpl-auth/README.md) for exact policy and limitations.
 
-Native integration test (Linux with SQLite):
+On startup, existing anonymous task databases gain an owner_id column. Old rows
+are preserved with no owner and hidden from all accounts. They are **not** claimed
+by the first registering user. Assign them only through an explicit application
+migration policy after deciding who owns them.
+
+Two processes can handle different connections concurrently. Each opens its own
+SQLite connection after fork; no live connection is inherited. This uses POSIX
+FFI, not language-level async or threads. Worker memory is private, so shared
+application data must live in an external store. Requests have inactivity and
+total assembly deadlines. The supervisor restarts exited workers; shutdown does
+not drain in-flight requests. Test workload capacity before public deployment.
+
+There is no email verification, password reset, MFA, roles/admin UI, file upload,
+or background job system. Public sign-up and the fixed-window rate limits may
+need a different policy for your project. Protect database files/backups and add
+reverse-proxy traffic limits and operational monitoring for deployment.
+
+## Tests
 
 ```bash
-bun test tests/WebCollegeExample.test.ts
+bun test tests/WebCollegeExample.test.ts tests/WebAuthCrypto.test.ts tests/WebWorkerPool.test.ts tests/WebJsonInputLimits.test.ts
 ```
 
-It covers CRUD, escaped/UTF-8 input, validation, pagination, public assets, and
-persistence after restarting the process.
+These use real native BPL programs and synthetic accounts. Coverage includes
+cross-user read/update/delete denial, CSRF/origin rejection, cookies, expiry,
+rotation/revocation, restart persistence, worker replacement, input/task limits,
+anonymous-data migration, password
+hash storage, rate limits, concurrent requests, and slow-client deadlines.
+The test client requests Connection: close, matching the server's protocol.
+
+For real browser checks, first run the app on port 31947 with a disposable DB:
+
+```bash
+PORT=31947 BPL_WEB_DB=/tmp/bpl-browser-test.sqlite ./college-web
+```
+
+Then from the repository root, run Chromium and Firefox in the pinned Docker
+image. Browser packages stay inside the container; evidence stays locally ignored:
+
+```bash
+mkdir -p docs/audits/college-web-auth
+docker run --rm --init --network host --shm-size=256m --memory=1g \
+  -v "$PWD/tools/test_college_web_browser.cjs:/work/browser.cjs:ro" \
+  -v "$PWD/docs/audits/college-web-auth:/evidence" \
+  -e BPL_BROWSER_EVIDENCE=/evidence \
+  mcr.microsoft.com/playwright:v1.64.0-noble bash -lc \
+  'npm install --prefix /tmp/browser --no-save playwright@1.64.0 >/tmp/npm.log 2>&1 && NODE_PATH=/tmp/browser/node_modules node /work/browser.cjs'
+```
+
+The script is limited to loopback origins and synthetic users. It checks sign-up,
+login/logout, reload sessions, task changes, literal markup display, HttpOnly
+cookies, UTF-8 byte validation, mobile width, and browser page errors. It does
+not automate broad scanning or prove that every browser/security case is covered.
