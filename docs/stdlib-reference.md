@@ -1470,6 +1470,7 @@ frame serializeDynamicArray(sb: *StringBuilder, ptr: ulong, info: *TypeInfo)
 frame serializeStruct(sb: *StringBuilder, ptr: ulong, info: *TypeInfo)
 frame serializePointer(sb: *StringBuilder, ptr: ulong, info: *TypeInfo)
 frame serializeArray(sb: *StringBuilder, ptr: ulong, info: *TypeInfo)
+frame withinDepthLimit(s: string, len: long) ret bool
 frame parse<T>(s: string) ret *T
 frame free<T>(obj: *T)
 frame freeAny(ptr: ulong, info: *TypeInfo)
