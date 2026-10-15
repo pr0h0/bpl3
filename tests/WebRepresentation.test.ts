@@ -34,3 +34,18 @@ frame main()ret int{
  app.destroy();return 0;
 }`);
 }, 90000);
+
+test("entity tag matches require a complete valid list", () => {
+  native(String.raw`
+import [Representation] from "bpl-express";
+frame main()ret int{
+ if(Representation.tagMatches("\"v1\"garbage","\"v1\"",false)){return 1;}
+ if(Representation.tagMatches("\"v1\", invalid","\"v1\"",true)){return 2;}
+ if(Representation.tagMatches("\"v1\", *","\"v1\"",false)){return 3;}
+ if(Representation.tagMatches("\"v1\", \"bad\nvalue\"","\"v1\"",false)){return 4;}
+ if(!Representation.tagMatches("\"other\", W/\"v1\"","\"v1\"",false)){return 5;}
+ if(!Representation.tagMatches("\"v1\", \"other\"","\"v1\"",true)){return 6;}
+ if(Representation.tagMatches("W/\"v1\", \"other\"","\"v1\"",true)){return 7;}
+ return 0;
+}`);
+}, 90000);

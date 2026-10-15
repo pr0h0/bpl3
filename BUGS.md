@@ -5536,3 +5536,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   escaped delimiters while scanning. Malformed quoted values are rejected.
   `tests/WebNegotiation.test.ts` covers quoted/token equivalence, escaped quotes
   and semicolons, comma-containing values, empty strings and malformed quotes.
+
+## Fixed conditional ETag list validation (2026-10-15)
+
+- Entity-tag matching returned immediately after a matching quoted tag, before
+  validating its suffix and remaining list. Malformed values such as `"v1"garbage`
+  could satisfy If-Match or produce a 304. Matching now validates the entire list,
+  rejects control bytes in opaque tags, and permits wildcard only as the sole
+  nonempty item. `tests/WebRepresentation.test.ts` covers malformed suffixes,
+  invalid later elements, wildcard mixtures and valid weak/strong comparisons.

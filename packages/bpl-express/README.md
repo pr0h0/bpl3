@@ -166,6 +166,9 @@ fields are rejected before a handler runs.
 
 ## Conditional responses and byte ranges
 
+Conditional ETag comparisons validate the complete list before accepting a match;
+malformed suffixes, control bytes and wildcard/tag mixtures do not match.
+
 Static assets now emit a weak content ETag, Last-Modified from the open file,
 and Accept-Ranges. If-None-Match takes precedence over If-Modified-Since; matching
 GET/HEAD conditions return 304 without a body. If-Match and If-Unmodified-Since

@@ -131,6 +131,8 @@ struct Representation {
         }
         local size: long = cast<long>(strlen(list));
         local pos: long = 0;
+        local matched: bool = false;
+        local seen: bool = false;
         loop (pos < size) {
             loop ((pos < size) && ((list[pos] == ' ') || (list[pos] == '\t') || (list[pos] == ','))) {
                 pos = pos + 1;
@@ -140,7 +142,7 @@ struct Representation {
                 loop ((pos < size) && ((list[pos] == ' ') || (list[pos] == '\t'))) {
                     pos = pos + 1;
                 }
-                return pos == size;
+                return !seen && (pos == size);
             }
             if (tag == nullptr) {
                 return false;
@@ -156,6 +158,10 @@ struct Representation {
             }
             pos = pos + 1;
             loop ((pos < size) && (list[pos] != '"')) {
+                local octet: uint = cast<uint>(cast<u8>(list[pos]));
+                if ((octet < 33) || (octet == 127)) {
+                    return false;
+                }
                 pos = pos + 1;
             }
             if (pos == size) {
@@ -176,8 +182,9 @@ struct Representation {
                 }
             }
             if ((!strong || (!weak && !tagWeak)) && (cast<long>(strlen(target)) == length) && (strncmp(candidate, target, cast<ulong>(length)) == 0)) {
-                return true;
+                matched = true;
             }
+            seen = true;
             loop ((pos < size) && ((list[pos] == ' ') || (list[pos] == '\t'))) {
                 pos = pos + 1;
             }
@@ -185,7 +192,7 @@ struct Representation {
                 return false;
             }
         }
-        return false;
+        return matched;
     }
     frame digits(text: string, start: long, end: long) ret long {
         if (start == end) {
