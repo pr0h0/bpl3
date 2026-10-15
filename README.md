@@ -1066,6 +1066,13 @@ bun run build
 bun index.ts run examples/hello-world/main.bpl
 ```
 
+### Release policy
+
+Compiler and bundled BPL packages stay on `0.1.x` while the current compiler
+features are stabilized. Release versions advance by patch increments only.
+The maintainer decides when to bump versions, create tags, publish releases or
+push container images; code changes and commits do not trigger publication.
+
 ### Contributing
 
 Contributions are welcome! Please:

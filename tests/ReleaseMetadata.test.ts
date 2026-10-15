@@ -56,10 +56,7 @@ function expectedPackedPackageManifestValidationSmokeCodes(): string[] {
 }
 
 function releaseSmokeTestSource(): string {
-  return readFileSync(
-    join(import.meta.dir, "ReleaseSmoke.test.ts"),
-    "utf8",
-  );
+  return readFileSync(join(import.meta.dir, "ReleaseSmoke.test.ts"), "utf8");
 }
 
 function cliJsonParseabilitySource(): string {
@@ -96,7 +93,9 @@ function expectReleaseSmokeSourceContains(snippets: readonly string[]): void {
   );
 }
 
-function expectReleaseSmokeTestSourceContains(snippets: readonly string[]): void {
+function expectReleaseSmokeTestSourceContains(
+  snippets: readonly string[],
+): void {
   expectSourceContainsSnippets(
     "tests/ReleaseSmoke.test.ts",
     releaseSmokeTestSource(),
@@ -115,6 +114,24 @@ function expectCliJsonParseabilitySourceContains(
 }
 
 describe("Release metadata", () => {
+  test("compiler and bundled package versions remain in the 0.1 patch release family", () => {
+    const root = join(import.meta.dir, "..");
+    const manifests = [join(root, "package.json")];
+    for (const entry of readdirSync(join(root, "packages"), {
+      withFileTypes: true,
+    })) {
+      if (!entry.isDirectory()) continue;
+      const manifest = join(root, "packages", entry.name, "bpl.json");
+      if (existsSync(manifest)) manifests.push(manifest);
+    }
+    for (const file of manifests) {
+      const manifest = JSON.parse(readFileSync(file, "utf8")) as {
+        version: string;
+      };
+      expect(manifest.version, file).toMatch(/^0\.1\.(0|[1-9][0-9]*)$/);
+    }
+  });
+
   test("source snippet helper reports concise missing-snippet diagnostics", () => {
     let thrown: unknown;
 
@@ -218,12 +235,12 @@ describe("Release metadata", () => {
     expect(packageJson.files).toContain("compiler/common/PathSafety.ts");
     expect(packageJson.files).toContain("compiler/common/ProcessErrors.ts");
     expect(existsSync(join(repoRoot, "compiler/common/Env.ts"))).toBe(true);
-    expect(
-      existsSync(join(repoRoot, "compiler/common/PathSafety.ts")),
-    ).toBe(true);
-    expect(
-      existsSync(join(repoRoot, "compiler/common/ProcessErrors.ts")),
-    ).toBe(true);
+    expect(existsSync(join(repoRoot, "compiler/common/PathSafety.ts"))).toBe(
+      true,
+    );
+    expect(existsSync(join(repoRoot, "compiler/common/ProcessErrors.ts"))).toBe(
+      true,
+    );
     for (const [scriptName, helperPath] of helperScripts) {
       expect(packageJson.scripts[scriptName]).toContain(helperPath);
       expect(existsSync(join(repoRoot, helperPath))).toBe(true);
@@ -322,10 +339,7 @@ describe("Release metadata", () => {
 
     expect(PACKAGE_HELPER_DEPENDENCIES).toEqual([
       {
-        importedBy: [
-          "tools/release_manifest.ts",
-          "tools/test_ci.ts",
-        ],
+        importedBy: ["tools/release_manifest.ts", "tools/test_ci.ts"],
         path: "compiler/common/Env.ts",
         reason:
           "Packed helper scripts share environment parsing without shipping broad compiler sources.",
@@ -340,10 +354,7 @@ describe("Release metadata", () => {
           "Packed helper scripts share symlink-safe path validation without shipping broad compiler sources.",
       },
       {
-        importedBy: [
-          "tools/release_manifest.ts",
-          "tools/test_ci.ts",
-        ],
+        importedBy: ["tools/release_manifest.ts", "tools/test_ci.ts"],
         path: "compiler/common/ProcessErrors.ts",
         reason:
           "Packed helper scripts share spawn error formatting without shipping broad compiler sources.",
@@ -457,10 +468,7 @@ describe("Release metadata", () => {
     try {
       mkdirSync(join(tempRoot, "tools"), { recursive: true });
       mkdirSync(join(tempRoot, "shared"), { recursive: true });
-      writeFileSync(
-        join(tempRoot, "tools", "bad.ts"),
-        'import "./other";\n',
-      );
+      writeFileSync(join(tempRoot, "tools", "bad.ts"), 'import "./other";\n');
       writeFileSync(join(tempRoot, "shared", "index.ts"), "");
 
       expect(() =>
@@ -893,8 +901,7 @@ describe("Release metadata", () => {
             "bun run test:sanitizers",
             "bun test tests/CompilerSanitizerRuntime.test.ts",
           ],
-          hint:
-            "Install compiler-rt runtime support for ASan/UBSan and libclang_rt.",
+          hint: "Install compiler-rt runtime support for ASan/UBSan and libclang_rt.",
         },
       ],
     };
@@ -962,8 +969,7 @@ describe("Release metadata", () => {
             BPL_REQUIRE_WASM_LD: null,
           },
           recommendedCommands: ["BPL_REQUIRE_WASM_LD=1 bun run test:wasm"],
-          hint:
-            "missing wasm linker support is an optional prerequisite skip, not a successful wasm execution",
+          hint: "missing wasm linker support is an optional prerequisite skip, not a successful wasm execution",
         },
       ],
     };
@@ -1259,9 +1265,7 @@ describe("Release metadata", () => {
       });
       expect(byPath.get("compiler/common/Env.ts")).toMatchObject({
         kind: "helper",
-        sha256: createHash("sha256")
-          .update("env helper\n")
-          .digest("hex"),
+        sha256: createHash("sha256").update("env helper\n").digest("hex"),
       });
       expect(byPath.get("compiler/common/PathSafety.ts")).toMatchObject({
         kind: "helper",
@@ -1431,9 +1435,7 @@ describe("Release metadata", () => {
     ]);
 
     expect(discoverDedicatedWasmExampleFiles(repoRoot)).toEqual(expectedFiles);
-    expect(expectedFiles).toContain(
-      "examples/wasm_hosted_transform/main.bpl",
-    );
+    expect(expectedFiles).toContain("examples/wasm_hosted_transform/main.bpl");
   });
 
   test("release manifest refuses symlinked output paths", () => {
@@ -1705,10 +1707,13 @@ function writeReleaseFixture(tempRoot: string): void {
         scripts: {
           "ci:triage": "bun tools/ci_triage.ts",
           "release:smoke": "bun tools/release_smoke.ts",
-          "release:manifest": "bun tools/release_manifest.ts --out dist/release-manifest.json --pack-npm",
+          "release:manifest":
+            "bun tools/release_manifest.ts --out dist/release-manifest.json --pack-npm",
           fuzz: "bun tools/fuzz_script_wrapper.ts run",
-          "fuzz:long": "FUZZ_ITERATIONS=100000 bun tools/fuzz_script_wrapper.ts run",
-          "fuzz:differential": "FUZZ_DIFFERENTIAL=1 bun tools/fuzz_script_wrapper.ts run",
+          "fuzz:long":
+            "FUZZ_ITERATIONS=100000 bun tools/fuzz_script_wrapper.ts run",
+          "fuzz:differential":
+            "FUZZ_DIFFERENTIAL=1 bun tools/fuzz_script_wrapper.ts run",
           "fuzz:promote": "bun tools/fuzz_script_wrapper.ts promote",
           "fuzz:replay": "bun tools/fuzz_script_wrapper.ts replay",
           "fuzz:repro": "bun tools/fuzz_artifact_repro.ts",
@@ -1754,10 +1759,7 @@ function writeReleaseFixture(tempRoot: string): void {
     join(tempRoot, "tools", "release_smoke.ts"),
     "release smoke helper\n",
   );
-  writeFileSync(
-    join(tempRoot, "compiler", "common", "Env.ts"),
-    "env helper\n",
-  );
+  writeFileSync(join(tempRoot, "compiler", "common", "Env.ts"), "env helper\n");
   writeFileSync(
     join(tempRoot, "compiler", "common", "PathSafety.ts"),
     "path safety helper\n",
@@ -1771,5 +1773,8 @@ function writeReleaseFixture(tempRoot: string): void {
     join(tempRoot, "lib", "runtime_wasm_host.ll"),
     "wasm host runtime ir\n",
   );
-  writeFileSync(join(tempRoot, "lib", "runtime_support.o"), "runtime support\n");
+  writeFileSync(
+    join(tempRoot, "lib", "runtime_support.o"),
+    "runtime support\n",
+  );
 }
