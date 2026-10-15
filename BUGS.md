@@ -5597,3 +5597,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   failures release temporary indexes before propagation. Regression coverage in
   `tests/WebDatabaseUpdate.test.ts` checks affected-row borrowed predicates for
   both update and delete.
+
+## Fixed HTTP client URL scheme case handling (2026-10-15)
+
+- The HTTP URL parser recognized only lowercase schemes, rejecting valid `HTTP`
+  and mixed-case `HTTPS` URLs before connecting. Scheme detection now compares
+  ASCII case-insensitively without normalizing hosts, paths or queries. Tests in
+  `tests/WebHttpClientUrl.test.ts` enumerate case variants, preserve TLS selection
+  and explicit ports, and retain rejection of unsupported/lookalike schemes.

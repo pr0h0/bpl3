@@ -1,4 +1,4 @@
-import strlen, malloc, free, strncmp from "./libc.bpl";
+import strlen, malloc, free, strncasecmp from "./libc.bpl";
 export [Url];
 struct Url {
     host: string,
@@ -25,11 +25,11 @@ struct Url {
             return u;
         }
         local start: long = 7;
-        if (strncmp(raw, "https://", 8) == 0) {
+        if (strncasecmp(raw, "https://", 8) == 0) {
             start = 8;
             u.secure = true;
             u.port = 443;
-        } else if (strncmp(raw, "http://", 7) != 0) {
+        } else if (strncasecmp(raw, "http://", 7) != 0) {
             return u;
         }
         local len: long = cast<long>(strlen(raw));

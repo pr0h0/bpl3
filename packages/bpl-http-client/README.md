@@ -1,7 +1,8 @@
 # bpl-http-client
 
 A synchronous **Linux IPv4 HTTP/1.x** client supporting HTTP and native HTTPS.
-HTTPS uses the optional `bpl-tls` transport and requires OpenSSL 3's runtime
+HTTP and HTTPS scheme names are case-insensitive; host and request-target text
+retain their original spelling. HTTPS uses the optional `bpl-tls` transport and requires OpenSSL 3's runtime
 (`libssl.so.3`); plain HTTP does not load OpenSSL. No additional linker flags are
 needed with glibc 2.34 or newer. IPv6, redirects, interim 1xx responses, pooling,
 and compression are not implemented.
