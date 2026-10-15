@@ -176,13 +176,17 @@ struct Engine {
                 if (t != nullptr) {
                     local update_col_idx: int = t.get_column_index(col_name);
                     if (update_col_idx != -1) {
+                        # Retain input before replacing any row that may own it.
+                        local replacement: Value = clone_value(&new_val);
+                        local replacementOwner: *Value = &replacement;
+                        defer destroy_value(replacementOwner);
                         local count: int = 0;
                         loop (local i: int = 0; i < t.rows.len(); i = i + 1) {
                             local r: *Row = t.rows.getRef(i);
                             if (this.check_row(r, t, conditions)) {
                                 local c: Column = t.columns.get(update_col_idx);
                                 if(value_kind(&new_val) != 3 && value_kind(&new_val) != data_kind(c.kind)) {continue;}
-                                local copy: Value = clone_value(&new_val);
+                                local copy: Value = clone_value(&replacement);
                                 destroy_value(r.values.getRef(update_col_idx));
                                 r.values.set(update_col_idx, copy);
                                 count = count + 1;

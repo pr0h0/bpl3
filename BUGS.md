@@ -5569,3 +5569,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   lost its id parameter. Extraction now uses the same terminal-wildcard rule.
   `tests/WebRoutingPatterns.test.ts` covers literal-star paths, subsequent
   parameters and a literal-star route ending in a real wildcard.
+
+## Fixed aliased database update replacements (2026-10-15)
+
+- A multi-row update could borrow its replacement string from a row being
+  replaced. After updating the first row, the engine freed that source string
+  and read it again for subsequent rows, producing corrupted values and a
+  use-after-free. The engine now retains an owned replacement before changing
+  rows and frees it after execution. `tests/WebDatabaseUpdate.test.ts` reproduces
+  a replacement borrowed from the first row of a four-row update.

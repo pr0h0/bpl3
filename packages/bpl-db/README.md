@@ -20,7 +20,8 @@ database. Query condition strings are borrowed for execution.
 
 `Engine.check_row` supports equality and ordering by value. Strings use lexical
 byte order, not pointer comparison. Different value variants are unequal and
-do not satisfy ordering predicates. Engine update copies replacement strings;
+do not satisfy ordering predicates. Engine update retains a copy of the replacement before changing rows, so a
+replacement borrowed from an affected row remains usable throughout the update;
 delete releases row allocations. `execute` reports results to stdout unless
 `silent` is true; it is a demo command interface, not a JSON query API.
 
