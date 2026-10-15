@@ -253,6 +253,7 @@ asm("llvm") {
 - Keep compiler and bundled BPL package versions in the `0.1.x` series until the maintainer explicitly changes this policy. Only patch increments are allowed; never increment minor or major versions.
 - The maintainer controls version bumps and publication. Do not create release tags, GitHub releases, publish packages, or push container images without an explicit request. Permission for an initial release does not authorize subsequent releases.
 - Implementing, testing and committing code does not itself authorize a release.
+- The configured container workflow publishes tested images when the maintainer pushes a matching `v0.1.x` tag, or explicitly runs it with `publish=true`. Do not push tags or dispatch publication without an explicit request.
 
 ## 3. Testing Strategy
 

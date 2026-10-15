@@ -1072,14 +1072,16 @@ Separate compiler and playground images support quick local trials. The compiler
 image can build mounted sources, run programs in the container, and export Linux
 binaries. The playground image serves the browser UI and uses disposable Docker
 workers. See [container build and usage instructions](docker/README.md). Images
-are not published automatically; the maintainer controls GHCR publication.
+are published to GHCR when the maintainer pushes a matching `v0.1.x` version tag,
+after the container tests pass. Ordinary branch pushes only build and test.
 
 ### Release policy
 
 Compiler and bundled BPL packages stay on `0.1.x` while the current compiler
 features are stabilized. Release versions advance by patch increments only.
 The maintainer decides when to bump versions, create tags, publish releases or
-push container images; code changes and commits do not trigger publication.
+push container images. Pushing a matching version tag authorizes automatic image
+publication; ordinary code changes and commits do not trigger publication.
 
 ### Contributing
 

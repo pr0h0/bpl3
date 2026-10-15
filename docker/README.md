@@ -100,12 +100,18 @@ use the CLI without writing to the installed toolchain.
 
 The Container images workflow builds and tests both targets on pushes/PRs.
 Publication uses an artifact containing the exact images that passed CI, rather
-than rebuilding untested copies. It requires a maintainer to run workflow_dispatch
-with publish=true;
-the default is false. It does not create Git tags, GitHub releases or npm
-publications, and refuses to overwrite an existing version tag. A retry at the
-same commit skips already published images so a partial upload can be completed. Only 0.1.x
-versions are accepted. Future publications require maintainer instructions.
+than rebuilding untested copies. Pushing or updating a version tag such as
+`v0.1.1` automatically publishes both images after these checks pass. The tag must equal `v` followed by the version in
+`package.json`; only canonical `0.1.x` patch versions are accepted. Image tags omit
+the leading `v`. Tag deletions do not publish anything. Ordinary branch pushes and
+pull requests only build and test the images.
+
+A maintainer can also run `workflow_dispatch` with `publish=true` (default false).
+The workflow creates no Git tags, GitHub releases or npm publications. Existing
+image versions cannot be overwritten by another commit: updating a Git tag still
+runs verification, but publishing a different commit requires a new patch version.
+A retry at the same commit can finish a partially completed two-image publication.
+Annotated and lightweight tags identify the checked-out commit in image metadata.
 
 After initial publication, the intended names are:
 

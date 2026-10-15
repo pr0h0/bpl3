@@ -3,6 +3,7 @@ name: Container images
 on:
   push:
     branches: [master]
+    tags: ["v[0-9]*.[0-9]*.[0-9]*"]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -25,10 +26,12 @@ concurrency:
 jobs:
   verify:
     name: Build and test compiler and playground
+    if: github.event.deleted != true
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     outputs:
       version: ${{ steps.version.outputs.version }}
+      revision: ${{ steps.version.outputs.revision }}
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -40,17 +43,23 @@ jobs:
         run: |
           version=$(bun -p 'require("./package.json").version')
           [[ "$version" =~ ^0\.1\.(0|[1-9][0-9]*)$ ]] || { echo "Only 0.1.x versions are allowed" >&2; exit 1; }
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            [[ "$GITHUB_REF_NAME" == "v$version" ]] || { echo "Release tag must equal v$version from package.json" >&2; exit 1; }
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Build compiler image
         env:
           BPL_VERSION: ${{ steps.version.outputs.version }}
-        run: docker build -f docker/Dockerfile --target compiler --build-arg BPL_VERSION="$BPL_VERSION" --build-arg BPL_REVISION="$GITHUB_SHA" -t bpl-compiler:ci .
+          BPL_REVISION: ${{ steps.version.outputs.revision }}
+        run: docker build -f docker/Dockerfile --target compiler --build-arg BPL_VERSION="$BPL_VERSION" --build-arg BPL_REVISION="$BPL_REVISION" -t bpl-compiler:ci .
       - name: Build playground image
         env:
           BPL_VERSION: ${{ steps.version.outputs.version }}
+          BPL_REVISION: ${{ steps.version.outputs.revision }}
         run: |
           image_root="ghcr.io/${GITHUB_REPOSITORY,,}"
-          docker build -f docker/Dockerfile --target playground --build-arg BPL_VERSION="$BPL_VERSION" --build-arg BPL_REVISION="$GITHUB_SHA" --build-arg BPL_PLAYGROUND_IMAGE="$image_root-playground:$BPL_VERSION" -t bpl-playground:ci .
+          docker build -f docker/Dockerfile --target playground --build-arg BPL_VERSION="$BPL_VERSION" --build-arg BPL_REVISION="$BPL_REVISION" --build-arg BPL_PLAYGROUND_IMAGE="$image_root-playground:$BPL_VERSION" -t bpl-playground:ci .
       - name: Test mounted compilation, binary export and playground UI
         env:
           BPL_TEST_COMPILER_DOCKER: "1"
@@ -66,10 +75,10 @@ jobs:
 
       - name: Save the tested images for publication
         shell: bash
-        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.event.deleted != true) || (github.event_name == 'workflow_dispatch' && inputs.publish)
         run: docker save bpl-compiler:ci bpl-playground:ci | gzip -1 > "$RUNNER_TEMP/bpl-images.tar.gz"
       - name: Upload tested image artifact
-        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.event.deleted != true) || (github.event_name == 'workflow_dispatch' && inputs.publish)
         uses: actions/upload-artifact@v4
         with:
           name: bpl-tested-images
@@ -79,9 +88,9 @@ jobs:
           if-no-files-found: error
 
   publish:
-    name: Maintainer-requested GHCR publication
+    name: Publish tested images to GHCR
     needs: verify
-    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.event.deleted != true) || (github.event_name == 'workflow_dispatch' && inputs.publish)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -92,6 +101,7 @@ jobs:
       cancel-in-progress: false
     env:
       BPL_VERSION: ${{ needs.verify.outputs.version }}
+      BPL_REVISION: ${{ needs.verify.outputs.revision }}
     steps:
       - name: Download tested images
         uses: actions/download-artifact@v4
@@ -117,7 +127,7 @@ jobs:
             if docker manifest inspect "$image" >"$registry_probe_dir/manifest.json" 2>"$registry_probe_dir/manifest-error"; then
               docker pull "$image" >/dev/null
               revision=$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
-              if [[ "$revision" != "$GITHUB_SHA" ]]; then
+              if [[ "$revision" != "$BPL_REVISION" ]]; then
                 echo "Refusing to overwrite $image from another commit; request a new patch version." >&2
                 exit 1
               fi

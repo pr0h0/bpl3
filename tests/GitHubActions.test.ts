@@ -38,13 +38,18 @@ function extractActionUses(workflow: string): Array<{
 }
 
 describe("GitHub Actions workflows", () => {
-  test("container publication is manually gated and stays on patch-only versions", () => {
+  test("container publication accepts release tags and explicit manual requests on patch-only versions", () => {
     const workflow = readWorkflow("container-images.yml");
     expect(workflow).toContain("default: false");
     expect(workflow).toContain(
-      "if: github.event_name == 'workflow_dispatch' && inputs.publish",
+      "if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.event.deleted != true) || (github.event_name == 'workflow_dispatch' && inputs.publish)",
     );
+    expect(workflow).toContain('tags: ["v[0-9]*.[0-9]*.[0-9]*"]');
+    expect(workflow).toContain("if: github.event.deleted != true");
     expect(workflow).toContain("Only 0.1.x versions are allowed");
+    expect(workflow).toContain(
+      "Release tag must equal v$version from package.json",
+    );
     expect(workflow).toContain("Refusing to overwrite");
     expect(workflow).toContain("group: ghcr-publication");
     expect(workflow).toContain("docker save bpl-compiler:ci bpl-playground:ci");
