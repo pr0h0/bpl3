@@ -5637,3 +5637,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   parser now validates the request-line CRLF before allocating fields. The byte
   sweep in `tests/WebRequestLineFraming.test.ts` checks all 256 successors and
   preserves HTTP/1.0 empty-header requests and incomplete-input reporting.
+
+## Fixed template generator string ownership (2026-10-15)
+
+- The template CLI leaked its default strings and copied arguments on early
+  returns and successful generation, plus temporary literal fragments passed
+  into escapeString. The CLI now destroys replaced values, retains owned input
+  and default-output copies, and defers cleanup of arguments and fragments.
+  `tests/WebTemplateOwnership.test.ts` checks sanitizer-clean usage errors,
+  nested templates, default in-place output and explicit output/extension options.

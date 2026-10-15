@@ -289,7 +289,10 @@ struct TemplateCompiler {
                                             k = k + 1;
                                         }
                                         if (sbRest.length > 0) {
-                                            local esc: String = TemplateCompiler.escapeString(String.new(sbRest.toString()));
+                                            local fragment: String = String.new(sbRest.toString());
+                                            local fragmentOwner: *String = &fragment;
+                                            defer fragmentOwner.destroy();
+                                            local esc: String = TemplateCompiler.escapeString(fragment);
                                             local cleanup_esc: *String = &esc;
                                             defer cleanup_esc.destroy();
                                             bodyLines.append("    _sb.append(\"");
@@ -307,7 +310,10 @@ struct TemplateCompiler {
                                             sbPre.appendChar(lineStr[k]);
                                             k = k + 1;
                                         }
-                                        local esc: String = TemplateCompiler.escapeString(String.new(sbPre.toString()));
+                                        local fragment: String = String.new(sbPre.toString());
+                                        local fragmentOwner: *String = &fragment;
+                                        defer fragmentOwner.destroy();
+                                        local esc: String = TemplateCompiler.escapeString(fragment);
                                         local cleanup_esc: *String = &esc;
                                         defer cleanup_esc.destroy();
                                         bodyLines.append("    _sb.append(\"");
@@ -486,19 +492,23 @@ struct TemplateCompiler {
 
 frame main(argc: int, argv: *string) ret int {
     local args: Args = Args.new(argc, argv);
-
     local inputDir: String = String.new("");
-
+    local inputOwner: *String = &inputDir;
+    defer inputOwner.destroy();
     local outputDir: String = String.new("");
-
+    local outputOwner: *String = &outputDir;
+    defer outputOwner.destroy();
     local ext: String = String.new(".bpl");
-
+    local extOwner: *String = &ext;
+    defer extOwner.destroy();
 
     if (args.count() < 2) {
         printf("Usage: bpl-templ generate <dir> [-o <out>] [--ext <ext>]\n");
         return 1;
     }
     local cmd: String = args.get(1);
+    local commandOwner: *String = &cmd;
+    defer commandOwner.destroy();
     if (!(cmd == "generate")) {
         printf("Unknown command: %s\n", cmd.data);
         return 1;
@@ -506,41 +516,39 @@ frame main(argc: int, argv: *string) ret int {
     local i: int = 2;
     loop (i < args.count()) {
         local arg: String = args.get(i);
+        local argumentOwner: *String = &arg;
+        defer argumentOwner.destroy();
         local s: string = arg.data;
         local consume: int = 0;
-
-        if (s[0] == cast<char>(45)) {
+        if (s[0] == '-') {
             if ((arg == "-o") || (arg == "--out")) {
                 if ((i + 1) < args.count()) {
+                    outputDir.destroy();
                     outputDir = args.get(i + 1);
                     consume = 1;
                 }
-            } else {
-                if (arg == "--ext") {
-                    if ((i + 1) < args.count()) {
-                        ext = args.get(i + 1);
-                        consume = 1;
-                    }
+            } else if (arg == "--ext") {
+                if ((i + 1) < args.count()) {
+                    ext.destroy();
+                    ext = args.get(i + 1);
+                    consume = 1;
                 }
             }
-        } else {
-            if (inputDir.length == 0) {
-                inputDir = arg;
-            }
+        } else if (inputDir.length == 0) {
+            inputDir.destroy();
+            inputDir = String.new(s);
         }
         i = i + 1 + consume;
     }
-
     if (inputDir.length == 0) {
         printf("Missing input directory\n");
         return 1;
     }
     if (outputDir.length == 0) {
-        outputDir = inputDir;
+        outputDir.destroy();
+        outputDir = String.new(inputDir.data);
     }
     printf("Compiling templates from %s to %s...\n", inputDir.data, outputDir.data);
-
     TemplateCompiler.processDirectory(inputDir, inputDir, outputDir, ext);
-
     return 0;
 }
