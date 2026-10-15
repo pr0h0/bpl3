@@ -5490,3 +5490,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 
 - Header storage previously discarded repeated values, including independent Set-Cookie lines. Shared HttpHeaders now preserves lines and exposes getAll; sensitive request singleton duplicates remain rejected. Covered by tests/WebHeaders.test.ts.
 - Signed-byte validation rejected valid high header-value octets, including UTF-8. Value validation now accepts high octets while continuing to reject C0 controls and DEL; request, response and client coverage is in tests/WebHeaders.test.ts. Fixed in 9218e925.
+
+## Fixed container publication guard issue (2026-10-15)
+
+- A failed registry manifest probe containing generic `not found` text was treated
+  as an absent image, including a proxy routing failure. This allowed publication
+  to proceed without establishing whether a version already existed. The workflow
+  now accepts only recognized missing-manifest/name diagnostics and stops on other
+  registry failures. `tests/ContainerPublication.test.ts` reproduces the previous
+  behavior and verifies that proxy failures produce no pushes.

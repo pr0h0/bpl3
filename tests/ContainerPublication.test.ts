@@ -4,7 +4,13 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 
-for (const mode of ["fresh", "resume", "different", "unavailable"] as const) {
+for (const mode of [
+  "fresh",
+  "resume",
+  "different",
+  "unavailable",
+  "proxy-missing",
+] as const) {
   test.skipIf(process.platform !== "linux")(
     `container publication handles ${mode} registry state without replacing existing tags`,
     () => {
@@ -35,6 +41,7 @@ if [ "$1 $2" = "manifest inspect" ]; then
     resume) case "$3" in *-compiler:*) exit 0 ;; *) echo 'no such manifest' >&2; exit 1 ;; esac ;;
     different) exit 0 ;;
     unavailable) echo 'registry connection refused' >&2; exit 1 ;;
+    proxy-missing) echo 'registry proxy route not found' >&2; exit 1 ;;
   esac
 fi
 if [ "$1 $2" = "image inspect" ]; then
@@ -75,7 +82,9 @@ fi
           expect(result.stderr).toContain(
             mode === "different"
               ? "Refusing to overwrite"
-              : "connection refused",
+              : mode === "proxy-missing"
+                ? "proxy route not found"
+                : "connection refused",
           );
         }
       } finally {

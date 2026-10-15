@@ -135,7 +135,7 @@ jobs:
               if [[ "$role" == compiler ]]; then publish_compiler=false; else publish_playground=false; fi
               continue
             fi
-            if ! grep -Eqi 'manifest unknown|name unknown|no such manifest|not found' "$registry_probe_dir/manifest-error"; then
+            if ! grep -Eqi 'manifest unknown|name unknown|no such manifest' "$registry_probe_dir/manifest-error"; then
               cat "$registry_probe_dir/manifest-error" >&2
               exit 1
             fi
