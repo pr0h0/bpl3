@@ -90,7 +90,8 @@ CORS alone does not make cross-site Auth login available.
 
 `Negotiation.best(req,&offers)` selects a borrowed string from an Array<string>
 of offered media types using Accept quality values, specificity and matching
-media parameters. Server offer order breaks ties. Missing Accept allows every
+media parameters. Parameters refine an already matching media range; they cannot
+make a different type or subtype acceptable. Server offer order breaks ties. Missing Accept allows every
 offer; no acceptable candidate returns None. `accepts(req,media)` tests one
 candidate; `require(req,res,media)` adds Vary: Accept and returns false after a
 JSON 406 on rejection. Offers can include parameters, such as

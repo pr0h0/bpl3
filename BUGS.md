@@ -5517,3 +5517,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   response. Tabs, printable bytes and high octets remain accepted.
   `tests/WebHttpClientStatus.test.ts` reproduces the malformed ending and bare LF,
   then checks all 256 reason-phrase byte values using explicit input lengths.
+
+## Fixed media negotiation parameter mismatch (2026-10-15)
+
+- Accept parameters increased the specificity score even when the offered media
+  type did not match the range. A matching parameter could turn the unmatched
+  score of -1 into 0 and accept an unrelated representation. Parameter specificity
+  now increases only for matching ranges. Regression coverage exercises unrelated
+  types, subtypes, wildcards, multiple parameters, fallback weights and best-offer
+  selection in `tests/WebNegotiation.test.ts`.

@@ -198,7 +198,7 @@ struct Negotiation {
                 } else if (!afterQ) {
                     if (!media || !Negotiation.parameter(candidate, key.data, value.data)) {
                         params = false;
-                    } else {
+                    } else if (score >= 0) {
                         score = score + 1;
                     }
                 }

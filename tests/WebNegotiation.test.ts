@@ -22,3 +22,24 @@ frame main()ret int{
  req=app.parseRequest("GET / HTTP/1.1\r\nHost: x\r\nAccept-Encoding: gzip\r\n\r\n");if(Negotiation.encoding(&req,"identity")!=1000){return 11;}req.destroy();app.destroy();return 0;
 }`);
 }, 90000);
+
+test("media parameters cannot make an unrelated media range match", () => {
+  native(String.raw`
+import [Negotiation] from "bpl-web-middleware";
+import [App], [Request] from "bpl-express";
+import [Array] from "std/array.bpl";
+import [Option] from "std/option.bpl";
+extern strcmp(a:string,b:string)ret int;
+frame main()ret int{
+ if(Negotiation.quality("text/plain;profile=one", "application/json;profile=one",true)!=0){return 1;}
+ if(Negotiation.quality("text/*;profile=one", "application/json;profile=one",true)!=0){return 2;}
+ if(Negotiation.quality("text/plain;profile=one;charset=utf-8", "text/html;profile=one;charset=utf-8",true)!=0){return 3;}
+ if(Negotiation.quality("text/plain;profile=one, application/json;q=0.2", "application/json;profile=one",true)!=200){return 4;}
+ if(Negotiation.quality("application/*;profile=one;q=0.4", "application/json;profile=one",true)!=400){return 5;}
+ local app:App=App.new();local req:Request=app.parseRequest("GET / HTTP/1.1\r\nHost: x\r\nAccept: text/plain;profile=one, text/html;q=0.5\r\n\r\n");
+ local offers:Array<string>=Array<string>.new(2);offers.push("application/json;profile=one");offers.push("text/html");
+ if(Negotiation.accepts(&req,"application/json;profile=one")){return 6;}
+ if(strcmp(Negotiation.best(&req,&offers).unwrap(),"text/html")!=0){return 7;}
+ offers.destroy();req.destroy();app.destroy();return 0;
+}`);
+}, 90000);
