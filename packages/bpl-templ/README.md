@@ -169,3 +169,8 @@ allocations yourself. HTML escaping is for HTML text and quoted attributes,
 not JavaScript, CSS, or URL validation. Raw output must come from trusted markup.
 Unclosed or empty interpolations raise a compilation error. Template files are
 trusted source code: directives and expressions can invoke BPL functions.
+
+Generator arguments are validated before traversal: unknown options, extra input
+directories and missing/empty option values return status 1 without generating
+files. Input directory, read and output-write failures also return status 1. Output paths
+starting with a dash can be written with a `./` prefix.

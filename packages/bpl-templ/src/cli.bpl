@@ -3,6 +3,7 @@
 import [Args] from "std/args.bpl";
 import [FS] from "std/fs.bpl";
 import [File] from "std/fs.bpl";
+import [IOError] from "std/errors.bpl";
 import [Path] from "std/path.bpl";
 import [String] from "std/string.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
@@ -423,7 +424,7 @@ struct TemplateCompiler {
 
     frame processDirectory(baseDir: String, currentDir: String, outputBase: String, ext: String) {
 
-        local entries: Array<String> = FS.listDir(currentDir.data);
+        local entries: Array<String> = FS.listDirChecked(currentDir.data);
         defer {loop(local cleanup:int=0;cleanup<entries.len();cleanup=cleanup+1){local item:String=entries.get(cleanup);item.destroy();}entries.destroy();}
 
         local i: int = 0;
@@ -467,7 +468,9 @@ struct TemplateCompiler {
                     local cleanup_outDir: *String = &outDir;
                     defer cleanup_outDir.destroy();
 
-                    FS.mkdirp(outDir.data);
+                    if (!FS.mkdirp(outDir.data)) {
+                        throw "Cannot create template output directory";
+                    }
 
                     local outName: String = StringUtils.replace(entry.data, ".bte", ext.data);
 
@@ -479,7 +482,9 @@ struct TemplateCompiler {
                     defer cleanup_outPath.destroy();
 
 
-                    FS.writeFile(outPath.data, generated.data);
+                    if (!FS.writeFile(outPath.data, generated.data)) {
+                        throw "Cannot write generated template";
+                    }
 
                     printf("  Processed %s -> %s\n", fullPath.data, outPath.data);
                 }
@@ -521,22 +526,32 @@ frame main(argc: int, argv: *string) ret int {
         local s: string = arg.data;
         local consume: int = 0;
         if (s[0] == '-') {
-            if ((arg == "-o") || (arg == "--out")) {
-                if ((i + 1) < args.count()) {
-                    outputDir.destroy();
-                    outputDir = args.get(i + 1);
-                    consume = 1;
-                }
-            } else if (arg == "--ext") {
-                if ((i + 1) < args.count()) {
-                    ext.destroy();
-                    ext = args.get(i + 1);
-                    consume = 1;
-                }
+            if (!(arg == "-o") && !(arg == "--out") && !(arg == "--ext")) {
+                printf("Unknown option: %s\n", s);
+                return 1;
             }
+            if ((i + 1) >= args.count()) {
+                printf("Missing value for %s\n", s);
+                return 1;
+            }
+            local value: String = args.get(i + 1);
+            local valueOwner: *String = &value;
+            defer valueOwner.destroy();
+            if ((value.length == 0) || (value.data[0] == '-')) {
+                printf("Missing value for %s\n", s);
+                return 1;
+            }
+            if (arg == "--ext") {
+                ext.assign(value.data);
+            } else {
+                outputDir.assign(value.data);
+            }
+            consume = 1;
         } else if (inputDir.length == 0) {
-            inputDir.destroy();
-            inputDir = String.new(s);
+            inputDir.assign(s);
+        } else {
+            printf("Unexpected argument: %s\n", s);
+            return 1;
         }
         i = i + 1 + consume;
     }
@@ -549,6 +564,17 @@ frame main(argc: int, argv: *string) ret int {
         outputDir = String.new(inputDir.data);
     }
     printf("Compiling templates from %s to %s...\n", inputDir.data, outputDir.data);
-    TemplateCompiler.processDirectory(inputDir, inputDir, outputDir, ext);
+    try {
+        TemplateCompiler.processDirectory(inputDir, inputDir, outputDir, ext);
+    } catch (error: IOError) {
+        printf("Template I/O error: %s\n", error.message);
+        return 1;
+    } catch (error: string) {
+        printf("Template generation error: %s\n", error);
+        return 1;
+    } catch {
+        printf("Template generation failed\n");
+        return 1;
+    }
     return 0;
 }

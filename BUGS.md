@@ -5646,3 +5646,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   and default-output copies, and defers cleanup of arguments and fragments.
   `tests/WebTemplateOwnership.test.ts` checks sanitizer-clean usage errors,
   nested templates, default in-place output and explicit output/extension options.
+
+## Fixed template CLI argument and input errors (2026-10-15)
+
+- Missing option values and unknown/extra arguments were silently ignored; a
+  trailing `-o` unexpectedly generated files into the input directory. A missing
+  or nondirectory input also returned success because traversal used quiet
+  directory listing; output mkdir/write errors were also ignored. The CLI now
+  validates all arguments before traversal, uses checked listing, checks output
+  operations and reports generation errors with status 1. Regression tests
+  check failure codes and absence of unexpected files in the input directory.

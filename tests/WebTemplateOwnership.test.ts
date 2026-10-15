@@ -32,20 +32,35 @@ test.skipIf(!support.supported)(
         { encoding: "utf8", timeout: 60000 },
       );
       expect(build.status, build.stdout + build.stderr).toBe(0);
-      for (const args of [
-        [],
-        ["unknown"],
-        ["generate"],
-        ["generate", views],
-        [
-          "generate",
-          views,
-          "-o",
-          join(dir, "output"),
-          "--ext",
-          ".generated.bpl",
-        ],
-      ]) {
+      const broken = join(dir, "broken");
+      mkdirSync(broken);
+      writeFileSync(join(broken, "broken.bte"), "<p>{{ missing\n");
+      const cases: Array<{ args: string[]; status: number }> = [
+        { args: [], status: 1 },
+        { args: ["unknown"], status: 1 },
+        { args: ["generate"], status: 1 },
+        { args: ["generate", views], status: 0 },
+        {
+          args: [
+            "generate",
+            views,
+            "-o",
+            join(dir, "output"),
+            "--ext",
+            ".generated.bpl",
+          ],
+          status: 0,
+        },
+        { args: ["generate", views, "-o"], status: 1 },
+        { args: ["generate", views, "--unknown"], status: 1 },
+        { args: ["generate", join(dir, "missing")], status: 1 },
+        { args: ["generate", broken], status: 1 },
+        {
+          args: ["generate", views, "-o", join(views, "greeting.bte")],
+          status: 1,
+        },
+      ];
+      for (const { args, status } of cases) {
         const result = spawnSync(exe, args, {
           encoding: "utf8",
           timeout: 15000,
@@ -58,9 +73,7 @@ test.skipIf(!support.supported)(
         expect(result.stderr, `args: ${JSON.stringify(args)}`).not.toContain(
           "Sanitizer",
         );
-        expect(result.status, result.stdout + result.stderr).toBe(
-          args.length >= 2 ? 0 : 1,
-        );
+        expect(result.status, result.stdout + result.stderr).toBe(status);
       }
     } finally {
       rmSync(dir, { recursive: true, force: true });
