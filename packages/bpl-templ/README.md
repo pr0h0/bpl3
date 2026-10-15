@@ -174,3 +174,7 @@ Generator arguments are validated before traversal: unknown options, extra input
 directories and missing/empty option values return status 1 without generating
 files. Input directory, read and output-write failures also return status 1. Output paths
 starting with a dash can be written with a `./` prefix.
+
+Only the final `.bte` suffix is removed when deriving a component name or replaced
+when choosing an output extension. For example, `part.bte.name.bte` generates
+`part.bte.name.bpl` with component `PartBteName`.

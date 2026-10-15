@@ -5656,3 +5656,10 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   validates all arguments before traversal, uses checked listing, checks output
   operations and reports generation errors with status 1. Regression tests
   check failure codes and absence of unexpected files in the input directory.
+
+## Fixed template filename suffix replacement (2026-10-15)
+
+- Template names used global string replacement for the `.bte` suffix. A valid
+  filename such as `part.bte.name.bte` therefore changed interior text in both
+  its output path and component name. Generation now removes/replaces only the
+  final suffix. Tests cover default and custom extensions plus option ordering.

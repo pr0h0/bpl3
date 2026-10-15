@@ -120,10 +120,9 @@ struct TemplateCompiler {
         local cleanup_base: *String = &base;
 
         defer cleanup_base.destroy();
-        local baseStr: string = base.data;
 
         # Remove extension .bte
-        local componentName: String = StringUtils.replace(baseStr, ".bte", "");
+        local componentName: String = base.substring(0, base.length - 4);
         local cleanup_componentName: *String = &componentName;
         defer cleanup_componentName.destroy();
         local structName: String = TemplateCompiler.toPascalCase(componentName);
@@ -472,7 +471,10 @@ struct TemplateCompiler {
                         throw "Cannot create template output directory";
                     }
 
-                    local outName: String = StringUtils.replace(entry.data, ".bte", ext.data);
+                    local stem: String = entry.substring(0, entry.length - 4);
+                    local stemOwner: *String = &stem;
+                    defer stemOwner.destroy();
+                    local outName: String = stem + ext;
 
                     local cleanup_outName: *String = &outName;
 
