@@ -38,7 +38,8 @@ export function prepareLLVMForAddressSanitizer(
   let output = "",
     cursor = 0;
   for (const definition of ir.matchAll(definitions)) {
-    const start = definition.index + definition[0].length - 1;
+    // matchAll always supplies index; older TypeScript lib definitions mark it optional.
+    const start = definition.index! + definition[0].length - 1;
     let depth = 0,
       quoted = false,
       end = -1;

@@ -5578,3 +5578,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   use-after-free. The engine now retains an owned replacement before changing
   rows and frees it after execution. `tests/WebDatabaseUpdate.test.ts` reproduces
   a replacement borrowed from the first row of a four-row update.
+
+## Fixed VS Code extension typecheck with older TypeScript (2026-10-15)
+
+- The CI-safe suite reached the extension typecheck after 583 integration tests
+  passed, then failed with TS18048 in LLVMAddressSanitizer.ts. TypeScript 4.9
+  marks matchAll result.index optional, whereas the runtime always provides it.
+  The sanitizer signature parser now asserts that guaranteed field, preserving
+  behavior and compatibility with the extension's existing compiler version.
+  Validation uses the real extension compile:test and LLVM sanitizer unit tests.
