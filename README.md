@@ -1066,6 +1066,14 @@ bun run build
 bun index.ts run examples/hello-world/main.bpl
 ```
 
+### Docker images
+
+Separate compiler and playground images support quick local trials. The compiler
+image can build mounted sources, run programs in the container, and export Linux
+binaries. The playground image serves the browser UI and uses disposable Docker
+workers. See [container build and usage instructions](docker/README.md). Images
+are not published automatically; the maintainer controls GHCR publication.
+
 ### Release policy
 
 Compiler and bundled BPL packages stay on `0.1.x` while the current compiler

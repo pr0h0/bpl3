@@ -126,7 +126,7 @@ image. Browser packages stay inside the container; evidence stays locally ignore
 ```bash
 mkdir -p docs/audits/college-web-auth
 docker run --rm --init --network host --shm-size=256m --memory=1g \
-  -v "$PWD/tools/test_college_web_browser.cjs:/work/browser.cjs:ro" \
+  -v "$PWD/tests/browser/college_web.cjs:/work/browser.cjs:ro" \
   -v "$PWD/docs/audits/college-web-auth:/evidence" \
   -e BPL_BROWSER_EVIDENCE=/evidence \
   mcr.microsoft.com/playwright:v1.64.0-noble bash -lc \

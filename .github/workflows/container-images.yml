@@ -1,0 +1,136 @@
+name: Container images
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish both tested images to GHCR (maintainer release action)"
+        type: boolean
+        default: false
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: containers-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Build and test compiler and playground
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+      - run: bun install --frozen-lockfile
+      - name: Validate patch-only release version
+        id: version
+        run: |
+          version=$(bun -p 'require("./package.json").version')
+          [[ "$version" =~ ^0\.1\.(0|[1-9][0-9]*)$ ]] || { echo "Only 0.1.x versions are allowed" >&2; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build compiler image
+        env:
+          BPL_VERSION: ${{ steps.version.outputs.version }}
+        run: docker build -f docker/Dockerfile --target compiler --build-arg BPL_VERSION="$BPL_VERSION" --build-arg BPL_REVISION="$GITHUB_SHA" -t bpl-compiler:ci .
+      - name: Build playground image
+        env:
+          BPL_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          image_root="ghcr.io/${GITHUB_REPOSITORY,,}"
+          docker build -f docker/Dockerfile --target playground --build-arg BPL_VERSION="$BPL_VERSION" --build-arg BPL_REVISION="$GITHUB_SHA" --build-arg BPL_PLAYGROUND_IMAGE="$image_root-playground:$BPL_VERSION" -t bpl-playground:ci .
+      - name: Test mounted compilation, binary export and playground UI
+        env:
+          BPL_TEST_COMPILER_DOCKER: "1"
+          BPL_COMPILER_IMAGE: bpl-compiler:ci
+          BPL_CONTAINER_PLAYGROUND_IMAGE: bpl-playground:ci
+        run: bun test tests/CompilerDocker.test.ts
+      - name: Test disposable playground workers
+        env:
+          BPL_TEST_DOCKER: "1"
+          BPL_PLAYGROUND_IMAGE: bpl-playground:ci
+          BPL_PLAYGROUND_WORKER_ENTRYPOINT: /usr/local/bin/bpl-playground-worker
+        run: bun test tests/PlaygroundDocker.test.ts
+
+      - name: Save the tested images for publication
+        shell: bash
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        run: docker save bpl-compiler:ci bpl-playground:ci | gzip -1 > "$RUNNER_TEMP/bpl-images.tar.gz"
+      - name: Upload tested image artifact
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        uses: actions/upload-artifact@v4
+        with:
+          name: bpl-tested-images
+          path: ${{ runner.temp }}/bpl-images.tar.gz
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+
+  publish:
+    name: Maintainer-requested GHCR publication
+    needs: verify
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: ghcr-publication
+      cancel-in-progress: false
+    env:
+      BPL_VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - name: Download tested images
+        uses: actions/download-artifact@v4
+        with:
+          name: bpl-tested-images
+          path: ${{ runner.temp }}
+      - name: Load tested images
+        shell: bash
+        run: gunzip -c "$RUNNER_TEMP/bpl-images.tar.gz" | docker load
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Publish verified patch images
+        run: |
+          image_root="ghcr.io/${GITHUB_REPOSITORY,,}"
+          registry_probe_dir=$(mktemp -d "${RUNNER_TEMP:-/tmp}/bpl-registry.XXXXXX")
+          trap 'rm -rf -- "$registry_probe_dir"' EXIT
+          publish_compiler=true
+          publish_playground=true
+          for role in compiler playground; do
+            image="$image_root-$role:$BPL_VERSION"
+            if docker manifest inspect "$image" >"$registry_probe_dir/manifest.json" 2>"$registry_probe_dir/manifest-error"; then
+              docker pull "$image" >/dev/null
+              revision=$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
+              if [[ "$revision" != "$GITHUB_SHA" ]]; then
+                echo "Refusing to overwrite $image from another commit; request a new patch version." >&2
+                exit 1
+              fi
+              # A retry can finish the second image without rewriting the first.
+              if [[ "$role" == compiler ]]; then publish_compiler=false; else publish_playground=false; fi
+              continue
+            fi
+            if ! grep -Eqi 'manifest unknown|name unknown|no such manifest|not found' "$registry_probe_dir/manifest-error"; then
+              cat "$registry_probe_dir/manifest-error" >&2
+              exit 1
+            fi
+          done
+          docker tag bpl-compiler:ci "$image_root-compiler:$BPL_VERSION"
+          docker tag bpl-playground:ci "$image_root-playground:$BPL_VERSION"
+          if [[ "$publish_compiler" == true ]]; then docker push "$image_root-compiler:$BPL_VERSION"; fi
+          if [[ "$publish_playground" == true ]]; then docker push "$image_root-playground:$BPL_VERSION"; fi

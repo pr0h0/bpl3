@@ -5485,3 +5485,8 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 **Resolution**: A zero step returns an empty array. The size is also computed in long now, since the distance between the endpoints can exceed the int range even when the element count does not.
 
 **Coverage**: `tests/StdlibArrayGrowth.test.ts` covers the array guards and checks `rangeStep` against Python's `range()` for twelve combinations of sign and step, including zero.
+
+## Fixed HTTP package compatibility issues (2026-10-14)
+
+- Header storage previously discarded repeated values, including independent Set-Cookie lines. Shared HttpHeaders now preserves lines and exposes getAll; sensitive request singleton duplicates remain rejected. Covered by tests/WebHeaders.test.ts.
+- Signed-byte validation rejected valid high header-value octets, including UTF-8. Value validation now accepts high octets while continuing to reject C0 controls and DEL; request, response and client coverage is in tests/WebHeaders.test.ts. Fixed in 9218e925.

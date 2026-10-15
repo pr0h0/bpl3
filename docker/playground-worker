@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+# exec keeps the watchdog as PID 1; do not add --init to disposable workers.
+exec timeout --signal=KILL 30s bun /opt/bpl/playground/backend/worker.ts

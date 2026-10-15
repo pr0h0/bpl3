@@ -37,7 +37,15 @@ export class DockerPlaygroundRunner {
   constructor(
     private readonly image = DEFAULT_WORKER_IMAGE,
     private readonly run: typeof runProcessFile = runProcessFile,
-  ) {}
+    private readonly workerEntrypoint = process.env
+      .BPL_PLAYGROUND_WORKER_ENTRYPOINT,
+  ) {
+    if (workerEntrypoint && !workerEntrypoint.startsWith("/")) {
+      throw new Error(
+        "BPL_PLAYGROUND_WORKER_ENTRYPOINT must be an absolute container path.",
+      );
+    }
+  }
 
   get ready(): boolean {
     return Boolean(this.imageId) && !this.unavailable;
@@ -178,6 +186,9 @@ export class DockerPlaygroundRunner {
           "--ulimit=core=0:0",
           "--log-driver=none",
           "--tmpfs=/tmp:rw,exec,nosuid,nodev,size=128m,mode=1777",
+          ...(this.workerEntrypoint
+            ? ["--entrypoint", this.workerEntrypoint]
+            : []),
           this.imageId,
         ],
         { timeout: 10_000, maxBuffer: 1024 * 1024 },
@@ -233,7 +244,11 @@ export async function createPlaygroundRunner(
 ) {
   const mode = getRunnerMode(env);
   if (mode === "docker") {
-    const runner = new DockerPlaygroundRunner(env.BPL_PLAYGROUND_IMAGE);
+    const runner = new DockerPlaygroundRunner(
+      env.BPL_PLAYGROUND_IMAGE,
+      runProcessFile,
+      env.BPL_PLAYGROUND_WORKER_ENTRYPOINT,
+    );
     await runner.prepare();
     return {
       mode,

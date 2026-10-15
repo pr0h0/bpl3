@@ -11,6 +11,7 @@ const WORKFLOW_DIR = join(import.meta.dir, "../.github/workflows");
 const MAINTAINED_ACTION_MAJOR_VERSIONS: Record<string, number> = {
   "actions/checkout": 6,
   "actions/upload-artifact": 4,
+  "actions/download-artifact": 4,
   "oven-sh/setup-bun": 2,
 };
 
@@ -37,6 +38,21 @@ function extractActionUses(workflow: string): Array<{
 }
 
 describe("GitHub Actions workflows", () => {
+  test("container publication is manually gated and stays on patch-only versions", () => {
+    const workflow = readWorkflow("container-images.yml");
+    expect(workflow).toContain("default: false");
+    expect(workflow).toContain(
+      "if: github.event_name == 'workflow_dispatch' && inputs.publish",
+    );
+    expect(workflow).toContain("Only 0.1.x versions are allowed");
+    expect(workflow).toContain("Refusing to overwrite");
+    expect(workflow).toContain("group: ghcr-publication");
+    expect(workflow).toContain("docker save bpl-compiler:ci bpl-playground:ci");
+    expect(workflow).toContain("| docker load");
+    expect(workflow).not.toContain("npm publish");
+    expect(workflow).not.toContain("gh release create");
+    expect(workflow).not.toContain(":latest");
+  });
   test("compiler workflows keep JavaScript actions on maintained Node 24-compatible versions", () => {
     for (const workflowName of listWorkflowNames()) {
       const workflow = readWorkflow(workflowName);
@@ -219,9 +235,7 @@ describe("GitHub Actions workflows", () => {
       "WasmCompatibilitySweep.test.ts",
     );
     expect(packageJson.scripts["test:wasm"]).toContain("WasmRuntime.test.ts");
-    expect(packageJson.scripts["test:wasm"]).toContain(
-      "WasmToolchain.test.ts",
-    );
+    expect(packageJson.scripts["test:wasm"]).toContain("WasmToolchain.test.ts");
     expect(packageJson.scripts["test:wasm"]).toContain(
       "PlaygroundWasmToolchain.test.ts",
     );

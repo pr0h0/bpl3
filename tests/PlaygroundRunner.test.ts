@@ -43,6 +43,42 @@ function harness(
 }
 
 describe("playground runner", () => {
+  test("can select a worker entrypoint without starting the image's web server", async () => {
+    const calls: string[][] = [];
+    const run: typeof runProcessFile = async (_command, args) => {
+      calls.push(args);
+      return {
+        stdout:
+          args[0] === "info"
+            ? "linux\n"
+            : args[0] === "image"
+              ? imageId
+              : args[0] === "start"
+                ? '{"success":true,"output":"worker"}'
+                : "",
+        stderr: "",
+      };
+    };
+    const runner = new DockerPlaygroundRunner(
+      "playground",
+      run,
+      "/usr/local/bin/bpl-playground-worker",
+    );
+    await runner.prepare();
+    expect(await runner.execute("compile", { code: "" })).toMatchObject({
+      success: true,
+      output: "worker",
+    });
+    const create = calls.find((args) => args[0] === "create")!;
+    expect(create.slice(-3)).toEqual([
+      "--entrypoint",
+      "/usr/local/bin/bpl-playground-worker",
+      imageId,
+    ]);
+    expect(
+      () => new DockerPlaygroundRunner("playground", run, "relative/path"),
+    ).toThrow("absolute");
+  });
   test("never starts pre-cancelled work and waits for create before removing cancelled work", async () => {
     const controller = new AbortController();
     const { runner, calls } = harness(({ args }) => {

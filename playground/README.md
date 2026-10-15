@@ -471,3 +471,10 @@ Same as the BPL compiler project.
 ## Contributing
 
 Feel free to add more examples or improve the playground UI!
+
+## Full playground container
+
+The existing Dockerfile builds the disposable worker for a host-run controller.
+For a container containing the web UI/controller and the worker entrypoint, see
+[the two-image container guide](../docker/README.md). It shares compiler layers
+with the compiler-only image, and still executes jobs in separate containers.
