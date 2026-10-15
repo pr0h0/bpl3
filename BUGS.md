@@ -5605,3 +5605,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   ASCII case-insensitively without normalizing hosts, paths or queries. Tests in
   `tests/WebHttpClientUrl.test.ts` enumerate case variants, preserve TLS selection
   and explicit ports, and retain rejection of unsupported/lookalike schemes.
+
+## Fixed authentication cookie header preservation (2026-10-15)
+
+- Authentication replaced the entire Set-Cookie collection when issuing or
+  expiring its session cookie, discarding unrelated application cookies. The
+  helper now appends an independent Set-Cookie field. A regression in
+  `tests/WebAuthCrypto.test.ts` checks unrelated cookies, Secure attributes and
+  subsequent session expiry without losing earlier fields.

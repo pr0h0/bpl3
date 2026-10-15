@@ -48,6 +48,7 @@ contain their salts and hashing parameters. CSRF values are stored in plaintext
 in session rows, so database files/backups remain private. Expiry is enforced
 by the server on every request. Login creates a fresh token and atomically
 replaces the user's previous session; there is one active session per account.
+Authentication appends its Set-Cookie field, preserving other application cookies.
 Logout deletes the session and expires the cookie. Invalid/duplicate session
 cookies are rejected.
 

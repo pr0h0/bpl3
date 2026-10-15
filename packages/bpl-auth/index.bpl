@@ -102,7 +102,7 @@ struct Auth {
         if (this.secure) {
             sb.append("; Secure");
         }
-        res.setHeader("Set-Cookie", sb.toString());
+        res.appendHeader("Set-Cookie", sb.toString());
         sb.destroy();
     }
     frame issue(this: *Auth, user: long, name: string, res: *Response) {

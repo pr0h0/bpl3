@@ -50,3 +50,36 @@ test.skipIf(
   },
   90000,
 );
+
+test.skipIf(
+  process.platform !== "linux" ||
+    !sodium.includes("/") ||
+    !sqlite.includes("/"),
+)(
+  "authentication cookies preserve unrelated Set-Cookie fields",
+  () => {
+    native(
+      String.raw`
+import [Auth] from "bpl-auth";
+import [SQLite] from "bpl-sqlite";
+import [Response] from "bpl-express";
+import [Array] from "std/array.bpl";
+extern strcmp(a:string,b:string)ret int;
+extern strstr(a:string,b:string)ret string;
+frame main()ret int{
+ local db:SQLite=SQLite.open(":memory:");local database:*SQLite=&db;defer database.close();
+ local auth:Auth=Auth.new(&db,"https://app.example",true);local owner:*Auth=&auth;defer owner.destroy();
+ local res:Response=Response.new(-1);local response:*Response=&res;defer response.destroy();
+ res.appendHeader("Set-Cookie","theme=dark; Path=/");auth.cookie(&res,"session-token","7200");
+ local cookies:Array<string>=res.headers.getAll("set-cookie");
+ if(cookies.len()!=2){cookies.destroy();return 1;}
+ if(strcmp(cookies.get(0),"theme=dark; Path=/")!=0||strstr(cookies.get(1),"bpl_session=session-token;")==nullptr||strstr(cookies.get(1),"; Secure")==nullptr){cookies.destroy();return 2;}
+ cookies.destroy();auth.cookie(&res,"","0");cookies=res.headers.getAll("set-cookie");
+ if(cookies.len()!=3||strstr(cookies.get(2),"Max-Age=0")==nullptr){cookies.destroy();return 3;}
+ cookies.destroy();return 0;
+}`,
+      ["--clang-flag=-l:libsodium.so.23", "--clang-flag=-l:libsqlite3.so.0"],
+    );
+  },
+  90000,
+);
