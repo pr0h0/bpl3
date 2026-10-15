@@ -83,11 +83,18 @@ struct HttpResponse {
         if ((status < 200) || (status > 599) || ((raw[12] != ' ') && (raw[12] != '\r'))) {
             return HttpResponse.failure("Unsupported response status");
         }
-        local r: *HttpResponse = HttpResponse.new(status, "");
         i = 12;
         loop ((i < boundary) && (raw[i] != '\r')) {
+            local octet: uint = cast<uint>(cast<u8>(raw[i]));
+            if (((octet < 32) && (octet != 9)) || (octet == 127)) {
+                return HttpResponse.failure("Invalid response reason phrase");
+            }
             i = i + 1;
         }
+        if ((raw[i] != '\r') || (raw[i + 1] != '\n')) {
+            return HttpResponse.failure("Malformed response status line");
+        }
+        local r: *HttpResponse = HttpResponse.new(status, "");
         i = i + 2;
         loop (i < boundary) {
             local end: long = i;

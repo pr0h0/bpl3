@@ -5507,3 +5507,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   incorrectly failed as truncated. Response parsing now uses the actual method
   token. A real socket regression in `tests/WebHttpClientMethods.test.ts` covers
   enum HEAD, custom HEAD, lowercase custom head, and GET, preserving case sensitivity.
+
+## Fixed HTTP client status-line validation (2026-10-15)
+
+- The response parser skipped two bytes after the first status-line CR without
+  requiring LF, and accepted control bytes in the reason phrase. It could accept
+  `HTTP/1.1 200 OK` followed by CR and an arbitrary byte as a valid status line.
+  It now requires CRLF and validates reason phrase octets before allocating the
+  response. Tabs, printable bytes and high octets remain accepted.
+  `tests/WebHttpClientStatus.test.ts` reproduces the malformed ending and bare LF,
+  then checks all 256 reason-phrase byte values using explicit input lengths.

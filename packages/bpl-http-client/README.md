@@ -29,7 +29,9 @@ are managed internally; custom headers reject invalid names/control characters.
 Headers are limited to 16 KiB, request/decoded response bodies to 1 MiB, and the
 response wire buffer to approximately 2 MiB. Chunk extensions and complete
 trailers are accepted; invalid/truncated chunks fail instead of copying beyond
-input. Framing headers are parsed from the header section only.
+input. Framing headers are parsed from the header section only. Response status lines
+require CRLF endings; reason phrases accept tabs, printable bytes and high octets,
+and reject other control bytes and DEL.
 
 The post-DNS request budget defaults to five seconds; set `timeout_seconds`
 to an integer from 1 to 300. It covers connecting, TLS negotiation, writing the
