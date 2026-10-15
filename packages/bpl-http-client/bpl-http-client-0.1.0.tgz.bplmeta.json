@@ -3,10 +3,10 @@
   "name": "bpl-http-client",
   "version": "0.1.0",
   "archiveFile": "bpl-http-client-0.1.0.tgz",
-  "archiveSha256": "909ad0c03bd8fa61dbe99974358c9e3ede11d37e416c2fb100ee6b589ec2e89b",
-  "packageHash": "215ad89887072029c3f2243f9c925f6e3233aa2a636d5e5c3df4e03fc6d02aad",
+  "archiveSha256": "2938aa17e86fd81fa23bc4e9fc032242b7e975b18ceef3e688b009cc09147913",
+  "packageHash": "1227218abb6cddf41a360a4690c6d72cb77236a7763e77ea6d915354850c62ff",
   "sizeBytes": 5712,
-  "createdAt": "2026-10-14T21:19:15.399Z",
+  "createdAt": "2026-10-15T16:48:22.027Z",
   "manifest": {
     "name": "bpl-http-client",
     "version": "0.1.0",

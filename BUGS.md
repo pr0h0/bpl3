@@ -5499,3 +5499,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   now accepts only recognized missing-manifest/name diagnostics and stops on other
   registry failures. `tests/ContainerPublication.test.ts` reproduces the previous
   behavior and verifies that proxy failures produce no pushes.
+
+## Fixed HTTP client custom HEAD handling (2026-10-15)
+
+- `methodCustom("HEAD")` sent a HEAD request but parsed the response using ordinary
+  body semantics. A valid response with a nonzero Content-Length and no body
+  incorrectly failed as truncated. Response parsing now uses the actual method
+  token. A real socket regression in `tests/WebHttpClientMethods.test.ts` covers
+  enum HEAD, custom HEAD, lowercase custom head, and GET, preserving case sensitivity.

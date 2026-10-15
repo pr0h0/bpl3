@@ -20,7 +20,9 @@ frame main() {
 ```
 
 `setMethod`, `methodCustom`, `header`, `text`, and `json` are chainable. `text` and
-`json` set the body and media type but do not change the method. Request URL/body
+`json` set the body and media type but do not change the method. `HEAD` responses
+have no body whether selected through `setMethod(HttpMethod.HEAD)` or
+`methodCustom("HEAD")`; method names are case-sensitive. Request URL/body
 strings are borrowed until send returns. Headers copy their strings and use
 case-insensitive lookup. Host, length, transfer encoding, and connection headers
 are managed internally; custom headers reject invalid names/control characters.

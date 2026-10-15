@@ -417,7 +417,7 @@ frame executeRequest(req: *RequestBuilder) ret *HttpResponse {
         }
         if (n == 0) {
             buffer[used] = 0;
-            return HttpResponse.parseBytes(buffer, used, req.method == HttpMethod.HEAD);
+            return HttpResponse.parseBytes(buffer, used, strcmp(method, "HEAD") == 0);
         }
         used = used + n;
     }
