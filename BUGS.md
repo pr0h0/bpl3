@@ -5629,3 +5629,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   deadline or advancing offsets. TLS errors retain their separate handling.
   `tests/WebHttpClientSocketIO.test.ts` uses a real loopback server and linker
   shims to reproduce interrupted writes and reads, including short sends.
+
+## Fixed request-line CRLF validation (2026-10-15)
+
+- Request parsing found the first CR and skipped two bytes without checking LF.
+  Complete messages with an arbitrary byte after that CR were accepted. The
+  parser now validates the request-line CRLF before allocating fields. The byte
+  sweep in `tests/WebRequestLineFraming.test.ts` checks all 256 successors and
+  preserves HTTP/1.0 empty-header requests and incomplete-input reporting.

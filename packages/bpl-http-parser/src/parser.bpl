@@ -161,6 +161,9 @@ struct HttpParser {
         loop ((line < boundary) && (raw[line] != '\r')) {
             line = line + 1;
         }
+        if ((raw[line] != '\r') || (raw[line + 1] != '\n')) {
+            return p;
+        }
         local m: long = 0;
         loop ((m < line) && HttpParser.token(raw[m])) {
             m = m + 1;
