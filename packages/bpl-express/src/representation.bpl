@@ -7,6 +7,7 @@ import sprintf, strlen, strcmp, strncmp from "./libc.bpl";
 export [Representation];
 export [HttpDate];
 export [ByteRange];
+extern strncasecmp(a: string, b: string, size: ulong) ret int;
 struct ByteRange {
     valid: bool,
     satisfiable: bool,
@@ -218,7 +219,7 @@ struct Representation {
         result.satisfiable = false;
         result.start = 0;
         result.length = 0;
-        if ((value == nullptr) || (size < 0) || (strncmp(value, "bytes=", 6) != 0)) {
+        if ((value == nullptr) || (size < 0) || (strncasecmp(value, "bytes=", 6) != 0)) {
             return result;
         }
         local end: long = cast<long>(strlen(value));

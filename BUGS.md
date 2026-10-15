@@ -5545,3 +5545,10 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   rejects control bytes in opaque tags, and permits wildcard only as the sole
   nonempty item. `tests/WebRepresentation.test.ts` covers malformed suffixes,
   invalid later elements, wildcard mixtures and valid weak/strong comparisons.
+
+## Fixed byte range unit case handling (2026-10-15)
+
+- Range parsing recognized only lowercase `bytes`, ignoring otherwise valid
+  mixed-case range units. The unit comparison is now case-insensitive while
+  retaining exact unit-name and range-syntax checks. A regression enumerates
+  all 32 case variants of `bytes` in `tests/WebRepresentation.test.ts`.

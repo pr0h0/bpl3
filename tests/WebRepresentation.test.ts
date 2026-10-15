@@ -49,3 +49,20 @@ frame main()ret int{
  return 0;
 }`);
 }, 90000);
+
+test("byte range unit names match case-insensitively", () => {
+  native(String.raw`
+import [Representation], [ByteRange] from "bpl-express";
+frame main()ret int{
+ local text:char[10];local base:string="bytes=2-4";
+ loop(local mask:int=0;mask<32;mask=mask+1){
+  loop(local i:int=0;i<10;i=i+1){text[i]=base[i];}
+  loop(local i:int=0;i<5;i=i+1){if((mask&(1<<i))!=0){text[i]=text[i]-cast<char>(32);}}
+  local range:ByteRange=Representation.range(cast<string>(&text[0]),10);
+  if(!range.valid||!range.satisfiable||range.start!=2||range.length!=3){return 1;}
+ }
+ local range:ByteRange=Representation.range("byte=2-4",10);if(range.valid){return 2;}
+ range=Representation.range("BYTESX=2-4",10);if(range.valid){return 3;}
+ return 0;
+}`);
+}, 90000);

@@ -176,7 +176,7 @@ fail with 412 before range handling. Static roots retain their trusted immutable
 asset contract; weak FNV-1a validators are cache hints, not cryptographic identities.
 
 One `Range: bytes=start-end`, `bytes=start-` or `bytes=-suffix` is supported for
-GET. Satisfiable ranges return 206 and Content-Range, unsatisfiable single ranges
+GET. The bytes unit is case-insensitive. Satisfiable ranges return 206 and Content-Range, unsatisfiable single ranges
 return 416 with `bytes */size`. Invalid, unknown-unit and multiple ranges fall
 back to the full response; multipart ranges are not generated. HEAD ignores
 Range and sends full-response metadata without body bytes. If-Range requires a
