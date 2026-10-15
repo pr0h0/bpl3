@@ -39,7 +39,8 @@ to an integer from 1 to 300. It covers connecting, TLS negotiation, writing the
 request, and receiving the response. DNS resolution uses blocking `gethostbyname`
 and is outside that budget. The client requests Connection: close and reads until
 close; a peer that keeps the connection open can reach the deadline even with a
-complete response body.
+complete response body. Plain HTTP retries interrupted socket reads/writes within
+the same request deadline and preserves offsets across partial writes.
 
 HTTPS verifies the certificate chain and the URL's DNS hostname or IPv4 subject
 alternative name. DNS hosts also send SNI. System CA paths are used by default;

@@ -6,7 +6,7 @@ import [Array] from "std/array.bpl";
 import [Option] from "std/option.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
 import [HttpParser], [HeaderField], [ChunkDecoder], [ChunkedBody] from "bpl-http-parser";
-import socket, connect, htons, gethostbyname, [sockaddr_in], [hostent], send, read, close, malloc, free, memcpy, memset, sprintf, strlen, strcmp, setsockopt, [timeval] from "./libc.bpl";
+import socket, connect, htons, gethostbyname, [sockaddr_in], [hostent], send, read, close, malloc, free, memcpy, memset, sprintf, strlen, strcmp, setsockopt, [timeval], __errno_location from "./libc.bpl";
 export [HttpMethod];
 export [RequestBuilder];
 export [HttpClient];
@@ -299,6 +299,12 @@ frame clientWrite(fd: int, tls: *TlsConnection, data: string, size: long, deadli
             return false;
         }
         local n: long = send(fd, data + used, cast<ulong>(size - used), 16448);
+        if (n < 0) {
+            local error: *int = __errno_location();
+            if (error[0] == 4) {
+                continue;
+            }
+        }
         if (n <= 0) {
             return false;
         }
@@ -420,6 +426,12 @@ frame executeRequest(req: *RequestBuilder) ret *HttpResponse {
             n = read(fd, buffer + used, cast<ulong>(2113536 - used));
         }
         if (n < 0) {
+            if (!url.secure) {
+                local error: *int = __errno_location();
+                if (error[0] == 4) {
+                    continue;
+                }
+            }
             return HttpResponse.failure("Response read failed or timed out");
         }
         if (n == 0) {

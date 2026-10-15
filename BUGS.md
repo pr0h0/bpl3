@@ -5621,3 +5621,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   offset, while retaining failure for zero-byte writes and other errors.
   `tests/WebSocketWrites.test.ts` injects EINTR, partial transfers, EPIPE and zero
   writes using a local linker shim and checks the exact transferred bytes.
+
+## Fixed interrupted HTTP client socket operations (2026-10-15)
+
+- Plain HTTP treated EINTR from send or read as a failed request, unlike its TLS
+  transport. Both paths now retry interruptions without extending the original
+  deadline or advancing offsets. TLS errors retain their separate handling.
+  `tests/WebHttpClientSocketIO.test.ts` uses a real loopback server and linker
+  shims to reproduce interrupted writes and reads, including short sends.

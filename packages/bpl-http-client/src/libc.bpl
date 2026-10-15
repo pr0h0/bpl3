@@ -78,3 +78,6 @@ struct timeval { tv_sec: long, tv_usec: long, }
 export send;
 export setsockopt;
 export [timeval];
+
+extern __errno_location() ret *int;
+export __errno_location;
