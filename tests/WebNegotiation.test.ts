@@ -43,3 +43,24 @@ frame main()ret int{
  offers.destroy();req.destroy();app.destroy();return 0;
 }`);
 }, 90000);
+
+test("media parameter matching decodes quoted strings and escaped delimiters", () => {
+  native(String.raw`
+import [Negotiation] from "bpl-web-middleware";
+frame main()ret int{
+ if(Negotiation.quality("text/html;charset=\"utf-8\"", "text/html;charset=UTF-8",true)!=1000){return 1;}
+ if(Negotiation.quality("text/html;charset=UTF-8", "text/html;charset=\"utf-8\"",true)!=1000){return 2;}
+ if(Negotiation.quality("application/json;profile=\"one\";q=0.4", "application/json;profile=one",true)!=400){return 3;}
+ if(Negotiation.quality("application/json;profile=\"One\"", "application/json;profile=one",true)!=0){return 4;}
+ if(Negotiation.quality("application/json;profile=\"a\\\";b\";q=0.4, text/html;q=0.8", "application/json;profile=\"a\\\";b\"",true)!=400){return 5;}
+ if(Negotiation.quality("application/json;profile=\"a\\;b\"", "application/json;profile=\"a;b\"",true)!=1000){return 6;}
+ if(Negotiation.quality("application/json;profile=\"a,b\";q=0.3, */*;q=0.9", "application/json;profile=\"a,b\"",true)!=300){return 7;}
+ if(Negotiation.quality("application/json;profile=\"\"", "application/json;profile=\"\"",true)!=1000){return 8;}
+ if(Negotiation.quality("application/json;profile=\"bad", "application/json;profile=\"bad",true)!=0){return 9;}
+ if(Negotiation.quality("application/json;profile=\"one\"x", "application/json;profile=\"one\"x",true)!=0){return 10;}
+ if(Negotiation.quality("application/json;profile=\"a\nb\"", "application/json;profile=\"a\nb\"",true)!=0){return 11;}
+ if(Negotiation.quality("application/json;profile=bad value", "application/json;profile=bad value",true)!=0){return 12;}
+ if(Negotiation.quality("application/json;profile=\"a\tb\"", "application/json;profile=\"a\tb\"",true)!=1000){return 13;}
+ return 0;
+}`);
+}, 90000);

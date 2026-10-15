@@ -23,6 +23,45 @@ frame negotiationSlice(text: string, start: long, end: long) ret String {
     value.length = cast<int>(end - start);
     return value;
 }
+# A null data pointer marks an invalid parameter value; the caller owns the result.
+frame negotiationValue(text: string) ret String {
+    local result: String = String.new(text);
+    local size: int = result.length;
+    if ((size == 0) || ((text[0] == '"') && ((size < 2) || (text[size - 1] != '"')))) {
+        result.destroy();
+        return result;
+    }
+    local quoted: bool = text[0] == '"';
+    local start: int = 0;
+    local end: int = size;
+    if (quoted) {
+        start = 1;
+        end = size - 1;
+    }
+    local used: int = 0;
+    loop (local i: int = start; i < end; i = i + 1) {
+        if (quoted && (text[i] == '\\')) {
+            i = i + 1;
+            if (i == end) {
+                result.destroy();
+                return result;
+            }
+        } else if (quoted && (text[i] == '"')) {
+            result.destroy();
+            return result;
+        }
+        local octet: uint = cast<uint>(cast<u8>(text[i]));
+        if ((!quoted && !HttpParser.token(text[i])) || (quoted && (((octet < 32) && (octet != 9)) || (octet == 127)))) {
+            result.destroy();
+            return result;
+        }
+        result.data[used] = text[i];
+        used = used + 1;
+    }
+    result.data[used] = 0;
+    result.length = used;
+    return result;
+}
 struct Negotiation {
     frame prefix(a: string, b: string, size: int) ret bool {
         loop (local i: int = 0; i < size; i = i + 1) {
@@ -75,6 +114,10 @@ struct Negotiation {
             local end: long = pos;
             local quoted: bool = false;
             loop (end < size) {
+                if ((candidate[end] == '\\') && quoted) {
+                    end = end + 2;
+                    continue;
+                }
                 if (candidate[end] == '"') {
                     quoted = !quoted;
                 }
@@ -82,6 +125,9 @@ struct Negotiation {
                     break;
                 }
                 end = end + 1;
+            }
+            if (end > size) {
+                end = size;
             }
             local eq: long = pos;
             loop ((eq < end) && (candidate[eq] != '=')) {
@@ -93,7 +139,18 @@ struct Negotiation {
             local val: String = negotiationSlice(candidate, eq + 1, end);
             local valOwner: *String = &val;
             defer valOwner.destroy();
-            local matches: bool = Response.equalHeader(key.data, name) && ((Response.equalHeader(name, "charset") && Response.equalHeader(val.data, value)) || (strcmp(val.data, value) == 0));
+            local matches: bool = false;
+            if (Response.equalHeader(key.data, name)) {
+                local offeredValue: String = negotiationValue(val.data);
+                local offeredOwner: *String = &offeredValue;
+                defer offeredOwner.destroy();
+                local requestedValue: String = negotiationValue(value);
+                local requestedOwner: *String = &requestedValue;
+                defer requestedOwner.destroy();
+                if ((offeredValue.data != nullptr) && (requestedValue.data != nullptr)) {
+                    matches = (Response.equalHeader(name, "charset") && Response.equalHeader(offeredValue.data, requestedValue.data)) || (strcmp(offeredValue.data, requestedValue.data) == 0);
+                }
+            }
             key.destroy();
             val.destroy();
             if (matches) {
@@ -170,6 +227,10 @@ struct Negotiation {
                 local finish: long = cursor;
                 local inQuotes: bool = false;
                 loop (finish < end) {
+                    if ((header[finish] == '\\') && inQuotes) {
+                        finish = finish + 2;
+                        continue;
+                    }
                     if (header[finish] == '"') {
                         inQuotes = !inQuotes;
                     }
@@ -177,6 +238,9 @@ struct Negotiation {
                         break;
                     }
                     finish = finish + 1;
+                }
+                if (finish > end) {
+                    finish = end;
                 }
                 local eq: long = cursor;
                 loop ((eq < finish) && (header[eq] != '=')) {

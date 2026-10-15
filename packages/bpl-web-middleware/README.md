@@ -95,7 +95,10 @@ make a different type or subtype acceptable. Server offer order breaks ties. Mis
 offer; no acceptable candidate returns None. `accepts(req,media)` tests one
 candidate; `require(req,res,media)` adds Vary: Accept and returns false after a
 JSON 406 on rejection. Offers can include parameters, such as
-`application/json;profile=one`. Explicit q=0 overrides a matching wildcard.
+`application/json;profile=one`. Quoted parameter values match equivalent tokens;
+quoted pairs are decoded before comparison. Charset values are case-insensitive;
+other parameter values retain their case. Invalid quoted values do not match.
+Explicit q=0 overrides a matching wildcard.
 `encoding(req,name)` returns 0–1000 for an Accept-Encoding candidate and accounts
 for identity's implicit acceptance and explicit exclusions. Helpers do not pick
 an application handler or transform a representation automatically.

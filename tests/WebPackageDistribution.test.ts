@@ -36,11 +36,13 @@ test("web extension archives install transitively and compile outside the source
       `
       import [RequestBuilder], [HttpResponse] from "bpl-http-client";
       import [Validator] from "bpl-validation";
-      import [Form] from "bpl-web-middleware";
+      import [Form], [Negotiation] from "bpl-web-middleware";
       import [Option] from "std/option.bpl";
       extern strcmp(a:string,b:string) ret int;
       frame main() ret int {
         local request:RequestBuilder=RequestBuilder.new("https://");local response:*HttpResponse=request.send();if(response.status!=0){return 3;}response.destroy();request.destroy();
+        if(Negotiation.quality("text/plain;profile=one","application/json;profile=one",true)!=0){return 4;}
+        if(Negotiation.quality("text/html;charset=\\\"utf-8\\\"","text/html;charset=UTF-8",true)!=1000){return 5;}
         local v:Validator=Validator.new();v.required("title","works");if(!v.ok()){return 1;}v.destroy();
         local form:Form=Form.parse("title=a%26b",11);if(strcmp(form.get("title").unwrap(),"a&b")!=0){return 2;}form.destroy();return 0;
       }

@@ -5526,3 +5526,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   now increases only for matching ranges. Regression coverage exercises unrelated
   types, subtypes, wildcards, multiple parameters, fallback weights and best-offer
   selection in `tests/WebNegotiation.test.ts`.
+
+## Fixed quoted media parameter matching (2026-10-15)
+
+- Accept matching compared raw parameter syntax, so quoted values did not match
+  equivalent tokens, and escaped quotes could confuse semicolon scanning. The
+  middleware now decodes and validates quoted pairs on both sides, preserves
+  charset case-insensitivity and other parameter case sensitivity, and respects
+  escaped delimiters while scanning. Malformed quoted values are rejected.
+  `tests/WebNegotiation.test.ts` covers quoted/token equivalence, escaped quotes
+  and semicolons, comma-containing values, empty strings and malformed quotes.
