@@ -278,31 +278,33 @@ struct Database {
                         if (current_table != nullptr) {
                             local ptr: string = buf + 4;
                             local space_idx: int = StringUtils.find(ptr, 32);
+                            local values: string = ptr + strlen(ptr);
                             if (space_idx != -1) {
+                                values = ptr + space_idx + 1;
                                 ptr[space_idx] = 0;
-                                local id: int = atoi(ptr);
-                                # printf("Loading Row ID: %d\n", id);
-
-                                local row: Row = Row.new(id);
-                                if (id >= current_table.next_id) 
-                                    current_table.next_id = id + 1;
-                                ptr = ptr + space_idx + 1;
-
-                                loop (true) {
-                                    space_idx = StringUtils.find(ptr, 32);
-                                    if (space_idx == -1) {
-                                        if (strlen(ptr) > 0) {
-                                            row.values.push(deserialize_value(ptr));
-                                        }
-                                        break;
-                                    }
-                                    ptr[space_idx] = 0;
-                                    row.values.push(deserialize_value(ptr));
-                                    ptr = ptr + space_idx + 1;
-                                }
-                                if(row.values.len() != current_table.columns.len()) {row.destroy(); throw "Database row width mismatch";}
-                                current_table.rows.push(row);
                             }
+                            local id: int = atoi(ptr);
+                            # printf("Loading Row ID: %d\n", id);
+
+                            local row: Row = Row.new(id);
+                            if (id >= current_table.next_id)
+                                current_table.next_id = id + 1;
+                            ptr = values;
+
+                            loop (true) {
+                                space_idx = StringUtils.find(ptr, 32);
+                                if (space_idx == -1) {
+                                    if (strlen(ptr) > 0) {
+                                        row.values.push(deserialize_value(ptr));
+                                    }
+                                    break;
+                                }
+                                ptr[space_idx] = 0;
+                                row.values.push(deserialize_value(ptr));
+                                ptr = ptr + space_idx + 1;
+                            }
+                            if(row.values.len() != current_table.columns.len()) {row.destroy(); throw "Database row width mismatch";}
+                            current_table.rows.push(row);
                         }
                     }
                 }

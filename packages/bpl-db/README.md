@@ -8,7 +8,8 @@ the internal `parse_query` placeholder is not exported or usable as a SQL parser
 Create a `Database`, call `create_table(name)`, add columns with `DataType.Int`,
 `Str`, or `Bool`, and pass an `Array<Value>` pointer to `Table.insert`.
 Insert returns a positive ID or -1 for invalid width/type or exhausted IDs.
-Null values are accepted. Table and column names contain 1–128 ASCII letters,
+Null values are accepted. Zero-column tables accept empty value arrays; their
+rows and IDs are preserved by save/load. Table and column names contain 1–128 ASCII letters,
 digits, or underscores. Creating an existing table returns it; columns must be
 unique and added before any rows.
 

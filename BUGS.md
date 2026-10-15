@@ -5552,3 +5552,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   mixed-case range units. The unit comparison is now case-insensitive while
   retaining exact unit-name and range-syntax checks. A regression enumerates
   all 32 case variants of `bytes` in `tests/WebRepresentation.test.ts`.
+
+## Fixed zero-column database snapshot rows (2026-10-15)
+
+- Tables accept zero columns and empty value arrays, but their saved `ROW id`
+  records contain no value separator. Loading silently ignored those records,
+  losing rows and resetting subsequent IDs. Loading now parses the row ID even
+  when no values follow it, while retaining the row-width check.
+  `tests/WebDatabaseSnapshots.test.ts` verifies row counts, IDs and the next insert
+  after a save/load round-trip.
