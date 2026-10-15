@@ -61,6 +61,9 @@ Responses:
 - `redirect(location)` sends a 302 redirect. HEAD suppresses bodies; GET routes
   are available to HEAD requests. 204 and 304 suppress bodies and framing.
 
+Plain HTTP response writes retry EINTR and continue from the correct offset after
+partial writes. Closed sockets and zero-byte writes stop output.
+
 Custom headers are emitted. Invalid names, control characters in values, and
 manual framing headers are rejected. Header strings are copied and owned by the response. A handler exception before headers produces a generic 500; after
 headers it ends the existing response. Requests own parsed allocations and are

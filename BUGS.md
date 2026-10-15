@@ -5613,3 +5613,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   helper now appends an independent Set-Cookie field. A regression in
   `tests/WebAuthCrypto.test.ts` checks unrelated cookies, Secure attributes and
   subsequent session expiry without losing earlier fields.
+
+## Fixed interrupted HTTP server writes (2026-10-15)
+
+- A plain HTTP send interrupted before transferring bytes was treated as a
+  permanent output failure. Server writes now retry EINTR without advancing the
+  offset, while retaining failure for zero-byte writes and other errors.
+  `tests/WebSocketWrites.test.ts` injects EINTR, partial transfers, EPIPE and zero
+  writes using a local linker shim and checks the exact transferred bytes.

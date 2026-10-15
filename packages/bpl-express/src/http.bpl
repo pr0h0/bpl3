@@ -5,7 +5,7 @@ import [Option] from "std/option.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
 import [HttpParser], [HttpHeaders], [HeaderField] from "bpl-http-parser";
 import releaseStrings from "bpl-http-parser";
-import send, strlen, sprintf, strcmp, free from "./libc.bpl";
+import send, strlen, sprintf, strcmp, free, __errno_location from "./libc.bpl";
 export [Request];
 export [Response];
 export [HttpMethod];
@@ -27,6 +27,12 @@ frame writeAll(fd: int, data: string, size: long) ret bool {
     local offset: long = 0;
     loop (offset < size) {
         local written: long = send(fd, data + offset, cast<ulong>(size - offset), 16384);
+        if (written < 0) {
+            local error: *int = __errno_location();
+            if (error[0] == 4) {
+                continue;
+            }
+        }
         if (written <= 0) {
             return false;
         }
