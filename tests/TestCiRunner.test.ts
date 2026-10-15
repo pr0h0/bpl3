@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import * as ts from "typescript";
@@ -181,14 +187,36 @@ describe("CI-safe test runner", () => {
         ],
         ["bun", "run", "test:vscode-ext"],
         ["bun", "run", "release:cli-registry"],
-        [
-          "bun",
-          "test",
-          "tests/Alpha.test.ts",
-          "tests/Beta.test.ts",
-        ],
+        ["bun", "test", "tests/Alpha.test.ts", "tests/Beta.test.ts"],
       ]);
     });
+  });
+
+  test("batches large unit suites without omitting or duplicating test files", () => {
+    withTempTests(
+      Array.from(
+        { length: 201 },
+        (_, i) => `Unit${String(i).padStart(3, "0")}.test.ts`,
+      ),
+      (testsDir) => {
+        const steps = createTestCiPlan({ testsDir }).filter((step) =>
+          step.name.startsWith("Run CI-safe unit tests"),
+        );
+        expect(steps.map((step) => step.name)).toEqual([
+          "Run CI-safe unit tests (1/3)",
+          "Run CI-safe unit tests (2/3)",
+          "Run CI-safe unit tests (3/3)",
+        ]);
+        for (const step of steps) {
+          expect(step.command).toBe("bun");
+          expect(step.args[0]).toBe("test");
+          expect(step.args.length).toBeLessThanOrEqual(101);
+        }
+        expect(steps.flatMap((step) => step.args.slice(1))).toEqual(
+          discoverCiSafeUnitTestFiles(testsDir),
+        );
+      },
+    );
   });
 
   test("formats list output and keeps package.json delegated to the runner", () => {

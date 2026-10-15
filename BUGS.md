@@ -5663,3 +5663,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   filename such as `part.bte.name.bte` therefore changed interior text in both
   its output path and component name. Generation now removes/replaces only the
   final suffix. Tests cover default and custom extensions plus option ordering.
+
+## Fixed growing CI-safe suite step timeouts (2026-10-15)
+
+- The entire discovered unit suite ran in one process under a 20-minute step
+  budget. A local run reached only 208 files before timing out, with no failing
+  tests reported. Unit discovery now creates sequential batches of at most 100
+  files, each retaining the existing timeout and failure handling. Tests verify
+  deterministic coverage, no omissions/duplicates and final partial batches.
+  Workflow contract checks aggregate all unit batches when checking coverage.

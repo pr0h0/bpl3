@@ -26,6 +26,7 @@ export const CI_SAFE_EXCLUDED_TEST_FILES = [
 ] as const;
 
 export const TEST_CI_STEP_TIMEOUT_MS = 20 * 60 * 1000;
+export const CI_SAFE_UNIT_BATCH_SIZE = 100;
 
 export interface TestCiStep {
   name: string;
@@ -61,7 +62,9 @@ export function discoverCiSafeUnitTestFiles(
     .map((name) => `tests/${basename(name)}`);
 }
 
-export function createTestCiPlan(options: TestCiPlanOptions = {}): TestCiStep[] {
+export function createTestCiPlan(
+  options: TestCiPlanOptions = {},
+): TestCiStep[] {
   const ciSafeUnitTests = discoverCiSafeUnitTestFiles(options.testsDir);
 
   const plan: TestCiStep[] = [
@@ -87,11 +90,21 @@ export function createTestCiPlan(options: TestCiPlanOptions = {}): TestCiStep[] 
     },
   ];
 
-  if (ciSafeUnitTests.length > 0) {
+  const unitBatches = Math.ceil(
+    ciSafeUnitTests.length / CI_SAFE_UNIT_BATCH_SIZE,
+  );
+  for (let batch = 0; batch < unitBatches; batch++) {
+    const start = batch * CI_SAFE_UNIT_BATCH_SIZE;
     plan.push({
-      name: "Run CI-safe unit tests",
+      name:
+        unitBatches === 1
+          ? "Run CI-safe unit tests"
+          : `Run CI-safe unit tests (${batch + 1}/${unitBatches})`,
       command: "bun",
-      args: ["test", ...ciSafeUnitTests],
+      args: [
+        "test",
+        ...ciSafeUnitTests.slice(start, start + CI_SAFE_UNIT_BATCH_SIZE),
+      ],
     });
   }
 

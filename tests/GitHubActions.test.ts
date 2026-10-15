@@ -330,8 +330,9 @@ describe("GitHub Actions workflows", () => {
       "PackageJsonFailureContracts.test.ts",
     );
     const ciSafeUnitArgs = createTestCiPlan()
-      .find((step) => step.name === "Run CI-safe unit tests")
-      ?.args.join(" ");
+      .filter((step) => step.name.startsWith("Run CI-safe unit tests"))
+      .flatMap((step) => step.args)
+      .join(" ");
     expect(ciSafeUnitArgs).toContain("tests/StdlibCExterns.test.ts");
     expect(ciSafeUnitArgs).toContain("tests/ExampleExterns.test.ts");
     expect(

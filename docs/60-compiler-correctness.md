@@ -42,7 +42,10 @@ runs `tests/PlaygroundExampleContracts.test.ts`,
 `tests/Integration.test.ts`, and `tests/PlaygroundExamples.test.ts`, runs the
 VS Code extension suite, checks the generated `bpl-v3/cli` registry shim with
 `bun run release:cli-registry`, then runs discovered top-level CI-safe unit
-tests. It intentionally excludes the full correctness corpora, long fuzz
+tests in sequential batches of at most 100 files. Each batch gets its own step
+budget, so adding tests does not force the entire unit suite into one 20-minute
+process. Batch discovery preserves sorted coverage without duplicates or skips.
+The suite intentionally excludes the full correctness corpora, long fuzz
 runners, sanitizer runtime suite, golden LLVM shape suite, and full release
 smoke suite because those have dedicated scripts and CI jobs. Each delegated
 step is bounded by `BPL_TEST_CI_STEP_TIMEOUT_MS`, which defaults to 1200000
