@@ -113,6 +113,22 @@ struct Engine {
         return true;
     }
 
+    # Evaluate predicates before any row can release strings borrowed by them.
+    frame matchingRows(this: *Engine, table: *Table, conditions: *Array<Condition>) ret Array<int> {
+        local selected: Array<int> = Array<int>.new(0);
+        try {
+            loop (local i: int = 0; i < table.rows.len(); i = i + 1) {
+                if (this.check_row(table.rows.getRef(i), table, conditions)) {
+                    selected.push(i);
+                }
+            }
+        } catch {
+            selected.destroy();
+            throw "Cannot evaluate database mutation predicates";
+        }
+        return selected;
+    }
+
     frame execute(this: *Engine, query: *Query) {
         match (query.command) {
             Command.Create(name, cols) => {
@@ -180,17 +196,18 @@ struct Engine {
                         local replacement: Value = clone_value(&new_val);
                         local replacementOwner: *Value = &replacement;
                         defer destroy_value(replacementOwner);
+                        local selected: Array<int> = this.matchingRows(t, conditions);
+                        local selectedOwner: *Array<int> = &selected;
+                        defer selectedOwner.destroy();
                         local count: int = 0;
-                        loop (local i: int = 0; i < t.rows.len(); i = i + 1) {
-                            local r: *Row = t.rows.getRef(i);
-                            if (this.check_row(r, t, conditions)) {
-                                local c: Column = t.columns.get(update_col_idx);
-                                if(value_kind(&new_val) != 3 && value_kind(&new_val) != data_kind(c.kind)) {continue;}
-                                local copy: Value = clone_value(&replacement);
-                                destroy_value(r.values.getRef(update_col_idx));
-                                r.values.set(update_col_idx, copy);
-                                count = count + 1;
-                            }
+                        loop (local i: int = 0; i < selected.len(); i = i + 1) {
+                            local r: *Row = t.rows.getRef(selected.get(i));
+                            local c: Column = t.columns.get(update_col_idx);
+                            if(value_kind(&replacement) != 3 && value_kind(&replacement) != data_kind(c.kind)) {continue;}
+                            local copy: Value = clone_value(&replacement);
+                            destroy_value(r.values.getRef(update_col_idx));
+                            r.values.set(update_col_idx, copy);
+                            count = count + 1;
                         }
                         if (!this.silent) 
                             printf("Updated %d rows in '%s'.\n", count, name);
@@ -206,16 +223,17 @@ struct Engine {
             Command.Delete(name, conditions) => {
                 local t: *Table = this.db.get_table(name);
                 if (t != nullptr) {
-                    local count: int = 0;
-                    # Iterate backwards to remove safely
-                    local i: int = t.rows.len() - 1;
+                    local selected: Array<int> = this.matchingRows(t, conditions);
+                    local selectedOwner: *Array<int> = &selected;
+                    defer selectedOwner.destroy();
+                    local count: int = selected.len();
+                    # Remove selected indexes backwards, preserving their meaning.
+                    local i: int = selected.len() - 1;
                     loop (i >= 0) {
-                        local r: *Row = t.rows.getRef(i);
-                        if (this.check_row(r, t, conditions)) {
-                            r.destroy();
-                            t.rows.removeAt(i);
-                            count = count + 1;
-                        }
+                        local index: int = selected.get(i);
+                        local r: *Row = t.rows.getRef(index);
+                        r.destroy();
+                        t.rows.removeAt(index);
                         i = i - 1;
                     }
                     if (!this.silent) 

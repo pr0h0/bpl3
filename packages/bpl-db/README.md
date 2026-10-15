@@ -22,7 +22,8 @@ database. Query condition strings are borrowed for execution.
 byte order, not pointer comparison. Different value variants are unequal and
 do not satisfy ordering predicates. Engine update retains a copy of the replacement before changing rows, so a
 replacement borrowed from an affected row remains usable throughout the update;
-delete releases row allocations. `execute` reports results to stdout unless
+update/delete select matching rows before mutating them, so predicates may
+borrow strings from those rows. Delete releases row allocations. `execute` reports results to stdout unless
 `silent` is true; it is a demo command interface, not a JSON query API.
 
 `save(path)` writes a snapshot; `load(path)` loads one into an empty database.

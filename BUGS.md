@@ -5587,3 +5587,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   The sanitizer signature parser now asserts that guaranteed field, preserving
   behavior and compatibility with the extension's existing compiler version.
   Validation uses the real extension compile:test and LLVM sanitizer unit tests.
+
+## Fixed aliased database mutation predicates (2026-10-15)
+
+- Update and delete evaluated predicates while destroying row storage. If a
+  predicate string borrowed that storage, later evaluations read freed memory
+  and skipped matching rows. Both commands now select row indexes before any
+  mutation; deletes remove those indexes in reverse order. Predicate processing
+  failures release temporary indexes before propagation. Regression coverage in
+  `tests/WebDatabaseUpdate.test.ts` checks affected-row borrowed predicates for
+  both update and delete.
