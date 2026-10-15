@@ -5561,3 +5561,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   when no values follow it, while retaining the row-width check.
   `tests/WebDatabaseSnapshots.test.ts` verifies row counts, IDs and the next insert
   after a save/load round-trip.
+
+## Fixed route extraction after literal asterisks (2026-10-15)
+
+- Route matching treats only a terminal asterisk as a wildcard, but parameter
+  extraction stopped at every asterisk. A matching `/files*/:id` route therefore
+  lost its id parameter. Extraction now uses the same terminal-wildcard rule.
+  `tests/WebRoutingPatterns.test.ts` covers literal-star paths, subsequent
+  parameters and a literal-star route ending in a real wildcard.

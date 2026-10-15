@@ -273,7 +273,7 @@ struct Router {
         r_idx = 0;
         q_idx = 0;
         loop ((r_idx < r_len) && (q_idx < q_len)) {
-            if (routePath[r_idx] == '*') {
+            if ((routePath[r_idx] == '*') && (r_idx == (r_len - 1))) {
                 return true;
             }
             if (routePath[r_idx] == ':') {

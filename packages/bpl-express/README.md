@@ -32,7 +32,8 @@ to 16 KiB headers and 1 MiB bodies. Fragmented fixed-length and chunked requests
 request transfer codings return 501. Every response closes the connection.
 
 Routes support `get`, `post`, `put`, `delete`, `patch`, `options`, `head`, and
-`on(method, path, handler)`. Parameters use `/users/:id`; a final `*` matches
+`on(method, path, handler)`. Parameters use `/users/:id`; nonterminal `*`
+characters are literal and do not stop later parameter extraction. A final `*` matches
 remaining path characters. `req.getParam("id")` returns `Option<string>`.
 `req.state` holds application-owned strings separately from client data.
 `req.setState(key, value)` copies strings for middleware identity/context; the
