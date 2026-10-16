@@ -271,14 +271,17 @@ or malformed provenance sidecars for otherwise valid cached archives.
 
 Remove build artifacts. In git repositories, tracked files are skipped so
 checked-in runtime IR, examples, or release artifacts are not removed by
-accident. Candidate `.ll`, `.o`, `.exe`, `.out` and extensionless outputs require
+accident. Candidate `.ll`, `.o`, `.exe` and `.out` outputs require
 a regular sibling source with the same basename and `.bpl` extension. Symlinked
 sources do not establish ownership. Generic `build/` and `dist/` directories and
 unrelated files are preserved. The compiler's reserved `.bpl-cache/` directory
 can be removed wholesale unless it contains tracked files. In that case the
 directory and tracked contents remain, and only matching outputs are removed.
 Standalone source files do not require a package manifest. Custom output paths
-without a matching sibling source must be removed explicitly.
+without a matching sibling source must be removed explicitly. Extensionless files
+are preserved even with a matching source: a sibling source cannot distinguish
+a compiled executable from an unrelated wrapper or data file. Remove such
+executables explicitly after checking their ownership.
 The git tracked-file probe is bounded by `BPL_CLEAN_GIT_TIMEOUT_MS`, defaulting
 to 5000 milliseconds; if the probe fails or times out inside a git repository,
 `bpl clean` refuses to remove files. The same timeout bounds automatic

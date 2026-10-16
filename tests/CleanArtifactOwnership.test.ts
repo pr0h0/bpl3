@@ -44,7 +44,7 @@ test("clean preserves unrelated outputs and generic build directories", () => {
       );
     const preview = run(true);
     expect(preview.status, preview.stdout + preview.stderr).toBe(0);
-    expect(JSON.parse(preview.stdout).count).toBe(5);
+    expect(JSON.parse(preview.stdout).count).toBe(4);
     expect(existsSync(join(directory, "program.ll"))).toBe(true);
     const clean = run(false);
     expect(clean.status, clean.stdout + clean.stderr).toBe(0);
@@ -62,7 +62,8 @@ test("clean preserves unrelated outputs and generic build directories", () => {
       expect(readFileSync(join(directory, file), "utf8")).toBe("keep");
     }
     expect(existsSync(join(directory, "program.bpl"))).toBe(true);
-    for (const extension of ["", ".ll", ".o", ".exe", ".out"]) {
+    expect(readFileSync(join(directory, "program"), "utf8")).toBe("generated");
+    for (const extension of [".ll", ".o", ".exe", ".out"]) {
       expect(existsSync(join(directory, `program${extension}`))).toBe(false);
     }
   } finally {

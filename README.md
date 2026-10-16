@@ -536,8 +536,9 @@ This creates:
 
 #### `bpl clean`
 
-Remove candidate outputs only when a regular sibling `.bpl` source exists, and
-clear `.bpl-cache/`. Generic `build/` and `dist/` directories are preserved.
+Remove candidate `.ll`, `.o`, `.exe` and `.out` outputs only when a regular
+sibling `.bpl` source exists, and clear `.bpl-cache/`. Extensionless files are
+preserved; remove known generated executables explicitly. Generic `build/` and `dist/` directories are preserved.
 Git-tracked files are preserved. `--json` reports each planned deletion as a
 `file`, `directory`, or `symlink`.
 

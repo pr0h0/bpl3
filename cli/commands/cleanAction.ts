@@ -136,7 +136,7 @@ export function runCleanCommand(
             const base = path.basename(entry.name, ext);
 
             if (
-              !isBuildArtifact(base, ext) ||
+              !isBuildArtifact(ext) ||
               trackedPathSet.has(gitRelativePath)
             ) {
               continue;
@@ -322,14 +322,8 @@ function tryLstat(filePath: string): fs.Stats | null {
   }
 }
 
-function isBuildArtifact(base: string, ext: string): boolean {
-  return (
-    ext === ".ll" ||
-    ext === ".o" ||
-    ext === ".exe" ||
-    ext === ".out" ||
-    (base.length > 0 && ext === "")
-  );
+function isBuildArtifact(ext: string): boolean {
+  return ext === ".ll" || ext === ".o" || ext === ".exe" || ext === ".out";
 }
 
 function getGitTrackedPaths(cwd: string): Set<string> | null {

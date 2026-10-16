@@ -6180,3 +6180,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   before that root's new local archive was selected. Resolve changed roots first,
   then pass the reconciled lock entries to later restores. Regression cases cover
   a root archive absent from cache, with installed modules present and missing.
+
+## Same-stem extensionless cleanup (2026-10-16)
+
+- Confirmed CodeRabbit's outside-diff finding: an extensionless wrapper/data file
+  was deleted solely because a same-stem BPL source existed. Preserve all
+  extensionless files; reliable compiler provenance is not currently recorded,
+  and checking executable magic or a familiar filename cannot prove ownership.
+  Known compiled executables require explicit removal. Document the limitation
+  and extend the ownership regression to preserve same-stem extensionless files.
