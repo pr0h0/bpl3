@@ -306,6 +306,19 @@ export function checkCall(
     );
 
     if (method) {
+      const context = this.resolveMemberWithContext(
+        calleeType as AST.BasicTypeNode,
+        "__call__",
+      );
+      for (let i = 0; i < expr.args.length; i++) {
+        const parameter = method.params[i + 1];
+        if (parameter) {
+          const parameterType = context?.genericMap
+            ? this.substituteType(parameter.type, context.genericMap)
+            : parameter.type;
+          this.checkIntegerConstantRange(expr.args[i]!, parameterType);
+        }
+      }
       expr.operatorOverload = {
         methodName: "__call__",
         targetType: calleeType,

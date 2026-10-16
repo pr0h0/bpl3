@@ -5,6 +5,16 @@ import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 const cases: Record<string, string> = {
+  callable:
+    "struct Item{frame __call__(this:*Item,x:u8)ret int{return cast<int>(x);}}frame main()ret int{local item:Item;return item(300);}",
+  genericCallable:
+    "struct Item<T>{frame __call__(this:*Item<T>,x:T)ret int{return cast<int>(x);}}frame main()ret int{local item:Item<u8>;return item(300);}",
+  destructuring:
+    "frame main()ret int{local (x:u8,y:int)=(300,1);return cast<int>(x)+y;}",
+  nestedDestructuring:
+    "frame main()ret int{local ((x:u8,y:int),z:int)=((300,1),2);return cast<int>(x)+y+z;}",
+  conditionalDestructuring:
+    "frame main()ret int{local (x:u8,y:int)=true?(1,2):(300,3);return cast<int>(x)+y;}",
   method:
     "struct Item{frame take(this:*Item,x:u8)ret int{return cast<int>(x);}}frame main()ret int{local item:Item;return item.take(300);}",
   externVariadic:
@@ -62,11 +72,16 @@ test("valid integer boundaries and explicit truncation work in conversion contex
       name: "integer-conversion-boundaries",
       validateLlvm: true,
       source: `struct Item{value:u8}
+struct Callable{frame __call__(this:*Callable,x:u8)ret int{return cast<int>(x);}}
 frame take(x:u8)ret u8{return x;}
 frame generic<T>(x:T)ret T{return x;}
 frame minimum()ret i8{return -(1_28);}
 frame sum(...args:u8,count:int)ret int{local total:int=0;loop(local i:int=0;i<count;i=i+1){total=total+cast<int>(args[i]);}return total;}
 frame main()ret int{
+ local callable:Callable;
+ local ((part:u8,other:int),last:int)=((255,2),3);
+ local (truncated:u8,ignored:int)=(cast<u8>(300),4);
+ if(callable(255)!=255||callable(cast<u8>(300))!=44||part!=cast<u8>(255)||other!=2||last!=3||truncated!=cast<u8>(44)||ignored!=4){return 4;}
  local x:u8=0;x=(2_55);
  local item:Item=Item{value:255};
  local call:Func<u8>(u8)=take;

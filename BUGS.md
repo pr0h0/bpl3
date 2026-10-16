@@ -6020,3 +6020,18 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   assuming its argument expression, and cover separated integer and decimal
   inputs explicitly. All 385 tests in the failed 89-file CI batch and all 47
   focused integer tests pass locally; typecheck and lint pass.
+
+## Callable and destructuring constant range bypasses (2026-10-16)
+
+- Confirmed callable structs, generic callable structs and typed tuple
+  destructuring accepted 300 into u8 without BPL_INTEGER_LITERAL_OVERFLOW.
+  Validate selected callable parameter types after generic substitution and
+  recursively construct the destructuring destination tuple for the shared
+  range checker. Nested tuples and conditional tuple expressions are covered.
+
+## Open: generic callable operator code generation (2026-10-16)
+
+- A valid Item<u8> with __call__(this:*Item<T>,x:T) passes checking but
+  emits an unresolved generic method name and an i32 argument instead of u8.
+  Clang rejects the undefined function. Found while testing conversion fixes;
+  requires specialization of callable operator metadata/code generation.
