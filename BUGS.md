@@ -6047,3 +6047,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   rejected binding. Never replace an existing declaration or invent an unknown
   type. All 258 typechecker tests and 102 CLI JSON/recovery tests pass; typecheck
   and lint pass. Other recovery paths still require review.
+
+## Fixed ignored argument parser configuration and token boundaries (2026-10-16)
+
+- Defaults, required positional arguments and selected command actions were
+  stored but unused. Missing flag values consumed subsequent options; unknown
+  options went to stdout; -- and negative operands were not honored. Apply
+  defaults, validate required arguments, count errors, skip actions after errors
+  and retain the successful action exit code. Default actions are initialized.
+  Reject negative getArg indexes. Tests cover aliases, empty/default overrides,
+  subcommands, error paths and O0/O3 ASan/UBSan cleanup: 11 tests pass.

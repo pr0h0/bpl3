@@ -58,6 +58,18 @@ import [Args], [ArgParser], [Command], [Flag], [ParsedArgs] from "std";
 `ArgParser` provide a small command parser for flags, aliases, arguments, help
 text, and parsed flag lookup.
 
+`parse()` applies flag defaults, checks required positional arguments for each
+selected command, and invokes the final command's `setAction` handler once if
+there are no parsing errors. `ParsedArgs.errorCount` counts parsing errors;
+`exitCode` is 1 on a parsing error or the handler's return value on success
+(0 when no handler is set). The caller owns and must destroy the returned
+`ParsedArgs` even when parsing fails. Diagnostics go to stderr.
+
+Flags accept `--name=value` or a separate value. A following option is not
+consumed as a missing value; use `--name=-filename` for a value beginning with
+an option prefix. Negative decimal numbers and a lone `-` are operands.
+`--` stops both option and subcommand recognition for the remaining tokens.
+
 ### JSON (`std/json.bpl`)
 
 JSON helpers are available directly through `std`:

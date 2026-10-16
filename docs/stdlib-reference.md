@@ -194,6 +194,8 @@ struct ParsedArgs: Destructible
 commandPath: Array<*String>
 flags: Array<*FlagEntry>
 positional: Array<*String>
+errorCount: int
+exitCode: int
 frame new() ret *ParsedArgs
 frame setFlag(this: *ParsedArgs, key: String, value: String)
 frame getFlag(this: *ParsedArgs, name: string) ret Option<*String>
@@ -208,9 +210,12 @@ frame destroy(this: *ParsedArgs)
 struct ArgParser
 root: *Command
 frame new(rootCmd: *Command) ret ArgParser
+frame applyDefaults(command: *Command, parsed: *ParsedArgs)
+frame validateArguments(command: *Command, parsed: *ParsedArgs, start: int)
 frame reportError(format: string, argument: string)
 frame namesFlag(argStr: string, name: string) ret bool
 frame matchFlag(this: *ArgParser, currentCmd: *Command, argStr: string) ret Option<*Flag>
+frame isNegativeNumber(text: string) ret bool
 frame parse(this: *ArgParser, args: *Args) ret *ParsedArgs
 ```
 
