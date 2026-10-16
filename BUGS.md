@@ -5770,3 +5770,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   imported internal dependencies. Struct checking now retains every resolved
   field type, and generic member access uses it before applying substitutions.
   Cross-module private generic fields and the Map bucket regression cover this.
+
+## Fixed arena reset block reuse (2026-10-16)
+
+- Reset cleared every retained block, but allocation checked only current and
+  mapped a new block instead of visiting its retained successors. Dedicated
+  large allocations also always mapped anew after reset. Allocation now searches
+  the retained chain before mapping. Sanitizer tests at O0/O3 assert identical
+  pointers across 100 reset cycles for multi-block and large-allocation cases.
+  Audit S7.

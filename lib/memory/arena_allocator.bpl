@@ -48,19 +48,22 @@ struct ArenaAllocator: Allocator {
         # Align to 8 bytes
         if ((size % 8) != 0)
             size = size + (cast<ulong>(8) - (size % 8));
-        # 1. Large allocation: If size is > default block size, allocate separate block
-        #    This prevents a huge allocation from filling a standard block and causing fragmentation
-        if (size > this.default_block_size) {
-            return this.alloc_large(size);
-        }
-        # 2. Try current block
-        if (this.current != nullptr) {
-            local available: ulong = this.current.capacity - this.current.used;
+        # Reuse the retained chain after reset before mapping another block.
+        # During ordinary bump allocation this normally visits only current.
+        local candidate: *ArenaBlock = this.current;
+        if (candidate == nullptr) { candidate = this.head; }
+        loop (candidate != nullptr) {
+            local available: ulong = candidate.capacity - candidate.used;
             if (available >= size) {
-                local ptr: *void = cast<*void>(cast<ulong>(this.current.data) + this.current.used);
-                this.current.used = this.current.used + size;
+                local ptr: *void = cast<*void>(cast<ulong>(candidate.data) + candidate.used);
+                candidate.used = candidate.used + size;
+                this.current = candidate;
                 return ptr;
             }
+            candidate = candidate.next;
+        }
+        if (size > this.default_block_size) {
+            return this.alloc_large(size);
         }
         return this.grow_and_alloc(size);
     }
