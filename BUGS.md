@@ -6038,3 +6038,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   specializing the checker return type. O0/O3 LLVM-verified tests cover generic
   narrow arguments/returns, pointer receivers, void returns and one evaluation
   of a receiver expression. Existing operator and integer range suites pass.
+
+## Fixed invalid initializer diagnostic cascades (2026-10-16)
+
+- A typed local with a failed initializer was absent from its scope, causing
+  false undefined-symbol diagnostics on following uses. During error collection,
+  preserve the validated declared type and suppress unused diagnostics for the
+  rejected binding. Never replace an existing declaration or invent an unknown
+  type. All 258 typechecker tests and 102 CLI JSON/recovery tests pass; typecheck
+  and lint pass. Other recovery paths still require review.

@@ -884,7 +884,31 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Variable Declaration ==========
 
   private checkVariableDecl(decl: AST.VariableDecl): void {
-    StmtChecker.checkVariableDecl.call(this, decl);
+    const scope = this.currentScope;
+    try {
+      StmtChecker.checkVariableDecl.call(this, decl);
+    } catch (error) {
+      // A known declared type remains useful after an invalid initializer.
+      // Keep that binding during diagnostic collection, without inventing a
+      // type for unknown declarations or replacing an existing declaration.
+      if (
+        this.collectAllErrors &&
+        error instanceof CompilerError &&
+        typeof decl.name === "string" &&
+        decl.resolvedType &&
+        !scope.getInCurrentScope(decl.name)
+      ) {
+        scope.define({
+          name: decl.name,
+          kind: "Variable",
+          type: decl.resolvedType,
+          declaration: decl,
+          isConst: decl.isConst,
+          used: true,
+        });
+      }
+      throw error;
+    }
   }
 
   // ========== Function Body Checking ==========
