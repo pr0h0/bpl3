@@ -5663,6 +5663,7 @@ function assertPackedFileAllowlist(
     ".worktrees/",
     "benchmark/",
     "compiler/",
+    "docs/audits/",
     "fuzz/",
     "node_modules/",
     "playground/",

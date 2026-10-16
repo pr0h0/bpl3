@@ -5999,3 +5999,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   requires both the primary guard error and the subsequent undefined-symbol
   diagnostic. All 21 focused recovery/match tests, typecheck and lint pass.
   This is a C12 follow-up; other recovery issues remain open.
+
+## Fixed local audit files leaking into release archives (2026-10-16)
+
+- Preparing v0.1.0 found npm pack included docs/audits despite the repository's
+  gitignore rule: explicitly including docs in package.json bypassed that
+  exclusion. The existing release allowlist accepted all docs and missed the
+  leak. Add a nested docs/.npmignore exclusion and an actual npm-pack regression
+  that retains public docs while excluding local findings and reproductions.
+  The release smoke allowlist now rejects docs/audits independently as well.
+  All 73 packaging/workflow tests pass; the rebuilt archive has zero audit files
+  and all 16 manifest checksums verify. No affected archive was published.

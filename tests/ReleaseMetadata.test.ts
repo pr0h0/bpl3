@@ -1778,3 +1778,59 @@ function writeReleaseFixture(tempRoot: string): void {
     "runtime support\n",
   );
 }
+
+test("npm packaging retains public docs and excludes locally ignored audits", () => {
+  const root = mkdtempSync(join(tmpdir(), "bpl-audit-pack-"));
+  try {
+    writeFileSync(
+      join(root, "package.json"),
+      JSON.stringify({
+        name: "bpl-audit-pack-test",
+        version: "0.1.0",
+        files: ["docs"],
+      }),
+    );
+    mkdirSync(join(root, "docs", "audits", "repros"), { recursive: true });
+    mkdirSync(join(root, "docs", "releases"));
+    writeFileSync(join(root, ".gitignore"), "/docs/audits/\n");
+    writeFileSync(
+      join(root, "docs", ".npmignore"),
+      readFileSync(join(import.meta.dir, "../docs/.npmignore")),
+    );
+    writeFileSync(join(root, "docs", "guide.md"), "public guide");
+    writeFileSync(
+      join(root, "docs", "releases", "v0.1.0.md"),
+      "public release notes",
+    );
+    writeFileSync(
+      join(root, "docs", "audits", "findings.md"),
+      "local findings",
+    );
+    writeFileSync(
+      join(root, "docs", "audits", "repros", "case.bpl"),
+      "local reproduction",
+    );
+    const result = spawnSync(
+      process.platform === "win32" ? "npm.cmd" : "npm",
+      ["pack", "--dry-run", "--json", "--ignore-scripts"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 30000,
+        shell: process.platform === "win32",
+      },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    const report = JSON.parse(result.stdout) as Array<{
+      files: Array<{ path: string }>;
+    }>;
+    const paths = report[0]!.files.map((file) =>
+      file.path.replaceAll("\\", "/"),
+    );
+    expect(paths).toContain("docs/guide.md");
+    expect(paths).toContain("docs/releases/v0.1.0.md");
+    expect(paths.filter((path) => path.startsWith("docs/audits/"))).toEqual([]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}, 60000);
