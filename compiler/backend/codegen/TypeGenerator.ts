@@ -19,15 +19,23 @@ import {
  * DWARF basic type information: [displayName, sizeInBits, encoding]
  * Encoding values: 2=boolean, 4=float, 5=signed, 6=signed_char, 7=unsigned, 8=unsigned_char
  */
-const DWARF_BASIC_TYPES: Record<string, [string, number, number]> = Object.fromEntries(
-  Object.entries(PRIMITIVE_TYPES).map(([name, info]) => [
-    name,
-    [info.debugName, info.kind === "boolean" ? 8 : info.bits, info.debugEncoding],
-  ]),
-);
+const DWARF_BASIC_TYPES: Record<string, [string, number, number]> =
+  Object.fromEntries(
+    Object.entries(PRIMITIVE_TYPES).map(([name, info]) => [
+      name,
+      [
+        info.debugName,
+        info.kind === "boolean" ? 8 : info.bits,
+        info.debugEncoding,
+      ],
+    ]),
+  );
 const SIMPLE_BUILTIN_LLVM_TYPES: Record<string, string> = {
   ...Object.fromEntries(
-    Object.entries(PRIMITIVE_TYPES).map(([name, info]) => [name, info.llvmType]),
+    Object.entries(PRIMITIVE_TYPES).map(([name, info]) => [
+      name,
+      info.llvmType,
+    ]),
   ),
   void: "void",
   string: "i8*",
@@ -105,9 +113,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     return isLoweredFixedArrayTypeNode(type);
   }
 
-  protected getArrayElementTypeNode(
-    type: ArrayTypeNode,
-  ): ArrayTypeNode {
+  protected getArrayElementTypeNode(type: ArrayTypeNode): ArrayTypeNode {
     const element = {
       ...type,
       arrayDimensions: type.arrayDimensions.slice(1),
@@ -224,7 +230,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     return mangled;
   }
 
-  private mangleTypeList(types: AST.TypeNode[], emptyValue: string = ""): string {
+  private mangleTypeList(
+    types: AST.TypeNode[],
+    emptyValue: string = "",
+  ): string {
     if (types.length === 0) return emptyValue;
 
     let result = this.mangleType(types[0]!);
@@ -257,7 +266,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
             pointerDepth: type.pointerDepth - 1,
           };
           const pointeeId = this.getDwarfTypeId(pointeeType, depth + 1);
-          return this.debugInfoGenerator.createPointerType(pointeeId, pointerBits);
+          return this.debugInfoGenerator.createPointerType(
+            pointeeId,
+            pointerBits,
+          );
         }
       }
       // Fallback for other pointer types (e.g. function pointers, or if we can't deduce)
@@ -298,7 +310,11 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     }
 
     // Check primitive type using lookup table
-    if (primitiveName && type.kind === "BasicType" && type.arrayDimensions.length === 0) {
+    if (
+      primitiveName &&
+      type.kind === "BasicType" &&
+      type.arrayDimensions.length === 0
+    ) {
       const dwarfInfo = DWARF_BASIC_TYPES[primitiveName];
       if (dwarfInfo) {
         return this.debugInfoGenerator.createBasicType(
@@ -333,7 +349,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
     // Lambda Types (Closures)
     if (type.kind === "LambdaType") {
-      const voidPtrId = this.debugInfoGenerator.createPointerType(0, pointerBits);
+      const voidPtrId = this.debugInfoGenerator.createPointerType(
+        0,
+        pointerBits,
+      );
       const fileId = this.debugInfoGenerator.getFileNodeId(
         this.currentFilePath,
       );
@@ -401,8 +420,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         }
 
         const elementTypeId = this.getDwarfTypeId(elementTypeNode, depth + 1);
-        const ptrTypeId =
-          this.debugInfoGenerator.createPointerType(elementTypeId, pointerBits);
+        const ptrTypeId = this.debugInfoGenerator.createPointerType(
+          elementTypeId,
+          pointerBits,
+        );
         const i64TypeId = this.debugInfoGenerator.createBasicType(
           "long",
           64,
@@ -535,7 +556,8 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         let offset = 0;
 
         const layout = this.getTypeLayout(type);
-        const hiddenFields = (layout.offsets?.length ?? fields.length) - fields.length;
+        const hiddenFields =
+          (layout.offsets?.length ?? fields.length) - fields.length;
         for (let i = 0; i < fields.length; i++) {
           const field = fields[i]!;
           const fieldTypeId = this.getDwarfTypeId(field.type, depth + 1);
@@ -551,7 +573,6 @@ export abstract class TypeGenerator extends StructEnumGenerator {
             fieldTypeId,
           );
           elements.push(memberId);
-
         }
 
         return this.debugInfoGenerator.createStructType(
@@ -588,7 +609,6 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           fieldTypeId,
         );
         elements.push(memberId);
-
       }
 
       return this.debugInfoGenerator.createStructType(
@@ -1147,7 +1167,9 @@ export abstract class TypeGenerator extends StructEnumGenerator {
 
   protected isPrimitiveType(name: string): boolean {
     return (
-      getPrimitiveType(name) !== undefined || name === "void" || name === "string"
+      getPrimitiveType(name) !== undefined ||
+      name === "void" ||
+      name === "string"
     );
   }
 
@@ -1315,7 +1337,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           parameters.forEach((parameter, index) => {
             argumentsMap.set(
               parameter.name,
-              this.substituteType(basic.genericArgs[index]!, this.currentTypeMap),
+              this.substituteType(
+                basic.genericArgs[index]!,
+                this.currentTypeMap,
+              ),
             );
           });
           const target = this.substituteType(alias.type, argumentsMap);
@@ -1568,8 +1593,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           if (basicType.variableDeclaration) {
             codeGenLog.debug("Resolving VariableDecl/Parameter type...");
             const decl = basicType.variableDeclaration as
-              | AST.VariableDecl
-              | AST.Parameter;
+              AST.VariableDecl | AST.Parameter;
             let declType: AST.TypeNode | undefined;
             if (decl.kind === "VariableDecl") {
               declType = decl.typeAnnotation;
@@ -1607,7 +1631,8 @@ export abstract class TypeGenerator extends StructEnumGenerator {
             const ptrDiff = totalMods.pointerDepth - declMods.pointerDepth;
             const arrDiff = totalMods.arrayDimensions.slice(
               0,
-              totalMods.arrayDimensions.length - declMods.arrayDimensions.length,
+              totalMods.arrayDimensions.length -
+                declMods.arrayDimensions.length,
             );
             codeGenLog.debug(`Diff: ptr=${ptrDiff}, arr=${arrDiff}`);
 
@@ -1705,7 +1730,9 @@ export abstract class TypeGenerator extends StructEnumGenerator {
                     const structDecl =
                       basicType.resolvedDeclaration as AST.StructDecl;
                     llvmType = `%struct.${structDecl.name}`;
-                  } else if (basicType.resolvedDeclaration.kind === "SpecDecl") {
+                  } else if (
+                    basicType.resolvedDeclaration.kind === "SpecDecl"
+                  ) {
                     llvmType = "{ i8*, i8* }";
                   } else {
                     llvmType = `%struct.${basicType.name}`;
@@ -1822,7 +1849,8 @@ export abstract class TypeGenerator extends StructEnumGenerator {
         const argument = type.genericArgs[index];
         if (argument) {
           argumentsMap.set(
-            parameter.name, this.resolveInstantiatedValueType(argument, visiting),
+            parameter.name,
+            this.resolveInstantiatedValueType(argument, visiting),
           );
         }
       });
@@ -1840,7 +1868,10 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     if (type.kind === "FunctionType" || type.kind === "LambdaType") {
       return {
         ...type,
-        returnType: this.resolveInstantiatedValueType(type.returnType, visiting),
+        returnType: this.resolveInstantiatedValueType(
+          type.returnType,
+          visiting,
+        ),
         paramTypes: type.paramTypes.map((parameter) =>
           this.resolveInstantiatedValueType(parameter, visiting),
         ),
@@ -2083,17 +2114,16 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           // this.definedFunctions.add(fullMangledName); // Removed to allow generation
 
           const generate = () => {
-            const oldName = method.name;
-            method.name = `${mangledName}_${method.name}`;
             const prevMap = this.currentTypeMap;
             this.currentTypeMap = typeMap;
-
-            // We pass instantiatedStruct as parent to generateFunction
-            // This correctly sets up "this" type and destructor chaining
-            this.generateFunction(method, instantiatedStruct);
-
-            this.currentTypeMap = prevMap;
-            method.name = oldName;
+            try {
+              this.generateFunction(
+                { ...method, name: methodName },
+                instantiatedStruct,
+              );
+            } finally {
+              this.currentTypeMap = prevMap;
+            }
           };
           if (this.isMethodEmitted(method.name)) {
             this.pendingGenerations.push(generate);
@@ -2246,14 +2276,14 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           const innerPrevMap = this.currentTypeMap;
           this.currentTypeMap = typeMap;
 
-          const oldName = method.name;
-          method.name = mangledMethodName;
-
-          // We pass instantiatedDecl as parent so 'this' resolves to the concrete enum
-          this.generateFunction(method, instantiatedDecl);
-
-          method.name = oldName;
-          this.currentTypeMap = innerPrevMap;
+          try {
+            this.generateFunction(
+              { ...method, name: mangledMethodName },
+              instantiatedDecl,
+            );
+          } finally {
+            this.currentTypeMap = innerPrevMap;
+          }
         });
       }
     }

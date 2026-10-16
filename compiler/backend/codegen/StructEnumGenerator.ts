@@ -36,7 +36,8 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     if (
       field.type.kind === "BasicType" &&
       (field.type.genericArgs.length > 0 ||
-        (field.resolvedType?.kind === "BasicType" && field.resolvedType.genericArgs.length > 0))
+        (field.resolvedType?.kind === "BasicType" &&
+          field.resolvedType.genericArgs.length > 0))
     ) {
       return field.type;
     }
@@ -251,9 +252,7 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
   }
 
   protected getEntrySimpleName(entry: string): string | null {
-    if (
-      this.vtableEntrySimpleNameCacheStructCount !== this.structMap.size
-    ) {
+    if (this.vtableEntrySimpleNameCacheStructCount !== this.structMap.size) {
       this.vtableEntrySimpleNameCache.clear();
       this.vtableEntrySimpleNameCacheStructCount = this.structMap.size;
     }
@@ -509,10 +508,7 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
         if (member.kind !== "FunctionDecl") continue;
         const methodMangledName = `${structName}_${member.name}`;
         this.deferDefinition(`${methodMangledName}_`, () => {
-          const oldName = member.name;
-          member.name = methodMangledName;
-          this.generateFunction(member, decl);
-          member.name = oldName;
+          this.generateFunction({ ...member, name: methodMangledName }, decl);
         });
       }
       return;
@@ -536,26 +532,16 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
         const methodMangledName = `${structName}_${method.name}`;
         if (!this.isMethodEmitted(method.name)) {
           this.deferDefinition(`${methodMangledName}_`, () => {
-            const oldName = method.name;
-            method.name = methodMangledName;
-            this.generateFunction(method, decl);
-            method.name = oldName;
+            this.generateFunction({ ...method, name: methodMangledName }, decl);
           });
           continue;
         }
-        const originalName = method.name;
-
         if (this.currentFunctionName) {
           this.pendingGenerations.push(() => {
-            const oldName = method.name;
-            method.name = methodMangledName;
-            this.generateFunction(method, decl);
-            method.name = oldName;
+            this.generateFunction({ ...method, name: methodMangledName }, decl);
           });
         } else {
-          method.name = methodMangledName;
-          this.generateFunction(method, decl);
-          method.name = originalName;
+          this.generateFunction({ ...method, name: methodMangledName }, decl);
         }
       }
     }
@@ -579,13 +565,17 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
       // Prefer the exact emitted representation (aliases, slices and closures
       // have already been lowered here).
       const prefix = `${name} = type `;
-      const emitted = this.declarationsOutput.find((line) => line.startsWith(prefix));
+      const emitted = this.declarationsOutput.find((line) =>
+        line.startsWith(prefix),
+      );
       if (emitted) return emitted.slice(prefix.length).trim();
       if (name.startsWith("%struct.")) {
         const decl = this.structMap.get(name.slice(8));
         if (decl) {
           this.computeVTableLayout(decl.name);
-          const fields = this.getAllStructFields(decl).map(field => this.resolveType(field.type));
+          const fields = this.getAllStructFields(decl).map((field) =>
+            this.resolveType(field.type),
+          );
           if (this.vtableLayouts.get(decl.name)?.length) fields.unshift("i8*");
           return `{ ${fields.length ? fields.join(", ") : "i8"} }`;
         }
@@ -594,7 +584,9 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
         const decl = this.enumDeclMap.get(name.slice(6));
         if (decl) {
           const payload = this.getEnumPayloadLayout(decl);
-          return payload.size ? `{ i32, [${payload.size / payload.alignment} x i${payload.alignment * 8}] }` : "{ i32 }";
+          return payload.size
+            ? `{ i32, [${payload.size / payload.alignment} x i${payload.alignment * 8}] }`
+            : "{ i32 }";
         }
       }
       throw new Error(`Missing LLVM layout declaration: ${name}`);
@@ -606,19 +598,22 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
   }
 
   protected getEnumPayloadLayout(decl: AST.EnumDecl): TypeLayout {
-    let size = 0, alignment = 1;
+    let size = 0,
+      alignment = 1;
     for (const variant of decl.variants) {
       let fields: AST.TypeNode[] = [];
       if (variant.dataType?.kind === "EnumVariantTuple") {
         fields = variant.dataType.types;
       } else if (variant.dataType?.kind === "EnumVariantStruct") {
-        fields = variant.dataType.fields.map(field => field.type);
+        fields = variant.dataType.fields.map((field) => field.type);
       }
-      const layout = this.getLayoutCalculator().aggregate(fields.map(type => this.getTypeLayout(type)));
+      const layout = this.getLayoutCalculator().aggregate(
+        fields.map((type) => this.getTypeLayout(type)),
+      );
       size = Math.max(size, layout.size);
       alignment = Math.max(alignment, layout.alignment);
     }
-    return {size: alignTo(size, alignment), alignment};
+    return { size: alignTo(size, alignment), alignment };
   }
 
   protected calculateEnumMaxSize(decl: AST.EnumDecl): number {
@@ -631,10 +626,16 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     return `[${size / alignment} x i${alignment * 8}]`;
   }
 
-  protected getEnumDataFieldByteOffset(fieldTypes: AST.TypeNode[], fieldIndex: number): number {
-    const layout = this.getLayoutCalculator().aggregate(fieldTypes.map(type => this.getTypeLayout(type)));
+  protected getEnumDataFieldByteOffset(
+    fieldTypes: AST.TypeNode[],
+    fieldIndex: number,
+  ): number {
+    const layout = this.getLayoutCalculator().aggregate(
+      fieldTypes.map((type) => this.getTypeLayout(type)),
+    );
     const offset = layout.offsets?.[fieldIndex];
-    if (offset === undefined) throw new Error(`Invalid enum data field index: ${fieldIndex}`);
+    if (offset === undefined)
+      throw new Error(`Invalid enum data field index: ${fieldIndex}`);
     return offset;
   }
 
@@ -692,11 +693,7 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     // Only generate methods for non-generic enums.
     // For monomorphized enums (when mangledName is provided), methods are queued
     // separately in instantiateGenericEnum() with proper type substitution.
-    if (
-      decl.genericParams.length === 0 &&
-      !mangledName &&
-      decl.methods
-    ) {
+    if (decl.genericParams.length === 0 && !mangledName && decl.methods) {
       for (const method of decl.methods) {
         const methodMangledName = `${enumName}_${method.name}`;
         if (
@@ -704,26 +701,16 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
           !this.isMethodEmitted(method.name)
         ) {
           this.deferDefinition(`${methodMangledName}_`, () => {
-            const oldName = method.name;
-            method.name = methodMangledName;
-            this.generateFunction(method, decl);
-            method.name = oldName;
+            this.generateFunction({ ...method, name: methodMangledName }, decl);
           });
           continue;
         }
-        const originalName = method.name;
-
         if (this.currentFunctionName) {
           this.pendingGenerations.push(() => {
-            const oldName = method.name;
-            method.name = methodMangledName;
-            this.generateFunction(method, decl);
-            method.name = oldName;
+            this.generateFunction({ ...method, name: methodMangledName }, decl);
           });
         } else {
-          method.name = methodMangledName;
-          this.generateFunction(method, decl);
-          method.name = originalName;
+          this.generateFunction({ ...method, name: methodMangledName }, decl);
         }
       }
     }

@@ -5852,3 +5852,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   copies first, then releases the previous value. O0/O3 sanitizer tests cover
   the complete stored String and a borrowed suffix. The parse-loop leaks and
   configuration gaps from audit S5 remain separate work.
+
+## Fixed recursive method ownership during emission (2026-10-16)
+
+- Method emission temporarily changed declaration names to linker names. A
+  recursive call could no longer find its own override and fell back to an
+  inherited method. Command.destroy therefore called the empty Type.destroy
+  on subcommands, leaking their fields. Generate named copies without mutating
+  declarations, including deferred/generic/enum emission; restore generic maps
+  in finally blocks. O0/O3 tests cover recursive overriding methods/destructors
+  and sanitizer-clean recursive command cleanup.
