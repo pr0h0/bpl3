@@ -32,10 +32,11 @@ node/key/value storage but invalidates iterators; remove/clear/destroy also
 invalidate references to removed entries. Custom hash/equality callbacks must be
 stable, non-mutating, and non-throwing.
 
-Default keys use value equality. Integer and boolean keys have numeric hashes;
+Default keys use value equality. Numeric and pointer hashes pass through a
+64-bit mixing step so strides do not collapse into power-of-two buckets;
 `string` and `String` keys use content hashing and equality. Floating-point keys
 treat positive/negative zero as the same key and all NaNs as the same key.
-Other equality-comparable keys use their `==` operation with a constant hash,
+Other equality-comparable compound keys use their `==` operation with a constant hash,
 which is correct but gives linear lookup. Supply the custom
 `Map<K, V>.new(capacity, hasher, equaler)` overload for efficient compound keys.
 Custom equality must be an equivalence relation, and equal keys must have equal

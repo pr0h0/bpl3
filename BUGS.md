@@ -5787,3 +5787,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   flag and retains support for explicit legacy noRun options. A real CLI test
   waits for watcher readiness and verifies execution with/without the flag.
   Audit T3.
+
+## Fixed strided and pointer Map hash distribution (2026-10-16)
+
+- Default numeric hashing used raw key bits, causing strided keys to share one
+  power-of-two bucket. Pointer keys all used a constant hash. Default hashing
+  now mixes all 64 bits and hashes pointer addresses, retaining float zero/NaN
+  equality rules and user-supplied callback behavior. O0/O3 sanitizer regressions
+  check distribution and lookups before/after growth. Compound keys retain the
+  equality-safe constant fallback rather than hashing padding bytes. Audit S1.

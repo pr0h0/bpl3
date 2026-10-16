@@ -11,12 +11,21 @@ import [Option] from "std/option.bpl";
 import [Iterable], [Iterator] from "std/iter_specs.bpl";
 import [Destructible], [Equatable] from "std/core_specs.bpl";
 import [String] from "std/string.bpl";
+import [TypeInfo], {TYPE_KIND_POINTER} from "std/reflection.bpl";
 
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
 
-# Default Hasher
+# SplitMix64 finalizer distributes numeric strides across power-of-two buckets.
+# Deterministic, noncryptographic; custom hash callbacks keep their own policy.
 frame _mapDefaultHash<T>(val: *T) ret u64 {
+    local h: u64 = _mapRawHash<T>(val);
+    h = (h ^ (h >> 30)) * cast<u64>(0xbf58476d1ce4e5b9);
+    h = (h ^ (h >> 27)) * cast<u64>(0x94d049bb133111eb);
+    return h ^ (h >> 31);
+}
+
+frame _mapRawHash<T>(val: *T) ret u64 {
     if (typeof<T>() == typeof<bool>()) {
         return cast<u64>(*cast<*bool>(val));
     }
@@ -91,6 +100,10 @@ frame _mapDefaultHash<T>(val: *T) ret u64 {
     if (typeof<T>() == typeof<String>()) {
         local s: *String = cast<*String>(val);
         return s.hash();
+    }
+    local info: *TypeInfo = typeof<T>();
+    if (info.kind == TYPE_KIND_POINTER) {
+        return cast<u64>(*cast<**void>(val));
     }
     # Equality-comparable compound keys use a correct constant hash.
     # Supply a custom hasher/equaler for well-distributed compound-key hashing.
