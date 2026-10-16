@@ -324,7 +324,11 @@ export function checkCall(
         targetType: calleeType,
         methodDeclaration: method,
       };
-      return this.resolveType(method.returnType);
+      return this.resolveType(
+        context?.genericMap
+          ? this.substituteType(method.returnType, context.genericMap)
+          : method.returnType,
+      );
     }
 
     throw new CompilerError(

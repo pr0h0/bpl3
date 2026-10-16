@@ -6029,9 +6029,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   recursively construct the destructuring destination tuple for the shared
   range checker. Nested tuples and conditional tuple expressions are covered.
 
-## Open: generic callable operator code generation (2026-10-16)
+## Fixed generic callable operator code generation (2026-10-16)
 
 - A valid Item<u8> with __call__(this:*Item<T>,x:T) passes checking but
   emits an unresolved generic method name and an i32 argument instead of u8.
   Clang rejects the undefined function. Found while testing conversion fixes;
-  requires specialization of callable operator metadata/code generation.
+  fixed by routing callable operators through ordinary method lowering and
+  specializing the checker return type. O0/O3 LLVM-verified tests cover generic
+  narrow arguments/returns, pointer receivers, void returns and one evaluation
+  of a receiver expression. Existing operator and integer range suites pass.
