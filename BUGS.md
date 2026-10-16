@@ -5844,3 +5844,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   genuine missing-return errors. Tests preserve the primary diagnostics and
   warning-plus-missing-return behavior. This repairs the JSON contract regression
   found by the full CI-safe run, and addresses part of audit C12.
+
+## Fixed parsed flag replacement aliasing (2026-10-16)
+
+- Passing a stored flag value back to ParsedArgs.setFlag freed its input before
+  copying it. AddressSanitizer confirmed a heap-use-after-free. Replacement now
+  copies first, then releases the previous value. O0/O3 sanitizer tests cover
+  the complete stored String and a borrowed suffix. The parse-loop leaks and
+  configuration gaps from audit S5 remain separate work.

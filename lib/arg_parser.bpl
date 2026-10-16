@@ -268,8 +268,10 @@ struct ParsedArgs: Destructible {
         loop (i < this.flags.len()) {
             local entry: *FlagEntry = this.flags.get(i);
             if (strcmp(entry.key.data, key.data) == 0) {
+                # value may borrow the stored String being replaced.
+                local replacement: String = String.new(value.data);
                 entry.value.destroy();
-                *entry.value = String.new(value.data);
+                *entry.value = replacement;
                 return;
             }
             i = i + 1;
