@@ -5897,3 +5897,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   a field of that width. It now uses printf's left-aligned minimum field width
   and treats negative widths as zero. O0/O3 tests cover shorter/longer/empty
   strings, UTF-8 byte widths, zero, and INT_MIN without enormous padding.
+
+## Fixed UTF-8 bulk decoding dropping following bytes (2026-10-16)
+
+- Confirmed: toCodepoints on E2 41 42 43 returns U+FFFD and C, discarding A/B.
+  It advances by the lead byte's nominal length even when decoding rejects the
+  sequence. Recovery must consume one byte per malformed byte and preserve valid
+  encoded U+FFFD. The correction passes O0/O3 sanitizer tests for invalid leads,
+  continuations, truncated tails, following ASCII and valid U+FFFD/emoji.

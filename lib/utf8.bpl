@@ -249,6 +249,14 @@ struct UTF8 {
             local cp: u32 = UTF8._decodeCodepoint(s, i, cast<long>(len));
             result.push(cp);
             local cpLen: int = UTF8.codepointByteLength(ptr[i]);
+            # Invalid sequences consume one byte, preserving any following text.
+            # A valid encoded U+FFFD still consumes its complete three bytes.
+            if (cp == cast<u32>(0xFFFD)) {
+                if (((len - i) < 3) || (ptr[i] != cast<u8>(0xEF))
+                    || (ptr[i + 1] != cast<u8>(0xBF)) || (ptr[i + 2] != cast<u8>(0xBD))) {
+                    cpLen = 1;
+                }
+            }
             i = i + cpLen;
         }
 

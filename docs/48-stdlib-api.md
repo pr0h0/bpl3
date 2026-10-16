@@ -607,3 +607,7 @@ parse and releases partial allocations. Unknown fields continue to be skipped.
 reach a minimum total width in bytes. Longer text is preserved, negative widths
 add no padding, and no newline is appended. For example, text `abc` at width 5
 prints `abc  `. Width counts UTF-8 bytes rather than terminal display columns.
+
+`UTF8.toCodepoints` returns decoded scalar values. Each malformed input byte
+produces U+FFFD and advances by one byte, so following valid bytes are preserved.
+A valid UTF-8 encoding of U+FFFD is consumed as one complete codepoint.
