@@ -17,6 +17,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
+import { getCompilerFingerprint } from "./common/CompilerFingerprint";
 import { resolveBplPath } from "./common/PathResolver";
 import { getHostTargetTriple } from "./common/HostTarget";
 import { CodeGenerator } from "./backend/CodeGenerator";
@@ -36,7 +37,10 @@ import {
   type ModuleCompileInput,
   type ModuleCacheStats,
 } from "./middleend/ModuleCache";
-import { createModuleCacheContent } from "./middleend/ModuleCacheKey";
+import {
+  createModuleCacheContent,
+  withCompilerCacheKey,
+} from "./middleend/ModuleCacheKey";
 import { ModuleResolver, type ModuleInfo } from "./middleend/ModuleResolver";
 import { TypeChecker } from "./middleend/TypeChecker";
 
@@ -383,9 +387,14 @@ export class Compiler {
   }
 
   private withRenameKey(content: string): string {
+    const codegenContent = withCompilerCacheKey(content, {
+      compilerFingerprint: getCompilerFingerprint(),
+      dwarf: this.options.dwarf ?? false,
+      treeShakeTopLevelFunctions: this.options.treeShakeTopLevelFunctions ?? false,
+    });
     return this.moduleSymbolRenameKey
-      ? `${content}\n#renames\n${this.moduleSymbolRenameKey}`
-      : content;
+      ? `${codegenContent}\n#renames\n${this.moduleSymbolRenameKey}`
+      : codegenContent;
   }
 
   private compileWithModuleResolution(sourceCode: string): CompilationResult {

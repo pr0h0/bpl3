@@ -5805,3 +5805,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   unchanged. Documentation and generated declarations reflect the absence of
   thread/synchronization/adaptor APIs. Tests check all three rejected imports.
   Audit S8.
+
+## Fixed module cache invalidation for compiler changes (2026-10-16)
+
+- Native cache keys omitted compiler identity, DWARF and tree-shaking options.
+  Cached builds now fingerprint compiler sources and grammar in development, or
+  the running standalone binary, and include both missing options. Private
+  dependency changes still use interface-based invalidation. Tests exercise
+  changed compiler identities and real cached builds with tree-shaking changes.
+  Audit C11. Full-IR keys were rejected because they unnecessarily invalidated
+  importers after private dependency changes.

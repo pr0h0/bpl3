@@ -1320,17 +1320,21 @@ bpl build main.bpl --cache
 
 Cached modules are stored in `.bpl-cache/`. Cache entries include the compiler
 module-cache format version, target, optimization level, compiler driver,
-sysroot, and extra clang flags, so stale manifests from older cache formats are
-ignored automatically. Symlinked, broken-symlink, or symlink-parent
+sysroot, and extra clang flags. Compiler cache keys also include DWARF and tree
+shaking settings plus a fingerprint of compiler sources and grammar (source
+installation) or the standalone executable. The fingerprint is computed once per
+compiler process. Dependency interface keys still preserve reuse after unrelated
+private dependency changes. Stale cache-format manifests are ignored automatically.
+Symlinked, broken-symlink, or symlink-parent
 `.bpl-cache` paths are rejected before cached object writes, manifest writes,
 and cache cleaning. Cached-object lookups and cache stats ignore object files
 that are only reachable through symlinked parents instead of reusing external
 cache files. Cached linked executable outputs also reject symlinked parent path
 components before compiler-driver invocation or final rename. Use `bpl clean` to
 clear cache manually.
-The module cache backend can compile independent LLVM module inputs with a
-bounded parallel job pool; the current CLI cache path still emits one combined
-program object until true per-module IR generation is wired into the front end.
+With one compilation job, cached builds emit a combined program object. With
+`--jobs` greater than one, the compiler emits separate module objects and
+compiles them in a bounded parallel job pool.
 
 ## WebAssembly Output
 

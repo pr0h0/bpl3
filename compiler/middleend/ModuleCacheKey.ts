@@ -4,6 +4,18 @@ import * as path from "path";
 import type * as AST from "../common/AST";
 import type { ModuleInfo } from "./ModuleResolver";
 
+/** Compiler identity and codegen options complement dependency interface keys. */
+export function withCompilerCacheKey(
+  content: string,
+  options: {
+    compilerFingerprint: string;
+    dwarf: boolean;
+    treeShakeTopLevelFunctions: boolean;
+  },
+): string {
+  return `${content}\n#compiler-codegen=${JSON.stringify(options)}`;
+}
+
 export function createModuleCacheContent(
   modules: ModuleInfo[],
   currentModule: ModuleInfo,
@@ -123,10 +135,7 @@ function getExportedNames(ast: AST.Program): Set<string> {
 }
 
 type NamedTypeDeclaration =
-  | AST.StructDecl
-  | AST.SpecDecl
-  | AST.EnumDecl
-  | AST.TypeAliasDecl;
+  AST.StructDecl | AST.SpecDecl | AST.EnumDecl | AST.TypeAliasDecl;
 
 function getTypeDeclarationOwners(
   modules: ModuleInfo[],
