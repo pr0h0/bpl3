@@ -4,7 +4,11 @@
  */
 
 import * as AST from "../common/AST";
-import { CompilerError, DiagnosticSeverity, type SourceLocation } from "../common/CompilerError";
+import {
+  CompilerError,
+  DiagnosticSeverity,
+  type SourceLocation,
+} from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
 import {
@@ -896,6 +900,22 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     decl: AST.FunctionDecl,
     parentStruct?: AST.StructDecl | AST.EnumDecl,
   ): void {
+    const previousScope = this.currentScope;
+    const previousReturnType = this.currentFunctionReturnType;
+    try {
+      this.checkFunctionBodyInScope(decl, parentStruct);
+    } finally {
+      // Recovery must not expose a failed function's parameters or return type
+      // to subsequent declarations, including failures before body checking.
+      this.currentScope = previousScope;
+      this.currentFunctionReturnType = previousReturnType;
+    }
+  }
+
+  private checkFunctionBodyInScope(
+    decl: AST.FunctionDecl,
+    parentStruct?: AST.StructDecl | AST.EnumDecl,
+  ): void {
     this.currentScope = this.currentScope.enterScope();
 
     if (parentStruct) {
@@ -1074,7 +1094,6 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       decl.location,
     );
 
-    const prevReturnType = this.currentFunctionReturnType;
     this.currentFunctionReturnType = decl.returnType;
     const prevReboundParameters = this.reboundParameters;
     this.reboundParameters = collectReboundParameters(decl);
@@ -1090,7 +1109,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     // their primary diagnostic instead of cascading into a missing return.
     let bodyHasErrors = false;
     for (let i = bodyDiagnosticStart; i < this.errors.length; i++) {
-      if (this.errors[i]!.toDiagnostic().severity === DiagnosticSeverity.Error) {
+      if (
+        this.errors[i]!.toDiagnostic().severity === DiagnosticSeverity.Error
+      ) {
         bodyHasErrors = true;
         break;
       }
@@ -1126,9 +1147,6 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         throw error;
       }
     }
-
-    this.currentFunctionReturnType = prevReturnType;
-    this.currentScope = this.currentScope.exitScope();
   }
 
   // ========== Struct Body Checking ==========

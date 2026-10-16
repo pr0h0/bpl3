@@ -5880,3 +5880,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   edits to an unresolved native symbol, then corrects the source and verifies
   successful execution in the same watcher. Ordinary run exit codes are unchanged.
   This addresses audit T4.
+
+## Fixed function-checking scope recovery (2026-10-16)
+
+- Missing-return and invalid variadic-signature errors could escape before
+  restoring function scope and return type. With diagnostic collection enabled,
+  parameters from that failed function were then visible to later declarations.
+  Function checking now restores its entry scope and return type in finally,
+  including failures before the body is checked. Regressions confirm the later
+  function correctly reports its undefined identifier after both failure paths.
+  This addresses another concrete recovery issue from audit C12.
