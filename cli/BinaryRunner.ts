@@ -335,7 +335,7 @@ export function compileBinaryAndRun(
   const compileResult = compileToBinary(irPath, options);
 
   if (!compileResult.success) {
-    if (options.json) {
+    if (options.json || options.watch) {
       throw new Error(compileResult.error || "Compilation failed");
     }
     log.error(compileResult.error || "Compilation failed");
@@ -351,6 +351,11 @@ export function compileBinaryAndRun(
     );
 
     if (!runResult.success) {
+      if (options.watch) {
+        throw new Error(
+          runResult.error || `Program exited with code ${runResult.exitCode}`,
+        );
+      }
       if (options.json && runResult.error) {
         throw new Error(runResult.error);
       }

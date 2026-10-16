@@ -5871,3 +5871,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   setter to copy. O0/O3 leak-detecting sanitizer tests cover repeated parsing,
   aliases, replacements, subcommands, positionals and diagnostic paths. This
   addresses S5 ownership; defaults/required/action/terminator behavior remains.
+
+## Fixed development watcher recovery after native failures (2026-10-16)
+
+- Native compile/link failures and nonzero application exits called process.exit
+  even in watch mode. Dev now throws those failures through its existing recovery
+  handler and keeps watching. An actual CLI regression starts with exit code 7,
+  edits to an unresolved native symbol, then corrects the source and verifies
+  successful execution in the same watcher. Ordinary run exit codes are unchanged.
+  This addresses audit T4.
