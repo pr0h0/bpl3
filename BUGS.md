@@ -6213,3 +6213,17 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   the unsigned maximum uses ulong, and returning a local address is rejected.
   Activate the previously assertion-free zero-array and pointer-to-array cases.
   All 57 edge-case tests pass without suppressing diagnostics.
+
+## Rand low-bit repetition (audit S4, 2026-10-16)
+
+- The old generator returned raw low LCG state bits: nextBool strictly alternated
+  and fillBytes repeated every 256 bytes. Replace the output generator with PCG32
+  XSH-RR using the existing 64-bit state field and fixed stream 54. Seed performs
+  the standard warm-up; sequences intentionally differ from earlier versions.
+- Regression checks failed on the old implementation and pass at O0/O3 against
+  PCG's published seed-42 vector. A separate BigInt model checks fractions, signed
+  ranges, full-width seeds, rejection sampling and Gaussian zero resampling.
+  Deterministic tests cover the old boolean and byte cycles across multiple seeds.
+  Weighted-choice rejection still preserves generator state after seed warm-up.
+  This remains a deterministic non-cryptographic generator; API and struct fields
+  are unchanged and no extra runtime dependency is added.
