@@ -115,3 +115,47 @@ for (const removeInstalled of [false, true]) {
     });
   }
 }
+
+test("legacy root migration preserves separately installed packages without guessing intent", () => {
+  const root = mkdtempSync(join(tmpdir(), "bpl-legacy-direct-root-"));
+  try {
+    const app = join(root, "app");
+    const source = join(root, "source");
+    mkdirSync(app);
+    mkdirSync(source);
+    const options = {
+      globalPackageDir: join(root, "cache"),
+      globalBinDir: join(root, "bin"),
+    };
+    writeFileSync(
+      join(app, "bpl.json"),
+      JSON.stringify({ name: "app", version: "0.1.0", dependencies: {} }),
+    );
+    writeFileSync(
+      join(source, "bpl.json"),
+      JSON.stringify({ name: "manual", version: "0.1.0", main: "index.bpl" }),
+    );
+    writeFileSync(join(source, "index.bpl"), "frame value(){}export value;");
+    const archive = new PackageManager(source, options).pack(source);
+    const manager = new PackageManager(app, options);
+    manager.install(archive);
+    const original = JSON.parse(readFileSync(join(app, "bpl.lock"), "utf8"));
+    expect(original.manifestRoots).toBeUndefined();
+    // An unreferenced entry absent from bpl.json can be a deliberate direct
+    // install. The legacy format contains no evidence that it was removed.
+    rmSync(join(app, "bpl_modules"), { recursive: true, force: true });
+    manager.installProject();
+    const migrated = JSON.parse(readFileSync(join(app, "bpl.lock"), "utf8"));
+    expect(migrated.manifestRoots).toEqual([]);
+    expect(migrated.packages.manual).toEqual({
+      ...original.packages.manual,
+      source: "file:../source/manual-0.1.0.tgz",
+    });
+    expect(existsSync(join(app, "bpl_modules", "manual", "index.bpl"))).toBe(
+      true,
+    );
+    expect(manager.verifyLockFile().ok).toBe(true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
