@@ -5989,3 +5989,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   signature inference, in context restoration for scope, return type, control
   depths, defer state and match context. Diagnostic recovery and fail-fast
   regressions pass, along with 26 focused tests, typecheck and lint (C12 follow-up).
+
+## Fixed invalid match guard scope leaks (2026-10-16)
+
+- Confirmed: after an integer-valued guard error, a pattern binding from the
+  rejected arm incorrectly resolved in following statements. Match checking left
+  its arm scope active when an error interrupted the normal exit path. Restore
+  the incoming scope in finally around the entire match check. The regression
+  requires both the primary guard error and the subsequent undefined-symbol
+  diagnostic. All 21 focused recovery/match tests, typecheck and lint pass.
+  This is a C12 follow-up; other recovery issues remain open.

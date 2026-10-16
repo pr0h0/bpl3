@@ -1847,6 +1847,18 @@ export function checkMatchExpr(
   this: CheckerContext,
   expr: AST.MatchExpr,
 ): AST.TypeNode {
+  const previousScope = this.currentScope;
+  try {
+    return checkMatchExprBody.call(this, expr);
+  } finally {
+    this.currentScope = previousScope;
+  }
+}
+
+function checkMatchExprBody(
+  this: CheckerContext,
+  expr: AST.MatchExpr,
+): AST.TypeNode {
   const valueType = this.checkExpression(expr.value);
   if (!valueType) {
     throw new CompilerError(
