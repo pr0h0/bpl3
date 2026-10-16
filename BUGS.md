@@ -5761,3 +5761,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   Tests cover values, pointers, assignment, field initialization, unrelated
   same-named ancestors, valid inheritance and reimporting the same declaration.
   Audit C3.
+
+## Fixed generic field declaration context (2026-10-16)
+
+- Resolved field types were retained only for private aliases. Accessing a
+  generic container field from another module tried to resolve its private
+  container declaration in the caller, rejecting valid methods unless callers
+  imported internal dependencies. Struct checking now retains every resolved
+  field type, and generic member access uses it before applying substitutions.
+  Cross-module private generic fields and the Map bucket regression cover this.

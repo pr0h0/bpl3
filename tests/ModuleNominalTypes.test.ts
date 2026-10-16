@@ -12,6 +12,9 @@ test("same-named declarations in different modules remain nominally distinct", (
       `
       export [P];export [Holder];export [Derived]; export accept; export acceptPointer;
       export [E];enum E{First,Second}
+      export [Wrap];
+      struct Inner<T>{value:T,frame get(this:*Inner<T>)ret T{return this.value;}}
+      struct Wrap<T>{inner:Inner<T>}
       struct P { x:int }
       struct Holder { value:P }
       struct Derived:P { y:int }
@@ -51,6 +54,7 @@ test("same-named declarations in different modules remain nominally distinct", (
     for (const body of [
       "local value:a.P;local target:again.P;target=value;return a.accept(target);",
       "local value:a.Derived;return a.acceptPointer(&value);",
+      "local value:a.Wrap<int>;return value.inner.get();",
     ]) {
       const result = check(body);
       expect(result.status, result.stdout + result.stderr).toBe(0);

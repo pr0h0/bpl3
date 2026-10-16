@@ -1036,7 +1036,7 @@ export function checkMember(
       const member = members[0];
 
       if (member && member.kind === "StructField") {
-        const fieldType = this.resolveType((member as AST.StructField).type);
+        const fieldType = this.resolveType(member.resolvedType ?? (member as AST.StructField).type);
         let resultType = fieldType;
 
         if (genericMap && genericMap.size > 0) {
