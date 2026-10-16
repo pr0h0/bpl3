@@ -1944,6 +1944,28 @@ export function checkLambda(
   this: CheckerContext,
   expr: AST.LambdaExpr,
 ): AST.TypeNode {
+  const previousScope = this.currentScope;
+  const previousReturnType = this.currentFunctionReturnType;
+  const previousLoopDepth = this.loopDepth;
+  const previousSwitchDepth = this.switchDepth;
+  const previousDefer = this.inDefer;
+  const previousMatchContext = this.matchContext;
+  try {
+    return checkLambdaBody.call(this, expr);
+  } finally {
+    this.currentScope = previousScope;
+    this.currentFunctionReturnType = previousReturnType;
+    this.loopDepth = previousLoopDepth;
+    this.switchDepth = previousSwitchDepth;
+    this.inDefer = previousDefer;
+    this.matchContext = previousMatchContext;
+  }
+}
+
+function checkLambdaBody(
+  this: CheckerContext,
+  expr: AST.LambdaExpr,
+): AST.TypeNode {
   // 0. Infer types from context
   let expectedFuncType: AST.FunctionTypeNode | undefined;
   if (this.matchContext && this.matchContext.length > 0) {

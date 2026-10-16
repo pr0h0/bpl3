@@ -5979,3 +5979,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   metadata avoids adding analysis bookkeeping to serialized syntax trees.
   All 34 focused O0/O3, diagnostic, aggregate, lambda and try/return tests pass;
   typecheck and lint pass.
+
+## Fixed lambda error scope and return-context leaks (2026-10-16)
+
+- Confirmed: a lambda with an inferred first parameter but a later parameter
+  lacking an inferable type leaves its scope active; a following reference to
+  that parameter incorrectly resolves. Throwing body checks also escape before
+  restoring scope and return type. Wrap the whole lambda check, including
+  signature inference, in context restoration for scope, return type, control
+  depths, defer state and match context. Diagnostic recovery and fail-fast
+  regressions pass, along with 26 focused tests, typecheck and lint (C12 follow-up).
