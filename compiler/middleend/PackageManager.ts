@@ -1629,10 +1629,12 @@ export class PackageManager {
           for (const [name] of entries) if (!affected.has(name)) protect(name);
           for (const name of protectedPackages) affected.delete(name);
         }
-        const sources = new Map(
-          entries.filter(([name]) => !affected.has(name)).map(([name, entry]) => [name, entry.source]),
-        );
-        for (const name of changedRoots) sources.set(name, deps[name]!);
+        // Resolve changed roots first so unchanged parents that reference them
+        // can use the selected root archive even when it is absent from cache.
+        const sources = new Map<string, string>([...changedRoots].map(name => [name, deps[name]!]));
+        for (const [name, entry] of entries) {
+          if (!affected.has(name)) sources.set(name, entry.source);
+        }
         const retainedLocks = Object.fromEntries(entries.filter(([name]) => !affected.has(name)));
         if (changedRoots.size > 0) {
           // Stage lock changes until the complete reconciliation succeeds.
@@ -1663,7 +1665,9 @@ export class PackageManager {
             {
               lockSource: resolved.lockSource,
               expectedLockEntry: retainedLocks[packageName],
-              lockedPackages: retainedLocks,
+              lockedPackages: changedRoots.size === 0 ? retainedLocks : Object.fromEntries(
+                Object.entries(this.loadLockFile().packages).filter(([name]) => !this.reconcilingPackages.has(name)),
+              ),
             },
           );
         }

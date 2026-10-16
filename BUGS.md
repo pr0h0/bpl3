@@ -6173,3 +6173,10 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   graph metadata is unavailable. Lock changes are staged until success.
 - Installed directories remain incremental, not a whole-graph rollback; that
   existing transaction limitation is still open.
+
+### Reconciliation order for roots also referenced transitively
+
+- An unchanged package could resolve a changed root back through the old cache
+  before that root's new local archive was selected. Resolve changed roots first,
+  then pass the reconciled lock entries to later restores. Regression cases cover
+  a root archive absent from cache, with installed modules present and missing.

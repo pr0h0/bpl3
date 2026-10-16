@@ -18,6 +18,7 @@ for (const mode of [
   "shared",
   "shared-conflict",
   "two-roots",
+  "nested-root",
   "legacy",
 ] as const)
   for (const removeInstalled of [false, true]) {
@@ -54,9 +55,11 @@ for (const mode of [
         const stable = pack(
           "stable",
           "0.1.0",
-          ["shared", "shared-conflict", "two-roots"].includes(mode)
-            ? { child: "0.1.0" }
-            : {},
+          mode === "nested-root"
+            ? { parent: "^0.1.0" }
+            : ["shared", "shared-conflict", "two-roots"].includes(mode)
+              ? { child: "0.1.0" }
+              : {},
         );
         const manifest = {
           name: "app",
@@ -82,6 +85,7 @@ for (const mode of [
           writeFileSync(join(app, "bpl.lock"), JSON.stringify(oldLock));
         }
         manifest.dependencies.parent = `file:${upgraded}`;
+        if (mode === "nested-root") rmSync(join(cache, "parent-0.1.1.tgz"));
         if (mode === "two-roots") {
           manifest.dependencies.stable = `file:${pack("stable", "0.1.1", { child: "0.1.1" })}`;
         }
