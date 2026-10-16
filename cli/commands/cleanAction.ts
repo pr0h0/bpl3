@@ -70,8 +70,6 @@ export function runCleanCommand(
     const trackedPathSet = trackedPaths;
     const cacheDirs = [
       path.join(cwd, ".bpl-cache"),
-      path.join(cwd, "build"),
-      path.join(cwd, "dist"),
     ];
     const topLevelCacheDirs = new Set(
       cacheDirs.map((dir) => path.resolve(dir)),
@@ -115,6 +113,7 @@ export function runCleanCommand(
 
             if (
               isBuildArtifact(base, ext) &&
+              tryLstat(path.join(dir, `${base}.bpl`))?.isFile() &&
               !trackedPathSet.has(gitRelativePath)
             ) {
               const entryType = entry.isSymbolicLink() ? "symlink" : "file";
@@ -300,8 +299,7 @@ function isBuildArtifact(base: string, ext: string): boolean {
     ext === ".o" ||
     ext === ".exe" ||
     ext === ".out" ||
-    (base === "main" && ext === "") ||
-    (base === "a" && ext === ".out")
+    (base.length > 0 && ext === "")
   );
 }
 

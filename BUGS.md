@@ -6066,3 +6066,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   cross-cancellation and final bounds checks cover multiplication/division,
   including LONG_MIN. Negation/absolute value reject unrepresentable magnitudes.
   A BigInt oracle checks representable and overflowing reduced results.
+
+## Fixed clean deleting unrelated build outputs (2026-10-16)
+
+- Confirmed clean treated generic build/dist paths and any .ll/.o/.out/main
+  file as disposable. Preserve build/dist containers, require a regular sibling
+  .bpl source for candidate outputs, and retain tracked-file and symlink
+  protection. Only the reserved .bpl-cache namespace is removed wholesale.
+  Keep standalone-file projects supported rather than require bpl.json.
+  All 17 cleanup-focused CLI tests pass, including preview/deletion agreement,
+  unrelated files, symlinked sources, tracked files and failed git probes.
