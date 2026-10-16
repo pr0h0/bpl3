@@ -250,7 +250,9 @@ asm("llvm") {
 
 ### Release policy
 
-- Work on feature branches. Route all merges through pull requests; do not push changes directly to `master` or merge into it locally. Follow repository CI and review requirements before merging a PR.
+- Work on feature branches and target implementation pull requests at `staging`. Route all merges through pull requests; do not push implementation changes directly to `staging` or `master`, or merge into them locally.
+- CodeRabbit must review every PR, including PRs targeting `staging`. Read its comments and address actionable feedback before merging, alongside passing repository CI.
+- Merge `staging` into `master` through a release PR only when the maintainer explicitly decides to release. A staging merge does not authorize a release.
 
 - Keep compiler and bundled BPL package versions in the `0.1.x` series until the maintainer explicitly changes this policy. Only patch increments are allowed; never increment minor or major versions.
 - The maintainer controls version bumps and publication. Do not create release tags, GitHub releases, publish packages, or push container images without an explicit request. Permission for an initial release does not authorize subsequent releases.
