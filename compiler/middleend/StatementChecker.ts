@@ -85,8 +85,6 @@ function rootStackOperand(
   return undefined;
 }
 
-
-
 function findReturnedStackAddress(
   context: CheckerContext,
   expr: AST.Expression | undefined,
@@ -144,9 +142,15 @@ function findReturnedStackAddress(
       }
       break;
     case "Cast":
-      return findReturnedStackAddress(context, (expr as AST.CastExpr).expression);
+      return findReturnedStackAddress(
+        context,
+        (expr as AST.CastExpr).expression,
+      );
     case "Group":
-      return findReturnedStackAddress(context, (expr as AST.GroupExpr).expression);
+      return findReturnedStackAddress(
+        context,
+        (expr as AST.GroupExpr).expression,
+      );
     case "Ternary": {
       const ternary = expr as AST.TernaryExpr;
       return (
@@ -838,9 +842,7 @@ export function checkVariableDecl(
   }
   if (Array.isArray(decl.name)) {
     // Destructuring - enforce explicit type annotations
-    const flattenTargets = (
-      targets: any[],
-    ): AST.DestructuringTarget[] => {
+    const flattenTargets = (targets: any[]): AST.DestructuringTarget[] => {
       const result: AST.DestructuringTarget[] = [];
       for (const target of targets) {
         if (Array.isArray(target)) {
@@ -963,10 +965,7 @@ export function checkVariableDecl(
         }
       };
 
-      validateAndAssignTypes(
-        decl.name as AST.DestructuringPattern[],
-        initType,
-      );
+      validateAndAssignTypes(decl.name as AST.DestructuringPattern[], initType);
     } else {
       for (const target of targets) {
         const finalType = target.type || initType;
@@ -1187,92 +1186,100 @@ export function checkVariableDecl(
   decl.resolvedType = declaredType;
 }
 
-/**
- * Check if all paths in a statement return
- */
+// Keep control transfers separate: a break/continue/fallthrough must not be
+// mistaken for a path that reaches a later return in the same block.
+const enum ReturnFlow {
+  Next = 1,
+  Return = 2,
+  Break = 4,
+  Continue = 8,
+  Fallthrough = 16,
+}
+
+function statementReturnFlow(stmt: AST.Statement): number {
+  switch (stmt.kind) {
+    case "Return":
+    case "Throw":
+      return ReturnFlow.Return;
+    case "Break":
+      return ReturnFlow.Break;
+    case "Continue":
+      return ReturnFlow.Continue;
+    case "Fallthrough":
+      return ReturnFlow.Fallthrough;
+    case "Block": {
+      let flow: number = ReturnFlow.Next;
+      for (const statement of stmt.statements) {
+        if (!(flow & ReturnFlow.Next)) break;
+        flow = (flow & ~ReturnFlow.Next) | statementReturnFlow(statement);
+      }
+      return flow;
+    }
+    case "If":
+      return (
+        statementReturnFlow(stmt.thenBranch) |
+        (stmt.elseBranch
+          ? statementReturnFlow(stmt.elseBranch)
+          : ReturnFlow.Next)
+      );
+    case "Loop":
+      // Conservatively allow a loop to finish. Its breaks and continues are
+      // consumed here, rather than escaping an enclosing switch.
+      return (
+        ReturnFlow.Next | (statementReturnFlow(stmt.body) & ReturnFlow.Return)
+      );
+    case "Try": {
+      let flow = statementReturnFlow(stmt.tryBlock);
+      for (const clause of stmt.catchClauses)
+        flow |= statementReturnFlow(clause.body);
+      return flow;
+    }
+    case "Switch": {
+      // Missing default leaves an unmatched input path. Fallthrough follows the
+      // next case (or default), whereas break resumes after this switch.
+      let next: number = stmt.defaultCase
+        ? statementReturnFlow(stmt.defaultCase)
+        : ReturnFlow.Next;
+      let flow = next;
+      for (let i = stmt.cases.length - 1; i >= 0; i--) {
+        const branch = statementReturnFlow(stmt.cases[i]!.body);
+        next =
+          (branch & ~ReturnFlow.Fallthrough) |
+          (branch & ReturnFlow.Fallthrough ? next : 0);
+        flow |= next;
+      }
+      // A fallthrough in the final/default branch also leaves the switch.
+      return (
+        (flow & ~(ReturnFlow.Break | ReturnFlow.Fallthrough)) |
+        (flow & (ReturnFlow.Break | ReturnFlow.Fallthrough)
+          ? ReturnFlow.Next
+          : 0)
+      );
+    }
+    case "ExpressionStmt": {
+      const expr = stmt.expression;
+      if (expr.kind !== "Match" || expr.arms.length === 0)
+        return ReturnFlow.Next;
+      let flow = 0;
+      for (const arm of expr.arms) {
+        flow |=
+          arm.body.kind === "Block"
+            ? statementReturnFlow(arm.body)
+            : ReturnFlow.Next;
+      }
+      return flow;
+    }
+    default:
+      return ReturnFlow.Next;
+  }
+}
+
+/** Check whether every reachable path returns or throws. */
 export function checkAllPathsReturn(
   this: CheckerContext,
   stmt: AST.Statement,
 ): boolean {
-  switch (stmt.kind) {
-    case "Return":
-      return true;
-    case "Block": {
-      const lastIndex = stmt.statements.length - 1;
-      if (
-        lastIndex >= 0 &&
-        checkAllPathsReturn.call(this, stmt.statements[lastIndex]!)
-      ) {
-        return true;
-      }
-      for (let i = 0; i < lastIndex; i++) {
-        if (checkAllPathsReturn.call(this, stmt.statements[i]!)) return true;
-      }
-      return false;
-    }
-    case "If":
-      if (!stmt.elseBranch) return false;
-      return (
-        checkAllPathsReturn.call(this, stmt.thenBranch) &&
-        checkAllPathsReturn.call(this, stmt.elseBranch)
-      );
-    case "Loop":
-      // Loops don't guarantee return
-      return false;
-    case "Try":
-      // An unmatched exception propagates; it cannot fall through the try.
-      return (
-        checkAllPathsReturn.call(this, stmt.tryBlock) &&
-        stmt.catchClauses.every((clause) =>
-          checkAllPathsReturn.call(this, clause.body),
-        )
-      );
-    case "Switch":
-      // Check if all cases return (simplified)
-      if (!stmt.cases || stmt.cases.length === 0) return false;
-      for (const c of stmt.cases) {
-        let caseReturns = false;
-        for (const s of c.body.statements) {
-          if (checkAllPathsReturn.call(this, s)) {
-            caseReturns = true;
-            break;
-          }
-        }
-        if (!caseReturns) return false;
-      }
-      return true;
-    case "Throw":
-      return true;
-    case "ExpressionStmt": {
-      // Check if this is a match expression where all arms return
-      const exprStmt = stmt as AST.ExpressionStmt;
-      if (exprStmt.expression.kind === "Match") {
-        const matchExpr = exprStmt.expression as AST.MatchExpr;
-        // Check if all arms have a return (or throw) in their body
-        if (matchExpr.arms.length === 0) return false;
-        for (const arm of matchExpr.arms) {
-          let armReturns = false;
-          if (arm.body.kind === "Block") {
-            // Block body - check if any statement returns
-            for (const s of (arm.body as AST.BlockStmt).statements) {
-              if (checkAllPathsReturn.call(this, s)) {
-                armReturns = true;
-                break;
-              }
-            }
-          } else {
-            // Expression body - doesn't contain return statements
-            armReturns = false;
-          }
-          if (!armReturns) return false;
-        }
-        return true;
-      }
-      return false;
-    }
-    default:
-      return false;
-  }
+  return statementReturnFlow(stmt) === ReturnFlow.Return;
 }
 
 /**

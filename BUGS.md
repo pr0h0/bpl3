@@ -5700,3 +5700,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   exits, report signal termination as 128 + signal, and preserve -1 for errors.
   `tests/StdlibProcessStatus.test.ts` checks all four APIs at O0/O3, including
   output retention and a terminated child shell. Audit S3.
+
+## Fixed switch return-path analysis (2026-10-16)
+
+- Switches ignored unmatched input paths and their default branch. A reachable
+  break followed by a return was also counted as returning. Nonvoid functions
+  could therefore reach a synthetic zero return or undefined behavior. Return
+  analysis now tracks normal completion, return/throw, break, continue and
+  fallthrough separately, consuming transfers at their owning loop or switch.
+  Regressions cover default handling, unreachable returns, conditional/nested
+  breaks and explicit fallthrough, with O0/O3 execution checks. Audit C4.

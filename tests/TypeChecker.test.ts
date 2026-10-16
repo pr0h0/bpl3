@@ -602,28 +602,13 @@ describe("TypeChecker", () => {
     );
   });
 
-  it("checks final block return paths before earlier statements", () => {
-    const source = readTextFile(
-      join(process.cwd(), "compiler/middleend/StatementChecker.ts"),
-      "utf8",
+  it("does not report a missing return after an unconditional return", () => {
+    const errors = collectErrorMessages(
+      `frame value() ret int { return 3; local unused: int = 1; }`,
     );
-    const start = source.indexOf("export function checkAllPathsReturn");
-    const end = source.indexOf("\n\n/**\n * Check an asm block", start);
-    const returnCheckSource = source.slice(start, end);
-
-    expect(start).toBeGreaterThanOrEqual(0);
-    expect(end).toBeGreaterThan(start);
-    expect(returnCheckSource).toContain(
-      "const lastIndex = stmt.statements.length - 1;",
-    );
-    expect(returnCheckSource).toContain(
-      "checkAllPathsReturn.call(this, stmt.statements[lastIndex]!)",
-    );
-    expect(returnCheckSource).toContain(
-      "for (let i = 0; i < lastIndex; i++)",
-    );
-    expect(returnCheckSource).not.toContain(
-      "for (const s of stmt.statements)",
+    expect(errors).toContain("Unreachable code detected.");
+    expect(errors.some((message) => message.includes("may not return"))).toBe(
+      false,
     );
   });
 
