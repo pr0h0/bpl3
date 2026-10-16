@@ -3086,6 +3086,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevIsMainWithVoidReturn = this.isMainWithVoidReturn;
     const prevGeneratingFunctionBody = this.generatingFunctionBody;
     const prevSubprogramId = this.currentSubprogramId;
+    const prevFunctionDebugLocation = this.currentFunctionDebugLocation;
     const prevCurrentFunctionEmitsStackFrameHooks =
       this.currentFunctionEmitsStackFrameHooks;
     const prevCurrentFunctionUsesAllocaStackLimitProbe =
@@ -3094,6 +3095,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     try {
       this.currentFunctionStackAllocations = [];
       this.currentFunctionHasExceptionHandler = false;
+      this.currentFunctionDebugLocation = decl.location;
     this.registerCount = 0;
     this.labelCount = 0;
     this.stackAllocCount = 0;
@@ -3604,6 +3606,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.currentFunctionIsCExport = prevCurrentFunctionIsCExport;
       this.locals = prevLocals;
       this.currentSubprogramId = prevSubprogramId;
+      this.currentFunctionDebugLocation = prevFunctionDebugLocation;
       this.localPointers = prevLocalPointers;
       this.localTypes = prevLocalTypes;
       this.basicBlockNonNullPointers = prevBasicBlockNonNullPointers;

@@ -376,6 +376,7 @@ export class BaseCodeGenerator {
   }
 
   protected currentSubprogramId: number = -1;
+  protected currentFunctionDebugLocation: SourceLocation | null = null;
 
   // setjmp/longjmp adds a return path that ordinary LLVM control flow cannot
   // describe. Keep memory accesses observable in functions with handlers so
@@ -397,23 +398,22 @@ export class BaseCodeGenerator {
 
   protected emit(line: string, node?: AST.ASTNode) {
     if (this.generateDwarf && this.currentSubprogramId !== -1) {
-      // If node is provided, use its location.
-      // If not, check if we have a "current statement" location set by generateStatement
-      let locId = -1;
-
-      if (node && node.location) {
-        locId = this.debugInfoGenerator.createLocation(
-          node.location.startLine,
-          node.location.startColumn || 0,
-          this.currentSubprogramId,
-        );
-      } else if (this.currentStatementLocation) {
-        locId = this.debugInfoGenerator.createLocation(
-          this.currentStatementLocation.startLine,
-          this.currentStatementLocation.startColumn || 0,
-          this.currentSubprogramId,
-        );
+      // Explicit attachments (such as dbg.declare) already own their location.
+      if (/,\s*!dbg\s*!\d+(?:\s*,|$)/.test(line)) {
+        this.output.push(line);
+        return;
       }
+      const location =
+        node?.location ??
+        this.currentStatementLocation ??
+        this.currentFunctionDebugLocation;
+      const locId = location
+        ? this.debugInfoGenerator.createLocation(
+            location.startLine,
+            location.startColumn || 0,
+            this.currentSubprogramId,
+          )
+        : -1;
 
       if (locId !== -1) {
         // Only attach debug info to instructions, not labels or braces

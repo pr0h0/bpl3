@@ -5815,3 +5815,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   changed compiler identities and real cached builds with tree-shaking changes.
   Audit C11. Full-IR keys were rejected because they unnecessarily invalidated
   importers after private dependency changes.
+
+## Fixed DWARF locations on generated runtime calls (2026-10-16)
+
+- Function prologue stack checks emitted calls without debug locations. LLVM
+  warned and discarded the entire debug graph. Emission now falls back to the
+  current function declaration for generated instructions, restores that state
+  across nested function generation, and preserves existing explicit debug
+  attachments. O0/O3 tests verify LLVM without debug warnings and confirm native
+  clang preserves compile-unit/subprogram metadata, including defer callbacks.
+  Audit C6.
