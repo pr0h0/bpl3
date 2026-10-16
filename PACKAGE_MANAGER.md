@@ -111,6 +111,14 @@ content hashes. Restored transitive dependencies use locked sources rather than
 resolving version ranges against the current cache. Use `--update` explicitly
 when accepting changed dependency contents.
 
+New and explicitly repaired locks use `hashAlgorithm: "sha256-tree-v2"`.
+These hashes cover regular package files, including native sources, objects,
+assets and hidden files, using `/` paths sorted independently of locale. The
+reserved `.git`, `node_modules`, `bpl_modules` and `.bpl-cache` directories are
+excluded. Symlink identities are hashed without following their targets.
+Locks without `hashAlgorithm` retain the legacy algorithm for compatibility;
+use an explicit update or repair to migrate them.
+
 `install --update` and `bpl lock` write their replacement lock only after all
 requested installations succeed. A failed update retains the previous lockfile.
 This protects the lockfile; it does not roll back package directories already

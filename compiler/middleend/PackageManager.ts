@@ -282,6 +282,7 @@ export interface PackageLockFile {
       source: string;
       hash: string;
       archiveSha256?: string;
+      hashAlgorithm?: "sha256-tree-v2";
     }
   >;
 }
@@ -848,6 +849,7 @@ export class PackageManager {
         source?: unknown;
         hash?: unknown;
         archiveSha256?: unknown;
+        hashAlgorithm?: unknown;
       };
 
       if (
@@ -884,6 +886,14 @@ export class PackageManager {
         throw new CompilerError(
           `Invalid bpl.lock archive checksum for ${packageName}`,
           "Archive checksums must be lowercase SHA-256 hex strings.",
+          location,
+          "BPL_LOCKFILE_INVALID_ENTRY_HASH",
+        );
+      }
+      if (rawEntry.hashAlgorithm !== undefined && rawEntry.hashAlgorithm !== "sha256-tree-v2") {
+        throw new CompilerError(
+          `Unsupported bpl.lock hash algorithm for ${packageName}`,
+          "Use a compatible compiler or regenerate the lockfile explicitly.",
           location,
           "BPL_LOCKFILE_INVALID_ENTRY_HASH",
         );
@@ -1040,7 +1050,8 @@ export class PackageManager {
     lock.packages[manifest.name] = {
       version: manifest.version,
       source,
-      hash: this.calculatePackageHash(installPath),
+      hash: this.calculatePackageHash(installPath, true),
+      hashAlgorithm: "sha256-tree-v2",
       ...(archiveSha256 ? { archiveSha256 } : {}),
     };
     this.saveLockFile(lock);
@@ -1213,7 +1224,7 @@ export class PackageManager {
         });
       }
 
-      const actualHash = this.calculatePackageHash(installPath);
+      const actualHash = this.calculatePackageHash(installPath, entry.hashAlgorithm === "sha256-tree-v2");
       if (actualHash !== entry.hash) {
         addIssue({
           packageName,
@@ -2370,7 +2381,8 @@ export class PackageManager {
   /**
    * Calculate hash of package contents
    */
-  private calculatePackageHash(packageDir: string): string {
+  private calculatePackageHash(packageDir: string, portable = false): string {
+    if (portable) return this.calculatePortablePackageHash(packageDir);
     const hash = crypto.createHash("sha256");
     const packageRoot = path.resolve(packageDir);
 
@@ -2393,6 +2405,45 @@ export class PackageManager {
       hash.update("\0");
     }
 
+    return hash.digest("hex");
+  }
+
+  private calculatePortablePackageHash(packageDir: string): string {
+    const entries: { relative: string; file: string; kind: string }[] = [];
+    const excluded = new Set([".git", "node_modules", "bpl_modules", ".bpl-cache"]);
+    const visit = (directory: string, prefix: string): void => {
+      for (const name of fs.readdirSync(directory)) {
+        if (excluded.has(name)) continue;
+        const file = path.join(directory, name);
+        const relative = prefix ? `${prefix}/${name}` : name;
+        const stat = fs.lstatSync(file);
+        if (stat.isDirectory()) visit(file, relative);
+        else if (stat.isSymbolicLink() || stat.isFile()) {
+          entries.push({ relative, file, kind: stat.isSymbolicLink() ? "link" : "file" });
+        } else {
+          throw new CompilerError(
+            `Unsupported file type in package: ${relative}`,
+            "Package contents must be regular files, directories or symbolic links.",
+            { file, startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+          );
+        }
+      }
+    };
+    visit(packageDir, "");
+    entries.sort((left, right) => {
+      if (left.relative === right.relative) return 0;
+      return left.relative < right.relative ? -1 : 1;
+    });
+    const hash = crypto.createHash("sha256");
+    hash.update("bpl-tree-v2\0");
+    for (const entry of entries) {
+      const content = entry.kind === "link"
+        ? Buffer.from(fs.readlinkSync(entry.file))
+        : fs.readFileSync(entry.file);
+      hash.update(`${entry.kind}\0${entry.relative}\0`);
+      // Fixed-size content digests avoid ambiguous concatenation of file bytes.
+      hash.update(crypto.createHash("sha256").update(content).digest());
+    }
     return hash.digest("hex");
   }
 
@@ -3024,7 +3075,7 @@ export class PackageManager {
       );
 
       if (expectedEntry) {
-        const actualHash = this.calculatePackageHash(packageDir);
+        const actualHash = this.calculatePackageHash(packageDir, expectedEntry.hashAlgorithm === "sha256-tree-v2");
         if (manifest.version !== expectedEntry.version || actualHash !== expectedEntry.hash) {
           const issue: PackageLockVerificationIssue = {
             packageName: manifest.name,
@@ -4700,7 +4751,8 @@ export class PackageManager {
         version: pkg.manifest.version,
         source:
           existing?.source ?? `${pkg.manifest.name}-${pkg.manifest.version}.tgz`,
-        hash: pkg.hash,
+        hash: this.calculatePackageHash(pkg.path, true),
+        hashAlgorithm: "sha256-tree-v2" as const,
       };
 
       nextLock.packages[pkg.manifest.name] = nextEntry;

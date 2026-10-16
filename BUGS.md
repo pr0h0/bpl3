@@ -6122,3 +6122,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   but a throw in a callee unwinds past the caller without that static cleanup.
   Runtime defer runs across frames and is used for parser ownership. General
   automatic-destructor unwinding across function calls needs a compiler fix.
+
+## Versioned portable package tree hashes (2026-10-16)
+
+- Legacy hashes sorted native paths using localeCompare and omitted unexported
+  native sources/objects/assets. New and repaired lock entries explicitly select
+  sha256-tree-v2: normalize relative paths with /, sort by codepoint order and
+  hash regular files plus symlink identities without following links. Exclude
+  reserved package/cache/VCS directory namespaces. Content digests have fixed
+  lengths to avoid ambiguous concatenation. Old lock entries keep their legacy
+  algorithm rather than silently invalidating released locks.

@@ -61,6 +61,10 @@ test("project restoration rejects changed archives before replacing installed co
     // Legacy locks without an archive checksum still enforce their tree hash.
     const legacy = JSON.parse(originalLock);
     delete legacy.packages.dependency.archiveSha256;
+    delete legacy.packages.dependency.hashAlgorithm;
+    legacy.packages.dependency.hash = manager["calculatePackageHash"](
+      join(app, "bpl_modules", "dependency"),
+    );
     const legacyText = JSON.stringify(legacy);
     writeFileSync(lockPath, legacyText);
     expect(() =>
