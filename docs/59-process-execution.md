@@ -4,6 +4,11 @@ The `std/process.bpl` module provides utilities for executing shell commands and
 
 **Argument handling:** The argument-based execution functions quote each argument for a POSIX shell. This protects argument boundaries and shell metacharacters; it does not validate the executable, reject options such as `--delete`, or restrict what the child process can access. `execShell` performs no such quoting. These helpers do not provide process isolation, timeouts, or output limits.
 
+The status-returning functions and `ProcessResult.exitCode` report the application
+exit code (0–255), `128 + signal` when the waited-for shell is terminated by a
+signal, or `-1` when starting/waiting fails. They do not expose the encoded POSIX
+wait status. A shell may itself translate a child signal into a normal exit code.
+
 ## Import
 
 ```bpl
@@ -104,18 +109,20 @@ frame execOutput(args: ...string, count: int) ret ProcessResult
   - `args`: Components of the command line.
 - **Returns**: A `ProcessResult` struct containing the `exitCode` and `output`.
 
-> **Note**: The `output` field in `ProcessResult` is a `String` object. You are responsible for managing its lifecycle if necessary, though it typically follows standard ownership rules.
+> **Note**: The `output` field in `ProcessResult` is a `String` object. Call `result.output.destroy()` when finished, including when the command fails.
 
 ## Examples
 
 ### Running a Command
 
-You can pass the command as a single string (still auto-escaped, so be careful not to include shell metacharacters if you intend them to be interpreted) or as multiple arguments.
+Pass the executable as the first argument and each command argument separately.
+A single argument containing spaces is one executable name, not a parsed command
+line. Use `execShell` when shell parsing is intended.
 
 **Best Practice:** Pass the command and its arguments as separate parameters.
 
 ```bpl
-import exec, execShell, execSilent from "std/process.bpl";
+import exec, execShell, execSilent, [ProcessResult] from "std/process.bpl";
 
 frame main() {
     # Preferred: Separate arguments
@@ -123,7 +130,8 @@ frame main() {
     exec("mkdir", "-p", "/tmp/bpl_test");
 
     # Using shell features (piping) - USE execShell
-    execShell("ls -la | grep bpl");
+    local result: ProcessResult = execShell("ls -la | grep bpl");
+    result.output.destroy();
 
     # Silent check
     if (execSilent("which", "git") == 0) {

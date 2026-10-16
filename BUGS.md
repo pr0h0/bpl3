@@ -5692,3 +5692,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   The template delimiter regression exposed this under AddressSanitizer.
   Compiler-created temporaries need cleanup without consuming borrowed user
   String variables; ordinary `String.__add__` must retain its borrowing contract.
+
+## Fixed process application exit codes (2026-10-16)
+
+- `execStatus`, `execSilent`, `execShell` and `execOutput` exposed encoded
+  POSIX wait statuses (for example, exit 3 became 768). They now decode normal
+  exits, report signal termination as 128 + signal, and preserve -1 for errors.
+  `tests/StdlibProcessStatus.test.ts` checks all four APIs at O0/O3, including
+  output retention and a terminated child shell. Audit S3.

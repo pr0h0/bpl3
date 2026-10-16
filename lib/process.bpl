@@ -24,6 +24,16 @@ struct ProcessResult {
     output: String,
 }
 
+# POSIX system/pclose return a wait status, not an application exit code.
+# Preserve launch/wait errors; use shell-style 128 + signal for termination.
+frame _exitCode(status: int) ret int {
+    if (status < 0) { return -1; }
+    local signal: int = status & 127;
+    if (signal == 0) { return (status >> 8) & 255; }
+    if (signal == 127) { return -1; }
+    return 128 + signal;
+}
+
 frame _escapeArg(s: string) ret String {
     local ptr: *u8 = cast<*u8>(s);
     local len: int = 0;
@@ -125,7 +135,8 @@ frame exec(args: ...string, count: int) {
 # Execute Raw Shell Command (Unsafe)
 Executes a command string directly without any escaping.
 Allows use of pipes (|), redirects (>), and environment variables.
-Captures output.
+Captures output. exitCode is 0–255, 128 + signal on termination, or -1
+when launching or waiting fails.
 WARNING: Prone to injection if using untrusted input.
 #/
 frame execShell(cmd: string) ret ProcessResult {
@@ -161,7 +172,7 @@ frame execShell(cmd: string) ret ProcessResult {
         sb.append(ptr);
     }
 
-    res.exitCode = pclose(fp);
+    res.exitCode = _exitCode(pclose(fp));
 
     # Create String from accumulated buffer
     res.output = String.new(sb.toString());
@@ -176,7 +187,8 @@ frame execShell(cmd: string) ret ProcessResult {
 /#
 # Execute Silent (Status)
 Executes a shell command safely but suppresses all output (stdout and stderr).
-Returns the exit status code.
+Returns the application exit code (0–255), 128 + signal on termination,
+or -1 when launching or waiting fails.
 #/
 frame execSilent(args: ...string, count: int) ret int {
     local sb: StringBuilder = StringBuilder.new(1024);
@@ -199,25 +211,27 @@ frame execSilent(args: ...string, count: int) ret int {
     local status: int = system(cmd);
 
     sb.destroy();
-    return status;
+    return _exitCode(status);
 }
 
 /#
 # Execute command (status)
-Executes a shell command and returns the exit status code.
+Executes a shell command and returns its application exit code (0–255).
+Signal termination returns 128 + signal; launch/wait failure returns -1.
 Supports multiple arguments which are joined by spaces.
 #/
 frame execStatus(args: ...string, count: int) ret int {
     local cmd: String = _joinArgs(args, count);
     local status: int = system(cmd.data);
     cmd.destroy();
-    return status;
+    return _exitCode(status);
 }
 
 /#
 # Execute command (capture)
 Executes a shell command and captures its standard output.
-Returns a struct containing the exit code and the output as a String.
+Returns a struct containing the application exit code and output as a String.
+Signal termination returns 128 + signal; launch/wait failure returns -1.
 Supports multiple arguments which are joined by spaces.
 #/
 frame execOutput(args: ...string, count: int) ret ProcessResult {
@@ -256,7 +270,7 @@ frame execOutput(args: ...string, count: int) ret ProcessResult {
         sb.append(ptr);
     }
 
-    res.exitCode = pclose(fp);
+    res.exitCode = _exitCode(pclose(fp));
 
     # Create String from accumulated buffer
     res.output = String.new(sb.toString());
