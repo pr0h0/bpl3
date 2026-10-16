@@ -626,6 +626,8 @@ export abstract class TypeCheckerBase {
   public globalScope: SymbolTable;
   public currentScope: SymbolTable;
   public currentFunctionReturnType: AST.TypeNode | undefined;
+  /** Value-producing match block returns, excluding independent lambda bodies. */
+  public matchYieldValues = new WeakMap<AST.BlockStmt, AST.Expression[]>();
   public modules: Map<string, SymbolTable> = new Map();
   public skipImportResolution: boolean;
   public preLoadedModules: Map<string, AST.Program> = new Map();
@@ -1342,6 +1344,18 @@ export abstract class TypeCheckerBase {
     location: SourceLocation = expr.location,
   ): void {
     while (expr.kind === "Group") expr = expr.expression;
+    if (expr.kind === "Match") {
+      for (const arm of expr.arms) {
+        if (arm.body.kind === "Block") {
+          for (const value of this.matchYieldValues.get(arm.body) ?? []) {
+            this.checkIntegerConstantRange(value, targetType);
+          }
+        } else {
+          this.checkIntegerConstantRange(arm.body, targetType);
+        }
+      }
+      return;
+    }
     if (expr.kind === "Ternary") {
       this.checkIntegerConstantRange(expr.trueExpr, targetType);
       this.checkIntegerConstantRange(expr.falseExpr, targetType);

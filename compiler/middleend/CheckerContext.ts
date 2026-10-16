@@ -12,6 +12,7 @@ export interface CheckerContext {
   currentScope: SymbolTable;
   globalScope: SymbolTable;
   currentFunctionReturnType: AST.TypeNode | undefined;
+  matchYieldValues: WeakMap<AST.BlockStmt, AST.Expression[]>;
   loopDepth: number;
   switchDepth: number;
   inDefer: boolean;
@@ -26,6 +27,7 @@ export interface CheckerContext {
   matchContext: {
     expectedType?: AST.TypeNode;
     inferredTypes: AST.TypeNode[];
+    inferredValues?: AST.Expression[];
   }[];
   modules: Map<string, SymbolTable>;
 

@@ -5968,3 +5968,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   contextual array typing (audit C14) is separate. All 44 focused tests pass,
   including O0/O3 valid boundaries, explicit casts, tuple and web compiler tests.
   The existing char-array test now casts its intentional 255-to-char truncation.
+
+## Fixed match result constant range-check bypasses (2026-10-16)
+
+- Confirmed eight variants: inline/block/conditional/caught/nested yields,
+  assignment and argument matches, and tuple-valued match results could hide an
+  out-of-range literal. Record value-producing block return expressions during
+  checking and recursively validate them, plus inline arms, against the final
+  destination. Independent lambda returns keep their own return type. Weak-map
+  metadata avoids adding analysis bookkeeping to serialized syntax trees.
+  All 34 focused O0/O3, diagnostic, aggregate, lambda and try/return tests pass;
+  typecheck and lint pass.

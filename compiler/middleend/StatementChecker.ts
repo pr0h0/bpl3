@@ -512,6 +512,7 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
       typeChecker.matchContext[typeChecker.matchContext.length - 1];
     if (returnType) {
       context.inferredTypes.push(returnType);
+      if (stmt.value) context.inferredValues?.push(stmt.value);
     }
     return;
   }

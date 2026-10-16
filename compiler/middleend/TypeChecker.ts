@@ -318,6 +318,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   public matchContext: {
     expectedType?: AST.TypeNode;
     inferredTypes: AST.TypeNode[];
+    inferredValues?: AST.Expression[];
   }[] = [];
 
   constructor(
@@ -2987,11 +2988,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         return this.makeVoidType();
       }
       // Push context for collecting return types
-      this.matchContext.push({ inferredTypes: [] });
+      this.matchContext.push({ inferredTypes: [], inferredValues: [] });
       try {
         StmtChecker.checkBlock.call(this, body);
         // If we have collected return types, unify them
         const context = this.matchContext[this.matchContext.length - 1]!;
+        this.matchYieldValues.set(body, context.inferredValues!);
         if (context.inferredTypes.length > 0) {
           // For now, just take the first one or check compatibility
           // Ideally we should unify all of them
