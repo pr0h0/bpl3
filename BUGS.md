@@ -6106,3 +6106,19 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   Preserve existing path validation and atomic-write permissions. Sort lock keys
   using codepoint order and append a newline. All 283 package/CLI tests pass.
   Package-directory rollback remains a separate P8 issue.
+
+## Parser action exception cleanup follow-up (2026-10-16)
+
+- A configured action that throws bypassed ownership transfer of ParsedArgs and
+  leaked 4,260 bytes over ten calls under ASan. Hold ownership behind a runtime
+  defer until parse returns successfully; on success clear the guard pointer.
+  Callback exceptions must preserve their original value. Sanitizer validation
+  is running for normal and exceptional parser paths.
+
+## Open: automatic destructors across throwing callees (2026-10-16)
+
+- The same parser reproduction still leaked when guarded solely by an
+  @[auto_destroy] local: destructors are emitted on direct throw statements,
+  but a throw in a callee unwinds past the caller without that static cleanup.
+  Runtime defer runs across frames and is used for parser ownership. General
+  automatic-destructor unwinding across function calls needs a compiler fix.

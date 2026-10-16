@@ -355,6 +355,18 @@ struct ParsedArgs: Destructible {
     }
 }
 
+# Own the result until parse successfully transfers it to the caller. This also
+# releases accumulated strings if a configured action throws.
+struct ParsedArgsOwner {
+    value: *ParsedArgs,
+    frame destroy(this: *ParsedArgsOwner) {
+        if (this.value != nullptr) {
+            this.value.destroy();
+            free(cast<*void>(this.value));
+        }
+    }
+}
+
 struct ArgParser {
     root: *Command,
     frame new(rootCmd: *Command) ret ArgParser {
@@ -453,6 +465,9 @@ struct ArgParser {
 
     frame parse(this: *ArgParser, args: *Args) ret *ParsedArgs {
         local parsed: *ParsedArgs = ParsedArgs.new();
+        local owner: ParsedArgsOwner = ParsedArgsOwner { value: parsed };
+        local ownerPointer: *ParsedArgsOwner = &owner;
+        defer ownerPointer.destroy();
         local currentCmd: *Command = this.root;
 
         local rootName: *String = alloc<String>();
@@ -585,6 +600,7 @@ struct ArgParser {
         } else {
             parsed.exitCode = 1;
         }
+        owner.value = nullptr;
         return parsed;
     }
 }

@@ -42,3 +42,29 @@ frame main()ret int{
   for (const opt of [0, 3])
     native(source, ["-O", String(opt), ...sanitizerFlags]);
 }, 120000);
+
+test("argument parser frees its result if a command action throws", () => {
+  const source = `import [ArgParser],[Command],[Flag],[ParsedArgs] from "std/arg_parser.bpl";
+import [Args] from "std/args.bpl";
+extern free(ptr:*void);
+frame action(parsed:*ParsedArgs)ret int{parsed;throw 7;}
+frame main()ret int{
+ local root:*Command=Command.new("app","root");root.setAction(action);
+ root.addFlag(Flag.new("--name","-n","name",true).withDefault("guest"));
+ local parser:ArgParser=ArgParser.new(root);local argv:string[1]=["app"];
+ local args:Args=Args.new(1,&argv[0]);local caught:int=0;
+ loop(local i:int=0;i<10;i=i+1){
+  try{local parsed:*ParsedArgs=parser.parse(&args);parsed.destroy();free(cast<*void>(parsed));}
+  catch(e:int){if(e==7){caught=caught+1;}}
+ }
+ root.destroy();free(cast<*void>(root));
+ if(caught!=10){return 1;}return 0;
+}`;
+  const flags = checkBplSanitizerSupport().supported
+    ? [
+        "--clang-flag=-fsanitize=address,undefined",
+        "--clang-flag=-fno-sanitize-recover=all",
+      ]
+    : [];
+  for (const opt of [0, 3]) native(source, ["-O", String(opt), ...flags]);
+}, 120000);
