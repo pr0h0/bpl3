@@ -39,10 +39,7 @@ import * as ExprChecker from "./ExpressionChecker";
 import * as StmtChecker from "./StatementChecker";
 import * as CallChecker from "./CallChecker";
 
-type NonEnumCoverageProjection =
-  | "*"
-  | boolean
-  | NonEnumCoverageProjection[];
+type NonEnumCoverageProjection = "*" | boolean | NonEnumCoverageProjection[];
 
 const PRIMITIVE_WRAPPER_TYPE_NAMES = new Set(
   Object.values(PRIMITIVE_STRUCT_MAP),
@@ -466,7 +463,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
     }
 
-    validateModuleExports(program, moduleScope, (error) => this.addError(error));
+    validateModuleExports(program, moduleScope, (error) =>
+      this.addError(error),
+    );
 
     // Generic enum payloads are checked once the arguments of every use are
     // known, which the declaration alone cannot show.
@@ -986,8 +985,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     this.checkFunctionAttributes(decl, parentStruct);
 
     // Add params to scope
-    const paramNames =
-      decl.params.length > 1 ? new Set<string>() : undefined;
+    const paramNames = decl.params.length > 1 ? new Set<string>() : undefined;
     for (let i = 0; i < decl.params.length; i++) {
       const param = decl.params[i]!;
       if (paramNames !== undefined) {
@@ -2113,7 +2111,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         expr.operator.type === TokenType.CaretEqual;
       if (
         isBitwiseCompound &&
-        (!TypeUtils.isIntegerType(targetType) || !TypeUtils.isIntegerType(valueType))
+        (!TypeUtils.isIntegerType(targetType) ||
+          !TypeUtils.isIntegerType(valueType))
       ) {
         throw new CompilerError(
           "Bitwise operators require integer operands",
@@ -2309,16 +2308,19 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   ): AST.TypeNode | undefined {
     const baseType = this.checkExpression(expr.base);
     if (!baseType) return undefined;
+    for (const argument of expr.genericArgs) this.ensureKnownType(argument);
 
     if (baseType.kind === "MetaType") {
       const innerType = baseType.type as AST.BasicTypeNode;
       // Return MetaType with genericArgs applied
       return {
         kind: "MetaType",
-        type: {
+        type: this.resolveType({
           ...innerType,
           genericArgs: expr.genericArgs,
-        },
+          // Validate this instantiation rather than reusing a raw meta type.
+          resolvedType: undefined,
+        }),
         location: expr.location,
       };
     }
@@ -2422,7 +2424,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       return result;
     }
 
-    return baseType;
+    throw new CompilerError(
+      `Cannot apply ${expr.genericArgs.length} generic arguments to '${this.typeToString(baseType)}'`,
+      "Use a generic type or a function with a matching number of generic parameters.",
+      expr.location,
+      "BPL_GENERIC_INSTANTIATION_INVALID",
+    );
   }
 
   // ========== Overload Resolution ==========
@@ -2583,10 +2590,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         pattern.kind === "PatternTuple" &&
         pattern.patterns.length === projection.length &&
         pattern.patterns.every((subPattern, index) =>
-          this.patternCoversNonEnumProjection(
-            subPattern,
-            projection[index]!,
-          ),
+          this.patternCoversNonEnumProjection(subPattern, projection[index]!),
         )
       );
     }

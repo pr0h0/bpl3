@@ -5710,3 +5710,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   fallthrough separately, consuming transfers at their owning loop or switch.
   Regressions cover default handling, unreachable returns, conditional/nested
   breaks and explicit fallthrough, with O0/O3 execution checks. Audit C4.
+
+## Fixed unchecked generic expression arguments (2026-10-16)
+
+- Explicit generic arguments on variables were silently accepted. Struct
+  expression instantiations also bypassed argument count and type resolution,
+  producing invalid LLVM instead of a source diagnostic. Meta types now use
+  normal type resolution; unsupported targets and bound-method arity mismatches
+  report a located compiler error. Regression tests preserve explicit generic
+  function references and bound methods. Audit C1.
