@@ -83,7 +83,10 @@ frame execSilent(args: ...string, count: int) ret int
 
 #### `sleep`
 
-Pauses execution for the specified number of milliseconds.
+Pauses execution for the specified nonnegative number of milliseconds.
+Interrupted waits resume for the remaining duration. Negative inputs and native
+wait failures throw. Millisecond scaling uses 64-bit arithmetic, including waits
+longer than 35 minutes.
 
 ```bpl
 frame sleep(ms: int)

@@ -17,7 +17,7 @@ extern pclose(stream: *void) ret int;
 extern fgets(s: string, n: int, stream: *void) ret string;
 extern malloc(size: long) ret string;
 extern free(ptr: string) ret void;
-extern usleep(usec: uint) ret void;
+extern __bpl_sleep_us(microseconds: long) ret int;
 
 struct ProcessResult {
     exitCode: int,
@@ -114,10 +114,14 @@ frame _joinArgs(args: *string, count: int) ret String {
 
 /#
 # Sleep
-Pauses execution for the specified number of milliseconds.
+Pauses execution for the specified nonnegative number of milliseconds.
+Retries interrupted waits and throws if the native wait fails.
 #/
 frame sleep(ms: int) {
-    usleep(cast<uint>(ms * 1000));
+    if (ms < 0) { throw "Process.sleep requires nonnegative milliseconds"; }
+    if (__bpl_sleep_us(cast<long>(ms) * 1000) != 0) {
+        throw "Process.sleep failed";
+    }
 }
 
 /#

@@ -5719,3 +5719,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   normal type resolution; unsupported targets and bound-method arity mismatches
   report a located compiler error. Regression tests preserve explicit generic
   function references and bound methods. Audit C1.
+
+## Fixed process sleep overflow and ignored errors (2026-10-16)
+
+- `sleep` multiplied milliseconds in signed 32-bit arithmetic and called
+  `usleep` without checking its result. Waits over about 35 minutes overflowed;
+  interruptions shortened waits. It now widens before scaling and uses the
+  existing native sleep helper, which resumes interrupted waits. Negative input
+  and native failures throw. A linker shim verifies large durations without
+  waiting, at O0/O3; native helper tests cover EINTR. Audit stdlib low sleep item.
