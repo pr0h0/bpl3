@@ -521,7 +521,9 @@ Integer literal constants must fit the destination for local initialization,
 plain assignment, function returns, ordinary function/callback arguments,
 typed variadic arguments, and struct/enum payload fields. For example, returning
 `300` from a `u8` frame is an error. Use `cast<u8>(300)` to request truncation to
-`44` explicitly. Parentheses and decimal digit separators preserve these checks.
+`44` explicitly. Parentheses and decimal digit separators preserve these checks. Tuple/array
+literal elements and both conditional branches are checked against their
+destination types too.
 This is a compile-time check of literal constants, not a runtime range check on
 values held in variables. Binary and compound arithmetic still follow the left
 operand's type.

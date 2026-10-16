@@ -1341,6 +1341,38 @@ export abstract class TypeCheckerBase {
     targetType: AST.TypeNode,
     location: SourceLocation = expr.location,
   ): void {
+    while (expr.kind === "Group") expr = expr.expression;
+    if (expr.kind === "Ternary") {
+      this.checkIntegerConstantRange(expr.trueExpr, targetType);
+      this.checkIntegerConstantRange(expr.falseExpr, targetType);
+      return;
+    }
+    if (expr.kind === "TupleLiteral" || expr.kind === "ArrayLiteral") {
+      const resolved = this.resolveType(targetType);
+      if (
+        expr.kind === "TupleLiteral" &&
+        resolved.kind === "TupleType" &&
+        !resolved.arrayDimensions?.length &&
+        expr.elements.length === resolved.types.length
+      ) {
+        expr.elements.forEach((element, index) => {
+          this.checkIntegerConstantRange(element, resolved.types[index]!);
+        });
+      } else if (
+        expr.kind === "ArrayLiteral" &&
+        "arrayDimensions" in resolved &&
+        resolved.arrayDimensions?.length
+      ) {
+        const elementType = {
+          ...resolved,
+          arrayDimensions: resolved.arrayDimensions.slice(1),
+        };
+        for (const element of expr.elements) {
+          this.checkIntegerConstantRange(element, elementType);
+        }
+      }
+      return;
+    }
     const value = this.getIntegerConstantValue(expr);
     if (value === undefined) return;
     const resolved = this.resolveType(targetType);

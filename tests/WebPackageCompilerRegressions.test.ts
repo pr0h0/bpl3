@@ -26,7 +26,7 @@ test("array literals convert compatible integers to their element width", () => 
     native(
       `
       frame main() ret int {
-        local chars:char[4]=['a',0,255,127];
+        local chars:char[4]=['a',0,cast<char>(255),127];
         if(chars[0]!='a'||chars[1]!=0||cast<u8>(chars[2])!=255||chars[3]!=127){return 1;}
         local values:short[3]=[cast<short>(-1),2,300];
         if(values[0]!=-1||values[1]!=2||values[2]!=300){return 2;}

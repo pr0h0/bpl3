@@ -5956,3 +5956,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   casts retain intentional truncation; compound arithmetic's left-type rule is
   separate. All 30 focused enum/variadic/conversion tests, 15 runtime/ABI tests,
   typecheck and lint pass (audit C9 follow-up).
+
+## Fixed aggregate and conditional literal range-check bypasses (2026-10-16)
+
+- Tuple initializers/assignments/returns/arguments and conditional expression
+  branches could hide an out-of-range integer literal from the scalar destination
+  check. Arrays whose first element was typed u8 likewise accepted a later 300.
+  Recursively check tuple/array literal elements and both conditional branches
+  against their destination element types. Explicit element casts remain valid.
+  Arrays inferred entirely as int still require the existing type compatibility;
+  contextual array typing (audit C14) is separate. All 44 focused tests pass,
+  including O0/O3 valid boundaries, explicit casts, tuple and web compiler tests.
+  The existing char-array test now casts its intentional 255-to-char truncation.
