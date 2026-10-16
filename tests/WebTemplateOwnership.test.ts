@@ -34,7 +34,7 @@ test.skipIf(!support.supported)(
       expect(build.status, build.stdout + build.stderr).toBe(0);
       const broken = join(dir, "broken");
       mkdirSync(broken);
-      writeFileSync(join(broken, "broken.bte"), "<p>{{ missing\n");
+      writeFileSync(join(broken, "broken.bte"), '<p>{{ "}}"\n');
       const cases: Array<{ args: string[]; status: number }> = [
         { args: [], status: 1 },
         { args: ["unknown"], status: 1 },

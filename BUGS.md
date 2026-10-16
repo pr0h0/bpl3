@@ -5672,3 +5672,23 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   files, each retaining the existing timeout and failure handling. Tests verify
   deterministic coverage, no omissions/duplicates and final partial batches.
   Workflow contract checks aggregate all unit batches when checking coverage.
+
+## Fixed template interpolation delimiter scanning (2026-10-15)
+
+- Interpolations stopped at the first `}}`, including markers inside quoted
+  BPL strings or at the end of an adjacent nested expression brace. Valid
+  templates generated invalid BPL. Scanning now tracks quotes, quoted escapes
+  and nested braces before accepting the closing marker. The generation/render
+  regression in `tests/WebTemplateInterpolation.test.ts` covers escaped quotes,
+  raw output, match expressions with adjacent closing braces, and nested BPL
+  backtick strings/interpolation. Temporary scanner state is released on return.
+
+## Open: compiler interpolation temporary ownership (2026-10-16)
+
+- Backtick interpolation lowers to repeated owning `String` concatenations.
+  Destroying the final value does not release the initial empty String or
+  intermediate concatenation/conversion allocations. Even
+  `local s: String = `literal`; s.destroy();` leaks the initial byte.
+  The template delimiter regression exposed this under AddressSanitizer.
+  Compiler-created temporaries need cleanup without consuming borrowed user
+  String variables; ordinary `String.__add__` must retain its borrowing contract.

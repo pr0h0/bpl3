@@ -167,6 +167,9 @@ Use `@call Navbar.write(_sb, user)` for allocation-free component composition
 expression verbatim and does not rewrite method calls; manage any returned
 allocations yourself. HTML escaping is for HTML text and quoted attributes,
 not JavaScript, CSS, or URL validation. Raw output must come from trusted markup.
+Interpolation closing markers inside quoted BPL strings or nested expression
+braces do not end the interpolation. Escaped quotes remain part of the string; backtick interpolation and nested
+backtick expressions are scanned within their own string context.
 Unclosed or empty interpolations raise a compilation error. Template files are
 trusted source code: directives and expressions can invoke BPL functions.
 

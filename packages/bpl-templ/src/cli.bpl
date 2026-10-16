@@ -79,6 +79,47 @@ struct TemplateCompiler {
         return String.new(sb.toString());
     }
 
+    frame interpolationEnd(text: string, start: int, length: int) ret int {
+        local pos: int = start;
+        local quote: char = 0;
+        local braces: int = 0;
+        local interpolationDepths: Array<int> = Array<int>.new(0);
+        local depthsOwner: *Array<int> = &interpolationDepths;
+        defer depthsOwner.destroy();
+        loop (pos < length) {
+            local c: char = text[pos];
+            if (quote != 0) {
+                if (c == 92) {
+                    pos = pos + 1;
+                    if (pos >= length) { return -1; }
+                } else if ((quote == 96) && (c == '$') && ((pos + 1) < length) && (text[pos + 1] == '{')) {
+                    braces = braces + 1;
+                    interpolationDepths.push(braces);
+                    quote = 0;
+                    pos = pos + 1;
+                } else if (c == quote) {
+                    quote = 0;
+                }
+            } else if ((c == 34) || (c == 39) || (c == 96)) {
+                quote = c;
+            } else if (c == '{') {
+                braces = braces + 1;
+            } else if (c == '}') {
+                if (braces > 0) {
+                    if ((interpolationDepths.len() > 0) && (interpolationDepths.get(interpolationDepths.len() - 1) == braces)) {
+                        interpolationDepths.pop();
+                        quote = 96;
+                    }
+                    braces = braces - 1;
+                } else if (((pos + 1) < length) && (text[pos + 1] == '}')) {
+                    return pos;
+                }
+            }
+            pos = pos + 1;
+        }
+        return -1;
+    }
+
     frame extractArgNames(signature: String) ret String {
         local sb: StringBuilder = StringBuilder.new(signature.length);
         local cleanup_sb: *StringBuilder = &sb;
@@ -320,7 +361,7 @@ struct TemplateCompiler {
                                         bodyLines.append(esc.data);
                                         bodyLines.append("\");\n");
                                     }
-                                    local closePos: int = StringUtils.findString(lineStr, "}}", nextTag + 2);
+                                    local closePos: int = TemplateCompiler.interpolationEnd(lineStr, nextTag + 2, len);
                                     if (closePos == -1) { throw "Unclosed template interpolation"; }
                                     local exprSb: StringBuilder = StringBuilder.new(closePos - (nextTag + 2));
                                     local cleanup_exprSb: *StringBuilder = &exprSb;
