@@ -6244,3 +6244,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   preserving the selected archive source and integrity. Root-removal regressions
   now also cover a removed root that remains needed transitively, with installed
   modules present and missing.
+
+## Missing user documentation for new JSON codes (2026-10-16)
+
+- Full local and GitHub CI found that BPL_CLEAN_FAILED and
+  BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT were registered but absent from the
+  user-facing command guides. Document the conditions, failure status, cleanup
+  errors/count behavior and package resolution/rollback limits. The Markdown
+  error-code inventory verifies that documentation stays aligned with exports.

@@ -490,6 +490,10 @@ git repositories use `BPL_CLEAN_GIT_TRACKED_UNAVAILABLE`. These codes are
 additive fields on the stdout JSON failure report, preserving the
 human-readable `error` text while keeping `count: 0` and `entries: []` so
 automation can confirm no cleanup happened.
+Filesystem inspection/removal failures use `BPL_CLEAN_FAILED`. Cleanup continues
+with other paths and exits nonzero; JSON reports `success: false`, an `errors`
+array containing each failed `path` and `error`, and only successful removals in
+`entries`/`count`. An ownership-inspection failure preserves that artifact.
 
 Format JSON reports are stable for `bpl format --check --json`. `--json`
 without `--check` uses `BPL_FORMAT_JSON_REQUIRES_CHECK`, missing file lists use

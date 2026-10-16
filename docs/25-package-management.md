@@ -379,6 +379,12 @@ PackageManager manifest-loading failures also carry stable
 `BPL_PACKAGE_MANIFEST_BIN_INVALID`. Reproduce the focused JSON contract with
 `bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"`.
 
+`BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT` reports incompatible root or installed
+dependent version requirements before replacing the conflicting shared package.
+BPL currently installs one version per package name. Align the requirements or
+choose compatible versions; a failed multi-package operation does not roll back
+package directories already replaced earlier in that operation.
+
 `bpl doctor packages --json` reports malformed or unsafe lockfiles as
 `kind: "invalid-lockfile"` issues with stable `BPL_LOCKFILE_*` codes, including
 `BPL_LOCKFILE_INVALID_JSON`, `BPL_LOCKFILE_UNSUPPORTED_VERSION`,
