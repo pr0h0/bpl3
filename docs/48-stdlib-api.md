@@ -600,3 +600,10 @@ earlier value. The parser releases earlier owned strings, arrays and nested
 objects before reading the replacement. Missing subfields in a replacement
 object or fixed array are zeroed; invalid replacement input fails the whole
 parse and releases partial allocations. Unknown fields continue to be skipped.
+
+### Simple output padding
+
+`Fmt.printPaddedRight(text, width)` prints text followed by enough spaces to
+reach a minimum total width in bytes. Longer text is preserved, negative widths
+add no padding, and no newline is appended. For example, text `abc` at width 5
+prints `abc  `. Width counts UTF-8 bytes rather than terminal display columns.

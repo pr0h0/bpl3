@@ -5890,3 +5890,10 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   including failures before the body is checked. Regressions confirm the later
   function correctly reports its undefined identifier after both failure paths.
   This addresses another concrete recovery issue from audit C12.
+
+## Fixed right-padding field widths (2026-10-16)
+
+- Fmt.printPaddedRight appended width spaces after the text rather than filling
+  a field of that width. It now uses printf's left-aligned minimum field width
+  and treats negative widths as zero. O0/O3 tests cover shorter/longer/empty
+  strings, UTF-8 byte widths, zero, and INT_MIN without enormous padding.
