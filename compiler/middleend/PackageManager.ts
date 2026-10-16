@@ -281,6 +281,7 @@ export interface PackageLockFile {
       version: string;
       source: string;
       hash: string;
+      archiveSha256?: string;
     }
   >;
 }
@@ -345,6 +346,8 @@ interface ResolvedDependencySource {
 
 interface PackageInstallSourceContext {
   lockSource?: string;
+  expectedLockEntry?: PackageLockFile["packages"][string];
+  lockedPackages?: PackageLockFile["packages"];
 }
 
 export class PackageManager {
@@ -842,6 +845,7 @@ export class PackageManager {
         version?: unknown;
         source?: unknown;
         hash?: unknown;
+        archiveSha256?: unknown;
       };
 
       if (
@@ -869,6 +873,15 @@ export class PackageManager {
         throw new CompilerError(
           `Invalid bpl.lock hash for ${packageName}`,
           "Lock entry hashes must be non-empty strings.",
+          location,
+          "BPL_LOCKFILE_INVALID_ENTRY_HASH",
+        );
+      }
+      if (rawEntry.archiveSha256 !== undefined &&
+          (typeof rawEntry.archiveSha256 !== "string" || !/^[a-f0-9]{64}$/.test(rawEntry.archiveSha256))) {
+        throw new CompilerError(
+          `Invalid bpl.lock archive checksum for ${packageName}`,
+          "Archive checksums must be lowercase SHA-256 hex strings.",
           location,
           "BPL_LOCKFILE_INVALID_ENTRY_HASH",
         );
@@ -1009,12 +1022,14 @@ export class PackageManager {
     installPath: string,
     source: string,
     existingLock?: PackageLockFile,
+    archiveSha256?: string,
   ): void {
     const lock = existingLock ?? this.loadLockFile();
     lock.packages[manifest.name] = {
       version: manifest.version,
       source,
       hash: this.calculatePackageHash(installPath),
+      ...(archiveSha256 ? { archiveSha256 } : {}),
     };
     this.saveLockFile(lock);
   }
@@ -1545,7 +1560,13 @@ export class PackageManager {
             },
             [],
             packageName,
-            { lockSource: resolved.lockSource },
+            {
+              lockSource: resolved.lockSource,
+              expectedLockEntry: source === lock.packages[packageName]?.source
+                ? lock.packages[packageName]
+                : undefined,
+              lockedPackages: lock.packages,
+            },
           );
         }
         return { action: "restored", packages: sources.size };
@@ -2872,6 +2893,23 @@ export class PackageManager {
     }
 
     this.ensurePackageArchiveFile(tarballPath);
+    const expectedEntry = sourceContext.expectedLockEntry;
+    const archiveSha256 = this.calculateFileHash(tarballPath);
+    if (expectedEntry?.archiveSha256 && expectedEntry.archiveSha256 !== archiveSha256) {
+      const issue: PackageLockVerificationIssue = {
+        packageName: expectedPackageName ?? packageSource,
+        kind: "hash-mismatch",
+        message: `${expectedPackageName ?? packageSource}: archive hash does not match bpl.lock`,
+        packagePath: tarballPath,
+        expectedHash: expectedEntry.archiveSha256,
+        actualHash: archiveSha256,
+      };
+      throw new PackageLockVerificationError(
+        { ok: false, errors: [issue.message], issues: [issue], packagesChecked: 1 },
+        this.getLockFilePath(),
+        "Restore the original archive, or explicitly use --update to accept changed dependencies.",
+      );
+    }
     this.verifyArchiveProvenanceBeforeInstall(tarballPath);
 
     // Extract to a unique temporary directory first.
@@ -2955,6 +2993,46 @@ export class PackageManager {
         extractedManifestPath,
       );
 
+      if (expectedEntry) {
+        const actualHash = this.calculatePackageHash(packageDir);
+        if (manifest.version !== expectedEntry.version || actualHash !== expectedEntry.hash) {
+          const issue: PackageLockVerificationIssue = {
+            packageName: manifest.name,
+            kind: manifest.version !== expectedEntry.version ? "version-mismatch" : "hash-mismatch",
+            message: `${manifest.name}: restored package does not match bpl.lock version/content hash`,
+            expectedVersion: expectedEntry.version,
+            actualVersion: manifest.version,
+            expectedHash: expectedEntry.hash,
+            actualHash,
+          };
+          throw new PackageLockVerificationError(
+            { ok: false, errors: [issue.message], issues: [issue], packagesChecked: 1 },
+            this.getLockFilePath(),
+            "Restore the original archive, or explicitly use --update to accept changed dependencies.",
+          );
+        }
+      }
+
+      for (const [name, requirement] of Object.entries(manifest.dependencies ?? {})) {
+        const locked = sourceContext.lockedPackages?.[name];
+        if (locked && isVersionSelectorSpec(requirement) &&
+            !satisfiesVersionSelector(locked.version, requirement)) {
+          const issue: PackageLockVerificationIssue = {
+            packageName: name,
+            dependencyOf: manifest.name,
+            kind: "version-mismatch",
+            message: `${manifest.name}: locked ${name}@${locked.version} does not satisfy ${requirement}`,
+            requestedSource: requirement,
+            actualVersion: locked.version,
+          };
+          throw new PackageLockVerificationError(
+            { ok: false, errors: [issue.message], issues: [issue], packagesChecked: 1 },
+            this.getLockFilePath(),
+            "Resolve conflicting dependency requirements before updating the lockfile.",
+          );
+        }
+      }
+
       this.ensurePackageManagerDirectory(targetDir, targetDirLabel);
       const localLock = options.global ? undefined : this.loadLockFile();
       if (options.global) {
@@ -2994,7 +3072,7 @@ export class PackageManager {
         }
         this.writeArchiveProvenance(cachedArchivePath, packageDir, manifest);
       } else {
-        this.recordLocalInstall(manifest, installPath, lockSource, localLock);
+        this.recordLocalInstall(manifest, installPath, lockSource, localLock, archiveSha256);
       }
 
       compilerLog.info(`✓ Installed ${manifest.name}@${manifest.version}`);
@@ -3008,6 +3086,7 @@ export class PackageManager {
         options,
         [...installStack, manifest.name],
         dependencyBaseDir,
+        sourceContext.lockedPackages,
       );
     } finally {
       // Clean up temp directory
@@ -3224,6 +3303,7 @@ export class PackageManager {
     options: PackageOptionsVerbose,
     installStack: string[],
     dependencyBaseDir: string,
+    lockedPackages?: PackageLockFile["packages"],
   ): void {
     const deps = manifest.dependencies || {};
     const entries = Object.entries(deps);
@@ -3234,10 +3314,11 @@ export class PackageManager {
     );
 
     for (const [name, source] of entries) {
+      const locked = lockedPackages?.[name];
       const resolved = this.resolveDependencySource(
         name,
-        source,
-        dependencyBaseDir,
+        locked?.source ?? source,
+        locked ? this.projectRoot : dependencyBaseDir,
       );
       this.install(
         resolved.packageSource,
@@ -3247,7 +3328,7 @@ export class PackageManager {
         },
         installStack,
         name,
-        { lockSource: resolved.lockSource },
+        { lockSource: resolved.lockSource, expectedLockEntry: locked, lockedPackages },
       );
     }
   }

@@ -104,6 +104,13 @@ lock entry. It fails on manifest drift without rewriting the lock or installing
 packages. Local `bpl uninstall <name>` removes the package from both dependency
 maps in `bpl.json` as well as its local installation and lock entry.
 
+New lock entries also record the archive's SHA-256. Restoration checks that
+checksum and the extracted package version/content hash before replacing an
+installation. Older lockfiles without archive checksums still enforce their
+content hashes. Restored transitive dependencies use locked sources rather than
+resolving version ranges against the current cache. Use `--update` explicitly
+when accepting changed dependency contents.
+
 Install from a local tarball:
 
 ```bash

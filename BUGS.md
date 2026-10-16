@@ -6086,3 +6086,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   removes dependency entries from bpl.json, preserving other manifest metadata.
   Restoration content integrity and full graph conflict resolution remain
   separate P2/P3 follow-ups.
+
+## Fixed unchecked package restoration content (2026-10-16)
+
+- Project restoration accepted changed archives and rewrote the locked content
+  hash. Record archive SHA-256 in new lock entries and validate it before
+  extraction. Validate extracted version and package tree hash before replacing
+  installed contents, including legacy locks without an archive digest. Use
+  locked transitive sources during restoration and reject incompatible locked
+  version requirements before replacing their parent package. Explicit --update
+  accepts intentional content changes. Portable/full-file tree hashes, immutable
+  archive snapshots and whole-graph transaction/resolution remain P3/P4/P6/P8.
