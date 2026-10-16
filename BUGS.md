@@ -6057,3 +6057,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   and retain the successful action exit code. Default actions are initialized.
   Reject negative getArg indexes. Tests cover aliases, empty/default overrides,
   subcommands, error paths and O0/O3 ASan/UBSan cleanup: 11 tests pass.
+
+## Checked rational overflow follow-up (2026-10-16)
+
+- Following maintainer input, replace historical wrapping for unrepresentable
+  rational arithmetic with the existing invalid 0/0 sentinel. Exact unsigned
+  wide intermediates preserve cancellation in addition/subtraction; unsigned
+  cross-cancellation and final bounds checks cover multiplication/division,
+  including LONG_MIN. Negation/absolute value reject unrepresentable magnitudes.
+  A BigInt oracle checks representable and overflowing reduced results.

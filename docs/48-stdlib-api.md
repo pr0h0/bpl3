@@ -192,8 +192,10 @@ invalid `0/0` sentinel for a zero denominator or when the reduced fraction canno
 have a positive `long` denominator and a representable `long` numerator. For
 example, `new(1, LONG_MIN)` and `new(LONG_MIN, -1)` are invalid, while
 `new(LONG_MIN, -2)` reduces to `4611686018427387904/1`. Check `isValid()` before
-using a result. Arithmetic overflow beyond the representable reduced range is
-still a separate limitation.
+using a result. Addition, subtraction, multiplication and division reduce exact
+intermediates before checking the result. If the reduced numerator or positive
+denominator does not fit `long`, arithmetic returns `0/0` rather than wrapping.
+Negating or taking the absolute value of `LONG_MIN/1` also returns `0/0`.
 
 **Operations:**
 
