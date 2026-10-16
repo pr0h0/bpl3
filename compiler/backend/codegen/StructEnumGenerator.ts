@@ -29,6 +29,20 @@ const IMPLICITLY_CALLED_METHOD_NAMES = new Set([
 ]);
 
 export abstract class StructEnumGenerator extends BaseCodeGenerator {
+  protected getStructFieldStorageType(field: AST.StructField): AST.TypeNode {
+    // Generic storage can need the original callable alias for pointer
+    // indirection (Array<Callback>.data is *Callback). Eagerly expanded Func
+    // arguments have no BasicType wrapper on which to retain that pointer.
+    if (
+      field.type.kind === "BasicType" &&
+      (field.type.genericArgs.length > 0 ||
+        (field.resolvedType?.kind === "BasicType" && field.resolvedType.genericArgs.length > 0))
+    ) {
+      return field.type;
+    }
+    return field.resolvedType ?? field.type;
+  }
+
   // Abstract methods that will be implemented in child classes
   protected abstract generateFunction(
     decl: AST.FunctionDecl,
@@ -462,7 +476,7 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
       this.vtableLayouts.get(structName)!.length > 0;
 
     let allFieldTypes = fields
-      .map((f) => this.resolveType(f.resolvedType || f.type))
+      .map((f) => this.resolveType(this.getStructFieldStorageType(f)))
       .join(", ");
 
     if (hasVTable) {

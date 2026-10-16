@@ -5825,3 +5825,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   attachments. O0/O3 tests verify LLVM without debug warnings and confirm native
   clang preserves compile-unit/subprogram metadata, including defer callbacks.
   Audit C6.
+
+## Fixed callable alias storage in resolved generic fields (2026-10-16)
+
+- Retaining generic field metadata exposed a backend representation limit:
+  Array<Callback> layout tried to build a pointer to an eagerly expanded Func
+  type, which has no BasicType pointer wrapper. The web-server example failed
+  compilation despite passing check. Storage/layout/default-initialization
+  walks now preserve the original generic alias syntax while keeping resolved
+  nongeneric/private alias metadata. O0/O3 sanitizer regression invokes a
+  callback retrieved from an Array field; the web demo smoke is also rerun.

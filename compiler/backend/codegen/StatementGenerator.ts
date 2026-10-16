@@ -142,7 +142,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     }
 
     return this.getAllStructFields(structDecl).map((field) => {
-      const fieldType = field.resolvedType ?? field.type;
+      const fieldType = this.getStructFieldStorageType(field);
       return {
         name: field.name,
         type:
@@ -1974,7 +1974,7 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     seen.add(structName);
     for (const field of this.getAllStructFields(decl)) {
-      const fieldType = field.resolvedType || field.type;
+      const fieldType = this.getStructFieldStorageType(field);
       const fieldLlvmType = this.resolveType(fieldType);
 
       if (fieldLlvmType.startsWith("%enum.") && !fieldLlvmType.endsWith("*")) {
