@@ -55,6 +55,8 @@ local ch: char = 65;  # ASCII 'A'
 - A directly negated literal of magnitude 2⁶³, including a grouped literal,
   represents signed `LONG_MIN`. Other unsigned negations retain unsigned wrap
   semantics; cast explicitly when a different signed interpretation is needed.
+- Grouping and decimal digit separators preserve local initializer range checks:
+  `local value: u8 = (3_00);` is rejected just like `local value: u8 = 300;`.
 - Arithmetic operations may overflow (wrap around)
 - No automatic bounds checking
 - Mixing signed/unsigned requires explicit casting

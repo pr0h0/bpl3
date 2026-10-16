@@ -5937,3 +5937,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   while expecting `ok` plus three spaces after the minimum-total-width correction.
   Request width 5 to match its left-padding example and preserve the expected
   five-character output. The actual example integration test passes again.
+
+## Fixed integer spelling bypasses of initializer overflow checks (2026-10-16)
+
+- Confirmed: `local value:u8=3_00` compiled although the equivalent `300` is
+  rejected. Constant extraction passed the spelling directly to BigInt and did
+  not unwrap groups, so alternate spellings bypassed range diagnostics. Normalize
+  digit separators and unwrap Group nodes before extracting integer constants.
+  Narrow unsigned/signed boundaries and grouped negation pass O0/O3 regressions;
+  all 25 focused mixed-width, literal and diagnostic tests pass.

@@ -280,12 +280,13 @@ export class TypeUtils {
    * Get the integer constant value from an expression if it's a constant
    */
   static getIntegerConstantValue(expr: AST.Expression): bigint | undefined {
+    while (expr.kind === "Group") expr = expr.expression;
     if (expr.kind === "Literal") {
       if (expr.type !== "number") return undefined;
       const raw = expr.raw;
       if (raw.indexOf(".") !== -1) return undefined;
       try {
-        return BigInt(raw);
+        return BigInt(raw.indexOf("_") === -1 ? raw : raw.replace(/_/g, ""));
       } catch {
         return undefined;
       }
