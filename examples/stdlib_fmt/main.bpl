@@ -7,7 +7,7 @@ frame main() ret int {
     Fmt.printHexLn(255);
     Fmt.printPaddedLeft("ok", 5);
     IO.log("");
-    Fmt.printPaddedRight("ok", 3);
+    Fmt.printPaddedRight("ok", 5);
     IO.log("");
     return 0;
 }

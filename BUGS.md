@@ -5930,3 +5930,10 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   strict-false test enabled colors in logs redirected to files or pipes. Require
   an explicit true TTY signal. Child-process regressions cover real pipes,
   explicit false/true terminal flags, and NO_COLOR overriding terminal color.
+
+## Fixed formatting demo width after padding correction (2026-10-16)
+
+- The full integration run found the stdlib_fmt example still requested width 3
+  while expecting `ok` plus three spaces after the minimum-total-width correction.
+  Request width 5 to match its left-padding example and preserve the expected
+  five-character output. The actual example integration test passes again.
