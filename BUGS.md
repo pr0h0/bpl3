@@ -6076,3 +6076,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   Keep standalone-file projects supported rather than require bpl.json.
   All 17 cleanup-focused CLI tests pass, including preview/deletion agreement,
   unrelated files, symlinked sources, tracked files and failed git probes.
+
+## Fixed ignored root dependency manifest drift (2026-10-16)
+
+- An existing lock caused newly added dependencies to be ignored and --locked
+  accepted missing/incompatible root requirements. Verify root dependencies and
+  development dependencies against lock versions and archive sources; normal
+  installation reconciles added/changed requirements. Local uninstall also
+  removes dependency entries from bpl.json, preserving other manifest metadata.
+  Restoration content integrity and full graph conflict resolution remain
+  separate P2/P3 follow-ups.

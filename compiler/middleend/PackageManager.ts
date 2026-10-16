@@ -1019,6 +1019,42 @@ export class PackageManager {
     this.saveLockFile(lock);
   }
 
+  private manifestLockIssues(
+    lock: PackageLockFile,
+  ): PackageLockVerificationIssue[] {
+    if (!this.tryLstat(path.join(this.projectRoot, "bpl.json"))) return [];
+    const manifest = this.loadManifest(this.projectRoot);
+    const dependencies = { ...manifest.dependencies, ...manifest.devDependencies };
+    const issues: PackageLockVerificationIssue[] = [];
+    for (const [name, source] of Object.entries(dependencies)) {
+      const entry = lock.packages[name];
+      const requested = this.stripPackageFileSourcePrefix(source);
+      let matches = Boolean(entry);
+      if (entry && isVersionSelectorSpec(requested)) {
+        matches = satisfiesVersionSelector(entry.version, requested);
+      } else if (entry && isPackageFileSource(requested)) {
+        matches =
+          this.resolveDependencyFileSource(this.projectRoot, requested) ===
+          this.resolveDependencyFileSource(
+            this.projectRoot,
+            this.stripPackageFileSourcePrefix(entry.source),
+          );
+      }
+      if (!matches) {
+        issues.push({
+          packageName: name,
+          kind: "manifest-dependency-mismatch",
+          message: `${name}: bpl.lock does not satisfy bpl.json dependency ${source}`,
+          requestedSource: source,
+          source: entry?.source,
+          actualVersion: entry?.version,
+          packagePath: path.join(this.projectRoot, "bpl.json"),
+        });
+      }
+    }
+    return issues;
+  }
+
   verifyLockFile(): PackageLockVerification {
     const lockPath = this.getLockFilePath();
     if (!this.tryLstat(lockPath)) {
@@ -1039,7 +1075,7 @@ export class PackageManager {
     }
 
     const lock = this.loadLockFile();
-    const issues: PackageLockVerificationIssue[] = [];
+    const issues: PackageLockVerificationIssue[] = this.manifestLockIssues(lock);
     const addIssue = (issue: PackageLockVerificationIssue) => {
       issues.push(issue);
     };
@@ -1482,16 +1518,22 @@ export class PackageManager {
       const lock = this.loadLockFile();
       const entries = Object.entries(lock.packages);
       if (entries.length > 0) {
-        compilerLog.info(`Restoring ${entries.length} locked packages...`);
-        for (const [packageName, entry] of entries) {
+        const sources = new Map(
+          entries.map(([name, entry]) => [name, entry.source]),
+        );
+        for (const issue of this.manifestLockIssues(lock)) {
+          sources.set(issue.packageName, deps[issue.packageName]!);
+        }
+        compilerLog.info(`Restoring ${sources.size} project packages...`);
+        for (const [packageName, source] of sources) {
           if (options.verbose) {
             compilerLog.info(
-              `Restoring ${packageName}@${entry.version} from ${entry.source}`,
+              `Restoring ${packageName} from ${source}`,
             );
           }
           const resolved = this.resolveDependencySource(
             packageName,
-            entry.source,
+            source,
             this.projectRoot,
           );
           this.install(
@@ -1506,7 +1548,7 @@ export class PackageManager {
             { lockSource: resolved.lockSource },
           );
         }
-        return { action: "restored", packages: entries.length };
+        return { action: "restored", packages: sources.size };
       }
     }
 
@@ -1548,6 +1590,10 @@ export class PackageManager {
 
     if (issueKinds.has("missing-lockfile")) {
       return "Run 'bpl install' to create bpl.lock from bpl.json dependencies.";
+    }
+
+    if (issueKinds.has("manifest-dependency-mismatch")) {
+      return "Run 'bpl install' to reconcile bpl.json dependencies with bpl.lock, then retry --locked.";
     }
 
     const restoreHelp = "Run 'bpl install' to restore packages from bpl.lock.";
@@ -3898,6 +3944,11 @@ export class PackageManager {
     }
 
     const manifest = this.loadManifest(packagePath);
+    const projectManifestPath = path.join(this.projectRoot, "bpl.json");
+    const projectManifest =
+      !options.global && this.tryLstat(projectManifestPath)
+        ? this.loadManifest(this.projectRoot)
+        : undefined;
     const localLock =
       !options.global && this.tryLstat(this.getLockFilePath())
         ? this.loadLockFile()
@@ -3982,6 +4033,18 @@ export class PackageManager {
 
     if (!options.global) {
       this.removeLocalLockEntry(manifest.name, localLock);
+      if (
+        projectManifest &&
+        (projectManifest.dependencies?.[manifest.name] !== undefined ||
+          projectManifest.devDependencies?.[manifest.name] !== undefined)
+      ) {
+        delete projectManifest.dependencies?.[manifest.name];
+        delete projectManifest.devDependencies?.[manifest.name];
+        this.writeFileAtomically(
+          projectManifestPath,
+          JSON.stringify(projectManifest, null, 2) + "\n",
+        );
+      }
     }
 
     compilerLog.info(`✓ Uninstalled ${manifest.name}@${manifest.version}`);

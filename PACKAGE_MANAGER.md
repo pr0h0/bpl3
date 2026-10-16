@@ -95,6 +95,15 @@ bpl pack
 
 ### Install a Package
 
+Run `bpl install` without a package argument to install project dependencies.
+An existing `bpl.lock` retains locked sources; newly added dependencies and
+changed version/source requirements in `bpl.json` are reconciled as well.
+`bpl install --locked` verifies installed contents and checks that every root
+dependency, including development dependencies, is represented by a compatible
+lock entry. It fails on manifest drift without rewriting the lock or installing
+packages. Local `bpl uninstall <name>` removes the package from both dependency
+maps in `bpl.json` as well as its local installation and lock entry.
+
 Install from a local tarball:
 
 ```bash
