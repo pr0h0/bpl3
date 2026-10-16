@@ -6097,3 +6097,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   version requirements before replacing their parent package. Explicit --update
   accepts intentional content changes. Portable/full-file tree hashes, immutable
   archive snapshots and whole-graph transaction/resolution remain P3/P4/P6/P8.
+
+## Fixed failed project updates erasing the previous lock (2026-10-16)
+
+- --update (also used by bpl lock) eagerly wrote an empty lock and could leave
+  it empty/partial after installation failed. Stage lock updates in memory,
+  commit once installation succeeds and discard pending state on every failure.
+  Preserve existing path validation and atomic-write permissions. Sort lock keys
+  using codepoint order and append a newline. All 283 package/CLI tests pass.
+  Package-directory rollback remains a separate P8 issue.

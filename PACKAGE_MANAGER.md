@@ -111,6 +111,12 @@ content hashes. Restored transitive dependencies use locked sources rather than
 resolving version ranges against the current cache. Use `--update` explicitly
 when accepting changed dependency contents.
 
+`install --update` and `bpl lock` write their replacement lock only after all
+requested installations succeed. A failed update retains the previous lockfile.
+This protects the lockfile; it does not roll back package directories already
+replaced earlier in a multi-package installation. Lock package names are sorted
+independently of locale, and generated lockfiles end with a newline.
+
 Install from a local tarball:
 
 ```bash

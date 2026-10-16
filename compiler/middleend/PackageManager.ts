@@ -351,6 +351,7 @@ interface PackageInstallSourceContext {
 }
 
 export class PackageManager {
+  private pendingProjectLock?: PackageLockFile;
   private projectRoot: string;
   private globalPackageDir: string;
   private localPackageDir: string;
@@ -716,6 +717,7 @@ export class PackageManager {
   }
 
   loadLockFile(): PackageLockFile {
+    if (this.pendingProjectLock) return this.pendingProjectLock;
     const lockPath = this.getLockFilePath();
     const location: SourceLocation = {
       file: lockPath,
@@ -922,7 +924,17 @@ export class PackageManager {
       );
     }
 
-    this.writeFileAtomically(lockPath, JSON.stringify(lock, null, 2));
+    if (this.pendingProjectLock) {
+      this.pendingProjectLock = lock;
+      return;
+    }
+    const packages = Object.fromEntries(
+      Object.entries(lock.packages).sort(([left], [right]) => {
+        if (left === right) return 0;
+        return left < right ? -1 : 1;
+      }),
+    );
+    this.writeFileAtomically(lockPath, JSON.stringify({ ...lock, packages }, null, 2) + "\n");
   }
 
   private writeFileAtomically(filePath: string, content: string): void {
@@ -1424,6 +1436,21 @@ export class PackageManager {
   installProject(
     options: PackageOptionsVerbose = { verbose: false, global: false },
   ): PackageProjectInstallResult {
+    const previousPendingLock = this.pendingProjectLock;
+    try {
+      const result = this.installProjectInContext(options);
+      const pending = this.pendingProjectLock;
+      this.pendingProjectLock = previousPendingLock;
+      if (pending) this.saveLockFile(pending);
+      return result;
+    } finally {
+      this.pendingProjectLock = previousPendingLock;
+    }
+  }
+
+  private installProjectInContext(
+    options: PackageOptionsVerbose,
+  ): PackageProjectInstallResult {
     if (options.global) {
       throw new CompilerError(
         "Project dependency install cannot be global",
@@ -1574,7 +1601,10 @@ export class PackageManager {
     }
 
     if (options.update) {
-      this.saveLockFile({ lockfileVersion: 1, packages: {} });
+      this.pendingProjectLock = { lockfileVersion: 1, packages: {} };
+      // Validate the output path now, but keep the new graph in memory until
+      // installation completes. A failure must leave the previous lock intact.
+      this.saveLockFile(this.pendingProjectLock);
     }
 
     if (Object.keys(deps).length === 0) {
