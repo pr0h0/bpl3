@@ -1277,6 +1277,7 @@ export function checkStructLiteral(
         );
       }
       const resolvedValueType = this.resolveType(valueType);
+      this.checkIntegerConstantRange(field.value, resolvedMemberType);
 
       if (!this.areTypesCompatible(resolvedMemberType, resolvedValueType)) {
         throw new CompilerError(

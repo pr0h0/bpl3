@@ -206,7 +206,19 @@ export function checkCall(
       expr.callee.resolvedType = match.type;
 
       // Passing a value by value copies it into the callee's own storage.
+      const variadicIndex =
+        match.declaration.kind === "FunctionDecl"
+          ? (match.declaration as AST.FunctionDecl).params.findIndex(
+              (parameter) => parameter.isVariadic,
+            )
+          : -1;
+      const fixedParamCount =
+        variadicIndex >= 0 ? variadicIndex : match.type.paramTypes.length;
       expr.args.forEach((argument, index) => {
+        const parameterType = match.type.paramTypes[index];
+        if (parameterType && index < fixedParamCount) {
+          this.checkIntegerConstantRange(argument, parameterType);
+        }
         this.rejectOwningCopy(
           argument,
           match.type.paramTypes[index] ?? argTypes[index],
@@ -625,6 +637,7 @@ function handleEnumVariantCall(
         }
         expectedType = this.resolveType(expectedType);
         const actualType = argTypes[i];
+        if (actualType) this.checkIntegerConstantRange(expr.args[i]!, expectedType);
         if (actualType && !this.areTypesCompatible(expectedType, actualType)) {
           throw new CompilerError(
             `Type mismatch for argument ${i + 1} of '${variant.name}': expected ${this.typeToString(
@@ -701,6 +714,7 @@ function validateFunctionCall(
     const argType = argTypes[i];
     const argument = expr.args[i];
     if (argument) {
+      this.checkIntegerConstantRange(argument, paramType);
       this.rejectOwningCopy(
         argument,
         paramType ?? argType,
@@ -1525,6 +1539,18 @@ function packVariadicArguments(
       fixedParamCount < funcType.paramTypes.length
         ? funcType.paramTypes[fixedParamCount]!
         : funcDecl.params[fixedParamCount]!.type;
+
+    const variadicElementType =
+      specializedVariadicType.kind === "BasicType" &&
+      specializedVariadicType.pointerDepth > 0
+        ? {
+            ...specializedVariadicType,
+            pointerDepth: specializedVariadicType.pointerDepth - 1,
+          }
+        : specializedVariadicType;
+    for (const argument of variadicArgs) {
+      this.checkIntegerConstantRange(argument, variadicElementType);
+    }
 
     let packedArgs: AST.Expression[] = variadicArgs;
 

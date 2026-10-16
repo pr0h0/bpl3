@@ -5946,3 +5946,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   digit separators and unwrap Group nodes before extracting integer constants.
   Narrow unsigned/signed boundaries and grouped negation pass O0/O3 regressions;
   all 25 focused mixed-width, literal and diagnostic tests pass.
+
+## Fixed literal overflow in implicit conversion contexts (2026-10-16)
+
+- Confirmed: `return 300` in a u8 frame, assigning 300 to u8, passing 300 to a
+  u8 parameter/callback/generic frame, and a u8 struct field accept truncation
+  despite rejecting the same value in a local initializer. Share the scalar
+  constant range diagnostic across these destinations and enum payloads. Explicit
+  casts retain intentional truncation; compound arithmetic's left-type rule is
+  separate. All 30 focused enum/variadic/conversion tests, 15 runtime/ABI tests,
+  typecheck and lint pass (audit C9 follow-up).

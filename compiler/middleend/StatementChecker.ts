@@ -17,7 +17,6 @@ import {
   CONTINUE_OUTSIDE_LOOP_CODE,
   DEFER_RETURN_VALUE_INVALID_CODE,
   FALLTHROUGH_OUTSIDE_SWITCH_CODE,
-  INTEGER_LITERAL_OVERFLOW_CODE,
   RETURN_TYPE_MISMATCH_CODE,
   SWITCH_CASE_TYPE_MISMATCH_CODE,
   SWITCH_VALUE_TYPE_MISMATCH_CODE,
@@ -522,6 +521,9 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     const resolvedActual = returnType
       ? this.resolveType(returnType)
       : this.makeVoidType();
+
+    if (stmt.value)
+      this.checkIntegerConstantRange(stmt.value, resolvedExpected);
 
     // Allow integer constant to match any compatible integer type
     if (stmt.value && returnType && returnType.kind === "BasicType") {
@@ -1057,6 +1059,12 @@ export function checkVariableDecl(
           decl.initializer.resolvedType ?? this.resolveType(initType);
         const resolvedDecl = declaredType;
 
+        this.checkIntegerConstantRange(
+          decl.initializer,
+          resolvedDecl,
+          decl.location,
+        );
+
         // Check for integer constant compatibility
         const constVal = isImplicitIntegerToBool(resolvedDecl, resolvedInit)
           ? undefined
@@ -1073,18 +1081,6 @@ export function checkVariableDecl(
             ) {
               decl.initializer.resolvedType = resolvedDecl;
             }
-          } else if (
-            resolvedDecl.kind === "BasicType" &&
-            INTEGER_TYPES.includes(resolvedDecl.name)
-          ) {
-            throw new CompilerError(
-              `Integer overflow: value ${constVal} does not fit in type ${this.typeToString(
-                resolvedDecl,
-              )}`,
-              `Ensure the value is within the range of ${this.typeToString(resolvedDecl)}.`,
-              decl.location,
-              INTEGER_LITERAL_OVERFLOW_CODE,
-            );
           } else if (!this.areTypesCompatible(resolvedDecl, resolvedInit)) {
             // Check for implicit pointer-to-value conversion for struct literals
             // Allow assigning StructLiteral to *Struct (allocates on stack)

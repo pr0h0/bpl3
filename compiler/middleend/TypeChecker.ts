@@ -2124,6 +2124,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     );
 
     if (targetType && valueType) {
+      if (expr.operator.type === TokenType.Equal) {
+        this.checkIntegerConstantRange(expr.value, targetType);
+      }
       const isBitwiseCompound =
         expr.operator.type === TokenType.AmpersandEqual ||
         expr.operator.type === TokenType.PipeEqual ||
@@ -2297,6 +2300,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         expectedType = this.substituteType(expectedType, typeMap);
       }
       const resolvedExpectedType = this.resolveType(expectedType);
+      if (valueType)
+        this.checkIntegerConstantRange(field.value, resolvedExpectedType);
       if (
         valueType &&
         !this.areTypesCompatible(resolvedExpectedType, valueType)

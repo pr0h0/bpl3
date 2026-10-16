@@ -1336,6 +1336,29 @@ export abstract class TypeCheckerBase {
     );
   }
 
+  public checkIntegerConstantRange(
+    expr: AST.Expression,
+    targetType: AST.TypeNode,
+    location: SourceLocation = expr.location,
+  ): void {
+    const value = this.getIntegerConstantValue(expr);
+    if (value === undefined) return;
+    const resolved = this.resolveType(targetType);
+    if (
+      resolved.kind !== "BasicType" ||
+      resolved.arrayDimensions.length > 0 ||
+      !TypeUtils.isIntegerType(resolved) ||
+      this.isIntegerTypeCompatible(value, resolved)
+    )
+      return;
+    throw new CompilerError(
+      `Integer overflow: value ${value} does not fit in type ${this.typeToString(resolved)}`,
+      `Ensure the value is within the range of ${this.typeToString(resolved)}. Use an explicit cast for intentional truncation.`,
+      location,
+      INTEGER_LITERAL_OVERFLOW_CODE,
+    );
+  }
+
   public getIntegerSize(type: AST.TypeNode): number {
     return TypeUtils.getIntegerSize(type);
   }
