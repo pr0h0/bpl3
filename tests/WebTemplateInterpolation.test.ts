@@ -63,9 +63,7 @@ frame main()ret int{
  Sample.free(html);if(!ok){return 1;}
  html=Sample.render(1);ok=strstr(html,"other")!=nullptr;Sample.free(html);if(!ok){return 2;}return 0;
 }`,
-      // Generated backtick expressions have a separately tracked compiler
-      // temporary-ownership leak. Sanitize the generator above; execute this
-      // consumer without sanitizers until that compiler issue is repaired.
+      flags,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });

@@ -5683,15 +5683,19 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   raw output, match expressions with adjacent closing braces, and nested BPL
   backtick strings/interpolation. Temporary scanner state is released on return.
 
-## Open: compiler interpolation temporary ownership (2026-10-16)
+## Fixed compiler interpolation temporary ownership (2026-10-16)
 
 - Backtick interpolation lowers to repeated owning `String` concatenations.
   Destroying the final value does not release the initial empty String or
   intermediate concatenation/conversion allocations. Even
   `local s: String = `literal`; s.destroy();` leaks the initial byte.
   The template delimiter regression exposed this under AddressSanitizer.
-  Compiler-created temporaries need cleanup without consuming borrowed user
-  String variables; ordinary `String.__add__` must retain its borrowing contract.
+  Lowering now builds an expression-valued scope with deferred cleanup for the
+  accumulator and compiler-created conversions, transferring only the final
+  buffer to the caller. User String operands remain borrowed; ordinary addition
+  keeps its ownership contract. O0/O3 leak-detecting sanitizer tests cover nested
+  interpolation, empty/literal strings, pointers, ordering, repeated evaluation
+  and conversion exceptions. The template consumer is sanitized again.
 
 ## Fixed process application exit codes (2026-10-16)
 

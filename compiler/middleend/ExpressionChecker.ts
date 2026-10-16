@@ -4,6 +4,7 @@
  */
 
 import * as AST from "../common/AST";
+import { lowerStringInterpolation } from "./lowering/StringInterpolation";
 import { getPrimitiveType } from "../common/PrimitiveTypes";
 import { CompilerError } from "../common/CompilerError";
 import { typeCheckerLog } from "../common/Logger";
@@ -79,8 +80,13 @@ function isArithmeticOperandType(
 }
 
 function isOperatorOverloadFreeBasicTypeName(name: string): boolean {
-  return getPrimitiveType(name) !== undefined ||
-    name === "void" || name === "string" || name === "null" || name === "nullptr";
+  return (
+    getPrimitiveType(name) !== undefined ||
+    name === "void" ||
+    name === "string" ||
+    name === "null" ||
+    name === "nullptr"
+  );
 }
 
 function canHaveOperatorOverload(type: AST.TypeNode): boolean {
@@ -179,13 +185,11 @@ export function checkLiteral(
   };
 }
 
-/**
- * Check an interpolated string expression
- */
 export function checkInterpolatedString(
   this: CheckerContext,
   expr: AST.InterpolatedStringExpr,
 ): AST.TypeNode {
+  const ownedParts = new Set<AST.Expression>();
   // Desugar to String concatenation: String.new("") + part1 + part2 ...
 
   // Initial: String.new("")
@@ -372,6 +376,11 @@ export function checkInterpolatedString(
       }
     }
 
+    let sourcePart = part;
+    while (sourcePart.kind === "Group") sourcePart = sourcePart.expression;
+    if (rhs !== part || sourcePart.kind === "InterpolatedString")
+      ownedParts.add(rhs);
+
     // currentExpr = currentExpr + rhs
     currentExpr = {
       kind: "Binary",
@@ -407,7 +416,8 @@ export function checkInterpolatedString(
     };
   }
 
-  return type;
+  expr.desugared = lowerStringInterpolation(this, currentExpr, ownedParts);
+  return this.checkExpression(expr.desugared) ?? type;
 }
 
 /**
@@ -916,8 +926,7 @@ export function checkUnary(
             id.resolvedDeclaration.kind === "Parameter")
         ) {
           result.variableDeclaration = id.resolvedDeclaration as
-            | AST.VariableDecl
-            | AST.Parameter;
+            AST.VariableDecl | AST.Parameter;
         }
       }
 
@@ -1026,10 +1035,7 @@ export function checkUnary(
         ASSIGNMENT_TARGET_INVALID_CODE,
       );
     }
-    if (
-      !TypeUtils.isNumericType(operandType) ||
-      this.isBoolType(operandType)
-    ) {
+    if (!TypeUtils.isNumericType(operandType) || this.isBoolType(operandType)) {
       throw new CompilerError(
         `Operator '${expr.operator.lexeme}' cannot be applied to type '${this.typeToString(operandType)}'`,
         "Increment and decrement require an integer or floating-point operand. Use explicit arithmetic for pointers.",

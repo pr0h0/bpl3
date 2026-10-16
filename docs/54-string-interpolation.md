@@ -177,21 +177,28 @@ frame main() ret int {
 
 ## How It Works
 
-The compiler transforms interpolated strings into `String` concatenation operations.
-
-### Transformation Example
+The compiler evaluates the parts from left to right and concatenates their text
+into an owned `String`. Each expression is evaluated once. Generated scopes
+release intermediate buffers and compiler-created conversions on normal exit or
+when a conversion throws. Existing `String` variables used as inputs are borrowed
+and remain valid after interpolation. The caller owns the final result and must
+destroy it when finished.
 
 ```bpl
-# This interpolated string:
-local s: String = `Hello ${name}, you are ${age} years old`;
+import [String] from "std/string.bpl";
 
-# Is transformed into something like:
-local s: String = String.new("Hello ")
-    .concat(String.from(name))
-    .concat(String.new(", you are "))
-    .concat(String.fromInt(age))
-    .concat(String.new(" years old"));
+frame main() {
+    local name: String = String.new("Ada");
+    local greeting: String = `Hello ${name}`;
+    greeting.destroy();
+    name.destroy();
+}
 ```
+
+A custom `toString()` returning an owning `String` transfers that conversion to
+the interpolation; a primitive `string` result is borrowed. Other allocations
+created explicitly inside an interpolation expression follow the usual manual
+ownership rules.
 
 ### Requirements
 
