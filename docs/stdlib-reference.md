@@ -1381,16 +1381,6 @@ frame bpl_printf(fmt: string, args: *Any, args_count: int)
 Exports:
 
 ```bpl
-export [Iter];
-```
-
-### Iter
-
-```bpl
-struct Iter
-frame map()
-frame filter()
-frame reduce()
 ```
 
 ## std/iter_specs.bpl
@@ -2824,16 +2814,6 @@ frame replace(s: string, oldStr: string, newStr: string) ret String
 Exports:
 
 ```bpl
-export [Sync];
-```
-
-### Sync
-
-```bpl
-struct Sync
-frame mutex()
-frame lock()
-frame unlock()
 ```
 
 ## std/thread.bpl
@@ -2843,15 +2823,6 @@ frame unlock()
 Exports:
 
 ```bpl
-export [Thread];
-```
-
-### Thread
-
-```bpl
-struct Thread
-frame spawn()
-frame join()
 ```
 
 ## std/time.bpl

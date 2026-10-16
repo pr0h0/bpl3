@@ -1,12 +1,3 @@
-# Threading (stub)
-
-export [Thread];
-
-struct Thread {
-    frame spawn() {
-        throw 999;
-    }
-    frame join() {
-        throw 999;
-    }
-}
+# Native threading is not implemented by this module.
+# No placeholder API is exported. Use implemented collection iterators from
+# std/iter_specs.bpl; native threading/synchronization requires an FFI library.

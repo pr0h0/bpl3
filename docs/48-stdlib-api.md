@@ -582,8 +582,8 @@ omitted areas:
 | `memory/allocator.bpl`, `memory/arena_allocator.bpl`, `memory/pool_allocator.bpl`, `memory/stack_allocator.bpl` | [Manual allocator contracts](22-manual-memory.md#manual-allocator-contracts); explicit lifetimes and checked sizes |
 | `memory/page_allocator.bpl`, `memory/syscalls.bpl`                                                              | PageAllocator uses native page alignment; raw syscalls declarations remain low-level                                 |
 | `iter_specs.bpl`, `core_specs.bpl`                                                                              | Interfaces used by implemented collections                                           |
-| `iter.bpl`                                                                                                      | `Iter.map`, `filter`, and `reduce` are stubs that throw 999                          |
-| `thread.bpl`, `sync.bpl`                                                                                        | Threading and synchronization are stubs that throw 999                               |
+| `iter.bpl`                                                                                                      | No public API; use implemented collection iterators in `iter_specs.bpl`                          |
+| `thread.bpl`, `sync.bpl`                                                                                        | No public API; native threading/synchronization requires an FFI library                               |
 | `type.bpl`, `primitives.bpl`, `reflection.bpl`, `intrinsics.bpl`                                                | Compiler/runtime support; platform and representation details matter                 |
 | `c.bpl`                                                                                                         | Native C declarations, not a portable or memory-safe wrapper                         |
 | `process.bpl`                                                                                                   | Shell-backed execution; see the [process guide](59-process-execution.md)             |

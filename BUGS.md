@@ -5796,3 +5796,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   equality rules and user-supplied callback behavior. O0/O3 sanitizer regressions
   check distribution and lookups before/after growth. Compound keys retain the
   equality-safe constant fallback rather than hashing padding bytes. Audit S1.
+
+## Removed exported standard library placeholders (2026-10-16)
+
+- `Thread`, `Sync` and `Iter` presented usable-looking APIs whose methods only
+  threw integer 999. Those placeholder declarations are removed; importing them
+  now fails during compilation. Implemented collection iterator interfaces are
+  unchanged. Documentation and generated declarations reflect the absence of
+  thread/synchronization/adaptor APIs. Tests check all three rejected imports.
+  Audit S8.

@@ -1,15 +1,3 @@
-# Synchronization (stub)
-
-export [Sync];
-
-struct Sync {
-    frame mutex() {
-        throw 999;
-    }
-    frame lock() {
-        throw 999;
-    }
-    frame unlock() {
-        throw 999;
-    }
-}
+# Synchronization is not implemented by this module.
+# No placeholder API is exported. Use implemented collection iterators from
+# std/iter_specs.bpl; native threading/synchronization requires an FFI library.

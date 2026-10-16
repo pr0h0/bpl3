@@ -1,15 +1,3 @@
-# Iterators (stub)
-
-export [Iter];
-
-struct Iter {
-    frame map() {
-        throw 999;
-    }
-    frame filter() {
-        throw 999;
-    }
-    frame reduce() {
-        throw 999;
-    }
-}
+# Higher-order iterator adapters is not implemented by this module.
+# No placeholder API is exported. Use implemented collection iterators from
+# std/iter_specs.bpl; native threading/synchronization requires an FFI library.
