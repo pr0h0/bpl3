@@ -278,6 +278,7 @@ export interface PackageArchiveProvenance {
 
 export interface PackageLockFile {
   lockfileVersion: 1;
+  manifestRoots?: string[];
   packages: Record<
     string,
     {
@@ -754,6 +755,7 @@ export class PackageManager {
     return {
       lockfileVersion: 1,
       packages: parsed.packages || {},
+      ...(parsed.manifestRoots ? {manifestRoots: parsed.manifestRoots} : {}),
     };
   }
 
@@ -801,6 +803,7 @@ export class PackageManager {
     const rawLock = lock as {
       lockfileVersion?: unknown;
       packages?: unknown;
+      manifestRoots?: unknown;
     };
 
     if (
@@ -826,6 +829,17 @@ export class PackageManager {
         "'packages' must be an object mapping package names to lock entries.",
         location,
         "BPL_LOCKFILE_INVALID_PACKAGES",
+      );
+    }
+
+    if (rawLock.manifestRoots !== undefined &&
+        (!Array.isArray(rawLock.manifestRoots) ||
+         !rawLock.manifestRoots.every((name: unknown) => typeof name === "string" && isValidPackageName(name)))) {
+      throw new CompilerError(
+        "Invalid bpl.lock manifest roots",
+        "manifestRoots must be an array of valid package names.",
+        location,
+        "BPL_LOCKFILE_INVALID_SHAPE",
       );
     }
 
@@ -1107,6 +1121,15 @@ export class PackageManager {
           packagePath: path.join(this.projectRoot, "bpl.json"),
         });
       }
+    }
+    for (const name of lock.manifestRoots ?? []) {
+      if (dependencies[name] !== undefined) continue;
+      issues.push({
+        packageName: name,
+        kind: "manifest-dependency-mismatch",
+        message: `${name}: dependency was removed from bpl.json`,
+        packagePath: path.join(this.projectRoot, "bpl.json"),
+      });
     }
     return issues;
   }
@@ -1485,6 +1508,13 @@ export class PackageManager {
     const previousReconcilingPackages = this.reconcilingPackages;
     try {
       const result = this.installProjectInContext(options);
+      if (!options.locked && this.tryLstat(path.join(this.projectRoot, "bpl.json")) &&
+          (this.pendingProjectLock || this.tryLstat(this.getLockFilePath()))) {
+        const manifest = this.loadManifest(this.projectRoot);
+        const lock = this.loadLockFile();
+        lock.manifestRoots = Object.keys({...manifest.dependencies, ...manifest.devDependencies}).sort();
+        this.saveLockFile(lock);
+      }
       const pending = this.pendingProjectLock;
       this.pendingProjectLock = previousPendingLock;
       if (pending) this.saveLockFile(pending);
@@ -1607,7 +1637,10 @@ export class PackageManager {
       const lock = this.loadLockFile();
       const entries = Object.entries(lock.packages);
       if (entries.length > 0) {
-        const changedRoots = new Set(this.manifestLockIssues(lock).map(issue => issue.packageName));
+        const changedRoots = new Set(this.manifestLockIssues(lock)
+          .map(issue => issue.packageName).filter(name => deps[name] !== undefined));
+        const removedRoots = new Set((lock.manifestRoots ?? []).filter(name => deps[name] === undefined));
+        const reconcileGraph = changedRoots.size > 0 || removedRoots.size > 0;
         const affected = new Set<string>();
         const collectAffected = (name: string): void => {
           if (affected.has(name)) return;
@@ -1616,8 +1649,8 @@ export class PackageManager {
           if (!entry) return;
           for (const child of this.lockEntryDependencies(name, entry)) collectAffected(child);
         };
-        for (const name of changedRoots) collectAffected(name);
-        if (changedRoots.size > 0) {
+        for (const name of [...changedRoots, ...removedRoots]) collectAffected(name);
+        if (reconcileGraph) {
           // Shared dependencies reachable from an unchanged package stay pinned.
           const protectedPackages = new Set<string>();
           const protect = (name: string): void => {
@@ -1636,9 +1669,9 @@ export class PackageManager {
           if (!affected.has(name)) sources.set(name, entry.source);
         }
         const retainedLocks = Object.fromEntries(entries.filter(([name]) => !affected.has(name)));
-        if (changedRoots.size > 0) {
+        if (reconcileGraph) {
           // Stage lock changes until the complete reconciliation succeeds.
-          this.pendingProjectLock = {lockfileVersion: 1, packages: {...lock.packages}};
+          this.pendingProjectLock = {...lock, packages: {...lock.packages}};
           this.reconcilingPackages = new Set(affected);
         }
         compilerLog.info(`Restoring ${sources.size} project packages...`);
@@ -1665,13 +1698,13 @@ export class PackageManager {
             {
               lockSource: resolved.lockSource,
               expectedLockEntry: retainedLocks[packageName],
-              lockedPackages: changedRoots.size === 0 ? retainedLocks : Object.fromEntries(
+              lockedPackages: !reconcileGraph ? retainedLocks : Object.fromEntries(
                 Object.entries(this.loadLockFile().packages).filter(([name]) => !this.reconcilingPackages.has(name)),
               ),
             },
           );
         }
-        if (changedRoots.size > 0) {
+        if (reconcileGraph) {
           const currentLock = this.loadLockFile();
           const reachable = new Set<string>();
           const visit = (name: string): void => {
@@ -4869,7 +4902,7 @@ export class PackageManager {
 
   repairLockFile(): PackageLockRepairResult {
     const existingLock = this.loadLockFile();
-    const nextLock: PackageLockFile = { lockfileVersion: 1, packages: {} };
+    const nextLock: PackageLockFile = { ...existingLock, packages: {} };
     const updated: string[] = [];
     const installedPackages = this.list({ global: false }).sort(
       (left, right) =>

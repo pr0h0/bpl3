@@ -6189,3 +6189,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   and checking executable magic or a familiar filename cannot prove ownership.
   Known compiled executables require explicit removal. Document the limitation
   and extend the ownership regression to preserve same-stem extensionless files.
+
+## Removed manifest roots surviving restoration (2026-10-16)
+
+- Confirmed CodeRabbit's report: deleting a declared dependency did not trigger
+  reconciliation and --locked could accept its stale lock entry. Project installs
+  now record manifestRoots, verification detects removed roots, and restoration
+  prunes their obsolete private closures even without added/changed requirements.
+  Shared dependencies and separately installed packages are retained. Legacy
+  locks cannot distinguish removed roots from explicit installs; document how to
+  establish root history or explicitly update instead of guessing and deleting.
+  Regressions cover installed/missing modules, shared/private children, removing
+  the last declared root, --locked failure without mutation and direct installs.

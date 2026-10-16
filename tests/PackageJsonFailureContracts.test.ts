@@ -1362,6 +1362,7 @@ describe("Package JSON failure contracts", () => {
         JSON.parse(readFileSync(join(context.cwd, "bpl.lock"), "utf8")),
       ).toEqual({
         lockfileVersion: 1,
+        manifestRoots: [],
         packages: {},
       });
       expect(existsSync(join(context.cwd, "bpl_modules"))).toBe(false);

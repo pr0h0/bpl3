@@ -277,6 +277,14 @@ silently upgrading an unchanged package's dependency. Obsolete packages belongin
 only to the old subtree are removed. Lock updates are saved after reconciliation
 succeeds; installed package directories are still updated incrementally.
 
+Successful project installs also record `manifestRoots` in the lockfile. Removing
+a previously declared root then makes `--locked` fail until a normal install
+prunes that root and its private dependencies. Packages still needed transitively
+and packages installed directly are retained. Legacy lockfiles lack the history
+needed to distinguish a removed root from a direct install: run a normal project
+install before editing dependencies to record that history, or explicitly update
+the dependency graph afterward.
+
 New lock entries record dependency names so reconciliation also works when
 `bpl_modules` is missing. Older entries use installed manifests to recover those
 edges. If both that metadata and the installed package are missing, restore the
