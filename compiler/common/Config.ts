@@ -126,12 +126,8 @@ function shouldColorize(): boolean {
     return false;
   }
 
-  // Check if stdout is a TTY
-  if (process.stdout.isTTY === false) {
-    return false;
-  }
-
-  return true;
+  // Pipes commonly expose undefined rather than false for isTTY.
+  return process.stdout.isTTY === true;
 }
 
 /**

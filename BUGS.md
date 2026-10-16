@@ -5923,3 +5923,10 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   numerator with the existing 0/0 invalid sentinel. Representable reduced
   LONG_MIN cases remain supported. O0/O3 sign-boundary and existing rational
   identity, denominator, gcd and power regressions pass.
+
+## Fixed logger colors in redirected output (2026-10-16)
+
+- Confirmed with a piped child process: stdout.isTTY is undefined, so the previous
+  strict-false test enabled colors in logs redirected to files or pipes. Require
+  an explicit true TTY signal. Child-process regressions cover real pipes,
+  explicit false/true terminal flags, and NO_COLOR overriding terminal color.
