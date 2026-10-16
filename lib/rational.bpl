@@ -25,6 +25,15 @@ struct Rational {
         # common factor before either side is negated.
         r.simplify();
 
+        # A reduced denominator of LONG_MIN cannot be made positive. Likewise,
+        # negating a reduced LONG_MIN numerator with negative denominator would
+        # exceed long. Use the existing invalid sentinel for these values.
+        if ((r.den == cast<long>(-9223372036854775808))
+            || ((r.num == cast<long>(-9223372036854775808)) && (r.den < cast<long>(0)))) {
+            r.num = cast<long>(0);
+            r.den = cast<long>(0);
+            return r;
+        }
         # Normalize sign (denominator always positive)
         if (r.den < cast<long>(0)) {
             r.num = -r.num;

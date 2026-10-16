@@ -5914,3 +5914,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   overflow diagnostic code, and preserves directly negated LONG_MIN literals as
   signed. O0/O3 arithmetic and rejection regressions pass, including grouped
   minimum negation and the existing overflow diagnostic code.
+
+## Fixed rational constructor sign normalization outside long range (2026-10-16)
+
+- Confirmed: Rational.new(1,LONG_MIN) claimed validity with a negative
+  denominator; new(LONG_MIN,-1) silently retained a negative numerator. After
+  reducing common factors, reject an unrepresentable positive denominator or
+  numerator with the existing 0/0 invalid sentinel. Representable reduced
+  LONG_MIN cases remain supported. O0/O3 sign-boundary and existing rational
+  identity, denominator, gcd and power regressions pass.

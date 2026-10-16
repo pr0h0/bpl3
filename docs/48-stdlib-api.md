@@ -169,10 +169,19 @@ Rational number (fraction) arithmetic.
 **Creation:**
 
 - `Rational.new(numerator: long, denominator: long) ret Rational`
+
 - `Rational.fromInt(value: int) ret Rational`
 - `Rational.fromLong(value: long) ret Rational`
 - `Rational.zero() ret Rational`
 - `Rational.one() ret Rational`
+
+The constructor reduces common factors before normalizing signs. It returns the
+invalid `0/0` sentinel for a zero denominator or when the reduced fraction cannot
+have a positive `long` denominator and a representable `long` numerator. For
+example, `new(1, LONG_MIN)` and `new(LONG_MIN, -1)` are invalid, while
+`new(LONG_MIN, -2)` reduces to `4611686018427387904/1`. Check `isValid()` before
+using a result. Arithmetic overflow beyond the representable reduced range is
+still a separate limitation.
 
 **Operations:**
 
