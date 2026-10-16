@@ -6151,3 +6151,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   exercises the documented ownership check.
 - The new dependency conflict JSON code was absent from CI triage mappings. Map
   it to the focused dependency conflict suite; inventory checks cover registration.
+
+## Clean partial failure reporting (2026-10-16)
+
+- Confirmed CodeRabbit's cleanup findings: a source lstat error or artifact removal
+  failure silently skipped the rest of a directory. Cleanup now handles failures
+  per path, preserves artifacts whose ownership cannot be checked, continues other
+  work and returns nonzero with BPL_CLEAN_FAILED and failed paths. Successful
+  entries/counts exclude failed removals; reserved cache removal follows the same
+  behavior. A child-process regression injects deterministic permission failures.

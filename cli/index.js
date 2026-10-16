@@ -61,7 +61,11 @@ const CLI_JSON_ERROR_CODE_LISTS = [
   },
   {
     name: "clean",
-    codes: ["BPL_CLEAN_WORKDIR_SYMLINK", "BPL_CLEAN_GIT_TRACKED_UNAVAILABLE"],
+    codes: [
+      "BPL_CLEAN_FAILED",
+      "BPL_CLEAN_WORKDIR_SYMLINK",
+      "BPL_CLEAN_GIT_TRACKED_UNAVAILABLE",
+    ],
   },
   {
     name: "completion",
