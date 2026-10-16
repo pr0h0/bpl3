@@ -5751,3 +5751,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   container methods. Reproductions are saved in the ignored local audit folder.
 - Parsing a root `Array<string>` also produced `Expected number` for a string
   element; generic reflection/substitution needs separate investigation.
+
+## Fixed nominal type identity across modules (2026-10-16)
+
+- Distinct structs with the same bare name were compatible even when their
+  layouts differed. The audit reproduction passed `check` and could reach LLVM
+  with the wrong layout. Compatibility and exact matching now compare recorded
+  declaration source identity; inheritance traversal carries that identity too.
+  Tests cover values, pointers, assignment, field initialization, unrelated
+  same-named ancestors, valid inheritance and reimporting the same declaration.
+  Audit C3.

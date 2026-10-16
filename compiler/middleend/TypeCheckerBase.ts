@@ -20,6 +20,7 @@ import {
 } from "./BuiltinTypes";
 import {
   TypeUtils,
+  haveDistinctNominalDeclarations,
   TypeSubstitution,
   NUMERIC_TYPES,
   TYPE_ALIASES,
@@ -1490,6 +1491,8 @@ export abstract class TypeCheckerBase {
     }
 
     if (rt1.kind === "BasicType" && rt2.kind === "BasicType") {
+      if (rt1.name === rt2.name && haveDistinctNominalDeclarations(rt1, rt2))
+        return false;
       if (
         rt1.name === rt2.name &&
         rt1.name !== "null" &&
@@ -1684,6 +1687,8 @@ export abstract class TypeCheckerBase {
     }
 
     if (rt1.kind === "BasicType" && rt2.kind === "BasicType") {
+      if (rt1.name === rt2.name && haveDistinctNominalDeclarations(rt1, rt2))
+        return false;
       if (rt1.name !== rt2.name) return false;
       if (rt1.pointerDepth !== rt2.pointerDepth) return false;
       if (rt1.arrayDimensions.length !== rt2.arrayDimensions.length)
@@ -1782,9 +1787,11 @@ export abstract class TypeCheckerBase {
     child: AST.BasicTypeNode,
     parent: AST.BasicTypeNode,
   ): boolean {
-    if (child.name === parent.name) return true;
+    if (child.name === parent.name)
+      return !haveDistinctNominalDeclarations(child, parent);
 
-    const childSymbol = this.currentScope.resolve(child.name);
+    const childSymbol =
+      recordedDeclarationSymbol(child) ?? this.currentScope.resolve(child.name);
     if (!childSymbol) return false;
 
     if (childSymbol.kind === "TypeAlias") {
@@ -1809,7 +1816,7 @@ export abstract class TypeCheckerBase {
 
     return this.inheritsFrom(
       childSymbol.declaration as AST.StructDecl,
-      parent.name,
+      parent,
       new Set(),
     );
   }
@@ -1821,24 +1828,31 @@ export abstract class TypeCheckerBase {
    */
   private inheritsFrom(
     decl: AST.StructDecl | AST.SpecDecl,
-    parentName: string,
-    visited: Set<string>,
+    parent: AST.BasicTypeNode,
+    visited: Set<AST.StructDecl | AST.SpecDecl>,
   ): boolean {
-    if (visited.has(decl.name)) return false;
-    visited.add(decl.name);
+    if (visited.has(decl)) return false;
+    visited.add(decl);
 
     const entries =
       decl.kind === "StructDecl" ? decl.inheritanceList : decl.extends;
     for (const entry of entries ?? []) {
       if (entry.kind !== "BasicType") continue;
-      if (entry.name === parentName) return true;
-      const entrySymbol = this.currentScope.resolve(entry.name);
+      const resolvedEntry = this.resolveType(entry, false);
+      if (resolvedEntry.kind !== "BasicType") continue;
+      if (
+        resolvedEntry.name === parent.name &&
+        !haveDistinctNominalDeclarations(resolvedEntry, parent)
+      ) return true;
+      const entrySymbol =
+        recordedDeclarationSymbol(resolvedEntry) ??
+        this.currentScope.resolve(resolvedEntry.name);
       if (
         entrySymbol &&
         (entrySymbol.kind === "Struct" || entrySymbol.kind === "Spec") &&
         this.inheritsFrom(
           entrySymbol.declaration as AST.StructDecl | AST.SpecDecl,
-          parentName,
+          parent,
           visited,
         )
       ) {

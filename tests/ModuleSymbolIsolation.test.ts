@@ -170,7 +170,7 @@ for (const testCase of cases) {
     const entry = project(testCase.name.replace(/\W+/g, "-"), testCase.files);
     const checked = check(entry);
     expect(checked.stdout + checked.stderr).not.toContain("Duplicate symbol");
-    expect(checked.status).toBe(0);
+    expect(checked.status, checked.stdout + checked.stderr).toBe(0);
     expect(run(entry)).toBe(testCase.stdout);
     expect(run(entry, ["--cache"])).toBe(testCase.stdout);
   }, 120000);

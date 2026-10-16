@@ -23,6 +23,29 @@ import {
   getPrimitiveType,
 } from "../common/PrimitiveTypes";
 
+/** Nominal declarations can be reparsed by separate import graphs. Compare
+ * their source identity as well as object identity, rather than a bare name.
+ */
+export function haveDistinctNominalDeclarations(
+  left: AST.BasicTypeNode,
+  right: AST.BasicTypeNode,
+): boolean {
+  const a = left.resolvedDeclaration;
+  const b = right.resolvedDeclaration;
+  if (!a || !b || a === b) return false;
+  const nominal = (node: AST.ASTNode) =>
+    node.kind === "StructDecl" ||
+    node.kind === "EnumDecl" ||
+    node.kind === "SpecDecl";
+  if (!nominal(a) || !nominal(b)) return false;
+  return (
+    a.kind !== b.kind ||
+    a.location.file !== b.location.file ||
+    a.location.startLine !== b.location.startLine ||
+    a.location.startColumn !== b.location.startColumn
+  );
+}
+
 export const INTEGER_TYPES = PRIMITIVE_INTEGER_NAMES;
 export const NUMERIC_TYPES = PRIMITIVE_NAMES;
 export const KNOWN_TYPES = [...PRIMITIVE_NAMES, "void", "string"];
@@ -420,14 +443,16 @@ export class TypeComparison {
     if (rt1.kind !== rt2.kind) return false;
     if (
       !areArrayDimensionsExactlyEqual(
-        "arrayDimensions" in rt1 ? rt1.arrayDimensions ?? [] : [],
-        "arrayDimensions" in rt2 ? rt2.arrayDimensions ?? [] : [],
+        "arrayDimensions" in rt1 ? (rt1.arrayDimensions ?? []) : [],
+        "arrayDimensions" in rt2 ? (rt2.arrayDimensions ?? []) : [],
       )
     ) {
       return false;
     }
 
     if (rt1.kind === "BasicType" && rt2.kind === "BasicType") {
+      if (rt1.name === rt2.name && haveDistinctNominalDeclarations(rt1, rt2))
+        return false;
       // Exact name match (no normalization)
       if (rt1.name !== rt2.name) return false;
 
@@ -501,6 +526,8 @@ export class TypeComparison {
 
     // 2. Handle BasicType
     if (rt1.kind === "BasicType" && rt2.kind === "BasicType") {
+      if (rt1.name === rt2.name && haveDistinctNominalDeclarations(rt1, rt2))
+        return false;
       // nullptr handling - compatible with any pointer type
       if (rt1.name === "nullptr" && rt2.name === "nullptr") return true;
       if (rt2.name === "nullptr") {
@@ -797,7 +824,8 @@ export class TypeSubstitution {
               ? {
                   aliasDeclaration: type.aliasDeclaration,
                   aliasTarget: TypeSubstitution.substituteType(
-                    type.aliasTarget, map,
+                    type.aliasTarget,
+                    map,
                   ),
                 }
               : {}),
@@ -815,7 +843,10 @@ export class TypeSubstitution {
           resolvedDeclaration: type.resolvedDeclaration,
           ...(type.aliasTarget
             ? {
-                aliasTarget: TypeSubstitution.substituteType(type.aliasTarget, map),
+                aliasTarget: TypeSubstitution.substituteType(
+                  type.aliasTarget,
+                  map,
+                ),
               }
             : {}),
         };

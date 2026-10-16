@@ -1079,7 +1079,12 @@ export function checkMember(
 
           // Check if method has a 'this' parameter
           if (method.params.length > 0 && method.params[0]!.name === "this") {
-            let thisParamType = method.params[0]!.type;
+            // Resolve the receiver where its method was declared. A caller may
+            // have imported a different struct with the same bare name.
+            let thisParamType = resolveMethodTypesInModuleContext(
+              this,
+              method,
+            ).paramTypes[0]!;
 
             // Substitute generics if needed
             if (genericMap && genericMap.size > 0) {
