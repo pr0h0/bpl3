@@ -22,7 +22,7 @@ test("switch return analysis includes unmatched inputs, defaults and reachable t
     "switch(x){case 1:{return 10;}default:{break;}}",
     "switch(x){case 1:{break;return 10;}default:{return 20;}}",
     "switch(x){case 1:{if(x>0){break;}return 10;}default:{return 20;}}",
-    "switch(x){case 1:{if(x>0){return 10;}else{break;}}default:{return 20;}}",
+    "switch(x){case 1:{if(x>0){return 10;}else{break;}break;}default:{return 20;}}",
     "switch(x){case 1:{try{break;}catch{return 4;}return 10;}default:{return 20;}}",
   ])
     expect(
@@ -58,3 +58,12 @@ test("fallthrough and default returns execute consistently at O0 and O3", () => 
     expect(result.stdout).toBe("10 10 20\n");
   }
 }, 60000);
+
+test("invalid control transfers keep their primary diagnostic without a missing-return cascade", () => {
+  for (const transfer of ["break", "continue", "fallthrough"]) {
+    const diagnostics = errors(`${transfer};return x;`);
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]).toContain(transfer);
+    expect(diagnostics[0]).not.toContain("may not return");
+  }
+});

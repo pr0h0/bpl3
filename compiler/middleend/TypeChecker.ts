@@ -4,7 +4,7 @@
  */
 
 import * as AST from "../common/AST";
-import { CompilerError, type SourceLocation } from "../common/CompilerError";
+import { CompilerError, DiagnosticSeverity, type SourceLocation } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
 import {
@@ -1079,14 +1079,25 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     const prevReboundParameters = this.reboundParameters;
     this.reboundParameters = collectReboundParameters(decl);
 
+    const bodyDiagnosticStart = this.errors.length;
     try {
       StmtChecker.checkBlock.call(this, decl.body, false);
     } finally {
       this.reboundParameters = prevReboundParameters;
     }
 
-    // Check return path for non-void functions
+    // Invalid statements do not supply trustworthy control-flow facts. Keep
+    // their primary diagnostic instead of cascading into a missing return.
+    let bodyHasErrors = false;
+    for (let i = bodyDiagnosticStart; i < this.errors.length; i++) {
+      if (this.errors[i]!.toDiagnostic().severity === DiagnosticSeverity.Error) {
+        bodyHasErrors = true;
+        break;
+      }
+    }
+    // Warnings alone must not suppress a real missing-return error.
     if (
+      !bodyHasErrors &&
       decl.returnType.kind === "BasicType" &&
       decl.returnType.name !== "void"
     ) {

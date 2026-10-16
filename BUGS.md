@@ -5835,3 +5835,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   walks now preserve the original generic alias syntax while keeping resolved
   nongeneric/private alias metadata. O0/O3 sanitizer regression invokes a
   callback retrieved from an Array field; the web demo smoke is also rerun.
+
+## Fixed return diagnostic cascades after invalid statements (2026-10-16)
+
+- Precise switch/control-transfer analysis exposed an extra missing-return
+  diagnostic after illegal break/continue/fallthrough statements. Function body
+  errors now suppress derivative return-path analysis; warnings still permit
+  genuine missing-return errors. Tests preserve the primary diagnostics and
+  warning-plus-missing-return behavior. This repairs the JSON contract regression
+  found by the full CI-safe run, and addresses part of audit C12.
