@@ -123,7 +123,12 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     // Skip first param (this)
     const paramTypes = type.paramTypes.slice(1);
     const mangledParams = paramTypes.map((t) => this.mangleType(t)).join("_");
-    return `${decl.name}_${mangledParams}`;
+    const receiver = type.paramTypes[0];
+    const valueReceiver = decl.params[0]?.name === "this" && receiver &&
+      !this.resolveType(receiver).endsWith("*");
+    // Receiver names vary across overrides; value and pointer receiver
+    // overloads still need distinct slots.
+    return `${decl.name}_${mangledParams}${valueReceiver ? "#value" : ""}`;
   }
 
   protected getStructMethods(decl: AST.StructDecl): string[] {

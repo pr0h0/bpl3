@@ -5,6 +5,7 @@
 
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
+import { implicitlyAddressesConstant } from "./TypeUtils";
 import type { Symbol, SymbolTable } from "./SymbolTable";
 import {
   CALL_ARGUMENT_COUNT_MISMATCH_CODE,
@@ -504,6 +505,8 @@ export class OverloadResolver {
         const resolvedThisType = this.ctx.resolveType(declaredThisType);
         const resolvedTargetType = this.ctx.resolveType(targetType);
 
+        if (implicitlyAddressesConstant(resolvedThisType, resolvedTargetType)) continue;
+
         // Check if 'this' type matches target type exactly
         const exactMatch = this.ctx.areTypesCompatible(
           resolvedThisType,
@@ -564,6 +567,11 @@ export class OverloadResolver {
 
         const resolvedExpected = this.ctx.resolveType(expectedType);
         const resolvedActual = this.ctx.resolveType(paramTypes[i]!);
+
+        if (implicitlyAddressesConstant(resolvedExpected, resolvedActual)) {
+          allMatch = false;
+          break;
+        }
 
         // Allow implicit address-of for operator parameters (T -> *T)
         const isAddressOfMatch =

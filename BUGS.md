@@ -6252,3 +6252,25 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   user-facing command guides. Document the conditions, failure status, cleanup
   errors/count behavior and package resolution/rollback limits. The Markdown
   error-code inventory verifies that documentation stays aligned with exports.
+
+## Implicit method/operator addresses bypassed const bindings (audit C10)
+
+- A const struct could call or bind a pointer-receiver method and mutate its
+  stored value even though explicitly taking its address was rejected. Apply the
+  same const-address restriction during instance method selection, operator
+  receiver resolution and implicit operator pointer arguments. Preserve value
+  receivers and mutable pointer receivers, including safe overload selection.
+  Tests cover direct/bound/generic/nested methods, callable/index/binary operators
+  and const right-hand operator arguments. Native O0/O3 checks cover value copies.
+  Mixed value/pointer receiver overloads also shared a vtable key and could call
+  the wrong receiver ABI. Distinguish value receiver keys and retain the checker
+  selection when codegen guesses the other receiver mode.
+
+## Open: bound value-receiver methods use the wrong ABI
+
+- Independently reproduced on PR3's baseline and the C10 worktree: binding
+  `frame read(this: Counter) ret int {return this.value;}` as a Lambda returns
+  garbage, while the direct call returns the expected value. generateBoundMethod
+  bitcasts a function taking an aggregate receiver to a function taking i8* and
+  passes the receiver address as the aggregate. Repro saved locally for follow-up;
+  this is separate from the const-address checker fix and needs an adapter.

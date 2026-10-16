@@ -4,11 +4,12 @@
 import * as AST from "../common/AST";
 import { CompilerError } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
-import { TypeUtils } from "./TypeUtils";
+import { TypeUtils, implicitlyAddressesConstant } from "./TypeUtils";
 import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import type { CheckerContext } from "./CheckerContext";
 import { validateExternVariadicArguments } from "./validators/ExternAbiValidator";
 import {
+  ADDRESS_OF_CONSTANT_CODE,
   ARRAY_INDEX_TYPE_MISMATCH_CODE,
   CALL_ARGUMENT_COUNT_MISMATCH_CODE,
   CALL_ARGUMENT_TYPE_MISMATCH_CODE,
@@ -1092,6 +1093,7 @@ export function checkMember(
         (member.kind === "FunctionDecl" || member.kind === "SpecMethod")
       ) {
         // Filter out static methods and check 'this' compatibility
+        let rejectedConstantReceiver = false;
         let compatibleMethod: AST.FunctionDecl | AST.SpecMethod | undefined;
         let compatibleMethods:
           | (AST.FunctionDecl | AST.SpecMethod)[]
@@ -1120,6 +1122,11 @@ export function checkMember(
             // Substitute generics if needed
             if (genericMap && genericMap.size > 0) {
               thisParamType = this.substituteType(thisParamType, genericMap);
+            }
+
+            if (implicitlyAddressesConstant(thisParamType, effectiveObjectType)) {
+              rejectedConstantReceiver = true;
+              continue;
             }
 
             // Check compatibility of 'this' parameter type with object type
@@ -1176,6 +1183,14 @@ export function checkMember(
         }
 
         if (!compatibleMethod) {
+          if (rejectedConstantReceiver) {
+            throw new CompilerError(
+              "Cannot take address of constant expression for method receiver.",
+              "Use a value receiver or a mutable binding; pointers to constants are not supported.",
+              expr.location,
+              ADDRESS_OF_CONSTANT_CODE,
+            );
+          }
           throw new CompilerError(
             `No compatible instance method '${expr.property}' found on type '${this.typeToString(
               effectiveObjectType,

@@ -361,6 +361,11 @@ frame scopeExample() ret void {
 ### Constants
 
 Use the `const` keyword to declare immutable variables. Once initialized, their value cannot be changed.
+For a const struct value, calling or binding a method that needs an implicit
+pointer to that value is rejected, just like explicit `&constant`. This also
+applies to operator receivers and implicit pointer arguments. Value receiver
+methods remain available and receive a copy. BPL does not currently support
+pointers to const values.
 
 ```bpl
 global const INT_MAX: int = 2147483647;
