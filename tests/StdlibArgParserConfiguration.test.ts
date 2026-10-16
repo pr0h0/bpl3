@@ -34,7 +34,11 @@ frame main()ret int{
  root.destroy();free(cast<*void>(root));return 0;
 }`;
   const sanitizerFlags = checkBplSanitizerSupport().supported
-    ? ["--clang-flag=-fsanitize=address,undefined", "--clang-flag=-fno-sanitize-recover=all"]
+    ? [
+        "--clang-flag=-fsanitize=address,undefined",
+        "--clang-flag=-fno-sanitize-recover=all",
+      ]
     : [];
-  for (const opt of [0, 3]) native(source, ["-O", String(opt), ...sanitizerFlags]);
+  for (const opt of [0, 3])
+    native(source, ["-O", String(opt), ...sanitizerFlags]);
 }, 120000);
