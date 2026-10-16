@@ -61,7 +61,7 @@ export function registerDevCommand(program: Command): void {
             ...globalOpts,
             ...localOpts,
             watch: true,
-            run: localOpts.noRun !== true, // Default to running unless --no-run
+            run: localOpts.run !== false && localOpts.noRun !== true,
             dwarf:
               localOpts.debug ||
               localOpts.dwarf ||

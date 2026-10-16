@@ -5779,3 +5779,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   the retained chain before mapping. Sanitizer tests at O0/O3 assert identical
   pointers across 100 reset cycles for multi-block and large-allocation cases.
   Audit S7.
+
+## Fixed dev --no-run option handling (2026-10-16)
+
+- Commander stores `--no-run` as `run: false`, while dev checked only `noRun`,
+  so a compile-only invocation executed the program. Dev now respects Commander's
+  flag and retains support for explicit legacy noRun options. A real CLI test
+  waits for watcher readiness and verifies execution with/without the flag.
+  Audit T3.
