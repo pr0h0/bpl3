@@ -198,14 +198,16 @@ describe("TypeUtils", () => {
     });
 
     expect(TypeUtils.getIntegerConstantValue(literal("42"))).toBe(42n);
+    expect(TypeUtils.getIntegerConstantValue(literal("1_234"))).toBe(1234n);
     expect(TypeUtils.getIntegerConstantValue(literal("1.5"))).toBeUndefined();
+    expect(TypeUtils.getIntegerConstantValue(literal("1_234.5"))).toBeUndefined();
 
     const implementation = methodSource(
       "getIntegerConstantValue",
       "  /**\n   * Check if an integer value fits",
     );
     const decimalGuard = implementation.indexOf('raw.indexOf(".")');
-    const bigintParse = implementation.indexOf("BigInt(raw)");
+    const bigintParse = implementation.indexOf("BigInt(");
 
     expect(decimalGuard).toBeGreaterThanOrEqual(0);
     expect(bigintParse).toBeGreaterThan(decimalGuard);

@@ -6010,3 +6010,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   The release smoke allowlist now rejects docs/audits independently as well.
   All 73 packaging/workflow tests pass; the rebuilt archive has zero audit files
   and all 16 manifest checksums verify. No affected archive was published.
+
+## Fixed stale integer constant test assertion blocking CI (2026-10-16)
+
+- CI run 38932160293 failed because the TypeUtils decimal fast-path test searched
+  for the exact source text `BigInt(raw)`, which changed when numeric separator
+  normalization was added. Reproduced locally; decimal rejection itself still
+  worked. Keep checking that the decimal guard precedes the BigInt call without
+  assuming its argument expression, and cover separated integer and decimal
+  inputs explicitly. All 385 tests in the failed 89-file CI batch and all 47
+  focused integer tests pass locally; typecheck and lint pass.
