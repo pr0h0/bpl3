@@ -164,6 +164,7 @@ describe("CLI JSON parseability", () => {
     const buildDir = path.join(tempDir, "build");
     fs.mkdirSync(buildDir);
     fs.writeFileSync(path.join(buildDir, "generated.o"), "object");
+    fs.writeFileSync(path.join(buildDir, "generated.bpl"), "frame main() {}\n");
     const buildSource = path.join(tempDir, "main.bpl");
     const buildOutput = path.join(tempDir, "json-build-app");
     fs.writeFileSync(buildSource, "frame main() ret int { return 0; }\n");

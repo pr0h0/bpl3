@@ -6143,3 +6143,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   Recognize versioned archive pins and verify transitive lock requirements.
   Full graph planning/rollback and identity constraints for arbitrarily renamed
   archives remain follow-ups; resolution is still incremental.
+
+## Audit CI contract follow-up (2026-10-16)
+
+- The successful clean JSON smoke fixture still expected an unrelated object file
+  to be deleted. Give its generated object a sibling BPL source so the smoke test
+  exercises the documented ownership check.
+- The new dependency conflict JSON code was absent from CI triage mappings. Map
+  it to the focused dependency conflict suite; inventory checks cover registration.
