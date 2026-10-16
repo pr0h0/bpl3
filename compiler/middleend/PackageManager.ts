@@ -1953,6 +1953,7 @@ export class PackageManager {
 
     const lock = existingLock ?? this.loadLockFile();
     delete lock.packages[packageName];
+    if (lock.manifestRoots) lock.manifestRoots = lock.manifestRoots.filter(name => name !== packageName);
     this.saveLockFile(lock);
   }
 

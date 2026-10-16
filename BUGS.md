@@ -6227,3 +6227,10 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   Weighted-choice rejection still preserves generator state after seed warm-up.
   This remains a deterministic non-cryptographic generator; API and struct fields
   are unchanged and no extra runtime dependency is added.
+
+### Explicit uninstall and recorded manifest roots
+
+- Keep manifestRoots synchronized when uninstall removes a declared root. Without
+  this, the new removal check could report stale manifest history immediately
+  after a successful uninstall. Verification now passes after uninstalling each
+  dependency in the manifest-drift regression.

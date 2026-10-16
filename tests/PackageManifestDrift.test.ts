@@ -85,7 +85,9 @@ test("locked verification rejects manifest drift and normal install reconciles i
     manifest.dependencies.first = "^0.1.0";
     save();
     manager.uninstall("first");
+    expect(manager.verifyLockFile().ok).toBe(true);
     manager.uninstall("second");
+    expect(manager.verifyLockFile().ok).toBe(true);
     const remaining = JSON.parse(readFileSync(manifestPath, "utf8"));
     expect(remaining.dependencies).toEqual({});
     expect(remaining.devDependencies).toEqual({});
