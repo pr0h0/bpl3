@@ -6201,3 +6201,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   establish root history or explicitly update instead of guessing and deleting.
   Regressions cover installed/missing modules, shared/private children, removing
   the last declared root, --locked failure without mutation and direct installs.
+
+## Edge-case tests discarded checker diagnostics (2026-10-16)
+
+- Local and GitHub CI confirmed that the nullptr assignment test depended on
+  a secondary backend unresolved-binding error. Its helper discarded collected
+  type errors, so improved diagnostic recovery allowed invalid input to reach
+  codegen in that test. Use the shared compileToLLVM helper, which rejects checker
+  diagnostics first, and assert the primary assignment message. This exposed ten
+  outdated positive fixtures: intentionally unused bindings now use underscores,
+  the unsigned maximum uses ulong, and returning a local address is rejected.
+  Activate the previously assertion-free zero-array and pointer-to-array cases.
+  All 57 edge-case tests pass without suppressing diagnostics.
