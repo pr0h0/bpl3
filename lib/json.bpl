@@ -1177,7 +1177,13 @@ struct JSON {
             loop (i < info.num_fields) {
                 local f: FieldInfo = info.fields[i];
                 if (strcmp(key, f.name) == 0) {
-                    JSON.parseAny(p, ptr + f.offset, f.type_info);
+                    # Last occurrence wins. The slot starts zeroed, and may now
+                    # own a previous string, nested object or array. Release it
+                    # before replacing, then zero all fields for partial input.
+                    local fieldPtr: ulong = ptr + f.offset;
+                    JSON.freeAny(fieldPtr, f.type_info);
+                    memset(cast<string>(cast<*char>(fieldPtr)), 0, f.type_info.size);
+                    JSON.parseAny(p, fieldPtr, f.type_info);
                     found = true;
                     break;
                 }

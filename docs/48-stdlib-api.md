@@ -592,3 +592,11 @@ omitted areas:
 `Log.debug/info/warn/error` currently share the same output path; they do not
 provide independent level filtering or destinations. See the linked module
 source for behavior that is not covered by a narrative guide.
+
+### JSON object field replacement
+
+When a JSON object repeats a recognized field, the last occurrence replaces the
+earlier value. The parser releases earlier owned strings, arrays and nested
+objects before reading the replacement. Missing subfields in a replacement
+object or fixed array are zeroed; invalid replacement input fails the whole
+parse and releases partial allocations. Unknown fields continue to be skipped.

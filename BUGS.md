@@ -5732,3 +5732,22 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   existing native sleep helper, which resumes interrupted waits. Negative input
   and native failures throw. A linker shim verifies large durations without
   waiting, at O0/O3; native helper tests cover EINTR. Audit stdlib low sleep item.
+
+## Fixed duplicate JSON field ownership (2026-10-16)
+
+- Repeated object fields overwrote earlier strings, arrays and nested objects
+  without releasing them. Parsing now frees and zeroes a field before replacing
+  its value, preserving last-occurrence semantics and safe partial-error cleanup.
+  Sanitizer tests at O0/O3 cover nested/pointer fields, dynamic string arrays,
+  shorter fixed arrays, null replacements and invalid later values. Audit S2.
+
+## Open: parsed nested Array method dispatch (2026-10-16)
+
+- A parsed struct field `values: Array<string>` is readable through its fields,
+  but `record.values.len()` crashes reading address 0x20. A local sanitizer
+  reproduction using the pre-duplicate-field-fix JSON source also crashes.
+  A root `Array<int>` len call succeeds. Investigate metadata initialization
+  and nested receiver dispatch before claiming parsed arrays support ordinary
+  container methods. Reproductions are saved in the ignored local audit folder.
+- Parsing a root `Array<string>` also produced `Expected number` for a string
+  element; generic reflection/substitution needs separate investigation.
