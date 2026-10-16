@@ -31,6 +31,7 @@ import {
   DEREFERENCE_TARGET_INVALID_CODE,
   DIVISION_BY_ZERO_CODE,
   GENERIC_ARITY_MISMATCH_CODE,
+  INTEGER_LITERAL_OVERFLOW_CODE,
   LOGICAL_NOT_OPERAND_TYPE_MISMATCH_CODE,
   LOGICAL_OPERAND_TYPE_MISMATCH_CODE,
   MODULO_OPERAND_TYPE_MISMATCH_CODE,
@@ -142,18 +143,12 @@ export function checkLiteral(
     ) {
       name = "float";
     } else {
+      let val: bigint;
       try {
         // Remove underscores which are allowed in BPL but not in JS BigInt constructor
         const cleanRaw =
           expr.raw.indexOf("_") === -1 ? expr.raw : expr.raw.replace(/_/g, "");
-        const val = BigInt(cleanRaw);
-        const INT32_MIN = -2147483648n;
-        const INT32_MAX = 2147483647n;
-        if (val >= INT32_MIN && val <= INT32_MAX) {
-          name = "int";
-        } else {
-          name = "long";
-        }
+        val = BigInt(cleanRaw);
       } catch (_e) {
         // Fallback or error if BigInt parsing fails (shouldn't happen with valid grammar, but good for fuzzing)
         throw new CompilerError(
@@ -161,6 +156,21 @@ export function checkLiteral(
           "Could not parse integer value.",
           expr.location,
         );
+      }
+      if (val < -9223372036854775808n || val > 18446744073709551615n) {
+        throw new CompilerError(
+          `Integer literal is outside the supported 64-bit range: ${expr.raw}`,
+          "Use a value between -9223372036854775808 and 18446744073709551615.",
+          expr.location,
+          INTEGER_LITERAL_OVERFLOW_CODE,
+        );
+      }
+      if (val >= -2147483648n && val <= 2147483647n) {
+        name = "int";
+      } else if (val <= 9223372036854775807n) {
+        name = "long";
+      } else {
+        name = "u64";
       }
     }
   } else if (expr.type === "string") {
@@ -1011,6 +1021,18 @@ export function checkUnary(
         expr.location,
         UNARY_NEGATION_OPERAND_TYPE_MISMATCH_CODE,
       );
+    }
+    // The magnitude of LONG_MIN needs unsigned storage on its own, but the
+    // directly negated literal is the signed minimum, including grouped forms.
+    let literal = expr.operand;
+    while (literal.kind === "Group") literal = literal.expression;
+    if (
+      operandType.name === "u64" &&
+      literal.kind === "Literal" &&
+      literal.type === "number" &&
+      BigInt(literal.raw.replace(/_/g, "")) === 9223372036854775808n
+    ) {
+      return { ...operandType, name: "long" };
     }
     return operandType;
   }

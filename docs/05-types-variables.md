@@ -49,7 +49,12 @@ local ch: char = 65;  # ASCII 'A'
 
 **Important Notes:**
 
-- Default integer type is `int` (32-bit signed)
+- Nonnegative integer literals use `int` through 2³¹−1, `long` through
+  2⁶³−1, then `u64` through 2⁶⁴−1. Larger literals are rejected even inside
+  an explicit cast. This applies to decimal, hexadecimal, binary and octal.
+- A directly negated literal of magnitude 2⁶³, including a grouped literal,
+  represents signed `LONG_MIN`. Other unsigned negations retain unsigned wrap
+  semantics; cast explicitly when a different signed interpretation is needed.
 - Arithmetic operations may overflow (wrap around)
 - No automatic bounds checking
 - Mixing signed/unsigned requires explicit casting

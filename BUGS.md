@@ -5905,3 +5905,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   sequence. Recovery must consume one byte per malformed byte and preserve valid
   encoded U+FFFD. The correction passes O0/O3 sanitizer tests for invalid leads,
   continuations, truncated tails, following ASCII and valid U+FFFD/emoji.
+
+## Fixed wide integer literal signedness and overflow (2026-10-16)
+
+- Confirmed: 18446744073709551615 / 3 used signed division and returned zero;
+  values beyond u64 were accepted and truncated. Literal inference now selects
+  u64 above LONG_MAX, rejects values beyond U64_MAX with the existing integer
+  overflow diagnostic code, and preserves directly negated LONG_MIN literals as
+  signed. O0/O3 arithmetic and rejection regressions pass, including grouped
+  minimum negation and the existing overflow diagnostic code.
