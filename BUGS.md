@@ -6132,3 +6132,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   reserved package/cache/VCS directory namespaces. Content digests have fixed
   lengths to avoid ambiguous concatenation. Old lock entries keep their legacy
   algorithm rather than silently invalidating released locks.
+
+## Shared dependency version conflict follow-up (2026-10-16)
+
+- Root requirements could be overwritten by a later transitive installation.
+  Local cached-version selection now intersects root and installed dependents'
+  constraints, and candidate manifests are checked before a conflicting shared
+  package is replaced. Compatible intersections work in both tested installation
+  orders; incompatible requirements fail with a registered JSON error code.
+  Recognize versioned archive pins and verify transitive lock requirements.
+  Full graph planning/rollback and identity constraints for arbitrarily renamed
+  archives remain follow-ups; resolution is still incremental.

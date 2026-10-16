@@ -125,6 +125,14 @@ This protects the lockfile; it does not roll back package directories already
 replaced earlier in a multi-package installation. Lock package names are sorted
 independently of locale, and generated lockfiles end with a newline.
 
+Local resolution considers root and installed dependents' version requirements
+when choosing cached versions. An incompatible shared dependency fails with
+`BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT` before replacing that package. Lock
+verification also checks transitive version requirements. Only one version of a
+package can be installed per project; align conflicting requirements explicitly.
+This is incremental resolution: a failure can leave earlier package installations
+in place, and arbitrary archive filenames do not encode a version constraint.
+
 Install from a local tarball:
 
 ```bash

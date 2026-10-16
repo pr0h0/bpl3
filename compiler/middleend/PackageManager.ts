@@ -132,6 +132,8 @@ export const PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT_CODE =
   "BPL_PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT";
 export const PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT_CODE =
   "BPL_PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT";
+export const PACKAGE_DEPENDENCY_VERSION_CONFLICT_CODE =
+  "BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT";
 export const PACKAGE_LIST_JSON_ERROR_CODES = [
   PACKAGE_SEARCH_DIR_SYMLINK_CODE,
   PACKAGE_SEARCH_DIR_NOT_DIRECTORY_CODE,
@@ -146,6 +148,7 @@ export const PACKAGE_INSTALL_JSON_ERROR_CODES = [
   PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT_CODE,
   PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT_CODE,
   PACKAGE_INSTALL_LOCK_VERIFY_FAILED_CODE,
+  PACKAGE_DEPENDENCY_VERSION_CONFLICT_CODE,
 ] as const;
 
 export const PACKAGE_ARCHIVE_SYMLINK_CODE = "BPL_PACKAGE_ARCHIVE_SYMLINK";
@@ -1254,6 +1257,22 @@ export class PackageManager {
         manifest.dependencies || {},
       )) {
         dependencyNamesReferencedByLockEntries.add(dependencyName);
+        const lockedDependency = lock.packages[dependencyName];
+        const requestedArchive = parsePackageTarballName(this.getPackageSourceBasename(this.stripPackageFileSourcePrefix(requestedSource)));
+        let versionRequirement: string | undefined;
+        if (isVersionSelectorSpec(requestedSource)) versionRequirement = requestedSource;
+        else if (requestedArchive?.name === dependencyName) versionRequirement = requestedArchive.version;
+        if (lockedDependency && versionRequirement &&
+            !satisfiesVersionSelector(lockedDependency.version, versionRequirement)) {
+          addIssue({
+            packageName: dependencyName,
+            dependencyOf: packageName,
+            kind: "version-mismatch",
+            message: `${packageName}: locked ${dependencyName}@${lockedDependency.version} does not satisfy ${requestedSource}`,
+            requestedSource,
+            actualVersion: lockedDependency.version,
+          });
+        }
         const dependencyPath = path.join(this.localPackageDir, dependencyName);
         const dependencyStats = this.tryLstat(dependencyPath);
         if (
@@ -1691,6 +1710,7 @@ export class PackageManager {
     packageName: string,
     source: string,
     baseDir: string = this.projectRoot,
+    local = true,
   ): ResolvedDependencySource {
     const fileSource = source.startsWith("file:") ? source.slice(5) : source;
     const baseRelativePath = this.resolveDependencyFileSource(
@@ -1714,6 +1734,7 @@ export class PackageManager {
       const packageSource = this.resolveGlobalPackageVersionSource(
         packageName,
         fileSource,
+        local,
       );
       return {
         packageSource,
@@ -2945,7 +2966,7 @@ export class PackageManager {
       }
     } else {
       // Look for package in global registry
-      const globalTarballPath = this.resolveGlobalPackageSource(packageSource);
+      const globalTarballPath = this.resolveGlobalPackageSource(packageSource, !options.global);
 
       if (!globalTarballPath) {
         throw new CompilerError(
@@ -3073,6 +3094,19 @@ export class PackageManager {
         packageDir,
         extractedManifestPath,
       );
+
+      if (!options.global) {
+        for (const { owner, requirement } of this.localVersionRequirements(manifest.name)) {
+          if (!satisfiesVersionSelector(manifest.version, requirement)) {
+            throw new CompilerError(
+              `Dependency version conflict: ${owner} requires ${manifest.name}@${requirement}, got ${manifest.version}`,
+              "Align dependency requirements; only one installed version per package name is supported.",
+              { file: extractedManifestPath, startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+              PACKAGE_DEPENDENCY_VERSION_CONFLICT_CODE,
+            );
+          }
+        }
+      }
 
       if (expectedEntry) {
         const actualHash = this.calculatePackageHash(packageDir, expectedEntry.hashAlgorithm === "sha256-tree-v2");
@@ -3400,6 +3434,7 @@ export class PackageManager {
         name,
         locked?.source ?? source,
         locked ? this.projectRoot : dependencyBaseDir,
+        !options.global,
       );
       this.install(
         resolved.packageSource,
@@ -3428,7 +3463,41 @@ export class PackageManager {
     return undefined;
   }
 
-  private resolveGlobalPackageSource(packageSource: string): string | null {
+  private localVersionRequirements(packageName: string): { owner: string; requirement: string }[] {
+    const requirements: { owner: string; requirement: string }[] = [];
+    const add = (manifest: PackageManifest, root = false): void => {
+      const sources = root
+        ? [manifest.dependencies, manifest.devDependencies]
+        : [manifest.dependencies];
+      for (const dependencies of sources) {
+        const source = dependencies?.[packageName];
+        const archive = source && isPackageFileSource(this.stripPackageFileSourcePrefix(source))
+          ? parsePackageTarballName(this.getPackageSourceBasename(this.stripPackageFileSourcePrefix(source)))
+          : undefined;
+        let requirement: string | undefined;
+        if (source && isVersionSelectorSpec(source)) requirement = source;
+        else if (archive?.name === packageName) requirement = archive.version;
+        if (requirement) {
+          requirements.push({ owner: manifest.name, requirement });
+        }
+      }
+    };
+    if (this.tryLstat(path.join(this.projectRoot, "bpl.json"))) {
+      add(this.loadManifest(this.projectRoot), true);
+    }
+    if (this.readPackageManagerDirectoryStats(this.localPackageDir, "Local package directory")) {
+      for (const name of fs.readdirSync(this.localPackageDir)) {
+        if (name === packageName || name.startsWith(".")) continue;
+        const directory = path.join(this.localPackageDir, name);
+        const stat = this.tryLstat(directory);
+        if (!stat?.isDirectory() || stat.isSymbolicLink() || !this.tryLstat(path.join(directory, "bpl.json"))) continue;
+        add(this.loadManifest(directory));
+      }
+    }
+    return requirements;
+  }
+
+  private resolveGlobalPackageSource(packageSource: string, local = false): string | null {
     if (
       !this.readPackageManagerDirectoryStats(
         this.globalPackageDir,
@@ -3459,6 +3528,7 @@ export class PackageManager {
       return this.resolveGlobalPackageVersionSource(
         installSpec.name,
         installSpec.versionSpec,
+        local,
       );
     }
 
@@ -3473,10 +3543,24 @@ export class PackageManager {
   private resolveGlobalPackageVersionSource(
     packageName: string,
     versionSpec: string,
+    local = false,
   ): string {
-    const matching = this.findGlobalPackageTarballs(packageName).filter((entry) =>
+    const requested = this.findGlobalPackageTarballs(packageName).filter((entry) =>
       satisfiesVersionSelector(entry.versionText, versionSpec),
     );
+    const constraints = local ? this.localVersionRequirements(packageName) : [];
+    const matching = requested.filter((entry) => constraints.every(({ requirement }) =>
+      satisfiesVersionSelector(entry.versionText, requirement),
+    ));
+
+    if (requested.length > 0 && matching.length === 0) {
+      throw new CompilerError(
+        `Dependency version conflict for ${packageName}@${versionSpec}`,
+        constraints.map(({ owner, requirement }) => `${owner} requires ${requirement}`).join("; "),
+        { file: this.projectRoot, startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+        PACKAGE_DEPENDENCY_VERSION_CONFLICT_CODE,
+      );
+    }
 
     if (matching.length === 0) {
       throw new CompilerError(
