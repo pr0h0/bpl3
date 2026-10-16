@@ -421,6 +421,8 @@ struct ArgParser {
 
         loop (i < argCount) {
             local rawArg: String = args.get(i);
+            local rawOwner: *String = &rawArg;
+            defer rawOwner.destroy();
             local argStr: string = rawArg.data;
 
             # 1. Check if it's a subcommand
@@ -451,7 +453,9 @@ struct ArgParser {
                 match (flagOpt) {
                     Option.Some(flag) => {
                         # Handle flag
-                        local val: String;
+                        local val: String = String.new(nullptr);
+                        local valueOwner: *String = &val;
+                        defer valueOwner.destroy();
                         local shouldSet: bool = true;
 
                         local eqIdx: int = StringUtils.find(argStr, cast<char>(61)); # '='
@@ -485,10 +489,10 @@ struct ArgParser {
 
                         if (shouldSet) {
                             if (!flag.alias.isEmpty()) {
-                                parsed.setFlag(flag.name.clone(), val.clone());
-                                parsed.setFlag(flag.alias.clone(), val);
+                                parsed.setFlag(flag.name, val);
+                                parsed.setFlag(flag.alias, val);
                             } else {
-                                parsed.setFlag(flag.name.clone(), val);
+                                parsed.setFlag(flag.name, val);
                             }
                         }
                     },

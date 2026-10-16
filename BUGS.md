@@ -5862,3 +5862,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   declarations, including deferred/generic/enum emission; restore generic maps
   in finally blocks. O0/O3 tests cover recursive overriding methods/destructors
   and sanitizer-clean recursive command cleanup.
+
+## Fixed argument parser temporary ownership (2026-10-16)
+
+- parse leaked every copied argv token, temporary flag value and anonymous
+  key/value clones passed to the copying setter. It now defers token/value
+  cleanup within their scopes and passes borrowed flag names/values for the
+  setter to copy. O0/O3 leak-detecting sanitizer tests cover repeated parsing,
+  aliases, replacements, subcommands, positionals and diagnostic paths. This
+  addresses S5 ownership; defaults/required/action/terminator behavior remains.
