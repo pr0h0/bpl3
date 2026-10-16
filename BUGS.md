@@ -6234,3 +6234,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   this, the new removal check could report stale manifest history immediately
   after a successful uninstall. Verification now passes after uninstalling each
   dependency in the manifest-drift regression.
+
+## Transitive installs overwrote a root archive source (2026-10-16)
+
+- A root installed from a local archive could be reinstalled through a later
+  root's transitive dependency using a cache source. The overwritten lock source
+  then failed manifest verification immediately after a successful install.
+  Pass already selected lock entries into subsequent root dependency installs,
+  preserving the selected archive source and integrity. Root-removal regressions
+  now also cover a removed root that remains needed transitively, with installed
+  modules present and missing.

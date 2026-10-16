@@ -1753,7 +1753,14 @@ export class PackageManager {
         },
         [],
         name,
-        { lockSource: resolved.lockSource },
+        {
+          lockSource: resolved.lockSource,
+          // Keep explicit root archive identity; selector-based choices may
+          // still need to converge on a compatible shared version.
+          lockedPackages: Object.fromEntries(Object.entries(this.loadLockFile().packages)
+            .filter(([packageName]) => deps[packageName] !== undefined &&
+              isPackageFileSource(this.stripPackageFileSourcePrefix(deps[packageName]!)))),
+        },
       );
     }
     return { action: "installed", packages: dependencyEntries.length };

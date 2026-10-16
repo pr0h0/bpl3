@@ -13,7 +13,7 @@ import { tmpdir } from "os";
 import { PackageManager } from "../compiler/middleend/PackageManager";
 
 for (const removeInstalled of [false, true]) {
-  for (const shared of [false, true]) {
+  for (const shared of [false, true, "parent"] as const) {
     test(`removed manifest roots are pruned with shared=${shared}, missing=${removeInstalled}`, () => {
       const root = mkdtempSync(join(tmpdir(), "bpl-manifest-removal-"));
       try {
@@ -44,7 +44,14 @@ for (const removeInstalled of [false, true]) {
         };
         pack("child");
         const parent = pack("parent", { child: "0.1.0" });
-        const stable = pack("stable", shared ? { child: "0.1.0" } : {});
+        const stable = pack(
+          "stable",
+          shared === "parent"
+            ? { parent: "0.1.0" }
+            : shared
+              ? { child: "0.1.0" }
+              : {},
+        );
         const manual = pack("manual");
         const dependencies: Record<string, string> = {
           parent: `file:${parent}`,
@@ -82,10 +89,16 @@ for (const removeInstalled of [false, true]) {
         manager.installProject();
         const lock = JSON.parse(readFileSync(join(app, "bpl.lock"), "utf8"));
         expect(lock.manifestRoots).toEqual(["stable"]);
-        expect(lock.packages.parent).toBeUndefined();
-        expect(existsSync(join(app, "bpl_modules", "parent"))).toBe(false);
-        expect(Boolean(lock.packages.child)).toBe(shared);
-        expect(existsSync(join(app, "bpl_modules", "child"))).toBe(shared);
+        if (shared === "parent")
+          expect(lock.packages.parent.version).toBe("0.1.0");
+        else expect(lock.packages.parent).toBeUndefined();
+        expect(existsSync(join(app, "bpl_modules", "parent"))).toBe(
+          shared === "parent",
+        );
+        expect(Boolean(lock.packages.child)).toBe(Boolean(shared));
+        expect(existsSync(join(app, "bpl_modules", "child"))).toBe(
+          Boolean(shared),
+        );
         expect(lock.packages.manual.version).toBe("0.1.0");
         expect(manager.verifyLockFile().ok).toBe(true);
         // Removing the last declared root still runs pruning with no additions.
