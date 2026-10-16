@@ -13,6 +13,7 @@ import { join } from "path";
 import { spawnSync, type SpawnSyncReturns } from "child_process";
 import { expectJsonStdoutReport } from "./helpers/cliJson";
 import {
+  PackageManager,
   PACKAGE_ARCHIVE_JSON_ERROR_CODES,
   PACKAGE_CACHE_JSON_ERROR_CODES,
   PACKAGE_INIT_JSON_ERROR_CODES,
@@ -502,6 +503,19 @@ describe("Package JSON failure contracts", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-option-codes-"));
 
     try {
+      const conflictContext = projectManifestRoot(tempDir, "dependency-version-conflict");
+      const dependencySource = join(tempDir, "dependency-source");
+      mkdirSync(dependencySource);
+      writeFileSync(join(dependencySource, "bpl.json"), JSON.stringify({name: "conflict-child", version: "0.1.1", main: "index.bpl"}));
+      writeFileSync(join(dependencySource, "index.bpl"), "frame value(){}export value;");
+      const conflictArchive = new PackageManager(dependencySource, {
+        globalPackageDir: join(tempDir, "cache"),
+        globalBinDir: join(tempDir, "bin"),
+      }).pack(dependencySource);
+      writeFileSync(join(conflictContext.cwd, "bpl.json"), JSON.stringify({
+        name: "dependency-version-conflict", version: "0.1.0",
+        dependencies: {"conflict-child": "0.1.0"},
+      }));
       const cases: Array<{
         name: string;
         args: string[];
@@ -510,6 +524,13 @@ describe("Package JSON failure contracts", () => {
         expectedError: string;
         expectedPayload?: Record<string, unknown>;
       }> = [
+        {
+          name: "dependency-version-conflict",
+          args: ["install", conflictArchive, "--json"],
+          context: conflictContext,
+          expectedCode: "BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT",
+          expectedError: "Dependency version conflict",
+        },
         {
           name: "package-with-update",
           args: ["install", "pkg", "--update", "--json"],

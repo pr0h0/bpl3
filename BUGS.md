@@ -6160,3 +6160,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   work and returns nonzero with BPL_CLEAN_FAILED and failed paths. Successful
   entries/counts exclude failed removals; reserved cache removal follows the same
   behavior. A child-process regression injects deterministic permission failures.
+
+## Manifest drift and stale transitive lock graphs (2026-10-16)
+
+- Confirmed CodeRabbit's report: changing a parent archive could still apply its
+  old locked child source/hash, reject a valid new requirement or reinstall an
+  obsolete child independently. Reconciliation now computes affected closures,
+  preserves shared pins reachable from unaffected packages, resolves changed
+  roots against the retained lock subset, and prunes obsolete private children.
+  New/repaired lock entries record dependency names; legacy entries use installed
+  manifests and fail before mutation with explicit update/restore guidance when
+  graph metadata is unavailable. Lock changes are staged until success.
+- Installed directories remain incremental, not a whole-graph rollback; that
+  existing transaction limitation is still open.

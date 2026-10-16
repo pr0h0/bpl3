@@ -234,7 +234,7 @@ symlinks, are rejected before verification so package checks never follow a
 lockfile outside the project, and before project installs decide whether there
 is anything to restore or install.
 
-To restore exactly what is recorded in `bpl.lock`, run:
+To restore recorded packages, reconciling changed root requirements in `bpl.json`, run:
 
 ```bash
 bpl install
@@ -269,8 +269,19 @@ bpl install --update
 ```
 
 Use this when a cache-backed selector such as `^1.2.0` should pick up a newer
-matching cached archive. Without `--update`, `bpl install` restores the exact
-archives already recorded in `bpl.lock`.
+matching cached archive. Without `--update`, unchanged dependencies retain their
+locked archives. A changed root requirement re-resolves its affected dependency
+subtree; shared dependencies used by unchanged packages retain their lock pins.
+If those pins conflict with the new requirements, installation fails rather than
+silently upgrading an unchanged package's dependency. Obsolete packages belonging
+only to the old subtree are removed. Lock updates are saved after reconciliation
+succeeds; installed package directories are still updated incrementally.
+
+New lock entries record dependency names so reconciliation also works when
+`bpl_modules` is missing. Older entries use installed manifests to recover those
+edges. If both that metadata and the installed package are missing, restore the
+original installation first or explicitly run `bpl install --update`; BPL refuses
+to guess which old lock entries belong to the changed dependency.
 Package-name, version selector, and exact cached archive lookup validate the
 global package cache directory itself and its parent path components before
 probing tarballs. If the cache root or one of its parents is a symlink, lookup

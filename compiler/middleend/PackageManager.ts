@@ -286,6 +286,7 @@ export interface PackageLockFile {
       hash: string;
       archiveSha256?: string;
       hashAlgorithm?: "sha256-tree-v2";
+      dependencies?: string[];
     }
   >;
 }
@@ -356,6 +357,7 @@ interface PackageInstallSourceContext {
 
 export class PackageManager {
   private pendingProjectLock?: PackageLockFile;
+  private reconcilingPackages = new Set<string>();
   private projectRoot: string;
   private globalPackageDir: string;
   private localPackageDir: string;
@@ -853,7 +855,19 @@ export class PackageManager {
         hash?: unknown;
         archiveSha256?: unknown;
         hashAlgorithm?: unknown;
+        dependencies?: unknown;
       };
+
+      if (rawEntry.dependencies !== undefined &&
+          (!Array.isArray(rawEntry.dependencies) ||
+           !rawEntry.dependencies.every((name: unknown) => typeof name === "string" && isValidPackageName(name)))) {
+        throw new CompilerError(
+          `Invalid bpl.lock dependencies for ${packageName}`,
+          "Lock entry dependencies must be an array of valid package names.",
+          location,
+          "BPL_LOCKFILE_INVALID_ENTRY",
+        );
+      }
 
       if (
         typeof rawEntry.version !== "string" ||
@@ -1055,6 +1069,7 @@ export class PackageManager {
       source,
       hash: this.calculatePackageHash(installPath, true),
       hashAlgorithm: "sha256-tree-v2",
+      dependencies: Object.keys(manifest.dependencies ?? {}).sort(),
       ...(archiveSha256 ? { archiveSha256 } : {}),
     };
     this.saveLockFile(lock);
@@ -1467,6 +1482,7 @@ export class PackageManager {
     options: PackageOptionsVerbose = { verbose: false, global: false },
   ): PackageProjectInstallResult {
     const previousPendingLock = this.pendingProjectLock;
+    const previousReconcilingPackages = this.reconcilingPackages;
     try {
       const result = this.installProjectInContext(options);
       const pending = this.pendingProjectLock;
@@ -1475,6 +1491,7 @@ export class PackageManager {
       return result;
     } finally {
       this.pendingProjectLock = previousPendingLock;
+      this.reconcilingPackages = previousReconcilingPackages;
     }
   }
 
@@ -1590,11 +1607,37 @@ export class PackageManager {
       const lock = this.loadLockFile();
       const entries = Object.entries(lock.packages);
       if (entries.length > 0) {
+        const changedRoots = new Set(this.manifestLockIssues(lock).map(issue => issue.packageName));
+        const affected = new Set<string>();
+        const collectAffected = (name: string): void => {
+          if (affected.has(name)) return;
+          affected.add(name);
+          const entry = lock.packages[name];
+          if (!entry) return;
+          for (const child of this.lockEntryDependencies(name, entry)) collectAffected(child);
+        };
+        for (const name of changedRoots) collectAffected(name);
+        if (changedRoots.size > 0) {
+          // Shared dependencies reachable from an unchanged package stay pinned.
+          const protectedPackages = new Set<string>();
+          const protect = (name: string): void => {
+            if (changedRoots.has(name) || protectedPackages.has(name)) return;
+            protectedPackages.add(name);
+            const entry = lock.packages[name];
+            if (entry) for (const child of this.lockEntryDependencies(name, entry)) protect(child);
+          };
+          for (const [name] of entries) if (!affected.has(name)) protect(name);
+          for (const name of protectedPackages) affected.delete(name);
+        }
         const sources = new Map(
-          entries.map(([name, entry]) => [name, entry.source]),
+          entries.filter(([name]) => !affected.has(name)).map(([name, entry]) => [name, entry.source]),
         );
-        for (const issue of this.manifestLockIssues(lock)) {
-          sources.set(issue.packageName, deps[issue.packageName]!);
+        for (const name of changedRoots) sources.set(name, deps[name]!);
+        const retainedLocks = Object.fromEntries(entries.filter(([name]) => !affected.has(name)));
+        if (changedRoots.size > 0) {
+          // Stage lock changes until the complete reconciliation succeeds.
+          this.pendingProjectLock = {lockfileVersion: 1, packages: {...lock.packages}};
+          this.reconcilingPackages = new Set(affected);
         }
         compilerLog.info(`Restoring ${sources.size} project packages...`);
         for (const [packageName, source] of sources) {
@@ -1619,12 +1662,27 @@ export class PackageManager {
             packageName,
             {
               lockSource: resolved.lockSource,
-              expectedLockEntry: source === lock.packages[packageName]?.source
-                ? lock.packages[packageName]
-                : undefined,
-              lockedPackages: lock.packages,
+              expectedLockEntry: retainedLocks[packageName],
+              lockedPackages: retainedLocks,
             },
           );
+        }
+        if (changedRoots.size > 0) {
+          const currentLock = this.loadLockFile();
+          const reachable = new Set<string>();
+          const visit = (name: string): void => {
+            if (reachable.has(name)) return;
+            reachable.add(name);
+            const entry = currentLock.packages[name];
+            if (entry) for (const child of this.lockEntryDependencies(name, entry)) visit(child);
+          };
+          for (const name of sources.keys()) visit(name);
+          for (const name of affected) {
+            if (reachable.has(name)) continue;
+            if (this.tryLstat(path.join(this.localPackageDir, name))) this.uninstall(name);
+            else delete currentLock.packages[name];
+          }
+          this.saveLockFile(currentLock);
         }
         return { action: "restored", packages: sources.size };
       }
@@ -1662,6 +1720,24 @@ export class PackageManager {
       );
     }
     return { action: "installed", packages: dependencyEntries.length };
+  }
+
+  private lockEntryDependencies(
+    name: string,
+    entry: PackageLockFile["packages"][string],
+  ): string[] {
+    if (entry.dependencies) return entry.dependencies;
+    const directory = path.join(this.localPackageDir, name);
+    const stats = this.tryLstat(directory);
+    if (stats?.isDirectory() && !stats.isSymbolicLink()) {
+      return Object.keys(this.loadManifest(directory).dependencies ?? {});
+    }
+    throw new CompilerError(
+      `Cannot reconcile legacy lock entry '${name}' without its installed manifest`,
+      "Restore the original bpl_modules first, or run 'bpl install --update' to resolve the whole dependency graph.",
+      {file: this.getLockFilePath(), startLine: 1, startColumn: 1, endLine: 1, endColumn: 1},
+      "BPL_LOCKFILE_INVALID_ENTRY",
+    );
   }
 
   private formatLockVerificationHelp(
@@ -3196,6 +3272,7 @@ export class PackageManager {
         compilerLog.info(`Location: ${installPath}`);
       }
 
+      this.reconcilingPackages.delete(manifest.name);
       this.installPackageDependencies(
         manifest,
         options,
@@ -3487,7 +3564,7 @@ export class PackageManager {
     }
     if (this.readPackageManagerDirectoryStats(this.localPackageDir, "Local package directory")) {
       for (const name of fs.readdirSync(this.localPackageDir)) {
-        if (name === packageName || name.startsWith(".")) continue;
+        if (name === packageName || name.startsWith(".") || this.reconcilingPackages.has(name)) continue;
         const directory = path.join(this.localPackageDir, name);
         const stat = this.tryLstat(directory);
         if (!stat?.isDirectory() || stat.isSymbolicLink() || !this.tryLstat(path.join(directory, "bpl.json"))) continue;
@@ -4837,6 +4914,7 @@ export class PackageManager {
           existing?.source ?? `${pkg.manifest.name}-${pkg.manifest.version}.tgz`,
         hash: this.calculatePackageHash(pkg.path, true),
         hashAlgorithm: "sha256-tree-v2" as const,
+        dependencies: Object.keys(pkg.manifest.dependencies ?? {}).sort(),
       };
 
       nextLock.packages[pkg.manifest.name] = nextEntry;
