@@ -3,6 +3,11 @@ import type * as peggy from "peggy";
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import * as generatedParser from "./generated/BplParser.js";
+import {
+  isParserStackOverflow,
+  syntaxDepthError,
+  validateSyntaxDepth,
+} from "./SyntaxDepth";
 
 let cachedParser: peggy.Parser | null = null;
 
@@ -45,6 +50,7 @@ export function parseWithPeggy(
       bplCollectExpected,
       bplHasCommentMarker: options.hasCommentMarker,
     }) as AST.Program;
+    validateSyntaxDepth(program);
     program.comments = comments;
     if (errors.length > 0) {
       program.errors = errors.map(
@@ -65,11 +71,20 @@ export function parseWithPeggy(
         throw toCompilerError(filePath, retryError);
       }
     }
-    throw error;
+    throw toCompilerError(filePath, error);
   }
 }
 
 function toCompilerError(filePath: string, error: unknown): CompilerError {
+  if (isParserStackOverflow(error)) {
+    return syntaxDepthError({
+      file: filePath,
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 1,
+    });
+  }
   const err = error as (Error & { location?: SourceLocation }) | unknown;
   if (!isPeggySyntaxError(err)) {
     throw error;
