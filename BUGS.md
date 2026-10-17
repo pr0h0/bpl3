@@ -6382,3 +6382,19 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   to the existing portable v2 format. Ordinary .bpl legacy coverage is unchanged.
   Tests check listings, provenance, metadata exclusion, external-link boundaries,
   unchanged legacy lock bytes on verification failure, and explicit migration.
+
+## Unchanged packages produced different archive bytes (audit P5)
+
+- Two packs of identical package contents produce different archive SHA256s
+  because temporary staging timestamps, filesystem order and ownership enter
+  tar headers. BSD tar also embeds the current time in its gzip header.
+- Confirmed with a regression that packs identical trees in opposite creation
+  order, with different source timestamps and umasks, across a clock boundary.
+  The fix normalizes only private staging metadata, writes an explicit sorted
+  NUL-delimited member list and suppresses variable ownership/compression
+  metadata for GNU/BSD tar. Source metadata is preserved; executable bits remain
+  meaningful. GNU-format archives retain long paths without PAX clock fields.
+- Ignore ambient TAR_OPTIONS/GZIP during creation so they cannot silently add
+  exclusions or change compression headers. BPL_TAR/TAR selection is unchanged.
+  Reproducibility is scoped to the same tar/compression toolchain, included
+  content, paths and executable bits; provenance timestamps remain informational.

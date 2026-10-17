@@ -2864,6 +2864,29 @@ export class PackageManager {
         fs.copyFileSync(file, targetPath);
       }
 
+      // Normalize only the private staging tree; never mutate source metadata.
+      // An explicit NUL-delimited member list avoids filesystem enumeration order
+      // and safely represents spaces, Unicode and newline characters in names.
+      const members: string[] = [];
+      const normalize = (directory: string): void => {
+        members.push(path.relative(tempDir, directory).split(path.sep).join("/"));
+        for (const name of fs.readdirSync(directory).sort()) {
+          const file = path.join(directory, name);
+          const stat = fs.lstatSync(file);
+          if (stat.isDirectory()) {
+            normalize(file);
+          } else {
+            members.push(path.relative(tempDir, file).split(path.sep).join("/"));
+            fs.chmodSync(file, stat.mode & 0o111 ? 0o755 : 0o644);
+            fs.utimesSync(file, 0, 0);
+          }
+        }
+        fs.chmodSync(directory, 0o755);
+        fs.utimesSync(directory, 0, 0);
+      };
+      normalize(packageRoot);
+      fs.writeFileSync(path.join(tempDir, "members"), members.join("\0") + "\0");
+
       // Create tarball
       const archiveTool = getPackageArchiveTool();
       this.createPackageArchiveAtomically(
@@ -2894,6 +2917,45 @@ export class PackageManager {
     tempDir: string,
     manifestPath: string,
   ): void {
+    const version = spawnSync(archiveTool, ["--version"], {
+      encoding: "utf8",
+      timeout: getPackageArchiveToolTimeoutMs(),
+      maxBuffer: 64 * 1024,
+    });
+    if (version.error) {
+      throw new CompilerError(
+        `Failed to create tarball: ${this.formatSpawnFailure(version, "Unknown error")}`,
+        `Check if '${archiveTool}' is available and you have write permissions.`,
+        {
+          file: manifestPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+    // GNU and libarchive use different ownership and gzip timestamp controls.
+    // Unknown wrappers retain the GNU-compatible path and normal tool errors.
+    const archiveOptions = /bsdtar|libarchive/i.test(version.stdout ?? "")
+      ? [
+          "--format=gnutar",
+          "--uid=0",
+          "--gid=0",
+          "--uname=",
+          "--gname=",
+          "--options=gzip:!timestamp",
+          "--no-acls",
+          "--no-xattrs",
+          "--no-fflags",
+          "--no-mac-metadata",
+        ]
+      : ["--format=gnu", "--owner=0", "--group=0", "--numeric-owner"];
+    const env: NodeJS.ProcessEnv = { ...process.env, COPYFILE_DISABLE: "1" };
+    // These variables can silently add archive members, options or gzip headers.
+    delete env.TAR_OPTIONS;
+    delete env.GZIP;
+
     for (let attempt = 0; attempt < 10; attempt++) {
       const tempTarballPath = this.getAtomicWriteTempPath(tarballPath, attempt);
       if (this.tryLstat(tempTarballPath)) {
@@ -2903,9 +2965,20 @@ export class PackageManager {
       try {
         const result = spawnSync(
           archiveTool,
-          ["-czf", tempTarballPath, "-C", tempDir, "package"],
+          [
+            "-czf",
+            tempTarballPath,
+            ...archiveOptions,
+            "--no-recursion",
+            "-C",
+            tempDir,
+            "--null",
+            "-T",
+            path.join(tempDir, "members"),
+          ],
           {
             stdio: "pipe",
+            env,
             timeout: getPackageArchiveToolTimeoutMs(),
           },
         );
