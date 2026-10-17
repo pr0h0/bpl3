@@ -45,6 +45,10 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
   }
 
   // Abstract methods that will be implemented in child classes
+  protected abstract requestValueReceiverThunk(
+    functionName: string,
+    functionType: AST.FunctionTypeNode,
+  ): string;
   protected abstract generateFunction(
     decl: AST.FunctionDecl,
     parentStruct?: AST.StructDecl | AST.EnumDecl,
@@ -408,6 +412,14 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
       const retType = this.resolveType(funcType.returnType);
       // Virtual methods are Frames (not Lambdas) so they don't take context pointer
       const paramTypes = funcType.paramTypes.map((p) => this.resolveType(p));
+      if (
+        methodDecl.params[0]?.name === "this" &&
+        paramTypes[0] &&
+        !paramTypes[0].endsWith("*")
+      ) {
+        mangled = this.requestValueReceiverThunk(mangled, funcType);
+        paramTypes[0] = "i8*";
+      }
       const paramsStr = paramTypes.join(", ");
       const rawFuncTypeStr = `${retType} (${paramsStr})*`;
 

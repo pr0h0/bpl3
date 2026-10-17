@@ -6266,7 +6266,7 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   the wrong receiver ABI. Distinguish value receiver keys and retain the checker
   selection when codegen guesses the other receiver mode.
 
-## Open: bound value-receiver methods use the wrong ABI
+## Bound value-receiver methods used the wrong ABI (fixed in follow-up)
 
 - Independently reproduced on PR3's baseline and the C10 worktree: binding
   `frame read(this: Counter) ret int {return this.value;}` as a Lambda returns
@@ -6274,3 +6274,26 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   bitcasts a function taking an aggregate receiver to a function taking i8* and
   passes the receiver address as the aggregate. Repro saved locally for follow-up;
   this is separate from the const-address checker fix and needs an adapter.
+
+### Bound value receiver ABI resolution
+
+- Replace the invalid function bitcast with a typed adapter that loads the
+  receiver value from the captured context and forwards its copy. Preserve
+  narrow-argument/return ABI extensions and scalar, void and aggregate results.
+  No additional allocation is needed. Recognize bound methods on call-result
+  receivers before aggregate field extraction, so those receivers evaluate once.
+  Variadic value-receiver binding now fails explicitly instead of emitting an
+  adapter that cannot forward the variadic arguments. Native O0/O3 and LLVM
+  verification cover const/mutable values, receiver changes, temporary values,
+  narrow parameters/results, enums and large aggregate results. Check receiver
+  pointers at binding before the adapter can dereference them; null binding
+  raises the normal catchable NullAccessError rather than crashing.
+
+### Virtual value receiver layout
+
+- Virtual calls passed a base receiver copy into a derived method with a larger
+  value receiver, so derived fields were read using the wrong aggregate ABI.
+  Share the value-receiver adapter with vtable entries and pass the original
+  object address. The selected concrete implementation loads its own complete
+  layout and receives a copy. A wide derived-field regression checks polymorphic
+  calls through base pointers and verifies receiver mutations stay local.
