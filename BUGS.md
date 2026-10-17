@@ -6253,6 +6253,20 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   errors/count behavior and package resolution/rollback limits. The Markdown
   error-code inventory verifies that documentation stays aligned with exports.
 
+## Pack verification ignored the manifest entry alias
+
+- A package declaring only `entry: "src/api.bpl"` was verified against the missing
+  default index.bpl and packed successfully even when api.bpl contained type
+  errors. Match package resolution's precedence: main, then entry, then index.bpl.
+- Compilation failures in pack --json exited before writing any JSON. Route
+  these failures through the shared JSON error path, preserving the compiler's
+  diagnostic code. Tests reject invalid main/entry sources, accept a valid entry
+  despite an invalid unused index.bpl, retain main precedence, and preserve an
+  existing archive on a subsequent verification failure.
+- This fixes the entry-verification portion of audit P5. Archive reproducibility,
+  metadata inclusion and other packing gaps are separate outstanding work.
+
+
 ## Implicit method/operator addresses bypassed const bindings (audit C10)
 
 - A const struct could call or bind a pointer-receiver method and mutate its

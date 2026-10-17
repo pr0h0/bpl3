@@ -1046,3 +1046,9 @@ bpl pack
 `format --check` verifies that generated archives contain formatted sources,
 while `lint --json` and `check --json` provide stable diagnostic ranges for CI
 annotations.
+
+`bpl pack` verifies the source selected by `main`, then `entry` when `main` is
+absent, or `index.bpl` when neither is declared. A compilation failure stops
+packing before an archive is written or replaced. In `pack --json` mode, compiler
+verification failures return a `package-pack` report with `success: false`, the
+compiler error text, and its diagnostic code as `errorCode` when available.

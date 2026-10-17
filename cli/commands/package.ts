@@ -87,7 +87,7 @@ export function registerPackageCommands(program: Command): void {
 
           // Check if code compiles before packing
           const manifest = pm.loadManifest(packageDir);
-          const mainFile = manifest.main || "index.bpl";
+          const mainFile = manifest.main ?? manifest.entry ?? "index.bpl";
           const entryPath = path.join(packageDir, mainFile);
 
           const entryStats = tryLstat(entryPath);
@@ -117,6 +117,16 @@ export function registerPackageCommands(program: Command): void {
             const result = compiler.compile(content);
 
             if (!result.success) {
+              // Let the shared JSON failure path report compiler diagnostics
+              // instead of exiting with an empty stdout stream.
+              if (outputJson) {
+                throw (
+                  result.errors?.[0] ??
+                  new Error(
+                    "Package verification failed - compilation errors detected.",
+                  )
+                );
+              }
               log.error(
                 "Package verification failed - compilation errors detected:",
               );
