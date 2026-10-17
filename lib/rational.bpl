@@ -2,6 +2,44 @@
 
 export [Rational];
 
+# Internal unsigned 128-bit intermediates for exact reduced addition.
+struct RationalWide {
+    hi: u64,
+    lo: u64,
+    frame product(a: u64, b: u64) ret RationalWide {
+        local mask: u64 = 4294967295;
+        local al: u64 = a & mask;
+        local bl: u64 = b & mask;
+        local ah: u64 = a >> 32;
+        local bh: u64 = b >> 32;
+        local low: u64 = al * bl;
+        local left: u64 = al * bh;
+        local right: u64 = ah * bl;
+        local middle: u64 = (low >> 32) + (left & mask) + (right & mask);
+        return RationalWide {
+            hi: (ah * bh) + (left >> 32) + (right >> 32) + (middle >> 32),
+            lo: (middle << 32) | (low & mask)
+        };
+    }
+    frame divide(this: *RationalWide, divisor: u64) ret RationalWide {
+        local result: RationalWide = RationalWide { hi: 0, lo: 0 };
+        local remainder: u64 = 0;
+        # Divisors are at most 2^63, so doubling a remainder fits u64.
+        loop (local bit: int = 127; bit >= 0; bit = bit - 1) {
+            local digit: u64 = 0;
+            if (bit >= 64) { digit = (this.hi >> (bit - 64)) & cast<u64>(1); }
+            else { digit = (this.lo >> bit) & cast<u64>(1); }
+            remainder = (remainder << 1) | digit;
+            if (remainder >= divisor) {
+                remainder = remainder - divisor;
+                if (bit >= 64) { result.hi = result.hi | (cast<u64>(1) << (bit - 64)); }
+                else { result.lo = result.lo | (cast<u64>(1) << bit); }
+            }
+        }
+        return result;
+    }
+}
+
 struct Rational {
     num: long,
     den: long,
@@ -116,133 +154,107 @@ struct Rational {
         return a;
     }
 
+    frame magnitude(value: long) ret u64 {
+        if (value < cast<long>(0)) { return cast<u64>(0) - cast<u64>(value); }
+        return cast<u64>(value);
+    }
+
     frame addFractions(an: long, ad: long, bn: long, bd: long) ret Rational {
-        local aWhole: long = Rational.floorDiv(an, ad);
-        local bWhole: long = Rational.floorDiv(bn, bd);
-        local aRest: long = an - (aWhole * ad);
-        local bRest: long = bn - (bWhole * bd);
+        return Rational.combine(an, ad, bn, bd, false);
+    }
 
-        local common: long = Rational.gcd(ad, bd);
-        local aScale: long = ad / common;
-        local bScale: long = bd / common;
-        local restNum: u64 = cast<u64>(aRest * bScale) + cast<u64>(bRest * aScale);
-        # Reduce against the separate denominator factors before multiplying.
-        # The unreduced least common denominator can exceed even u64 while
-        # the reduced result still fits long.
-        local denA: u64 = cast<u64>(ad);
-        local denB: u64 = cast<u64>(bScale);
-        local factor: u64 = Rational.gcdWide(restNum, denA);
-        restNum = restNum / factor;
-        denA = denA / factor;
-        factor = Rational.gcdWide(restNum, denB);
-        restNum = restNum / factor;
-        denB = denB / factor;
-        local restDenWide: u64 = denA * denB;
-
-        local whole: long = aWhole + bWhole;
-        if (restNum >= restDenWide) {
-            whole = whole + cast<long>(1);
-            restNum = restNum - restDenWide;
+    # Add/subtract with exact wide cross-products, then reduce before testing
+    # representability. This also handles subtraction of LONG_MIN directly.
+    frame combine(an: long, ad: long, bn: long, bd: long, subtract: bool) ret Rational {
+        if ((ad <= cast<long>(0)) || (bd <= cast<long>(0))) { return Rational.new(0, 0); }
+        local common: u64 = Rational.gcdWide(cast<u64>(ad), cast<u64>(bd));
+        local aScale: u64 = cast<u64>(ad) / common;
+        local bScale: u64 = cast<u64>(bd) / common;
+        local left: RationalWide = RationalWide.product(Rational.magnitude(an), bScale);
+        local right: RationalWide = RationalWide.product(Rational.magnitude(bn), aScale);
+        local negative: bool = an < cast<long>(0);
+        local rightNegative: bool = (bn < cast<long>(0)) != subtract;
+        local total: RationalWide;
+        if (negative == rightNegative) {
+            total.lo = left.lo + right.lo;
+            local carry: u64 = 0;
+            if (total.lo < left.lo) { carry = 1; }
+            total.hi = left.hi + right.hi + carry;
+        } else {
+            if ((left.hi < right.hi) || ((left.hi == right.hi) && (left.lo < right.lo))) {
+                local swap: RationalWide = left;
+                left = right;
+                right = swap;
+                negative = rightNegative;
+            }
+            local borrow: u64 = 0;
+            if (left.lo < right.lo) { borrow = 1; }
+            total.lo = left.lo - right.lo;
+            total.hi = left.hi - right.hi - borrow;
         }
-
-        local restFactor: u64 = Rational.gcdWide(restNum, restDenWide);
-        if (restFactor != cast<u64>(0)) {
-            restNum = restNum / restFactor;
-            restDenWide = restDenWide / restFactor;
-        }
-
-        local reducedNum: long = cast<long>(restNum);
-        local reducedDen: long = cast<long>(restDenWide);
-        if (reducedDen == cast<long>(1)) {
-            return Rational.new(whole + reducedNum, cast<long>(1));
-        }
-        return Rational.new((whole * reducedDen) + reducedNum, reducedDen);
+        local quotient: RationalWide = total.divide(common);
+        local remainder: u64 = total.lo - (quotient.lo * common);
+        local factor: u64 = Rational.gcdWide(remainder, common);
+        total = total.divide(factor);
+        local denominatorPart: u64 = cast<u64>(bd) / factor;
+        local maximum: u64 = 9223372036854775807;
+        local limit: u64 = maximum;
+        if (negative) { limit = limit + cast<u64>(1); }
+        if ((total.hi != cast<u64>(0)) || (total.lo > limit)
+            || (denominatorPart > (maximum / aScale))) { return Rational.new(0, 0); }
+        local numerator: long = cast<long>(total.lo);
+        if (negative) { numerator = cast<long>(cast<u64>(0) - total.lo); }
+        return Rational.new(numerator, cast<long>(aScale * denominatorPart));
     }
 
     frame add(this: *Rational, other: Rational) ret Rational {
-        if ((this.den == cast<long>(0)) || (other.den == cast<long>(0))) {
-            return Rational.new(cast<long>(0), cast<long>(0));
-        }
-        return Rational.addFractions(this.num, this.den, other.num, other.den);
+        return Rational.combine(this.num, this.den, other.num, other.den, false);
     }
 
-    # Subtract two rationals
     frame sub(this: *Rational, other: Rational) ret Rational {
-        if ((this.den == cast<long>(0)) || (other.den == cast<long>(0))) {
-            return Rational.new(cast<long>(0), cast<long>(0));
-        }
-
-        # Negate the numerator, not the denominator: addFractions floors
-        # against the denominator and accumulates the remainders unsigned, so
-        # it requires a positive one. A negative numerator is ordinary.
-        if (other.num != cast<long>(-9223372036854775808)) {
-            return Rational.addFractions(
-                this.num,
-                this.den,
-                -other.num,
-                other.den,
-            );
-        }
-
-        # The minimum long has no positive counterpart. It is always even, so
-        # subtracting half of it twice gives the same result with values that
-        # can be negated.
-        local half: Rational = Rational.new(
-            other.num / cast<long>(2),
-            other.den,
-        );
-        local once: Rational = this.sub(half);
-        return once.sub(half);
+        return Rational.combine(this.num, this.den, other.num, other.den, true);
     }
 
-    # Multiply two rationals
-    /#
-        Multiplication that cancels across the two fractions first, so a
-        representable product does not pass through an unrepresentable one.
-    #/
+    # Cancel in unsigned magnitudes so LONG_MIN is representable during both
+    # multiplication and reciprocal division; only final results must fit long.
+    frame multiplyFractions(an: long, ad: long, bn: long, bd: long, divide: bool) ret Rational {
+        if ((ad <= cast<long>(0)) || (bd <= cast<long>(0)) || (divide && (bn == cast<long>(0)))) {
+            return Rational.new(0, 0);
+        }
+        local a: u64 = Rational.magnitude(an);
+        local b: u64 = cast<u64>(ad);
+        local c: u64 = Rational.magnitude(bn);
+        local d: u64 = cast<u64>(bd);
+        if (divide) { local swap: u64 = c; c = d; d = swap; }
+        local factor: u64 = Rational.gcdWide(a, d);
+        a = a / factor;
+        d = d / factor;
+        factor = Rational.gcdWide(c, b);
+        c = c / factor;
+        b = b / factor;
+        local negative: bool = (an < cast<long>(0)) != (bn < cast<long>(0));
+        local maximum: u64 = 9223372036854775807;
+        local limit: u64 = maximum;
+        if (negative) { limit = limit + cast<u64>(1); }
+        if (((a != cast<u64>(0)) && (c > (limit / a))) || (d > (maximum / b))) {
+            return Rational.new(0, 0);
+        }
+        local numerator: u64 = a * c;
+        if (negative) { numerator = cast<u64>(0) - numerator; }
+        return Rational.new(cast<long>(numerator), cast<long>(b * d));
+    }
+
     frame mul(this: *Rational, other: Rational) ret Rational {
-        if ((this.den == cast<long>(0)) || (other.den == cast<long>(0))) {
-            return Rational.new(cast<long>(0), cast<long>(0));
-        }
-        local crossA: long = Rational.gcd(this.num, other.den);
-        local crossB: long = Rational.gcd(other.num, this.den);
-        if (crossA == cast<long>(0)) {
-            crossA = cast<long>(1);
-        }
-        if (crossB == cast<long>(0)) {
-            crossB = cast<long>(1);
-        }
-        return Rational.new(
-            (this.num / crossA) * (other.num / crossB),
-            (this.den / crossB) * (other.den / crossA),
-        );
+        return Rational.multiplyFractions(this.num, this.den, other.num, other.den, false);
     }
 
-    # Divide two rationals
     frame div(this: *Rational, other: Rational) ret Rational {
-        if ((this.den == cast<long>(0)) || (other.den == cast<long>(0))) {
-            return Rational.new(cast<long>(0), cast<long>(0));
-        }
-        if (other.num == cast<long>(0)) {
-            return Rational.new(cast<long>(0), cast<long>(0));
-        }
-        # Dividing is multiplying by the reciprocal, cancelled the same way.
-        local crossA: long = Rational.gcd(this.num, other.num);
-        local crossB: long = Rational.gcd(other.den, this.den);
-        if (crossA == cast<long>(0)) {
-            crossA = cast<long>(1);
-        }
-        if (crossB == cast<long>(0)) {
-            crossB = cast<long>(1);
-        }
-        return Rational.new(
-            (this.num / crossA) * (other.den / crossB),
-            (this.den / crossB) * (other.num / crossA),
-        );
+        return Rational.multiplyFractions(this.num, this.den, other.num, other.den, true);
     }
 
     # Negate the rational
     frame negate(this: *Rational) ret Rational {
+        if (this.num == cast<long>(-9223372036854775808)) { return Rational.new(0, 0); }
         return Rational.new(-this.num, this.den);
     }
 
@@ -253,6 +265,7 @@ struct Rational {
 
     # Calculate absolute value
     frame abs(this: *Rational) ret Rational {
+        if (this.num == cast<long>(-9223372036854775808)) { return Rational.new(0, 0); }
         local n: long = this.num;
         if (n < cast<long>(0)) {
             n = -n;

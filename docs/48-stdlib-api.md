@@ -58,6 +58,18 @@ import [Args], [ArgParser], [Command], [Flag], [ParsedArgs] from "std";
 `ArgParser` provide a small command parser for flags, aliases, arguments, help
 text, and parsed flag lookup.
 
+`parse()` applies flag defaults, checks required positional arguments for each
+selected command, and invokes the final command's `setAction` handler once if
+there are no parsing errors. `ParsedArgs.errorCount` counts parsing errors;
+`exitCode` is 1 on a parsing error or the handler's return value on success
+(0 when no handler is set). The caller owns and must destroy the returned
+`ParsedArgs` even when parsing fails. Diagnostics go to stderr.
+
+Flags accept `--name=value` or a separate value. A following option is not
+consumed as a missing value; use `--name=-filename` for a value beginning with
+an option prefix. Negative decimal numbers and a lone `-` are operands.
+`--` stops both option and subcommand recognition for the remaining tokens.
+
 ### JSON (`std/json.bpl`)
 
 JSON helpers are available directly through `std`:
@@ -180,8 +192,10 @@ invalid `0/0` sentinel for a zero denominator or when the reduced fraction canno
 have a positive `long` denominator and a representable `long` numerator. For
 example, `new(1, LONG_MIN)` and `new(LONG_MIN, -1)` are invalid, while
 `new(LONG_MIN, -2)` reduces to `4611686018427387904/1`. Check `isValid()` before
-using a result. Arithmetic overflow beyond the representable reduced range is
-still a separate limitation.
+using a result. Addition, subtraction, multiplication and division reduce exact
+intermediates before checking the result. If the reduced numerator or positive
+denominator does not fit `long`, arithmetic returns `0/0` rather than wrapping.
+Negating or taking the absolute value of `LONG_MIN/1` also returns `0/0`.
 
 **Operations:**
 
@@ -531,7 +545,7 @@ the same rules as Date. Operations return new values without mutating the input.
 
 ### Rand (`std/rand.bpl`)
 
-Pseudo-random number generator (LCG).
+Deterministic PCG32 generator with 64-bit state and a fixed stream (54).
 
 **Creation:**
 
@@ -558,7 +572,10 @@ Pseudo-random number generator (LCG).
 
 ## Random-number limitations
 
-`Rand` is a deterministic 32-bit LCG, not a cryptographic generator. `seedFromTime`
+`Rand` uses PCG32 (XSH-RR), with 64-bit state and 32-bit output. It is not a
+cryptographic generator. `Rand.seed` initializes the fixed stream rather than
+assigning the seed directly to `state`. Equal seeds reproduce the same sequence;
+sequences differ from the previous LCG implementation. `seedFromTime`
 uses whole seconds, so equal seeds repeat sequences. `nextFloat` maps unsigned
 32-bit output to [0, 1). Integer `range` uses rejection sampling to remove modulo
 bias and supports intervals spanning signed boundaries; empty or reversed ranges
@@ -567,10 +584,10 @@ return `min` without advancing the generator.
 For finite floating bounds, `range` uses a convex combination to avoid overflow
 in `max - min`. Rounding can produce an endpoint. `nextGaussian` uses Box–Muller
 with native logarithm, square root, and cosine, resampling zero before the
-logarithm. These fixes change generated fractions, ranges, and Gaussian sequences
-from earlier releases. They do not remove the correlations or limited state space
-of the underlying LCG. `nextBool` and `fillBytes` still use its low bits, which
-have short repeating patterns; use OS entropy for security-sensitive randomness.
+logarithm. `nextBool` and `fillBytes` use the permuted PCG32 output rather than
+raw LCG state bits, removing the old strictly alternating booleans and 256-byte
+repeat pattern. Use OS entropy for security-sensitive randomness. The generator
+is checked against the [PCG32 reference vector](https://www.pcg-random.org/using-pcg-c-basic.html).
 `weightedChoice` requires nonnegative weights with a positive total fitting
 signed int. Negative weights, an empty or all-zero array, and a total above
 2,147,483,647 throw a string error before advancing the generator. Valid weights

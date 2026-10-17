@@ -536,12 +536,14 @@ This creates:
 
 #### `bpl clean`
 
-Remove build artifacts. In git repositories, tracked files are preserved even
-when they live in `build/`, `dist/`, or `.bpl-cache/`. `--json` reports each
-planned deletion as a `file`, `directory`, or `symlink`.
+Remove candidate `.ll`, `.o`, `.exe` and `.out` outputs only when a regular
+sibling `.bpl` source exists, and clear `.bpl-cache/`. Extensionless files are
+preserved; remove known generated executables explicitly. Generic `build/` and `dist/` directories are preserved.
+Git-tracked files are preserved. `--json` reports each planned deletion as a
+`file`, `directory`, or `symlink`.
 
 ```bash
-# Remove all build artifacts
+# Remove matching BPL outputs and the compiler cache
 bpl clean
 
 # Dry run (show what would be deleted)

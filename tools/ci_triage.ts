@@ -1035,6 +1035,9 @@ const PACKAGE_IMPORT_MANIFEST_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_DEPENDENCY_CONFLICT_STEP_PATTERN =
+  /BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT|PackageDependencyConflicts\.test/i;
+
 const PACKAGE_JSON_CONTRACT_STEP_PATTERN = new RegExp(
   [
     "PackageJsonFailureContracts\\.test",
@@ -2327,6 +2330,10 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
     PACKAGE_DOCTOR_LOCK_DRIFT_STEP_PATTERN,
     "bun index.ts doctor packages --json",
+  ],
+  [
+    PACKAGE_DEPENDENCY_CONFLICT_STEP_PATTERN,
+    "bun test tests/PackageDependencyConflicts.test.ts",
   ],
   [
     PACKAGE_JSON_CONTRACT_STEP_PATTERN,

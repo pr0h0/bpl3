@@ -13,11 +13,12 @@ test("weighted choice rejects invalid totals without consuming randomness", () =
         local weights: Array<int> = Array<int>.new(2);
         weights.push(a); weights.push(b);
         local rng: Rand = Rand.seed(123);
+        local initialState: ulong = rng.state;
         local caught: bool = false;
         try { rng.weightedChoice(&weights); }
         catch (error: string) { caught = strcmp(error, message) == 0; }
         weights.destroy();
-        return caught && (rng.state == cast<ulong>(123));
+        return caught && (rng.state == initialState);
       }
       frame main() ret int {
         if (!rejected(2147483647, 1, "Rand.weightedChoice total exceeds int")) { return 1; }

@@ -95,6 +95,44 @@ bpl pack
 
 ### Install a Package
 
+Run `bpl install` without a package argument to install project dependencies.
+An existing `bpl.lock` retains locked sources; newly added dependencies and
+changed version/source requirements in `bpl.json` are reconciled as well.
+`bpl install --locked` verifies installed contents and checks that every root
+dependency, including development dependencies, is represented by a compatible
+lock entry. It fails on manifest drift without rewriting the lock or installing
+packages. Local `bpl uninstall <name>` removes the package from both dependency
+maps in `bpl.json` as well as its local installation and lock entry.
+
+New lock entries also record the archive's SHA-256. Restoration checks that
+checksum and the extracted package version/content hash before replacing an
+installation. Older lockfiles without archive checksums still enforce their
+content hashes. Restored transitive dependencies use locked sources rather than
+resolving version ranges against the current cache. Use `--update` explicitly
+when accepting changed dependency contents.
+
+New and explicitly repaired locks use `hashAlgorithm: "sha256-tree-v2"`.
+These hashes cover regular package files, including native sources, objects,
+assets and hidden files, using `/` paths sorted independently of locale. The
+reserved `.git`, `node_modules`, `bpl_modules` and `.bpl-cache` directories are
+excluded. Symlink identities are hashed without following their targets.
+Locks without `hashAlgorithm` retain the legacy algorithm for compatibility;
+use an explicit update or repair to migrate them.
+
+`install --update` and `bpl lock` write their replacement lock only after all
+requested installations succeed. A failed update retains the previous lockfile.
+This protects the lockfile; it does not roll back package directories already
+replaced earlier in a multi-package installation. Lock package names are sorted
+independently of locale, and generated lockfiles end with a newline.
+
+Local resolution considers root and installed dependents' version requirements
+when choosing cached versions. An incompatible shared dependency fails with
+`BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT` before replacing that package. Lock
+verification also checks transitive version requirements. Only one version of a
+package can be installed per project; align conflicting requirements explicitly.
+This is incremental resolution: a failure can leave earlier package installations
+in place, and arbitrary archive filenames do not encode a version constraint.
+
 Install from a local tarball:
 
 ```bash

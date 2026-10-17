@@ -1,19 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { CodeGenerator } from "../compiler/backend/CodeGenerator";
-import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
-import { Parser } from "../compiler/frontend/Parser";
-import { TypeChecker } from "../compiler/middleend/TypeChecker";
-
-function compile(source: string): string {
-  const tokens = lexWithGrammar(source, "test.bpl");
-  const parser = new Parser(source, "test.bpl", tokens);
-  const program = parser.parse();
-  const typeChecker = new TypeChecker();
-  typeChecker.checkProgram(program);
-  const generator = new CodeGenerator();
-  return generator.generate(program);
-}
+import { compileToLLVM as compile } from "./helpers/compileToLLVM";
 
 describe("Edge Cases and Error Handling", () => {
   describe("Nullptr and Undefined Handling", () => {
@@ -35,7 +22,7 @@ describe("Edge Cases and Error Handling", () => {
         }
       `;
       expect(() => compile(source)).toThrowError(
-        "Identifier 'x' has no resolved type",
+        "Type mismatch: cannot assign nullptr to i32",
       );
     });
 
@@ -90,7 +77,7 @@ describe("Edge Cases and Error Handling", () => {
       const source = `
         struct Box<T> { value: T, }
         frame test() ret int {
-          local b: Box<Box<Box<int>>>;
+          local _b: Box<Box<Box<int>>>;
           return 0;
         }
       `;
@@ -129,7 +116,7 @@ describe("Edge Cases and Error Handling", () => {
 
     it("should handle unsigned integer max", () => {
       const source = `
-        frame test() ret long {
+        frame test() ret ulong {
           return 18446744073709551615;
         }
       `;
@@ -224,20 +211,19 @@ describe("Edge Cases and Error Handling", () => {
   });
 
   describe("Array Edge Cases", () => {
-    it("should handle zero-length arrays", () => {
+    it("should reject zero-length arrays", () => {
       const source = `
         frame test() ret void {
           local arr: int[0];
         }
       `;
-      // Some compilers allow, some don't
-      // expect(() => compile(source)).toThrow(CompilerError);
+      expect(() => compile(source)).toThrowError("Array size must be greater than zero");
     });
 
     it("should handle very large arrays", () => {
       const source = `
         frame test() ret void {
-          local arr: int[10000];
+          local _arr: int[10000];
         }
       `;
       expect(() => compile(source)).not.toThrow();
@@ -246,7 +232,7 @@ describe("Edge Cases and Error Handling", () => {
     it("should handle multi-dimensional arrays", () => {
       const source = `
         frame test() ret void {
-          local matrix: int[10][20];
+          local _matrix: int[10][20];
         }
       `;
       expect(() => compile(source)).not.toThrow();
@@ -255,7 +241,7 @@ describe("Edge Cases and Error Handling", () => {
     it("should handle array of pointers", () => {
       const source = `
         frame test() ret void {
-          local ptrs: *int[10];
+          local _ptrs: *int[10];
         }
       `;
       expect(() => compile(source)).not.toThrow();
@@ -263,11 +249,12 @@ describe("Edge Cases and Error Handling", () => {
 
     it("should handle pointer to array", () => {
       const source = `
+        type Row = int[10];
         frame test() ret void {
-          local p: int(*)[10];
+          local _p: *Row;
         }
       `;
-      // This is tricky syntax, might not be supported
+      expect(() => compile(source)).not.toThrow();
     });
   });
 
@@ -301,8 +288,7 @@ describe("Edge Cases and Error Handling", () => {
 
     it("should handle address of array element", () => {
       const source = `
-        frame test() ret *int {
-          local arr: int[10];
+        frame test(arr: *int) ret *int {
           return &arr[5];
         }
       `;
@@ -315,7 +301,7 @@ describe("Edge Cases and Error Handling", () => {
       const source = `
         struct Empty {}
         frame test() ret int {
-          local e: Empty;
+          local _e: Empty;
           return 0;
         }
       `;
@@ -421,7 +407,6 @@ describe("Edge Cases and Error Handling", () => {
     it("should handle function returning void", () => {
       const source = `
         frame test() ret void {
-          local x: int = 10;
         }
       `;
       expect(() => compile(source)).not.toThrow();
@@ -599,7 +584,7 @@ describe("Edge Cases and Error Handling", () => {
   describe("Generic Edge Cases", () => {
     it("should handle generic function with multiple type parameters", () => {
       const source = `
-        frame pair<T, U>(a: T, b: U) ret int { return 0; }
+        frame pair<T, U>(_a: T, _b: U) ret int { return 0; }
         frame test() ret int {
           return pair<int, float>(1, 2.0);
         }
@@ -623,15 +608,14 @@ describe("Edge Cases and Error Handling", () => {
   });
 
   describe("Memory Safety Edge Cases", () => {
-    it("should handle returning address of local variable", () => {
+    it("should reject returning address of local variable", () => {
       const source = `
         frame test() ret *int {
           local x: int = 10;
           return &x;
         }
       `;
-      // This is dangerous but syntactically valid
-      expect(() => compile(source)).not.toThrow();
+      expect(() => compile(source)).toThrowError("Potential use-after-free");
     });
 
     it("should handle dangling pointer", () => {

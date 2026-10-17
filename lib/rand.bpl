@@ -1,4 +1,4 @@
-# Pseudo-random number generator (LCG)
+# Deterministic PCG32 generator (fixed stream 54)
 
 export [Rand];
 
@@ -12,7 +12,10 @@ struct Rand {
 
     frame seed(seed: ulong) ret Rand {
         local r: Rand;
-        r.state = seed;
+        r.state = cast<ulong>(0);
+        r.nextUInt();
+        r.state = r.state + seed;
+        r.nextUInt();
         return r;
     }
 
@@ -23,15 +26,16 @@ struct Rand {
     }
 
     frame nextInt(this: *Rand) ret int {
-        # LCG constants (Numerical Recipes)
-        this.state = (this.state * 1664525) + 1013904223;
-        # Return lower 32 bits as int
-        return cast<int>(this.state & 0xFFFFFFFF);
+        return cast<int>(this.nextUInt());
     }
 
+    # PCG-XSH-RR: 64-bit state, 32-bit permuted output, fixed odd stream.
     frame nextUInt(this: *Rand) ret uint {
-        this.state = (this.state * 1664525) + 1013904223;
-        return cast<uint>(this.state & 0xFFFFFFFF);
+        local previous: ulong = this.state;
+        this.state = (previous * 6364136223846793005) + cast<ulong>(109);
+        local mixed: uint = cast<uint>(((previous >> 18) ^ previous) >> 27);
+        local rotation: uint = cast<uint>(previous >> 59);
+        return (mixed >> rotation) | (mixed << ((cast<uint>(0) - rotation) & cast<uint>(31)));
     }
 
     frame nextLong(this: *Rand) ret long {

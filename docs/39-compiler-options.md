@@ -271,9 +271,17 @@ or malformed provenance sidecars for otherwise valid cached archives.
 
 Remove build artifacts. In git repositories, tracked files are skipped so
 checked-in runtime IR, examples, or release artifacts are not removed by
-accident. If `build/`, `dist/`, or `.bpl-cache/` contains tracked files,
-`bpl clean` preserves the directory and tracked contents while still removing
-untracked build artifacts inside it.
+accident. Candidate `.ll`, `.o`, `.exe` and `.out` outputs require
+a regular sibling source with the same basename and `.bpl` extension. Symlinked
+sources do not establish ownership. Generic `build/` and `dist/` directories and
+unrelated files are preserved. The compiler's reserved `.bpl-cache/` directory
+can be removed wholesale unless it contains tracked files. In that case the
+directory and tracked contents remain, and only matching outputs are removed.
+Standalone source files do not require a package manifest. Custom output paths
+without a matching sibling source must be removed explicitly. Extensionless files
+are preserved even with a matching source: a sibling source cannot distinguish
+a compiled executable from an unrelated wrapper or data file. Remove such
+executables explicitly after checking their ownership.
 The git tracked-file probe is bounded by `BPL_CLEAN_GIT_TIMEOUT_MS`, defaulting
 to 5000 milliseconds; if the probe fails or times out inside a git repository,
 `bpl clean` refuses to remove files. The same timeout bounds automatic
@@ -482,6 +490,10 @@ git repositories use `BPL_CLEAN_GIT_TRACKED_UNAVAILABLE`. These codes are
 additive fields on the stdout JSON failure report, preserving the
 human-readable `error` text while keeping `count: 0` and `entries: []` so
 automation can confirm no cleanup happened.
+Filesystem inspection/removal failures use `BPL_CLEAN_FAILED`. Cleanup continues
+with other paths and exits nonzero; JSON reports `success: false`, an `errors`
+array containing each failed `path` and `error`, and only successful removals in
+`entries`/`count`. An ownership-inspection failure preserves that artifact.
 
 Format JSON reports are stable for `bpl format --check --json`. `--json`
 without `--check` uses `BPL_FORMAT_JSON_REQUIRES_CHECK`, missing file lists use

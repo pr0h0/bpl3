@@ -2322,13 +2322,13 @@ describe("CLI Tests", () => {
         check: "clean",
         success: true,
         dryRun: true,
-        count: 2,
+        count: 1,
       });
       expect(dryRunReport.entries).toContainEqual({
         path: "main.ll",
         type: "file",
       });
-      expect(dryRunReport.entries).toContainEqual({
+      expect(dryRunReport.entries).not.toContainEqual({
         path: "build/",
         type: "directory",
       });
@@ -2354,9 +2354,9 @@ describe("CLI Tests", () => {
         success: true,
       });
       expect(cleanReport.dryRun).toBe(false);
-      expect(cleanReport.count).toBe(2);
+      expect(cleanReport.count).toBe(1);
       expect(fs.existsSync(path.join(tempDir, "main.ll"))).toBe(false);
-      expect(fs.existsSync(buildDir)).toBe(false);
+      expect(fs.existsSync(buildDir)).toBe(true);
       expect(fs.existsSync(path.join(tempDir, "main.bpl"))).toBe(true);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -2389,11 +2389,11 @@ describe("CLI Tests", () => {
         path: ".bpl-cache",
         type: "file",
       });
-      expect(dryRunReport.entries).toContainEqual({
+      expect(dryRunReport.entries).not.toContainEqual({
         path: "build",
         type: "file",
       });
-      expect(dryRunReport.entries).toContainEqual({
+      expect(dryRunReport.entries).not.toContainEqual({
         path: "dist",
         type: "symlink",
       });
@@ -2413,8 +2413,8 @@ describe("CLI Tests", () => {
 
       expect(clean.status).toBe(0);
       expect(fs.existsSync(cacheFile)).toBe(false);
-      expect(fs.existsSync(buildFile)).toBe(false);
-      expect(() => fs.lstatSync(distLink)).toThrow();
+      expect(fs.existsSync(buildFile)).toBe(true);
+      expect(fs.lstatSync(distLink).isSymbolicLink()).toBe(true);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -2426,6 +2426,7 @@ describe("CLI Tests", () => {
     const artifactLink = path.join(tempDir, "main.ll");
     fs.writeFileSync(outsideTarget, "; keep target");
     fs.symlinkSync(outsideTarget, artifactLink, "file");
+    fs.writeFileSync(path.join(tempDir, "main.bpl"), "frame main() {}");
 
     try {
       const dryRun = spawnSync(
@@ -2561,6 +2562,8 @@ describe("CLI Tests", () => {
 
     fs.writeFileSync(trackedLl, "; tracked runtime ir");
     fs.writeFileSync(trackedBuildFile, "tracked artifact");
+    fs.writeFileSync(path.join(tempDir, "generated.bpl"), "frame main() {}");
+    fs.writeFileSync(path.join(buildDir, "generated.bpl"), "frame main() {}");
     fs.writeFileSync(untrackedObject, "object");
     fs.writeFileSync(untrackedBuildObject, "object");
 

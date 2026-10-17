@@ -6020,3 +6020,235 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   assuming its argument expression, and cover separated integer and decimal
   inputs explicitly. All 385 tests in the failed 89-file CI batch and all 47
   focused integer tests pass locally; typecheck and lint pass.
+
+## Callable and destructuring constant range bypasses (2026-10-16)
+
+- Confirmed callable structs, generic callable structs and typed tuple
+  destructuring accepted 300 into u8 without BPL_INTEGER_LITERAL_OVERFLOW.
+  Validate selected callable parameter types after generic substitution and
+  recursively construct the destructuring destination tuple for the shared
+  range checker. Nested tuples and conditional tuple expressions are covered.
+
+## Fixed generic callable operator code generation (2026-10-16)
+
+- A valid Item<u8> with __call__(this:*Item<T>,x:T) passes checking but
+  emits an unresolved generic method name and an i32 argument instead of u8.
+  Clang rejects the undefined function. Found while testing conversion fixes;
+  fixed by routing callable operators through ordinary method lowering and
+  specializing the checker return type. O0/O3 LLVM-verified tests cover generic
+  narrow arguments/returns, pointer receivers, void returns and one evaluation
+  of a receiver expression. Existing operator and integer range suites pass.
+
+## Fixed invalid initializer diagnostic cascades (2026-10-16)
+
+- A typed local with a failed initializer was absent from its scope, causing
+  false undefined-symbol diagnostics on following uses. During error collection,
+  preserve the validated declared type and suppress unused diagnostics for the
+  rejected binding. Never replace an existing declaration or invent an unknown
+  type. All 258 typechecker tests and 102 CLI JSON/recovery tests pass; typecheck
+  and lint pass. Other recovery paths still require review.
+
+## Fixed ignored argument parser configuration and token boundaries (2026-10-16)
+
+- Defaults, required positional arguments and selected command actions were
+  stored but unused. Missing flag values consumed subsequent options; unknown
+  options went to stdout; -- and negative operands were not honored. Apply
+  defaults, validate required arguments, count errors, skip actions after errors
+  and retain the successful action exit code. Default actions are initialized.
+  Reject negative getArg indexes. Tests cover aliases, empty/default overrides,
+  subcommands, error paths and O0/O3 ASan/UBSan cleanup: 11 tests pass.
+
+## Checked rational overflow follow-up (2026-10-16)
+
+- Following maintainer input, replace historical wrapping for unrepresentable
+  rational arithmetic with the existing invalid 0/0 sentinel. Exact unsigned
+  wide intermediates preserve cancellation in addition/subtraction; unsigned
+  cross-cancellation and final bounds checks cover multiplication/division,
+  including LONG_MIN. Negation/absolute value reject unrepresentable magnitudes.
+  A BigInt oracle checks representable and overflowing reduced results.
+
+## Fixed clean deleting unrelated build outputs (2026-10-16)
+
+- Confirmed clean treated generic build/dist paths and any .ll/.o/.out/main
+  file as disposable. Preserve build/dist containers, require a regular sibling
+  .bpl source for candidate outputs, and retain tracked-file and symlink
+  protection. Only the reserved .bpl-cache namespace is removed wholesale.
+  Keep standalone-file projects supported rather than require bpl.json.
+  All 17 cleanup-focused CLI tests pass, including preview/deletion agreement,
+  unrelated files, symlinked sources, tracked files and failed git probes.
+
+## Fixed ignored root dependency manifest drift (2026-10-16)
+
+- An existing lock caused newly added dependencies to be ignored and --locked
+  accepted missing/incompatible root requirements. Verify root dependencies and
+  development dependencies against lock versions and archive sources; normal
+  installation reconciles added/changed requirements. Local uninstall also
+  removes dependency entries from bpl.json, preserving other manifest metadata.
+  Restoration content integrity and full graph conflict resolution remain
+  separate P2/P3 follow-ups.
+
+## Fixed unchecked package restoration content (2026-10-16)
+
+- Project restoration accepted changed archives and rewrote the locked content
+  hash. Record archive SHA-256 in new lock entries and validate it before
+  extraction. Validate extracted version and package tree hash before replacing
+  installed contents, including legacy locks without an archive digest. Use
+  locked transitive sources during restoration and reject incompatible locked
+  version requirements before replacing their parent package. Explicit --update
+  accepts intentional content changes. Portable/full-file tree hashes, immutable
+  archive snapshots and whole-graph transaction/resolution remain P3/P4/P6/P8.
+
+## Fixed failed project updates erasing the previous lock (2026-10-16)
+
+- --update (also used by bpl lock) eagerly wrote an empty lock and could leave
+  it empty/partial after installation failed. Stage lock updates in memory,
+  commit once installation succeeds and discard pending state on every failure.
+  Preserve existing path validation and atomic-write permissions. Sort lock keys
+  using codepoint order and append a newline. All 283 package/CLI tests pass.
+  Package-directory rollback remains a separate P8 issue.
+
+## Parser action exception cleanup follow-up (2026-10-16)
+
+- A configured action that throws bypassed ownership transfer of ParsedArgs and
+  leaked 4,260 bytes over ten calls under ASan. Hold ownership behind a runtime
+  defer until parse returns successfully; on success clear the guard pointer.
+  Callback exceptions must preserve their original value. Sanitizer validation
+  is running for normal and exceptional parser paths.
+
+## Open: automatic destructors across throwing callees (2026-10-16)
+
+- The same parser reproduction still leaked when guarded solely by an
+  @[auto_destroy] local: destructors are emitted on direct throw statements,
+  but a throw in a callee unwinds past the caller without that static cleanup.
+  Runtime defer runs across frames and is used for parser ownership. General
+  automatic-destructor unwinding across function calls needs a compiler fix.
+
+## Versioned portable package tree hashes (2026-10-16)
+
+- Legacy hashes sorted native paths using localeCompare and omitted unexported
+  native sources/objects/assets. New and repaired lock entries explicitly select
+  sha256-tree-v2: normalize relative paths with /, sort by codepoint order and
+  hash regular files plus symlink identities without following links. Exclude
+  reserved package/cache/VCS directory namespaces. Content digests have fixed
+  lengths to avoid ambiguous concatenation. Old lock entries keep their legacy
+  algorithm rather than silently invalidating released locks.
+
+## Shared dependency version conflict follow-up (2026-10-16)
+
+- Root requirements could be overwritten by a later transitive installation.
+  Local cached-version selection now intersects root and installed dependents'
+  constraints, and candidate manifests are checked before a conflicting shared
+  package is replaced. Compatible intersections work in both tested installation
+  orders; incompatible requirements fail with a registered JSON error code.
+  Recognize versioned archive pins and verify transitive lock requirements.
+  Full graph planning/rollback and identity constraints for arbitrarily renamed
+  archives remain follow-ups; resolution is still incremental.
+
+## Audit CI contract follow-up (2026-10-16)
+
+- The successful clean JSON smoke fixture still expected an unrelated object file
+  to be deleted. Give its generated object a sibling BPL source so the smoke test
+  exercises the documented ownership check.
+- The new dependency conflict JSON code was absent from CI triage mappings. Map
+  it to the focused dependency conflict suite; inventory checks cover registration.
+
+## Clean partial failure reporting (2026-10-16)
+
+- Confirmed CodeRabbit's cleanup findings: a source lstat error or artifact removal
+  failure silently skipped the rest of a directory. Cleanup now handles failures
+  per path, preserves artifacts whose ownership cannot be checked, continues other
+  work and returns nonzero with BPL_CLEAN_FAILED and failed paths. Successful
+  entries/counts exclude failed removals; reserved cache removal follows the same
+  behavior. A child-process regression injects deterministic permission failures.
+
+## Manifest drift and stale transitive lock graphs (2026-10-16)
+
+- Confirmed CodeRabbit's report: changing a parent archive could still apply its
+  old locked child source/hash, reject a valid new requirement or reinstall an
+  obsolete child independently. Reconciliation now computes affected closures,
+  preserves shared pins reachable from unaffected packages, resolves changed
+  roots against the retained lock subset, and prunes obsolete private children.
+  New/repaired lock entries record dependency names; legacy entries use installed
+  manifests and fail before mutation with explicit update/restore guidance when
+  graph metadata is unavailable. Lock changes are staged until success.
+- Installed directories remain incremental, not a whole-graph rollback; that
+  existing transaction limitation is still open.
+
+### Reconciliation order for roots also referenced transitively
+
+- An unchanged package could resolve a changed root back through the old cache
+  before that root's new local archive was selected. Resolve changed roots first,
+  then pass the reconciled lock entries to later restores. Regression cases cover
+  a root archive absent from cache, with installed modules present and missing.
+
+## Same-stem extensionless cleanup (2026-10-16)
+
+- Confirmed CodeRabbit's outside-diff finding: an extensionless wrapper/data file
+  was deleted solely because a same-stem BPL source existed. Preserve all
+  extensionless files; reliable compiler provenance is not currently recorded,
+  and checking executable magic or a familiar filename cannot prove ownership.
+  Known compiled executables require explicit removal. Document the limitation
+  and extend the ownership regression to preserve same-stem extensionless files.
+
+## Removed manifest roots surviving restoration (2026-10-16)
+
+- Confirmed CodeRabbit's report: deleting a declared dependency did not trigger
+  reconciliation and --locked could accept its stale lock entry. Project installs
+  now record manifestRoots, verification detects removed roots, and restoration
+  prunes their obsolete private closures even without added/changed requirements.
+  Shared dependencies and separately installed packages are retained. Legacy
+  locks cannot distinguish removed roots from explicit installs; document how to
+  establish root history or explicitly update instead of guessing and deleting.
+  Regressions cover installed/missing modules, shared/private children, removing
+  the last declared root, --locked failure without mutation and direct installs.
+
+## Edge-case tests discarded checker diagnostics (2026-10-16)
+
+- Local and GitHub CI confirmed that the nullptr assignment test depended on
+  a secondary backend unresolved-binding error. Its helper discarded collected
+  type errors, so improved diagnostic recovery allowed invalid input to reach
+  codegen in that test. Use the shared compileToLLVM helper, which rejects checker
+  diagnostics first, and assert the primary assignment message. This exposed ten
+  outdated positive fixtures: intentionally unused bindings now use underscores,
+  the unsigned maximum uses ulong, and returning a local address is rejected.
+  Activate the previously assertion-free zero-array and pointer-to-array cases.
+  All 57 edge-case tests pass without suppressing diagnostics.
+
+## Rand low-bit repetition (audit S4, 2026-10-16)
+
+- The old generator returned raw low LCG state bits: nextBool strictly alternated
+  and fillBytes repeated every 256 bytes. Replace the output generator with PCG32
+  XSH-RR using the existing 64-bit state field and fixed stream 54. Seed performs
+  the standard warm-up; sequences intentionally differ from earlier versions.
+- Regression checks failed on the old implementation and pass at O0/O3 against
+  PCG's published seed-42 vector. A separate BigInt model checks fractions, signed
+  ranges, full-width seeds, rejection sampling and Gaussian zero resampling.
+  Deterministic tests cover the old boolean and byte cycles across multiple seeds.
+  Weighted-choice rejection still preserves generator state after seed warm-up.
+  This remains a deterministic non-cryptographic generator; API and struct fields
+  are unchanged and no extra runtime dependency is added.
+
+### Explicit uninstall and recorded manifest roots
+
+- Keep manifestRoots synchronized when uninstall removes a declared root. Without
+  this, the new removal check could report stale manifest history immediately
+  after a successful uninstall. Verification now passes after uninstalling each
+  dependency in the manifest-drift regression.
+
+## Transitive installs overwrote a root archive source (2026-10-16)
+
+- A root installed from a local archive could be reinstalled through a later
+  root's transitive dependency using a cache source. The overwritten lock source
+  then failed manifest verification immediately after a successful install.
+  Pass already selected lock entries into subsequent root dependency installs,
+  preserving the selected archive source and integrity. Root-removal regressions
+  now also cover a removed root that remains needed transitively, with installed
+  modules present and missing.
+
+## Missing user documentation for new JSON codes (2026-10-16)
+
+- Full local and GitHub CI found that BPL_CLEAN_FAILED and
+  BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT were registered but absent from the
+  user-facing command guides. Document the conditions, failure status, cleanup
+  errors/count behavior and package resolution/rollback limits. The Markdown
+  error-code inventory verifies that documentation stays aligned with exports.

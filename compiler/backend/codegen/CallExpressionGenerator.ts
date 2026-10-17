@@ -144,52 +144,21 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
   protected handleCallOperatorOverload(expr: AST.CallExpr): string | null {
     if (!expr.operatorOverload) return null;
 
-    const overload = expr.operatorOverload;
-    const method = overload.methodDeclaration;
-    const calleeRaw = this.generateExpression(expr.callee);
-
-    const targetType = overload.targetType as AST.BasicTypeNode;
-    const structName = targetType.name;
-
-    const methodType = method.resolvedType as AST.FunctionTypeNode;
-    const fullMethodName = `${structName}_${method.name}`;
-    const mangledName = this.getMangledName(fullMethodName, methodType);
-
-    const calleeType = this.resolveType(expr.callee.resolvedType!);
-    let thisPtr: string;
-    try {
-      thisPtr = this.generateAddress(expr.callee);
-    } catch {
-      const spillAddr = this.allocateStack(
-        `op_spill_${this.labelCount++}`,
-        calleeType,
-      );
-      this.emit(
-        `  store ${calleeType} ${calleeRaw}, ${calleeType}* ${spillAddr}`,
-      );
-      thisPtr = spillAddr;
-    }
-
-    const argRegs: string[] = [];
-    const argTypes: string[] = [];
-    for (const arg of expr.args) {
-      const argVal = this.generateExpression(arg);
-      const argType = this.resolveType(arg.resolvedType!);
-      argRegs.push(argVal);
-      argTypes.push(argType);
-    }
-
-    const callArgs = [`i8* null`, `${calleeType}* ${thisPtr}`];
-    for (let i = 0; i < argRegs.length; i++) {
-      callArgs.push(`${argTypes[i]} ${argRegs[i]}`);
-    }
-
-    const returnType = this.resolveType(method.returnType);
-    const resultReg = this.newRegister();
-    this.emit(
-      `  ${resultReg} = call ${returnType} @${mangledName}(${callArgs.join(", ")})`,
-    );
-    return resultReg;
+    const method = expr.operatorOverload.methodDeclaration;
+    // Use ordinary method lowering for specialization, ABI conversions, receiver
+    // evaluation and void returns rather than a second, incomplete call path.
+    return this.generateCall({
+      ...expr,
+      operatorOverload: undefined,
+      resolvedDeclaration: method,
+      callee: {
+        kind: "Member",
+        object: expr.callee,
+        property: method.name,
+        resolvedType: method.resolvedType,
+        location: expr.callee.location,
+      },
+    });
   }
 
   protected generateCall(expr: AST.CallExpr): string {
@@ -371,59 +340,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
     // Check for operator overload (__call__)
     if (expr.operatorOverload) {
-      const overload = expr.operatorOverload;
-      const method = overload.methodDeclaration;
-      const calleeRaw = this.generateExpression(expr.callee);
-
-      // Get the struct name from the target type
-      const targetType = overload.targetType as AST.BasicTypeNode;
-      const structName = targetType.name;
-
-      // Build the method name with struct prefix
-      const methodType = method.resolvedType as AST.FunctionTypeNode;
-      const fullMethodName = `${structName}_${method.name}`;
-      const mangledName = this.getMangledName(fullMethodName, methodType);
-
-      // Get address of callee (this pointer)
-      const calleeType = this.resolveType(expr.callee.resolvedType!);
-      let thisPtr: string;
-      try {
-        thisPtr = this.generateAddress(expr.callee);
-      } catch {
-        // If we can't get address, spill to stack
-        const spillAddr = this.allocateStack(
-          `op_spill_${this.labelCount++}`,
-          calleeType,
-        );
-        this.emit(
-          `  store ${calleeType} ${calleeRaw}, ${calleeType}* ${spillAddr}`,
-        );
-        thisPtr = spillAddr;
-      }
-
-      // Generate arguments
-      const argRegs: string[] = [];
-      const argTypes: string[] = [];
-      for (const arg of expr.args) {
-        const argVal = this.generateExpression(arg);
-        const argType = this.resolveType(arg.resolvedType!);
-        argRegs.push(argVal);
-        argTypes.push(argType);
-      }
-
-      // Build argument list for call: context + this pointer + actual args
-      const callArgs = [`${calleeType}* ${thisPtr}`];
-      for (let i = 0; i < argRegs.length; i++) {
-        callArgs.push(`${argTypes[i]} ${argRegs[i]}`);
-      }
-
-      // Call the __call__ method
-      const returnType = this.resolveType(method.returnType);
-      const resultReg = this.newRegister();
-      this.emit(
-        `  ${resultReg} = call ${returnType} @${mangledName}(${callArgs.join(", ")})`,
-      );
-      return resultReg;
+      return this.handleCallOperatorOverload(expr)!;
     }
 
     let funcName = "";

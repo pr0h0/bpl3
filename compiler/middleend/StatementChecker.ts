@@ -917,7 +917,7 @@ export function checkVariableDecl(
       const validateAndAssignTypes = (
         nestedTargets: AST.DestructuringPattern[],
         tupleNode: AST.TypeNode,
-      ): void => {
+      ): AST.TypeNode => {
         const resolvedTuple = this.resolveType(tupleNode);
         if (resolvedTuple.kind !== "TupleType") {
           throw new CompilerError(
@@ -937,13 +937,14 @@ export function checkVariableDecl(
           );
         }
 
+        const destinationTypes: AST.TypeNode[] = [];
         for (let i = 0; i < nestedTargets.length; i++) {
           const target = nestedTargets[i]!;
           const inferredType = resolvedTuple.types[i];
 
           if (Array.isArray(target)) {
             if (inferredType) {
-              validateAndAssignTypes(target, inferredType);
+              destinationTypes.push(validateAndAssignTypes(target, inferredType));
             }
             continue;
           }
@@ -965,10 +966,18 @@ export function checkVariableDecl(
           }
 
           defineDestructuredTarget(target, finalType);
+          destinationTypes.push(this.resolveType(finalType!));
         }
+        return { ...resolvedTuple, types: destinationTypes };
       };
 
-      validateAndAssignTypes(decl.name as AST.DestructuringPattern[], initType);
+      const destinationType = validateAndAssignTypes(
+        decl.name as AST.DestructuringPattern[],
+        initType,
+      );
+      if (decl.initializer) {
+        this.checkIntegerConstantRange(decl.initializer, destinationType);
+      }
     } else {
       for (const target of targets) {
         const finalType = target.type || initType;
