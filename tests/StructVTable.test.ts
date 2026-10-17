@@ -1,19 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { CodeGenerator } from "../compiler/backend/CodeGenerator";
-import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
-import { Parser } from "../compiler/frontend/Parser";
-import { TypeChecker } from "../compiler/middleend/TypeChecker";
-
-function compile(source: string): string {
-  const tokens = lexWithGrammar(source, "test.bpl");
-  const parser = new Parser(source, "test.bpl", tokens);
-  const program = parser.parse();
-  const typeChecker = new TypeChecker();
-  typeChecker.checkProgram(program);
-  const generator = new CodeGenerator();
-  return generator.generate(program);
-}
+import { compileToLLVM as compile } from "./helpers/compileToLLVM";
 
 describe("Struct Layout and VTable Code Generation", () => {
   it("should generate correct layout for simple struct", () => {
@@ -23,7 +10,7 @@ describe("Struct Layout and VTable Code Generation", () => {
         y: int,
       }
       frame main() ret int {
-        local p: Point;
+        local _p: Point;
         return 0;
       }
     `;
@@ -89,10 +76,17 @@ describe("Struct Layout and VTable Code Generation", () => {
     expect(ir).toContain("@Derived_vtable =");
 
     // Check Derived vtable content
-    // It should point to Derived_foo (or similar name mangling)
-    expect(ir).toMatch(/@Derived_vtable = .*@Derived_foo/);
-    // It should point to Base_bar
-    expect(ir).toMatch(/@Derived_vtable = .*@Base_bar/);
+    // Value receivers use adapters that load the concrete receiver copy.
+    expect(ir).toMatch(
+      /@Derived_vtable = .*@__bpl_value_receiver_Derived_foo_Derived/,
+    );
+    expect(ir).toMatch(
+      /@Derived_vtable = .*@__bpl_value_receiver_Base_bar_Base/,
+    );
+    expect(ir).toContain(
+      "call i32 @Derived_foo_Derived(%struct.Derived %receiver)",
+    );
+    expect(ir).toContain("call i32 @Base_bar_Base(%struct.Base %receiver)");
   });
 
   it("should perform dynamic dispatch", () => {
