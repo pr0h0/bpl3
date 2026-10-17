@@ -1060,3 +1060,9 @@ inside the package root; a missing, symbolic-link, or non-file explicit entry
 fails packing before an existing archive can be replaced. `main` takes priority
 when both fields are present. Packages that omit both fields keep the existing
 source-file discovery behavior.
+
+Archives also retain regular files at the package root named README,
+LICENSE/LICENCE, COPYING or NOTICE, ignoring case, optionally followed by `.md`,
+`.txt`, `.rst` or `.markdown`. Automatic metadata discovery skips symbolic links
+and directories. This does not include arbitrary assets or dotfiles, and
+metadata alone does not satisfy the package's source-file requirement.

@@ -2812,7 +2812,19 @@ export class PackageManager {
       );
     }
 
-    compilerLog.info(`Including ${files.size} source files`);
+    // Keep standard package documentation and legal notices without adding
+    // arbitrary assets or following automatically discovered symbolic links.
+    for (const name of fs.readdirSync(packageDir)) {
+      if (
+        !/^(?:readme|licen[cs]e|copying|notice)(?:\.(?:md|txt|rst|markdown))?$/i.test(name)
+      ) {
+        continue;
+      }
+      const metadataPath = path.join(packageDir, name);
+      if (fs.lstatSync(metadataPath).isFile()) files.add(metadataPath);
+    }
+
+    compilerLog.info(`Including ${files.size} package files`);
 
     // Create a temporary directory for packing
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-pack-"));

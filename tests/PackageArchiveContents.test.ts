@@ -123,3 +123,96 @@ test("an ignored entry alias does not override a valid main source", () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("archives retain standard root documentation and legal files through installation", () => {
+  const root = mkdtempSync(join(tmpdir(), "bpl-package-metadata-"));
+  try {
+    const pkg = join(root, "source"),
+      app = join(root, "app");
+    mkdirSync(pkg);
+    mkdirSync(app);
+    writeFileSync(
+      join(pkg, "bpl.json"),
+      JSON.stringify({
+        name: "metadata-package",
+        version: "0.1.0",
+        main: "index.bpl",
+      }),
+    );
+    writeFileSync(join(pkg, "index.bpl"), source);
+    const metadata: Record<string, string> = {
+      "ReadMe.md": "# Package documentation\n",
+      LICENSE: "License text\n",
+      "LICENCE.txt": "License notice\n",
+      NOTICE: "Notices\n",
+      "COPYING.rst": "Copyright\n",
+    };
+    for (const [name, contents] of Object.entries(metadata))
+      writeFileSync(join(pkg, name), contents);
+    for (const name of [".env", "notes.txt", "README.env"])
+      writeFileSync(join(pkg, name), "private data");
+    const options = {
+      globalPackageDir: join(root, "cache"),
+      globalBinDir: join(root, "bin"),
+    };
+    const archive = new PackageManager(pkg, options).pack(pkg);
+    const listing = spawnSync("tar", ["-tzf", archive], { encoding: "utf8" });
+    expect(listing.status).toBe(0);
+    const members = listing.stdout.split("\n");
+    new PackageManager(app, options).install(archive);
+    for (const [name, contents] of Object.entries(metadata)) {
+      expect(members).toContain(`package/${name}`);
+      expect(
+        readFileSync(join(app, "bpl_modules/metadata-package", name), "utf8"),
+      ).toBe(contents);
+    }
+    for (const name of [".env", "notes.txt", "README.env"])
+      expect(members).not.toContain(`package/${name}`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("automatic metadata discovery skips links and directories", () => {
+  const root = mkdtempSync(join(tmpdir(), "bpl-package-metadata-links-"));
+  try {
+    const pkg = join(root, "source");
+    mkdirSync(pkg);
+    writeFileSync(
+      join(pkg, "bpl.json"),
+      JSON.stringify({ name: "metadata-links", version: "0.1.0" }),
+    );
+    writeFileSync(join(pkg, "index.bpl"), source);
+    writeFileSync(join(root, "outside.txt"), "outside data");
+    symlinkSync(join(root, "outside.txt"), join(pkg, "README.txt"));
+    mkdirSync(join(pkg, "LICENSE.md"));
+    writeFileSync(join(pkg, "LICENSE.md/private.txt"), "not metadata");
+    const archive = new PackageManager(pkg, { ensureDirectories: false }).pack(
+      pkg,
+    );
+    const listing = spawnSync("tar", ["-tzf", archive], { encoding: "utf8" });
+    expect(listing.status).toBe(0);
+    expect(listing.stdout).not.toContain("README.txt");
+    expect(listing.stdout).not.toContain("LICENSE.md");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("metadata alone cannot substitute for source files", () => {
+  const root = mkdtempSync(join(tmpdir(), "bpl-package-metadata-only-"));
+  try {
+    writeFileSync(
+      join(root, "bpl.json"),
+      JSON.stringify({ name: "metadata-only", version: "0.1.0" }),
+    );
+    writeFileSync(join(root, "README.md"), "# No source\n");
+    writeFileSync(join(root, "LICENSE"), "License\n");
+    expect(() =>
+      new PackageManager(root, { ensureDirectories: false }).pack(root),
+    ).toThrow("No .bpl files found");
+    expect(existsSync(join(root, "metadata-only-0.1.0.tgz"))).toBe(false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

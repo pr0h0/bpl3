@@ -6358,3 +6358,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Validate explicit entry points as existing regular files within the package
   root before archive replacement, including direct PackageManager.pack callers.
   Preserve existing export diagnostics through a shared source-file validator.
+
+## Package archives dropped README and license files (audit P5)
+
+- Packing copied source files and explicit bin/exports but omitted standard
+  root README and legal files. Include regular root README, LICENSE/LICENCE,
+  COPYING and NOTICE files, case-insensitively, with optional md/txt/rst/markdown
+  suffixes. Skip automatically discovered links and directories. Unrelated
+  assets and dotfiles remain outside this automatic selection.
+- Round-trip tests verify exact installed metadata contents and confirm private
+  files, linked metadata and metadata directories are not automatically added.
+  Source presence remains required; documentation alone does not form a package.
