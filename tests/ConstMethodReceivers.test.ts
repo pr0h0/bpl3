@@ -150,3 +150,29 @@ test("unary pointer operators on const receivers report the address restriction"
     true,
   );
 });
+
+test("const operator arguments retain built-in pointer arithmetic", async () => {
+  const { expectCorrectnessSuite } =
+    await import("./helpers/compilerCorrectness");
+  expectCorrectnessSuite([
+    {
+      name: "const-pointer-arithmetic-fallback",
+      validateLlvm: true,
+      source: `struct Value {
+ number:int,
+ frame __add__(this:*Value,_count:*int)ret *Value{return this;}
+ frame __sub__(this:*Value,_count:*int)ret *Value{return this;}
+}
+frame main()ret int {
+ local values:Value[2];values[0]=Value{number:3};values[1]=Value{number:7};
+ local ptr:*Value=&values[0];local const count:int=1;
+ local next:*Value=ptr+count;
+ local previous:*Value=next-count;
+ if(next!=&values[1]||next.number!=7||previous!=ptr){return 1;}
+ return 0;
+}
+`,
+      expectedStdout: "",
+    },
+  ]);
+}, 60000);

@@ -1389,7 +1389,10 @@ export function checkIndex(
   if (indexType) {
     const rejections: OperatorOverloadRejections = {};
     const method = this.findOperatorOverload(
-      objectType, "__get__", [indexType], rejections,
+      objectType,
+      "__get__",
+      [indexType],
+      rejections,
     );
     if (!method) rejectConstantOperatorAddress(rejections, expr.location);
     if (method) {

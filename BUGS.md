@@ -6310,3 +6310,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - CI's inherited-vtable shape test still expected direct value-method pointers.
   Update it to verify adapters and their concrete-layout calls, and use the
   shared compile helper so checker diagnostics cannot be silently ignored.
+
+## Rejected const overload blocked built-in pointer arithmetic (PR #4 review)
+
+- A struct pointer plus/minus a const integer was rejected when the struct also
+  declared an operator taking an integer pointer. After rejecting that unsafe
+  overload, try built-in pointer arithmetic before reporting the const-address
+  diagnostic. O0/O3 native and LLVM-verified regressions exercise addition and
+  subtraction over a two-element struct array and check the resulting addresses.

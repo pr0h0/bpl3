@@ -541,8 +541,8 @@ export function checkBinary(
 
   // Try operator overload first (for user-defined types), but not for pointer comparisons
   const methodName = OPERATOR_METHOD_MAP[expr.operator.lexeme];
+  const rejections: OperatorOverloadRejections = {};
   if (methodName && !isPointerComparison) {
-    const rejections: OperatorOverloadRejections = {};
     let method = canHaveOperatorOverload(leftType)
       ? this.findOperatorOverload(leftType, methodName, [rightType], rejections)
       : undefined;
@@ -555,7 +555,10 @@ export function checkBinary(
       if (op === TokenType.BangEqual && canHaveOperatorOverload(leftType)) {
         // != -> !(__eq__)
         method = this.findOperatorOverload(
-          leftType, "__eq__", [rightType], rejections,
+          leftType,
+          "__eq__",
+          [rightType],
+          rejections,
         );
         if (method) negateResult = true;
       } else if (
@@ -564,7 +567,10 @@ export function checkBinary(
       ) {
         // > -> < (swapped)
         method = this.findOperatorOverload(
-          rightType, "__lt__", [leftType], rejections,
+          rightType,
+          "__lt__",
+          [leftType],
+          rejections,
         );
         if (method) {
           swapOperands = true;
@@ -573,7 +579,6 @@ export function checkBinary(
       }
     }
 
-    if (!method) rejectConstantOperatorAddress(rejections, expr.location);
     if (method) {
       // Build type substitution map for return type resolution (for generics)
       const typeSubstitutionMap = new Map<string, AST.TypeNode>();
@@ -663,6 +668,9 @@ export function checkBinary(
       };
     }
   }
+
+  // A rejected overload must not suppress valid built-in pointer arithmetic.
+  rejectConstantOperatorAddress(rejections, expr.location);
 
   // String concatenation
   const isLeftString =
@@ -874,7 +882,10 @@ export function checkUnary(
   if (methodName && canHaveOperatorOverload(operandType)) {
     const rejections: OperatorOverloadRejections = {};
     const method = this.findOperatorOverload(
-      operandType, methodName, [], rejections,
+      operandType,
+      methodName,
+      [],
+      rejections,
     );
     if (!method) rejectConstantOperatorAddress(rejections, expr.location);
 
