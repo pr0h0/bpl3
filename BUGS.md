@@ -6297,3 +6297,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   object address. The selected concrete implementation loads its own complete
   layout and receives a copy. A wide derived-field regression checks polymorphic
   calls through base pointers and verifies receiver mutations stay local.
+
+## Const operator rejection used unrelated diagnostics (PR #4 review)
+
+- Operators rejected for implicit addresses of const receivers/arguments reported
+  generic not-callable/not-indexable/type errors. Retain that rejection only for
+  otherwise compatible candidates, try all safe overloads and synthesized
+  comparisons, then report BPL_ADDRESS_OF_CONSTANT at the operator expression if
+  none succeeds. Regressions assert the exact code for call/index/binary/unary
+  paths and const pointer arguments, preserve safe overloads and comparison
+  synthesis, and retain ordinary diagnostics for unrelated argument mismatches.
+- CI's inherited-vtable shape test still expected direct value-method pointers.
+  Update it to verify adapters and their concrete-layout calls, and use the
+  shared compile helper so checker diagnostics cannot be silently ignored.

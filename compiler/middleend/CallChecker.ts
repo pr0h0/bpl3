@@ -5,6 +5,10 @@ import * as AST from "../common/AST";
 import { CompilerError } from "../common/CompilerError";
 import { TokenType } from "../frontend/TokenType";
 import { TypeUtils, implicitlyAddressesConstant } from "./TypeUtils";
+import {
+  rejectConstantOperatorAddress,
+  type OperatorOverloadRejections,
+} from "./OverloadResolver";
 import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import type { CheckerContext } from "./CheckerContext";
 import { validateExternVariadicArguments } from "./validators/ExternAbiValidator";
@@ -300,11 +304,14 @@ export function checkCall(
     calleeType.kind !== "FunctionType" &&
     calleeType.kind !== "LambdaType"
   ) {
+    const rejections: OperatorOverloadRejections = {};
     const method = this.findOperatorOverload(
       calleeType,
       "__call__",
       argTypes.filter((t): t is AST.TypeNode => t !== undefined),
+      rejections,
     );
+    if (!method) rejectConstantOperatorAddress(rejections, expr.location);
 
     if (method) {
       const context = this.resolveMemberWithContext(
@@ -1380,9 +1387,11 @@ export function checkIndex(
 
   // Try __get__ operator overload
   if (indexType) {
-    const method = this.findOperatorOverload(objectType, "__get__", [
-      indexType,
-    ]);
+    const rejections: OperatorOverloadRejections = {};
+    const method = this.findOperatorOverload(
+      objectType, "__get__", [indexType], rejections,
+    );
+    if (!method) rejectConstantOperatorAddress(rejections, expr.location);
     if (method) {
       expr.operatorOverload = {
         methodName: "__get__",

@@ -41,8 +41,8 @@ for (const expression of ["counter()", "counter+counter", "counter[1]"]) {
     expect(
       errors(`${counter} frame main()ret int {
       local const counter:Counter=Counter{value:1}; return ${expression};
-    }`).length,
-    ).toBeGreaterThan(0);
+    }`).some((error) => error.code === "BPL_ADDRESS_OF_CONSTANT"),
+    ).toBe(true);
   });
 }
 test("implicit pointer arguments cannot expose const structs to operator mutation", () => {
@@ -52,8 +52,8 @@ test("implicit pointer arguments cannot expose const structs to operator mutatio
     frame __add__(this:Box,other:*Box)ret int {other.value=this.value;return other.value;}
   } frame main()ret int {
     local left:Box=Box{value:2};local const right:Box=Box{value:1};return left+right;
-  }`).length,
-  ).toBeGreaterThan(0);
+  }`).some((error) => error.code === "BPL_ADDRESS_OF_CONSTANT"),
+  ).toBe(true);
 });
 test("generic and nested const receivers preserve address restrictions", () => {
   for (const source of [
@@ -102,3 +102,51 @@ test("const value receiver calls copy their receiver and select safe overloads",
     },
   ]);
 }, 60000);
+
+test("const operator diagnostics preserve viable overloads and synthesis", () => {
+  const source = `struct Value {
+    number:int,
+    frame __call__(this:*Value)ret int{return this.number;}
+    frame __call__(this:Value)ret int{return this.number;}
+    frame __ne__(this:*Value,other:Value)ret bool{return this.number!=other.number;}
+    frame __eq__(this:Value,other:Value)ret bool{return this.number==other.number;}
+    frame __gt__(this:*Value,other:Value)ret bool{return this.number>other.number;}
+    frame __lt__(this:Value,other:Value)ret bool{return this.number<other.number;}
+  }
+  frame main()ret int {
+    local const left:Value=Value{number:1};local const right:Value=Value{number:2};
+    if(left()!=1||!(left!=right)||!(right>left)){return 1;}return 0;
+  }`;
+  expect(errors(source)).toEqual([]);
+});
+
+test("const operator diagnostics require an otherwise compatible overload", () => {
+  const result = errors(`struct Value {
+    number:int,
+    frame __call__(this:*Value,argument:bool)ret int {
+      if(argument){return this.number;}return 0;
+    }
+  }
+  frame main()ret int {
+    local const value:Value=Value{number:1};return value("wrong type");
+  }`);
+  expect(
+    result.some((error) => error.code === "BPL_CALL_TARGET_NOT_CALLABLE"),
+  ).toBe(true);
+  expect(result.some((error) => error.code === "BPL_ADDRESS_OF_CONSTANT")).toBe(
+    false,
+  );
+});
+
+test("unary pointer operators on const receivers report the address restriction", () => {
+  const result = errors(`struct Value {
+    number:int,
+    frame __neg__(this:*Value)ret int{return -this.number;}
+  }
+  frame main()ret int {
+    local const value:Value=Value{number:1};return -value;
+  }`);
+  expect(result.some((error) => error.code === "BPL_ADDRESS_OF_CONSTANT")).toBe(
+    true,
+  );
+});

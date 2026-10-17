@@ -89,6 +89,7 @@ export interface CheckerContext {
     targetType: AST.TypeNode,
     methodName: string,
     paramTypes: AST.TypeNode[],
+    rejections?: { constantAddress?: boolean },
   ): AST.FunctionDecl | undefined;
   resolveOverload(
     name: string,
