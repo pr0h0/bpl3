@@ -2876,6 +2876,19 @@ export class PackageManager {
           if (stat.isDirectory()) {
             normalize(file);
           } else {
+            if (!stat.isFile()) {
+              throw new CompilerError(
+                `Unsupported file type in package staging tree: ${file}`,
+                "Package contents must be regular files and directories.",
+                {
+                  file: manifestPath,
+                  startLine: 1,
+                  startColumn: 1,
+                  endLine: 1,
+                  endColumn: 1,
+                },
+              );
+            }
             members.push(path.relative(tempDir, file).split(path.sep).join("/"));
             fs.chmodSync(file, stat.mode & 0o111 ? 0o755 : 0o644);
             fs.utimesSync(file, 0, 0);
