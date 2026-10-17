@@ -337,6 +337,9 @@ Before marking a task as complete:
 ## 6. Common Pitfalls & Debugging
 
 - **Parser Issues**: If `grammar/bpl.peggy` is modified, the parser is auto-generated at runtime (or cached). Ensure grammar logic is correct.
+- **Source Depth**: Raw syntax paths deeper than 512 AST nodes are rejected with
+  `BPL_SOURCE_COMPLEXITY_LIMIT` before recursive passes. Parser stack exhaustion
+  uses the same code at file position 1:1 when no AST location is available.
 - **LLVM IR**: Use `--emit llvm` to inspect generated IR.
   ```bash
   bun index.ts examples/my_test/main.bpl --emit llvm

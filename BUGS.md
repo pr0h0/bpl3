@@ -6318,3 +6318,17 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   overload, try built-in pointer arithmetic before reporting the const-address
   diagnostic. O0/O3 native and LLVM-verified regressions exercise addition and
   subtraction over a two-element struct array and check the resulting addresses.
+
+## Excessive syntax nesting escaped as an unlocated host exception (audit C13)
+
+- 3,000 nested parentheses overflowed Peggy's call stack, while a 20,000-term
+  addition parsed successfully but overflowed recursive type analysis. Neither
+  produced a structured compiler diagnostic. Validate raw AST nesting iteratively
+  before recursive passes, limiting it to 512 AST nodes per path. Convert parser
+  stack exhaustion into BPL_SOURCE_COMPLEXITY_LIMIT, including the syntax-error
+  retry path. Other parser exceptions retain their original behavior.
+- AST depth failures point at the offending parsed node. If Peggy exhausts its
+  stack before producing an AST, only the source file is known and the diagnostic
+  uses line 1, column 1. Parser capacity may be lower than the AST limit. Tests
+  cover check/build JSON failures, native O0/O3 moderate nesting and long chains,
+  LLVM verification, and wide shallow syntax that must remain accepted.

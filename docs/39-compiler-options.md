@@ -1492,3 +1492,17 @@ bpl build main.bpl -O 2 --time --json
 # Clean before build
 bpl clean && bpl build main.bpl -O 2
 ```
+
+### Source nesting limits
+
+`BPL_SOURCE_COMPLEXITY_LIMIT` reports syntax that exceeds the compiler's nesting
+capacity. The frontend checks the raw AST iteratively and rejects paths deeper
+than 512 AST nodes before recursive compiler passes run. This is a nesting limit,
+not a limit on the total number of statements or array elements.
+
+The parser can exhaust its own stack before an AST is available; its exact
+capacity depends on the syntax and host runtime. That failure uses the same
+structured diagnostic at the source file's line 1, column 1. AST depth failures
+point to the parsed node that crosses the limit. Split deep expressions into
+smaller expressions or helper functions. Both `check --json` and `build --json`
+return a failure with this diagnostic instead of an unlocated host stack error.
