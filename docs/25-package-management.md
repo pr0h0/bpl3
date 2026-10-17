@@ -1053,3 +1053,10 @@ are recognized in manifest source paths. A compilation failure stops
 packing before an archive is written or replaced. In `pack --json` mode, compiler
 verification failures return a `package-pack` report with `success: false`, the
 compiler error text, and its diagnostic code as `errorCode` when available.
+
+Explicit `main` or `entry` sources are included in the archive regardless of
+suffix, including `.x` files. The selected source must exist as a regular file
+inside the package root; a missing, symbolic-link, or non-file explicit entry
+fails packing before an existing archive can be replaced. `main` takes priority
+when both fields are present. Packages that omit both fields keep the existing
+source-file discovery behavior.

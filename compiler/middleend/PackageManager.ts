@@ -2380,11 +2380,14 @@ export class PackageManager {
     return fullPath;
   }
 
-  private validatePackageExportFile(
+  private validatePackageSourceFile(
     packageDir: string,
     relativePath: string,
     manifestPath: string,
+    kind: "export" | "entrypoint",
   ): string {
+    const label = kind === "export" ? "export entry" : "entry point";
+    const entries = kind === "export" ? "export entries" : "entry points";
     const location: SourceLocation = {
       file: manifestPath,
       startLine: 1,
@@ -2393,38 +2396,38 @@ export class PackageManager {
       endColumn: 1,
     };
     const fullPath = this.resolvePackageRelativePath(packageDir, relativePath);
-    const exportStat = this.tryLstat(fullPath);
+    const sourceStat = this.tryLstat(fullPath);
 
-    if (!exportStat) {
+    if (!sourceStat) {
       throw new CompilerError(
-        `Missing package export entry: ${relativePath}`,
-        "Package export entries must point to regular source files included in the package.",
+        `Missing package ${label}: ${relativePath}`,
+        `Package ${entries} must point to regular source files included in the package.`,
         location,
       );
     }
 
-    if (exportStat.isSymbolicLink()) {
+    if (sourceStat.isSymbolicLink()) {
       throw new CompilerError(
-        `Unsupported package export entry: ${relativePath}`,
-        "Package export entries must be regular source files, not symbolic links.",
+        `Unsupported package ${label}: ${relativePath}`,
+        `Package ${entries} must be regular source files, not symbolic links.`,
         location,
       );
     }
 
-    if (!exportStat.isFile()) {
+    if (!sourceStat.isFile()) {
       throw new CompilerError(
-        `Unsupported package export entry: ${relativePath}`,
-        "Package export entries must point to regular source files.",
+        `Unsupported package ${label}: ${relativePath}`,
+        `Package ${entries} must point to regular source files.`,
         location,
       );
     }
 
     const packageRoot = fs.realpathSync(packageDir);
-    const realExportPath = fs.realpathSync(fullPath);
-    if (!this.isWithinPackage(packageRoot, realExportPath)) {
+    const realSourcePath = fs.realpathSync(fullPath);
+    if (!this.isWithinPackage(packageRoot, realSourcePath)) {
       throw new CompilerError(
-        `Invalid package export entry: ${relativePath}`,
-        "Package export entries must resolve inside the package root.",
+        `Invalid package ${label}: ${relativePath}`,
+        `Package ${entries} must resolve inside the package root.`,
         location,
       );
     }
@@ -2440,7 +2443,12 @@ export class PackageManager {
     if (!manifest.exports) return [];
 
     return manifest.exports.map((exportPath) =>
-      this.validatePackageExportFile(packageDir, exportPath, manifestPath),
+      this.validatePackageSourceFile(
+        packageDir,
+        exportPath,
+        manifestPath,
+        "export",
+      ),
     );
   }
 
@@ -2775,6 +2783,19 @@ export class PackageManager {
       manifestPath,
     )) {
       files.add(fullPath);
+    }
+
+    // Explicit entry points must survive packing even without a .bpl suffix.
+    const entry = manifest.main ?? manifest.entry;
+    if (entry !== undefined) {
+      files.add(
+        this.validatePackageSourceFile(
+          packageDir,
+          entry,
+          manifestPath,
+          "entrypoint",
+        ),
+      );
     }
 
     if (files.size === 0) {

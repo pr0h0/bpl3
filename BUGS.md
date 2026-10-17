@@ -6348,3 +6348,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   uses line 1, column 1. Parser capacity may be lower than the AST limit. Tests
   cover check/build JSON failures, native O0/O3 moderate nesting and long chains,
   LLVM verification, and wide shallow syntax that must remain accepted.
+
+## Package archives omitted explicitly declared non-.bpl entry points (audit P5)
+
+- A verified package declaring entry: "src/api.x" reported pack success but its
+  archive contained only helper.bpl and bpl.json, making the installed package
+  unusable. Include the selected main/entry source regardless of suffix, using
+  main precedence and the same package-relative path normalization as exports.
+- Validate explicit entry points as existing regular files within the package
+  root before archive replacement, including direct PackageManager.pack callers.
+  Preserve existing export diagnostics through a shared source-file validator.
