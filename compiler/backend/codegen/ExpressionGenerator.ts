@@ -785,6 +785,20 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       );
     }
 
+    // Bound methods on temporary values must be recognized before ordinary
+    // aggregate field extraction; the receiver is evaluated once by the binder.
+    const boundDeclaration = (
+      expr.resolvedType as
+        | (AST.LambdaTypeNode & { declaration?: AST.FunctionDecl })
+        | undefined
+    )?.declaration;
+    if (
+      expr.resolvedType?.kind === "LambdaType" &&
+      boundDeclaration?.kind === "FunctionDecl"
+    ) {
+      return this.generateBoundMethod(expr, boundDeclaration);
+    }
+
     // Handle tuple element access (e.g., tuple.0, tuple.1)
     if (expr.object.resolvedType?.kind === "TupleType") {
       const tupleIndex = Number.parseInt(expr.property, 10);
@@ -877,19 +891,6 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       this.emit(`  ${reg} = load ${type}, ${type}* ${addr}`);
       return reg;
     }
-
-    // Handle bound methods
-    if (
-      expr.resolvedType &&
-      expr.resolvedType.kind === "LambdaType" &&
-      (expr.resolvedType as any).declaration?.kind === "FunctionDecl"
-    ) {
-      return this.generateBoundMethod(
-        expr,
-        (expr.resolvedType as any).declaration,
-      );
-    }
-
     if (expr.object.kind === "Identifier") {
       const objectType = expr.object.resolvedType;
       if (
@@ -1003,16 +1004,42 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
     // Existing function pointer type
     const specificRetTypeStr = this.resolveType(methodDecl.returnType);
-    const specificParamTypesStr = methodDecl.params
-      .map((p) => this.resolveType(p.type))
-      .join(", ");
+    const specificParamTypes = methodDecl.params.map((p) =>
+      this.resolveType(p.type),
+    );
+    const specificParamTypesStr = specificParamTypes.join(", ");
     const specificFuncPtrType = `${specificRetTypeStr} (${specificParamTypesStr})*`;
 
-    // Bitcast the function
-    const castFuncPtr = this.newRegister();
-    this.emit(
-      `  ${castFuncPtr} = bitcast ${specificFuncPtrType} @${funcName} to ${genericFuncPtrType}`,
-    );
+    // A pointer receiver shares the erased context-pointer ABI. A value
+    // receiver needs an adapter that loads a copy before calling the method.
+    let castFuncPtr: string;
+    if (
+      methodDecl.params[0]?.name === "this" &&
+      !specificParamTypes[0]!.endsWith("*")
+    ) {
+      if (funcType.isVariadic) {
+        throw new CompilerError(
+          "Cannot bind a variadic value-receiver method",
+          "Use a non-variadic method signature for binding callbacks.",
+          expr.location,
+        );
+      }
+      if (objType.pointerDepth > 0) {
+        this.emitNullPointerCheck(
+          valPtr,
+          valPtrType,
+          expr.location,
+          this.exprToDescription(expr.object),
+          "Attempted to bind a value receiver through nullptr",
+        );
+      }
+      castFuncPtr = `@${this.requestValueReceiverThunk(funcName, funcType)}`;
+    } else {
+      castFuncPtr = this.newRegister();
+      this.emit(
+        `  ${castFuncPtr} = bitcast ${specificFuncPtrType} @${funcName} to ${genericFuncPtrType}`,
+      );
+    }
 
     const undef = this.newRegister();
     this.emit(

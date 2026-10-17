@@ -5,11 +5,31 @@
 
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
+import { implicitlyAddressesConstant } from "./TypeUtils";
 import type { Symbol, SymbolTable } from "./SymbolTable";
 import {
+  ADDRESS_OF_CONSTANT_CODE,
   CALL_ARGUMENT_COUNT_MISMATCH_CODE,
   CALL_ARGUMENT_TYPE_MISMATCH_CODE,
 } from "./TypeCheckerBase";
+
+export interface OperatorOverloadRejections {
+  constantAddress?: boolean;
+}
+
+/** Report only after every overload and synthesized operator has been tried. */
+export function rejectConstantOperatorAddress(
+  rejections: OperatorOverloadRejections,
+  location: SourceLocation,
+): void {
+  if (!rejections.constantAddress) return;
+  throw new CompilerError(
+    "Cannot take address of constant expression for operator argument.",
+    "Use a value receiver or argument, or a mutable binding; pointers to constants are not supported.",
+    location,
+    ADDRESS_OF_CONSTANT_CODE,
+  );
+}
 
 /**
  * Operator to method name mapping for operator overloading
@@ -408,6 +428,7 @@ export class OverloadResolver {
           genericMap: Map<string, AST.TypeNode>;
         }
       | undefined,
+    rejections?: OperatorOverloadRejections,
   ): AST.FunctionDecl | undefined {
     // Only structs can have operator overloads
     if (targetType.kind !== "BasicType") return undefined;
@@ -489,6 +510,7 @@ export class OverloadResolver {
     // Find matching overload by checking parameter types
     for (const method of methods) {
       const funcDecl = method as AST.FunctionDecl;
+      let addressesConstant = false;
 
       // Skip static methods - operator overloads must be instance methods
       if (funcDecl.isStatic) continue;
@@ -503,6 +525,11 @@ export class OverloadResolver {
 
         const resolvedThisType = this.ctx.resolveType(declaredThisType);
         const resolvedTargetType = this.ctx.resolveType(targetType);
+
+        addressesConstant = implicitlyAddressesConstant(
+          resolvedThisType,
+          resolvedTargetType,
+        );
 
         // Check if 'this' type matches target type exactly
         const exactMatch = this.ctx.areTypesCompatible(
@@ -565,6 +592,10 @@ export class OverloadResolver {
         const resolvedExpected = this.ctx.resolveType(expectedType);
         const resolvedActual = this.ctx.resolveType(paramTypes[i]!);
 
+        if (implicitlyAddressesConstant(resolvedExpected, resolvedActual)) {
+          addressesConstant = true;
+        }
+
         // Allow implicit address-of for operator parameters (T -> *T)
         const isAddressOfMatch =
           resolvedExpected.kind === "BasicType" &&
@@ -588,6 +619,10 @@ export class OverloadResolver {
       }
 
       if (allMatch) {
+        if (addressesConstant) {
+          if (rejections) rejections.constantAddress = true;
+          continue;
+        }
         return funcDecl;
       }
     }

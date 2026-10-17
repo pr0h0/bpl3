@@ -884,9 +884,16 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             let lookupName = memberExpr.property;
             // Try to resolve specific overload using resolvedDeclaration
             // Use 'decl' if available (it might be the concrete implementation found in owner)
-            const targetDecl =
+            let targetDecl =
               (decl as AST.FunctionDecl) ||
               (expr.resolvedDeclaration as AST.FunctionDecl);
+            const selectedDecl = expr.resolvedDeclaration as AST.FunctionDecl | undefined;
+            const selectedReceiver = selectedDecl?.params?.[0]?.type;
+            const guessedReceiver = targetDecl?.params?.[0]?.type;
+            if (selectedReceiver?.kind === "BasicType" && guessedReceiver?.kind === "BasicType" &&
+                selectedReceiver.pointerDepth !== guessedReceiver.pointerDepth) {
+              targetDecl = selectedDecl!;
+            }
 
             if (targetDecl && targetDecl.kind === "FunctionDecl") {
               if (
@@ -909,7 +916,10 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
                 const mangledParams = paramTypes
                   .map((t) => this.mangleType(t))
                   .join("_");
-                lookupName = `${targetDecl.name}_${mangledParams}`;
+                const receiver = typeToMangle.paramTypes[0];
+                const valueReceiver = targetDecl.params[0]?.name === "this" && receiver &&
+                  !this.resolveType(receiver).endsWith("*");
+                lookupName = `${targetDecl.name}_${mangledParams}${valueReceiver ? "#value" : ""}`;
               }
             }
 

@@ -112,3 +112,11 @@ frame main() {
 ```
 
 The bound method follows reference semantics if the method takes a pointer receiver (`this: *Type`). Modifications via the bound method will affect the original object.
+A value receiver (`this: Type`) receives a copy on each invocation, so assigning
+its fields does not change the original receiver. Binding retains a reference
+to the receiver's storage; later changes to that receiver are visible to later
+calls. The binding does not extend the receiver's lifetime. Binding a value
+receiver through a null pointer raises `NullAccessError` at binding time.
+A receiver expression
+such as `make().read` is evaluated once when the method is bound. Variadic value
+receiver methods cannot currently be bound; use a non-variadic method signature.

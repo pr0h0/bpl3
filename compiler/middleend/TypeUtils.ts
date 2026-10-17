@@ -23,6 +23,19 @@ import {
   getPrimitiveType,
 } from "../common/PrimitiveTypes";
 
+/** Implicit address-taking must obey the same const rule as explicit `&`. */
+export function implicitlyAddressesConstant(
+  expected: AST.TypeNode,
+  actual: AST.TypeNode,
+): boolean {
+  return (
+    expected.kind === "BasicType" &&
+    actual.kind === "BasicType" &&
+    Boolean(actual.isConst) &&
+    expected.pointerDepth === actual.pointerDepth + 1
+  );
+}
+
 /** Nominal declarations can be reparsed by separate import graphs. Compare
  * their source identity as well as object identity, rather than a bare name.
  */

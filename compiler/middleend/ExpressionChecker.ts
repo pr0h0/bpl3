@@ -11,7 +11,11 @@ import { typeCheckerLog } from "../common/Logger";
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
 import { TypeUtils, KNOWN_TYPES } from "./TypeUtils";
-import { OPERATOR_METHOD_MAP } from "./OverloadResolver";
+import {
+  OPERATOR_METHOD_MAP,
+  rejectConstantOperatorAddress,
+  type OperatorOverloadRejections,
+} from "./OverloadResolver";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import type { CheckerContext } from "./CheckerContext";
 import {
@@ -537,9 +541,10 @@ export function checkBinary(
 
   // Try operator overload first (for user-defined types), but not for pointer comparisons
   const methodName = OPERATOR_METHOD_MAP[expr.operator.lexeme];
+  const rejections: OperatorOverloadRejections = {};
   if (methodName && !isPointerComparison) {
     let method = canHaveOperatorOverload(leftType)
-      ? this.findOperatorOverload(leftType, methodName, [rightType])
+      ? this.findOperatorOverload(leftType, methodName, [rightType], rejections)
       : undefined;
     let swapOperands = false;
     let negateResult = false;
@@ -549,14 +554,24 @@ export function checkBinary(
     if (!method) {
       if (op === TokenType.BangEqual && canHaveOperatorOverload(leftType)) {
         // != -> !(__eq__)
-        method = this.findOperatorOverload(leftType, "__eq__", [rightType]);
+        method = this.findOperatorOverload(
+          leftType,
+          "__eq__",
+          [rightType],
+          rejections,
+        );
         if (method) negateResult = true;
       } else if (
         op === TokenType.Greater &&
         canHaveOperatorOverload(rightType)
       ) {
         // > -> < (swapped)
-        method = this.findOperatorOverload(rightType, "__lt__", [leftType]);
+        method = this.findOperatorOverload(
+          rightType,
+          "__lt__",
+          [leftType],
+          rejections,
+        );
         if (method) {
           swapOperands = true;
           targetType = rightType;
@@ -653,6 +668,9 @@ export function checkBinary(
       };
     }
   }
+
+  // A rejected overload must not suppress valid built-in pointer arithmetic.
+  rejectConstantOperatorAddress(rejections, expr.location);
 
   // String concatenation
   const isLeftString =
@@ -862,7 +880,14 @@ export function checkUnary(
   }
   const methodName = OPERATOR_METHOD_MAP[lookupKey];
   if (methodName && canHaveOperatorOverload(operandType)) {
-    const method = this.findOperatorOverload(operandType, methodName, []);
+    const rejections: OperatorOverloadRejections = {};
+    const method = this.findOperatorOverload(
+      operandType,
+      methodName,
+      [],
+      rejections,
+    );
+    if (!method) rejectConstantOperatorAddress(rejections, expr.location);
 
     if (method) {
       // Build type substitution map for return type resolution (for generics)

@@ -6252,3 +6252,69 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   user-facing command guides. Document the conditions, failure status, cleanup
   errors/count behavior and package resolution/rollback limits. The Markdown
   error-code inventory verifies that documentation stays aligned with exports.
+
+## Implicit method/operator addresses bypassed const bindings (audit C10)
+
+- A const struct could call or bind a pointer-receiver method and mutate its
+  stored value even though explicitly taking its address was rejected. Apply the
+  same const-address restriction during instance method selection, operator
+  receiver resolution and implicit operator pointer arguments. Preserve value
+  receivers and mutable pointer receivers, including safe overload selection.
+  Tests cover direct/bound/generic/nested methods, callable/index/binary operators
+  and const right-hand operator arguments. Native O0/O3 checks cover value copies.
+  Mixed value/pointer receiver overloads also shared a vtable key and could call
+  the wrong receiver ABI. Distinguish value receiver keys and retain the checker
+  selection when codegen guesses the other receiver mode.
+
+## Bound value-receiver methods used the wrong ABI (fixed in follow-up)
+
+- Independently reproduced on PR3's baseline and the C10 worktree: binding
+  `frame read(this: Counter) ret int {return this.value;}` as a Lambda returns
+  garbage, while the direct call returns the expected value. generateBoundMethod
+  bitcasts a function taking an aggregate receiver to a function taking i8* and
+  passes the receiver address as the aggregate. Repro saved locally for follow-up;
+  this is separate from the const-address checker fix and needs an adapter.
+
+### Bound value receiver ABI resolution
+
+- Replace the invalid function bitcast with a typed adapter that loads the
+  receiver value from the captured context and forwards its copy. Preserve
+  narrow-argument/return ABI extensions and scalar, void and aggregate results.
+  No additional allocation is needed. Recognize bound methods on call-result
+  receivers before aggregate field extraction, so those receivers evaluate once.
+  Variadic value-receiver binding now fails explicitly instead of emitting an
+  adapter that cannot forward the variadic arguments. Native O0/O3 and LLVM
+  verification cover const/mutable values, receiver changes, temporary values,
+  narrow parameters/results, enums and large aggregate results. Check receiver
+  pointers at binding before the adapter can dereference them; null binding
+  raises the normal catchable NullAccessError rather than crashing.
+
+### Virtual value receiver layout
+
+- Virtual calls passed a base receiver copy into a derived method with a larger
+  value receiver, so derived fields were read using the wrong aggregate ABI.
+  Share the value-receiver adapter with vtable entries and pass the original
+  object address. The selected concrete implementation loads its own complete
+  layout and receives a copy. A wide derived-field regression checks polymorphic
+  calls through base pointers and verifies receiver mutations stay local.
+
+## Const operator rejection used unrelated diagnostics (PR #4 review)
+
+- Operators rejected for implicit addresses of const receivers/arguments reported
+  generic not-callable/not-indexable/type errors. Retain that rejection only for
+  otherwise compatible candidates, try all safe overloads and synthesized
+  comparisons, then report BPL_ADDRESS_OF_CONSTANT at the operator expression if
+  none succeeds. Regressions assert the exact code for call/index/binary/unary
+  paths and const pointer arguments, preserve safe overloads and comparison
+  synthesis, and retain ordinary diagnostics for unrelated argument mismatches.
+- CI's inherited-vtable shape test still expected direct value-method pointers.
+  Update it to verify adapters and their concrete-layout calls, and use the
+  shared compile helper so checker diagnostics cannot be silently ignored.
+
+## Rejected const overload blocked built-in pointer arithmetic (PR #4 review)
+
+- A struct pointer plus/minus a const integer was rejected when the struct also
+  declared an operator taking an integer pointer. After rejecting that unsafe
+  overload, try built-in pointer arithmetic before reporting the const-address
+  diagnostic. O0/O3 native and LLVM-verified regressions exercise addition and
+  subtraction over a two-element struct array and check the resulting addresses.

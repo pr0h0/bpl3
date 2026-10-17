@@ -253,6 +253,9 @@ function resolveVirtualMethodSignature(
 
   const retType = host.resolveType(funcType.returnType);
   const paramTypes = funcType.paramTypes.map((t) => host.resolveType(t));
+  // Value-receiver vtable entries are adapters that load the concrete receiver
+  // from its original address, including derived fields hidden by a base view.
+  if (paramTypes[0] && !paramTypes[0].endsWith("*")) paramTypes[0] = "i8*";
 
   return { funcType, retType, paramTypes };
 }

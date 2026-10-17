@@ -2510,12 +2510,14 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     targetType: AST.TypeNode,
     methodName: string,
     paramTypes: AST.TypeNode[],
+    rejections?: { constantAddress?: boolean },
   ): AST.FunctionDecl | undefined {
     return this.overloadResolver.findOperatorOverload(
       targetType,
       methodName,
       paramTypes,
       this.resolveMemberWithContext.bind(this),
+      rejections,
     );
   }
 

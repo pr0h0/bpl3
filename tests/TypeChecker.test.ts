@@ -1743,7 +1743,7 @@ describe("TypeChecker", () => {
     );
     const binaryStart = source.indexOf("export function checkBinary");
     const firstResolverCall = source.indexOf(
-      "this.findOperatorOverload(leftType, methodName, [rightType])",
+      "this.findOperatorOverload(",
       binaryStart,
     );
     const binaryGuard = source.indexOf(
