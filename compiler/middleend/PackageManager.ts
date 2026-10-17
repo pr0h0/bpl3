@@ -2616,6 +2616,20 @@ export class PackageManager {
     }
 
     const manifest = this.tryReadManifestJson(manifestPath);
+    const entry = manifest?.main ?? manifest?.entry;
+    if (typeof entry === "string" && this.isSafePackageRelativePath(entry)) {
+      const entryPath = this.resolvePackageRelativePath(packageDir, entry);
+      if (this.isWithinPackage(packageDir, entryPath) && fs.existsSync(entryPath)) {
+        const stat = fs.lstatSync(entryPath);
+        if (!stat.isSymbolicLink() && stat.isFile()) {
+          const packageRoot = fs.realpathSync(packageDir);
+          const realEntryPath = fs.realpathSync(entryPath);
+          if (this.isWithinPackage(packageRoot, realEntryPath)) {
+            files.add(entryPath);
+          }
+        }
+      }
+    }
     if (
       manifest?.bin &&
       typeof manifest.bin === "object" &&

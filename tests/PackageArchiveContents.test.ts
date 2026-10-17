@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "child_process";
+import { createHash } from "crypto";
 import {
   existsSync,
   mkdtempSync,
@@ -212,6 +213,151 @@ test("metadata alone cannot substitute for source files", () => {
       new PackageManager(root, { ensureDirectories: false }).pack(root),
     ).toThrow("No .bpl files found");
     expect(existsSync(join(root, "metadata-only-0.1.0.tgz"))).toBe(false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("listing and provenance hashes cover the selected non-.bpl entry", () => {
+  const root = mkdtempSync(join(tmpdir(), "bpl-entry-hash-"));
+  try {
+    const pkg = join(root, "source"),
+      app = join(root, "app");
+    mkdirSync(pkg);
+    mkdirSync(app);
+    writeFileSync(
+      join(pkg, "bpl.json"),
+      JSON.stringify({ name: "entry-hash", version: "0.1.0", entry: "api.x" }),
+    );
+    writeFileSync(join(pkg, "api.x"), source);
+    writeFileSync(join(pkg, "README.md"), "Documentation\n");
+    const options = {
+      globalPackageDir: join(root, "cache"),
+      globalBinDir: join(root, "bin"),
+    };
+    const packer = new PackageManager(pkg, options);
+    const archive = packer.pack(pkg);
+    const before = JSON.parse(
+      readFileSync(`${archive}.bplmeta.json`, "utf8"),
+    ).packageHash;
+    const installer = new PackageManager(app, options);
+    installer.install(archive);
+    const listed = installer.list()[0]!.hash;
+    writeFileSync(
+      join(app, "bpl_modules/entry-hash/api.x"),
+      source.replace("return 7", "return 8"),
+    );
+    expect(installer.list()[0]!.hash).not.toBe(listed);
+    writeFileSync(join(pkg, "api.x"), source.replace("return 7", "return 8"));
+    packer.pack(pkg);
+    const changed = JSON.parse(
+      readFileSync(`${archive}.bplmeta.json`, "utf8"),
+    ).packageHash;
+    expect(changed).not.toBe(before);
+    writeFileSync(join(pkg, "README.md"), "Changed documentation\n");
+    packer.pack(pkg);
+    expect(
+      JSON.parse(readFileSync(`${archive}.bplmeta.json`, "utf8")).packageHash,
+    ).toBe(changed);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("legacy hash collection does not follow an entry outside its package", () => {
+  const root = mkdtempSync(join(tmpdir(), "bpl-entry-hash-links-"));
+  try {
+    const pkg = join(root, "source");
+    mkdirSync(pkg);
+    const outside = join(root, "outside");
+    mkdirSync(outside);
+    writeFileSync(join(outside, "api.x"), source);
+    symlinkSync(outside, join(pkg, "linked"), "dir");
+    writeFileSync(
+      join(pkg, "bpl.json"),
+      JSON.stringify({
+        name: "entry-hash-links",
+        version: "0.1.0",
+        entry: "linked/api.x",
+      }),
+    );
+    const packer = new PackageManager(pkg, { ensureDirectories: false });
+    const before = packer["calculatePackageHash"](pkg);
+    writeFileSync(
+      join(outside, "api.x"),
+      source.replace("return 7", "return 8"),
+    );
+    expect(packer["calculatePackageHash"](pkg)).toBe(before);
+    symlinkSync(join(outside, "api.x"), join(pkg, "link.x"));
+    writeFileSync(
+      join(pkg, "bpl.json"),
+      JSON.stringify({
+        name: "entry-hash-links",
+        version: "0.1.0",
+        main: "link.x",
+      }),
+    );
+    const linked = packer["calculatePackageHash"](pkg);
+    writeFileSync(join(outside, "api.x"), source);
+    expect(packer["calculatePackageHash"](pkg)).toBe(linked);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("legacy hashes that omitted an entry fail closed and migrate with explicit update", () => {
+  const root = mkdtempSync(join(tmpdir(), "bpl-entry-legacy-lock-"));
+  try {
+    const pkg = join(root, "source"),
+      app = join(root, "app");
+    mkdirSync(pkg);
+    mkdirSync(app);
+    const manifest = JSON.stringify({
+      name: "legacy-entry",
+      version: "0.1.0",
+      entry: "api.x",
+    });
+    writeFileSync(join(pkg, "bpl.json"), manifest);
+    writeFileSync(join(pkg, "api.x"), source);
+    const options = {
+      globalPackageDir: join(root, "cache"),
+      globalBinDir: join(root, "bin"),
+    };
+    const archive = new PackageManager(pkg, options).pack(pkg);
+    writeFileSync(
+      join(app, "bpl.json"),
+      JSON.stringify({
+        name: "app",
+        version: "0.1.0",
+        dependencies: { "legacy-entry": `file:${archive}` },
+      }),
+    );
+    const installer = new PackageManager(app, options);
+    installer.install(archive);
+    const lockPath = join(app, "bpl.lock");
+    const lock = JSON.parse(readFileSync(lockPath, "utf8"));
+    // Historical legacy selection included only bpl.json for this package.
+    lock.packages["legacy-entry"].hash = createHash("sha256")
+      .update("bpl.json\0")
+      .update(manifest)
+      .update("\0")
+      .digest("hex");
+    delete lock.packages["legacy-entry"].hashAlgorithm;
+    delete lock.packages["legacy-entry"].archiveSha256;
+    const original = JSON.stringify(lock);
+    writeFileSync(lockPath, original);
+    const report = installer.verifyLockFile();
+    expect(report.ok).toBe(false);
+    expect(report.issues.some((issue) => issue.kind === "hash-mismatch")).toBe(
+      true,
+    );
+    expect(readFileSync(lockPath, "utf8")).toBe(original);
+    installer.installProject({ global: false, verbose: false, update: true });
+    expect(installer.verifyLockFile().ok).toBe(true);
+    expect(
+      JSON.parse(readFileSync(lockPath, "utf8")).packages["legacy-entry"]
+        .hashAlgorithm,
+    ).toBe("sha256-tree-v2");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

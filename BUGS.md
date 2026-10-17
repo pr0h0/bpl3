@@ -6369,3 +6369,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Round-trip tests verify exact installed metadata contents and confirm private
   files, linked metadata and metadata directories are not automatically added.
   Source presence remains required; documentation alone does not form a package.
+
+## Legacy listing/provenance hashes omitted selected non-.bpl entries (PR #7 review)
+
+- CodeRabbit found that adding an explicit source to the archive did not add it
+  to legacy package hash selection. Changing installed .x or extensionless entry
+  code could leave list/provenance hashes unchanged. Include the selected entry
+  with the existing path, regular-file and real-path checks. Keep automatic
+  metadata outside legacy hashing; portable v2 lock hashes still cover all files.
+- Historical legacy hashes that omitted an existing non-.bpl entry now fail
+  closed with a hash mismatch. An explicit install --update migrates these pins
+  to the existing portable v2 format. Ordinary .bpl legacy coverage is unchanged.
+  Tests check listings, provenance, metadata exclusion, external-link boundaries,
+  unchanged legacy lock bytes on verification failure, and explicit migration.
