@@ -14,39 +14,41 @@ import { join, resolve } from "path";
 const cli = resolve("index.ts");
 
 for (const declaredField of ["main", "entry"] as const) {
-  test(`pack verifies ${declaredField} and returns parseable JSON for compiler errors`, () => {
-    const dir = mkdtempSync(join(tmpdir(), "bpl-pack-entry-"));
-    try {
-      mkdirSync(join(dir, "src"));
-      writeFileSync(
-        join(dir, "bpl.json"),
-        JSON.stringify({
-          name: "entry-test",
-          version: "0.1.0",
-          [declaredField]: "src/api.bpl",
-        }),
-      );
-      writeFileSync(
-        join(dir, "src/api.bpl"),
-        'frame value()ret int{return "wrong";} export value;',
-      );
-      const result = spawnSync("bun", [cli, "pack", "--json"], {
-        cwd: dir,
-        encoding: "utf8",
-        timeout: 20000,
-      });
-      expect(result.status).toBe(1);
-      const report = JSON.parse(result.stdout);
-      expect(report.check).toBe("package-pack");
-      expect(report.success).toBe(false);
-      expect(report.error).toContain("Return type mismatch");
-      expect(report.errorCode).toBe("BPL_RETURN_TYPE_MISMATCH");
-      expect(result.stderr).toBe("");
-      expect(existsSync(join(dir, "entry-test-0.1.0.tgz"))).toBe(false);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
+  for (const declaredPath of ["src/api.bpl", "src\\api.bpl"]) {
+    test(`pack verifies ${declaredField}=${declaredPath} and returns parseable JSON for compiler errors`, () => {
+      const dir = mkdtempSync(join(tmpdir(), "bpl-pack-entry-"));
+      try {
+        mkdirSync(join(dir, "src"));
+        writeFileSync(
+          join(dir, "bpl.json"),
+          JSON.stringify({
+            name: "entry-test",
+            version: "0.1.0",
+            [declaredField]: declaredPath,
+          }),
+        );
+        writeFileSync(
+          join(dir, "src/api.bpl"),
+          'frame value()ret int{return "wrong";} export value;',
+        );
+        const result = spawnSync("bun", [cli, "pack", "--json"], {
+          cwd: dir,
+          encoding: "utf8",
+          timeout: 20000,
+        });
+        expect(result.status).toBe(1);
+        const report = JSON.parse(result.stdout);
+        expect(report.check).toBe("package-pack");
+        expect(report.success).toBe(false);
+        expect(report.error).toContain("Return type mismatch");
+        expect(report.errorCode).toBe("BPL_RETURN_TYPE_MISMATCH");
+        expect(result.stderr).toBe("");
+        expect(existsSync(join(dir, "entry-test-0.1.0.tgz"))).toBe(false);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  }
 }
 
 test("pack accepts a valid entry alias and preserves main precedence", () => {

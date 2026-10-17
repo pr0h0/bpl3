@@ -88,7 +88,7 @@ export function registerPackageCommands(program: Command): void {
           // Check if code compiles before packing
           const manifest = pm.loadManifest(packageDir);
           const mainFile = manifest.main ?? manifest.entry ?? "index.bpl";
-          const entryPath = path.join(packageDir, mainFile);
+          const entryPath = path.join(packageDir, ...mainFile.split(/[\\/]/));
 
           const entryStats = tryLstat(entryPath);
           if (entryStats) {

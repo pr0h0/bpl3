@@ -6258,6 +6258,8 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - A package declaring only `entry: "src/api.bpl"` was verified against the missing
   default index.bpl and packed successfully even when api.bpl contained type
   errors. Match package resolution's precedence: main, then entry, then index.bpl.
+- Windows-style separators in main/entry also skipped verification on Unix.
+  Normalize both separators consistently with package resolution.
 - Compilation failures in pack --json exited before writing any JSON. Route
   these failures through the shared JSON error path, preserving the compiler's
   diagnostic code. Tests reject invalid main/entry sources, accept a valid entry
