@@ -408,75 +408,79 @@ export function checkIf(this: CheckerContext, stmt: AST.IfStmt): void {
  * Check a loop statement (for/while)
  */
 export function checkLoop(this: CheckerContext, stmt: AST.LoopStmt): void {
-  this.loopDepth++;
+  const previousScope = this.currentScope;
+  const previousLoopDepth = this.loopDepth;
+  try {
+    this.loopDepth = previousLoopDepth + 1;
 
-  // Enter loop scope for init variable
-  this.currentScope = this.currentScope.enterScope();
+    // Enter loop scope for init variable
+    this.currentScope = this.currentScope.enterScope();
 
-  if (stmt.init) {
-    this.checkStatement(stmt.init);
-  }
-
-  if (stmt.condition) {
-    const condType = this.checkExpression(stmt.condition);
-    if (condType && !this.isBoolType(condType)) {
-      throw new CompilerError(
-        `Loop condition must be boolean, got ${this.typeToString(condType)}`,
-        "Ensure the condition evaluates to a boolean.",
-        stmt.condition.location,
-        CONDITION_TYPE_MISMATCH_CODE,
-      );
+    if (stmt.init) {
+      this.checkStatement(stmt.init);
     }
-  }
 
-  if (stmt.step) {
-    this.checkExpression(stmt.step);
-  }
-
-  if (stmt.body) {
-    if (stmt.body.kind === "Block") {
-      checkBlock.call(this, stmt.body as AST.BlockStmt, true);
-    } else {
-      this.currentScope = this.currentScope.enterScope();
-      this.checkStatement(stmt.body);
-
-      // Check for unused variables in the loop body scope
-      const unused = this.currentScope.getUnusedVariables();
-      for (const symbol of unused) {
-        if (symbol.name.startsWith("_")) continue;
-        const error = new CompilerError(
-          `Unused variable '${symbol.name}'`,
-          "Variable is declared but never used.",
-          symbol.declaration.location,
+    if (stmt.condition) {
+      const condType = this.checkExpression(stmt.condition);
+      if (condType && !this.isBoolType(condType)) {
+        throw new CompilerError(
+          `Loop condition must be boolean, got ${this.typeToString(condType)}`,
+          "Ensure the condition evaluates to a boolean.",
+          stmt.condition.location,
+          CONDITION_TYPE_MISMATCH_CODE,
         );
-        if (this.collectAllErrors) {
-          this.errors.push(error);
-        } else {
-          throw error;
-        }
       }
-      this.currentScope = this.currentScope.exitScope();
     }
-  }
 
-  // Check for unused variables in the loop scope (init vars)
-  const unused = this.currentScope.getUnusedVariables();
-  for (const symbol of unused) {
-    if (symbol.name.startsWith("_")) continue;
-    const error = new CompilerError(
-      `Unused variable '${symbol.name}'`,
-      "Variable is declared but never used.",
-      symbol.declaration.location,
-    );
-    if (this.collectAllErrors) {
-      this.errors.push(error);
-    } else {
-      throw error;
+    if (stmt.step) {
+      this.checkExpression(stmt.step);
     }
-  }
 
-  this.currentScope = this.currentScope.exitScope();
-  this.loopDepth--;
+    if (stmt.body) {
+      if (stmt.body.kind === "Block") {
+        checkBlock.call(this, stmt.body as AST.BlockStmt, true);
+      } else {
+        this.currentScope = this.currentScope.enterScope();
+        this.checkStatement(stmt.body);
+
+        // Check for unused variables in the loop body scope
+        const unused = this.currentScope.getUnusedVariables();
+        for (const symbol of unused) {
+          if (symbol.name.startsWith("_")) continue;
+          const error = new CompilerError(
+            `Unused variable '${symbol.name}'`,
+            "Variable is declared but never used.",
+            symbol.declaration.location,
+          );
+          if (this.collectAllErrors) {
+            this.errors.push(error);
+          } else {
+            throw error;
+          }
+        }
+        this.currentScope = this.currentScope.exitScope();
+      }
+    }
+
+    // Check for unused variables in the loop scope (init vars)
+    const unused = this.currentScope.getUnusedVariables();
+    for (const symbol of unused) {
+      if (symbol.name.startsWith("_")) continue;
+      const error = new CompilerError(
+        `Unused variable '${symbol.name}'`,
+        "Variable is declared but never used.",
+        symbol.declaration.location,
+      );
+      if (this.collectAllErrors) {
+        this.errors.push(error);
+      } else {
+        throw error;
+      }
+    }
+  } finally {
+    this.currentScope = previousScope;
+    this.loopDepth = previousLoopDepth;
+  }
 }
 
 /**

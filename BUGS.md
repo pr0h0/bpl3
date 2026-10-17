@@ -6335,6 +6335,19 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   diagnostic. O0/O3 native and LLVM-verified regressions exercise addition and
   subtraction over a two-element struct array and check the resulting addresses.
 
+
+## Failed loop analysis leaked scope and loop depth (audit C12)
+
+- A non-boolean loop condition left the initializer variable visible after the
+  loop and made subsequent break/continue statements appear legal outside a
+  loop. Fail-fast errors in initialization, condition, step, body and unused
+  variable reporting also left the checker in a nested scope with extra depth.
+- Restore the incoming symbol scope and loop depth in finally around the whole
+  loop checker, preserving normal checks and nested-loop context. Regressions
+  check the original error plus correct later undefined-symbol and control-flow
+  diagnostics, and exact state restoration for each failure stage.
+
+
 ## Excessive syntax nesting escaped as an unlocated host exception (audit C13)
 
 - 3,000 nested parentheses overflowed Peggy's call stack, while a 20,000-term
