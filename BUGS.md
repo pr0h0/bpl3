@@ -6348,3 +6348,37 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   uses line 1, column 1. Parser capacity may be lower than the AST limit. Tests
   cover check/build JSON failures, native O0/O3 moderate nesting and long chains,
   LLVM verification, and wide shallow syntax that must remain accepted.
+
+## Package archives omitted explicitly declared non-.bpl entry points (audit P5)
+
+- A verified package declaring entry: "src/api.x" reported pack success but its
+  archive contained only helper.bpl and bpl.json, making the installed package
+  unusable. Include the selected main/entry source regardless of suffix, using
+  main precedence and the same package-relative path normalization as exports.
+- Validate explicit entry points as existing regular files within the package
+  root before archive replacement, including direct PackageManager.pack callers.
+  Preserve existing export diagnostics through a shared source-file validator.
+
+## Package archives dropped README and license files (audit P5)
+
+- Packing copied source files and explicit bin/exports but omitted standard
+  root README and legal files. Include regular root README, LICENSE/LICENCE,
+  COPYING and NOTICE files, case-insensitively, with optional md/txt/rst/markdown
+  suffixes. Skip automatically discovered links and directories. Unrelated
+  assets and dotfiles remain outside this automatic selection.
+- Round-trip tests verify exact installed metadata contents and confirm private
+  files, linked metadata and metadata directories are not automatically added.
+  Source presence remains required; documentation alone does not form a package.
+
+## Legacy listing/provenance hashes omitted selected non-.bpl entries (PR #7 review)
+
+- CodeRabbit found that adding an explicit source to the archive did not add it
+  to legacy package hash selection. Changing installed .x or extensionless entry
+  code could leave list/provenance hashes unchanged. Include the selected entry
+  with the existing path, regular-file and real-path checks. Keep automatic
+  metadata outside legacy hashing; portable v2 lock hashes still cover all files.
+- Historical legacy hashes that omitted an existing non-.bpl entry now fail
+  closed with a hash mismatch. An explicit install --update migrates these pins
+  to the existing portable v2 format. Ordinary .bpl legacy coverage is unchanged.
+  Tests check listings, provenance, metadata exclusion, external-link boundaries,
+  unchanged legacy lock bytes on verification failure, and explicit migration.

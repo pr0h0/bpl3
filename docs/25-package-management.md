@@ -1053,3 +1053,24 @@ are recognized in manifest source paths. A compilation failure stops
 packing before an archive is written or replaced. In `pack --json` mode, compiler
 verification failures return a `package-pack` report with `success: false`, the
 compiler error text, and its diagnostic code as `errorCode` when available.
+
+Explicit `main` or `entry` sources are included in the archive regardless of
+suffix, including `.x` files. The selected source must exist as a regular file
+inside the package root; a missing, symbolic-link, or non-file explicit entry
+fails packing before an existing archive can be replaced. `main` takes priority
+when both fields are present. Packages that omit both fields keep the existing
+source-file discovery behavior.
+
+Archives also retain regular files at the package root named README,
+LICENSE/LICENCE, COPYING or NOTICE, ignoring case, optionally followed by `.md`,
+`.txt`, `.rst` or `.markdown`. Automatic metadata discovery skips symbolic links
+and directories. This does not include arbitrary assets or dotfiles, and
+metadata alone does not satisfy the package's source-file requirement.
+
+Listing and provenance `packageHash` values cover the selected entry source even
+when it has no `.bpl` suffix. These legacy hashes continue to omit automatically
+selected documentation; portable `sha256-tree-v2` lock hashes cover all installed
+files. A historical legacy lock whose hash omitted an existing non-`.bpl` entry
+can now report a hash mismatch. Review the package source, then use an explicit
+`bpl install --update` to record a portable v2 hash. Verification does not silently
+rewrite the old lock or accept a hash that omitted the package's entry code.
