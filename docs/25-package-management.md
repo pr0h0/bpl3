@@ -1074,3 +1074,16 @@ files. A historical legacy lock whose hash omitted an existing non-`.bpl` entry
 can now report a hash mismatch. Review the package source, then use an explicit
 `bpl install --update` to record a portable v2 hash. Verification does not silently
 rewrite the old lock or accept a hash that omitted the package's entry code.
+
+Package archives use a stable member order, zero timestamps and numeric owner
+and group IDs of zero. Staged regular files use mode `0644`, or `0755` when the
+source has an executable bit; directories use `0755`. These changes apply only
+to the temporary packing tree, leaving source permissions and times intact.
+With the same tar/compression toolchain and identical included bytes, paths and
+executable bits, repeated packs produce identical `.tgz` bytes. GNU tar and
+BSD/libarchive tar are supported, including long paths and Unicode names;
+byte-for-byte equality across different tools or tool versions is not promised.
+Ambient `TAR_OPTIONS` and `GZIP` are ignored during archive creation so they
+cannot silently alter package contents or compression metadata. The existing
+`BPL_TAR`/`TAR` tool selection still applies. Provenance sidecars retain their
+creation timestamp and are not themselves reproducible artifacts.
