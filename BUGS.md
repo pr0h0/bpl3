@@ -6444,6 +6444,35 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   of view aliases, explicit casts or aggregate-contained borrows.
 
 
+## Failed block and catch checking left the checker in an inner scope
+
+- Fail-fast block checking exited before restoring its enclosing scope when a
+  statement failed, an unused variable was reported, or an unreachable statement
+  was diagnosed. Catch clauses also retained their parameter scope on failure.
+- Both paths now restore the exact incoming scope in `finally`. Blocks checked
+  without creating a scope continue to use the caller's bindings.
+- Six regression cases failed before the fix; focused tests also cover normal
+  catch binding visibility and collection of multiple diagnostics.
+
+
+## Failed conditional checking retained branch scopes
+
+- Checking a then branch (including its type-guard narrowing scope) or a single
+  statement else branch could throw before leaving the branch's scope. Later
+  diagnostic collection could consequently run in an unintended inner scope.
+- Restore the exact incoming scope with `finally` around each branch scope.
+  Four fail-fast conditional regressions failed before this correction.
+
+
+## Catch annotations skipped type validation
+
+- Typed catches bound their annotation without checking whether its type existed
+  or resolving generic arguments. Unknown catch types and incorrect generic
+  argument counts consequently passed the checker.
+- Apply the existing known-type and type-resolution checks before binding the
+  caught value. Valid primitive, alias and generic catch types remain accepted.
+- Three regression cases failed before the fix; catch scope restoration still
+  applies when annotation validation fails.
 ## Explicit casts bypassed the array-view return diagnostic
 
 - Explicit casts of a fixed array to a slice/pointer passed return checking,
