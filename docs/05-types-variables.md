@@ -254,6 +254,9 @@ A fixed array can return by value. Returning it through an implicit conversion o
 to a slice or pointer is rejected with `BPL_RETURN_ARRAY_VIEW_ESCAPES`: the
 conversion would create a view into a temporary in the returning frame. Return
 an existing borrowed slice/pointer only when its elements outlive the call.
+Explicit array-to-view casts used within a frame create views of temporary
+array copies; they do not extend storage lifetime or provide an alias to the
+original array. Keep their use within that frame.
 The explicit-cast check also covers grouped and conditional values and casts
 inside returned aggregate literals. It does not track local view aliases.
 

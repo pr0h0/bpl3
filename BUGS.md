@@ -6454,5 +6454,9 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   conversions too, including groups, conditionals and aggregate literal fields.
   Calls consume their arguments within the frame and are not traversed. This
   does not add general lifetime/provenance analysis for local view aliases.
-- A separate backend spelling bug makes cast<int[]>(array) fail with Unsupported
-  cast where the equivalent cast<i32[]>(array) works; tracked for correction.
+- The backend used the raw cast target instead of the checker's resolved target:
+  cast<int[]>(array) failed with Unsupported cast where cast<i32[]>(array) worked.
+  It also omitted fixed-array-to-pointer casts accepted by the checker. Use the
+  checked cast type and existing array-to-pointer spill lowering. Native O0/O3
+  tests cover primitive spellings, aliases, literal/local arrays, byte views,
+  safe immediate consumption, and existing caller-owned view passthroughs.

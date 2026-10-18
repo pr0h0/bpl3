@@ -527,13 +527,16 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
   protected generateCast(expr: AST.CastExpr): string {
     const val = this.generateExpression(expr.expression);
     const srcType = this.resolveType(expr.expression.resolvedType!);
-    const destType = this.resolveType(expr.targetType);
+    // The checker canonicalizes primitive spellings and substitutes aliases in
+    // resolvedType. LLVM type strings alone lose the shape needed for decay.
+    const targetTypeNode = expr.resolvedType ?? expr.targetType;
+    const destType = this.resolveType(targetTypeNode);
     return this.emitCast(
       val,
       srcType,
       destType,
       expr.expression.resolvedType!,
-      expr.targetType,
+      targetTypeNode,
     );
   }
 
@@ -748,6 +751,13 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       this.isFixedArrayTypeNode(srcTypeNode)
     ) {
       return this.emitSliceFromArrayValue(val, srcTypeNode, effectiveDest);
+    }
+
+    if (
+      conversion.kind === "array-to-pointer" &&
+      this.isFixedArrayTypeNode(srcTypeNode)
+    ) {
+      return this.emitPointerFromArrayValue(val, srcTypeNode);
     }
 
     if (
