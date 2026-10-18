@@ -2125,6 +2125,12 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps returned array-view lifetime failures to the regression", () => {
+    expect(localCommandsForStep("BPL_RETURN_ARRAY_VIEW_ESCAPES")).toContain(
+      "bun test tests/ReturnedArrayViews.test.ts",
+    );
+  });
+
   test("maps exported JSON error-code inventory to local repro commands", () => {
     const unmappedCodes: string[] = [];
 

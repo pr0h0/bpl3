@@ -408,6 +408,10 @@ const RETURN_TYPE_MISMATCH_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const RETURN_ARRAY_VIEW_ESCAPES_STEP_PATTERN = new RegExp(
+  "BPL_RETURN_ARRAY_VIEW_ESCAPES|Cannot return a borrowed view of a fixed array",
+  "i",
+);
 const ASSIGNMENT_TYPE_MISMATCH_STEP_PATTERN = new RegExp(
   [
     "BPL_ASSIGNMENT_TYPE_MISMATCH",
@@ -1753,6 +1757,8 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "return type mismatch"',
   ],
   [RETURN_TYPE_MISMATCH_STEP_PATTERN, "bun run check"],
+  [RETURN_ARRAY_VIEW_ESCAPES_STEP_PATTERN, "bun test tests/ReturnedArrayViews.test.ts"],
+  [RETURN_ARRAY_VIEW_ESCAPES_STEP_PATTERN, "bun run check"],
   [
     ASSIGNMENT_TYPE_MISMATCH_STEP_PATTERN,
     "bun test tests/TypeCheckerAssignmentMismatch.test.ts",

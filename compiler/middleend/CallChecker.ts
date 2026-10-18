@@ -203,6 +203,7 @@ export function checkCall(
         argTypes,
         genericArgs,
         expr.location,
+        expr.args,
       );
 
       expr.resolvedDeclaration = match.declaration as
@@ -222,6 +223,8 @@ export function checkCall(
       expr.args.forEach((argument, index) => {
         const parameterType = match.type.paramTypes[index];
         if (parameterType && index < fixedParamCount) {
+          argTypes[index] =
+            this.contextualizeArrayLiteral(argument, parameterType) ?? argTypes[index];
           this.checkIntegerConstantRange(argument, parameterType);
         }
         this.rejectOwningCopy(
@@ -357,79 +360,87 @@ export function checkCall(
     if (overloads && overloads.length > 0) {
       let bestMatch: AST.FunctionTypeNode | undefined;
 
-      for (const candidate of overloads) {
-        if (
-          !candidate.isVariadic &&
-          candidate.paramTypes.length !== argTypes.length
-        )
-          continue;
+      // Keep existing matches ahead of newly eligible literal conversions.
+      for (const allowContextual of [false, true]) {
+        for (const candidate of overloads) {
+          if (
+            !candidate.isVariadic &&
+            candidate.paramTypes.length !== argTypes.length
+          )
+            continue;
 
-        let match = true;
-        let variadicElementType: AST.TypeNode | undefined;
+          let match = true;
+          let variadicElementType: AST.TypeNode | undefined;
 
-        for (let i = 0; i < candidate.paramTypes.length; i++) {
-          const paramType = candidate.paramTypes[i]!;
-          const argType = argTypes[i];
+          for (let i = 0; i < candidate.paramTypes.length; i++) {
+            const paramType = candidate.paramTypes[i]!;
+            const argType = argTypes[i];
 
-          let checkType = paramType;
+            let checkType = paramType;
 
-          // Check if this param is variadic
-          if (candidate.declaration) {
-            const decl = candidate.declaration as AST.FunctionDecl;
-            if (i < decl.params.length && decl.params[i]!.isVariadic) {
-              // Unwrap pointer for variadic param
-              if (
-                paramType.kind === "BasicType" &&
-                paramType.pointerDepth > 0
-              ) {
-                checkType = {
-                  ...paramType,
-                  pointerDepth: paramType.pointerDepth - 1,
-                };
+            // Check if this param is variadic
+            if (candidate.declaration) {
+              const decl = candidate.declaration as AST.FunctionDecl;
+              if (i < decl.params.length && decl.params[i]!.isVariadic) {
+                // Unwrap pointer for variadic param
+                if (
+                  paramType.kind === "BasicType" &&
+                  paramType.pointerDepth > 0
+                ) {
+                  checkType = {
+                    ...paramType,
+                    pointerDepth: paramType.pointerDepth - 1,
+                  };
+                }
+                variadicElementType = checkType;
               }
-              variadicElementType = checkType;
             }
-          }
 
-          if (argType) {
-            // Special handling for Any in variadic
-            const isAny =
-              checkType.kind === "BasicType" && checkType.name === "Any";
-            if (!isAny && !this.areTypesCompatible(checkType, argType)) {
-              match = false;
-              break;
-            }
-          }
-        }
-
-        // Check remaining args against variadicElementType
-        if (
-          match &&
-          variadicElementType &&
-          argTypes.length > candidate.paramTypes.length
-        ) {
-          const isAny =
-            variadicElementType.kind === "BasicType" &&
-            variadicElementType.name === "Any";
-          if (!isAny) {
-            for (
-              let j = candidate.paramTypes.length;
-              j < argTypes.length;
-              j++
-            ) {
-              // Check against variadic element type
-              if (!this.areTypesCompatible(variadicElementType, argTypes[j]!)) {
+            if (argType) {
+              // Special handling for Any in variadic
+              const isAny =
+                checkType.kind === "BasicType" && checkType.name === "Any";
+              if (
+                !isAny && !this.areTypesCompatible(checkType, argType) &&
+                (!allowContextual || variadicElementType !== undefined ||
+                  !this.contextualizeArrayLiteral(expr.args[i]!, checkType, false))
+              ) {
                 match = false;
                 break;
               }
             }
           }
-        }
 
-        if (match) {
-          bestMatch = candidate;
-          break;
+          // Check remaining args against variadicElementType
+          if (
+            match &&
+            variadicElementType &&
+            argTypes.length > candidate.paramTypes.length
+          ) {
+            const isAny =
+              variadicElementType.kind === "BasicType" &&
+              variadicElementType.name === "Any";
+            if (!isAny) {
+              for (
+                let j = candidate.paramTypes.length;
+                j < argTypes.length;
+                j++
+              ) {
+                // Check against variadic element type
+                if (!this.areTypesCompatible(variadicElementType, argTypes[j]!)) {
+                  match = false;
+                  break;
+                }
+              }
+            }
+          }
+
+          if (match) {
+            bestMatch = candidate;
+            break;
+          }
         }
+        if (bestMatch) break;
       }
 
       if (bestMatch) {
@@ -661,7 +672,9 @@ function handleEnumVariantCall(
           expectedType = this.substituteType(expectedType, typeMap);
         }
         expectedType = this.resolveType(expectedType);
-        const actualType = argTypes[i];
+        const actualType =
+          this.contextualizeArrayLiteral(expr.args[i]!, expectedType) ?? argTypes[i];
+        argTypes[i] = actualType;
         if (actualType) this.checkIntegerConstantRange(expr.args[i]!, expectedType);
         if (actualType && !this.areTypesCompatible(expectedType, actualType)) {
           throw new CompilerError(
@@ -736,9 +749,11 @@ function validateFunctionCall(
 
   for (let i = 0; i < funcType.paramTypes.length; i++) {
     const paramType = funcType.paramTypes[i]!;
-    const argType = argTypes[i];
+    let argType = argTypes[i];
     const argument = expr.args[i];
     if (argument) {
+      argType = this.contextualizeArrayLiteral(argument, paramType) ?? argType;
+      argTypes[i] = argType;
       this.checkIntegerConstantRange(argument, paramType);
       this.rejectOwningCopy(
         argument,

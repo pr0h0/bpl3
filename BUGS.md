@@ -6411,3 +6411,34 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   exclusions or change compression headers. BPL_TAR/TAR selection is unchanged.
   Reproducibility is scoped to the same tar/compression toolchain, included
   content, paths and executable bits; provenance timestamps remain informational.
+
+## Declared integer array element types were ignored for literals (audit C14)
+
+- A literal [1,2] was inferred as i32[2] even when its destination was u8[2],
+  rejecting valid local initializers, assignments, returns and function calls.
+- Plan contextual conversions for newly created integer array literals, checking
+  dimensions and each element before applying aggregate annotations. Existing
+  array storage is never reinterpreted. Preserve leaf expression types so the
+  existing array generator emits the appropriate element casts. Narrowing a
+  nonconstant element is not added by this conversion; literal range errors
+  retain BPL_INTEGER_LITERAL_OVERFLOW at known destinations.
+- Overload probes do not mutate candidate arguments; existing exact/widening
+  matches remain preferred. Apply conversions only after selecting a signature.
+  Cover aliases, nested arrays, slices, grouped/conditional arrays, fields,
+  functions, methods, function pointers, lambdas and enum tuple payloads. Empty
+  arrays and arrays nested in tuple/match result contexts are separate cases;
+  this fix does not claim a general contextual inference system.
+
+## Implicit array-to-view returns exposed a completed stack frame
+
+- A frame returning int[] from [1,2] passed checking, but the backend spilled
+  the fixed array to the callee's stack and returned a pointer into that spill.
+  AddressSanitizer confirms stack-use-after-return at O0 on staging 8d35afd1,
+  independently of the contextual-array changes. Implicit pointer returns use
+  the same temporary-storage lowering.
+- Reject direct fixed-array-to-slice/pointer return conversions with
+  BPL_RETURN_ARRAY_VIEW_ESCAPES. Fixed-array value returns and existing borrowed
+  slice/pointer returns remain supported. Tests cover literals, locals, by-value
+  parameters, groups, conditionals, aliases, and newly contextualized literals.
+  This is a targeted lowering boundary check; it is not a full lifetime analysis
+  of view aliases, explicit casts or aggregate-contained borrows.
