@@ -258,7 +258,9 @@ Explicit array-to-view casts used within a frame create views of temporary
 array copies; they do not extend storage lifetime or provide an alias to the
 original array. Keep their use within that frame.
 The explicit-cast check also covers grouped and conditional values, match
-results (including block yields), and casts inside returned aggregate literals.
+results (including block yields), projections, method receivers, value-producing
+operators, and casts inside returned aggregate literals. Scalar reads do not
+escape a borrow; constant literal projections inspect the selected value.
 A returned call whose result can contain borrowed storage is conservatively
 rejected if an argument creates such a temporary view: the compiler cannot
 prove that the callee discards the argument. Calls returning scalar values or

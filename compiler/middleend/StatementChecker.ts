@@ -226,14 +226,18 @@ function mayReturnBorrowedStorage(
 function findReturnedArrayViewCast(
   context: CheckerContext,
   expr: AST.Expression | undefined,
-): AST.CastExpr | undefined {
+): AST.Expression | undefined {
   if (!expr) return undefined;
   switch (expr.kind) {
-    case "Cast": {
+    case "Cast":
+    case "As": {
       const source = expr.expression.resolvedType;
       if (source) {
         const conversion = lowerImplicitConversion(
-          context.resolveType(expr.resolvedType ?? expr.targetType),
+          context.resolveType(
+            expr.resolvedType ??
+              (expr.kind === "Cast" ? expr.targetType : expr.type),
+          ),
           context.resolveType(source),
         );
         if (
@@ -278,12 +282,59 @@ function findReturnedArrayViewCast(
         expr.enumVariantInfo ||
         mayReturnBorrowedStorage(context, expr.resolvedType)
       ) {
+        const receiverCast = findReturnedArrayViewCast(context, expr.callee);
+        if (receiverCast) return receiverCast;
         for (const argument of expr.args) {
           const cast = findReturnedArrayViewCast(context, argument);
           if (cast) return cast;
         }
       }
       break;
+    case "Member":
+    case "Index": {
+      if (!mayReturnBorrowedStorage(context, expr.resolvedType)) break;
+      let object = expr.object;
+      while (object.kind === "Group") object = object.expression;
+      // Literal projections can select exactly one value. Do not reject an
+      // unrelated temporary borrow that is discarded with the aggregate.
+      if (expr.kind === "Member" && object.kind === "StructLiteral") {
+        const field = object.fields.find(
+          (candidate) => candidate.name === expr.property,
+        );
+        if (field) return findReturnedArrayViewCast(context, field.value);
+      }
+      if (
+        expr.kind === "Index" &&
+        object.kind === "ArrayLiteral" &&
+        expr.index.kind === "Literal" &&
+        typeof expr.index.value === "number" &&
+        Number.isInteger(expr.index.value)
+      ) {
+        const element = object.elements[expr.index.value];
+        if (element) return findReturnedArrayViewCast(context, element);
+      }
+      return findReturnedArrayViewCast(context, object);
+    }
+    case "Unary":
+      if (mayReturnBorrowedStorage(context, expr.resolvedType)) {
+        return findReturnedArrayViewCast(context, expr.operand);
+      }
+      break;
+    case "Binary":
+      if (mayReturnBorrowedStorage(context, expr.resolvedType)) {
+        return (
+          findReturnedArrayViewCast(context, expr.left) ??
+          findReturnedArrayViewCast(context, expr.right)
+        );
+      }
+      break;
+    case "Assignment":
+      if (mayReturnBorrowedStorage(context, expr.resolvedType)) {
+        return findReturnedArrayViewCast(context, expr.value);
+      }
+      break;
+    case "GenericInstantiation":
+      return findReturnedArrayViewCast(context, expr.base);
     case "TupleLiteral":
     case "ArrayLiteral":
       for (const element of expr.elements) {

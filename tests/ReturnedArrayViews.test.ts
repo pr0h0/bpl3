@@ -19,6 +19,11 @@ for (const source of [
   "type View=int[];frame bad()ret View{return [1,2];}",
   "frame bad()ret int[]{return cast<int[]>([1,2]);}",
   "frame bad()ret i32[]{return cast<i32[]>([1,2]);}",
+  "struct Box{v:int[],}frame bad()ret int[]{return (Box{v:cast<i32[]>([1,2])}).v;}",
+  "frame bad()ret int[]{return [cast<i32[]>([1,2])][0];}",
+  "struct Box{v:int[],frame get(this:Box)ret int[]{return this.v;}}frame bad()ret int[]{return (Box{v:cast<i32[]>([1,2])}).get();}",
+  "frame bad()ret *int{return cast<*i32>([1,2])+1;}",
+  "frame bad(p:*int)ret *int{return p=cast<*int>([1,2]);}",
   "frame bad()ret int[]{return match(true){true=>{type View=int[];return cast<View>([1,2]);},false=>cast<int[]>([3,4]),};}",
   "frame borrow(v:int[])ret int[]{return v;}frame bad()ret int[]{return borrow(cast<int[]>([1,2]));}",
   "frame borrow(v:*int)ret *int{return v;}frame bad()ret *int{return borrow(cast<*int>([1,2]));}",
@@ -94,4 +99,18 @@ test("CLI JSON reports the array-view lifetime diagnostic", () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("literal field projection discards unrelated borrowed temporaries", () => {
+  const source =
+    "struct Box{a:int[],b:int[],}frame safe(v:int[])ret int[]{return (Box{a:cast<int[]>([1,2]),b:v}).b;}";
+  const checker = new TypeChecker({ collectAllErrors: true });
+  checker.checkProgram(
+    new Parser(
+      source,
+      "projection.bpl",
+      lexWithGrammar(source, "projection.bpl"),
+    ).parse(),
+  );
+  expect(checker.getErrors()).toEqual([]);
 });

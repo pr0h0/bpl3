@@ -11,6 +11,11 @@ test("explicit fixed-array views use checked types and remain usable within the 
       type Fixed=int[2];
       enum Box{Value(int[]),}
       struct Count<T>{value:T,}
+      struct Holder{v:int[],frame first(this:Holder)ret int{return this.v[0];}}
+      frame selected(v:int[])ret int[]{return [cast<int[]>([1,2]),v][1];}
+      frame consumeReceiver()ret int{return (Holder{v:cast<int[]>([2,3])}).first();}
+      frame consumeIndex()ret int{return [cast<int[]>([4,5])][0][1];}
+      frame consumePointer()ret int{return *(cast<*int>([6,7])+1);}
       frame counted(v:int[])ret Count<int>{return Count<int>{value:v[0]};}
       frame consumeCount()ret Count<int>{return counted(cast<int[]>([31,32]));}
       frame copied(v:int[])ret int[2]{return [v[0],v[1]];}
@@ -37,6 +42,7 @@ test("explicit fixed-array views use checked types and remain usable within the 
         local count:Count<int>=consumeCount();
         local copy:int[2]=consumeCopy();
         if(count.value!=31 || copy[1]!=34 || consumeMatch()!=3 || localMatch()!=4 || matched(s)[0]!=11) return 1;
+        if(selected(s)[1]!=12 || consumeReceiver()!=2 || consumeIndex()!=5 || consumePointer()!=7) return 2;
         return *ptr(p)+first(boxed(s))-22;
       }`,
       expectedStdout: "11 12 11 11 13 16 15 12\n",

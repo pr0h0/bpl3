@@ -6488,3 +6488,20 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   declaring scope is live; inspect cast results using their checked types.
 - Native O0/O3 controls consume such a match value within its frame. Returning
   that value directly instead reports BPL_RETURN_ARRAY_VIEW_ESCAPES.
+
+
+## Projections and method receivers hid returned array-view casts
+
+- CodeRabbit found unchecked Member/Index result objects and method receivers.
+  Indexing a slice array literal and returning a view through a temporary value
+  receiver both reproduce stack-use-after-return under AddressSanitizer at O0
+  on 8421d6a9. Self-review also confirmed pointer arithmetic on a cast-created
+  array pointer exposes the completed frame. Direct temporary struct-field
+  projection instead hit an existing backend lvalue error, not a native escape.
+- Return traversal now follows view-capable projections, callees/receivers and
+  other value-producing operators. Scalar reads remain allowed. Constant literal
+  projections inspect only the selected value, preserving caller-owned borrows
+  when unrelated temporary views are discarded. Native O0/O3 controls cover
+  selected caller-owned slices, numeric indexing, scalar methods and pointer reads.
+- General alias/provenance tracking and unsupported temporary-aggregate address
+  generation remain outside this change.
