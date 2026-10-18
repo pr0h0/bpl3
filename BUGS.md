@@ -6420,7 +6420,7 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   dimensions and each element before applying aggregate annotations. Existing
   array storage is never reinterpreted. Preserve leaf expression types so the
   existing array generator emits the appropriate element casts. Narrowing a
-  nonconstant element still requires an explicit cast; literal range errors
+  nonconstant element is not added by this conversion; literal range errors
   retain BPL_INTEGER_LITERAL_OVERFLOW at known destinations.
 - Overload probes do not mutate candidate arguments; existing exact/widening
   matches remain preferred. Apply conversions only after selecting a signature.
