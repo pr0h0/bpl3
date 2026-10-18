@@ -6474,7 +6474,7 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   fixed arrays and generic value-only structs, remain supported. Nested tuple,
   struct and enum result types are inspected for potential borrowed storage.
 - No interprocedural ownership proof or tracking of local view aliases is added.
-  Calls returning independent storage may need the temporary cast assigned to a
-  local before the call; callers must still ensure the final storage outlives
-  the return. Positive native tests retain scalar consumers, copied aggregate
+  Calls returning independent storage can still be rejected because the
+  compiler cannot prove this property. Positive native tests retain scalar
+  consumers, copied aggregate
   results, caller-owned match results and temporary views consumed in-frame.
