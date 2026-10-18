@@ -6428,3 +6428,17 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   functions, methods, function pointers, lambdas and enum tuple payloads. Empty
   arrays and arrays nested in tuple/match result contexts are separate cases;
   this fix does not claim a general contextual inference system.
+
+## Implicit array-to-view returns exposed a completed stack frame
+
+- A frame returning int[] from [1,2] passed checking, but the backend spilled
+  the fixed array to the callee's stack and returned a pointer into that spill.
+  AddressSanitizer confirms stack-use-after-return at O0 on staging 8d35afd1,
+  independently of the contextual-array changes. Implicit pointer returns use
+  the same temporary-storage lowering.
+- Reject direct fixed-array-to-slice/pointer return conversions with
+  BPL_RETURN_ARRAY_VIEW_ESCAPES. Fixed-array value returns and existing borrowed
+  slice/pointer returns remain supported. Tests cover literals, locals, by-value
+  parameters, groups, conditionals, aliases, and newly contextualized literals.
+  This is a targeted lowering boundary check; it is not a full lifetime analysis
+  of view aliases, explicit casts or aggregate-contained borrows.

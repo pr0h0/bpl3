@@ -6,7 +6,10 @@
 import * as AST from "../common/AST";
 import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
 import { INTEGER_TYPES, TypeUtils } from "./TypeUtils";
-import { isImplicitIntegerToBool } from "./lowering/ImplicitConversions";
+import {
+  isImplicitIntegerToBool,
+  lowerImplicitConversion,
+} from "./lowering/ImplicitConversions";
 import type { CheckerContext } from "./CheckerContext";
 import type { Symbol } from "./SymbolTable";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
@@ -18,6 +21,7 @@ import {
   DEFER_RETURN_VALUE_INVALID_CODE,
   FALLTHROUGH_OUTSIDE_SWITCH_CODE,
   RETURN_TYPE_MISMATCH_CODE,
+  RETURN_ARRAY_VIEW_ESCAPES_CODE,
   SWITCH_CASE_TYPE_MISMATCH_CODE,
   SWITCH_VALUE_TYPE_MISMATCH_CODE,
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
@@ -557,6 +561,21 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
         "Ensure the returned value matches the function's return type.",
         stmt.location,
         RETURN_TYPE_MISMATCH_CODE,
+      );
+    }
+
+    // Return lowering spills a fixed-array value before creating its view.
+    // That spill belongs to this frame even if the value came from a global.
+    const conversion = lowerImplicitConversion(resolvedExpected, resolvedActual);
+    if (
+      conversion.kind === "array-to-slice" ||
+      conversion.kind === "array-to-pointer"
+    ) {
+      throw new CompilerError(
+        "Cannot return a borrowed view of a fixed array by implicit conversion",
+        "Return the fixed array by value, or return an existing slice/pointer whose elements outlive the call.",
+        stmt.value?.location ?? stmt.location,
+        RETURN_ARRAY_VIEW_ESCAPES_CODE,
       );
     }
 
