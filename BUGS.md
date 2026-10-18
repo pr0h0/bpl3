@@ -6442,3 +6442,66 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   parameters, groups, conditionals, aliases, and newly contextualized literals.
   This is a targeted lowering boundary check; it is not a full lifetime analysis
   of view aliases, explicit casts or aggregate-contained borrows.
+
+
+## Explicit casts bypassed the array-view return diagnostic
+
+- Explicit casts of a fixed array to a slice/pointer passed return checking,
+  including casts inside aggregate literals. Using cast<i32[]>([11,12]) in a
+  slice-returning function reproduced AddressSanitizer stack-use-after-return
+  at O0 on staging bfbaf0c9. The cast creates a callee stack spill.
+- Return checking now uses BPL_RETURN_ARRAY_VIEW_ESCAPES for these explicit
+  conversions too, including groups, conditionals and aggregate literal fields.
+  Enum tuple constructors retain arguments and are checked as aggregates.
+  This does not add general lifetime/provenance analysis for local view aliases.
+- The backend used the raw cast target instead of the checker's resolved target:
+  cast<int[]>(array) failed with Unsupported cast where cast<i32[]>(array) worked.
+  It also omitted fixed-array-to-pointer casts accepted by the checker. Use the
+  checked cast type and existing array-to-pointer spill lowering. Native O0/O3
+  tests cover primitive spellings, aliases, literal/local arrays, byte views,
+  safe immediate consumption, and existing caller-owned view passthroughs.
+
+
+## Returned calls and match results bypassed explicit array-view checks
+
+- CodeRabbit found that borrow(cast<i32[]>([11,12])) can return its temporary
+  argument, while match expression arms and block yields can also carry casts
+  past the initial guard. All three forms reproduce stack-use-after-return
+  under AddressSanitizer at O0 on 2a227519.
+- Return traversal now checks match expression values and recorded block yields.
+  For calls with view-capable results, it conservatively checks cast arguments;
+  the callee may return borrowed argument storage. Scalar-only results, including
+  fixed arrays and generic value-only structs, remain supported. Nested tuple,
+  struct and enum result types are inspected for potential borrowed storage.
+- No interprocedural ownership proof or tracking of local view aliases is added.
+  Calls returning independent storage can still be rejected because the
+  compiler cannot prove this property. Positive native tests retain scalar
+  consumers, copied aggregate
+  results, caller-owned match results and temporary views consumed in-frame.
+
+
+## Match block yield types lost block-local alias resolution
+
+- A match arm defining `type View=int[]` and yielding `cast<View>([1,2])`
+  was compared against a sibling `int[]` arm after its scope ended, producing
+  a false incompatible-arms error. Collect resolved yield types while the
+  declaring scope is live; inspect cast results using their checked types.
+- Native O0/O3 controls consume such a match value within its frame. Returning
+  that value directly instead reports BPL_RETURN_ARRAY_VIEW_ESCAPES.
+
+
+## Projections and method receivers hid returned array-view casts
+
+- CodeRabbit found unchecked Member/Index result objects and method receivers.
+  Indexing a slice array literal and returning a view through a temporary value
+  receiver both reproduce stack-use-after-return under AddressSanitizer at O0
+  on 8421d6a9. Self-review also confirmed pointer arithmetic on a cast-created
+  array pointer exposes the completed frame. Direct temporary struct-field
+  projection instead hit an existing backend lvalue error, not a native escape.
+- Return traversal now follows view-capable projections, callees/receivers and
+  other value-producing operators. Scalar reads remain allowed. Constant literal
+  projections inspect only the selected value, preserving caller-owned borrows
+  when unrelated temporary views are discarded. Native O0/O3 controls cover
+  selected caller-owned slices, numeric indexing, scalar methods and pointer reads.
+- General alias/provenance tracking and unsupported temporary-aggregate address
+  generation remain outside this change.

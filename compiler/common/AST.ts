@@ -179,6 +179,8 @@ export interface CallExpr extends ASTNode {
   args: Expression[];
   genericArgs: TypeNode[];
   resolvedDeclaration?: FunctionDecl | ExternDecl;
+  /** Enum tuple construction stores arguments in the resulting value. */
+  enumVariantInfo?: EnumStructVariantExpr["enumVariantInfo"];
   variadicPacked?: boolean;
   operatorOverload?: {
     methodName: string; // "__call__"
