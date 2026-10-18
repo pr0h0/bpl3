@@ -205,6 +205,16 @@ function findReturnedArrayViewCast(
         if (cast) return cast;
       }
       break;
+    case "Call":
+      // Enum tuple constructors retain their payloads; ordinary calls consume
+      // arguments before this frame returns and are not traversed.
+      if (expr.enumVariantInfo) {
+        for (const argument of expr.args) {
+          const cast = findReturnedArrayViewCast(context, argument);
+          if (cast) return cast;
+        }
+      }
+      break;
     case "TupleLiteral":
     case "ArrayLiteral":
       for (const element of expr.elements) {

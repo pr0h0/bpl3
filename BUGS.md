@@ -6452,7 +6452,8 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   at O0 on staging bfbaf0c9. The cast creates a callee stack spill.
 - Return checking now uses BPL_RETURN_ARRAY_VIEW_ESCAPES for these explicit
   conversions too, including groups, conditionals and aggregate literal fields.
-  Calls consume their arguments within the frame and are not traversed. This
+  Ordinary calls consume their arguments within the frame and are not traversed;
+  enum tuple constructors retain their arguments and are checked as aggregates. This
   does not add general lifetime/provenance analysis for local view aliases.
 - The backend used the raw cast target instead of the checker's resolved target:
   cast<int[]>(array) failed with Unsupported cast where cast<i32[]>(array) worked.

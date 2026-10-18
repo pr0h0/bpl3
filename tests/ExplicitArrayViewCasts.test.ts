@@ -9,6 +9,9 @@ test("explicit fixed-array views use checked types and remain usable within the 
       source: `import printf from "std/c.bpl";
       type View=int[];
       type Fixed=int[2];
+      enum Box{Value(int[]),}
+      frame boxed(v:int[])ret Box{return Box.Value(cast<int[]>(v));}
+      frame first(v:Box)ret int{return match(v){Box.Value(data)=>data[0],};}
       frame read(v:int[])ret int{return v[0]+v[1];}
       frame consume()ret int{return read(cast<int[]>([7,8]));}
       frame borrow(v:int[])ret int[]{return cast<int[]>(v);}
@@ -23,7 +26,7 @@ test("explicit fixed-array views use checked types and remain usable within the 
         local bytes:u8[2]=[15,16];
         local byteView:u8[]=cast<u8[]>(bytes);
         printf("%d %d %d %d %d %d %d %d\\n",s[0],canonical[1],alias[0],*p,*q,byteView[1],consume(),borrow(s)[1]);
-        return *ptr(p)-11;
+        return *ptr(p)+first(boxed(s))-22;
       }`,
       expectedStdout: "11 12 11 11 13 16 15 12\n",
     },
