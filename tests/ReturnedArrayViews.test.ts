@@ -17,6 +17,14 @@ for (const source of [
   "frame bad()ret int[]{return true?[1,2]:[3,4];}",
   "frame bad()ret u8[]{return [1,2];}",
   "type View=int[];frame bad()ret View{return [1,2];}",
+  "frame bad()ret int[]{return cast<int[]>([1,2]);}",
+  "frame bad()ret i32[]{return cast<i32[]>([1,2]);}",
+  "frame bad()ret *int{return cast<*int>([1,2]);}",
+  "frame bad(a:int[2])ret int[]{return cast<int[]>(a);}",
+  "frame bad()ret int[]{return ((cast<int[]>([1,2])));}",
+  "frame bad(v:int[])ret int[]{return true?v:cast<int[]>([1,2]);}",
+  "frame bad()ret (int[],int){return (cast<int[]>([1,2]),3);}",
+  "struct Box{values:int[],}frame bad()ret Box{return Box{values:cast<int[]>([1,2])};}",
 ]) {
   test(`rejects returned array views of frame-local temporary storage: ${source}`, () => {
     const checker = new TypeChecker({ collectAllErrors: true });

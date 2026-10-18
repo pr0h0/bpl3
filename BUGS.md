@@ -6442,3 +6442,17 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   parameters, groups, conditionals, aliases, and newly contextualized literals.
   This is a targeted lowering boundary check; it is not a full lifetime analysis
   of view aliases, explicit casts or aggregate-contained borrows.
+
+
+## Explicit casts bypassed the array-view return diagnostic
+
+- Explicit casts of a fixed array to a slice/pointer passed return checking,
+  including casts inside aggregate literals. Using cast<i32[]>([11,12]) in a
+  slice-returning function reproduced AddressSanitizer stack-use-after-return
+  at O0 on staging bfbaf0c9. The cast creates a callee stack spill.
+- Return checking now uses BPL_RETURN_ARRAY_VIEW_ESCAPES for these explicit
+  conversions too, including groups, conditionals and aggregate literal fields.
+  Calls consume their arguments within the frame and are not traversed. This
+  does not add general lifetime/provenance analysis for local view aliases.
+- A separate backend spelling bug makes cast<int[]>(array) fail with Unsupported
+  cast where the equivalent cast<i32[]>(array) works; tracked for correction.

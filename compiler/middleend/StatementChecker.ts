@@ -166,6 +166,56 @@ function findReturnedStackAddress(
   return undefined;
 }
 
+/** Casts in the returned value can create the same stack spills as return decay.
+ * Do not descend into calls: their arguments are consumed while this frame lives.
+ */
+function findReturnedArrayViewCast(
+  context: CheckerContext,
+  expr: AST.Expression | undefined,
+): AST.CastExpr | undefined {
+  if (!expr) return undefined;
+  switch (expr.kind) {
+    case "Cast": {
+      const source = expr.expression.resolvedType;
+      if (source) {
+        const conversion = lowerImplicitConversion(
+          context.resolveType(expr.targetType),
+          context.resolveType(source),
+        );
+        if (
+          conversion.kind === "array-to-slice" ||
+          conversion.kind === "array-to-pointer"
+        ) {
+          return expr;
+        }
+      }
+      return findReturnedArrayViewCast(context, expr.expression);
+    }
+    case "Group":
+      return findReturnedArrayViewCast(context, expr.expression);
+    case "Ternary":
+      return (
+        findReturnedArrayViewCast(context, expr.trueExpr) ??
+        findReturnedArrayViewCast(context, expr.falseExpr)
+      );
+    case "StructLiteral":
+    case "EnumStructVariant":
+      for (const field of expr.fields) {
+        const cast = findReturnedArrayViewCast(context, field.value);
+        if (cast) return cast;
+      }
+      break;
+    case "TupleLiteral":
+    case "ArrayLiteral":
+      for (const element of expr.elements) {
+        const cast = findReturnedArrayViewCast(context, element);
+        if (cast) return cast;
+      }
+      break;
+  }
+  return undefined;
+}
+
 function getShadowedValueKind(symbol: Symbol): "parameter" | "variable" {
   return symbol.kind === "Parameter" || symbol.declaration.kind === "Parameter"
     ? "parameter"
@@ -567,14 +617,16 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     // Return lowering spills a fixed-array value before creating its view.
     // That spill belongs to this frame even if the value came from a global.
     const conversion = lowerImplicitConversion(resolvedExpected, resolvedActual);
+    const returnedCast = findReturnedArrayViewCast(this, stmt.value);
     if (
       conversion.kind === "array-to-slice" ||
-      conversion.kind === "array-to-pointer"
+      conversion.kind === "array-to-pointer" ||
+      returnedCast
     ) {
       throw new CompilerError(
-        "Cannot return a borrowed view of a fixed array by implicit conversion",
+        "Cannot return a borrowed view of a fixed array by conversion",
         "Return the fixed array by value, or return an existing slice/pointer whose elements outlive the call.",
-        stmt.value?.location ?? stmt.location,
+        returnedCast?.location ?? stmt.value?.location ?? stmt.location,
         RETURN_ARRAY_VIEW_ESCAPES_CODE,
       );
     }

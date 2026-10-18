@@ -250,10 +250,12 @@ the literal's actual element count. This also applies to nested integer arrays
 and grouped or conditional array literals whose branches have matching shapes.
 Overload selection keeps existing exact matches ahead of these conversions.
 
-A fixed array can return by value. Returning it through an implicit conversion
+A fixed array can return by value. Returning it through an implicit conversion or an explicit cast
 to a slice or pointer is rejected with `BPL_RETURN_ARRAY_VIEW_ESCAPES`: the
 conversion would create a view into a temporary in the returning frame. Return
 an existing borrowed slice/pointer only when its elements outlive the call.
+The explicit-cast check also covers grouped and conditional values and casts
+inside returned aggregate literals. It does not track local view aliases.
 
 See [Arrays](16-arrays.md) for complete details.
 
