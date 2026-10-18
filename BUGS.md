@@ -6442,3 +6442,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   parameters, groups, conditionals, aliases, and newly contextualized literals.
   This is a targeted lowering boundary check; it is not a full lifetime analysis
   of view aliases, explicit casts or aggregate-contained borrows.
+
+
+## Failed block and catch checking left the checker in an inner scope
+
+- Fail-fast block checking exited before restoring its enclosing scope when a
+  statement failed, an unused variable was reported, or an unreachable statement
+  was diagnosed. Catch clauses also retained their parameter scope on failure.
+- Both paths now restore the exact incoming scope in `finally`. Blocks checked
+  without creating a scope continue to use the caller's bindings.
+- Six regression cases failed before the fix; focused tests also cover normal
+  catch binding visibility and collection of multiple diagnostics.

@@ -313,62 +313,66 @@ export function checkBlock(
   stmt: AST.BlockStmt,
   newScope: boolean = true,
 ): void {
-  if (newScope) {
-    this.currentScope = this.currentScope.enterScope();
-  }
+  const previousScope = this.currentScope;
+  try {
+    if (newScope) {
+      this.currentScope = this.currentScope.enterScope();
+    }
 
-  let terminated = false;
-  for (const s of stmt.statements) {
-    if (terminated) {
-      const error = new CompilerError(
-        "Unreachable code detected.",
-        "This statement follows a return, break, continue, or throw statement and will never be executed.",
-        s.location,
-      ).setSeverity(DiagnosticSeverity.Warning);
-      if (this.collectAllErrors) {
-        this.errors.push(error);
-      } else {
-        throw error;
+    let terminated = false;
+    for (const s of stmt.statements) {
+      if (terminated) {
+        const error = new CompilerError(
+          "Unreachable code detected.",
+          "This statement follows a return, break, continue, or throw statement and will never be executed.",
+          s.location,
+        ).setSeverity(DiagnosticSeverity.Warning);
+        if (this.collectAllErrors) {
+          this.errors.push(error);
+        } else {
+          throw error;
+        }
+      }
+
+      try {
+        this.checkStatement(s);
+      } catch (e) {
+        if (this.collectAllErrors && e instanceof CompilerError) {
+          this.errors.push(e);
+          continue;
+        }
+        throw e;
+      }
+
+      if (
+        s.kind === "Return" ||
+        s.kind === "Break" ||
+        s.kind === "Continue" ||
+        s.kind === "Throw" ||
+        s.kind === "Fallthrough"
+      ) {
+        terminated = true;
       }
     }
 
-    try {
-      this.checkStatement(s);
-    } catch (e) {
-      if (this.collectAllErrors && e instanceof CompilerError) {
-        this.errors.push(e);
-        continue;
-      }
-      throw e;
-    }
-
-    if (
-      s.kind === "Return" ||
-      s.kind === "Break" ||
-      s.kind === "Continue" ||
-      s.kind === "Throw" ||
-      s.kind === "Fallthrough"
-    ) {
-      terminated = true;
-    }
-  }
-
-  if (newScope) {
-    const unused = this.currentScope.getUnusedVariables();
-    for (const symbol of unused) {
-      if (symbol.name.startsWith("_")) continue;
-      const error = new CompilerError(
-        `Unused variable '${symbol.name}'`,
-        "Variable is declared but never used.",
-        symbol.declaration.location,
-      );
-      if (this.collectAllErrors) {
-        this.errors.push(error);
-      } else {
-        throw error;
+    if (newScope) {
+      const unused = this.currentScope.getUnusedVariables();
+      for (const symbol of unused) {
+        if (symbol.name.startsWith("_")) continue;
+        const error = new CompilerError(
+          `Unused variable '${symbol.name}'`,
+          "Variable is declared but never used.",
+          symbol.declaration.location,
+        );
+        if (this.collectAllErrors) {
+          this.errors.push(error);
+        } else {
+          throw error;
+        }
       }
     }
-    this.currentScope = this.currentScope.exitScope();
+  } finally {
+    if (newScope) this.currentScope = previousScope;
   }
 }
 
@@ -627,13 +631,17 @@ export function checkTry(this: CheckerContext, stmt: AST.TryStmt): void {
 
   // Check catch clauses
   for (const clause of stmt.catchClauses) {
-    this.currentScope = this.currentScope.enterScope();
-    // Only define variable if it's a typed catch (not catch-all)
-    if (clause.variable && clause.type) {
-      this.defineSymbol(clause.variable, "Variable", clause.type, clause);
+    const previousScope = this.currentScope;
+    this.currentScope = previousScope.enterScope();
+    try {
+      // Only define variable if it's a typed catch (not catch-all)
+      if (clause.variable && clause.type) {
+        this.defineSymbol(clause.variable, "Variable", clause.type, clause);
+      }
+      checkBlock.call(this, clause.body);
+    } finally {
+      this.currentScope = previousScope;
     }
-    checkBlock.call(this, clause.body);
-    this.currentScope = this.currentScope.exitScope();
   }
 }
 
