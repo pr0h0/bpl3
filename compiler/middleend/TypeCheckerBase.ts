@@ -1415,6 +1415,11 @@ export abstract class TypeCheckerBase {
           this.isImplicitWideningAllowed(actual, target))
       )
         return actual;
+      // A scalar constant cannot stand in for a remaining array dimension.
+      if (
+        target.kind !== "BasicType" || target.pointerDepth !== 0 ||
+        target.arrayDimensions.length !== 0
+      ) return;
       const constant = this.getIntegerConstantValue(value);
       if (
         constant !== undefined &&

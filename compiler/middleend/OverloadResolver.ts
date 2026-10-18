@@ -271,6 +271,7 @@ export class OverloadResolver {
     const exactMatches: typeof substitutedCandidates = [];
     const wideningMatches: typeof substitutedCandidates = [];
     const compatibleMatches: typeof substitutedCandidates = [];
+    const contextualMatches: typeof substitutedCandidates = [];
 
     for (const c of substitutedCandidates) {
       const ft = c.type;
@@ -278,6 +279,7 @@ export class OverloadResolver {
       let isExact = true;
       let needsWidening = false;
       let allCompatible = true;
+      let needsContextual = false;
 
       // Determine number of parameters to check
       let paramsToCheck = ft.paramTypes.length;
@@ -365,19 +367,24 @@ export class OverloadResolver {
           continue;
         }
 
-        const compatible =
-          this.ctx.areTypesCompatible(paramType, argTypes[i]!) ||
-          (i < paramsToCheck && arguments_?.[i] !== undefined &&
-            this.ctx.contextualizeArrayLiteral(arguments_[i]!, paramType, false) !== undefined);
-        if (!compatible) {
-          allCompatible = false;
-          break;
+        if (this.ctx.areTypesCompatible(paramType, argTypes[i]!)) continue;
+        const argument = arguments_?.[i];
+        if (
+          i < paramsToCheck && argument &&
+          this.ctx.contextualizeArrayLiteral(argument, paramType, false)
+        ) {
+          needsContextual = true;
+          continue;
         }
+        allCompatible = false;
+        break;
       }
 
       if (!allCompatible) continue;
 
-      if (isExact) {
+      if (needsContextual) {
+        contextualMatches.push(c);
+      } else if (isExact) {
         exactMatches.push(c);
       } else if (needsWidening) {
         wideningMatches.push(c);
@@ -386,14 +393,16 @@ export class OverloadResolver {
       }
     }
 
-    // Prefer exact matches, then widening, then compatible
+    // Prefer existing exact/widening/compatible matches before contextual ones.
     let matched: typeof substitutedCandidates;
     if (exactMatches.length > 0) {
       matched = exactMatches;
     } else if (wideningMatches.length > 0) {
       matched = wideningMatches;
-    } else {
+    } else if (compatibleMatches.length > 0) {
       matched = compatibleMatches;
+    } else {
+      matched = contextualMatches;
     }
 
     if (matched.length > 1) {

@@ -62,6 +62,8 @@ for (const source of [
 for (const source of [
   "frame main(){local v:int=1;local a:u8[2]=[v,2];a;}",
   "frame main(){local a:u8[3]=[1,2];a;}",
+  "frame main(){local a:u8[2][2]=[1,2];a;}",
+  "frame accept(a:u8[2][2]){a;}frame main(){accept([1,2]);}",
   "frame main(){local a:u8[2][2]=[[1,2],[3,4,5]];a;}",
   "frame main(){local original:int[2]=[1,2];local a:u8[2]=original;a;}",
   "frame main(){local a:bool[2]=[1,2];a;}",
@@ -85,6 +87,8 @@ test("contextual array lowering and overload selection work at O0/O3", () => {
       frame choose(v:int[2])ret int{v;return 1;}
       frame wide(v:u8[2])ret int{v;return 1;}
       frame wide(v:u16[2])ret int{return cast<int>(v[1]);}
+      frame sliceChoice(v:u8[])ret int{v;return 2;}
+      frame sliceChoice(v:int[])ret int{v;return 1;}
       struct Picker {
         frame choose(this:*Picker,v:u8[2])ret int{v;return 2;}
         frame choose(this:*Picker,v:int[2])ret int{v;return 1;}
@@ -97,10 +101,10 @@ test("contextual array lowering and overload selection work at O0/O3", () => {
         local b:u8[2]=true?[((7)),((8))]:[9,10];
         local f:Func<int>(u8[2])=accept;
         a=[11,12];
-        printf("%d %d %d %d %d %d %d %d %d\\n",accept([1,2]),accept(bytes()),cast<int>(grid[1][1]),cast<int>(view[1]),accept(b),f([2,3]),choose([1,2]),wide([1,300]),picker.choose([1,2]));
+        printf("%d %d %d %d %d %d %d %d %d %d\\n",accept([1,2]),accept(bytes()),cast<int>(grid[1][1]),cast<int>(view[1]),accept(b),f([2,3]),choose([1,2]),wide([1,300]),picker.choose([1,2]),sliceChoice([1,2]));
         return accept(a)-23;
       }`,
-      expectedStdout: "3 7 4 6 15 5 1 300 1\n",
+      expectedStdout: "3 7 4 6 15 5 1 300 1 1\n",
     },
   ]);
 }, 60000);
