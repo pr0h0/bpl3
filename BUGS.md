@@ -6462,3 +6462,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   diagnostic collection could consequently run in an unintended inner scope.
 - Restore the exact incoming scope with `finally` around each branch scope.
   Four fail-fast conditional regressions failed before this correction.
+
+
+## Catch annotations skipped type validation
+
+- Typed catches bound their annotation without checking whether its type existed
+  or resolving generic arguments. Unknown catch types and incorrect generic
+  argument counts consequently passed the checker.
+- Apply the existing known-type and type-resolution checks before binding the
+  caught value. Valid primitive, alias and generic catch types remain accepted.
+- Three regression cases failed before the fix; catch scope restoration still
+  applies when annotation validation fails.

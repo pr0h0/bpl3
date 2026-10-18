@@ -643,7 +643,9 @@ export function checkTry(this: CheckerContext, stmt: AST.TryStmt): void {
     try {
       // Only define variable if it's a typed catch (not catch-all)
       if (clause.variable && clause.type) {
-        this.defineSymbol(clause.variable, "Variable", clause.type, clause);
+        this.ensureKnownType(clause.type);
+        const caughtType = this.resolveType(clause.type);
+        this.defineSymbol(clause.variable, "Variable", caughtType, clause);
       }
       checkBlock.call(this, clause.body);
     } finally {
