@@ -77,6 +77,11 @@ export interface CheckerContext {
   makeVoidType(): AST.TypeNode;
   isIntegerTypeCompatible(val: bigint, targetType: AST.TypeNode): boolean;
   getIntegerConstantValue(expr: AST.Expression): bigint | undefined;
+  contextualizeArrayLiteral(
+    expr: AST.Expression,
+    targetType: AST.TypeNode,
+    apply?: boolean,
+  ): AST.TypeNode | undefined;
   checkIntegerConstantRange(
     expr: AST.Expression,
     targetType: AST.TypeNode,
@@ -97,6 +102,7 @@ export interface CheckerContext {
     argTypes: (AST.TypeNode | undefined)[],
     genericArgs: AST.TypeNode[],
     location: SourceLocation,
+    arguments_?: AST.Expression[],
   ): {
     symbol: Symbol;
     type: AST.FunctionTypeNode;

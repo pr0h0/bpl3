@@ -236,6 +236,18 @@ arr[0] = 10;
 local first: int = arr[0];
 ```
 
+```bpl
+local bytes: u8[2] = [1, 2];
+```
+
+Integer array literals can use a destination element type in declarations,
+assignments, returns, fields and call arguments. Integer literals must fit that
+type. Existing arrays are not reinterpreted, and wider variable elements require
+explicit casts. Array dimensions still have to match; a slice destination keeps
+the literal's actual element count. This also applies to nested integer arrays
+and grouped or conditional array literals whose branches have matching shapes.
+Overload selection keeps existing exact matches ahead of these conversions.
+
 See [Arrays](16-arrays.md) for complete details.
 
 ### Tuple Types

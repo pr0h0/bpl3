@@ -6411,3 +6411,20 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   exclusions or change compression headers. BPL_TAR/TAR selection is unchanged.
   Reproducibility is scoped to the same tar/compression toolchain, included
   content, paths and executable bits; provenance timestamps remain informational.
+
+## Declared integer array element types were ignored for literals (audit C14)
+
+- A literal [1,2] was inferred as i32[2] even when its destination was u8[2],
+  rejecting valid local initializers, assignments, returns and function calls.
+- Plan contextual conversions for newly created integer array literals, checking
+  dimensions and each element before applying aggregate annotations. Existing
+  array storage is never reinterpreted. Preserve leaf expression types so the
+  existing array generator emits the appropriate element casts. Narrowing a
+  nonconstant element still requires an explicit cast; literal range errors
+  retain BPL_INTEGER_LITERAL_OVERFLOW at known destinations.
+- Overload probes do not mutate candidate arguments; existing exact/widening
+  matches remain preferred. Apply conversions only after selecting a signature.
+  Cover aliases, nested arrays, slices, grouped/conditional arrays, fields,
+  functions, methods, function pointers, lambdas and enum tuple payloads. Empty
+  arrays and arrays nested in tuple/match result contexts are separate cases;
+  this fix does not claim a general contextual inference system.

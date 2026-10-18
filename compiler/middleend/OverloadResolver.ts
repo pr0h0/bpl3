@@ -84,6 +84,11 @@ export interface OverloadResolutionContext {
   ) => AST.TypeNode;
   typeToString: (type: AST.TypeNode | undefined) => string;
   getCurrentScope: () => SymbolTable;
+  contextualizeArrayLiteral: (
+    expr: AST.Expression,
+    targetType: AST.TypeNode,
+    apply?: boolean,
+  ) => AST.TypeNode | undefined;
 }
 
 /**
@@ -123,6 +128,7 @@ export class OverloadResolver {
     argTypes: (AST.TypeNode | undefined)[],
     genericArgs: AST.TypeNode[],
     location: SourceLocation,
+    arguments_?: AST.Expression[],
   ): {
     symbol: Symbol;
     type: AST.FunctionTypeNode;
@@ -359,7 +365,10 @@ export class OverloadResolver {
           continue;
         }
 
-        const compatible = this.ctx.areTypesCompatible(paramType, argTypes[i]!);
+        const compatible =
+          this.ctx.areTypesCompatible(paramType, argTypes[i]!) ||
+          (i < paramsToCheck && arguments_?.[i] !== undefined &&
+            this.ctx.contextualizeArrayLiteral(arguments_[i]!, paramType, false) !== undefined);
         if (!compatible) {
           allCompatible = false;
           break;

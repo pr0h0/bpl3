@@ -1338,6 +1338,109 @@ export abstract class TypeCheckerBase {
     );
   }
 
+  /** Plan literal array conversions without changing overload candidates' ASTs. */
+  public contextualizeArrayLiteral(
+    expr: AST.Expression,
+    targetType: AST.TypeNode,
+    apply: boolean = true,
+  ): AST.TypeNode | undefined {
+    if (
+      expr.kind !== "ArrayLiteral" &&
+      expr.kind !== "Group" &&
+      expr.kind !== "Ternary"
+    )
+      return;
+    const rootTarget = this.resolveType(targetType);
+    if (rootTarget.kind !== "BasicType" || !rootTarget.arrayDimensions.length)
+      return;
+    const updates = new Map<AST.Expression, AST.TypeNode>();
+    let hasArray = false;
+    const visit = (
+      value: AST.Expression,
+      expected: AST.TypeNode,
+    ): AST.TypeNode | undefined => {
+      const target = this.resolveType(expected);
+      if (value.kind === "Group") {
+        const type = visit(value.expression, target);
+        if (type && updates.has(value.expression)) updates.set(value, type);
+        return type;
+      }
+      if (value.kind === "Ternary" && target.kind === "BasicType" && target.arrayDimensions.length) {
+        const left = visit(value.trueExpr, target);
+        const right = visit(value.falseExpr, target);
+        if (!left || !right || !this.areTypesExactMatch(left, right)) return;
+        updates.set(value, left);
+        return left;
+      }
+      if (value.kind === "ArrayLiteral") {
+        // Keep this conversion specific to integer literal arrays. In particular,
+        // do not reinterpret existing array storage or infer callback signatures.
+        if (
+          target.kind !== "BasicType" ||
+          target.pointerDepth !== 0 ||
+          !target.arrayDimensions.length ||
+          !TypeUtils.isIntegerType({
+            ...target,
+            arrayDimensions: [],
+          }) ||
+          value.elements.length === 0 ||
+          (target.arrayDimensions[0] !== null &&
+            target.arrayDimensions[0] !== value.elements.length)
+        )
+          return;
+        hasArray = true;
+        const elementType = {
+          ...target,
+          arrayDimensions: target.arrayDimensions.slice(1),
+        };
+        for (const element of value.elements) {
+          if (!visit(element, elementType)) return;
+        }
+        const type = {
+          ...target,
+          arrayDimensions: [
+            value.elements.length,
+            ...target.arrayDimensions.slice(1),
+          ],
+        };
+        updates.set(value, type);
+        return type;
+      }
+      const actual = value.resolvedType;
+      if (
+        actual &&
+        (this.areTypesExactMatch(target, actual) ||
+          this.isImplicitWideningAllowed(actual, target))
+      )
+        return actual;
+      const constant = this.getIntegerConstantValue(value);
+      if (
+        constant !== undefined &&
+        this.isIntegerTypeCompatible(constant, target)
+      ) {
+        return target;
+      }
+      return undefined;
+    };
+    // Scalar expressions retain their usual typing and overload priority.
+    if (apply) this.checkIntegerConstantRange(expr, targetType);
+    const type = visit(expr, targetType);
+    if (!type || !hasArray) return;
+    if (apply) {
+      for (const [value, contextualType] of updates) {
+        // Scalar leaf annotations must keep the type their operators generate;
+        // array lowering performs the checked element conversion itself.
+        if (
+          value.kind === "ArrayLiteral" ||
+          (value.kind === "Group" && updates.has(value.expression)) ||
+          value.kind === "Ternary"
+        )
+          value.resolvedType = contextualType;
+      }
+    }
+    return type;
+  }
+
   public checkIntegerConstantRange(
     expr: AST.Expression,
     targetType: AST.TypeNode,

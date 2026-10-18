@@ -1301,7 +1301,9 @@ export function checkStructLiteral(
           genericMap,
         );
       }
-      const resolvedValueType = this.resolveType(valueType);
+      const resolvedValueType =
+        this.contextualizeArrayLiteral(field.value, resolvedMemberType) ??
+        this.resolveType(valueType);
       this.checkIntegerConstantRange(field.value, resolvedMemberType);
 
       if (!this.areTypesCompatible(resolvedMemberType, resolvedValueType)) {

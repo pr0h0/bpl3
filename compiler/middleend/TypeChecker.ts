@@ -2140,7 +2140,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     // Check const correctness
     this.checkIsMutable(expr.assignee);
 
-    const valueType = this.checkExpression(expr.value);
+    const initialValueType = this.checkExpression(expr.value);
+    const valueType =
+      targetType && expr.operator.type === TokenType.Equal
+        ? this.contextualizeArrayLiteral(expr.value, targetType) ?? initialValueType
+        : initialValueType;
     this.rejectOwningCopy(
       expr.value,
       valueType,
@@ -2489,6 +2493,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     argTypes: (AST.TypeNode | undefined)[],
     genericArgs: AST.TypeNode[],
     location: SourceLocation,
+    arguments_?: AST.Expression[],
   ): {
     symbol: Symbol;
     type: AST.FunctionTypeNode;
@@ -2501,6 +2506,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       argTypes,
       genericArgs,
       location,
+      arguments_,
     );
   }
 

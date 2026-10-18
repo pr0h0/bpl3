@@ -499,7 +499,7 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     return;
   }
 
-  const returnType = stmt.value
+  let returnType = stmt.value
     ? this.checkExpression(stmt.value)
     : this.makeVoidType();
 
@@ -523,6 +523,10 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
 
   if (this.currentFunctionReturnType) {
     const resolvedExpected = this.resolveType(this.currentFunctionReturnType);
+    if (stmt.value) {
+      returnType =
+        this.contextualizeArrayLiteral(stmt.value, resolvedExpected) ?? returnType;
+    }
     const resolvedActual = returnType
       ? this.resolveType(returnType)
       : this.makeVoidType();
@@ -1035,6 +1039,10 @@ export function checkVariableDecl(
     }
     try {
       initType = this.checkExpression(decl.initializer);
+      if (declaredType) {
+        initType =
+          this.contextualizeArrayLiteral(decl.initializer, declaredType) ?? initType;
+      }
       this.rejectOwningCopy(
         decl.initializer,
         declaredType ?? initType,
