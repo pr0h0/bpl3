@@ -6453,3 +6453,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   without creating a scope continue to use the caller's bindings.
 - Six regression cases failed before the fix; focused tests also cover normal
   catch binding visibility and collection of multiple diagnostics.
+
+
+## Failed conditional checking retained branch scopes
+
+- Checking a then branch (including its type-guard narrowing scope) or a single
+  statement else branch could throw before leaving the branch's scope. Later
+  diagnostic collection could consequently run in an unintended inner scope.
+- Restore the exact incoming scope with `finally` around each branch scope.
+  Four fail-fast conditional regressions failed before this correction.

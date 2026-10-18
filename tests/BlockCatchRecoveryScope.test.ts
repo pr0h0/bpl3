@@ -16,6 +16,10 @@ function firstStatement(source: string) {
 
 for (const source of [
   "{missing;}",
+  "if(true){missing;}else{}",
+  "if(true) missing;",
+  "if(true) {} else missing;",
+  "if(false) {} else if(true){missing;}",
   "{local unused:int=0;}",
   "{return;1;}",
   "try {} catch(secret:int){missing;}",

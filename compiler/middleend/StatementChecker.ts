@@ -284,25 +284,28 @@ function checkThenBranchWithNarrowing(
   branch: AST.Statement,
   narrowing: BranchNarrowing | undefined,
 ): void {
-  context.currentScope = context.currentScope.enterScope();
-  if (narrowing) {
-    context.defineSymbol(
-      narrowing.name,
-      "Variable",
-      narrowing.type,
-      narrowing.declaration,
-      undefined,
-      narrowing.isConst,
-    );
-  }
+  const previousScope = context.currentScope;
+  context.currentScope = previousScope.enterScope();
+  try {
+    if (narrowing) {
+      context.defineSymbol(
+        narrowing.name,
+        "Variable",
+        narrowing.type,
+        narrowing.declaration,
+        undefined,
+        narrowing.isConst,
+      );
+    }
 
-  if (branch.kind === "Block") {
-    checkBlock.call(context, branch as AST.BlockStmt, true);
-  } else {
-    context.checkStatement(branch);
+    if (branch.kind === "Block") {
+      checkBlock.call(context, branch as AST.BlockStmt, true);
+    } else {
+      context.checkStatement(branch);
+    }
+  } finally {
+    context.currentScope = previousScope;
   }
-
-  context.currentScope = context.currentScope.exitScope();
 }
 
 /**
@@ -405,9 +408,13 @@ export function checkIf(this: CheckerContext, stmt: AST.IfStmt): void {
       // Else if - no new scope needed for the 'if' itself as it handles its own scopes
       this.checkStatement(stmt.elseBranch);
     } else {
-      this.currentScope = this.currentScope.enterScope();
-      this.checkStatement(stmt.elseBranch);
-      this.currentScope = this.currentScope.exitScope();
+      const previousScope = this.currentScope;
+      this.currentScope = previousScope.enterScope();
+      try {
+        this.checkStatement(stmt.elseBranch);
+      } finally {
+        this.currentScope = previousScope;
+      }
     }
   }
 }
