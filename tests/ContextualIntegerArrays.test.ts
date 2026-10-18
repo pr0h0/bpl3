@@ -90,21 +90,24 @@ test("contextual array lowering and overload selection work at O0/O3", () => {
       frame sliceChoice(v:u8[])ret int{v;return 2;}
       frame sliceChoice(v:int[])ret int{v;return 1;}
       struct Picker {
+        values:u8[2],
         frame choose(this:*Picker,v:u8[2])ret int{v;return 2;}
         frame choose(this:*Picker,v:int[2])ret int{v;return 1;}
       }
+      type Pair<T>=T[2];
       frame main()ret int{
-        local picker:Picker=Picker{};
+        local aliased:Pair<u8>=[1,2];
+        local picker:Picker=Picker{values:[1,2]};
         local a:u8[2]=[3,4];
         local grid:u8[2][2]=[[1,2],[3,4]];
         local view:u8[]=[5,6];
         local b:u8[2]=true?[((7)),((8))]:[9,10];
         local f:Func<int>(u8[2])=accept;
         a=[11,12];
-        printf("%d %d %d %d %d %d %d %d %d %d\\n",accept([1,2]),accept(bytes()),cast<int>(grid[1][1]),cast<int>(view[1]),accept(b),f([2,3]),choose([1,2]),wide([1,300]),picker.choose([1,2]),sliceChoice([1,2]));
+        printf("%d %d %d %d %d %d %d %d %d %d %d %d\\n",accept([1,2]),accept(bytes()),cast<int>(grid[1][1]),cast<int>(view[1]),accept(b),f([2,3]),choose([1,2]),wide([1,300]),picker.choose([1,2]),sliceChoice([1,2]),accept(aliased),accept(picker.values));
         return accept(a)-23;
       }`,
-      expectedStdout: "3 7 4 6 15 5 1 300 1 1\n",
+      expectedStdout: "3 7 4 6 15 5 1 300 1 1 3 3\n",
     },
   ]);
 }, 60000);

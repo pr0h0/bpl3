@@ -1391,15 +1391,25 @@ export abstract class TypeCheckerBase {
         )
           return;
         hasArray = true;
+        // A new literal has its own canonical shape. Alias provenance describes
+        // the destination storage and would reopen consumed dimensions in codegen.
+        const literalType: AST.BasicTypeNode = {
+          kind: "BasicType",
+          name: target.name,
+          genericArgs: [],
+          pointerDepth: 0,
+          arrayDimensions: target.arrayDimensions,
+          location: value.location,
+        };
         const elementType = {
-          ...target,
+          ...literalType,
           arrayDimensions: target.arrayDimensions.slice(1),
         };
         for (const element of value.elements) {
           if (!visit(element, elementType)) return;
         }
         const type = {
-          ...target,
+          ...literalType,
           arrayDimensions: [
             value.elements.length,
             ...target.arrayDimensions.slice(1),
