@@ -6452,12 +6452,29 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   at O0 on staging bfbaf0c9. The cast creates a callee stack spill.
 - Return checking now uses BPL_RETURN_ARRAY_VIEW_ESCAPES for these explicit
   conversions too, including groups, conditionals and aggregate literal fields.
-  Ordinary calls consume their arguments within the frame and are not traversed;
-  enum tuple constructors retain their arguments and are checked as aggregates. This
-  does not add general lifetime/provenance analysis for local view aliases.
+  Enum tuple constructors retain arguments and are checked as aggregates.
+  This does not add general lifetime/provenance analysis for local view aliases.
 - The backend used the raw cast target instead of the checker's resolved target:
   cast<int[]>(array) failed with Unsupported cast where cast<i32[]>(array) worked.
   It also omitted fixed-array-to-pointer casts accepted by the checker. Use the
   checked cast type and existing array-to-pointer spill lowering. Native O0/O3
   tests cover primitive spellings, aliases, literal/local arrays, byte views,
   safe immediate consumption, and existing caller-owned view passthroughs.
+
+
+## Returned calls and match results bypassed explicit array-view checks
+
+- CodeRabbit found that borrow(cast<i32[]>([11,12])) can return its temporary
+  argument, while match expression arms and block yields can also carry casts
+  past the initial guard. All three forms reproduce stack-use-after-return
+  under AddressSanitizer at O0 on 2a227519.
+- Return traversal now checks match expression values and recorded block yields.
+  For calls with view-capable results, it conservatively checks cast arguments;
+  the callee may return borrowed argument storage. Scalar-only results, including
+  fixed arrays and generic value-only structs, remain supported. Nested tuple,
+  struct and enum result types are inspected for potential borrowed storage.
+- No interprocedural ownership proof or tracking of local view aliases is added.
+  Calls returning independent storage may need the temporary cast assigned to a
+  local before the call; callers must still ensure the final storage outlives
+  the return. Positive native tests retain scalar consumers, copied aggregate
+  results, caller-owned match results and temporary views consumed in-frame.

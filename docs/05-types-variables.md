@@ -257,8 +257,13 @@ an existing borrowed slice/pointer only when its elements outlive the call.
 Explicit array-to-view casts used within a frame create views of temporary
 array copies; they do not extend storage lifetime or provide an alias to the
 original array. Keep their use within that frame.
-The explicit-cast check also covers grouped and conditional values and casts
-inside returned aggregate literals. It does not track local view aliases.
+The explicit-cast check also covers grouped and conditional values, match
+results (including block yields), and casts inside returned aggregate literals.
+A returned call whose result can contain borrowed storage is conservatively
+rejected if an argument creates such a temporary view: the compiler cannot
+prove that the callee discards the argument. Calls returning scalar values or
+aggregates containing only values remain supported. Local view aliases are
+not tracked by this check.
 
 See [Arrays](16-arrays.md) for complete details.
 

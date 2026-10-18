@@ -166,8 +166,62 @@ function findReturnedStackAddress(
   return undefined;
 }
 
+/** Without interprocedural provenance, a borrowed result may retain an argument. */
+function mayReturnBorrowedStorage(
+  context: CheckerContext,
+  type: AST.TypeNode | undefined,
+  depth = 0,
+): boolean {
+  if (!type || depth > 64) return true;
+  const resolved = context.resolveType(type);
+  if ("arrayDimensions" in resolved && resolved.arrayDimensions?.includes(null))
+    return true;
+  if (resolved.kind === "TupleType") {
+    return resolved.types.some((element) =>
+      mayReturnBorrowedStorage(context, element, depth + 1),
+    );
+  }
+  if (resolved.kind !== "BasicType") return true;
+  if (resolved.pointerDepth > 0 || resolved.name === "string") return true;
+  const element = { ...resolved, arrayDimensions: [] };
+  if (
+    TypeUtils.isNumericType(element) ||
+    resolved.name === "void" ||
+    resolved.name === "nullptr"
+  )
+    return false;
+  const decl = resolved.resolvedDeclaration;
+  if (decl?.kind !== "StructDecl" && decl?.kind !== "EnumDecl") return true;
+  const map = new Map<string, AST.TypeNode>();
+  for (let i = 0; i < decl.genericParams.length; i++) {
+    const argument = resolved.genericArgs[i];
+    if (argument) map.set(decl.genericParams[i]!.name, argument);
+  }
+  const contains = (member: AST.TypeNode) =>
+    mayReturnBorrowedStorage(
+      context,
+      context.substituteType(member, map),
+      depth + 1,
+    );
+  if (decl.kind === "StructDecl") {
+    return (
+      decl.inheritanceList.some(contains) ||
+      decl.members.some(
+        (member) => member.kind === "StructField" && contains(member.type),
+      )
+    );
+  }
+  return decl.variants.some((variant) => {
+    const data = variant.dataType;
+    if (data?.kind === "EnumVariantTuple") return data.types.some(contains);
+    if (data?.kind === "EnumVariantStruct")
+      return data.fields.some((field) => contains(field.type));
+    return false;
+  });
+}
+
 /** Casts in the returned value can create the same stack spills as return decay.
- * Do not descend into calls: their arguments are consumed while this frame lives.
+ * Calls with borrowed results may retain arguments; scalar results cannot.
  */
 function findReturnedArrayViewCast(
   context: CheckerContext,
@@ -205,10 +259,25 @@ function findReturnedArrayViewCast(
         if (cast) return cast;
       }
       break;
+    case "Match":
+      for (const arm of expr.arms) {
+        const values =
+          arm.body.kind === "Block"
+            ? (context.matchYieldValues.get(arm.body) ?? [])
+            : [arm.body];
+        for (const value of values) {
+          const cast = findReturnedArrayViewCast(context, value);
+          if (cast) return cast;
+        }
+      }
+      break;
     case "Call":
-      // Enum tuple constructors retain their payloads; ordinary calls consume
-      // arguments before this frame returns and are not traversed.
-      if (expr.enumVariantInfo) {
+      // Constructors store their payloads. Other calls may return a borrowed
+      // argument, unless their result cannot carry borrowed storage.
+      if (
+        expr.enumVariantInfo ||
+        mayReturnBorrowedStorage(context, expr.resolvedType)
+      ) {
         for (const argument of expr.args) {
           const cast = findReturnedArrayViewCast(context, argument);
           if (cast) return cast;
