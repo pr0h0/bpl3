@@ -19,6 +19,7 @@ for (const source of [
   "type View=int[];frame bad()ret View{return [1,2];}",
   "frame bad()ret int[]{return cast<int[]>([1,2]);}",
   "frame bad()ret i32[]{return cast<i32[]>([1,2]);}",
+  "frame bad()ret int[]{return match(true){true=>{type View=int[];return cast<View>([1,2]);},false=>cast<int[]>([3,4]),};}",
   "frame borrow(v:int[])ret int[]{return v;}frame bad()ret int[]{return borrow(cast<int[]>([1,2]));}",
   "frame borrow(v:*int)ret *int{return v;}frame bad()ret *int{return borrow(cast<*int>([1,2]));}",
   "frame bad()ret int[]{return match(true){true=>cast<int[]>([1,2]),false=>cast<int[]>([3,4]),};}",

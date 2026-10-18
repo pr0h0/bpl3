@@ -6478,3 +6478,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   compiler cannot prove this property. Positive native tests retain scalar
   consumers, copied aggregate
   results, caller-owned match results and temporary views consumed in-frame.
+
+
+## Match block yield types lost block-local alias resolution
+
+- A match arm defining `type View=int[]` and yielding `cast<View>([1,2])`
+  was compared against a sibling `int[]` arm after its scope ended, producing
+  a false incompatible-arms error. Collect resolved yield types while the
+  declaring scope is live; inspect cast results using their checked types.
+- Native O0/O3 controls consume such a match value within its frame. Returning
+  that value directly instead reports BPL_RETURN_ARRAY_VIEW_ESCAPES.

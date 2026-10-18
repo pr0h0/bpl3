@@ -16,7 +16,7 @@ test("explicit fixed-array views use checked types and remain usable within the 
       frame copied(v:int[])ret int[2]{return [v[0],v[1]];}
       frame consumeCopy()ret int[2]{return copied(cast<int[]>([33,34]));}
       frame consumeMatch()ret int{return match(true){true=>read(cast<int[]>([1,2])),false=>0,};}
-      frame localMatch()ret int{local v:int[]=match(true){true=>{return cast<int[]>([4,5]);},false=>cast<int[]>([6,7]),};return v[0];}
+      frame localMatch()ret int{local v:int[]=match(true){true=>{type LocalView=int[];return cast<LocalView>([4,5]);},false=>cast<int[]>([6,7]),};return v[0];}
       frame matched(v:int[])ret int[]{return match(true){true=>{return v;},false=>v,};}
       frame boxed(v:int[])ret Box{return Box.Value(cast<int[]>(v));}
       frame first(v:Box)ret int{return match(v){Box.Value(data)=>data[0],};}

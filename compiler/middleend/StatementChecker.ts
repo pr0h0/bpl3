@@ -233,7 +233,7 @@ function findReturnedArrayViewCast(
       const source = expr.expression.resolvedType;
       if (source) {
         const conversion = lowerImplicitConversion(
-          context.resolveType(expr.targetType),
+          context.resolveType(expr.resolvedType ?? expr.targetType),
           context.resolveType(source),
         );
         if (
@@ -648,7 +648,8 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     const context =
       typeChecker.matchContext[typeChecker.matchContext.length - 1];
     if (returnType) {
-      context.inferredTypes.push(returnType);
+      // Preserve block-local aliases before the match arm scope is exited.
+      context.inferredTypes.push(this.resolveType(returnType));
       if (stmt.value) context.inferredValues?.push(stmt.value);
     }
     return;
