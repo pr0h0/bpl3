@@ -166,6 +166,186 @@ function findReturnedStackAddress(
   return undefined;
 }
 
+/** Without interprocedural provenance, a borrowed result may retain an argument. */
+function mayReturnBorrowedStorage(
+  context: CheckerContext,
+  type: AST.TypeNode | undefined,
+  depth = 0,
+): boolean {
+  if (!type || depth > 64) return true;
+  const resolved = context.resolveType(type);
+  if ("arrayDimensions" in resolved && resolved.arrayDimensions?.includes(null))
+    return true;
+  if (resolved.kind === "TupleType") {
+    return resolved.types.some((element) =>
+      mayReturnBorrowedStorage(context, element, depth + 1),
+    );
+  }
+  if (resolved.kind !== "BasicType") return true;
+  if (resolved.pointerDepth > 0 || resolved.name === "string") return true;
+  const element = { ...resolved, arrayDimensions: [] };
+  if (
+    TypeUtils.isNumericType(element) ||
+    resolved.name === "void" ||
+    resolved.name === "nullptr"
+  )
+    return false;
+  const decl = resolved.resolvedDeclaration;
+  if (decl?.kind !== "StructDecl" && decl?.kind !== "EnumDecl") return true;
+  const map = new Map<string, AST.TypeNode>();
+  for (let i = 0; i < decl.genericParams.length; i++) {
+    const argument = resolved.genericArgs[i];
+    if (argument) map.set(decl.genericParams[i]!.name, argument);
+  }
+  const contains = (member: AST.TypeNode) =>
+    mayReturnBorrowedStorage(
+      context,
+      context.substituteType(member, map),
+      depth + 1,
+    );
+  if (decl.kind === "StructDecl") {
+    return (
+      decl.inheritanceList.some(contains) ||
+      decl.members.some(
+        (member) => member.kind === "StructField" && contains(member.type),
+      )
+    );
+  }
+  return decl.variants.some((variant) => {
+    const data = variant.dataType;
+    if (data?.kind === "EnumVariantTuple") return data.types.some(contains);
+    if (data?.kind === "EnumVariantStruct")
+      return data.fields.some((field) => contains(field.type));
+    return false;
+  });
+}
+
+/** Casts in the returned value can create the same stack spills as return decay.
+ * Calls with borrowed results may retain arguments; scalar results cannot.
+ */
+function findReturnedArrayViewCast(
+  context: CheckerContext,
+  expr: AST.Expression | undefined,
+): AST.Expression | undefined {
+  if (!expr) return undefined;
+  switch (expr.kind) {
+    case "Cast":
+    case "As": {
+      const source = expr.expression.resolvedType;
+      if (source) {
+        const conversion = lowerImplicitConversion(
+          context.resolveType(
+            expr.resolvedType ??
+              (expr.kind === "Cast" ? expr.targetType : expr.type),
+          ),
+          context.resolveType(source),
+        );
+        if (
+          conversion.kind === "array-to-slice" ||
+          conversion.kind === "array-to-pointer"
+        ) {
+          return expr;
+        }
+      }
+      return findReturnedArrayViewCast(context, expr.expression);
+    }
+    case "Group":
+      return findReturnedArrayViewCast(context, expr.expression);
+    case "Ternary":
+      return (
+        findReturnedArrayViewCast(context, expr.trueExpr) ??
+        findReturnedArrayViewCast(context, expr.falseExpr)
+      );
+    case "StructLiteral":
+    case "EnumStructVariant":
+      for (const field of expr.fields) {
+        const cast = findReturnedArrayViewCast(context, field.value);
+        if (cast) return cast;
+      }
+      break;
+    case "Match":
+      for (const arm of expr.arms) {
+        const values =
+          arm.body.kind === "Block"
+            ? (context.matchYieldValues.get(arm.body) ?? [])
+            : [arm.body];
+        for (const value of values) {
+          const cast = findReturnedArrayViewCast(context, value);
+          if (cast) return cast;
+        }
+      }
+      break;
+    case "Call":
+      // Constructors store their payloads. Other calls may return a borrowed
+      // argument, unless their result cannot carry borrowed storage.
+      if (
+        expr.enumVariantInfo ||
+        mayReturnBorrowedStorage(context, expr.resolvedType)
+      ) {
+        const receiverCast = findReturnedArrayViewCast(context, expr.callee);
+        if (receiverCast) return receiverCast;
+        for (const argument of expr.args) {
+          const cast = findReturnedArrayViewCast(context, argument);
+          if (cast) return cast;
+        }
+      }
+      break;
+    case "Member":
+    case "Index": {
+      if (!mayReturnBorrowedStorage(context, expr.resolvedType)) break;
+      let object = expr.object;
+      while (object.kind === "Group") object = object.expression;
+      // Literal projections can select exactly one value. Do not reject an
+      // unrelated temporary borrow that is discarded with the aggregate.
+      if (expr.kind === "Member" && object.kind === "StructLiteral") {
+        const field = object.fields.find(
+          (candidate) => candidate.name === expr.property,
+        );
+        if (field) return findReturnedArrayViewCast(context, field.value);
+      }
+      if (
+        expr.kind === "Index" &&
+        object.kind === "ArrayLiteral" &&
+        expr.index.kind === "Literal" &&
+        typeof expr.index.value === "number" &&
+        Number.isInteger(expr.index.value)
+      ) {
+        const element = object.elements[expr.index.value];
+        if (element) return findReturnedArrayViewCast(context, element);
+      }
+      return findReturnedArrayViewCast(context, object);
+    }
+    case "Unary":
+      if (mayReturnBorrowedStorage(context, expr.resolvedType)) {
+        return findReturnedArrayViewCast(context, expr.operand);
+      }
+      break;
+    case "Binary":
+      if (mayReturnBorrowedStorage(context, expr.resolvedType)) {
+        return (
+          findReturnedArrayViewCast(context, expr.left) ??
+          findReturnedArrayViewCast(context, expr.right)
+        );
+      }
+      break;
+    case "Assignment":
+      if (mayReturnBorrowedStorage(context, expr.resolvedType)) {
+        return findReturnedArrayViewCast(context, expr.value);
+      }
+      break;
+    case "GenericInstantiation":
+      return findReturnedArrayViewCast(context, expr.base);
+    case "TupleLiteral":
+    case "ArrayLiteral":
+      for (const element of expr.elements) {
+        const cast = findReturnedArrayViewCast(context, element);
+        if (cast) return cast;
+      }
+      break;
+  }
+  return undefined;
+}
+
 function getShadowedValueKind(symbol: Symbol): "parameter" | "variable" {
   return symbol.kind === "Parameter" || symbol.declaration.kind === "Parameter"
     ? "parameter"
@@ -530,7 +710,8 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     const context =
       typeChecker.matchContext[typeChecker.matchContext.length - 1];
     if (returnType) {
-      context.inferredTypes.push(returnType);
+      // Preserve block-local aliases before the match arm scope is exited.
+      context.inferredTypes.push(this.resolveType(returnType));
       if (stmt.value) context.inferredValues?.push(stmt.value);
     }
     return;
@@ -578,14 +759,16 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     // Return lowering spills a fixed-array value before creating its view.
     // That spill belongs to this frame even if the value came from a global.
     const conversion = lowerImplicitConversion(resolvedExpected, resolvedActual);
+    const returnedCast = findReturnedArrayViewCast(this, stmt.value);
     if (
       conversion.kind === "array-to-slice" ||
-      conversion.kind === "array-to-pointer"
+      conversion.kind === "array-to-pointer" ||
+      returnedCast
     ) {
       throw new CompilerError(
-        "Cannot return a borrowed view of a fixed array by implicit conversion",
+        "Cannot return a borrowed view of a fixed array by conversion",
         "Return the fixed array by value, or return an existing slice/pointer whose elements outlive the call.",
-        stmt.value?.location ?? stmt.location,
+        returnedCast?.location ?? stmt.value?.location ?? stmt.location,
         RETURN_ARRAY_VIEW_ESCAPES_CODE,
       );
     }
