@@ -6571,3 +6571,62 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   when no symbol is resolved, without changing that existing language policy.
 - Six source regressions failed before the fix across simple, nested, field
   and catch annotations. Positive controls preserve actual type declarations.
+
+
+## Undeclared short type names bypassed annotation validation
+
+- The known-type helper accepted any unresolved single uppercase letter,
+  optionally followed by a digit, as a generic parameter. Undeclared T/A/X1
+  consequently passed local, field, catch, callable and generic-argument checks.
+- Remove that spelling heuristic and require an actual type symbol. Generic
+  parameters are already registered as type symbols in their declaration scope;
+  declared short struct/alias names remain valid. Existing BPL_TYPE_NOT_FOUND
+  diagnostics now identify undeclared names before code generation.
+- Fifteen regression cases failed before this fix; positive controls preserve
+  declared generic parameters and short type declarations.
+
+
+## Function and explicit lambda signatures skipped known-type validation
+
+- Function/method parameters and return types, plus explicit lambda signatures,
+  were resolved without checking whether their named types existed. Unknown
+  types could survive in unused parameters or in a return type whose body throws.
+- Validate signatures after registering generic parameters, before binding value
+  parameters. Lambda checks likewise run before entering the parameter scope;
+  context-inferred lambda types retain their existing path.
+- Eight regression cases failed before the correction, including nested callable
+  types and undeclared short names. External ABI declarations are outside this
+  ordinary-language checking change.
+
+
+## Failed struct and enum checks exposed generic parameter scopes
+
+- A failed field or method-signature check exited struct/enum checking before
+  restoring the enclosing scope. Later declarations could then use generic
+  parameters from the failed type as though those parameters were in scope.
+- Guard both type-body entry points with `finally` and restore the exact
+  incoming scope on success or failure. Function-body recovery already applies
+  the same rule inside methods.
+- Three collection-mode regressions failed before the correction, covering a
+  struct field, a struct method and an enum method.
+
+## Enum payload annotations skipped known-type validation
+
+- Tuple and named-field enum payloads resolved their types without checking
+  whether the names denoted declared types. Unknown names, including nested
+  callable parameters, survived declaration checking without BPL_TYPE_NOT_FOUND.
+- Validate both payload forms before resolution while the enum's generic
+  parameters are in scope. Declared generic parameters and aliases stay valid.
+- Eight negative regressions failed before the fix; two positive controls
+  preserve generic payloads and nested callable types. Found during PR review.
+
+## Known-type checks lost previously resolved namespace identity
+
+- Signature resolution can replace a qualified nominal name such as Types.Token
+  with Token while recording its declaration. Subsequent known-type validation
+  searched only the bare name and incorrectly rejected valid namespace imports.
+- Honor recorded struct/enum/spec declarations using the same guarded helper as
+  type resolution. A declaration for a different name or an enum variant does
+  not bypass name validation. Generic arguments are still validated recursively.
+- The transitive module-cache regression exposed this during CI; focused controls
+  cover all three nominal declaration kinds and mismatched names.

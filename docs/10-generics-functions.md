@@ -15,6 +15,10 @@ Generic functions allow you to write code that works with multiple types while m
 
 ## Basic Syntax
 
+Generic parameters must be declared in a generic parameter list; a capitalized
+name such as `T` does not declare a type by itself. Function bodies may use
+parameters from their function or an enclosing generic type.
+
 Generic parameters are specified in angle brackets `<T>` after the function name:
 
 ```bpl

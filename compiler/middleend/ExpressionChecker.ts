@@ -2005,6 +2005,12 @@ function checkLambdaBody(
   this: CheckerContext,
   expr: AST.LambdaExpr,
 ): AST.TypeNode {
+  // Explicit signature names belong to the enclosing declaration scope.
+  for (const param of expr.params) {
+    if (param.type) this.ensureKnownType(param.type);
+  }
+  if (expr.returnType) this.ensureKnownType(expr.returnType);
+
   // 0. Infer types from context
   let expectedFuncType: AST.FunctionTypeNode | undefined;
   if (this.matchContext && this.matchContext.length > 0) {

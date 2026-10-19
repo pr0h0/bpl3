@@ -76,14 +76,21 @@ describe("TypeChecker", () => {
     };
 
     for (const name of ["int", "T"]) {
-      checker.ensureKnownType({
+      const annotation: AST.BasicTypeNode = {
         kind: "BasicType",
         name,
         genericArgs: [],
         pointerDepth: 0,
         arrayDimensions: [],
         location,
-      });
+      };
+      if (name === "T") {
+        expect(() => checker.ensureKnownType(annotation)).toThrow(
+          "Undefined type 'T'",
+        );
+      } else {
+        checker.ensureKnownType(annotation);
+      }
     }
 
     expect(resolvedNames).toEqual(["T"]);

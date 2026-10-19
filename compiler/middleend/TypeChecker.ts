@@ -1079,6 +1079,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
     this.checkFunctionAttributes(decl, parentStruct);
 
+    // Validate signature names before value parameters can shadow type names.
+    for (const param of decl.params) this.ensureKnownType(param.type);
+    this.ensureKnownType(decl.returnType);
+
     // Add params to scope
     const paramNames = decl.params.length > 1 ? new Set<string>() : undefined;
     for (let i = 0; i < decl.params.length; i++) {
@@ -1582,6 +1586,15 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   }
 
   private checkStructBody(decl: AST.StructDecl): void {
+    const previousScope = this.currentScope;
+    try {
+      this.checkStructBodyInScope(decl);
+    } finally {
+      this.currentScope = previousScope;
+    }
+  }
+
+  private checkStructBodyInScope(decl: AST.StructDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
     // Check for circular inheritance FIRST, before any type resolution
@@ -1872,6 +1885,15 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Enum Body Checking ==========
 
   private checkEnumBody(decl: AST.EnumDecl): void {
+    const previousScope = this.currentScope;
+    try {
+      this.checkEnumBodyInScope(decl);
+    } finally {
+      this.currentScope = previousScope;
+    }
+  }
+
+  private checkEnumBodyInScope(decl: AST.EnumDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
     // Check for empty enum
@@ -1951,10 +1973,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (variant.dataType) {
         if (variant.dataType.kind === "EnumVariantTuple") {
           for (const type of variant.dataType.types) {
+            this.ensureKnownType(type);
             this.resolveType(type);
           }
         } else if (variant.dataType.kind === "EnumVariantStruct") {
           for (const field of variant.dataType.fields) {
+            this.ensureKnownType(field.type);
             this.resolveType(field.type);
           }
         }
