@@ -26,7 +26,11 @@ for (const source of [
 ]) {
   test(`rejects value symbols used as type annotations: ${source}`, () => {
     expect(
-      errors(source).some((error) => error.code === "BPL_TYPE_NOT_FOUND"),
+      errors(source).some(
+        (error) =>
+          error.code === "BPL_TYPE_NOT_FOUND" &&
+          error.message.includes("not a type"),
+      ),
     ).toBe(true);
   });
 }
