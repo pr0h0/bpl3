@@ -188,7 +188,7 @@ export async function runFormatCommand(
             log.debug(`${filePath} (unchanged)`);
           }
         } else {
-          console.log(formatted);
+          process.stdout.write(formatted);
         }
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);

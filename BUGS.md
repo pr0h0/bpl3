@@ -6801,3 +6801,10 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   break, so source following a lone CR can retain the preceding line number.
   Comment scanning now stops at CR without consuming following code, but a
   consistent whole-frontend source-location correction remains separate work.
+
+## Format stdout added a second final newline
+
+- Formatter output already ended in one newline, but the CLI printed it through
+  console.log, adding another. Redirected stdout differed from --write output.
+- Write the formatted text directly to stdout; cover plain, comment-bearing and
+  CRLF input and check that redirected output equals the written file.
