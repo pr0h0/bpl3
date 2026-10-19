@@ -6818,3 +6818,9 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Formatter source mapping relies on these coordinates. Advance through UTF-16
   units consistently; cover plain and interpolated
   strings, literal hash characters, actual comments and multiline literals.
+
+## Formatter example bypassed canonical C declarations
+
+- The new formatter regression example redeclared printf directly, violating the
+  repository example declaration check. Import printf from std/c.bpl instead.
+- Covered by ExampleExterns.test.ts and the formatter native/corpus checks.

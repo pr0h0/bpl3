@@ -1,6 +1,6 @@
 import [String] from "std/string.bpl";
 
-extern printf(fmt: string, ...);
+import [printf] from "std/c.bpl";
 
 struct Point {
     value: int, # Value owned by this point.
