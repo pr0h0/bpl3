@@ -6742,3 +6742,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Preserve the existing parent-name, non-spec and self-extension checks before
   validating inherited arguments or method signatures. Three regression cases
   protect these primary diagnostics when an argument is also undefined.
+
+## Spec inheritance silently accepted non-spec type shapes
+
+- Tuple, function and lambda parent types bypassed identity checks because only
+  BasicType parents were checked. CodeRabbit identified this outside-diff issue
+  in PR #19. Independent tests also found pointer and array wrappers around a
+  named spec accepted as parents. All nine invalid declarations were accepted.
+- Reject non-BasicType parents and BasicType pointer/array wrappers at the
+  inheritance boundary. Named specs, generic arguments and multiple parents
+  remain valid; invalid shapes report a source-located compiler diagnostic.

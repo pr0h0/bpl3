@@ -2012,6 +2012,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     // Validate inheritance list
     if (decl.extends) {
       for (const parentType of decl.extends) {
+        if (
+          parentType.kind !== "BasicType" ||
+          parentType.pointerDepth !== 0 ||
+          parentType.arrayDimensions.length > 0
+        ) {
+          throw new CompilerError(
+            "Spec inheritance requires a named spec type",
+            "Use a named spec without tuple, callable, pointer or array wrappers.",
+            parentType.location || decl.location,
+          );
+        }
         // Check for self-extension
         if (parentType.kind === "BasicType" && parentType.name === decl.name) {
           throw new CompilerError(
