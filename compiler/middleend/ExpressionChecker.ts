@@ -6,7 +6,7 @@
 import * as AST from "../common/AST";
 import { lowerStringInterpolation } from "./lowering/StringInterpolation";
 import { getPrimitiveType } from "../common/PrimitiveTypes";
-import { CompilerError } from "../common/CompilerError";
+import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
 import { typeCheckerLog } from "../common/Logger";
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
@@ -18,6 +18,7 @@ import {
 } from "./OverloadResolver";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import type { CheckerContext } from "./CheckerContext";
+import { checkAllPathsReturn } from "./StatementChecker";
 import {
   ADDRESS_OF_CONSTANT_CODE,
   CAPTURED_VALUE_ASSIGNED_CODE,
@@ -2096,9 +2097,24 @@ function checkLambdaBody(
   const savedMatchContext = checker.matchContext;
   checker.matchContext = [];
 
+  const bodyDiagnosticStart = this.errors.length;
   try {
     // Check the body
     this.checkBlock(expr.body, false); // false because we already created the scope
+    const bodyHasErrors = this.errors
+      .slice(bodyDiagnosticStart)
+      .some((error) => error.toDiagnostic().severity === DiagnosticSeverity.Error);
+    if (
+      !bodyHasErrors &&
+      !TypeUtils.isVoidType(checker.currentFunctionReturnType) &&
+      !checkAllPathsReturn.call(this, expr.body)
+    ) {
+      throw new CompilerError(
+        "Lambda may not return a value on all code paths",
+        "Ensure all paths return a value.",
+        expr.location,
+      );
+    }
   } finally {
     checker.matchContext = savedMatchContext;
     checker.inDefer = prevInDefer; // Restore defer state

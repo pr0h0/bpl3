@@ -68,6 +68,16 @@ export const TYPE_ALIASES = PRIMITIVE_ALIASES;
  * Type utilities class providing static methods for type operations
  */
 export class TypeUtils {
+  /** True only for a resolved plain void value, not a pointer or array. */
+  static isVoidType(type: AST.TypeNode): boolean {
+    return (
+      type.kind === "BasicType" &&
+      type.name === "void" &&
+      type.pointerDepth === 0 &&
+      type.arrayDimensions.length === 0
+    );
+  }
+
   /**
    * Check if a type is a numeric type (integer or float)
    */

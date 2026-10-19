@@ -6630,3 +6630,34 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   not bypass name validation. Generic arguments are still validated recursively.
 - The transitive module-cache regression exposed this during CI; focused controls
   cover all three nominal declaration kinds and mismatched names.
+
+## Return completeness ignored compound types and void pointers
+
+- Named functions only checked return completeness for basic types whose names
+  were not void. Tuple/callable returns and void pointers could fall through;
+  an alias to plain void incorrectly required a return value.
+- Resolve the declared return type before value parameters enter scope, and
+  exempt only plain void. Keep primary body errors from causing return cascades.
+- Five regression cases failed before the fix; throw-only bodies, aliases to
+  compound values and primary-error controls cover the existing behavior.
+
+## Nonvoid lambdas lacked return completeness checks
+
+- Lambdas could promise a value through an explicit or contextual signature
+  yet fall through or return only on some branches. Their bodies were type
+  checked without the named-function return-flow check.
+- Apply the existing return-flow analysis to nonvoid lambdas, exempt plain
+  void and preserve primary body errors without a missing-return cascade.
+- Eleven regressions failed before the fix, covering scalar, tuple, callable
+  and void-pointer returns, contextual signatures and partial branching.
+
+## Unconditional loops falsely failed return completeness
+
+- Return analysis always allowed loops to finish, rejecting nonvoid functions
+  that diverged in an unconditional loop. Applying the same analysis to lambdas
+  would also reject their valid diverging bodies (audit C15).
+- Treat conditionless and literal-true loops without reachable breaks as
+  diverging; nested loop/switch breaks remain local to those constructs. A
+  reachable break or a conditional loop still requires a subsequent return.
+- Twelve checking cases and a native compilation control failed before the
+  correction; ten exit-path controls preserve missing-return diagnostics.
