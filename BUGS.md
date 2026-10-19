@@ -6640,3 +6640,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   exempt only plain void. Keep primary body errors from causing return cascades.
 - Five regression cases failed before the fix; throw-only bodies, aliases to
   compound values and primary-error controls cover the existing behavior.
+
+## Nonvoid lambdas lacked return completeness checks
+
+- Lambdas could promise a value through an explicit or contextual signature
+  yet fall through or return only on some branches. Their bodies were type
+  checked without the named-function return-flow check.
+- Apply the existing return-flow analysis to nonvoid lambdas, exempt plain
+  void and preserve primary body errors without a missing-return cascade.
+- Eleven regressions failed before the fix, covering scalar, tuple, callable
+  and void-pointer returns, contextual signatures and partial branching.
