@@ -356,6 +356,14 @@ fragments explicitly using the conventions in `docs/documentation-validation.md`
 The generated declaration reference is checked by `tests/StdlibReference.test.ts`;
 regenerate it with `bun run docs:stdlib` after public library changes.
 
+## Formatter correctness
+
+Formatting must preserve program meaning and comment text/order, keep comments
+attached to their surrounding source tokens, and be idempotent. Run the
+formatter tests, including the repository corpus and native before/after checks,
+when changing formatting. A copied or serialized AST with comments needs the
+original source as the second Formatter.format argument.
+
 ## 7. Bug Reporting
 
 If you discover a bug during development:
@@ -370,7 +378,8 @@ If you discover a bug during development:
 - `compiler/`: Source code for the compiler.
   - `frontend/`: Lexer, Parser (Peggy).
   - `middleend/`: TypeChecker, PackageManager.
-  - `backend/`: CodeGenerator (LLVM), Formatter.
+  - `backend/`: CodeGenerator (LLVM).
+  - `formatter/`: Source formatting and comment placement.
   - `common/`: AST, Errors, Utils.
 - `grammar/`: Peggy grammar file (`bpl.peggy`).
 - `examples/`: Integration test cases.

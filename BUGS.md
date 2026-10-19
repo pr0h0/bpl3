@@ -6762,12 +6762,20 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   comments at distinct positions. Cover line, block and nested block comments,
   formatting idempotence, and parity with lexer-provided comments.
 
-## Formatter comment placement still needs correction (open)
+## Formatter moved comments out of their source containers
 
 - Parameter-list and array-literal comments move out of their original container
   into the function body. Struct field trailing comments move onto later lines.
-- Ordinary source reproductions confirmed these positions before formatter work;
-  fixes must preserve comment order and text, syntax and formatting idempotence.
+- Source-aware formatting now aligns code tokens and places comments at their
+  original lexical boundaries, with continuation indentation and aligned closing
+  delimiters for comment-bearing lists. Preserve trailing comments, section
+  spacing and multiline artwork; keep interpolation comments inside their token.
+- Thirty-four placement regressions failed against the prior formatter. The
+  repository corpus also exposed two pre-existing idempotence failures in
+  lib/string_builder.bpl and packages/bpl-db/src/storage.bpl; both now pass.
+- Refuse comment formatting for detached ASTs without original source instead of
+  guessing positions; callers can supply source explicitly. Parser results retain
+  weakly held provenance, without adding source text to serialized ASTs.
 
 ## Token-assisted parsing dropped comments inside interpolation expressions
 
