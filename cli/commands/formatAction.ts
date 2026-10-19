@@ -103,6 +103,10 @@ export async function runFormatCommand(
     }
 
     const { formatSource } = await import("./formatEngine");
+    const { loadFormatterConfig } =
+      await import("../../compiler/formatter/FormatterConfig");
+    const { validateFormatterOptions } =
+      await import("../../compiler/formatter/FormatterOptions");
     let totalFiles = 0;
     let updatedFiles = 0;
     let hasError = false;
@@ -146,8 +150,23 @@ export async function runFormatCommand(
           continue;
         }
 
+        const project = loadFormatterConfig(filePath, options.config);
+        const overrides = validateFormatterOptions({
+          ...(options.indentWidth !== undefined
+            ? { indentWidth: Number(options.indentWidth) }
+            : {}),
+          ...(options.useTabs !== undefined
+            ? { useTabs: options.useTabs }
+            : {}),
+          ...(options.lineEnding !== undefined
+            ? { lineEnding: options.lineEnding }
+            : {}),
+        });
         const content = fs.readFileSync(filePath, "utf-8");
-        const formatted = formatSource(content, filePath);
+        const formatted = formatSource(content, filePath, {
+          ...project.options,
+          ...overrides,
+        });
 
         if (options.check) {
           if (content !== formatted) {

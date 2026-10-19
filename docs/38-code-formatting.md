@@ -32,6 +32,39 @@ frame add(
 }
 ```
 
+## Project configuration
+
+Place a `.bplfmt.json` file beside your sources or in a parent directory:
+
+```json
+{
+  "indentWidth": 4,
+  "useTabs": false,
+  "lineEnding": "lf"
+}
+```
+
+For each input file, the command searches upward from that file's directory.
+The closest configuration wins; parent configurations are not merged. Omitted
+settings use the language defaults. JSON must contain only the settings above
+and optional string `$schema` metadata. Malformed JSON, unknown settings and
+invalid values are reported as processing errors before that file is written.
+
+Command flags override project settings:
+
+```bash
+bpl format --indent-width 2 --line-ending crlf src/main.bpl
+bpl format --use-tabs src/main.bpl
+bpl format --no-use-tabs src/main.bpl
+bpl format --config ./config/format.json src/main.bpl
+bpl format --no-config src/main.bpl
+```
+
+An explicit config path is relative to the working directory and replaces
+configuration discovery. `--no-config` selects the language defaults before any
+explicit style flags. These preferences also apply to `--write`, `--check` and
+`--check --json`. Configuration is JSON data; it does not execute scripts.
+
 ## Comments
 
 Comments are placed using their surrounding code tokens. A trailing field or
@@ -68,9 +101,9 @@ The API accepts optional preferences when constructing a formatter:
 
 ```typescript
 const formatter = new Formatter({
-    indentWidth: 2,
-    useTabs: false,
-    lineEnding: "lf",
+  indentWidth: 2,
+  useTabs: false,
+  lineEnding: "lf",
 });
 const formatted = formatter.format(program, originalSource);
 ```

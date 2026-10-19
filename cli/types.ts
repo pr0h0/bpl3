@@ -48,6 +48,10 @@ export interface CompileOptions {
  * Options for format command
  */
 export interface FormatOptions {
+  config?: string | boolean;
+  indentWidth?: string;
+  useTabs?: boolean;
+  lineEnding?: string;
   write?: boolean;
   check?: boolean;
   verbose?: boolean;

@@ -4,10 +4,15 @@
  */
 
 import { Formatter } from "../../compiler/formatter/Formatter";
+import type { FormatterOptions } from "../../compiler/formatter/FormatterOptions";
 import { Parser } from "../../compiler/frontend/Parser";
 
-export function formatSource(content: string, filePath: string): string {
+export function formatSource(
+  content: string,
+  filePath: string,
+  options: FormatterOptions = {},
+): string {
   const parser = new Parser(content, filePath);
   const ast = parser.parse(false);
-  return new Formatter().format(ast);
+  return new Formatter(options).format(ast, content);
 }
