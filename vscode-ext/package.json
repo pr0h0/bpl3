@@ -89,7 +89,7 @@
           "scope": "resource",
           "type": "boolean",
           "default": true,
-          "description": "Enable BPL format-on-save for .bpl files."
+          "description": "Format BPL on save when editor.formatOnSave is not explicitly configured. Native editor settings take precedence."
         },
         "bplLanguageServer.bplHome": {
           "scope": "resource",

@@ -3,8 +3,12 @@ import {
   window,
   workspace,
   commands,
+  languages,
+  Range,
+  TextEdit,
   type Terminal,
   type ExtensionContext,
+  type TextEdit as TextEditType,
 } from "vscode";
 import {
   LanguageClient,
@@ -12,6 +16,8 @@ import {
   type LanguageClientOptions,
   type ServerOptions,
 } from "vscode-languageclient/node";
+
+import { shouldUseBplSaveFormatting } from "./FormatOnSave";
 
 let client: LanguageClient;
 let terminal: Terminal | undefined;
@@ -74,22 +80,65 @@ export async function activate(context: ExtensionContext) {
     }),
   );
 
-  // Enable format-on-save by default, honoring user setting
-  const config = workspace.getConfiguration();
-  const enabled = config.get<boolean>("bplLanguageServer.formatOnSave", true);
-  if (enabled) {
-    const _currentLanguages = config.get<string[]>(
-      "editor.formatOnSaveAllowList",
-    );
-    // Prefer per-language setting; if unavailable, set global formatOnSave true
-    config.update("editor.formatOnSave", true, true).then(() => {
-      // Optionally inform the user how to disable
-      window.setStatusBarMessage(
-        "BPL: format-on-save enabled (toggle in settings)",
-        3000,
+  // Untitled buffers are intentionally outside the file-only language server.
+  context.subscriptions.push(
+    languages.registerDocumentFormattingEditProvider(
+      { language: "bpl", scheme: "untitled" },
+      {
+        async provideDocumentFormattingEdits(document, options) {
+          try {
+            const { formatDocumentText } =
+              await import("./services/DocumentFormatter");
+            const text = document.getText();
+            const formatted = formatDocumentText(
+              text,
+              document.uri.toString(),
+              options,
+            );
+            return [
+              TextEdit.replace(
+                new Range(
+                  document.positionAt(0),
+                  document.positionAt(text.length),
+                ),
+                formatted,
+              ),
+            ];
+          } catch (error) {
+            console.error("BPL formatting failed:", error);
+            return [];
+          }
+        },
+      },
+    ),
+    workspace.onWillSaveTextDocument((event) => {
+      const document = event.document;
+      const editor = workspace.getConfiguration("editor", document);
+      const enabled = workspace
+        .getConfiguration("bplLanguageServer", document)
+        .get<boolean>("formatOnSave", true);
+      if (!shouldUseBplSaveFormatting(document.languageId, enabled, editor))
+        return;
+      event.waitUntil(
+        commands
+          .executeCommand<TextEditType[]>(
+            "vscode.executeFormatDocumentProvider",
+            document.uri,
+            {
+              tabSize: editor.get<number>("tabSize", 4),
+              insertSpaces: editor.get<boolean>("insertSpaces", true),
+            },
+          )
+          .then(
+            (edits) => edits ?? [],
+            (error) => {
+              console.error("BPL format-on-save failed:", error);
+              return [];
+            },
+          ),
       );
-    });
-  }
+    }),
+  );
 }
 
 export function deactivate(): Thenable<void> | undefined {

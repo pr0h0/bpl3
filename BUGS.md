@@ -6840,3 +6840,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   virtual buffers format directly, with errors handled by the existing boundary.
 - The shared document formatter also honors project style or editor indentation
   preferences; regression cases cover unsaved buffers and unsaved file edits.
+
+## VS Code activation changed global format-on-save for every language
+
+- Activation wrote editor.formatOnSave=true globally, even when the user had
+  disabled it. Replace persistent settings writes with a BPL-only save hook.
+  Explicit native editor settings take precedence; enabled native formatting
+  runs once through VS Code rather than through the convenience hook.
+- Register an untitled-buffer formatter separately from the file-only server so
+  formatting unsaved documents is reachable without exposing filesystem-only
+  language-server handlers to non-file URIs.

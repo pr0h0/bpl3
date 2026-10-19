@@ -77,9 +77,16 @@ VS Code's Format Document uses the current buffer, including unsaved changes.
 For file documents, the nearest `.bplfmt.json` selects the complete style, with
 language defaults for omitted settings. Without a project config, editor tab
 size and insert-spaces preferences control indentation. The extension defaults
-BPL files to four spaces. Unsaved and virtual documents use editor preferences
-without attempting filesystem configuration discovery. Invalid syntax or config
+BPL files to four spaces. Untitled buffers have a separate formatting provider
+and use editor preferences without filesystem configuration discovery. The
+shared formatting API also accepts other virtual URIs; the extension language
+server remains restricted to file documents. Invalid syntax or config
 leaves the buffer unchanged and logs the formatting error in the language server.
+
+The extension does not change global editor settings. Its BPL-only save hook is
+controlled by `bplLanguageServer.formatOnSave` (default true) and applies only
+when `editor.formatOnSave` has not been explicitly configured. Native editor
+save-formatting settings take precedence; an enabled native formatter runs once.
 
 ## Comments
 
