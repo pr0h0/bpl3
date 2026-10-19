@@ -6534,3 +6534,27 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   selected caller-owned slices, numeric indexing, scalar methods and pointer reads.
 - General alias/provenance tracking and unsupported temporary-aggregate address
   generation remain outside this change.
+
+
+## Unknown component types passed compound annotation validation
+
+- The shared known-type check returned immediately for tuples, function types
+  and lambda types. Unknown tuple elements and callable return/parameter types
+  therefore passed in local declarations, catch annotations and struct fields.
+- Traverse tuple elements and callable result/parameter types recursively, then
+  apply the existing named-type checks at each component. Generic-parameter
+  recognition and alias resolution policy are unchanged.
+- Eighteen regression cases failed before this correction; positive controls
+  preserve known aliases, nested generic types and generic parameter annotations.
+
+
+## Failed destructuring declarations caused cascading diagnostics
+
+- Recovery retained a simple typed variable after an invalid initializer, but
+  skipped destructured targets. Later uses then reported false undefined-symbol
+  errors. A partially checked tuple also produced unused-variable noise for its
+  already-bound targets.
+- During diagnostic collection, retain valid explicitly annotated targets and
+  mark bindings belonging to the failed declaration as used. Preserve unrelated
+  existing bindings, skip unknown/missing target types and leave fail-fast mode
+  unchanged. Four initial regressions failed before the correction.
