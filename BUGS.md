@@ -6752,3 +6752,44 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Reject non-BasicType parents and BasicType pointer/array wrappers at the
   inheritance boundary. Named specs, generic arguments and multiple parents
   remain valid; invalid shapes report a source-located compiler diagnostic.
+
+## Parser backtracking duplicated trailing comments
+
+- Direct parsing collected the same comment repeatedly when grammar alternatives
+  revisited a trailing struct field. The CLI formatter uses direct parsing, so
+  comments multiplied on every formatting pass (audit T2).
+- Deduplicate collected comments by source position and text, retaining identical
+  comments at distinct positions. Cover line, block and nested block comments,
+  formatting idempotence, and parity with lexer-provided comments.
+
+## Formatter comment placement still needs correction (open)
+
+- Parameter-list and array-literal comments move out of their original container
+  into the function body. Struct field trailing comments move onto later lines.
+- Ordinary source reproductions confirmed these positions before formatter work;
+  fixes must preserve comment order and text, syntax and formatting idempotence.
+
+## Token-assisted parsing dropped comments inside interpolation expressions
+
+- The lexer treats an interpolated string as one literal and excludes its text
+  from comment scanning. Parser.parse replaced grammar comments with lexer
+  comments, losing actual comments inside interpolation expressions.
+- Merge grammar comments absent from the lexer list and return that merged list;
+  cover strings with and without additional outer comments and distinguish
+  literal hash characters from actual interpolation-expression comments.
+
+## Lexer comment extraction mishandled nested comments and CR line endings
+
+- The grammar supports nested block comments, but the lexer comment scan stopped
+  at the first inner closing marker. It returned a truncated block and could
+  misclassify the outer closing marker and following code as another comment.
+- Line-comment extraction retained CR in CRLF files and consumed following lines
+  in CR-only files. Track block depth and all supported line endings, preserving
+  exact source comment bounds and positions.
+
+## CR-only files retain LF-based source line numbers (open)
+
+- The existing grammar parser and generic token positions count LF as a line
+  break, so source following a lone CR can retain the preceding line number.
+  Comment scanning now stops at CR without consuming following code, but a
+  consistent whole-frontend source-location correction remains separate work.

@@ -244,9 +244,7 @@ function classifyIdentifierLike(
         case 2:
           return value === "if" ? IF_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 6:
-          return value === "import"
-            ? IMPORT_TOKEN_KIND
-            : IDENTIFIER_TOKEN_KIND;
+          return value === "import" ? IMPORT_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     case 108:
@@ -276,9 +274,7 @@ function classifyIdentifierLike(
         case 3:
           return value === "ret" ? RET_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 6:
-          return value === "return"
-            ? RETURN_TOKEN_KIND
-            : IDENTIFIER_TOKEN_KIND;
+          return value === "return" ? RETURN_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     case 115:
@@ -466,13 +462,23 @@ export class GenericParser {
 
       // multiline comment /# ... #/
       if (this.source.startsWith("/#", this.position)) {
-        const end = this.source.indexOf("#/", this.position + 2);
-        if (end === -1) {
+        let end = this.position + 2;
+        let depth = 1;
+        while (end < this.source.length && depth > 0) {
+          if (this.source.startsWith("/#", end)) {
+            depth++;
+            end += 2;
+          } else if (this.source.startsWith("#/", end)) {
+            depth--;
+            end += 2;
+          } else end++;
+        }
+        if (depth !== 0) {
           throw new Error(
             `Unterminated multiline comment at ${this.line}:${this.column}`,
           );
         }
-        const slice = this.source.slice(this.position, end + 2);
+        const slice = this.source.slice(this.position, end);
         this.advance(slice);
         advanced = true;
         continue;
@@ -480,8 +486,13 @@ export class GenericParser {
 
       // single-line comment # ...
       if (this.source[this.position] === "#") {
-        let end = this.source.indexOf("\n", this.position);
-        if (end === -1) end = this.source.length;
+        let end = this.position;
+        while (
+          end < this.source.length &&
+          this.source[end] !== "\n" &&
+          this.source[end] !== "\r"
+        )
+          end++;
         const slice = this.source.slice(this.position, end);
         this.advance(slice);
         advanced = true;

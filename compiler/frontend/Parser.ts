@@ -75,7 +75,19 @@ export class Parser {
         : [];
     let comments: AST.Token[] = [];
     if (tokenComments.length > 0) {
-      comments = tokenComments;
+      // Interpolated strings are opaque to the lexer comment scan, but their
+      // expressions can contain comments collected by the grammar.
+      const grammarComments = ast.comments || [];
+      const grammarPositions = new Set(
+        grammarComments.map((comment) => `${comment.line}:${comment.column}`),
+      );
+      comments = [
+        ...grammarComments,
+        ...tokenComments.filter(
+          (comment) =>
+            !grammarPositions.has(`${comment.line}:${comment.column}`),
+        ),
+      ].sort((a, b) => a.line - b.line || a.column - b.column);
     } else if (hasCommentMarker) {
       comments = ast.comments || [];
     }
@@ -84,7 +96,7 @@ export class Parser {
     }
 
     if (this.tokens.length > 0) {
-      const result = { ...ast, comments: tokenComments };
+      const result = { ...ast, comments };
 
       // Check for syntax errors from error recovery
       if (throwOnError && ast.errors && ast.errors.length > 0) {
