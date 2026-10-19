@@ -2098,7 +2098,18 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   private validateSpecSignatureTypes(decl: AST.SpecDecl): void {
     const defineParameters = (parameters: AST.GenericParam[]): void => {
+      const parameterNames =
+        parameters.length > 1 ? new Set<string>() : undefined;
       for (const parameter of parameters) {
+        if (parameterNames?.has(parameter.name)) {
+          throw new CompilerError(
+            `Duplicate generic type parameter '${parameter.name}'`,
+            "Each spec or method generic parameter list must contain unique names.",
+            parameter.location || decl.location,
+            SYMBOL_ALREADY_DEFINED_CODE,
+          );
+        }
+        parameterNames?.add(parameter.name);
         this.defineSymbol(
           parameter.name,
           "TypeAlias",

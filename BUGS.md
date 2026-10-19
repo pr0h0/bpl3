@@ -6715,3 +6715,19 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   existing resolution; method parameters cannot escape into sibling signatures.
 - Twenty-seven regression cases failed before the correction. Controls retain
   Self, forward declarations and declared generic parameters.
+
+## Specs and methods accepted duplicate generic parameters
+
+- Specs and their methods accepted repeated generic parameter names. Reject
+  duplicates per parameter list with BPL_SYMBOL_ALREADY_DEFINED; reuse in
+  separate signatures and case-sensitive names remain valid.
+- Seven regressions failed before the correction. Scope restoration is tested
+  under diagnostic collection and fail-fast checking.
+
+## Spec inheritance accepted undefined generic arguments (open)
+
+- A declared parent spec can be instantiated with an undefined type argument
+  in another spec's inheritance list. Reproduced with unused declarations:
+  spec Parent<T>{} spec Broken:Parent<MissingType>{} frame main(){}
+- Inherited arguments need validation with the child's generic parameters in
+  scope, preserving existing parent-name diagnostics and scope restoration.
