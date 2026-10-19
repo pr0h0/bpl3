@@ -282,3 +282,16 @@ The VS Code extension is part of the BPL project and is licensed under the Apach
 
 The completion examples intentionally end at an unfinished member access, such as
 `user.`. They illustrate editor state and are not complete compilable programs.
+
+## Formatting and save preferences
+
+Format Document works on the current file buffer and on untitled BPL buffers.
+The nearest `.bplfmt.json` controls file formatting; without a project config,
+editor indentation preferences apply, with four spaces as the BPL default.
+See [Code Formatting](38-code-formatting.md) for settings and precedence.
+
+The extension never updates global `editor.formatOnSave`. Its BPL-only save
+hook uses `bplLanguageServer.formatOnSave` (default true) only when native
+`editor.formatOnSave` is not explicitly configured. Native settings take
+precedence, so explicit `false` disables automatic formatting and explicit
+`true` lets VS Code handle it once. Manual Format Document remains available.

@@ -631,6 +631,12 @@ bpl format -w main.bpl
 bpl format -w src/**/*.bpl
 ```
 
+Formatting uses the language's four-space style by default. Add `.bplfmt.json`
+for project indentation and line-ending preferences, or override them with
+`--indent-width`, `--use-tabs` and `--line-ending`. See the
+[formatting guide](docs/38-code-formatting.md) for configuration and comment
+preservation guarantees.
+
 ### Package Management
 
 ```bash
