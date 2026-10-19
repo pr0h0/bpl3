@@ -6630,3 +6630,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   not bypass name validation. Generic arguments are still validated recursively.
 - The transitive module-cache regression exposed this during CI; focused controls
   cover all three nominal declaration kinds and mismatched names.
+
+## Return completeness ignored compound types and void pointers
+
+- Named functions only checked return completeness for basic types whose names
+  were not void. Tuple/callable returns and void pointers could fall through;
+  an alias to plain void incorrectly required a return value.
+- Resolve the declared return type before value parameters enter scope, and
+  exempt only plain void. Keep primary body errors from causing return cascades.
+- Five regression cases failed before the fix; throw-only bodies, aliases to
+  compound values and primary-error controls cover the existing behavior.

@@ -1082,6 +1082,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     // Validate signature names before value parameters can shadow type names.
     for (const param of decl.params) this.ensureKnownType(param.type);
     this.ensureKnownType(decl.returnType);
+    const returnsVoid = TypeUtils.isVoidType(this.resolveType(decl.returnType));
 
     // Add params to scope
     const paramNames = decl.params.length > 1 ? new Set<string>() : undefined;
@@ -1196,11 +1197,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
     }
     // Warnings alone must not suppress a real missing-return error.
-    if (
-      !bodyHasErrors &&
-      decl.returnType.kind === "BasicType" &&
-      decl.returnType.name !== "void"
-    ) {
+    if (!bodyHasErrors && !returnsVoid) {
       if (!StmtChecker.checkAllPathsReturn.call(this, decl.body)) {
         throw new CompilerError(
           `Function '${decl.name}' may not return a value on all code paths`,
