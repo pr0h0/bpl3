@@ -58,6 +58,7 @@ test("inherited arguments reject value symbols", () => {
 
 test("fail-fast inheritance validation restores the incoming scope", () => {
   const checker = new TypeChecker({ collectAllErrors: false });
+  checker.checkProgram(parse("spec Parent<Parameter>{} frame main(){}"));
   const scope = checker.currentScope;
   expect(() =>
     checker.checkStatement(
@@ -87,5 +88,25 @@ for (const [declaration, message] of [
     expect(
       errors(`${declaration} frame main(){}`).map((error) => error.message),
     ).toContain(message!);
+  });
+}
+
+for (const [declaration, message] of [
+  [
+    "spec Child:MissingParent<MissingType>{}",
+    "Undefined spec 'MissingParent' in inheritance list",
+  ],
+  [
+    "struct Parent{} spec Child:Parent<MissingType>{}",
+    "Type 'Parent' is not a spec",
+  ],
+  ["spec Child:Child<MissingType>{}", "Spec 'Child' cannot extend itself"],
+]) {
+  test(`validates parent names before generic arguments: ${declaration}`, () => {
+    const diagnostics = errors(`${declaration} frame main(){}`);
+    expect(diagnostics[0]?.message).toBe(message!);
+    expect(diagnostics.map((error) => error.message)).not.toContain(
+      "Undefined type 'MissingType'",
+    );
   });
 }

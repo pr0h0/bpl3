@@ -2009,8 +2009,6 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Spec Body Checking ==========
 
   private checkSpecBody(decl: AST.SpecDecl): void {
-    this.validateSpecTypes(decl);
-
     // Validate inheritance list
     if (decl.extends) {
       for (const parentType of decl.extends) {
@@ -2044,6 +2042,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         this.resolveType(parentType, false);
       }
     }
+
+    this.validateSpecTypes(decl);
 
     // BUG-129: Check for duplicate method signatures
     const methodSignatures =

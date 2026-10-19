@@ -6733,3 +6733,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   preserving existing parent-name diagnostics and scope restoration.
 - Thirteen negative and recovery cases failed before the fix; declared child
   parameters, forward types and existing parent-name diagnostics remain valid.
+
+## Spec validation could hide the primary inheritance diagnostic
+
+- The new spec validation initially checked generic arguments before inherited
+  spec names, so MissingParent<MissingType> reported the argument instead of
+  the undefined parent. CodeRabbit identified this ordering regression in PR #19.
+- Preserve the existing parent-name, non-spec and self-extension checks before
+  validating inherited arguments or method signatures. Three regression cases
+  protect these primary diagnostics when an argument is also undefined.
