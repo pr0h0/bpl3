@@ -6661,3 +6661,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   reachable break or a conditional loop still requires a subsequent return.
 - Twelve checking cases and a native compilation control failed before the
   correction; ten exit-path controls preserve missing-return diagnostics.
+
+## Value parameters changed the meaning of named signature aliases
+
+- Function signature names were validated before parameter binding, but their
+  types were resolved one at a time as parameters entered scope. A parameter
+  named Number could hide the alias Number for later parameters or the return
+  type, incorrectly rejecting valid signatures and returns.
+- Resolve all parameter and return types in the declaration scope before binding
+  value parameters. Use those resolved types for body checking and variadic count
+  validation, preserving aliases and nominal declaration identity.
+- Five checking cases and one native O0/O3 fixture failed before the correction,
+  including scalar, tuple, callback and plain-void aliases.

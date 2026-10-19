@@ -1082,7 +1082,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     // Validate signature names before value parameters can shadow type names.
     for (const param of decl.params) this.ensureKnownType(param.type);
     this.ensureKnownType(decl.returnType);
-    const returnsVoid = TypeUtils.isVoidType(this.resolveType(decl.returnType));
+    const parameterTypes = decl.params.map((param) =>
+      this.resolveType(param.type),
+    );
+    const returnType = this.resolveType(decl.returnType);
+    const returnsVoid = TypeUtils.isVoidType(returnType);
 
     // Add params to scope
     const paramNames = decl.params.length > 1 ? new Set<string>() : undefined;
@@ -1102,7 +1106,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         paramNames.add(param.name);
       }
 
-      let paramType = this.resolveType(param.type);
+      let paramType = parameterTypes[i]!;
 
       if (
         paramType.kind === "BasicType" &&
@@ -1132,7 +1136,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
         // The following parameter must be of type int
         const countParam = decl.params[i + 1]!;
-        const countType = this.resolveType(countParam.type);
+        const countType = parameterTypes[i + 1]!;
         if (
           countType.kind !== "BasicType" ||
           (countType.name !== "int" && countType.name !== "i32") ||
@@ -1169,12 +1173,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     this.rejectEscapingSpecPointer(
-      decl.returnType,
+      returnType,
       "a return type",
       decl.location,
     );
 
-    this.currentFunctionReturnType = decl.returnType;
+    this.currentFunctionReturnType = returnType;
     const prevReboundParameters = this.reboundParameters;
     this.reboundParameters = collectReboundParameters(decl);
 
