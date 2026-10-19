@@ -1973,10 +1973,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (variant.dataType) {
         if (variant.dataType.kind === "EnumVariantTuple") {
           for (const type of variant.dataType.types) {
+            this.ensureKnownType(type);
             this.resolveType(type);
           }
         } else if (variant.dataType.kind === "EnumVariantStruct") {
           for (const field of variant.dataType.fields) {
+            this.ensureKnownType(field.type);
             this.resolveType(field.type);
           }
         }

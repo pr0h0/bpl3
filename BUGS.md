@@ -6609,3 +6609,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   the same rule inside methods.
 - Three collection-mode regressions failed before the correction, covering a
   struct field, a struct method and an enum method.
+
+## Enum payload annotations skipped known-type validation
+
+- Tuple and named-field enum payloads resolved their types without checking
+  whether the names denoted declared types. Unknown names, including nested
+  callable parameters, survived declaration checking without BPL_TYPE_NOT_FOUND.
+- Validate both payload forms before resolution while the enum's generic
+  parameters are in scope. Declared generic parameters and aliases stay valid.
+- Eight negative regressions failed before the fix; two positive controls
+  preserve generic payloads and nested callable types. Found during PR review.
