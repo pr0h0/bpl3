@@ -6831,3 +6831,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   They also need to honor project formatter preferences consistently.
 - Write formatted text directly and share project configuration discovery. Three
   CLI regressions cover explicit build, default invocation and advanced build.
+
+## Editor formatting rejected unsaved documents before error handling
+
+- The formatting handler converted every document URI with fileURLToPath outside
+  its try block. Untitled and other virtual documents therefore threw before the
+  formatter could run. Only file URIs now trigger path conversion/config discovery;
+  virtual buffers format directly, with errors handled by the existing boundary.
+- The shared document formatter also honors project style or editor indentation
+  preferences; regression cases cover unsaved buffers and unsaved file edits.

@@ -68,6 +68,16 @@ command with `--emit formatted` also discover project configuration; use the
 explicit style flags. These preferences also apply to `--write`, `--check` and
 `--check --json`. Configuration is JSON data; it does not execute scripts.
 
+## Editor formatting
+
+VS Code's Format Document uses the current buffer, including unsaved changes.
+For file documents, the nearest `.bplfmt.json` selects the complete style, with
+language defaults for omitted settings. Without a project config, editor tab
+size and insert-spaces preferences control indentation. The extension defaults
+BPL files to four spaces. Unsaved and virtual documents use editor preferences
+without attempting filesystem configuration discovery. Invalid syntax or config
+leaves the buffer unchanged and logs the formatting error in the language server.
+
 ## Comments
 
 Comments are placed using their surrounding code tokens. A trailing field or
