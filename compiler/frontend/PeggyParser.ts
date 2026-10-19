@@ -51,7 +51,19 @@ export function parseWithPeggy(
       bplHasCommentMarker: options.hasCommentMarker,
     }) as AST.Program;
     validateSyntaxDepth(program);
-    program.comments = comments;
+    // Peggy actions may run more than once while alternatives backtrack.
+    // Preserve distinct source comments, not repeated visits to the same one.
+    if (comments.length > 1) {
+      const seen = new Set<string>();
+      program.comments = comments.filter((comment) => {
+        const key = `${comment.line}:${comment.column}:${comment.lexeme}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    } else {
+      program.comments = comments;
+    }
     if (errors.length > 0) {
       program.errors = errors.map(
         (e: { message: string; location: SourceLocation }) =>

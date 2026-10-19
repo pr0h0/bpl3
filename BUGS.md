@@ -6752,3 +6752,19 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Reject non-BasicType parents and BasicType pointer/array wrappers at the
   inheritance boundary. Named specs, generic arguments and multiple parents
   remain valid; invalid shapes report a source-located compiler diagnostic.
+
+## Parser backtracking duplicated trailing comments
+
+- Direct parsing collected the same comment repeatedly when grammar alternatives
+  revisited a trailing struct field. The CLI formatter uses direct parsing, so
+  comments multiplied on every formatting pass (audit T2).
+- Deduplicate collected comments by source position and text, retaining identical
+  comments at distinct positions. Cover line, block and nested block comments,
+  formatting idempotence, and parity with lexer-provided comments.
+
+## Formatter comment placement still needs correction (open)
+
+- Parameter-list and array-literal comments move out of their original container
+  into the function body. Struct field trailing comments move onto later lines.
+- Ordinary source reproductions confirmed these positions before formatter work;
+  fixes must preserve comment order and text, syntax and formatting idempotence.
