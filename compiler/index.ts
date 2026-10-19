@@ -1183,6 +1183,7 @@ function formatCacheStats(stats: ModuleCacheStats): string {
 
 /** Source code formatter for BPL files */
 export { Formatter } from "./formatter/Formatter";
+export type { FormatterOptions } from "./formatter/FormatterOptions";
 /** Tokenize BPL source code using the PEG grammar */
 export { lexWithGrammar } from "./frontend/GrammarLexer";
 /** Parse BPL tokens into an AST */

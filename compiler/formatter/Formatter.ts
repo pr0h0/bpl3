@@ -1,11 +1,24 @@
 import * as AST from "../common/AST";
 import { getParsedSource } from "../frontend/ParsedSource";
-import { placeSourceComments } from "./CommentPlacement";
+import { placeSourceComments, formatLineEndings } from "./CommentPlacement";
+import {
+  resolveFormatterOptions,
+  type FormatterOptions,
+  type ResolvedFormatterOptions,
+} from "./FormatterOptions";
 
 export class Formatter {
   private indentLevel: number = 0;
-  private indentString: string = "    "; // 4 spaces
+  private indentString: string = "    "; // Default BPL indentation
   private lastLineProcessed: number = 0;
+  private readonly options: ResolvedFormatterOptions;
+
+  constructor(options: FormatterOptions = {}) {
+    this.options = resolveFormatterOptions(options);
+    this.indentString = this.options.useTabs
+      ? "\t"
+      : " ".repeat(this.options.indentWidth);
+  }
 
   format(program: AST.Program, sourceText?: string): string {
     if ((program as any).errors && (program as any).errors.length > 0) {
@@ -24,14 +37,17 @@ export class Formatter {
     this.lastLineProcessed = 0;
 
     const formatted = this.formatStatements(program.statements).trim() + "\n";
-    return source === undefined
-      ? formatted
-      : placeSourceComments(
-          source,
-          formatted,
-          program.comments || [],
-          this.indentString,
-        );
+    const withComments =
+      source === undefined
+        ? formatted
+        : placeSourceComments(
+            source,
+            formatted,
+            program.comments || [],
+            this.indentString,
+            this.options.indentWidth,
+          );
+    return formatLineEndings(withComments, this.options.lineEnding);
   }
 
   private formatStatements(statements: AST.Statement[]): string {

@@ -63,3 +63,20 @@ const formatted = new Formatter().format(program, originalSource);
 Formatting a detached AST with comments and no source raises an error. If source
 and AST differ too much to align comments reliably, formatting also raises an
 error. The CLI leaves that file unchanged and reports the processing failure.
+
+The API accepts optional preferences when constructing a formatter:
+
+```typescript
+const formatter = new Formatter({
+    indentWidth: 2,
+    useTabs: false,
+    lineEnding: "lf",
+});
+const formatted = formatter.format(program, originalSource);
+```
+
+`indentWidth` is an integer from 1 to 16 (default 4). `useTabs` defaults to false;
+when true, one tab represents each indentation level and `indentWidth` supplies
+the visual tab width for comment alignment. `lineEnding` accepts `lf` (default)
+or `crlf`. Line-ending conversion applies to layout and comments, preserving
+literal payloads. Unknown option names and invalid values are errors.
