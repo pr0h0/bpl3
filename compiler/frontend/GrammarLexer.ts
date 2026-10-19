@@ -122,6 +122,7 @@ function extractComments(
   let column = 1;
   let rangeIdx = 0;
   let blockCommentStart = -1;
+  let blockCommentDepth = 0;
   let blockCommentLine = 0;
   let blockCommentColumn = 0;
 
@@ -155,6 +156,7 @@ function extractComments(
     if (blockCommentStart < 0) {
       if (currentCode === 47 && source.charCodeAt(position + 1) === 35) {
         blockCommentStart = position;
+        blockCommentDepth = 1;
         blockCommentLine = line;
         blockCommentColumn = column;
         position += 2;
@@ -163,8 +165,13 @@ function extractComments(
       }
 
       if (currentCode === 35) {
-        const lineEnd = source.indexOf("\n", position);
-        const commentEnd = lineEnd < 0 ? sourceLength : lineEnd;
+        let commentEnd = position;
+        while (
+          commentEnd < sourceLength &&
+          source.charCodeAt(commentEnd) !== 10 &&
+          source.charCodeAt(commentEnd) !== 13
+        )
+          commentEnd++;
         comments.push(
           new Token(
             TokenType.Comment,
@@ -179,12 +186,15 @@ function extractComments(
         position = commentEnd;
         continue;
       }
-    } else if (
-      currentCode === 35 &&
-      source.charCodeAt(position + 1) === 47
-    ) {
+    } else if (currentCode === 47 && source.charCodeAt(position + 1) === 35) {
+      blockCommentDepth++;
       position += 2;
       column += 2;
+      continue;
+    } else if (currentCode === 35 && source.charCodeAt(position + 1) === 47) {
+      position += 2;
+      column += 2;
+      if (--blockCommentDepth > 0) continue;
       comments.push(
         new Token(
           TokenType.Comment,
@@ -231,10 +241,7 @@ function createFrontendTokenFromParts(
   column: number,
   file: string,
 ): Token {
-  if (
-    typeCode <= GENERIC_TOKEN_KEYWORD ||
-    typeCode === GENERIC_TOKEN_NULLPTR
-  ) {
+  if (typeCode <= GENERIC_TOKEN_KEYWORD || typeCode === GENERIC_TOKEN_NULLPTR) {
     return {
       type: _type as TokenType,
       lexeme: value,
@@ -343,8 +350,7 @@ function parseNumber(raw: string): number {
       fourthCode <= 57
     ) {
       return (
-        (((firstCode - 48) * 10 + secondCode - 48) * 10 + thirdCode - 48) *
-          10 +
+        (((firstCode - 48) * 10 + secondCode - 48) * 10 + thirdCode - 48) * 10 +
         fourthCode -
         48
       );

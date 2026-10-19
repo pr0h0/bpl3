@@ -6777,3 +6777,19 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Merge grammar comments absent from the lexer list and return that merged list;
   cover strings with and without additional outer comments and distinguish
   literal hash characters from actual interpolation-expression comments.
+
+## Lexer comment extraction mishandled nested comments and CR line endings
+
+- The grammar supports nested block comments, but the lexer comment scan stopped
+  at the first inner closing marker. It returned a truncated block and could
+  misclassify the outer closing marker and following code as another comment.
+- Line-comment extraction retained CR in CRLF files and consumed following lines
+  in CR-only files. Track block depth and all supported line endings, preserving
+  exact source comment bounds and positions.
+
+## CR-only files retain LF-based source line numbers (open)
+
+- The existing grammar parser and generic token positions count LF as a line
+  break, so source following a lone CR can retain the preceding line number.
+  Comment scanning now stops at CR without consuming following code, but a
+  consistent whole-frontend source-location correction remains separate work.
