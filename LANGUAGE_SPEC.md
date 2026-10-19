@@ -463,7 +463,9 @@ Spec method parameter and return types must name existing types or generic
 parameters declared by the spec or that method. This also applies to types
 nested in tuples, callbacks and generic arguments. Method generic parameters
 are scoped to their own signature; `Self` denotes the implementing type. Each
-spec or method generic parameter list must use unique names.
+spec or method generic parameter list must use unique names. Inherited spec
+arguments must also name existing types or the child spec's declared generic
+parameters.
 
 - **[R-SPEC-1]** `spec Name { frame method(this: *Self, ...) ret Type; }`
   declares required methods, where `Self` is the implementing struct.

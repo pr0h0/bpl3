@@ -6724,10 +6724,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Seven regressions failed before the correction. Scope restoration is tested
   under diagnostic collection and fail-fast checking.
 
-## Spec inheritance accepted undefined generic arguments (open)
+## Spec inheritance accepted undefined generic arguments
 
 - A declared parent spec can be instantiated with an undefined type argument
   in another spec's inheritance list. Reproduced with unused declarations:
   spec Parent<T>{} spec Broken:Parent<MissingType>{} frame main(){}
-- Inherited arguments need validation with the child's generic parameters in
-  scope, preserving existing parent-name diagnostics and scope restoration.
+- Validate inherited arguments with the child's generic parameters in scope,
+  preserving existing parent-name diagnostics and scope restoration.
+- Thirteen negative and recovery cases failed before the fix; declared child
+  parameters, forward types and existing parent-name diagnostics remain valid.

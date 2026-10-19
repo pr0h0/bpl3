@@ -2009,7 +2009,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Spec Body Checking ==========
 
   private checkSpecBody(decl: AST.SpecDecl): void {
-    this.validateSpecSignatureTypes(decl);
+    this.validateSpecTypes(decl);
 
     // Validate inheritance list
     if (decl.extends) {
@@ -2096,7 +2096,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
-  private validateSpecSignatureTypes(decl: AST.SpecDecl): void {
+  private validateSpecTypes(decl: AST.SpecDecl): void {
     const defineParameters = (parameters: AST.GenericParam[]): void => {
       const parameterNames =
         parameters.length > 1 ? new Set<string>() : undefined;
@@ -2135,6 +2135,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (decl.genericParams.length > 0) {
         this.currentScope = this.currentScope.enterScope();
         defineParameters(decl.genericParams);
+      }
+      for (const parent of decl.extends) {
+        if (parent.kind === "BasicType") {
+          for (const argument of parent.genericArgs)
+            this.ensureKnownType(argument);
+        }
       }
       for (const method of decl.methods) {
         const specScope = this.currentScope;
