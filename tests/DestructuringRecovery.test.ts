@@ -56,3 +56,33 @@ test("unknown target types are not invented during recovery", () => {
     messages("local(left:MissingType,right:int)=missing;left;right;"),
   ).toEqual(["Undefined symbol 'missing'", "Undefined symbol 'left'"]);
 });
+
+test("recovered bindings remain inside their declaration block", () => {
+  expect(
+    messages("{local(left:int,right:int)=missing;left;right;}left;right;"),
+  ).toEqual([
+    "Undefined symbol 'missing'",
+    "Undefined symbol 'left'",
+    "Undefined symbol 'right'",
+  ]);
+});
+
+test("fail-fast checking does not install recovery bindings", () => {
+  const filename = "fail-fast-destructuring.bpl";
+  const source = "frame main(){local(left:int,right:int)=missing;}";
+  const program = new Parser(
+    source,
+    filename,
+    lexWithGrammar(source, filename),
+  ).parse();
+  const main = program.statements.find(
+    (statement) => statement.kind === "FunctionDecl",
+  );
+  if (!main || main.kind !== "FunctionDecl") throw new Error("Missing main");
+  const checker = new TypeChecker({ collectAllErrors: false });
+  expect(() => checker.checkStatement(main.body.statements[0]!)).toThrow(
+    "Undefined symbol 'missing'",
+  );
+  expect(checker.currentScope.getInCurrentScope("left")).toBeUndefined();
+  expect(checker.currentScope.getInCurrentScope("right")).toBeUndefined();
+});
