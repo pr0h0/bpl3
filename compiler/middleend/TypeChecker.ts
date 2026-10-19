@@ -2103,7 +2103,18 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     try {
       if (decl.genericParams.length > 0) {
         this.currentScope = this.currentScope.enterScope();
+        const parameterNames =
+          decl.genericParams.length > 1 ? new Set<string>() : undefined;
         for (const parameter of decl.genericParams) {
+          if (parameterNames?.has(parameter.name)) {
+            throw new CompilerError(
+              `Duplicate generic type parameter '${parameter.name}'`,
+              `The generic type parameter '${parameter.name}' is declared multiple times in type alias '${decl.name}'.`,
+              parameter.location || decl.location,
+              SYMBOL_ALREADY_DEFINED_CODE,
+            );
+          }
+          parameterNames?.add(parameter.name);
           this.defineSymbol(
             parameter.name,
             "TypeAlias",

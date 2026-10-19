@@ -6695,3 +6695,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   Forward aliases and actual type declarations retain their existing behavior.
 - Ten negative cases failed before the fix; generic, forward-alias and native
   O0/O3 controls preserve valid alias consumers.
+
+## Type aliases accepted duplicate generic parameter names
+
+- Alias parameter lists could repeat a name, allowing later substitutions to
+  overwrite earlier arguments instead of rejecting the ambiguous declaration.
+- Reject repeated names with BPL_SYMBOL_ALREADY_DEFINED while validating the
+  alias. Restore the incoming scope after duplicate failures in both checking
+  modes; distinct names and reuse in other aliases remain valid.
+- Five regressions failed before the correction, covering adjacent and separated
+  duplicates, subsequent declaration recovery and fail-fast scope restoration.
