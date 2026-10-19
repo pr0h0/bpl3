@@ -974,7 +974,14 @@ export class Formatter {
     const operandStr = this.formatExpression(expr.operand);
     const wrappedOperand = operandIsComplex ? `(${operandStr})` : operandStr;
     if (expr.isPrefix) {
-      return `${expr.operator.lexeme}${wrappedOperand}`;
+      const operator = expr.operator.lexeme;
+      // Keep two unary signs distinct from increment/decrement tokens.
+      const separator =
+        (operator === "+" || operator === "-") &&
+        wrappedOperand.startsWith(operator)
+          ? " "
+          : "";
+      return `${operator}${separator}${wrappedOperand}`;
     }
     return `${wrappedOperand}${expr.operator.lexeme}`;
   }

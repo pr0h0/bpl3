@@ -6944,3 +6944,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Let those events request discovery without forcing compilation. A source
   snapshot change, a collected source or relevant manifest still triggers the
   rebuild. Entry restoration and new-source discovery remain observable.
+
+## Formatter combined unary signs into increment/decrement
+
+- Formatting - -value and + +value removed their separating whitespace and
+  changed the AST to decrement/increment. A sign before prefix --/++ was also
+  regrouped. Preserve a space when a single unary sign precedes the same sign.
+- Four regressions failed before the fix; controls cover other unary operators.
+  Native checks compare original and formatted behavior at O0 and O3.
