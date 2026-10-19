@@ -907,6 +907,56 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           used: true,
         });
       }
+      if (
+        this.collectAllErrors &&
+        error instanceof CompilerError &&
+        Array.isArray(decl.name)
+      ) {
+        const recoverTarget = (target: AST.DestructuringPattern): void => {
+          if (Array.isArray(target)) {
+            for (const nested of target) recoverTarget(nested);
+            return;
+          }
+          if (target.name === "_" || !target.type) return;
+
+          const existing = scope.getInCurrentScope(target.name);
+          if (existing) {
+            // Suppress secondary unused errors only for this declaration.
+            if (existing.declaration === target.bindingDeclaration) {
+              existing.used = true;
+            }
+            return;
+          }
+
+          let type: AST.TypeNode;
+          try {
+            this.ensureKnownType(target.type);
+            type = this.resolveType(target.type);
+          } catch (secondary) {
+            if (!(secondary instanceof CompilerError)) throw secondary;
+            return; // No usable type: preserve the original diagnostic.
+          }
+          const binding: AST.VariableDecl = {
+            kind: "VariableDecl",
+            name: target.name,
+            typeAnnotation: target.type,
+            resolvedType: type,
+            isGlobal: decl.isGlobal,
+            isConst: decl.isConst,
+            location: decl.location,
+          };
+          target.bindingDeclaration = binding;
+          scope.define({
+            name: target.name,
+            kind: "Variable",
+            type,
+            declaration: binding,
+            isConst: decl.isConst,
+            used: true,
+          });
+        };
+        for (const target of decl.name) recoverTarget(target);
+      }
       throw error;
     }
   }

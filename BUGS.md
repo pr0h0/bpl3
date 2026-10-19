@@ -6546,3 +6546,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   recognition and alias resolution policy are unchanged.
 - Eighteen regression cases failed before this correction; positive controls
   preserve known aliases, nested generic types and generic parameter annotations.
+
+
+## Failed destructuring declarations caused cascading diagnostics
+
+- Recovery retained a simple typed variable after an invalid initializer, but
+  skipped destructured targets. Later uses then reported false undefined-symbol
+  errors. A partially checked tuple also produced unused-variable noise for its
+  already-bound targets.
+- During diagnostic collection, retain valid explicitly annotated targets and
+  mark bindings belonging to the failed declaration as used. Preserve unrelated
+  existing bindings, skip unknown/missing target types and leave fail-fast mode
+  unchanged. Four initial regressions failed before the correction.
