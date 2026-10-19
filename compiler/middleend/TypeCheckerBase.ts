@@ -746,16 +746,12 @@ export abstract class TypeCheckerBase {
       return;
     }
 
-    const looksLikeGenericParam =
-      typeName.length <= 2 && /^[A-Z][0-9]?$/.test(typeName);
-
     const symbol = this.resolveTypeSymbol(typeName);
     if (
       symbol?.kind === "Struct" ||
       symbol?.kind === "Enum" ||
       symbol?.kind === "Spec" ||
-      symbol?.kind === "TypeAlias" ||
-      (!symbol && looksLikeGenericParam)
+      symbol?.kind === "TypeAlias"
     ) {
       return;
     }

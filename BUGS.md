@@ -6571,3 +6571,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   when no symbol is resolved, without changing that existing language policy.
 - Six source regressions failed before the fix across simple, nested, field
   and catch annotations. Positive controls preserve actual type declarations.
+
+
+## Undeclared short type names bypassed annotation validation
+
+- The known-type helper accepted any unresolved single uppercase letter,
+  optionally followed by a digit, as a generic parameter. Undeclared T/A/X1
+  consequently passed local, field, catch, callable and generic-argument checks.
+- Remove that spelling heuristic and require an actual type symbol. Generic
+  parameters are already registered as type symbols in their declaration scope;
+  declared short struct/alias names remain valid. Existing BPL_TYPE_NOT_FOUND
+  diagnostics now identify undeclared names before code generation.
+- Fifteen regression cases failed before this fix; positive controls preserve
+  declared generic parameters and short type declarations.
