@@ -6534,3 +6534,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   selected caller-owned slices, numeric indexing, scalar methods and pointer reads.
 - General alias/provenance tracking and unsupported temporary-aggregate address
   generation remain outside this change.
+
+
+## Unknown component types passed compound annotation validation
+
+- The shared known-type check returned immediately for tuples, function types
+  and lambda types. Unknown tuple elements and callable return/parameter types
+  therefore passed in local declarations, catch annotations and struct fields.
+- Traverse tuple elements and callable result/parameter types recursively, then
+  apply the existing named-type checks at each component. Generic-parameter
+  recognition and alias resolution policy are unchanged.
+- Eighteen regression cases failed before this correction; positive controls
+  preserve known aliases, nested generic types and generic parameter annotations.

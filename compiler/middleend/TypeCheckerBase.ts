@@ -720,7 +720,17 @@ export abstract class TypeCheckerBase {
     return this.currentScope;
   }
 
+  /** Check known-type rules for each named component of an annotation. */
   public ensureKnownType(type: AST.TypeNode): void {
+    if (type.kind === "TupleType") {
+      for (const element of type.types) this.ensureKnownType(element);
+      return;
+    }
+    if (type.kind === "FunctionType" || type.kind === "LambdaType") {
+      this.ensureKnownType(type.returnType);
+      for (const parameter of type.paramTypes) this.ensureKnownType(parameter);
+      return;
+    }
     if (type.kind !== "BasicType") {
       return;
     }
