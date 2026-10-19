@@ -1459,12 +1459,18 @@ function statementReturnFlow(stmt: AST.Statement): number {
           ? statementReturnFlow(stmt.elseBranch)
           : ReturnFlow.Next)
       );
-    case "Loop":
-      // Conservatively allow a loop to finish. Its breaks and continues are
-      // consumed here, rather than escaping an enclosing switch.
+    case "Loop": {
+      const bodyFlow = statementReturnFlow(stmt.body);
+      const unconditional =
+        !stmt.condition ||
+        (stmt.condition.kind === "Literal" && stmt.condition.value === true);
+      // Break exits this loop; continue and normal iteration stay inside it.
+      // Zero flow represents divergence with no reachable outward transfer.
       return (
-        ReturnFlow.Next | (statementReturnFlow(stmt.body) & ReturnFlow.Return)
+        (bodyFlow & ReturnFlow.Return) |
+        (!unconditional || bodyFlow & ReturnFlow.Break ? ReturnFlow.Next : 0)
       );
+    }
     case "Try": {
       let flow = statementReturnFlow(stmt.tryBlock);
       for (const clause of stmt.catchClauses)
@@ -1511,12 +1517,12 @@ function statementReturnFlow(stmt: AST.Statement): number {
   }
 }
 
-/** Check whether every reachable path returns or throws. */
+/** Check whether every reachable path returns, throws, or diverges. */
 export function checkAllPathsReturn(
   this: CheckerContext,
   stmt: AST.Statement,
 ): boolean {
-  return statementReturnFlow(stmt) === ReturnFlow.Return;
+  return (statementReturnFlow(stmt) & ~ReturnFlow.Return) === 0;
 }
 
 /**

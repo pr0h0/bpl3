@@ -92,6 +92,16 @@ frame logError(code: int, msg: string) ret void {
 
 Functions must return a value of the declared type:
 
+Every reachable path in a nonvoid function or lambda must return a value,
+throw, or diverge. This includes tuple, callable and pointer return types;
+`*void` is a pointer value and requires a return. Plain `void`, including an
+alias to it, allows the body to finish without a return statement.
+
+Return analysis recognizes conditionless `loop { ... }` and literal-true
+`loop (true) { ... }` as diverging when no reachable break exits that loop.
+Breaks inside nested loops or switches exit those inner constructs. Other
+loop conditions are checked conservatively and may require a return afterward.
+
 ```bpl
 frame square(x: int) ret int {
     return x * x;

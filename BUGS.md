@@ -6650,3 +6650,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   void and preserve primary body errors without a missing-return cascade.
 - Eleven regressions failed before the fix, covering scalar, tuple, callable
   and void-pointer returns, contextual signatures and partial branching.
+
+## Unconditional loops falsely failed return completeness
+
+- Return analysis always allowed loops to finish, rejecting nonvoid functions
+  that diverged in an unconditional loop. Applying the same analysis to lambdas
+  would also reject their valid diverging bodies (audit C15).
+- Treat conditionless and literal-true loops without reachable breaks as
+  diverging; nested loop/switch breaks remain local to those constructs. A
+  reachable break or a conditional loop still requires a subsequent return.
+- Twelve checking cases and a native compilation control failed before the
+  correction; ten exit-path controls preserve missing-return diagnostics.
