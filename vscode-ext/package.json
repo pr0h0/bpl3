@@ -37,6 +37,12 @@
     "vscode-languageserver-textdocument": "^1.0.8"
   },
   "contributes": {
+    "jsonValidation": [
+      {
+        "fileMatch": ".bplfmt.json",
+        "url": "./bpl-format.schema.json"
+      }
+    ],
     "configurationDefaults": {
       "[bpl]": {
         "editor.tabSize": 4,
