@@ -459,6 +459,11 @@ struct Box<T> {
 
 ## 7.1 Specs - Interfaces
 
+Spec method parameter and return types must name existing types or generic
+parameters declared by the spec or that method. This also applies to types
+nested in tuples, callbacks and generic arguments. Method generic parameters
+are scoped to their own signature; `Self` denotes the implementing type.
+
 - **[R-SPEC-1]** `spec Name { frame method(this: *Self, ...) ret Type; }`
   declares required methods, where `Self` is the implementing struct.
 - **[R-SPEC-2]** A struct implements a spec by listing it in its inheritance

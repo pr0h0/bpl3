@@ -6705,3 +6705,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   modes; distinct names and reuse in other aliases remain valid.
 - Five regressions failed before the correction, covering adjacent and separated
   duplicates, subsequent declaration recovery and fail-fast scope restoration.
+
+## Spec method signatures skipped known-type validation
+
+- Unused specs accepted undefined parameter and return types, including short
+  undeclared names and names nested in tuples, callbacks and generic arguments.
+- Validate signatures in temporary scopes containing the spec and method generic
+  parameters. Restore the exact incoming scope on success and failure before
+  existing resolution; method parameters cannot escape into sibling signatures.
+- Twenty-seven regression cases failed before the correction. Controls retain
+  Self, forward declarations and declared generic parameters.

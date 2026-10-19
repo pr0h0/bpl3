@@ -2009,6 +2009,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Spec Body Checking ==========
 
   private checkSpecBody(decl: AST.SpecDecl): void {
+    this.validateSpecSignatureTypes(decl);
+
     // Validate inheritance list
     if (decl.extends) {
       for (const parentType of decl.extends) {
@@ -2091,6 +2093,55 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (method.returnType) {
         this.resolveType(method.returnType, false);
       }
+    }
+  }
+
+  private validateSpecSignatureTypes(decl: AST.SpecDecl): void {
+    const defineParameters = (parameters: AST.GenericParam[]): void => {
+      for (const parameter of parameters) {
+        this.defineSymbol(
+          parameter.name,
+          "TypeAlias",
+          {
+            kind: "BasicType",
+            name: parameter.name,
+            genericArgs: [],
+            pointerDepth: 0,
+            arrayDimensions: [],
+            location: parameter.location || decl.location,
+          },
+          {
+            kind: "GenericParam",
+            location: decl.location,
+            ...parameter,
+          } as AST.ASTNode,
+        );
+      }
+    };
+
+    const declarationScope = this.currentScope;
+    try {
+      if (decl.genericParams.length > 0) {
+        this.currentScope = this.currentScope.enterScope();
+        defineParameters(decl.genericParams);
+      }
+      for (const method of decl.methods) {
+        const specScope = this.currentScope;
+        try {
+          if (method.genericParams.length > 0) {
+            this.currentScope = this.currentScope.enterScope();
+            defineParameters(method.genericParams);
+          }
+          for (const parameter of method.params) {
+            this.ensureKnownType(parameter.type);
+          }
+          if (method.returnType) this.ensureKnownType(method.returnType);
+        } finally {
+          this.currentScope = specScope;
+        }
+      }
+    } finally {
+      this.currentScope = declarationScope;
     }
   }
 
