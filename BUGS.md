@@ -6684,3 +6684,24 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   scope restoration on failures.
 - Six checking cases and one native O0/O3 fixture failed before the fix, covering
   aliases to scalar, tuple, callback and plain-void types plus mixed inference.
+
+## Type alias bodies skipped known-type validation
+
+- Alias declarations resolved their bodies without checking whether named types
+  existed. Undeclared short names and unknown types nested in tuples or callable
+  signatures could survive declaration checking without BPL_TYPE_NOT_FOUND.
+- Validate alias bodies with their declared generic parameters in a temporary
+  scope, then restore the exact incoming scope before existing resolution.
+  Forward aliases and actual type declarations retain their existing behavior.
+- Ten negative cases failed before the fix; generic, forward-alias and native
+  O0/O3 controls preserve valid alias consumers.
+
+## Type aliases accepted duplicate generic parameter names
+
+- Alias parameter lists could repeat a name, allowing later substitutions to
+  overwrite earlier arguments instead of rejecting the ambiguous declaration.
+- Reject repeated names with BPL_SYMBOL_ALREADY_DEFINED while validating the
+  alias. Restore the incoming scope after duplicate failures in both checking
+  modes; distinct names and reuse in other aliases remain valid.
+- Five regressions failed before the correction, covering adjacent and separated
+  duplicates, subsequent declaration recovery and fail-fast scope restoration.

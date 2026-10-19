@@ -2099,6 +2099,46 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private checkTypeAlias(decl: AST.TypeAliasDecl): void {
     this.ensureNotBuiltinTypeRedefinition(decl.name, decl.location);
 
+    const previousScope = this.currentScope;
+    try {
+      if (decl.genericParams.length > 0) {
+        this.currentScope = this.currentScope.enterScope();
+        const parameterNames =
+          decl.genericParams.length > 1 ? new Set<string>() : undefined;
+        for (const parameter of decl.genericParams) {
+          if (parameterNames?.has(parameter.name)) {
+            throw new CompilerError(
+              `Duplicate generic type parameter '${parameter.name}'`,
+              `The generic type parameter '${parameter.name}' is declared multiple times in type alias '${decl.name}'.`,
+              parameter.location || decl.location,
+              SYMBOL_ALREADY_DEFINED_CODE,
+            );
+          }
+          parameterNames?.add(parameter.name);
+          this.defineSymbol(
+            parameter.name,
+            "TypeAlias",
+            {
+              kind: "BasicType",
+              name: parameter.name,
+              genericArgs: [],
+              pointerDepth: 0,
+              arrayDimensions: [],
+              location: parameter.location || decl.location,
+            },
+            {
+              kind: "GenericParam",
+              location: decl.location,
+              ...parameter,
+            } as AST.ASTNode,
+          );
+        }
+      }
+      this.ensureKnownType(decl.type);
+    } finally {
+      this.currentScope = previousScope;
+    }
+
     const resolved = this.resolveType(decl.type);
     if (!this.currentScope.getInCurrentScope(decl.name)) {
       this.defineSymbol(decl.name, "TypeAlias", resolved, decl);
