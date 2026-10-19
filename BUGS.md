@@ -6768,3 +6768,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   into the function body. Struct field trailing comments move onto later lines.
 - Ordinary source reproductions confirmed these positions before formatter work;
   fixes must preserve comment order and text, syntax and formatting idempotence.
+
+## Token-assisted parsing dropped comments inside interpolation expressions
+
+- The lexer treats an interpolated string as one literal and excludes its text
+  from comment scanning. Parser.parse replaced grammar comments with lexer
+  comments, losing actual comments inside interpolation expressions.
+- Merge grammar comments absent from the lexer list and return that merged list;
+  cover strings with and without additional outer comments and distinguish
+  literal hash characters from actual interpolation-expression comments.

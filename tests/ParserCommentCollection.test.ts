@@ -41,3 +41,35 @@ test("direct parsing and parsing with lexer tokens agree on comment collection",
     (comments ?? []).map((token) => [token.line, token.column, token.lexeme]);
   expect(positions(direct)).toEqual(positions(tokenized));
 });
+
+for (const prefix of ["", "# outside\n"]) {
+  test(`retains interpolation-expression comments with lexer tokens: ${JSON.stringify(prefix)}`, () => {
+    const source =
+      prefix +
+      "frame main(){local text:string=`literal # text ${1 /# inside #/ + 2}`;}";
+    const direct = new Parser(source, "template.bpl").parse().comments ?? [];
+    const tokenized =
+      new Parser(
+        source,
+        "template.bpl",
+        lexWithGrammar(source, "template.bpl"),
+      ).parse().comments ?? [];
+    const positions = (comments: typeof direct) =>
+      comments.map((token) => [token.line, token.column, token.lexeme]);
+    expect(positions(tokenized)).toEqual(positions(direct));
+    expect(tokenized.map((token) => token.lexeme)).toEqual(
+      prefix ? ["# outside", "/# inside #/"] : ["/# inside #/"],
+    );
+  });
+}
+
+test("grammar and lexer comments at the same position remain one comment with CRLF", () => {
+  const source = "struct Point{\r\nvalue:int, # field\r\n}\r\n";
+  const direct = new Parser(source, "crlf.bpl").parse().comments ?? [];
+  const tokenized =
+    new Parser(source, "crlf.bpl", lexWithGrammar(source, "crlf.bpl")).parse()
+      .comments ?? [];
+  expect(
+    tokenized.map((token) => [token.line, token.column, token.lexeme]),
+  ).toEqual(direct.map((token) => [token.line, token.column, token.lexeme]));
+});
