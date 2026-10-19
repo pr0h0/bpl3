@@ -1079,6 +1079,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
     this.checkFunctionAttributes(decl, parentStruct);
 
+    // Validate signature names before value parameters can shadow type names.
+    for (const param of decl.params) this.ensureKnownType(param.type);
+    this.ensureKnownType(decl.returnType);
+
     // Add params to scope
     const paramNames = decl.params.length > 1 ? new Set<string>() : undefined;
     for (let i = 0; i < decl.params.length; i++) {

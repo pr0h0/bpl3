@@ -6584,3 +6584,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   diagnostics now identify undeclared names before code generation.
 - Fifteen regression cases failed before this fix; positive controls preserve
   declared generic parameters and short type declarations.
+
+
+## Function and explicit lambda signatures skipped known-type validation
+
+- Function/method parameters and return types, plus explicit lambda signatures,
+  were resolved without checking whether their named types existed. Unknown
+  types could survive in unused parameters or in a return type whose body throws.
+- Validate signatures after registering generic parameters, before binding value
+  parameters. Lambda checks likewise run before entering the parameter scope;
+  context-inferred lambda types retain their existing path.
+- Eight regression cases failed before the correction, including nested callable
+  types and undeclared short names. External ABI declarations are outside this
+  ordinary-language checking change.
