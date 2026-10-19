@@ -1586,6 +1586,15 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   }
 
   private checkStructBody(decl: AST.StructDecl): void {
+    const previousScope = this.currentScope;
+    try {
+      this.checkStructBodyInScope(decl);
+    } finally {
+      this.currentScope = previousScope;
+    }
+  }
+
+  private checkStructBodyInScope(decl: AST.StructDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
     // Check for circular inheritance FIRST, before any type resolution
@@ -1876,6 +1885,15 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Enum Body Checking ==========
 
   private checkEnumBody(decl: AST.EnumDecl): void {
+    const previousScope = this.currentScope;
+    try {
+      this.checkEnumBodyInScope(decl);
+    } finally {
+      this.currentScope = previousScope;
+    }
+  }
+
+  private checkEnumBodyInScope(decl: AST.EnumDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
     // Check for empty enum

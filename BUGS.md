@@ -6597,3 +6597,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Eight regression cases failed before the correction, including nested callable
   types and undeclared short names. External ABI declarations are outside this
   ordinary-language checking change.
+
+
+## Failed struct and enum checks exposed generic parameter scopes
+
+- A failed field or method-signature check exited struct/enum checking before
+  restoring the enclosing scope. Later declarations could then use generic
+  parameters from the failed type as though those parameters were in scope.
+- Guard both type-body entry points with `finally` and restore the exact
+  incoming scope on success or failure. Function-body recovery already applies
+  the same rule inside methods.
+- Three collection-mode regressions failed before the correction, covering a
+  struct field, a struct method and an enum method.
