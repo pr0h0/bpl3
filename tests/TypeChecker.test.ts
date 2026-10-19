@@ -57,7 +57,7 @@ class ResolveCountingTypeChecker extends TypeChecker {
 }
 
 describe("TypeChecker", () => {
-  it("keeps known builtin and generic-like names off scope resolution", () => {
+  it("checks generic-like names for shadowing while keeping builtin names off scope resolution", () => {
     const location = {
       file: "test.bpl",
       startLine: 1,
@@ -86,7 +86,7 @@ describe("TypeChecker", () => {
       });
     }
 
-    expect(resolvedNames).toEqual([]);
+    expect(resolvedNames).toEqual(["T"]);
   });
 
   it("defers implicit primitive wrapper imports for programs that only use builtin aliases", () => {

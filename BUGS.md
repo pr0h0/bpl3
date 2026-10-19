@@ -6558,3 +6558,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   mark bindings belonging to the failed declaration as used. Preserve unrelated
   existing bindings, skip unknown/missing target types and leave fail-fast mode
   unchanged. Four initial regressions failed before the correction.
+
+
+## Value symbols were accepted as type annotations
+
+- Known-type validation treated any resolved symbol as a valid type, including
+  local/global variables, function parameters and functions. Short uppercase
+  value names also bypassed validation through the generic-name heuristic.
+- Accept resolved structs, enums, specs and type aliases (including actual
+  generic parameters); reject resolved value/module symbols with the existing
+  BPL_TYPE_NOT_FOUND diagnostic category. Preserve generic-name fallback only
+  when no symbol is resolved, without changing that existing language policy.
+- Six source regressions failed before the fix across simple, nested, field
+  and catch annotations. Positive controls preserve actual type declarations.
