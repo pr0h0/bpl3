@@ -6619,3 +6619,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   parameters are in scope. Declared generic parameters and aliases stay valid.
 - Eight negative regressions failed before the fix; two positive controls
   preserve generic payloads and nested callable types. Found during PR review.
+
+## Known-type checks lost previously resolved namespace identity
+
+- Signature resolution can replace a qualified nominal name such as Types.Token
+  with Token while recording its declaration. Subsequent known-type validation
+  searched only the bare name and incorrectly rejected valid namespace imports.
+- Honor recorded struct/enum/spec declarations using the same guarded helper as
+  type resolution. A declaration for a different name or an enum variant does
+  not bypass name validation. Generic arguments are still validated recursively.
+- The transitive module-cache regression exposed this during CI; focused controls
+  cover all three nominal declaration kinds and mismatched names.

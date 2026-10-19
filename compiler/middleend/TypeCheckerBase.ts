@@ -746,7 +746,8 @@ export abstract class TypeCheckerBase {
       return;
     }
 
-    const symbol = this.resolveTypeSymbol(typeName);
+    const symbol =
+      recordedDeclarationSymbol(type) ?? this.resolveTypeSymbol(typeName);
     if (
       symbol?.kind === "Struct" ||
       symbol?.kind === "Enum" ||
