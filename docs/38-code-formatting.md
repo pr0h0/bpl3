@@ -61,7 +61,10 @@ bpl format --no-config src/main.bpl
 ```
 
 An explicit config path is relative to the working directory and replaces
-configuration discovery. `--no-config` selects the language defaults before any
+configuration discovery. `bpl build --emit formatted` and the default compile
+command with `--emit formatted` also discover project configuration; use the
+`format` command for explicit configuration and style overrides.
+`--no-config` selects the language defaults before any
 explicit style flags. These preferences also apply to `--write`, `--check` and
 `--check --json`. Configuration is JSON data; it does not execute scripts.
 

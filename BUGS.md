@@ -6824,3 +6824,10 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - The new formatter regression example redeclared printf directly, violating the
   repository example declaration check. Import printf from std/c.bpl instead.
 - Covered by ExampleExterns.test.ts and the formatter native/corpus checks.
+
+## Formatted build output diverged from the format command
+
+- Both frontend and full-runner formatted emits appended an extra stdout newline.
+  They also need to honor project formatter preferences consistently.
+- Write formatted text directly and share project configuration discovery. Three
+  CLI regressions cover explicit build, default invocation and advanced build.
