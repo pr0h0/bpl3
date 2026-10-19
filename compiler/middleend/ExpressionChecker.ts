@@ -2025,30 +2025,36 @@ function checkLambdaBody(
     }
   }
 
+  // Resolve the entire signature before value parameters can hide aliases.
+  const paramTypes = expr.params.map((param, i) => {
+    if (param.type) {
+      return this.resolveType(param.type);
+    }
+    if (expectedFuncType && i < expectedFuncType.paramTypes.length) {
+      return this.resolveType(expectedFuncType.paramTypes[i]!);
+    }
+    throw new CompilerError(
+      "Lambda parameter types must be explicit or inferred from context",
+      "Mark all lambda parameters with explicit types or ensure context provides function type.",
+      param.location,
+    );
+  });
+  let lambdaReturnType = this.makeVoidType();
+  if (expr.returnType) {
+    lambdaReturnType = this.resolveType(expr.returnType);
+  } else if (expectedFuncType) {
+    lambdaReturnType = this.resolveType(expectedFuncType.returnType);
+  }
+
   // 1. Create new scope
   const lambdaScope = new SymbolTable(this.currentScope);
   const previousScope = this.currentScope;
   this.currentScope = lambdaScope;
 
   // 2. Define parameters
-  const paramTypes: AST.TypeNode[] = [];
   for (let i = 0; i < expr.params.length; i++) {
     const param = expr.params[i]!;
-    let resolvedType: AST.TypeNode | undefined;
-
-    if (param.type) {
-      resolvedType = this.resolveType(param.type);
-    } else if (expectedFuncType && i < expectedFuncType.paramTypes.length) {
-      resolvedType = expectedFuncType.paramTypes[i];
-    } else {
-      throw new CompilerError(
-        "Lambda parameter types must be explicit or inferred from context",
-        "Mark all lambda parameters with explicit types or ensure context provides function type.",
-        param.location,
-      );
-    }
-
-    paramTypes.push(resolvedType!);
+    const resolvedType = paramTypes[i]!;
 
     // Define parameter in scope (skip if _)
     if (param.name !== "_") {
@@ -2077,21 +2083,7 @@ function checkLambdaBody(
   checker.loopDepth = 0;
   checker.switchDepth = 0;
 
-  if (expr.returnType) {
-    checker.currentFunctionReturnType = this.resolveType(expr.returnType);
-  } else if (expectedFuncType) {
-    checker.currentFunctionReturnType = expectedFuncType.returnType;
-  } else {
-    // Default to void if not specified for now
-    checker.currentFunctionReturnType = {
-      kind: "BasicType",
-      name: "void",
-      genericArgs: [],
-      pointerDepth: 0,
-      arrayDimensions: [],
-      location: expr.location,
-    };
-  }
+  checker.currentFunctionReturnType = lambdaReturnType;
 
   // Save and clear matchContext to prevent return statements from being captured by outer match/variable context
   const savedMatchContext = checker.matchContext;

@@ -6673,3 +6673,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   validation, preserving aliases and nominal declaration identity.
 - Five checking cases and one native O0/O3 fixture failed before the correction,
   including scalar, tuple, callback and plain-void aliases.
+
+## Value parameters also hid aliases in lambda signatures
+
+- Explicit lambda parameter and return types were resolved after entering the
+  parameter scope. Earlier value parameters could hide aliases in later types,
+  producing false return mismatches or false missing-return diagnostics.
+- Resolve explicit and contextual signature types in the enclosing scope before
+  binding lambda parameters, while retaining existing context inference and
+  scope restoration on failures.
+- Six checking cases and one native O0/O3 fixture failed before the fix, covering
+  aliases to scalar, tuple, callback and plain-void types plus mixed inference.

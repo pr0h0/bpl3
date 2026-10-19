@@ -6,6 +6,12 @@ Functions in BPL can take parameters and return values.
 
 Parameters are declared with their type.
 
+Parameter and return types are resolved before value parameters enter scope.
+For example, given `type Number=int;`, both type annotations named `Number` in
+`frame add(Number: int, other: Number) ret Number` refer to that alias; the first
+parameter does not change their meaning. Explicit lambda signatures follow the
+same rule.
+
 ```bpl
 frame add(a: int, b: int) ret int {
     return a + b;
