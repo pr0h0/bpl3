@@ -6705,3 +6705,50 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   modes; distinct names and reuse in other aliases remain valid.
 - Five regressions failed before the correction, covering adjacent and separated
   duplicates, subsequent declaration recovery and fail-fast scope restoration.
+
+## Spec method signatures skipped known-type validation
+
+- Unused specs accepted undefined parameter and return types, including short
+  undeclared names and names nested in tuples, callbacks and generic arguments.
+- Validate signatures in temporary scopes containing the spec and method generic
+  parameters. Restore the exact incoming scope on success and failure before
+  existing resolution; method parameters cannot escape into sibling signatures.
+- Twenty-seven regression cases failed before the correction. Controls retain
+  Self, forward declarations and declared generic parameters.
+
+## Specs and methods accepted duplicate generic parameters
+
+- Specs and their methods accepted repeated generic parameter names. Reject
+  duplicates per parameter list with BPL_SYMBOL_ALREADY_DEFINED; reuse in
+  separate signatures and case-sensitive names remain valid.
+- Seven regressions failed before the correction. Scope restoration is tested
+  under diagnostic collection and fail-fast checking.
+
+## Spec inheritance accepted undefined generic arguments
+
+- A declared parent spec can be instantiated with an undefined type argument
+  in another spec's inheritance list. Reproduced with unused declarations:
+  spec Parent<T>{} spec Broken:Parent<MissingType>{} frame main(){}
+- Validate inherited arguments with the child's generic parameters in scope,
+  preserving existing parent-name diagnostics and scope restoration.
+- Thirteen negative and recovery cases failed before the fix; declared child
+  parameters, forward types and existing parent-name diagnostics remain valid.
+
+## Spec validation could hide the primary inheritance diagnostic
+
+- The new spec validation initially checked generic arguments before inherited
+  spec names, so MissingParent<MissingType> reported the argument instead of
+  the undefined parent. CodeRabbit identified this ordering regression in PR #19.
+- Preserve the existing parent-name, non-spec and self-extension checks before
+  validating inherited arguments or method signatures. Three regression cases
+  protect these primary diagnostics when an argument is also undefined.
+
+## Spec inheritance silently accepted non-spec type shapes
+
+- Tuple, function and lambda parent types bypassed identity checks because only
+  BasicType parents were checked. CodeRabbit identified this outside-diff issue
+  in PR #19. Independent tests also found pointer and array wrappers around a
+  named spec accepted as parents. All nine invalid declarations were accepted.
+- Reject non-BasicType parents and BasicType pointer/array wrappers at the
+  inheritance boundary. Named specs, generic arguments and multiple parents
+  remain valid; invalid shapes report a source-located compiler diagnostic.

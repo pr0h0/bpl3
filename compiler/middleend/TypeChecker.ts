@@ -2012,6 +2012,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     // Validate inheritance list
     if (decl.extends) {
       for (const parentType of decl.extends) {
+        if (
+          parentType.kind !== "BasicType" ||
+          parentType.pointerDepth !== 0 ||
+          parentType.arrayDimensions.length > 0
+        ) {
+          throw new CompilerError(
+            "Spec inheritance requires a named spec type",
+            "Use a named spec without tuple, callable, pointer or array wrappers.",
+            parentType.location || decl.location,
+          );
+        }
         // Check for self-extension
         if (parentType.kind === "BasicType" && parentType.name === decl.name) {
           throw new CompilerError(
@@ -2042,6 +2053,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         this.resolveType(parentType, false);
       }
     }
+
+    this.validateSpecTypes(decl);
 
     // BUG-129: Check for duplicate method signatures
     const methodSignatures =
@@ -2091,6 +2104,72 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (method.returnType) {
         this.resolveType(method.returnType, false);
       }
+    }
+  }
+
+  private validateSpecTypes(decl: AST.SpecDecl): void {
+    const defineParameters = (parameters: AST.GenericParam[]): void => {
+      const parameterNames =
+        parameters.length > 1 ? new Set<string>() : undefined;
+      for (const parameter of parameters) {
+        if (parameterNames?.has(parameter.name)) {
+          throw new CompilerError(
+            `Duplicate generic type parameter '${parameter.name}'`,
+            "Each spec or method generic parameter list must contain unique names.",
+            parameter.location || decl.location,
+            SYMBOL_ALREADY_DEFINED_CODE,
+          );
+        }
+        parameterNames?.add(parameter.name);
+        this.defineSymbol(
+          parameter.name,
+          "TypeAlias",
+          {
+            kind: "BasicType",
+            name: parameter.name,
+            genericArgs: [],
+            pointerDepth: 0,
+            arrayDimensions: [],
+            location: parameter.location || decl.location,
+          },
+          {
+            kind: "GenericParam",
+            location: decl.location,
+            ...parameter,
+          } as AST.ASTNode,
+        );
+      }
+    };
+
+    const declarationScope = this.currentScope;
+    try {
+      if (decl.genericParams.length > 0) {
+        this.currentScope = this.currentScope.enterScope();
+        defineParameters(decl.genericParams);
+      }
+      for (const parent of decl.extends) {
+        if (parent.kind === "BasicType") {
+          for (const argument of parent.genericArgs)
+            this.ensureKnownType(argument);
+        }
+      }
+      for (const method of decl.methods) {
+        const specScope = this.currentScope;
+        try {
+          if (method.genericParams.length > 0) {
+            this.currentScope = this.currentScope.enterScope();
+            defineParameters(method.genericParams);
+          }
+          for (const parameter of method.params) {
+            this.ensureKnownType(parameter.type);
+          }
+          if (method.returnType) this.ensureKnownType(method.returnType);
+        } finally {
+          this.currentScope = specScope;
+        }
+      }
+    } finally {
+      this.currentScope = declarationScope;
     }
   }
 
