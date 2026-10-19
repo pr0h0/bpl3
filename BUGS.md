@@ -6808,3 +6808,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   console.log, adding another. Redirected stdout differed from --write output.
 - Write the formatted text directly to stdout; cover plain, comment-bearing and
   CRLF input and check that redirected output equals the written file.
+
+## Comment-aware tokenization used different Unicode column units
+
+- GenericParser.advance counted Unicode code points while the generated parser
+  and token offsets use UTF-16 units. On the multiline-literal advance path,
+  tokens after an astral character had incorrect columns. Single-line fast
+  paths already used UTF-16 lengths.
+- Formatter source mapping relies on these coordinates. Advance through UTF-16
+  units consistently; cover plain and interpolated
+  strings, literal hash characters, actual comments and multiline literals.

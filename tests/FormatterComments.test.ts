@@ -274,3 +274,13 @@ test("formats comments in CR-only input without consuming following code", () =>
   );
   expect(new Formatter().format(parse(formatted))).toBe(formatted);
 });
+
+for (const literal of ['"😀"', '"😃#literal"', '"🌍😀"', "`first\n😀`"]) {
+  test(`retains Unicode literal spelling with adjacent comments: ${literal}`, () => {
+    const source = `frame main(){local text:string=${literal}; # text\nlocal n:int=1;}`;
+    const formatted = new Formatter().format(parse(source));
+    expect(formatted).toContain(literal.replace(/\n/g, "\\n") + "; # text");
+    expect(semantic(parse(formatted))).toEqual(semantic(parse(source)));
+    expect(new Formatter().format(parse(formatted))).toBe(formatted);
+  });
+}
