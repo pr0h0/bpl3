@@ -749,8 +749,24 @@ export abstract class TypeCheckerBase {
     const looksLikeGenericParam =
       typeName.length <= 2 && /^[A-Z][0-9]?$/.test(typeName);
 
-    if (looksLikeGenericParam || this.resolveTypeSymbol(typeName)) {
+    const symbol = this.resolveTypeSymbol(typeName);
+    if (
+      symbol?.kind === "Struct" ||
+      symbol?.kind === "Enum" ||
+      symbol?.kind === "Spec" ||
+      symbol?.kind === "TypeAlias" ||
+      (!symbol && looksLikeGenericParam)
+    ) {
       return;
+    }
+
+    if (symbol) {
+      throw new CompilerError(
+        `Symbol '${typeName}' is a ${formatSymbolKind(symbol.kind)}, not a type`,
+        "Use a struct, enum, spec, type alias, or generic type parameter in a type annotation.",
+        type.location,
+        TYPE_NOT_FOUND_CODE,
+      );
     }
 
     throw new CompilerError(
