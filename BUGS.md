@@ -7035,3 +7035,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   before the fix.
 - Use the source opening-brace line for that initial gap. Locate it with lexer
   tokens so braces in comments do not count, and reuse lazily collected tokens.
+
+
+## Comment-free declaration headers lost source brace spacing
+
+- CodeRabbit identified that original source was retained only for programs with
+  comments. Brace-on-next-line structs/specs/enums therefore acquired an unwanted
+  blank body line. Four focused regressions fail before the correction.
+- Retain source provenance in the existing weak map for every parsed program and
+  use it for declaration layout, including comment-free files. The source remains
+  outside AST serialization/traversal and is released with its program.
