@@ -1,4 +1,4 @@
-import type { Token } from "../frontend/Token";
+import { Token } from "../frontend/Token";
 import { TokenType } from "../frontend/TokenType";
 import { lexWithGrammar } from "../frontend/GrammarLexer";
 
@@ -25,9 +25,28 @@ function positionedTokens(source: string, file: string): PositionedToken[] {
       (token) =>
         token.type !== TokenType.Comment && token.type !== TokenType.EOF,
     )
-    .map((token) => {
+    .flatMap((token) => {
       const start = offsets[token.line - 1]! + token.column - 1;
-      return { token, start, end: start + token.lexeme.length };
+      // Generic closing brackets can share a lexer token with another bracket
+      // or assignment. Give each character a boundary without changing output.
+      if (
+        token.type === TokenType.GreaterGreater ||
+        token.type === TokenType.GreaterEqual
+      ) {
+        return [...token.lexeme].map((character, index) => ({
+          token: new Token(
+            character === ">" ? TokenType.Greater : TokenType.Equal,
+            character,
+            null,
+            token.line,
+            token.column + index,
+            token.file,
+          ),
+          start: start + index,
+          end: start + index + 1,
+        }));
+      }
+      return [{ token, start, end: start + token.lexeme.length }];
     });
 }
 
@@ -215,15 +234,11 @@ function commentLayout(
   groups: Map<number, SourceComment[]>,
   indent: string,
 ) {
-  const opening = new Set([
-    TokenType.LeftBrace,
-    TokenType.LeftBracket,
-    TokenType.LeftParen,
-  ]);
-  const closing = new Set([
-    TokenType.RightBrace,
-    TokenType.RightBracket,
-    TokenType.RightParen,
+  const matchingClose = new Map([
+    [TokenType.LeftBrace, TokenType.RightBrace],
+    [TokenType.LeftBracket, TokenType.RightBracket],
+    [TokenType.LeftParen, TokenType.RightParen],
+    [TokenType.Less, TokenType.Greater],
   ]);
   const stack: number[] = [];
   const container: Array<number | undefined> = [];
@@ -232,13 +247,22 @@ function commentLayout(
   for (let i = 0; i < tokens.length; i++) {
     const type = tokens[i]!.token.type;
     container[i] = stack.at(-1);
-    if (closing.has(type)) {
-      const start = stack.pop();
-      if (start !== undefined) {
-        closeFor.set(start, i);
-        openFor.set(i, start);
-      }
-    } else if (opening.has(type)) stack.push(i);
+    const start = stack.at(-1);
+    if (
+      start !== undefined &&
+      matchingClose.get(tokens[start]!.token.type) === type
+    ) {
+      stack.pop();
+      closeFor.set(start, i);
+      openFor.set(i, start);
+    } else if (
+      matchingClose.has(type) &&
+      // In the canonical printer, generic '<' is adjacent to its base;
+      // comparisons and shifts always have surrounding spaces.
+      (type !== TokenType.Less ||
+        (i > 0 && tokens[i - 1]!.end === tokens[i]!.start))
+    )
+      stack.push(i);
   }
   const expanded = new Set<number>();
   for (const [gap, comments] of groups) {
@@ -291,10 +315,7 @@ function commentLayout(
     const closesExpanded = expanded.has(openFor.get(i) ?? -1);
     tokenIndents[i] = base + indent.repeat(extra - (closesExpanded ? 1 : 0));
     commentIndents[i] =
-      base +
-      indent.repeat(
-        extra + (closing.has(tokens[i]!.token.type) && !closesExpanded ? 1 : 0),
-      );
+      base + indent.repeat(extra + (openFor.has(i) && !closesExpanded ? 1 : 0));
     if (closesExpanded) extra--;
     if (expanded.has(i)) extra++;
   }

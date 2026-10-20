@@ -6894,3 +6894,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Quote paths using supported BPL escapes (JSON backspace/form-feed forms need
   Unicode equivalents) and align ordinary string tokens by decoded value. Cover
   named/bare imports, Unicode/surrogates, controls, literal escapes and comments.
+
+## Generic-list comments did not receive continuation layout
+
+- Comment-bearing generic parameter and type/call argument lists were excluded
+  from container layout. Subsequent arguments and closing brackets remained at
+  statement indentation, unlike other multiline lists. Four layout goldens fail
+  before the fix, including nested closers next to an assignment.
+- Recognize canonical generic angle brackets separately from spaced comparisons;
+  expose boundaries inside combined closing-bracket lexer tokens. Preserve shift
+  and comparison text and verify meaning and repeated-formatting stability.
