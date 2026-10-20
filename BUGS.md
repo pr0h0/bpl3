@@ -6998,3 +6998,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   compiler driver with shell execution disabled on Windows.
 - Build the finite test driver as a standalone Bun executable on every platform,
   keeping shell-free execution and exercising the same launch boundary locally.
+## Malformed string escapes consumed partial hexadecimal prefixes
+
+- Both quoted-string decoders used parseInt without checking every digit. Invalid
+  escapes such as \x1g and \u12g4 became control characters and discarded suffixes;
+  a following escape could also be partly consumed. Ten lexer/parser regressions
+  fail before the fix.
+- Require exactly two/four hex digits before decoding. Malformed and incomplete
+  escapes retain their literal spelling, matching the existing fallback contract.
