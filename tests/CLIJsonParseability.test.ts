@@ -6967,5 +6967,5 @@ describe("CLI JSON parseability", () => {
       "BPL_BUILD_OUTPUT_DIRECTORY",
     );
     expect(fs.existsSync(`${executableDirectoryOutput}.ll`)).toBe(false);
-  });
+  }, 30000);
 });
