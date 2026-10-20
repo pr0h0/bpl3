@@ -7319,9 +7319,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   Function/method regressions cover LF/CRLF/CR and explicit annotation controls.
 
 
-## Function prepare-rename ranges cover whole declarations (open)
+## Declaration rename ranges covered whole declarations
 
-- Preparing a rename on `frame run() {}` selects the entire declaration instead
-  of `run`. Three LF/CRLF/CR controls reproduce ranges 0..14 instead of 6..9.
-  This is independent of implicit-void hover selection; a declaration-name
-  range correction is queued separately.
+- Preparing a rename on `frame run() {}` selected the entire declaration instead
+  of `run`. Actual global edits also replaced whole declarations and duplicated
+  their identifier edits. Const and multiline parameter ranges were incorrect;
+  comment text could be mistaken for an alias/extern name.
+- Locate the declaration's identifier token after its keyword, accounting for
+  modifiers/comments and multiline UTF-16 coordinates. Global declaration edits
+  use that same exact name range. Invalid names produce no declaration edit.
+- Twenty-seven failing-before cases cover LF/CRLF/CR, declaration families,
+  modifiers and applying function/struct renames without changing their bodies.
