@@ -190,18 +190,55 @@ export class ASTRenameHandler {
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
-      if (!node) {
+      if (!node) return null;
+      const range = this.getNodeRange(node, document);
+      const offset = document.offsetAt(position);
+      if (
+        !range ||
+        offset < document.offsetAt(range.start) ||
+        offset > document.offsetAt(range.end)
+      )
         return null;
-      }
 
       // Find all references based on the node type
       const references = this.findReferences(node, filePath, document);
 
+      if (references.length === 0 && node.kind === "Identifier") {
+        return this.findImportedSymbolReferences(
+          (node as AST.IdentifierExpr).name,
+          document,
+        );
+      }
       return references;
     } catch (error) {
       console.error("[ASTReferences] Error finding references:", error);
       return null;
     }
+  }
+
+  /** Preserve read-only defining-file references without permitting partial edits. */
+  private findImportedSymbolReferences(
+    name: string,
+    document: TextDocument,
+  ): Location[] {
+    const filePath = fileURLToPath(document.uri);
+    const imported = this.symbolIndex
+      .getImportedSymbolsFromContent(filePath, document.getText())
+      .filter((symbol) => symbol.name === name);
+    const files = new Set(imported.map((symbol) => symbol.filePath));
+    if (files.size !== 1) return [];
+    const definingFile = imported[0]!.filePath;
+    if (definingFile === filePath) return [];
+    // getSource preserves a cached live buffer rather than reloading disk over it.
+    const source = this.astResolver.getSource(definingFile);
+    if (source === null) return [];
+    const definingDocument = TextDocument.create(
+      filePathToUri(definingFile),
+      "bpl",
+      0,
+      source,
+    );
+    return this.findCurrentDocumentSymbolReferences(name, definingDocument);
   }
 
   private isValidRenameIdentifier(name: string): boolean {
