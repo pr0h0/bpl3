@@ -415,3 +415,25 @@ test.skipIf(process.platform === "win32")(
     }),
   10000,
 );
+
+test.skipIf(process.platform === "win32")(
+  "a linked entry preserves its supplied project scan root",
+  () =>
+    fixture((root) => {
+      const app = path.join(root, "app");
+      const shared = path.join(root, "shared");
+      fs.mkdirSync(app);
+      fs.mkdirSync(shared);
+      const target = path.join(shared, "entry.bpl");
+      const local = path.join(app, "local.bpl");
+      const unrelated = path.join(shared, "unrelated.bpl");
+      fs.writeFileSync(target, "frame main(){}");
+      fs.writeFileSync(local, "frame localValue(){}");
+      fs.writeFileSync(unrelated, "frame unrelated(){}");
+      fs.symlinkSync(target, path.join(app, "main.bpl"));
+      const targets = collectSourceWatchTargets(path.join(app, "main.bpl"));
+      expect(targets.sources.has(target)).toBe(true);
+      expect(targets.sources.has(local)).toBe(true);
+      expect(targets.sources.has(unrelated)).toBe(false);
+    }),
+);

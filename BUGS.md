@@ -6998,3 +6998,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   compiler driver with shell execution disabled on Windows.
 - Build the finite test driver as a standalone Bun executable on every platform,
   keeping shell-free execution and exercising the same launch boundary locally.
+
+
+## A linked entry changed the project scan root to its external target
+
+- CodeRabbit found that canonicalizing the file before choosing its parent
+  scanned the target directory instead of the supplied project directory. A
+  regression misses a local sibling and includes an unrelated target sibling.
+- Canonicalize the supplied entry parent for scanning and the entry file itself
+  for source identity. Continue observing link parents and resolved dependencies.

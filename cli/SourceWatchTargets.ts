@@ -62,7 +62,7 @@ export function collectSourceWatchTargets(
   };
   observeLinkParents(entryFile);
   const canonicalEntry = canonicalWatchPath(entryFile);
-  const root = canonicalWatchPath(path.dirname(canonicalEntry));
+  const root = canonicalWatchPath(path.dirname(path.resolve(entryFile)));
   const pendingDirectories = [root];
   while (pendingDirectories.length) {
     const directory = pendingDirectories.pop()!;
