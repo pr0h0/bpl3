@@ -6857,3 +6857,10 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   while native VS Code save formatting skips that reason. An activation regression
   expected zero formatting calls but received one. Skip AfterDelay; retain manual
   and focus-change saves and explicit native settings precedence.
+
+## Compiler container context omitted the formatter schema
+
+- The image copied bpl-format.schema.json, but its Dockerfile-specific context
+  allowlist excluded the new root file, so BuildKit failed before compilation.
+- Include the schema in docker/Dockerfile.dockerignore and verify the actual
+  compiler image build, keeping the otherwise narrow build context.
