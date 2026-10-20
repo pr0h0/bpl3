@@ -6,6 +6,23 @@ import * as AST from "../../../compiler/common/AST";
 import { SymbolIndex } from "./SymbolIndex";
 import { debugLog, filePathToUri, typeNodeToString } from "./utils";
 
+/** Implicit void has the enclosing declaration's range, but no source token. */
+function hasImplicitVoidReturnType(node: AST.FunctionDecl): boolean {
+  const type = node.returnType;
+  if (type?.kind !== "BasicType" || type.name !== "void") return false;
+  const location = type.location;
+  const owner = node.location;
+  return (
+    !!location &&
+    !!owner &&
+    location.file === owner.file &&
+    location.startLine === owner.startLine &&
+    location.startColumn === owner.startColumn &&
+    location.endLine === owner.endLine &&
+    location.endColumn === owner.endColumn
+  );
+}
+
 interface ASTCache {
   ast: AST.Program;
   mtime: number;
@@ -180,6 +197,14 @@ export class ASTResolver {
 
     // Traverse all properties that might contain child nodes
     for (const key of Object.keys(node)) {
+      // Synthetic annotations must not replace an actual source declaration.
+      if (
+        key === "returnType" &&
+        node.kind === "FunctionDecl" &&
+        hasImplicitVoidReturnType(node)
+      ) {
+        continue;
+      }
       const value = node[key];
 
       if (Array.isArray(value)) {
