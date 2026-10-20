@@ -218,3 +218,64 @@ for (const replaceEntry of [true, false]) {
     10000,
   );
 }
+
+test(
+  "watching recovers when the entry directory disappears before being restored",
+  () =>
+    fixture(async (root) => {
+      const app = path.join(root, "app");
+      fs.mkdirSync(app);
+      const entry = path.join(app, "main.bpl");
+      fs.writeFileSync(entry, "frame main(){}");
+      let report: (file: string) => void = () => {};
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      const watcher = createSourceWatcher(
+        entry,
+        (file) => report(file),
+        () => {},
+      );
+      try {
+        watcher.refresh();
+        fs.renameSync(app, app + "-previous");
+        watcher.refresh();
+        await Bun.sleep(250);
+        fs.mkdirSync(app);
+        fs.writeFileSync(entry, "frame main(){return;}");
+        await Bun.sleep(250);
+        const changed = new Promise<string>((resolve, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error("Restored entry directory was not watched")),
+            3000,
+          );
+          report = (file) => {
+            clearTimeout(timeout);
+            resolve(file);
+          };
+        });
+        fs.appendFileSync(entry, "\n# edit after directory restoration\n");
+        expect(await changed).toBe(entry);
+      } finally {
+        clearTimeout(timeout);
+        watcher.close();
+      }
+    }),
+  10000,
+);
+
+test("missing roots observe an ancestor without scanning unrelated sources", () =>
+  fixture((root) => {
+    fs.mkdirSync(path.join(root, "unrelated"));
+    fs.writeFileSync(path.join(root, "unrelated/other.bpl"), "frame other(){}");
+    const entry = path.join(root, "missing/app/main.bpl");
+    const targets = collectSourceWatchTargets(entry);
+    expect([...targets.sources]).toEqual([entry]);
+    expect([...targets.directories]).toEqual([root]);
+  }));
+test("file-valued parent paths fall back to an existing directory", () =>
+  fixture((root) => {
+    fs.writeFileSync(path.join(root, "app"), "not a directory");
+    const entry = path.join(root, "app/main.bpl");
+    const targets = collectSourceWatchTargets(entry);
+    expect([...targets.sources]).toEqual([entry]);
+    expect([...targets.directories]).toEqual([root]);
+  }));

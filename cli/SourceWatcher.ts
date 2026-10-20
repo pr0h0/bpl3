@@ -22,6 +22,8 @@ export function createSourceWatcher(
   >();
   const directoryIdentity = (directory: string): string => {
     const stat = fs.statSync(directory, { bigint: true });
+    if (!stat.isDirectory())
+      throw new Error(`Watch path is not a directory: ${directory}`);
     return `${stat.dev}:${stat.ino}`;
   };
   let sources = new Set<string>();

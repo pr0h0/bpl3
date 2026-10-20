@@ -8,6 +8,21 @@ export function isIgnoredWatchDirectory(name: string): boolean {
   return name.startsWith(".") || IGNORED_DIRECTORIES.has(name);
 }
 
+/** Observe recovery without recursively scanning an unrelated ancestor tree. */
+function nearestExistingDirectory(directory: string): string {
+  let current = directory;
+  while (true) {
+    try {
+      if (fs.statSync(current).isDirectory()) return current;
+    } catch {
+      /* Try the parent of a missing or inaccessible directory. */
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return current;
+    current = parent;
+  }
+}
+
 export interface SourceWatchTargets {
   directories: Set<string>;
   sources: Set<string>;
@@ -24,9 +39,10 @@ export function collectSourceWatchTargets(
   while (pendingDirectories.length) {
     const directory = pendingDirectories.pop()!;
     if (directories.has(directory)) continue;
-    directories.add(directory);
     try {
-      for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const entries = fs.readdirSync(directory, { withFileTypes: true });
+      directories.add(directory);
+      for (const entry of entries) {
         const file = path.join(directory, entry.name);
         if (entry.isDirectory() && !isIgnoredWatchDirectory(entry.name))
           pendingDirectories.push(file);
@@ -34,7 +50,8 @@ export function collectSourceWatchTargets(
           sources.add(file);
       }
     } catch {
-      // A directory may disappear during an editor save; its parent remains watched.
+      // Watch only the nearest parent while the source directory is absent.
+      directories.add(nearestExistingDirectory(path.dirname(directory)));
     }
   }
   const resolver = new ModuleResolver();
@@ -45,7 +62,7 @@ export function collectSourceWatchTargets(
     if (visited.has(file)) continue;
     visited.add(file);
     sources.add(file);
-    directories.add(path.dirname(file));
+    directories.add(nearestExistingDirectory(path.dirname(file)));
     try {
       const program = new Parser(fs.readFileSync(file, "utf8"), file).parse();
       for (const statement of program.statements) {
@@ -63,13 +80,7 @@ export function collectSourceWatchTargets(
           } catch {
             // A missing directory import is covered by its nearest existing parent.
           }
-          let directory = path.dirname(candidate);
-          while (
-            !fs.existsSync(directory) &&
-            path.dirname(directory) !== directory
-          )
-            directory = path.dirname(directory);
-          directories.add(directory);
+          directories.add(nearestExistingDirectory(path.dirname(candidate)));
         }
         try {
           pendingFiles.push(resolver.resolveModulePath(imported, file));

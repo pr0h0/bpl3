@@ -6925,3 +6925,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   changed handles. Store identity with its handle so error/close cleanup cannot
   leave stale identity entries. Source snapshots use bigint IDs and nanosecond
   timestamps as well.
+
+## Watch mode could not recover after its entry directory disappeared
+
+- Once the entry directory was absent across a refresh, no live watcher remained
+  to observe restoration. A new regression fails after restoring the directory
+  and editing its source.
+- Observe the nearest existing parent while a source directory is missing, then
+  return to source-directory watches after restoration. Do not recursively scan
+  unrelated ancestor trees. Treat file-valued path components as missing dirs.
