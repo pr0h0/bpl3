@@ -151,3 +151,70 @@ test(
     }),
   10000,
 );
+
+for (const replaceEntry of [true, false]) {
+  test(
+    `refresh follows a replaced ${replaceEntry ? "entry" : "dependency"} directory`,
+    () =>
+      fixture(async (root) => {
+        const app = path.join(root, "app");
+        const shared = path.join(root, "shared");
+        fs.mkdirSync(app);
+        fs.mkdirSync(shared);
+        const entry = path.join(app, "main.bpl");
+        const dependency = path.join(shared, "value.bpl");
+        const entryText =
+          'import value from "../shared/value.bpl";frame main(){value();}';
+        fs.writeFileSync(entry, entryText);
+        fs.writeFileSync(
+          dependency,
+          "frame value()ret int{return 1;}export value;",
+        );
+        let report: (file: string) => void = () => {};
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        const errors: unknown[] = [];
+        const watcher = createSourceWatcher(
+          entry,
+          (file) => report(file),
+          (_directory, error) => errors.push(error),
+        );
+        try {
+          watcher.refresh();
+          const target = replaceEntry ? app : shared;
+          fs.renameSync(target, target + "-previous");
+          fs.mkdirSync(target);
+          if (replaceEntry) fs.writeFileSync(entry, entryText);
+          else
+            fs.writeFileSync(
+              dependency,
+              "frame value()ret int{return 2;}export value;",
+            );
+          watcher.refresh();
+          await Bun.sleep(250);
+          const changed = new Promise<string>((resolve, reject) => {
+            timeout = setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    "Recreated directory stopped producing source events",
+                  ),
+                ),
+              3000,
+            );
+            report = (file) => {
+              clearTimeout(timeout);
+              resolve(file);
+            };
+          });
+          const edited = replaceEntry ? entry : dependency;
+          fs.appendFileSync(edited, "\n# changed after replacement\n");
+          expect(await changed).toBe(edited);
+          expect(errors).toEqual([]);
+        } finally {
+          clearTimeout(timeout);
+          watcher.close();
+        }
+      }),
+    10000,
+  );
+}

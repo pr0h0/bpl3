@@ -6915,3 +6915,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   directories, resolve transitive imports and rescan after changes.
 - Synchronous compilation/execution still blocks event handling while a program
   runs; subprocess concurrency is a separate outstanding issue.
+
+## Recreated source directories retained obsolete watch handles
+
+- CodeRabbit identified that directory watchers were keyed only by path. Replacing
+  an entry/dependency directory preserved a handle on its former inode. Both new
+  regressions fail before the fix even after an explicit refresh.
+- Compare canonical bigint device/inode identities during refresh and recreate
+  changed handles. Store identity with its handle so error/close cleanup cannot
+  leave stale identity entries. Source snapshots use bigint IDs and nanosecond
+  timestamps as well.

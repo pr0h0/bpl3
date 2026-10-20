@@ -16,7 +16,14 @@ export function createSourceWatcher(
   onChange: (file: string) => void,
   onError: (directory: string, error: unknown) => void,
 ): SourceWatcher {
-  const watchers = new Map<string, fs.FSWatcher>();
+  const watchers = new Map<
+    string,
+    { handle: fs.FSWatcher; identity: string }
+  >();
+  const directoryIdentity = (directory: string): string => {
+    const stat = fs.statSync(directory, { bigint: true });
+    return `${stat.dev}:${stat.ino}`;
+  };
   let sources = new Set<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let closed = false;
@@ -28,15 +35,25 @@ export function createSourceWatcher(
       if (closed) return 0;
       const targets = collectSourceWatchTargets(entryFile);
       sources = targets.sources;
-      for (const [directory, watcher] of watchers) {
-        if (!targets.directories.has(directory)) {
-          watcher.close();
+      for (const [directory, watched] of watchers) {
+        let identity: string | undefined;
+        try {
+          identity = directoryIdentity(directory);
+        } catch {
+          /* A deleted directory must release its old watcher. */
+        }
+        if (
+          !targets.directories.has(directory) ||
+          identity !== watched.identity
+        ) {
+          watched.handle.close();
           watchers.delete(directory);
         }
       }
       for (const directory of targets.directories) {
         if (watchers.has(directory)) continue;
         try {
+          const identity = directoryIdentity(directory);
           const watcher = fs.watch(directory, (event, name) => {
             if (closed) return;
             const file = name ? path.join(directory, String(name)) : directory;
@@ -79,10 +96,11 @@ export function createSourceWatcher(
           });
           watcher.on("error", (error) => {
             watcher.close();
-            if (watchers.get(directory) === watcher) watchers.delete(directory);
+            if (watchers.get(directory)?.handle === watcher)
+              watchers.delete(directory);
             onError(directory, error);
           });
-          watchers.set(directory, watcher);
+          watchers.set(directory, { handle: watcher, identity });
         } catch (error) {
           onError(directory, error);
         }
@@ -94,10 +112,10 @@ export function createSourceWatcher(
           observed.add(path.join(directory, manifest));
       for (const file of observed) {
         try {
-          const stat = fs.statSync(file);
+          const stat = fs.statSync(file, { bigint: true });
           snapshot.set(
             file,
-            `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}:${stat.ctimeMs}`,
+            `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`,
           );
         } catch {
           snapshot.set(file, "missing");
@@ -109,7 +127,7 @@ export function createSourceWatcher(
       closed = true;
       if (timer) clearTimeout(timer);
       timer = undefined;
-      for (const watcher of watchers.values()) watcher.close();
+      for (const watched of watchers.values()) watched.handle.close();
       watchers.clear();
     },
   };
