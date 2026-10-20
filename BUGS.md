@@ -7184,7 +7184,7 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 
 ## Diagnostic types erased pointer-to-array grouping
 
-- CodeRabbit found that (*int)[4] and *int[4] printed identically, hiding
+- CodeRabbit found that `(*int)[4]` and `*int[4]` printed identically, hiding
   distinct checked array/pointer shapes. Three checked-metadata cases fail against
   the original printer; a real assignment control covers address-of-array types.
 - Keep parentheses for pointer-to-array nodes and avoid collapsing their pointer
