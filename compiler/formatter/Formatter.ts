@@ -380,7 +380,9 @@ export class Formatter {
     return output;
   }
 
-  private formatParameter(param: AST.Parameter): string {
+  private formatParameter(
+    param: Pick<AST.Parameter, "name" | "type" | "isConst" | "isVariadic">,
+  ): string {
     const constPrefix = param.isConst ? "const " : "";
     const variadicPrefix = param.isVariadic ? "..." : "";
     return `${constPrefix}${param.name}: ${variadicPrefix}${this.formatType(param.type)}`;
@@ -445,9 +447,7 @@ export class Formatter {
     const indent = this.getIndent();
     let output = `${indent}extern ${decl.name}(`;
 
-    output += decl.params
-      .map((p) => `${p.name}: ${this.formatType(p.type)}`)
-      .join(", ");
+    output += decl.params.map((p) => this.formatParameter(p)).join(", ");
 
     if (decl.isVariadic) {
       if (decl.params.length > 0) output += ", ";

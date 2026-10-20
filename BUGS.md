@@ -6878,3 +6878,9 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   the grammar does not accept. Preserve the supported bare-import syntax when
   importing all exported symbols without a namespace.
 - Both plain and comment-bearing round trips fail before the fix.
+
+## Formatter dropped const qualifiers from extern parameters
+
+- Extern parameter printing duplicated a reduced name/type formatter and omitted
+  Parameter.isConst. Both plain and comment-bearing AST round trips fail before
+  the fix. Reuse the declaration parameter formatter so qualifiers are retained.
