@@ -635,6 +635,8 @@
 
   function parseChar(raw) {
     const inner = raw.slice(1, -1);
+    // Escape decoding must not discard trailing characters before the width check.
+    if (inner.startsWith("\\") && inner.length !== 2) return inner;
     if (inner.startsWith("\\")) {
       const esc = inner[1];
       switch (esc) {
