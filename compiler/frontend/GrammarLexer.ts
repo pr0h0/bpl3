@@ -141,7 +141,11 @@ function extractComments(
     ) {
       const rangeEnd = excludeRanges[rangeIdx]!.end;
       while (position < rangeEnd) {
-        if (source.charCodeAt(position) === 10) {
+        if (
+          source.charCodeAt(position) === 10 ||
+          (source.charCodeAt(position) === 13 &&
+            source.charCodeAt(position + 1) !== 10)
+        ) {
           line++;
           column = 1;
         } else {
@@ -210,7 +214,10 @@ function extractComments(
     }
 
     position++;
-    if (currentCode === 10) {
+    if (
+      currentCode === 10 ||
+      (currentCode === 13 && source.charCodeAt(position) !== 10)
+    ) {
       line++;
       column = 1;
     } else {

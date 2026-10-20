@@ -32,6 +32,10 @@ frame add(
 }
 ```
 
+Input may use LF, CRLF, standalone CR, or mixed line endings. Source positions
+and comment placement count each as one newline. The formatter writes the
+configured line endings (LF by default), preserving literal payloads.
+
 ## Project configuration
 
 Place a `.bplfmt.json` file beside your sources or in a parent directory. The

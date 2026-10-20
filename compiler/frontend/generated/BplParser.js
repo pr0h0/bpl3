@@ -1127,10 +1127,18 @@ function peg$parse(input, options) {
   const peg$bplInputLength = input.length;
 
   const peg$bplLineStarts = [0];
-  let peg$bplLinePos = input.indexOf("\n");
-  while (peg$bplLinePos !== -1) {
-    peg$bplLineStarts.push(peg$bplLinePos + 1);
-    peg$bplLinePos = input.indexOf("\n", peg$bplLinePos + 1);
+  if (input.indexOf("\r") === -1) {
+    let peg$bplLinePos = input.indexOf("\n");
+    while (peg$bplLinePos !== -1) {
+      peg$bplLineStarts.push(peg$bplLinePos + 1);
+      peg$bplLinePos = input.indexOf("\n", peg$bplLinePos + 1);
+    }
+  } else {
+    const peg$bplNewlines = /\r\n|\r|\n/g;
+    let peg$bplNewline;
+    while ((peg$bplNewline = peg$bplNewlines.exec(input)) !== null) {
+      peg$bplLineStarts.push(peg$bplNewline.index + peg$bplNewline[0].length);
+    }
   }
 
   let peg$lastBplLineIndex = 0;
@@ -1276,7 +1284,7 @@ function peg$parse(input, options) {
       };
 
       while (p < pos) {
-        if (input.charCodeAt(p) === 10) {
+        if (input.charCodeAt(p) === 10 || (input.charCodeAt(p) === 13 && input.charCodeAt(p + 1) !== 10)) {
           details.line++;
           details.column = 1;
         } else {

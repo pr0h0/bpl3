@@ -7245,3 +7245,36 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Keep WebAssembly builds out of native watch execution and warn once when run
   was requested. Watch compilation remains available; a WebAssembly runtime must
   execute the module separately. Native execution paths remain selected normally.
+
+
+## CR-only source locations and newline characters in diagnostic snippets
+
+- CR-only source files were accepted as whitespace but their tokens, AST nodes,
+  comments and syntax errors stayed on the preceding line. This also caused
+  formatter comment placement to use incorrect source offsets. Mixed newlines
+  inside multiline literals had the same issue.
+- Count LF, CRLF and standalone CR consistently across both lexer paths,
+  parser AST/error locations and formatter source offsets. CRLF counts once;
+  source text, literal payloads and UTF-16 offsets remain unchanged.
+- Split diagnostic source snippets on all three newline forms for both cached
+  and disk-backed sources, removing CRLF carriage returns from displayed lines.
+- Absolute-position, formatter round-trip, syntax-error and source-snippet
+  regressions are in `tests/SourceLineEndings.test.ts`.
+
+
+## CR-only documentation lost sections and parameter help
+
+- After source coordinates were corrected, documentation block comments attached
+  to declarations in CR-only files, but DocParser still recognized only LF/CRLF.
+  Section headers remained inside the description, and parameter help was lost.
+- Split standalone CR as well. Direct section/parameter regressions and generated
+  Markdown equivalence tests across all three newline forms cover the fix.
+
+
+## CR-only comment spacing lost blank lines
+
+- CodeRabbit found that both blank-line checks beside comments required LF, so
+  CR-only sources lost their section spacing. Two regressions reproduce this.
+- Recognize logical LF/CRLF/CR separators before and after comments, preserve
+  at most one blank line, and guard against treating a single CRLF as two breaks.
+  Tests cover one, two and three separators, exact output and idempotence.
