@@ -7065,3 +7065,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   fail before the fix.
 - Require exactly two/four hex digits before decoding. Malformed and incomplete
   escapes retain their literal spelling, matching the existing fallback contract.
+
+
+## Character escape decoding discarded extra literal characters
+
+- The character decoder returned the first escaped character and ignored the rest,
+  accepting literals such as '\nABC' and '\x41' despite the one-character rule.
+  Seven rejection regressions fail before the fix; ordinary 'ab' already failed.
+- Require an escaped literal to contain exactly the backslash and one escape
+  character before decoding. Existing supported escapes and legacy single unknown
+  escapes retain their values; hexadecimal character escapes remain unsupported.

@@ -135,6 +135,10 @@ printf("Letter: %c, Value: %d\n", letter, num);  # Letter: A, Value: 65
 - `\'` - Single quote
 - `\0` - Null terminator
 
+Character literals must decode to exactly one character. An escaped character
+cannot have a trailing suffix: `'\nABC'` is rejected. Hexadecimal escapes
+(`\xHH`, `\uHHHH`) belong to quoted strings, not character literals.
+
 ### Void Type
 
 Represents absence of a value (used for function return types):
