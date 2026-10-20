@@ -1016,13 +1016,15 @@ The `bpl dev` command provides watch mode for rapid development. It monitors you
 
 ### Features
 
-- **Automatic Recompilation**: Detects changes to `.bpl` files and recompiles automatically
+- **Automatic Recompilation**: Detects changes to `.bpl` and `.x` files and recompiles automatically
 - **Auto-Run**: Executes your program after successful compilation (use `--no-run` to disable)
 - **Error Recovery**: Continues watching even if compilation fails
 - **Debouncing**: Prevents excessive recompilation from rapid file changes (100ms delay)
 - **Recursive Watching**: Watches `.bpl` and `.x` sources under the entry directory,
   newly created source directories, and resolved transitive imports outside it.
-  Directory watches follow editor saves that replace files by rename.
+  Directory watches follow editor saves that replace files by rename. Replaced
+  source directories receive new watch handles; missing roots are observed through
+  their nearest existing parent until restored.
 - **Smart Filtering**: Ignores `node_modules`, `.git`, `bpl_modules`, and hidden directories
 - **Screen Clearing**: Optional screen clear on recompile with `--clear`
 
@@ -1055,7 +1057,7 @@ $ bpl dev main.bpl
 Hello, World!
 [12:00:00] ✓ Compilation successful
 
-[Watch] Found 3 BPL files to watch
+[Watch] Found 3 source files to watch
 
 [Watch] Watching for changes...
 

@@ -151,3 +151,27 @@ for (const suffix of [".bpl", ".x"]) {
     30000,
   );
 }
+
+test(
+  "dev resumes after the entry directory is removed and recreated",
+  () =>
+    watchFixture(async (root, start) => {
+      const app = path.join(root, "app");
+      fs.mkdirSync(app);
+      const entry = path.join(app, "main.bpl");
+      fs.writeFileSync(entry, printing("WATCH_ORIGINAL"));
+      const watcher = start(entry);
+      await watcher.wait("Watching for changes...");
+      watcher.clear();
+      fs.renameSync(app, app + "-previous");
+      await watcher.wait("Compilation failed");
+      watcher.clear();
+      fs.mkdirSync(app);
+      fs.writeFileSync(entry, printing("WATCH_RESTORED"));
+      await watcher.wait("\nWATCH_RESTORED\n");
+      watcher.clear();
+      fs.writeFileSync(entry, printing("WATCH_AFTER_RESTORATION"));
+      await watcher.wait("\nWATCH_AFTER_RESTORATION\n");
+    }),
+  30000,
+);
