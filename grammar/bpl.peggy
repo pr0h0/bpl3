@@ -452,9 +452,8 @@
             // Hex escape: \xHH
             if (i + 3 < inner.length) {
               const hex = inner.slice(i + 2, i + 4);
-              const code = parseInt(hex, 16);
-              if (!isNaN(code)) {
-                result += String.fromCharCode(code);
+              if (/^[0-9a-fA-F]{2}$/.test(hex)) {
+                result += String.fromCharCode(parseInt(hex, 16));
                 i += 4;
                 break;
               }
@@ -468,9 +467,8 @@
             // Unicode escape: \uHHHH
             if (i + 5 < inner.length) {
               const hex = inner.slice(i + 2, i + 6);
-              const code = parseInt(hex, 16);
-              if (!isNaN(code)) {
-                result += String.fromCharCode(code);
+              if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+                result += String.fromCharCode(parseInt(hex, 16));
                 i += 6;
                 break;
               }
@@ -637,6 +635,8 @@
 
   function parseChar(raw) {
     const inner = raw.slice(1, -1);
+    // Escape decoding must not discard trailing characters before the width check.
+    if (inner.startsWith("\\") && inner.length !== 2) return inner;
     if (inner.startsWith("\\")) {
       const esc = inner[1];
       switch (esc) {

@@ -114,7 +114,8 @@ local not: bool = !true;             # false
 
 ### Character Type
 
-8-bit unsigned integer, typically used for ASCII characters:
+`char` is an 8-bit signed integer, typically used for ASCII characters. Use
+`uchar` or `u8` for unsigned byte values:
 
 ```bpl
 local letter: char = 'A';        # ASCII 65
@@ -134,6 +135,10 @@ printf("Letter: %c, Value: %d\n", letter, num);  # Letter: A, Value: 65
 - `\\` - Backslash
 - `\'` - Single quote
 - `\0` - Null terminator
+
+Character literals must decode to exactly one character. An escaped character
+cannot have a trailing suffix: `'\nABC'` is rejected. Hexadecimal escapes
+(`\xHH`, `\uHHHH`) belong to quoted strings, not character literals.
 
 ### Void Type
 

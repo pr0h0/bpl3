@@ -7057,3 +7057,21 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Preserve backoff/error deduplication across newly created handles. Treat observed
   activity or a handle lasting at least 30 seconds as a fresh healthy episode.
   Ignore late errors from replaced handles and retain cancellation on close.
+## Malformed string escapes consumed partial hexadecimal prefixes
+
+- Both quoted-string decoders used parseInt without checking every digit. Invalid
+  escapes such as \x1g and \u12g4 became control characters and discarded suffixes;
+  a following escape could also be partly consumed. Ten lexer/parser regressions
+  fail before the fix.
+- Require exactly two/four hex digits before decoding. Malformed and incomplete
+  escapes retain their literal spelling, matching the existing fallback contract.
+
+
+## Character escape decoding discarded extra literal characters
+
+- The character decoder returned the first escaped character and ignored the rest,
+  accepting literals such as '\nABC' and '\x41' despite the one-character rule.
+  Seven rejection regressions fail before the fix; ordinary 'ab' already failed.
+- Require an escaped literal to contain exactly the backslash and one escape
+  character before decoding. Existing supported escapes and legacy single unknown
+  escapes retain their values; hexadecimal character escapes remain unsupported.

@@ -58,12 +58,16 @@ multi-line comment
   are separate tokens, so `1 2` is a syntax error.
 - **[R-LEX-6]** A floating-point literal has digits on both sides of the `.`
   (`3.14`). Exponent syntax (`1e3`) and forms such as `.5` are not supported.
-- **[R-LEX-7]** An integer literal has type `int` when its value fits in
-  `i32` and type `long` otherwise. A floating-point literal has the 64-bit
-  floating-point type.
+- **[R-LEX-7]** A nonnegative integer literal has type `int` through
+  `2147483647`, `long` through `9223372036854775807`, and `u64` through
+  `18446744073709551615`. Larger literals are rejected. A leading minus is a
+  unary operator; negating the literal `9223372036854775808` produces the signed
+  `long` minimum. A floating-point literal has the 64-bit floating-point type.
 - **[R-LEX-8]** A string literal `"..."` has type `string`. The escapes `\n`,
-  `\t`, `\r`, `\0`, `\\`, `\'`, `\"`, and `\xHH` produce the corresponding
-  character.
+  `\t`, `\r`, `\0`, `\\`, `\'`, `\"`, `\xHH`, and `\uHHHH` produce the corresponding
+  character/code unit. Hex escapes decode only when all required digits are
+  present and valid. Unknown, malformed and incomplete escapes retain their
+  backslash spelling; subsequent complete escapes are processed independently.
 - **[R-LEX-9]** A character literal `'c'` has type `char` and must contain
   exactly one character after escape processing.
 - **[R-LEX-10]** `true` and `false` are `bool` literals. `null` and `nullptr`
