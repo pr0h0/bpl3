@@ -66,3 +66,57 @@ for (const newline of ["\n", "\r\n", "\r"]) {
     }
   }
 }
+
+for (const newline of ["\n", "\r\n", "\r"]) {
+  for (const declaration of [
+    "global target: int = 1;",
+    "global const target: int = 1;",
+    "frame target() ret int { return 1; }",
+  ]) {
+    test(`cross-file rename declines partial edits for ${declaration} with ${JSON.stringify(newline)}`, () => {
+      const dir = mkdtempSync(join(tmpdir(), "bpl-imported-rename-"));
+      const file = join(dir, "main.bpl");
+      const moduleFile = join(dir, "values.bpl");
+      const source = [
+        'import [target] from "./values.bpl";',
+        `frame main() ret int { return target${declaration.startsWith("frame") ? "()" : ""}; }`,
+      ].join(newline);
+      writeFileSync(file, source);
+      writeFileSync(moduleFile, declaration + newline + "export target;");
+      const doc = TextDocument.create(
+        pathToFileURL(file).toString(),
+        "bpl",
+        2,
+        "# unsaved" + newline + source,
+      );
+      const index = new SymbolIndex(resolve(import.meta.dir, "../../.."));
+      index.indexFile(moduleFile, false);
+      index.indexFile(file, false);
+      const resolver = new ASTResolver(index);
+      resolver.parseDocumentContent(
+        moduleFile,
+        "# unsaved defining buffer" + newline + declaration,
+      );
+      const handler = new ASTRenameHandler(resolver, index);
+      try {
+        const position = doc.positionAt(
+          doc.getText().lastIndexOf("target") + 1,
+        );
+        expect(
+          handler.prepareRename(
+            { textDocument: { uri: doc.uri }, position },
+            doc,
+          ),
+        ).toBeNull();
+        expect(
+          handler.rename(
+            { textDocument: { uri: doc.uri }, position, newName: "updated" },
+            doc,
+          ),
+        ).toBeNull();
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  }
+}
