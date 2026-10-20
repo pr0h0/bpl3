@@ -7025,3 +7025,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   formatter round-trip regressions fail before the fix.
 - Emit the existing type list after the enum name/generic parameters, preserving
   implemented contracts and their surrounding comments without new syntax.
+
+
+## Multiline declaration headers introduced body spacing on repeated formatting
+
+- Struct/spec/enum printers measured the first body member's gap from the start
+  of the declaration, including multiline header comments. A subsequent format
+  inserted an unwanted blank body line. Twenty-four configured regressions fail
+  before the fix.
+- Use the source opening-brace line for that initial gap. Locate it with lexer
+  tokens so braces in comments do not count, and reuse lazily collected tokens.
