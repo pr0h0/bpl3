@@ -28,14 +28,29 @@ export function createSourceWatcher(
   };
   let sources = new Set<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
   let closed = false;
   let snapshot = new Map<string, string>();
   let forcePending = false;
   let pendingFile = entryFile;
+  const scheduleRecovery = () => {
+    if (closed || recoveryTimer) return;
+    recoveryTimer = setTimeout(() => {
+      recoveryTimer = undefined;
+      if (closed) return;
+      try {
+        session.refresh();
+      } catch (error) {
+        onError(path.dirname(entryFile), error);
+        scheduleRecovery();
+      }
+    }, 1000);
+  };
   const session: SourceWatcher = {
     refresh() {
       if (closed) return 0;
       const targets = collectSourceWatchTargets(entryFile);
+      let needsRecovery = false;
       sources = targets.sources;
       for (const [directory, watched] of watchers) {
         let identity: string | undefined;
@@ -102,15 +117,24 @@ export function createSourceWatcher(
             }
           });
           watcher.on("error", (error) => {
+            if (closed) return;
             watcher.close();
-            if (watchers.get(directory)?.handle === watcher)
+            if (watchers.get(directory)?.handle === watcher) {
               watchers.delete(directory);
+              scheduleRecovery();
+            }
             onError(directory, error);
           });
           watchers.set(directory, { handle: watcher, identity });
         } catch (error) {
+          needsRecovery = true;
           onError(directory, error);
         }
+      }
+      if (needsRecovery) scheduleRecovery();
+      else if (recoveryTimer) {
+        clearTimeout(recoveryTimer);
+        recoveryTimer = undefined;
       }
       snapshot = new Map();
       const observed = new Set(sources);
@@ -134,6 +158,8 @@ export function createSourceWatcher(
       closed = true;
       if (timer) clearTimeout(timer);
       timer = undefined;
+      clearTimeout(recoveryTimer);
+      recoveryTimer = undefined;
       for (const watched of watchers.values()) watched.handle.close();
       watchers.clear();
     },

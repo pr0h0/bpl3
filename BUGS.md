@@ -7007,3 +7007,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   regression misses a local sibling and includes an unrelated target sibling.
 - Canonicalize the supplied entry parent for scanning and the entry file itself
   for source identity. Continue observing link parents and resolved dependencies.
+
+
+## Failed source watchers required another event to recover
+
+- CodeRabbit noted a residual availability risk: a directory handle error or
+  initial watch creation failure left no handle able to observe the next change.
+  Two real-handle/temporary-failure regressions fail before the fix.
+- Retry discovery/watch registration after one second without requiring a file
+  event. Coalesce recovery timers, retry creation failures, and cancel pending
+  recovery when the session closes or a manual refresh restores every handle.
