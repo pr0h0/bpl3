@@ -7151,3 +7151,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Retry discovery/watch registration after one second without requiring a file
   event. Coalesce recovery timers, retry creation failures, and cancel pending
   recovery when the session closes or a manual refresh restores every handle.
+
+
+## Watch recovery missed changes made while monitoring was unavailable
+
+- Restoring a failed handle replaced the source baseline without reporting edits
+  made during the gap. A finite regression edits before the retry and receives no
+  callback before the correction.
+- Compare the old and refreshed source snapshots during recovery and report a
+  changed file, allowing dev mode to rebuild the current source immediately.

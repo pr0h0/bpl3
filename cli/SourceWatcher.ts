@@ -39,7 +39,12 @@ export function createSourceWatcher(
       recoveryTimer = undefined;
       if (closed) return;
       try {
+        const before = snapshot;
         session.refresh();
+        const changed = [...snapshot.keys(), ...before.keys()].find(
+          (file) => snapshot.get(file) !== before.get(file),
+        );
+        if (changed) onChange(changed);
       } catch (error) {
         onError(path.dirname(entryFile), error);
         scheduleRecovery();

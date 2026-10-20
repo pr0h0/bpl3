@@ -93,3 +93,29 @@ test("closing a failed watcher cancels its pending recovery", async () => {
     rmSync(directory, { recursive: true, force: true });
   }
 }, 10000);
+
+test("recovery reports an edit made while the handle was unavailable", async () => {
+  const directory = fs.realpathSync(
+    mkdtempSync(join(tmpdir(), "bpl-watch-gap-")),
+  );
+  const entry = join(directory, "main.bpl");
+  writeFileSync(entry, "frame main(){}");
+  const watchSpy = spyOn(fs, "watch");
+  const changed: string[] = [];
+  const watcher = createSourceWatcher(
+    entry,
+    (file) => changed.push(file),
+    () => {},
+  );
+  try {
+    watcher.refresh();
+    const handle = watchSpy.mock.results.at(-1)?.value as fs.FSWatcher;
+    handle.emit("error", new Error("temporary failure"));
+    writeFileSync(entry, "frame main(){return;}");
+    await waitFor(() => changed.includes(entry));
+  } finally {
+    watcher.close();
+    watchSpy.mockRestore();
+    rmSync(directory, { recursive: true, force: true });
+  }
+}, 10000);
