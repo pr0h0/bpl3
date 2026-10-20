@@ -740,7 +740,8 @@ Circular-import build failures point to the source import that completes the
 dependency cycle, including self-imports.
 
 Diagnostic type names prefer `bool` and `string` over internal spellings.
-Pointers to `char` may display as the equivalent `string` alias. Compound types,
+Resolved string aliases retain `string`; explicit `*i8` byte pointers remain
+pointers. Compound types,
 `const` qualifiers and array dimensions remain visible.
 
 Return type mismatch failures use `BPL_RETURN_TYPE_MISMATCH`. This covers

@@ -1,5 +1,16 @@
 import type * as AST from "../common/AST";
 
+function isStringAlias(type: AST.BasicTypeNode): boolean {
+  const seen = new Set<AST.TypeNode>();
+  let current: AST.TypeNode | undefined = type;
+  while (current?.kind === "BasicType" && !seen.has(current)) {
+    if (current.aliasDeclaration?.name === "string") return true;
+    seen.add(current);
+    current = current.aliasTarget;
+  }
+  return false;
+}
+
 /** User-facing spelling only; never use this for type identity or runtime IDs. */
 export function formatDiagnosticType(type: AST.TypeNode | undefined): string {
   if (!type) return "unknown";
@@ -16,7 +27,10 @@ export function formatDiagnosticType(type: AST.TypeNode | undefined): string {
       let name = type.name === "i1" ? "bool" : type.name;
       let pointers = type.pointerDepth;
       // The checker resolves string to a pointer to signed 8-bit characters.
-      if ((name === "i8" || name === "char") && pointers > 0) {
+      if (
+        (name === "char" || (name === "i8" && isStringAlias(type))) &&
+        pointers > 0
+      ) {
         name = "string";
         pointers--;
       }
