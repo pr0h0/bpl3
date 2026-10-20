@@ -80,7 +80,8 @@ comments, modifiers and multiline headers. Declaration edits select the name
 rather than replacing the whole declaration or function body.
 Global declarations and references in the current document use its unsaved
 source and names. Global reference searches currently cover the defining file;
-workspace-wide import resolution is not implemented.
+workspace-wide import resolution is not implemented. Identifier matching skips
+comments and string payloads, including text around interpolated expressions.
 
 ### Inlay Hints
 

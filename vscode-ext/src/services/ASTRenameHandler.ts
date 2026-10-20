@@ -1012,40 +1012,82 @@ export class ASTRenameHandler {
     return references;
   }
 
-  /**
-   * Find word references in the current document
-   */
+  /** Collect identifier tokens, preserving comments and literal payloads. */
   private findCurrentDocumentSymbolReferences(
     symbolName: string,
     document: TextDocument,
   ): Location[] {
-    const references: Location[] = [];
-    const content = document.getText();
-    const lines = content.split(/\r\n|\r|\n/);
-
-    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-      const line = lines[lineIdx];
-      if (!line) continue;
-
-      const lineRegex = new RegExp(`\\b${symbolName}\\b`, "g");
-      let match;
-      while ((match = lineRegex.exec(line)) !== null) {
-        references.push(
-          Location.create(
-            document.uri,
-            Range.create(
-              { line: lineIdx, character: match.index },
-              {
-                line: lineIdx,
-                character: match.index + symbolName.length,
-              },
-            ),
-          ),
-        );
+    const offsets = new Set<number>();
+    const filePath = fileURLToPath(document.uri);
+    const addTokens = (source: string, baseOffset: number) => {
+      const fragment = TextDocument.create(document.uri, "bpl", 0, source);
+      for (const token of lexWithGrammar(source, filePath)) {
+        if (
+          token.type === TokenType.Identifier &&
+          token.lexeme === symbolName
+        ) {
+          offsets.add(
+            baseOffset +
+              fragment.offsetAt({
+                line: token.line - 1,
+                character: token.column - 1,
+              }),
+          );
+        }
       }
-    }
+    };
+    addTokens(document.getText(), 0);
 
-    return references;
+    // Interpolated strings are opaque lexer tokens. Their parsed expression
+    // parts have real source locations, so scan those separately from text.
+    const ast =
+      this.astResolver.getSource(filePath) === document.getText()
+        ? this.astResolver.getCachedAST(filePath)
+        : this.astResolver.parseDocumentContent(filePath, document.getText());
+    const visited = new Set<object>();
+    const visit = (value: unknown): void => {
+      if (!value || typeof value !== "object" || visited.has(value)) return;
+      visited.add(value);
+      if (Array.isArray(value)) {
+        value.forEach(visit);
+        return;
+      }
+      const node = value as AST.ASTNode;
+      if (node.kind === "InterpolatedString") {
+        for (const part of (node as AST.InterpolatedStringExpr).parts) {
+          if (part.kind === "Literal" || !part.location) continue;
+          const loc = part.location;
+          const range = Range.create(
+            loc.startLine - 1,
+            loc.startColumn - 1,
+            loc.endLine - 1,
+            loc.endColumn - 1,
+          );
+          addTokens(document.getText(range), document.offsetAt(range.start));
+        }
+      }
+      for (const [key, child] of Object.entries(value)) {
+        if (
+          key === "resolvedType" ||
+          key === "resolvedDeclaration" ||
+          key === "desugared"
+        )
+          continue;
+        visit(child);
+      }
+    };
+    visit(ast);
+    return [...offsets]
+      .sort((a, b) => a - b)
+      .map((offset) =>
+        Location.create(
+          document.uri,
+          Range.create(
+            document.positionAt(offset),
+            document.positionAt(offset + symbolName.length),
+          ),
+        ),
+      );
   }
 
   /**

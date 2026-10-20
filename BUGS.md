@@ -7344,3 +7344,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   shifted source positions, globals/constants/functions and LF/CRLF/CR.
 - Remaining reference matching still uses word regexes for global/alias/extern
   names; comment/literal and shadowing correctness require a separate fix.
+
+
+## Global rename changed comments and literal payloads
+
+- Global/function/alias/extern reference discovery matched every word in source,
+  including documentation, nested comments and literal/interpolated string text.
+- Collect identifier tokens instead. Interpolated expression parts are scanned
+  separately using their parsed source ranges, preserving literal portions.
+  Nine regressions failed before and pass after across LF/CRLF/CR, including
+  type references inside interpolation. Binding/shadowing remains follow-up work.
