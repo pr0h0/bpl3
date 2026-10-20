@@ -221,13 +221,13 @@ frame laterDeclared(x: int) ret int { return x * 3; }`,
         name: "generic-inference",
         source:
           "frame identity<T>(v: T) ret T { return v; }\nframe main() ret int { return identity(1); }\n",
-        code: "BPL_CALL_ARGUMENT_COUNT_MISMATCH",
+        code: "BPL_GENERIC_ARITY_MISMATCH",
       },
       {
         name: "generic-arity",
         source:
           "frame identity<T>(v: T) ret T { return v; }\nframe main() ret int { return identity<int, int>(1); }\n",
-        code: "BPL_CALL_ARGUMENT_COUNT_MISMATCH",
+        code: "BPL_GENERIC_ARITY_MISMATCH",
       },
       {
         name: "unsatisfied-constraint",
