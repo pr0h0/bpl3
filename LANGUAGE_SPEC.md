@@ -392,7 +392,11 @@ frame main() ret int {
 - **[R-FN-8]** A generic function `frame name<T, U>(...)` is instantiated with
   explicit type arguments at each call, such as `identity<int>(1)`. Type
   arguments are not inferred from call arguments, and a call with the wrong
-  number of type arguments is rejected.
+  number of type arguments is rejected. The opening `<` must immediately follow
+  the preceding name/base, with no whitespace or comment between them. This
+  applies to generic declarations, types, calls, literals and standalone generic
+  references. `f<T>` is a generic reference; `a < b` uses comparison syntax.
+  Whitespace and comments inside `<...>` and after its closing `>` are allowed.
 - **[R-FN-9]** A constrained type parameter `<T: Spec>` accepts only types that
   implement `Spec`, whether the spec is listed directly, after a parent struct,
   or on a parent struct.

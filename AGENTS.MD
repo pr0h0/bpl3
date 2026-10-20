@@ -48,7 +48,7 @@ semantics. Explicit integer-to-`bool` casts retain the low bit.
 - **Tuples**: `(T1, T2)` (e.g., `(int, bool)`)
 - **Function Types**: `Func<Ret>(Arg1, Arg2)`
 - **Lambda Types**: Lambda<Ret>(Arg1, Arg2)
-- **Generics**: `Struct<T>`, `Func<T>`
+- **Generics**: `Struct<T>`, `Func<T>`. The opening `<` must touch the preceding name/base; whitespace or comments before it use comparison syntax in expressions.
 - **String**: `string` (C-compatible null-terminated pointer)
 
 ### Variables

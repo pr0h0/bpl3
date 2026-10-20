@@ -19,6 +19,11 @@ Generic parameters must be declared in a generic parameter list; a capitalized
 name such as `T` does not declare a type by itself. Function bodies may use
 parameters from their function or an enclosing generic type.
 
+The opening `<` must touch the function name: write `identity<T>`, not
+`identity <T>`. Use the same rule for calls, standalone generic references and
+generic types/literals. Whitespace or a comment before `<` makes it a comparison
+operator in an expression. Spaces and comments inside `<...>` are allowed.
+
 Generic parameters are specified in angle brackets `<T>` after the function name:
 
 ```bpl
