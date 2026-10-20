@@ -7278,3 +7278,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Recognize logical LF/CRLF/CR separators before and after comments, preserve
   at most one blank line, and guard against treating a single CRLF as two breaks.
   Tests cover one, two and three separators, exact output and idempotence.
+
+
+## Empty cached source displayed stale diagnostic snippets
+
+- DiagnosticFormatter treated an empty cached source as a cache miss and read
+  old source from disk. An emptied editor buffer could therefore show obsolete
+  text in terminal and JSON diagnostics, disagreeing with CompilerError output.
+- Distinguish undefined (no cached document) from the valid empty string. A
+  regression covers disk fallback before caching, authoritative empty content,
+  and text, structured-object and JSON output.

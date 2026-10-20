@@ -157,7 +157,7 @@ function getSourceLines(filePath: string): string[] | null {
   try {
     // Check SourceManager first
     const cachedSource = SourceManager.getSource(filePath);
-    if (cachedSource) {
+    if (cachedSource !== undefined) {
       return cachedSource.split(/\r\n|\r|\n/);
     }
 
