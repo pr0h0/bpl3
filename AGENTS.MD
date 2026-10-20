@@ -363,6 +363,10 @@ attached to their surrounding source tokens, and be idempotent. Run the
 formatter tests, including the repository corpus and native before/after checks,
 when changing formatting. A copied or serialized AST with comments needs the
 original source as the second Formatter.format argument.
+Default formatting follows the language style (four spaces, LF). Project
+`.bplfmt.json` preferences and CLI overrides must share strict validation;
+line-ending preferences must not change literal payloads. Keep CLI and editor
+formatting consistent when a project configuration exists.
 
 ## 7. Bug Reporting
 

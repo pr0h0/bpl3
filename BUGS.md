@@ -6824,3 +6824,50 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - The new formatter regression example redeclared printf directly, violating the
   repository example declaration check. Import printf from std/c.bpl instead.
 - Covered by ExampleExterns.test.ts and the formatter native/corpus checks.
+
+## Formatted build output diverged from the format command
+
+- Both frontend and full-runner formatted emits appended an extra stdout newline.
+  They also need to honor project formatter preferences consistently.
+- Write formatted text directly and share project configuration discovery. Three
+  CLI regressions cover explicit build, default invocation and advanced build.
+
+## Editor formatting rejected unsaved documents before error handling
+
+- The formatting handler converted every document URI with fileURLToPath outside
+  its try block. Untitled and other virtual documents therefore threw before the
+  formatter could run. Only file URIs now trigger path conversion/config discovery;
+  virtual buffers format directly, with errors handled by the existing boundary.
+- The shared document formatter also honors project style or editor indentation
+  preferences; regression cases cover unsaved buffers and unsaved file edits.
+
+## VS Code activation changed global format-on-save for every language
+
+- Activation wrote editor.formatOnSave=true globally, even when the user had
+  disabled it. Replace persistent settings writes with a BPL-only save hook.
+  Explicit native editor settings take precedence; enabled native formatting
+  runs once through VS Code rather than through the convenience hook.
+- Register an untitled-buffer formatter separately from the file-only server so
+  formatting unsaved documents is reachable without exposing filesystem-only
+  language-server handlers to non-file URIs.
+
+## BPL save hook formatted during delayed autosaves
+
+- CodeRabbit identified that the convenience save hook ran for AfterDelay saves,
+  while native VS Code save formatting skips that reason. An activation regression
+  expected zero formatting calls but received one. Skip AfterDelay; retain manual
+  and focus-change saves and explicit native settings precedence.
+
+## Compiler container context omitted the formatter schema
+
+- The image copied bpl-format.schema.json, but its Dockerfile-specific context
+  allowlist excluded the new root file, so BuildKit failed before compilation.
+- Include the schema in docker/Dockerfile.dockerignore and verify the actual
+  compiler image build, keeping the otherwise narrow build context.
+
+## Formatter container test had inconsistent timeout allowances
+
+- CodeRabbit noted that five sequential Docker invocations each allowed 60 seconds
+  inside a test with a 60-second overall deadline. No slow-run failure was
+  reproduced locally, but those limits could make the smoke test unreliable.
+- Bound each process to 30 seconds and allow 240 seconds for the complete test.

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BPL formatter configuration",
+  "description": "Optional preferences for .bplfmt.json. Omitted settings use the BPL language style.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "indentWidth": {
+      "description": "Spaces per indentation level, or visual tab width when useTabs is true.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16,
+      "default": 4
+    },
+    "useTabs": {
+      "description": "Use one tab per indentation level.",
+      "type": "boolean",
+      "default": false
+    },
+    "lineEnding": {
+      "description": "Line ending for layout and comments; literal payloads are preserved.",
+      "type": "string",
+      "enum": ["lf", "crlf"],
+      "default": "lf"
+    }
+  }
+}

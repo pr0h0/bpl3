@@ -23,7 +23,7 @@ import {
 
 // Compiler integration
 import * as AST from "../../compiler/common/AST";
-import { Formatter } from "../../compiler/formatter/Formatter";
+import { formatDocumentText } from "./services/DocumentFormatter";
 import { Parser } from "../../compiler/frontend/Parser";
 import type { TypeChecker } from "../../compiler/middleend/TypeChecker";
 
@@ -256,9 +256,8 @@ connection.onInitialize((params: InitializeParams) => {
       },
     };
   }
-  debugLog(
-    "[Server] Server capabilities initialized:",
-    () => JSON.stringify(result.capabilities, null, 2),
+  debugLog("[Server] Server capabilities initialized:", () =>
+    JSON.stringify(result.capabilities, null, 2),
   );
   return result;
 });
@@ -551,12 +550,8 @@ connection.onDocumentFormatting(async (params) => {
   const doc = documents.get(params.textDocument.uri);
   if (!doc) return [];
   const text = doc.getText();
-  const filePath = fileURLToPath(doc.uri);
   try {
-    const parser = new Parser(text, filePath);
-    const program: AST.Program = parser.parse();
-    const formatter = new Formatter();
-    const formatted = formatter.format(program);
+    const formatted = formatDocumentText(text, doc.uri, params.options);
     const fullRange = Range.create(0, 0, doc.lineCount, 0);
     return [
       {

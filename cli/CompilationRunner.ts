@@ -19,6 +19,7 @@ import {
   SourceManager,
   TokenType,
 } from "../compiler";
+import { loadFormatterConfig } from "../compiler/formatter/FormatterConfig";
 import { diagnosticFormatter } from "./DiagnosticFormatter";
 import {
   compileBinaryAndRun,
@@ -571,6 +572,10 @@ function compileWithModules(
     filePath,
     outputPath: options.output,
     emitType: options.emit,
+    formatterOptions:
+      options.emit === "formatted"
+        ? loadFormatterConfig(filePath).options
+        : undefined,
     verbose: options.verbose,
     resolveImports: !options.cache,
     useCache: options.cache,
@@ -619,7 +624,7 @@ function compileWithModules(
       writeFileAtomically(filePath, result.output);
       if (options.verbose) log.info(`Formatted ${filePath}`);
     } else {
-      console.log(result.output);
+      process.stdout.write(result.output);
     }
     return;
   }
@@ -664,6 +669,10 @@ async function compileWithModulesAsync(
     filePath,
     outputPath: options.output,
     emitType: options.emit,
+    formatterOptions:
+      options.emit === "formatted"
+        ? loadFormatterConfig(filePath).options
+        : undefined,
     verbose: options.verbose,
     resolveImports: !options.cache,
     useCache: options.cache,
@@ -712,7 +721,7 @@ async function compileWithModulesAsync(
       writeFileAtomically(filePath, result.output);
       if (options.verbose) log.info(`Formatted ${filePath}`);
     } else {
-      console.log(result.output);
+      process.stdout.write(result.output);
     }
     return;
   }
@@ -781,14 +790,14 @@ function compileSingleFile(
   }
 
   if (options.emit === "formatted") {
-    const formatter = new Formatter();
-    const formatted = formatter.format(ast);
+    const formatter = new Formatter(loadFormatterConfig(filePath).options);
+    const formatted = formatter.format(ast, content);
     if (options.write) {
       assertWritableInputFilePath(filePath);
       writeFileAtomically(filePath, formatted);
       if (options.verbose) log.info(`Formatted ${filePath}`);
     } else {
-      console.log(formatted);
+      process.stdout.write(formatted);
     }
     return;
   }

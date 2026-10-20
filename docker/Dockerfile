@@ -22,6 +22,7 @@ RUN bun install --frozen-lockfile --production \
     && printf '%s\n' "$BPL_VERSION" | grep -Eq '^0\.1\.(0|[1-9][0-9]*)$'
 COPY compiler ./compiler
 COPY cli ./cli
+COPY bpl-format.schema.json ./
 COPY grammar ./grammar
 COPY lib ./lib
 COPY packages ./packages

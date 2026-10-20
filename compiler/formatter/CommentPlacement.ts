@@ -173,14 +173,18 @@ function commentText(
   source: string,
   output: string,
   indent: string,
+  tabWidth: number,
 ): string {
   const lineStart =
     Math.max(
       source.lastIndexOf("\n", comment.start - 1),
       source.lastIndexOf("\r", comment.start - 1),
     ) + 1;
-  const oldColumn = columns(source.slice(lineStart, comment.start), 4);
-  const newColumn = columns(output.slice(output.lastIndexOf("\n") + 1), 4);
+  const oldColumn = columns(source.slice(lineStart, comment.start), tabWidth);
+  const newColumn = columns(
+    output.slice(output.lastIndexOf("\n") + 1),
+    tabWidth,
+  );
   const shift = newColumn - oldColumn;
   return comment.token.lexeme
     .replace(/\r\n?|\n/g, "\n")
@@ -188,10 +192,11 @@ function commentText(
     .map((line, index) => {
       if (index === 0 || !line.trim()) return index === 0 ? line : "";
       const prefix = line.match(/^[\t ]*/)?.[0] ?? "";
-      const width = Math.max(0, columns(prefix, 4) + shift);
+      const width = Math.max(0, columns(prefix, tabWidth) + shift);
       const indentation =
         indent === "\t"
-          ? "\t".repeat(Math.floor(width / 4)) + " ".repeat(width % 4)
+          ? "\t".repeat(Math.floor(width / tabWidth)) +
+            " ".repeat(width % tabWidth)
           : " ".repeat(width);
       return indentation + line.slice(prefix.length);
     })
@@ -310,6 +315,7 @@ export function placeSourceComments(
   formatted: string,
   comments: readonly Token[],
   indent: string,
+  tabWidth: number = 4,
 ): string {
   const file = comments[0]?.file ?? "format.bpl";
   const original = positionedTokens(source, file);
@@ -397,7 +403,7 @@ export function placeSourceComments(
             output += "\n";
           output += commentIndent;
         }
-        output += commentText(comment, source, output, indent);
+        output += commentText(comment, source, output, indent, tabWidth);
       }
       const last = group[group.length - 1]!;
       const lineComment = !last.token.lexeme.startsWith("/#");
@@ -432,4 +438,22 @@ export function placeSourceComments(
     }
   }
   return output.trimEnd() + "\n";
+}
+
+/** Change layout newlines without changing string/character literal payloads. */
+export function formatLineEndings(
+  source: string,
+  ending: "lf" | "crlf",
+): string {
+  if (ending === "lf" && !source.includes("\r")) return source;
+  const newline = ending === "crlf" ? "\r\n" : "\n";
+  const normalize = (text: string) => text.replace(/\r\n|\r|\n/g, newline);
+  let output = "";
+  let previousEnd = 0;
+  for (const token of positionedTokens(source, "formatted.bpl")) {
+    output +=
+      normalize(source.slice(previousEnd, token.start)) + token.token.lexeme;
+    previousEnd = token.end;
+  }
+  return output + normalize(source.slice(previousEnd));
 }
