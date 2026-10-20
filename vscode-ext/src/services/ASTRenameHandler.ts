@@ -259,7 +259,8 @@ export class ASTRenameHandler {
         if (symbolInfo.type === "catch-parameter") {
           const catchClause = this.findContainingCatchClause(
             node,
-            this.astResolver.getAST(filePath)!,
+            (this.astResolver.getCachedAST(filePath) ??
+              this.astResolver.getAST(filePath))!,
           );
           return this.findCatchParameterReferences(
             symbolName,
@@ -303,27 +304,21 @@ export class ASTRenameHandler {
 
       case "function":
         if (symbolInfo.node.kind === "Extern") {
-          return this.findCurrentDocumentSymbolReferences(
-            symbolName,
-            document,
-          );
+          return this.findCurrentDocumentSymbolReferences(symbolName, document);
         }
-        return this.findGlobalSymbolReferences(symbolName, symbolInfo.type);
+        return this.findGlobalSymbolReferences(symbolName, document);
 
       case "type-alias":
         if (symbolInfo.node.kind === "TypeAlias") {
-          return this.findCurrentDocumentSymbolReferences(
-            symbolName,
-            document,
-          );
+          return this.findCurrentDocumentSymbolReferences(symbolName, document);
         }
-        return this.findGlobalSymbolReferences(symbolName, symbolInfo.type);
+        return this.findGlobalSymbolReferences(symbolName, document);
 
       case "struct":
       case "enum":
       case "global-variable":
-        // Global symbols - rename across all files
-        return this.findGlobalSymbolReferences(symbolName, symbolInfo.type);
+        // Global symbols currently search their defining file.
+        return this.findGlobalSymbolReferences(symbolName, document);
 
       default:
         return references;
@@ -1054,76 +1049,44 @@ export class ASTRenameHandler {
   }
 
   /**
-   * Find references to a global symbol across all files
+   * Search the defining file, preferring its current editor contents.
+   * Workspace-wide import/reference resolution is not implemented here.
    */
   private findGlobalSymbolReferences(
     symbolName: string,
-    _symbolType: string,
+    currentDocument: TextDocument,
   ): Location[] {
-    const references: Location[] = [];
-
-    // Find the symbol declaration
-    const symbols = this.symbolIndex.findSymbol(symbolName);
-    if (symbols.length > 0 && symbols[0]) {
-      const symbol = symbols[0];
-
-      // For global symbols, only search in the file where it's defined
-      // A full implementation would search all files that import it
-      const files = [symbol.filePath];
-      for (const file of files) {
-        try {
-          const content = require("fs").readFileSync(file, "utf-8");
-          const document = TextDocument.create(
-            filePathToUri(file),
-            "bpl",
-            0,
-            content,
-          );
-          const declarationRange = this.getNodeRange(
-            symbol.declaration,
-            document,
-          );
-          if (!declarationRange) return references;
-          references.push(Location.create(document.uri, declarationRange));
-          const lines = content.split(/\r\n|\r|\n/);
-
-          for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-            const line = lines[lineIdx];
-            if (!line) continue;
-
-            const lineRegex = new RegExp(`\\b${symbolName}\\b`, "g");
-            let match: RegExpExecArray | null;
-            while ((match = lineRegex.exec(line)) !== null) {
-              // Skip the declaration we already added
-              const isDuplicate = references.some(
-                (ref) =>
-                  ref.uri === filePathToUri(file) &&
-                  ref.range.start.line === lineIdx &&
-                  ref.range.start.character === match!.index,
-              );
-              if (!isDuplicate) {
-                references.push(
-                  Location.create(
-                    filePathToUri(file),
-                    Range.create(
-                      { line: lineIdx, character: match.index },
-                      {
-                        line: lineIdx,
-                        character: match.index + symbolName.length,
-                      },
-                    ),
-                  ),
-                );
-              }
-            }
-          }
-        } catch (error) {
-          console.error(`[ASTRename] Error reading file ${file}:`, error);
-        }
-      }
+    const filePath = fileURLToPath(currentDocument.uri);
+    const ast = this.astResolver.getCachedAST(filePath);
+    const liveDeclaration = ast?.statements.find(
+      (statement) => this.getSymbolName(statement) === symbolName,
+    );
+    if (liveDeclaration) {
+      return this.findCurrentDocumentSymbolReferences(
+        symbolName,
+        currentDocument,
+      );
     }
 
-    return references;
+    const symbol = this.symbolIndex.findSymbol(symbolName)[0];
+    // Never fall back to stale disk contents for the current document.
+    if (!symbol || symbol.filePath === filePath) return [];
+    try {
+      const document = TextDocument.create(
+        filePathToUri(symbol.filePath),
+        "bpl",
+        0,
+        fs.readFileSync(symbol.filePath, "utf-8"),
+      );
+      if (!this.getNodeRange(symbol.declaration, document)) return [];
+      return this.findCurrentDocumentSymbolReferences(symbolName, document);
+    } catch (error) {
+      console.error(
+        `[ASTRename] Error reading file ${symbol.filePath}:`,
+        error,
+      );
+      return [];
+    }
   }
 
   /**
@@ -1324,11 +1287,21 @@ export class ASTRenameHandler {
         }
       }
 
-      // Check if it's a global symbol
-      const symbols = this.symbolIndex.findSymbol(name);
-      if (symbols.length > 0 && symbols[0]) {
+      // The live AST is authoritative for newly added/renamed declarations.
+      const declaration = ast.statements.find(
+        (statement) => this.getSymbolName(statement) === name,
+      );
+      if (declaration && declaration !== node) {
+        return this.analyzeSymbol(declaration, filePath);
+      }
+
+      const symbol = this.symbolIndex.findSymbol(name)[0];
+      if (symbol && symbol.filePath !== filePath) {
         return {
-          type: symbols[0].kind,
+          type:
+            symbol.kind === "variable" || symbol.kind === "constant"
+              ? "global-variable"
+              : symbol.kind,
           scope: "global",
           node,
         };
@@ -1768,9 +1741,9 @@ export class ASTRenameHandler {
     line: number,
     character: number,
   ): AST.ASTNode | null {
-    const ast = fs.existsSync(filePath)
-      ? this.astResolver.getAST(filePath)
-      : this.astResolver.getCachedAST(filePath);
+    const ast =
+      this.astResolver.getCachedAST(filePath) ??
+      this.astResolver.getAST(filePath);
     if (!ast) return null;
 
     let targetNode: AST.ASTNode | null = null;
@@ -1847,7 +1820,6 @@ export class ASTRenameHandler {
             }
           }
         }
-
       }
 
       // Always continue searching children for more specific nodes. Aggregate

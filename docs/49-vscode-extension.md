@@ -78,6 +78,9 @@ Jump to symbol definitions:
 Rename preparation locates declaration names using lexer tokens, including
 comments, modifiers and multiline headers. Declaration edits select the name
 rather than replacing the whole declaration or function body.
+Global declarations and references in the current document use its unsaved
+source and names. Global reference searches currently cover the defining file;
+workspace-wide import resolution is not implemented.
 
 ### Inlay Hints
 

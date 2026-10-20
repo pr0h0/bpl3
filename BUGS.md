@@ -7330,3 +7330,17 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   use that same exact name range. Invalid names produce no declaration edit.
 - Twenty-seven failing-before cases cover LF/CRLF/CR, declaration families,
   modifiers and applying function/struct renames without changing their bodies.
+
+
+## Rename reloaded saved files over unsaved document contents
+
+- Node selection reloaded disk ASTs after parsing the current editor buffer;
+  global edits also used saved source and stale indexed declaration names.
+  Renaming from a global variable/constant reference produced no edits because
+  index classifications did not match the rename dispatcher.
+- Prefer the parsed live AST and live top-level declarations, search their live
+  document, and map external variable/constant classifications consistently.
+  Thirty-six regressions cover declaration/reference initiation, changed names,
+  shifted source positions, globals/constants/functions and LF/CRLF/CR.
+- Remaining reference matching still uses word regexes for global/alias/extern
+  names; comment/literal and shadowing correctness require a separate fix.
