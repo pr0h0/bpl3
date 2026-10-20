@@ -35,9 +35,6 @@ export function watchMode(
   log.info(`Entry point: ${fileName}`);
   log.info("Press Ctrl+C to stop\n");
 
-  // Initial compilation
-  compile(absolutePath, options, programArgs);
-
   const watcher = createSourceWatcher(
     absolutePath,
     (changedFile) => {
@@ -50,6 +47,8 @@ export function watchMode(
       ),
   );
   const sourceCount = watcher.refresh();
+  // Capture the source baseline before a build can block the event loop.
+  compile(absolutePath, options, programArgs);
   log.info(`Found ${sourceCount} source files to watch\n`);
 
   // Keep the process alive

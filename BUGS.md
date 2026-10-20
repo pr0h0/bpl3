@@ -6972,3 +6972,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Canonicalize existing watch paths consistently, preserving absolute fallbacks
   for missing files and canonicalizing their nearest existing parent. Canonical
   temporary fixtures also work when the platform temporary directory is a link.
+
+
+## Initial dev compilation missed edits made before watch registration
+
+- CodeRabbit identified that the initial build/run completed before watching
+  sources. A deterministic CLI regression edits source while a compile-driver
+  gate pauses the first native build; no subsequent rebuild occurs before fixing.
+- Register and refresh source watches before the first compilation so queued
+  changes compare against the source baseline used for that build.

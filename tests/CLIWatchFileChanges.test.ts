@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { writeNodeCommandShim } from "./helpers/executableShim";
+import { getCompilerDriver } from "../compiler/common/CompilerDriver";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -9,7 +11,10 @@ const project = path.resolve(import.meta.dir, "..");
 async function watchFixture(
   run: (
     root: string,
-    start: (file: string) => {
+    start: (
+      file: string,
+      env?: NodeJS.ProcessEnv,
+    ) => {
       wait: (text: string) => Promise<void>;
       clear: () => void;
     },
@@ -18,13 +23,13 @@ async function watchFixture(
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-watch-files-"));
   const children: ReturnType<typeof spawn>[] = [];
   try {
-    await run(root, (file) => {
+    await run(root, (file, env) => {
       const child = spawn(
         process.execPath,
         [path.join(project, "index.ts"), "dev", file],
         {
           cwd: root,
-          env: { ...process.env, BPL_HOME: project, NO_COLOR: "1" },
+          env: { ...process.env, BPL_HOME: project, NO_COLOR: "1", ...env },
           stdio: ["ignore", "pipe", "pipe"],
         },
       );
@@ -172,6 +177,33 @@ test(
       watcher.clear();
       fs.writeFileSync(entry, printing("WATCH_AFTER_RESTORATION"));
       await watcher.wait("\nWATCH_AFTER_RESTORATION\n");
+    }),
+  30000,
+);
+
+test(
+  "dev detects source edits made during its initial native build",
+  () =>
+    watchFixture(async (root, start) => {
+      const file = path.join(root, "main.bpl");
+      const ready = path.join(root, "driver-ready");
+      const release = path.join(root, "driver-release");
+      const driver = writeNodeCommandShim(path.join(root, "compile-driver"), [
+        'const fs=require("node:fs");const {spawnSync}=require("node:child_process");',
+        "const args=process.argv.slice(2);",
+        `const ready=${JSON.stringify(ready)};const release=${JSON.stringify(release)};`,
+        'if(args.some(arg=>arg.endsWith(".ll"))&&!fs.existsSync(ready)){fs.writeFileSync(ready,"ready");const deadline=Date.now()+10000;while(!fs.existsSync(release)&&Date.now()<deadline)Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);if(!fs.existsSync(release))process.exit(1);}',
+        `const result=spawnSync(${JSON.stringify(getCompilerDriver())},args,{stdio:"inherit"});process.exit(result.status??1);`,
+      ]);
+      fs.writeFileSync(file, printing("WATCH_BUILD_BEFORE"));
+      const watcher = start(file, { BPL_CC: driver });
+      const deadline = Date.now() + 10000;
+      while (!fs.existsSync(ready) && Date.now() < deadline)
+        await Bun.sleep(20);
+      expect(fs.existsSync(ready)).toBe(true);
+      fs.writeFileSync(file, printing("WATCH_BUILD_AFTER"));
+      fs.writeFileSync(release, "release");
+      await watcher.wait("\nWATCH_BUILD_AFTER\n");
     }),
   30000,
 );
