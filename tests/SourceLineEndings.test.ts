@@ -171,3 +171,34 @@ test("formatting mixed newlines preserves literal bytes in native execution", ()
     },
   ]);
 }, 30000);
+
+for (const newline of ["\n", "\r\n", "\r"]) {
+  for (const breaks of [1, 2, 3]) {
+    test(`comment spacing counts ${breaks} logical ${JSON.stringify(newline)} breaks`, () => {
+      const expectedGap = "\n".repeat(Math.min(breaks, 2));
+      const cases = [
+        {
+          source: `# heading${newline.repeat(breaks)}frame main() {}`,
+          expected: `# heading${expectedGap}frame main() {\n}\n`,
+        },
+        {
+          source: `frame main() {${newline}    local x: int = 1;${newline.repeat(breaks)}    # note${newline}}`,
+          expected: `frame main() {\n    local x: int = 1;${expectedGap}    # note\n}\n`,
+        },
+      ];
+      for (const { source, expected } of cases) {
+        const result = new Formatter().format(
+          new Parser(source, "spacing.bpl").parse(),
+          source,
+        );
+        expect(result).toBe(expected);
+        expect(
+          new Formatter().format(
+            new Parser(result, "spacing.bpl").parse(),
+            result,
+          ),
+        ).toBe(result);
+      }
+    });
+  }
+}

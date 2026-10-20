@@ -7269,3 +7269,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   Section headers remained inside the description, and parameter help was lost.
 - Split standalone CR as well. Direct section/parameter regressions and generated
   Markdown equivalence tests across all three newline forms cover the fix.
+
+
+## CR-only comment spacing lost blank lines
+
+- CodeRabbit found that both blank-line checks beside comments required LF, so
+  CR-only sources lost their section spacing. Two regressions reproduce this.
+- Recognize logical LF/CRLF/CR separators before and after comments, preserve
+  at most one blank line, and guard against treating a single CRLF as two breaks.
+  Tests cover one, two and three separators, exact output and idempotence.

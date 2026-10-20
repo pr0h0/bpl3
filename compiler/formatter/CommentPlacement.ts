@@ -8,6 +8,11 @@ interface PositionedToken {
   end: number;
 }
 
+function hasBlankLine(text: string): boolean {
+  // The standalone CR branch must not split one CRLF into two newlines.
+  return /(?:\r\n|\r(?!\n)|\n)[\t ]*(?:\r\n|\r(?!\n)|\n)/.test(text);
+}
+
 function lineOffsets(source: string): number[] {
   const offsets = [0];
   for (let i = 0; i < source.length; i++) {
@@ -424,7 +429,7 @@ export function placeSourceComments(
           if (output.length > 0 && !output.endsWith("\n")) output += "\n";
           if (
             output.length > 0 &&
-            /(?:\r?\n)[\t ]*(?:\r?\n)/.test(source.slice(prior, comment.start))
+            hasBlankLine(source.slice(prior, comment.start))
           )
             output += "\n";
           output += commentIndent;
@@ -453,8 +458,7 @@ export function placeSourceComments(
         /[\r\n]/.test(gap) ||
         /[\r\n]/.test(originalGap)
       ) {
-        output +=
-          /(?:\r?\n)[\t ]*(?:\r?\n)/.test(originalGap) && token ? "\n\n" : "\n";
+        output += hasBlankLine(originalGap) && token ? "\n\n" : "\n";
         if (token) output += rightIndent;
       } else if (token) output += " ";
     }
