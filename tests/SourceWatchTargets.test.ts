@@ -439,51 +439,55 @@ test.skipIf(process.platform === "win32")(
 );
 
 for (const container of ["bpl_modules", "packages"]) {
-  test(
-    `watch recovers a missing package created under ${container}`,
-    () =>
-      fixture(async (root) => {
-        const app = path.join(root, "app");
-        const base = path.join(root, container);
-        fs.mkdirSync(app);
-        fs.mkdirSync(base);
-        const entry = path.join(app, "main.bpl");
-        fs.writeFileSync(
-          entry,
-          'import [value] from "watch-missing";frame main(){}',
-        );
-        const changed: string[] = [];
-        const watcher = createSourceWatcher(
-          entry,
-          (file) => changed.push(file),
-          () => {},
-        );
-        try {
-          watcher.refresh();
-          const pkg = path.join(base, "watch-missing");
-          fs.mkdirSync(pkg);
+  for (const preexisting of [true, false]) {
+    test(
+      `watch recovers a missing package under ${container} (container preexists=${preexisting})`,
+      () =>
+        fixture(async (root) => {
+          const app = path.join(root, "app");
+          const base = path.join(root, container);
+          fs.mkdirSync(app);
+          if (preexisting) fs.mkdirSync(base);
+          const entry = path.join(app, "main.bpl");
           fs.writeFileSync(
-            path.join(pkg, "bpl.json"),
-            JSON.stringify({
-              name: "watch-missing",
-              version: "0.1.0",
-              main: "index.bpl",
-            }),
+            entry,
+            'import [value] from "watch-missing";frame main(){}',
           );
-          const module = path.join(pkg, "index.bpl");
-          fs.writeFileSync(
-            module,
-            "frame value()ret int{return 1;}export value;",
+          const changed: string[] = [];
+          const watcher = createSourceWatcher(
+            entry,
+            (file) => changed.push(file),
+            () => {},
           );
-          const deadline = Date.now() + 3000;
-          while (!changed.length && Date.now() < deadline) await Bun.sleep(20);
-          expect(changed).toContain(module);
-        } finally {
-          watcher.close();
-        }
-      }),
-    10000,
-  );
+          try {
+            watcher.refresh();
+            fs.mkdirSync(base, { recursive: true });
+            const pkg = path.join(base, "watch-missing");
+            fs.mkdirSync(pkg);
+            fs.writeFileSync(
+              path.join(pkg, "bpl.json"),
+              JSON.stringify({
+                name: "watch-missing",
+                version: "0.1.0",
+                main: "index.bpl",
+              }),
+            );
+            const module = path.join(pkg, "index.bpl");
+            fs.writeFileSync(
+              module,
+              "frame value()ret int{return 1;}export value;",
+            );
+            const deadline = Date.now() + 3000;
+            while (!changed.length && Date.now() < deadline)
+              await Bun.sleep(20);
+            expect(changed).toContain(module);
+          } finally {
+            watcher.close();
+          }
+        }),
+      10000,
+    );
+  }
 }
 
 test(

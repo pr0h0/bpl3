@@ -1032,6 +1032,11 @@ The `bpl dev` command provides watch mode for rapid development. It monitors you
 - **Smart Filtering**: Ignores `node_modules`, `.git`, `bpl_modules`, and hidden directories
 - **Screen Clearing**: Optional screen clear on recompile with `--clear`
 
+For missing imports, watch mode observes their nearest existing search ancestors
+so a later package installation or directory creation can recover automatically.
+Those ancestor directories are watched for events; source scanning remains limited
+to the entry tree and resolved imports.
+
 ### Usage
 
 ```bash
