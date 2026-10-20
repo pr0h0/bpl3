@@ -94,7 +94,7 @@ matching native save formatting. Manual and focus-change saves remain eligible.
 ## Comments
 
 Comments are placed using their surrounding code tokens. A trailing field or
-statement comment stays on its code line; parameter, argument, tuple, array and
+statement comment stays on its code line; parameter, argument, generic-parameter/type-argument, tuple, array and
 initializer comments remain inside their original container. Nested block
 comments remain intact. Multiline block comments are reindented while retaining their relative visual
 alignment where possible.
