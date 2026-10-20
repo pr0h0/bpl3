@@ -15,6 +15,8 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { fileURLToPath } from "url";
 import * as fs from "fs";
 import * as AST from "../../../compiler/common/AST";
+import { lexWithGrammar } from "../../../compiler/frontend/GrammarLexer";
+import { TokenType } from "../../../compiler/frontend/TokenType";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
 import { debugLog, filePathToUri } from "./utils";
@@ -1064,29 +1066,25 @@ export class ASTRenameHandler {
     const symbols = this.symbolIndex.findSymbol(symbolName);
     if (symbols.length > 0 && symbols[0]) {
       const symbol = symbols[0];
-      references.push(
-        Location.create(
-          filePathToUri(symbol.filePath),
-          Range.create(
-            {
-              line: symbol.location.startLine - 1,
-              character: symbol.location.startColumn - 1,
-            },
-            {
-              line: symbol.location.endLine - 1,
-              character: symbol.location.endColumn - 1,
-            },
-          ),
-        ),
-      );
 
       // For global symbols, only search in the file where it's defined
       // A full implementation would search all files that import it
       const files = [symbol.filePath];
       for (const file of files) {
-        const _regex = new RegExp(`\\b${symbolName}\\b`, "g");
         try {
           const content = require("fs").readFileSync(file, "utf-8");
+          const document = TextDocument.create(
+            filePathToUri(file),
+            "bpl",
+            0,
+            content,
+          );
+          const declarationRange = this.getNodeRange(
+            symbol.declaration,
+            document,
+          );
+          if (!declarationRange) return references;
+          references.push(Location.create(document.uri, declarationRange));
           const lines = content.split(/\r\n|\r|\n/);
 
           for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
@@ -1875,201 +1873,64 @@ export class ASTRenameHandler {
     debugLog(`[ASTRename] getNodeRange called for node kind: ${node.kind}`);
     if (!node.location) return null;
 
-    // For VariableDecl, return just the identifier range, not the whole declaration
-    if (node.kind === "VariableDecl") {
-      const varDecl = node as AST.VariableDecl;
-      if (typeof varDecl.name === "string") {
-        // Find "local " or "global " prefix and skip it
-        const line = document.getText({
-          start: {
-            line: node.location.startLine - 1,
-            character: 0,
-          },
-          end: {
-            line: node.location.startLine - 1,
-            character: 1000,
-          },
-        });
+    const name = this.getSymbolName(node);
+    if (!name) return null;
 
-        const match = line.match(/\b(local|global)\s+(\w+)/);
-        if (match && match[1] && match[2] === varDecl.name) {
-          const startChar = match.index! + match[1].length + 1; // Skip "local " or "global "
-          return Range.create(
-            {
-              line: node.location.startLine - 1,
-              character: startChar,
-            },
-            {
-              line: node.location.startLine - 1,
-              character: startChar + varDecl.name.length,
-            },
-          );
-        }
+    const keyword = (() => {
+      switch (node.kind) {
+        case "FunctionDecl":
+        case "SpecMethod":
+          return TokenType.Frame;
+        case "StructDecl":
+          return TokenType.Struct;
+        case "EnumDecl":
+          return TokenType.Enum;
+        case "TypeAlias":
+          return TokenType.Type;
+        case "Extern":
+          return TokenType.Extern;
+        case "VariableDecl":
+          return (node as AST.VariableDecl).isGlobal
+            ? TokenType.Global
+            : TokenType.Local;
+        default:
+          return undefined;
       }
-    }
-
-    // Check if this is a Parameter (even if kind is undefined due to parser bug)
-    const isParameter =
-      node.kind === "Parameter" ||
-      (!node.kind &&
-        (node as any).name &&
-        (node as any).type &&
-        ("isConst" in (node as any) || "isVariadic" in (node as any)));
-
-    if (isParameter) {
-      debugLog(`[ASTRename] Detected Parameter node`);
-      const param = node as AST.Parameter;
-      debugLog(`[ASTRename] Parameter name: "${param.name}"`);
-      // For parameters, the location covers "name: type", but we only want "name"
-      // We need to find where the name actually starts in the text
-      if (node.location) {
-        debugLog(
-          `[ASTRename] Parameter location: line ${node.location.startLine}, col ${node.location.startColumn} to line ${node.location.endLine}, col ${node.location.endColumn}`,
-        );
-        // Get the full parameter text
-        const fullParamText = document.getText({
-          start: {
-            line: node.location.startLine - 1,
-            character: node.location.startColumn - 1,
-          },
-          end: {
-            line: node.location.endLine - 1,
-            character: node.location.endColumn - 1,
-          },
-        });
-        debugLog(`[ASTRename] Full parameter text: "${fullParamText}"`);
-
-        // Find where the parameter name appears in the text
-        // It could be preceded by "const", "...", or whitespace
-        const nameMatch = fullParamText.match(
-          new RegExp(`\\b${param.name}\\b`),
-        );
-        debugLog(
-          `[ASTRename] Regex match result: ${nameMatch ? `found at index ${nameMatch.index}` : "not found"}`,
-        );
-        if (nameMatch && nameMatch.index !== undefined) {
-          const nameStartOffset = nameMatch.index;
-          const start = {
-            line: node.location.startLine - 1,
-            character: node.location.startColumn - 1 + nameStartOffset,
-          };
-          const end = {
-            line: node.location.startLine - 1,
-            character:
-              node.location.startColumn -
-              1 +
-              nameStartOffset +
-              param.name.length,
-          };
-          debugLog(
-            `[ASTRename] Parameter "${param.name}" at offset ${nameStartOffset}, range: line ${start.line}, char ${start.character}-${end.character}`,
-          );
-          debugLog(
-            `[ASTRename] Text at range: "${document.getText(Range.create(start, end))}"`,
-          );
-          return Range.create(start, end);
-        }
-        debugLog(
-          `[ASTRename] WARNING: Failed to find parameter name in text, falling through to default`,
-        );
-      } else {
-        debugLog(`[ASTRename] WARNING: Parameter has no location`);
-      }
-    }
-
-    if (node.kind === "SpecMethod") {
-      const specMethod = node as AST.SpecMethod;
-      const line = document.getText({
-        start: {
-          line: node.location.startLine - 1,
-          character: 0,
-        },
-        end: {
-          line: node.location.startLine - 1,
-          character: 1000,
-        },
-      });
-      const nameIndex = line.indexOf(specMethod.name);
-      if (nameIndex >= 0) {
-        return Range.create(
-          {
-            line: node.location.startLine - 1,
-            character: nameIndex,
-          },
-          {
-            line: node.location.startLine - 1,
-            character: nameIndex + specMethod.name.length,
-          },
-        );
-      }
-    }
-
-    if (node.kind === "TypeAlias") {
-      const typeAlias = node as AST.TypeAliasDecl;
-      return this.getNameRangeFromLine(node, document, typeAlias.name);
-    }
-
-    if (node.kind === "Extern") {
-      const externDecl = node as AST.ExternDecl;
-      return this.getNameRangeFromLine(node, document, externDecl.name);
-    }
-
-    if (node.kind === "PatternIdentifier") {
-      const patternId = node as AST.PatternIdentifier;
-      return Range.create(
-        {
-          line: node.location.startLine - 1,
-          character: node.location.startColumn - 1,
-        },
-        {
-          line: node.location.startLine - 1,
-          character: node.location.startColumn - 1 + patternId.name.length,
-        },
+    })();
+    const location = node.location;
+    const text = document.getText(
+      Range.create(
+        location.startLine - 1,
+        location.startColumn - 1,
+        location.endLine - 1,
+        location.endColumn - 1,
+      ),
+    );
+    try {
+      const tokens = lexWithGrammar(text, fileURLToPath(document.uri));
+      const anchor =
+        keyword === undefined
+          ? -1
+          : tokens.findIndex((token) => token.type === keyword);
+      if (keyword !== undefined && anchor < 0) return null;
+      // Comments, attributes and declaration modifiers are not name tokens.
+      const nameToken = tokens
+        .slice(anchor + 1)
+        .find((candidate) => candidate.type === TokenType.Identifier);
+      if (!nameToken || nameToken.lexeme !== name) return null;
+      const line = location.startLine + nameToken.line - 2;
+      const character =
+        nameToken.column -
+        1 +
+        (nameToken.line === 1 ? location.startColumn - 1 : 0);
+      return Range.create(line, character, line, character + name.length);
+    } catch (error) {
+      debugLog(
+        "[ASTRename] Cannot locate declaration name in incomplete source:",
+        error,
       );
+      return null;
     }
-
-    return Range.create(
-      {
-        line: node.location.startLine - 1,
-        character: node.location.startColumn - 1,
-      },
-      {
-        line: node.location.endLine - 1,
-        character: node.location.endColumn - 1,
-      },
-    );
-  }
-
-  private getNameRangeFromLine(
-    node: AST.ASTNode,
-    document: TextDocument,
-    name: string,
-  ): Range | null {
-    if (!node.location) return null;
-
-    const line = document.getText({
-      start: {
-        line: node.location.startLine - 1,
-        character: 0,
-      },
-      end: {
-        line: node.location.startLine - 1,
-        character: 1000,
-      },
-    });
-    const nameIndex = line.indexOf(name);
-    if (nameIndex < 0) return null;
-
-    return Range.create(
-      {
-        line: node.location.startLine - 1,
-        character: nameIndex,
-      },
-      {
-        line: node.location.startLine - 1,
-        character: nameIndex + name.length,
-      },
-    );
   }
 
   /**

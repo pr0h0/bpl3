@@ -73,6 +73,12 @@ Jump to symbol definitions:
 - **Package Symbols**: Navigate into installed packages
 - **Clickable Imports**: Import string paths are document links with exact ranges
 
+### Rename ranges
+
+Rename preparation locates declaration names using lexer tokens, including
+comments, modifiers and multiline headers. Declaration edits select the name
+rather than replacing the whole declaration or function body.
+
 ### Inlay Hints
 
 Inline type annotations for:
