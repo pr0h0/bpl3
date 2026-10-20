@@ -7172,3 +7172,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   The diagnostic formatter left their name unassigned and printed undefined.
 - A regression reproduces the fallback failure. Use unknown for unsupported
   kinds while preserving existing qualifier and array-dimension formatting.
+
+
+## JSON build validation matrix exceeded the default test timeout
+
+- The full CI-safe run reproduced a 7.5-second timeout in a test that launches
+  thirteen compiler processes sequentially under Bun's five-second default.
+- Give that existing integration matrix a bounded 30-second test budget; keep
+  all expected JSON error codes and stdout/stderr assertions unchanged.
