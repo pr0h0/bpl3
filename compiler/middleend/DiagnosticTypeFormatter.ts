@@ -48,6 +48,8 @@ export function formatDiagnosticType(type: AST.TypeNode | undefined): string {
     case "TupleType":
       body = `(${type.types.map(formatDiagnosticType).join(", ")})`;
       break;
+    default:
+      body = "unknown";
   }
   return qualifier + body + dimensions;
 }

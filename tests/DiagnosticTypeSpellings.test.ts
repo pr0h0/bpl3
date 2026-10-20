@@ -107,3 +107,15 @@ test("resolved string aliases keep string spelling through alias chains", () => 
           : "string",
     );
 });
+
+// Module types are synthesized at runtime and are outside the parsed type union.
+test("diagnostic spelling falls back for internal runtime-only types", () => {
+  const internal = {
+    ...typeNode("int"),
+    kind: "ModuleType",
+  } as unknown as ReturnType<typeof typeNode>;
+  expect(formatDiagnosticType(internal)).toBe("unknown");
+  expect(
+    formatDiagnosticType({ ...internal, isConst: true, arrayDimensions: [2] }),
+  ).toBe("const unknown[2]");
+});
