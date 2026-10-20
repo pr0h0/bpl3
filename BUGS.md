@@ -7144,3 +7144,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Track generic counts among candidates whose value arity matches, and report
   BPL_GENERIC_ARITY_MISMATCH when their explicit type-argument counts differ.
   Keep inference disabled and retain normal value/type mismatch diagnostics.
+
+
+## Circular dependency diagnostics pointed at nonexistent line zero (audit C18)
+
+- Module graph cycle detection reported the revisited module at 0:0 rather than
+  the import completing the cycle. Both self-import and two-module location
+  regressions fail before the fix.
+- Retain source locations for dependency edges and carry the incoming edge
+  through graph sorting. Report the closing import location, with a 1:1 fallback
+  only for synthetic graphs without source import metadata.
