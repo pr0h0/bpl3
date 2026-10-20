@@ -7124,3 +7124,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   cases reproduce this for whitespace, newlines and comments.
 - Require the opening bracket to touch Func/Lambda as well; valid callable
   type forms and spaces inside their brackets remain supported.
+
+
+## Diagnostics exposed internal boolean/string spellings (audit C18)
+
+- Assignment, return and overload diagnostics printed i1 and *i8 where the
+  language guide uses bool and string. Three focused regressions fail before
+  the fix.
+- Use a dedicated diagnostic type printer that preserves compound structure,
+  qualifiers and dimensions. Keep canonical strings unchanged for signature
+  identity and runtime type IDs.

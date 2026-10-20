@@ -343,7 +343,7 @@ export function checkCall(
     }
 
     throw new CompilerError(
-      `Type '${this.typeToString(calleeType)}' is not callable`,
+      `Type '${this.formatDiagnosticType(calleeType)}' is not callable`,
       "Only functions or types with __call__ operator can be called.",
       expr.location,
       CALL_TARGET_NOT_CALLABLE_CODE,
@@ -659,7 +659,7 @@ function handleEnumVariantCall(
         throw new CompilerError(
           `Enum variant '${variant.name}' expects ${expectedTypes.length} arguments, but got ${argTypes.length}`,
           `Usage: ${enumDecl.name}.${variant.name}(${expectedTypes
-            .map((t: AST.TypeNode) => this.typeToString(t))
+            .map((t: AST.TypeNode) => this.formatDiagnosticType(t))
             .join(", ")})`,
           expr.location,
           ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH_CODE,
@@ -678,9 +678,9 @@ function handleEnumVariantCall(
         if (actualType) this.checkIntegerConstantRange(expr.args[i]!, expectedType);
         if (actualType && !this.areTypesCompatible(expectedType, actualType)) {
           throw new CompilerError(
-            `Type mismatch for argument ${i + 1} of '${variant.name}': expected ${this.typeToString(
+            `Type mismatch for argument ${i + 1} of '${variant.name}': expected ${this.formatDiagnosticType(
               expectedType,
-            )}, got ${this.typeToString(actualType)}`,
+            )}, got ${this.formatDiagnosticType(actualType)}`,
             "Check the variant definition and argument types.",
             expr.location,
             ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH_CODE,
@@ -764,9 +764,9 @@ function validateFunctionCall(
     }
     if (argType && !this.areTypesCompatible(paramType, argType)) {
       throw new CompilerError(
-        `Argument ${i + 1} type mismatch: expected ${this.typeToString(
+        `Argument ${i + 1} type mismatch: expected ${this.formatDiagnosticType(
           paramType,
-        )}, got ${this.typeToString(argType)}`,
+        )}, got ${this.formatDiagnosticType(argType)}`,
         "Ensure argument types match.",
         expr.args[i]!.location,
         CALL_ARGUMENT_TYPE_MISMATCH_CODE,
@@ -1214,7 +1214,7 @@ export function checkMember(
             );
           }
           throw new CompilerError(
-            `No compatible instance method '${expr.property}' found on type '${this.typeToString(
+            `No compatible instance method '${expr.property}' found on type '${this.formatDiagnosticType(
               effectiveObjectType,
             )}'`,
             "Static methods must be called on the type, not an instance.",
@@ -1323,7 +1323,7 @@ export function checkMember(
   }
 
   throw new CompilerError(
-    `Cannot access member '${expr.property}' on type '${this.typeToString(effectiveObjectType)}'`,
+    `Cannot access member '${expr.property}' on type '${this.formatDiagnosticType(effectiveObjectType)}'`,
     "Check the type definition for available members.",
     expr.location,
     MEMBER_NOT_FOUND_CODE,
@@ -1349,7 +1349,7 @@ export function checkIndex(
   if (pointerElement) {
     if (indexType && !TypeUtils.isIntegerType(indexType)) {
       throw new CompilerError(
-        `Pointer index must be an integer, got ${this.typeToString(indexType)}`,
+        `Pointer index must be an integer, got ${this.formatDiagnosticType(indexType)}`,
         "Ensure the index expression evaluates to an integer.",
         expr.index.location,
         POINTER_INDEX_TYPE_MISMATCH_CODE,
@@ -1366,7 +1366,7 @@ export function checkIndex(
   ) {
     if (indexType && !TypeUtils.isIntegerType(indexType)) {
       throw new CompilerError(
-        `Pointer index must be an integer, got ${this.typeToString(indexType)}`,
+        `Pointer index must be an integer, got ${this.formatDiagnosticType(indexType)}`,
         "Ensure the index expression evaluates to an integer.",
         expr.index.location,
         POINTER_INDEX_TYPE_MISMATCH_CODE,
@@ -1386,7 +1386,7 @@ export function checkIndex(
   ) {
     if (indexType && !TypeUtils.isIntegerType(indexType)) {
       throw new CompilerError(
-        `Array index must be an integer, got ${this.typeToString(indexType)}`,
+        `Array index must be an integer, got ${this.formatDiagnosticType(indexType)}`,
         "Ensure the index expression evaluates to an integer.",
         expr.index.location,
         ARRAY_INDEX_TYPE_MISMATCH_CODE,
@@ -1449,7 +1449,7 @@ export function checkIndex(
   }
 
   throw new CompilerError(
-    `Type '${this.typeToString(objectType)}' is not indexable`,
+    `Type '${this.formatDiagnosticType(objectType)}' is not indexable`,
     "Only arrays, pointers, or types with __get__ operator can be indexed.",
     expr.location,
     INDEX_TARGET_NOT_INDEXABLE_CODE,

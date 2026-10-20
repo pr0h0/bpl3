@@ -736,10 +736,14 @@ bun test tests/TypeCheckerInvalidArraySizes.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "invalid array size"
 ```
 
+Diagnostic type names prefer `bool` and `string` over internal spellings.
+Pointers to `char` may display as the equivalent `string` alias. Compound types,
+`const` qualifiers and array dimensions remain visible.
+
 Return type mismatch failures use `BPL_RETURN_TYPE_MISMATCH`. This covers
 mismatched return expressions and `return;` in non-void functions. For example,
 `return "wrong";` from a function declared `ret int` reports
-`Return type mismatch: expected i32, got *i8` with the hint
+`Return type mismatch: expected i32, got string` with the hint
 `Ensure the returned value matches the function's return type.`. Valid returns
 remain valid; integer literal returns that fit the declared type remain valid.
 Reproduce the type-checker and JSON contracts with:
@@ -896,14 +900,14 @@ bun test tests/TypeCheckerStatementSemanticGuards.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "statement semantic guard"
 ```
 
-Struct literal semantic failures use `BPL_STRUCT_LITERAL_UNKNOWN_STRUCT`, `BPL_GENERIC_ARITY_MISMATCH`, `BPL_STRUCT_LITERAL_FIELD_MISSING`, `BPL_STRUCT_LITERAL_FIELD_UNKNOWN`, and `BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH`. This covers unknown struct names, generic arity mismatches, missing fields, unknown fields, and field type mismatches in struct literals. Representative messages include `Unknown struct 'Missing'`, `Generic type 'Box' expects 1 arguments, but got 2`, `Missing field 'y' in struct literal for 'Point'`, `Unknown field 'z' in struct 'Point'`, and `Type mismatch for field 'x': expected i32, got *i8`. The corresponding hints include `Ensure the struct is defined.`, `Provide the correct number of generic arguments.`, `Field 'y' is required.`, `Check the struct definition for valid fields.`, and `Field value must match the declared type.`. Valid concrete and generic struct literals remain accepted. Reproduce the type-checker and JSON contracts with:
+Struct literal semantic failures use `BPL_STRUCT_LITERAL_UNKNOWN_STRUCT`, `BPL_GENERIC_ARITY_MISMATCH`, `BPL_STRUCT_LITERAL_FIELD_MISSING`, `BPL_STRUCT_LITERAL_FIELD_UNKNOWN`, and `BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH`. This covers unknown struct names, generic arity mismatches, missing fields, unknown fields, and field type mismatches in struct literals. Representative messages include `Unknown struct 'Missing'`, `Generic type 'Box' expects 1 arguments, but got 2`, `Missing field 'y' in struct literal for 'Point'`, `Unknown field 'z' in struct 'Point'`, and `Type mismatch for field 'x': expected i32, got string`. The corresponding hints include `Ensure the struct is defined.`, `Provide the correct number of generic arguments.`, `Field 'y' is required.`, `Check the struct definition for valid fields.`, and `Field value must match the declared type.`. Valid concrete and generic struct literals remain accepted. Reproduce the type-checker and JSON contracts with:
 
 ```bash
 bun test tests/TypeCheckerStructLiteralDiagnostics.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "struct literal diagnostics"
 ```
 
-Enum variant field semantic failures use `BPL_ENUM_VARIANT_FIELD_UNKNOWN` and `BPL_ENUM_VARIANT_FIELD_TYPE_MISMATCH`. This covers unknown enum struct variant construction fields, unknown enum struct pattern fields, and enum struct variant field type mismatches. Representative messages include `Unknown field 'z' in variant 'MouseMove'` and `Type mismatch for field 'x': expected int, got *i8`. The corresponding hints include `Check the variant definition.` and `Field value must match the declared type.`. Valid enum struct variant construction and struct-pattern matching remain accepted. Reproduce the type-checker and JSON contracts with:
+Enum variant field semantic failures use `BPL_ENUM_VARIANT_FIELD_UNKNOWN` and `BPL_ENUM_VARIANT_FIELD_TYPE_MISMATCH`. This covers unknown enum struct variant construction fields, unknown enum struct pattern fields, and enum struct variant field type mismatches. Representative messages include `Unknown field 'z' in variant 'MouseMove'` and `Type mismatch for field 'x': expected int, got string`. The corresponding hints include `Check the variant definition.` and `Field value must match the declared type.`. Valid enum struct variant construction and struct-pattern matching remain accepted. Reproduce the type-checker and JSON contracts with:
 
 ```bash
 bun test tests/TypeCheckerEnumVariantFieldDiagnostics.test.ts
