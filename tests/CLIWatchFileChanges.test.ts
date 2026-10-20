@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { writeNodeCommandShim } from "./helpers/executableShim";
 import { getCompilerDriver } from "../compiler/common/CompilerDriver";
 import fs from "node:fs";
 import os from "node:os";
@@ -188,13 +187,28 @@ test(
       const file = path.join(root, "main.bpl");
       const ready = path.join(root, "driver-ready");
       const release = path.join(root, "driver-release");
-      const driver = writeNodeCommandShim(path.join(root, "compile-driver"), [
-        'const fs=require("node:fs");const {spawnSync}=require("node:child_process");',
-        "const args=process.argv.slice(2);",
-        `const ready=${JSON.stringify(ready)};const release=${JSON.stringify(release)};`,
-        'if(args.some(arg=>arg.endsWith(".ll"))&&!fs.existsSync(ready)){fs.writeFileSync(ready,"ready");const deadline=Date.now()+10000;while(!fs.existsSync(release)&&Date.now()<deadline)Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);if(!fs.existsSync(release))process.exit(1);}',
-        `const result=spawnSync(${JSON.stringify(getCompilerDriver())},args,{stdio:"inherit"});process.exit(result.status??1);`,
-      ]);
+      const driverSource = path.join(root, "compile-driver.js");
+      fs.writeFileSync(
+        driverSource,
+        [
+          'const fs=require("node:fs");const {spawnSync}=require("node:child_process");',
+          "const args=process.argv.slice(2);",
+          `const ready=${JSON.stringify(ready)};const release=${JSON.stringify(release)};`,
+          'if(args.some(arg=>arg.endsWith(".ll"))&&!fs.existsSync(ready)){fs.writeFileSync(ready,"ready");const deadline=Date.now()+10000;while(!fs.existsSync(release)&&Date.now()<deadline)Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);if(!fs.existsSync(release))process.exit(1);}',
+          `const result=spawnSync(${JSON.stringify(getCompilerDriver())},args,{stdio:"inherit"});process.exit(result.status??1);`,
+        ].join("\n"),
+      );
+      const driver = path.join(
+        root,
+        process.platform === "win32" ? "compile-driver.exe" : "compile-driver",
+      );
+      const build = spawnSync(
+        process.execPath,
+        ["build", "--compile", driverSource, "--outfile", driver],
+        { encoding: "utf8", timeout: 20000 },
+      );
+      if (build.status !== 0)
+        throw new Error(`Cannot build test driver: ${build.stderr}`);
       fs.writeFileSync(file, printing("WATCH_BUILD_BEFORE"));
       const watcher = start(file, { BPL_CC: driver });
       const deadline = Date.now() + 10000;
@@ -205,5 +219,5 @@ test(
       fs.writeFileSync(release, "release");
       await watcher.wait("\nWATCH_BUILD_AFTER\n");
     }),
-  30000,
+  60000,
 );

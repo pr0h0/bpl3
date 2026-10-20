@@ -6990,3 +6990,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   regression receives no rebuild callback before the fix.
 - Also watch parents of symlink path components, without recursively scanning
   those ancestors. Retain canonical source identities and refresh after retargets.
+
+
+## Initial-build watcher regression used a non-executable Windows driver
+
+- CodeRabbit identified that the test's .cmd wrapper cannot be launched as the
+  compiler driver with shell execution disabled on Windows.
+- Build the finite test driver as a standalone Bun executable on every platform,
+  keeping shell-free execution and exercising the same launch boundary locally.
