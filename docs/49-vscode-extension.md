@@ -77,6 +77,9 @@ Jump to symbol definitions:
 
 Imported symbols cannot currently be renamed across files. These requests are
 declined so they cannot return incomplete edits that break importing code.
+Read-only imported-symbol references can still be found in the defining file,
+using its cached live source when available. This is not a complete workspace
+reference search.
 
 Rename preparation locates declaration names using lexer tokens, including
 comments, modifiers and multiline headers. Rename and find-references require
