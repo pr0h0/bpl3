@@ -7075,3 +7075,32 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Require an escaped literal to contain exactly the backslash and one escape
   character before decoding. Existing supported escapes and legacy single unknown
   escapes retain their values; hexadecimal character escapes remain unsupported.
+
+
+## Formatter removed enum implemented-spec lists
+
+- Enum formatting omitted EnumDecl.implements entirely. Both plain and commented
+  implemented-spec lists disappeared, changing the parsed declaration; three
+  formatter round-trip regressions fail before the fix.
+- Emit the existing type list after the enum name/generic parameters, preserving
+  implemented contracts and their surrounding comments without new syntax.
+
+
+## Multiline declaration headers introduced body spacing on repeated formatting
+
+- Struct/spec/enum printers measured the first body member's gap from the start
+  of the declaration, including multiline header comments. A subsequent format
+  inserted an unwanted blank body line. Twenty-four configured regressions fail
+  before the fix.
+- Use the source opening-brace line for that initial gap. Locate it with lexer
+  tokens so braces in comments do not count, and reuse lazily collected tokens.
+
+
+## Comment-free declaration headers lost source brace spacing
+
+- CodeRabbit identified that original source was retained only for programs with
+  comments. Brace-on-next-line structs/specs/enums therefore acquired an unwanted
+  blank body line. Four focused regressions fail before the correction.
+- Retain source provenance in the existing weak map for every parsed program and
+  use it for declaration layout, including comment-free files. The source remains
+  outside AST serialization/traversal and is released with its program.
