@@ -6904,3 +6904,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Recognize canonical generic angle brackets separately from spaced comparisons;
   expose boundaries inside combined closing-bracket lexer tokens. Preserve shift
   and comparison text and verify meaning and repeated-formatting stability.
+
+## Watch mode missed atomic saves, new sources and external imports
+
+- Watching file inodes missed subsequent editor saves that replaced the source by
+  rename. A CLI regression observes the second program but never the third after
+  two atomic saves. Directory watches must survive source inode replacement.
+- Four CLI regressions fail before the fix: repeated atomic entry replacement,
+  creating a missing import, and changing external .bpl/.x modules. Watch source
+  directories, resolve transitive imports and rescan after changes.
+- Synchronous compilation/execution still blocks event handling while a program
+  runs; subprocess concurrency is a separate outstanding issue.

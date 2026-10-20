@@ -1020,7 +1020,9 @@ The `bpl dev` command provides watch mode for rapid development. It monitors you
 - **Auto-Run**: Executes your program after successful compilation (use `--no-run` to disable)
 - **Error Recovery**: Continues watching even if compilation fails
 - **Debouncing**: Prevents excessive recompilation from rapid file changes (100ms delay)
-- **Recursive Watching**: Watches all `.bpl` files in the directory tree
+- **Recursive Watching**: Watches `.bpl` and `.x` sources under the entry directory,
+  newly created source directories, and resolved transitive imports outside it.
+  Directory watches follow editor saves that replace files by rename.
 - **Smart Filtering**: Ignores `node_modules`, `.git`, `bpl_modules`, and hidden directories
 - **Screen Clearing**: Optional screen clear on recompile with `--clear`
 
@@ -1089,6 +1091,9 @@ help: Check if the symbol is declared.
 ### Limitations
 
 - Development mode only supports a single entry file (not multiple files at once)
+- Compilation and execution currently run synchronously. A long-running program
+  blocks change handling until it exits; use `--no-run` when you need compilation
+  without starting such a program.
 - Use Ctrl+C to stop watching
 
 ## Emit Types
