@@ -7095,3 +7095,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Retain source locations for dependency edges and carry the incoming edge
   through graph sorting. Report the closing import location, with a 1:1 fallback
   only for synthetic graphs without source import metadata.
+
+
+## Diagnostic string aliases hid explicit byte pointer types
+
+- CodeRabbit identified that the diagnostic printer rendered every explicit i8
+  pointer as string, hiding the distinction in source spelling from a resolved
+  string alias. Two new pointer regression tests fail before the correction.
+- Inspect existing string-alias provenance, including alias-target chains, before
+  using string spelling for resolved i8 pointers. Preserve explicit pointers and
+  guard metadata traversal against cycles; canonical identity remains untouched.

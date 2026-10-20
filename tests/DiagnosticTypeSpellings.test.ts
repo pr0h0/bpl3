@@ -46,13 +46,13 @@ function typeNode(source: string) {
 }
 for (const [source, expected] of [
   ["i1", "bool"],
-  ["*i8", "string"],
-  ["**i8", "*string"],
+  ["*i8", "*i8"],
+  ["**i8", "**i8"],
   ["*i16", "*i16"],
-  ["Box<i1,*i8>[2]", "Box<bool, string>[2]"],
-  ["const Func<i1>(*i8)[2]", "const Func<bool>(string)[2]"],
-  ["Lambda<*i8>(i1)[]", "Lambda<string>(bool)[]"],
-  ["const (i1,*i8)[3]", "const (bool, string)[3]"],
+  ["Box<i1,*i8>[2]", "Box<bool, *i8>[2]"],
+  ["const Func<i1>(*i8)[2]", "const Func<bool>(*i8)[2]"],
+  ["Lambda<*i8>(i1)[]", "Lambda<*i8>(bool)[]"],
+  ["const (i1,*i8)[3]", "const (bool, *i8)[3]"],
 ] as const) {
   test(`diagnostic spelling retains compound structure: ${source}`, () => {
     const node = typeNode(source);
@@ -72,4 +72,38 @@ test("canonical identity strings and bool/string runtime IDs stay unchanged", ()
     RTTI.getTypeIdFromName("*i8"),
   );
   expect(new TypeChecker().typeToString(boolean)).toBe("i1");
+});
+
+for (const source of ["*i8", "**i8"]) {
+  test(`explicit byte pointers retain their spelling: ${source}`, () => {
+    const checker = new TypeChecker();
+    expect(formatDiagnosticType(checker.resolveType(typeNode(source)))).toBe(
+      source,
+    );
+  });
+}
+
+test("resolved string aliases keep string spelling through alias chains", () => {
+  const checker = new TypeChecker({ collectAllErrors: true });
+  checker.checkProgram(
+    new Parser(
+      "type Text=string;type Indirect=Text;",
+      "alias-display.bpl",
+    ).parse(),
+  );
+  expect(checker.getErrors()).toEqual([]);
+  for (const source of [
+    "string",
+    "Text",
+    "Indirect",
+    "const Indirect[2]",
+    "*Indirect",
+  ])
+    expect(formatDiagnosticType(checker.resolveType(typeNode(source)))).toBe(
+      source === "const Indirect[2]"
+        ? "const string[2]"
+        : source === "*Indirect"
+          ? "*string"
+          : "string",
+    );
 });
