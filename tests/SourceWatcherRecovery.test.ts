@@ -154,3 +154,84 @@ test("persistent watch failures back off and report each directory once", async 
     rmSync(directory, { recursive: true, force: true });
   }
 }, 10000);
+
+test("repeated asynchronous handle errors retain backoff until healthy activity", async () => {
+  const directory = fs.realpathSync(
+    mkdtempSync(join(tmpdir(), "bpl-watch-async-backoff-")),
+  );
+  const entry = join(directory, "main.bpl");
+  writeFileSync(entry, "frame main(){}");
+  const watchSpy = spyOn(fs, "watch");
+  const timers = spyOn(globalThis, "setTimeout");
+  const errors: unknown[] = [];
+  let changes = 0;
+  const watcher = createSourceWatcher(
+    entry,
+    () => {
+      changes++;
+    },
+    (_path, error) => errors.push(error),
+  );
+  try {
+    watcher.refresh();
+    (watchSpy.mock.results.at(-1)?.value as fs.FSWatcher).emit(
+      "error",
+      new Error("persistent async failure"),
+    );
+    await waitFor(() => watchSpy.mock.calls.length >= 2);
+    (watchSpy.mock.results.at(-1)?.value as fs.FSWatcher).emit(
+      "error",
+      new Error("persistent async failure"),
+    );
+    expect(timers.mock.calls.map((call) => call[1])).toContain(2000);
+    expect(errors).toHaveLength(1);
+    watcher.refresh();
+    writeFileSync(entry, "frame main(){return;}");
+    await waitFor(() => changes > 0);
+    (watchSpy.mock.results.at(-1)?.value as fs.FSWatcher).emit(
+      "error",
+      new Error("new failure after activity"),
+    );
+    expect(timers.mock.calls.at(-1)?.[1]).toBe(1000);
+    expect(errors).toHaveLength(2);
+  } finally {
+    watcher.close();
+    timers.mockRestore();
+    watchSpy.mockRestore();
+    rmSync(directory, { recursive: true, force: true });
+  }
+}, 10000);
+
+test("edits during multiple failed registration attempts are reported", async () => {
+  const directory = fs.realpathSync(
+    mkdtempSync(join(tmpdir(), "bpl-watch-retry-edits-")),
+  );
+  const entry = join(directory, "main.bpl");
+  writeFileSync(entry, "frame main(){}");
+  const fail = () => {
+    throw new Error("temporary registration failure");
+  };
+  const watchSpy = spyOn(fs, "watch")
+    .mockImplementationOnce(fail)
+    .mockImplementationOnce(fail);
+  const changes: string[] = [];
+  const watcher = createSourceWatcher(
+    entry,
+    (file) => changes.push(file),
+    () => {},
+  );
+  try {
+    watcher.refresh();
+    writeFileSync(entry, "frame main(){return;}");
+    await waitFor(() => changes.includes(entry));
+    await waitFor(() => watchSpy.mock.calls.length >= 3);
+    const before = changes.length;
+    writeFileSync(entry, "frame main(){local value:int=1;}");
+    await waitFor(() => changes.length > before);
+    expect(changes.at(-1)).toBe(entry);
+  } finally {
+    watcher.close();
+    watchSpy.mockRestore();
+    rmSync(directory, { recursive: true, force: true });
+  }
+}, 15000);

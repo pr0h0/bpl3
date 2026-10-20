@@ -7046,3 +7046,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Let the resolver report candidates from its actual failed search, including
   configured package/global/extra roots. Watch their nearest existing directories
   without scanning ancestors. Successful resolutions keep their existing behavior.
+
+
+## Asynchronous watch-handle failures restarted the retry loop too early
+
+- CodeRabbit identified that a handle returned successfully then errored on the
+  next turn cleared the failure history. Repeated asynchronous errors therefore
+  retried every second and repeated their log message. A regression fails before
+  the fix.
+- Preserve backoff/error deduplication across newly created handles. Treat observed
+  activity or a handle lasting at least 30 seconds as a fresh healthy episode.
+  Ignore late errors from replaced handles and retain cancellation on close.

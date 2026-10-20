@@ -36,6 +36,10 @@ export function createSourceWatcher(
     reportedFailures.add(directory);
     onError(directory, error);
   };
+  const noteHealthyDirectory = (directory: string) => {
+    reportedFailures.delete(directory);
+    if (reportedFailures.size === 0) recoveryDelay = 1000;
+  };
   let closed = false;
   let snapshot = new Map<string, string>();
   let forcePending = false;
@@ -87,8 +91,10 @@ export function createSourceWatcher(
         if (watchers.has(directory)) continue;
         try {
           const identity = directoryIdentity(directory);
+          const registeredAt = performance.now();
           const watcher = fs.watch(directory, (event, name) => {
-            if (closed) return;
+            if (closed || watchers.get(directory)?.handle !== watcher) return;
+            noteHealthyDirectory(directory);
             const file = name ? path.join(directory, String(name)) : directory;
             const basename = path.basename(file);
             let directoryChange = watchers.has(file);
@@ -135,27 +141,25 @@ export function createSourceWatcher(
           watcher.on("error", (error) => {
             if (closed) return;
             watcher.close();
-            if (watchers.get(directory)?.handle === watcher) {
-              watchers.delete(directory);
-              scheduleRecovery();
-            }
+            if (watchers.get(directory)?.handle !== watcher) return;
+            watchers.delete(directory);
+            // A newly returned handle can fail on the next event-loop turn.
+            // Activity or a stable lifetime starts a fresh failure episode.
+            if (performance.now() - registeredAt >= 30000)
+              noteHealthyDirectory(directory);
             reportFailure(directory, error);
+            scheduleRecovery();
           });
           watchers.set(directory, { handle: watcher, identity });
-          reportedFailures.delete(directory);
         } catch (error) {
           needsRecovery = true;
           reportFailure(directory, error);
         }
       }
       if (needsRecovery) scheduleRecovery();
-      else {
-        recoveryDelay = 1000;
-        reportedFailures.clear();
-        if (recoveryTimer) {
-          clearTimeout(recoveryTimer);
-          recoveryTimer = undefined;
-        }
+      else if (recoveryTimer) {
+        clearTimeout(recoveryTimer);
+        recoveryTimer = undefined;
       }
       snapshot = new Map();
       const observed = new Set(sources);
