@@ -7075,3 +7075,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Use a dedicated diagnostic type printer that preserves compound structure,
   qualifiers and dimensions. Keep canonical strings unchanged for signature
   identity and runtime type IDs.
+
+
+## Missing generic arguments were reported as wrong value argument counts (C18)
+
+- Calling identity(1) when only identity<T>(value:T) exists reported a value
+  argument-count mismatch despite the matching value arity. One diagnostic
+  regression fails before the fix.
+- Track generic counts among candidates whose value arity matches, and report
+  BPL_GENERIC_ARITY_MISMATCH when their explicit type-argument counts differ.
+  Keep inference disabled and retain normal value/type mismatch diagnostics.

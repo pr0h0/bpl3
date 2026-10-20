@@ -10,6 +10,7 @@ import type { Symbol, SymbolTable } from "./SymbolTable";
 import {
   ADDRESS_OF_CONSTANT_CODE,
   CALL_ARGUMENT_COUNT_MISMATCH_CODE,
+  GENERIC_ARITY_MISMATCH_CODE,
   CALL_ARGUMENT_TYPE_MISMATCH_CODE,
 } from "./TypeCheckerBase";
 
@@ -141,6 +142,7 @@ export class OverloadResolver {
       inferredArgs?: AST.TypeNode[];
       isExplicitVariadic?: boolean;
     }[] = [];
+    const expectedGenericCounts = new Set<number>();
 
     for (const c of candidates) {
       const ft = c.type as AST.FunctionTypeNode;
@@ -173,6 +175,9 @@ export class OverloadResolver {
         if (!isExplicitVariadic) continue;
       }
 
+      expectedGenericCounts.add(
+        decl.kind === "FunctionDecl" ? decl.genericParams.length : 0,
+      );
       if (genericArgs.length > 0) {
         // Explicit generics
         if (decl.kind !== "FunctionDecl") continue;
@@ -192,6 +197,19 @@ export class OverloadResolver {
     }
 
     if (viableCandidates.length === 0) {
+      if (
+        expectedGenericCounts.size > 0 &&
+        !expectedGenericCounts.has(genericArgs.length)
+      ) {
+        const counts = [...expectedGenericCounts].sort((a, b) => a - b).join(" or ");
+        throw new CompilerError(
+          `Generic argument count mismatch for call to '${name}': got ${genericArgs.length} type arguments, expected ${counts}.`,
+          "Provide explicit type arguments; type arguments are not inferred.\n" +
+            `Available overloads:\n${candidates.map((candidate) => this.ctx.formatDiagnosticType(candidate.type)).join("\n")}`,
+          location,
+          GENERIC_ARITY_MISMATCH_CODE,
+        );
+      }
       throw new CompilerError(
         `No matching function for call to '${name}' with ${argTypes.length} arguments${
           genericArgs.length > 0
