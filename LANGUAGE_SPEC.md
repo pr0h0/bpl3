@@ -62,8 +62,10 @@ multi-line comment
   `i32` and type `long` otherwise. A floating-point literal has the 64-bit
   floating-point type.
 - **[R-LEX-8]** A string literal `"..."` has type `string`. The escapes `\n`,
-  `\t`, `\r`, `\0`, `\\`, `\'`, `\"`, and `\xHH` produce the corresponding
-  character.
+  `\t`, `\r`, `\0`, `\\`, `\'`, `\"`, `\xHH`, and `\uHHHH` produce the corresponding
+  character/code unit. Hex escapes decode only when all required digits are
+  present and valid. Unknown, malformed and incomplete escapes retain their
+  backslash spelling; subsequent complete escapes are processed independently.
 - **[R-LEX-9]** A character literal `'c'` has type `char` and must contain
   exactly one character after escape processing.
 - **[R-LEX-10]** `true` and `false` are `bool` literals. `null` and `nullptr`

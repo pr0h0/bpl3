@@ -281,6 +281,10 @@ local newline: string = "Line 1\nLine 2";     # Newline character
 - `\r` - Carriage return
 - `\0` - Null terminator
 
+Quoted strings also support `\xHH` and `\uHHHH` with exactly two or four
+hexadecimal digits. Unknown, incomplete or malformed escapes retain their
+backslash spelling instead of consuming a partial hexadecimal prefix.
+
 ### Interpolated Strings
 
 Interpolated strings are enclosed in backticks (`` ` ``) and allow embedding expressions using `${...}`:
