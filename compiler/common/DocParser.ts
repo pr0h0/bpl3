@@ -10,7 +10,7 @@ export interface ParsedDoc {
 
 export class DocParser {
   public static parse(doc: string): ParsedDoc {
-    const lines = doc.split(/\r?\n/);
+    const lines = doc.split(/\r\n|\r|\n/);
     const descriptionLines: string[] = [];
     const sections: DocSection[] = [];
 

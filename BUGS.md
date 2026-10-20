@@ -7260,3 +7260,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   and disk-backed sources, removing CRLF carriage returns from displayed lines.
 - Absolute-position, formatter round-trip, syntax-error and source-snippet
   regressions are in `tests/SourceLineEndings.test.ts`.
+
+
+## CR-only documentation lost sections and parameter help
+
+- After source coordinates were corrected, documentation block comments attached
+  to declarations in CR-only files, but DocParser still recognized only LF/CRLF.
+  Section headers remained inside the description, and parameter help was lost.
+- Split standalone CR as well. Direct section/parameter regressions and generated
+  Markdown equivalence tests across all three newline forms cover the fix.
