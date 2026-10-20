@@ -28,7 +28,8 @@ export function formatDiagnosticType(type: AST.TypeNode | undefined): string {
       let pointers = type.pointerDepth;
       // The checker resolves string to a pointer to signed 8-bit characters.
       if (
-        (name === "char" || (name === "i8" && isStringAlias(type))) &&
+        name === "i8" &&
+        isStringAlias(type) &&
         pointers > 0 &&
         !type.isPointerToArray
       ) {

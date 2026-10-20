@@ -47,6 +47,8 @@ function typeNode(source: string) {
 for (const [source, expected] of [
   ["i1", "bool"],
   ["*i8", "*i8"],
+  ["*char", "*char"],
+  ["**char", "**char"],
   ["**i8", "**i8"],
   ["*int[4]", "*int[4]"],
   ["*i16", "*i16"],

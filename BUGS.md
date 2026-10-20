@@ -7189,3 +7189,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   the original printer; a real assignment control covers address-of-array types.
 - Keep parentheses for pointer-to-array nodes and avoid collapsing their pointer
   into a string alias. Canonical type keys and runtime type IDs remain untouched.
+
+
+## Raw char pointer diagnostics were renamed to string
+
+- CodeRabbit noted that the display helper changed explicit *char/**char nodes
+  to string/*string even without string-alias provenance. Two raw-type regression
+  cases fail before the fix.
+- Restrict the string spelling to checked i8 types with string alias metadata;
+  preserve raw char pointer spellings and checked pointer-to-array grouping.
