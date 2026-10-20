@@ -83,11 +83,14 @@ export function watchMode(
     closed = true;
     pending = false;
     watcher.close();
-    process.removeListener("SIGINT", onInterrupt);
-    process.removeListener("SIGTERM", onTerminate);
     shutdown = (async () => {
-      await runner.stop();
-      await rebuilding;
+      try {
+        await runner.stop();
+        await rebuilding;
+      } finally {
+        process.removeListener("SIGINT", onInterrupt);
+        process.removeListener("SIGTERM", onTerminate);
+      }
     })();
     return shutdown;
   };

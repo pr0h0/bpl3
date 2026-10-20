@@ -7218,3 +7218,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Schedule bounded timer segments using monotonic elapsed time, preserving the
   existing positive-safe-integer environment contract. Clear the active segment
   when the program finishes or the dev session stops.
+
+
+## Repeated shutdown signals could interrupt dev child cleanup
+
+- CodeRabbit identified that signal handlers were removed before awaiting child
+  termination. A second signal could exit dev while its child was still stopping.
+- Keep both handlers until cleanup finishes, removing them in finally. A gated
+  runner-stop regression fails before the fix and checks handler retention,
+  coalesced close requests and eventual listener cleanup without sending signals.
