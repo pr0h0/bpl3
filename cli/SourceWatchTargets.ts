@@ -112,7 +112,12 @@ export function collectSourceWatchTargets(
           directories.add(nearestExistingDirectory(path.dirname(candidate)));
         }
         try {
-          pendingFiles.push(resolver.resolveModulePath(imported, file));
+          pendingFiles.push(
+            resolver.resolveModulePath(imported, file, (candidate) => {
+              observeLinkParents(candidate);
+              directories.add(nearestExistingDirectory(candidate));
+            }),
+          );
         } catch {
           // Compilation owns diagnostics. The watched directory permits recovery after creation.
         }

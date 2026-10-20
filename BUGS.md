@@ -7036,3 +7036,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Back off retries from one second to a 30-second cap. Report each directory once
   until it recovers, reset the delay after successful recovery, and continue to
   cancel timers on close. Drop obsolete directory failure records during refresh.
+
+
+## Unresolved package and standard-library imports did not recover in watch mode
+
+- CodeRabbit identified that missing bare packages and explicit std/ imports
+  discarded their search paths. Three filesystem regressions fail before the fix:
+  a new local package, a workspace package, and an external BPL_HOME library module.
+- Let the resolver report candidates from its actual failed search, including
+  configured package/global/extra roots. Watch their nearest existing directories
+  without scanning ancestors. Successful resolutions keep their existing behavior.

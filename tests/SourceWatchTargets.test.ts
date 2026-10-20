@@ -437,3 +437,92 @@ test.skipIf(process.platform === "win32")(
       expect(targets.sources.has(unrelated)).toBe(false);
     }),
 );
+
+for (const container of ["bpl_modules", "packages"]) {
+  test(
+    `watch recovers a missing package created under ${container}`,
+    () =>
+      fixture(async (root) => {
+        const app = path.join(root, "app");
+        const base = path.join(root, container);
+        fs.mkdirSync(app);
+        fs.mkdirSync(base);
+        const entry = path.join(app, "main.bpl");
+        fs.writeFileSync(
+          entry,
+          'import [value] from "watch-missing";frame main(){}',
+        );
+        const changed: string[] = [];
+        const watcher = createSourceWatcher(
+          entry,
+          (file) => changed.push(file),
+          () => {},
+        );
+        try {
+          watcher.refresh();
+          const pkg = path.join(base, "watch-missing");
+          fs.mkdirSync(pkg);
+          fs.writeFileSync(
+            path.join(pkg, "bpl.json"),
+            JSON.stringify({
+              name: "watch-missing",
+              version: "0.1.0",
+              main: "index.bpl",
+            }),
+          );
+          const module = path.join(pkg, "index.bpl");
+          fs.writeFileSync(
+            module,
+            "frame value()ret int{return 1;}export value;",
+          );
+          const deadline = Date.now() + 3000;
+          while (!changed.length && Date.now() < deadline) await Bun.sleep(20);
+          expect(changed).toContain(module);
+        } finally {
+          watcher.close();
+        }
+      }),
+    10000,
+  );
+}
+
+test(
+  "watch recovers a missing module in an external BPL_HOME library",
+  () =>
+    fixture(async (root) => {
+      const app = path.join(root, "app");
+      const home = path.join(root, "compiler-home");
+      const library = path.join(home, "lib");
+      fs.mkdirSync(app);
+      fs.mkdirSync(library, { recursive: true });
+      const entry = path.join(app, "main.bpl");
+      fs.writeFileSync(
+        entry,
+        'import [value] from "std/watch_missing.bpl";frame main(){}',
+      );
+      const previous = process.env.BPL_HOME;
+      process.env.BPL_HOME = home;
+      const changed: string[] = [];
+      const watcher = createSourceWatcher(
+        entry,
+        (file) => changed.push(file),
+        () => {},
+      );
+      try {
+        watcher.refresh();
+        const module = path.join(library, "watch_missing.bpl");
+        fs.writeFileSync(
+          module,
+          "frame value()ret int{return 1;}export value;",
+        );
+        const deadline = Date.now() + 3000;
+        while (!changed.length && Date.now() < deadline) await Bun.sleep(20);
+        expect(changed).toContain(module);
+      } finally {
+        watcher.close();
+        if (previous === undefined) delete process.env.BPL_HOME;
+        else process.env.BPL_HOME = previous;
+      }
+    }),
+  10000,
+);

@@ -1027,7 +1027,8 @@ The `bpl dev` command provides watch mode for rapid development. It monitors you
   their nearest existing parent until restored. Watch-handle errors and temporary
   watch-creation failures retry registration even when the directory is quiet.
   Persistent failures back off from one second to a 30-second cap and report each
-  directory once until it recovers.
+  directory once until it recovers. Missing package and standard-library imports
+  observe their configured search locations and rebuild when modules become available.
 - **Smart Filtering**: Ignores `node_modules`, `.git`, `bpl_modules`, and hidden directories
 - **Screen Clearing**: Optional screen clear on recompile with `--clear`
 

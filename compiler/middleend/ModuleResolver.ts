@@ -253,9 +253,34 @@ export class ModuleResolver {
    * Resolve a module path from an import statement
    * Supports: relative paths, absolute paths, stdlib, and packages
    */
-  resolveModulePath(importSource: string, fromFile: string): string {
+  resolveModulePath(
+    importSource: string,
+    fromFile: string,
+    onMissingCandidate?: (candidate: string) => void,
+  ): string {
+    const candidates = onMissingCandidate ? new Set<string>() : undefined;
+    try {
+      return this.resolveModulePathWithCandidates(
+        importSource,
+        fromFile,
+        candidates,
+      );
+    } catch (error) {
+      // Watchers can observe these exact search locations while resolution fails.
+      if (candidates)
+        for (const candidate of candidates) onMissingCandidate?.(candidate);
+      throw error;
+    }
+  }
+
+  private resolveModulePathWithCandidates(
+    importSource: string,
+    fromFile: string,
+    candidates?: Set<string>,
+  ): string {
     // Handle absolute paths
     if (path.isAbsolute(importSource)) {
+      candidates?.add(importSource);
       const resolved = this.tryResolveWithExtensions(importSource);
       if (resolved) {
         return resolved;
@@ -278,6 +303,7 @@ export class ModuleResolver {
     if (importSource.startsWith("./") || importSource.startsWith("../")) {
       const fromDir = path.dirname(fromFile);
       const resolved = path.resolve(fromDir, importSource);
+      candidates?.add(resolved);
       const result = this.tryResolveWithExtensions(resolved);
 
       if (result) {
@@ -301,6 +327,7 @@ export class ModuleResolver {
     // Handle standard library imports (e.g., "std", "io", "math")
     if (!importSource.includes("/") && !importSource.includes("\\")) {
       const stdPath = path.join(this.stdLibPath, `${importSource}.x`);
+      candidates?.add(stdPath);
       const result = this.tryResolveWithExtensions(stdPath);
       if (result) {
         return result;
@@ -308,6 +335,7 @@ export class ModuleResolver {
 
       // Also try in stdlib subdirectories (e.g., "std/io")
       const stdSubPath = path.join(this.stdLibPath, importSource);
+      candidates?.add(stdSubPath);
       const subResult = this.tryResolveWithExtensions(stdSubPath);
       if (subResult) {
         return subResult;
@@ -341,6 +369,7 @@ export class ModuleResolver {
         this.stdLibPath,
         ...relativePath.split(/[\\/]/),
       );
+      candidates?.add(stdPath);
       const result = this.tryResolveWithExtensions(stdPath);
       if (result) {
         this.resolvedExplicitStdImports.set(importSource, result);
@@ -380,6 +409,12 @@ export class ModuleResolver {
         packageResolutionOptions,
       );
       packageTraces.push(fromFilePackage.trace);
+      if (candidates)
+        for (const candidate of [
+          ...fromFilePackage.trace.searchedPaths,
+          ...fromFilePackage.trace.entryCandidates,
+        ])
+          candidates.add(candidate);
       if (fromFilePackage.result) {
         const result = this.tryResolveWithExtensions(
           fromFilePackage.result.filePath,
@@ -396,6 +431,12 @@ export class ModuleResolver {
           packageResolutionOptions,
         );
         packageTraces.push(cwdPackage.trace);
+        if (candidates)
+          for (const candidate of [
+            ...cwdPackage.trace.searchedPaths,
+            ...cwdPackage.trace.entryCandidates,
+          ])
+            candidates.add(candidate);
         if (cwdPackage.result) {
           const result = this.tryResolveWithExtensions(
             cwdPackage.result.filePath,
@@ -413,6 +454,7 @@ export class ModuleResolver {
       for (const searchPath of this.searchPaths) {
         const resolved = path.join(searchPath, importSource);
         extraSearchCandidates.push(resolved);
+        candidates?.add(resolved);
         const result = this.tryResolveWithExtensions(resolved);
         if (result) {
           return result;
@@ -907,7 +949,9 @@ function expressionMayBePrimitiveValue(
       const call = expr as AST.CallExpr;
       if (
         call.callee.kind === "Identifier" &&
-        primitiveReturningFunctions.has((call.callee as AST.IdentifierExpr).name)
+        primitiveReturningFunctions.has(
+          (call.callee as AST.IdentifierExpr).name,
+        )
       ) {
         return true;
       }
