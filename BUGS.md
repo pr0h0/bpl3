@@ -7026,3 +7026,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   callback before the correction.
 - Compare the old and refreshed source snapshots during recovery and report a
   changed file, allowing dev mode to rebuild the current source immediately.
+
+
+## Persistent watch registration failures flooded logs and rescanned every second
+
+- CodeRabbit found that recovery retried persistent failures at a fixed one-second
+  interval and reported the same directory repeatedly. A finite timer/log
+  regression fails before the fix.
+- Back off retries from one second to a 30-second cap. Report each directory once
+  until it recovers, reset the delay after successful recovery, and continue to
+  cancel timers on close. Drop obsolete directory failure records during refresh.

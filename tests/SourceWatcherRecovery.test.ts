@@ -125,3 +125,32 @@ test("recovery reports an edit made while the handle was unavailable", async () 
     rmSync(directory, { recursive: true, force: true });
   }
 }, 10000);
+
+test("persistent watch failures back off and report each directory once", async () => {
+  const directory = fs.realpathSync(
+    mkdtempSync(join(tmpdir(), "bpl-watch-backoff-")),
+  );
+  const entry = join(directory, "main.bpl");
+  writeFileSync(entry, "frame main(){}");
+  const watchSpy = spyOn(fs, "watch").mockImplementation(() => {
+    throw new Error("persistent watch failure");
+  });
+  const timers = spyOn(globalThis, "setTimeout");
+  const errors: unknown[] = [];
+  const watcher = createSourceWatcher(
+    entry,
+    () => {},
+    (_path, error) => errors.push(error),
+  );
+  try {
+    watcher.refresh();
+    await waitFor(() => watchSpy.mock.calls.length >= 2);
+    expect(timers.mock.calls.map((call) => call[1])).toContain(2000);
+    expect(errors).toHaveLength(1);
+  } finally {
+    watcher.close();
+    timers.mockRestore();
+    watchSpy.mockRestore();
+    rmSync(directory, { recursive: true, force: true });
+  }
+}, 10000);

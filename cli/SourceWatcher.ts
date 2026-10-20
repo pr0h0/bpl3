@@ -29,6 +29,13 @@ export function createSourceWatcher(
   let sources = new Set<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
+  let recoveryDelay = 1000;
+  const reportedFailures = new Set<string>();
+  const reportFailure = (directory: string, error: unknown) => {
+    if (reportedFailures.has(directory)) return;
+    reportedFailures.add(directory);
+    onError(directory, error);
+  };
   let closed = false;
   let snapshot = new Map<string, string>();
   let forcePending = false;
@@ -46,16 +53,20 @@ export function createSourceWatcher(
         );
         if (changed) onChange(changed);
       } catch (error) {
-        onError(path.dirname(entryFile), error);
+        reportFailure(path.dirname(entryFile), error);
         scheduleRecovery();
       }
-    }, 1000);
+    }, recoveryDelay);
+    recoveryDelay = Math.min(recoveryDelay * 2, 30000);
   };
   const session: SourceWatcher = {
     refresh() {
       if (closed) return 0;
       const targets = collectSourceWatchTargets(entryFile);
       let needsRecovery = false;
+      for (const directory of reportedFailures)
+        if (!targets.directories.has(directory))
+          reportedFailures.delete(directory);
       sources = targets.sources;
       for (const [directory, watched] of watchers) {
         let identity: string | undefined;
@@ -128,18 +139,23 @@ export function createSourceWatcher(
               watchers.delete(directory);
               scheduleRecovery();
             }
-            onError(directory, error);
+            reportFailure(directory, error);
           });
           watchers.set(directory, { handle: watcher, identity });
+          reportedFailures.delete(directory);
         } catch (error) {
           needsRecovery = true;
-          onError(directory, error);
+          reportFailure(directory, error);
         }
       }
       if (needsRecovery) scheduleRecovery();
-      else if (recoveryTimer) {
-        clearTimeout(recoveryTimer);
-        recoveryTimer = undefined;
+      else {
+        recoveryDelay = 1000;
+        reportedFailures.clear();
+        if (recoveryTimer) {
+          clearTimeout(recoveryTimer);
+          recoveryTimer = undefined;
+        }
       }
       snapshot = new Map();
       const observed = new Set(sources);
