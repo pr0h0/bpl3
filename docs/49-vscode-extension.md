@@ -49,6 +49,10 @@ CLI commands rather than editor snippets.
 
 ### Hover Information
 
+Function and method names show their declaration and documentation when the
+return type is omitted. An explicit `void` annotation still provides type help
+when the annotation itself is hovered.
+
 Rich tooltips with full type information:
 
 - **Functions**: See full signatures with parameter names and return types

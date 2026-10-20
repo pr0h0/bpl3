@@ -7310,9 +7310,18 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Regressions cover service APIs across LF/CRLF/CR, including position-clamping
   controls. All seven CR-only service failures are corrected.
 
-## Implicit void return annotations shadow function-name hover (open)
+## Implicit void return annotations shadow function-name hover
 
 - Hovering the name in `frame run() {}` returns built-in `void` information
   instead of the function signature/docs. The implicit annotation shares the
-  declaration range. Explicit return annotations are a control. Reproduced
-  while adding editor newline tests; a separate hover fix is queued.
+  declaration range. Exclude that synthetic annotation from source-node
+  selection, preserving actual explicit void type hovers and semantic tokens.
+  Function/method regressions cover LF/CRLF/CR and explicit annotation controls.
+
+
+## Function prepare-rename ranges cover whole declarations (open)
+
+- Preparing a rename on `frame run() {}` selects the entire declaration instead
+  of `run`. Three LF/CRLF/CR controls reproduce ranges 0..14 instead of 6..9.
+  This is independent of implicit-void hover selection; a declaration-name
+  range correction is queued separately.
