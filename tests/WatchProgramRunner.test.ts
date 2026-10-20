@@ -62,10 +62,14 @@ test.skipIf(process.platform === "win32")(
     try {
       runner.start(process.execPath, [
         "-e",
-        `process.on("SIGTERM",()=>{});require("fs").writeFileSync(${JSON.stringify(ready)},String(process.pid));setInterval(()=>{},1000);`,
+        `process.on("SIGTERM",()=>{});require("fs").writeFileSync(${JSON.stringify(ready)},"");setTimeout(()=>require("fs").writeFileSync(${JSON.stringify(ready)},String(process.pid)),100);setInterval(()=>{},1000);`,
       ]);
-      await waitUntil(() => existsSync(ready));
-      const pid = Number(readFileSync(ready, "utf8"));
+      let pid = 0;
+      await waitUntil(() => {
+        if (!existsSync(ready)) return false;
+        pid = Number(readFileSync(ready, "utf8"));
+        return Number.isSafeInteger(pid) && pid > 0;
+      });
       await Promise.all([runner.stop(), runner.stop()]);
       expect(() => process.kill(pid, 0)).toThrow();
       expect(messages).toEqual([]);

@@ -7227,3 +7227,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Keep both handlers until cleanup finishes, removing them in finally. A gated
   runner-stop regression fails before the fix and checks handler retention,
   coalesced close requests and eventual listener cleanup without sending signals.
+
+
+## Watch runner readiness could read an empty PID file
+
+- CodeRabbit identified a test race between file creation and writing the child
+  PID. A deterministic delayed-write fixture reproduces it: Number("") became
+  zero, invalidating the later process-exit assertion.
+- Wait for a positive safe integer PID before continuing with shutdown checks.
