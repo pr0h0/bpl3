@@ -1396,6 +1396,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
   }
 
   protected generateTupleLiteral(expr: AST.TupleLiteralExpr): string {
+    if (expr.resolvedType?.kind === "TupleType") {
+      return this.generateTupleLiteralForTarget(expr, expr.resolvedType);
+    }
     const type = this.resolveType(expr.resolvedType!);
     let tupleVal = "undef";
 

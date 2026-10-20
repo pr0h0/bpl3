@@ -7388,3 +7388,25 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Align the production library with es2022 and run the production build before
   the existing test typecheck/suite. This also covers it through test:ci's
   existing extension step. Keep the emitted target and package version unchanged.
+
+
+## Integer array literals lost their destination type inside tuples
+
+- A direct `u8[2] = [1,2]` worked, but `local pair: (u8[2], int) =
+  ([1,2],3)` failed in declarations, assignment, return values, arguments,
+  struct fields, aliases, nested tuples and grouped/ternary expressions.
+- Extend the existing transactional literal-array conversion planner through
+  tuple containers. Preserve original scalar operator annotations; tuple
+  lowering converts each element to the contextual tuple type, including when
+  nested in a struct or ternary. Overload probes do not mutate candidates.
+- Typechecker and O0/O3 native regressions retain overflow/storage restrictions,
+  overload priority, scalar conversions, aliases, slices and callable arguments.
+  Empty arrays and match result contextual typing remain separate work.
+
+## Indexing an array stored in a tuple cannot generate its address (open)
+
+- `frame read(pair:(u8[2],u8)) ret int { return cast<int>(pair.0[0]); }`
+  typechecks, but native code generation rejects the tuple member as a non-struct
+  when indexing its array element. Copying `pair.0` to a local array works.
+- Confirmed while testing contextual array tuples; tuple-member address generation
+  needs its own regression and correction. No sanitizer tooling was involved.
