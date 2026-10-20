@@ -262,7 +262,7 @@ describe("CLI Tests", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("error[E001]");
     expect(result.stderr).toContain("Type mismatch");
-    expect(result.stderr).toContain("cannot assign *i8 to i32");
+    expect(result.stderr).toContain("cannot assign string to i32");
   });
 
   it("should reject invalid optimization levels for eval input", () => {
