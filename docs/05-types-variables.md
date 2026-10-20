@@ -114,7 +114,8 @@ local not: bool = !true;             # false
 
 ### Character Type
 
-8-bit unsigned integer, typically used for ASCII characters:
+`char` is an 8-bit signed integer, typically used for ASCII characters. Use
+`uchar` or `u8` for unsigned byte values:
 
 ```bpl
 local letter: char = 'A';        # ASCII 65
