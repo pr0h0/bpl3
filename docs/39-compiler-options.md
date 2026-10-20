@@ -736,6 +736,9 @@ bun test tests/TypeCheckerInvalidArraySizes.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "invalid array size"
 ```
 
+Circular-import build failures point to the source import that completes the
+dependency cycle, including self-imports.
+
 Diagnostic type names prefer `bool` and `string` over internal spellings.
 Pointers to `char` may display as the equivalent `string` alias. Compound types,
 `const` qualifiers and array dimensions remain visible.
