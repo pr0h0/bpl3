@@ -11,6 +11,12 @@ const sources = [
   `frame main(){local text:String=${tick}tick \\${tick} \\b quote\\"${tick}; # tail\n}`,
   `frame main(){local text:String=${tick}\${1 /# value #/} tick \\${tick}${tick};}`,
 ];
+const expectedSnippets = [
+  "- -value",
+  "- /# sign #/ -value",
+  'tick \\` \\b quote\\"',
+  "${1 /# value #/} tick \\`",
+];
 const profiles: Array<{
   name: string;
   options: FormatterOptions;
@@ -26,6 +32,7 @@ for (const profile of profiles)
     test(`configured formatter retains operators/literals: ${profile.name} ${index}`, () => {
       const before = new Parser(source, "configured-regression.bpl").parse();
       const output = new Formatter(profile.options).format(before);
+      expect(output).toContain(expectedSnippets[index]!);
       const after = new Parser(output, "configured-regression.bpl").parse();
       expect(formatterSemantics(after)).toEqual(formatterSemantics(before));
       expect(new Formatter(profile.options).format(after)).toBe(output);
