@@ -361,6 +361,7 @@ regenerate it with `bun run docs:stdlib` after public library changes.
 Source locations use 1-based lines and UTF-16 columns. LF, CRLF and standalone
 CR each count as one newline. Keep lexer, parser AST/error positions, diagnostic
 snippets and formatter source offsets consistent; do not normalize literal bytes.
+EOF points after all source text, including trailing whitespace and comments.
 
 ## Formatter correctness
 

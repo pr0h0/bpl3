@@ -7288,3 +7288,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Distinguish undefined (no cached document) from the valid empty string. A
   regression covers disk fallback before caching, authoritative empty content,
   and text, structured-object and JSON output.
+
+
+## Lexer EOF positions ignored trailing source text
+
+- EOF was computed from the last token's start and lexeme length, so trailing
+  whitespace/comments and multiline literals produced incorrect end positions.
+  Whitespace-only input incorrectly reported 1:1. Eleven boundary cases fail.
+- Return the final scanner coordinates from both GenericParser paths and use
+  them for EOF, without rescanning or changing preceding tokens. Regressions
+  cover LF/CRLF/CR, comment-only input, multiline literals and UTF-16 columns.
