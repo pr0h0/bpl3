@@ -917,6 +917,8 @@ export class Formatter {
   }
 
   private escapeInterpolatedStringPart(s: string): string {
+    // Interpolated strings decode JSON escapes, including \b and \f.
+    // Raw U+2028/U+2029 are valid text in these literals as well.
     return JSON.stringify(s)
       .slice(1, -1)
       .replace(/`/g, "\\`")
