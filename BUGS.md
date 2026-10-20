@@ -7045,3 +7045,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Retain source provenance in the existing weak map for every parsed program and
   use it for declaration layout, including comment-free files. The source remains
   outside AST serialization/traversal and is released with its program.
+## Spaced comparisons were parsed as generic applications (audit C2)
+
+- Postfix parsing consumed trivia before `<`, so comparison arguments such as
+  consume(a < b, c > (d)) became a generic call instead of two comparisons.
+  Twelve focused cases fail before the fix, including native compilation and
+  the newly required rejection of spaced generic declarations/literals.
+- Per the maintainer's syntax decision, require an adjacent generic `<` across
+  declarations, references, calls and literals. Preserve whitespace/comments
+  inside brackets and ordinary trivia before other postfix operators. Update
+  both grammar and generated fast paths, and compare the optimized postfix
+  scanner against the original Peggy production.

@@ -1061,6 +1061,8 @@ function optimizeGeneratedPostfixTailScanning(parserSource: string): string {
     "        nextCode = input.charCodeAt(peg$currPos);",
     "        switch (nextCode) {",
     "          case 60:",
+    "            peg$currPos = s0;",
+    "            return peg$FAILED;",
     "          case 40:",
     "          case 91:",
     "          case 46:",
@@ -1263,7 +1265,7 @@ function optimizeGeneratedStructLiteralSuccessCaching(
     /  function peg\$parseStructLiteral\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseStructLiteralFields\(\)/;
   const match = parserSource.match(structLiteralPattern);
   const actionName = match?.[1]?.match(
-    /peg\$savedPos = s0;\n          s0 = (peg\$f\d+)\(s1, s3, s7\);/,
+    /peg\$savedPos = s0;\n          s0 = (peg\$f\d+)\(s1, s2, s6\);/,
   )?.[1];
 
   if (!match || !actionName) {
@@ -1273,9 +1275,9 @@ function optimizeGeneratedStructLiteralSuccessCaching(
   }
 
   const success = [
-    "        if (s9 !== peg$FAILED) {",
+    "        if (s8 !== peg$FAILED) {",
     "          peg$savedPos = s0;",
-    `          s0 = ${actionName}(s1, s3, s7);`,
+    `          s0 = ${actionName}(s1, s2, s6);`,
     "        } else {",
   ].join("\n");
   if (!match[0].includes(success)) {
@@ -1285,9 +1287,9 @@ function optimizeGeneratedStructLiteralSuccessCaching(
   }
 
   const cachedSuccess = [
-    "        if (s9 !== peg$FAILED) {",
+    "        if (s8 !== peg$FAILED) {",
     "          peg$savedPos = s0;",
-    `          s0 = ${actionName}(s1, s3, s7);`,
+    `          s0 = ${actionName}(s1, s2, s6);`,
     "          if (!peg$collectExpected && !peg$hasBplCommentMarker) {",
     "            peg$bplLastStructLiteralStart = startPos;",
     "            peg$bplLastStructLiteralEnd = peg$currPos;",
