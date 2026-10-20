@@ -6864,3 +6864,10 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   allowlist excluded the new root file, so BuildKit failed before compilation.
 - Include the schema in docker/Dockerfile.dockerignore and verify the actual
   compiler image build, keeping the otherwise narrow build context.
+
+## Formatter container test had inconsistent timeout allowances
+
+- CodeRabbit noted that five sequential Docker invocations each allowed 60 seconds
+  inside a test with a 60-second overall deadline. No slow-run failure was
+  reproduced locally, but those limits could make the smoke test unreliable.
+- Bound each process to 30 seconds and allow 240 seconds for the complete test.

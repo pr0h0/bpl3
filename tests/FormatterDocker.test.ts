@@ -33,7 +33,7 @@ test.skipIf(!enabled)(
             image,
             ...args,
           ],
-          { encoding: "utf8", timeout: 60000 },
+          { encoding: "utf8", timeout: 30000 },
         );
       const formatted = run(["format", "main.bpl"]);
       expect({ status: formatted.status, stderr: formatted.stderr }).toEqual({
@@ -66,12 +66,12 @@ test.skipIf(!enabled)(
           "-c",
           "test -f /opt/bpl/bpl-format.schema.json",
         ],
-        { encoding: "utf8", timeout: 60000 },
+        { encoding: "utf8", timeout: 30000 },
       );
       expect(schema.status, schema.stderr).toBe(0);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   },
-  60000,
+  240000,
 );
