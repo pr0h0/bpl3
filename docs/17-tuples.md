@@ -62,6 +62,11 @@ arguments, return values, struct fields and grouped/ternary tuple literals.
 Out-of-range constants and incompatible existing array storage remain errors;
 explicit casts retain their existing meaning.
 
+Tuple members of mutable storage support assignment and address-taking. For
+array members, `pair.0[index]` accesses the array inside the tuple. Nested tuple
+and struct fields use the same storage; by-value function parameters still
+receive copies. Const tuple storage cannot be assigned through its members.
+
 ### Creating Tuples from Expressions
 
 ```bpl

@@ -175,6 +175,23 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       skipNullObjectCheck,
     );
 
+    if (objType?.kind === "TupleType" && !objType.arrayDimensions?.length) {
+      const index = Number(memberExpr.property);
+      if (!Number.isInteger(index) || index < 0 || index >= objType.types.length) {
+        throw new CompilerError(
+          `Invalid tuple index '${memberExpr.property}'`,
+          `Valid indices are 0-${objType.types.length - 1}`,
+          memberExpr.location,
+        );
+      }
+      const tupleType = this.resolveType(objType);
+      const address = this.newRegister();
+      this.emit(
+        `  ${address} = getelementptr inbounds ${tupleType}, ${tupleType}* ${objectAddr}, i32 0, i32 ${index}`,
+      );
+      return address;
+    }
+
     if (!objType || objType.kind !== "BasicType") {
       throw new CompilerError(
         "Member access on non-struct type",

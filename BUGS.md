@@ -7413,10 +7413,20 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   overload priority, scalar conversions, aliases, slices and callable arguments.
   Empty arrays and match result contextual typing remain separate work.
 
-## Indexing an array stored in a tuple cannot generate its address (open)
+## Tuple members could not generate their addresses
 
 - `frame read(pair:(u8[2],u8)) ret int { return cast<int>(pair.0[0]); }`
   typechecks, but native code generation rejects the tuple member as a non-struct
   when indexing its array element. Copying `pair.0` to a local array works.
-- Confirmed while testing contextual array tuples; tuple-member address generation
-  needs its own regression and correction. No sanitizer tooling was involved.
+- Generate tuple field addresses using their checked numeric index and tuple
+  layout. Native O0/O3 regressions cover indexing, assignment, address-taking,
+  nested/aliased tuples, struct fields, slice members and by-value parameters.
+  Const assignment checks remain in force.
+
+## Tuple array-to-slice conversion copies existing array storage (open)
+
+- `(int[],int) = (values,22)` creates a view of copied array storage. Mutating
+  the tuple's slice does not affect the original fixed array, unlike a direct
+  `local borrowed:int[]=values` conversion. Confirmed during tuple address tests.
+- Using an explicit direct slice before building the tuple preserves borrowing.
+  Aggregate slice lowering needs a separate regression and correction.
