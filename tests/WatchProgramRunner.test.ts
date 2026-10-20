@@ -76,3 +76,22 @@ test.skipIf(process.platform === "win32")(
   },
   15000,
 );
+
+test("long run timeout does not expire a short-lived program immediately", async () => {
+  const previous = process.env.BPL_RUN_TIMEOUT_MS;
+  const messages: string[] = [];
+  const runner = new WatchProgramRunner((message) => messages.push(message));
+  try {
+    process.env.BPL_RUN_TIMEOUT_MS = "2147483648";
+    runner.start(process.execPath, [
+      "-e",
+      "setTimeout(()=>process.exit(7),100)",
+    ]);
+    await waitUntil(() => messages.length > 0);
+    expect(messages).toEqual(["Program exited with code 7"]);
+  } finally {
+    await runner.stop();
+    if (previous === undefined) delete process.env.BPL_RUN_TIMEOUT_MS;
+    else process.env.BPL_RUN_TIMEOUT_MS = previous;
+  }
+}, 15000);

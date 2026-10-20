@@ -7208,3 +7208,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   serialize restarts and await the old child before rebuilding. Stop it on session
   close/SIGINT/SIGTERM, preserving run timeouts and compilation error recovery.
   Compilation itself still runs synchronously during each individual rebuild.
+
+
+## Long dev run timeouts expired immediately through JavaScript timer limits
+
+- During asynchronous runner validation, a valid BPL_RUN_TIMEOUT_MS of 2147483648
+  was clamped to one millisecond by the JavaScript timer API. A normal short-lived
+  program was terminated immediately; a focused regression reproduces this.
+- Schedule bounded timer segments using monotonic elapsed time, preserving the
+  existing positive-safe-integer environment contract. Clear the active segment
+  when the program finishes or the dev session stops.

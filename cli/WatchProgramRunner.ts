@@ -62,12 +62,24 @@ export class WatchProgramRunner {
       }
       complete();
     });
-    if (timeout !== undefined)
-      running.timeout = setTimeout(() => {
+    if (timeout !== undefined) {
+      const started = performance.now();
+      const checkTimeout = () => {
         if (this.current !== running) return;
+        const remaining = timeout - (performance.now() - started);
+        if (remaining > 0) {
+          // JS timers clamp delays above a signed 32-bit integer to one ms.
+          running.timeout = setTimeout(
+            checkTimeout,
+            Math.min(2147483647, Math.ceil(remaining)),
+          );
+          return;
+        }
         this.reportError(`Executable timed out: ${executable}`);
         void this.stop();
-      }, timeout);
+      };
+      checkTimeout();
+    }
   }
 
   stop(): Promise<void> {
