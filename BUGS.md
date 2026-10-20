@@ -7235,3 +7235,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   PID. A deterministic delayed-write fixture reproduces it: Number("") became
   zero, invalidating the later process-exit assertion.
 - Wait for a positive safe integer PID before continuing with shutdown checks.
+
+
+## Watch execution passed WebAssembly output to the native process runner
+
+- CodeRabbit found that the new asynchronous runner received .wasm output as
+  though it were a host executable. Four cached/uncached output-selection
+  regressions fail before the fix.
+- Keep WebAssembly builds out of native watch execution and warn once when run
+  was requested. Watch compilation remains available; a WebAssembly runtime must
+  execute the module separately. Native execution paths remain selected normally.

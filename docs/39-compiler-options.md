@@ -1048,6 +1048,10 @@ so a later package installation or directory creation can recover automatically.
 Those ancestor directories are watched for events; source scanning remains limited
 to the entry tree and resolved imports.
 
+WebAssembly targets can be rebuilt in watch mode, but watch mode does not launch
+a WebAssembly runtime. Use `--no-run` and execute the generated module with the
+runtime or browser host required by that module.
+
 ### Usage
 
 ```bash

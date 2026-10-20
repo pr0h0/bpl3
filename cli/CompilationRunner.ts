@@ -1062,7 +1062,9 @@ export function getCompiledExecutablePath(
   filePath: string,
   options: CompileOptions,
 ): string | undefined {
-  if (["ast", "tokens", "formatted"].includes(options.emit ?? "")) return undefined;
+  if (isWasmTarget(options.target)) return undefined;
+  if (["ast", "tokens", "formatted"].includes(options.emit ?? ""))
+    return undefined;
   if (!shouldCompileExecutable(options)) return undefined;
   return options.cache
     ? getCachedExecutablePath(filePath, options)

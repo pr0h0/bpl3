@@ -8,6 +8,7 @@ import * as path from "path";
 import { processFile, getCompiledExecutablePath } from "./CompilationRunner";
 import { WatchProgramRunner } from "./WatchProgramRunner";
 import type { CompileOptions } from "./types";
+import { isWasmTarget } from "../compiler/common/CompilerDriver";
 import { Logger } from "../compiler/common/Logger";
 import { createSourceWatcher, type SourceWatcher } from "./SourceWatcher";
 
@@ -39,6 +40,11 @@ export function watchMode(
   log.info(`Watching directory: ${watchDir}`);
   log.info(`Entry point: ${fileName}`);
   log.info("Press Ctrl+C to stop\n");
+  if (options.run && options.noRun !== true && isWasmTarget(options.target)) {
+    log.warn(
+      "Watch mode cannot run WebAssembly modules directly. Use --no-run and a WebAssembly runtime.",
+    );
+  }
 
   const runner = new WatchProgramRunner(
     (message) => log.error(message),
