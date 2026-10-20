@@ -6934,3 +6934,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Observe the nearest existing parent while a source directory is missing, then
   return to source-directory watches after restoration. Do not recursively scan
   unrelated ancestor trees. Treat file-valued path components as missing dirs.
+
+
+## Missing-entry fallback rebuilt for unrelated ancestor source files
+
+- CodeRabbit identified that extension-only relevance forced a rebuild for an
+  unrelated .bpl/.x file in a fallback ancestor, even though rescanning collected
+  no changed source. Both filesystem-event regressions fail before the fix.
+- Let those events request discovery without forcing compilation. A source
+  snapshot change, a collected source or relevant manifest still triggers the
+  rebuild. Entry restoration and new-source discovery remain observable.

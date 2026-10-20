@@ -279,3 +279,37 @@ test("file-valued parent paths fall back to an existing directory", () =>
     expect([...targets.sources]).toEqual([entry]);
     expect([...targets.directories]).toEqual([root]);
   }));
+
+for (const extension of ["bpl", "x"]) {
+  test(
+    `missing-entry ancestor ignores unrelated .${extension} changes`,
+    () =>
+      fixture(async (root) => {
+        const entry = path.join(root, "missing/app/main.bpl");
+        const changed: string[] = [];
+        const watcher = createSourceWatcher(
+          entry,
+          (file) => changed.push(file),
+          () => {},
+        );
+        try {
+          watcher.refresh();
+          fs.writeFileSync(
+            path.join(root, `unrelated.${extension}`),
+            "frame other(){}",
+          );
+          await Bun.sleep(250);
+          expect(changed).toEqual([]);
+          fs.mkdirSync(path.dirname(entry), { recursive: true });
+          fs.writeFileSync(entry, "frame main(){}");
+          const deadline = Date.now() + 3000;
+          while (!changed.includes(entry) && Date.now() < deadline)
+            await Bun.sleep(20);
+          expect(changed).toContain(entry);
+        } finally {
+          watcher.close();
+        }
+      }),
+    10000,
+  );
+}

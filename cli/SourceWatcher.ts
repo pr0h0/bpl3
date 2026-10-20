@@ -70,12 +70,17 @@ export function createSourceWatcher(
             }
             const relevant =
               sources.has(file) ||
-              /\.(bpl|x)$/.test(basename) ||
               basename === "bpl.json" ||
               basename === "bpl.lock";
             // Some backends coalesce an atomic save into the temporary filename's
             // rename event. Rescan on any rename, then compare source identities.
-            if (!name || event === "rename" || directoryChange || relevant) {
+            if (
+              !name ||
+              event === "rename" ||
+              directoryChange ||
+              relevant ||
+              /\.(bpl|x)$/.test(basename)
+            ) {
               if (relevant) {
                 forcePending = true;
                 pendingFile = file;
