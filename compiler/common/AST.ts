@@ -604,7 +604,7 @@ export interface ExportStmt extends ASTNode {
 export interface ExternDecl extends ASTNode {
   kind: "Extern";
   name: string;
-  params: { name: string; type: TypeNode }[];
+  params: Pick<Parameter, "name" | "type" | "isConst" | "isVariadic">[];
   isVariadic: boolean;
   returnType?: TypeNode;
 }

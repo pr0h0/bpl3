@@ -6871,3 +6871,26 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   inside a test with a 60-second overall deadline. No slow-run failure was
   reproduced locally, but those limits could make the smoke test unreliable.
 - Bound each process to 30 seconds and allow 240 seconds for the complete test.
+
+## Formatter emitted invalid syntax for bare imports
+
+- Formatting import "./module.bpl" produced import * from "./module.bpl", which
+  the grammar does not accept. Preserve the supported bare-import syntax when
+  importing all exported symbols without a namespace.
+- Both plain and comment-bearing round trips fail before the fix.
+
+## Formatter dropped const qualifiers from extern parameters
+
+- Extern parameter printing duplicated a reduced name/type formatter and omitted
+  Parameter.isConst. Both plain and comment-bearing AST round trips fail before
+  the fix. Reuse the declaration parameter formatter so qualifiers are retained.
+
+## Import path escaping corrupted literals and displaced adjacent comments
+
+- Decoded import paths were printed inside quotes without escaping. Quotes,
+  backslashes and newline escapes could produce invalid or changed source. When
+  normalization changed the raw path token, a preceding comment could move after
+  the path. Twenty parser/formatter regressions fail before the fix.
+- Quote paths using supported BPL escapes (JSON backspace/form-feed forms need
+  Unicode equivalents) and align ordinary string tokens by decoded value. Cover
+  named/bare imports, Unicode/surrogates, controls, literal escapes and comments.

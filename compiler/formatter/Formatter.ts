@@ -380,15 +380,33 @@ export class Formatter {
     return output;
   }
 
-  private formatParameter(param: AST.Parameter): string {
+  private formatParameter(
+    param: Pick<AST.Parameter, "name" | "type" | "isConst" | "isVariadic">,
+  ): string {
     const constPrefix = param.isConst ? "const " : "";
     const variadicPrefix = param.isVariadic ? "..." : "";
     return `${constPrefix}${param.name}: ${variadicPrefix}${this.formatType(param.type)}`;
   }
 
+  /** JSON escapes align with BPL except for the short backspace/form-feed forms. */
+  private quoteImportSource(source: string): string {
+    return JSON.stringify(source).replace(
+      /\\(?:["\\bfnrt]|u[0-9a-fA-F]{4})/g,
+      (sequence) => {
+        if (sequence === "\\b") return "\\u0008";
+        if (sequence === "\\f") return "\\u000c";
+        return sequence;
+      },
+    );
+  }
+
   private formatImport(stmt: AST.ImportStmt): string {
     const indent = this.getIndent();
     let output = `${indent}import `;
+
+    if (stmt.importAll && !stmt.namespace) {
+      return `${indent}import ${this.quoteImportSource(stmt.source)};`;
+    }
 
     if (stmt.importAll) {
       output += "*";
@@ -414,7 +432,7 @@ export class Formatter {
       output += `${items}`;
     }
 
-    output += ` from "${stmt.source}";`;
+    output += ` from ${this.quoteImportSource(stmt.source)};`;
     return output;
   }
 
@@ -441,9 +459,7 @@ export class Formatter {
     const indent = this.getIndent();
     let output = `${indent}extern ${decl.name}(`;
 
-    output += decl.params
-      .map((p) => `${p.name}: ${this.formatType(p.type)}`)
-      .join(", ");
+    output += decl.params.map((p) => this.formatParameter(p)).join(", ");
 
     if (decl.isVariadic) {
       if (decl.params.length > 0) output += ", ";
