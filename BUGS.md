@@ -7105,3 +7105,11 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Inspect existing string-alias provenance, including alias-target chains, before
   using string spelling for resolved i8 pointers. Preserve explicit pointers and
   guard metadata traversal against cycles; canonical identity remains untouched.
+
+
+## Diagnostic type formatting exposed undefined for runtime-only types
+
+- CodeRabbit found that internal module types fall outside the parsed type union.
+  The diagnostic formatter left their name unassigned and printed undefined.
+- A regression reproduces the fallback failure. Use unknown for unsupported
+  kinds while preserving existing qualifier and array-dimension formatting.
