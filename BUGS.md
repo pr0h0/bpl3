@@ -7378,3 +7378,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   requests cannot fall through into renaming the global instead.
 - Type-name/generic binding and workspace-wide import resolution remain separate
   limitations. Lambda-parameter rename itself is not implemented by this fix.
+
+
+## Extension production build was not checked by its test command
+
+- `npm run compile --prefix vscode-ext` failed TS2550 for Object.hasOwn in
+  imported compiler modules. Its es2021 library differed from the es2022 test
+  configuration, so extension tests passed while the production build failed.
+- Align the production library with es2022 and run the production build before
+  the existing test typecheck/suite. This also covers it through test:ci's
+  existing extension step. Keep the emitted target and package version unchanged.

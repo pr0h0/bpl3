@@ -321,3 +321,8 @@ precedence, so explicit `false` disables automatic formatting and explicit
 
 The BPL save hook skips delayed autosaves (`files.autoSave: "afterDelay"`),
 matching native save formatting. Manual and focus-change saves remain eligible.
+
+
+The extension test command, `npm test --prefix vscode-ext`, first builds the
+production extension, then typechecks and runs its editor tests. Production and
+test configurations both include ES2022 library declarations.
