@@ -7016,3 +7016,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Require an escaped literal to contain exactly the backslash and one escape
   character before decoding. Existing supported escapes and legacy single unknown
   escapes retain their values; hexadecimal character escapes remain unsupported.
+
+
+## Formatter removed enum implemented-spec lists
+
+- Enum formatting omitted EnumDecl.implements entirely. Both plain and commented
+  implemented-spec lists disappeared, changing the parsed declaration; three
+  formatter round-trip regressions fail before the fix.
+- Emit the existing type list after the enum name/generic parameters, preserving
+  implemented contracts and their surrounding comments without new syntax.

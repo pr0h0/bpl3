@@ -249,6 +249,10 @@ export class Formatter {
 
     output += this.formatGenericParams(decl.genericParams);
 
+    if (decl.implements.length > 0) {
+      output += `: ${decl.implements.map((type) => this.formatType(type)).join(", ")}`;
+    }
+
     output += " {\n";
     this.indentLevel++;
 
