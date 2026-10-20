@@ -1,5 +1,9 @@
 # Generic Structs
 
+The opening `<` must immediately follow the generic name, as in `Box<T>`;
+`Box <T>` is not generic syntax. Spaces and comments inside the brackets are
+allowed. This rule also applies to generic declarations, calls and literals.
+
 Structs can be parameterized with types.
 
 ## Syntax
