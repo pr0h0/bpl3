@@ -2,6 +2,6 @@
   "exitCode": 1,
   "expectedOutput": [
     "Parameter 'x' of method 'foo' has incorrect type",
-    "Expected 'int', got '*i8'"
+    "Expected 'int', got 'string'"
   ]
 }
