@@ -28,14 +28,49 @@ export function createSourceWatcher(
   };
   let sources = new Set<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
+  let recoveryDelay = 1000;
+  const reportedFailures = new Set<string>();
+  const reportFailure = (directory: string, error: unknown) => {
+    if (reportedFailures.has(directory)) return;
+    reportedFailures.add(directory);
+    onError(directory, error);
+  };
+  const noteHealthyDirectory = (directory: string) => {
+    reportedFailures.delete(directory);
+    if (reportedFailures.size === 0) recoveryDelay = 1000;
+  };
   let closed = false;
   let snapshot = new Map<string, string>();
   let forcePending = false;
   let pendingFile = entryFile;
+  const scheduleRecovery = () => {
+    if (closed || recoveryTimer) return;
+    recoveryTimer = setTimeout(() => {
+      recoveryTimer = undefined;
+      if (closed) return;
+      try {
+        const before = snapshot;
+        session.refresh();
+        const changed = [...snapshot.keys(), ...before.keys()].find(
+          (file) => snapshot.get(file) !== before.get(file),
+        );
+        if (changed) onChange(changed);
+      } catch (error) {
+        reportFailure(path.dirname(entryFile), error);
+        scheduleRecovery();
+      }
+    }, recoveryDelay);
+    recoveryDelay = Math.min(recoveryDelay * 2, 30000);
+  };
   const session: SourceWatcher = {
     refresh() {
       if (closed) return 0;
       const targets = collectSourceWatchTargets(entryFile);
+      let needsRecovery = false;
+      for (const directory of reportedFailures)
+        if (!targets.directories.has(directory))
+          reportedFailures.delete(directory);
       sources = targets.sources;
       for (const [directory, watched] of watchers) {
         let identity: string | undefined;
@@ -56,8 +91,10 @@ export function createSourceWatcher(
         if (watchers.has(directory)) continue;
         try {
           const identity = directoryIdentity(directory);
+          const registeredAt = performance.now();
           const watcher = fs.watch(directory, (event, name) => {
-            if (closed) return;
+            if (closed || watchers.get(directory)?.handle !== watcher) return;
+            noteHealthyDirectory(directory);
             const file = name ? path.join(directory, String(name)) : directory;
             const basename = path.basename(file);
             let directoryChange = watchers.has(file);
@@ -102,15 +139,27 @@ export function createSourceWatcher(
             }
           });
           watcher.on("error", (error) => {
+            if (closed) return;
             watcher.close();
-            if (watchers.get(directory)?.handle === watcher)
-              watchers.delete(directory);
-            onError(directory, error);
+            if (watchers.get(directory)?.handle !== watcher) return;
+            watchers.delete(directory);
+            // A newly returned handle can fail on the next event-loop turn.
+            // Activity or a stable lifetime starts a fresh failure episode.
+            if (performance.now() - registeredAt >= 30000)
+              noteHealthyDirectory(directory);
+            reportFailure(directory, error);
+            scheduleRecovery();
           });
           watchers.set(directory, { handle: watcher, identity });
         } catch (error) {
-          onError(directory, error);
+          needsRecovery = true;
+          reportFailure(directory, error);
         }
+      }
+      if (needsRecovery) scheduleRecovery();
+      else if (recoveryTimer) {
+        clearTimeout(recoveryTimer);
+        recoveryTimer = undefined;
       }
       snapshot = new Map();
       const observed = new Set(sources);
@@ -134,6 +183,8 @@ export function createSourceWatcher(
       closed = true;
       if (timer) clearTimeout(timer);
       timer = undefined;
+      clearTimeout(recoveryTimer);
+      recoveryTimer = undefined;
       for (const watched of watchers.values()) watched.handle.close();
       watchers.clear();
     },

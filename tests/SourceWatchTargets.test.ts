@@ -6,7 +6,9 @@ import { collectSourceWatchTargets } from "../cli/SourceWatchTargets";
 import { createSourceWatcher } from "../cli/SourceWatcher";
 
 function fixture(run: (root: string) => void | Promise<void>) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-watch-targets-"));
+  const root = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "bpl-watch-targets-")),
+  );
   return Promise.resolve()
     .then(() => run(root))
     .finally(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -313,3 +315,218 @@ for (const extension of ["bpl", "x"]) {
     10000,
   );
 }
+
+test.skipIf(process.platform === "win32")(
+  "symlinked project roots collect each real source once",
+  () =>
+    fixture((root) => {
+      const real = path.join(root, "real");
+      const linked = path.join(root, "linked");
+      fs.mkdirSync(real);
+      fs.symlinkSync(real, linked, "dir");
+      fs.writeFileSync(
+        path.join(real, "main.bpl"),
+        'import dependency from "./dependency.bpl";frame main(){}',
+      );
+      fs.writeFileSync(
+        path.join(real, "dependency.bpl"),
+        "frame dependency(){}export dependency;",
+      );
+      const targets = collectSourceWatchTargets(path.join(linked, "main.bpl"));
+      expect([...targets.sources].sort()).toEqual(
+        [path.join(real, "main.bpl"), path.join(real, "dependency.bpl")].sort(),
+      );
+      expect([...targets.directories].sort()).toEqual([real, root].sort());
+    }),
+);
+
+test.skipIf(process.platform === "win32")(
+  "symlinked project watches report the canonical changed source",
+  () =>
+    fixture(async (root) => {
+      const real = path.join(root, "real");
+      const linked = path.join(root, "linked");
+      fs.mkdirSync(real);
+      fs.symlinkSync(real, linked, "dir");
+      const dependency = path.join(real, "dependency.bpl");
+      fs.writeFileSync(
+        path.join(real, "main.bpl"),
+        'import dependency from "./dependency.bpl";frame main(){}',
+      );
+      fs.writeFileSync(dependency, "frame dependency(){}export dependency;");
+      const changed: string[] = [];
+      const watcher = createSourceWatcher(
+        path.join(linked, "main.bpl"),
+        (file) => changed.push(file),
+        () => {},
+      );
+      try {
+        watcher.refresh();
+        fs.appendFileSync(dependency, "\n# changed\n");
+        const deadline = Date.now() + 3000;
+        while (changed.length === 0 && Date.now() < deadline)
+          await Bun.sleep(20);
+        expect(changed).toEqual([dependency]);
+      } finally {
+        watcher.close();
+      }
+    }),
+);
+
+// Directory links can be replaced without modifying either target directory.
+test.skipIf(process.platform === "win32")(
+  "watch follows a retargeted project directory link",
+  () =>
+    fixture(async (root) => {
+      const first = path.join(root, "first");
+      const second = path.join(root, "second");
+      const linked = path.join(root, "project");
+      fs.mkdirSync(first);
+      fs.mkdirSync(second);
+      fs.writeFileSync(path.join(first, "main.bpl"), "frame main(){}");
+      fs.writeFileSync(path.join(second, "main.bpl"), "frame main(){return;}");
+      fs.symlinkSync(first, linked, "dir");
+      const changed: string[] = [];
+      const watcher = createSourceWatcher(
+        path.join(linked, "main.bpl"),
+        (file) => changed.push(file),
+        () => {},
+      );
+      try {
+        watcher.refresh();
+        fs.unlinkSync(linked);
+        fs.symlinkSync(second, linked, "dir");
+        const deadline = Date.now() + 3000;
+        while (!changed.length && Date.now() < deadline)
+          await new Promise((done) => setTimeout(done, 20));
+        expect(changed.length).toBeGreaterThan(0);
+        changed.length = 0;
+        fs.writeFileSync(
+          path.join(second, "main.bpl"),
+          "frame main(){local x:int=1;}",
+        );
+        const editDeadline = Date.now() + 3000;
+        while (!changed.length && Date.now() < editDeadline)
+          await new Promise((done) => setTimeout(done, 20));
+        expect(changed).toContain(path.join(second, "main.bpl"));
+      } finally {
+        watcher.close();
+      }
+    }),
+  10000,
+);
+
+test.skipIf(process.platform === "win32")(
+  "a linked entry preserves its supplied project scan root",
+  () =>
+    fixture((root) => {
+      const app = path.join(root, "app");
+      const shared = path.join(root, "shared");
+      fs.mkdirSync(app);
+      fs.mkdirSync(shared);
+      const target = path.join(shared, "entry.bpl");
+      const local = path.join(app, "local.bpl");
+      const unrelated = path.join(shared, "unrelated.bpl");
+      fs.writeFileSync(target, "frame main(){}");
+      fs.writeFileSync(local, "frame localValue(){}");
+      fs.writeFileSync(unrelated, "frame unrelated(){}");
+      fs.symlinkSync(target, path.join(app, "main.bpl"));
+      const targets = collectSourceWatchTargets(path.join(app, "main.bpl"));
+      expect(targets.sources.has(target)).toBe(true);
+      expect(targets.sources.has(local)).toBe(true);
+      expect(targets.sources.has(unrelated)).toBe(false);
+    }),
+);
+
+for (const container of ["bpl_modules", "packages"]) {
+  for (const preexisting of [true, false]) {
+    test(
+      `watch recovers a missing package under ${container} (container preexists=${preexisting})`,
+      () =>
+        fixture(async (root) => {
+          const app = path.join(root, "app");
+          const base = path.join(root, container);
+          fs.mkdirSync(app);
+          if (preexisting) fs.mkdirSync(base);
+          const entry = path.join(app, "main.bpl");
+          fs.writeFileSync(
+            entry,
+            'import [value] from "watch-missing";frame main(){}',
+          );
+          const changed: string[] = [];
+          const watcher = createSourceWatcher(
+            entry,
+            (file) => changed.push(file),
+            () => {},
+          );
+          try {
+            watcher.refresh();
+            fs.mkdirSync(base, { recursive: true });
+            const pkg = path.join(base, "watch-missing");
+            fs.mkdirSync(pkg);
+            fs.writeFileSync(
+              path.join(pkg, "bpl.json"),
+              JSON.stringify({
+                name: "watch-missing",
+                version: "0.1.0",
+                main: "index.bpl",
+              }),
+            );
+            const module = path.join(pkg, "index.bpl");
+            fs.writeFileSync(
+              module,
+              "frame value()ret int{return 1;}export value;",
+            );
+            const deadline = Date.now() + 3000;
+            while (!changed.length && Date.now() < deadline)
+              await Bun.sleep(20);
+            expect(changed).toContain(module);
+          } finally {
+            watcher.close();
+          }
+        }),
+      10000,
+    );
+  }
+}
+
+test(
+  "watch recovers a missing module in an external BPL_HOME library",
+  () =>
+    fixture(async (root) => {
+      const app = path.join(root, "app");
+      const home = path.join(root, "compiler-home");
+      const library = path.join(home, "lib");
+      fs.mkdirSync(app);
+      fs.mkdirSync(library, { recursive: true });
+      const entry = path.join(app, "main.bpl");
+      fs.writeFileSync(
+        entry,
+        'import [value] from "std/watch_missing.bpl";frame main(){}',
+      );
+      const previous = process.env.BPL_HOME;
+      process.env.BPL_HOME = home;
+      const changed: string[] = [];
+      const watcher = createSourceWatcher(
+        entry,
+        (file) => changed.push(file),
+        () => {},
+      );
+      try {
+        watcher.refresh();
+        const module = path.join(library, "watch_missing.bpl");
+        fs.writeFileSync(
+          module,
+          "frame value()ret int{return 1;}export value;",
+        );
+        const deadline = Date.now() + 3000;
+        while (!changed.length && Date.now() < deadline) await Bun.sleep(20);
+        expect(changed).toContain(module);
+      } finally {
+        watcher.close();
+        if (previous === undefined) delete process.env.BPL_HOME;
+        else process.env.BPL_HOME = previous;
+      }
+    }),
+  10000,
+);

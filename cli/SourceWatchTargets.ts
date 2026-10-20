@@ -8,12 +8,23 @@ export function isIgnoredWatchDirectory(name: string): boolean {
   return name.startsWith(".") || IGNORED_DIRECTORIES.has(name);
 }
 
+/** Match the module resolver's identity while retaining missing source paths. */
+function canonicalWatchPath(file: string): string {
+  const absolute = path.resolve(file);
+  try {
+    return fs.realpathSync(absolute);
+  } catch {
+    return absolute;
+  }
+}
+
 /** Observe recovery without recursively scanning an unrelated ancestor tree. */
 function nearestExistingDirectory(directory: string): string {
   let current = directory;
   while (true) {
     try {
-      if (fs.statSync(current).isDirectory()) return current;
+      if (fs.statSync(current).isDirectory())
+        return canonicalWatchPath(current);
     } catch {
       /* Try the parent of a missing or inaccessible directory. */
     }
@@ -34,7 +45,24 @@ export function collectSourceWatchTargets(
 ): SourceWatchTargets {
   const directories = new Set<string>();
   const sources = new Set<string>();
-  const root = path.dirname(path.resolve(entryFile));
+  const linkParents = new Set<string>();
+  const observeLinkParents = (file: string) => {
+    let current = path.resolve(file);
+    while (true) {
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      try {
+        if (fs.lstatSync(current).isSymbolicLink())
+          linkParents.add(nearestExistingDirectory(parent));
+      } catch {
+        // Missing components remain observable through their existing ancestors.
+      }
+      current = parent;
+    }
+  };
+  observeLinkParents(entryFile);
+  const canonicalEntry = canonicalWatchPath(entryFile);
+  const root = canonicalWatchPath(path.dirname(path.resolve(entryFile)));
   const pendingDirectories = [root];
   while (pendingDirectories.length) {
     const directory = pendingDirectories.pop()!;
@@ -55,10 +83,10 @@ export function collectSourceWatchTargets(
     }
   }
   const resolver = new ModuleResolver();
-  const pendingFiles = [path.resolve(entryFile)];
+  const pendingFiles = [canonicalEntry];
   const visited = new Set<string>();
   while (pendingFiles.length) {
-    const file = pendingFiles.pop()!;
+    const file = canonicalWatchPath(pendingFiles.pop()!);
     if (visited.has(file)) continue;
     visited.add(file);
     sources.add(file);
@@ -74,16 +102,22 @@ export function collectSourceWatchTargets(
           path.isAbsolute(imported)
         ) {
           const candidate = path.resolve(path.dirname(file), imported);
+          observeLinkParents(candidate);
           try {
             if (fs.statSync(candidate).isDirectory())
-              directories.add(candidate);
+              directories.add(canonicalWatchPath(candidate));
           } catch {
             // A missing directory import is covered by its nearest existing parent.
           }
           directories.add(nearestExistingDirectory(path.dirname(candidate)));
         }
         try {
-          pendingFiles.push(resolver.resolveModulePath(imported, file));
+          pendingFiles.push(
+            resolver.resolveModulePath(imported, file, (candidate) => {
+              observeLinkParents(candidate);
+              directories.add(nearestExistingDirectory(candidate));
+            }),
+          );
         } catch {
           // Compilation owns diagnostics. The watched directory permits recovery after creation.
         }
@@ -92,5 +126,7 @@ export function collectSourceWatchTargets(
       // Invalid/incomplete editor buffers are still watched and compiled normally.
     }
   }
+  // Observe link replacement without scanning unrelated ancestor trees.
+  for (const parent of linkParents) directories.add(parent);
   return { directories, sources };
 }

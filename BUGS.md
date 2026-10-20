@@ -6944,3 +6944,116 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Let those events request discovery without forcing compilation. A source
   snapshot change, a collected source or relevant manifest still triggers the
   rebuild. Entry restoration and new-source discovery remain observable.
+
+## Formatter combined unary signs into increment/decrement
+
+- Formatting - -value and + +value removed their separating whitespace and
+  changed the AST to decrement/increment. A sign before prefix --/++ was also
+  regrouped. Preserve a space when a single unary sign precedes the same sign.
+- Four regressions failed before the fix; controls cover other unary operators.
+  Native checks compare original and formatted behavior at O0 and O3.
+
+## Formatter emitted invalid interpolated literal escapes
+
+- Escaped backticks became raw delimiters. Some control characters were written
+  literally; combined with another escape they triggered the detailed parser and
+  made previously valid strings fail parsing. Adjacent comments could also make
+  token alignment fail before source-preserving literal replacement.
+- Fourteen round-trip cases failed before the fix. Encode literal text through
+  JSON string escaping, then escape backticks and interpolation starts. Keep
+  expression parts unchanged and verify comment/no-comment idempotence.
+
+
+## Symlinked project roots duplicated source watch identities
+
+- CodeRabbit identified that root sources used an unresolved absolute path while
+  imports used real paths. A symlinked project tracked the same source twice and
+  reported an alias path for an edited dependency. Two regressions reproduce it.
+- Canonicalize existing watch paths consistently, preserving absolute fallbacks
+  for missing files and canonicalizing their nearest existing parent. Canonical
+  temporary fixtures also work when the platform temporary directory is a link.
+
+
+## Initial dev compilation missed edits made before watch registration
+
+- CodeRabbit identified that the initial build/run completed before watching
+  sources. A deterministic CLI regression edits source while a compile-driver
+  gate pauses the first native build; no subsequent rebuild occurs before fixing.
+- Register and refresh source watches before the first compilation so queued
+  changes compare against the source baseline used for that build.
+
+
+## Retargeting a project directory link left watches on the old project
+
+- CodeRabbit identified that canonical source paths dropped observation of the
+  alias itself. Replacing a project link changed no watched target directory; a
+  regression receives no rebuild callback before the fix.
+- Also watch parents of symlink path components, without recursively scanning
+  those ancestors. Retain canonical source identities and refresh after retargets.
+
+
+## Initial-build watcher regression used a non-executable Windows driver
+
+- CodeRabbit identified that the test's .cmd wrapper cannot be launched as the
+  compiler driver with shell execution disabled on Windows.
+- Build the finite test driver as a standalone Bun executable on every platform,
+  keeping shell-free execution and exercising the same launch boundary locally.
+
+
+## A linked entry changed the project scan root to its external target
+
+- CodeRabbit found that canonicalizing the file before choosing its parent
+  scanned the target directory instead of the supplied project directory. A
+  regression misses a local sibling and includes an unrelated target sibling.
+- Canonicalize the supplied entry parent for scanning and the entry file itself
+  for source identity. Continue observing link parents and resolved dependencies.
+
+
+## Failed source watchers required another event to recover
+
+- CodeRabbit noted a residual availability risk: a directory handle error or
+  initial watch creation failure left no handle able to observe the next change.
+  Two real-handle/temporary-failure regressions fail before the fix.
+- Retry discovery/watch registration after one second without requiring a file
+  event. Coalesce recovery timers, retry creation failures, and cancel pending
+  recovery when the session closes or a manual refresh restores every handle.
+
+
+## Watch recovery missed changes made while monitoring was unavailable
+
+- Restoring a failed handle replaced the source baseline without reporting edits
+  made during the gap. A finite regression edits before the retry and receives no
+  callback before the correction.
+- Compare the old and refreshed source snapshots during recovery and report a
+  changed file, allowing dev mode to rebuild the current source immediately.
+
+
+## Persistent watch registration failures flooded logs and rescanned every second
+
+- CodeRabbit found that recovery retried persistent failures at a fixed one-second
+  interval and reported the same directory repeatedly. A finite timer/log
+  regression fails before the fix.
+- Back off retries from one second to a 30-second cap. Report each directory once
+  until it recovers, reset the delay after successful recovery, and continue to
+  cancel timers on close. Drop obsolete directory failure records during refresh.
+
+
+## Unresolved package and standard-library imports did not recover in watch mode
+
+- CodeRabbit identified that missing bare packages and explicit std/ imports
+  discarded their search paths. Three filesystem regressions fail before the fix:
+  a new local package, a workspace package, and an external BPL_HOME library module.
+- Let the resolver report candidates from its actual failed search, including
+  configured package/global/extra roots. Watch their nearest existing directories
+  without scanning ancestors. Successful resolutions keep their existing behavior.
+
+
+## Asynchronous watch-handle failures restarted the retry loop too early
+
+- CodeRabbit identified that a handle returned successfully then errored on the
+  next turn cleared the failure history. Repeated asynchronous errors therefore
+  retried every second and repeated their log message. A regression fails before
+  the fix.
+- Preserve backoff/error deduplication across newly created handles. Treat observed
+  activity or a handle lasting at least 30 seconds as a fresh healthy episode.
+  Ignore late errors from replaced handles and retain cancellation on close.
