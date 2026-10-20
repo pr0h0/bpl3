@@ -1089,8 +1089,9 @@ export class GenericParser {
   }
 
   private advance(text: string): void {
-    for (const ch of text) {
-      if (ch === "\n") {
+    // Source locations use JavaScript/UTF-16 offsets, including surrogate pairs.
+    for (let index = 0; index < text.length; index++) {
+      if (text.charCodeAt(index) === 10) {
         this.line += 1;
         this.column = 1;
       } else {

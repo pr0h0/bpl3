@@ -2,6 +2,7 @@ import * as AST from "../common/AST";
 import { parseWithPeggy } from "./PeggyParser";
 import { Token } from "./Token";
 import { TokenType } from "./TokenType";
+import { rememberParsedSource } from "./ParsedSource";
 
 /** Error types every module can name without importing them. */
 const PRELUDE_ERROR_TYPES = [
@@ -106,6 +107,7 @@ export class Parser {
         throw errors[0];
       }
 
+      rememberParsedSource(result, this.source);
       return result;
     }
 
@@ -115,6 +117,7 @@ export class Parser {
       throw errors[0];
     }
 
+    rememberParsedSource(ast, this.source);
     return ast;
   }
 
