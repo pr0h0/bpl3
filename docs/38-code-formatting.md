@@ -88,6 +88,9 @@ controlled by `bplLanguageServer.formatOnSave` (default true) and applies only
 when `editor.formatOnSave` has not been explicitly configured. Native editor
 save-formatting settings take precedence; an enabled native formatter runs once.
 
+The BPL save hook skips delayed autosaves (`files.autoSave: "afterDelay"`),
+matching native save formatting. Manual and focus-change saves remain eligible.
+
 ## Comments
 
 Comments are placed using their surrounding code tokens. A trailing field or
@@ -136,6 +139,3 @@ when true, one tab represents each indentation level and `indentWidth` supplies
 the visual tab width for comment alignment. `lineEnding` accepts `lf` (default)
 or `crlf`. Line-ending conversion applies to layout and comments, preserving
 literal payloads. Unknown option names and invalid values are errors.
-
-The BPL save hook skips delayed autosaves (`files.autoSave: "afterDelay"`),
-matching native save formatting. Manual and focus-change saves remain eligible.
