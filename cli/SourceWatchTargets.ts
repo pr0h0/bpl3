@@ -8,12 +8,23 @@ export function isIgnoredWatchDirectory(name: string): boolean {
   return name.startsWith(".") || IGNORED_DIRECTORIES.has(name);
 }
 
+/** Match the module resolver's identity while retaining missing source paths. */
+function canonicalWatchPath(file: string): string {
+  const absolute = path.resolve(file);
+  try {
+    return fs.realpathSync(absolute);
+  } catch {
+    return absolute;
+  }
+}
+
 /** Observe recovery without recursively scanning an unrelated ancestor tree. */
 function nearestExistingDirectory(directory: string): string {
   let current = directory;
   while (true) {
     try {
-      if (fs.statSync(current).isDirectory()) return current;
+      if (fs.statSync(current).isDirectory())
+        return canonicalWatchPath(current);
     } catch {
       /* Try the parent of a missing or inaccessible directory. */
     }
@@ -34,7 +45,8 @@ export function collectSourceWatchTargets(
 ): SourceWatchTargets {
   const directories = new Set<string>();
   const sources = new Set<string>();
-  const root = path.dirname(path.resolve(entryFile));
+  const entry = canonicalWatchPath(entryFile);
+  const root = canonicalWatchPath(path.dirname(entry));
   const pendingDirectories = [root];
   while (pendingDirectories.length) {
     const directory = pendingDirectories.pop()!;
@@ -55,10 +67,10 @@ export function collectSourceWatchTargets(
     }
   }
   const resolver = new ModuleResolver();
-  const pendingFiles = [path.resolve(entryFile)];
+  const pendingFiles = [entry];
   const visited = new Set<string>();
   while (pendingFiles.length) {
-    const file = pendingFiles.pop()!;
+    const file = canonicalWatchPath(pendingFiles.pop()!);
     if (visited.has(file)) continue;
     visited.add(file);
     sources.add(file);
@@ -76,7 +88,7 @@ export function collectSourceWatchTargets(
           const candidate = path.resolve(path.dirname(file), imported);
           try {
             if (fs.statSync(candidate).isDirectory())
-              directories.add(candidate);
+              directories.add(canonicalWatchPath(candidate));
           } catch {
             // A missing directory import is covered by its nearest existing parent.
           }

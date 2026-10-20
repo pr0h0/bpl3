@@ -6,7 +6,9 @@ import { collectSourceWatchTargets } from "../cli/SourceWatchTargets";
 import { createSourceWatcher } from "../cli/SourceWatcher";
 
 function fixture(run: (root: string) => void | Promise<void>) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-watch-targets-"));
+  const root = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "bpl-watch-targets-")),
+  );
   return Promise.resolve()
     .then(() => run(root))
     .finally(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -313,3 +315,60 @@ for (const extension of ["bpl", "x"]) {
     10000,
   );
 }
+
+test.skipIf(process.platform === "win32")(
+  "symlinked project roots collect each real source once",
+  () =>
+    fixture((root) => {
+      const real = path.join(root, "real");
+      const linked = path.join(root, "linked");
+      fs.mkdirSync(real);
+      fs.symlinkSync(real, linked, "dir");
+      fs.writeFileSync(
+        path.join(real, "main.bpl"),
+        'import dependency from "./dependency.bpl";frame main(){}',
+      );
+      fs.writeFileSync(
+        path.join(real, "dependency.bpl"),
+        "frame dependency(){}export dependency;",
+      );
+      const targets = collectSourceWatchTargets(path.join(linked, "main.bpl"));
+      expect([...targets.sources].sort()).toEqual(
+        [path.join(real, "main.bpl"), path.join(real, "dependency.bpl")].sort(),
+      );
+      expect([...targets.directories]).toEqual([real]);
+    }),
+);
+
+test.skipIf(process.platform === "win32")(
+  "symlinked project watches report the canonical changed source",
+  () =>
+    fixture(async (root) => {
+      const real = path.join(root, "real");
+      const linked = path.join(root, "linked");
+      fs.mkdirSync(real);
+      fs.symlinkSync(real, linked, "dir");
+      const dependency = path.join(real, "dependency.bpl");
+      fs.writeFileSync(
+        path.join(real, "main.bpl"),
+        'import dependency from "./dependency.bpl";frame main(){}',
+      );
+      fs.writeFileSync(dependency, "frame dependency(){}export dependency;");
+      const changed: string[] = [];
+      const watcher = createSourceWatcher(
+        path.join(linked, "main.bpl"),
+        (file) => changed.push(file),
+        () => {},
+      );
+      try {
+        watcher.refresh();
+        fs.appendFileSync(dependency, "\n# changed\n");
+        const deadline = Date.now() + 3000;
+        while (changed.length === 0 && Date.now() < deadline)
+          await Bun.sleep(20);
+        expect(changed).toEqual([dependency]);
+      } finally {
+        watcher.close();
+      }
+    }),
+);

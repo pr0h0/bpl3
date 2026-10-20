@@ -6962,3 +6962,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Fourteen round-trip cases failed before the fix. Encode literal text through
   JSON string escaping, then escape backticks and interpolation starts. Keep
   expression parts unchanged and verify comment/no-comment idempotence.
+
+
+## Symlinked project roots duplicated source watch identities
+
+- CodeRabbit identified that root sources used an unresolved absolute path while
+  imports used real paths. A symlinked project tracked the same source twice and
+  reported an alias path for an edited dependency. Two regressions reproduce it.
+- Canonicalize existing watch paths consistently, preserving absolute fallbacks
+  for missing files and canonicalizing their nearest existing parent. Canonical
+  temporary fixtures also work when the platform temporary directory is a link.
