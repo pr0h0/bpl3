@@ -93,18 +93,12 @@ export class DocumentLinkProvider {
     ).exec(statementText.slice(Math.max(0, fromIndex)));
     if (!quotedPath) return this.nodeToRange(importStmt);
 
-    const quoteStart =
-      Math.max(0, fromIndex) + quotedPath.index + 1;
-    const beforePath = statementText.slice(0, quoteStart);
-    const lineOffset = beforePath.split(/\r?\n/).length - 1;
-    const pathLine = startLine + lineOffset;
-    const pathColumn = beforePath.split(/\r?\n/).at(-1)?.length ?? 0;
-
+    const quoteStart = Math.max(0, fromIndex) + quotedPath.index + 1;
+    const pathOffset =
+      document.offsetAt({ line: startLine, character: 0 }) + quoteStart;
     return Range.create(
-      pathLine,
-      pathColumn,
-      pathLine,
-      pathColumn + importStmt.source.length,
+      document.positionAt(pathOffset),
+      document.positionAt(pathOffset + importStmt.source.length),
     );
   }
 

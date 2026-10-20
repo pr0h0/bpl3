@@ -7298,3 +7298,21 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Return the final scanner coordinates from both GenericParser paths and use
   them for EOF, without rescanning or changing preceding tokens. Regressions
   cover LF/CRLF/CR, comment-only input, multiline literals and UTF-16 columns.
+
+
+## Editor line endings disagreed with compiler coordinates
+
+- CR-only files produced wrong words, diagnostics, semantic declaration columns,
+  multiline import links, source slices and rename ranges because editor services
+  still split only LF. Hover documentation also retained bare CR separators.
+- Use logical newline splitting for line-based services and TextDocument offsets
+  for source slices/import links, retaining original newline and literal bytes.
+- Regressions cover service APIs across LF/CRLF/CR, including position-clamping
+  controls. All seven CR-only service failures are corrected.
+
+## Implicit void return annotations shadow function-name hover (open)
+
+- Hovering the name in `frame run() {}` returns built-in `void` information
+  instead of the function signature/docs. The implicit annotation shares the
+  declaration range. Explicit return annotations are a control. Reproduced
+  while adding editor newline tests; a separate hover fix is queued.

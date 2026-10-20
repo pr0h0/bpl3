@@ -112,7 +112,7 @@ export class SemanticTokenProvider {
     source: string,
   ): { line: number; column: number } {
     // Find the line in source
-    const lines = source.split("\n");
+    const lines = source.split(/\r\n|\r|\n/);
     if (line < 0 || line >= lines.length) return { line, column };
 
     const lineText = lines[line];
@@ -138,7 +138,7 @@ export class SemanticTokenProvider {
     },
     source: string,
   ): { line: number; column: number } {
-    const lines = source.split("\n");
+    const lines = source.split(/\r\n|\r|\n/);
     const startLine = location.startLine - 1;
     const endLine = location.endLine - 1;
 
