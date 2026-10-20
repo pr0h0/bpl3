@@ -336,7 +336,7 @@ test.skipIf(process.platform === "win32")(
       expect([...targets.sources].sort()).toEqual(
         [path.join(real, "main.bpl"), path.join(real, "dependency.bpl")].sort(),
       );
-      expect([...targets.directories]).toEqual([real]);
+      expect([...targets.directories].sort()).toEqual([real, root].sort());
     }),
 );
 
@@ -371,4 +371,47 @@ test.skipIf(process.platform === "win32")(
         watcher.close();
       }
     }),
+);
+
+// Directory links can be replaced without modifying either target directory.
+test.skipIf(process.platform === "win32")(
+  "watch follows a retargeted project directory link",
+  () =>
+    fixture(async (root) => {
+      const first = path.join(root, "first");
+      const second = path.join(root, "second");
+      const linked = path.join(root, "project");
+      fs.mkdirSync(first);
+      fs.mkdirSync(second);
+      fs.writeFileSync(path.join(first, "main.bpl"), "frame main(){}");
+      fs.writeFileSync(path.join(second, "main.bpl"), "frame main(){return;}");
+      fs.symlinkSync(first, linked, "dir");
+      const changed: string[] = [];
+      const watcher = createSourceWatcher(
+        path.join(linked, "main.bpl"),
+        (file) => changed.push(file),
+        () => {},
+      );
+      try {
+        watcher.refresh();
+        fs.unlinkSync(linked);
+        fs.symlinkSync(second, linked, "dir");
+        const deadline = Date.now() + 3000;
+        while (!changed.length && Date.now() < deadline)
+          await new Promise((done) => setTimeout(done, 20));
+        expect(changed.length).toBeGreaterThan(0);
+        changed.length = 0;
+        fs.writeFileSync(
+          path.join(second, "main.bpl"),
+          "frame main(){local x:int=1;}",
+        );
+        const editDeadline = Date.now() + 3000;
+        while (!changed.length && Date.now() < editDeadline)
+          await new Promise((done) => setTimeout(done, 20));
+        expect(changed).toContain(path.join(second, "main.bpl"));
+      } finally {
+        watcher.close();
+      }
+    }),
+  10000,
 );

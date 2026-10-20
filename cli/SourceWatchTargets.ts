@@ -45,6 +45,22 @@ export function collectSourceWatchTargets(
 ): SourceWatchTargets {
   const directories = new Set<string>();
   const sources = new Set<string>();
+  const linkParents = new Set<string>();
+  const observeLinkParents = (file: string) => {
+    let current = path.resolve(file);
+    while (true) {
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      try {
+        if (fs.lstatSync(current).isSymbolicLink())
+          linkParents.add(nearestExistingDirectory(parent));
+      } catch {
+        // Missing components remain observable through their existing ancestors.
+      }
+      current = parent;
+    }
+  };
+  observeLinkParents(entryFile);
   const canonicalEntry = canonicalWatchPath(entryFile);
   const root = canonicalWatchPath(path.dirname(canonicalEntry));
   const pendingDirectories = [root];
@@ -86,6 +102,7 @@ export function collectSourceWatchTargets(
           path.isAbsolute(imported)
         ) {
           const candidate = path.resolve(path.dirname(file), imported);
+          observeLinkParents(candidate);
           try {
             if (fs.statSync(candidate).isDirectory())
               directories.add(canonicalWatchPath(candidate));
@@ -104,5 +121,7 @@ export function collectSourceWatchTargets(
       // Invalid/incomplete editor buffers are still watched and compiled normally.
     }
   }
+  // Observe link replacement without scanning unrelated ancestor trees.
+  for (const parent of linkParents) directories.add(parent);
   return { directories, sources };
 }

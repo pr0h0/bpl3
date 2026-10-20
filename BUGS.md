@@ -6981,3 +6981,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   gate pauses the first native build; no subsequent rebuild occurs before fixing.
 - Register and refresh source watches before the first compilation so queued
   changes compare against the source baseline used for that build.
+
+
+## Retargeting a project directory link left watches on the old project
+
+- CodeRabbit identified that canonical source paths dropped observation of the
+  alias itself. Replacing a project link changed no watched target directory; a
+  regression receives no rebuild callback before the fix.
+- Also watch parents of symlink path components, without recursively scanning
+  those ancestors. Retain canonical source identities and refresh after retargets.
