@@ -6904,3 +6904,43 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Recognize canonical generic angle brackets separately from spaced comparisons;
   expose boundaries inside combined closing-bracket lexer tokens. Preserve shift
   and comparison text and verify meaning and repeated-formatting stability.
+
+## Watch mode missed atomic saves, new sources and external imports
+
+- Watching file inodes missed subsequent editor saves that replaced the source by
+  rename. A CLI regression observes the second program but never the third after
+  two atomic saves. Directory watches must survive source inode replacement.
+- Four CLI regressions fail before the fix: repeated atomic entry replacement,
+  creating a missing import, and changing external .bpl/.x modules. Watch source
+  directories, resolve transitive imports and rescan after changes.
+- Synchronous compilation/execution still blocks event handling while a program
+  runs; subprocess concurrency is a separate outstanding issue.
+
+## Recreated source directories retained obsolete watch handles
+
+- CodeRabbit identified that directory watchers were keyed only by path. Replacing
+  an entry/dependency directory preserved a handle on its former inode. Both new
+  regressions fail before the fix even after an explicit refresh.
+- Compare canonical bigint device/inode identities during refresh and recreate
+  changed handles. Store identity with its handle so error/close cleanup cannot
+  leave stale identity entries. Source snapshots use bigint IDs and nanosecond
+  timestamps as well.
+
+## Watch mode could not recover after its entry directory disappeared
+
+- Once the entry directory was absent across a refresh, no live watcher remained
+  to observe restoration. A new regression fails after restoring the directory
+  and editing its source.
+- Observe the nearest existing parent while a source directory is missing, then
+  return to source-directory watches after restoration. Do not recursively scan
+  unrelated ancestor trees. Treat file-valued path components as missing dirs.
+
+
+## Missing-entry fallback rebuilt for unrelated ancestor source files
+
+- CodeRabbit identified that extension-only relevance forced a rebuild for an
+  unrelated .bpl/.x file in a fallback ancestor, even though rescanning collected
+  no changed source. Both filesystem-event regressions fail before the fix.
+- Let those events request discovery without forcing compilation. A source
+  snapshot change, a collected source or relevant manifest still triggers the
+  rebuild. Entry restoration and new-source discovery remain observable.
