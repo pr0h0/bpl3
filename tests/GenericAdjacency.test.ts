@@ -71,6 +71,19 @@ for (const source of [
   });
 }
 
+for (const name of ["Func", "Lambda"])
+  for (const trivia of [" ", "\t", "\n", "/# gap #/"]) {
+    // spec: R-FN-8
+    test(`callable type angle opener is adjacent: ${name} ${JSON.stringify(trivia)}`, () => {
+      expect(() =>
+        new Parser(
+          `type Callback=${name}${trivia}<int>(int);`,
+          "callable-adjacency.bpl",
+        ).parse(),
+      ).toThrow();
+    });
+  }
+
 test("comparison arguments retain native behavior and formatter meaning at O0/O3", () => {
   const source = `import [printf] from "std/c.bpl";
 frame identity<T>(value:T)ret T{return value;}

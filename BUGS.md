@@ -7115,3 +7115,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   inside brackets and ordinary trivia before other postfix operators. Update
   both grammar and generated fast paths, and compare the optimized postfix
   scanner against the original Peggy production.
+
+
+## Callable types retained spaced angle openers after adjacency tightening
+
+- CodeRabbit identified FunctionType and LambdaType still accepting trivia
+  before `<`, inconsistent with the chosen generic type syntax. Eight rejection
+  cases reproduce this for whitespace, newlines and comments.
+- Require the opening bracket to touch Func/Lambda as well; valid callable
+  type forms and spaces inside their brackets remain supported.
