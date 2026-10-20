@@ -40,7 +40,7 @@ export class Formatter {
       );
     }
     this.lastLineProcessed = 0;
-    this.sourceText = source;
+    this.sourceText = source ?? sourceText ?? getParsedSource(program);
     this.sourceTokens = undefined;
 
     const formatted = this.formatStatements(program.statements).trim() + "\n";

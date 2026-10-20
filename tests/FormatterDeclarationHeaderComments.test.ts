@@ -56,3 +56,21 @@ test("reused formatter resets header token provenance between source files", () 
     ).toBe(output);
   }
 });
+
+for (const source of [
+  "struct Pair\n{\nx:int,\n}",
+  "spec Pair\n{\nframe get()ret int;\n}",
+  "enum Choice\n{\nA,B\n}",
+  "struct Pair<T,\nU>\n{\nx:T,y:U,\n}",
+]) {
+  test(`comment-free declaration uses its opening brace for body spacing: ${source}`, () => {
+    const formatter = new Formatter();
+    const output = formatter.format(
+      new Parser(source, "plain-header.bpl").parse(),
+    );
+    expect(output).not.toContain("{\n\n");
+    expect(
+      formatter.format(new Parser(output, "plain-header.bpl").parse()),
+    ).toBe(output);
+  });
+}
