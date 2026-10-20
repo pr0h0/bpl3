@@ -34,6 +34,11 @@ function positionedTokens(source: string, file: string): PositionedToken[] {
 function tokenKey(token: PositionedToken): string {
   // Comment-bearing interpolation tokens retain their original source below.
   // The AST printer otherwise normalizes escapes/expressions inside them.
+  if (
+    token.token.type === TokenType.StringLiteral &&
+    typeof token.token.literal === "string"
+  )
+    return `${token.token.type}:${JSON.stringify(token.token.literal)}`;
   return token.token.type === TokenType.InterpolatedStringLiteral
     ? token.token.type
     : `${token.token.type}:${token.token.lexeme}`;

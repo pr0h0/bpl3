@@ -388,12 +388,24 @@ export class Formatter {
     return `${constPrefix}${param.name}: ${variadicPrefix}${this.formatType(param.type)}`;
   }
 
+  /** JSON escapes align with BPL except for the short backspace/form-feed forms. */
+  private quoteImportSource(source: string): string {
+    return JSON.stringify(source).replace(
+      /\\(?:["\\bfnrt]|u[0-9a-fA-F]{4})/g,
+      (sequence) => {
+        if (sequence === "\\b") return "\\u0008";
+        if (sequence === "\\f") return "\\u000c";
+        return sequence;
+      },
+    );
+  }
+
   private formatImport(stmt: AST.ImportStmt): string {
     const indent = this.getIndent();
     let output = `${indent}import `;
 
     if (stmt.importAll && !stmt.namespace) {
-      return `${indent}import "${stmt.source}";`;
+      return `${indent}import ${this.quoteImportSource(stmt.source)};`;
     }
 
     if (stmt.importAll) {
@@ -420,7 +432,7 @@ export class Formatter {
       output += `${items}`;
     }
 
-    output += ` from "${stmt.source}";`;
+    output += ` from ${this.quoteImportSource(stmt.source)};`;
     return output;
   }
 
