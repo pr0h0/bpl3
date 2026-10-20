@@ -390,6 +390,10 @@ export class Formatter {
     const indent = this.getIndent();
     let output = `${indent}import `;
 
+    if (stmt.importAll && !stmt.namespace) {
+      return `${indent}import "${stmt.source}";`;
+    }
+
     if (stmt.importAll) {
       output += "*";
       if (stmt.namespace) {
