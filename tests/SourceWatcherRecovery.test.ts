@@ -14,7 +14,9 @@ async function waitFor(ready: () => boolean) {
 }
 
 test("a watch handle error recovers without another filesystem event", async () => {
-  const directory = mkdtempSync(join(tmpdir(), "bpl-watch-error-"));
+  const directory = fs.realpathSync(
+    mkdtempSync(join(tmpdir(), "bpl-watch-error-")),
+  );
   const entry = join(directory, "main.bpl");
   writeFileSync(entry, "frame main(){}");
   const watchSpy = spyOn(fs, "watch");
@@ -43,7 +45,9 @@ test("a watch handle error recovers without another filesystem event", async () 
 }, 10000);
 
 test("an initial watch creation failure retries without a source change", async () => {
-  const directory = mkdtempSync(join(tmpdir(), "bpl-watch-create-error-"));
+  const directory = fs.realpathSync(
+    mkdtempSync(join(tmpdir(), "bpl-watch-create-error-")),
+  );
   const entry = join(directory, "main.bpl");
   writeFileSync(entry, "frame main(){}");
   const watchSpy = spyOn(fs, "watch").mockImplementationOnce(() => {
@@ -70,7 +74,9 @@ test("an initial watch creation failure retries without a source change", async 
 }, 10000);
 
 test("closing a failed watcher cancels its pending recovery", async () => {
-  const directory = mkdtempSync(join(tmpdir(), "bpl-watch-cancel-recovery-"));
+  const directory = fs.realpathSync(
+    mkdtempSync(join(tmpdir(), "bpl-watch-cancel-recovery-")),
+  );
   const entry = join(directory, "main.bpl");
   writeFileSync(entry, "frame main(){}");
   const watchSpy = spyOn(fs, "watch");
