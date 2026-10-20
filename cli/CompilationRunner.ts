@@ -1057,6 +1057,20 @@ function runCachedExecutable(
   }
 }
 
+/** Output of a successful file build, shared with the dev process lifecycle. */
+export function getCompiledExecutablePath(
+  filePath: string,
+  options: CompileOptions,
+): string | undefined {
+  if (isWasmTarget(options.target)) return undefined;
+  if (["ast", "tokens", "formatted"].includes(options.emit ?? ""))
+    return undefined;
+  if (!shouldCompileExecutable(options)) return undefined;
+  return options.cache
+    ? getCachedExecutablePath(filePath, options)
+    : getExecutableOutputPath(getLlvmOutputPath(filePath, options), options);
+}
+
 function getCachedExecutablePath(
   filePath: string,
   options: CompileOptions,

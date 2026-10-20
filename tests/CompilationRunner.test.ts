@@ -4,6 +4,7 @@ import { join } from "path";
 
 import { irNeedsNativeRuntime } from "../compiler/common/NativeRuntime";
 import {
+  getCompiledExecutablePath,
   sourceContainsImportDeclaration,
   sourceMightContainImportDeclaration,
   sourceStartsWithImportDeclaration,
@@ -73,5 +74,23 @@ describe("Compilation runner", () => {
     expect(irNeedsNativeRuntime("@exception_top = external global i8*")).toBe(
       true,
     );
+  });
+});
+
+describe("watch execution output selection", () => {
+  for (const target of ["wasm32-unknown-unknown", "wasm64-unknown-unknown"]) {
+    for (const cache of [false, true]) {
+      it(`keeps ${target} output out of the native runner (cache=${cache})`, () => {
+        expect(
+          getCompiledExecutablePath("main.bpl", { target, run: true, cache }),
+        ).toBeUndefined();
+      });
+    }
+  }
+  it("retains native cached and uncached execution outputs", () => {
+    for (const cache of [false, true])
+      expect(
+        getCompiledExecutablePath("main.bpl", { run: true, cache }),
+      ).toBeDefined();
   });
 });
