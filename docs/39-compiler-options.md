@@ -1025,7 +1025,10 @@ The `bpl dev` command provides watch mode for rapid development. It monitors you
 ### Features
 
 - **Automatic Recompilation**: Detects changes to `.bpl` and `.x` files and recompiles automatically
-- **Auto-Run**: Executes your program after successful compilation (use `--no-run` to disable)
+- **Auto-Run**: Starts your program after successful compilation (use `--no-run` to disable).
+  Programs run asynchronously, so long-running servers do not block source watching.
+  On a source change, the previous program stops before the next build starts.
+  Closing the session or using Ctrl+C/SIGTERM stops the running program too.
 - **Error Recovery**: Continues watching even if compilation fails
 - **Debouncing**: Prevents excessive recompilation from rapid file changes (100ms delay)
 - **Recursive Watching**: Watches `.bpl` and `.x` sources under the entry directory,
@@ -1061,13 +1064,13 @@ $ bpl dev main.bpl
 [Watch] Entry point: main.bpl
 [Watch] Press Ctrl+C to stop
 
-[12:00:00] Compiling /path/to/project/main.bpl...
-Hello, World!
-[12:00:00] ✓ Compilation successful
-
 [Watch] Found 3 source files to watch
 
+[12:00:00] Compiling /path/to/project/main.bpl...
+[12:00:00] ✓ Compilation successful
+
 [Watch] Watching for changes...
+Hello, World!
 
 # (File is edited and saved)
 [Watch] File changed: /path/to/project/main.bpl
@@ -1101,9 +1104,12 @@ help: Check if the symbol is declared.
 ### Limitations
 
 - Development mode only supports a single entry file (not multiple files at once)
-- Compilation and execution currently run synchronously. A long-running program
-  blocks change handling until it exits; use `--no-run` when you need compilation
-  without starting such a program.
+- Each compilation still runs synchronously during a rebuild. Program execution
+  is asynchronous; edits can restart a running server. A failed rebuild leaves
+  the previous program stopped until the source is corrected.
+- Session shutdown owns the launched program process. Programs that start their
+  own detached subprocesses must manage those subprocesses themselves.
+- `BPL_RUN_TIMEOUT_MS`, when set, also applies to programs launched by dev mode.
 - Use Ctrl+C to stop watching
 
 ## Emit Types
