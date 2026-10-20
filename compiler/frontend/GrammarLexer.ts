@@ -61,14 +61,14 @@ export function lexWithGrammar(source: string, filePath: string): Token[] {
   );
 
   if (!hasCommentMarker) {
-    const { tokens } = genericParser.parseWithTokenEmitter(
+    const { tokens, endLine, endColumn } = genericParser.parseWithTokenEmitter(
       createFrontendTokenFromParts,
     );
-    appendEofToken(tokens, filePath);
+    appendEofToken(tokens, filePath, endLine, endColumn);
     return tokens;
   }
 
-  const { tokens } = genericParser.parse();
+  const { tokens, endLine, endColumn } = genericParser.parse();
 
   const mapped = new Array<Token>(tokens.length);
   for (let i = 0; i < tokens.length; i++) {
@@ -86,16 +86,17 @@ export function lexWithGrammar(source: string, filePath: string): Token[] {
     }
   }
 
-  appendEofToken(mapped, filePath);
+  appendEofToken(mapped, filePath, endLine, endColumn);
   return mapped;
 }
 
-function appendEofToken(tokens: Token[], filePath: string): void {
-  const last = tokens[tokens.length - 1];
-  const eofLine = last ? last.line : 1;
-  const eofColumn = last ? last.column + last.lexeme.length : 1;
-
-  tokens.push(new Token(TokenType.EOF, "", null, eofLine, eofColumn, filePath));
+function appendEofToken(
+  tokens: Token[],
+  filePath: string,
+  endLine: number,
+  endColumn: number,
+): void {
+  tokens.push(new Token(TokenType.EOF, "", null, endLine, endColumn, filePath));
 }
 
 function extractComments(

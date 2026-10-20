@@ -58,6 +58,9 @@ export interface GenericParseResult<T> {
   type: "Program";
   tokens: T[];
   startRule: string;
+  /** Position after all source text, including trailing whitespace and comments. */
+  endLine: number;
+  endColumn: number;
 }
 
 export interface ParseResult extends GenericParseResult<TokenNode> {}
@@ -389,6 +392,8 @@ export class GenericParser {
       type: "Program",
       tokens,
       startRule: this.grammar.startRule,
+      endLine: this.line,
+      endColumn: this.column,
     };
   }
 
@@ -445,6 +450,8 @@ export class GenericParser {
       type: "Program",
       tokens,
       startRule: this.grammar.startRule,
+      endLine: this.line,
+      endColumn: this.column,
     };
   }
 

@@ -1403,7 +1403,7 @@ describe("Lexer - Extended Tests", () => {
       const methodSource = source.slice(start, end);
       const commentFreeStart = methodSource.indexOf("if (!hasCommentMarker)");
       const commentFreeEnd = methodSource.indexOf(
-        "const { tokens } = genericParser.parse()",
+        "const { tokens, endLine, endColumn } = genericParser.parse()",
       );
 
       expect(source).toContain("parseWithTokenEmitter");
