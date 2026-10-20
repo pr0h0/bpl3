@@ -6850,3 +6850,10 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Register an untitled-buffer formatter separately from the file-only server so
   formatting unsaved documents is reachable without exposing filesystem-only
   language-server handlers to non-file URIs.
+
+## BPL save hook formatted during delayed autosaves
+
+- CodeRabbit identified that the convenience save hook ran for AfterDelay saves,
+  while native VS Code save formatting skips that reason. An activation regression
+  expected zero formatting calls but received one. Skip AfterDelay; retain manual
+  and focus-change saves and explicit native settings precedence.

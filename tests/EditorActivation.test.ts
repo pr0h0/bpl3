@@ -7,6 +7,8 @@ for (const [mode, expectedCalls] of [
   ["native-off", 0],
   ["native-on", 0],
   ["bpl-off", 0],
+  ["after-delay", 0],
+  ["focus-out", 1],
 ] as const) {
   test(`editor activation respects save preferences without changing settings: ${mode}`, () => {
     const child = spawnSync(

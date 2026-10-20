@@ -10,6 +10,7 @@ interface HarnessDocument {
   positionAt?: (offset: number) => { line: number; character: number };
 }
 interface HarnessSaveEvent {
+  reason: number;
   document: HarnessDocument;
   waitUntil(promise: Promise<unknown>): void;
 }
@@ -76,6 +77,7 @@ mock.module("vscode", () => ({
       return { dispose() {} };
     },
   },
+  TextDocumentSaveReason: { Manual: 1, AfterDelay: 2, FocusOut: 3 },
   Range: class {
     constructor(
       public start: unknown,
@@ -100,6 +102,7 @@ await activate({
 let savePromise: Promise<unknown> | undefined;
 for (const languageId of ["bpl", "typescript"]) {
   saveHandler?.({
+    reason: mode === "after-delay" ? 2 : mode === "focus-out" ? 3 : 1,
     document: { languageId, uri: { toString: () => "untitled:Untitled-1" } },
     waitUntil: (promise: Promise<unknown>) => {
       savePromise = promise;

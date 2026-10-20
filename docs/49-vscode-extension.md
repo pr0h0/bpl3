@@ -295,3 +295,6 @@ hook uses `bplLanguageServer.formatOnSave` (default true) only when native
 `editor.formatOnSave` is not explicitly configured. Native settings take
 precedence, so explicit `false` disables automatic formatting and explicit
 `true` lets VS Code handle it once. Manual Format Document remains available.
+
+The BPL save hook skips delayed autosaves (`files.autoSave: "afterDelay"`),
+matching native save formatting. Manual and focus-change saves remain eligible.

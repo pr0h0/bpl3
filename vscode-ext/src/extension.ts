@@ -6,6 +6,7 @@ import {
   languages,
   Range,
   TextEdit,
+  TextDocumentSaveReason,
   type Terminal,
   type ExtensionContext,
   type TextEdit as TextEditType,
@@ -112,6 +113,7 @@ export async function activate(context: ExtensionContext) {
       },
     ),
     workspace.onWillSaveTextDocument((event) => {
+      if (event.reason === TextDocumentSaveReason.AfterDelay) return;
       const document = event.document;
       const editor = workspace.getConfiguration("editor", document);
       const enabled = workspace
