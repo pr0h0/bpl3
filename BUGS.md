@@ -7198,3 +7198,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   cases fail before the fix.
 - Restrict the string spelling to checked i8 types with string alias metadata;
   preserve raw char pointer spellings and checked pointer-to-array grouping.
+## Dev execution blocked source watching and left programs running on shutdown
+
+- Watch mode ran programs synchronously before registering source watches. A
+  long-running app blocked reloads indefinitely, with and without module caching.
+  Terminating dev also left the app running. Three CLI regressions fail before
+  the fix.
+- Register watches before the initial build, run the app as an owned async child,
+  serialize restarts and await the old child before rebuilding. Stop it on session
+  close/SIGINT/SIGTERM, preserving run timeouts and compilation error recovery.
+  Compilation itself still runs synchronously during each individual rebuild.

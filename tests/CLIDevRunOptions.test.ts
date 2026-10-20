@@ -27,7 +27,10 @@ test("dev --no-run compiles without executing while dev executes by default", as
           );
           const receive = (data: Buffer) => {
             output += data.toString();
-            if (output.includes("Watching for changes...")) {
+            if (
+              output.includes("Watching for changes...") &&
+              (extra.length > 0 || output.includes("DEV_PROGRAM_EXECUTED"))
+            ) {
               clearTimeout(timeout);
               ready();
             }
@@ -92,6 +95,7 @@ test("dev survives failed programs and native links, then runs corrected source"
     };
     try {
       await waitFor("Watching for changes...");
+      await waitFor("Program exited with code 7");
       expect(output).toContain("Program exited with code 7");
       output = "";
       writeFileSync(
