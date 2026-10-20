@@ -116,6 +116,10 @@ test("diagnostic spelling falls back for internal runtime-only types", () => {
   } as unknown as ReturnType<typeof typeNode>;
   expect(formatDiagnosticType(internal)).toBe("unknown");
   expect(
-    formatDiagnosticType({ ...internal, isConst: true, arrayDimensions: [2] }),
+    formatDiagnosticType({
+      ...internal,
+      isConst: true,
+      arrayDimensions: [2],
+    } as typeof internal),
   ).toBe("const unknown[2]");
 });
