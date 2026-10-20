@@ -7354,3 +7354,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   separately using their parsed source ranges, preserving literal portions.
   Nine regressions failed before and pass after across LF/CRLF/CR, including
   type references inside interpolation. Binding/shadowing remains follow-up work.
+
+
+## Rename accepted declaration keywords, comments and whitespace
+
+- A function declaration's enclosing AST range let cursor positions on `frame`,
+  header/body comments or a closing brace trigger renaming its function name.
+- Prepare-rename, rename and find-references now require the cursor to lie on
+  the actual identifier range. The trailing name boundary remains accepted for
+  editor cursor placement. Fifteen failing positions and nine name controls
+  cover LF/CRLF/CR.

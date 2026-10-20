@@ -105,7 +105,11 @@ export class ASTRenameHandler {
         }
 
         debugLog(`[ASTRename] Node is renameable, getting range...`);
-        const range = this.getNodeRange(node, document);
+        const range = this.getRenameRangeAtPosition(
+          node,
+          document,
+          params.position,
+        );
         if (range) {
           debugLog(
             `[ASTRename] Range: line ${range.start.line}, char ${range.start.character} to ${range.end.character}`,
@@ -145,7 +149,10 @@ export class ASTRenameHandler {
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
-      if (!node) {
+      if (
+        !node ||
+        !this.getRenameRangeAtPosition(node, document, params.position)
+      ) {
         return null;
       }
 
@@ -190,7 +197,7 @@ export class ASTRenameHandler {
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
-      if (!node) {
+      if (!node || !this.getRenameRangeAtPosition(node, document, position)) {
         return null;
       }
 
@@ -202,6 +209,27 @@ export class ASTRenameHandler {
       console.error("[ASTReferences] Error finding references:", error);
       return null;
     }
+  }
+
+  /** Accept the symbol name, including its trailing editor cursor boundary. */
+  private getRenameRangeAtPosition(
+    node: AST.ASTNode,
+    document: TextDocument,
+    position: { line: number; character: number },
+  ): Range | null {
+    if (!this.isRenameableNode(node)) return null;
+    if (
+      node.kind === "BasicType" &&
+      !this.analyzeSymbol(node, fileURLToPath(document.uri))
+    )
+      return null;
+    const range = this.getNodeRange(node, document);
+    if (!range) return null;
+    const offset = document.offsetAt(position);
+    return offset >= document.offsetAt(range.start) &&
+      offset <= document.offsetAt(range.end)
+      ? range
+      : null;
   }
 
   private isValidRenameIdentifier(name: string): boolean {

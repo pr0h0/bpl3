@@ -76,7 +76,8 @@ Jump to symbol definitions:
 ### Rename ranges
 
 Rename preparation locates declaration names using lexer tokens, including
-comments, modifiers and multiline headers. Declaration edits select the name
+comments, modifiers and multiline headers. Rename and find-references require
+the cursor on the name (including its trailing boundary). Declaration edits select the name
 rather than replacing the whole declaration or function body.
 Global declarations and references in the current document use its unsaved
 source and names. Global reference searches currently cover the defining file;
