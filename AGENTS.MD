@@ -362,6 +362,9 @@ Source locations use 1-based lines and UTF-16 columns. LF, CRLF and standalone
 CR each count as one newline. Keep lexer, parser AST/error positions, diagnostic
 snippets and formatter source offsets consistent; do not normalize literal bytes.
 EOF points after all source text, including trailing whitespace and comments.
+Editor ranges use zero-based LSP coordinates with the same newline/UTF-16
+convention. Use TextDocument offsets for raw source slices so literal bytes
+are preserved, rather than rejoining split lines.
 
 ## Formatter correctness
 

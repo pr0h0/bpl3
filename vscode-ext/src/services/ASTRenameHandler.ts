@@ -846,7 +846,7 @@ export class ASTRenameHandler {
       const _regex = new RegExp(`\\.${fieldName}\\b`, "g");
       try {
         const content = require("fs").readFileSync(file, "utf-8");
-        const lines = content.split("\n");
+        const lines = content.split(/\r\n|\r|\n/);
 
         let match;
         for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
@@ -922,7 +922,7 @@ export class ASTRenameHandler {
       const _regex = new RegExp(`\\.${methodName}\\s*\\(`, "g");
       try {
         const content = require("fs").readFileSync(file, "utf-8");
-        const lines = content.split("\n");
+        const lines = content.split(/\r\n|\r|\n/);
 
         for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
           const line = lines[lineIdx];
@@ -969,7 +969,7 @@ export class ASTRenameHandler {
     }
 
     const content = document.getText();
-    const lines = content.split("\n");
+    const lines = content.split(/\r\n|\r|\n/);
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
       const line = lines[lineIdx];
       if (!line) continue;
@@ -1024,7 +1024,7 @@ export class ASTRenameHandler {
   ): Location[] {
     const references: Location[] = [];
     const content = document.getText();
-    const lines = content.split("\n");
+    const lines = content.split(/\r\n|\r|\n/);
 
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
       const line = lines[lineIdx];
@@ -1087,7 +1087,7 @@ export class ASTRenameHandler {
         const _regex = new RegExp(`\\b${symbolName}\\b`, "g");
         try {
           const content = require("fs").readFileSync(file, "utf-8");
-          const lines = content.split("\n");
+          const lines = content.split(/\r\n|\r|\n/);
 
           for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
             const line = lines[lineIdx];
@@ -1689,7 +1689,7 @@ export class ASTRenameHandler {
     if (catchClause.location) {
       // Find the position of the parameter name in the catch clause
       // catch (e: int) - the parameter name 'e' starts after "catch ("
-      const catchLine = document.getText().split("\n")[
+      const catchLine = document.getText().split(/\r\n|\r|\n/)[
         catchClause.location.startLine - 1
       ];
       if (catchLine) {

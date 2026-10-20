@@ -122,7 +122,7 @@ export class HoverProvider {
   private static formatDocumentation(doc: string): string {
     // Remove leading comment markers and trim
     const lines = doc
-      .split("\n")
+      .split(/\r\n|\r|\n/)
       .map((line) => line.trim().replace(/^#\s*/, ""));
 
     return lines.join("\n") + "\n\n";

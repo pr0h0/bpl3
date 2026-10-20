@@ -2,6 +2,11 @@
 
 BPL has a comprehensive VS Code extension that provides full language server protocol (LSP) support, making development fast and productive.
 
+Editor source positions recognize LF, CRLF and standalone CR line endings.
+LSP ranges use zero-based lines and UTF-16 columns; compiler diagnostics are
+converted from the compiler's one-based coordinates. Multiline source slices
+retain their original newline sequences and literal contents.
+
 ## Features
 
 ### Syntax Highlighting

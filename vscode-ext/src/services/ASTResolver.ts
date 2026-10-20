@@ -1,9 +1,10 @@
 import * as fs from "fs";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import { Parser } from "../../../compiler/frontend/Parser";
 import { lexWithGrammar } from "../../../compiler/frontend/GrammarLexer";
 import * as AST from "../../../compiler/common/AST";
 import { SymbolIndex } from "./SymbolIndex";
-import { debugLog, typeNodeToString } from "./utils";
+import { debugLog, filePathToUri, typeNodeToString } from "./utils";
 
 interface ASTCache {
   ast: AST.Program;
@@ -1115,34 +1116,22 @@ export class ASTResolver {
     const cached = this.astCache.get(filePath);
     if (!cached || !node.location) return null;
 
-    const lines = cached.source.split("\n");
-    const startLine = node.location.startLine - 1;
-    const endLine = node.location.endLine - 1;
-    const startCol = node.location.startColumn - 1;
-    const endCol = node.location.endColumn - 1;
-
-    if (startLine === endLine) {
-      const line = lines[startLine];
-      return line ? line.substring(startCol, endCol) : "";
-    }
-
-    // Multi-line node
-    const result: string[] = [];
-    const firstLine = lines[startLine];
-    if (firstLine) {
-      result.push(firstLine.substring(startCol));
-    }
-    for (let i = startLine + 1; i < endLine; i++) {
-      const line = lines[i];
-      if (line !== undefined) {
-        result.push(line);
-      }
-    }
-    const lastLine = lines[endLine];
-    if (lastLine) {
-      result.push(lastLine.substring(0, endCol));
-    }
-
-    return result.join("\n");
+    // Slice the original text so multiline literals retain their newline bytes.
+    const document = TextDocument.create(
+      filePathToUri(filePath),
+      "bpl",
+      0,
+      cached.source,
+    );
+    return document.getText({
+      start: {
+        line: node.location.startLine - 1,
+        character: node.location.startColumn - 1,
+      },
+      end: {
+        line: node.location.endLine - 1,
+        character: node.location.endColumn - 1,
+      },
+    });
   }
 }

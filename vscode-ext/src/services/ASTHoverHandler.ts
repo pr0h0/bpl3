@@ -1901,7 +1901,7 @@ export class ASTHoverHandler {
     if (!doc) return "";
 
     // Split into lines and process
-    const lines = doc.split("\n").map((line) => line.trim());
+    const lines = doc.split(/\r\n|\r|\n/).map((line) => line.trim());
 
     // Join with proper line breaks
     return lines.join("  \n"); // Two spaces for markdown line break
