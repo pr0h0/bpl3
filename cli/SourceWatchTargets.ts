@@ -45,8 +45,8 @@ export function collectSourceWatchTargets(
 ): SourceWatchTargets {
   const directories = new Set<string>();
   const sources = new Set<string>();
-  const entry = canonicalWatchPath(entryFile);
-  const root = canonicalWatchPath(path.dirname(entry));
+  const canonicalEntry = canonicalWatchPath(entryFile);
+  const root = canonicalWatchPath(path.dirname(canonicalEntry));
   const pendingDirectories = [root];
   while (pendingDirectories.length) {
     const directory = pendingDirectories.pop()!;
@@ -67,7 +67,7 @@ export function collectSourceWatchTargets(
     }
   }
   const resolver = new ModuleResolver();
-  const pendingFiles = [entry];
+  const pendingFiles = [canonicalEntry];
   const visited = new Set<string>();
   while (pendingFiles.length) {
     const file = canonicalWatchPath(pendingFiles.pop()!);
