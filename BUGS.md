@@ -7180,3 +7180,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   thirteen compiler processes sequentially under Bun's five-second default.
 - Give that existing integration matrix a bounded 30-second test budget; keep
   all expected JSON error codes and stdout/stderr assertions unchanged.
+
+
+## Diagnostic types erased pointer-to-array grouping
+
+- CodeRabbit found that (*int)[4] and *int[4] printed identically, hiding
+  distinct checked array/pointer shapes. Three checked-metadata cases fail against
+  the original printer; a real assignment control covers address-of-array types.
+- Keep parentheses for pointer-to-array nodes and avoid collapsing their pointer
+  into a string alias. Canonical type keys and runtime type IDs remain untouched.

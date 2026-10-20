@@ -48,6 +48,7 @@ for (const [source, expected] of [
   ["i1", "bool"],
   ["*i8", "*i8"],
   ["**i8", "**i8"],
+  ["*int[4]", "*int[4]"],
   ["*i16", "*i16"],
   ["Box<i1,*i8>[2]", "Box<bool, *i8>[2]"],
   ["const Func<i1>(*i8)[2]", "const Func<bool>(*i8)[2]"],
@@ -122,4 +123,37 @@ test("diagnostic spelling falls back for internal runtime-only types", () => {
       arrayDimensions: [2],
     } as typeof internal),
   ).toBe("const unknown[2]");
+});
+
+for (const [source, expected] of [
+  ["*int[4]", "(*int)[4]"],
+  ["*char[4]", "(*char)[4]"],
+  ["const **i8[2]", "const (**i8)[2]"],
+] as const) {
+  test(`diagnostic spelling retains checked pointer-to-array grouping: ${source}`, () => {
+    const node = typeNode(source);
+    if (node.kind !== "BasicType") throw new Error("Expected basic type");
+    // Address-of and generic substitution attach this checked type metadata.
+    const checked = { ...node, isPointerToArray: true };
+    expect(formatDiagnosticType(checked)).toBe(expected);
+  });
+}
+
+test("assignment diagnostics distinguish address-of-array from arrays of pointers", () => {
+  const pointerToArray = errors(
+    "frame main(){local row:int[4];local value:int=&row;}",
+  );
+  const arrayOfPointers = errors(
+    "frame main(){local row:*int[4];local value:int=row;}",
+  );
+  expect(
+    pointerToArray.some((error) =>
+      error.message.includes("cannot assign (*i32)[4] to i32"),
+    ),
+  ).toBe(true);
+  expect(
+    arrayOfPointers.some((error) =>
+      error.message.includes("cannot assign *i32[4] to i32"),
+    ),
+  ).toBe(true);
 });

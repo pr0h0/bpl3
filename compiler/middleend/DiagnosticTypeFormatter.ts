@@ -29,7 +29,8 @@ export function formatDiagnosticType(type: AST.TypeNode | undefined): string {
       // The checker resolves string to a pointer to signed 8-bit characters.
       if (
         (name === "char" || (name === "i8" && isStringAlias(type))) &&
-        pointers > 0
+        pointers > 0 &&
+        !type.isPointerToArray
       ) {
         name = "string";
         pointers--;
@@ -37,6 +38,7 @@ export function formatDiagnosticType(type: AST.TypeNode | undefined): string {
       body = "*".repeat(pointers) + name;
       if (type.genericArgs.length)
         body += `<${type.genericArgs.map(formatDiagnosticType).join(", ")}>`;
+      if (type.isPointerToArray && pointers > 0) body = `(${body})`;
       break;
     }
     case "FunctionType":
