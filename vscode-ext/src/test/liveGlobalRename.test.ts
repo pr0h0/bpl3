@@ -90,6 +90,9 @@ for (const newline of ["\n", "\r\n", "\r"]) {
         "# unsaved" + newline + source,
       );
       const index = new SymbolIndex(resolve(import.meta.dir, "../../.."));
+      const unrelated = join(dir, "unrelated.bpl");
+      writeFileSync(unrelated, "global target: int = 99;");
+      index.indexFile(unrelated, false);
       index.indexFile(moduleFile, false);
       index.indexFile(file, false);
       const resolver = new ASTResolver(index);
@@ -114,6 +117,17 @@ for (const newline of ["\n", "\r\n", "\r"]) {
             doc,
           ),
         ).toBeNull();
+        const references = handler.findAllReferences(position, doc);
+        const definingUri = pathToFileURL(moduleFile).toString();
+        expect(
+          references?.some(
+            (ref) => ref.uri === definingUri && ref.range.start.line === 1,
+          ),
+        ).toBe(true);
+        expect(references?.every((ref) => ref.uri === definingUri)).toBe(true);
+        expect(resolver.getSource(moduleFile)).toBe(
+          "# unsaved defining buffer" + newline + declaration,
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }

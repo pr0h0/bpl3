@@ -7332,6 +7332,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   modifiers and applying function/struct renames without changing their bodies.
 
 
+## Rejecting cross-file rename also hid read-only imported references
+
+- The fail-closed rename correction removed the old defining-file reference
+  lookup from find-references as well. CodeRabbit identified this regression.
+- Separate read-only imported reference lookup from rename eligibility. Resolve
+  the current document's actual imports, retain cached live defining-file source,
+  and return reference locations without permitting cross-file edits.
+- Nine regressions fail before and pass after, including a same-named unrelated
+  indexed file and unsaved defining-buffer offsets/cache preservation.
+
 ## Imported global rename returned incomplete cross-file edits
 
 - CodeRabbit confirmed that imported global variables/constants newly reached a
