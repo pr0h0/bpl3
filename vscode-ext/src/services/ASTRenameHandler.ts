@@ -18,6 +18,7 @@ import * as AST from "../../../compiler/common/AST";
 import { lexWithGrammar } from "../../../compiler/frontend/GrammarLexer";
 import { TokenType } from "../../../compiler/frontend/TokenType";
 import { ASTResolver } from "./ASTResolver";
+import { collectGlobalValueReferences } from "./GlobalValueReferences";
 import { SymbolIndex } from "./SymbolIndex";
 import { debugLog, filePathToUri } from "./utils";
 
@@ -219,7 +220,7 @@ export class ASTRenameHandler {
   ): Range | null {
     if (!this.isRenameableNode(node)) return null;
     if (
-      node.kind === "BasicType" &&
+      (node.kind === "BasicType" || node.kind === "Identifier") &&
       !this.analyzeSymbol(node, fileURLToPath(document.uri))
     )
       return null;
@@ -1105,6 +1106,47 @@ export class ASTRenameHandler {
       }
     };
     visit(ast);
+    const declaration = ast?.statements.find(
+      (statement) => this.getSymbolName(statement) === symbolName,
+    );
+    if (
+      ast &&
+      declaration &&
+      (declaration.kind === "FunctionDecl" ||
+        declaration.kind === "Extern" ||
+        declaration.kind === "VariableDecl")
+    ) {
+      const nodes = collectGlobalValueReferences(ast, symbolName);
+      const allowedStarts = new Set<number>();
+      const exportRanges: Range[] = [];
+      for (const node of [declaration, ...nodes]) {
+        if (node.kind === "Export") {
+          const loc = node.location;
+          exportRanges.push(
+            Range.create(
+              loc.startLine - 1,
+              loc.startColumn - 1,
+              loc.endLine - 1,
+              loc.endColumn - 1,
+            ),
+          );
+          continue;
+        }
+        const range = this.getNodeRange(node, document);
+        if (range) allowedStarts.add(document.offsetAt(range.start));
+      }
+      for (const offset of offsets) {
+        if (
+          !allowedStarts.has(offset) &&
+          !exportRanges.some(
+            (range) =>
+              offset >= document.offsetAt(range.start) &&
+              offset < document.offsetAt(range.end),
+          )
+        )
+          offsets.delete(offset);
+      }
+    }
     return [...offsets]
       .sort((a, b) => a - b)
       .map((offset) =>
@@ -1362,11 +1404,25 @@ export class ASTRenameHandler {
         (statement) => this.getSymbolName(statement) === name,
       );
       if (declaration && declaration !== node) {
+        if (
+          (declaration.kind === "FunctionDecl" ||
+            declaration.kind === "Extern" ||
+            declaration.kind === "VariableDecl") &&
+          !collectGlobalValueReferences(ast, name).includes(node)
+        )
+          return null;
         return this.analyzeSymbol(declaration, filePath);
       }
 
       const symbol = this.symbolIndex.findSymbol(name)[0];
       if (symbol && symbol.filePath !== filePath) {
+        if (
+          (symbol.kind === "function" ||
+            symbol.kind === "variable" ||
+            symbol.kind === "constant") &&
+          !collectGlobalValueReferences(ast, name).includes(node)
+        )
+          return null;
         return {
           type:
             symbol.kind === "variable" || symbol.kind === "constant"

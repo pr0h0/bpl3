@@ -83,6 +83,9 @@ Global declarations and references in the current document use its unsaved
 source and names. Global reference searches currently cover the defining file;
 workspace-wide import resolution is not implemented. Identifier matching skips
 comments and string payloads, including text around interpolated expressions.
+Global value renames respect local, parameter, lambda, catch and match bindings
+and preserve unrelated member names. Renaming lambda parameters and resolving
+type-name/generic shadowing are still incomplete.
 
 ### Inlay Hints
 

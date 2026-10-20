@@ -7364,3 +7364,17 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   the actual identifier range. The trailing name boundary remains accepted for
   editor cursor placement. Fifteen failing positions and nine name controls
   cover LF/CRLF/CR.
+
+## Global value renames crossed local binding and member boundaries
+
+- Renaming a global value also changed same-named parameters, local variables,
+  lambda/catch/match bindings, struct field labels and unrelated member names.
+- Filter identifier tokens through a lexical AST walk. Local bindings start
+  after their initializer and end with their block/loop/arm/catch/lambda scope;
+  member labels/method declarations are not global value references.
+- Seventy-eight regressions cover eight unrelated-name categories for globals,
+  functions and externs, scope/initializer
+  boundaries, destructuring, exports and LF/CRLF/CR. Unsupported lambda-binding
+  requests cannot fall through into renaming the global instead.
+- Type-name/generic binding and workspace-wide import resolution remain separate
+  limitations. Lambda-parameter rename itself is not implemented by this fix.
