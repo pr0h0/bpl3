@@ -1665,14 +1665,14 @@ ParenthesizedType
     }
 
 FunctionType
-  = K_Func _ "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" arr:ArraySuffix* { 
+  = K_Func "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" arr:ArraySuffix* { 
       const t = functionType(ret, params || [], location());
       t.arrayDimensions = arr.length ? arr.map(a => a) : [];
       return t;
     }
 
 LambdaType
-  = K_Lambda _ "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" arr:ArraySuffix* { 
+  = K_Lambda "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" arr:ArraySuffix* { 
       const t = lambdaType(ret, params || [], location());
       t.arrayDimensions = arr.length ? arr.map(a => a) : [];
       return t;
