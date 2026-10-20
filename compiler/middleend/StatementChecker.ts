@@ -566,7 +566,7 @@ export function checkIf(this: CheckerContext, stmt: AST.IfStmt): void {
   const condType = this.checkExpression(stmt.condition);
   if (condType && !this.isBoolType(condType)) {
     throw new CompilerError(
-      `If condition must be boolean, got ${this.typeToString(condType)}`,
+      `If condition must be boolean, got ${this.formatDiagnosticType(condType)}`,
       "Ensure the condition evaluates to a boolean.",
       stmt.condition.location,
       CONDITION_TYPE_MISMATCH_CODE,
@@ -619,7 +619,7 @@ export function checkLoop(this: CheckerContext, stmt: AST.LoopStmt): void {
       const condType = this.checkExpression(stmt.condition);
       if (condType && !this.isBoolType(condType)) {
         throw new CompilerError(
-          `Loop condition must be boolean, got ${this.typeToString(condType)}`,
+          `Loop condition must be boolean, got ${this.formatDiagnosticType(condType)}`,
           "Ensure the condition evaluates to a boolean.",
           stmt.condition.location,
           CONDITION_TYPE_MISMATCH_CODE,
@@ -747,9 +747,9 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
 
     if (!this.areTypesCompatible(resolvedExpected, resolvedActual)) {
       throw new CompilerError(
-        `Return type mismatch: expected ${this.typeToString(
+        `Return type mismatch: expected ${this.formatDiagnosticType(
           resolvedExpected,
-        )}, got ${this.typeToString(resolvedActual)}`,
+        )}, got ${this.formatDiagnosticType(resolvedActual)}`,
         "Ensure the returned value matches the function's return type.",
         stmt.location,
         RETURN_TYPE_MISMATCH_CODE,
@@ -909,7 +909,7 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
 
       if (!isValid) {
         throw new CompilerError(
-          `Switch value must be an integer, string or enum type, got ${this.typeToString(
+          `Switch value must be an integer, string or enum type, got ${this.formatDiagnosticType(
             valueType,
           )}`,
           "Ensure the switch expression evaluates to an integer, string or enum.",
@@ -929,9 +929,9 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
         !this.areTypesCompatible(valueType, patternType)
       ) {
         throw new CompilerError(
-          `Case pattern type ${this.typeToString(
+          `Case pattern type ${this.formatDiagnosticType(
             patternType,
-          )} not compatible with switch value type ${this.typeToString(valueType)}`,
+          )} not compatible with switch value type ${this.formatDiagnosticType(valueType)}`,
           "Ensure case patterns match the switch value type.",
           caseItem.value.location,
           SWITCH_CASE_TYPE_MISMATCH_CODE,
@@ -1182,9 +1182,9 @@ export function checkVariableDecl(
             const resolvedInferred = this.resolveType(inferredType);
             if (!this.areTypesCompatible(resolvedTarget, resolvedInferred)) {
               throw new CompilerError(
-                `Type mismatch: cannot assign ${this.typeToString(
+                `Type mismatch: cannot assign ${this.formatDiagnosticType(
                   resolvedInferred,
-                )} to ${this.typeToString(resolvedTarget)}`,
+                )} to ${this.formatDiagnosticType(resolvedTarget)}`,
                 "Ensure the destructuring target type matches the tuple element type.",
                 decl.location,
                 "E001",
@@ -1334,9 +1334,9 @@ export function checkVariableDecl(
 
             if (!isStructLiteralToPointer) {
               throw new CompilerError(
-                `Type mismatch: cannot assign ${this.typeToString(
+                `Type mismatch: cannot assign ${this.formatDiagnosticType(
                   resolvedInit,
-                )} to ${this.typeToString(resolvedDecl)}`,
+                )} to ${this.formatDiagnosticType(resolvedDecl)}`,
                 "Ensure the initializer type matches the declared type.",
                 decl.location,
                 "E001",
@@ -1355,9 +1355,9 @@ export function checkVariableDecl(
 
           if (!isStructLiteralToPointer) {
             throw new CompilerError(
-              `Type mismatch: cannot assign ${this.typeToString(
+              `Type mismatch: cannot assign ${this.formatDiagnosticType(
                 resolvedInit,
-              )} to ${this.typeToString(resolvedDecl)}`,
+              )} to ${this.formatDiagnosticType(resolvedDecl)}`,
               "Ensure the initializer type matches the declared type.",
               decl.location,
               "E001",

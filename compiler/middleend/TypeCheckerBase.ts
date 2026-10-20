@@ -1,3 +1,4 @@
+import { formatDiagnosticType } from "./DiagnosticTypeFormatter";
 import {
   applyAliasValueModifiers,
   TYPE_ALIAS_POINTER_UNSUPPORTED_CODE,
@@ -981,9 +982,9 @@ export abstract class TypeCheckerBase {
                   !this.areTypesCompatible(substitutedConstraint, arg, false)
                 ) {
                   throw new CompilerError(
-                    `Type '${this.typeToString(
+                    `Type '${this.formatDiagnosticType(
                       arg,
-                    )}' does not satisfy constraint '${this.typeToString(substitutedConstraint)}'`,
+                    )}' does not satisfy constraint '${this.formatDiagnosticType(substitutedConstraint)}'`,
                     `Ensure the type argument satisfies the constraint.`,
                     type.location,
                   );
@@ -1302,6 +1303,10 @@ export abstract class TypeCheckerBase {
 
   // ========== Type Utilities ==========
 
+  public formatDiagnosticType(type: AST.TypeNode | undefined): string {
+    return formatDiagnosticType(type);
+  }
+
   public typeToString(type: AST.TypeNode | undefined): string {
     return TypeUtils.typeToString(type);
   }
@@ -1541,8 +1546,8 @@ export abstract class TypeCheckerBase {
     )
       return;
     throw new CompilerError(
-      `Integer overflow: value ${value} does not fit in type ${this.typeToString(resolved)}`,
-      `Ensure the value is within the range of ${this.typeToString(resolved)}. Use an explicit cast for intentional truncation.`,
+      `Integer overflow: value ${value} does not fit in type ${this.formatDiagnosticType(resolved)}`,
+      `Ensure the value is within the range of ${this.formatDiagnosticType(resolved)}. Use an explicit cast for intentional truncation.`,
       location,
       INTEGER_LITERAL_OVERFLOW_CODE,
     );

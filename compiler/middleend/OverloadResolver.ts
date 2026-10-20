@@ -83,6 +83,7 @@ export interface OverloadResolutionContext {
     map: Map<string, AST.TypeNode>,
   ) => AST.TypeNode;
   typeToString: (type: AST.TypeNode | undefined) => string;
+  formatDiagnosticType: (type: AST.TypeNode | undefined) => string;
   getCurrentScope: () => SymbolTable;
   contextualizeArrayLiteral: (
     expr: AST.Expression,
@@ -197,7 +198,7 @@ export class OverloadResolver {
             ? ` and ${genericArgs.length} generic arguments`
             : ""
         }.`,
-        `Available overloads:\n${candidates.map((c) => this.ctx.typeToString(c.type!)).join("\n")}`,
+        `Available overloads:\n${candidates.map((c) => this.ctx.formatDiagnosticType(c.type!)).join("\n")}`,
         location,
         CALL_ARGUMENT_COUNT_MISMATCH_CODE,
       );
@@ -230,7 +231,7 @@ export class OverloadResolver {
               !this.ctx.areTypesCompatible(substitutedConstraint, arg, false)
             ) {
               throw new CompilerError(
-                `Type argument '${this.ctx.typeToString(arg)}' does not satisfy constraint '${this.ctx.typeToString(substitutedConstraint)}'`,
+                `Type argument '${this.ctx.formatDiagnosticType(arg)}' does not satisfy constraint '${this.ctx.formatDiagnosticType(substitutedConstraint)}'`,
                 "Ensure the type argument satisfies the constraint.",
                 location,
               );
@@ -418,7 +419,7 @@ export class OverloadResolver {
     if (matched.length === 0) {
       throw new CompilerError(
         `No matching function for call to '${name}' with provided argument types.`,
-        `Available overloads:\n${candidates.map((c) => this.ctx.typeToString(c.type!)).join("\n")}`,
+        `Available overloads:\n${candidates.map((c) => this.ctx.formatDiagnosticType(c.type!)).join("\n")}`,
         location,
         CALL_ARGUMENT_TYPE_MISMATCH_CODE,
       );

@@ -1288,7 +1288,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       ) {
         throw new CompilerError(
           `Method '${method.name}' in struct '${structDecl.name}' has incorrect return type`,
-          `Expected '${this.typeToString(expectedReturnType)}', got '${this.typeToString(resolvedActualReturnType)}'`,
+          `Expected '${this.formatDiagnosticType(expectedReturnType)}', got '${this.formatDiagnosticType(resolvedActualReturnType)}'`,
           structMethod.location,
         );
       }
@@ -1311,7 +1311,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         if (!this.areTypesCompatible(expectedParamType, actualParamType)) {
           throw new CompilerError(
             `Parameter '${method.params[i]!.name}' of method '${method.name}' has incorrect type`,
-            `Expected '${this.typeToString(expectedParamType)}', got '${this.typeToString(actualParamType)}'`,
+            `Expected '${this.formatDiagnosticType(expectedParamType)}', got '${this.formatDiagnosticType(actualParamType)}'`,
             structMethod.params[i]!.type.location,
           );
         }
@@ -1561,9 +1561,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         this.addError(
           new CompilerError(
             `Invalid override of method '${method.name}' in struct '${decl.name}'`,
-            `Override return type '${this.typeToString(
+            `Override return type '${this.formatDiagnosticType(
               method.returnType,
-            )}' must match inherited return type '${this.typeToString(
+            )}' must match inherited return type '${this.formatDiagnosticType(
               parentMethod.returnType,
             )}'.`,
             method.location,
@@ -2376,9 +2376,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
       if (!compatible) {
         throw new CompilerError(
-          `Type mismatch in assignment: cannot assign ${this.typeToString(
+          `Type mismatch in assignment: cannot assign ${this.formatDiagnosticType(
             valueType,
-          )} to ${this.typeToString(targetType)}`,
+          )} to ${this.formatDiagnosticType(targetType)}`,
           "The assigned value is not compatible with the target variable's type.",
           expr.location,
           ASSIGNMENT_TYPE_MISMATCH_CODE,
@@ -2530,9 +2530,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         !this.areTypesCompatible(resolvedExpectedType, valueType)
       ) {
         throw new CompilerError(
-          `Type mismatch for field '${field.name}': expected ${this.typeToString(
+          `Type mismatch for field '${field.name}': expected ${this.formatDiagnosticType(
             expectedType,
-          )}, got ${this.typeToString(valueType)}`,
+          )}, got ${this.formatDiagnosticType(valueType)}`,
           "Field value must match the declared type.",
           field.value.location,
           ENUM_VARIANT_FIELD_TYPE_MISMATCH_CODE,
@@ -2672,7 +2672,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     throw new CompilerError(
-      `Cannot apply ${expr.genericArgs.length} generic arguments to '${this.typeToString(baseType)}'`,
+      `Cannot apply ${expr.genericArgs.length} generic arguments to '${this.formatDiagnosticType(baseType)}'`,
       "Use a generic type or a function with a matching number of generic parameters.",
       expr.location,
       "BPL_GENERIC_INSTANTIATION_INVALID",
