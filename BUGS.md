@@ -7332,6 +7332,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   modifiers and applying function/struct renames without changing their bodies.
 
 
+## Imported global rename returned incomplete cross-file edits
+
+- CodeRabbit confirmed that imported global variables/constants newly reached a
+  fallback which edited the declaring file but left the calling document unchanged.
+  Imported functions already used this incomplete fallback. Saved defining-file
+  offsets could also disagree with an open unsaved buffer.
+- Decline cross-file rename requests until complete workspace binding/live-buffer
+  resolution exists. No partial edit is returned. Nine failing-before regressions
+  cover variables/constants/functions, unsaved buffers and LF/CRLF/CR.
+
 ## Rename reloaded saved files over unsaved document contents
 
 - Node selection reloaded disk ASTs after parsing the current editor buffer;
