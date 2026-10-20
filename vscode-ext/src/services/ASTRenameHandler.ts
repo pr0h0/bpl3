@@ -13,7 +13,6 @@ import {
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { fileURLToPath } from "url";
-import * as fs from "fs";
 import * as AST from "../../../compiler/common/AST";
 import { lexWithGrammar } from "../../../compiler/frontend/GrammarLexer";
 import { TokenType } from "../../../compiler/frontend/TokenType";
@@ -101,7 +100,7 @@ export class ASTRenameHandler {
 
       // Check if the node is renameable
       if (this.isRenameableNode(node)) {
-        if (node.kind === "BasicType" && !this.analyzeSymbol(node, filePath)) {
+        if ((node.kind === "BasicType" || node.kind === "Identifier") && !this.analyzeSymbol(node, filePath)) {
           return null;
         }
 
@@ -159,6 +158,7 @@ export class ASTRenameHandler {
 
       // Find all references based on the node type
       const references = this.findReferences(node, filePath, document);
+      if (references.length === 0) return null;
 
       // Create workspace edit
       const changes: { [uri: string]: TextEdit[] } = {};
@@ -1180,25 +1180,9 @@ export class ASTRenameHandler {
       );
     }
 
-    const symbol = this.symbolIndex.findSymbol(symbolName)[0];
-    // Never fall back to stale disk contents for the current document.
-    if (!symbol || symbol.filePath === filePath) return [];
-    try {
-      const document = TextDocument.create(
-        filePathToUri(symbol.filePath),
-        "bpl",
-        0,
-        fs.readFileSync(symbol.filePath, "utf-8"),
-      );
-      if (!this.getNodeRange(symbol.declaration, document)) return [];
-      return this.findCurrentDocumentSymbolReferences(symbolName, document);
-    } catch (error) {
-      console.error(
-        `[ASTRename] Error reading file ${symbol.filePath}:`,
-        error,
-      );
-      return [];
-    }
+    // Partial cross-file edits leave importing documents inconsistent. Decline
+    // until workspace-wide binding resolution and live documents are available.
+    return [];
   }
 
   /**
@@ -1414,24 +1398,10 @@ export class ASTRenameHandler {
         return this.analyzeSymbol(declaration, filePath);
       }
 
-      const symbol = this.symbolIndex.findSymbol(name)[0];
-      if (symbol && symbol.filePath !== filePath) {
-        if (
-          (symbol.kind === "function" ||
-            symbol.kind === "variable" ||
-            symbol.kind === "constant") &&
-          !collectGlobalValueReferences(ast, name).includes(node)
-        )
-          return null;
-        return {
-          type:
-            symbol.kind === "variable" || symbol.kind === "constant"
-              ? "global-variable"
-              : symbol.kind,
-          scope: "global",
-          node,
-        };
-      }
+      // Imported symbols require a complete workspace rename, not edits in
+      // only the declaring file. Unsupported cross-file requests fail closed.
+      return null;
+
     }
 
     // Check if it's a member access (field or method)

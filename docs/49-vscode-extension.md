@@ -75,6 +75,9 @@ Jump to symbol definitions:
 
 ### Rename ranges
 
+Imported symbols cannot currently be renamed across files. These requests are
+declined so they cannot return incomplete edits that break importing code.
+
 Rename preparation locates declaration names using lexer tokens, including
 comments, modifiers and multiline headers. Rename and find-references require
 the cursor on the name (including its trailing boundary). Declaration edits select the name
