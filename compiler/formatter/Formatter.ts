@@ -917,13 +917,10 @@ export class Formatter {
   }
 
   private escapeInterpolatedStringPart(s: string): string {
-    return s
-      .replace(/\\/g, "\\\\")
-      .replace(/"/g, '\\"')
-      .replace(/\${/g, "\\${")
-      .replace(/\n/g, "\\n")
-      .replace(/\r/g, "\\r")
-      .replace(/\t/g, "\\t");
+    return JSON.stringify(s)
+      .slice(1, -1)
+      .replace(/`/g, "\\`")
+      .replace(/\$\{/g, "\\${");
   }
 
   private formatBinary(expr: AST.BinaryExpr): string {

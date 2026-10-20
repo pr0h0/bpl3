@@ -6952,3 +6952,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   regrouped. Preserve a space when a single unary sign precedes the same sign.
 - Four regressions failed before the fix; controls cover other unary operators.
   Native checks compare original and formatted behavior at O0 and O3.
+
+## Formatter emitted invalid interpolated literal escapes
+
+- Escaped backticks became raw delimiters. Some control characters were written
+  literally; combined with another escape they triggered the detailed parser and
+  made previously valid strings fail parsing. Adjacent comments could also make
+  token alignment fail before source-preserving literal replacement.
+- Fourteen round-trip cases failed before the fix. Encode literal text through
+  JSON string escaping, then escape backticks and interpolation starts. Keep
+  expression parts unchanged and verify comment/no-comment idempotence.
