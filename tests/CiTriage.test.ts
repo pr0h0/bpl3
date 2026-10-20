@@ -839,6 +839,7 @@ describe("CI triage helper", () => {
     for (const stepName of [
       "BPL_RETURN_TYPE_MISMATCH",
       "Return type mismatch: expected i32, got *i8",
+      "Return type mismatch: expected i32, got string",
       "Ensure the returned value matches the function's return type.",
       "Return type mismatch failures use `BPL_RETURN_TYPE_MISMATCH`",
       "reports return type mismatch failures in JSON-mode check and build diagnostics",
@@ -1250,6 +1251,7 @@ describe("CI triage helper", () => {
       "Missing field 'y' in struct literal for 'Point'",
       "Unknown field 'z' in struct 'Point'",
       "Type mismatch for field 'x': expected i32, got *i8",
+      "Type mismatch for field 'x': expected i32, got string",
       "Ensure the struct is defined.",
       "Provide the correct number of generic arguments.",
       "Field 'y' is required.",

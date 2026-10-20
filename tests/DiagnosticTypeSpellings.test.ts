@@ -1,0 +1,161 @@
+import { expect, test } from "bun:test";
+import { Parser } from "../compiler/frontend/Parser";
+import { formatDiagnosticType } from "../compiler/middleend/DiagnosticTypeFormatter";
+import { TypeUtils } from "../compiler/middleend/TypeUtils";
+import { RTTI } from "../compiler/middleend/RTTI";
+import { TypeChecker } from "../compiler/middleend/TypeChecker";
+
+function errors(source: string) {
+  const checker = new TypeChecker({ collectAllErrors: true });
+  checker.checkProgram(new Parser(source, "diagnostic-types.bpl").parse());
+  return checker.getErrors();
+}
+
+test("assignment diagnostics name bool and string using language spellings", () => {
+  const found = errors('frame main(){local flag:bool=false;flag="hello";}');
+  const mismatch = found.find(
+    (error) => error.code === "BPL_ASSIGNMENT_TYPE_MISMATCH",
+  );
+  expect(mismatch?.message).toContain("cannot assign string to bool");
+});
+
+test("call diagnostics and available signatures name bool and string", () => {
+  const found = errors('frame take(flag:bool){} frame main(){take("hello");}');
+  const text = found
+    .map((error) => error.message + "\n" + error.hint)
+    .join("\n");
+  expect(text).toContain("Func<void>(bool)");
+  expect(text).not.toContain("i1");
+});
+
+test("return diagnostics name strings and boolean values", () => {
+  const found = errors('frame get()ret bool{return "hello";}');
+  const mismatch = found.find(
+    (error) => error.code === "BPL_RETURN_TYPE_MISMATCH",
+  );
+  expect(mismatch?.message).toContain("expected bool, got string");
+});
+
+function typeNode(source: string) {
+  const declaration = new Parser(
+    `type Value=${source};`,
+    "type-display.bpl",
+  ).parse().statements[0];
+  if (declaration?.kind !== "TypeAlias") throw new Error("Expected type alias");
+  return declaration.type;
+}
+for (const [source, expected] of [
+  ["i1", "bool"],
+  ["*i8", "*i8"],
+  ["*char", "*char"],
+  ["**char", "**char"],
+  ["**i8", "**i8"],
+  ["*int[4]", "*int[4]"],
+  ["*i16", "*i16"],
+  ["Box<i1,*i8>[2]", "Box<bool, *i8>[2]"],
+  ["const Func<i1>(*i8)[2]", "const Func<bool>(*i8)[2]"],
+  ["Lambda<*i8>(i1)[]", "Lambda<*i8>(bool)[]"],
+  ["const (i1,*i8)[3]", "const (bool, *i8)[3]"],
+] as const) {
+  test(`diagnostic spelling retains compound structure: ${source}`, () => {
+    const node = typeNode(source);
+    const before = JSON.stringify(node);
+    expect(formatDiagnosticType(node)).toBe(expected);
+    expect(JSON.stringify(node)).toBe(before);
+  });
+}
+
+test("canonical identity strings and bool/string runtime IDs stay unchanged", () => {
+  const boolean = typeNode("i1");
+  const string = typeNode("*i8");
+  expect(TypeUtils.typeToString(boolean)).toBe("i1");
+  expect(TypeUtils.typeToString(string)).toBe("*i8");
+  expect(RTTI.getTypeId(typeNode("bool"))).toBe(RTTI.getTypeIdFromName("i1"));
+  expect(RTTI.getTypeId(typeNode("string"))).toBe(
+    RTTI.getTypeIdFromName("*i8"),
+  );
+  expect(new TypeChecker().typeToString(boolean)).toBe("i1");
+});
+
+for (const source of ["*i8", "**i8"]) {
+  test(`explicit byte pointers retain their spelling: ${source}`, () => {
+    const checker = new TypeChecker();
+    expect(formatDiagnosticType(checker.resolveType(typeNode(source)))).toBe(
+      source,
+    );
+  });
+}
+
+test("resolved string aliases keep string spelling through alias chains", () => {
+  const checker = new TypeChecker({ collectAllErrors: true });
+  checker.checkProgram(
+    new Parser(
+      "type Text=string;type Indirect=Text;",
+      "alias-display.bpl",
+    ).parse(),
+  );
+  expect(checker.getErrors()).toEqual([]);
+  for (const source of [
+    "string",
+    "Text",
+    "Indirect",
+    "const Indirect[2]",
+    "*Indirect",
+  ])
+    expect(formatDiagnosticType(checker.resolveType(typeNode(source)))).toBe(
+      source === "const Indirect[2]"
+        ? "const string[2]"
+        : source === "*Indirect"
+          ? "*string"
+          : "string",
+    );
+});
+
+// Module types are synthesized at runtime and are outside the parsed type union.
+test("diagnostic spelling falls back for internal runtime-only types", () => {
+  const internal = {
+    ...typeNode("int"),
+    kind: "ModuleType",
+  } as unknown as ReturnType<typeof typeNode>;
+  expect(formatDiagnosticType(internal)).toBe("unknown");
+  expect(
+    formatDiagnosticType({
+      ...internal,
+      isConst: true,
+      arrayDimensions: [2],
+    } as typeof internal),
+  ).toBe("const unknown[2]");
+});
+
+for (const [source, expected] of [
+  ["*int[4]", "(*int)[4]"],
+  ["*char[4]", "(*char)[4]"],
+  ["const **i8[2]", "const (**i8)[2]"],
+] as const) {
+  test(`diagnostic spelling retains checked pointer-to-array grouping: ${source}`, () => {
+    const node = typeNode(source);
+    if (node.kind !== "BasicType") throw new Error("Expected basic type");
+    // Address-of and generic substitution attach this checked type metadata.
+    const checked = { ...node, isPointerToArray: true };
+    expect(formatDiagnosticType(checked)).toBe(expected);
+  });
+}
+
+test("assignment diagnostics distinguish address-of-array from arrays of pointers", () => {
+  const pointerToArray = errors(
+    "frame main(){local row:int[4];local value:int=&row;}",
+  );
+  const arrayOfPointers = errors(
+    "frame main(){local row:*int[4];local value:int=row;}",
+  );
+  expect(
+    pointerToArray.some((error) =>
+      error.message.includes("cannot assign (*i32)[4] to i32"),
+    ),
+  ).toBe(true);
+  expect(
+    arrayOfPointers.some((error) =>
+      error.message.includes("cannot assign *i32[4] to i32"),
+    ),
+  ).toBe(true);
+});

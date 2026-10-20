@@ -40,6 +40,10 @@ frame identity<T>(val: T) ret T {
 - `(val: T)` - Parameters using the generic type
 - `ret T` - Return type using the generic type
 
+A call that matches the value-argument count but omits required explicit type
+arguments reports `BPL_GENERIC_ARITY_MISMATCH`, with a reminder that type arguments
+are not inferred. A wrong value-argument count remains a separate diagnostic.
+
 ## Type Parameters
 
 ### Single Type Parameter

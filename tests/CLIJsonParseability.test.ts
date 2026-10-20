@@ -3656,7 +3656,7 @@ describe("CLI JSON parseability", () => {
     expect(checkDiagnostic.code).toBe("BPL_RETURN_TYPE_MISMATCH");
     expect(checkDiagnostic.source?.preview).toContain('return "wrong"');
     expect(checkDiagnostic.message).toContain(
-      "Return type mismatch: expected i32, got *i8",
+      "Return type mismatch: expected i32, got string",
     );
     expect(checkDiagnostic.hint).toContain(
       "Ensure the returned value matches the function's return type.",
@@ -3686,7 +3686,7 @@ describe("CLI JSON parseability", () => {
     });
     expect(buildReport.diagnostics).toHaveLength(1);
     expect(buildReport.diagnostics[0]?.message).toContain(
-      "Return type mismatch: expected i32, got *i8",
+      "Return type mismatch: expected i32, got string",
     );
     expect(buildReport.diagnostics[0]?.hint).toContain(
       "Ensure the returned value matches the function's return type.",
@@ -6967,5 +6967,5 @@ describe("CLI JSON parseability", () => {
       "BPL_BUILD_OUTPUT_DIRECTORY",
     );
     expect(fs.existsSync(`${executableDirectoryOutput}.ll`)).toBe(false);
-  });
+  }, 30000);
 });

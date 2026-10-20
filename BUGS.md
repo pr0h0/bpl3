@@ -7124,3 +7124,77 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   cases reproduce this for whitespace, newlines and comments.
 - Require the opening bracket to touch Func/Lambda as well; valid callable
   type forms and spaces inside their brackets remain supported.
+
+
+## Diagnostics exposed internal boolean/string spellings (audit C18)
+
+- Assignment, return and overload diagnostics printed i1 and *i8 where the
+  language guide uses bool and string. Three focused regressions fail before
+  the fix.
+- Use a dedicated diagnostic type printer that preserves compound structure,
+  qualifiers and dimensions. Keep canonical strings unchanged for signature
+  identity and runtime type IDs.
+
+
+## Missing generic arguments were reported as wrong value argument counts (C18)
+
+- Calling identity(1) when only identity<T>(value:T) exists reported a value
+  argument-count mismatch despite the matching value arity. One diagnostic
+  regression fails before the fix.
+- Track generic counts among candidates whose value arity matches, and report
+  BPL_GENERIC_ARITY_MISMATCH when their explicit type-argument counts differ.
+  Keep inference disabled and retain normal value/type mismatch diagnostics.
+
+
+## Circular dependency diagnostics pointed at nonexistent line zero (audit C18)
+
+- Module graph cycle detection reported the revisited module at 0:0 rather than
+  the import completing the cycle. Both self-import and two-module location
+  regressions fail before the fix.
+- Retain source locations for dependency edges and carry the incoming edge
+  through graph sorting. Report the closing import location, with a 1:1 fallback
+  only for synthetic graphs without source import metadata.
+
+
+## Diagnostic string aliases hid explicit byte pointer types
+
+- CodeRabbit identified that the diagnostic printer rendered every explicit i8
+  pointer as string, hiding the distinction in source spelling from a resolved
+  string alias. Two new pointer regression tests fail before the correction.
+- Inspect existing string-alias provenance, including alias-target chains, before
+  using string spelling for resolved i8 pointers. Preserve explicit pointers and
+  guard metadata traversal against cycles; canonical identity remains untouched.
+
+
+## Diagnostic type formatting exposed undefined for runtime-only types
+
+- CodeRabbit found that internal module types fall outside the parsed type union.
+  The diagnostic formatter left their name unassigned and printed undefined.
+- A regression reproduces the fallback failure. Use unknown for unsupported
+  kinds while preserving existing qualifier and array-dimension formatting.
+
+
+## JSON build validation matrix exceeded the default test timeout
+
+- The full CI-safe run reproduced a 7.5-second timeout in a test that launches
+  thirteen compiler processes sequentially under Bun's five-second default.
+- Give that existing integration matrix a bounded 30-second test budget; keep
+  all expected JSON error codes and stdout/stderr assertions unchanged.
+
+
+## Diagnostic types erased pointer-to-array grouping
+
+- CodeRabbit found that `(*int)[4]` and `*int[4]` printed identically, hiding
+  distinct checked array/pointer shapes. Three checked-metadata cases fail against
+  the original printer; a real assignment control covers address-of-array types.
+- Keep parentheses for pointer-to-array nodes and avoid collapsing their pointer
+  into a string alias. Canonical type keys and runtime type IDs remain untouched.
+
+
+## Raw char pointer diagnostics were renamed to string
+
+- CodeRabbit noted that the display helper changed explicit *char/**char nodes
+  to string/*string even without string-alias provenance. Two raw-type regression
+  cases fail before the fix.
+- Restrict the string spelling to checked i8 types with string alias metadata;
+  preserve raw char pointer spellings and checked pointer-to-array grouping.

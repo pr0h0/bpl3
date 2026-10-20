@@ -10,6 +10,7 @@ import type { Symbol, SymbolTable } from "./SymbolTable";
 import {
   ADDRESS_OF_CONSTANT_CODE,
   CALL_ARGUMENT_COUNT_MISMATCH_CODE,
+  GENERIC_ARITY_MISMATCH_CODE,
   CALL_ARGUMENT_TYPE_MISMATCH_CODE,
 } from "./TypeCheckerBase";
 
@@ -83,6 +84,7 @@ export interface OverloadResolutionContext {
     map: Map<string, AST.TypeNode>,
   ) => AST.TypeNode;
   typeToString: (type: AST.TypeNode | undefined) => string;
+  formatDiagnosticType: (type: AST.TypeNode | undefined) => string;
   getCurrentScope: () => SymbolTable;
   contextualizeArrayLiteral: (
     expr: AST.Expression,
@@ -140,6 +142,7 @@ export class OverloadResolver {
       inferredArgs?: AST.TypeNode[];
       isExplicitVariadic?: boolean;
     }[] = [];
+    const expectedGenericCounts = new Set<number>();
 
     for (const c of candidates) {
       const ft = c.type as AST.FunctionTypeNode;
@@ -172,6 +175,9 @@ export class OverloadResolver {
         if (!isExplicitVariadic) continue;
       }
 
+      expectedGenericCounts.add(
+        decl.kind === "FunctionDecl" ? decl.genericParams.length : 0,
+      );
       if (genericArgs.length > 0) {
         // Explicit generics
         if (decl.kind !== "FunctionDecl") continue;
@@ -191,13 +197,26 @@ export class OverloadResolver {
     }
 
     if (viableCandidates.length === 0) {
+      if (
+        expectedGenericCounts.size > 0 &&
+        !expectedGenericCounts.has(genericArgs.length)
+      ) {
+        const counts = [...expectedGenericCounts].sort((a, b) => a - b).join(" or ");
+        throw new CompilerError(
+          `Generic argument count mismatch for call to '${name}': got ${genericArgs.length} type arguments, expected ${counts}.`,
+          "Provide explicit type arguments; type arguments are not inferred.\n" +
+            `Available overloads:\n${candidates.map((candidate) => this.ctx.formatDiagnosticType(candidate.type)).join("\n")}`,
+          location,
+          GENERIC_ARITY_MISMATCH_CODE,
+        );
+      }
       throw new CompilerError(
         `No matching function for call to '${name}' with ${argTypes.length} arguments${
           genericArgs.length > 0
             ? ` and ${genericArgs.length} generic arguments`
             : ""
         }.`,
-        `Available overloads:\n${candidates.map((c) => this.ctx.typeToString(c.type!)).join("\n")}`,
+        `Available overloads:\n${candidates.map((c) => this.ctx.formatDiagnosticType(c.type!)).join("\n")}`,
         location,
         CALL_ARGUMENT_COUNT_MISMATCH_CODE,
       );
@@ -230,7 +249,7 @@ export class OverloadResolver {
               !this.ctx.areTypesCompatible(substitutedConstraint, arg, false)
             ) {
               throw new CompilerError(
-                `Type argument '${this.ctx.typeToString(arg)}' does not satisfy constraint '${this.ctx.typeToString(substitutedConstraint)}'`,
+                `Type argument '${this.ctx.formatDiagnosticType(arg)}' does not satisfy constraint '${this.ctx.formatDiagnosticType(substitutedConstraint)}'`,
                 "Ensure the type argument satisfies the constraint.",
                 location,
               );
@@ -418,7 +437,7 @@ export class OverloadResolver {
     if (matched.length === 0) {
       throw new CompilerError(
         `No matching function for call to '${name}' with provided argument types.`,
-        `Available overloads:\n${candidates.map((c) => this.ctx.typeToString(c.type!)).join("\n")}`,
+        `Available overloads:\n${candidates.map((c) => this.ctx.formatDiagnosticType(c.type!)).join("\n")}`,
         location,
         CALL_ARGUMENT_TYPE_MISMATCH_CODE,
       );

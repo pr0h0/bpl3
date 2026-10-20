@@ -35,7 +35,7 @@ describe("TypeChecker return type mismatch diagnostics", () => {
   test("codes mismatched return values", () => {
     const cases = [
       {
-        message: "Return type mismatch: expected i32, got *i8",
+        message: "Return type mismatch: expected i32, got string",
         source: `
           frame main() ret int {
             return "wrong";

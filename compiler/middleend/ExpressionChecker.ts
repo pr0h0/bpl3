@@ -1,3 +1,4 @@
+import { formatDiagnosticType } from "./DiagnosticTypeFormatter";
 /**
  * ExpressionChecker - Handles type checking of expressions
  * These methods are designed to be bound to a TypeChecker instance using .call()
@@ -367,7 +368,7 @@ export function checkInterpolatedString(
           // For arrays without toString, we will report an error.
           // This fulfills "rule it that it's not allowed".
           throw new CompilerError(
-            `Array type '${this.typeToString(partType)}' cannot be interpolated directly. Please implement a 'toString' method or convert it to a string manually.`,
+            `Array type '${this.formatDiagnosticType(partType)}' cannot be interpolated directly. Please implement a 'toString' method or convert it to a string manually.`,
             "Array interpolation requires a 'toString' method.",
             part.location,
           );
@@ -650,9 +651,9 @@ export function checkBinary(
     ) {
       if (!this.areTypesCompatible(leftType, rightType)) {
         throw new CompilerError(
-          `Cannot compare pointer difference between ${this.typeToString(
+          `Cannot compare pointer difference between ${this.formatDiagnosticType(
             leftType,
-          )} and ${this.typeToString(rightType)}`,
+          )} and ${this.formatDiagnosticType(rightType)}`,
           "Pointer subtraction requires compatible pointee types.",
           expr.location,
           POINTER_DIFFERENCE_TYPE_MISMATCH_CODE,
@@ -702,9 +703,9 @@ export function checkBinary(
   if (op === TokenType.AndAnd || op === TokenType.OrOr) {
     if (!isBoolType(leftType) || !isBoolType(rightType)) {
       throw new CompilerError(
-        `Logical operators require boolean operands, got ${this.typeToString(
+        `Logical operators require boolean operands, got ${this.formatDiagnosticType(
           leftType,
-        )} and ${this.typeToString(rightType)}`,
+        )} and ${this.formatDiagnosticType(rightType)}`,
         "Ensure both operands are boolean expressions.",
         expr.location,
         LOGICAL_OPERAND_TYPE_MISMATCH_CODE,
@@ -718,7 +719,7 @@ export function checkBinary(
     // Allow comparison between compatible types
     if (!this.areTypesCompatible(leftType, rightType)) {
       throw new CompilerError(
-        `Cannot compare ${this.typeToString(leftType)} and ${this.typeToString(rightType)}`,
+        `Cannot compare ${this.formatDiagnosticType(leftType)} and ${this.formatDiagnosticType(rightType)}`,
         "Operands must be of compatible types.",
         expr.location,
         COMPARISON_TYPE_MISMATCH_CODE,
@@ -747,9 +748,9 @@ export function checkBinary(
       !TypeUtils.isIntegerType(rightType)
     ) {
       throw new CompilerError(
-        `Bitwise operators require integer operands, got ${this.typeToString(
+        `Bitwise operators require integer operands, got ${this.formatDiagnosticType(
           leftType,
-        )} and ${this.typeToString(rightType)}`,
+        )} and ${this.formatDiagnosticType(rightType)}`,
         "Ensure both operands are integers.",
         expr.location,
         BITWISE_OPERAND_TYPE_MISMATCH_CODE,
@@ -773,7 +774,7 @@ export function checkBinary(
             : 0;
         if (bitWidth > 0 && shiftCount >= BigInt(bitWidth)) {
           throw new CompilerError(
-            `Shift count ${shiftCount.toString()} is out of range for ${bitWidth}-bit ${this.typeToString(
+            `Shift count ${shiftCount.toString()} is out of range for ${bitWidth}-bit ${this.formatDiagnosticType(
               leftType,
             )}`,
             "Use a shift count smaller than the width of the left operand.",
@@ -793,9 +794,9 @@ export function checkBinary(
       !TypeUtils.isIntegerType(rightType)
     ) {
       throw new CompilerError(
-        `Modulo operator requires integer operands, got ${this.typeToString(
+        `Modulo operator requires integer operands, got ${this.formatDiagnosticType(
           leftType,
-        )} and ${this.typeToString(rightType)}`,
+        )} and ${this.formatDiagnosticType(rightType)}`,
         "Ensure both operands are integers.",
         expr.location,
         MODULO_OPERAND_TYPE_MISMATCH_CODE,
@@ -816,7 +817,7 @@ export function checkBinary(
   // Arithmetic operators
   if (!this.areTypesCompatible(leftType, rightType)) {
     throw new CompilerError(
-      `Type mismatch: ${this.typeToString(leftType)} and ${this.typeToString(rightType)}`,
+      `Type mismatch: ${this.formatDiagnosticType(leftType)} and ${this.formatDiagnosticType(rightType)}`,
       "Ensure operands have compatible types.",
       expr.location,
       BINARY_OPERAND_TYPE_MISMATCH_CODE,
@@ -835,9 +836,9 @@ export function checkBinary(
       !isArithmeticOperandType(this, rightType)
     ) {
       throw new CompilerError(
-        `Operator '${expr.operator.lexeme}' cannot be applied to types '${this.typeToString(
+        `Operator '${expr.operator.lexeme}' cannot be applied to types '${this.formatDiagnosticType(
           leftType,
-        )}' and '${this.typeToString(rightType)}'`,
+        )}' and '${this.formatDiagnosticType(rightType)}'`,
         "Arithmetic operators require numeric types.",
         expr.location,
         ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
@@ -970,7 +971,7 @@ export function checkUnary(
     }
 
     throw new CompilerError(
-      `Cannot take address of ${this.typeToString(operandType)}`,
+      `Cannot take address of ${this.formatDiagnosticType(operandType)}`,
       "Address-of requires an lvalue.",
       expr.location,
       ADDRESS_OF_TARGET_INVALID_CODE,
@@ -1000,7 +1001,7 @@ export function checkUnary(
     }
 
     throw new CompilerError(
-      `Cannot dereference non-pointer type ${this.typeToString(operandType)}`,
+      `Cannot dereference non-pointer type ${this.formatDiagnosticType(operandType)}`,
       "Dereference requires a pointer type.",
       expr.location,
       DEREFERENCE_TARGET_INVALID_CODE,
@@ -1011,7 +1012,7 @@ export function checkUnary(
   if (op === TokenType.Bang) {
     if (!this.isBoolType(operandType)) {
       throw new CompilerError(
-        `Logical not requires boolean operand, got ${this.typeToString(operandType)}`,
+        `Logical not requires boolean operand, got ${this.formatDiagnosticType(operandType)}`,
         "Ensure the operand is a boolean expression.",
         expr.location,
         LOGICAL_NOT_OPERAND_TYPE_MISMATCH_CODE,
@@ -1024,7 +1025,7 @@ export function checkUnary(
   if (op === TokenType.Tilde) {
     if (!TypeUtils.isIntegerType(operandType)) {
       throw new CompilerError(
-        `Bitwise not requires integer operand, got ${this.typeToString(operandType)}`,
+        `Bitwise not requires integer operand, got ${this.formatDiagnosticType(operandType)}`,
         "Ensure the operand is an integer.",
         expr.location,
         BITWISE_NOT_OPERAND_TYPE_MISMATCH_CODE,
@@ -1042,7 +1043,7 @@ export function checkUnary(
         operandType.name !== "double")
     ) {
       throw new CompilerError(
-        `Unary operator '-' cannot be applied to type '${this.typeToString(operandType)}'`,
+        `Unary operator '-' cannot be applied to type '${this.formatDiagnosticType(operandType)}'`,
         "Negation requires a numeric type.",
         expr.location,
         UNARY_NEGATION_OPERAND_TYPE_MISMATCH_CODE,
@@ -1085,7 +1086,7 @@ export function checkUnary(
     }
     if (!TypeUtils.isNumericType(operandType) || this.isBoolType(operandType)) {
       throw new CompilerError(
-        `Operator '${expr.operator.lexeme}' cannot be applied to type '${this.typeToString(operandType)}'`,
+        `Operator '${expr.operator.lexeme}' cannot be applied to type '${this.formatDiagnosticType(operandType)}'`,
         "Increment and decrement require an integer or floating-point operand. Use explicit arithmetic for pointers.",
         expr.location,
       );
@@ -1137,9 +1138,9 @@ export function checkArrayLiteral(
       !this.areTypesCompatible(firstType, elemType)
     ) {
       throw new CompilerError(
-        `Array literal has inconsistent element types: ${this.typeToString(
+        `Array literal has inconsistent element types: ${this.formatDiagnosticType(
           firstType,
-        )} vs ${this.typeToString(elemType)}`,
+        )} vs ${this.formatDiagnosticType(elemType)}`,
         "All elements in an array literal must have the same type.",
         expr.elements[i]!.location,
         ARRAY_LITERAL_TYPE_MISMATCH_CODE,
@@ -1309,9 +1310,9 @@ export function checkStructLiteral(
 
       if (!this.areTypesCompatible(resolvedMemberType, resolvedValueType)) {
         throw new CompilerError(
-          `Type mismatch for field '${field.name}': expected ${this.typeToString(
+          `Type mismatch for field '${field.name}': expected ${this.formatDiagnosticType(
             memberType,
-          )}, got ${this.typeToString(valueType)}`,
+          )}, got ${this.formatDiagnosticType(valueType)}`,
           "Field value must match the declared type.",
           field.value.location,
           STRUCT_LITERAL_FIELD_TYPE_MISMATCH_CODE,
@@ -1371,7 +1372,7 @@ export function checkTernary(
   const condType = this.checkExpression(expr.condition);
   if (condType && !this.isBoolType(condType)) {
     throw new CompilerError(
-      `Ternary condition must be boolean, got ${this.typeToString(condType)}`,
+      `Ternary condition must be boolean, got ${this.formatDiagnosticType(condType)}`,
       "Ensure the condition evaluates to a boolean.",
       expr.condition.location,
       CONDITION_TYPE_MISMATCH_CODE,
@@ -1383,9 +1384,9 @@ export function checkTernary(
 
   if (thenType && elseType && !this.areTypesCompatible(thenType, elseType)) {
     throw new CompilerError(
-      `Ternary branches must have compatible types: ${this.typeToString(
+      `Ternary branches must have compatible types: ${this.formatDiagnosticType(
         thenType,
-      )} vs ${this.typeToString(elseType)}`,
+      )} vs ${this.formatDiagnosticType(elseType)}`,
       "Both branches must return the same type.",
       expr.location,
       TERNARY_BRANCH_TYPE_MISMATCH_CODE,
@@ -1418,7 +1419,7 @@ export function checkCast(
         TypeUtils.isIntegerType(resolvedSource)
       ) {
         throw new CompilerError(
-          `Cannot cast integer type '${this.typeToString(resolvedSource)}' to 'string'`,
+          `Cannot cast integer type '${this.formatDiagnosticType(resolvedSource)}' to 'string'`,
           "Casting integers to string is not allowed. Use .toString() or similar conversion methods.",
           expr.location,
           CAST_INTEGER_TO_STRING_CODE,
@@ -1432,7 +1433,7 @@ export function checkCast(
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {
       throw new CompilerError(
-        `Cannot cast ${this.typeToString(resolved)} to ${this.typeToString(target)}`,
+        `Cannot cast ${this.formatDiagnosticType(resolved)} to ${this.formatDiagnosticType(target)}`,
         "This cast is not allowed.",
         expr.location,
         CAST_INVALID_CODE,
@@ -1603,7 +1604,7 @@ export function checkOffsetOf(
   if (resolvedType.kind !== "BasicType") {
     throw new CompilerError(
       "offsetof requires a struct type",
-      `Got ${TypeUtils.typeToString(resolvedType)}`,
+      `Got ${formatDiagnosticType(resolvedType)}`,
       expr.location,
     );
   }
@@ -1614,7 +1615,7 @@ export function checkOffsetOf(
   if (!decl || decl.kind !== "StructDecl") {
     throw new CompilerError(
       "offsetof requires a struct type",
-      `Got ${TypeUtils.typeToString(targetType)} which is not a struct`,
+      `Got ${formatDiagnosticType(targetType)} which is not a struct`,
       expr.location,
     );
   }
@@ -1843,7 +1844,7 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
         TypeUtils.isIntegerType(resolvedSource)
       ) {
         throw new CompilerError(
-          `Cannot cast integer type '${this.typeToString(resolvedSource)}' to 'string'`,
+          `Cannot cast integer type '${this.formatDiagnosticType(resolvedSource)}' to 'string'`,
           "Casting integers to string is not allowed. Use .toString() or similar conversion methods.",
           expr.location,
           CAST_INTEGER_TO_STRING_CODE,
@@ -1857,7 +1858,7 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {
       throw new CompilerError(
-        `Cannot cast ${this.typeToString(resolved)} to ${this.typeToString(target)}`,
+        `Cannot cast ${this.formatDiagnosticType(resolved)} to ${this.formatDiagnosticType(target)}`,
         "This cast is not allowed.",
         expr.location,
         CAST_INVALID_CODE,
@@ -1941,7 +1942,7 @@ function checkMatchExprBody(
       const guardType = this.checkExpression(arm.guard);
       if (guardType && !this.isBoolType(guardType)) {
         throw new CompilerError(
-          `Match guard must be a boolean expression, got ${this.typeToString(guardType)}`,
+          `Match guard must be a boolean expression, got ${this.formatDiagnosticType(guardType)}`,
           "Guards must evaluate to bool.",
           arm.guard.location,
         );
@@ -1963,9 +1964,9 @@ function checkMatchExprBody(
       resultType = armType;
     } else if (armType && !this.areTypesCompatible(resultType, armType)) {
       throw new CompilerError(
-        `Match arms must have compatible types: ${this.typeToString(
+        `Match arms must have compatible types: ${this.formatDiagnosticType(
           resultType,
-        )} vs ${this.typeToString(armType)}`,
+        )} vs ${this.formatDiagnosticType(armType)}`,
         "All match arms must return the same type.",
         arm.location,
       );

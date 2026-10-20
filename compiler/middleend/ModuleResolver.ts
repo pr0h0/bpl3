@@ -16,7 +16,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { getLibPath } from "../common/PathResolver";
-import { CompilerError } from "../common/CompilerError";
+import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 import { findCaseMismatchPath } from "../common/PathSafety";
 import { walkAST } from "../common/ASTTraversal";
@@ -61,6 +61,9 @@ export interface ModuleInfo {
 
   /** Modules this module depends on (imports) */
   dependencies: Set<string>;
+
+  /** Source import edge used when reporting dependency cycles. */
+  dependencyLocations?: ReadonlyMap<string, SourceLocation>;
 
   /** Whether this module has been type-checked */
   checked: boolean;
@@ -530,7 +533,9 @@ export class ModuleResolver {
     const ast = parser.parse(true);
 
     // Create module info
+    const dependencyLocations = new Map<string, SourceLocation>();
     const moduleInfo: ModuleInfo = {
+      dependencyLocations,
       path: modulePath,
       ast,
       dependencies: new Set(),
@@ -548,6 +553,8 @@ export class ModuleResolver {
         try {
           const depPath = this.resolveModulePath(importStmt.source, modulePath);
           moduleInfo.dependencies.add(depPath);
+          if (!dependencyLocations.has(depPath))
+            dependencyLocations.set(depPath, importStmt.location);
 
           // Recursively load dependency
           this.loadModule(depPath, new Set(visited));
@@ -635,19 +642,19 @@ export class ModuleResolver {
     const visited = new Set<string>();
     const visiting = new Set<string>();
 
-    const visit = (modulePath: string) => {
+    const visit = (modulePath: string, importLocation?: SourceLocation) => {
       if (visited.has(modulePath)) return;
 
       if (visiting.has(modulePath)) {
         throw new CompilerError(
           `Circular dependency detected involving: ${modulePath}`,
           "Refactor code to avoid circular imports.",
-          {
+          importLocation ?? {
             file: modulePath,
-            startLine: 0,
-            startColumn: 0,
-            endLine: 0,
-            endColumn: 0,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
           },
         );
       }
@@ -671,7 +678,7 @@ export class ModuleResolver {
 
       // Visit dependencies first
       for (const dep of module.dependencies) {
-        visit(dep);
+        visit(dep, module.dependencyLocations?.get(dep));
       }
 
       visiting.delete(modulePath);
@@ -723,18 +730,18 @@ export class ModuleResolver {
     const visiting = new Set<string>();
     const sorted: string[] = [];
 
-    const visit = (modulePath: string) => {
+    const visit = (modulePath: string, importLocation?: SourceLocation) => {
       if (visited.has(modulePath)) return;
       if (visiting.has(modulePath)) {
         throw new CompilerError(
           `Circular dependency detected: ${modulePath}`,
           "Refactor code to avoid circular imports.",
-          {
+          importLocation ?? {
             file: modulePath,
-            startLine: 0,
-            startColumn: 0,
-            endLine: 0,
-            endColumn: 0,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
           },
         );
       }
@@ -758,7 +765,7 @@ export class ModuleResolver {
 
       // Visit dependencies first
       for (const dep of module.dependencies) {
-        visit(dep);
+        visit(dep, module.dependencyLocations?.get(dep));
       }
 
       visiting.delete(modulePath);

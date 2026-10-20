@@ -46,6 +46,7 @@ export interface CheckerContext {
     checkConstraints?: boolean,
   ): boolean;
   typeToString(type: AST.TypeNode | undefined): string;
+  formatDiagnosticType(type: AST.TypeNode | undefined): string;
   substituteType(
     type: AST.TypeNode,
     map: Map<string, AST.TypeNode>,
