@@ -1035,7 +1035,9 @@ The `bpl dev` command provides watch mode for rapid development. It monitors you
   newly created source directories, and resolved transitive imports outside it.
   Directory watches follow editor saves that replace files by rename. Replaced
   source directories receive new watch handles; missing roots are observed through
-  their nearest existing parent until restored.
+  their nearest existing parent until restored. Watch-handle errors and temporary
+  watch-creation failures retry registration after one second, even when the
+  directory is otherwise quiet.
 - **Smart Filtering**: Ignores `node_modules`, `.git`, `bpl_modules`, and hidden directories
 - **Screen Clearing**: Optional screen clear on recompile with `--clear`
 
