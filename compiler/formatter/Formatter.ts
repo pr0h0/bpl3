@@ -1,4 +1,7 @@
 import * as AST from "../common/AST";
+import { lexWithGrammar } from "../frontend/GrammarLexer";
+import type { Token } from "../frontend/Token";
+import { TokenType } from "../frontend/TokenType";
 import { getParsedSource } from "../frontend/ParsedSource";
 import { placeSourceComments, formatLineEndings } from "./CommentPlacement";
 import {
@@ -11,6 +14,8 @@ export class Formatter {
   private indentLevel: number = 0;
   private indentString: string = "    "; // Default BPL indentation
   private lastLineProcessed: number = 0;
+  private sourceText?: string;
+  private sourceTokens?: Token[];
   private readonly options: ResolvedFormatterOptions;
 
   constructor(options: FormatterOptions = {}) {
@@ -35,6 +40,8 @@ export class Formatter {
       );
     }
     this.lastLineProcessed = 0;
+    this.sourceText = source;
+    this.sourceTokens = undefined;
 
     const formatted = this.formatStatements(program.statements).trim() + "\n";
     const withComments =
@@ -206,6 +213,43 @@ export class Formatter {
     return output;
   }
 
+  /** Header comments can span lines before the actual body opening brace. */
+  private declarationBodyStartLine(
+    declaration: AST.StructDecl | AST.EnumDecl | AST.SpecDecl,
+    firstMember: AST.ASTNode | undefined,
+  ): number {
+    const start = declaration.location;
+    if (
+      !this.sourceText ||
+      !firstMember ||
+      firstMember.location.startLine <= start.startLine + 1
+    )
+      return start.startLine;
+
+    const tokens = (this.sourceTokens ??= lexWithGrammar(
+      this.sourceText,
+      start.file,
+    ));
+    let lower = 0;
+    let upper = tokens.length;
+    while (lower < upper) {
+      const middle = (lower + upper) >>> 1;
+      const token = tokens[middle]!;
+      if (
+        token.line < start.startLine ||
+        (token.line === start.startLine && token.column < start.startColumn)
+      )
+        lower = middle + 1;
+      else upper = middle;
+    }
+    for (let index = lower; index < tokens.length; index++) {
+      const token = tokens[index]!;
+      if (token.line > firstMember.location.startLine) break;
+      if (token.type === TokenType.LeftBrace) return token.line;
+    }
+    return start.startLine;
+  }
+
   private formatStructDecl(decl: AST.StructDecl): string {
     const indent = this.getIndent();
     let output = `${indent}struct ${decl.name}`;
@@ -219,7 +263,10 @@ export class Formatter {
     output += " {\n";
     this.indentLevel++;
 
-    this.lastLineProcessed = decl.location.startLine;
+    this.lastLineProcessed = this.declarationBodyStartLine(
+      decl,
+      decl.members[0],
+    );
 
     for (const member of decl.members) {
       if (
@@ -256,7 +303,10 @@ export class Formatter {
     output += " {\n";
     this.indentLevel++;
 
-    this.lastLineProcessed = decl.location.startLine;
+    this.lastLineProcessed = this.declarationBodyStartLine(
+      decl,
+      decl.variants[0],
+    );
 
     // Format variants
     for (let i = 0; i < decl.variants.length; i++) {
@@ -330,7 +380,10 @@ export class Formatter {
     output += " {\n";
     this.indentLevel++;
 
-    this.lastLineProcessed = decl.location.startLine;
+    this.lastLineProcessed = this.declarationBodyStartLine(
+      decl,
+      decl.methods[0],
+    );
 
     for (const method of decl.methods) {
       if (
