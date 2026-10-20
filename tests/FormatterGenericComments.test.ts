@@ -57,3 +57,21 @@ if(less && greater){shift;}
   expect(formatterSemantics(after)).toEqual(formatterSemantics(before));
   expect(new Formatter().format(after)).toBe(output);
 });
+
+for (const options of [
+  { indentWidth: 2 },
+  { useTabs: true },
+  { lineEnding: "crlf" as const },
+])
+  for (const fixture of cases) {
+    test(`generic comments preserve meaning with ${JSON.stringify(options)}: ${fixture.name}`, () => {
+      const before = new Parser(fixture.source, "generic-config.bpl").parse();
+      const output = new Formatter(options).format(before);
+      const after = new Parser(output, "generic-config.bpl").parse();
+      expect(formatterSemantics(after)).toEqual(formatterSemantics(before));
+      expect(after.comments?.map((comment) => comment.lexeme)).toEqual(
+        before.comments?.map((comment) => comment.lexeme),
+      );
+      expect(new Formatter(options).format(after)).toBe(output);
+    });
+  }
