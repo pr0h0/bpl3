@@ -158,12 +158,12 @@ function getSourceLines(filePath: string): string[] | null {
     // Check SourceManager first
     const cachedSource = SourceManager.getSource(filePath);
     if (cachedSource) {
-      return cachedSource.split("\n");
+      return cachedSource.split(/\r\n|\r|\n/);
     }
 
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, "utf-8");
-      return content.split("\n");
+      return content.split(/\r\n|\r|\n/);
     }
   } catch {
     // Silently fail

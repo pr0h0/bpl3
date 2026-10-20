@@ -356,6 +356,12 @@ fragments explicitly using the conventions in `docs/documentation-validation.md`
 The generated declaration reference is checked by `tests/StdlibReference.test.ts`;
 regenerate it with `bun run docs:stdlib` after public library changes.
 
+## Source coordinates
+
+Source locations use 1-based lines and UTF-16 columns. LF, CRLF and standalone
+CR each count as one newline. Keep lexer, parser AST/error positions, diagnostic
+snippets and formatter source offsets consistent; do not normalize literal bytes.
+
 ## Formatter correctness
 
 Formatting must preserve program meaning and comment text/order, keep comments

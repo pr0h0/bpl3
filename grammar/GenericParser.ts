@@ -408,13 +408,13 @@ export class GenericParser {
 
       while (position < sourceLength) {
         const ch = source[position]!;
-        if (ch === " " || ch === "\t" || ch === "\r") {
+        if (ch === " " || ch === "\t") {
           position += 1;
           column += 1;
           continue;
         }
-        if (ch === "\n") {
-          position += 1;
+        if (ch === "\n" || ch === "\r") {
+          position += ch === "\r" && source[position + 1] === "\n" ? 2 : 1;
           line += 1;
           column = 1;
           continue;
@@ -505,13 +505,14 @@ export class GenericParser {
 
     while (this.position < this.source.length) {
       const ch = this.source[this.position]!;
-      if (ch === " " || ch === "\t" || ch === "\r") {
+      if (ch === " " || ch === "\t") {
         this.position += 1;
         this.column += 1;
         continue;
       }
-      if (ch === "\n") {
-        this.position += 1;
+      if (ch === "\n" || ch === "\r") {
+        this.position +=
+          ch === "\r" && this.source[this.position + 1] === "\n" ? 2 : 1;
         this.line += 1;
         this.column = 1;
         continue;
@@ -1037,7 +1038,7 @@ export class GenericParser {
     const start = this.position;
     const line = this.line;
     const column = this.column;
-    if (!canContainNewline || value.indexOf("\n") === -1) {
+    if (!canContainNewline || !/[\r\n]/.test(value)) {
       this.position += value.length;
       this.column += value.length;
     } else {
@@ -1091,7 +1092,11 @@ export class GenericParser {
   private advance(text: string): void {
     // Source locations use JavaScript/UTF-16 offsets, including surrogate pairs.
     for (let index = 0; index < text.length; index++) {
-      if (text.charCodeAt(index) === 10) {
+      if (
+        text.charCodeAt(index) === 10 ||
+        (text.charCodeAt(index) === 13 &&
+          this.source[this.position + index + 1] !== "\n")
+      ) {
         this.line += 1;
         this.column = 1;
       } else {

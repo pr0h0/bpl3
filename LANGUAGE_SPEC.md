@@ -21,6 +21,13 @@ numbered guides in [docs/](docs/) cover features not described here.
 
 ## 1. Lexical Structure
 
+### Source line endings and coordinates
+
+Source files accept LF, CRLF and standalone CR line endings. Each counts as one
+newline for token, AST and diagnostic locations. Lines and columns are 1-based;
+columns count UTF-16 code units. Source coordinates do not normalize or change
+string literal contents.
+
 ### Comments
 
 - **[R-LEX-1]** A `#` starts a comment that continues to the end of the line.

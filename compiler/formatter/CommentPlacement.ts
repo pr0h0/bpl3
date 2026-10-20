@@ -11,9 +11,9 @@ interface PositionedToken {
 function lineOffsets(source: string): number[] {
   const offsets = [0];
   for (let i = 0; i < source.length; i++) {
-    // Match the frontend's source positions: LF advances the line; CR is
-    // retained in the column until an LF follows it.
-    if (source[i] === "\n") offsets.push(i + 1);
+    // Treat CRLF as one newline, while retaining original UTF-16 offsets.
+    if (source[i] === "\n" || (source[i] === "\r" && source[i + 1] !== "\n"))
+      offsets.push(i + 1);
   }
   return offsets;
 }

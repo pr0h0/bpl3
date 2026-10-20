@@ -143,10 +143,18 @@ function optimizeGeneratedBplLocationLines(parserSource: string): string {
     "  const peg$bplInputLength = input.length;",
     "",
     "  const peg$bplLineStarts = [0];",
-    '  let peg$bplLinePos = input.indexOf("\\n");',
-    "  while (peg$bplLinePos !== -1) {",
-    "    peg$bplLineStarts.push(peg$bplLinePos + 1);",
-    '    peg$bplLinePos = input.indexOf("\\n", peg$bplLinePos + 1);',
+    '  if (input.indexOf("\\r") === -1) {',
+    '    let peg$bplLinePos = input.indexOf("\\n");',
+    "    while (peg$bplLinePos !== -1) {",
+    "      peg$bplLineStarts.push(peg$bplLinePos + 1);",
+    '      peg$bplLinePos = input.indexOf("\\n", peg$bplLinePos + 1);',
+    "    }",
+    "  } else {",
+    "    const peg$bplNewlines = /\\r\\n|\\r|\\n/g;",
+    "    let peg$bplNewline;",
+    "    while ((peg$bplNewline = peg$bplNewlines.exec(input)) !== null) {",
+    "      peg$bplLineStarts.push(peg$bplNewline.index + peg$bplNewline[0].length);",
+    "    }",
     "  }",
     "",
     "  let peg$lastBplLineIndex = 0;",
@@ -229,7 +237,18 @@ function optimizeGeneratedBplLocationLines(parserSource: string): string {
     );
   }
 
-  return parserSource.replace(original, replacement);
+  const originalNewline = "if (input.charCodeAt(p) === 10) {";
+  if (!parserSource.includes(originalNewline)) {
+    throw new Error(
+      "Generated Peggy parser position helper shape changed; update newline handling.",
+    );
+  }
+  return parserSource
+    .replace(original, replacement)
+    .replace(
+      originalNewline,
+      "if (input.charCodeAt(p) === 10 || (input.charCodeAt(p) === 13 && input.charCodeAt(p + 1) !== 10)) {",
+    );
 }
 
 function optimizeGeneratedMakeLoc(parserSource: string): string {
