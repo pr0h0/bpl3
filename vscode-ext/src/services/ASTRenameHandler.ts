@@ -113,7 +113,9 @@ export class ASTRenameHandler {
         )
           return null;
         if (
-          (node.kind === "BasicType" || node.kind === "Identifier") &&
+          (node.kind === "BasicType" ||
+            node.kind === "Identifier" ||
+            node.kind === "PatternIdentifier") &&
           !this.analyzeSymbol(node, filePath)
         ) {
           return null;
@@ -257,7 +259,9 @@ export class ASTRenameHandler {
   ): Range | null {
     if (!this.isRenameableNode(node)) return null;
     if (
-      (node.kind === "BasicType" || node.kind === "Identifier") &&
+      (node.kind === "BasicType" ||
+        node.kind === "Identifier" ||
+        node.kind === "PatternIdentifier") &&
       !this.analyzeSymbol(node, fileURLToPath(document.uri))
     )
       return null;

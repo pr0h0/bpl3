@@ -132,3 +132,60 @@ for (const pattern of ["(target,target)", "Choice.Some{field:target}"]) {
     ).toBeNull();
   });
 }
+
+for (const newline of ["", "\n", "\r\n", "\r"]) {
+  for (const selected of [0, 1]) {
+    test(`rename selects only sibling arm ${selected} ${JSON.stringify(newline)}`, () => {
+      const arms = ["target if target>0=>target,", "target=>target,"];
+      const lines = ["frame run()ret int{return match(1){", ...arms, "};}"];
+      const source = lines.join(newline);
+      const arm = arms[selected]!;
+      expect(rename(source, source.indexOf(arm) + 1)).toBe(
+        source.replace(arm, arm.replaceAll("target", "updated")),
+      );
+    });
+  }
+  test(`catch rename preserves inner match bindings ${JSON.stringify(newline)}`, () => {
+    const lines = [
+      "frame run(){try{throw 1;}catch(target:int){",
+      "match(1){target=>target,};",
+      "target;}}",
+    ];
+    const source = lines.join(newline);
+    expect(rename(source, source.lastIndexOf("target") + 1)).toBe(
+      [lines[0]!.replace("target", "updated"), lines[1]!, "updated;}}"].join(
+        newline,
+      ),
+    );
+  });
+}
+
+test("duplicate pattern declarations decline rename preparation", () => {
+  const source = "frame run(){match((1,2)){(target,target)=>target,};}";
+  const document = TextDocument.create(
+    "file:///tmp/bpl-pattern-duplicate-declaration.bpl",
+    "bpl",
+    1,
+    source,
+  );
+  const index = new SymbolIndex(resolve(import.meta.dir, "../../.."));
+  const handler = new ASTRenameHandler(new ASTResolver(index), index);
+  for (const offset of [
+    source.indexOf("target"),
+    source.indexOf("target", source.indexOf("target") + 1),
+  ]) {
+    const position = document.positionAt(offset + 1);
+    expect(
+      handler.prepareRename(
+        { textDocument: { uri: document.uri }, position },
+        document,
+      ),
+    ).toBeNull();
+    expect(
+      handler.rename(
+        { textDocument: { uri: document.uri }, position, newName: "updated" },
+        document,
+      ),
+    ).toBeNull();
+  }
+});
