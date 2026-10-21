@@ -45,6 +45,12 @@ export interface CheckerContext {
     t2: AST.TypeNode,
     checkConstraints?: boolean,
   ): boolean;
+  unifyMatchResultTypes(
+    first: AST.TypeNode,
+    next: AST.TypeNode,
+    previousValues?: readonly AST.Expression[],
+    nextValues?: readonly AST.Expression[],
+  ): AST.TypeNode | undefined;
   typeToString(type: AST.TypeNode | undefined): string;
   formatDiagnosticType(type: AST.TypeNode | undefined): string;
   substituteType(

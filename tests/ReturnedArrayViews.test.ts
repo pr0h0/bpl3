@@ -9,6 +9,27 @@ import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 for (const source of [
+  "frame borrow(v:int[])ret int[]{return v;}frame bad()ret int[]{return borrow([1,2]);}",
+  "frame borrow(v:*int)ret *int{return v;}frame bad()ret *int{return borrow([1,2]);}",
+  "frame borrow(v:u8[])ret u8[]{return v;}frame bad()ret u8[]{return borrow(match(true){true=>[1,2],false=>[3,4],});}",
+  "struct Box<T>{v:T,}frame wrap<T>(v:T)ret Box<T>{return Box<T>{v:v};}frame bad()ret Box<int[]>{return wrap<int[]>([1,2]);}",
+  "frame borrow(v:int[])ret int[]{return v;}frame bad(f:Func<int[]>(int[]))ret int[]{return f([1,2]);}",
+  "frame bad(f:Lambda<int[]>(int[]))ret int[]{return f([1,2]);}",
+  "struct Borrower{frame borrow(this:Borrower,v:int[])ret int[]{return v;}}frame bad(b:Borrower)ret int[]{return b.borrow([1,2]);}",
+  "struct Borrower{frame __call__(this:Borrower,v:int[])ret int[]{return v;}}frame bad(b:Borrower)ret int[]{return b([1,2]);}",
+  "frame bad()ret (int[],int){return ([1,2],3);}",
+  "frame bad()ret (u8[],int){return match(true){true=>([1,2],3),false=>{return ([4,5],6);},};}",
+  "frame bad()ret (int[],int){return ((([1,2],3)));}",
+  "frame bad()ret (int[],int){return true?([1,2],3):([4,5],6);}",
+  "frame bad()ret ((int[],int),int){return (([1,2],3),4);}",
+  "struct Box{v:int[],}frame bad()ret Box{return Box{v:[1,2]};}",
+  "struct Box<T>{v:T,}frame bad()ret Box<int[]>{return Box<int[]>{v:[1,2]};}",
+  "struct Box{v:int[],}frame bad()ret int[]{return (Box{v:[1,2]}).v;}",
+  "struct Box{v:u8[],}frame bad()ret Box{return Box{v:match(true){true=>[1,2],false=>[3,4],}};}",
+  "enum Box{Value(int[]),}frame bad()ret Box{return Box.Value([1,2]);}",
+  "enum Box{Value{v:int[]},}frame bad()ret Box{return Box.Value{v:[1,2]};}",
+  "enum Box<T>{Value(T),}frame bad()ret Box<int[]>{return Box<int[]>.Value([1,2]);}",
+  "frame bad()ret int[2][]{return [[1,2],[3,4]];}",
   "frame bad()ret int[]{return [1,2];}",
   "frame bad()ret *int{return [1,2];}",
   "frame bad()ret int[]{local a:int[2]=[1,2];return a;}",
@@ -114,3 +135,45 @@ test("literal field projection discards unrelated borrowed temporaries", () => {
   );
   expect(checker.getErrors()).toEqual([]);
 });
+
+test("returned aggregates preserve caller-owned views and discard unrelated fields at O0/O3", () => {
+  expectCorrectnessSuite([
+    {
+      name: "return-safe-view-aggregates",
+      validateLlvm: true,
+      source: `struct Box<T>{v:T,}
+struct Fields{temporary:int[],kept:int[],}
+enum Wrapped<T>{Value(T),}
+frame tuple(v:int[])ret (int[],int){return match(true){true=>(v,3),false=>{return (v,4);},};}
+frame boxed(v:int[])ret Box<int[]>{return Box<int[]>{v:v};}
+frame wrapped(v:int[])ret Wrapped<int[]>{return Wrapped<int[]>.Value(v);}
+frame inferred(v:int[])ret Wrapped<int[]>{return Wrapped.Value(v);}
+frame selected(v:int[])ret int[]{local fields:Fields=Fields{temporary:[1,2],kept:v};return fields.kept;}
+frame main()ret int{
+ local data:int[2]=[11,12];local view:int[]=data;
+ local a:(int[],int)=tuple(view);local b:Box<int[]>=boxed(view);
+ if(a.0[1]!=12||b.v[0]!=11||selected(view)[1]!=12){return 1;}
+ if(match(inferred(view)){Wrapped.Value(values)=>values[0],}!=11){return 2;}
+ return match(wrapped(view)){Wrapped.Value(values)=>values[1]-12,};
+}`,
+      expectedStdout: "",
+    },
+  ]);
+}, 60000);
+
+test("returned calls preserve existing views, fixed values and scalar consumers at O0/O3", () => {
+  expectCorrectnessSuite([
+    {
+      name: "return-safe-call-conversions",
+      validateLlvm: true,
+      source: `frame borrow(v:int[])ret int[]{return v;}
+frame safe(v:int[])ret int[]{return borrow(v);}
+frame copy(v:int[2])ret int[2]{return v;}
+frame values()ret int[2]{return copy([11,12]);}
+frame first(v:int[])ret int{return v[0];}
+frame consume()ret int{return first([13,14]);}
+frame main()ret int{local a:int[2]=values();local v:int[]=safe(a);v[1]=15;if(a[1]!=15||consume()!=13){return 1;}return 0;}`,
+      expectedStdout: "",
+    },
+  ]);
+}, 60000);

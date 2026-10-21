@@ -1368,6 +1368,133 @@ export abstract class TypeCheckerBase {
     );
   }
 
+  /** Choose a match representation without narrowing an earlier or later yield. */
+  public unifyMatchResultTypes(
+    first: AST.TypeNode,
+    next: AST.TypeNode,
+    previousValues: readonly AST.Expression[] = [],
+    nextValues: readonly AST.Expression[] = [],
+  ): AST.TypeNode | undefined {
+    const left = this.resolveType(first);
+    const right = this.resolveType(next);
+    if (this.areTypesExactMatch(left, right)) return left;
+    if (
+      left.kind === "BasicType" &&
+      right.kind === "BasicType" &&
+      left.pointerDepth === 0 &&
+      right.pointerDepth === 0 &&
+      left.arrayDimensions.length > 0 &&
+      right.arrayDimensions.length > 0 &&
+      left.arrayDimensions.every((dimension) => dimension !== null) &&
+      right.arrayDimensions.every((dimension) => dimension !== null)
+    ) {
+      const literalsMatch = (
+        values: readonly AST.Expression[],
+        target: AST.TypeNode,
+      ) =>
+        values.length > 0 &&
+        values.every((value) => {
+          const planned = this.contextualizeArrayLiteral(value, target, false);
+          return (
+            planned !== undefined && this.areTypesExactMatch(target, planned)
+          );
+        });
+      if (literalsMatch(nextValues, left)) return left;
+      if (literalsMatch(previousValues, right)) return right;
+    }
+    if (
+      left.kind === "TupleType" &&
+      right.kind === "TupleType" &&
+      !left.arrayDimensions?.length &&
+      !right.arrayDimensions?.length &&
+      left.types.length === right.types.length
+    ) {
+      const tupleElements = (
+        values: readonly AST.Expression[],
+        index: number,
+      ): AST.Expression[] => {
+        const elements: AST.Expression[] = [];
+        const project = (value: AST.Expression): boolean => {
+          if (value.kind === "Group") return project(value.expression);
+          if (value.kind === "TupleLiteral") {
+            const element = value.elements[index];
+            if (!element) return false;
+            elements.push(element);
+            return true;
+          }
+          if (value.kind === "Ternary")
+            return project(value.trueExpr) && project(value.falseExpr);
+          if (value.kind === "Match") {
+            return value.arms.every((arm) => {
+              const yields =
+                arm.body.kind === "Block"
+                  ? (this.matchYieldValues.get(arm.body) ?? [])
+                  : [arm.body];
+              return yields.every(project);
+            });
+          }
+          return false;
+        };
+        return values.every(project) ? elements : [];
+      };
+      const types: AST.TypeNode[] = [];
+      for (let index = 0; index < left.types.length; index++) {
+        const common = this.unifyMatchResultTypes(
+          left.types[index]!,
+          right.types[index]!,
+          tupleElements(previousValues, index),
+          tupleElements(nextValues, index),
+        );
+        if (!common) return;
+        types.push(common);
+      }
+      return { ...left, types };
+    }
+    if (
+      left.kind === "BasicType" &&
+      right.kind === "BasicType" &&
+      left.pointerDepth === 0 &&
+      right.pointerDepth === 0 &&
+      !left.arrayDimensions.length &&
+      !right.arrayDimensions.length &&
+      TypeUtils.isIntegerType(left) &&
+      TypeUtils.isIntegerType(right) &&
+      !this.isBoolType(left) &&
+      !this.isBoolType(right)
+    ) {
+      if (this.isImplicitWideningAllowed(right, left)) return left;
+      if (this.isImplicitWideningAllowed(left, right)) return right;
+      const literalsFit = (
+        values: readonly AST.Expression[],
+        target: AST.TypeNode,
+      ) =>
+        values.length > 0 &&
+        values.every((expression) => {
+          let value = expression;
+          while (value.kind === "Group") value = value.expression;
+          while (
+            value.kind === "Unary" &&
+            (value.operator.type === TokenType.Plus ||
+              value.operator.type === TokenType.Minus)
+          ) {
+            value = value.operand;
+            while (value.kind === "Group") value = value.expression;
+          }
+          // Explicitly typed casts and runtime arithmetic retain their types.
+          if (value.kind !== "Literal") return false;
+          const constant = this.getIntegerConstantValue(expression);
+          return (
+            constant !== undefined &&
+            this.isIntegerTypeCompatible(constant, target)
+          );
+        });
+      if (literalsFit(nextValues, left)) return left;
+      if (literalsFit(previousValues, right)) return right;
+      return;
+    }
+    return this.areTypesCompatible(left, right) ? left : undefined;
+  }
+
   /** Plan literal array conversions without changing overload candidates' ASTs. */
   public contextualizeArrayLiteral(
     expr: AST.Expression,
@@ -1378,7 +1505,8 @@ export abstract class TypeCheckerBase {
       expr.kind !== "ArrayLiteral" &&
       expr.kind !== "TupleLiteral" &&
       expr.kind !== "Group" &&
-      expr.kind !== "Ternary"
+      expr.kind !== "Ternary" &&
+      expr.kind !== "Match"
     )
       return;
     const rootTarget = this.resolveType(targetType);
@@ -1398,6 +1526,28 @@ export abstract class TypeCheckerBase {
         const type = visit(value.expression, target);
         if (type && updates.has(value.expression)) updates.set(value, type);
         return type;
+      }
+      if (
+        value.kind === "Match" &&
+        ((target.kind === "BasicType" && target.arrayDimensions.length) ||
+          (target.kind === "TupleType" && !target.arrayDimensions?.length))
+      ) {
+        let result: AST.TypeNode | undefined;
+        for (const arm of value.arms) {
+          const yields =
+            arm.body.kind === "Block"
+              ? (this.matchYieldValues.get(arm.body) ?? [])
+              : [arm.body];
+          // A checked value match may also have diverging block arms.
+          for (const yielded of yields) {
+            const type = visit(yielded, target);
+            if (!type || (result && !this.areTypesExactMatch(result, type)))
+              return;
+            result = type;
+          }
+        }
+        if (result) updates.set(value, result);
+        return result;
       }
       if (
         value.kind === "Ternary" &&
@@ -1481,6 +1631,10 @@ export abstract class TypeCheckerBase {
         return type;
       }
       const actual = value.resolvedType;
+      if (target.kind === "TupleType" && actual?.kind === "TupleType") {
+        const common = this.unifyMatchResultTypes(target, actual);
+        if (common && this.areTypesExactMatch(target, common)) return target;
+      }
       if (
         actual &&
         (this.areTypesExactMatch(target, actual) ||
@@ -1515,7 +1669,8 @@ export abstract class TypeCheckerBase {
           value.kind === "ArrayLiteral" ||
           value.kind === "TupleLiteral" ||
           (value.kind === "Group" && updates.has(value.expression)) ||
-          value.kind === "Ternary"
+          value.kind === "Ternary" ||
+          value.kind === "Match"
         )
           value.resolvedType = contextualType;
       }
@@ -1858,14 +2013,14 @@ export abstract class TypeCheckerBase {
         if (conversion.kind === "unsupported") return false;
       }
 
-      // Generic args match
+      // Generic storage is invariant: argument conversions do not convert fields.
       if (!isWildcard) {
         if (rt1.genericArgs.length !== rt2.genericArgs.length) {
           return false;
         }
         for (let i = 0; i < rt1.genericArgs.length; i++) {
           if (
-            !this.areTypesCompatible(rt1.genericArgs[i]!, rt2.genericArgs[i]!)
+            !this.areTypesExactMatch(rt1.genericArgs[i]!, rt2.genericArgs[i]!)
           ) {
             return false;
           }

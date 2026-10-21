@@ -1933,6 +1933,7 @@ function checkMatchExprBody(
   // checkPattern and checkMatchExhaustiveness handle undefined enumDecl now.
 
   let resultType: AST.TypeNode | undefined;
+  const yieldedValues: AST.Expression[] = [];
   for (const arm of expr.arms) {
     this.currentScope = this.currentScope.enterScope();
 
@@ -1960,21 +1961,37 @@ function checkMatchExprBody(
       // A match statement discards arm values, so they need no common type.
       continue;
     }
+    const armValues =
+      arm.body.kind === "Block"
+        ? (this.matchYieldValues.get(arm.body) ?? [])
+        : [arm.body];
     if (!resultType) {
       resultType = armType;
-    } else if (armType && !this.areTypesCompatible(resultType, armType)) {
-      throw new CompilerError(
-        `Match arms must have compatible types: ${this.formatDiagnosticType(
-          resultType,
-        )} vs ${this.formatDiagnosticType(armType)}`,
-        "All match arms must return the same type.",
-        arm.location,
+    } else if (armType) {
+      const commonType = this.unifyMatchResultTypes(
+        resultType,
+        armType,
+        yieldedValues,
+        armValues,
       );
+      if (!commonType) {
+        throw new CompilerError(
+          `Match arms must have compatible types: ${this.formatDiagnosticType(
+            resultType,
+          )} vs ${this.formatDiagnosticType(armType)}`,
+          "Use compatible result types or explicitly cast yields to a common type.",
+          arm.location,
+        );
+      }
+      resultType = commonType;
     }
+    if (armType) yieldedValues.push(...armValues);
   }
 
   this.checkMatchExhaustiveness(expr, enumDecl, valueType);
 
+  // Commit literal array plans only after every arm has a compatible result.
+  if (resultType) this.contextualizeArrayLiteral(expr, resultType);
   return resultType || this.makeVoidType();
 }
 

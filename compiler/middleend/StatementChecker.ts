@@ -220,14 +220,51 @@ function mayReturnBorrowedStorage(
   });
 }
 
-/** Casts in the returned value can create the same stack spills as return decay.
+/** Conversions in returned aggregates can create the same spills as return decay.
  * Calls with borrowed results may retain arguments; scalar results cannot.
  */
 function findReturnedArrayViewCast(
   context: CheckerContext,
   expr: AST.Expression | undefined,
+  expectedType?: AST.TypeNode,
 ): AST.Expression | undefined {
   if (!expr) return undefined;
+  const destination = expectedType && context.resolveType(expectedType);
+  if (destination && expr.resolvedType) {
+    const conversion = lowerImplicitConversion(
+      destination,
+      context.resolveType(expr.resolvedType),
+    );
+    if (
+      conversion.kind === "array-to-slice" ||
+      conversion.kind === "array-to-pointer"
+    )
+      return expr;
+  }
+  // Aggregate literals lower each member using its destination type. Follow
+  // those implicit conversions as well as explicit casts in the expression.
+  const aggregateType =
+    destination ??
+    (expr.resolvedType && context.resolveType(expr.resolvedType));
+  const variantInfo =
+    expr.kind === "Call" || expr.kind === "EnumStructVariant"
+      ? expr.enumVariantInfo
+      : undefined;
+  const variantGenerics = new Map<string, AST.TypeNode>();
+  if (variantInfo) {
+    const contextualGenericArgs =
+      aggregateType?.kind === "BasicType" &&
+      aggregateType.genericArgs.length > 0 &&
+      (aggregateType.resolvedDeclaration === variantInfo.enumDecl ||
+        (aggregateType.resolvedDeclaration?.kind !== "EnumDecl" &&
+          aggregateType.name === variantInfo.enumDecl.name))
+        ? aggregateType.genericArgs
+        : variantInfo.genericArgs;
+    variantInfo.enumDecl.genericParams.forEach((parameter, index) => {
+      const argument = contextualGenericArgs[index];
+      if (argument) variantGenerics.set(parameter.name, argument);
+    });
+  }
   switch (expr.kind) {
     case "Cast":
     case "As": {
@@ -250,16 +287,47 @@ function findReturnedArrayViewCast(
       return findReturnedArrayViewCast(context, expr.expression);
     }
     case "Group":
-      return findReturnedArrayViewCast(context, expr.expression);
+      return findReturnedArrayViewCast(context, expr.expression, destination);
     case "Ternary":
       return (
-        findReturnedArrayViewCast(context, expr.trueExpr) ??
-        findReturnedArrayViewCast(context, expr.falseExpr)
+        findReturnedArrayViewCast(context, expr.trueExpr, destination) ??
+        findReturnedArrayViewCast(context, expr.falseExpr, destination)
       );
     case "StructLiteral":
     case "EnumStructVariant":
       for (const field of expr.fields) {
-        const cast = findReturnedArrayViewCast(context, field.value);
+        let fieldType: AST.TypeNode | undefined;
+        if (
+          expr.kind === "StructLiteral" &&
+          aggregateType?.kind === "BasicType"
+        ) {
+          const member = context.resolveMemberWithContext(
+            aggregateType,
+            field.name,
+          );
+          const declaration = member?.members.find(
+            (candidate): candidate is AST.StructField =>
+              candidate.kind === "StructField",
+          );
+          if (declaration) {
+            fieldType = context.substituteType(
+              declaration.type,
+              member?.genericMap ?? new Map(),
+            );
+          }
+        } else if (
+          variantInfo?.variant.dataType?.kind === "EnumVariantStruct"
+        ) {
+          const declaration = variantInfo.variant.dataType.fields.find(
+            (candidate) => candidate.name === field.name,
+          );
+          if (declaration)
+            fieldType = context.substituteType(
+              declaration.type,
+              variantGenerics,
+            );
+        }
+        const cast = findReturnedArrayViewCast(context, field.value, fieldType);
         if (cast) return cast;
       }
       break;
@@ -270,7 +338,7 @@ function findReturnedArrayViewCast(
             ? (context.matchYieldValues.get(arm.body) ?? [])
             : [arm.body];
         for (const value of values) {
-          const cast = findReturnedArrayViewCast(context, value);
+          const cast = findReturnedArrayViewCast(context, value, destination);
           if (cast) return cast;
         }
       }
@@ -284,8 +352,35 @@ function findReturnedArrayViewCast(
       ) {
         const receiverCast = findReturnedArrayViewCast(context, expr.callee);
         if (receiverCast) return receiverCast;
-        for (const argument of expr.args) {
-          const cast = findReturnedArrayViewCast(context, argument);
+        const signature =
+          expr.callee.resolvedType &&
+          context.resolveType(expr.callee.resolvedType);
+        const overload = expr.operatorOverload;
+        const overloadContext =
+          overload?.targetType.kind === "BasicType"
+            ? context.resolveMemberWithContext(
+                overload.targetType,
+                overload.methodName,
+              )
+            : undefined;
+        for (const [index, argument] of expr.args.entries()) {
+          const payload = variantInfo?.variant.dataType;
+          let fieldType =
+            payload?.kind === "EnumVariantTuple" && payload.types[index]
+              ? context.substituteType(payload.types[index]!, variantGenerics)
+              : undefined;
+          if (
+            signature?.kind === "FunctionType" ||
+            signature?.kind === "LambdaType"
+          ) {
+            fieldType = signature.paramTypes[index];
+          } else if (overload?.methodDeclaration.params[index + 1]) {
+            fieldType = context.substituteType(
+              overload.methodDeclaration.params[index + 1]!.type,
+              overloadContext?.genericMap ?? new Map(),
+            );
+          }
+          const cast = findReturnedArrayViewCast(context, argument, fieldType);
           if (cast) return cast;
         }
       }
@@ -301,7 +396,12 @@ function findReturnedArrayViewCast(
         const field = object.fields.find(
           (candidate) => candidate.name === expr.property,
         );
-        if (field) return findReturnedArrayViewCast(context, field.value);
+        if (field)
+          return findReturnedArrayViewCast(
+            context,
+            field.value,
+            expr.resolvedType,
+          );
       }
       if (
         expr.kind === "Index" &&
@@ -311,7 +411,8 @@ function findReturnedArrayViewCast(
         Number.isInteger(expr.index.value)
       ) {
         const element = object.elements[expr.index.value];
-        if (element) return findReturnedArrayViewCast(context, element);
+        if (element)
+          return findReturnedArrayViewCast(context, element, expr.resolvedType);
       }
       return findReturnedArrayViewCast(context, object);
     }
@@ -337,8 +438,24 @@ function findReturnedArrayViewCast(
       return findReturnedArrayViewCast(context, expr.base);
     case "TupleLiteral":
     case "ArrayLiteral":
-      for (const element of expr.elements) {
-        const cast = findReturnedArrayViewCast(context, element);
+      for (const [index, element] of expr.elements.entries()) {
+        let elementType: AST.TypeNode | undefined;
+        if (
+          expr.kind === "TupleLiteral" &&
+          aggregateType?.kind === "TupleType"
+        ) {
+          elementType = aggregateType.types[index];
+        } else if (
+          expr.kind === "ArrayLiteral" &&
+          aggregateType?.kind === "BasicType" &&
+          aggregateType.arrayDimensions.length
+        ) {
+          elementType = {
+            ...aggregateType,
+            arrayDimensions: aggregateType.arrayDimensions.slice(1),
+          };
+        }
+        const cast = findReturnedArrayViewCast(context, element, elementType);
         if (cast) return cast;
       }
       break;
@@ -759,7 +876,11 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     // Return lowering spills a fixed-array value before creating its view.
     // That spill belongs to this frame even if the value came from a global.
     const conversion = lowerImplicitConversion(resolvedExpected, resolvedActual);
-    const returnedCast = findReturnedArrayViewCast(this, stmt.value);
+    const returnedCast = findReturnedArrayViewCast(
+      this,
+      stmt.value,
+      resolvedExpected,
+    );
     if (
       conversion.kind === "array-to-slice" ||
       conversion.kind === "array-to-pointer" ||

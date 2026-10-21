@@ -252,8 +252,32 @@ within range. They do not reinterpret existing array storage or add implicit
 narrowing for wider variable elements; use explicit casts for those elements.
 Array dimensions still have to match; a slice destination keeps
 the literal's actual element count. This also applies to nested integer arrays
-and grouped or conditional array literals whose branches have matching shapes.
+and grouped, conditional or match array literals whose branches have matching
+shapes. A match may combine an existing fixed integer array with fitting new
+array literals of the same shape; the literals adopt the existing element type.
+Incompatible existing array storage is still rejected. Match expression arms
+and block-arm return values receive the same
+destination context.
 Overload selection keeps existing exact matches ahead of these conversions.
+
+```bpl
+frame main() ret int {
+    local bytes: u8[2] = match (true) {
+        true => [1, 2],
+        false => { return [3, 4]; },
+    };
+    return cast<int>(bytes[1]) - 2;
+}
+```
+
+Every return that yields a value from a match block must have a compatible
+type; later returns cannot silently change the element type or array length.
+For scalar integers and tuple members, match results select a yielded type that
+can represent both earlier and later yields without narrowing. Integer types
+whose signedness/range cannot be represented by either yielded type require an
+explicit cast to a common type. Uncast integer literals may adopt the other
+result type when all their values fit; earlier runtime yields cannot be ignored
+when selecting that representation. This does not reinterpret existing array storage.
 
 An implicit fixed-array-to-slice conversion inside a tuple or struct literal
 borrows existing addressable array storage. Writes through that slice are
@@ -267,12 +291,15 @@ an existing borrowed slice/pointer only when its elements outlive the call.
 Explicit array-to-view casts used within a frame create views of temporary
 array copies; they do not extend storage lifetime or provide an alias to the
 original array. Keep their use within that frame.
-The explicit-cast check also covers grouped and conditional values, match
+Implicit conversions in returned tuple, struct, enum and array literal fields
+are checked too; wrapping a temporary view in an aggregate does not extend its
+lifetime. The explicit-cast check also covers grouped and conditional values, match
 results (including block yields), projections, method receivers, value-producing
 operators, and casts inside returned aggregate literals. Scalar reads do not
 escape a borrow; constant literal projections inspect the selected value.
 A returned call whose result can contain borrowed storage is conservatively
-rejected if an argument creates such a temporary view: the compiler cannot
+rejected if an argument creates such a temporary view through an implicit
+conversion or explicit cast: the compiler cannot
 prove that the callee discards the argument. Calls returning scalar values or
 aggregates containing only values remain supported. Local view aliases are
 not tracked by this check.
