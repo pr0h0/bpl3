@@ -54,3 +54,47 @@ for (const newline of ["\n", "\r\n", "\r"]) {
     });
   }
 }
+
+for (const newline of ["\n", "\r\n", "\r"]) {
+  for (const live of [
+    "frame run(){local target:int=2;target;}",
+    "frame run(target:int){target;}",
+    "global target:int=2;\ninvalid code;",
+  ]) {
+    test(`import references respect a removed or invalid live declaration: ${live} ${JSON.stringify(newline)}`, () => {
+      const dir = mkdtempSync(join(tmpdir(), "bpl-import-live-declaration-"));
+      const file = join(dir, "main.bpl");
+      const moduleFile = join(dir, "values.bpl");
+      const source =
+        'import [target] from "./values.bpl"; frame main(){target;}';
+      writeFileSync(file, source);
+      writeFileSync(moduleFile, "global target:int=1; export target;");
+      const doc = TextDocument.create(
+        pathToFileURL(file).toString(),
+        "bpl",
+        1,
+        source,
+      );
+      const index = new SymbolIndex(resolve(import.meta.dir, "../../.."));
+      index.indexFile(moduleFile, false);
+      index.indexFile(file, false);
+      const resolver = new ASTResolver(index);
+      resolver.parseDocumentContent(moduleFile, live.replaceAll("\n", newline));
+      const handler = new ASTRenameHandler(resolver, index);
+      try {
+        const references = handler.findAllReferences(
+          doc.positionAt(source.lastIndexOf("target") + 1),
+          doc,
+        );
+        expect(references).not.toBeNull();
+        expect(
+          references?.filter(
+            (ref) => ref.uri === pathToFileURL(moduleFile).toString(),
+          ),
+        ).toEqual([]);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  }
+}

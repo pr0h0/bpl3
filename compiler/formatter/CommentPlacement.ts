@@ -1,3 +1,6 @@
+import { isDeepStrictEqual } from "node:util";
+import { Parser } from "../frontend/Parser";
+import { formatterSemantics } from "./FormatterSemantics";
 import { Token } from "../frontend/Token";
 import { TokenType } from "../frontend/TokenType";
 import { lexWithGrammar } from "../frontend/GrammarLexer";
@@ -120,14 +123,65 @@ function alignSegment(before: string[], after: string[]): Map<number, number> {
   );
 }
 
+/** Align large punctuation-only normalizations using all unchanged tokens. */
+function alignParenthesisNormalization(
+  original: PositionedToken[],
+  formatted: PositionedToken[],
+  before: string[],
+  after: string[],
+): Map<number, number> | undefined {
+  const significant = (tokens: PositionedToken[]) =>
+    tokens.flatMap((token, index) =>
+      token.token.type === TokenType.LeftParen ||
+      token.token.type === TokenType.RightParen
+        ? []
+        : [index],
+    );
+  const left = significant(original);
+  const right = significant(formatted);
+  if (
+    left.length !== right.length ||
+    left.some((index, position) => before[index] !== after[right[position]!])
+  )
+    return;
+  const matches = new Map<number, number>();
+  let previousLeft = -1;
+  let previousRight = -1;
+  for (let position = 0; position <= left.length; position++) {
+    const nextLeft = left[position] ?? before.length;
+    const nextRight = right[position] ?? after.length;
+    for (const [from, to] of alignSegment(
+      before.slice(previousLeft + 1, nextLeft),
+      after.slice(previousRight + 1, nextRight),
+    )) {
+      matches.set(previousLeft + 1 + from, previousRight + 1 + to);
+    }
+    if (position < left.length) matches.set(nextLeft, nextRight);
+    previousLeft = nextLeft;
+    previousRight = nextRight;
+  }
+  return matches;
+}
+
 /** Stable unique-token anchors split generated/large files into small diffs. */
 function alignTokens(
   original: PositionedToken[],
   formatted: PositionedToken[],
+  validateNormalization: () => void,
 ): Map<number, number> {
   const before = original.map(tokenKey);
   const after = formatted.map(tokenKey);
   if (before.length + after.length < 4096) return alignSegment(before, after);
+  const parenthesisMatches = alignParenthesisNormalization(
+    original,
+    formatted,
+    before,
+    after,
+  );
+  if (parenthesisMatches) {
+    validateNormalization();
+    return parenthesisMatches;
+  }
   const unique = (keys: string[]) => {
     const result = new Map<string, number>();
     for (let i = 0; i < keys.length; i++)
@@ -351,7 +405,18 @@ export function placeSourceComments(
   const file = comments[0]?.file ?? "format.bpl";
   const original = positionedTokens(source, file);
   const printed = positionedTokens(formatted, file);
-  const mapping = alignTokens(original, printed);
+  const mapping = alignTokens(original, printed, () => {
+    // Parenthesis positions alone cannot establish expression precedence.
+    // Compare raw parses so checker annotations cannot affect this guard.
+    const before = new Parser(source, file).parse();
+    const after = new Parser(formatted, file).parse();
+    if (
+      !isDeepStrictEqual(formatterSemantics(before), formatterSemantics(after))
+    )
+      throw new Error(
+        "Cannot preserve formatter comments: source and AST have different program semantics.",
+      );
+  });
   const offsets = lineOffsets(source);
   const groups = new Map<number, SourceComment[]>();
   const replacements = new Map<number, string>();

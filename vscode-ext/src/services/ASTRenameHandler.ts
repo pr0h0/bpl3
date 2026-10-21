@@ -87,8 +87,8 @@ export class ASTRenameHandler {
 
       // Parse document content
       const content = document.getText();
-      if (!this.astResolver.parseDocumentContent(filePath, content))
-        return null;
+      const ast = this.astResolver.parseDocumentContent(filePath, content);
+      if (!ast || (ast.errors?.length ?? 0) > 0) return null;
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
@@ -157,8 +157,8 @@ export class ASTRenameHandler {
 
       // Parse document content
       const content = document.getText();
-      if (!this.astResolver.parseDocumentContent(filePath, content))
-        return null;
+      const ast = this.astResolver.parseDocumentContent(filePath, content);
+      if (!ast || (ast.errors?.length ?? 0) > 0) return null;
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
@@ -208,8 +208,8 @@ export class ASTRenameHandler {
 
       // Parse document content
       const content = document.getText();
-      if (!this.astResolver.parseDocumentContent(filePath, content))
-        return null;
+      const ast = this.astResolver.parseDocumentContent(filePath, content);
+      if (!ast || (ast.errors?.length ?? 0) > 0) return null;
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
@@ -225,8 +225,6 @@ export class ASTRenameHandler {
 
       // Find all references based on the node type
       const references = this.findReferences(node, filePath, document);
-
-      const ast = this.astResolver.getCachedAST(filePath);
       if (
         references.length === 0 &&
         node.kind === "Identifier" &&
@@ -506,7 +504,8 @@ export class ASTRenameHandler {
 
       // Find declarations that occur before this reference
       const candidateDecls = allDecls.filter((d) => {
-        if (!d.decl.location) return false;
+        if (!d.decl.location || this.isWithinDeclarationHeader(refNode, d.decl))
+          return false;
         // Declaration must be before or at the reference position
         if (d.decl.location.startLine < refNode.location!.startLine)
           return true;
@@ -553,15 +552,9 @@ export class ASTRenameHandler {
         const searchBlocks = (node: AST.ASTNode) => {
           if (this.isLocalRenameScope(node, functionNode.body!)) {
             if (isNodeInBlock(decl, node)) {
-              // Check if this local scope is smaller than current smallest
-              if (
-                !smallestBlock ||
-                (node.location &&
-                  smallestBlock.location &&
-                  node.location.startLine > smallestBlock.location.startLine)
-              ) {
-                smallestBlock = node;
-              }
+              // Enclosing scopes are visited before their children, including
+              // when all declarations and blocks share one source line.
+              smallestBlock = node;
             }
           }
           this.traverseNode(node, searchBlocks);
@@ -674,9 +667,7 @@ export class ASTRenameHandler {
     for (let i = 0; i < allDecls.length; i++) {
       const d = allDecls[i];
       if (d) {
-        debugLog(
-          `[ASTRename]   Decl ${i}: line ${d.decl.location?.startLine}`,
-        );
+        debugLog(`[ASTRename]   Decl ${i}: line ${d.decl.location?.startLine}`);
       }
     }
 
@@ -806,7 +797,11 @@ export class ASTRenameHandler {
           (shadowDecl.location.startLine === refNode.location.startLine &&
             shadowDecl.location.startColumn <= refNode.location.startColumn);
 
-        if (!isDeclBefore) continue;
+        if (
+          !isDeclBefore ||
+          this.isWithinDeclarationHeader(refNode, shadowDecl)
+        )
+          continue;
 
         // Find the block or loop that contains this shadow declaration
         const findContainingBlock = (
@@ -1199,6 +1194,7 @@ export class ASTRenameHandler {
     const declaration = ast?.statements.find(
       (statement) => this.getSymbolName(statement) === symbolName,
     );
+    if (!ast || (ast.errors?.length ?? 0) > 0 || !declaration) return [];
     if (
       ast &&
       declaration &&
@@ -1492,7 +1488,6 @@ export class ASTRenameHandler {
       // Imported symbols require a complete workspace rename, not edits in
       // only the declaring file. Unsupported cross-file requests fail closed.
       return null;
-
     }
 
     // Check if it's a member access (field or method)
@@ -1614,15 +1609,9 @@ export class ASTRenameHandler {
       const searchBlocks = (node: AST.ASTNode) => {
         if (this.isLocalRenameScope(node, functionNode.body!)) {
           if (isNodeInBlock(decl, node)) {
-            // Check if this local scope is smaller than current smallest
-            if (
-              !smallestBlock ||
-              (node.location &&
-                smallestBlock.location &&
-                node.location.startLine > smallestBlock.location.startLine)
-            ) {
-              smallestBlock = node;
-            }
+            // Enclosing scopes are visited before their children, including
+            // when all declarations and blocks share one source line.
+            smallestBlock = node;
           }
         }
         this.traverseNode(node, searchBlocks);
@@ -1642,7 +1631,7 @@ export class ASTRenameHandler {
         (decl.location.startLine === refNode.location.startLine &&
           decl.location.startColumn <= refNode.location.startColumn);
 
-      if (isDeclBefore) {
+      if (isDeclBefore && !this.isWithinDeclarationHeader(refNode, decl)) {
         // Also check if the reference is within the scope (block) of this declaration
         const declBlock = findSmallestContainingBlock(decl);
         if (isNodeInBlock(refNode, declBlock)) {
@@ -1652,6 +1641,30 @@ export class ASTRenameHandler {
     }
 
     return false;
+  }
+
+  /** A local binding starts after its type and initializer have been evaluated. */
+  private isWithinDeclarationHeader(
+    reference: AST.ASTNode,
+    declaration: AST.VariableDecl,
+  ): boolean {
+    const location = reference.location;
+    if (!location) return false;
+    return [declaration.typeAnnotation, declaration.initializer].some(
+      (header) => {
+        const range = header?.location;
+        if (!range) return false;
+        const startsInside =
+          location.startLine > range.startLine ||
+          (location.startLine === range.startLine &&
+            location.startColumn >= range.startColumn);
+        const endsInside =
+          location.endLine < range.endLine ||
+          (location.endLine === range.endLine &&
+            location.endColumn <= range.endColumn);
+        return startsInside && endsInside;
+      },
+    );
   }
 
   private isLocalRenameScope(

@@ -7515,3 +7515,64 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   materialize its returned array. Ordinary indexing/dereferencing still borrows
   existing storage. Native O0/O3 regressions check both operators, call counts
   and that modifying the returned view does not modify the source array.
+
+
+## Large repeated condition formatting could not preserve comments
+
+- Formatting 600 repeated `if((true)){}` conditions with comments exceeded the
+  bounded token alignment distance when redundant parentheses were removed.
+  Ordinary repeated source was rejected despite matching parsed semantics.
+- Align unchanged non-parenthesis tokens in order before aligning the small
+  parenthesis gaps. Retain bounded alignment and reject changed source content.
+- Regressions cover LF, CRLF and CR inputs, configured indentation/newlines,
+  distinct comment order, semantic preservation and idempotence. Mixed
+  parenthesis additions/removals are covered too: a small net token count
+  change does not imply a small alignment distance.
+
+
+## Local rename included references from its own initializer
+
+- Renaming `local target:int=target+1` rewrote the initializer reference to
+  the new local name even though it resolves to the outer binding. Selecting
+  the initializer also resolved rename/reference lookup to the wrong local.
+- Exclude a declaration's type annotation and initializer from its own scope
+  in local-binding classification, reference grouping and parameter-shadow
+  filtering. Tests cover
+  block and loop declarations, multiline initializers and LF/CRLF/CR source.
+- Nine further regressions showed same-line nested declarations borrowed the
+  whole function scope. Choose the innermost containing scope structurally,
+  preserving outer references after minified blocks and loops. An additional
+  18 failing-before cases ensure parameter rename includes references in the
+  shadowing local initializer. Global and outer-local controls remain covered.
+
+
+## Rename accepted recovered ASTs with omitted statements
+
+- Live parsing can return a non-null program with parser errors and omit a
+  malformed statement. Rename/reference lookup treated that partial program as
+  complete and could omit references from its edits.
+- Reject programs with parser errors in prepare, rename and reference entry
+  points. Nine failing-before cases cover recovered programs across LF/CRLF/CR,
+  alongside the existing failed-parse cache controls. Completion still recovers.
+
+
+## Imported references used stale declarations from disk
+
+- When an unsaved defining buffer removed an imported global, the disk index
+  still resolved its name. Reference lookup fell back to matching tokens and
+  returned unrelated local declarations/parameters from the live buffer.
+- Require a valid live AST and matching declaration before collecting module
+  references. Nine failing-before regressions cover removed globals and
+  recovered invalid defining buffers across LF/CRLF/CR.
+
+
+## Parenthesis alignment could accept changed expression precedence
+
+- Large-input token alignment ignored parenthesis positions and could accept
+  supplied source with `(a+b)*c` changed to `a+(b*c)` while formatting the
+  original AST. Both attached and copied AST API cases reproduced the issue.
+- Before accepting parenthesis normalization, compare raw source and printed
+  parses using shared formatter semantics, ignoring redundant groups and source
+  metadata while retaining operators and expression structure. Reject changed
+  program meaning; retain valid large normalization and comment placement.
+- Two failing-before cases and the full formatter corpus/native suite pass.
