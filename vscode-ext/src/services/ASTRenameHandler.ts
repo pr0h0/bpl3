@@ -1194,6 +1194,7 @@ export class ASTRenameHandler {
     const declaration = ast?.statements.find(
       (statement) => this.getSymbolName(statement) === symbolName,
     );
+    if (!ast || (ast.errors?.length ?? 0) > 0 || !declaration) return [];
     if (
       ast &&
       declaration &&

@@ -7554,3 +7554,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Reject programs with parser errors in prepare, rename and reference entry
   points. Nine failing-before cases cover recovered programs across LF/CRLF/CR,
   alongside the existing failed-parse cache controls. Completion still recovers.
+
+
+## Imported references used stale declarations from disk
+
+- When an unsaved defining buffer removed an imported global, the disk index
+  still resolved its name. Reference lookup fell back to matching tokens and
+  returned unrelated local declarations/parameters from the live buffer.
+- Require a valid live AST and matching declaration before collecting module
+  references. Nine failing-before regressions cover removed globals and
+  recovered invalid defining buffers across LF/CRLF/CR.
