@@ -1927,14 +1927,14 @@ export abstract class TypeCheckerBase {
         if (conversion.kind === "unsupported") return false;
       }
 
-      // Generic args match
+      // Generic storage is invariant: argument conversions do not convert fields.
       if (!isWildcard) {
         if (rt1.genericArgs.length !== rt2.genericArgs.length) {
           return false;
         }
         for (let i = 0; i < rt1.genericArgs.length; i++) {
           if (
-            !this.areTypesCompatible(rt1.genericArgs[i]!, rt2.genericArgs[i]!)
+            !this.areTypesExactMatch(rt1.genericArgs[i]!, rt2.genericArgs[i]!)
           ) {
             return false;
           }

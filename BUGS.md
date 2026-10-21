@@ -7633,3 +7633,17 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   rule. Choose a yielded type that can represent both; reject incompatible
   signedness/ranges instead of emitting an implicit truncation. Preserve
   scalar expression annotations and existing array-storage restrictions.
+
+
+## Generic storage accepted incompatible payload representations
+
+- Enum constructors inferred with fixed-array payloads were accepted as enums
+  containing slices, while backend enum conversion copied incompatible payload
+  bytes. The same compatibility hole accepted stored enum/struct values,
+  differing integer widths, nested wrappers and pointer arguments.
+- Require equivalent generic arguments for stored instantiations, preserving
+  primitive aliases and valid inherited-type handling. Call/return/assignment
+  conversion of an outer wrapper must not silently convert its fields.
+- Use the contextual matching enum type for payload inspection as well. Cover
+  inferred constructors, aliases, groups, tuple/match containers and existing
+  caller-owned views; native aliases and by-value array payloads remain valid.

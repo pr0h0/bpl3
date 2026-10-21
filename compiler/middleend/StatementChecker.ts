@@ -252,8 +252,16 @@ function findReturnedArrayViewCast(
       : undefined;
   const variantGenerics = new Map<string, AST.TypeNode>();
   if (variantInfo) {
+    const contextualGenericArgs =
+      aggregateType?.kind === "BasicType" &&
+      aggregateType.genericArgs.length > 0 &&
+      (aggregateType.resolvedDeclaration === variantInfo.enumDecl ||
+        (aggregateType.resolvedDeclaration?.kind !== "EnumDecl" &&
+          aggregateType.name === variantInfo.enumDecl.name))
+        ? aggregateType.genericArgs
+        : variantInfo.genericArgs;
     variantInfo.enumDecl.genericParams.forEach((parameter, index) => {
-      const argument = variantInfo.genericArgs[index];
+      const argument = contextualGenericArgs[index];
       if (argument) variantGenerics.set(parameter.name, argument);
     });
   }

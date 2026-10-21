@@ -147,11 +147,13 @@ enum Wrapped<T>{Value(T),}
 frame tuple(v:int[])ret (int[],int){return match(true){true=>(v,3),false=>{return (v,4);},};}
 frame boxed(v:int[])ret Box<int[]>{return Box<int[]>{v:v};}
 frame wrapped(v:int[])ret Wrapped<int[]>{return Wrapped<int[]>.Value(v);}
+frame inferred(v:int[])ret Wrapped<int[]>{return Wrapped.Value(v);}
 frame selected(v:int[])ret int[]{local fields:Fields=Fields{temporary:[1,2],kept:v};return fields.kept;}
 frame main()ret int{
  local data:int[2]=[11,12];local view:int[]=data;
  local a:(int[],int)=tuple(view);local b:Box<int[]>=boxed(view);
  if(a.0[1]!=12||b.v[0]!=11||selected(view)[1]!=12){return 1;}
+ if(match(inferred(view)){Wrapped.Value(values)=>values[0],}!=11){return 2;}
  return match(wrapped(view)){Wrapped.Value(values)=>values[1]-12,};
 }`,
       expectedStdout: "",
