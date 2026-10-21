@@ -1,3 +1,4 @@
+import { isTemporaryArrayElement } from "../../common/ArrayElementStorage";
 import type { ArrayTypeNode } from "../../middleend/lowering/ImplicitConversions";
 /**
  * Handles address generation, pointer operations, and null checks.
@@ -46,6 +47,13 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       );
     }
     if (expr.kind === "Index") {
+      if (isTemporaryArrayElement(expr, (type) => this.resolveInstantiatedValueType(type))) {
+        throw new CompilerError(
+          "Cannot address an element of a temporary array",
+          "Store the array in a local variable before writing or borrowing an element.",
+          expr.location,
+        );
+      }
       return this.generateIndexAddress(
         expr as AST.IndexExpr,
         skipNullObjectCheck,
@@ -306,14 +314,14 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     return addr;
   }
 
-  private generateIndexAddress(
+  protected generateIndexAddress(
     indexExpr: AST.IndexExpr,
     skipNullObjectCheck: boolean,
+    objectAddress?: string,
   ): string {
-    const objectAddr = this.generateIndexObjectAddress(
-      indexExpr.object,
-      skipNullObjectCheck,
-    );
+    const objectAddr =
+      objectAddress ??
+      this.generateIndexObjectAddress(indexExpr.object, skipNullObjectCheck);
     const indexValRaw = this.generateExpression(indexExpr.index);
 
     // Cast index to i64 if needed

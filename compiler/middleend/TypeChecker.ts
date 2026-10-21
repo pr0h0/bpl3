@@ -1,3 +1,4 @@
+import { isTemporaryArrayElement } from "../common/ArrayElementStorage";
 /**
  * TypeChecker - Main type checking class for BPL
  * Extends TypeCheckerBase and uses modular checker functions
@@ -2234,6 +2235,18 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // These need to remain in the main class due to complexity
 
   public checkIsMutable(expr: AST.Expression): void {
+    if (isTemporaryArrayElement(expr, (type) => this.resolveType(type))) {
+      throw new CompilerError(
+        "Cannot assign to an element of a temporary array",
+        "Store the array in a local variable before modifying its elements.",
+        expr.location,
+        ASSIGNMENT_TARGET_INVALID_CODE,
+      );
+    }
+    if (expr.kind === "Group") {
+      this.checkIsMutable(expr.expression);
+      return;
+    }
     if (
       (expr.kind === "Identifier" || expr.kind === "Member") &&
       expr.resolvedDeclaration?.kind === "VariableDecl" &&

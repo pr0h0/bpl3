@@ -1145,7 +1145,23 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       return resultReg;
     }
 
-    const addr = this.generateAddress(expr);
+    // Indexing reads its base from a slot, even when the expression produces
+    // an array, slice or pointer value. Keep this spill in the read path: it
+    // must not make temporary elements assignable or addressable.
+    let objectAddress: string | undefined;
+    if (!this.isAddressableAggregateSource(expr.object)) {
+      const objectType = this.resolveInstantiatedValueType(
+        expr.object.resolvedType!,
+      );
+      const llvmType = this.resolveType(objectType);
+      const value = this.generateExpression(expr.object);
+      objectAddress = this.allocateStack(
+        `index_value_${this.labelCount++}`,
+        llvmType,
+      );
+      this.emit(`  store ${llvmType} ${value}, ${llvmType}* ${objectAddress}`);
+    }
+    const addr = this.generateIndexAddress(expr, false, objectAddress);
     const type = this.resolveType(expr.resolvedType!);
     const reg = this.newRegister();
     this.emit(`  ${reg} = load ${type}, ${type}* ${addr}`);

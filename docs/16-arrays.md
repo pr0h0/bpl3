@@ -88,6 +88,16 @@ frame main() ret int {
 
 ## Accessing Elements
 
+You can read elements directly from array-valued calls, conditionals and match
+expressions, for example `(match (flag) { true => [1, 2], false => [3, 4], })[0]`.
+Temporary tuple and struct array fields can also be indexed. The base expression
+is evaluated once before the index. These reads preserve fixed-array bounds
+checks; they do not make temporary array elements writable or allow taking
+their address. This includes fixed-array function results and their nested
+array fields. Store such a result in a local variable before modifying it.
+Conditional and match expressions selecting existing slices or
+pointers can be indexed directly as well.
+
 Elements are accessed using square brackets `[]` with 0-based indices:
 
 ```bpl

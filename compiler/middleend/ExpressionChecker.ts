@@ -1,3 +1,4 @@
+import { isTemporaryArrayElement } from "../common/ArrayElementStorage";
 import { formatDiagnosticType } from "./DiagnosticTypeFormatter";
 /**
  * ExpressionChecker - Handles type checking of expressions
@@ -932,6 +933,14 @@ export function checkUnary(
 
   // Address-of operator (&)
   if (op === TokenType.Ampersand) {
+    if (isTemporaryArrayElement(expr.operand, (type) => this.resolveType(type))) {
+      throw new CompilerError(
+        "Cannot take the address of an element of a temporary array",
+        "Store the array in a local variable before taking an element address.",
+        expr.location,
+        ADDRESS_OF_TARGET_INVALID_CODE,
+      );
+    }
     if (operandType.kind === "BasicType") {
       if (operandType.isConst) {
         throw new CompilerError(
