@@ -7576,3 +7576,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   metadata while retaining operators and expression structure. Reject changed
   program meaning; retain valid large normalization and comment placement.
 - Two failing-before cases and the full formatter corpus/native suite pass.
+
+
+## Match block typechecking ignored later yields
+
+- A block yielding an integer array first could later yield void, an array of
+  another length or a string without a diagnostic. Only its first return type
+  contributed to match result checking. Three regressions reproduce acceptance.
+- Check compatibility of every recorded block yield before using the block's
+  result type. Existing scalar widening and independent function/lambda return
+  contexts must retain their behavior.

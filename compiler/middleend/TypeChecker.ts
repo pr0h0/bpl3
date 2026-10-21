@@ -3221,9 +3221,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         const context = this.matchContext[this.matchContext.length - 1]!;
         this.matchYieldValues.set(body, context.inferredValues!);
         if (context.inferredTypes.length > 0) {
-          // For now, just take the first one or check compatibility
-          // Ideally we should unify all of them
-          return context.inferredTypes[0];
+          const resultType = context.inferredTypes[0]!;
+          for (const yieldedType of context.inferredTypes.slice(1)) {
+            if (!this.areTypesCompatible(resultType, yieldedType)) {
+              throw new CompilerError(
+                `Match block yields must have compatible types: ${this.formatDiagnosticType(resultType)} vs ${this.formatDiagnosticType(yieldedType)}`,
+                "All returns that yield a match block value must have compatible types.",
+                body.location,
+              );
+            }
+          }
+          return resultType;
         }
 
         // Check if the block diverges (ends with Throw, Break, or Continue)
