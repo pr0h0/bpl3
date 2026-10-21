@@ -7352,6 +7352,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   resolution exists. No partial edit is returned. Nine failing-before regressions
   cover variables/constants/functions, unsaved buffers and LF/CRLF/CR.
 
+## Read-only imported lookup ignored locally bound identifiers
+
+- The imported-symbol fallback ran whenever ordinary lookup returned no
+  references, including unsupported lambda and match-pattern binding references.
+  This showed locations for an imported global instead of the selected local.
+- Require the selected Identifier to be an unshadowed value reference in the
+  cached AST before using imported lookup. Six failing-before cases cover
+  lambda/match bindings and LF/CRLF/CR, with unshadowed import controls.
+
 ## Exported declaration rename left importing files inconsistent
 
 - Declining rename from importing files still allowed a defining file to rename
