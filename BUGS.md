@@ -7705,3 +7705,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   pattern bindings decline rename rather than returning partial edits.
 - Regression coverage includes rename and find-references from declaration,
   guard and body, nested scopes, minified source, LF, CRLF and standalone CR.
+
+## Reading indexed expression values required an lvalue
+
+- Array-valued match and conditional expressions passed checking but failed
+  code generation when indexed directly. Temporary struct and tuple array
+  fields, and conditional or matched slices and pointers, shared the failure.
+- Materialize a non-addressable index base once in the read generator, then
+  use the existing indexing and bounds/null-check path. Address generation
+  retains its existing rules for assignments and explicit address-taking.
+- Native O0/O3 and LLVM regressions cover array matches, conditionals, nested
+  dimensions, field and tuple projections, returned arrays, aliases, generics,
+  slices, pointers and object-before-index evaluation order.

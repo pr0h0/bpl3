@@ -306,14 +306,14 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     return addr;
   }
 
-  private generateIndexAddress(
+  protected generateIndexAddress(
     indexExpr: AST.IndexExpr,
     skipNullObjectCheck: boolean,
+    objectAddress?: string,
   ): string {
-    const objectAddr = this.generateIndexObjectAddress(
-      indexExpr.object,
-      skipNullObjectCheck,
-    );
+    const objectAddr =
+      objectAddress ??
+      this.generateIndexObjectAddress(indexExpr.object, skipNullObjectCheck);
     const indexValRaw = this.generateExpression(indexExpr.index);
 
     // Cast index to i64 if needed
