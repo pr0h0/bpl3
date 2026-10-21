@@ -7515,3 +7515,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   materialize its returned array. Ordinary indexing/dereferencing still borrows
   existing storage. Native O0/O3 regressions check both operators, call counts
   and that modifying the returned view does not modify the source array.
+
+
+## Large repeated condition formatting could not preserve comments
+
+- Formatting 600 repeated `if((true)){}` conditions with comments exceeded the
+  bounded token alignment distance when redundant parentheses were removed.
+  Ordinary repeated source was rejected despite matching parsed semantics.
+- Align unchanged non-parenthesis tokens in order before aligning the small
+  parenthesis gaps. Retain bounded alignment and reject changed source content.
+- Regressions cover LF, CRLF and CR inputs, configured indentation/newlines,
+  distinct comment order, semantic preservation and idempotence.

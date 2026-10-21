@@ -120,6 +120,46 @@ function alignSegment(before: string[], after: string[]): Map<number, number> {
   );
 }
 
+/** Align large punctuation-only normalizations using all unchanged tokens. */
+function alignParenthesisNormalization(
+  original: PositionedToken[],
+  formatted: PositionedToken[],
+  before: string[],
+  after: string[],
+): Map<number, number> | undefined {
+  const significant = (tokens: PositionedToken[]) =>
+    tokens.flatMap((token, index) =>
+      token.token.type === TokenType.LeftParen ||
+      token.token.type === TokenType.RightParen
+        ? []
+        : [index],
+    );
+  const left = significant(original);
+  const right = significant(formatted);
+  if (
+    left.length !== right.length ||
+    left.some((index, position) => before[index] !== after[right[position]!])
+  )
+    return;
+  const matches = new Map<number, number>();
+  let previousLeft = -1;
+  let previousRight = -1;
+  for (let position = 0; position <= left.length; position++) {
+    const nextLeft = left[position] ?? before.length;
+    const nextRight = right[position] ?? after.length;
+    for (const [from, to] of alignSegment(
+      before.slice(previousLeft + 1, nextLeft),
+      after.slice(previousRight + 1, nextRight),
+    )) {
+      matches.set(previousLeft + 1 + from, previousRight + 1 + to);
+    }
+    if (position < left.length) matches.set(nextLeft, nextRight);
+    previousLeft = nextLeft;
+    previousRight = nextRight;
+  }
+  return matches;
+}
+
 /** Stable unique-token anchors split generated/large files into small diffs. */
 function alignTokens(
   original: PositionedToken[],
@@ -128,6 +168,15 @@ function alignTokens(
   const before = original.map(tokenKey);
   const after = formatted.map(tokenKey);
   if (before.length + after.length < 4096) return alignSegment(before, after);
+  if (Math.abs(before.length - after.length) > 1024) {
+    const parenthesisMatches = alignParenthesisNormalization(
+      original,
+      formatted,
+      before,
+      after,
+    );
+    if (parenthesisMatches) return parenthesisMatches;
+  }
   const unique = (keys: string[]) => {
     const result = new Map<string, number>();
     for (let i = 0; i < keys.length; i++)

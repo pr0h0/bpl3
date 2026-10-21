@@ -126,6 +126,8 @@ const formatted = new Formatter().format(program, originalSource);
 Formatting a detached AST with comments and no source raises an error. If source
 and AST differ too much to align comments reliably, formatting also raises an
 error. The CLI leaves that file unchanged and reports the processing failure.
+Repeated conditions with redundant parentheses are supported without losing
+comment order, including when many conditions normalize in the same file.
 
 The API accepts optional preferences when constructing a formatter:
 
