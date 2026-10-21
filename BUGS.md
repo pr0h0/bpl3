@@ -7352,6 +7352,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   resolution exists. No partial edit is returned. Nine failing-before regressions
   cover variables/constants/functions, unsaved buffers and LF/CRLF/CR.
 
+## Method rename could target a different same-named global
+
+- Struct/enum method declarations were classified as functions, and global
+  reference lookup matched only their spelling. A method rename could edit a
+  same-named top-level function while leaving the selected method untouched.
+- Pass the resolved declaration node into global lookup and require identity
+  with the live top-level declaration. Decline unsupported method preparation.
+  Six failing-before cases cover struct/enum methods and LF/CRLF/CR.
+
 ## Failed live parsing left old ASTs available to rename operations
 
 - A failed live parse kept the previous AST cache. Rename preparation, edits
