@@ -241,11 +241,43 @@ describe("Incremental implicit conversion lowering", () => {
     expect(conversion.kind).toBe("unsupported");
   });
 
-  it("allows dynamic target dimensions to accept fixed source dimensions", () => {
+  it("allows only the outer dynamic target dimension to accept a fixed dimension", () => {
     expect(areArrayDimensionsAssignable([null], [3])).toBe(true);
     expect(areArrayDimensionsAssignable([null, 4], [3, 4])).toBe(true);
     expect(areArrayDimensionsAssignable([null, 4], [3, 5])).toBe(false);
     expect(areArrayDimensionsAssignable([3], [null])).toBe(false);
+    expect(areArrayDimensionsAssignable([null, null], [3, 4])).toBe(false);
+    expect(areArrayDimensionsAssignable([3, null], [3, 4])).toBe(false);
+    expect(areArrayDimensionsAssignable([null, null], [null, 4])).toBe(false);
+    expect(areArrayDimensionsAssignable([null, null], [3, null])).toBe(true);
+  });
+
+  it("does not lower a view when inner dimensions need element conversion", () => {
+    for (const [target, source] of [
+      [
+        [null, null],
+        [3, 4],
+      ],
+      [
+        [3, null],
+        [3, 4],
+      ],
+      [
+        [null, null],
+        [null, 4],
+      ],
+      [
+        [null, 4, null],
+        [3, 4, 5],
+      ],
+    ]) {
+      expect(
+        lowerImplicitConversion(
+          basic("int", { arrayDimensions: target }),
+          basic("int", { arrayDimensions: source }),
+        ).kind,
+      ).toBe("unsupported");
+    }
   });
 
   it("keeps Func and Lambda callable identities separate", () => {
