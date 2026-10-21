@@ -7658,3 +7658,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   members; reject runtime values or explicit casts requiring narrowing.
 - Native O0/O3 tests cover both arm orders, all block yields and tuples, with
   rejection controls that retain every prior runtime value.
+
+
+## Native regression fixtures used the default five-second test deadline
+
+- macOS LLVM CI killed an ordinary arithmetic fixture while compiling/linking
+  its O0/O3 comparison at the test runner's default five-second deadline.
+- Give each promoted native fixture the same bounded sixty-second test budget
+  used by other compiler correctness tests. Individual compiler/runtime process
+  timeouts remain in force; compiler semantics and generated programs are unchanged.
