@@ -7474,3 +7474,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   `local borrowed:int[]=values` conversion. Confirmed during tuple address tests.
 - Using an explicit direct slice before building the tuple preserves borrowing.
   Aggregate slice lowering needs a separate regression and correction.
+
+
+## Primitive aliases disagreed across implicit conversion metadata
+
+- A raw declaration such as `int[]` and a checked expression such as `i32[2]`
+  describe compatible element types, but conversion lowering compared names
+  literally and classified the array-to-slice conversion as unsupported.
+- Compare primitive canonical names without rewriting either annotation.
+  Four failing-before alias cases pass; signedness and unrelated nominal type
+  distinctions remain enforced.

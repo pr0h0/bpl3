@@ -1,4 +1,7 @@
-import { PRIMITIVE_INTEGER_NAMES } from "../../common/PrimitiveTypes";
+import {
+  getPrimitiveType,
+  PRIMITIVE_INTEGER_NAMES,
+} from "../../common/PrimitiveTypes";
 import * as AST from "../../common/AST";
 
 export type LoweredImplicitConversionKind =
@@ -139,11 +142,21 @@ export function lowerImplicitConversion(
   return { kind: "unsupported", targetType, sourceType };
 }
 
+/** Raw declarations and checked expressions can use different primitive spellings. */
+function sameBasicTypeName(left: string, right: string): boolean {
+  if (left === right) return true;
+  const primitive = getPrimitiveType(left);
+  return (
+    primitive !== undefined &&
+    primitive.canonicalName === getPrimitiveType(right)?.canonicalName
+  );
+}
+
 function sameBasicElementType(
   targetType: AST.BasicTypeNode,
   sourceType: AST.BasicTypeNode,
 ): boolean {
-  if (targetType.name !== sourceType.name) return false;
+  if (!sameBasicTypeName(targetType.name, sourceType.name)) return false;
   if (targetType.genericArgs.length !== sourceType.genericArgs.length) {
     return false;
   }
@@ -221,7 +234,7 @@ function areTypeNodesStructurallyEqual(
 
   if (left.kind === "BasicType" && right.kind === "BasicType") {
     return (
-      left.name === right.name &&
+      sameBasicTypeName(left.name, right.name) &&
       left.pointerDepth === right.pointerDepth &&
       ((left.arrayDimensions.length === 0 &&
         right.arrayDimensions.length === 0) ||
