@@ -1,3 +1,6 @@
+import { isDeepStrictEqual } from "node:util";
+import { Parser } from "../frontend/Parser";
+import { formatterSemantics } from "./FormatterSemantics";
 import { Token } from "../frontend/Token";
 import { TokenType } from "../frontend/TokenType";
 import { lexWithGrammar } from "../frontend/GrammarLexer";
@@ -164,6 +167,7 @@ function alignParenthesisNormalization(
 function alignTokens(
   original: PositionedToken[],
   formatted: PositionedToken[],
+  validateNormalization: () => void,
 ): Map<number, number> {
   const before = original.map(tokenKey);
   const after = formatted.map(tokenKey);
@@ -174,7 +178,10 @@ function alignTokens(
     before,
     after,
   );
-  if (parenthesisMatches) return parenthesisMatches;
+  if (parenthesisMatches) {
+    validateNormalization();
+    return parenthesisMatches;
+  }
   const unique = (keys: string[]) => {
     const result = new Map<string, number>();
     for (let i = 0; i < keys.length; i++)
@@ -398,7 +405,18 @@ export function placeSourceComments(
   const file = comments[0]?.file ?? "format.bpl";
   const original = positionedTokens(source, file);
   const printed = positionedTokens(formatted, file);
-  const mapping = alignTokens(original, printed);
+  const mapping = alignTokens(original, printed, () => {
+    // Parenthesis positions alone cannot establish expression precedence.
+    // Compare raw parses so checker annotations cannot affect this guard.
+    const before = new Parser(source, file).parse();
+    const after = new Parser(formatted, file).parse();
+    if (
+      !isDeepStrictEqual(formatterSemantics(before), formatterSemantics(after))
+    )
+      throw new Error(
+        "Cannot preserve formatter comments: source and AST have different program semantics.",
+      );
+  });
   const offsets = lineOffsets(source);
   const groups = new Map<number, SourceComment[]>();
   const replacements = new Map<number, string>();

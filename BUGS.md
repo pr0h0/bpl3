@@ -7564,3 +7564,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Require a valid live AST and matching declaration before collecting module
   references. Nine failing-before regressions cover removed globals and
   recovered invalid defining buffers across LF/CRLF/CR.
+
+
+## Parenthesis alignment could accept changed expression precedence
+
+- Large-input token alignment ignored parenthesis positions and could accept
+  supplied source with `(a+b)*c` changed to `a+(b*c)` while formatting the
+  original AST. Both attached and copied AST API cases reproduced the issue.
+- Before accepting parenthesis normalization, compare raw source and printed
+  parses using shared formatter semantics, ignoring redundant groups and source
+  metadata while retaining operators and expression structure. Reject changed
+  program meaning; retain valid large normalization and comment placement.
+- Two failing-before cases and the full formatter corpus/native suite pass.

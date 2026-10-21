@@ -48,3 +48,14 @@ test("large normalization does not accept changed source content", () => {
     new Formatter().format(ast, source.replaceAll("true", "false")),
   ).toThrow();
 });
+
+for (const detached of [false, true]) {
+  test(`parenthesis normalization rejects changed expression grouping detached=${detached}`, () => {
+    const source =
+      "frame main(){\n# heading\n" + "if((a+b)*c){}\n".repeat(600) + "}";
+    const parsed = new Parser(source, "changed-precedence.bpl").parse();
+    const ast = detached ? JSON.parse(JSON.stringify(parsed)) : parsed;
+    const changed = source.replaceAll("(a+b)*c", "a+(b*c)");
+    expect(() => new Formatter().format(ast, changed)).toThrow();
+  });
+}
