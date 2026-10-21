@@ -95,6 +95,7 @@ export class ASTRenameHandler {
         return null;
       }
 
+      if (this.isExportedRenameTarget(node, filePath)) return null;
       debugLog(`[ASTRename] prepareRename found node kind: ${node.kind}`);
 
       // Check if the node is renameable
@@ -159,6 +160,7 @@ export class ASTRenameHandler {
         return null;
       }
 
+      if (this.isExportedRenameTarget(node, filePath)) return null;
       // Find all references based on the node type
       const references = this.findReferences(node, filePath, document);
       if (references.length === 0) return null;
@@ -271,6 +273,16 @@ export class ASTRenameHandler {
       source,
     );
     return this.findCurrentDocumentSymbolReferences(name, definingDocument);
+  }
+
+  /** Exported names need workspace-wide edits, even from their defining file. */
+  private isExportedRenameTarget(node: AST.ASTNode, filePath: string): boolean {
+    const symbol = this.analyzeSymbol(node, filePath);
+    if (!symbol || symbol.scope !== "global") return false;
+    const name = this.getSymbolName(symbol.node);
+    return !!name && !!this.astResolver.getCachedAST(filePath)?.statements.some(
+      statement => statement.kind === "Export" && statement.items.some(item => item.name === name),
+    );
   }
 
   private isValidRenameIdentifier(name: string): boolean {
