@@ -8,11 +8,39 @@ function borrowsStorage(
   resolve: ResolveType,
 ): boolean {
   if (!type) return false;
+  // A syntactic outer pointer/slice already identifies borrowed storage.
+  // Reopening its generic pointee can reject supported callable containers.
+  if (
+    type.kind === "BasicType" &&
+    type.pointerDepth > 0 &&
+    type.arrayDimensions.length === 0
+  )
+    return true;
+  if ("arrayDimensions" in type && type.arrayDimensions?.[0] === null)
+    return true;
   const resolved = resolve(type);
-  return (
-    ("pointerDepth" in resolved && resolved.pointerDepth > 0) ||
-    ("arrayDimensions" in resolved && resolved.arrayDimensions?.[0] === null)
-  );
+  if ("arrayDimensions" in resolved && resolved.arrayDimensions?.[0] === null)
+    return true;
+  if (resolved.kind !== "BasicType" || resolved.pointerDepth === 0)
+    return false;
+  if (resolved.arrayDimensions.length === 0 || resolved.isPointerToArray)
+    return true;
+  // Aliases preserve modifier order: *Fixed points at an array, whereas
+  // FixedPointer[2] is an owned array whose elements happen to be pointers.
+  if (resolved.aliasDeclaration) {
+    const target = resolve(
+      resolved.aliasTarget ?? resolved.aliasDeclaration.type,
+    );
+    if (
+      target.kind !== "BasicType" ||
+      resolved.arrayDimensions.length !== target.arrayDimensions.length
+    )
+      return false;
+    if (resolved.pointerDepth > target.pointerDepth) return true;
+    if (resolved.pointerDepth === target.pointerDepth)
+      return borrowsStorage(target, resolve);
+  }
+  return false;
 }
 
 /** Whether an aggregate expression refers to existing storage. */

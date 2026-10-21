@@ -62,3 +62,63 @@ frame main()ret int{local a:int[2]=[1,2];local box:Box=Box{values:[3,4]};view(a)
     },
   ]);
 }, 60000);
+
+for (const [name, declarations, element] of [
+  [
+    "plain pointer array",
+    "frame make(p:*int)ret *int[2]{return [p,p];}",
+    "make(nullptr)[0]",
+  ],
+  [
+    "aliased pointer array",
+    "type Pointers=*int[2];frame make(p:*int)ret Pointers{return [p,p];}",
+    "make(nullptr)[0]",
+  ],
+  [
+    "generic pointer array",
+    "type Pair<T>=T[2];frame make<T>(p:T)ret Pair<T>{return [p,p];}",
+    "make<*int>(nullptr)[0]",
+  ],
+]) {
+  for (const operation of ["assignment", "address"]) {
+    test(`temporary ${name} rejects ${operation}`, () => {
+      const statement =
+        operation === "assignment"
+          ? `${element}=nullptr;return 0;`
+          : `local p:**int=&${element};return 0;`;
+      const checker = new TypeChecker({ collectAllErrors: true });
+      checker.checkProgram(
+        new Parser(
+          `${declarations}frame main()ret int{${statement}}`,
+          "pointer-arrays.bpl",
+        ).parse(),
+      );
+      expect(
+        checker
+          .getErrors()
+          .some(
+            (error) =>
+              error.code ===
+              (operation === "assignment"
+                ? "BPL_ASSIGNMENT_TARGET_INVALID"
+                : "BPL_ADDRESS_OF_TARGET_INVALID"),
+          ),
+      ).toBe(true);
+    });
+  }
+}
+
+test("returned pointers to array aliases and pointees from pointer-array values remain writable", () => {
+  expectCorrectnessSuite([
+    {
+      name: "array-pointer-storage-order",
+      validateLlvm: true,
+      source: `type Fixed=int[2];type Pointers=*int[2];
+global calls:int=0;
+frame fixed(p:*Fixed)ret *Fixed{calls=calls+1;return p;}
+frame pointers(p:*int)ret Pointers{calls=calls+1;return [p,p];}
+frame main()ret int{local a:Fixed=[1,2];fixed(&a)[1]=7;local x:int=3;*pointers(&x)[0]=9;if(a[1]!=7||x!=9||calls!=2)return 1;return 0;}`,
+      expectedStdout: "",
+    },
+  ]);
+}, 60000);
