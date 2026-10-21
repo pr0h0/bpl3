@@ -7758,3 +7758,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   declaration checks. Conversion lowering now retains declaration identity,
   including element types nested in generic, tuple and callable types. Reparsed
   declarations from the same source retain compatibility.
+
+## Nested array conversions changed row layout without converting elements
+
+- Assigning `int[2][2]` to `int[][]` passed checking and constructed a view of
+  slice rows backed by fixed rows. A slice row contains a pointer and length;
+  it cannot share the layout of a fixed row of integers.
+- Array dimension compatibility now allows only the outer fixed dimension to
+  become a slice dimension. Inner dimensions must match exactly. This applies
+  to assignment compatibility and conversion lowering, including aliases.
+- `int[2][2]` to `int[][2]` remains supported. To build a slice of slices,
+  construct individual row views and then an array of those views explicitly.

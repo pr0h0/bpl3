@@ -37,7 +37,9 @@ export function areArrayDimensionsAssignable(
     const target = targetDimensions[i];
     const source = sourceDimensions[i];
     if (target === source) continue;
-    if (target === null && source !== null) continue;
+    // A view replaces only the outer array. Inner dimensions describe the
+    // element layout, which cannot change without converting each element.
+    if (i === 0 && target === null && source !== null) continue;
     return false;
   }
 

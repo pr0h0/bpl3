@@ -661,6 +661,11 @@ recover a fixed array or raw pointer from a slice. Unsupported conversions are
 rejected with `BPL_CAST_INVALID`; convert elements explicitly, and index a
 nonempty slice when an element address is needed.
 
+Implicit array views follow the same layout rule: `int[3][2]` can become
+`int[][2]`, keeping fixed rows of two integers. It cannot become `int[][]` or
+`int[3][]`; those types need rows that are themselves slice values. Build each
+row view explicitly when that representation is needed.
+
 **Warning:** Casts bypass type safety. Use carefully:
 
 ```bpl
