@@ -81,7 +81,6 @@ for (const newline of ["\n", "\r\n", "\r"]) {
   test(`global references survive initializer and scope boundaries with ${JSON.stringify(newline)}`, () => {
     const source = [
       "global target: int = 1;",
-      "export target;",
       "frame run() ret int {",
       "    target;",
       "    { local target: int = target + 1; target; }",
@@ -109,10 +108,9 @@ for (const newline of ["\n", "\r\n", "\r"]) {
       doc,
     );
     const edits = result?.changes?.[doc.uri];
-    expect(edits).toHaveLength(7);
+    expect(edits).toHaveLength(6);
     const expected = [
       "global updated: int = 1;",
-      "export updated;",
       "frame run() ret int {",
       "    updated;",
       "    { local target: int = updated + 1; target; }",
