@@ -1,4 +1,5 @@
 import { applyAliasValueModifiers } from "../common/TypeAliasModifiers";
+import { getArrayAliasPointer } from "../common/ArrayAliasPointer";
 /**
  * Type utility functions for the BPL type checker
  * Provides type comparison, resolution, and conversion utilities
@@ -63,6 +64,57 @@ export const INTEGER_TYPES = PRIMITIVE_INTEGER_NAMES;
 export const NUMERIC_TYPES = PRIMITIVE_NAMES;
 export const KNOWN_TYPES = [...PRIMITIVE_NAMES, "void", "string"];
 export const TYPE_ALIASES = PRIMITIVE_ALIASES;
+
+/** Aggregate casts require a supported conversion, not scalar numeric rules.
+ * Undefined leaves scalar and pointer casts to the caller's existing rules.
+ * Inputs must already be resolved so alias modifier order remains available.
+ */
+export function arrayCastAllowance(
+  source: AST.TypeNode,
+  target: AST.TypeNode,
+): boolean | undefined {
+  const isArrayValue = (type: AST.TypeNode): boolean =>
+    "arrayDimensions" in type &&
+    !!type.arrayDimensions?.length &&
+    !(
+      type.kind === "BasicType" &&
+      type.pointerDepth > 0 &&
+      (type.isPointerToArray || getArrayAliasPointer(type) !== undefined)
+    );
+
+  const sourceIsArray = isArrayValue(source);
+  const targetIsArray = isArrayValue(target);
+  if (!sourceIsArray && !targetIsArray) return undefined;
+  // A generic parameter can itself become an array after substitution.
+  // Keep the existing generic cast policy until its representation is known.
+  if (
+    [source, target].some(
+      (type) =>
+        type.kind === "BasicType" &&
+        (type.resolvedDeclaration as { kind?: string } | undefined)?.kind ===
+          "GenericParam",
+    )
+  )
+    return undefined;
+  if (!sourceIsArray) return false;
+
+  const conversion = lowerImplicitConversion(target, source);
+  if (conversion.kind === "array-to-pointer") return !targetIsArray;
+  if (conversion.kind === "identity") return targetIsArray;
+  if (conversion.kind === "array-to-slice" && targetIsArray) {
+    // Only the outer array becomes a view; inner arrays keep their layout.
+    return (
+      "arrayDimensions" in target &&
+      target.arrayDimensions?.[0] === null &&
+      "arrayDimensions" in source &&
+      areArrayDimensionsExactlyEqual(
+        target.arrayDimensions.slice(1),
+        source.arrayDimensions?.slice(1) ?? [],
+      )
+    );
+  }
+  return false;
+}
 
 /**
  * Type utilities class providing static methods for type operations
@@ -696,6 +748,9 @@ export class TypeComparison {
   isCastAllowed(source: AST.TypeNode, target: AST.TypeNode): boolean {
     const resolvedSource = this.resolveTypeFn(source);
     const resolvedTarget = this.resolveTypeFn(target);
+
+    const arrayAllowance = arrayCastAllowance(resolvedSource, resolvedTarget);
+    if (arrayAllowance !== undefined) return arrayAllowance;
 
     if (this.areTypesCompatible(resolvedSource, resolvedTarget)) return true;
 

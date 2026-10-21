@@ -654,6 +654,13 @@ local signed: int = -1;
 local unsigned: uint = cast<uint>(signed);
 ```
 
+Array casts preserve the element type and layout. A fixed array can be cast to
+a matching slice or element pointer; casting an array or slice to the identical
+type is also supported. Casts do not convert each element, resize an array, or
+recover a fixed array or raw pointer from a slice. Unsupported conversions are
+rejected with `BPL_CAST_INVALID`; convert elements explicitly, and index a
+nonempty slice when an element address is needed.
+
 **Warning:** Casts bypass type safety. Use carefully:
 
 ```bpl
