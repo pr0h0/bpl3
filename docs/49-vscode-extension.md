@@ -99,6 +99,13 @@ Global value renames respect local, parameter, lambda, catch and match bindings
 and preserve unrelated member names. Renaming lambda parameters and resolving
 type-name/generic shadowing are still incomplete.
 
+Match-pattern renames apply to the binding declaration and its uses in that
+arm's guard and body. Identifier, tuple and enum-tuple bindings preserve
+same-named outer variables, parameters and sibling or nested bindings. Local
+initializers still refer to the preceding binding. Struct-pattern string
+bindings and duplicate names within a single pattern currently decline rename
+because they do not provide an unambiguous supported declaration target.
+
 ### Inlay Hints
 
 Inline type annotations for:

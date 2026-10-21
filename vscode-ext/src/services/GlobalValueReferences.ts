@@ -27,9 +27,9 @@ function bindsPattern(pattern: AST.Pattern, name: string): boolean {
   }
 }
 
-/** Find value references that resolve past local bindings to a global name. */
-export function collectGlobalValueReferences(
-  program: AST.Program,
+/** Find value references that resolve past local bindings to an outer name. */
+export function collectUnshadowedValueReferences(
+  program: AST.ASTNode | undefined,
   name: string,
 ): AST.ASTNode[] {
   const references: AST.ASTNode[] = [];
@@ -130,4 +130,12 @@ export function collectGlobalValueReferences(
   };
   visit(program, false);
   return references;
+}
+
+/** Find value references that resolve past local bindings to a global name. */
+export function collectGlobalValueReferences(
+  program: AST.Program,
+  name: string,
+): AST.ASTNode[] {
+  return collectUnshadowedValueReferences(program, name);
 }
