@@ -1378,7 +1378,8 @@ export abstract class TypeCheckerBase {
       expr.kind !== "ArrayLiteral" &&
       expr.kind !== "TupleLiteral" &&
       expr.kind !== "Group" &&
-      expr.kind !== "Ternary"
+      expr.kind !== "Ternary" &&
+      expr.kind !== "Match"
     )
       return;
     const rootTarget = this.resolveType(targetType);
@@ -1398,6 +1399,28 @@ export abstract class TypeCheckerBase {
         const type = visit(value.expression, target);
         if (type && updates.has(value.expression)) updates.set(value, type);
         return type;
+      }
+      if (
+        value.kind === "Match" &&
+        ((target.kind === "BasicType" && target.arrayDimensions.length) ||
+          (target.kind === "TupleType" && !target.arrayDimensions?.length))
+      ) {
+        let result: AST.TypeNode | undefined;
+        for (const arm of value.arms) {
+          const yields =
+            arm.body.kind === "Block"
+              ? (this.matchYieldValues.get(arm.body) ?? [])
+              : [arm.body];
+          // A checked value match may also have diverging block arms.
+          for (const yielded of yields) {
+            const type = visit(yielded, target);
+            if (!type || (result && !this.areTypesExactMatch(result, type)))
+              return;
+            result = type;
+          }
+        }
+        if (result) updates.set(value, result);
+        return result;
       }
       if (
         value.kind === "Ternary" &&
@@ -1515,7 +1538,8 @@ export abstract class TypeCheckerBase {
           value.kind === "ArrayLiteral" ||
           value.kind === "TupleLiteral" ||
           (value.kind === "Group" && updates.has(value.expression)) ||
-          value.kind === "Ternary"
+          value.kind === "Ternary" ||
+          value.kind === "Match"
         )
           value.resolvedType = contextualType;
       }

@@ -7586,3 +7586,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Check compatibility of every recorded block yield before using the block's
   result type. Existing scalar widening and independent function/lambda return
   contexts must retain their behavior.
+
+
+## Match results lost integer-array destination context
+
+- Direct integer-array literals and tuple containers received destination
+  element types, but equivalent match results still inferred i32 arrays and
+  failed declarations, assignments, calls, returns, fields and aliases.
+- Extend the transactional conversion planner through expression arms and
+  recorded block yields, requiring compatible representations before applying
+  any annotation changes. Preserve scalar annotations and overload priority.
+- Cover nested/grouped matches, mixed block/expression and diverging arms,
+  tuples and slices; retain overflow, array-shape and storage restrictions.

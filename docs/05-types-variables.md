@@ -252,8 +252,23 @@ within range. They do not reinterpret existing array storage or add implicit
 narrowing for wider variable elements; use explicit casts for those elements.
 Array dimensions still have to match; a slice destination keeps
 the literal's actual element count. This also applies to nested integer arrays
-and grouped or conditional array literals whose branches have matching shapes.
+and grouped, conditional or match array literals whose branches have matching
+shapes. Match expression arms and block-arm return values receive the same
+destination context.
 Overload selection keeps existing exact matches ahead of these conversions.
+
+```bpl
+frame main() ret int {
+    local bytes: u8[2] = match (true) {
+        true => [1, 2],
+        false => { return [3, 4]; },
+    };
+    return cast<int>(bytes[1]) - 2;
+}
+```
+
+Every return that yields a value from a match block must have a compatible
+type; later returns cannot silently change the element type or array length.
 
 An implicit fixed-array-to-slice conversion inside a tuple or struct literal
 borrows existing addressable array storage. Writes through that slice are

@@ -58,7 +58,7 @@ frame main() ret int {
 Integer array literals inside a tuple use the destination element type, just as
 standalone array literals do. For example, `local pair: (u8[2], int) =
 ([1, 2], 3);` checks each array element against `u8`. This also applies to tuple
-arguments, return values, struct fields and grouped/ternary tuple literals.
+arguments, return values, struct fields and grouped, ternary and match tuple literals.
 Out-of-range constants and incompatible existing array storage remain errors;
 explicit casts retain their existing meaning.
 
