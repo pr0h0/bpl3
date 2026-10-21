@@ -9,6 +9,19 @@ import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 for (const source of [
+  "frame bad()ret (int[],int){return ([1,2],3);}",
+  "frame bad()ret (u8[],int){return match(true){true=>([1,2],3),false=>{return ([4,5],6);},};}",
+  "frame bad()ret (int[],int){return ((([1,2],3)));}",
+  "frame bad()ret (int[],int){return true?([1,2],3):([4,5],6);}",
+  "frame bad()ret ((int[],int),int){return (([1,2],3),4);}",
+  "struct Box{v:int[],}frame bad()ret Box{return Box{v:[1,2]};}",
+  "struct Box<T>{v:T,}frame bad()ret Box<int[]>{return Box<int[]>{v:[1,2]};}",
+  "struct Box{v:int[],}frame bad()ret int[]{return (Box{v:[1,2]}).v;}",
+  "struct Box{v:u8[],}frame bad()ret Box{return Box{v:match(true){true=>[1,2],false=>[3,4],}};}",
+  "enum Box{Value(int[]),}frame bad()ret Box{return Box.Value([1,2]);}",
+  "enum Box{Value{v:int[]},}frame bad()ret Box{return Box.Value{v:[1,2]};}",
+  "enum Box<T>{Value(T),}frame bad()ret Box<int[]>{return Box<int[]>.Value([1,2]);}",
+  "frame bad()ret int[2][]{return [[1,2],[3,4]];}",
   "frame bad()ret int[]{return [1,2];}",
   "frame bad()ret *int{return [1,2];}",
   "frame bad()ret int[]{local a:int[2]=[1,2];return a;}",
@@ -114,3 +127,26 @@ test("literal field projection discards unrelated borrowed temporaries", () => {
   );
   expect(checker.getErrors()).toEqual([]);
 });
+
+test("returned aggregates preserve caller-owned views and discard unrelated fields at O0/O3", () => {
+  expectCorrectnessSuite([
+    {
+      name: "return-safe-view-aggregates",
+      validateLlvm: true,
+      source: `struct Box<T>{v:T,}
+struct Fields{temporary:int[],kept:int[],}
+enum Wrapped<T>{Value(T),}
+frame tuple(v:int[])ret (int[],int){return match(true){true=>(v,3),false=>{return (v,4);},};}
+frame boxed(v:int[])ret Box<int[]>{return Box<int[]>{v:v};}
+frame wrapped(v:int[])ret Wrapped<int[]>{return Wrapped<int[]>.Value(v);}
+frame selected(v:int[])ret int[]{local fields:Fields=Fields{temporary:[1,2],kept:v};return fields.kept;}
+frame main()ret int{
+ local data:int[2]=[11,12];local view:int[]=data;
+ local a:(int[],int)=tuple(view);local b:Box<int[]>=boxed(view);
+ if(a.0[1]!=12||b.v[0]!=11||selected(view)[1]!=12){return 1;}
+ return match(wrapped(view)){Wrapped.Value(values)=>values[1]-12,};
+}`,
+      expectedStdout: "",
+    },
+  ]);
+}, 60000);

@@ -282,7 +282,9 @@ an existing borrowed slice/pointer only when its elements outlive the call.
 Explicit array-to-view casts used within a frame create views of temporary
 array copies; they do not extend storage lifetime or provide an alias to the
 original array. Keep their use within that frame.
-The explicit-cast check also covers grouped and conditional values, match
+Implicit conversions in returned tuple, struct, enum and array literal fields
+are checked too; wrapping a temporary view in an aggregate does not extend its
+lifetime. The explicit-cast check also covers grouped and conditional values, match
 results (including block yields), projections, method receivers, value-producing
 operators, and casts inside returned aggregate literals. Scalar reads do not
 escape a borrow; constant literal projections inspect the selected value.

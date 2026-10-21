@@ -7598,3 +7598,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   any annotation changes. Preserve scalar annotations and overload priority.
 - Cover nested/grouped matches, mixed block/expression and diverging arms,
   tuples and slices; retain overflow, array-shape and storage restrictions.
+
+
+## Returned aggregates hid implicit temporary array views
+
+- Returning tuples, structs, enum payloads or arrays containing implicit
+  array-to-slice conversions bypassed the existing temporary-view diagnostic.
+  Thirteen checker regressions were accepted before this fix, including
+  contextual match results, generic payloads and literal projections.
+- Carry destination field/element types through returned literal traversal;
+  diagnose implicit conversions with `BPL_RETURN_ARRAY_VIEW_ESCAPES` alongside
+  explicit casts. Preserve caller-owned views and selected fields that discard
+  unrelated temporary views. This is a local expression check, not general
+  lifetime or alias tracking.
