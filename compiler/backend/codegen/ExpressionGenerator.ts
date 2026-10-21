@@ -821,7 +821,12 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       }
     }
 
-    if (expr.object.kind === "Call") {
+    let memberBase = expr.object;
+    while (memberBase.kind === "Group") memberBase = memberBase.expression;
+    if (
+      memberBase.kind === "Call" ||
+      !this.isAddressableAggregateSource(expr.object)
+    ) {
       const callType = expr.object.resolvedType as
         | AST.BasicTypeNode
         | undefined;
@@ -833,8 +838,8 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         );
       }
 
-      // When a call returns a value (non-pointer), materialize a temporary so reads work.
-      // For pointer returns, we can treat the call result as the base pointer directly.
+      // Value expressions have no field address until materialized. Evaluate
+      // the aggregate once; pointer expressions already provide the base.
       const isPointerReturn = callType.pointerDepth > 0;
       const llvmObjType = this.resolveType(callType);
       let basePtr: string;

@@ -108,6 +108,12 @@ struct Complex {
 }
 ```
 
+Fields can be read directly from a struct value expression, including a
+parenthesized literal, function result, conditional or match result. The base
+expression is evaluated once for each field read. Reading a field containing a
+slice or pointer preserves that borrowed view; it does not extend the lifetime
+of the underlying storage.
+
 ### Member Initialization
 
 Members are not automatically initialized:

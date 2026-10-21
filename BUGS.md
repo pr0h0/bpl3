@@ -7681,3 +7681,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Tuple projections retain complete nested yield sets; stored tuple scalar
   fields may widen without changing their source annotations. Preserve integer
   ranges, scalar arithmetic, evaluation counts and returned-view diagnostics.
+
+
+## Struct field reads required an address for temporary values
+
+- Field reads on literal, conditional, match and nested struct values passed
+  checking but failed native code generation as non-lvalues. Six failing-before
+  native regressions cover these reads and selecting a caller-owned slice.
+- Materialize non-addressable aggregate values once when reading a field, as
+  for existing call results. Unwrap grouped calls before choosing their pointer
+  base. Preserve ordinary variable storage and address-taking/assignment rules.
+- Add LLVM/O0/O3 controls for generic literals, evaluation counts and grouped
+  pointer-returning calls.
