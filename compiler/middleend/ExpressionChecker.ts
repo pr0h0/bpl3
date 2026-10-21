@@ -1962,14 +1962,18 @@ function checkMatchExprBody(
     }
     if (!resultType) {
       resultType = armType;
-    } else if (armType && !this.areTypesCompatible(resultType, armType)) {
-      throw new CompilerError(
-        `Match arms must have compatible types: ${this.formatDiagnosticType(
-          resultType,
-        )} vs ${this.formatDiagnosticType(armType)}`,
-        "All match arms must return the same type.",
-        arm.location,
-      );
+    } else if (armType) {
+      const commonType = this.unifyMatchResultTypes(resultType, armType);
+      if (!commonType) {
+        throw new CompilerError(
+          `Match arms must have compatible types: ${this.formatDiagnosticType(
+            resultType,
+          )} vs ${this.formatDiagnosticType(armType)}`,
+          "Use compatible result types or explicitly cast yields to a common type.",
+          arm.location,
+        );
+      }
+      resultType = commonType;
     }
   }
 

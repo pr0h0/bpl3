@@ -1368,6 +1368,51 @@ export abstract class TypeCheckerBase {
     );
   }
 
+  /** Choose a match representation without narrowing an earlier or later yield. */
+  public unifyMatchResultTypes(
+    first: AST.TypeNode,
+    next: AST.TypeNode,
+  ): AST.TypeNode | undefined {
+    const left = this.resolveType(first);
+    const right = this.resolveType(next);
+    if (this.areTypesExactMatch(left, right)) return left;
+    if (
+      left.kind === "TupleType" &&
+      right.kind === "TupleType" &&
+      !left.arrayDimensions?.length &&
+      !right.arrayDimensions?.length &&
+      left.types.length === right.types.length
+    ) {
+      const types: AST.TypeNode[] = [];
+      for (let index = 0; index < left.types.length; index++) {
+        const common = this.unifyMatchResultTypes(
+          left.types[index]!,
+          right.types[index]!,
+        );
+        if (!common) return;
+        types.push(common);
+      }
+      return { ...left, types };
+    }
+    if (
+      left.kind === "BasicType" &&
+      right.kind === "BasicType" &&
+      left.pointerDepth === 0 &&
+      right.pointerDepth === 0 &&
+      !left.arrayDimensions.length &&
+      !right.arrayDimensions.length &&
+      TypeUtils.isIntegerType(left) &&
+      TypeUtils.isIntegerType(right) &&
+      !this.isBoolType(left) &&
+      !this.isBoolType(right)
+    ) {
+      if (this.isImplicitWideningAllowed(right, left)) return left;
+      if (this.isImplicitWideningAllowed(left, right)) return right;
+      return;
+    }
+    return this.areTypesCompatible(left, right) ? left : undefined;
+  }
+
   /** Plan literal array conversions without changing overload candidates' ASTs. */
   public contextualizeArrayLiteral(
     expr: AST.Expression,

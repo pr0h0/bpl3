@@ -269,6 +269,10 @@ frame main() ret int {
 
 Every return that yields a value from a match block must have a compatible
 type; later returns cannot silently change the element type or array length.
+For scalar integers and tuple members, match results select a yielded type that
+can represent both earlier and later yields without narrowing. Integer types
+whose signedness/range cannot be represented by either yielded type require an
+explicit cast to a common type. This does not reinterpret existing array storage.
 
 An implicit fixed-array-to-slice conversion inside a tuple or struct literal
 borrows existing addressable array storage. Writes through that slice are

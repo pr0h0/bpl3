@@ -741,8 +741,17 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       // Implicit return from block is not yet supported in AST
       return null;
     }
-    // Expression - generate and return
-    return this.generateExpression(body as AST.Expression);
+    // Expression arms join the same result representation as block yields.
+    const value = this.generateExpression(body);
+    const match = this.matchStack[this.matchStack.length - 1];
+    if (!match || match.isStatementPosition || !body.resolvedType) return value;
+    return this.emitCast(
+      value,
+      this.resolveType(body.resolvedType),
+      match.resultType,
+      body.resolvedType,
+      match.resultTypeNode,
+    );
   }
 
   protected llvmTypeToBplType(llvmType: string): string {

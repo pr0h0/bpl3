@@ -3203,6 +3203,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
+  /** Check an arm, unifying every value-producing block yield without narrowing. */
   public checkMatchArmBody(
     body: AST.Expression | AST.BlockStmt,
     isStatementPosition: boolean = false,
@@ -3221,15 +3222,20 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         const context = this.matchContext[this.matchContext.length - 1]!;
         this.matchYieldValues.set(body, context.inferredValues!);
         if (context.inferredTypes.length > 0) {
-          const resultType = context.inferredTypes[0]!;
+          let resultType = context.inferredTypes[0]!;
           for (const yieldedType of context.inferredTypes.slice(1)) {
-            if (!this.areTypesCompatible(resultType, yieldedType)) {
+            const commonType = this.unifyMatchResultTypes(
+              resultType,
+              yieldedType,
+            );
+            if (!commonType) {
               throw new CompilerError(
                 `Match block yields must have compatible types: ${this.formatDiagnosticType(resultType)} vs ${this.formatDiagnosticType(yieldedType)}`,
                 "All returns that yield a match block value must have compatible types.",
                 body.location,
               );
             }
+            resultType = commonType;
           }
           return resultType;
         }

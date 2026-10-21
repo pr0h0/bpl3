@@ -7622,3 +7622,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   argument traversal, including specialized generics and instance methods.
   Eight checker regressions fail before the fix; retain fixed-array returns,
   existing caller-owned views and scalar consumers of temporary views.
+
+
+## Match results silently narrowed later integer yields
+
+- Keeping the first match-block/arm type allowed a later 256 to truncate to u8
+  before an enclosing int return widened it. Tuple members had the same issue.
+  Four native and two checker regressions fail before the fix.
+- Unify block yields and sibling arms with the same non-narrowing integer/tuple
+  rule. Choose a yielded type that can represent both; reject incompatible
+  signedness/ranges instead of emitting an implicit truncation. Preserve
+  scalar expression annotations and existing array-storage restrictions.
