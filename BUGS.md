@@ -7740,3 +7740,21 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   existing addressable array storage, with one evaluation of the source.
 - Constant arrays cannot produce mutable explicit views. Casts of temporary
   arrays retain frame-local storage and the existing return-lifetime checks.
+
+## Aggregate casts incorrectly used scalar conversion rules
+
+- Cast checking accepted unsupported array/slice conversions, including
+  `cast<*int>(slice)`, `cast<int>(array)`, `cast<int[2]>(scalar)`, slice-to-fixed
+  array casts, and changing array element widths. These failed later during
+  code generation instead of producing a cast diagnostic.
+- Check aggregate shape before assignment compatibility and scalar numeric or
+  pointer rules. Preserve identical array/slice types and supported fixed-array
+  views; reject unsupported conversions with `BPL_CAST_INVALID`.
+- Explicit fixed-array views of tuples and callbacks now use the supported
+  conversion direction instead of the reversed assignment compatibility check.
+- Pointers to array aliases remain pointer values. Arrays whose elements are
+  pointers remain aggregates and cannot use scalar pointer reinterpretation.
+- CodeRabbit identified that the new aggregate fast path could skip nominal
+  declaration checks. Conversion lowering now retains declaration identity,
+  including element types nested in generic, tuple and callable types. Reparsed
+  declarations from the same source retain compatibility.

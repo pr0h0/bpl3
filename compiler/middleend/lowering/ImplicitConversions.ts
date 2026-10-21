@@ -3,6 +3,7 @@ import {
   PRIMITIVE_INTEGER_NAMES,
 } from "../../common/PrimitiveTypes";
 import * as AST from "../../common/AST";
+import { haveDistinctNominalDeclarations } from "../../common/NominalTypeIdentity";
 
 export type LoweredImplicitConversionKind =
   | "identity"
@@ -157,6 +158,7 @@ function sameBasicElementType(
   sourceType: AST.BasicTypeNode,
 ): boolean {
   if (!sameBasicTypeName(targetType.name, sourceType.name)) return false;
+  if (haveDistinctNominalDeclarations(targetType, sourceType)) return false;
   if (targetType.genericArgs.length !== sourceType.genericArgs.length) {
     return false;
   }
@@ -235,6 +237,7 @@ function areTypeNodesStructurallyEqual(
   if (left.kind === "BasicType" && right.kind === "BasicType") {
     return (
       sameBasicTypeName(left.name, right.name) &&
+      !haveDistinctNominalDeclarations(left, right) &&
       left.pointerDepth === right.pointerDepth &&
       ((left.arrayDimensions.length === 0 &&
         right.arrayDimensions.length === 0) ||

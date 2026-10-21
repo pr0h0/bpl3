@@ -21,6 +21,7 @@ import {
 } from "./BuiltinTypes";
 import {
   TypeUtils,
+  arrayCastAllowance,
   haveDistinctNominalDeclarations,
   TypeSubstitution,
   NUMERIC_TYPES,
@@ -2826,6 +2827,9 @@ export abstract class TypeCheckerBase {
   public isCastAllowed(source: AST.TypeNode, target: AST.TypeNode): boolean {
     const resolvedSource = this.resolveType(source);
     const resolvedTarget = this.resolveType(target);
+
+    const arrayAllowance = arrayCastAllowance(resolvedSource, resolvedTarget);
+    if (arrayAllowance !== undefined) return arrayAllowance;
 
     // Allow casting TO Any from anything
     if (
