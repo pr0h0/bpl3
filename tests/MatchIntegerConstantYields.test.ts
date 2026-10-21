@@ -29,6 +29,14 @@ for (const expression of [
     const source = `frame bad(flag:bool,n:int,v:u64)ret ${result}{return ${expression};}`;
     const checker = new TypeChecker({ collectAllErrors: true });
     checker.checkProgram(new Parser(source, "match-literals.bpl").parse());
-    expect(checker.getErrors().length).toBeGreaterThan(0);
+    expect(
+      checker
+        .getErrors()
+        .some((error) =>
+          /Match (arms|block yields) must have compatible types/.test(
+            error.message,
+          ),
+        ),
+    ).toBe(true);
   });
 }

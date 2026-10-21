@@ -62,6 +62,10 @@ test("mixed array match values lower once without narrowing tuple arithmetic at 
 frame flag(v:bool)ret bool{calls=calls+1;return v;}
 frame choose(old:u8[2],v:bool)ret u8[2]{return match(flag(v)){true=>old,false=>{return [3,4];},};}
 frame sum<T>(v:T[2])ret int{return cast<int>(v[0])+cast<int>(v[1]);}
+frame arrayKind(v:u8[2])ret int{v;return 8;}
+frame arrayKind(v:int[2])ret int{v;return 32;}
+frame tupleKind(v:(u8[2],u8))ret int{v;return 8;}
+frame tupleKind(v:(u8[2],int))ret int{v;return 32;}
 frame main()ret int{
  local old:u8[2]=[1,2];local a:u8[2]=choose(old,true);local b:u8[2]=choose(old,false);
  a[0]=cast<u8>(9);if(old[0]!=cast<u8>(1)||b[1]!=cast<u8>(4)||calls!=2){return 1;}
@@ -74,6 +78,11 @@ frame main()ret int{
  if(same.1!=7){return 4;}
  local nested:(u8[2],int)=match(false){true=>pair,false=>match(flag(true)){true=>([10,11],256),false=>([12,13],257),},};
  if(nested.1!=256||nested.0[1]!=cast<u8>(11)||calls!=3){return 6;}
+ if(arrayKind(match(false){true=>old,false=>[8,9],})!=8){return 7;}
+ if(tupleKind(match(false){true=>pair,false=>([8,9],n),})!=32){return 8;}
+ local grid:u8[2][2]=[[1,2],[3,4]];
+ local matrix:u8[2][2]=match(false){true=>grid,false=>[[5,6],[7,8]],};
+ if(matrix[1][1]!=cast<u8>(8)){return 9;}
  local ints:int[2]=[1,2];local widened:int[2]=match(false){true=>ints,false=>[cast<u8>(255)+cast<u8>(1),cast<u8>(2)],};
  if(widened[0]!=0||widened[1]!=2){return 5;}return 0;
 }`,

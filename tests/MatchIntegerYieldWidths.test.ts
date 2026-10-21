@@ -59,6 +59,14 @@ for (const body of [
     const source = `frame choose(flag:bool)ret i64{return ${body};}frame main(){choose(false);}`;
     const checker = new TypeChecker({ collectAllErrors: true });
     checker.checkProgram(new Parser(source, "match-widths.bpl").parse());
-    expect(checker.getErrors().length).toBeGreaterThan(0);
+    expect(
+      checker
+        .getErrors()
+        .some((error) =>
+          /Match (arms|block yields) must have compatible types/.test(
+            error.message,
+          ),
+        ),
+    ).toBe(true);
   });
 }
