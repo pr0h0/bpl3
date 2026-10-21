@@ -66,6 +66,8 @@ Tuple members of mutable storage support assignment and address-taking. For
 array members, `pair.0[index]` accesses the array inside the tuple. Nested tuple
 and struct fields use the same storage; by-value function parameters still
 receive copies. Const tuple storage cannot be assigned through its members.
+Array members of returned tuples can be indexed directly, as in `make().0[0]`;
+the returned tuple is materialized once for the access.
 
 ### Creating Tuples from Expressions
 

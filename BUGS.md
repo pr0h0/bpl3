@@ -7457,6 +7457,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   overload priority, scalar conversions, aliases, slices and callable arguments.
   Empty arrays and match result contextual typing remain separate work.
 
+## Returned tuple array members lacked temporary storage
+
+- The checker accepted `make().0[0]`, but array indexing tried to take the
+  address of the tuple call before generating its field address and failed.
+- Materialize a returned tuple once before addressing its members. Native
+  O0/O3 controls cover direct/grouped calls and assert one factory evaluation
+  per access. Existing tuple storage/const checks remain green.
+
 ## Tuple members could not generate their addresses
 
 - `frame read(pair:(u8[2],u8)) ret int { return cast<int>(pair.0[0]); }`

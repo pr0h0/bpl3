@@ -51,3 +51,23 @@ for (const statement of ["pair.0=3;", "pair.0[0]=3;"]) {
     ).toBe(true);
   });
 }
+
+test("returned tuple array members are materialized once before indexing at O0/O3", () => {
+  expectCorrectnessSuite([
+    {
+      name: "returned-tuple-member-addresses",
+      validateLlvm: true,
+      source: `
+      import printf from "std/c.bpl";
+      global calls:int=0;
+      frame make()ret (int[2],int){calls=calls+1;return ([1,2],3);}
+      frame main()ret int{
+        local first:int=make().0[1];
+        local second:int=((make())).0[0];
+        printf("%d %d %d\\n",first,second,calls);
+        return 0;
+      }`,
+      expectedStdout: "2 1 2\n",
+    },
+  ]);
+}, 60000);
