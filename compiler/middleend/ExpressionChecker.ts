@@ -1990,6 +1990,8 @@ function checkMatchExprBody(
 
   this.checkMatchExhaustiveness(expr, enumDecl, valueType);
 
+  // Commit literal array plans only after every arm has a compatible result.
+  if (resultType) this.contextualizeArrayLiteral(expr, resultType);
   return resultType || this.makeVoidType();
 }
 

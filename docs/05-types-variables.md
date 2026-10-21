@@ -253,7 +253,10 @@ narrowing for wider variable elements; use explicit casts for those elements.
 Array dimensions still have to match; a slice destination keeps
 the literal's actual element count. This also applies to nested integer arrays
 and grouped, conditional or match array literals whose branches have matching
-shapes. Match expression arms and block-arm return values receive the same
+shapes. A match may combine an existing fixed integer array with fitting new
+array literals of the same shape; the literals adopt the existing element type.
+Incompatible existing array storage is still rejected. Match expression arms
+and block-arm return values receive the same
 destination context.
 Overload selection keeps existing exact matches ahead of these conversions.
 

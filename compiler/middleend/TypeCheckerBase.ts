@@ -1379,6 +1379,30 @@ export abstract class TypeCheckerBase {
     const right = this.resolveType(next);
     if (this.areTypesExactMatch(left, right)) return left;
     if (
+      left.kind === "BasicType" &&
+      right.kind === "BasicType" &&
+      left.pointerDepth === 0 &&
+      right.pointerDepth === 0 &&
+      left.arrayDimensions.length > 0 &&
+      right.arrayDimensions.length > 0 &&
+      left.arrayDimensions.every((dimension) => dimension !== null) &&
+      right.arrayDimensions.every((dimension) => dimension !== null)
+    ) {
+      const literalsMatch = (
+        values: readonly AST.Expression[],
+        target: AST.TypeNode,
+      ) =>
+        values.length > 0 &&
+        values.every((value) => {
+          const planned = this.contextualizeArrayLiteral(value, target, false);
+          return (
+            planned !== undefined && this.areTypesExactMatch(target, planned)
+          );
+        });
+      if (literalsMatch(nextValues, left)) return left;
+      if (literalsMatch(previousValues, right)) return right;
+    }
+    if (
       left.kind === "TupleType" &&
       right.kind === "TupleType" &&
       !left.arrayDimensions?.length &&
@@ -1390,13 +1414,28 @@ export abstract class TypeCheckerBase {
         index: number,
       ): AST.Expression[] => {
         const elements: AST.Expression[] = [];
-        for (let value of values) {
-          while (value.kind === "Group") value = value.expression;
-          if (value.kind !== "TupleLiteral" || !value.elements[index])
-            return [];
-          elements.push(value.elements[index]!);
-        }
-        return elements;
+        const project = (value: AST.Expression): boolean => {
+          if (value.kind === "Group") return project(value.expression);
+          if (value.kind === "TupleLiteral") {
+            const element = value.elements[index];
+            if (!element) return false;
+            elements.push(element);
+            return true;
+          }
+          if (value.kind === "Ternary")
+            return project(value.trueExpr) && project(value.falseExpr);
+          if (value.kind === "Match") {
+            return value.arms.every((arm) => {
+              const yields =
+                arm.body.kind === "Block"
+                  ? (this.matchYieldValues.get(arm.body) ?? [])
+                  : [arm.body];
+              return yields.every(project);
+            });
+          }
+          return false;
+        };
+        return values.every(project) ? elements : [];
       };
       const types: AST.TypeNode[] = [];
       for (let index = 0; index < left.types.length; index++) {
@@ -1592,6 +1631,10 @@ export abstract class TypeCheckerBase {
         return type;
       }
       const actual = value.resolvedType;
+      if (target.kind === "TupleType" && actual?.kind === "TupleType") {
+        const common = this.unifyMatchResultTypes(target, actual);
+        if (common && this.areTypesExactMatch(target, common)) return target;
+      }
       if (
         actual &&
         (this.areTypesExactMatch(target, actual) ||

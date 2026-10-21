@@ -7667,3 +7667,17 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Give each promoted native fixture the same bounded sixty-second test budget
   used by other compiler correctness tests. Individual compiler/runtime process
   timeouts remain in force; compiler semantics and generated programs are unchanged.
+
+
+## Match unification rejected mixed stored arrays and fresh literals
+
+- Existing u8 arrays could not be matched with fitting integer-array literals:
+  type unification rejected the initial i32 literal type before destination
+  planning. Sixteen failing-before regressions cover declarations, assignments,
+  fields, calls, returns, aliases, generics, blocks, groups and tuple matches.
+- Probe the existing literal conversion planner without mutation while choosing
+  a compatible array representation. Commit plans only after every arm has
+  passed checking. Existing array storage remains unchanged.
+- Tuple projections retain complete nested yield sets; stored tuple scalar
+  fields may widen without changing their source annotations. Preserve integer
+  ranges, scalar arithmetic, evaluation counts and returned-view diagnostics.
