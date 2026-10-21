@@ -1063,7 +1063,14 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
   }
 
   protected override generateCast(expr: AST.CastExpr): string {
-    const sourceType = this.resolveInstantiatedValueType(expr.expression.resolvedType!);
+    const rawSource = expr.expression.resolvedType!;
+    if (rawSource.kind === "BasicType" && rawSource.pointerDepth > 0 && rawSource.arrayDimensions.length === 0)
+      return super.generateCast(expr);
+    const sourceType = this.resolveInstantiatedValueType(rawSource);
+    if (!this.isFixedArrayTypeNode(sourceType) ||
+      !this.resolveType(sourceType).startsWith("[") ||
+      !this.isAddressableAggregateSource(expr.expression))
+      return super.generateCast(expr);
     const targetType = this.resolveInstantiatedValueType(expr.resolvedType ?? expr.targetType);
     const conversion = lowerImplicitConversion(targetType, sourceType);
     if (this.isFixedArrayTypeNode(sourceType) &&
