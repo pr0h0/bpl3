@@ -7544,3 +7544,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   preserving outer references after minified blocks and loops. An additional
   18 failing-before cases ensure parameter rename includes references in the
   shadowing local initializer. Global and outer-local controls remain covered.
+
+
+## Rename accepted recovered ASTs with omitted statements
+
+- Live parsing can return a non-null program with parser errors and omit a
+  malformed statement. Rename/reference lookup treated that partial program as
+  complete and could omit references from its edits.
+- Reject programs with parser errors in prepare, rename and reference entry
+  points. Nine failing-before cases cover recovered programs across LF/CRLF/CR,
+  alongside the existing failed-parse cache controls. Completion still recovers.

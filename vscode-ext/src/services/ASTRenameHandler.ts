@@ -87,8 +87,8 @@ export class ASTRenameHandler {
 
       // Parse document content
       const content = document.getText();
-      if (!this.astResolver.parseDocumentContent(filePath, content))
-        return null;
+      const ast = this.astResolver.parseDocumentContent(filePath, content);
+      if (!ast || (ast.errors?.length ?? 0) > 0) return null;
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
@@ -157,8 +157,8 @@ export class ASTRenameHandler {
 
       // Parse document content
       const content = document.getText();
-      if (!this.astResolver.parseDocumentContent(filePath, content))
-        return null;
+      const ast = this.astResolver.parseDocumentContent(filePath, content);
+      if (!ast || (ast.errors?.length ?? 0) > 0) return null;
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
@@ -208,8 +208,8 @@ export class ASTRenameHandler {
 
       // Parse document content
       const content = document.getText();
-      if (!this.astResolver.parseDocumentContent(filePath, content))
-        return null;
+      const ast = this.astResolver.parseDocumentContent(filePath, content);
+      if (!ast || (ast.errors?.length ?? 0) > 0) return null;
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
@@ -225,8 +225,6 @@ export class ASTRenameHandler {
 
       // Find all references based on the node type
       const references = this.findReferences(node, filePath, document);
-
-      const ast = this.astResolver.getCachedAST(filePath);
       if (
         references.length === 0 &&
         node.kind === "Identifier" &&
