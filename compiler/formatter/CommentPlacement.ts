@@ -168,15 +168,13 @@ function alignTokens(
   const before = original.map(tokenKey);
   const after = formatted.map(tokenKey);
   if (before.length + after.length < 4096) return alignSegment(before, after);
-  if (Math.abs(before.length - after.length) > 1024) {
-    const parenthesisMatches = alignParenthesisNormalization(
-      original,
-      formatted,
-      before,
-      after,
-    );
-    if (parenthesisMatches) return parenthesisMatches;
-  }
+  const parenthesisMatches = alignParenthesisNormalization(
+    original,
+    formatted,
+    before,
+    after,
+  );
+  if (parenthesisMatches) return parenthesisMatches;
   const unique = (keys: string[]) => {
     const result = new Map<string, number>();
     for (let i = 0; i < keys.length; i++)

@@ -7525,4 +7525,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Align unchanged non-parenthesis tokens in order before aligning the small
   parenthesis gaps. Retain bounded alignment and reject changed source content.
 - Regressions cover LF, CRLF and CR inputs, configured indentation/newlines,
-  distinct comment order, semantic preservation and idempotence.
+  distinct comment order, semantic preservation and idempotence. Mixed
+  parenthesis additions/removals are covered too: a small net token count
+  change does not imply a small alignment distance.
