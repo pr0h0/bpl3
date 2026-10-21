@@ -87,7 +87,8 @@ export class ASTRenameHandler {
 
       // Parse document content
       const content = document.getText();
-      if (!this.astResolver.parseDocumentContent(filePath, content)) return null;
+      if (!this.astResolver.parseDocumentContent(filePath, content))
+        return null;
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
@@ -103,9 +104,15 @@ export class ASTRenameHandler {
       if (this.isRenameableNode(node)) {
         if (
           node.kind === "FunctionDecl" &&
-          !this.astResolver.getCachedAST(filePath)?.statements.includes(node as AST.FunctionDecl)
-        ) return null;
-        if ((node.kind === "BasicType" || node.kind === "Identifier") && !this.analyzeSymbol(node, filePath)) {
+          !this.astResolver
+            .getCachedAST(filePath)
+            ?.statements.includes(node as AST.FunctionDecl)
+        )
+          return null;
+        if (
+          (node.kind === "BasicType" || node.kind === "Identifier") &&
+          !this.analyzeSymbol(node, filePath)
+        ) {
           return null;
         }
 
@@ -150,7 +157,8 @@ export class ASTRenameHandler {
 
       // Parse document content
       const content = document.getText();
-      if (!this.astResolver.parseDocumentContent(filePath, content)) return null;
+      if (!this.astResolver.parseDocumentContent(filePath, content))
+        return null;
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
@@ -200,7 +208,8 @@ export class ASTRenameHandler {
 
       // Parse document content
       const content = document.getText();
-      if (!this.astResolver.parseDocumentContent(filePath, content)) return null;
+      if (!this.astResolver.parseDocumentContent(filePath, content))
+        return null;
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
@@ -217,7 +226,16 @@ export class ASTRenameHandler {
       // Find all references based on the node type
       const references = this.findReferences(node, filePath, document);
 
-      if (references.length === 0 && node.kind === "Identifier") {
+      const ast = this.astResolver.getCachedAST(filePath);
+      if (
+        references.length === 0 &&
+        node.kind === "Identifier" &&
+        ast &&
+        collectGlobalValueReferences(
+          ast,
+          (node as AST.IdentifierExpr).name,
+        ).includes(node)
+      ) {
         return this.findImportedSymbolReferences(
           (node as AST.IdentifierExpr).name,
           document,
@@ -281,8 +299,15 @@ export class ASTRenameHandler {
     const symbol = this.analyzeSymbol(node, filePath);
     if (!symbol || symbol.scope !== "global") return false;
     const name = this.getSymbolName(symbol.node);
-    return !!name && !!this.astResolver.getCachedAST(filePath)?.statements.some(
-      statement => statement.kind === "Export" && statement.items.some(item => item.name === name),
+    return (
+      !!name &&
+      !!this.astResolver
+        .getCachedAST(filePath)
+        ?.statements.some(
+          (statement) =>
+            statement.kind === "Export" &&
+            statement.items.some((item) => item.name === name),
+        )
     );
   }
 
@@ -388,19 +413,31 @@ export class ASTRenameHandler {
         if (symbolInfo.node.kind === "Extern") {
           return this.findCurrentDocumentSymbolReferences(symbolName, document);
         }
-        return this.findGlobalSymbolReferences(symbolName, document, symbolInfo.node);
+        return this.findGlobalSymbolReferences(
+          symbolName,
+          document,
+          symbolInfo.node,
+        );
 
       case "type-alias":
         if (symbolInfo.node.kind === "TypeAlias") {
           return this.findCurrentDocumentSymbolReferences(symbolName, document);
         }
-        return this.findGlobalSymbolReferences(symbolName, document, symbolInfo.node);
+        return this.findGlobalSymbolReferences(
+          symbolName,
+          document,
+          symbolInfo.node,
+        );
 
       case "struct":
       case "enum":
       case "global-variable":
         // Global symbols currently search their defining file.
-        return this.findGlobalSymbolReferences(symbolName, document, symbolInfo.node);
+        return this.findGlobalSymbolReferences(
+          symbolName,
+          document,
+          symbolInfo.node,
+        );
 
       default:
         return references;
