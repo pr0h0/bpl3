@@ -7503,3 +7503,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Compare primitive canonical names without rewriting either annotation.
   Four failing-before alias cases pass; signedness and unrelated nominal type
   distinctions remain enforced.
+
+
+## Aggregate slice conversion bypassed overloaded indexing and dereferencing
+
+- Array-valued `__get__` and unary `__mul__` results were mistaken for
+  addressable source storage when inserted into tuple or struct slice fields.
+  Indexing failed with `Indexing non-array/non-pointer`; unary dereferencing
+  emitted an invalid struct-to-pointer LLVM cast.
+- Treat overloaded operators as values, evaluate the overload once and
+  materialize its returned array. Ordinary indexing/dereferencing still borrows
+  existing storage. Native O0/O3 regressions check both operators, call counts
+  and that modifying the returned view does not modify the source array.

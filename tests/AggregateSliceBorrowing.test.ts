@@ -98,3 +98,57 @@ test("aggregate fields apply checked scalar and callback conversions at O0/O3", 
     },
   ]);
 }, 60000);
+
+test("overloaded indexing creates aggregate slice values by evaluating the getter once at O0/O3", () => {
+  expectCorrectnessSuite([
+    {
+      name: "aggregate-overloaded-index",
+      validateLlvm: true,
+      source: `
+      import printf from "std/c.bpl";
+      global calls:int=0;
+      struct Source {
+        values:int[2],
+        frame __get__(this:*Source,_index:int)ret int[2]{calls=calls+1;return this.values;}
+      }
+      struct View { values:int[], }
+      frame main()ret int{
+        local source:Source=Source{values:[1,2]};
+        local tuple:(int[],int)=(source[0],7);
+        local view:View=View{values:source[0]};
+        tuple.0[1]=9;
+        view.values[0]=8;
+        printf("%d %d %d %d %d\\n",tuple.0[1],view.values[0],source.values[0],source.values[1],calls);
+        return 0;
+      }`,
+      expectedStdout: "9 8 1 2 2\n",
+    },
+  ]);
+}, 60000);
+
+test("overloaded dereferencing creates aggregate slice values by evaluating the getter once at O0/O3", () => {
+  expectCorrectnessSuite([
+    {
+      name: "aggregate-overloaded-dereference",
+      validateLlvm: true,
+      source: `
+      import printf from "std/c.bpl";
+      global calls:int=0;
+      struct Source {
+        values:int[2],
+        frame __mul__(this:*Source)ret int[2]{calls=calls+1;return this.values;}
+      }
+      struct View { values:int[], }
+      frame main()ret int{
+        local source:Source=Source{values:[1,2]};
+        local tuple:(int[],int)=((*source),7);
+        local view:View=View{values:(*source)};
+        tuple.0[1]=9;
+        view.values[0]=8;
+        printf("%d %d %d %d %d\\n",tuple.0[1],view.values[0],source.values[0],source.values[1],calls);
+        return 0;
+      }`,
+      expectedStdout: "9 8 1 2 2\n",
+    },
+  ]);
+}, 60000);

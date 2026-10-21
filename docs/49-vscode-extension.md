@@ -251,9 +251,11 @@ npm run compile --prefix vscode-ext
 
 `npm run compile:test --prefix vscode-ext` type-checks the extension test
 sources under `vscode-ext/src/test` with strict settings before CI. `npm test
---prefix vscode-ext` runs that type-check first and then runs the Bun language
-server tests. `npm run compile --prefix vscode-ext` remains the production
-extension compile used for packaging.
+--prefix vscode-ext` first builds the production extension, then runs that
+type-check, and then runs the Bun language server tests. Production and test
+configurations both include ES2022 library declarations.
+`npm run compile --prefix vscode-ext` remains the production extension compile
+used for packaging.
 
 VS Code type-check failures map to these same focused commands in `bun run
 ci:triage`, including missing `vscode-languageserver-textdocument` declarations
@@ -328,8 +330,3 @@ precedence, so explicit `false` disables automatic formatting and explicit
 
 The BPL save hook skips delayed autosaves (`files.autoSave: "afterDelay"`),
 matching native save formatting. Manual and focus-change saves remain eligible.
-
-
-The extension test command, `npm test --prefix vscode-ext`, first builds the
-production extension, then typechecks and runs its editor tests. Production and
-test configurations both include ES2022 library declarations.

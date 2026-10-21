@@ -1419,9 +1419,15 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       case "Member":
         return this.isAddressableAggregateSource(expression.object);
       case "Index":
-        return this.isAddressableAggregateSource(expression.object);
+        return (
+          !expression.operatorOverload &&
+          this.isAddressableAggregateSource(expression.object)
+        );
       case "Unary":
-        return expression.operator.type === TokenType.Star;
+        return (
+          !expression.operatorOverload &&
+          expression.operator.type === TokenType.Star
+        );
       case "Call":
         return (
           expression.resolvedType?.kind === "BasicType" &&
