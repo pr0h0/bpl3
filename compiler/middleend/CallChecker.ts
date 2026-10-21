@@ -3,7 +3,6 @@
  */
 import * as AST from "../common/AST";
 import { CompilerError } from "../common/CompilerError";
-import { TokenType } from "../frontend/TokenType";
 import { TypeUtils, implicitlyAddressesConstant } from "./TypeUtils";
 import {
   rejectConstantOperatorAddress,
@@ -1709,44 +1708,9 @@ function packVariadicArguments(
         resolvedType: pointerType,
       };
     } else {
-      // &array[0]
-      const indexExpr: AST.IndexExpr = {
-        kind: "Index",
-        object: arrayLiteral,
-        index: {
-          kind: "Literal",
-          value: 0n,
-          raw: "0",
-          type: "number",
-          location: expr.location,
-          resolvedType: {
-            kind: "BasicType",
-            name: "int",
-            genericArgs: [],
-            pointerDepth: 0,
-            arrayDimensions: [],
-            location: expr.location,
-          },
-        },
-        location: expr.location,
-        resolvedType: elementType,
-      };
-
-      argsPtrExpr = {
-        kind: "Unary",
-        operator: {
-          type: TokenType.Ampersand,
-          lexeme: "&",
-          literal: "&",
-          line: 0,
-          column: 0,
-          file: "internal",
-        },
-        operand: indexExpr,
-        isPrefix: true,
-        location: expr.location,
-        resolvedType: pointerType,
-      };
+      // Pass the owned pack through normal array-to-pointer conversion.
+      // A source-level &temporary[0] is deliberately not an addressable place.
+      argsPtrExpr = arrayLiteral;
     }
 
     // Count literal
