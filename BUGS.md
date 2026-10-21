@@ -7611,3 +7611,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   explicit casts. Preserve caller-owned views and selected fields that discard
   unrelated temporary views. This is a local expression check, not general
   lifetime or alias tracking.
+
+
+## Returned calls hid implicit array-to-view argument conversions
+
+- A call returning borrowed storage could receive a fixed-array argument through
+  implicit slice/pointer conversion and return a view of its temporary storage.
+  The expression check previously found only explicit casts and enum payloads.
+- Carry resolved function/lambda and callable-operator parameter types into
+  argument traversal, including specialized generics and instance methods.
+  Eight checker regressions fail before the fix; retain fixed-array returns,
+  existing caller-owned views and scalar consumers of temporary views.

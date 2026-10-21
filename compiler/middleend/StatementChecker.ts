@@ -344,12 +344,34 @@ function findReturnedArrayViewCast(
       ) {
         const receiverCast = findReturnedArrayViewCast(context, expr.callee);
         if (receiverCast) return receiverCast;
+        const signature =
+          expr.callee.resolvedType &&
+          context.resolveType(expr.callee.resolvedType);
+        const overload = expr.operatorOverload;
+        const overloadContext =
+          overload?.targetType.kind === "BasicType"
+            ? context.resolveMemberWithContext(
+                overload.targetType,
+                overload.methodName,
+              )
+            : undefined;
         for (const [index, argument] of expr.args.entries()) {
           const payload = variantInfo?.variant.dataType;
-          const fieldType =
+          let fieldType =
             payload?.kind === "EnumVariantTuple" && payload.types[index]
               ? context.substituteType(payload.types[index]!, variantGenerics)
               : undefined;
+          if (
+            signature?.kind === "FunctionType" ||
+            signature?.kind === "LambdaType"
+          ) {
+            fieldType = signature.paramTypes[index];
+          } else if (overload?.methodDeclaration.params[index + 1]) {
+            fieldType = context.substituteType(
+              overload.methodDeclaration.params[index + 1]!.type,
+              overloadContext?.genericMap ?? new Map(),
+            );
+          }
           const cast = findReturnedArrayViewCast(context, argument, fieldType);
           if (cast) return cast;
         }

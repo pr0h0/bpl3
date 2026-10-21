@@ -289,7 +289,8 @@ results (including block yields), projections, method receivers, value-producing
 operators, and casts inside returned aggregate literals. Scalar reads do not
 escape a borrow; constant literal projections inspect the selected value.
 A returned call whose result can contain borrowed storage is conservatively
-rejected if an argument creates such a temporary view: the compiler cannot
+rejected if an argument creates such a temporary view through an implicit
+conversion or explicit cast: the compiler cannot
 prove that the callee discards the argument. Calls returning scalar values or
 aggregates containing only values remain supported. Local view aliases are
 not tracked by this check.

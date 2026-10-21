@@ -9,6 +9,14 @@ import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 for (const source of [
+  "frame borrow(v:int[])ret int[]{return v;}frame bad()ret int[]{return borrow([1,2]);}",
+  "frame borrow(v:*int)ret *int{return v;}frame bad()ret *int{return borrow([1,2]);}",
+  "frame borrow(v:u8[])ret u8[]{return v;}frame bad()ret u8[]{return borrow(match(true){true=>[1,2],false=>[3,4],});}",
+  "struct Box<T>{v:T,}frame wrap<T>(v:T)ret Box<T>{return Box<T>{v:v};}frame bad()ret Box<int[]>{return wrap<int[]>([1,2]);}",
+  "frame borrow(v:int[])ret int[]{return v;}frame bad(f:Func<int[]>(int[]))ret int[]{return f([1,2]);}",
+  "frame bad(f:Lambda<int[]>(int[]))ret int[]{return f([1,2]);}",
+  "struct Borrower{frame borrow(this:Borrower,v:int[])ret int[]{return v;}}frame bad(b:Borrower)ret int[]{return b.borrow([1,2]);}",
+  "struct Borrower{frame __call__(this:Borrower,v:int[])ret int[]{return v;}}frame bad(b:Borrower)ret int[]{return b([1,2]);}",
   "frame bad()ret (int[],int){return ([1,2],3);}",
   "frame bad()ret (u8[],int){return match(true){true=>([1,2],3),false=>{return ([4,5],6);},};}",
   "frame bad()ret (int[],int){return ((([1,2],3)));}",
@@ -146,6 +154,23 @@ frame main()ret int{
  if(a.0[1]!=12||b.v[0]!=11||selected(view)[1]!=12){return 1;}
  return match(wrapped(view)){Wrapped.Value(values)=>values[1]-12,};
 }`,
+      expectedStdout: "",
+    },
+  ]);
+}, 60000);
+
+test("returned calls preserve existing views, fixed values and scalar consumers at O0/O3", () => {
+  expectCorrectnessSuite([
+    {
+      name: "return-safe-call-conversions",
+      validateLlvm: true,
+      source: `frame borrow(v:int[])ret int[]{return v;}
+frame safe(v:int[])ret int[]{return borrow(v);}
+frame copy(v:int[2])ret int[2]{return v;}
+frame values()ret int[2]{return copy([11,12]);}
+frame first(v:int[])ret int{return v[0];}
+frame consume()ret int{return first([13,14]);}
+frame main()ret int{local a:int[2]=values();local v:int[]=safe(a);v[1]=15;if(a[1]!=15||consume()!=13){return 1;}return 0;}`,
       expectedStdout: "",
     },
   ]);
