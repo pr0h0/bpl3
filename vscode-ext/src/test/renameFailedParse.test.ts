@@ -1,4 +1,4 @@
-import { expect, spyOn, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { resolve } from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { ASTResolver } from "../services/ASTResolver";
@@ -22,7 +22,8 @@ for (const newline of ["\n", "\r\n", "\r"]) {
         2,
         valid.getText() + newline + '"unterminated',
       );
-      const errorLog = spyOn(console, "error").mockImplementation(() => {});
+      const originalError = console.error;
+      console.error = () => {};
       try {
         let result;
         if (operation === "prepare") {
@@ -40,7 +41,7 @@ for (const newline of ["\n", "\r\n", "\r"]) {
         }
         expect(result).toBeNull();
       } finally {
-        errorLog.mockRestore();
+        console.error = originalError;
       }
     });
   }
