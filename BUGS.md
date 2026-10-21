@@ -7330,3 +7330,188 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   use that same exact name range. Invalid names produce no declaration edit.
 - Twenty-seven failing-before cases cover LF/CRLF/CR, declaration families,
   modifiers and applying function/struct renames without changing their bodies.
+
+
+## Rejecting cross-file rename also hid read-only imported references
+
+- The fail-closed rename correction removed the old defining-file reference
+  lookup from find-references as well. CodeRabbit identified this regression.
+- Separate read-only imported reference lookup from rename eligibility. Resolve
+  the current document's actual imports, retain cached live defining-file source,
+  and return reference locations without permitting cross-file edits.
+- Nine regressions fail before and pass after, including a same-named unrelated
+  indexed file and unsaved defining-buffer offsets/cache preservation.
+
+## Imported global rename returned incomplete cross-file edits
+
+- CodeRabbit confirmed that imported global variables/constants newly reached a
+  fallback which edited the declaring file but left the calling document unchanged.
+  Imported functions already used this incomplete fallback. Saved defining-file
+  offsets could also disagree with an open unsaved buffer.
+- Decline cross-file rename requests until complete workspace binding/live-buffer
+  resolution exists. No partial edit is returned. Nine failing-before regressions
+  cover variables/constants/functions, unsaved buffers and LF/CRLF/CR.
+
+## Read-only imported lookup ignored locally bound identifiers
+
+- The imported-symbol fallback ran whenever ordinary lookup returned no
+  references, including unsupported lambda and match-pattern binding references.
+  This showed locations for an imported global instead of the selected local.
+- Require the selected Identifier to be an unshadowed value reference in the
+  cached AST before using imported lookup. Six failing-before cases cover
+  lambda/match bindings and LF/CRLF/CR, with unshadowed import controls.
+
+## Exported declaration rename left importing files inconsistent
+
+- Declining rename from importing files still allowed a defining file to rename
+  an exported declaration and its export list without updating importers.
+- Decline exported-name preparation and edits until complete workspace rename
+  exists. Keep read-only references available. Eighteen failing-before cases
+  cover functions, globals/constants, aliases, structs/enums and LF/CRLF/CR.
+
+## Method rename could target a different same-named global
+
+- Struct/enum method declarations were classified as functions, and global
+  reference lookup matched only their spelling. A method rename could edit a
+  same-named top-level function while leaving the selected method untouched.
+- Pass the resolved declaration node into global lookup and require identity
+  with the live top-level declaration. Decline unsupported method preparation.
+  Six failing-before cases cover struct/enum methods and LF/CRLF/CR.
+
+## Failed live parsing left old ASTs available to rename operations
+
+- A failed live parse kept the previous AST cache. Rename preparation, edits
+  and read-only references ignored the parse result and could use stale nodes.
+- Decline all three requests immediately when parsing returns null. Nine
+  failing-before cases warm the cache then introduce an unterminated literal
+  across LF/CRLF/CR; each operation now returns no result.
+
+## Rename reloaded saved files over unsaved document contents
+
+- Node selection reloaded disk ASTs after parsing the current editor buffer;
+  global edits also used saved source and stale indexed declaration names.
+  Renaming from a global variable/constant reference produced no edits because
+  index classifications did not match the rename dispatcher.
+- Prefer the parsed live AST and live top-level declarations, search their live
+  document, and map external variable/constant classifications consistently.
+  Thirty-six regressions cover declaration/reference initiation, changed names,
+  shifted source positions, globals/constants/functions and LF/CRLF/CR.
+- Remaining reference matching still uses word regexes for global/alias/extern
+  names; comment/literal and shadowing correctness require a separate fix.
+
+
+## Global rename changed comments and literal payloads
+
+- Global/function/alias/extern reference discovery matched every word in source,
+  including documentation, nested comments and literal/interpolated string text.
+- Collect identifier tokens instead. Interpolated expression parts are scanned
+  separately using their parsed source ranges, preserving literal portions.
+  Nine regressions failed before and pass after across LF/CRLF/CR, including
+  type references inside interpolation. Binding/shadowing remains follow-up work.
+
+
+## Rename accepted declaration keywords, comments and whitespace
+
+- A function declaration's enclosing AST range let cursor positions on `frame`,
+  header/body comments or a closing brace trigger renaming its function name.
+- Prepare-rename, rename and find-references now require the cursor to lie on
+  the actual identifier range. The trailing name boundary remains accepted for
+  editor cursor placement. Fifteen failing positions and nine name controls
+  cover LF/CRLF/CR.
+
+## Global value renames crossed local binding and member boundaries
+
+- Renaming a global value also changed same-named parameters, local variables,
+  lambda/catch/match bindings, struct field labels and unrelated member names.
+- Filter identifier tokens through a lexical AST walk. Local bindings start
+  after their initializer and end with their block/loop/arm/catch/lambda scope;
+  member labels/method declarations are not global value references.
+- Seventy-eight regressions cover eight unrelated-name categories for globals,
+  functions and externs, scope/initializer
+  boundaries, destructuring, exports and LF/CRLF/CR. Unsupported lambda-binding
+  requests cannot fall through into renaming the global instead.
+- Type-name/generic binding and workspace-wide import resolution remain separate
+  limitations. Lambda-parameter rename itself is not implemented by this fix.
+
+
+## CI workflow test still expected the old extension test script
+
+- After adding production compilation to the extension test pipeline, the
+  workflow contract test still required its exact previous command string.
+- Validate production build, test typecheck and Bun execution ordering instead.
+  The reproduced Ubuntu CI assertion and the local workflow suite now pass.
+
+## Extension production build was not checked by its test command
+
+- `npm run compile --prefix vscode-ext` failed TS2550 for Object.hasOwn in
+  imported compiler modules. Its es2021 library differed from the es2022 test
+  configuration, so extension tests passed while the production build failed.
+- Align the production library with es2022 and run the production build before
+  the existing test typecheck/suite. This also covers it through test:ci's
+  existing extension step. Keep the emitted target and package version unchanged.
+
+
+## Integer array literals lost their destination type inside tuples
+
+- A direct `u8[2] = [1,2]` worked, but `local pair: (u8[2], int) =
+  ([1,2],3)` failed in declarations, assignment, return values, arguments,
+  struct fields, aliases, nested tuples and grouped/ternary expressions.
+- Extend the existing transactional literal-array conversion planner through
+  tuple containers. Preserve original scalar operator annotations; tuple
+  lowering converts each element to the contextual tuple type, including when
+  nested in a struct or ternary. Overload probes do not mutate candidates.
+- Typechecker and O0/O3 native regressions retain overflow/storage restrictions,
+  overload priority, scalar conversions, aliases, slices and callable arguments.
+  Empty arrays and match result contextual typing remain separate work.
+
+## Returned tuple array members lacked temporary storage
+
+- The checker accepted `make().0[0]`, but array indexing tried to take the
+  address of the tuple call before generating its field address and failed.
+- Materialize a returned tuple once before addressing its members. Native
+  O0/O3 controls cover direct/grouped calls and assert one factory evaluation
+  per access. Existing tuple storage/const checks remain green.
+
+## Tuple members could not generate their addresses
+
+- `frame read(pair:(u8[2],u8)) ret int { return cast<int>(pair.0[0]); }`
+  typechecks, but native code generation rejects the tuple member as a non-struct
+  when indexing its array element. Copying `pair.0` to a local array works.
+- Generate tuple field addresses using their checked numeric index and tuple
+  layout. Native O0/O3 regressions cover indexing, assignment, address-taking,
+  nested/aliased tuples, struct fields, slice members and by-value parameters.
+  Const assignment checks remain in force.
+
+## Aggregate array-to-slice conversions copied or rejected existing storage
+
+- `(int[],int) = (values,22)` creates a view of copied array storage. Mutating
+  the tuple's slice does not affect the original fixed array, unlike a direct
+  `local borrowed:int[]=values` conversion. Confirmed during tuple address tests.
+- Struct slice fields could instead emit invalid native aggregate types.
+  Generate tuple/struct elements through checked conversions, borrowing the
+  address of existing array storage and materializing only array rvalues.
+- Native O0/O3 regressions cover aliases/generics, nested aggregates, selected
+  storage and returned arrays evaluated once, and scalar/callback field
+  conversions. Existing explicit array-to-view casts retain copy semantics.
+
+
+## Primitive aliases disagreed across implicit conversion metadata
+
+- A raw declaration such as `int[]` and a checked expression such as `i32[2]`
+  describe compatible element types, but conversion lowering compared names
+  literally and classified the array-to-slice conversion as unsupported.
+- Compare primitive canonical names without rewriting either annotation.
+  Four failing-before alias cases pass; signedness and unrelated nominal type
+  distinctions remain enforced.
+
+
+## Aggregate slice conversion bypassed overloaded indexing and dereferencing
+
+- Array-valued `__get__` and unary `__mul__` results were mistaken for
+  addressable source storage when inserted into tuple or struct slice fields.
+  Indexing failed with `Indexing non-array/non-pointer`; unary dereferencing
+  emitted an invalid struct-to-pointer LLVM cast.
+- Treat overloaded operators as values, evaluate the overload once and
+  materialize its returned array. Ordinary indexing/dereferencing still borrows
+  existing storage. Native O0/O3 regressions check both operators, call counts
+  and that modifying the returned view does not modify the source array.

@@ -1376,12 +1376,16 @@ export abstract class TypeCheckerBase {
   ): AST.TypeNode | undefined {
     if (
       expr.kind !== "ArrayLiteral" &&
+      expr.kind !== "TupleLiteral" &&
       expr.kind !== "Group" &&
       expr.kind !== "Ternary"
     )
       return;
     const rootTarget = this.resolveType(targetType);
-    if (rootTarget.kind !== "BasicType" || !rootTarget.arrayDimensions.length)
+    if (!(
+      (rootTarget.kind === "BasicType" && rootTarget.arrayDimensions.length) ||
+      (rootTarget.kind === "TupleType" && !rootTarget.arrayDimensions?.length)
+    ))
       return;
     const updates = new Map<AST.Expression, AST.TypeNode>();
     let hasArray = false;
@@ -1395,12 +1399,42 @@ export abstract class TypeCheckerBase {
         if (type && updates.has(value.expression)) updates.set(value, type);
         return type;
       }
-      if (value.kind === "Ternary" && target.kind === "BasicType" && target.arrayDimensions.length) {
+      if (
+        value.kind === "Ternary" &&
+        ((target.kind === "BasicType" && target.arrayDimensions.length) ||
+          (target.kind === "TupleType" && !target.arrayDimensions?.length))
+      ) {
         const left = visit(value.trueExpr, target);
         const right = visit(value.falseExpr, target);
         if (!left || !right || !this.areTypesExactMatch(left, right)) return;
         updates.set(value, left);
         return left;
+      }
+      if (value.kind === "TupleLiteral") {
+        if (
+          target.kind !== "TupleType" ||
+          target.arrayDimensions?.length ||
+          target.types.length !== value.elements.length
+        )
+          return;
+        const types: AST.TypeNode[] = [];
+        for (let index = 0; index < value.elements.length; index++) {
+          const element = value.elements[index]!;
+          const expectedElement = target.types[index]!;
+          const planned = visit(element, expectedElement);
+          const actual = element.resolvedType;
+          if (!planned && (!actual || !this.areTypesCompatible(expectedElement, actual))) return;
+          // Tuple lowering converts each element; scalar expression annotations
+          // keep the original types emitted by their operators.
+          types.push(this.resolveType(expectedElement));
+        }
+        const type: AST.TupleTypeNode = {
+          kind: "TupleType",
+          types,
+          location: value.location,
+        };
+        updates.set(value, type);
+        return type;
       }
       if (value.kind === "ArrayLiteral") {
         // Keep this conversion specific to integer literal arrays. In particular,
@@ -1455,9 +1489,11 @@ export abstract class TypeCheckerBase {
         return actual;
       // A scalar constant cannot stand in for a remaining array dimension.
       if (
-        target.kind !== "BasicType" || target.pointerDepth !== 0 ||
+        target.kind !== "BasicType" ||
+        target.pointerDepth !== 0 ||
         target.arrayDimensions.length !== 0
-      ) return;
+      )
+        return;
       const constant = this.getIntegerConstantValue(value);
       if (
         constant !== undefined &&
@@ -1477,6 +1513,7 @@ export abstract class TypeCheckerBase {
         // array lowering performs the checked element conversion itself.
         if (
           value.kind === "ArrayLiteral" ||
+          value.kind === "TupleLiteral" ||
           (value.kind === "Group" && updates.has(value.expression)) ||
           value.kind === "Ternary"
         )

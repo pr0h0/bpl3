@@ -301,3 +301,36 @@ describe("Incremental implicit conversion lowering", () => {
     ).toBe("unsupported");
   });
 });
+
+describe("primitive aliases in array conversions", () => {
+  for (const [alias, canonical] of [
+    ["int", "i32"],
+    ["char", "i8"],
+    ["ulong", "u64"],
+    ["float", "double"],
+  ]) {
+    it(`recognizes ${alias}/${canonical} without changing annotations`, () => {
+      const target = basic(alias!, { arrayDimensions: [null] });
+      const source = basic(canonical!, { arrayDimensions: [2] });
+      expect(lowerImplicitConversion(target, source).kind).toBe(
+        "array-to-slice",
+      );
+      expect(target.name).toBe(alias!);
+      expect(source.name).toBe(canonical!);
+    });
+  }
+  it("retains signedness and user-type distinctions", () => {
+    expect(
+      lowerImplicitConversion(
+        basic("uint", { arrayDimensions: [null] }),
+        basic("i32", { arrayDimensions: [2] }),
+      ).kind,
+    ).toBe("unsupported");
+    expect(
+      lowerImplicitConversion(
+        basic("First", { arrayDimensions: [null] }),
+        basic("Second", { arrayDimensions: [2] }),
+      ).kind,
+    ).toBe("unsupported");
+  });
+});

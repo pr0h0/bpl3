@@ -19,7 +19,6 @@ import { codeGenLog } from "../../common/Logger";
 import { TokenType } from "../../frontend/TokenType";
 import { UnaryExpressionGenerator } from "./UnaryExpressionGenerator";
 import { formatFloatingPointLiteral } from "./FloatingPointLiteral";
-import { getIntegerBitWidth } from "./utils";
 import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConversions";
 
 const STRUCT_LITERAL_FIELD_MAP_THRESHOLD = 4;
@@ -1336,53 +1335,20 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         }
       }
       if (valExpr) {
-        let val = this.generateExpression(valExpr);
-        const fieldType = this.resolveType(valExpr.resolvedType!);
-
-        // Handle null assignment to closure struct (function pointer)
-        if (
-          (val === "null" || val === "0") &&
-          fieldType.startsWith("{") &&
-          fieldType.endsWith("}")
-        ) {
-          val = "zeroinitializer";
-        }
-
-        // Get expected field type from struct definition for type checking
-        let expectedFieldType = fieldType; // Default to expression type
+        let fieldTypeNode = valExpr.resolvedType!;
         if (baseStructDef) {
-          const fieldDef = this.getStructFieldByName(
-            baseStructDef,
-            fieldName,
-          );
+          const fieldDef = this.getStructFieldByName(baseStructDef, fieldName);
           if (fieldDef) {
-            // Resolve the field's declared type (may be generic)
-            let fieldTypeNode = fieldDef.type;
-
-            // Handle generic type substitution
-            if (genericContextMap) {
-              fieldTypeNode = this.substituteType(
-                fieldTypeNode,
-                genericContextMap,
-              );
-            }
-
-            expectedFieldType = this.resolveType(fieldTypeNode);
+            fieldTypeNode = genericContextMap
+              ? this.substituteType(fieldDef.type, genericContextMap)
+              : fieldDef.type;
           }
         }
-
-        // Truncate if necessary (e.g., i32 -> i8)
-        if (fieldType !== expectedFieldType) {
-          const valSize = getIntegerBitWidth(fieldType);
-          const expectedSize = getIntegerBitWidth(expectedFieldType);
-          if (valSize > expectedSize) {
-            const truncReg = this.newRegister();
-            this.emit(
-              `  ${truncReg} = trunc ${fieldType} ${val} to ${expectedFieldType}`,
-            );
-            val = truncReg;
-          }
-        }
+        const expectedFieldType = this.resolveType(fieldTypeNode);
+        const val = this.generateAggregateElementForTarget(
+          valExpr,
+          fieldTypeNode,
+        );
 
         const nextVal = this.newRegister();
         this.emit(
@@ -1395,7 +1361,87 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     return structVal;
   }
 
+  /** Borrow addressable arrays instead of creating views of value copies. */
+  private generateAggregateElementForTarget(
+    expression: AST.Expression,
+    targetType: AST.TypeNode,
+  ): string {
+    const sourceType = this.resolveInstantiatedValueType(
+      expression.resolvedType!,
+    );
+    const resolvedTarget = this.resolveInstantiatedValueType(targetType);
+    const conversion = lowerImplicitConversion(resolvedTarget, sourceType);
+    if (
+      conversion.kind === "array-to-slice" &&
+      this.isSliceTypeNode(resolvedTarget) &&
+      this.isFixedArrayTypeNode(sourceType)
+    ) {
+      if (this.isAddressableAggregateSource(expression)) {
+        return this.emitSliceFromArrayAddress(
+          this.generateAddress(expression),
+          sourceType,
+          resolvedTarget,
+        );
+      }
+      return this.emitSliceFromArrayValue(
+        this.generateExpression(expression),
+        sourceType,
+        resolvedTarget,
+      );
+    }
+    let value = expression;
+    while (value.kind === "Group") value = value.expression;
+    if (value.kind === "TupleLiteral" && resolvedTarget.kind === "TupleType") {
+      return this.generateTupleLiteralForTarget(value, resolvedTarget);
+    }
+    const destination = this.resolveType(resolvedTarget);
+    const converted = this.emitCast(
+      this.generateExpression(expression),
+      this.resolveType(sourceType),
+      destination,
+      sourceType,
+      resolvedTarget,
+    );
+    // Null closure values use an aggregate zero, just as struct fields did.
+    return (converted === "null" || converted === "0") &&
+      destination.startsWith("{") &&
+      destination.endsWith("}")
+      ? "zeroinitializer"
+      : converted;
+  }
+
+  private isAddressableAggregateSource(expression: AST.Expression): boolean {
+    switch (expression.kind) {
+      case "Identifier":
+        return true;
+      case "Group":
+        return this.isAddressableAggregateSource(expression.expression);
+      case "Member":
+        return this.isAddressableAggregateSource(expression.object);
+      case "Index":
+        return (
+          !expression.operatorOverload &&
+          this.isAddressableAggregateSource(expression.object)
+        );
+      case "Unary":
+        return (
+          !expression.operatorOverload &&
+          expression.operator.type === TokenType.Star
+        );
+      case "Call":
+        return (
+          expression.resolvedType?.kind === "BasicType" &&
+          this.resolveType(expression.resolvedType).endsWith("*")
+        );
+      default:
+        return false;
+    }
+  }
+
   protected generateTupleLiteral(expr: AST.TupleLiteralExpr): string {
+    if (expr.resolvedType?.kind === "TupleType") {
+      return this.generateTupleLiteralForTarget(expr, expr.resolvedType);
+    }
     const type = this.resolveType(expr.resolvedType!);
     let tupleVal = "undef";
 
@@ -1433,27 +1479,10 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       const elemExpr = expr.elements[i]!;
       const targetElemTypeNode = targetTypeNode.types[i]!;
       const targetElemType = this.resolveType(targetElemTypeNode);
-      let elemVal: string;
-
-      if (
-        elemExpr.kind === "TupleLiteral" &&
-        targetElemTypeNode.kind === "TupleType"
-      ) {
-        elemVal = this.generateTupleLiteralForTarget(
-          elemExpr as AST.TupleLiteralExpr,
-          targetElemTypeNode,
-        );
-      } else {
-        const sourceElemTypeNode = elemExpr.resolvedType!;
-        elemVal = this.generateExpression(elemExpr);
-        elemVal = this.emitCast(
-          elemVal,
-          this.resolveType(sourceElemTypeNode),
-          targetElemType,
-          sourceElemTypeNode,
-          targetElemTypeNode,
-        );
-      }
+      const elemVal = this.generateAggregateElementForTarget(
+        elemExpr,
+        targetElemTypeNode,
+      );
 
       const nextVal = this.newRegister();
       this.emit(

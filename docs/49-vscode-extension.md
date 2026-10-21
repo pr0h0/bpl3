@@ -75,9 +75,24 @@ Jump to symbol definitions:
 
 ### Rename ranges
 
+Imported symbols and exported declarations cannot currently be renamed across
+files. These requests are
+declined so they cannot return incomplete edits that break importing code.
+Read-only imported-symbol references can still be found in the defining file,
+using its cached live source when available. This is not a complete workspace
+reference search.
+
 Rename preparation locates declaration names using lexer tokens, including
-comments, modifiers and multiline headers. Declaration edits select the name
+comments, modifiers and multiline headers. Rename and find-references require
+the cursor on the name (including its trailing boundary). Declaration edits select the name
 rather than replacing the whole declaration or function body.
+Global declarations and references in the current document use its unsaved
+source and names. Global reference searches currently cover the defining file;
+workspace-wide import resolution is not implemented. Identifier matching skips
+comments and string payloads, including text around interpolated expressions.
+Global value renames respect local, parameter, lambda, catch and match bindings
+and preserve unrelated member names. Renaming lambda parameters and resolving
+type-name/generic shadowing are still incomplete.
 
 ### Inlay Hints
 
@@ -236,9 +251,11 @@ npm run compile --prefix vscode-ext
 
 `npm run compile:test --prefix vscode-ext` type-checks the extension test
 sources under `vscode-ext/src/test` with strict settings before CI. `npm test
---prefix vscode-ext` runs that type-check first and then runs the Bun language
-server tests. `npm run compile --prefix vscode-ext` remains the production
-extension compile used for packaging.
+--prefix vscode-ext` first builds the production extension, then runs that
+type-check, and then runs the Bun language server tests. Production and test
+configurations both include ES2022 library declarations.
+`npm run compile --prefix vscode-ext` remains the production extension compile
+used for packaging.
 
 VS Code type-check failures map to these same focused commands in `bun run
 ci:triage`, including missing `vscode-languageserver-textdocument` declarations

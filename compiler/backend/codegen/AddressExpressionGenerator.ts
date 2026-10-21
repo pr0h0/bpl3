@@ -170,10 +170,40 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       return `@${memberExpr.property}`;
     }
 
-    const objectAddr = this.generateAddress(
-      memberExpr.object,
-      skipNullObjectCheck,
-    );
+    let tupleBase = memberExpr.object;
+    while (tupleBase.kind === "Group") tupleBase = tupleBase.expression;
+    let objectAddr: string;
+    if (
+      tupleBase.kind === "Call" &&
+      objType?.kind === "TupleType" &&
+      !objType.arrayDimensions?.length
+    ) {
+      const tupleType = this.resolveType(objType);
+      const value = this.generateExpression(memberExpr.object);
+      objectAddr = this.allocateStack(
+        `tuple_member_base_${this.labelCount++}`, tupleType,
+      );
+      this.emit(`  store ${tupleType} ${value}, ${tupleType}* ${objectAddr}`);
+    } else {
+      objectAddr = this.generateAddress(memberExpr.object, skipNullObjectCheck);
+    }
+
+    if (objType?.kind === "TupleType" && !objType.arrayDimensions?.length) {
+      const index = Number(memberExpr.property);
+      if (!Number.isInteger(index) || index < 0 || index >= objType.types.length) {
+        throw new CompilerError(
+          `Invalid tuple index '${memberExpr.property}'`,
+          `Valid indices are 0-${objType.types.length - 1}`,
+          memberExpr.location,
+        );
+      }
+      const tupleType = this.resolveType(objType);
+      const address = this.newRegister();
+      this.emit(
+        `  ${address} = getelementptr inbounds ${tupleType}, ${tupleType}* ${objectAddr}, i32 0, i32 ${index}`,
+      );
+      return address;
+    }
 
     if (!objType || objType.kind !== "BasicType") {
       throw new CompilerError(
