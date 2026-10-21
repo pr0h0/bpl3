@@ -7754,3 +7754,7 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   conversion direction instead of the reversed assignment compatibility check.
 - Pointers to array aliases remain pointer values. Arrays whose elements are
   pointers remain aggregates and cannot use scalar pointer reinterpretation.
+- CodeRabbit identified that the new aggregate fast path could skip nominal
+  declaration checks. Conversion lowering now retains declaration identity,
+  including element types nested in generic, tuple and callable types. Reparsed
+  declarations from the same source retain compatibility.
