@@ -7352,6 +7352,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   resolution exists. No partial edit is returned. Nine failing-before regressions
   cover variables/constants/functions, unsaved buffers and LF/CRLF/CR.
 
+## Failed live parsing left old ASTs available to rename operations
+
+- A failed live parse kept the previous AST cache. Rename preparation, edits
+  and read-only references ignored the parse result and could use stale nodes.
+- Decline all three requests immediately when parsing returns null. Nine
+  failing-before cases warm the cache then introduce an unterminated literal
+  across LF/CRLF/CR; each operation now returns no result.
+
 ## Rename reloaded saved files over unsaved document contents
 
 - Node selection reloaded disk ASTs after parsing the current editor buffer;
