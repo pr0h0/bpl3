@@ -100,6 +100,10 @@ export class ASTRenameHandler {
 
       // Check if the node is renameable
       if (this.isRenameableNode(node)) {
+        if (
+          node.kind === "FunctionDecl" &&
+          !this.astResolver.getCachedAST(filePath)?.statements.includes(node as AST.FunctionDecl)
+        ) return null;
         if ((node.kind === "BasicType" || node.kind === "Identifier") && !this.analyzeSymbol(node, filePath)) {
           return null;
         }
@@ -372,19 +376,19 @@ export class ASTRenameHandler {
         if (symbolInfo.node.kind === "Extern") {
           return this.findCurrentDocumentSymbolReferences(symbolName, document);
         }
-        return this.findGlobalSymbolReferences(symbolName, document);
+        return this.findGlobalSymbolReferences(symbolName, document, symbolInfo.node);
 
       case "type-alias":
         if (symbolInfo.node.kind === "TypeAlias") {
           return this.findCurrentDocumentSymbolReferences(symbolName, document);
         }
-        return this.findGlobalSymbolReferences(symbolName, document);
+        return this.findGlobalSymbolReferences(symbolName, document, symbolInfo.node);
 
       case "struct":
       case "enum":
       case "global-variable":
         // Global symbols currently search their defining file.
-        return this.findGlobalSymbolReferences(symbolName, document);
+        return this.findGlobalSymbolReferences(symbolName, document, symbolInfo.node);
 
       default:
         return references;
@@ -1204,13 +1208,14 @@ export class ASTRenameHandler {
   private findGlobalSymbolReferences(
     symbolName: string,
     currentDocument: TextDocument,
+    declarationNode: AST.ASTNode,
   ): Location[] {
     const filePath = fileURLToPath(currentDocument.uri);
     const ast = this.astResolver.getCachedAST(filePath);
     const liveDeclaration = ast?.statements.find(
       (statement) => this.getSymbolName(statement) === symbolName,
     );
-    if (liveDeclaration) {
+    if (liveDeclaration && liveDeclaration === declarationNode) {
       return this.findCurrentDocumentSymbolReferences(
         symbolName,
         currentDocument,
