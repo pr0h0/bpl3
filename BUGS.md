@@ -7730,11 +7730,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Keep returned slice and pointer storage writable and preserve single base
   evaluation. Grouped mutation checks retain const checking.
 
-## Open: explicit array-to-pointer casts copy stored arrays
+## Explicit array view casts copied stored arrays
 
 - While validating returned pointer writes, `cast<*int>(a)` for a stored fixed
   array materialized an array copy. Mutating that pointer did not update `a`,
   unlike implicit pointer conversion or `&a[0]`.
 - For `local a:int[2]=[1,2]; local p:*int=cast<*int>(a); p[1]=7;`,
-  `a[1]` incorrectly remains 2. Use `&a[0]` when existing array storage must
-  be borrowed until this explicit-cast path is corrected.
+  `a[1]` incorrectly remained 2. Explicit pointer and slice casts now use
+  existing addressable array storage, with one evaluation of the source.
+- Constant arrays cannot produce mutable explicit views. Casts of temporary
+  arrays retain frame-local storage and the existing return-lifetime checks.

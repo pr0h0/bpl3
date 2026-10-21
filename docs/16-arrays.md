@@ -178,6 +178,14 @@ frame main() ret int {
 
 ## Arrays and Pointers
 
+Explicit casts from an addressable fixed array to a slice or element pointer
+borrow its existing storage, just like implicit conversions. For example,
+after `local view:int[]=cast<int[]>(values);`, changing `view[0]` also changes
+`values[0]`. The array must remain
+alive while that view is used. Constant arrays cannot be cast to mutable views;
+copy the array into mutable storage first. Casts of temporary array values use
+frame-local storage, and returning those views is rejected.
+
 Arrays decay to pointers when passed to functions or used in expressions:
 
 ```bpl

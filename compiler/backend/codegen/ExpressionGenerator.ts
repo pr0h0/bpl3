@@ -1062,6 +1062,33 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     return closure;
   }
 
+  protected override generateCast(expr: AST.CastExpr): string {
+    const rawSource = expr.expression.resolvedType!;
+    if (rawSource.kind === "BasicType" && rawSource.pointerDepth > 0 && rawSource.arrayDimensions.length === 0)
+      return super.generateCast(expr);
+    const sourceType = this.resolveInstantiatedValueType(rawSource);
+    if (!this.isFixedArrayTypeNode(sourceType) ||
+      !this.resolveType(sourceType).startsWith("[") ||
+      !this.isAddressableAggregateSource(expr.expression))
+      return super.generateCast(expr);
+    const targetType = this.resolveInstantiatedValueType(expr.resolvedType ?? expr.targetType);
+    const conversion = lowerImplicitConversion(targetType, sourceType);
+    if (this.isFixedArrayTypeNode(sourceType) &&
+      this.isAddressableAggregateSource(expr.expression)) {
+      if (conversion.kind === "array-to-slice" && this.isSliceTypeNode(targetType)) {
+        return this.emitSliceFromArrayAddress(
+          this.generateAddress(expr.expression), sourceType, targetType,
+        );
+      }
+      if (conversion.kind === "array-to-pointer") {
+        return this.emitPointerFromArrayAddress(
+          this.generateAddress(expr.expression), sourceType,
+        );
+      }
+    }
+    return super.generateCast(expr);
+  }
+
   protected generateIndex(expr: AST.IndexExpr): string {
     // Check for operator overload (__get__)
     if (expr.operatorOverload) {

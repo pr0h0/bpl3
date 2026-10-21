@@ -101,3 +101,30 @@ export function isTemporaryArrayElement(
       return false;
   }
 }
+
+/** Const aggregate bindings also protect their nested array storage. */
+export function isConstantArrayStorage(
+  expression: AST.Expression,
+  resolve: ResolveType,
+): boolean {
+  if (
+    expression.resolvedType?.kind === "BasicType" &&
+    expression.resolvedType.isConst
+  )
+    return true;
+  if (expression.kind === "Identifier") {
+    const declaration = expression.resolvedDeclaration;
+    return (
+      !!declaration && "isConst" in declaration && declaration.isConst === true
+    );
+  }
+  if (expression.kind === "Group")
+    return isConstantArrayStorage(expression.expression, resolve);
+  if (expression.kind === "Member" || expression.kind === "Index") {
+    return (
+      !borrowsStorage(expression.object.resolvedType, resolve) &&
+      isConstantArrayStorage(expression.object, resolve)
+    );
+  }
+  return false;
+}

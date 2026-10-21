@@ -1,4 +1,5 @@
-import { isTemporaryArrayElement } from "../common/ArrayElementStorage";
+import { lowerImplicitConversion } from "./lowering/ImplicitConversions";
+import { isTemporaryArrayElement, isConstantArrayStorage } from "../common/ArrayElementStorage";
 import { formatDiagnosticType } from "./DiagnosticTypeFormatter";
 /**
  * ExpressionChecker - Handles type checking of expressions
@@ -1438,6 +1439,17 @@ export function checkCast(
 
     const resolved = this.resolveType(exprType);
     const target = this.resolveType(expr.targetType);
+
+    const conversion = lowerImplicitConversion(target, resolved);
+    if (isConstantArrayStorage(expr.expression, (type) => this.resolveType(type)) &&
+      (conversion.kind === "array-to-pointer" || conversion.kind === "array-to-slice")) {
+      throw new CompilerError(
+        "Cannot cast a constant array to a mutable view",
+        "BPL does not support views of constant elements. Copy the array to mutable storage first.",
+        expr.location,
+        CAST_INVALID_CODE,
+      );
+    }
 
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {
