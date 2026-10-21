@@ -7352,6 +7352,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   resolution exists. No partial edit is returned. Nine failing-before regressions
   cover variables/constants/functions, unsaved buffers and LF/CRLF/CR.
 
+## Exported declaration rename left importing files inconsistent
+
+- Declining rename from importing files still allowed a defining file to rename
+  an exported declaration and its export list without updating importers.
+- Decline exported-name preparation and edits until complete workspace rename
+  exists. Keep read-only references available. Eighteen failing-before cases
+  cover functions, globals/constants, aliases, structs/enums and LF/CRLF/CR.
+
 ## Method rename could target a different same-named global
 
 - Struct/enum method declarations were classified as functions, and global
