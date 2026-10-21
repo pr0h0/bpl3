@@ -86,7 +86,7 @@ export class ASTRenameHandler {
 
       // Parse document content
       const content = document.getText();
-      this.astResolver.parseDocumentContent(filePath, content);
+      if (!this.astResolver.parseDocumentContent(filePath, content)) return null;
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
@@ -144,7 +144,7 @@ export class ASTRenameHandler {
 
       // Parse document content
       const content = document.getText();
-      this.astResolver.parseDocumentContent(filePath, content);
+      if (!this.astResolver.parseDocumentContent(filePath, content)) return null;
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
@@ -193,7 +193,7 @@ export class ASTRenameHandler {
 
       // Parse document content
       const content = document.getText();
-      this.astResolver.parseDocumentContent(filePath, content);
+      if (!this.astResolver.parseDocumentContent(filePath, content)) return null;
 
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
