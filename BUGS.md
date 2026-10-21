@@ -7434,6 +7434,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   limitations. Lambda-parameter rename itself is not implemented by this fix.
 
 
+## CI workflow test still expected the old extension test script
+
+- After adding production compilation to the extension test pipeline, the
+  workflow contract test still required its exact previous command string.
+- Validate production build, test typecheck and Bun execution ordering instead.
+  The reproduced Ubuntu CI assertion and the local workflow suite now pass.
+
 ## Extension production build was not checked by its test command
 
 - `npm run compile --prefix vscode-ext` failed TS2550 for Object.hasOwn in
