@@ -465,8 +465,17 @@ frame funcB(param: int) ret int {
       const result = getRenameEdits(testFile, code, 5, 23, "shadow");
       const edits = result?.changes?.[pathToFileURL(testFile).toString()];
       expect(edits).toBeDefined();
-      // Should rename: declaration on line 3, itself on line 3 in condition, condition on line 4, return on line 5
-      expect(edits!.length).toBe(4);
+      // The initializer reads the parameter; only the local declaration and uses change.
+      expect(
+        edits!.map((edit) => [
+          edit.range.start.line,
+          edit.range.start.character,
+        ]),
+      ).toEqual([
+        [3, 18],
+        [4, 16],
+        [5, 23],
+      ]);
     });
 
     it("should distinguish between similar variable names", () => {

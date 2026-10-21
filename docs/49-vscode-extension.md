@@ -273,6 +273,7 @@ Tests cover:
 - Hover information (functions, structs, enums)
 - Go-to-definition navigation
 - Symbol resolution across files
+- Local rename preserves references to outer bindings in declaration initializers
 - Type inference and checking
 - Snippet JSON validity for package and type-match snippets
 

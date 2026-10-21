@@ -7528,3 +7528,19 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   distinct comment order, semantic preservation and idempotence. Mixed
   parenthesis additions/removals are covered too: a small net token count
   change does not imply a small alignment distance.
+
+
+## Local rename included references from its own initializer
+
+- Renaming `local target:int=target+1` rewrote the initializer reference to
+  the new local name even though it resolves to the outer binding. Selecting
+  the initializer also resolved rename/reference lookup to the wrong local.
+- Exclude a declaration's type annotation and initializer from its own scope
+  in local-binding classification, reference grouping and parameter-shadow
+  filtering. Tests cover
+  block and loop declarations, multiline initializers and LF/CRLF/CR source.
+- Nine further regressions showed same-line nested declarations borrowed the
+  whole function scope. Choose the innermost containing scope structurally,
+  preserving outer references after minified blocks and loops. An additional
+  18 failing-before cases ensure parameter rename includes references in the
+  shadowing local initializer. Global and outer-local controls remain covered.
