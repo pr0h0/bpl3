@@ -675,7 +675,7 @@ describe("CodeGenerator", () => {
     );
     const methodStart = source.indexOf("private generateMemberAddress");
     const methodEnd = source.indexOf(
-      "private generateIndexAddress",
+      "protected generateIndexAddress",
       methodStart,
     );
 
@@ -720,7 +720,7 @@ describe("CodeGenerator", () => {
     );
     const methodStart = source.indexOf("private generateMemberAddress");
     const methodEnd = source.indexOf(
-      "private generateIndexAddress",
+      "protected generateIndexAddress",
       methodStart,
     );
 
