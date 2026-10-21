@@ -75,7 +75,8 @@ Jump to symbol definitions:
 
 ### Rename ranges
 
-Imported symbols cannot currently be renamed across files. These requests are
+Imported symbols and exported declarations cannot currently be renamed across
+files. These requests are
 declined so they cannot return incomplete edits that break importing code.
 Read-only imported-symbol references can still be found in the defining file,
 using its cached live source when available. This is not a complete workspace
