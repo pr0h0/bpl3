@@ -73,18 +73,18 @@ test("read materialization does not permit assigning or taking addresses of temp
   expectCleanFailureSuite([
     {
       name: "match-array-element-address",
-      expectedMessage: "Expression is not an lvalue: Match",
+      expectedMessage: "temporary array",
       source:
         "frame bad()ret *int{return &(match(true){true=>[1,2],false=>[3,4],})[0];}frame main()ret int{return *bad();}",
     },
     {
       name: "match-array-element-assignment",
-      expectedMessage: "Expression is not an lvalue: Match",
+      expectedMessage: "temporary array",
       source: "frame main(){(match(true){true=>[1,2],false=>[3,4],})[0]=9;}",
     },
     {
       name: "conditional-array-element-address",
-      expectedMessage: "Expression is not an lvalue: Ternary",
+      expectedMessage: "temporary array",
       source:
         "frame bad()ret *int{return &(true?[1,2]:[3,4])[0];}frame main()ret int{return *bad();}",
     },

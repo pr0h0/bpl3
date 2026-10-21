@@ -7717,3 +7717,24 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Native O0/O3 and LLVM regressions cover array matches, conditionals, nested
   dimensions, field and tuple projections, returned arrays, aliases, generics,
   slices, pointers and object-before-index evaluation order.
+
+## Returned fixed-array elements accepted writes to temporary copies
+
+- CodeRabbit identified that fixed-array calls still permitted assignments and
+  element addresses, despite the temporary-element read contract. Checker-only
+  regressions also cover aliases, generic calls, tuple/struct fields, nested
+  dimensions, literals, matches and conditionals.
+- Reject writes, compound assignments, increments and addresses when the indexed
+  storage belongs to a temporary owned array. Share the ownership predicate with
+  address generation; reading the same values still materializes them normally.
+- Keep returned slice and pointer storage writable and preserve single base
+  evaluation. Grouped mutation checks retain const checking.
+
+## Open: explicit array-to-pointer casts copy stored arrays
+
+- While validating returned pointer writes, `cast<*int>(a)` for a stored fixed
+  array materialized an array copy. Mutating that pointer did not update `a`,
+  unlike implicit pointer conversion or `&a[0]`.
+- For `local a:int[2]=[1,2]; local p:*int=cast<*int>(a); p[1]=7;`,
+  `a[1]` incorrectly remains 2. Use `&a[0]` when existing array storage must
+  be borrowed until this explicit-cast path is corrected.
