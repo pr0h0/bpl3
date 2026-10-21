@@ -17,7 +17,10 @@ import * as AST from "../../../compiler/common/AST";
 import { lexWithGrammar } from "../../../compiler/frontend/GrammarLexer";
 import { TokenType } from "../../../compiler/frontend/TokenType";
 import { ASTResolver } from "./ASTResolver";
-import { collectGlobalValueReferences } from "./GlobalValueReferences";
+import {
+  collectGlobalValueReferences,
+  collectUnshadowedValueReferences,
+} from "./GlobalValueReferences";
 import { SymbolIndex } from "./SymbolIndex";
 import { debugLog, filePathToUri } from "./utils";
 
@@ -110,7 +113,9 @@ export class ASTRenameHandler {
         )
           return null;
         if (
-          (node.kind === "BasicType" || node.kind === "Identifier") &&
+          (node.kind === "BasicType" ||
+            node.kind === "Identifier" ||
+            node.kind === "PatternIdentifier") &&
           !this.analyzeSymbol(node, filePath)
         ) {
           return null;
@@ -254,7 +259,9 @@ export class ASTRenameHandler {
   ): Range | null {
     if (!this.isRenameableNode(node)) return null;
     if (
-      (node.kind === "BasicType" || node.kind === "Identifier") &&
+      (node.kind === "BasicType" ||
+        node.kind === "Identifier" ||
+        node.kind === "PatternIdentifier") &&
       !this.analyzeSymbol(node, fileURLToPath(document.uri))
     )
       return null;
@@ -316,10 +323,94 @@ export class ASTRenameHandler {
     );
   }
 
+  /** Map declarations and uses to their owning match-arm binding. */
+  private patternOwners(
+    ast: AST.ASTNode,
+    name: string,
+  ): Map<AST.ASTNode, AST.Pattern> {
+    const owners = new Map<AST.ASTNode, AST.Pattern>();
+    const visit = (node: AST.ASTNode): void => {
+      if (node.kind === "Match") {
+        for (const arm of (node as AST.MatchExpr).arms) {
+          const bindings: AST.Pattern[] = [];
+          const findBindings = (pattern: AST.Pattern): void => {
+            if (pattern.kind === "PatternIdentifier" && pattern.name === name)
+              bindings.push(pattern);
+            else if (pattern.kind === "PatternTuple")
+              pattern.patterns.forEach(findBindings);
+            else if (pattern.kind === "PatternEnumTuple")
+              pattern.bindings.forEach(findBindings);
+            else if (
+              pattern.kind === "PatternEnumStruct" &&
+              pattern.fields.some((field) => field.binding === name)
+            )
+              bindings.push(pattern);
+          };
+          findBindings(arm.pattern);
+          // Duplicate bindings and struct-pattern strings have no unambiguous
+          // declaration token. Track their uses, but decline their rename.
+          let binding = bindings[0];
+          if (bindings.length > 1) binding = arm.pattern;
+          if (binding) {
+            for (const declaration of bindings)
+              owners.set(declaration, binding);
+            for (const root of [arm.guard, arm.body]) {
+              for (const reference of collectUnshadowedValueReferences(
+                root,
+                name,
+              ))
+                owners.set(reference, binding);
+            }
+          }
+        }
+      }
+      this.traverseNode(node, visit);
+    };
+    if (ast.kind === "Program") {
+      for (const statement of (ast as AST.Program).statements) visit(statement);
+    } else visit(ast);
+    return owners;
+  }
+
+  private findReferences(
+    node: AST.ASTNode,
+    filePath: string,
+    document: TextDocument,
+  ): Location[] {
+    const ast = this.astResolver.getCachedAST(filePath);
+    const name = this.getSymbolName(node);
+    if (!ast || !name) return [];
+    const owners = this.patternOwners(ast, name);
+    const owner = owners.get(node);
+    if (owner) {
+      if (owner.kind !== "PatternIdentifier") return [];
+      return [...owners].flatMap(([reference, binding]) => {
+        const range =
+          binding === owner ? this.getNodeRange(reference, document) : null;
+        return range ? [Location.create(document.uri, range)] : [];
+      });
+    }
+    // Legacy collectors must never attribute pattern declarations or uses to
+    // an outer local, parameter or catch binding with the same spelling.
+    const key = (range: Range): string =>
+      `${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}`;
+    const patternRanges = new Set(
+      [...owners.keys()].flatMap((reference) => {
+        const range = this.getNodeRange(reference, document);
+        return range ? [key(range)] : [];
+      }),
+    );
+    return this.findScopedReferences(node, filePath, document).filter(
+      (reference) =>
+        reference.uri !== document.uri ||
+        !patternRanges.has(key(reference.range)),
+    );
+  }
+
   /**
    * Find all references to a symbol based on its scope
    */
-  private findReferences(
+  private findScopedReferences(
     node: AST.ASTNode,
     filePath: string,
     document: TextDocument,
@@ -1341,16 +1432,19 @@ export class ASTRenameHandler {
       }
     }
 
-    // Handle PatternIdentifier (bindings in match expressions)
-    if (node.kind === "PatternIdentifier") {
-      if (containingFunction) {
-        return {
-          type: "pattern-binding",
-          scope: "function",
-          node,
-          functionNode: containingFunction,
-        };
-      }
+    const patternName = this.getSymbolName(node);
+    const patternOwner = patternName
+      ? this.patternOwners(ast, patternName).get(node)
+      : undefined;
+    if (patternOwner) {
+      return patternOwner.kind === "PatternIdentifier"
+        ? {
+            type: "pattern-binding",
+            scope: "function",
+            node: patternOwner,
+            functionNode: containingFunction || undefined,
+          }
+        : null;
     }
 
     // Handle catch clause parameter

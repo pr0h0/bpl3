@@ -7693,3 +7693,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   base. Preserve ordinary variable storage and address-taking/assignment rules.
 - Add LLVM/O0/O3 controls for generic literals, evaluation counts and grouped
   pointer-returning calls.
+
+## Match-pattern rename confused arm bindings with outer parameters
+
+- Renaming a match binding could omit its declaration and edit a same-named
+  global or function parameter. Local shadow cases could decline valid renames.
+- Resolve identifier, tuple and enum-tuple bindings within their own arm's guard
+  and body, including nested scopes and declaration initializer boundaries.
+  Exclude these references from outer local, parameter and catch renames.
+- Struct-pattern bindings without individual declaration nodes and duplicate
+  pattern bindings decline rename rather than returning partial edits.
+- Regression coverage includes rename and find-references from declaration,
+  guard and body, nested scopes, minified source, LF, CRLF and standalone CR.
