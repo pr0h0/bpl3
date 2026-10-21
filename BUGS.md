@@ -7647,3 +7647,14 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Use the contextual matching enum type for payload inspection as well. Cover
   inferred constructors, aliases, groups, tuple/match containers and existing
   caller-owned views; native aliases and by-value array payloads remain valid.
+
+
+## Safe match-width inference rejected fitting unsigned literal arms
+
+- The database example's u64 hash match also returns literal 0/1. Strict integer
+  type widening rejected those valid fallback blocks after the width fix.
+- Carry every arm/block yield expression through unification. Allow only fitting
+  uncast integer literals to adopt the other integer type, including tuple
+  members; reject runtime values or explicit casts requiring narrowing.
+- Native O0/O3 tests cover both arm orders, all block yields and tuples, with
+  rejection controls that retain every prior runtime value.

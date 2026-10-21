@@ -1933,6 +1933,7 @@ function checkMatchExprBody(
   // checkPattern and checkMatchExhaustiveness handle undefined enumDecl now.
 
   let resultType: AST.TypeNode | undefined;
+  const yieldedValues: AST.Expression[] = [];
   for (const arm of expr.arms) {
     this.currentScope = this.currentScope.enterScope();
 
@@ -1960,10 +1961,19 @@ function checkMatchExprBody(
       // A match statement discards arm values, so they need no common type.
       continue;
     }
+    const armValues =
+      arm.body.kind === "Block"
+        ? (this.matchYieldValues.get(arm.body) ?? [])
+        : [arm.body];
     if (!resultType) {
       resultType = armType;
     } else if (armType) {
-      const commonType = this.unifyMatchResultTypes(resultType, armType);
+      const commonType = this.unifyMatchResultTypes(
+        resultType,
+        armType,
+        yieldedValues,
+        armValues,
+      );
       if (!commonType) {
         throw new CompilerError(
           `Match arms must have compatible types: ${this.formatDiagnosticType(
@@ -1975,6 +1985,7 @@ function checkMatchExprBody(
       }
       resultType = commonType;
     }
+    if (armType) yieldedValues.push(...armValues);
   }
 
   this.checkMatchExhaustiveness(expr, enumDecl, valueType);

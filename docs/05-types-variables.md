@@ -272,7 +272,9 @@ type; later returns cannot silently change the element type or array length.
 For scalar integers and tuple members, match results select a yielded type that
 can represent both earlier and later yields without narrowing. Integer types
 whose signedness/range cannot be represented by either yielded type require an
-explicit cast to a common type. This does not reinterpret existing array storage.
+explicit cast to a common type. Uncast integer literals may adopt the other
+result type when all their values fit; earlier runtime yields cannot be ignored
+when selecting that representation. This does not reinterpret existing array storage.
 
 An implicit fixed-array-to-slice conversion inside a tuple or struct literal
 borrows existing addressable array storage. Writes through that slice are

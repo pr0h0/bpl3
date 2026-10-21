@@ -48,6 +48,8 @@ export interface CheckerContext {
   unifyMatchResultTypes(
     first: AST.TypeNode,
     next: AST.TypeNode,
+    previousValues?: readonly AST.Expression[],
+    nextValues?: readonly AST.Expression[],
   ): AST.TypeNode | undefined;
   typeToString(type: AST.TypeNode | undefined): string;
   formatDiagnosticType(type: AST.TypeNode | undefined): string;

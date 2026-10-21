@@ -3223,10 +3223,14 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         this.matchYieldValues.set(body, context.inferredValues!);
         if (context.inferredTypes.length > 0) {
           let resultType = context.inferredTypes[0]!;
-          for (const yieldedType of context.inferredTypes.slice(1)) {
+          for (let index = 1; index < context.inferredTypes.length; index++) {
+            const yieldedType = context.inferredTypes[index]!;
+            const value = context.inferredValues?.[index];
             const commonType = this.unifyMatchResultTypes(
               resultType,
               yieldedType,
+              context.inferredValues?.slice(0, index),
+              value ? [value] : [],
             );
             if (!commonType) {
               throw new CompilerError(

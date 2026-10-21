@@ -1372,6 +1372,8 @@ export abstract class TypeCheckerBase {
   public unifyMatchResultTypes(
     first: AST.TypeNode,
     next: AST.TypeNode,
+    previousValues: readonly AST.Expression[] = [],
+    nextValues: readonly AST.Expression[] = [],
   ): AST.TypeNode | undefined {
     const left = this.resolveType(first);
     const right = this.resolveType(next);
@@ -1383,11 +1385,26 @@ export abstract class TypeCheckerBase {
       !right.arrayDimensions?.length &&
       left.types.length === right.types.length
     ) {
+      const tupleElements = (
+        values: readonly AST.Expression[],
+        index: number,
+      ): AST.Expression[] => {
+        const elements: AST.Expression[] = [];
+        for (let value of values) {
+          while (value.kind === "Group") value = value.expression;
+          if (value.kind !== "TupleLiteral" || !value.elements[index])
+            return [];
+          elements.push(value.elements[index]!);
+        }
+        return elements;
+      };
       const types: AST.TypeNode[] = [];
       for (let index = 0; index < left.types.length; index++) {
         const common = this.unifyMatchResultTypes(
           left.types[index]!,
           right.types[index]!,
+          tupleElements(previousValues, index),
+          tupleElements(nextValues, index),
         );
         if (!common) return;
         types.push(common);
@@ -1408,6 +1425,32 @@ export abstract class TypeCheckerBase {
     ) {
       if (this.isImplicitWideningAllowed(right, left)) return left;
       if (this.isImplicitWideningAllowed(left, right)) return right;
+      const literalsFit = (
+        values: readonly AST.Expression[],
+        target: AST.TypeNode,
+      ) =>
+        values.length > 0 &&
+        values.every((expression) => {
+          let value = expression;
+          while (value.kind === "Group") value = value.expression;
+          while (
+            value.kind === "Unary" &&
+            (value.operator.type === TokenType.Plus ||
+              value.operator.type === TokenType.Minus)
+          ) {
+            value = value.operand;
+            while (value.kind === "Group") value = value.expression;
+          }
+          // Explicitly typed casts and runtime arithmetic retain their types.
+          if (value.kind !== "Literal") return false;
+          const constant = this.getIntegerConstantValue(expression);
+          return (
+            constant !== undefined &&
+            this.isIntegerTypeCompatible(constant, target)
+          );
+        });
+      if (literalsFit(nextValues, left)) return left;
+      if (literalsFit(previousValues, right)) return right;
       return;
     }
     return this.areTypesCompatible(left, right) ? left : undefined;
