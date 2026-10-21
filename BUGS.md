@@ -7475,13 +7475,17 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   nested/aliased tuples, struct fields, slice members and by-value parameters.
   Const assignment checks remain in force.
 
-## Tuple array-to-slice conversion copies existing array storage (open)
+## Aggregate array-to-slice conversions copied or rejected existing storage
 
 - `(int[],int) = (values,22)` creates a view of copied array storage. Mutating
   the tuple's slice does not affect the original fixed array, unlike a direct
   `local borrowed:int[]=values` conversion. Confirmed during tuple address tests.
-- Using an explicit direct slice before building the tuple preserves borrowing.
-  Aggregate slice lowering needs a separate regression and correction.
+- Struct slice fields could instead emit invalid native aggregate types.
+  Generate tuple/struct elements through checked conversions, borrowing the
+  address of existing array storage and materializing only array rvalues.
+- Native O0/O3 regressions cover aliases/generics, nested aggregates, selected
+  storage and returned arrays evaluated once, and scalar/callback field
+  conversions. Existing explicit array-to-view casts retain copy semantics.
 
 
 ## Primitive aliases disagreed across implicit conversion metadata

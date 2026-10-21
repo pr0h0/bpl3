@@ -255,6 +255,11 @@ the literal's actual element count. This also applies to nested integer arrays
 and grouped or conditional array literals whose branches have matching shapes.
 Overload selection keeps existing exact matches ahead of these conversions.
 
+An implicit fixed-array-to-slice conversion inside a tuple or struct literal
+borrows existing addressable array storage. Writes through that slice are
+visible through the original array. Array rvalues use temporary storage within
+the current frame; aggregate construction does not extend storage lifetime.
+
 A fixed array can return by value. Returning it through an implicit conversion or an explicit cast
 to a slice or pointer is rejected with `BPL_RETURN_ARRAY_VIEW_ESCAPES`: the
 conversion would create a view into a temporary in the returning frame. Return
