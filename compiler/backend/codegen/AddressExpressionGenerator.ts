@@ -447,13 +447,18 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       );
     }
 
-    if (object.kind === "Call" && object.resolvedType) {
+    if (
+      object.resolvedType &&
+      (object.kind === "Call" ||
+        isTemporaryArrayElement(object, (type) =>
+          this.resolveInstantiatedValueType(type),
+        ))
+    ) {
+      // Reading a borrowed pointer/slice from a temporary array does not
+      // require an address for the temporary element that held the value.
       const type = this.resolveType(object.resolvedType);
       const value = this.generateExpression(object);
-      const slot = this.allocateStack(
-        `index_base_${this.labelCount++}`,
-        type,
-      );
+      const slot = this.allocateStack(`index_base_${this.labelCount++}`, type);
       this.emit(`  store ${type} ${value}, ${type}* ${slot}`);
       return slot;
     }

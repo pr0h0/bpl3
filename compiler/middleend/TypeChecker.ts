@@ -1,4 +1,8 @@
-import { isTemporaryArrayElement } from "../common/ArrayElementStorage";
+import {
+  isConstantArrayStorage,
+  isTemporaryArrayElement,
+} from "../common/ArrayElementStorage";
+import { isSliceTypeNode } from "./lowering/ImplicitConversions";
 /**
  * TypeChecker - Main type checking class for BPL
  * Extends TypeCheckerBase and uses modular checker functions
@@ -2287,6 +2291,16 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       const index = expr as AST.IndexExpr;
       const objType = this.checkExpression(index.object);
       if (objType && (objType as AST.BasicTypeNode).pointerDepth > 0) {
+        return;
+      }
+      if (
+        objType &&
+        isSliceTypeNode(objType) &&
+        isTemporaryArrayElement(index.object, (type) => this.resolveType(type)) &&
+        !isConstantArrayStorage(index.object, (type) => this.resolveType(type))
+      ) {
+        // Modifying borrowed elements reads the temporary slice descriptor;
+        // it does not modify the temporary array that contained it.
         return;
       }
       this.checkIsMutable(index.object);

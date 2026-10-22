@@ -7787,10 +7787,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 
 ## Indexing through pointer values in temporary arrays required temporary addresses
 
-- Status: confirmed; a separate follow-up fix is in progress.
 - Reading a pointer from a returned fixed array and indexing its caller-owned
   pointee passed checking, but backend address generation tried to address the
   temporary array element instead of loading its pointer value.
 - This differs from writing the temporary array element itself, which remains
-  invalid. The pointer or slice descriptor must be read once into an index-base
-  slot before applying the existing pointee bounds/null checks and element store.
+  invalid. Read the pointer or slice descriptor once into an index-base slot
+  before applying the existing pointee bounds/null checks and element store.
+- For slice descriptors read from temporary arrays, mutability checking stops
+  at the borrowed storage boundary after retaining the constant-storage check.
+- LLVM/O0/O3 regressions cover calls, literals, conditional/match arrays, generic
+  row pointers, slices, tuple/struct pointer fields, and single source-order
+  evaluation of the base and both indices. Temporary array element writes and
+  addresses remain rejected by the existing checker and backend guards.
