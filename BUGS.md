@@ -7821,3 +7821,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   callback and closure qualifiers alongside primitive qualifiers. Reject writes
   through constant temporary descriptors while preserving mutable descriptor
   access to caller-owned storage.
+
+## Indexing borrowed conditional and cast values required an lvalue base
+
+- A pointer selected by a conditional passes type checking, but writing through
+  `(true ? pointer(&value) : pointer(&value))[0]` fails code generation with
+  `Expression is not an lvalue: Ternary`. The pointer value is an index base,
+  rather than storage whose address is required.
+- Match-selected pointers, explicit pointer/slice casts and address-of bases
+  had the same problem. Materialize these borrowed expression values once into
+  an index-base slot, retaining the existing bounds and null checks.
+- LLVM/O0/O3 regressions verify pointer and slice stores, compound assignment,
+  element addresses, branch selection and base/index evaluation order. Owned
+  temporary array element writes remain rejected.

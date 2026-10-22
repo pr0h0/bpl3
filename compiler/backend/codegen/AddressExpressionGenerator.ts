@@ -429,10 +429,10 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
   /**
    * The location holding the value being indexed.
    *
-   * Indexing loads its base from a slot, so the object has to be one. A call
-   * produces a value rather than a location: treating the returned pointer as
-   * that slot loads through it, so `makeInts()[1]` read the first element and
-   * then used it as an address. The value is materialized into a slot instead.
+   * Indexing loads its base from a slot. Borrowed pointer/slice expressions
+   * can produce values without addressable storage, so materialize them first.
+   * Treating a returned pointer itself as that slot would load through it and
+   * use its first element as an address instead of indexing the pointer value.
    * Member access is unaffected, because there the returned pointer really is
    * the address the field is measured from.
    */
@@ -450,12 +450,19 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     if (
       object.resolvedType &&
       (object.kind === "Call" ||
+        ((object.kind === "Ternary" ||
+          object.kind === "Match" ||
+          object.kind === "Cast" ||
+          (object.kind === "Unary" &&
+            object.operator.type === TokenType.Ampersand)) &&
+          (this.isSliceTypeNode(object.resolvedType) ||
+            this.resolveType(object.resolvedType).endsWith("*"))) ||
         isTemporaryArrayElement(object, (type) =>
           this.resolveInstantiatedValueType(type),
         ))
     ) {
-      // Reading a borrowed pointer/slice from a temporary array does not
-      // require an address for the temporary element that held the value.
+      // Borrowed pointer/slice values need a slot for indexing, even when
+      // the expression producing the value has no address of its own.
       const type = this.resolveType(object.resolvedType);
       const value = this.generateExpression(object);
       const slot = this.allocateStack(`index_base_${this.labelCount++}`, type);
