@@ -7809,3 +7809,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   array element mutation from writes through borrowed pointer/slice values.
 - Existing LLVM/O0/O3 storage-view tests and the new temporary-array regressions
   validate the documented behavior.
+
+## Constant aggregate slice descriptors lost their readonly storage boundary
+
+- Follow-up checks of the temporary slice path found that constant tuple and
+  callback descriptors were not recognized by the constant-storage predicate,
+  which inspected the resolved type qualifier only for basic types.
+- The same predicate allowed type-qualified constant tuple/callback arrays to
+  produce mutable slice casts when their binding was not separately constant.
+- Honor `isConst` on every resolved type that supports it, keeping tuple,
+  callback and closure qualifiers alongside primitive qualifiers. Reject writes
+  through constant temporary descriptors while preserving mutable descriptor
+  access to caller-owned storage.
