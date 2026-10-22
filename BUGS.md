@@ -7849,3 +7849,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - LLVM/O0/O3 tests cover stores, compound stores, field addresses, chosen
   branches, evaluation order and controlled null diagnostics. Ordinary pointer
   identifiers/calls and returned tuple pointers remain passing controls.
+
+## Computed pointer field reads bypassed null checks on their receivers
+
+- PR57 review found that evaluating a nested pointer field as a value routes
+  computed struct receivers through the fast field-read path, which lacks the
+  null check performed by member addressing. `holder().p.value=7` can fail
+  before the outer field's check when `holder()` returns null.
+- Route pointer field reads through checked member addressing; reserve the
+  unchecked temporary-struct materialization path for owned struct values.
+- Runtime diagnostic regressions cover call, grouped-call, conditional, match
+  and cast receivers, as well as direct computed-pointer reads. A non-null
+  nested read/write/address control retains single receiver evaluation.
