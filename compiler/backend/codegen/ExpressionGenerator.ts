@@ -663,6 +663,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
             )
           : elemVal;
         this.emit(`  store ${elemType} ${storeVal}, ${elemType}* ${addr}`);
+        // A store can replace a later target's base or an aliased value.
+        // Do not reuse pointer or integer proofs across tuple stores.
+        this.clearBasicBlockPointerFacts();
       }
 
       return tupleVal;

@@ -7873,3 +7873,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Runtime regressions cover identifiers, calls and computed member/index
   bases. A non-null LLVM/O0/O3 control preserves RHS-first, left-to-right
   single evaluation of target expressions and their indices.
+
+## Tuple stores did not invalidate cached pointer and integer facts
+
+- PR58 architecture review identified a stale-proof interaction: an earlier
+  tuple target may establish that `p` is non-null, then a later target replaces
+  `p`. Tuple stores omit the fact invalidation used by normal assignments.
+- Clear cached pointer and integer facts after each tuple store. Conservative
+  invalidation covers later target addresses, subsequent accesses, aggregate
+  replacement and aliases without requiring alias-independence assumptions.
+- Runtime regressions reproduce stale direct-pointer, aggregate and nonzero
+  divisor facts. Aliased replacement and valid ordered stores are retained
+  controls. Checked failures remain consistent across O0 and O3.
