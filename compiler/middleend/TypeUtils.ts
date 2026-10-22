@@ -867,28 +867,31 @@ export class TypeSubstitution {
       if (map.has(type.name)) {
         const subst = map.get(type.name)!;
         if (subst.kind === "BasicType") {
-          return {
-            ...subst,
-            pointerDepth: subst.pointerDepth + type.pointerDepth,
-            ...(subst.arrayDimensions.length > 0 && type.pointerDepth > 0
-              ? { isPointerToArray: true }
-              : {}),
-            arrayDimensions: [
-              ...type.arrayDimensions,
-              ...subst.arrayDimensions,
-            ],
-            location: type.location,
-            resolvedDeclaration: subst.resolvedDeclaration,
-            ...(type.aliasTarget
-              ? {
-                  aliasDeclaration: type.aliasDeclaration,
-                  aliasTarget: TypeSubstitution.substituteType(
-                    type.aliasTarget,
-                    map,
-                  ),
-                }
-              : {}),
-          };
+          return applyAliasValueModifiers(
+            {
+              ...subst,
+              pointerDepth: subst.pointerDepth + type.pointerDepth,
+              ...(subst.arrayDimensions.length > 0 && type.pointerDepth > 0
+                ? { isPointerToArray: true }
+                : {}),
+              arrayDimensions: [
+                ...type.arrayDimensions,
+                ...subst.arrayDimensions,
+              ],
+              location: type.location,
+              resolvedDeclaration: subst.resolvedDeclaration,
+              ...(type.aliasTarget
+                ? {
+                    aliasDeclaration: type.aliasDeclaration,
+                    aliasTarget: TypeSubstitution.substituteType(
+                      type.aliasTarget,
+                      map,
+                    ),
+                  }
+                : {}),
+            },
+            type,
+          );
         }
         return applyAliasValueModifiers(subst, type);
       }

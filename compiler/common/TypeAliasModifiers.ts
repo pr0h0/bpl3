@@ -4,12 +4,24 @@ import { CompilerError } from "./CompilerError";
 export const TYPE_ALIAS_POINTER_UNSUPPORTED_CODE =
   "BPL_TYPE_ALIAS_POINTER_UNSUPPORTED";
 
-/** Preserve modifiers on aliases whose target has no BasicType wrapper. */
+/** Preserve value qualifiers and outer modifier order after alias expansion. */
 export function applyAliasValueModifiers(
   target: AST.TypeNode,
   usage: AST.BasicTypeNode,
 ): AST.TypeNode {
-  if (usage.pointerDepth > 0 && target.kind !== "BasicType") {
+  if (target.kind === "BasicType") {
+    // Adding an array wrapper makes the previous outer pointer an element
+    // pointer. Its pointee layout remains available through alias metadata.
+    if (usage.arrayDimensions.length > 0 && target.isPointerToArray) {
+      return {
+        ...target,
+        isPointerToArray: false,
+        isConst: usage.isConst || target.isConst,
+      };
+    }
+    return usage.isConst ? { ...target, isConst: true } : target;
+  }
+  if (usage.pointerDepth > 0) {
     throw new CompilerError(
       "Unsupported pointer to callable or tuple type alias",
       "Use a struct wrapper for pointer indirection. A Func value is already a C function pointer; pass it directly for a callback.",
@@ -31,7 +43,5 @@ export function applyAliasValueModifiers(
       isConst: usage.isConst || target.isConst,
     };
   }
-  return usage.isConst && target.kind === "BasicType"
-    ? { ...target, isConst: true }
-    : target;
+  return target;
 }

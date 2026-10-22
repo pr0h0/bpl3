@@ -698,6 +698,13 @@ type Pair<T> = (T, T);
 local coords: Pair<int> = (10, 20);
 ```
 
+Aliases preserve modifier order. With `type Row=int[2];` and
+`type Pointer<T>=*T;`, `Pointer<Row>` points to one fixed row, while
+`Pointer<Row>[2]` contains two row pointers. Wrapping the same element type in
+`type Rows<T>=T[2];` gives the same array layout as the direct array spelling.
+`Pointer<Row>[]` is a slice of row pointers, so replacing one of its elements
+updates the pointer stored in the backing array.
+
 See [Type Aliases](18-type-aliases.md) for complete details.
 
 ## Type Checking

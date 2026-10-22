@@ -7769,3 +7769,28 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   to assignment compatibility and conversion lowering, including aliases.
 - `int[2][2]` to `int[][2]` remains supported. To build a slice of slices,
   construct individual row views and then an array of those views explicitly.
+
+## Generic pointer aliases became outer pointers when wrapped in arrays
+
+- `type Row=int[2];type Pointer<T>=*T;type Rows<T>=T[2];` followed by
+  `local rows:Rows<Pointer<Row>>=[&first,&second];` passed checking but failed
+  compilation with an unsupported cast from an array of row pointers to a
+  pointer to a matrix.
+- Generic substitution and alias resolution retained `isPointerToArray` from
+  the element type after adding outer array dimensions. The flag describes an
+  outer pointer, so it cannot classify an array whose elements are pointers.
+- Array-literal inference also retained the flag from its first element,
+  including literals returned as arrays of generic pointers. Clear the outer
+  pointer flag when wrapping elements in an array and retain pointee metadata.
+- Follow-up validation covers generic and direct array wrappers, nested aliases,
+  borrowed slices and element writes while preserving actual outer pointers.
+
+## Indexing through pointer values in temporary arrays required temporary addresses
+
+- Status: confirmed; a separate follow-up fix is in progress.
+- Reading a pointer from a returned fixed array and indexing its caller-owned
+  pointee passed checking, but backend address generation tried to address the
+  temporary array element instead of loading its pointer value.
+- This differs from writing the temporary array element itself, which remains
+  invalid. The pointer or slice descriptor must be read once into an index-base
+  slot before applying the existing pointee bounds/null checks and element store.
