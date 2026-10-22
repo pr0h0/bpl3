@@ -108,7 +108,8 @@ export function isConstantArrayStorage(
   resolve: ResolveType,
 ): boolean {
   if (
-    expression.resolvedType?.kind === "BasicType" &&
+    expression.resolvedType &&
+    "isConst" in expression.resolvedType &&
     expression.resolvedType.isConst
   )
     return true;

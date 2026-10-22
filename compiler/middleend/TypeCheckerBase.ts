@@ -1144,18 +1144,21 @@ export abstract class TypeCheckerBase {
             );
 
             if (resolvedSubstituted.kind === "BasicType") {
-              return {
-                ...resolvedSubstituted,
-                pointerDepth:
-                  resolvedSubstituted.pointerDepth + type.pointerDepth,
-                arrayDimensions: [
-                  ...type.arrayDimensions,
-                  ...resolvedSubstituted.arrayDimensions,
-                ],
-                location: type.location,
-                aliasDeclaration: decl,
-                aliasTarget: resolvedSubstituted,
-              };
+              return applyAliasValueModifiers(
+                {
+                  ...resolvedSubstituted,
+                  pointerDepth:
+                    resolvedSubstituted.pointerDepth + type.pointerDepth,
+                  arrayDimensions: [
+                    ...type.arrayDimensions,
+                    ...resolvedSubstituted.arrayDimensions,
+                  ],
+                  location: type.location,
+                  aliasDeclaration: decl,
+                  aliasTarget: resolvedSubstituted,
+                },
+                type,
+              );
             }
             return applyAliasValueModifiers(resolvedSubstituted, type);
           }
@@ -1184,7 +1187,7 @@ export abstract class TypeCheckerBase {
               aliasDeclaration: decl,
               aliasTarget: resolvedBase,
             };
-            return result;
+            return applyAliasValueModifiers(result, type);
           }
 
           return applyAliasValueModifiers(resolvedBase, type);

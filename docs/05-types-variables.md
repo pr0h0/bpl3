@@ -227,8 +227,8 @@ Fixed-size or dynamic arrays:
 # Fixed-size array
 local arr: int[10];           # Array of 10 integers
 
-# Dynamic array (pointer)
-local dynArr: int[];          # Actually a pointer: *int
+# Slice (pointer and length)
+local dynArr: int[];          # Backing storage must remain alive
 
 # Multi-dimensional arrays
 local matrix: int[3][3];      # 3x3 matrix
@@ -240,6 +240,12 @@ local matrix: int[3][3];      # 3x3 matrix
 arr[0] = 10;
 local first: int = arr[0];
 ```
+
+Fixed-array expression values can be indexed for reads. Writing an element of
+a temporary fixed array or taking that element's address is rejected. If the
+element contains a pointer or slice, reading that value still permits access
+to its separately owned, mutable backing storage; the temporary array itself
+remains read-only.
 
 ```bpl
 local bytes: u8[2] = [1, 2];
@@ -288,9 +294,10 @@ A fixed array can return by value. Returning it through an implicit conversion o
 to a slice or pointer is rejected with `BPL_RETURN_ARRAY_VIEW_ESCAPES`: the
 conversion would create a view into a temporary in the returning frame. Return
 an existing borrowed slice/pointer only when its elements outlive the call.
-Explicit array-to-view casts used within a frame create views of temporary
-array copies; they do not extend storage lifetime or provide an alias to the
-original array. Keep their use within that frame.
+Explicit array-to-view casts borrow existing addressable array storage. A cast
+whose source is an array rvalue instead uses temporary storage in the current
+frame. Neither form extends storage lifetime. Constant arrays cannot produce
+mutable views.
 Implicit conversions in returned tuple, struct, enum and array literal fields
 are checked too; wrapping a temporary view in an aggregate does not extend its
 lifetime. The explicit-cast check also covers grouped and conditional values, match
@@ -697,6 +704,13 @@ type Matrix = float[3][3];
 type Pair<T> = (T, T);
 local coords: Pair<int> = (10, 20);
 ```
+
+Aliases preserve modifier order. With `type Row=int[2];` and
+`type Pointer<T>=*T;`, `Pointer<Row>` points to one fixed row, while
+`Pointer<Row>[2]` contains two row pointers. Wrapping the same element type in
+`type Rows<T>=T[2];` gives the same array layout as the direct array spelling.
+`Pointer<Row>[]` is a slice of row pointers, so replacing one of its elements
+updates the pointer stored in the backing array.
 
 See [Type Aliases](18-type-aliases.md) for complete details.
 

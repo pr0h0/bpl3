@@ -1167,6 +1167,10 @@ export function checkArrayLiteral(
   ) {
     return {
       ...firstType,
+      // The literal owns an outer array; any pointer belongs to its elements.
+      ...(firstType.kind === "BasicType" && firstType.isPointerToArray
+        ? { isPointerToArray: false }
+        : {}),
       arrayDimensions: [
         expr.elements.length,
         ...(firstType.arrayDimensions ?? []),

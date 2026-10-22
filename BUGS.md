@@ -7769,3 +7769,55 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   to assignment compatibility and conversion lowering, including aliases.
 - `int[2][2]` to `int[][2]` remains supported. To build a slice of slices,
   construct individual row views and then an array of those views explicitly.
+
+## Generic pointer aliases became outer pointers when wrapped in arrays
+
+- `type Row=int[2];type Pointer<T>=*T;type Rows<T>=T[2];` followed by
+  `local rows:Rows<Pointer<Row>>=[&first,&second];` passed checking but failed
+  compilation with an unsupported cast from an array of row pointers to a
+  pointer to a matrix.
+- Generic substitution and alias resolution retained `isPointerToArray` from
+  the element type after adding outer array dimensions. The flag describes an
+  outer pointer, so it cannot classify an array whose elements are pointers.
+- Array-literal inference also retained the flag from its first element,
+  including literals returned as arrays of generic pointers. Clear the outer
+  pointer flag when wrapping elements in an array and retain pointee metadata.
+- Follow-up validation covers generic and direct array wrappers, nested aliases,
+  borrowed slices and element writes while preserving actual outer pointers.
+
+## Indexing through pointer values in temporary arrays required temporary addresses
+
+- Reading a pointer from a returned fixed array and indexing its caller-owned
+  pointee passed checking, but backend address generation tried to address the
+  temporary array element instead of loading its pointer value.
+- This differs from writing the temporary array element itself, which remains
+  invalid. Read the pointer or slice descriptor once into an index-base slot
+  before applying the existing pointee bounds/null checks and element store.
+- For slice descriptors read from temporary arrays, mutability checking stops
+  at the borrowed storage boundary after retaining the constant-storage check.
+- LLVM/O0/O3 regressions cover calls, literals, conditional/match arrays, generic
+  row pointers, slices, tuple/struct pointer fields, and single source-order
+  evaluation of the base and both indices. Temporary array element writes and
+  addresses remain rejected by the existing checker and backend guards.
+
+## Array guide described slices and explicit view casts incorrectly
+
+- The type guide called a slice a raw pointer, although its representation also
+  contains a length. It also claimed all explicit array views copy their source,
+  despite addressable sources borrowing existing array storage.
+- Correct the slice descriptor and cast descriptions, and distinguish temporary
+  array element mutation from writes through borrowed pointer/slice values.
+- Existing LLVM/O0/O3 storage-view tests and the new temporary-array regressions
+  validate the documented behavior.
+
+## Constant aggregate slice descriptors lost their readonly storage boundary
+
+- Follow-up checks of the temporary slice path found that constant tuple and
+  callback descriptors were not recognized by the constant-storage predicate,
+  which inspected the resolved type qualifier only for basic types.
+- The same predicate allowed type-qualified constant tuple/callback arrays to
+  produce mutable slice casts when their binding was not separately constant.
+- Honor `isConst` on every resolved type that supports it, keeping tuple,
+  callback and closure qualifiers alongside primitive qualifiers. Reject writes
+  through constant temporary descriptors while preserving mutable descriptor
+  access to caller-owned storage.
