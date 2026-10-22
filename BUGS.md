@@ -7799,3 +7799,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   row pointers, slices, tuple/struct pointer fields, and single source-order
   evaluation of the base and both indices. Temporary array element writes and
   addresses remain rejected by the existing checker and backend guards.
+
+## Array guide described slices and explicit view casts incorrectly
+
+- The type guide called a slice a raw pointer, although its representation also
+  contains a length. It also claimed all explicit array views copy their source,
+  despite addressable sources borrowing existing array storage.
+- Correct the slice descriptor and cast descriptions, and distinguish temporary
+  array element mutation from writes through borrowed pointer/slice values.
+- Existing LLVM/O0/O3 storage-view tests and the new temporary-array regressions
+  validate the documented behavior.
