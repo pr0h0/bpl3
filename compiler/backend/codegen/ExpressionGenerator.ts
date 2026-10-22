@@ -643,7 +643,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       // Extract each element and assign to the corresponding target
       for (let i = 0; i < tupleLit.elements.length; i++) {
         const target = tupleLit.elements[i]!;
-        const addr = this.generateAddress(target, true);
+        const addr = this.generateAddress(target);
 
         const sourceTypeNode = this.getTargetTypeNodeFromTuple(
           expr.value.resolvedType!,

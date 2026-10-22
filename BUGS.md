@@ -7861,3 +7861,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Runtime diagnostic regressions cover call, grouped-call, conditional, match
   and cast receivers, as well as direct computed-pointer reads. A non-null
   nested read/write/address control retains single receiver evaluation.
+
+## Tuple-destructured member and pointer-index targets skipped null checks
+
+- PR58 outside-diff review found tuple assignment passes the skip-null-check
+  flag when obtaining target addresses. Member stores through null pointers
+  can bypass the normal runtime diagnostic; pointer-index targets use the
+  same flag and require validation too.
+- Use normal checked addressing for every tuple target, covering both
+  member and pointer-index stores. Dereference checks remain intact.
+- Runtime regressions cover identifiers, calls and computed member/index
+  bases. A non-null LLVM/O0/O3 control preserves RHS-first, left-to-right
+  single evaluation of target expressions and their indices.
