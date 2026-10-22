@@ -7885,3 +7885,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Runtime regressions reproduce stale direct-pointer, aggregate and nonzero
   divisor facts. Aliased replacement and valid ordered stores are retained
   controls. Checked failures remain consistent across O0 and O3.
+
+## Empty array literals escaped checking with no resolved type
+
+- `local values:int[2]=[];` passes `check`, then building fails with an internal
+  `Cannot resolve undefined type` error at `0:0`. Empty literals return no type
+  and are excluded from the current contextual array typing implementation.
+- Reject unsupported empty literals during checking with the existing
+  `BPL_ARRAY_LITERAL_TYPE_MISMATCH` code and their actual source location.
+  Check/build JSON now agree and no backend artifact is emitted.
+- This does not add empty-array inference or change valid nonempty literals.
+  Fixed arrays can still be declared and filled manually. The array guide
+  documents the current limitation.
