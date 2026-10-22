@@ -7834,3 +7834,18 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - LLVM/O0/O3 regressions verify pointer and slice stores, compound assignment,
   element addresses, branch selection and base/index evaluation order. Owned
   temporary array element writes remain rejected.
+
+## Computed struct pointers could be read but not used for field writes
+
+- A conditional selecting a `*Box` passes checking, but assigning its `.value`
+  fails code generation with `Expression is not an lvalue: Ternary`. Field
+  addressing requires the pointer value, not an address for that expression.
+- Match/cast/address-of bases and grouped pointer calls failed similarly;
+  pointers read from temporary arrays or struct fields also required an
+  address for their containing temporary instead of reading the pointer value.
+- Evaluate struct pointer bases once as values, reusing identifier pointer
+  adaptation and retaining the existing null checks. Remove the duplicated
+  load logic which mishandled grouped calls.
+- LLVM/O0/O3 tests cover stores, compound stores, field addresses, chosen
+  branches, evaluation order and controlled null diagnostics. Ordinary pointer
+  identifiers/calls and returned tuple pointers remain passing controls.
