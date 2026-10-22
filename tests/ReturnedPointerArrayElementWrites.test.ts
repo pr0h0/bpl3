@@ -1,4 +1,6 @@
-import { test } from "bun:test";
+import { expect, test } from "bun:test";
+import { Parser } from "../compiler/frontend/Parser";
+import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 for (const [name, expression] of [
@@ -83,3 +85,33 @@ test("temporary pointer bases and both indices evaluate once in source order", (
     },
   ]);
 }, 60000);
+
+for (const [name, declarations, operation, code] of [
+  [
+    "constant descriptor",
+    "frame make(v:const int[])ret const int[2][]{return [v,v];}",
+    "make(values)[0][0]=7;",
+    "BPL_ASSIGNMENT_TARGET_INVALID",
+  ],
+  [
+    "descriptor replacement",
+    "frame make(v:int[])ret int[2][]{return [v,v];}",
+    "make(values)[0]=values;",
+    "BPL_ASSIGNMENT_TARGET_INVALID",
+  ],
+  [
+    "descriptor address",
+    "frame make(v:int[])ret int[2][]{return [v,v];}",
+    "&make(values)[0];",
+    "BPL_ADDRESS_OF_TARGET_INVALID",
+  ],
+] as const) {
+  test(`temporary slice guard rejects ${name}`, () => {
+    const source = `${declarations}frame main()ret int{local values:int[2]=[1,2];${operation}return 0;}`;
+    const checker = new TypeChecker({ collectAllErrors: true });
+    checker.checkProgram(
+      new Parser(source, "temporary-slice-guard.bpl").parse(),
+    );
+    expect(checker.getErrors().some((error) => error.code === code)).toBe(true);
+  });
+}
