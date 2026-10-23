@@ -7997,3 +7997,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   then validate LLVM and run O0/O3. All four fail at the IR gate before the fix.
   Broader getter module-alias resolution and lifetime analysis remain separate
   audit candidates and are not established by this correction.
+
+## Index operators bypassed argument range, const-storage and owning-copy checks
+
+- Getter arguments did not apply literal range checks or reject borrowing a
+  const fixed array as a mutable view. Value receivers and by-value owning
+  indices also bypassed the normal ownership-copy restriction.
+- Getter checking now records its resolved signature and applies those existing
+  call rules; setter checking also rejects copying owning index arguments.
+- Five checker regressions cover an out-of-range getter key, const array view,
+  owning getter receiver/index, and an owning setter index. All fail before.

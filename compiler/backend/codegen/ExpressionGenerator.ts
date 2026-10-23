@@ -1169,7 +1169,8 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
       // Get the struct name from the target type
       const targetType = overload.targetType as AST.BasicTypeNode;
-      let methodType = method.resolvedType as AST.FunctionTypeNode;
+      let methodType =
+        overload.methodType ?? (method.resolvedType as AST.FunctionTypeNode);
 
       // Handle generic struct method calls
       if (targetType.genericArgs && targetType.genericArgs.length > 0) {

@@ -789,7 +789,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   // ========== Expression Checking ==========
 
-  public checkExpression(expr: AST.Expression): AST.TypeNode | undefined {
+  public checkExpression(
+    expr: AST.Expression,
+    indexAssignmentTarget = false,
+  ): AST.TypeNode | undefined {
     const previousResolvedType = expr.resolvedType;
     let type: AST.TypeNode | undefined;
     switch (expr.kind) {
@@ -818,7 +821,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         type = CallChecker.checkMember.call(this, expr);
         break;
       case "Index":
-        type = CallChecker.checkIndex.call(this, expr);
+        type = CallChecker.checkIndex.call(this, expr, !indexAssignmentTarget);
         break;
       case "Ternary":
         type = ExprChecker.checkTernary.call(this, expr);
@@ -2364,7 +2367,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
     }
 
-    const targetType = this.checkExpression(expr.assignee);
+    // A simple indexed store invokes only its setter, so validate getter-call
+    // argument rules only for actual reads, including reads nested in the target.
+    const targetType = this.checkExpression(
+      expr.assignee,
+      expr.assignee.kind === "Index" && expr.operator.type === TokenType.Equal,
+    );
 
     // Check const correctness
     this.checkIsMutable(expr.assignee);
@@ -2534,6 +2542,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           );
         }
       }
+      this.rejectOwningCopy(
+        index.index,
+        methodType.paramTypes[1],
+        "into an index setter argument",
+        index.index.location,
+      );
       this.checkIntegerConstantRange(index.index, methodType.paramTypes[1]!);
       this.checkIntegerConstantRange(expr.value, methodType.paramTypes[2]!);
       const receiver = methodType.paramTypes[0]!;

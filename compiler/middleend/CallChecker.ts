@@ -3,6 +3,8 @@
  */
 import * as AST from "../common/AST";
 import { CompilerError } from "../common/CompilerError";
+import { isConstantArrayStorage } from "../common/ArrayElementStorage";
+import { lowerImplicitConversion } from "./lowering/ImplicitConversions";
 import { TypeUtils, implicitlyAddressesConstant } from "./TypeUtils";
 import {
   rejectConstantOperatorAddress,
@@ -1335,6 +1337,7 @@ export function checkMember(
 export function checkIndex(
   this: CheckerContext,
   expr: AST.IndexExpr,
+  validateGetterCall = true,
 ): AST.TypeNode | undefined {
   const objectType = this.checkExpression(expr.object);
   const indexType = this.checkExpression(expr.index);
@@ -1410,12 +1413,6 @@ export function checkIndex(
     );
     if (!method) rejectConstantOperatorAddress(rejections, expr.location);
     if (method) {
-      expr.operatorOverload = {
-        methodName: "__get__",
-        targetType: objectType,
-        methodDeclaration: method,
-      };
-
       // Build type substitution map for return type resolution (for generics)
       const typeSubstitutionMap = new Map<string, AST.TypeNode>();
       if (
@@ -1441,9 +1438,66 @@ export function checkIndex(
         }
       }
 
-      return typeSubstitutionMap.size > 0
-        ? this.substituteType(method.returnType, typeSubstitutionMap)
-        : this.resolveType(method.returnType);
+      const signature = resolveMethodTypesInModuleContext(this, method);
+      const resolve = (type: AST.TypeNode): AST.TypeNode =>
+        this.resolveType(
+          typeSubstitutionMap.size > 0
+            ? this.substituteType(type, typeSubstitutionMap)
+            : type,
+          false,
+        );
+      const methodType: AST.FunctionTypeNode = {
+        kind: "FunctionType",
+        paramTypes: signature.paramTypes.map(resolve),
+        returnType: resolve(signature.returnType),
+        location: method.location,
+      };
+      if (validateGetterCall) {
+        const expected = methodType.paramTypes[1]!;
+        const actual = this.resolveType(indexType);
+        const conversion = lowerImplicitConversion(expected, actual);
+        const takesAddress =
+          expected.kind === "BasicType" &&
+          actual.kind === "BasicType" &&
+          expected.pointerDepth === actual.pointerDepth + 1 &&
+          this.areTypesExactMatch(
+            { ...expected, pointerDepth: expected.pointerDepth - 1 },
+            actual,
+          );
+        if (
+          (takesAddress ||
+            conversion.kind === "array-to-slice" ||
+            conversion.kind === "array-to-pointer") &&
+          isConstantArrayStorage(expr.index, (type) => this.resolveType(type))
+        ) {
+          throw new CompilerError(
+            "Cannot borrow constant storage for an index getter argument",
+            "Pass mutable storage or use a getter accepting a value.",
+            expr.index.location,
+            ADDRESS_OF_CONSTANT_CODE,
+          );
+        }
+        this.checkIntegerConstantRange(expr.index, expected);
+        this.rejectOwningCopy(
+          expr.object,
+          methodType.paramTypes[0],
+          "into an index getter value receiver",
+          expr.object.location,
+        );
+        this.rejectOwningCopy(
+          expr.index,
+          expected,
+          "into an index getter argument",
+          expr.index.location,
+        );
+      }
+      expr.operatorOverload = {
+        methodName: "__get__",
+        targetType: objectType,
+        methodDeclaration: method,
+        methodType,
+      };
+      return methodType.returnType;
     }
   }
 
