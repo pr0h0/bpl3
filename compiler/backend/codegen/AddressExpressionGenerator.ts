@@ -181,7 +181,11 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     let tupleBase = memberExpr.object;
     while (tupleBase.kind === "Group") tupleBase = tupleBase.expression;
     let objectAddr: string;
-    if (
+    if (objType?.kind === "BasicType" && objType.pointerDepth > 0) {
+      // A struct pointer already is the field base. Evaluate it as a value,
+      // including computed and grouped bases, without taking its address.
+      objectAddr = this.generateExpression(memberExpr.object);
+    } else if (
       tupleBase.kind === "Call" &&
       objType?.kind === "TupleType" &&
       !objType.arrayDimensions?.length
@@ -261,38 +265,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       );
     }
 
-    let baseAddr = objectAddr;
-    if (memberExpr.object.kind === "Call") {
-      const objLlvmType = this.resolveType(objType);
-      if (objLlvmType.endsWith("*")) {
-        baseAddr = objectAddr;
-      }
-    } else if (objType.pointerDepth > 0) {
-      const ptrType = llvmType ?? this.resolveType(objType);
-      if (memberExpr.object.kind === "Identifier") {
-        const identifier = memberExpr.object as AST.IdentifierExpr;
-        const declaredType = this.localTypes.get(identifier.name);
-        const declaredLlvmType = declaredType
-          ? this.resolveType(declaredType)
-          : ptrType;
-
-        if (
-          declaredLlvmType !== ptrType &&
-          declaredLlvmType.endsWith("*") &&
-          ptrType.endsWith("*")
-        ) {
-          baseAddr = this.generateExpression(memberExpr.object);
-        } else {
-          const ptrReg = this.newRegister();
-          this.emit(`  ${ptrReg} = load ${ptrType}, ${ptrType}* ${objectAddr}`);
-          baseAddr = ptrReg;
-        }
-      } else {
-        const ptrReg = this.newRegister();
-        this.emit(`  ${ptrReg} = load ${ptrType}, ${ptrType}* ${objectAddr}`);
-        baseAddr = ptrReg;
-      }
-    }
+    const baseAddr = objectAddr;
 
     // Runtime null check for pointer dereference
     if (objType.pointerDepth > 0 && !skipNullObjectCheck) {

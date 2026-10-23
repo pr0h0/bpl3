@@ -643,7 +643,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       // Extract each element and assign to the corresponding target
       for (let i = 0; i < tupleLit.elements.length; i++) {
         const target = tupleLit.elements[i]!;
-        const addr = this.generateAddress(target, true);
+        const addr = this.generateAddress(target);
 
         const sourceTypeNode = this.getTargetTypeNodeFromTuple(
           expr.value.resolvedType!,
@@ -663,6 +663,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
             )
           : elemVal;
         this.emit(`  store ${elemType} ${storeVal}, ${elemType}* ${addr}`);
+        // A store can replace a later target's base or an aliased value.
+        // Do not reuse pointer or integer proofs across tuple stores.
+        this.clearBasicBlockPointerFacts();
       }
 
       return tupleVal;
@@ -823,9 +826,13 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
     let memberBase = expr.object;
     while (memberBase.kind === "Group") memberBase = memberBase.expression;
+    const isPointerBase =
+      expr.object.resolvedType?.kind === "BasicType" &&
+      expr.object.resolvedType.pointerDepth > 0;
     if (
-      memberBase.kind === "Call" ||
-      !this.isAddressableAggregateSource(expr.object)
+      !isPointerBase &&
+      (memberBase.kind === "Call" ||
+        !this.isAddressableAggregateSource(expr.object))
     ) {
       const callType = expr.object.resolvedType as
         | AST.BasicTypeNode
@@ -838,22 +845,14 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         );
       }
 
-      // Value expressions have no field address until materialized. Evaluate
-      // the aggregate once; pointer expressions already provide the base.
-      const isPointerReturn = callType.pointerDepth > 0;
+      // Owned struct values need temporary storage. Pointer field reads use
+      // the checked member-address path below, including computed receivers.
       const llvmObjType = this.resolveType(callType);
-      let basePtr: string;
-
-      if (isPointerReturn) {
-        basePtr = this.generateExpression(expr.object);
-      } else {
-        // Allocate space, store the value, and use it as the struct base.
-        basePtr = this.allocateStackSlot(llvmObjType);
-        const valueReg = this.generateExpression(expr.object);
-        this.emit(
-          `  store ${llvmObjType} ${valueReg}, ${llvmObjType}* ${basePtr}`,
-        );
-      }
+      const basePtr = this.allocateStackSlot(llvmObjType);
+      const valueReg = this.generateExpression(expr.object);
+      this.emit(
+        `  store ${llvmObjType} ${valueReg}, ${llvmObjType}* ${basePtr}`,
+      );
 
       // Determine struct layout
       let structName = callType.name;

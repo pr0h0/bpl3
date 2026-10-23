@@ -7834,3 +7834,54 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - LLVM/O0/O3 regressions verify pointer and slice stores, compound assignment,
   element addresses, branch selection and base/index evaluation order. Owned
   temporary array element writes remain rejected.
+
+## Computed struct pointers could be read but not used for field writes
+
+- A conditional selecting a `*Box` passes checking, but assigning its `.value`
+  fails code generation with `Expression is not an lvalue: Ternary`. Field
+  addressing requires the pointer value, not an address for that expression.
+- Match/cast/address-of bases and grouped pointer calls failed similarly;
+  pointers read from temporary arrays or struct fields also required an
+  address for their containing temporary instead of reading the pointer value.
+- Evaluate struct pointer bases once as values, reusing identifier pointer
+  adaptation and retaining the existing null checks. Remove the duplicated
+  load logic which mishandled grouped calls.
+- LLVM/O0/O3 tests cover stores, compound stores, field addresses, chosen
+  branches, evaluation order and controlled null diagnostics. Ordinary pointer
+  identifiers/calls and returned tuple pointers remain passing controls.
+
+## Computed pointer field reads bypassed null checks on their receivers
+
+- PR57 review found that evaluating a nested pointer field as a value routes
+  computed struct receivers through the fast field-read path, which lacks the
+  null check performed by member addressing. `holder().p.value=7` can fail
+  before the outer field's check when `holder()` returns null.
+- Route pointer field reads through checked member addressing; reserve the
+  unchecked temporary-struct materialization path for owned struct values.
+- Runtime diagnostic regressions cover call, grouped-call, conditional, match
+  and cast receivers, as well as direct computed-pointer reads. A non-null
+  nested read/write/address control retains single receiver evaluation.
+
+## Tuple-destructured member and pointer-index targets skipped null checks
+
+- PR58 outside-diff review found tuple assignment passes the skip-null-check
+  flag when obtaining target addresses. Member stores through null pointers
+  can bypass the normal runtime diagnostic; pointer-index targets use the
+  same flag and require validation too.
+- Use normal checked addressing for every tuple target, covering both
+  member and pointer-index stores. Dereference checks remain intact.
+- Runtime regressions cover identifiers, calls and computed member/index
+  bases. A non-null LLVM/O0/O3 control preserves RHS-first, left-to-right
+  single evaluation of target expressions and their indices.
+
+## Tuple stores did not invalidate cached pointer and integer facts
+
+- PR58 architecture review identified a stale-proof interaction: an earlier
+  tuple target may establish that `p` is non-null, then a later target replaces
+  `p`. Tuple stores omit the fact invalidation used by normal assignments.
+- Clear cached pointer and integer facts after each tuple store. Conservative
+  invalidation covers later target addresses, subsequent accesses, aggregate
+  replacement and aliases without requiring alias-independence assumptions.
+- Runtime regressions reproduce stale direct-pointer, aggregate and nonzero
+  divisor facts. Aliased replacement and valid ordered stores are retained
+  controls. Checked failures remain consistent across O0 and O3.
