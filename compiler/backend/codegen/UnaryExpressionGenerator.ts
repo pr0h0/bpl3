@@ -22,12 +22,12 @@ import { MatchExpressionGenerator } from "./MatchExpressionGenerator";
 export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator {
   protected abstract generateExpression(expr: AST.Expression): string;
 
+  /** Lower unary operations, borrowing an overloaded receiver or spilling its value once. */
   protected generateUnary(expr: AST.UnaryExpr): string {
     // Check for operator overload (only for prefix operators)
     if (expr.operatorOverload && expr.isPrefix) {
       const overload = expr.operatorOverload;
       const method = overload.methodDeclaration;
-      const operandRaw = this.generateExpression(expr.operand);
 
       const targetType = overload.targetType as AST.BasicTypeNode;
 
@@ -87,7 +87,8 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       try {
         thisPtr = this.generateAddress(expr.operand);
       } catch {
-        // If we can't get address, spill to stack
+        // Only rvalues need evaluation here; address generation already evaluates lvalues.
+        const operandRaw = this.generateExpression(expr.operand);
         const spillAddr = this.allocateStack(
           `op_spill_${this.labelCount++}`,
           operandType,
