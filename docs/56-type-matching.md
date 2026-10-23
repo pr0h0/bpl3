@@ -44,6 +44,9 @@ Both `match<(int, bool)>(value)` and `value is (int, bool)` use this exact-type
 comparison. Function pointers and lambdas remain different type kinds.
 Targets must name types, with valid generic arguments and defined nested element,
 parameter and return types; variable or function names cannot stand in for types.
+Module-qualified type names such as `types.Record` and `types.Box<int>` follow
+the same rules as imported unqualified names. Qualified enum-variant names such
+as `types.Color.Red` continue to select a variant by its tag.
 
 ## Advanced Usage
 

@@ -8301,3 +8301,14 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   preserving existing unknown-plain-type and enum-path query diagnostics.
 - Seven checker regressions fail before correction; existing primitive, generic
   and composite query controls remain supported.
+
+
+## Qualified type-query targets were confused with enum variants
+
+- Every dotted query target was interpreted as an enum-and-variant path, so
+  ordinary imported types such as `types.Record` failed in both query syntaxes.
+- Recognize exported module type symbols before falling back to enum paths,
+  and retain the resolved target for generation. Namespace lookup uses the
+  module's own exported scope rather than a parent-scope fallback.
+- Regressions cover struct, primitive/tuple aliases and enum type targets,
+  preserve distinct module identities, and retain existing enum-variant checks.

@@ -1783,6 +1783,26 @@ export function checkOffsetOf(
   };
 }
 
+/** A module-qualified type is distinct from an enum-and-variant path. */
+function isQualifiedQueryType(
+  context: CheckerContext,
+  type: AST.BasicTypeNode,
+): boolean {
+  const parts = type.name.split(".");
+  if (parts.length < 2) return false;
+  let symbol = context.currentScope.resolve(parts[0]!);
+  for (const part of parts.slice(1)) {
+    symbol = symbol?.moduleScope?.getInCurrentScope(part);
+    if (!symbol) return false;
+  }
+  return (
+    symbol?.kind === "Struct" ||
+    symbol?.kind === "Enum" ||
+    symbol?.kind === "TypeAlias" ||
+    symbol?.kind === "Spec"
+  );
+}
+
 /**
  * Check a type match expression (match<T>(value))
  */
@@ -1799,7 +1819,13 @@ export function checkTypeMatch(
     targetType.kind === "BasicType" ? targetType.name : undefined;
 
   // Check if this is an enum variant pattern
-  if (targetTypeName?.includes(".")) {
+  if (
+    targetType.kind === "BasicType" &&
+    isQualifiedQueryType(this, targetType)
+  ) {
+    this.ensureKnownType(targetType);
+    expr.targetType = this.resolveType(targetType);
+  } else if (targetTypeName?.includes(".")) {
     const parts = targetTypeName.split(".");
     const variantName = parts.pop()!;
     const enumPath = parts;
@@ -1883,7 +1909,10 @@ export function checkIs(this: CheckerContext, expr: AST.IsExpr): AST.TypeNode {
     const targetTypeName = targetType.name;
 
     // Check if this is an enum variant pattern
-    if (targetTypeName.includes(".")) {
+    if (isQualifiedQueryType(this, targetType)) {
+      this.ensureKnownType(targetType);
+      expr.type = this.resolveType(targetType);
+    } else if (targetTypeName.includes(".")) {
       const parts = targetTypeName.split(".");
       const variantName = parts.pop()!;
       const enumPath = parts;
