@@ -538,7 +538,10 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
   protected generateAssignment(expr: AST.AssignmentExpr): string {
     // Check for index assignment with __set__ operator overload
-    if (expr.assignee.kind === "Index") {
+    if (
+      expr.assignee.kind === "Index" &&
+      expr.assignee.operatorOverload
+    ) {
       const indexExpr = expr.assignee as AST.IndexExpr;
       // Check if there's a __set__ operator overload
       // We need to find the __set__ method in the TypeChecker annotations

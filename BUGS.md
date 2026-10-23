@@ -7909,3 +7909,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   address-generation retries after receiver evaluation.
 - LLVM/O0/O3 regressions verify getter/setter receiver counts and source order,
   nested member/index receivers and existing temporary receiver behavior.
+
+## Built-in arrays and pointers were routed to element index setters
+
+- A built-in `Box[2]` element assignment type-checks, but the backend detects
+  `Box.__set__` by name and emits a setter call using the entire array as its
+  receiver and a Box value where the setter expects an integer.
+- Raw pointer element assignments can reach the same unchecked name-based
+  dispatch. Only a checked overloaded-index expression may invoke a setter.
+- Require the checker's overloaded-index annotation before considering a
+  setter. Built-in fixed-array, slice and raw-pointer element stores retain
+  normal address generation even when the element struct defines setters.
+- Three IR regressions reject the wrong call before executing native code;
+  after the fix their LLVM/O0/O3 stores work and do not invoke a setter.
