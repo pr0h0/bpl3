@@ -102,8 +102,11 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       `  ${bytePtr} = bitcast ${this.getEnumDataType(enumName)}* ${dataPtr} to i8*`,
     );
 
-    const values: { value: string; llvmType: string; typeNode: AST.TypeNode }[] =
-      [];
+    const values: {
+      value: string;
+      llvmType: string;
+      typeNode: AST.TypeNode;
+    }[] = [];
     const fieldTypes = variant.dataType.types;
 
     for (let i = 0; i < pattern.bindings.length; i++) {
@@ -149,9 +152,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         Number(pattern.value.value),
         llvmType,
       );
-      this.emit(
-        `  ${cmpReg} = fcmp oeq ${llvmType} ${value}, ${literalValue}`,
-      );
+      this.emit(`  ${cmpReg} = fcmp oeq ${llvmType} ${value}, ${literalValue}`);
     } else if (llvmType === "i8*") {
       const strcmpResult = this.newRegister();
       this.emit(
@@ -181,7 +182,13 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     }
 
     if (pattern.kind === "PatternLiteral") {
-      this.emitLiteralPatternCheck(pattern, value, llvmType, successLabel, failLabel);
+      this.emitLiteralPatternCheck(
+        pattern,
+        value,
+        llvmType,
+        successLabel,
+        failLabel,
+      );
       return "checked";
     }
 
@@ -189,15 +196,16 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       if (typeNode.kind !== "TupleType") return "never";
       if (pattern.patterns.length !== typeNode.types.length) return "never";
 
-      const nestedValues: { value: string; llvmType: string; typeNode: AST.TypeNode }[] =
-        [];
+      const nestedValues: {
+        value: string;
+        llvmType: string;
+        typeNode: AST.TypeNode;
+      }[] = [];
       for (let i = 0; i < typeNode.types.length; i++) {
         const nestedType = typeNode.types[i]!;
         const nestedLlvmType = this.resolveType(nestedType);
         const nestedValue = this.newRegister();
-        this.emit(
-          `  ${nestedValue} = extractvalue ${llvmType} ${value}, ${i}`,
-        );
+        this.emit(`  ${nestedValue} = extractvalue ${llvmType} ${value}, ${i}`);
         nestedValues.push({
           value: nestedValue,
           llvmType: nestedLlvmType,
@@ -213,10 +221,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       );
     }
 
-    if (
-      pattern.kind === "PatternEnum" ||
-      pattern.kind === "PatternEnumTuple"
-    ) {
+    if (pattern.kind === "PatternEnum" || pattern.kind === "PatternEnumTuple") {
       if (typeNode.kind !== "BasicType") return "never";
       const enumName = this.getRuntimeEnumName(typeNode);
       if (!enumName) return "never";
@@ -351,9 +356,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         const nestedType = typeNode.types[i]!;
         const nestedLlvmType = this.resolveType(nestedType);
         const nestedValue = this.newRegister();
-        this.emit(
-          `  ${nestedValue} = extractvalue ${llvmType} ${value}, ${i}`,
-        );
+        this.emit(`  ${nestedValue} = extractvalue ${llvmType} ${value}, ${i}`);
         this.bindPatternValue(
           nestedPattern,
           nestedValue,
@@ -523,9 +526,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         pattern.kind === "PatternEnumStruct"
       ) {
         const enumPattern = pattern as
-          | AST.PatternEnum
-          | AST.PatternEnumTuple
-          | AST.PatternEnumStruct;
+          AST.PatternEnum | AST.PatternEnumTuple | AST.PatternEnumStruct;
         const variant = variantInfo.get(enumPattern.variantName);
         if (variant) {
           // Only add switch case for the FIRST arm with this variant
@@ -2011,7 +2012,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       kind: "Cast",
       expression: expr.expression,
       targetType: expr.type,
-      resolvedType: expr.type,
+      resolvedType: expr.resolvedType ?? expr.type,
       location: expr.location,
     };
     return this.generateCast(castExpr);

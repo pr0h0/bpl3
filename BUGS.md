@@ -8244,3 +8244,16 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Preserve the existing rejection through resolved alias chains, including
   transitive and generic aliases, while retaining numeric, pointer and string
   identity conversions. Negative cases are checked without executing them.
+
+## Integer-to-string rejection also classified byte arrays as scalar integers
+
+- The numeric helper classifies an array by its element name. Using it without
+  excluding dimensions rejected valid mutable byte-array string views, including
+  aliases after the conversion guard was shared. Direct string targets had the
+  same false rejection in the earlier guard.
+- Restrict this diagnostic to scalar integer sources. Array conversions reach
+  the existing layout and constant-storage checks; scalar integers still reject.
+- The ordinary `as` fallback must also retain its resolved target when creating
+  the cast node, so string aliases reach the existing array-to-pointer lowering.
+- Regression tests cover both syntaxes, aliases, constant inputs, and shared
+  mutable byte-array storage without executing rejected inputs.

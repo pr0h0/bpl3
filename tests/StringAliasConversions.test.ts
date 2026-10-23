@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
 
+/** Collect checker diagnostics without generating or executing the source. */
 function diagnostics(source: string) {
   const checker = new TypeChecker({ collectAllErrors: true });
   checker.checkProgram(

@@ -1479,6 +1479,7 @@ function rejectIntegerToString(
   if (
     source.kind !== "BasicType" ||
     source.pointerDepth !== 0 ||
+    source.arrayDimensions.length !== 0 ||
     !TypeUtils.isIntegerType(source)
   )
     return;
