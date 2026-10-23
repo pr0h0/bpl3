@@ -8217,3 +8217,12 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   initializers, returns, arguments and aggregates, including through aliases.
 - Seven checker cases reproduce the bypass. A fresh-value/pointer cleanup
   control remains valid. Negative copy cases are never executed.
+
+
+## `as` conversions bypassed owning-copy checks
+
+- Existing owning storage converted with `value as Owner` was treated as a
+  fresh result, bypassing the checks applied to `cast<Owner>(value)`.
+- Validate the source after conversion validity, preserving fresh values and
+  borrowed pointers. Checker regressions cover initializers, returns,
+  arguments, aggregates and aliases; invalid copy sources are not executed.

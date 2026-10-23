@@ -1949,6 +1949,12 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
         CAST_INVALID_CODE,
       );
     }
+    this.rejectOwningCopy(
+      expr.expression,
+      target,
+      "through an 'as' conversion",
+      expr.expression.location,
+    );
   }
 
   return expr.type;
