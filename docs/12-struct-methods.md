@@ -125,6 +125,6 @@ A receiver expression
 such as `make().read` is evaluated once when the method is bound. Variadic value
 receiver methods cannot currently be bound; use a non-variadic method signature.
 
-Bindings to generic structs use the concrete owner's method signature. For
+Bindings to generic structs and enums use the concrete owner's method signature. For
 example, bindings from `Box<int>` and `Box<long>` retain their respective
 instantiations, including when a generic function creates the binding.

@@ -948,7 +948,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
     // 2. Resolve Function Name (Mangled)
     const checkedType = methodDecl.resolvedType;
-    const funcType: AST.FunctionTypeNode = {
+    let funcType: AST.FunctionTypeNode = {
       // Preserve checked parameter and return types for the callable ABI
       kind: "FunctionType",
       returnType:
@@ -962,6 +962,30 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       isVariadic: methodDecl.params.some((p) => p.isVariadic),
       location: methodDecl.location,
     };
+    // Enum instantiations keep their template method declarations. Apply their
+    // owner arguments before resolving any remaining names or mangling symbols.
+    const ownerBindings = new Map<string, AST.TypeNode>();
+    const declaration = objType.resolvedDeclaration;
+    if (
+      declaration?.kind === "StructDecl" ||
+      declaration?.kind === "EnumDecl"
+    ) {
+      declaration.genericParams.forEach((parameter, index) => {
+        const argument = objType.genericArgs[index];
+        if (argument) {
+          ownerBindings.set(
+            parameter.name,
+            this.substituteType(argument, this.currentTypeMap),
+          );
+        }
+      });
+    }
+    if (ownerBindings.size) {
+      funcType = this.substituteType(
+        funcType,
+        ownerBindings,
+      ) as AST.FunctionTypeNode;
+    }
 
     const receiverType = this.resolveType(funcType.paramTypes[0]!);
     const structName = receiverType

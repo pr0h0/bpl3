@@ -8057,3 +8057,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   methods and unshadowed instance/static controls. Nine cases fail before the
   correction and two controls pass; all eleven pass after it. Other method-generic and
   lifetime behavior remains outside this specific correction.
+
+## Generic enum bindings retained template or unrelated owner signatures
+
+- Concrete enum declarations retain their template methods. Binding one could
+  emit an undefined `Box<T>` method or instantiate a module alias's type instead
+  of the actual receiver argument, even with a correctly checked lambda type.
+- Substitute the receiver owner's generic arguments into the checked callable
+  signature before resolving types or mangling its symbol. Retain the existing
+  concrete-method lookup for structs.
+- Six cases fail the IR gate before native execution, including pointer/value
+  receivers, colliding module aliases, floating owners and a generic factory.
+  The nongeneric enum control passes before and after the correction.
