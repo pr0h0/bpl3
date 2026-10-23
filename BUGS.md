@@ -8156,3 +8156,11 @@ Status: fixed for concrete nongeneric receivers; generic owners retain the previ
 - Four checker regressions cover getter/star fields, a generic receiver alias
   and the documented conservative restriction even for a fresh generic result.
   Two nonowning/pointer controls pass. No invalid owning copy is executed.
+
+## Method-generic operators were omitted from the conservative owning guard
+
+- A nongeneric owner can declare a method-generic operator. The owner-only
+  guard classified its owning result as fresh despite the documented generic
+  restriction. The checker regression reproduces that missing rejection.
+- Include the selected method's generic parameters as well as its owner's.
+  The existing nonowning and borrowed-pointer controls remain accepted.

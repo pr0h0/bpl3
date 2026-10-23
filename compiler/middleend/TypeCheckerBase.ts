@@ -2754,7 +2754,7 @@ export abstract class TypeCheckerBase {
       case "Index":
         return (
           expr.operatorOverload?.methodName !== "__get__" ||
-          this.hasGenericOperatorOwner(expr.operatorOverload)
+          this.hasGenericOperatorBody(expr.operatorOverload)
         );
       case "Group":
         return this.isPlaceExpression((expr as AST.GroupExpr).expression);
@@ -2763,7 +2763,7 @@ export abstract class TypeCheckerBase {
         return (
           (expr as AST.UnaryExpr).operator.type === TokenType.Star &&
           (!expr.operatorOverload ||
-            this.hasGenericOperatorOwner(expr.operatorOverload))
+            this.hasGenericOperatorBody(expr.operatorOverload))
         );
       default:
         return false;
@@ -2771,14 +2771,16 @@ export abstract class TypeCheckerBase {
   }
 
   /** Preserve no-copy checks until generic operator bodies have concrete ownership validation. */
-  private hasGenericOperatorOwner(overload: {
+  private hasGenericOperatorBody(overload: {
     targetType: AST.TypeNode;
     methodName: string;
+    methodDeclaration: AST.FunctionDecl;
   }): boolean {
     const target = this.resolveType(overload.targetType, false);
     if (target.kind !== "BasicType") return false;
     return (
       target.genericArgs.length > 0 ||
+      overload.methodDeclaration.genericParams.length > 0 ||
       (this.resolveMemberWithContext(target, overload.methodName)?.decl
         .genericParams.length ?? 0) > 0
     );

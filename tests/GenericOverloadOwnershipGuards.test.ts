@@ -5,6 +5,7 @@ import { TypeChecker } from "../compiler/middleend/TypeChecker";
 const declarations = `struct Owner{value:int,@[auto_destroy]frame destroy(this:*Owner){this.value=0;}}
 struct Source<T>{value:T,frame __get__(this:*Source<T>,index:int)ret T{index;return this.value;}}
 struct Maker<T>{value:T,frame __mul__(this:*Maker<T>)ret T{return this.value;}}
+struct MethodMaker{frame __mul__<T>(this:*MethodMaker)ret Owner{this;return Owner{value:7};}}
 struct GenericFresh<T>{value:T,frame __get__(this:*GenericFresh<T>,index:int)ret Owner{this;index;return Owner{value:7};}}
 struct Borrowed<T>{value:*T,frame __get__(this:*Borrowed<T>,index:int)ret *T{index;return this.value;}}
 type Alias=Source<Owner>;`;
@@ -20,6 +21,10 @@ function errors(body: string) {
   return checker.getErrors();
 }
 for (const [name, body] of [
+  [
+    "method-level generic operator",
+    "local maker:MethodMaker=MethodMaker{};local value:Owner=*maker;value.value;",
+  ],
   [
     "getter field return",
     "local source:Source<Owner>=Source<Owner>{value:Owner{value:7}};local copy:Owner=source[0];copy.value;",

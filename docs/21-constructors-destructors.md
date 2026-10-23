@@ -105,7 +105,7 @@ built-in pointee access;
 its returned value follows the same transfer rules as other fresh call results.
 The same applies to a nongeneric overloaded index getter returning a value. If a getter
 returns a pointer instead, dereferencing it still reads existing pointee storage.
-Owning results from generic receiver overloads retain the no-copy restriction:
+Owning results from generic receiver or method overloads retain the no-copy restriction:
 their bodies are not yet checked again with the concrete owner arguments.
 Nonowning results and borrowed pointer results are unaffected.
 
