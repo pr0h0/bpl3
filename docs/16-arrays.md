@@ -155,6 +155,23 @@ frame safeGet(arr: *int, len: int, idx: int) ret int {
 }
 ```
 
+### Struct index operators
+
+A struct can define `__get__` for indexed reads. Indexed assignment also requires
+an instance `__set__` accepting the index and assigned value. Setter selection
+checks both arguments and performs their supported conversions. The assigned
+value must also be compatible with the getter's element type. Implicitly
+borrowing an argument requires mutable storage and an exact pointee type.
+
+The receiver is evaluated once, followed by the index and the assigned value.
+A void setter leaves the assignment expression with its original assigned value;
+a nonvoid setter supplies its declared return value and type.
+Compound assignments through overloaded indexing, such as `object[index] += n`,
+are unsupported; use a simple indexed assignment.
+
+Built-in array, slice and raw-pointer element assignments always store into their
+selected element, even when that element's struct defines index operators.
+
 ## Array Length
 
 For fixed-size arrays, you can use `sizeof` to calculate the length:

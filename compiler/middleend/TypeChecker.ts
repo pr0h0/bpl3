@@ -2,7 +2,10 @@ import {
   isConstantArrayStorage,
   isTemporaryArrayElement,
 } from "../common/ArrayElementStorage";
-import { isSliceTypeNode } from "./lowering/ImplicitConversions";
+import {
+  isSliceTypeNode,
+  lowerImplicitConversion,
+} from "./lowering/ImplicitConversions";
 /**
  * TypeChecker - Main type checking class for BPL
  * Extends TypeCheckerBase and uses modular checker functions
@@ -17,10 +20,12 @@ import {
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
 import {
+  ADDRESS_OF_CONSTANT_CODE,
   ASSIGNMENT_TARGET_CONSTANT_CODE,
   ASSIGNMENT_TARGET_INVALID_CODE,
   ASSIGNMENT_TYPE_MISMATCH_CODE,
   BITWISE_OPERAND_TYPE_MISMATCH_CODE,
+  CALL_ARGUMENT_TYPE_MISMATCH_CODE,
   BUILTIN_TYPE_REDEFINITION_CODE,
   ENUM_VARIANT_FIELD_TYPE_MISMATCH_CODE,
   ENUM_VARIANT_FIELD_UNKNOWN_CODE,
@@ -35,7 +40,10 @@ import {
   VOID_TYPE_INVALID_CODE,
 } from "./TypeCheckerBase";
 import { KNOWN_TYPES, TypeUtils } from "./TypeUtils";
-import { OverloadResolver } from "./OverloadResolver";
+import {
+  OverloadResolver,
+  rejectConstantOperatorAddress,
+} from "./OverloadResolver";
 import { ImportHandler } from "./ImportHandler";
 import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import type { CheckerContext } from "./CheckerContext";
@@ -2364,7 +2372,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     const initialValueType = this.checkExpression(expr.value);
     const valueType =
       targetType && expr.operator.type === TokenType.Equal
-        ? this.contextualizeArrayLiteral(expr.value, targetType) ?? initialValueType
+        ? (this.contextualizeArrayLiteral(expr.value, targetType) ??
+          initialValueType)
         : initialValueType;
     this.rejectOwningCopy(
       expr.value,
@@ -2411,6 +2420,134 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           ASSIGNMENT_TYPE_MISMATCH_CODE,
         );
       }
+    }
+    if (
+      targetType &&
+      valueType &&
+      expr.assignee.kind === "Index" &&
+      expr.assignee.operatorOverload
+    ) {
+      const index = expr.assignee;
+      if (expr.operator.type !== TokenType.Equal) {
+        throw new CompilerError(
+          "Compound assignment through overloaded indexing is not supported",
+          "Use a simple indexed assignment to invoke __set__.",
+          expr.location,
+          ASSIGNMENT_TARGET_INVALID_CODE,
+        );
+      }
+      const objectType = index.object.resolvedType!;
+      const rejections: { constantAddress?: boolean } = {};
+      const declarations = new Map<AST.FunctionDecl, AST.FunctionDecl>();
+      const selected = this.overloadResolver.findOperatorOverload(
+        objectType,
+        "__set__",
+        [index.index.resolvedType!, valueType],
+        (type, name) => {
+          const context = this.resolveMemberWithContext(type, name);
+          if (!context) return undefined;
+          return {
+            ...context,
+            members: context.members.map((member) => {
+              if (member.kind !== "FunctionDecl") return member;
+              const signature = CallChecker.resolveMethodTypesInModuleContext(
+                this,
+                member,
+              );
+              const resolved: AST.FunctionDecl = {
+                ...member,
+                params: member.params.map((parameter, parameterIndex) => ({
+                  ...parameter,
+                  type: signature.paramTypes[parameterIndex]!,
+                })),
+                returnType: signature.returnType,
+              };
+              declarations.set(resolved, member);
+              return resolved;
+            }),
+          };
+        },
+        rejections,
+      );
+      const setter = selected ? declarations.get(selected) : undefined;
+      if (!setter || setter.params.some((parameter) => parameter.isVariadic)) {
+        rejectConstantOperatorAddress(rejections, expr.location);
+        throw new CompilerError(
+          "No compatible __set__ index setter",
+          "Define an instance __set__ method accepting this index and assigned value.",
+          expr.location,
+          CALL_ARGUMENT_TYPE_MISMATCH_CODE,
+        );
+      }
+      const context = this.resolveMemberWithContext(
+        objectType as AST.BasicTypeNode,
+        "__set__",
+      );
+      const signature = CallChecker.resolveMethodTypesInModuleContext(
+        this,
+        setter,
+      );
+      const resolve = (type: AST.TypeNode): AST.TypeNode =>
+        this.resolveType(
+          context?.genericMap?.size
+            ? this.substituteType(type, context.genericMap)
+            : type,
+          false,
+        );
+      const methodType: AST.FunctionTypeNode = {
+        kind: "FunctionType",
+        paramTypes: signature.paramTypes.map(resolve),
+        returnType: resolve(signature.returnType),
+        location: setter.location,
+      };
+      const result = methodType.returnType;
+      const returnsVoid =
+        result.kind === "BasicType" &&
+        result.name === "void" &&
+        result.pointerDepth === 0 &&
+        result.arrayDimensions.length === 0;
+      for (const [argument, expected] of [
+        [index.index, methodType.paramTypes[1]!],
+        [expr.value, methodType.paramTypes[2]!],
+      ] as const) {
+        const actual = this.resolveType(argument.resolvedType!);
+        const conversion = lowerImplicitConversion(expected, actual);
+        const takesAddress =
+          expected.kind === "BasicType" &&
+          actual.kind === "BasicType" &&
+          expected.pointerDepth === actual.pointerDepth + 1;
+        if (
+          (takesAddress ||
+            conversion.kind === "array-to-slice" ||
+            conversion.kind === "array-to-pointer") &&
+          isConstantArrayStorage(argument, (type) => this.resolveType(type))
+        ) {
+          throw new CompilerError(
+            "Cannot borrow constant storage for an index setter argument",
+            "Pass mutable storage or use a setter accepting a value.",
+            argument.location,
+            ADDRESS_OF_CONSTANT_CODE,
+          );
+        }
+      }
+      this.checkIntegerConstantRange(index.index, methodType.paramTypes[1]!);
+      this.checkIntegerConstantRange(expr.value, methodType.paramTypes[2]!);
+      const receiver = methodType.paramTypes[0]!;
+      if (receiver.kind !== "BasicType" || receiver.pointerDepth === 0) {
+        this.rejectOwningCopy(
+          index.object,
+          objectType,
+          "into an index setter value receiver",
+          index.object.location,
+        );
+      }
+      index.operatorOverload = {
+        methodName: "__set__",
+        methodDeclaration: setter,
+        targetType: objectType,
+        methodType,
+      };
+      return returnsVoid ? targetType : result;
     }
     return targetType;
   }

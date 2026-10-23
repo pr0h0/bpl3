@@ -7934,3 +7934,22 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Five runtime regressions fail before the fix; indexed increment and valid
   evaluation-order controls pass before and after. LLVM/O0/O3 tests cover raw,
   computed, returned and array-alias pointer bases.
+
+## Index setter signatures were not checked before code generation
+
+- PR59 review found that an overloaded-index annotation validates `__get__`,
+  while assignment chooses `__set__` by name without checking its index/value
+  parameters. Incompatible setter calls can reach native code generation.
+- Resolve a compatible setter independently, validate its signature and
+  assignment result, and record the checked declaration/signature for codegen.
+  Emit receiver/index/value arguments using that signature, preserving scalar
+  and array borrowing, const checks and original void-assignment values.
+- Implicit address arguments require exact pointee types; numeric-compatible
+  pointees must not be reinterpreted. Unsupported compound index assignments
+  fail during checking. The array guide documents these existing boundaries.
+- Setter result types follow their declarations; invalid uses are rejected by
+  the caller's normal type checks. Resolve imported signatures in their owning
+  module before matching, preserving private aliases and generic arguments.
+- Twenty-four signature/ABI/const/result cases pass; twenty fail before this
+  correction and four valid controls pass. An imported-module case also passes.
+  Original receiver/routing/null regressions remain passing.
