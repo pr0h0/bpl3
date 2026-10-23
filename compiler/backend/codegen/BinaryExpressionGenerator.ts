@@ -155,9 +155,15 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     let otherArg: { val: string; type: string };
     if (overload.swapOperands) {
       otherArg = this.prepareOtherArg(expr.left, resolvedMethodType);
-      thisArg = this.prepareThisArg(expr.right);
+      thisArg = this.prepareOperatorReceiver(
+        expr.right,
+        resolvedMethodType.paramTypes[0]!,
+      );
     } else {
-      thisArg = this.prepareThisArg(expr.left);
+      thisArg = this.prepareOperatorReceiver(
+        expr.left,
+        resolvedMethodType.paramTypes[0]!,
+      );
       otherArg = this.prepareOtherArg(expr.right, resolvedMethodType);
     }
     const { val: finalOtherVal, type: finalOtherType } = otherArg;
@@ -182,7 +188,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   /**
    * Resolve operator method name and type
    */
-  private resolveOperatorMethod(
+  protected resolveOperatorMethod(
     method: AST.FunctionDecl,
     targetType: AST.BasicTypeNode,
   ): { mangledName: string; resolvedMethodType: AST.FunctionTypeNode } {
@@ -242,12 +248,16 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   }
 
   /**
-   * Borrow receiver storage, or evaluate a temporary once before spilling it.
+   * Pass a checked receiver value directly, or borrow/spill it once for implicit addressing.
    */
-  private prepareThisArg(thisExpr: AST.Expression): string {
+  protected prepareOperatorReceiver(
+    thisExpr: AST.Expression,
+    receiverType: AST.TypeNode,
+  ): string {
     const thisType = this.resolveType(thisExpr.resolvedType!);
-    if (thisType.endsWith("*")) {
-      return `${thisType} ${this.generateExpression(thisExpr)}`;
+    const expectedType = this.resolveType(receiverType);
+    if (thisType === expectedType) {
+      return `${expectedType} ${this.generateExpression(thisExpr)}`;
     }
 
     let thisPtr: string;

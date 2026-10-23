@@ -8100,3 +8100,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Operator receiver/argument preparation tried to borrow an overloaded index as built-in element storage. Address generation evaluated its receiver/index and then failed, so fallback getter evaluation observed already-changed state and could use a later index.
 - Reject `__get__` expressions at the index-address boundary before emitting either input. Callers then evaluate and materialize the returned value once.
 - Five LLVM/O0/O3 regressions fail before the correction and cover unary/grouped/nested-field receivers, binary receivers and borrowed arguments, checking both inputs, getter count, order and selected result.
+
+## Operators passed value receivers as pointers
+
+- Unary and binary operator lowering unconditionally borrowed receiver addresses even for checked methods declared with `this: Box`. This emitted pointer arguments for value-parameter functions and prevented correct value-copy behavior, including const receivers.
+- Use the selected concrete receiver signature: pass values directly when it matches the operand; borrow/spill only for an implicit address argument. Unary operators share the existing operator-signature resolution and receiver preparation with binary operators.
+- Nine value-receiver IR-gated LLVM/O0/O3 cases cover mutable/const/indexed/temporary unary receivers and mutable/const/indexed/swapped/borrowed-argument binary receivers. Explicit pointer unary receivers also passed an extra pointer level; a pointer binary control already worked. The call-ABI assertions run before native execution.
+
+## Value operators bypassed existing owning-copy diagnostics
+
+- Operator selection did not apply the normal `@[auto_destroy]` no-copy rule to its receiver or value arguments. Existing owning storage was accepted where a normal function argument would report `BPL_OWNING_VALUE_COPIED`.
+- Validate the selected concrete parameter types after operator synthesis and generic substitution, preserving borrowed pointer parameters and fresh values. This is a checker-level rule; no resource-release failure is required to reproduce it.
+- Eight negative checker regressions fail before correction, including grouped/indexed/dereferenced receivers, swapped comparisons, value arguments and generic aggregates. Five controls retain pointer receivers, borrowed arguments and freshly produced values.
