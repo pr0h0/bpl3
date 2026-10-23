@@ -47,6 +47,8 @@ parameter and return types; variable or function names cannot stand in for types
 Module-qualified type names such as `types.Record` and `types.Box<int>` follow
 the same rules as imported unqualified names. Qualified enum-variant names such
 as `types.Color.Red` continue to select a variant by its tag.
+Static inheritance checks do not override a failed exact comparison merely
+because two targets share a raw type name.
 
 ## Advanced Usage
 

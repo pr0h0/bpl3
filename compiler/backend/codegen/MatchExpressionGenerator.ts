@@ -1889,8 +1889,14 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         }
       }
 
-      // Static inheritance checking (fallback for non-pointer types)
-      if (valueBasic.pointerDepth === targetBasic.pointerDepth) {
+      // Exact identity, including dimensions and generic arguments, was checked
+      // above. Equal raw names and array element inheritance cannot replace it.
+      if (
+        valueBasic.pointerDepth === targetBasic.pointerDepth &&
+        valueBasic.name !== targetBasic.name &&
+        valueBasic.arrayDimensions.length === 0 &&
+        targetBasic.arrayDimensions.length === 0
+      ) {
         if (this.checkInheritance(valueBasic.name, targetBasic.name)) {
           const result = this.newRegister();
           this.emit(`  ${result} = icmp eq i1 1, 1`);

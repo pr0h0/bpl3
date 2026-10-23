@@ -8312,3 +8312,13 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   module's own exported scope rather than a parent-scope fallback.
 - Regressions cover struct, primitive/tuple aliases and enum type targets,
   preserve distinct module identities, and retain existing enum-variant checks.
+
+## Static query inheritance fallback ignored failed exact type comparisons
+
+- Queries matched `Box<int>` with `Box<bool>` and arrays of different lengths
+  because raw-name equality was accepted as inheritance after exact comparison
+  had already failed.
+- Restrict the static inheritance fallback to distinct non-array type names;
+  existing genuine inheritance matches remain available.
+- Four native regression cases fail before correction, with one passing
+  inheritance control. Matching forms are checked before the mismatches.
