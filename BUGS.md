@@ -8211,7 +8211,7 @@ Status: fixed conservatively; owning overload replacement remains rejected.
 
 ## Cast sources bypassed owning-copy checks
 
-Status: pending cast-source validation.
+Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Casting existing owning storage to the same owning type hid the copy in
   initializers, returns, arguments and aggregates, including through aliases.

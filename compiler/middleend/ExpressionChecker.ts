@@ -1518,6 +1518,12 @@ export function checkCast(
         CAST_INVALID_CODE,
       );
     }
+    this.rejectOwningCopy(
+      expr.expression,
+      target,
+      "through a cast",
+      expr.expression.location,
+    );
   }
 
   return expr.targetType;
