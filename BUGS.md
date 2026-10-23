@@ -8112,3 +8112,108 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Operator selection did not apply the normal `@[auto_destroy]` no-copy rule to its receiver or value arguments. Existing owning storage was accepted where a normal function argument would report `BPL_OWNING_VALUE_COPIED`.
 - Validate the selected concrete parameter types after operator synthesis and generic substitution, preserving borrowed pointer parameters and fresh values. This is a checker-level rule; no resource-release failure is required to reproduce it.
 - Eight negative checker regressions fail before correction, including grouped/indexed/dereferenced receivers, swapped comparisons, value arguments and generic aggregates. Five controls retain pointer receivers, borrowed arguments and freshly produced values.
+
+## Computed dereferences bypassed owning-copy checks
+
+Status: fixed; 15 targeted cases pass (11 failures and four controls before correction).
+
+- Built-in dereference was considered existing storage only when its pointer
+  operand also named storage. Dereferencing a call, conditional, cast or address
+  expression consequently escaped the existing `BPL_OWNING_VALUE_COPIED` rule.
+- A built-in dereference names pointee storage regardless of how the pointer is
+  computed. Checker regressions cover initializers, assignments, ordinary calls,
+  operator receivers/arguments and aggregate fields, with fresh/borrow controls.
+
+## Fresh overloaded star results were mistaken for owning storage copies
+
+Status: fixed for concrete nongeneric receivers; direct/grouped checker cases and normal cleanup regression pass. Generic owners retain the previous restriction.
+
+- The owning-copy classifier treated a value-producing overloaded `*` expression
+  as a built-in dereference. Assigning its fresh result to an owning local was
+  incorrectly rejected, including through grouping.
+- Distinguish checked overload calls from built-in pointee access. Checker and
+  normal cleanup-count regressions cover the fresh value result.
+
+## Fresh overloaded index results were mistaken for owning storage copies
+
+Status: fixed for concrete nongeneric receivers; generic owners retain the previous restriction.
+
+- Checked `__get__` expressions were classified as built-in element storage,
+  so a getter returning a fresh owning value could not transfer it to a local.
+- Classify getter calls as value producers while keeping built-in indexing and
+  dereferences of borrowed pointer results subject to the no-copy rule.
+- Direct/grouped checker cases and a normal cleanup-count regression reproduce
+  the false rejection. A borrowed-pointer getter control remains rejected.
+
+## Preserve owning-copy restrictions for generic overload results
+
+- Allowing fresh concrete getter/star results also accepted resource-owning
+  values returned from generic receiver fields, whose bodies are not checked
+  again with concrete owner arguments. This composition was found before merge.
+- Preserve the previous no-copy restriction for generic operator owners; their
+  owning results remain unsupported for transfer until that validation exists.
+  Nonowning results and borrowed pointer results remain available.
+- Four checker regressions cover getter/star fields, a generic receiver alias
+  and the documented conservative restriction even for a fresh generic result.
+  Two nonowning/pointer controls pass. No invalid owning copy is executed.
+
+## Method-generic operators were omitted from the conservative owning guard
+
+- A nongeneric owner can declare a method-generic operator. The owner-only
+  guard classified its owning result as fresh despite the documented generic
+  restriction. The checker regression reproduces that missing rejection.
+- Include the selected method's generic parameters as well as its owner's.
+  The existing nonowning and borrowed-pointer controls remain accepted.
+
+## Match results bypassed owning-copy validation
+
+- Expression arms and early-returning value arm blocks could yield existing
+  owning fields without the checks applied to direct frame returns. Concrete
+  overloads returning such matches were therefore accepted as fresh values.
+- Check each yielded arm value. Explicit arm-local returns may transfer locals
+  whose cleanup scope ends there; retained outer locals remain copy sources.
+  Fresh expressions continue to transfer without classifying all matches as storage.
+- Nine negative checker cases fail before correction; a normal cleanup-count
+  control preserves fresh values and explicit arm-local ownership transfer.
+
+## Fresh owning overload assignments skipped replacement cleanup
+
+Status: fixed conservatively; owning overload replacement remains rejected.
+
+- Reassignment from concrete overloaded star/getter results overwrote an existing
+  owning value without releasing it. Normal counter-only programs create two
+  values but observe one destructor. No physical resources are allocated.
+- Preserve the pre-existing assignment rejection for these overload results
+  until replacement cleanup and initialization state are supported.
+- Seven checker cases reproduce the missing rejection; four controls retain
+  fresh declaration initializers and nonowning/borrowed-pointer assignments.
+
+## Owning replacement cleanup was also bypassed through fresh RHS wrappers
+
+- An ordinary fresh call also overwrote an owning slot without releasing the
+  previous value; a counter-only program confirms two values and one destructor.
+  Conditionals, matches, aggregates and forwarding calls could wrap overload
+  results and bypass a source-shape-only guard.
+- Reject owning replacement assignments regardless of RHS shape until cleanup
+  and initialization state are implemented. Fresh declaration initializers and
+  argument transfers remain available; borrowed/nonowning assignments remain valid.
+- Five additional negative checker cases fail before the generalized guard.
+  This is a documented conservative restriction, with the existing ownership
+  diagnostic code and a replacement-specific message.
+
+## Conditional branches bypassed owning-copy checks
+
+- Wrapping owning storage in a conditional hid the copy from callers and frame
+  returns, including concrete getter/star bodies that appeared to return fresh values.
+- Validate each branch value after type compatibility, preserving fresh values
+  and borrowed results. Six negative checker cases fail before correction;
+  the fresh-value normal-cleanup control passes before and after.
+
+## Cast sources bypassed owning-copy checks
+
+Status: fixed; cast sources are checked after cast validity and view rules.
+
+- Casting existing owning storage to the same owning type hid the copy in
+  initializers, returns, arguments and aggregates, including through aliases.
+- Seven checker cases reproduce the bypass. A fresh-value/pointer cleanup
+  control remains valid. Negative copy cases are never executed.

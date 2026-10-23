@@ -28,6 +28,7 @@ export interface CheckerContext {
     expectedType?: AST.TypeNode;
     inferredTypes: AST.TypeNode[];
     inferredValues?: AST.Expression[];
+    retainedScope?: SymbolTable;
   }[];
   modules: Map<string, SymbolTable>;
 
@@ -135,6 +136,7 @@ export interface CheckerContext {
     type: AST.TypeNode | undefined,
     position: string,
     location: AST.ASTNode["location"],
+    allowFreshValues?: boolean,
   ): void;
   resolveMemberWithContext(
     baseType: AST.BasicTypeNode,

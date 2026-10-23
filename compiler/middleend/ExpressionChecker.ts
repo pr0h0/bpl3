@@ -1449,6 +1449,18 @@ export function checkTernary(
     );
   }
 
+  this.rejectOwningCopy(
+    expr.trueExpr,
+    thenType,
+    "out of a conditional branch",
+    expr.trueExpr.location,
+  );
+  this.rejectOwningCopy(
+    expr.falseExpr,
+    elseType,
+    "out of a conditional branch",
+    expr.falseExpr.location,
+  );
   return thenType;
 }
 
@@ -1506,6 +1518,12 @@ export function checkCast(
         CAST_INVALID_CODE,
       );
     }
+    this.rejectOwningCopy(
+      expr.expression,
+      target,
+      "through a cast",
+      expr.expression.location,
+    );
   }
 
   return expr.targetType;

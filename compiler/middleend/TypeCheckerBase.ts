@@ -2743,46 +2743,75 @@ export abstract class TypeCheckerBase {
   /**
    * True when this expression names existing storage rather than producing a
    * fresh value. Reading one copies what is there; a call or a literal hands
-   * over something new instead.
+   * over something new instead. Checked getter and unary overloads follow
+   * call-result transfer rules for concrete, nongeneric operator owners.
    */
   protected isPlaceExpression(expr: AST.Expression): boolean {
     switch (expr.kind) {
       case "Identifier":
       case "Member":
-      case "Index":
         return true;
+      case "Index":
+        return (
+          expr.operatorOverload?.methodName !== "__get__" ||
+          this.hasGenericOperatorBody(expr.operatorOverload)
+        );
       case "Group":
         return this.isPlaceExpression((expr as AST.GroupExpr).expression);
       case "Unary":
+        // Computing a pointer does not produce a fresh pointee value.
         return (
           (expr as AST.UnaryExpr).operator.type === TokenType.Star &&
-          this.isPlaceExpression((expr as AST.UnaryExpr).operand)
+          (!expr.operatorOverload ||
+            this.hasGenericOperatorBody(expr.operatorOverload))
         );
       default:
         return false;
     }
   }
 
+  /** Preserve no-copy checks until generic operator bodies have concrete ownership validation. */
+  private hasGenericOperatorBody(overload: {
+    targetType: AST.TypeNode;
+    methodName: string;
+    methodDeclaration: AST.FunctionDecl;
+  }): boolean {
+    const target = this.resolveType(overload.targetType, false);
+    if (target.kind !== "BasicType") return false;
+    return (
+      target.genericArgs.length > 0 ||
+      overload.methodDeclaration.genericParams.length > 0 ||
+      (this.resolveMemberWithContext(target, overload.methodName)?.decl
+        .genericParams.length ?? 0) > 0
+    );
+  }
+
   /**
    * Rejects copying a value that owns a destructor. Aggregates are copied
    * bitwise and there are no move semantics, so a copy leaves two owners and
    * the resource is released twice. Producing a value fresh, and returning or
-   * throwing a local, hand ownership over instead of duplicating it.
+   * throwing a local, hand ownership over instead of duplicating it. Callers
+   * can also reject fresh values where replacement cleanup is unsupported.
    */
   public rejectOwningCopy(
     expr: AST.Expression | undefined,
     type: AST.TypeNode | undefined,
     position: string,
     location: AST.ASTNode["location"],
+    allowFreshValues = true,
   ): void {
-    if (!expr || !this.isPlaceExpression(expr)) return;
+    if (!expr || (allowFreshValues && !this.isPlaceExpression(expr))) return;
     const owner = this.findAutoDestroyOwner(type ?? expr.resolvedType);
     if (!owner) return;
 
     this.addError(
       new CompilerError(
-        `Cannot copy '${owner.name}', which has an '@[auto_destroy]' destructor, ${position}`,
-        "Copying it would leave two owners and free the same resource twice. Pass a pointer to it, or produce a new value instead of copying this one.",
+        allowFreshValues
+          ? `Cannot copy '${owner.name}', which has an '@[auto_destroy]' destructor, ${position}`
+          : `Cannot assign owning '${owner.name}' ${position}: replacement cleanup is not supported`,
+        allowFreshValues
+          ? "Copying it would leave two owners and free the same resource twice. Pass a pointer to it, or produce a new value instead of copying this one."
+          : "Initialize an owning value in its declaration instead of replacing existing owning storage.",
         location,
         OWNING_VALUE_COPIED_CODE,
       ),

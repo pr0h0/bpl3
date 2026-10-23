@@ -332,6 +332,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     expectedType?: AST.TypeNode;
     inferredTypes: AST.TypeNode[];
     inferredValues?: AST.Expression[];
+    retainedScope?: SymbolTable;
   }[] = [];
 
   constructor(
@@ -2389,6 +2390,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       valueType,
       "on the right of an assignment",
       expr.value.location,
+      // Replacement cleanup is unavailable for owning assignments, even when
+      // the RHS is a fresh call, conditional, match or aggregate value.
+      false,
     );
 
     if (targetType && valueType) {
@@ -3423,7 +3427,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         return this.makeVoidType();
       }
       // Push context for collecting return types
-      this.matchContext.push({ inferredTypes: [], inferredValues: [] });
+      this.matchContext.push({
+        inferredTypes: [],
+        inferredValues: [],
+        retainedScope: this.currentScope,
+      });
       try {
         StmtChecker.checkBlock.call(this, body);
         // If we have collected return types, unify them
@@ -3469,7 +3477,16 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         this.matchContext.pop();
       }
     } else {
-      return this.checkExpression(body);
+      const type = this.checkExpression(body);
+      if (!isStatementPosition) {
+        this.rejectOwningCopy(
+          body,
+          type,
+          "out of a match expression arm",
+          body.location,
+        );
+      }
+      return type;
     }
   }
 
