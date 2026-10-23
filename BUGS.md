@@ -8021,3 +8021,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   a caller alias collision, receiver aliases and combined reads/writes. A checker
   case rejects incompatible arguments hidden by a collision. All seven fail
   before the correction.
+
+## Void index getters emitted invalid LLVM result assignments
+
+- A getter returning void passed checking as an expression statement but was
+  emitted as `%result = call void ...`, which cannot produce an LLVM value.
+- Emit a normal void call without a result register, following ordinary call
+  lowering. Receiver/index evaluation and value-receiver copying stay intact.
+- Pointer- and value-receiver regressions fail at the IR gate before the fix;
+  an existing void-to-integer assignment rejection remains a passing control.

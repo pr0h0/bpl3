@@ -166,6 +166,7 @@ borrowing an argument requires mutable storage and an exact pointee type.
 Index operator calls also obey argument range, mutable-storage and ownership-copy checks.
 Imported operator signatures resolve aliases in their defining module, independently
 of aliases declared by the caller.
+A void-returning getter can be called as an expression statement; it supplies no value.
 
 The receiver is evaluated once, followed by the index and the assigned value.
 A void setter leaves the assignment expression with its original assigned value;
