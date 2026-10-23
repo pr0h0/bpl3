@@ -655,6 +655,9 @@ the operator call without invoking the getter again.
 Value receivers (`this: Box`) receive a copy, including when the operand is
 constant. Changes to receiver fields inside the operator do not change the
 original value. Pointer receivers (`this: *Box`) can change the original storage.
+The normal owning-copy rule applies: existing values that own an
+`@[auto_destroy]` destructor cannot be passed as value receivers or value
+arguments. Use pointer parameters or produce a fresh value instead.
 
 Custom types can define operator methods such as `__add__` for `+` and
 `__neg__` for unary `-`. For example, this declaration defines unary negation:

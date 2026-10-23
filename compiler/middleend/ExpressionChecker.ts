@@ -62,6 +62,30 @@ import {
 
 const STRUCT_LITERAL_FIELD_SET_THRESHOLD = 4;
 
+/** Apply normal no-copy rules to the selected operator's receiver and arguments. */
+function rejectOperatorOwningCopies(
+  context: CheckerContext,
+  method: AST.FunctionDecl,
+  bindings: Map<string, AST.TypeNode>,
+  operands: readonly AST.Expression[],
+): void {
+  operands.forEach((operand, index) => {
+    const parameter =
+      method.resolvedType?.kind === "FunctionType"
+        ? method.resolvedType.paramTypes[index]
+        : method.params[index]?.type;
+    if (!parameter) return;
+    context.rejectOwningCopy(
+      operand,
+      context.substituteType(parameter, bindings),
+      index === 0
+        ? "into an operator value receiver"
+        : "into an operator argument",
+      operand.location,
+    );
+  });
+}
+
 function isGenericParameterType(
   context: CheckerContext,
   type: AST.TypeNode,
@@ -609,6 +633,13 @@ export function checkBinary(
         }
       }
 
+      rejectOperatorOwningCopies(
+        this,
+        method,
+        typeSubstitutionMap,
+        swapOperands ? [expr.right, expr.left] : [expr.left, expr.right],
+      );
+
       // Found operator overload! Annotate the node
       expr.operatorOverload = {
         methodName: method.name,
@@ -918,6 +949,10 @@ export function checkUnary(
           }
         }
       }
+
+      rejectOperatorOwningCopies(this, method, typeSubstitutionMap, [
+        expr.operand,
+      ]);
 
       // Found operator overload! Annotate the node
       expr.operatorOverload = {
