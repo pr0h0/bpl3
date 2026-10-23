@@ -648,7 +648,9 @@ Overloaded unary operators evaluate their operand once. A pointer receiver borro
 the original storage of an addressable operand, including an indexed or nested
 field; a temporary value is materialized for the call. Binary overload operands
 are evaluated once in source order, including when overload selection uses the
-right operand as its receiver.
+right operand as its receiver. An overloaded index getter returns a value; when
+used as a pointer receiver or borrowed operand, that value is materialized for
+the operator call without invoking the getter again.
 
 Custom types can define operator methods such as `__add__` for `+` and
 `__neg__` for unary `-`. For example, this declaration defines unary negation:

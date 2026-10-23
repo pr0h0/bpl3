@@ -8094,3 +8094,9 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Binary operator lowering loaded both values before requesting receiver/argument addresses. Computed borrowed operands ran twice, and address-side effects moved after right-operand evaluation.
 - Prepare each argument once in source order, retaining the selected receiver/other-argument order for swapped overloads. Only temporary values need spill evaluation.
 - Four LLVM/O0/O3 cases cover indexed receivers, a swapped builtin-left overload, a borrowed right operand, and a temporary control. Three fail before correction; the temporary control passes. Broader operator ABI and speculative fallback paths remain outside this correction.
+
+## Failed address probes evaluated overloaded index inputs before spilling
+
+- Operator receiver/argument preparation tried to borrow an overloaded index as built-in element storage. Address generation evaluated its receiver/index and then failed, so fallback getter evaluation observed already-changed state and could use a later index.
+- Reject `__get__` expressions at the index-address boundary before emitting either input. Callers then evaluate and materialize the returned value once.
+- Five LLVM/O0/O3 regressions fail before the correction and cover unary/grouped/nested-field receivers, binary receivers and borrowed arguments, checking both inputs, getter count, order and selected result.

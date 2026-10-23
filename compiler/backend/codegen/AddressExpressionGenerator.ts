@@ -287,11 +287,21 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     return addr;
   }
 
+  /** Address built-in element storage, rejecting getter values before evaluating their inputs. */
   protected generateIndexAddress(
     indexExpr: AST.IndexExpr,
     skipNullObjectCheck: boolean,
     objectAddress?: string,
   ): string {
+    // A getter returns a value, not the storage of a built-in indexed element.
+    // Reject before evaluating either input so callers may safely spill it.
+    if (indexExpr.operatorOverload?.methodName === "__get__") {
+      throw new CompilerError(
+        "Cannot address an overloaded index",
+        "Overloaded index expressions return values without borrowable element storage.",
+        indexExpr.location,
+      );
+    }
     const objectAddr =
       objectAddress ??
       this.generateIndexObjectAddress(indexExpr.object, skipNullObjectCheck);
