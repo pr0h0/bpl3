@@ -2327,6 +2327,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
+  /** Validate assignment targets and select the setter invoked by an index store. */
   private checkAssignment(expr: AST.AssignmentExpr): AST.TypeNode | undefined {
     // Check if assignee is an l-value
     if (
@@ -2867,6 +2868,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             const signature = CallChecker.resolveMethodTypesInModuleContext(
               this,
               member,
+              context.decl.genericParams,
             );
             const resolved: AST.FunctionDecl = {
               ...member,
@@ -2892,6 +2894,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     const signature = CallChecker.resolveMethodTypesInModuleContext(
       this,
       declaration,
+      context?.decl.genericParams,
     );
     const resolve = (type: AST.TypeNode): AST.TypeNode =>
       this.resolveType(

@@ -8030,3 +8030,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   lowering. Receiver/index evaluation and value-receiver copying stay intact.
 - Pointer- and value-receiver regressions fail at the IR gate before the fix;
   an existing void-to-integer assignment rejection remains a passing control.
+
+## Module aliases shadowed imported index operator generic parameters
+
+- Resolving `Box<T>` index signatures directly in the module scope could bind
+  `T` to a module-level alias instead of the owner's generic parameter. Valid
+  concrete and generic reads/writes were then rejected as not indexable.
+- Resolve index signatures in a temporary child scope containing the owner's
+  generic parameters. Keep ordinary module aliases in their defining scope and
+  restore the caller scope even when resolution fails.
+- Regressions cover getters, setters, generic callers, lexical alias definitions
+  and an unshadowed control. This correction is scoped to index signatures;
+  unrelated method and lifetime behavior is not claimed fixed.

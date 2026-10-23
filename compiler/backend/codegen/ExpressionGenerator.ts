@@ -1161,6 +1161,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     };
   }
 
+  /** Lower checked getter calls or load an element from built-in indexed storage. */
   protected generateIndex(expr: AST.IndexExpr): string {
     // Check for operator overload (__get__)
     if (expr.operatorOverload) {
