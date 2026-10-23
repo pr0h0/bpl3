@@ -1161,6 +1161,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     };
   }
 
+  /** Lower checked getter calls or load an element from built-in indexed storage. */
   protected generateIndex(expr: AST.IndexExpr): string {
     // Check for operator overload (__get__)
     if (expr.operatorOverload) {
@@ -1227,6 +1228,12 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
       // Call the __get__ method
       const returnType = this.resolveType(methodType.returnType);
+      if (returnType === "void") {
+        this.emit(
+          `  call void @${mangledName}(${receiverType} ${receiver.value}, ${indexType} ${index.value})`,
+        );
+        return "0";
+      }
       const resultReg = this.newRegister();
       this.emit(
         `  ${resultReg} = call ${returnType} @${mangledName}(${receiverType} ${receiver.value}, ${indexType} ${index.value})`,

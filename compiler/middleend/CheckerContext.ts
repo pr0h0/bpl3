@@ -98,6 +98,14 @@ export interface CheckerContext {
   getEnumVariantIndex(expr: AST.Expression): number | undefined;
 
   // Overload & Member Resolution
+  resolveIndexOperator(
+    targetType: AST.TypeNode,
+    methodName: "__get__" | "__set__",
+    paramTypes: AST.TypeNode[],
+    rejections?: { constantAddress?: boolean },
+  ):
+    | { declaration: AST.FunctionDecl; signature: AST.FunctionTypeNode }
+    | undefined;
   findOperatorOverload(
     targetType: AST.TypeNode,
     methodName: string,

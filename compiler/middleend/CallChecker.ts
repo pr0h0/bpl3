@@ -12,6 +12,7 @@ import {
 } from "./OverloadResolver";
 import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import type { CheckerContext } from "./CheckerContext";
+import { SymbolTable } from "./SymbolTable";
 import { validateExternVariadicArguments } from "./validators/ExternAbiValidator";
 import {
   ADDRESS_OF_CONSTANT_CODE,
@@ -1405,53 +1406,16 @@ export function checkIndex(
   // Try __get__ operator overload
   if (indexType) {
     const rejections: OperatorOverloadRejections = {};
-    const method = this.findOperatorOverload(
+    const selected = this.resolveIndexOperator(
       objectType,
       "__get__",
       [indexType],
       rejections,
     );
+    const method = selected?.declaration;
     if (!method) rejectConstantOperatorAddress(rejections, expr.location);
     if (method) {
-      // Build type substitution map for return type resolution (for generics)
-      const typeSubstitutionMap = new Map<string, AST.TypeNode>();
-      if (
-        objectType.kind === "BasicType" &&
-        objectType.genericArgs.length > 0
-      ) {
-        const decl = objectType.resolvedDeclaration;
-        if (
-          decl &&
-          (decl.kind === "StructDecl" ||
-            decl.kind === "EnumDecl" ||
-            decl.kind === "SpecDecl" ||
-            decl.kind === "TypeAlias") &&
-          decl.genericParams &&
-          decl.genericParams.length > 0
-        ) {
-          for (let i = 0; i < decl.genericParams.length; i++) {
-            typeSubstitutionMap.set(
-              decl.genericParams[i]!.name,
-              objectType.genericArgs[i]!,
-            );
-          }
-        }
-      }
-
-      const signature = resolveMethodTypesInModuleContext(this, method);
-      const resolve = (type: AST.TypeNode): AST.TypeNode =>
-        this.resolveType(
-          typeSubstitutionMap.size > 0
-            ? this.substituteType(type, typeSubstitutionMap)
-            : type,
-          false,
-        );
-      const methodType: AST.FunctionTypeNode = {
-        kind: "FunctionType",
-        paramTypes: signature.paramTypes.map(resolve),
-        returnType: resolve(signature.returnType),
-        location: method.location,
-      };
+      const methodType = selected!.signature;
       if (validateGetterCall) {
         const expected = methodType.paramTypes[1]!;
         const actual = this.resolveType(indexType);
@@ -1580,9 +1544,11 @@ function inferGenericArgs(
   }
 }
 
+/** Resolve module aliases while optionally preserving owner type parameters. */
 export function resolveMethodTypesInModuleContext(
   context: CheckerContext,
   method: AST.FunctionDecl | AST.SpecMethod,
+  ownerGenericParams: readonly AST.GenericParam[] = [],
 ): { returnType: AST.TypeNode; paramTypes: AST.TypeNode[] } {
   const returnType: AST.TypeNode = method.returnType || {
     kind: "BasicType",
@@ -1593,16 +1559,37 @@ export function resolveMethodTypesInModuleContext(
     location: method.location,
   };
 
-  if (method.location && (context as any).modules) {
+  if (method.location && context.modules) {
     const modulePath = method.location.file;
-    const moduleScope = (context as any).modules.get(modulePath);
+    const moduleScope = context.modules.get(modulePath);
     if (moduleScope) {
-      const oldScope = (context as any).currentScope;
-      (context as any).currentScope = moduleScope;
+      const signatureScope = ownerGenericParams.length
+        ? new SymbolTable(moduleScope)
+        : moduleScope;
+      for (const parameter of ownerGenericParams) {
+        signatureScope.define({
+          name: parameter.name,
+          kind: "TypeAlias",
+          type: {
+            kind: "BasicType",
+            name: parameter.name,
+            genericArgs: [],
+            pointerDepth: 0,
+            arrayDimensions: [],
+            location: parameter.location ?? method.location,
+          },
+          declaration: {
+            ...parameter,
+            kind: "GenericParam",
+            location: parameter.location ?? method.location,
+          },
+        });
+      }
+      const oldScope = context.currentScope;
+      context.currentScope = signatureScope;
       try {
-        // The module scope has no generic parameters of the owning type, so a
-        // signature such as `this: *Wrapper<T>` cannot be constraint-checked
-        // here; declarations and instantiations check those.
+        // Resolve symbolic parameters without checking instantiated constraints;
+        // declarations and concrete instantiations check those.
         return {
           returnType: context.resolveType(returnType, false),
           paramTypes: method.params.map((p) =>
@@ -1610,7 +1597,7 @@ export function resolveMethodTypesInModuleContext(
           ),
         };
       } finally {
-        (context as any).currentScope = oldScope;
+        context.currentScope = oldScope;
       }
     }
   }

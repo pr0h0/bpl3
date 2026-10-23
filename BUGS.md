@@ -8007,3 +8007,38 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   call rules; setter checking also rejects copying owning index arguments.
 - Five checker regressions cover an out-of-range getter key, const array view,
   owning getter receiver/index, and an owning setter index. All fail before.
+
+## Imported index getters matched aliases in the caller module
+
+- A getter whose index parameter uses a private alias was matched before its
+  declaring-module signature was resolved. Valid reads were reported as not
+  indexable, including generic getters and callers with colliding alias names.
+- A colliding caller alias could also authorize an incompatible argument using
+  the caller definition rather than the getter's parameter type.
+- Share module-aware index operator resolution between getters and setters,
+  retaining the original declaration plus its resolved generic signature.
+- Six LLVM/O0/O3 regressions cover integer, pointer and generic private aliases,
+  a caller alias collision, receiver aliases and combined reads/writes. A checker
+  case rejects incompatible arguments hidden by a collision. All seven fail
+  before the correction.
+
+## Void index getters emitted invalid LLVM result assignments
+
+- A getter returning void passed checking as an expression statement but was
+  emitted as `%result = call void ...`, which cannot produce an LLVM value.
+- Emit a normal void call without a result register, following ordinary call
+  lowering. Receiver/index evaluation and value-receiver copying stay intact.
+- Pointer- and value-receiver regressions fail at the IR gate before the fix;
+  an existing void-to-integer assignment rejection remains a passing control.
+
+## Module aliases shadowed imported index operator generic parameters
+
+- Resolving `Box<T>` index signatures directly in the module scope could bind
+  `T` to a module-level alias instead of the owner's generic parameter. Valid
+  concrete and generic reads/writes were then rejected as not indexable.
+- Resolve index signatures in a temporary child scope containing the owner's
+  generic parameters. Keep ordinary module aliases in their defining scope and
+  restore the caller scope even when resolution fails.
+- Regressions cover getters, setters, generic callers, lexical alias definitions
+  and an unshadowed control. This correction is scoped to index signatures;
+  unrelated method and lifetime behavior is not claimed fixed.
