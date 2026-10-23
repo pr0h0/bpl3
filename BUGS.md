@@ -8226,3 +8226,12 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Validate the source after conversion validity, preserving fresh values and
   borrowed pointers. Checker regressions cover initializers, returns,
   arguments, aggregates and aliases; invalid copy sources are not executed.
+
+## `as` conversions allowed mutable views of constant arrays
+
+- `data as int[]` and `data as *int` accepted constant array storage even
+  though the equivalent `cast` conversions rejected it.
+- Both syntaxes now share the constant-array guard, including grouped sources,
+  aliases, nested arrays and fields of constant aggregate bindings.
+- Six diagnostic regressions failed before correction. Mutable borrows,
+  independent fixed-array copies and local literal views remain supported.

@@ -297,7 +297,8 @@ an existing borrowed slice/pointer only when its elements outlive the call.
 Explicit array-to-view casts borrow existing addressable array storage. A cast
 whose source is an array rvalue instead uses temporary storage in the current
 frame. Neither form extends storage lifetime. Constant arrays cannot produce
-mutable views.
+mutable views, using either `cast<View>(array)` or `array as View`. Copy a
+constant fixed array into mutable fixed-array storage before borrowing it.
 Implicit conversions in returned tuple, struct, enum and array literal fields
 are checked too; wrapping a temporary view in an aggregate does not extend its
 lifetime. The explicit-cast check also covers grouped and conditional values, match

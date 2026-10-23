@@ -1464,6 +1464,28 @@ export function checkTernary(
   return thenType;
 }
 
+/** Both cast syntaxes must preserve constant array storage protections. */
+function rejectConstantArrayView(
+  context: CheckerContext,
+  expr: AST.CastExpr | AST.AsExpr,
+  source: AST.TypeNode,
+  target: AST.TypeNode,
+): void {
+  const conversion = lowerImplicitConversion(target, source);
+  if (
+    isConstantArrayStorage(expr.expression, (type) => context.resolveType(type)) &&
+    (conversion.kind === "array-to-pointer" ||
+      conversion.kind === "array-to-slice")
+  ) {
+    throw new CompilerError(
+      "Cannot cast a constant array to a mutable view",
+      "BPL does not support views of constant elements. Copy the array to mutable storage first.",
+      expr.location,
+      CAST_INVALID_CODE,
+    );
+  }
+}
+
 /**
  * Check a cast expression
  */
@@ -1498,16 +1520,7 @@ export function checkCast(
     const resolved = this.resolveType(exprType);
     const target = this.resolveType(expr.targetType);
 
-    const conversion = lowerImplicitConversion(target, resolved);
-    if (isConstantArrayStorage(expr.expression, (type) => this.resolveType(type)) &&
-      (conversion.kind === "array-to-pointer" || conversion.kind === "array-to-slice")) {
-      throw new CompilerError(
-        "Cannot cast a constant array to a mutable view",
-        "BPL does not support views of constant elements. Copy the array to mutable storage first.",
-        expr.location,
-        CAST_INVALID_CODE,
-      );
-    }
+    rejectConstantArrayView(this, expr, resolved, target);
 
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {
@@ -1939,6 +1952,8 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
 
     const resolved = this.resolveType(exprType);
     const target = this.resolveType(expr.type);
+
+    rejectConstantArrayView(this, expr, resolved, target);
 
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {
