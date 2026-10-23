@@ -8082,3 +8082,9 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Scope cases cover functions, structs, enums, specs, generic aliases and methods;
   native cases cover tuple/struct enum payloads and generic fields with a forward
   module alias. Existing module aliases outside those scopes still rename.
+
+## Unary overloaded operators evaluated computed receivers twice
+
+- Lowering generated the operand value before requesting its address. For indexed, nested-member and dereferenced receivers, address generation evaluated the same expression again. Receiver-side effects ran twice before the operator.
+- Generate the address first; evaluate and spill a value only when the operand has no address. The operator continues to mutate the original addressable receiver.
+- Seven LLVM/O0/O3 regressions cover indexed/grouped/nested receivers, dereferenced and field-bearing pointer calls, plus temporary call/conditional controls. Five fail before correction; both controls pass. This does not close every speculative address-generation fallback.

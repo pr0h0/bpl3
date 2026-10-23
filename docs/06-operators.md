@@ -644,27 +644,23 @@ See [Reflection and JSON](55-reflection-and-json.md) for more details.
 
 ## Operator Overloading
 
-BPL does **not** support operator overloading. Custom types cannot redefine operators.
+Overloaded unary operators evaluate their operand once. A pointer receiver borrows
+the original storage of an addressable operand, including an indexed or nested
+field; a temporary value is materialized for the call.
 
-To provide operator-like functionality for custom types, use named methods:
+Custom types can define operator methods such as `__add__` for `+` and
+`__neg__` for unary `-`. For example, this declaration defines unary negation:
 
 ```bpl
-struct Vector {
-    x: float,
-    y: float,
-
-    frame add(this: *Vector, other: *Vector) ret Vector {
-        local result: Vector;
-        result.x = this.x + (*other).x;
-        result.y = this.y + (*other).y;
-        return result;
+struct Box {
+    value: int,
+    frame __neg__(this: *Box) ret int {
+        return -this.value;
     }
 }
-
-local v1: Vector;
-local v2: Vector;
-local sum: Vector = v1.add(&v2);  # Not: v1 + v2
 ```
+
+The expression `-box` invokes `Box.__neg__` when `box` has type `Box`.
 
 ## Common Patterns
 
