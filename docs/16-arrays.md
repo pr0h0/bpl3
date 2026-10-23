@@ -56,7 +56,11 @@ frame main() ret int {
 
 ## Array Literals
 
-Array literals provide a concise way to create arrays with initial values:
+Array literals provide a concise way to create arrays with initial values.
+They must contain at least one element: `[]` is currently unsupported, even with
+an explicit target type, and reports `BPL_ARRAY_LITERAL_TYPE_MISMATCH` during
+checking. To fill a fixed-size array manually, declare it without an initializer
+and write each element before reading it.
 
 ```bpl
 extern printf(fmt: string, ...);

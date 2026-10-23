@@ -1125,7 +1125,14 @@ export function checkArrayLiteral(
   this: CheckerContext,
   expr: AST.ArrayLiteralExpr,
 ): AST.TypeNode | undefined {
-  if (expr.elements.length === 0) return undefined;
+  if (expr.elements.length === 0) {
+    throw new CompilerError(
+      "Empty array literals are not supported",
+      "Provide at least one element. Fixed arrays may also be declared without an initializer.",
+      expr.location,
+      ARRAY_LITERAL_TYPE_MISMATCH_CODE,
+    );
+  }
 
   const firstType = this.checkExpression(expr.elements[0]!);
   this.rejectOwningCopy(
