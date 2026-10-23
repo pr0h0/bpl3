@@ -2515,7 +2515,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         const takesAddress =
           expected.kind === "BasicType" &&
           actual.kind === "BasicType" &&
-          expected.pointerDepth === actual.pointerDepth + 1;
+          expected.pointerDepth === actual.pointerDepth + 1 &&
+          this.areTypesExactMatch(
+            { ...expected, pointerDepth: expected.pointerDepth - 1 },
+            actual,
+          );
         if (
           (takesAddress ||
             conversion.kind === "array-to-slice" ||

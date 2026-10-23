@@ -7962,3 +7962,13 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Substitute the checked signature using the active instantiation map before
   constructing the callee name and lowering arguments. Two LLVM/O0/O3 cases
   cover void and nonvoid setters in generic callers and distinct instantiations.
+
+## Index setters treated null pointer values as implicit address arguments
+
+- Setter argument lowering used pointer-depth difference alone to decide to
+  take an address. A `nullptr` index or value became a pointer to a temporary
+  stack slot instead of the null value accepted by the checked signature.
+- Require an exact resolved pointee match for implicit address lowering and
+  its const-storage check. Ordinary null-to-pointer conversions remain values.
+- Four LLVM/O0/O3 regressions cover null indices, null RHS values, both together
+  and an existing typed-pointer control: three fail before, the control passes.

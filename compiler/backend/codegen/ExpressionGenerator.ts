@@ -1062,7 +1062,10 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       source.kind === "BasicType" &&
       target.kind === "BasicType" &&
       target.pointerDepth === source.pointerDepth + 1 &&
-      target.arrayDimensions.length === source.arrayDimensions.length;
+      lowerImplicitConversion(
+        { ...target, pointerDepth: target.pointerDepth - 1 },
+        source,
+      ).kind === "identity";
     const borrowsArray =
       conversion.kind === "array-to-slice" ||
       conversion.kind === "array-to-pointer";
