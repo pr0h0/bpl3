@@ -8088,3 +8088,9 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Lowering generated the operand value before requesting its address. For indexed, nested-member and dereferenced receivers, address generation evaluated the same expression again. Receiver-side effects ran twice before the operator.
 - Generate the address first; evaluate and spill a value only when the operand has no address. The operator continues to mutate the original addressable receiver.
 - Seven LLVM/O0/O3 regressions cover indexed/grouped/nested receivers, dereferenced and field-bearing pointer calls, plus temporary call/conditional controls. Five fail before correction; both controls pass. This does not close every speculative address-generation fallback.
+
+## Binary overloaded operators re-evaluated borrowed operands
+
+- Binary operator lowering loaded both values before requesting receiver/argument addresses. Computed borrowed operands ran twice, and address-side effects moved after right-operand evaluation.
+- Prepare each argument once in source order, retaining the selected receiver/other-argument order for swapped overloads. Only temporary values need spill evaluation.
+- Four LLVM/O0/O3 cases cover indexed receivers, a swapped builtin-left overload, a borrowed right operand, and a temporary control. Three fail before correction; the temporary control passes. Broader operator ABI and speculative fallback paths remain outside this correction.
