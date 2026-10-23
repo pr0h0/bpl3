@@ -8112,3 +8112,24 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Operator selection did not apply the normal `@[auto_destroy]` no-copy rule to its receiver or value arguments. Existing owning storage was accepted where a normal function argument would report `BPL_OWNING_VALUE_COPIED`.
 - Validate the selected concrete parameter types after operator synthesis and generic substitution, preserving borrowed pointer parameters and fresh values. This is a checker-level rule; no resource-release failure is required to reproduce it.
 - Eight negative checker regressions fail before correction, including grouped/indexed/dereferenced receivers, swapped comparisons, value arguments and generic aggregates. Five controls retain pointer receivers, borrowed arguments and freshly produced values.
+
+## Computed dereferences bypassed owning-copy checks
+
+Status: fixed; 15 targeted cases pass (11 failures and four controls before correction).
+
+- Built-in dereference was considered existing storage only when its pointer
+  operand also named storage. Dereferencing a call, conditional, cast or address
+  expression consequently escaped the existing `BPL_OWNING_VALUE_COPIED` rule.
+- A built-in dereference names pointee storage regardless of how the pointer is
+  computed. Checker regressions cover initializers, assignments, ordinary calls,
+  operator receivers/arguments and aggregate fields, with fresh/borrow controls.
+
+## Fresh overloaded star results were mistaken for owning storage copies
+
+Status: pending classification fix.
+
+- The owning-copy classifier treated a value-producing overloaded `*` expression
+  as a built-in dereference. Assigning its fresh result to an owning local was
+  incorrectly rejected, including through grouping.
+- Distinguish checked overload calls from built-in pointee access. Checker and
+  normal cleanup-count regressions cover the fresh value result.

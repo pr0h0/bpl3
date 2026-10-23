@@ -97,6 +97,10 @@ parameter is destroyed when that instance's argument owns a destructor.
 Tuple elements are followed like struct fields, and a local bound by tuple
 destructuring is an ordinary local that destroys what it holds.
 
+A built-in dereference reads existing pointee storage even when its pointer
+comes from a call, conditional, cast or address expression. The no-copy rule
+applies to that read just as it does to reading a local binding.
+
 A value with an `@[auto_destroy]` destructor cannot be copied
 (`BPL_OWNING_VALUE_COPIED`). Copying is what reading one out of existing
 storage does, so these are all rejected:
@@ -117,8 +121,9 @@ and `return r;` are all valid, and passing a pointer copies nothing.
 
 A by-value parameter is therefore always a transfer, and the callee destroys it
 when it returns, including when it leaves through a `throw`. Returning the
-parameter hands it on instead. A `this` parameter is a pointer, so a method does
-not destroy the value it was called on.
+parameter hands it on instead. A pointer receiver (`this: *T`) borrows the
+value it was called on. A value receiver (`this: T`) follows the same
+owning-copy and cleanup rules as other value parameters.
 
 One consequence is worth knowing: a tuple holding owning values can be built
 and destroyed but not read, because destructuring it would copy the elements
