@@ -669,6 +669,11 @@ recover a fixed array or raw pointer from a slice. Unsupported conversions are
 rejected with `BPL_CAST_INVALID`; convert elements explicitly, and index a
 nonempty slice when an element address is needed.
 
+Integer-to-`string` conversions are rejected with
+`BPL_CAST_INTEGER_TO_STRING`, including through type aliases and with either
+`cast<Text>(value)` or `value as Text`. Convert a number to text with a
+formatting or string conversion function instead.
+
 Implicit array views follow the same layout rule: `int[3][2]` can become
 `int[][2]`, keeping fixed rows of two integers. It cannot become `int[][]` or
 `int[3][]`; those types need rows that are themselves slice values. Build each

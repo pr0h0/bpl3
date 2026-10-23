@@ -8235,3 +8235,12 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   aliases, nested arrays and fields of constant aggregate bindings.
 - Six diagnostic regressions failed before correction. Mutable borrows,
   independent fixed-array copies and local literal views remain supported.
+
+
+## String aliases bypassed integer-to-string conversion rejection
+
+- Both `cast<Text>(number)` and `number as Text` accepted integer-to-string
+  conversions when `Text` aliased `string`, despite rejecting the direct spelling.
+- Preserve the existing rejection through resolved alias chains, including
+  transitive and generic aliases, while retaining numeric, pointer and string
+  identity conversions. Negative cases are checked without executing them.
