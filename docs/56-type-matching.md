@@ -42,6 +42,8 @@ Composite targets use their complete type shape: tuples compare their element
 types, and function or lambda types compare their parameter and return types.
 Both `match<(int, bool)>(value)` and `value is (int, bool)` use this exact-type
 comparison. Function pointers and lambdas remain different type kinds.
+Targets must name types, with valid generic arguments and defined nested element,
+parameter and return types; variable or function names cannot stand in for types.
 
 ## Advanced Usage
 

@@ -8290,3 +8290,14 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   the same return/parameter comparisons as function signatures.
 - Regressions cover tuples, nested tuples, functions and lambdas in both syntaxes,
   plus normal native exact/mismatched comparisons.
+
+
+## Regular type queries did not fully validate target types
+
+- `match<variable>(value)` and function-name targets passed checking, while
+  generic argument counts and unknown generic arguments were not validated.
+- `is` expressions also accepted composite targets containing undefined types.
+- Use the shared known-type and resolution checks for regular targets while
+  preserving existing unknown-plain-type and enum-path query diagnostics.
+- Seven checker regressions fail before correction; existing primitive, generic
+  and composite query controls remain supported.

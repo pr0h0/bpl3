@@ -1854,6 +1854,8 @@ export function checkTypeMatch(
         TYPE_QUERY_TYPE_NOT_FOUND_CODE,
       );
     }
+    this.ensureKnownType(targetType);
+    expr.targetType = this.resolveType(targetType);
   } else {
     this.ensureKnownType(targetType);
     expr.targetType = this.resolveType(targetType);
@@ -1937,9 +1939,11 @@ export function checkIs(this: CheckerContext, expr: AST.IsExpr): AST.TypeNode {
           TYPE_QUERY_TYPE_NOT_FOUND_CODE,
         );
       }
+      this.ensureKnownType(expr.type);
       expr.type = resolved;
     }
   } else {
+    this.ensureKnownType(expr.type);
     const resolved = this.resolveType(expr.type);
     if (
       resolved.kind === "BasicType" &&
