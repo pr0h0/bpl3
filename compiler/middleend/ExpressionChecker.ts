@@ -1987,6 +1987,8 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
       "through an 'as' conversion",
       expr.expression.location,
     );
+    // Runtime downcast selection must see the checked target, including aliases.
+    expr.type = target;
   }
 
   return expr.type;

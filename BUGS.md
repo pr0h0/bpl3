@@ -8257,3 +8257,14 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   the cast node, so string aliases reach the existing array-to-pointer lowering.
 - Regression tests cover both syntaxes, aliases, constant inputs, and shared
   mutable byte-array storage without executing rejected inputs.
+
+## `as` target aliases skipped class downcast checks
+
+- The checker validated a resolved target but retained its alias spelling on
+  the expression. Code generation selected the runtime class check from that
+  unnormalized spelling, so an aliased class pointer fell back to a plain cast.
+- A normal class-conversion reproduction returns `nullptr` for the direct target
+  and a non-null value for its alias. It compares conversion results only and
+  never accesses a mismatched object. Retain the checker's normalized target for
+  runtime downcast selection. Four alias cases failed before correction, with
+  a passing source-alias control; tests check mismatches, matches and nulls.
