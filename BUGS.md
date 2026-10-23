@@ -7972,3 +7972,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   its const-storage check. Ordinary null-to-pointer conversions remain values.
 - Four LLVM/O0/O3 regressions cover null indices, null RHS values, both together
   and an existing typed-pointer control: three fail before, the control passes.
+
+## Index setter pointer temporaries borrowed pointees instead of pointer slots
+
+- A pointer-returning call was considered addressable when a setter implicitly
+  borrowed its result as a pointer-to-pointer argument. Address generation
+  returned the pointer value rather than a slot containing that value.
+- Spill call results before taking their implicit address, including grouped
+  calls. Keep genuine pointer variables and fields borrowing their own storage.
+- Five regressions cover returned index/RHS pointers, both together, grouped
+  calls and pointer variables. Four fail before the correction; the variable
+  control passes. They also verify receiver state, original assignment results,
+  call counts and that borrowing temporaries does not modify their pointees.

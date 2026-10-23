@@ -1069,10 +1069,15 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     const borrowsArray =
       conversion.kind === "array-to-slice" ||
       conversion.kind === "array-to-pointer";
+    let storageExpression = expression;
+    while (storageExpression.kind === "Group") {
+      storageExpression = storageExpression.expression;
+    }
     let address: string | undefined;
     let originalValue: string | undefined;
     if (
       (addressesValue || borrowsArray) &&
+      storageExpression.kind !== "Call" &&
       this.isAddressableAggregateSource(expression)
     ) {
       address = this.generateAddress(expression);
