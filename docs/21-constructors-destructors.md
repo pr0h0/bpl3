@@ -139,7 +139,8 @@ match result.
 Conditional branch values follow the same no-copy rule: choose a fresh value
 or a borrowed pointer rather than copying existing owning storage through the
 conditional result. Casting existing owning storage to an owning value is also
-rejected; casts of fresh values and borrowed pointers follow their normal rules.
+rejected with either `cast<Owner>(value)` or `value as Owner`; conversions of
+fresh values and borrowed pointers follow their normal rules.
 
 A by-value parameter is therefore always a transfer, and the callee destroys it
 when it returns, including when it leaves through a `throw`. Returning the

@@ -1,5 +1,8 @@
 import { lowerImplicitConversion } from "./lowering/ImplicitConversions";
-import { isTemporaryArrayElement, isConstantArrayStorage } from "../common/ArrayElementStorage";
+import {
+  isTemporaryArrayElement,
+  isConstantArrayStorage,
+} from "../common/ArrayElementStorage";
 import { formatDiagnosticType } from "./DiagnosticTypeFormatter";
 /**
  * ExpressionChecker - Handles type checking of expressions
@@ -969,7 +972,9 @@ export function checkUnary(
 
   // Address-of operator (&)
   if (op === TokenType.Ampersand) {
-    if (isTemporaryArrayElement(expr.operand, (type) => this.resolveType(type))) {
+    if (
+      isTemporaryArrayElement(expr.operand, (type) => this.resolveType(type))
+    ) {
       throw new CompilerError(
         "Cannot take the address of an element of a temporary array",
         "Store the array in a local variable before taking an element address.",
@@ -1464,6 +1469,77 @@ export function checkTernary(
   return thenType;
 }
 
+/** String aliases retain the direct spelling's integer conversion restriction. */
+function rejectIntegerToString(
+  context: CheckerContext,
+  expr: AST.CastExpr | AST.AsExpr,
+  source: AST.TypeNode,
+  target: AST.TypeNode,
+): void {
+  if (
+    source.kind !== "BasicType" ||
+    source.pointerDepth !== 0 ||
+    source.arrayDimensions.length !== 0 ||
+    !TypeUtils.isIntegerType(source)
+  )
+    return;
+
+  const declaredTarget = expr.kind === "Cast" ? expr.targetType : expr.type;
+  let isString =
+    declaredTarget.kind === "BasicType" && declaredTarget.name === "string";
+  // Resolution records string's builtin alias separately from ordinary *char.
+  if (
+    target.kind === "BasicType" &&
+    target.name === "i8" &&
+    target.pointerDepth === 1 &&
+    target.arrayDimensions.length === 0 &&
+    !target.isPointerToArray
+  ) {
+    const seen = new Set<AST.TypeNode>();
+    let current: AST.TypeNode | undefined = target;
+    while (current?.kind === "BasicType" && !seen.has(current)) {
+      if (current.aliasDeclaration?.name === "string") {
+        isString = true;
+        break;
+      }
+      seen.add(current);
+      current = current.aliasTarget;
+    }
+  }
+  if (isString) {
+    throw new CompilerError(
+      `Cannot cast integer type '${context.formatDiagnosticType(source)}' to 'string'`,
+      "Casting integers to string is not allowed. Use .toString() or similar conversion methods.",
+      expr.location,
+      CAST_INTEGER_TO_STRING_CODE,
+    );
+  }
+}
+
+/** Both cast syntaxes must preserve constant array storage protections. */
+function rejectConstantArrayView(
+  context: CheckerContext,
+  expr: AST.CastExpr | AST.AsExpr,
+  source: AST.TypeNode,
+  target: AST.TypeNode,
+): void {
+  const conversion = lowerImplicitConversion(target, source);
+  if (
+    isConstantArrayStorage(expr.expression, (type) =>
+      context.resolveType(type),
+    ) &&
+    (conversion.kind === "array-to-pointer" ||
+      conversion.kind === "array-to-slice")
+  ) {
+    throw new CompilerError(
+      "Cannot cast a constant array to a mutable view",
+      "BPL does not support views of constant elements. Copy the array to mutable storage first.",
+      expr.location,
+      CAST_INVALID_CODE,
+    );
+  }
+}
+
 /**
  * Check a cast expression
  */
@@ -1474,40 +1550,11 @@ export function checkCast(
   const exprType = this.checkExpression(expr.expression);
 
   if (exprType) {
-    // Disallow casting integers to string
-    if (
-      expr.targetType.kind === "BasicType" &&
-      expr.targetType.name === "string"
-    ) {
-      const resolvedSource = this.resolveType(exprType);
-      // Check if source is integer and not a pointer
-      if (
-        resolvedSource.kind === "BasicType" &&
-        resolvedSource.pointerDepth === 0 &&
-        TypeUtils.isIntegerType(resolvedSource)
-      ) {
-        throw new CompilerError(
-          `Cannot cast integer type '${this.formatDiagnosticType(resolvedSource)}' to 'string'`,
-          "Casting integers to string is not allowed. Use .toString() or similar conversion methods.",
-          expr.location,
-          CAST_INTEGER_TO_STRING_CODE,
-        );
-      }
-    }
-
     const resolved = this.resolveType(exprType);
     const target = this.resolveType(expr.targetType);
 
-    const conversion = lowerImplicitConversion(target, resolved);
-    if (isConstantArrayStorage(expr.expression, (type) => this.resolveType(type)) &&
-      (conversion.kind === "array-to-pointer" || conversion.kind === "array-to-slice")) {
-      throw new CompilerError(
-        "Cannot cast a constant array to a mutable view",
-        "BPL does not support views of constant elements. Copy the array to mutable storage first.",
-        expr.location,
-        CAST_INVALID_CODE,
-      );
-    }
+    rejectIntegerToString(this, expr, resolved, target);
+    rejectConstantArrayView(this, expr, resolved, target);
 
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {
@@ -1919,26 +1966,11 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
   const exprType = this.checkExpression(expr.expression);
 
   if (exprType) {
-    // Disallow casting integers to string
-    if (expr.type.kind === "BasicType" && expr.type.name === "string") {
-      const resolvedSource = this.resolveType(exprType);
-      // Check if source is integer and not a pointer
-      if (
-        resolvedSource.kind === "BasicType" &&
-        resolvedSource.pointerDepth === 0 &&
-        TypeUtils.isIntegerType(resolvedSource)
-      ) {
-        throw new CompilerError(
-          `Cannot cast integer type '${this.formatDiagnosticType(resolvedSource)}' to 'string'`,
-          "Casting integers to string is not allowed. Use .toString() or similar conversion methods.",
-          expr.location,
-          CAST_INTEGER_TO_STRING_CODE,
-        );
-      }
-    }
-
     const resolved = this.resolveType(exprType);
     const target = this.resolveType(expr.type);
+
+    rejectIntegerToString(this, expr, resolved, target);
+    rejectConstantArrayView(this, expr, resolved, target);
 
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {
@@ -1949,6 +1981,12 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
         CAST_INVALID_CODE,
       );
     }
+    this.rejectOwningCopy(
+      expr.expression,
+      target,
+      "through an 'as' conversion",
+      expr.expression.location,
+    );
   }
 
   return expr.type;
@@ -2198,7 +2236,9 @@ function checkLambdaBody(
     this.checkBlock(expr.body, false); // false because we already created the scope
     const bodyHasErrors = this.errors
       .slice(bodyDiagnosticStart)
-      .some((error) => error.toDiagnostic().severity === DiagnosticSeverity.Error);
+      .some(
+        (error) => error.toDiagnostic().severity === DiagnosticSeverity.Error,
+      );
     if (
       !bodyHasErrors &&
       !TypeUtils.isVoidType(checker.currentFunctionReturnType) &&

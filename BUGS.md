@@ -8217,3 +8217,43 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   initializers, returns, arguments and aggregates, including through aliases.
 - Seven checker cases reproduce the bypass. A fresh-value/pointer cleanup
   control remains valid. Negative copy cases are never executed.
+
+
+## `as` conversions bypassed owning-copy checks
+
+- Existing owning storage converted with `value as Owner` was treated as a
+  fresh result, bypassing the checks applied to `cast<Owner>(value)`.
+- Validate the source after conversion validity, preserving fresh values and
+  borrowed pointers. Checker regressions cover initializers, returns,
+  arguments, aggregates and aliases; invalid copy sources are not executed.
+
+## `as` conversions allowed mutable views of constant arrays
+
+- `data as int[]` and `data as *int` accepted constant array storage even
+  though the equivalent `cast` conversions rejected it.
+- Both syntaxes now share the constant-array guard, including grouped sources,
+  aliases, nested arrays and fields of constant aggregate bindings.
+- Six diagnostic regressions failed before correction. Mutable borrows,
+  independent fixed-array copies and local literal views remain supported.
+
+
+## String aliases bypassed integer-to-string conversion rejection
+
+- Both `cast<Text>(number)` and `number as Text` accepted integer-to-string
+  conversions when `Text` aliased `string`, despite rejecting the direct spelling.
+- Preserve the existing rejection through resolved alias chains, including
+  transitive and generic aliases, while retaining numeric, pointer and string
+  identity conversions. Negative cases are checked without executing them.
+
+## Integer-to-string rejection also classified byte arrays as scalar integers
+
+- The numeric helper classifies an array by its element name. Using it without
+  excluding dimensions rejected valid mutable byte-array string views, including
+  aliases after the conversion guard was shared. Direct string targets had the
+  same false rejection in the earlier guard.
+- Restrict this diagnostic to scalar integer sources. Array conversions reach
+  the existing layout and constant-storage checks; scalar integers still reject.
+- The ordinary `as` fallback must also retain its resolved target when creating
+  the cast node, so string aliases reach the existing array-to-pointer lowering.
+- Regression tests cover both syntaxes, aliases, constant inputs, and shared
+  mutable byte-array storage without executing rejected inputs.

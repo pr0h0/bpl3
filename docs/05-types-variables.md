@@ -297,7 +297,8 @@ an existing borrowed slice/pointer only when its elements outlive the call.
 Explicit array-to-view casts borrow existing addressable array storage. A cast
 whose source is an array rvalue instead uses temporary storage in the current
 frame. Neither form extends storage lifetime. Constant arrays cannot produce
-mutable views.
+mutable views, using either `cast<View>(array)` or `array as View`. Copy a
+constant fixed array into mutable fixed-array storage before borrowing it.
 Implicit conversions in returned tuple, struct, enum and array literal fields
 are checked too; wrapping a temporary view in an aggregate does not extend its
 lifetime. The explicit-cast check also covers grouped and conditional values, match
@@ -667,6 +668,11 @@ type is also supported. Casts do not convert each element, resize an array, or
 recover a fixed array or raw pointer from a slice. Unsupported conversions are
 rejected with `BPL_CAST_INVALID`; convert elements explicitly, and index a
 nonempty slice when an element address is needed.
+
+Integer-to-`string` conversions are rejected with
+`BPL_CAST_INTEGER_TO_STRING`, including through type aliases and with either
+`cast<Text>(value)` or `value as Text`. Convert a number to text with a
+formatting or string conversion function instead.
 
 Implicit array views follow the same layout rule: `int[3][2]` can become
 `int[][2]`, keeping fixed rows of two integers. It cannot become `int[][]` or
