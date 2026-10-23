@@ -8069,3 +8069,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Six cases fail the IR gate before native execution, including pointer/value
   receivers, colliding module aliases, floating owners and a generic factory.
   The nongeneric enum control passes before and after the correction.
+
+## Module symbol uniquing renamed lexical generic parameters as global aliases
+
+- When module-level aliases collided, the uniquing pass renamed raw `T`
+  references inside generic declarations to a renamed module alias. Generic
+  enum constructors and struct fields could then use string storage for float
+  payloads even though the checked owner argument was float.
+- Hide lexical generic names from fallback module-name rewriting. Leave the
+  surrounding map unchanged, and visit declaration links only through their
+  owning syntax tree rather than under a use site's generic scope.
+- Scope cases cover functions, structs, enums, specs, generic aliases and methods;
+  native cases cover tuple/struct enum payloads and generic fields with a forward
+  module alias. Existing module aliases outside those scopes still rename.

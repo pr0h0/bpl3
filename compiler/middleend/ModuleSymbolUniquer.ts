@@ -43,6 +43,11 @@ const TYPE_DECLARATION_KINDS = new Set([
 const SKIPPED_KEYS = new Set([
   "resolvedDeclaration",
   "declaration",
+  "aliasDeclaration",
+  "methodDeclaration",
+  "variableDeclaration",
+  "enumDecl",
+  "variant",
   "moduleScope",
   "location",
   "parent",
@@ -189,6 +194,7 @@ function renameTypeName(name: string, typeNames: Map<string, string>): string {
   return name;
 }
 
+/** Rewrite type names using the current lexical namespace without following declaration links. */
 function walk(
   node: unknown,
   typeNames: Map<string, string>,
@@ -209,6 +215,22 @@ function walk(
     name?: unknown;
     resolvedDeclaration?: AST.ASTNode & { kind: string };
   };
+
+  // A lexical type parameter is not a reference to a same-named module alias.
+  // Keep the filtered map local so declarations after this scope still rename.
+  if (Array.isArray(record.genericParams) && record.genericParams.length) {
+    typeNames = new Map(typeNames);
+    for (const parameter of record.genericParams as unknown[]) {
+      if (
+        parameter &&
+        typeof parameter === "object" &&
+        "name" in parameter &&
+        typeof parameter.name === "string"
+      ) {
+        typeNames.delete(parameter.name);
+      }
+    }
+  }
 
   switch (record.kind) {
     case "BasicType": {

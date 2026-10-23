@@ -305,6 +305,7 @@ function findVirtualMethod(
   return { methodDecl, genericMap };
 }
 
+/** Match the concrete method to the original declaration selected during checking. */
 function findMethodInDecl(
   host: VirtualCallHost,
   decl: AST.StructDecl,
