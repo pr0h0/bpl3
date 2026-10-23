@@ -1526,7 +1526,7 @@ function inferGenericArgs(
   }
 }
 
-function resolveMethodTypesInModuleContext(
+export function resolveMethodTypesInModuleContext(
   context: CheckerContext,
   method: AST.FunctionDecl | AST.SpecMethod,
 ): { returnType: AST.TypeNode; paramTypes: AST.TypeNode[] } {

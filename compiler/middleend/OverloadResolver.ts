@@ -638,7 +638,7 @@ export class OverloadResolver {
           resolvedExpected.kind === "BasicType" &&
           resolvedActual.kind === "BasicType" &&
           resolvedExpected.pointerDepth === resolvedActual.pointerDepth + 1 &&
-          this.ctx.areTypesCompatible(
+          this.ctx.areTypesExactMatch(
             {
               ...resolvedExpected,
               pointerDepth: resolvedExpected.pointerDepth - 1,

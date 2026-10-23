@@ -99,8 +99,10 @@ Inheritance uses `struct Dog : Animal { ... }`.
 
 Methods can be used as values, creating a `Lambda` that captures the object instance (`this`).
 
-Pointer receivers cannot implicitly take the address of a const value. Value
-receivers receive a copy on every call, including bound and virtual calls.
+Pointer receivers cannot implicitly take the address of a const value. Implicit
+operator address arguments require exact pointee types; numeric conversions do
+not reinterpret addressed storage. Value receivers receive a copy on every call,
+including bound and virtual calls.
 Bound methods borrow receiver storage and do not extend its lifetime; a value
 receiver observes that storage's current contents on each invocation. Variadic
 value-receiver methods cannot currently be bound.

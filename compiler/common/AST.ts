@@ -205,6 +205,8 @@ export interface IndexExpr extends ASTNode {
     methodName: string; // "__get__" or "__set__"
     targetType: TypeNode;
     methodDeclaration: FunctionDecl;
+    /** Resolved signature for a checked assignment setter. */
+    methodType?: FunctionTypeNode;
   };
 }
 

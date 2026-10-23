@@ -7897,3 +7897,90 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - This does not add empty-array inference or change valid nonempty literals.
   Fixed arrays can still be declared and filled manually. The array guide
   documents the current limitation.
+
+## Overloaded index setters evaluated their receiver twice
+
+- `boxes[next()][0]=7` on a struct with `__set__` reads the receiver value,
+  then computes its address again. The receiver index runs twice and the
+  setter can modify a different array element than the source selected.
+- The overloaded getter had the same duplicated receiver evaluation.
+- Select addressable receiver storage once, or evaluate and spill a temporary
+  value once, before evaluating the operator arguments. Remove speculative
+  address-generation retries after receiver evaluation.
+- LLVM/O0/O3 regressions verify getter/setter receiver counts and source order,
+  nested member/index receivers and existing temporary receiver behavior.
+
+## Built-in arrays and pointers were routed to element index setters
+
+- A built-in `Box[2]` element assignment type-checks, but the backend detects
+  `Box.__set__` by name and emits a setter call using the entire array as its
+  receiver and a Box value where the setter expects an integer.
+- Raw pointer element assignments can reach the same unchecked name-based
+  dispatch. Only a checked overloaded-index expression may invoke a setter.
+- Require the checker's overloaded-index annotation before considering a
+  setter. Built-in fixed-array, slice and raw-pointer element stores retain
+  normal address generation even when the element struct defines setters.
+- Three IR regressions reject the wrong call before executing native code;
+  after the fix their LLVM/O0/O3 stores work and do not invoke a setter.
+
+## Ordinary indexed assignments skipped pointer null checks
+
+- Normal assignment enabled the skip-null-check flag for every non-member
+  target, including pointer indexing. Both simple and compound indexed stores
+  could miss the expected `NULL POINTER ACCESS` diagnostic.
+- Use normal checked assignment addressing for both simple and compound
+  stores, retaining receiver/index/value evaluation order. Direct identifiers
+  do not require a dereference check in address generation.
+- Five runtime regressions fail before the fix; indexed increment and valid
+  evaluation-order controls pass before and after. LLVM/O0/O3 tests cover raw,
+  computed, returned and array-alias pointer bases.
+
+## Index setter signatures were not checked before code generation
+
+- PR59 review found that an overloaded-index annotation validates `__get__`,
+  while assignment chooses `__set__` by name without checking its index/value
+  parameters. Incompatible setter calls can reach native code generation.
+- Resolve a compatible setter independently, validate its signature and
+  assignment result, and record the checked declaration/signature for codegen.
+  Emit receiver/index/value arguments using that signature, preserving scalar
+  and array borrowing, const checks and original void-assignment values.
+- Implicit address arguments require exact pointee types; numeric-compatible
+  pointees must not be reinterpreted. Unsupported compound index assignments
+  fail during checking. The array guide documents these existing boundaries.
+- Setter result types follow their declarations; invalid uses are rejected by
+  the caller's normal type checks. Resolve imported signatures in their owning
+  module before matching, preserving private aliases and generic arguments.
+- Twenty-four signature/ABI/const/result cases pass; twenty fail before this
+  correction and four valid controls pass. An imported-module case also passes.
+  Original receiver/routing/null regressions remain passing.
+
+## Checked index setter symbols retained enclosing generic parameters
+
+- A setter used inside a generic function or generic struct method retained `T`
+  in its mangled callee symbol even when LLVM argument types were concrete.
+  Native compilation failed with an undefined setter symbol.
+- Substitute the checked signature using the active instantiation map before
+  constructing the callee name and lowering arguments. Two LLVM/O0/O3 cases
+  cover void and nonvoid setters in generic callers and distinct instantiations.
+
+## Index setters treated null pointer values as implicit address arguments
+
+- Setter argument lowering used pointer-depth difference alone to decide to
+  take an address. A `nullptr` index or value became a pointer to a temporary
+  stack slot instead of the null value accepted by the checked signature.
+- Require an exact resolved pointee match for implicit address lowering and
+  its const-storage check. Ordinary null-to-pointer conversions remain values.
+- Four LLVM/O0/O3 regressions cover null indices, null RHS values, both together
+  and an existing typed-pointer control: three fail before, the control passes.
+
+## Index setter pointer temporaries borrowed pointees instead of pointer slots
+
+- A pointer-returning call was considered addressable when a setter implicitly
+  borrowed its result as a pointer-to-pointer argument. Address generation
+  returned the pointer value rather than a slot containing that value.
+- Spill call results before taking their implicit address, including grouped
+  calls. Keep genuine pointer variables and fields borrowing their own storage.
+- Five regressions cover returned index/RHS pointers, both together, grouped
+  calls and pointer variables. Four fail before the correction; the variable
+  control passes. They also verify receiver state, original assignment results,
+  call counts and that borrowing temporaries does not modify their pointees.
