@@ -2745,24 +2745,34 @@ export abstract class TypeCheckerBase {
    * fresh value. Reading one copies what is there; a call or a literal hands
    * over something new instead. Checked getter and unary overloads follow
    * call-result transfer rules for concrete, nongeneric operator owners.
+   * Assignment can retain the previous overload-result restriction until
+   * replacement cleanup is supported.
    */
-  protected isPlaceExpression(expr: AST.Expression): boolean {
+  protected isPlaceExpression(
+    expr: AST.Expression,
+    allowFreshOverloadResults = true,
+  ): boolean {
     switch (expr.kind) {
       case "Identifier":
       case "Member":
         return true;
       case "Index":
         return (
+          !allowFreshOverloadResults ||
           expr.operatorOverload?.methodName !== "__get__" ||
           this.hasGenericOperatorBody(expr.operatorOverload)
         );
       case "Group":
-        return this.isPlaceExpression((expr as AST.GroupExpr).expression);
+        return this.isPlaceExpression(
+          (expr as AST.GroupExpr).expression,
+          allowFreshOverloadResults,
+        );
       case "Unary":
         // Computing a pointer does not produce a fresh pointee value.
         return (
           (expr as AST.UnaryExpr).operator.type === TokenType.Star &&
-          (!expr.operatorOverload ||
+          (!allowFreshOverloadResults ||
+            !expr.operatorOverload ||
             this.hasGenericOperatorBody(expr.operatorOverload))
         );
       default:
@@ -2797,8 +2807,9 @@ export abstract class TypeCheckerBase {
     type: AST.TypeNode | undefined,
     position: string,
     location: AST.ASTNode["location"],
+    allowFreshOverloadResults = true,
   ): void {
-    if (!expr || !this.isPlaceExpression(expr)) return;
+    if (!expr || !this.isPlaceExpression(expr, allowFreshOverloadResults)) return;
     const owner = this.findAutoDestroyOwner(type ?? expr.resolvedType);
     if (!owner) return;
 

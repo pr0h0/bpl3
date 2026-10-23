@@ -2390,6 +2390,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       valueType,
       "on the right of an assignment",
       expr.value.location,
+      // Overload-produced owning replacements retain their previous rejection;
+      // assignment does not yet release the old destination value.
+      false,
     );
 
     if (targetType && valueType) {

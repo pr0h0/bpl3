@@ -107,7 +107,10 @@ The same applies to a nongeneric overloaded index getter returning a value. If a
 returns a pointer instead, dereferencing it still reads existing pointee storage.
 Owning results from generic receiver or method overloads retain the no-copy restriction:
 their bodies are not yet checked again with the concrete owner arguments.
-Nonowning results and borrowed pointer results are unaffected.
+Nonowning results and borrowed pointer results are unaffected. Direct and
+grouped owning overload results can initialize a new binding or be passed to a
+value parameter. Their direct reassignment to a slot remains rejected because
+replacement cleanup is not implemented for that assignment.
 
 A value with an `@[auto_destroy]` destructor cannot be copied
 (`BPL_OWNING_VALUE_COPIED`). Copying is what reading one out of existing

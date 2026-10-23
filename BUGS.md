@@ -8178,7 +8178,7 @@ Status: fixed for concrete nongeneric receivers; generic owners retain the previ
 
 ## Fresh owning overload assignments skipped replacement cleanup
 
-Status: pending conservative assignment guard.
+Status: fixed conservatively; owning overload replacement remains rejected.
 
 - Reassignment from concrete overloaded star/getter results overwrote an existing
   owning value without releasing it. Normal counter-only programs create two

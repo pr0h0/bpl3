@@ -136,6 +136,7 @@ export interface CheckerContext {
     type: AST.TypeNode | undefined,
     position: string,
     location: AST.ASTNode["location"],
+    allowFreshOverloadResults?: boolean,
   ): void;
   resolveMemberWithContext(
     baseType: AST.BasicTypeNode,
