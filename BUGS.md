@@ -8200,3 +8200,20 @@ Status: fixed conservatively; owning overload replacement remains rejected.
 - Five additional negative checker cases fail before the generalized guard.
   This is a documented conservative restriction, with the existing ownership
   diagnostic code and a replacement-specific message.
+
+## Conditional branches bypassed owning-copy checks
+
+- Wrapping owning storage in a conditional hid the copy from callers and frame
+  returns, including concrete getter/star bodies that appeared to return fresh values.
+- Validate each branch value after type compatibility, preserving fresh values
+  and borrowed results. Six negative checker cases fail before correction;
+  the fresh-value normal-cleanup control passes before and after.
+
+## Cast sources bypassed owning-copy checks
+
+Status: pending cast-source validation.
+
+- Casting existing owning storage to the same owning type hid the copy in
+  initializers, returns, arguments and aggregates, including through aliases.
+- Seven checker cases reproduce the bypass. A fresh-value/pointer cleanup
+  control remains valid. Negative copy cases are never executed.

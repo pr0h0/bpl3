@@ -1449,6 +1449,18 @@ export function checkTernary(
     );
   }
 
+  this.rejectOwningCopy(
+    expr.trueExpr,
+    thenType,
+    "out of a conditional branch",
+    expr.trueExpr.location,
+  );
+  this.rejectOwningCopy(
+    expr.falseExpr,
+    elseType,
+    "out of a conditional branch",
+    expr.falseExpr.location,
+  );
   return thenType;
 }
 

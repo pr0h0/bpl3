@@ -136,6 +136,10 @@ transfer, and an explicit arm-block return can transfer an arm-local value.
 Fields and outer locals whose scopes remain live cannot be copied into the
 match result.
 
+Conditional branch values follow the same no-copy rule: choose a fresh value
+or a borrowed pointer rather than copying existing owning storage through the
+conditional result.
+
 A by-value parameter is therefore always a transfer, and the callee destroys it
 when it returns, including when it leaves through a `throw`. Returning the
 parameter hands it on instead. A pointer receiver (`this: *T`) borrows the
