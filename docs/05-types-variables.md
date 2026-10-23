@@ -673,6 +673,8 @@ Integer-to-`string` conversions are rejected with
 `BPL_CAST_INTEGER_TO_STRING`, including through type aliases and with either
 `cast<Text>(value)` or `value as Text`. Convert a number to text with a
 formatting or string conversion function instead.
+Pointer-to-string targets such as `*string` follow the ordinary pointer-cast
+rules; they are distinct from scalar `string` targets.
 
 Implicit array views follow the same layout rule: `int[3][2]` can become
 `int[][2]`, keeping fixed rows of two integers. It cannot become `int[][]` or

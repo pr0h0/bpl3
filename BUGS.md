@@ -8268,3 +8268,13 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   never accesses a mismatched object. Retain the checker's normalized target for
   runtime downcast selection. Four alias cases failed before correction, with
   a passing source-alias control; tests check mismatches, matches and nulls.
+
+## Direct pointer-to-string targets were treated as scalar strings
+
+- The direct-name integer conversion check rejected `0 as *string` and
+  `cast<*string>(0)`, while accepting their equivalent pointer aliases.
+  Integer-to-string-array conversions also received the wrong diagnostic.
+- Require zero pointer depth and no array dimensions for the direct scalar
+  string check. Preserve scalar string rejection and existing pointer/layout
+  conversion rules. Four diagnostic regressions failed before correction,
+  while two pointer-alias controls passed; no converted pointer is dereferenced.
