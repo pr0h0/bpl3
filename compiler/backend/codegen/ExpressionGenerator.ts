@@ -558,7 +558,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
           );
           if (setMethod && expr.operator.type === TokenType.Equal) {
             // Generate __set__ call: object.__set__(index, value)
-            const objectRaw = this.generateExpression(indexExpr.object);
+            const thisPtr = this.generateIndexOperatorReceiver(indexExpr.object);
             const indexRaw = this.generateExpression(indexExpr.index);
             const valueRaw = this.generateExpression(expr.value);
 
@@ -600,21 +600,6 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
             const objectTypeStr = this.resolveType(objectType);
             const indexType = this.resolveType(indexExpr.index.resolvedType!);
             const valueType = this.resolveType(expr.value.resolvedType!);
-
-            let thisPtr: string;
-            try {
-              thisPtr = this.generateAddress(indexExpr.object);
-            } catch {
-              // If we can't get address, spill to stack
-              const spillAddr = this.allocateStack(
-                `op_spill_${this.labelCount++}`,
-                objectTypeStr,
-              );
-              this.emit(
-                `  store ${objectTypeStr} ${objectRaw}, ${objectTypeStr}* ${spillAddr}`,
-              );
-              thisPtr = spillAddr;
-            }
 
             // Call __set__ method: returns void typically
             const returnType = this.resolveType(setMethod.returnType);
@@ -1088,12 +1073,24 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     return super.generateCast(expr);
   }
 
+  /** Select receiver storage once before evaluating index operator arguments. */
+  private generateIndexOperatorReceiver(object: AST.Expression): string {
+    if (this.isAddressableAggregateSource(object)) {
+      return this.generateAddress(object);
+    }
+    const type = this.resolveType(object.resolvedType!);
+    const value = this.generateExpression(object);
+    const slot = this.allocateStack(`index_receiver_${this.labelCount++}`, type);
+    this.emit(`  store ${type} ${value}, ${type}* ${slot}`);
+    return slot;
+  }
+
   protected generateIndex(expr: AST.IndexExpr): string {
     // Check for operator overload (__get__)
     if (expr.operatorOverload) {
       const overload = expr.operatorOverload;
       const method = overload.methodDeclaration;
-      const objectRaw = this.generateExpression(expr.object);
+      const thisPtr = this.generateIndexOperatorReceiver(expr.object);
       const indexRaw = this.generateExpression(expr.index);
 
       // Get the struct name from the target type
@@ -1145,22 +1142,6 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       // Prepare arguments: this (object) + index
       const objectType = this.resolveType(expr.object.resolvedType!);
       const indexType = this.resolveType(expr.index.resolvedType!);
-
-      // Get address of object (this pointer)
-      let thisPtr: string;
-      try {
-        thisPtr = this.generateAddress(expr.object);
-      } catch {
-        // If we can't get address, spill to stack
-        const spillAddr = this.allocateStack(
-          `op_spill_${this.labelCount++}`,
-          objectType,
-        );
-        this.emit(
-          `  store ${objectType} ${objectRaw}, ${objectType}* ${spillAddr}`,
-        );
-        thisPtr = spillAddr;
-      }
 
       // Call the __get__ method
       const returnType = this.resolveType(methodType.returnType);

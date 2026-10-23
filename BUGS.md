@@ -7897,3 +7897,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - This does not add empty-array inference or change valid nonempty literals.
   Fixed arrays can still be declared and filled manually. The array guide
   documents the current limitation.
+
+## Overloaded index setters evaluated their receiver twice
+
+- `boxes[next()][0]=7` on a struct with `__set__` reads the receiver value,
+  then computes its address again. The receiver index runs twice and the
+  setter can modify a different array element than the source selected.
+- The overloaded getter had the same duplicated receiver evaluation.
+- Select addressable receiver storage once, or evaluate and spill a temporary
+  value once, before evaluating the operator arguments. Remove speculative
+  address-generation retries after receiver evaluation.
+- LLVM/O0/O3 regressions verify getter/setter receiver counts and source order,
+  nested member/index receivers and existing temporary receiver behavior.
