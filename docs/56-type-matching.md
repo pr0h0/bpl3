@@ -38,6 +38,11 @@ The `match<Type>(value)` expression always returns a `bool`:
 - `true`: If the value matches the specified type or variant.
 - `false`: Otherwise.
 
+Composite targets use their complete type shape: tuples compare their element
+types, and function or lambda types compare their parameter and return types.
+Both `match<(int, bool)>(value)` and `value is (int, bool)` use this exact-type
+comparison. Function pointers and lambdas remain different type kinds.
+
 ## Advanced Usage
 
 ### Using in Logical Expressions

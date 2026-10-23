@@ -1794,11 +1794,12 @@ export function checkTypeMatch(
     this.checkExpression(expr.value as AST.Expression);
   }
 
-  const targetType = expr.targetType as AST.BasicTypeNode;
-  const targetTypeName = targetType.name;
+  const targetType = expr.targetType;
+  const targetTypeName =
+    targetType.kind === "BasicType" ? targetType.name : undefined;
 
   // Check if this is an enum variant pattern
-  if (targetTypeName.includes(".")) {
+  if (targetTypeName?.includes(".")) {
     const parts = targetTypeName.split(".");
     const variantName = parts.pop()!;
     const enumPath = parts;
@@ -1840,7 +1841,7 @@ export function checkTypeMatch(
       `${symbol.name}.${variantName}`;
     (expr.targetType as AST.BasicTypeNode).resolvedDeclaration =
       symbol.declaration as AST.EnumDecl;
-  } else {
+  } else if (targetTypeName !== undefined) {
     const isDefined =
       KNOWN_TYPES.includes(targetTypeName) ||
       this.currentScope.resolve(targetTypeName);
@@ -1853,6 +1854,9 @@ export function checkTypeMatch(
         TYPE_QUERY_TYPE_NOT_FOUND_CODE,
       );
     }
+  } else {
+    this.ensureKnownType(targetType);
+    expr.targetType = this.resolveType(targetType);
   }
 
   return {

@@ -1496,15 +1496,14 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       throw this.createError("TypeMatch value has no resolved type", valueExpr);
     }
 
-    const targetType = expr.targetType as AST.BasicTypeNode;
-    const fullTypeName = targetType.name;
+    const targetType = expr.targetType;
 
-    // Check if this is an enum variant pattern (contains a dot)
-    if (fullTypeName.includes(".")) {
+    // Only a named target can identify an enum variant.
+    if (targetType.kind === "BasicType" && targetType.name.includes(".")) {
       return this.generateEnumVariantTypeMatch(
         matchValue,
         valueType as AST.BasicTypeNode,
-        fullTypeName,
+        targetType.name,
         expr,
       );
     }
@@ -1684,7 +1683,10 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       return true;
     }
 
-    if (ct1.kind === "FunctionType" && ct2.kind === "FunctionType") {
+    if (
+      (ct1.kind === "FunctionType" && ct2.kind === "FunctionType") ||
+      (ct1.kind === "LambdaType" && ct2.kind === "LambdaType")
+    ) {
       if (!this.areTypesSemanticallyEqual(ct1.returnType, ct2.returnType))
         return false;
       if (ct1.paramTypes.length !== ct2.paramTypes.length) return false;
@@ -1715,7 +1717,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
   protected generateRegularTypeMatch(
     matchValue: string,
     valueType: AST.TypeNode,
-    targetType: AST.BasicTypeNode,
+    targetType: AST.TypeNode,
     _expr: AST.TypeMatchExpr,
   ): string {
     // Check if valueType is Any or *Any

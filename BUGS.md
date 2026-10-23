@@ -8278,3 +8278,15 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   string check. Preserve scalar string rejection and existing pointer/layout
   conversion rules. Four diagnostic regressions failed before correction,
   while two pointer-alias controls passed; no converted pointer is dereferenced.
+
+
+## Composite type-query targets were treated as named types
+
+- `match<(int,int)>(value)` and callback-type targets accessed a nonexistent
+  name and threw an internal TypeError. `is` accepted such targets during checking
+  but made the same assumption during generation.
+- Discriminate target kinds before interpreting enum paths and pass composite
+  types through the existing exact-type comparison. Lambda signatures require
+  the same return/parameter comparisons as function signatures.
+- Regressions cover tuples, nested tuples, functions and lambdas in both syntaxes,
+  plus normal native exact/mismatched comparisons.
