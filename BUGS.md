@@ -8164,3 +8164,26 @@ Status: fixed for concrete nongeneric receivers; generic owners retain the previ
   restriction. The checker regression reproduces that missing rejection.
 - Include the selected method's generic parameters as well as its owner's.
   The existing nonowning and borrowed-pointer controls remain accepted.
+
+## Match results bypassed owning-copy validation
+
+- Expression arms and early-returning value arm blocks could yield existing
+  owning fields without the checks applied to direct frame returns. Concrete
+  overloads returning such matches were therefore accepted as fresh values.
+- Check each yielded arm value. Explicit arm-local returns may transfer locals
+  whose cleanup scope ends there; retained outer locals remain copy sources.
+  Fresh expressions continue to transfer without classifying all matches as storage.
+- Nine negative checker cases fail before correction; a normal cleanup-count
+  control preserves fresh values and explicit arm-local ownership transfer.
+
+## Fresh owning overload assignments skipped replacement cleanup
+
+Status: pending conservative assignment guard.
+
+- Reassignment from concrete overloaded star/getter results overwrote an existing
+  owning value without releasing it. Normal counter-only programs create two
+  values but observe one destructor. No physical resources are allocated.
+- Preserve the pre-existing assignment rejection for these overload results
+  until replacement cleanup and initialization state are supported.
+- Seven checker cases reproduce the missing rejection; four controls retain
+  fresh declaration initializers and nonowning/borrowed-pointer assignments.

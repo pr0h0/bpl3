@@ -28,6 +28,7 @@ export interface CheckerContext {
     expectedType?: AST.TypeNode;
     inferredTypes: AST.TypeNode[];
     inferredValues?: AST.Expression[];
+    retainedScope?: SymbolTable;
   }[];
   modules: Map<string, SymbolTable>;
 

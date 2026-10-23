@@ -11,7 +11,7 @@ import {
   lowerImplicitConversion,
 } from "./lowering/ImplicitConversions";
 import type { CheckerContext } from "./CheckerContext";
-import type { Symbol } from "./SymbolTable";
+import type { Symbol, SymbolTable } from "./SymbolTable";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import {
   CAPTURED_VALUE_ASSIGNED_CODE,
@@ -819,17 +819,24 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     return;
   }
 
-  // Check if we are in a match arm block
-  // We need to access the TypeChecker instance which has matchContext
-  // Since 'this' is StatementCheckerContext, we might need to cast or add it to context
-  const typeChecker = this as any;
-  if (typeChecker.matchContext && typeChecker.matchContext.length > 0) {
-    const context =
-      typeChecker.matchContext[typeChecker.matchContext.length - 1];
+  // Match yields may transfer locals whose scopes end at the arm boundary.
+  const match = this.matchContext[this.matchContext.length - 1];
+  if (match) {
+    if (
+      stmt.value &&
+      !isOwnershipTransfer(this, stmt.value, match.retainedScope)
+    ) {
+      this.rejectOwningCopy(
+        stmt.value,
+        returnType,
+        "out of a match arm",
+        stmt.value.location,
+      );
+    }
     if (returnType) {
       // Preserve block-local aliases before the match arm scope is exited.
-      context.inferredTypes.push(this.resolveType(returnType));
-      if (stmt.value) context.inferredValues?.push(stmt.value);
+      match.inferredTypes.push(this.resolveType(returnType));
+      if (stmt.value) match.inferredValues?.push(stmt.value);
     }
     return;
   }
@@ -982,6 +989,7 @@ export function checkThrow(this: CheckerContext, stmt: AST.ThrowStmt): void {
 function isOwnershipTransfer(
   context: CheckerContext,
   expr: AST.Expression | undefined,
+  retainedScope?: SymbolTable,
 ): boolean {
   let current: AST.Expression | undefined = expr;
   while (current && current.kind === "Group") {
@@ -993,6 +1001,14 @@ function isOwnershipTransfer(
     (current as AST.IdentifierExpr).name,
   );
   if (!symbol) return false;
+  if (retainedScope) {
+    let scope: SymbolTable | undefined = context.currentScope;
+    while (scope && scope !== retainedScope) {
+      if (scope.getInCurrentScope(current.name) === symbol) break;
+      scope = scope.getParent();
+    }
+    if (!scope || scope === retainedScope) return false;
+  }
   if (symbol.kind === "Parameter" || symbol.declaration?.kind === "Parameter") {
     return true;
   }

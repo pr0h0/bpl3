@@ -127,6 +127,11 @@ producing a value fresh from a call or a literal, returning a local or a
 parameter, and throwing one. So `local r: Resource = make();`, `use(make())`,
 and `return r;` are all valid, and passing a pointer copies nothing.
 
+A value-producing `match` checks each arm's owning value. Fresh results can
+transfer, and an explicit arm-block return can transfer an arm-local value.
+Fields and outer locals whose scopes remain live cannot be copied into the
+match result.
+
 A by-value parameter is therefore always a transfer, and the callee destroys it
 when it returns, including when it leaves through a `throw`. Returning the
 parameter hands it on instead. A pointer receiver (`this: *T`) borrows the
