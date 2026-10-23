@@ -8133,3 +8133,12 @@ Status: fixed; direct/grouped checker cases and normal cleanup regression pass.
   incorrectly rejected, including through grouping.
 - Distinguish checked overload calls from built-in pointee access. Checker and
   normal cleanup-count regressions cover the fresh value result.
+
+## Fresh overloaded index results were mistaken for owning storage copies
+
+- Checked `__get__` expressions were classified as built-in element storage,
+  so a getter returning a fresh owning value could not transfer it to a local.
+- Classify getter calls as value producers while keeping built-in indexing and
+  dereferences of borrowed pointer results subject to the no-copy rule.
+- Direct/grouped checker cases and a normal cleanup-count regression reproduce
+  the false rejection. A borrowed-pointer getter control remains rejected.

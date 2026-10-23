@@ -2743,14 +2743,16 @@ export abstract class TypeCheckerBase {
   /**
    * True when this expression names existing storage rather than producing a
    * fresh value. Reading one copies what is there; a call or a literal hands
-   * over something new instead.
+   * over something new instead. Checked getter and unary overloads follow
+   * call-result transfer rules rather than built-in storage access rules.
    */
   protected isPlaceExpression(expr: AST.Expression): boolean {
     switch (expr.kind) {
       case "Identifier":
       case "Member":
-      case "Index":
         return true;
+      case "Index":
+        return expr.operatorOverload?.methodName !== "__get__";
       case "Group":
         return this.isPlaceExpression((expr as AST.GroupExpr).expression);
       case "Unary":

@@ -102,6 +102,8 @@ comes from a call, conditional, cast or address expression. The no-copy rule
 applies to that read just as it does to reading a local binding. A checked
 overloaded `*` expression is a method call rather than built-in pointee access;
 its returned value follows the same transfer rules as other fresh call results.
+The same applies to an overloaded index getter returning a value. If a getter
+returns a pointer instead, dereferencing it still reads existing pointee storage.
 
 A value with an `@[auto_destroy]` destructor cannot be copied
 (`BPL_OWNING_VALUE_COPIED`). Copying is what reading one out of existing
