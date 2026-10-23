@@ -2755,7 +2755,10 @@ export abstract class TypeCheckerBase {
         return this.isPlaceExpression((expr as AST.GroupExpr).expression);
       case "Unary":
         // Computing a pointer does not produce a fresh pointee value.
-        return (expr as AST.UnaryExpr).operator.type === TokenType.Star;
+        return (
+          !expr.operatorOverload &&
+          (expr as AST.UnaryExpr).operator.type === TokenType.Star
+        );
       default:
         return false;
     }

@@ -8126,7 +8126,7 @@ Status: fixed; 15 targeted cases pass (11 failures and four controls before corr
 
 ## Fresh overloaded star results were mistaken for owning storage copies
 
-Status: pending classification fix.
+Status: fixed; direct/grouped checker cases and normal cleanup regression pass.
 
 - The owning-copy classifier treated a value-producing overloaded `*` expression
   as a built-in dereference. Assigning its fresh result to an owning local was
