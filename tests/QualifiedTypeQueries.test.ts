@@ -70,6 +70,7 @@ test(
       local color:types.Color=types.Color.Red;if(!match<types.Color>(color)||!(color is types.Color))return 5;
       local box:types.Box<int>=Box<int>{value:7};
       if(!match<types.Box<int>>(box)||!(box is types.Box<int>))return 6;
+      if(match<types.Box<bool>>(box)||box is types.Box<bool>)return 7;
       return 0;
     }`,
         },

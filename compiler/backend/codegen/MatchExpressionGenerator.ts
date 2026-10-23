@@ -1660,16 +1660,21 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
     if (ct1.kind !== ct2.kind) return false;
 
+    const dimensions1 =
+      "arrayDimensions" in ct1 ? (ct1.arrayDimensions ?? []) : [];
+    const dimensions2 =
+      "arrayDimensions" in ct2 ? (ct2.arrayDimensions ?? []) : [];
+    if (dimensions1.length !== dimensions2.length) return false;
+    if (
+      dimensions1.some((dimension, index) => dimension !== dimensions2[index])
+    )
+      return false;
+
     if (ct1.kind === "BasicType" && ct2.kind === "BasicType") {
       const name1 = this.getCanonicalPrimitiveName(ct1.name);
       const name2 = this.getCanonicalPrimitiveName(ct2.name);
       if (name1 !== name2) return false;
       if (ct1.pointerDepth !== ct2.pointerDepth) return false;
-      if (ct1.arrayDimensions.length !== ct2.arrayDimensions.length)
-        return false;
-      for (let i = 0; i < ct1.arrayDimensions.length; i++) {
-        if (ct1.arrayDimensions[i] !== ct2.arrayDimensions[i]) return false;
-      }
       if (ct1.genericArgs.length !== ct2.genericArgs.length) return false;
       for (let i = 0; i < ct1.genericArgs.length; i++) {
         if (

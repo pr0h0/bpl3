@@ -8322,3 +8322,12 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   existing genuine inheritance matches remain available.
 - Four native regression cases fail before correction, with one passing
   inheritance control. Matching forms are checked before the mismatches.
+
+## Composite query comparisons omitted array dimensions
+
+- Tuple, function and lambda array queries compared only their element or
+  signature types, so different array lengths incorrectly matched.
+- Compare dimensions before kind-specific type identity, retaining the existing
+  checks for element types, callback signatures and generic arguments.
+- Six native regression cases fail before correction. Each first verifies that
+  the matching array shape is accepted, then rejects the different length.
