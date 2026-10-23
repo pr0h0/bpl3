@@ -45,6 +45,7 @@ export interface CheckerContext {
     t2: AST.TypeNode,
     checkConstraints?: boolean,
   ): boolean;
+  areTypesExactMatch(t1: AST.TypeNode, t2: AST.TypeNode): boolean;
   unifyMatchResultTypes(
     first: AST.TypeNode,
     next: AST.TypeNode,

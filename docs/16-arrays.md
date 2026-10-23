@@ -163,6 +163,8 @@ checks both arguments and performs their supported conversions. The assigned
 value must also be compatible with the getter's element type. Implicitly
 borrowing an argument requires mutable storage and an exact pointee type.
 
+Index operator calls also obey argument range, mutable-storage and ownership-copy checks.
+
 The receiver is evaluated once, followed by the index and the assigned value.
 A void setter leaves the assignment expression with its original assigned value;
 a nonvoid setter supplies its declared return value and type.
