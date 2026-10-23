@@ -1486,7 +1486,10 @@ function rejectIntegerToString(
 
   const declaredTarget = expr.kind === "Cast" ? expr.targetType : expr.type;
   let isString =
-    declaredTarget.kind === "BasicType" && declaredTarget.name === "string";
+    declaredTarget.kind === "BasicType" &&
+    declaredTarget.name === "string" &&
+    declaredTarget.pointerDepth === 0 &&
+    declaredTarget.arrayDimensions.length === 0;
   // Resolution records string's builtin alias separately from ordinary *char.
   if (
     target.kind === "BasicType" &&
@@ -1987,6 +1990,8 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
       "through an 'as' conversion",
       expr.expression.location,
     );
+    // Runtime downcast selection must see the checked target, including aliases.
+    expr.type = target;
   }
 
   return expr.type;

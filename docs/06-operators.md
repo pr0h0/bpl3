@@ -562,6 +562,9 @@ frame processAnimal(animal: *Animal) {
 
 The `as` operator performs a runtime vtable check before casting. If the actual type doesn't match the target, it returns `nullptr` instead of performing an unsafe cast. See [Type Matching](56-type-matching.md) for more details.
 
+Type aliases for class-pointer targets preserve the same runtime check, including
+transitive aliases and generic aliases instantiated with a concrete class.
+
 ### Type Cast (`cast`)
 
 The `cast` operator performs an explicit type conversion.
