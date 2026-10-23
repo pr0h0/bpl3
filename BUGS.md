@@ -8187,3 +8187,16 @@ Status: fixed conservatively; owning overload replacement remains rejected.
   until replacement cleanup and initialization state are supported.
 - Seven checker cases reproduce the missing rejection; four controls retain
   fresh declaration initializers and nonowning/borrowed-pointer assignments.
+
+## Owning replacement cleanup was also bypassed through fresh RHS wrappers
+
+- An ordinary fresh call also overwrote an owning slot without releasing the
+  previous value; a counter-only program confirms two values and one destructor.
+  Conditionals, matches, aggregates and forwarding calls could wrap overload
+  results and bypass a source-shape-only guard.
+- Reject owning replacement assignments regardless of RHS shape until cleanup
+  and initialization state are implemented. Fresh declaration initializers and
+  argument transfers remain available; borrowed/nonowning assignments remain valid.
+- Five additional negative checker cases fail before the generalized guard.
+  This is a documented conservative restriction, with the existing ownership
+  diagnostic code and a replacement-specific message.

@@ -2390,8 +2390,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       valueType,
       "on the right of an assignment",
       expr.value.location,
-      // Overload-produced owning replacements retain their previous rejection;
-      // assignment does not yet release the old destination value.
+      // Replacement cleanup is unavailable for owning assignments, even when
+      // the RHS is a fresh call, conditional, match or aggregate value.
       false,
     );
 
