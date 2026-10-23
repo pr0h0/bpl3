@@ -985,6 +985,7 @@ export function checkMember(
           let { returnType, paramTypes } = resolveMethodTypesInModuleContext(
             this,
             singleMethod,
+            memberContext.decl.genericParams,
           );
 
           if (genericMap && genericMap.size > 0) {
@@ -1013,6 +1014,7 @@ export function checkMember(
             let { returnType, paramTypes } = resolveMethodTypesInModuleContext(
               this,
               method,
+              memberContext.decl.genericParams,
             );
 
             // Substitute generics if we have a map
@@ -1141,6 +1143,7 @@ export function checkMember(
             let thisParamType = resolveMethodTypesInModuleContext(
               this,
               method,
+              memberContext.decl.genericParams,
             ).paramTypes[0]!;
 
             // Substitute generics if needed
@@ -1230,7 +1233,11 @@ export function checkMember(
 
           // Resolve types in module context first
           const { returnType: initReturnType, paramTypes: allParamTypes } =
-            resolveMethodTypesInModuleContext(this, method);
+            resolveMethodTypesInModuleContext(
+              this,
+              method,
+              memberContext.decl.genericParams,
+            );
           let returnType = initReturnType;
 
           // Strip 'this' parameter
@@ -1280,7 +1287,11 @@ export function checkMember(
 
           const candidates = compatibleMethods.map((method) => {
             const { returnType: rt, paramTypes: apt } =
-              resolveMethodTypesInModuleContext(this, method);
+              resolveMethodTypesInModuleContext(
+                this,
+                method,
+                memberContext.decl.genericParams,
+              );
 
             let ret = rt;
             let pts = apt.slice(1); // Strip this

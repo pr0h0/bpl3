@@ -88,6 +88,10 @@ This pattern is particularly useful for:
 1.  **Calling Parent Methods**: Simulating `super` calls in inheritance (see [Inheritance](13-inheritance.md)).
 2.  **Disambiguation**: When multiple methods might have similar names or when dealing with function pointers.
 
+Imported method signatures resolve aliases in their declaring module. The owning
+type's generic parameters keep their meaning when selecting instance and static
+methods, even when the module defines aliases with the same names.
+
 ## Bound Methods
 
 Methods can be assigned to variables. When you access an instance method without calling it, it creates a "bound method" (a `Lambda`) that captures the object instance (`this`).
@@ -120,3 +124,7 @@ receiver through a null pointer raises `NullAccessError` at binding time.
 A receiver expression
 such as `make().read` is evaluated once when the method is bound. Variadic value
 receiver methods cannot currently be bound; use a non-variadic method signature.
+
+Bindings to generic structs and enums use the concrete owner's method signature. For
+example, bindings from `Box<int>` and `Box<long>` retain their respective
+instantiations, including when a generic function creates the binding.

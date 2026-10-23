@@ -6,6 +6,10 @@ allowed. This rule also applies to generic declarations, calls and literals.
 
 Structs can be parameterized with types.
 
+Type parameters retain their declaration-local meaning across imports. A field
+using the parameter `T` in `Box<T>` keeps that binding even when several imported
+modules declare aliases named `T`.
+
 ## Syntax
 
 ```bpl

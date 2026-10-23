@@ -305,6 +305,7 @@ function findVirtualMethod(
   return { methodDecl, genericMap };
 }
 
+/** Match the concrete method to the original declaration selected during checking. */
 function findMethodInDecl(
   host: VirtualCallHost,
   decl: AST.StructDecl,
@@ -317,6 +318,13 @@ function findMethodInDecl(
       const fd = m as AST.FunctionDecl;
       if (fd.name !== methodName) return false;
       if (fd === targetDecl) return true;
+      // Concrete generic copies retain the declaration selected by the checker.
+      if (
+        fd.resolvedType?.kind === "FunctionType" &&
+        fd.resolvedType.declaration === targetDecl
+      ) {
+        return true;
+      }
 
       if (
         fd.resolvedType &&

@@ -8042,3 +8042,43 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Regressions cover getters, setters, generic callers, lexical alias definitions
   and an unshadowed control. This correction is scoped to index signatures;
   unrelated method and lifetime behavior is not claimed fixed.
+
+## Imported generic method signatures lost owner parameter scope
+
+- Ordinary instance, bound, overloaded and static member signatures were
+  resolved directly in module scope. A module-level alias named `T` could
+  replace the `T` declared by `Box<T>` and reject valid method calls.
+- Bound methods also used template signatures, while virtual overload selection
+  compared instantiated and template symbols without their declaration identity.
+- Supply the resolved member owner's generic parameters to the existing
+  module signature resolver before compatibility checks and substitution.
+  Preserve concrete checked declarations during binding and virtual selection.
+- Regressions cover pointer/value receivers, bound methods, overloads, static
+  methods and unshadowed instance/static controls. Nine cases fail before the
+  correction and two controls pass; all eleven pass after it. Other method-generic and
+  lifetime behavior remains outside this specific correction.
+
+## Generic enum bindings retained template or unrelated owner signatures
+
+- Concrete enum declarations retain their template methods. Binding one could
+  emit an undefined `Box<T>` method or instantiate a module alias's type instead
+  of the actual receiver argument, even with a correctly checked lambda type.
+- Substitute the receiver owner's generic arguments into the checked callable
+  signature before resolving types or mangling its symbol. Retain the existing
+  concrete-method lookup for structs.
+- Six cases fail the IR gate before native execution, including pointer/value
+  receivers, colliding module aliases, floating owners and a generic factory.
+  The nongeneric enum control passes before and after the correction.
+
+## Module symbol uniquing renamed lexical generic parameters as global aliases
+
+- When module-level aliases collided, the uniquing pass renamed raw `T`
+  references inside generic declarations to a renamed module alias. Generic
+  enum constructors and struct fields could then use string storage for float
+  payloads even though the checked owner argument was float.
+- Hide lexical generic names from fallback module-name rewriting. Leave the
+  surrounding map unchanged, and visit declaration links only through their
+  owning syntax tree rather than under a use site's generic scope.
+- Scope cases cover functions, structs, enums, specs, generic aliases and methods;
+  native cases cover tuple/struct enum payloads and generic fields with a forward
+  module alias. Existing module aliases outside those scopes still rename.

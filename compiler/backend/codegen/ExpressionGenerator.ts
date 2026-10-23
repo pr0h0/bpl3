@@ -890,6 +890,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     return reg;
   }
 
+  /** Bind the concrete checked method, adapting value receivers to borrowed storage. */
   protected generateBoundMethod(
     expr: AST.MemberExpr,
     methodDecl: AST.FunctionDecl,
@@ -931,24 +932,65 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       }
     }
 
+    // Use the concrete copy of the checked declaration for generic receivers.
+    const receiverName = this.resolveType(objType)
+      .replace(/^%struct\./, "")
+      .replace(/\*+$/, "");
+    const owner = this.findMethodOwner(receiverName, methodDecl.name);
+    const concreteMethod = owner?.members.find(
+      (member): member is AST.FunctionDecl =>
+        member.kind === "FunctionDecl" &&
+        (member === methodDecl ||
+          (member.resolvedType?.kind === "FunctionType" &&
+            member.resolvedType.declaration === methodDecl)),
+    );
+    if (concreteMethod) methodDecl = concreteMethod;
+
     // 2. Resolve Function Name (Mangled)
-    const funcType: AST.FunctionTypeNode = {
-      // Shim for mangling
+    const checkedType = methodDecl.resolvedType;
+    let funcType: AST.FunctionTypeNode = {
+      // Preserve checked parameter and return types for the callable ABI
       kind: "FunctionType",
-      returnType: methodDecl.returnType,
-      paramTypes: methodDecl.params.map((p) => p.type),
+      returnType:
+        checkedType?.kind === "FunctionType"
+          ? checkedType.returnType
+          : methodDecl.returnType,
+      paramTypes:
+        checkedType?.kind === "FunctionType"
+          ? checkedType.paramTypes
+          : methodDecl.params.map((p) => p.type),
       isVariadic: methodDecl.params.some((p) => p.isVariadic),
       location: methodDecl.location,
     };
-
-    let structName = objType.name;
+    // Enum instantiations keep their template method declarations. Apply their
+    // owner arguments before resolving any remaining names or mangling symbols.
+    const ownerBindings = new Map<string, AST.TypeNode>();
+    const declaration = objType.resolvedDeclaration;
     if (
-      methodDecl.params.length > 0 &&
-      methodDecl.params[0]!.name === "this" &&
-      methodDecl.params[0]!.type.kind === "BasicType"
+      declaration?.kind === "StructDecl" ||
+      declaration?.kind === "EnumDecl"
     ) {
-      structName = (methodDecl.params[0]!.type as AST.BasicTypeNode).name;
+      declaration.genericParams.forEach((parameter, index) => {
+        const argument = objType.genericArgs[index];
+        if (argument) {
+          ownerBindings.set(
+            parameter.name,
+            this.substituteType(argument, this.currentTypeMap),
+          );
+        }
+      });
     }
+    if (ownerBindings.size) {
+      funcType = this.substituteType(
+        funcType,
+        ownerBindings,
+      ) as AST.FunctionTypeNode;
+    }
+
+    const receiverType = this.resolveType(funcType.paramTypes[0]!);
+    const structName = receiverType
+      .replace(/^%(?:struct|enum)\./, "")
+      .replace(/\*+$/, "");
 
     const fullMethodName = `${structName}_${methodDecl.name}`;
     const funcName = this.getMangledName(fullMethodName, funcType);
@@ -965,9 +1007,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     const genericFuncPtrType = `${retTypeStr} (i8*${paramTypesStr ? ", " + paramTypesStr : ""})*`;
 
     // Existing function pointer type
-    const specificRetTypeStr = this.resolveType(methodDecl.returnType);
-    const specificParamTypes = methodDecl.params.map((p) =>
-      this.resolveType(p.type),
+    const specificRetTypeStr = this.resolveType(funcType.returnType);
+    const specificParamTypes = funcType.paramTypes.map((type) =>
+      this.resolveType(type),
     );
     const specificParamTypesStr = specificParamTypes.join(", ");
     const specificFuncPtrType = `${specificRetTypeStr} (${specificParamTypesStr})*`;
