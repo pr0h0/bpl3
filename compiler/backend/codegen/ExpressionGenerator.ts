@@ -543,13 +543,17 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     ) {
       const index = expr.assignee;
       const overload = index.operatorOverload!;
-      const methodType = overload.methodType;
+      let methodType = overload.methodType;
       if (!methodType || methodType.paramTypes.length !== 3) {
         throw this.createError(
           "Index setter is missing its checked signature",
           expr,
         );
       }
+      methodType = this.substituteType(
+        methodType,
+        this.currentTypeMap,
+      ) as AST.FunctionTypeNode;
       const thisType = this.resolveType(methodType.paramTypes[0]!);
       const structName = thisType.replace(/^%struct\./, "").replace(/\*+$/, "");
       const name = this.getMangledName(

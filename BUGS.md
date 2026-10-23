@@ -7953,3 +7953,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Twenty-four signature/ABI/const/result cases pass; twenty fail before this
   correction and four valid controls pass. An imported-module case also passes.
   Original receiver/routing/null regressions remain passing.
+
+## Checked index setter symbols retained enclosing generic parameters
+
+- A setter used inside a generic function or generic struct method retained `T`
+  in its mangled callee symbol even when LLVM argument types were concrete.
+  Native compilation failed with an undefined setter symbol.
+- Substitute the checked signature using the active instantiation map before
+  constructing the callee name and lowering arguments. Two LLVM/O0/O3 cases
+  cover void and nonvoid setters in generic callers and distinct instantiations.
