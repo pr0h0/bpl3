@@ -1405,53 +1405,16 @@ export function checkIndex(
   // Try __get__ operator overload
   if (indexType) {
     const rejections: OperatorOverloadRejections = {};
-    const method = this.findOperatorOverload(
+    const selected = this.resolveIndexOperator(
       objectType,
       "__get__",
       [indexType],
       rejections,
     );
+    const method = selected?.declaration;
     if (!method) rejectConstantOperatorAddress(rejections, expr.location);
     if (method) {
-      // Build type substitution map for return type resolution (for generics)
-      const typeSubstitutionMap = new Map<string, AST.TypeNode>();
-      if (
-        objectType.kind === "BasicType" &&
-        objectType.genericArgs.length > 0
-      ) {
-        const decl = objectType.resolvedDeclaration;
-        if (
-          decl &&
-          (decl.kind === "StructDecl" ||
-            decl.kind === "EnumDecl" ||
-            decl.kind === "SpecDecl" ||
-            decl.kind === "TypeAlias") &&
-          decl.genericParams &&
-          decl.genericParams.length > 0
-        ) {
-          for (let i = 0; i < decl.genericParams.length; i++) {
-            typeSubstitutionMap.set(
-              decl.genericParams[i]!.name,
-              objectType.genericArgs[i]!,
-            );
-          }
-        }
-      }
-
-      const signature = resolveMethodTypesInModuleContext(this, method);
-      const resolve = (type: AST.TypeNode): AST.TypeNode =>
-        this.resolveType(
-          typeSubstitutionMap.size > 0
-            ? this.substituteType(type, typeSubstitutionMap)
-            : type,
-          false,
-        );
-      const methodType: AST.FunctionTypeNode = {
-        kind: "FunctionType",
-        paramTypes: signature.paramTypes.map(resolve),
-        returnType: resolve(signature.returnType),
-        location: method.location,
-      };
+      const methodType = selected!.signature;
       if (validateGetterCall) {
         const expected = methodType.paramTypes[1]!;
         const actual = this.resolveType(indexType);

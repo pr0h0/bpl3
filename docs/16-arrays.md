@@ -164,6 +164,8 @@ value must also be compatible with the getter's element type. Implicitly
 borrowing an argument requires mutable storage and an exact pointee type.
 
 Index operator calls also obey argument range, mutable-storage and ownership-copy checks.
+Imported operator signatures resolve aliases in their defining module, independently
+of aliases declared by the caller.
 
 The receiver is evaluated once, followed by the index and the assigned value.
 A void setter leaves the assignment expression with its original assigned value;

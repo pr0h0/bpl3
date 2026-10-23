@@ -2446,38 +2446,13 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
       const objectType = index.object.resolvedType!;
       const rejections: { constantAddress?: boolean } = {};
-      const declarations = new Map<AST.FunctionDecl, AST.FunctionDecl>();
-      const selected = this.overloadResolver.findOperatorOverload(
+      const selected = this.resolveIndexOperator(
         objectType,
         "__set__",
         [index.index.resolvedType!, valueType],
-        (type, name) => {
-          const context = this.resolveMemberWithContext(type, name);
-          if (!context) return undefined;
-          return {
-            ...context,
-            members: context.members.map((member) => {
-              if (member.kind !== "FunctionDecl") return member;
-              const signature = CallChecker.resolveMethodTypesInModuleContext(
-                this,
-                member,
-              );
-              const resolved: AST.FunctionDecl = {
-                ...member,
-                params: member.params.map((parameter, parameterIndex) => ({
-                  ...parameter,
-                  type: signature.paramTypes[parameterIndex]!,
-                })),
-                returnType: signature.returnType,
-              };
-              declarations.set(resolved, member);
-              return resolved;
-            }),
-          };
-        },
         rejections,
       );
-      const setter = selected ? declarations.get(selected) : undefined;
+      const setter = selected?.declaration;
       if (!setter || setter.params.some((parameter) => parameter.isVariadic)) {
         rejectConstantOperatorAddress(rejections, expr.location);
         throw new CompilerError(
@@ -2487,27 +2462,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           CALL_ARGUMENT_TYPE_MISMATCH_CODE,
         );
       }
-      const context = this.resolveMemberWithContext(
-        objectType as AST.BasicTypeNode,
-        "__set__",
-      );
-      const signature = CallChecker.resolveMethodTypesInModuleContext(
-        this,
-        setter,
-      );
-      const resolve = (type: AST.TypeNode): AST.TypeNode =>
-        this.resolveType(
-          context?.genericMap?.size
-            ? this.substituteType(type, context.genericMap)
-            : type,
-          false,
-        );
-      const methodType: AST.FunctionTypeNode = {
-        kind: "FunctionType",
-        paramTypes: signature.paramTypes.map(resolve),
-        returnType: resolve(signature.returnType),
-        location: setter.location,
-      };
+      const methodType = selected!.signature;
       const result = methodType.returnType;
       const returnsVoid =
         result.kind === "BasicType" &&
@@ -2887,6 +2842,74 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   }
 
   // ========== Operator Overload Resolution ==========
+
+  /** Resolve index operators in their defining module before matching arguments. */
+  public resolveIndexOperator(
+    targetType: AST.TypeNode,
+    methodName: "__get__" | "__set__",
+    paramTypes: AST.TypeNode[],
+    rejections?: { constantAddress?: boolean },
+  ):
+    | { declaration: AST.FunctionDecl; signature: AST.FunctionTypeNode }
+    | undefined {
+    const declarations = new Map<AST.FunctionDecl, AST.FunctionDecl>();
+    const selected = this.overloadResolver.findOperatorOverload(
+      targetType,
+      methodName,
+      paramTypes,
+      (type, name) => {
+        const context = this.resolveMemberWithContext(type, name);
+        if (!context) return undefined;
+        return {
+          ...context,
+          members: context.members.map((member) => {
+            if (member.kind !== "FunctionDecl") return member;
+            const signature = CallChecker.resolveMethodTypesInModuleContext(
+              this,
+              member,
+            );
+            const resolved: AST.FunctionDecl = {
+              ...member,
+              params: member.params.map((parameter, parameterIndex) => ({
+                ...parameter,
+                type: signature.paramTypes[parameterIndex]!,
+              })),
+              returnType: signature.returnType,
+            };
+            declarations.set(resolved, member);
+            return resolved;
+          }),
+        };
+      },
+      rejections,
+    );
+    const declaration = selected ? declarations.get(selected) : undefined;
+    if (!declaration) return undefined;
+    const context = this.resolveMemberWithContext(
+      targetType as AST.BasicTypeNode,
+      methodName,
+    );
+    const signature = CallChecker.resolveMethodTypesInModuleContext(
+      this,
+      declaration,
+    );
+    const resolve = (type: AST.TypeNode): AST.TypeNode =>
+      this.resolveType(
+        context?.genericMap?.size
+          ? this.substituteType(type, context.genericMap)
+          : type,
+        false,
+      );
+    return {
+      declaration,
+      signature: {
+        kind: "FunctionType",
+        paramTypes: signature.paramTypes.map(resolve),
+        returnType: resolve(signature.returnType),
+        location: declaration.location,
+      },
+    };
+  }
 
   public findOperatorOverload(
     targetType: AST.TypeNode,
