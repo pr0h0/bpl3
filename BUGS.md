@@ -7922,3 +7922,15 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   normal address generation even when the element struct defines setters.
 - Three IR regressions reject the wrong call before executing native code;
   after the fix their LLVM/O0/O3 stores work and do not invoke a setter.
+
+## Ordinary indexed assignments skipped pointer null checks
+
+- Normal assignment enabled the skip-null-check flag for every non-member
+  target, including pointer indexing. Both simple and compound indexed stores
+  could miss the expected `NULL POINTER ACCESS` diagnostic.
+- Use normal checked assignment addressing for both simple and compound
+  stores, retaining receiver/index/value evaluation order. Direct identifiers
+  do not require a dereference check in address generation.
+- Five runtime regressions fail before the fix; indexed increment and valid
+  evaluation-order controls pass before and after. LLVM/O0/O3 tests cover raw,
+  computed, returned and array-alias pointer bases.

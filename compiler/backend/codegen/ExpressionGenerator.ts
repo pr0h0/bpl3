@@ -659,10 +659,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       return tupleVal;
     }
 
-    // Don't skip null check if assignee is a member access through pointer
-    const skipCheck = expr.assignee.kind !== "Member"; // Skip for direct identifiers to avoid double-checking
-
-    const addr = this.generateAddress(expr.assignee, skipCheck);
+    const addr = this.generateAddress(expr.assignee);
     const destType = this.resolveType(expr.assignee.resolvedType!);
 
     if (expr.operator.type === TokenType.Equal) {
