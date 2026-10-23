@@ -2744,7 +2744,7 @@ export abstract class TypeCheckerBase {
    * True when this expression names existing storage rather than producing a
    * fresh value. Reading one copies what is there; a call or a literal hands
    * over something new instead. Checked getter and unary overloads follow
-   * call-result transfer rules rather than built-in storage access rules.
+   * call-result transfer rules for concrete, nongeneric operator owners.
    */
   protected isPlaceExpression(expr: AST.Expression): boolean {
     switch (expr.kind) {
@@ -2752,18 +2752,36 @@ export abstract class TypeCheckerBase {
       case "Member":
         return true;
       case "Index":
-        return expr.operatorOverload?.methodName !== "__get__";
+        return (
+          expr.operatorOverload?.methodName !== "__get__" ||
+          this.hasGenericOperatorOwner(expr.operatorOverload)
+        );
       case "Group":
         return this.isPlaceExpression((expr as AST.GroupExpr).expression);
       case "Unary":
         // Computing a pointer does not produce a fresh pointee value.
         return (
-          !expr.operatorOverload &&
-          (expr as AST.UnaryExpr).operator.type === TokenType.Star
+          (expr as AST.UnaryExpr).operator.type === TokenType.Star &&
+          (!expr.operatorOverload ||
+            this.hasGenericOperatorOwner(expr.operatorOverload))
         );
       default:
         return false;
     }
+  }
+
+  /** Preserve no-copy checks until generic operator bodies have concrete ownership validation. */
+  private hasGenericOperatorOwner(overload: {
+    targetType: AST.TypeNode;
+    methodName: string;
+  }): boolean {
+    const target = this.resolveType(overload.targetType, false);
+    if (target.kind !== "BasicType") return false;
+    return (
+      target.genericArgs.length > 0 ||
+      (this.resolveMemberWithContext(target, overload.methodName)?.decl
+        .genericParams.length ?? 0) > 0
+    );
   }
 
   /**

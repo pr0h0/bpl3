@@ -100,10 +100,14 @@ destructuring is an ordinary local that destroys what it holds.
 A built-in dereference reads existing pointee storage even when its pointer
 comes from a call, conditional, cast or address expression. The no-copy rule
 applies to that read just as it does to reading a local binding. A checked
-overloaded `*` expression is a method call rather than built-in pointee access;
+overloaded `*` expression on a nongeneric receiver is a method call rather than
+built-in pointee access;
 its returned value follows the same transfer rules as other fresh call results.
-The same applies to an overloaded index getter returning a value. If a getter
+The same applies to a nongeneric overloaded index getter returning a value. If a getter
 returns a pointer instead, dereferencing it still reads existing pointee storage.
+Owning results from generic receiver overloads retain the no-copy restriction:
+their bodies are not yet checked again with the concrete owner arguments.
+Nonowning results and borrowed pointer results are unaffected.
 
 A value with an `@[auto_destroy]` destructor cannot be copied
 (`BPL_OWNING_VALUE_COPIED`). Copying is what reading one out of existing

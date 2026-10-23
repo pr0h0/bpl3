@@ -13,6 +13,7 @@ frame borrow(value:*Owner)ret *Owner{return value;}
 frame make()ret Owner{return Owner{value:7};}
 frame take(value:Owner){value.value;}
 frame takePointer(value:*Owner){value.value;}`;
+/** Check an ownership-use fragment without emitting or running its program. */
 function errors(body: string) {
   const checker = new TypeChecker({ collectAllErrors: true });
   checker.checkProgram(

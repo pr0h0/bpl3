@@ -8126,7 +8126,7 @@ Status: fixed; 15 targeted cases pass (11 failures and four controls before corr
 
 ## Fresh overloaded star results were mistaken for owning storage copies
 
-Status: fixed; direct/grouped checker cases and normal cleanup regression pass.
+Status: fixed for concrete nongeneric receivers; direct/grouped checker cases and normal cleanup regression pass. Generic owners retain the previous restriction.
 
 - The owning-copy classifier treated a value-producing overloaded `*` expression
   as a built-in dereference. Assigning its fresh result to an owning local was
@@ -8136,9 +8136,23 @@ Status: fixed; direct/grouped checker cases and normal cleanup regression pass.
 
 ## Fresh overloaded index results were mistaken for owning storage copies
 
+Status: fixed for concrete nongeneric receivers; generic owners retain the previous restriction.
+
 - Checked `__get__` expressions were classified as built-in element storage,
   so a getter returning a fresh owning value could not transfer it to a local.
 - Classify getter calls as value producers while keeping built-in indexing and
   dereferences of borrowed pointer results subject to the no-copy rule.
 - Direct/grouped checker cases and a normal cleanup-count regression reproduce
   the false rejection. A borrowed-pointer getter control remains rejected.
+
+## Preserve owning-copy restrictions for generic overload results
+
+- Allowing fresh concrete getter/star results also accepted resource-owning
+  values returned from generic receiver fields, whose bodies are not checked
+  again with concrete owner arguments. This composition was found before merge.
+- Preserve the previous no-copy restriction for generic operator owners; their
+  owning results remain unsupported for transfer until that validation exists.
+  Nonowning results and borrowed pointer results remain available.
+- Four checker regressions cover getter/star fields, a generic receiver alias
+  and the documented conservative restriction even for a fresh generic result.
+  Two nonowning/pointer controls pass. No invalid owning copy is executed.
