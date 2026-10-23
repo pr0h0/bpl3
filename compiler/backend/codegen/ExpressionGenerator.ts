@@ -1047,7 +1047,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     return super.generateCast(expr);
   }
 
-  /** Lower a checked setter argument once, retaining an assignment value when needed. */
+  /** Lower an index operator argument once, retaining an assignment value when needed. */
   private generateCheckedIndexArgument(
     expression: AST.Expression,
     target: AST.TypeNode,
@@ -1161,29 +1161,14 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     };
   }
 
-  /** Select receiver storage once before evaluating index operator arguments. */
-  private generateIndexOperatorReceiver(object: AST.Expression): string {
-    if (this.isAddressableAggregateSource(object)) {
-      return this.generateAddress(object);
-    }
-    const type = this.resolveType(object.resolvedType!);
-    const value = this.generateExpression(object);
-    const slot = this.allocateStack(`index_receiver_${this.labelCount++}`, type);
-    this.emit(`  store ${type} ${value}, ${type}* ${slot}`);
-    return slot;
-  }
-
   protected generateIndex(expr: AST.IndexExpr): string {
     // Check for operator overload (__get__)
     if (expr.operatorOverload) {
       const overload = expr.operatorOverload;
       const method = overload.methodDeclaration;
-      const thisPtr = this.generateIndexOperatorReceiver(expr.object);
-      const indexRaw = this.generateExpression(expr.index);
 
       // Get the struct name from the target type
       const targetType = overload.targetType as AST.BasicTypeNode;
-      let structName = targetType.name;
       let methodType = method.resolvedType as AST.FunctionTypeNode;
 
       // Handle generic struct method calls
@@ -1205,12 +1190,6 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
             );
           }
 
-          // Build monomorphized struct name using mangleType
-          const argNames = targetType.genericArgs
-            .map((arg) => this.mangleType(arg))
-            .join("_");
-          structName = `${targetType.name}_${argNames}`;
-
           // Substitute types in method signature
           methodType = this.substituteType(
             methodType,
@@ -1223,19 +1202,33 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         }
       }
 
-      // Build the method name with struct prefix
-      const fullMethodName = `${structName}_${method.name}`;
-      const mangledName = this.getMangledName(fullMethodName, methodType);
-
-      // Prepare arguments: this (object) + index
-      const objectType = this.resolveType(expr.object.resolvedType!);
-      const indexType = this.resolveType(expr.index.resolvedType!);
+      methodType = this.substituteType(
+        methodType,
+        this.currentTypeMap,
+      ) as AST.FunctionTypeNode;
+      const receiverType = this.resolveType(methodType.paramTypes[0]!);
+      const structName = receiverType
+        .replace(/^%struct\./, "")
+        .replace(/\*+$/, "");
+      const mangledName = this.getMangledName(
+        `${structName}_${method.name}`,
+        methodType,
+      );
+      const receiver = this.generateCheckedIndexArgument(
+        expr.object,
+        methodType.paramTypes[0]!,
+      );
+      const index = this.generateCheckedIndexArgument(
+        expr.index,
+        methodType.paramTypes[1]!,
+      );
+      const indexType = this.resolveType(methodType.paramTypes[1]!);
 
       // Call the __get__ method
       const returnType = this.resolveType(methodType.returnType);
       const resultReg = this.newRegister();
       this.emit(
-        `  ${resultReg} = call ${returnType} @${mangledName}(${objectType}* ${thisPtr}, ${indexType} ${indexRaw})`,
+        `  ${resultReg} = call ${returnType} @${mangledName}(${receiverType} ${receiver.value}, ${indexType} ${index.value})`,
       );
       return resultReg;
     }

@@ -7984,3 +7984,16 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   calls and pointer variables. Four fail before the correction; the variable
   control passes. They also verify receiver state, original assignment results,
   call counts and that borrowing temporaries does not modify their pointees.
+
+## Indexed getters did not lower arguments using their selected signature
+
+- Getter calls used a pointer receiver and the original index type regardless
+  of the checked method signature. Value receivers, widened integer indices
+  and implicitly borrowed indices could reach calls with mismatched LLVM ABI.
+- Generic callers could also retain uninstantiated types in getter symbols.
+- Lower receiver and index once through the existing checked index-argument
+  conversion helper, and instantiate the signature before mangling its symbol.
+- Four regressions first inspect every direct getter call's argument types,
+  then validate LLVM and run O0/O3. All four fail at the IR gate before the fix.
+  Broader getter module-alias resolution and lifetime analysis remain separate
+  audit candidates and are not established by this correction.
