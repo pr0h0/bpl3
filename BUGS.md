@@ -8443,3 +8443,30 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed: population standard deviation of [1e308,1.0000000000000002e308] is1.1102230246251568e292 instead of9.9792015476735991e291, an11% error. Dividing each large input before subtracting loses the represented gap.
 - Center represented differences before division when finite; retain bounded separately normalized subtraction for opposite extremes. Center mean updates in the scaled domain as well.
 - Four native large/tiny method regressions fail before correction, each checking both input orders.
+
+
+## Floating covariance loses centered and scaled results
+
+- Confirmed: covariance of identical [1e16,1e16+2] arrays returns2 instead of1; covariance of identical +/-1e154 arrays overflows despite finite1e308 result.
+- Use centered, independently scaled population moments and restore the larger scale first. Three native regressions fail before correction.
+- Related correlation failures are addressed by the separate normalized-coefficient correction below.
+
+
+## Correlation overflows and underflows intermediate units
+
+- Confirmed: identical +/-1e308 inputs produce NaN instead of1; covariance and the product of standard deviations both overflow. Tiny data also loses its dimensionless result through underflow.
+- Compute the coefficient directly from shared normalized moments and bound floating roundoff to [-1,1], preserving empty/constant and nonfinite behavior.
+- Five native regressions fail before correction on the covariance-fixed source, spanning huge, tiny, negative, partial, and subnormal inputs.
+
+
+## Joint-moment cancellation is amplified by covariance rescaling
+
+- Confirmed before merging the joint-statistics PR: symmetric orthogonal samples at1e154 produced -3.7007434154171889e291 instead of zero covariance. Online cross-moment roundoff was amplified when restoring units.
+- Recompute the cross moment around final normalized means using compensated accumulation, correcting for rounded mean residuals before rescaling.
+- Two native regressions fail before correction at1e154 and1e308. The prior reviewed head is superseded and requires fresh CI/review.
+
+## Mixed-magnitude covariance loses small raw contributions
+
+- Confirmed CodeRabbit finding: x=[S,-S,S,-S,S], y=[S,-S,-S,S,t], S=1e154, t=1e-154 returns zero covariance instead of 0.16. Subtracting the large origin erases t before compensated accumulation.
+- Detect lost origin/mean subtraction terms and use compensated raw normalized cross-products and mean-product correction. Only axes with origin loss switch to zero origin, preserving close-offset differences.
+- Four native sign/order regressions fail before correction and verify covariance plus its tiny correlation coefficient.

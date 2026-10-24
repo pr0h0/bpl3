@@ -119,6 +119,8 @@ Statistical functions for numerical analysis.
 - `Stats.stddev(data: *float, length: int) ret float`
 - `Stats.sampleStddev(data: *int, length: int) ret float` - Sample std deviation
 - `Stats.sampleStddev(data: *float, length: int) ret float`
+- `Stats.covariance(dataX: *float, dataY: *float, length: int) ret float` - Population covariance
+- `Stats.correlation(dataX: *float, dataY: *float, length: int) ret float` - Pearson correlation
 - `Stats.median(data: *int, length: int) ret float` - Median value
 - `Stats.median(data: *float, length: int) ret float`
 
@@ -133,6 +135,16 @@ positive infinity.
 Floating standard-deviation methods take a scaled square root when intermediate
 variance overflows or becomes subnormal (including zero), retaining representable
 roots.
+
+`Stats.covariance` centers and scales both axes independently to preserve finite
+results across large offsets and magnitudes. Centered products are recomputed
+with compensated accumulation and a rounded-mean correction before rescaling,
+limiting cancellation errors. If subtraction loses mixed-magnitude contributions,
+a compensated raw-moment fallback retains them while keeping close-offset axes
+centered. `Stats.correlation` uses normalized
+joint moments directly, keeping finite coefficients within [-1, 1] without an
+overflowing or underflowing product of dimensional standard deviations. Existing
+zero results for empty or constant-axis inputs are preserved.
 
 `Stats.harmonicMean(data: *float, length: int)` returns positive infinity when
 all samples are positive infinity. In a mixture with finite positive samples,
