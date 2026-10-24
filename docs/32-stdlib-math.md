@@ -37,6 +37,9 @@ global const LN10: float = 2.30258509299404568402;
 | `Math.sign(x: int) ret int`                              | Sign of integer (-1, 0, 1)     |
 | `Math.sign(x: float) ret float`                          | Sign of float (-1.0, 0.0, 1.0) |
 
+`Math.abs(x: int)` throws `"Math.abs result exceeds int"` for -2,147,483,648,
+whose nonnegative magnitude cannot fit in the existing `int` result type.
+
 ## Float Functions
 
 | Function                                            | Description           |

@@ -8501,3 +8501,14 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Confirmed native O3 at x=0.999999999999: `Math.acos` differs from the platform result by about 8.25e-12 relatively. Computing pi/2 minus asin cancels significant digits near +1.
 - Fixed with a direct factored-root `atan2` formula instead of subtracting angles. Three endpoint regressions fail on the asin-fixed parent and pass after correction; the full inverse-trig set covers valid values, domain failures, endpoints, signed zero and NaN.
+
+
+## Integer absolute value returns a negative magnitude
+
+- Confirmed native O3: `Math.abs(-2147483648)` returns -2147483648. Its nonnegative magnitude cannot fit the existing `int` return type.
+- Fixed with the existing checked-helper convention: throw `"Math.abs result exceeds int"` before negation, preserving the public return type. Literal and runtime-input regressions fail before correction and pass after; ordinary integer and float-overload controls pass.
+
+## Base logarithms lose exact power results
+
+- Confirmed native O3: `Math.log10(1000)` returns 2.9999999999999996 instead of 3; `Math.log2(2^1000)` returns 1000.0000000000001 instead of 1000. Dividing a rounded natural logarithm by a rounded base constant loses accuracy.
+- Separate platform-log10/log2 corrections and power/domain regression tests pending.

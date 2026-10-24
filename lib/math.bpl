@@ -35,6 +35,9 @@ struct Math {
     Returns the absolute value of an integer.
     #/
     frame abs(x: int) ret int {
+        if (x == -2147483648) {
+            throw "Math.abs result exceeds int";
+        }
         if (x < 0) {
             return -x;
         }
