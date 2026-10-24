@@ -311,10 +311,44 @@ struct Complex {
 
     # Calculate the square root
     frame sqrt(this: *Complex) ret Complex {
-        local r: float = this.abs();
-        local theta: float = this.phase() / 2.0;
-        local sqrtR: float = Math.sqrt(r);
-        return Complex.new(sqrtR * Math.cos(theta), sqrtR * Math.sin(theta));
+        if (Math.isInfinite(this.imag)) {
+            return Complex.new(Math.abs(this.imag), this.imag);
+        }
+        if (Math.isInfinite(this.real)) {
+            if (this.real > 0.0) {
+                if (Math.isNan(this.imag)) { return Complex.new(this.real, this.imag); }
+                return Complex.new(this.real, Math.copysign(0.0, this.imag));
+            }
+            if (Math.isNan(this.imag)) {
+                return Complex.new(this.imag, Math.copysign(-this.real, this.imag));
+            }
+            return Complex.new(0.0, Math.copysign(-this.real, this.imag));
+        }
+        if (Math.isNan(this.real) || Math.isNan(this.imag)) {
+            local nan: float = this.real + this.imag;
+            return Complex.new(nan, nan);
+        }
+        if ((this.real == 0.0) && (this.imag == 0.0)) {
+            return Complex.new(0.0, this.imag);
+        }
+
+        # An even exponent keeps the dominant component bounded while its
+        # square-root scale can be restored exactly without forming |z|.
+        local largest: float = Math.max(Math.abs(this.real), Math.abs(this.imag));
+        local exponent: int = 0;
+        frexp(largest, &exponent);
+        if ((exponent % 2) != 0) { exponent = exponent - 1; }
+        local real: float = ldexp(this.real, -exponent);
+        local imag: float = ldexp(this.imag, -exponent);
+        local magnitude: float = Math.sqrt(real * real + imag * imag);
+        if (this.real >= 0.0) {
+            local root: float = ldexp(Math.sqrt((magnitude + real) * 0.5), exponent / 2);
+            # Use the original component here: normalization may erase a
+            # tiny value whose resulting root component is representable.
+            return Complex.new(root, this.imag / (2.0 * root));
+        }
+        local root: float = ldexp(Math.sqrt((magnitude - real) * 0.5), exponent / 2);
+        return Complex.new(Math.abs(this.imag) / (2.0 * root), Math.copysign(root, this.imag));
     }
 
     # Calculate sine: sin(z) = (e^(iz) - e^(-iz)) / (2i)

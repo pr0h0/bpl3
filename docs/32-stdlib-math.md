@@ -66,6 +66,12 @@ global const LN10: float = 2.30258509299404568402;
 | `Math.atan(x: float) ret float`            | Arc tangent              |
 | `Math.atan2(y: float, x: float) ret float` | Two-argument arc tangent |
 
+`Math.asin` and `Math.acos` return NaN for inputs outside [-1, 1], including
+infinities, and propagate NaN. `asin` preserves signed zero and handles the
+endpoints directly using a factored square root and `atan2`. `acos` uses the
+corresponding direct `atan2` identity rather than subtracting nearly equal angles
+near +1.
+
 ## Angle Conversion
 
 | Function                              | Description        |

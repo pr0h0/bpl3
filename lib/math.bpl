@@ -150,17 +150,20 @@ struct Math {
     }
 
     frame asin(x: float) ret float {
-        # Approximation using Taylor series for small x, Newton's method otherwise
-        # For simplicity, use the identity: asin(x) = atan(x / sqrt(1 - x*x))
-        if (x >= 1.0) 
-            return PI / 2.0;
-        if (x <= -1.0) 
-            return -PI / 2.0;
-        return Math.atan(x / sqrt(1.0 - (x * x)));
+        if ((x > 1.0) || (x < -1.0)) {
+            return sqrt(-1.0);
+        }
+        # Factoring avoids cancellation near either endpoint. atan2 handles
+        # the endpoints directly and preserves a negative-zero input.
+        return Math.atan2(x, sqrt((1.0 - x) * (1.0 + x)));
     }
 
     frame acos(x: float) ret float {
-        return (PI / 2.0) - Math.asin(x);
+        if ((x > 1.0) || (x < -1.0)) {
+            return sqrt(-1.0);
+        }
+        # Avoid subtracting nearly equal angles when x is close to +1.
+        return Math.atan2(sqrt((1.0 - x) * (1.0 + x)), x);
     }
 
     /#
