@@ -8501,3 +8501,21 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Confirmed native O3 at x=0.999999999999: `Math.acos` differs from the platform result by about 8.25e-12 relatively. Computing pi/2 minus asin cancels significant digits near +1.
 - Fixed with a direct factored-root `atan2` formula instead of subtracting angles. Three endpoint regressions fail on the asin-fixed parent and pass after correction; the full inverse-trig set covers valid values, domain failures, endpoints, signed zero and NaN.
+
+
+## Integer absolute value returns a negative magnitude
+
+- Confirmed native O3: `Math.abs(-2147483648)` returns -2147483648. Its nonnegative magnitude cannot fit the existing `int` return type.
+- Fixed with the existing checked-helper convention: throw `"Math.abs result exceeds int"` before negation, preserving the public return type. Literal and runtime-input regressions fail before correction and pass after; ordinary integer and float-overload controls pass.
+
+## Base logarithms lose exact power results
+
+- Confirmed native O3: `Math.log10(1000)` returns 2.9999999999999996 instead of 3; `Math.log2(2^1000)` returns 1000.0000000000001 instead of 1000. Dividing a rounded natural logarithm by a rounded base constant loses accuracy.
+- Base-10 logarithms now call the platform `log10` directly. Six exact-power regressions fail before correction and pass after, with ordinary/limit/domain controls preserved. Binary logarithms now separately call platform `log2`; both binary-power regressions also pass after correction. Domain, infinity, NaN, signed-zero input and subnormal controls pass for both functions.
+
+
+## Native logarithm correction changes existing Wasm host requirements
+
+- Confirmed on the initial PR78 head: a hosted Math.log10/log2 program previously instantiated with only an `env.log` math provider, but the changed code requires unavailable `env.log10` and `env.log2`. The bundled freestanding runtime already lacks natural logarithms: the parent fails on `log`, while the initial head fails on the new symbols.
+- Fixed with Wasm lowering scoped to the private declarations in the configured standard-library Math module. Retain the prior natural-log provider and precision while native targets use base-specific calls. Ordinary user extern bindings are preserved.
+- Four hosted-application regressions fail before correction and pass at O0/O3 after; two user-extern controls also pass. The pre-existing bundled-runtime math limitation is now explicit in the guides.

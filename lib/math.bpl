@@ -7,6 +7,8 @@ import sqrt, sin, cos, pow, exp, log, floor, ceil, round, fabs, minnum, maxnum, 
 extern atan(x: float) ret float;
 extern atan2(y: float, x: float) ret float;
 extern fmod(x: float, y: float) ret float;
+extern log10(x: float) ret float;
+extern log2(x: float) ret float;
 
 export [Math];
 
@@ -35,6 +37,9 @@ struct Math {
     Returns the absolute value of an integer.
     #/
     frame abs(x: int) ret int {
+        if (x == -2147483648) {
+            throw "Math.abs result exceeds int";
+        }
         if (x < 0) {
             return -x;
         }
@@ -173,8 +178,8 @@ struct Math {
         one. That series is about 0.0616 radians, or 3.5 degrees, wrong at
         x = 1, and switching to the identity just past one reversed the sign of
         that error, so the result jumped by roughly 0.123 radians across an
-        input change of 1e-12. asin, acos, atan2, and complex phase are all
-        built on this function and inherited both problems.
+        input change of 1e-12. Former asin, acos, atan2, and complex-phase
+        implementations depended on this helper and inherited those errors.
     #/
     frame atan(x: float) ret float {
         return atan(x);
@@ -195,11 +200,11 @@ struct Math {
 
     # Logarithmic functions
     frame log10(x: float) ret float {
-        return log(x) / LN10;
+        return log10(x);
     }
 
     frame log2(x: float) ret float {
-        return log(x) / LN2;
+        return log2(x);
     }
 
     # Utility functions

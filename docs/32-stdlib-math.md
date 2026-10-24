@@ -37,6 +37,9 @@ global const LN10: float = 2.30258509299404568402;
 | `Math.sign(x: int) ret int`                              | Sign of integer (-1, 0, 1)     |
 | `Math.sign(x: float) ret float`                          | Sign of float (-1.0, 0.0, 1.0) |
 
+`Math.abs(x: int)` throws `"Math.abs result exceeds int"` for -2,147,483,648,
+whose nonnegative magnitude cannot fit in the existing `int` result type.
+
 ## Float Functions
 
 | Function                                            | Description           |
@@ -53,6 +56,15 @@ global const LN10: float = 2.30258509299404568402;
 | `Math.copysign(x: float, y: float) ret float`       | Copy sign of y to x   |
 | `Math.mod(x: float, y: float) ret float`            | Floating-point modulo |
 | `Math.lerp(a: float, b: float, t: float) ret float` | Linear interpolation  |
+
+On native targets, `Math.log10` and `Math.log2` use platform base-specific
+logarithms directly, avoiding accuracy loss from dividing rounded natural
+logarithms. Zero inputs return negative infinity;
+negative inputs and NaN produce NaN, and positive infinity stays positive infinity.
+
+WebAssembly keeps the previous natural-logarithm lowering and its precision.
+A custom hosted runtime can supply `env.log`; the bundled freestanding runtime
+and browser adapter do not provide this math dependency.
 
 ## Trigonometric Functions
 
