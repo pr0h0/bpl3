@@ -7,6 +7,34 @@ import [Math] from "std/math.bpl";
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
 
+# Internal fallback: normalize finite samples before accumulating deviations.
+# Return normalized variance and its scale separately to avoid squaring scale.
+frame statsScaledVariance(data: *float, length: int, divisor: int) ret (float, float) {
+    local scale: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i);
+        if (Math.isNan(sample) || Math.isInfinite(sample)) {
+            return (sample - sample, 1.0);
+        }
+        local magnitude: float = Math.abs(sample);
+        if (magnitude > scale) {
+            scale = magnitude;
+        }
+    }
+    if (scale == 0.0) {
+        return (0.0, 1.0);
+    }
+    local running: float = 0.0;
+    local squares: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i) / scale;
+        local delta: float = sample - running;
+        running = running + delta / cast<float>(i + 1);
+        squares = squares + delta * (sample - running);
+    }
+    return (squares / cast<float>(divisor), scale);
+}
+
 struct Stats {
     # Calculate the mean (average) of an integer array
     frame mean(data: *int, length: int) ret float {
@@ -214,7 +242,12 @@ struct Stats {
             squares = squares + (delta * (sample - running));
             i = i + 1;
         }
-        return squares / cast<float>(length);
+        local result: float = squares / cast<float>(length);
+        if (Math.isNan(result) || Math.isInfinite(result)) {
+            local (normalized: float, scale: float) = statsScaledVariance(data, length, length);
+            return (normalized * scale) * scale;
+        }
+        return result;
     }
 
     # Calculate the sample variance of an integer array
@@ -246,7 +279,12 @@ struct Stats {
             sumSquares = sumSquares + (diff * diff);
             i = i + 1;
         }
-        return sumSquares / cast<float>(length - 1);
+        local result: float = sumSquares / cast<float>(length - 1);
+        if (Math.isNan(result) || Math.isInfinite(result)) {
+            local (normalized: float, scale: float) = statsScaledVariance(data, length, length - 1);
+            return (normalized * scale) * scale;
+        }
+        return result;
     }
 
     # Calculate the standard deviation of an integer array (population)

@@ -120,6 +120,10 @@ Statistical functions for numerical analysis.
 - `Stats.median(data: *int, length: int) ret float` - Median value
 - `Stats.median(data: *float, length: int) ret float`
 
+Floating `Stats.variance` and `Stats.sampleVariance` use a scaled fallback when
+intermediate arithmetic overflows. Finite representable variances remain finite;
+variance exceeding the floating range returns positive infinity.
+
 `Stats.harmonicMean(data: *float, length: int)` returns positive infinity when
 all samples are positive infinity. In a mixture with finite positive samples,
 infinite samples contribute zero reciprocals.

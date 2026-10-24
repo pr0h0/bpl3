@@ -8409,3 +8409,10 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed: type arguments, pointer prefixes, and array suffixes on variant query targets pass checking and are discarded by code generation. Even `Color.Red<Missing>` and zero-size suffixes bypass normal target validation.
 - Reject unsupported modified variant targets using the existing query-target diagnostic; retain plain tag queries including generic enum values.
 - Twelve checker regressions fail before correction; four ordinary/generic plain-variant controls pass.
+
+
+## Floating variance overflows before its representable result
+
+- Confirmed: population variance of +/-1e154 and sample variance of [1e154,-1e154,0] return infinity instead of1e308. Opposite finite +/-1e308 inputs return negative infinity for population variance.
+- Retain ordinary arithmetic paths, falling back to normalized finite deviations when intermediate arithmetic produces a nonfinite result. Rescale only after dividing by the population/sample divisor.
+- Three native regressions fail before correction; truly overflowing variance returns positive infinity, and nonfinite samples continue to propagate NaN.
