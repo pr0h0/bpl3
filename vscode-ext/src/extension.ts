@@ -79,18 +79,22 @@ export async function activate(context: ExtensionContext) {
           void window.showErrorMessage("Save the BPL file before running it.");
           return;
         }
-        const document = await workspace.openTextDocument(uri);
+        const fileUri = uri;
+        const document = await workspace.openTextDocument(fileUri);
         const launched = await saveAndRunDocument(document, () =>
           tasks.executeTask(
             new Task(
-              { type: "bpl", file: uri.fsPath },
-              workspace.getWorkspaceFolder(uri) || TaskScope.Global,
+              { type: "bpl", file: fileUri.fsPath },
+              workspace.getWorkspaceFolder(fileUri) || TaskScope.Global,
               "Run BPL file",
               "BPL",
               new ShellExecution(
                 "bpl",
-                ["run", { value: uri.fsPath, quoting: ShellQuoting.Strong }],
-                { cwd: path.dirname(uri.fsPath) },
+                [
+                  "run",
+                  { value: fileUri.fsPath, quoting: ShellQuoting.Strong },
+                ],
+                { cwd: path.dirname(fileUri.fsPath) },
               ),
             ),
           ),

@@ -79,8 +79,9 @@ test("run awaits saving and never launches after a failed or rejected save", asy
       async () => events.push("bad"),
     ),
   ).toBe(false);
-  await expect(
-    saveAndRunDocument(
+  let rejected = false;
+  try {
+    await saveAndRunDocument(
       {
         isDirty: true,
         async save() {
@@ -88,8 +89,11 @@ test("run awaits saving and never launches after a failed or rejected save", asy
         },
       },
       async () => events.push("bad"),
-    ),
-  ).rejects.toThrow("disk");
+    );
+  } catch (error) {
+    rejected = error instanceof Error && error.message === "disk";
+  }
+  expect(rejected).toBe(true);
   expect(events).toEqual(["saved", "run"]);
 });
 test("formatting failures notify once and reset after success", () => {

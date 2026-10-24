@@ -72,11 +72,7 @@ export function registerRunCommand(program: Command): void {
               globalOpts.debug ||
               globalOpts.dwarf,
           };
-          if (
-            localOpts.project &&
-            file &&
-            process.argv.includes("--")
-          ) {
+          if (localOpts.project && file && process.argv.includes("--")) {
             args = [file, ...args];
             file = undefined;
           }
