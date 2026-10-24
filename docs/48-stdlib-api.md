@@ -114,15 +114,19 @@ Statistical functions for numerical analysis.
 - `Stats.variance(data: *int, length: int) ret float` - Population variance
 - `Stats.variance(data: *float, length: int) ret float`
 - `Stats.sampleVariance(data: *int, length: int) ret float` - Sample variance
+- `Stats.sampleVariance(data: *float, length: int) ret float`
 - `Stats.stddev(data: *int, length: int) ret float` - Population std deviation
 - `Stats.stddev(data: *float, length: int) ret float`
 - `Stats.sampleStddev(data: *int, length: int) ret float` - Sample std deviation
+- `Stats.sampleStddev(data: *float, length: int) ret float`
 - `Stats.median(data: *int, length: int) ret float` - Median value
 - `Stats.median(data: *float, length: int) ret float`
 
 Floating `Stats.variance` and `Stats.sampleVariance` use a scaled fallback when
 intermediate arithmetic overflows. Finite representable variances remain finite;
 variance exceeding the floating range returns positive infinity.
+Floating standard-deviation methods take a scaled square root when intermediate
+variance overflows or rounds to zero, retaining representable roots.
 
 `Stats.harmonicMean(data: *float, length: int)` returns positive infinity when
 all samples are positive infinity. In a mixture with finite positive samples,

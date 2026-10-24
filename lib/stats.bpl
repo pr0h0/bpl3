@@ -294,7 +294,16 @@ struct Stats {
 
     # Calculate the standard deviation of a float array (population)
     frame stddev(data: *float, length: int) ret float {
-        return Math.sqrt(Stats.variance(data, length));
+        if ((data == nullptr) || (length <= 0)) {
+            return 0.0;
+        }
+        local variance: float = Stats.variance(data, length);
+        # A finite root may survive an overflowing or underflowing variance.
+        if (Math.isInfinite(variance) || variance == 0.0) {
+            local (normalized: float, scale: float) = statsScaledVariance(data, length, length);
+            return Math.sqrt(normalized) * scale;
+        }
+        return Math.sqrt(variance);
     }
 
     # Calculate the sample standard deviation of an integer array
@@ -304,7 +313,16 @@ struct Stats {
 
     # Calculate the sample standard deviation of a float array
     frame sampleStddev(data: *float, length: int) ret float {
-        return Math.sqrt(Stats.sampleVariance(data, length));
+        if ((data == nullptr) || (length <= 1)) {
+            return 0.0;
+        }
+        local variance: float = Stats.sampleVariance(data, length);
+        # A finite root may survive an overflowing or underflowing variance.
+        if (Math.isInfinite(variance) || variance == 0.0) {
+            local (normalized: float, scale: float) = statsScaledVariance(data, length, length - 1);
+            return Math.sqrt(normalized) * scale;
+        }
+        return Math.sqrt(variance);
     }
 
     /#

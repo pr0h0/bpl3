@@ -8416,3 +8416,9 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed: population variance of +/-1e154 and sample variance of [1e154,-1e154,0] return infinity instead of1e308. Opposite finite +/-1e308 inputs return negative infinity for population variance.
 - Retain ordinary arithmetic paths, falling back to normalized finite deviations when intermediate arithmetic produces a nonfinite result. Rescale only after dividing by the population/sample divisor.
 - Three native regressions fail before correction; truly overflowing variance returns positive infinity, and nonfinite samples continue to propagate NaN.
+
+
+## Floating standard deviation loses finite roots through variance
+
+- Confirmed on the variance-fixed source: population/sample standard deviation returns infinity for finite1e308 roots, and zero for finite1e-200 roots. Four native regressions fail before this correction.
+- For overflowing or zero intermediate variance, take the normalized square root before restoring scale. Retain ordinary paths and empty/singleton behavior.
