@@ -975,9 +975,14 @@ function setupQuickActions() {
       } catch {
         draftPersisted = false;
       }
-      draftChanged = false;
+      draftChanged = !draftPersisted;
       draftReady = true;
-      showToast("Editor and saved draft cleared", "info");
+      if (draftPersisted) showToast("Editor and saved draft cleared", "info");
+      else
+        showToast(
+          "Editor cleared, but the saved draft could not be removed and may return on reload.",
+          "warning",
+        );
     }
   });
 
