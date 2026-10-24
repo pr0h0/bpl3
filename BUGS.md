@@ -8499,4 +8499,4 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 ## Arc cosine loses endpoint accuracy through subtraction
 
 - Confirmed native O3 at x=0.999999999999: `Math.acos` differs from the platform result by about 8.25e-12 relatively. Computing pi/2 minus asin cancels significant digits near +1.
-- Three native endpoint cases still fail after the separate asin fix; a direct factored-root atan2 formula is pending.
+- Fixed with a direct factored-root `atan2` formula instead of subtracting angles. Three endpoint regressions fail on the asin-fixed parent and pass after correction; the full inverse-trig set covers valid values, domain failures, endpoints, signed zero and NaN.

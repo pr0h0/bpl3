@@ -159,7 +159,11 @@ struct Math {
     }
 
     frame acos(x: float) ret float {
-        return (PI / 2.0) - Math.asin(x);
+        if ((x > 1.0) || (x < -1.0)) {
+            return sqrt(-1.0);
+        }
+        # Avoid subtracting nearly equal angles when x is close to +1.
+        return Math.atan2(sqrt((1.0 - x) * (1.0 + x)), x);
     }
 
     /#
