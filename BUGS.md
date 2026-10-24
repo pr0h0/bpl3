@@ -8562,3 +8562,31 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Confirmed native O3: six samples of 1.7976931348623157e308 and one of 1.7976931348623155e308 produce infinity. The exact positive harmonic mean must lie between those finite input values.
 - Fixed by tracking the largest sample and constraining the final scaled product to the valid input interval. Existing scaled accumulation, nonfinite and input-order validation conventions are preserved. Three native cases and two hosted Wasm cases fail on the geometric-corrected parent; separate controls cover input order, infinities, identical values and mixed scales.
+
+
+## QoL: stale completion options and language-hook lint warnings
+
+Confirmed formatter/configuration flags were absent from shell completion and
+L001 warned on valid operator names. Both shipped/embedded shell scripts now
+share generated content with parity coverage. Naming lint accepts defined hooks;
+warning failure remains default with an explicit opt-out.
+
+## QoL: editor document and filesystem lifecycle
+
+Source review confirmed filesystem notifications did not invalidate imports,
+Run did not save dirty documents, diagnostics lacked debounce/stale-result
+protection, and formatting failures appeared only in logs. Filesystem batches now
+invalidate caches and revalidate live buffers; Run awaits save, validation cancels
+obsolete work, close clears state, and formatting failures notify once.
+
+## QoL: documentation output silently replaces existing files
+
+An isolated CLI reproduction overwrote handwritten docs.md and emitted an
+absolute machine path. Existing output now requires --force and module labels
+are relative to the input directory. Public-only output is an explicit option.
+
+## QoL: playground example switching discards edited code
+
+Example selection replaced the editor without preserving draft source/input/args.
+Versioned local drafts restore on reload, edited example switches confirm, reset
+clears stored drafts, and denied storage leaves editing usable with a warning.
