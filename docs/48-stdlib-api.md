@@ -206,6 +206,12 @@ Complex number arithmetic.
 - `c.sin() ret Complex`
 - `c.cos() ret Complex`
 
+`Complex.sqrt()` computes the principal root in scaled Cartesian coordinates,
+avoiding an overflowing intermediate magnitude. It preserves signed-zero
+branch-cut directions and derives the smaller output from the original imaginary
+component so mixed scales do not erase a representable result. Infinities and
+NaNs are handled explicitly.
+
 `Complex.log()` computes its real part without materializing the magnitude,
 avoiding intermediate overflow for large finite components and preserving
 small logarithmic corrections near unit magnitude. Its imaginary part is the

@@ -8489,7 +8489,8 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 ## Complex square root overflows a representable result
 
 - Confirmed native O3: the square root of `(largest finite, largest finite)` returns `(inf, inf)`, although both root components are finite. The polar implementation materializes an overflowing magnitude before taking its square root. It also leaves a spurious nonzero real component for `sqrt(-4+0i)`.
-- Finite scaling, axis/signed-zero and nonfinite regression coverage and correction in progress.
+- Fixed with an even-exponent scaled Cartesian formula. Restore the dominant root component before deriving the minor component from the original imaginary input, preserving tiny represented components. Handle axes, signed zero, infinities and NaNs explicitly.
+- All 22 native cases pass after correction; 14 fail before it, covering finite extremes, subnormals, axis residue, mixed magnitudes and nonfinite classifications.
 
 ## Inverse trigonometric functions accept out-of-domain input
 
