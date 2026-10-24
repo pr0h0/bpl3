@@ -178,8 +178,8 @@ struct Math {
         one. That series is about 0.0616 radians, or 3.5 degrees, wrong at
         x = 1, and switching to the identity just past one reversed the sign of
         that error, so the result jumped by roughly 0.123 radians across an
-        input change of 1e-12. asin, acos, atan2, and complex phase are all
-        built on this function and inherited both problems.
+        input change of 1e-12. Former asin, acos, atan2, and complex-phase
+        implementations depended on this helper and inherited those errors.
     #/
     frame atan(x: float) ret float {
         return atan(x);
