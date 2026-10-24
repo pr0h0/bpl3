@@ -15,6 +15,7 @@
 import * as AST from "../../common/AST";
 import { formatFloatingPointLiteral } from "./FloatingPointLiteral";
 import { RTTI } from "../../middleend/RTTI";
+import { getPrimitiveType } from "../../common/PrimitiveTypes";
 import { CallExpressionGenerator } from "./CallExpressionGenerator";
 
 export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
@@ -1609,46 +1610,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
   }
 
   protected getCanonicalPrimitiveName(name: string): string {
-    switch (name) {
-      case "int":
-        return "i32";
-      case "i32":
-        return "i32";
-      case "uint":
-        return "u32";
-      case "u32":
-        return "u32";
-      case "long":
-        return "i64";
-      case "i64":
-        return "i64";
-      case "ulong":
-        return "u64";
-      case "u64":
-        return "u64";
-      case "short":
-        return "i16";
-      case "i16":
-        return "i16";
-      case "ushort":
-        return "u16";
-      case "u16":
-        return "u16";
-      case "char":
-        return "i8";
-      case "uchar":
-        return "u8";
-      case "u8":
-        return "u8";
-      case "i8":
-        return "i8";
-      case "bool":
-        return "bool";
-      case "i1":
-        return "bool";
-      default:
-        return name;
-    }
+    return getPrimitiveType(name)?.canonicalName ?? name;
   }
 
   protected areTypesSemanticallyEqual(

@@ -51,6 +51,8 @@ the same rules as imported unqualified names. Qualified enum-variant names such
 as `types.Color.Red` continue to select a variant by its tag.
 Static inheritance checks do not override a failed exact comparison merely
 because two targets share a raw type name.
+Primitive aliases share their canonical identity: `float`, `f64` and `double`
+name the same floating type, while `f32` remains distinct.
 
 ## Advanced Usage
 

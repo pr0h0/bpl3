@@ -8331,3 +8331,13 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   checks for element types, callback signatures and generic arguments.
 - Six native regression cases fail before correction. Each first verifies that
   the matching array shape is accepted, then rejects the different length.
+
+
+## Query primitive normalization omitted floating aliases
+
+- Resolving query targets exposed a local primitive-name table that omitted
+  `float` and `f64`. Generic bindings retained those spellings while the target
+  resolved to `double`, so the existing type-reflection example stopped matching.
+- Use the shared primitive metadata for query identity rather than a partial
+  table. Native regressions cover `float`, `f64`, `double` and `f32`; the first
+  two fail before correction and the existing canonical forms pass.
