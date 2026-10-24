@@ -8,6 +8,7 @@ extern atan(x: float) ret float;
 extern atan2(y: float, x: float) ret float;
 extern fmod(x: float, y: float) ret float;
 extern log10(x: float) ret float;
+extern log2(x: float) ret float;
 
 export [Math];
 
@@ -203,7 +204,7 @@ struct Math {
     }
 
     frame log2(x: float) ret float {
-        return log(x) / LN2;
+        return log2(x);
     }
 
     # Utility functions

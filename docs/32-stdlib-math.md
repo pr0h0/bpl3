@@ -57,8 +57,8 @@ whose nonnegative magnitude cannot fit in the existing `int` result type.
 | `Math.mod(x: float, y: float) ret float`            | Floating-point modulo |
 | `Math.lerp(a: float, b: float, t: float) ret float` | Linear interpolation  |
 
-`Math.log10` uses the platform base-10 logarithm directly, avoiding accuracy loss
-from dividing rounded natural logarithms. Zero inputs return negative infinity;
+`Math.log10` and `Math.log2` use the platform base-specific logarithms directly,
+avoiding accuracy loss from dividing rounded natural logarithms. Zero inputs return negative infinity;
 negative inputs and NaN produce NaN, and positive infinity stays positive infinity.
 
 ## Trigonometric Functions
