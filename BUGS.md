@@ -5280,7 +5280,7 @@ Found by comparing against Python's `statistics.fmean` over a grid of samples ra
 
 **Observed (2026-09-19)**: A zero remainder was returned straight from the platform remainder, which gives it the sign of the dividend. Under the floor convention this function implements, a zero takes the sign of the divisor, so ten of the grid cases disagreed with Python.
 
-**Resolution**: A zero remainder is returned as `0.0 * y`, which carries the divisor's sign.
+**Resolution**: A zero remainder uses `Math.copysign(0.0, y)` to carry the divisor's sign, including infinite divisors. The original `0.0 * y` correction produced NaN for infinity.
 
 ### BUG-408: Integer gcd and lcm silently wrap
 
@@ -8540,3 +8540,9 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Ubuntu PR79 CI and a local integration run fail because the example expects the old imaginary signs for sin(0) and cos(0).
 - Updated only the two expected output lines to match the corrected implementation and the platform C reference: sin(0) = (0, +0), cos(0) = (1, -0).
+
+## Floor modulo of zero by infinity becomes NaN
+
+- Confirmed with native O3: Math.mod(0.0, +infinity) and Math.mod(0.0, -infinity) both return NaN.
+- The zero-remainder branch uses 0.0 * divisor to copy its sign; multiplying zero by infinity is invalid. Copying the sign directly should preserve the documented zero remainder.
+- Fixed by copying the divisor sign directly with the existing copysign intrinsic. Four signed-zero/infinite-divisor cases fail before correction; all five native O0/O3 regression cases pass afterward, including ordinary and invalid-domain controls.

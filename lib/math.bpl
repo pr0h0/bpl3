@@ -281,8 +281,9 @@ struct Math {
         if (remainder == 0.0) {
             # A zero remainder takes the sign of the divisor under this
             # convention; the platform remainder gives it the sign of the
-            # dividend instead.
-            return 0.0 * y;
+            # dividend instead. Copy the sign directly: zero times an
+            # infinite divisor would produce NaN.
+            return Math.copysign(0.0, y);
         }
         if ((remainder < 0.0) != (y < 0.0)) {
             return remainder + y;
