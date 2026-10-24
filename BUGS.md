@@ -8511,4 +8511,4 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 ## Base logarithms lose exact power results
 
 - Confirmed native O3: `Math.log10(1000)` returns 2.9999999999999996 instead of 3; `Math.log2(2^1000)` returns 1000.0000000000001 instead of 1000. Dividing a rounded natural logarithm by a rounded base constant loses accuracy.
-- Separate platform-log10/log2 corrections and power/domain regression tests pending.
+- Base-10 logarithms now call the platform `log10` directly. Six exact-power regressions fail before correction and pass after, with ordinary/limit/domain controls preserved. The binary-logarithm correction remains separate and pending.

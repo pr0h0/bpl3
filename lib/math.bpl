@@ -7,6 +7,7 @@ import sqrt, sin, cos, pow, exp, log, floor, ceil, round, fabs, minnum, maxnum, 
 extern atan(x: float) ret float;
 extern atan2(y: float, x: float) ret float;
 extern fmod(x: float, y: float) ret float;
+extern log10(x: float) ret float;
 
 export [Math];
 
@@ -198,7 +199,7 @@ struct Math {
 
     # Logarithmic functions
     frame log10(x: float) ret float {
-        return log(x) / LN10;
+        return log10(x);
     }
 
     frame log2(x: float) ret float {
