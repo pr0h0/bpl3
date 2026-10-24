@@ -8562,3 +8562,8 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Confirmed native O3: six samples of 1.7976931348623157e308 and one of 1.7976931348623155e308 produce infinity. The exact positive harmonic mean must lie between those finite input values.
 - Fixed by tracking the largest sample and constraining the final scaled product to the valid input interval. Existing scaled accumulation, nonfinite and input-order validation conventions are preserved. Three native cases and two hosted Wasm cases fail on the geometric-corrected parent; separate controls cover input order, infinities, identical values and mixed scales.
+
+## Algorithm.average overflows before dividing finite float samples
+
+- Confirmed native O3 on staging c70be811: an Array<float> containing [1e308, 1e308] averages to infinity instead of 1e308. The wrapper still forms an ordinary sum before division and also loses small terms between cancelling large values.
+- Fixed with compensated/scaled getter-based accumulation, retaining logical inherited getters without a temporary array. Eleven native and two hosted Wasm cases pass at O0/O3; five native and two hosted cases fail on the original parent. Integer/empty/nonfinite behavior and input contents remain covered. Existing browser imports suffice.
