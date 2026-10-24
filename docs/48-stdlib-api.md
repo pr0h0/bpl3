@@ -134,12 +134,19 @@ Statistical functions for numerical analysis.
 - `Stats.correlation(dataX: *float, dataY: *float, length: int) ret float` - Pearson correlation
 - `Stats.median(data: *int, length: int) ret float` - Median value
 - `Stats.median(data: *float, length: int) ret float`
+- `Stats.geometricMean(data: *float, length: int) ret float` - Geometric mean of positive samples
 
 Floating `Stats.mean` uses compensated summation to limit cancellation error.
 When the unscaled sum may overflow, it divides samples by the final count before
 accumulation. A bounded normalized fallback handles sums that still overflow
 because of rounding near the finite limit. Null or empty input returns zero;
 nonfinite inputs retain ordinary sum semantics.
+
+`Stats.geometricMean` uses compensated logarithm accumulation and keeps finite
+positive results within the input bounds. Identical positive samples return that
+sample exactly. Null or empty input returns zero. Any nonpositive sample returns
+zero, including when a NaN is also present. Otherwise NaNs propagate, and positive
+infinity produces an infinite mean.
 
 Floating variance calculations center samples before updating the mean, preserving
 small spreads around large offsets. The scaled path also centers differences
