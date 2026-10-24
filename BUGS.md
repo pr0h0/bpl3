@@ -8484,3 +8484,19 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed native O3: with S=largest finite float, `Stats.skewness([S,-S,-S])` and `Stats.kurtosis([S,-S,-S,-S])` both return positive infinity. Population coefficients are finite: `1/sqrt(2)` and excess kurtosis `-2/3`. Raw sample-minus-mean subtraction overflows before division by finite standard deviation.
 - Five skewness and five kurtosis native cases fail before correction: extreme signs/order, subnormal spread and close values at a large offset. Ordinary/constant/empty/nonfinite controls pass before correction.
 - Skewness now uses a private standardized-moment helper with centered/scaled samples and compensated mean/moment accumulation. Kurtosis now separately uses the fourth-moment path and applies the excess correction only for nonconstant samples. Existing minimum-length and constant-axis zero results are preserved.
+
+
+## Complex square root overflows a representable result
+
+- Confirmed native O3: the square root of `(largest finite, largest finite)` returns `(inf, inf)`, although both root components are finite. The polar implementation materializes an overflowing magnitude before taking its square root. It also leaves a spurious nonzero real component for `sqrt(-4+0i)`.
+- Finite scaling, axis/signed-zero and nonfinite regression coverage and correction in progress.
+
+## Inverse trigonometric functions accept out-of-domain input
+
+- Reconfirmed the original audit finding: `Math.asin(2)` returns pi/2 and `Math.acos(1.5)` returns zero instead of NaN. `asin` clamps its input rather than rejecting values outside [-1,1]; `acos` inherits this behavior.
+- Fixed `asin` with explicit domain rejection and a factored-root `atan2` identity. `acos` inherits NaN for out-of-domain input. Four native domain regressions fail before correction and pass after; endpoints, signed zero, valid samples and NaN controls pass.
+
+## Arc cosine loses endpoint accuracy through subtraction
+
+- Confirmed native O3 at x=0.999999999999: `Math.acos` differs from the platform result by about 8.25e-12 relatively. Computing pi/2 minus asin cancels significant digits near +1.
+- Three native endpoint cases still fail after the separate asin fix; a direct factored-root atan2 formula is pending.
