@@ -15,6 +15,7 @@ const adapter = require("../playground/frontend/wasmHostAdapter.js") as {
 };
 const wasmTest = findWasmLinker() ? test : test.skip;
 
+/** Build a hosted BPL application and load its module, removing temporary files. */
 async function compile(
   source: string,
   optimize: number,
