@@ -13,6 +13,7 @@ export class DocumentationGenerator {
   private root = "";
   private publicOnly = false;
 
+  /** Render the input and relative imports with portable labels and optional export filtering. */
   public generate(
     filePath: string,
     options: { publicOnly?: boolean } = {},
@@ -25,6 +26,7 @@ export class DocumentationGenerator {
     return this.output.join("\n");
   }
 
+  /** Visit a module once, then render its selected top-level declarations. */
   private processFile(filePath: string) {
     const resolvedFilePath = this.resolveDocumentationFilePath(filePath);
     if (this.visitedFiles.has(resolvedFilePath)) return;
@@ -181,6 +183,7 @@ export class DocumentationGenerator {
     throw new Error(`Documentation input not found: ${filePath}`);
   }
 
+  /** Flatten nested destructuring so export selection follows individual bindings. */
   private globalBindingNames(global: AST.VariableDecl): string[] {
     if (typeof global.name === "string") return [global.name];
     const flatten = (targets: AST.DestructuringPattern[]): string[] =>
@@ -190,6 +193,7 @@ export class DocumentationGenerator {
     return flatten(global.name);
   }
 
+  /** Render only the selected global bindings while retaining declaration documentation. */
   private documentGlobal(
     global: AST.VariableDecl,
     exportedNames?: ReadonlySet<string>,

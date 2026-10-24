@@ -4,7 +4,9 @@ export class ValidationScheduler {
     string,
     { timer?: ReturnType<typeof setTimeout> }
   >();
+  /** Choose the quiet period before analyzing the latest edit. */
   constructor(private readonly delayMs = 150) {}
+  /** Replace pending work; isCurrent also guards work already awaiting settings. */
   schedule(
     uri: string,
     work: (isCurrent: () => boolean) => Promise<void>,
@@ -22,6 +24,7 @@ export class ValidationScheduler {
         });
     }, this.delayMs);
   }
+  /** Cancel a timer and invalidate an in-flight task for this document. */
   cancel(uri: string): void {
     const ticket = this.pending.get(uri);
     if (ticket?.timer) clearTimeout(ticket.timer);

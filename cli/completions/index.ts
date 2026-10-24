@@ -19,6 +19,7 @@ export const COMMON_TARGET_TRIPLES = [
 export function getBashCompletionScript(): string {
   return bashCompletion;
 }
+/** Return the generated Zsh script used when installed scripts are unavailable. */
 export function getZshCompletionScript(): string {
   return zshCompletion;
 }

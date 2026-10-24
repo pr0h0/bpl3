@@ -8590,3 +8590,16 @@ are relative to the input directory. Public-only output is an explicit option.
 Example selection replaced the editor without preserving draft source/input/args.
 Versioned local drafts restore on reload, edited example switches confirm, reset
 clears stored drafts, and denied storage leaves editing usable with a warning.
+
+## QoL review: argument boundaries, public globals, completions and draft state
+
+PR review confirmed that project Run could reinterpret a pre-delimiter explicit
+file as a program argument, public-only docs omitted exported destructured globals,
+and Bash completion excluded directory inputs and docs paths. Prefix option parsing
+now distinguishes operands from option values, export filtering follows individual
+global bindings, and completion retains valid source paths and directories.
+
+Untouched playground examples were restored as edited drafts, and a failed saved
+draft removal falsely reported success. Drafts now retain edited state and failed
+removal leaves an unpersisted change with a warning. Focused CLI/docs/completion
+and real Chromium draft/reset regressions cover these corrected behaviors.

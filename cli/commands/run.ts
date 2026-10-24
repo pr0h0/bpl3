@@ -92,7 +92,10 @@ export function registerRunCommand(program: Command): void {
 function isProjectProgramArgument(command: Command): boolean {
   const delimiter = process.argv.indexOf("--");
   if (delimiter < 0) return false;
-  const parser = new Command().helpOption(false).allowUnknownOption().exitOverride();
+  const parser = new Command()
+    .helpOption(false)
+    .allowUnknownOption()
+    .exitOverride();
   const seen = new Set<string>();
   for (let owner: Command | null = command; owner; owner = owner.parent) {
     for (const option of owner.options) {

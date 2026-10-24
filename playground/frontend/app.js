@@ -6,6 +6,7 @@ let draftChanged = false;
 let draftPersisted = false;
 let restoredDraft = false;
 let draftStorageWarning = false;
+/** Persist editor inputs while distinguishing edits from untouched examples. */
 function persistDraft(edited = true) {
   if (!draftReady || !editor) return;
   draftChanged = edited !== false;
@@ -27,6 +28,7 @@ function persistDraft(edited = true) {
     );
   }
 }
+/** Restore a validated local draft without marking a clean example as edited. */
 function restoreDraft() {
   let draft;
   try {

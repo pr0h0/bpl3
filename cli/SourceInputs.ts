@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 
+/** Compile root-relative *, ** and ? patterns without interpreting regex syntax. */
 function globRegex(pattern: string): RegExp {
   let result = "^";
   for (let i = 0; i < pattern.length; i++) {
