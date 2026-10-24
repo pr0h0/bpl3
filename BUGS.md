@@ -8603,3 +8603,8 @@ Untouched playground examples were restored as edited drafts, and a failed saved
 draft removal falsely reported success. Drafts now retain edited state and failed
 removal leaves an unpersisted change with a warning. Focused CLI/docs/completion
 and real Chromium draft/reset regressions cover these corrected behaviors.
+
+## Algorithm.average overflows before dividing finite float samples
+
+- Confirmed native O3 on staging c70be811: an Array<float> containing [1e308, 1e308] averages to infinity instead of 1e308. The wrapper still forms an ordinary sum before division and also loses small terms between cancelling large values.
+- Fixed with compensated/scaled getter-based accumulation, retaining logical inherited getters without a temporary array. Eleven native and two hosted Wasm cases pass at O0/O3; five native and two hosted cases fail on the original parent. Integer/empty/nonfinite behavior and input contents remain covered. Existing browser imports suffice.
