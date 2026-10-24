@@ -8278,3 +8278,88 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   string check. Preserve scalar string rejection and existing pointer/layout
   conversion rules. Four diagnostic regressions failed before correction,
   while two pointer-alias controls passed; no converted pointer is dereferenced.
+
+
+## Composite type-query targets were treated as named types
+
+- `match<(int,int)>(value)` and callback-type targets accessed a nonexistent
+  name and threw an internal TypeError. `is` accepted such targets during checking
+  but made the same assumption during generation.
+- Discriminate target kinds before interpreting enum paths and pass composite
+  types through the existing exact-type comparison. Lambda signatures require
+  the same return/parameter comparisons as function signatures.
+- Regressions cover tuples, nested tuples, functions and lambdas in both syntaxes,
+  plus normal native exact/mismatched comparisons.
+
+
+## Regular type queries did not fully validate target types
+
+- `match<variable>(value)` and function-name targets passed checking, while
+  generic argument counts and unknown generic arguments were not validated.
+- `is` expressions also accepted composite targets containing undefined types.
+- Use the shared known-type and resolution checks for regular targets while
+  preserving existing unknown-plain-type and enum-path query diagnostics.
+- Seven checker regressions fail before correction; existing primitive, generic
+  and composite query controls remain supported.
+
+
+## Qualified type-query targets were confused with enum variants
+
+- Every dotted query target was interpreted as an enum-and-variant path, so
+  ordinary imported types such as `types.Record` failed in both query syntaxes.
+- Recognize exported module type symbols before falling back to enum paths,
+  and retain the resolved target for generation. Namespace lookup uses the
+  module's own exported scope rather than a parent-scope fallback.
+- Regressions cover struct, primitive/tuple aliases and enum type targets,
+  preserve distinct module identities, and retain existing enum-variant checks.
+
+## Static query inheritance fallback ignored failed exact type comparisons
+
+- Queries matched `Box<int>` with `Box<bool>` and arrays of different lengths
+  because raw-name equality was accepted as inheritance after exact comparison
+  had already failed.
+- Restrict the static inheritance fallback to distinct non-array type names;
+  existing genuine inheritance matches remain available.
+- Four native regression cases fail before correction, with one passing
+  inheritance control. Matching forms are checked before the mismatches.
+
+## Composite query comparisons omitted array dimensions
+
+- Tuple, function and lambda array queries compared only their element or
+  signature types, so different array lengths incorrectly matched.
+- Compare dimensions before kind-specific type identity, retaining the existing
+  checks for element types, callback signatures and generic arguments.
+- Six native regression cases fail before correction. Each first verifies that
+  the matching array shape is accepted, then rejects the different length.
+
+
+## Query primitive normalization omitted floating aliases
+
+- Resolving query targets exposed a local primitive-name table that omitted
+  `float` and `f64`. Generic bindings retained those spellings while the target
+  resolved to `double`, so the existing type-reflection example stopped matching.
+- Use the shared primitive metadata for query identity rather than a partial
+  table. Native regressions cover `float`, `f64`, `double` and `f32`; the first
+  two fail before correction and the existing canonical forms pass.
+
+
+## Query alias expansion discarded use-site modifiers
+
+- A generic binding such as `Number[2]` expanded the alias body but lost the
+  array suffix, so it failed to match the equivalent `int[2]` target. Nested
+  arrays and tuple/callback aliases had the same issue.
+- Preserve alias use-site dimensions, pointer depth and value qualifiers using
+  the existing modifier rules, including outer-dimension order.
+- Six native regressions fail before correction across scalar, generic, tuple,
+  function, lambda and nested-array aliases. They verify both query spellings
+  and reject a different shape without dereferencing converted pointers.
+
+## Class-array queries reached scalar runtime class checks
+
+- After an array shape mismatch, both runtime class-check branches selected
+  scalar object operations from the element's class name. Arrays of object
+  values or references therefore failed to compile.
+- Require scalar shapes for both class-check branches, while keeping whole-array
+  exact comparisons and individual-object runtime checks unchanged.
+- Four normal class-array regressions fail compilation before correction, with
+  a passing individual-object control. Invalid generated programs are not run.
