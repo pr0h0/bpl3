@@ -8519,3 +8519,19 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed on the initial PR78 head: a hosted Math.log10/log2 program previously instantiated with only an `env.log` math provider, but the changed code requires unavailable `env.log10` and `env.log2`. The bundled freestanding runtime already lacks natural logarithms: the parent fails on `log`, while the initial head fails on the new symbols.
 - Fixed with Wasm lowering scoped to the private declarations in the configured standard-library Math module. Retain the prior natural-log provider and precision while native targets use base-specific calls. Ordinary user extern bindings are preserved.
 - Four hosted-application regressions fail before correction and pass at O0/O3 after; two user-extern controls also pass. The pre-existing bundled-runtime math limitation is now explicit in the guides.
+
+
+## Complex exponential loses finite components to intermediate overflow
+
+- Confirmed native O3: `exp(710 + i)` returns `(inf, inf)`; the platform C complex function retains a finite real part, approximately 1.2070325234545281e308.
+- Fixed with bounded exponential products in overflow/underflow tails and explicit zero-axis/nonfinite handling. The ordinary finite path keeps one exponential evaluation. Thirteen C-oracle cases pass; nine fail on the initial source. Existing math-provider dependencies are retained.
+
+## Complex sine erases small imaginary inputs
+
+- Confirmed native O3: `sin(i * 1e-300)` returns zero instead of imaginary 1e-300. Subtracting two rounded exponentials erases the small term.
+- Stable hyperbolic products and finite-extreme regressions are pending.
+
+## Complex cosine overflows a representable result
+
+- Confirmed native O3: `cos(i * 710)` returns `(inf, NaN)` instead of approximately `(1.1169973830808555e308, -0)`. Adding exponentials overflows before division by two.
+- Scaled hyperbolic products and signed-axis regressions are pending.

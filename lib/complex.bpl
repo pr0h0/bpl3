@@ -11,6 +11,15 @@ extern frexp(value: float, exponent: *int) ret float;
 extern ldexp(value: float, exponent: int) ret float;
 extern log1p(value: float) ret float;
 
+# Multiply by a weighted exponential without first overflowing its magnitude.
+# Four equal factors keep every intermediate finite when the result fits.
+# The negative tail also avoids rounding a subnormal exponential before use.
+frame complexExpProduct(exponent: float, factor: float, weight: float) ret float {
+    if (factor == 0.0) { return factor; }
+    local quarter: float = Math.exp(exponent * 0.25);
+    return (((factor * (quarter * weight)) * quarter) * quarter) * quarter;
+}
+
 struct Complex {
     real: float,
     imag: float,
@@ -250,8 +259,23 @@ struct Complex {
 
     # Calculate e^z = e^a * (cos(b) + i*sin(b))
     frame exp(this: *Complex) ret Complex {
-        local ea: float = Math.exp(this.real);
-        return Complex.new(ea * Math.cos(this.imag), ea * Math.sin(this.imag));
+        if (this.imag == 0.0) {
+            return Complex.new(Math.exp(this.real), this.imag);
+        }
+        if (Math.isInfinite(this.real)
+            && (Math.isNan(this.imag) || Math.isInfinite(this.imag))) {
+            if (this.real < 0.0) {
+                return Complex.new(0.0, Math.copysign(0.0, this.imag));
+            }
+            return Complex.new(this.real, this.imag - this.imag);
+        }
+        local radial: float = Math.exp(this.real);
+        if (!Math.isInfinite(radial) && (this.real >= -700.0)) {
+            return Complex.new(radial * Math.cos(this.imag), radial * Math.sin(this.imag));
+        }
+        return Complex.new(
+            complexExpProduct(this.real, Math.cos(this.imag), 1.0),
+            complexExpProduct(this.real, Math.sin(this.imag), 1.0));
     }
 
     # Calculate the natural logarithm ln(z) = ln|z| + i*arg(z)
