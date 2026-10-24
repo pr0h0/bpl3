@@ -24,10 +24,21 @@ frame statsScaledVariance(data: *float, length: int, divisor: int) ret (float, f
     if (scale == 0.0) {
         return (0.0, 1.0);
     }
+    local origin: float = *data;
     local running: float = 0.0;
     local squares: float = 0.0;
     loop (local i: int = 0; i < length; i = i + 1) {
-        local sample: float = *(data + i) / scale;
+        local sample: float = *(data + i);
+        local difference: float = sample - origin;
+        if (Math.isInfinite(difference)) {
+            # Opposite extremes can overflow subtraction; normalized operands
+            # remain bounded even when their unscaled difference does not.
+            sample = sample / scale - origin / scale;
+        } else {
+            # Close inputs have an accurately represented difference. Dividing
+            # them first would lose that small gap near a large common offset.
+            sample = difference / scale;
+        }
         local delta: float = sample - running;
         running = running + delta / cast<float>(i + 1);
         squares = squares + delta * (sample - running);
