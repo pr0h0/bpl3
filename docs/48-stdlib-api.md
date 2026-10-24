@@ -135,6 +135,7 @@ Statistical functions for numerical analysis.
 - `Stats.median(data: *int, length: int) ret float` - Median value
 - `Stats.median(data: *float, length: int) ret float`
 - `Stats.geometricMean(data: *float, length: int) ret float` - Geometric mean of positive samples
+- `Stats.harmonicMean(data: *float, length: int) ret float` - Harmonic mean of positive samples
 
 Floating `Stats.mean` uses compensated summation to limit cancellation error.
 When the unscaled sum may overflow, it divides samples by the final count before
@@ -147,6 +148,12 @@ positive results within the input bounds. Identical positive samples return that
 sample exactly. Null or empty input returns zero. Any nonpositive sample returns
 zero, including when a NaN is also present. Otherwise NaNs propagate, and positive
 infinity produces an infinite mean.
+
+`Stats.harmonicMean` scales reciprocal terms by the smallest sample. For finite
+positive samples, its result stays between their minimum and maximum. Null or
+empty input returns zero. Validation runs in input order: a nonpositive value
+returns zero, while a NaN encountered earlier returns NaN. An all-positive-infinity
+group returns positive infinity.
 
 Floating variance calculations center samples before updating the mean, preserving
 small spreads around large offsets. The scaled path also centers differences

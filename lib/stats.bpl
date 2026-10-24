@@ -950,6 +950,7 @@ struct Stats {
         # one and at least one term is exactly one, so the sum is between one
         # and the count.
         local smallest: float = 0.0;
+        local largest: float = 0.0;
         local scan: int = 0;
         loop (scan < length) {
             local sample: float = *(data + scan);
@@ -960,6 +961,7 @@ struct Stats {
             if ((smallest == 0.0) || (sample < smallest)) {
                 smallest = sample;
             }
+            if (sample > largest) { largest = sample; }
             scan = scan + 1;
         }
 
@@ -974,10 +976,15 @@ struct Stats {
             i = i + 1;
         }
 
-        # Divide before scaling back: the count over the sum is never larger
-        # than the count, so this cannot leave the range, while forming
-        # count * smallest first could.
-        return (cast<float>(length) / scaledSum) * smallest;
+        # Divide before scaling back so count * smallest cannot overflow
+        # first. The bounded dimensionless factor can still round upward
+        # enough to require clamping the final product below.
+        local result: float = (cast<float>(length) / scaledSum) * smallest;
+        # Rounded ratios may push this product past the finite limit, even
+        # when every sample is finite. Positive means stay within the inputs.
+        if (result > largest) { return largest; }
+        if (result < smallest) { return smallest; }
+        return result;
     }
 
     # Calculate the skewness of a float array

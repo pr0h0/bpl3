@@ -8557,3 +8557,8 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Confirmed native O3: Stats.geometricMean of 70 copies of the largest finite float returns infinity, even though the exact result is that same finite value. Repeatedly accumulating rounded logarithms pushes the average outside the input range.
 - Fixed with compensated finite logarithm accumulation, exact identical-sample returns, and output clamping to the sample bounds. Nonpositive inputs still take precedence over NaNs, and NaNs over positive infinity. Twelve native and two hosted Wasm regression tests pass at O0/O3; five native cases and two hosted cases fail on the parent. Existing log/exp provider dependencies are retained.
+
+## Harmonic mean escapes finite sample bounds near the limit
+
+- Confirmed native O3: six samples of 1.7976931348623157e308 and one of 1.7976931348623155e308 produce infinity. The exact positive harmonic mean must lie between those finite input values.
+- Fixed by tracking the largest sample and constraining the final scaled product to the valid input interval. Existing scaled accumulation, nonfinite and input-order validation conventions are preserved. Three native cases and two hosted Wasm cases fail on the geometric-corrected parent; separate controls cover input order, infinities, identical values and mixed scales.
