@@ -20,8 +20,16 @@ export const LINT_JSON_ERROR_CODES = [
 export function registerLintCommand(program: Command): void {
   program
     .command("lint [files...]")
-    .description("Lint BPL source files")
+    .description("Lint BPL files, directories, or stdin (-)")
+    .option(
+      "--stdin-filepath <file>",
+      "source path for stdin diagnostics and configuration",
+    )
     .option("-v, --verbose", "enable verbose output")
+    .option(
+      "--no-fail-on-warnings",
+      "report warnings without failing (errors still fail)",
+    )
     .option("--json", "output lint diagnostics in JSON format")
     .action(
       async (files: string[], rawOptions: LintOptions, command: Command) => {

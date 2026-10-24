@@ -147,3 +147,21 @@ when true, one tab represents each indentation level and `indentWidth` supplies
 the visual tab width for comment alignment. `lineEnding` accepts `lf` (default)
 or `crlf`. Line-ending conversion applies to layout and comments, preserving
 literal payloads. Unknown option names and invalid values are errors.
+
+## Files, directories and stdin
+
+`bpl format --write src` recursively discovers `.bpl` and `.x` files. Discovery
+skips symlinks, hidden entries, dependency directories (`node_modules`,
+`bpl_modules`, `vendor`) and output directories (`build`, `dist`, `out`). An
+input directory's `.bplignore` contains root-relative glob patterns, one per line;
+blank lines and `#` comments are ignored. A trailing slash excludes a directory;
+negated patterns are not supported. Explicit file inputs override discovery
+exclusions. Each file uses its nearest formatter configuration.
+
+Pipe a buffer through `bpl format - --stdin-filepath src/main.bpl`. The virtual
+path selects configuration and diagnostic locations; it is not written.
+`--write` is rejected with stdin. `--check --json` also works with stdin or a
+directory. `bpl lint` shares directory discovery and stdin/filepath handling.
+Naming warnings still fail lint by default; `--no-fail-on-warnings` retains
+warning output while allowing success when no errors exist. Defined language
+operator and lifecycle hook names are exempt from the camelCase rule.
