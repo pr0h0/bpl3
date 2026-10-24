@@ -41,7 +41,8 @@ The `match<Type>(value)` expression always returns a `bool`:
 Composite targets use their complete type shape: tuples compare their element
 types, and function or lambda types compare their parameter and return types.
 Both `match<(int, bool)>(value)` and `value is (int, bool)` use this exact-type
-comparison. Function pointers and lambdas remain different type kinds.
+comparison. Variadic and fixed-parameter signatures remain distinct, as do
+function pointers and lambdas.
 Array dimensions are part of this comparison for named, tuple and callback
 element types; a different fixed length does not match.
 Fixed dimensions in query targets must be positive for all of these type kinds.

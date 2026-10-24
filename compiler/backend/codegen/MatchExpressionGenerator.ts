@@ -1661,6 +1661,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       (ct1.kind === "FunctionType" && ct2.kind === "FunctionType") ||
       (ct1.kind === "LambdaType" && ct2.kind === "LambdaType")
     ) {
+      if (!!ct1.isVariadic !== !!ct2.isVariadic) return false;
       if (!this.areTypesSemanticallyEqual(ct1.returnType, ct2.returnType))
         return false;
       if (ct1.paramTypes.length !== ct2.paramTypes.length) return false;
