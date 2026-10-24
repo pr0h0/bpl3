@@ -10,7 +10,15 @@ export class DocumentationGenerator {
   private visitedFiles = new Set<string>();
   private output: string[] = [];
 
-  public generate(filePath: string): string {
+  private root = "";
+  private publicOnly = false;
+
+  public generate(
+    filePath: string,
+    options: { publicOnly?: boolean } = {},
+  ): string {
+    this.root = path.dirname(path.resolve(filePath));
+    this.publicOnly = options.publicOnly ?? false;
     this.visitedFiles = new Set<string>();
     this.output = [];
     this.processFile(path.resolve(filePath));
@@ -46,7 +54,9 @@ export class DocumentationGenerator {
     // Pass 2: Generate documentation for this module
     const fileName = path.basename(resolvedFilePath);
     this.output.push(`# Module: ${fileName}`);
-    this.output.push(`*File: ${resolvedFilePath}*\n`);
+    this.output.push(
+      `*File: ${path.relative(this.root, resolvedFilePath).split(path.sep).join("/")}*\n`,
+    );
 
     // Group declarations
     const globals: AST.VariableDecl[] = [];
@@ -56,7 +66,19 @@ export class DocumentationGenerator {
     const specs: AST.SpecDecl[] = [];
     const functions: AST.FunctionDecl[] = [];
 
+    const exportedNames = new Set(
+      ast.statements.flatMap((stmt) =>
+        stmt.kind === "Export" ? stmt.items.map((item) => item.name) : [],
+      ),
+    );
     for (const stmt of ast.statements) {
+      if (
+        this.publicOnly &&
+        (!("name" in stmt) ||
+          typeof stmt.name !== "string" ||
+          !exportedNames.has(stmt.name))
+      )
+        continue;
       if (stmt.kind === "VariableDecl" && (stmt as AST.VariableDecl).isGlobal) {
         globals.push(stmt as AST.VariableDecl);
       } else if (stmt.kind === "TypeAlias") {

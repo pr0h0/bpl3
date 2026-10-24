@@ -1545,3 +1545,20 @@ structured diagnostic at the source file's line 1, column 1. AST depth failures
 point to the parsed node that crosses the limit. Split deep expressions into
 smaller expressions or helper functions. Both `check --json` and `build --json`
 return a failure with this diagnostic instead of an unlocated host stack error.
+
+## Build and run the current project
+
+`bpl build --project` and `bpl run --project` read `bpl.json` only from the current
+directory. They use `main`, then `entry`, then `index.bpl`; entries must be
+package-relative files. No parent-directory search or guessed source selection
+occurs. Do not combine `--project` with an explicit file. Program arguments that
+look like options should follow `--`, for example `bpl run --project -- --help`.
+
+## Generate documentation safely
+
+`bpl docs main.bpl -o api.md` documents the module and relative imports, including
+internal declarations by default. `--public-only` restricts top-level declarations
+to explicitly exported names in each visited module. Nonrelative package imports
+are not traversed. File labels are relative to the input module's directory.
+Existing output is preserved unless `--force` is supplied, including an explicit
+`-o` destination. JSON callers receive `BPL_DOCS_OUTPUT_EXISTS` on this refusal.
