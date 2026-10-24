@@ -143,10 +143,58 @@ frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, 
         meanY = meanY + deltaY / count;
         squaresX = squaresX + deltaX * (x - meanX);
         squaresY = squaresY + deltaY * (y - meanY);
-        products = products + deltaX * (y - meanY);
     }
     local count: float = cast<float>(length);
-    local covariance: float = products / count;
+    # Recompute the cross moment around the final means. Online updates can
+    # leave a tiny residual at exact cancellation, which rescaling amplifies.
+    local productError: float = 0.0;
+    local residualX: float = 0.0;
+    local residualY: float = 0.0;
+    local residualErrorX: float = 0.0;
+    local residualErrorY: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local x: float = *(dataX + i);
+        local y: float = *(dataY + i);
+        local differenceX: float = x - originX;
+        local differenceY: float = y - originY;
+        if (Math.isInfinite(differenceX)) {
+            x = x / scaleX - originX / scaleX;
+        } else {
+            x = differenceX / scaleX;
+        }
+        if (Math.isInfinite(differenceY)) {
+            y = y / scaleY - originY / scaleY;
+        } else {
+            y = differenceY / scaleY;
+        }
+        local centeredX: float = x - meanX;
+        local centeredY: float = y - meanY;
+        local product: float = centeredX * centeredY;
+        local nextProduct: float = products + product;
+        if (Math.abs(products) >= Math.abs(product)) {
+            productError = productError + ((products - nextProduct) + product);
+        } else {
+            productError = productError + ((product - nextProduct) + products);
+        }
+        products = nextProduct;
+        local nextX: float = residualX + centeredX;
+        if (Math.abs(residualX) >= Math.abs(centeredX)) {
+            residualErrorX = residualErrorX + ((residualX - nextX) + centeredX);
+        } else {
+            residualErrorX = residualErrorX + ((centeredX - nextX) + residualX);
+        }
+        residualX = nextX;
+        local nextY: float = residualY + centeredY;
+        if (Math.abs(residualY) >= Math.abs(centeredY)) {
+            residualErrorY = residualErrorY + ((residualY - nextY) + centeredY);
+        } else {
+            residualErrorY = residualErrorY + ((centeredY - nextY) + residualY);
+        }
+        residualY = nextY;
+    }
+    # Correct for the rounded means using compensated centered residual sums.
+    local covariance: float = ((products + productError)
+        - (residualX + residualErrorX) * ((residualY + residualErrorY) / count)) / count;
     # Original normalized samples lie in [-1,1], bounding population covariance.
     if (covariance > 1.0) {
         covariance = 1.0;

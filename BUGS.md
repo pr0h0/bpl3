@@ -8457,3 +8457,10 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed: identical +/-1e308 inputs produce NaN instead of1; covariance and the product of standard deviations both overflow. Tiny data also loses its dimensionless result through underflow.
 - Compute the coefficient directly from shared normalized moments and bound floating roundoff to [-1,1], preserving empty/constant and nonfinite behavior.
 - Five native regressions fail before correction on the covariance-fixed source, spanning huge, tiny, negative, partial, and subnormal inputs.
+
+
+## Joint-moment cancellation is amplified by covariance rescaling
+
+- Confirmed before merging the joint-statistics PR: symmetric orthogonal samples at1e154 produced -3.7007434154171889e291 instead of zero covariance. Online cross-moment roundoff was amplified when restoring units.
+- Recompute the cross moment around final normalized means using compensated accumulation, correcting for rounded mean residuals before rescaling.
+- Two native regressions fail before correction at1e154 and1e308. The prior reviewed head is superseded and requires fresh CI/review.

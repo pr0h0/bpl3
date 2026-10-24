@@ -137,7 +137,9 @@ variance overflows or becomes subnormal (including zero), retaining representabl
 roots.
 
 `Stats.covariance` centers and scales both axes independently to preserve finite
-results across large offsets and magnitudes. `Stats.correlation` uses normalized
+results across large offsets and magnitudes. Centered products are recomputed
+with compensated accumulation and a rounded-mean correction before rescaling,
+limiting cancellation errors. `Stats.correlation` uses normalized
 joint moments directly, keeping finite coefficients within [-1, 1] without an
 overflowing or underflowing product of dimensional standard deviations. Existing
 zero results for empty or constant-axis inputs are preserved.
