@@ -127,3 +127,17 @@ test("project builds use only the cwd manifest, with main before entry", () =>
     writeFileSync(join(dir, "bpl.json"), '{"main":"../escape.bpl"}');
     expect(run(["build", "--project", "--emit", "tokens"]).status).toBe(1);
   }));
+
+test("project run rejects a file before the delimiter but forwards program operands after it", () => fixture((dir, run) => {
+  writeFileSync(join(dir, "bpl.json"), '{"main":"main.bpl"}');
+  writeFileSync(join(dir, "main.bpl"), 'extern printf(fmt:string,...); frame main(argc:int, argv:**char) ret int { if(argc < 2){return 1;} printf("%s",argv[1]); return 0; }');
+  const conflict = run(["run", "main.bpl", "--project", "--", "foo"]);
+  expect(conflict.status).toBe(1);
+  expect(conflict.stderr).toContain("either an explicit file or --project");
+  const valid = run(["run", "--project", "--", "foo"]);
+  expect(valid.status).toBe(0);
+  expect(valid.stdout).toContain("foo");
+  const matchingOptionValue = run(["run", "--project", "--debug-ir-path", "foo", "--", "foo"]);
+  expect(matchingOptionValue.status).toBe(0);
+  expect(matchingOptionValue.stdout).toContain("foo");
+}));

@@ -4,7 +4,7 @@
  */
 
 import { resolveProjectEntry } from "../ProjectEntry";
-import type { Command } from "commander";
+import { Command, Option } from "commander";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
 import { getExplicitParentCompileOptions } from "./compileOptions";
@@ -72,7 +72,7 @@ export function registerRunCommand(program: Command): void {
               globalOpts.debug ||
               globalOpts.dwarf,
           };
-          if (localOpts.project && file && process.argv.includes("--")) {
+          if (localOpts.project && file && isProjectProgramArgument(command)) {
             args = [file, ...args];
             file = undefined;
           }
@@ -86,4 +86,22 @@ export function registerRunCommand(program: Command): void {
         }
       },
     );
+}
+
+/** Parse only the prefix, so an option value cannot masquerade as a file operand. */
+function isProjectProgramArgument(command: Command): boolean {
+  const delimiter = process.argv.indexOf("--");
+  if (delimiter < 0) return false;
+  const parser = new Command().helpOption(false).allowUnknownOption().exitOverride();
+  const seen = new Set<string>();
+  for (let owner: Command | null = command; owner; owner = owner.parent) {
+    for (const option of owner.options) {
+      const key = option.long || option.short || option.flags;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      parser.addOption(new Option(option.flags));
+    }
+  }
+  const { operands } = parser.parseOptions(process.argv.slice(2, delimiter));
+  return operands.length === 1 && operands[0] === command.name();
 }
