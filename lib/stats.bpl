@@ -87,6 +87,57 @@ frame statsFloatVariance(data: *float, length: int, divisor: int) ret float {
     return result;
 }
 
+# Internal third/fourth standardized moment and whether a spread exists.
+# Keep the deviation and standard deviation in matching normalized units.
+frame statsStandardizedMoment(data: *float, length: int, power: int) ret (float, bool) {
+    local (variance: float, scale: float) = statsScaledVariance(data, length, length);
+    if (variance == 0.0) { return (0.0, false); }
+    if (Math.isNan(variance)) { return (variance, true); }
+    local origin: float = *data;
+    local sum: float = 0.0;
+    local error: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i);
+        local difference: float = sample - origin;
+        local normalized: float = difference / scale;
+        if (Math.isInfinite(difference)) {
+            normalized = sample / scale - origin / scale;
+        }
+        local next: float = sum + normalized;
+        if (Math.abs(sum) >= Math.abs(normalized)) {
+            error = error + ((sum - next) + normalized);
+        } else {
+            error = error + ((normalized - next) + sum);
+        }
+        sum = next;
+    }
+    local count: float = cast<float>(length);
+    local mean: float = (sum + error) / count;
+    local stddev: float = Math.sqrt(variance);
+    sum = 0.0;
+    error = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i);
+        local difference: float = sample - origin;
+        local normalized: float = difference / scale;
+        if (Math.isInfinite(difference)) {
+            normalized = sample / scale - origin / scale;
+        }
+        local standardized: float = (normalized - mean) / stddev;
+        local square: float = standardized * standardized;
+        local moment: float = square * standardized;
+        if (power == 4) { moment = square * square; }
+        local next: float = sum + moment;
+        if (Math.abs(sum) >= Math.abs(moment)) {
+            error = error + ((sum - next) + moment);
+        } else {
+            error = error + ((moment - next) + sum);
+        }
+        sum = next;
+    }
+    return ((sum + error) / count, true);
+}
+
 # Error-free subtraction residual, for finite operands and difference.
 frame statsDifferenceError(a: float, b: float, difference: float) ret float {
     local virtualB: float = a - difference;
@@ -904,21 +955,8 @@ struct Stats {
         if ((data == nullptr) || (length <= 2)) {
             return 0.0;
         }
-        local mean: float = Stats.mean(data, length);
-        local stddev: float = Stats.stddev(data, length);
-
-        if (stddev == 0.0) {
-            return 0.0;
-        }
-        local sum: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local diff: float = (*(data + i) - mean) / stddev;
-            sum = sum + (diff * diff * diff);
-            i = i + 1;
-        }
-
-        return sum / cast<float>(length);
+        local (moment: float, _spread: bool) = statsStandardizedMoment(data, length, 3);
+        return moment;
     }
 
     # Calculate the kurtosis of a float array (excess kurtosis)

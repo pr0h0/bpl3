@@ -8477,3 +8477,10 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed: `Stats.mean([1e308, 1, -1e308])` returns approximately `4.9896007738367995e291` instead of `1/3`. Its overflow fallback introduces a large running-mean rounding residual. The ordinary summation path also loses small terms between cancelling large values.
 - Replace the direct/running-mean paths with compensated accumulation, dividing terms by the final count when necessary. Only if those sums still overflow from rounding, use a bounded normalized fallback. Existing empty and nonfinite results are preserved.
 - Nine native regressions failed before correction, covering ordinary/extreme cancellation, signs and order, plus largest-finite constant accuracy. Controls include subnormals, a small term whose normalized value would underflow, and finite-limit overflow recovery.
+
+
+## Standardized higher moments overflow on finite extreme samples
+
+- Confirmed native O3: with S=largest finite float, `Stats.skewness([S,-S,-S])` and `Stats.kurtosis([S,-S,-S,-S])` both return positive infinity. Population coefficients are finite: `1/sqrt(2)` and excess kurtosis `-2/3`. Raw sample-minus-mean subtraction overflows before division by finite standard deviation.
+- Five skewness and five kurtosis native cases fail before correction: extreme signs/order, subnormal spread and close values at a large offset. Ordinary/constant/empty/nonfinite controls pass before correction.
+- Skewness now uses a private standardized-moment helper with centered/scaled samples and compensated mean/moment accumulation. Kurtosis remains pending separately; existing minimum-length and constant-axis results must be preserved.

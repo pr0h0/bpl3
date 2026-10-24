@@ -152,6 +152,9 @@ joint moments directly, keeping finite coefficients within [-1, 1] without an
 overflowing or underflowing product of dimensional standard deviations. Existing
 zero results for empty or constant-axis inputs are preserved.
 
+`Stats.skewness` computes its standardized third moment in centered, normalized
+units, avoiding raw subtraction overflow and preserving small represented spreads.
+
 `Stats.harmonicMean(data: *float, length: int)` returns positive infinity when
 all samples are positive infinity. In a mixture with finite positive samples,
 infinite samples contribute zero reciprocals.
