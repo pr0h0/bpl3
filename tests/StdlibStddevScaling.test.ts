@@ -55,6 +55,10 @@ test("scaled standard deviation retains ordinary, constant and boundary controls
    if(!(Math.abs(sample/big-Math.sqrt(2.0))<0.000000000001))return 4;
    local nonfinite:float[2]=[atof("inf"),1.0];
    if(!Math.isNan(Stats.stddev(&nonfinite[0],2))||!Math.isNan(Stats.sampleStddev(&nonfinite[0],2)))return 5;
+   local subnormal:float=atof("1.2e-162");local subPair:float[2]=[subnormal,-subnormal];
+   if(!(Math.abs(Stats.sampleStddev(&subPair[0],2)/subnormal-Math.sqrt(2.0))<0.000000000001))return 6;
+   subnormal=atof("1.6e-162");subPair[0]=subnormal;subPair[1]=-subnormal;
+   if(!(Math.abs(Stats.stddev(&subPair[0],2)/subnormal-1.0)<0.000000000001))return 7;
    return 0;
   }`,
     },

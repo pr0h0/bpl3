@@ -8422,3 +8422,10 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Confirmed on the variance-fixed source: population/sample standard deviation returns infinity for finite1e308 roots, and zero for finite1e-200 roots. Four native regressions fail before this correction.
 - For overflowing or zero intermediate variance, take the normalized square root before restoring scale. Retain ordinary paths and empty/singleton behavior.
+
+
+## Floating variance loses representable subnormal results
+
+- Confirmed: sample variance of +/-1.2e-162 returns zero instead of the smallest positive float. Intermediate squares round to zero before their sum becomes representable. Population variance can similarly lose a result during its final division.
+- Two native regressions fail before correction. Recompute zero results using normalized deviations, and recover representable subnormal variance during rescaling.
+- Standard-deviation fallbacks also cover subnormal variance to avoid taking a root of a heavily rounded intermediate; ordinary positive normal variance keeps the direct path.

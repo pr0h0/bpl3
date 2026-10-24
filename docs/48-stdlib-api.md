@@ -123,10 +123,12 @@ Statistical functions for numerical analysis.
 - `Stats.median(data: *float, length: int) ret float`
 
 Floating `Stats.variance` and `Stats.sampleVariance` use a scaled fallback when
-intermediate arithmetic overflows. Finite representable variances remain finite;
-variance exceeding the floating range returns positive infinity.
+intermediate arithmetic overflows or rounds to zero. This also recovers
+representable subnormal results; variance exceeding the floating range returns
+positive infinity.
 Floating standard-deviation methods take a scaled square root when intermediate
-variance overflows or rounds to zero, retaining representable roots.
+variance overflows or becomes subnormal (including zero), retaining representable
+roots.
 
 `Stats.harmonicMean(data: *float, length: int)` returns positive infinity when
 all samples are positive infinity. In a mixture with finite positive samples,

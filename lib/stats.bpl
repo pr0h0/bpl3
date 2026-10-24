@@ -243,7 +243,7 @@ struct Stats {
             i = i + 1;
         }
         local result: float = squares / cast<float>(length);
-        if (Math.isNan(result) || Math.isInfinite(result)) {
+        if (Math.isNan(result) || Math.isInfinite(result) || result == 0.0) {
             local (normalized: float, scale: float) = statsScaledVariance(data, length, length);
             return (normalized * scale) * scale;
         }
@@ -280,7 +280,7 @@ struct Stats {
             i = i + 1;
         }
         local result: float = sumSquares / cast<float>(length - 1);
-        if (Math.isNan(result) || Math.isInfinite(result)) {
+        if (Math.isNan(result) || Math.isInfinite(result) || result == 0.0) {
             local (normalized: float, scale: float) = statsScaledVariance(data, length, length - 1);
             return (normalized * scale) * scale;
         }
@@ -299,7 +299,8 @@ struct Stats {
         }
         local variance: float = Stats.variance(data, length);
         # A finite root may survive an overflowing or underflowing variance.
-        if (Math.isInfinite(variance) || variance == 0.0) {
+        # Subnormal variance rounding can also distort a representable root.
+        if (Math.isInfinite(variance) || variance < Math.pow(2.0, -1022.0)) {
             local (normalized: float, scale: float) = statsScaledVariance(data, length, length);
             return Math.sqrt(normalized) * scale;
         }
@@ -318,7 +319,8 @@ struct Stats {
         }
         local variance: float = Stats.sampleVariance(data, length);
         # A finite root may survive an overflowing or underflowing variance.
-        if (Math.isInfinite(variance) || variance == 0.0) {
+        # Subnormal variance rounding can also distort a representable root.
+        if (Math.isInfinite(variance) || variance < Math.pow(2.0, -1022.0)) {
             local (normalized: float, scale: float) = statsScaledVariance(data, length, length - 1);
             return Math.sqrt(normalized) * scale;
         }

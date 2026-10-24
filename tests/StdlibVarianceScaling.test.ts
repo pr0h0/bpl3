@@ -53,3 +53,19 @@ test("variance scaling preserves ordinary, constant, empty and nonfinite inputs"
     },
   ]);
 }, 60000);
+
+for (const [method, magnitude] of [
+  ["sampleVariance", "1.2e-162"],
+  ["variance", "1.6e-162"],
+] as const) {
+  test(`${method} retains a representable subnormal result`, () => {
+    expectCorrectnessSuite([
+      {
+        name: `variance-subnormal-${method}`,
+        validateLlvm: true,
+        source: `import [Stats] from "std/stats.bpl";extern atof(value:string)ret float;
+   frame main()ret int{local x:float=atof("${magnitude}");local values:float[2]=[x,-x];if(Stats.${method}(&values[0],2)!=atof("5e-324"))return 1;return 0;}`,
+      },
+    ]);
+  }, 60000);
+}
