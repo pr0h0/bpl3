@@ -124,6 +124,12 @@ Statistical functions for numerical analysis.
 - `Stats.median(data: *int, length: int) ret float` - Median value
 - `Stats.median(data: *float, length: int) ret float`
 
+Floating `Stats.mean` uses compensated summation to limit cancellation error.
+When the unscaled sum may overflow, it divides samples by the final count before
+accumulation. A bounded normalized fallback handles sums that still overflow
+because of rounding near the finite limit. Null or empty input returns zero;
+nonfinite inputs retain ordinary sum semantics.
+
 Floating variance calculations center samples before updating the mean, preserving
 small spreads around large offsets. The scaled path also centers differences
 before division when they are finite, retaining close-value gaps.
@@ -145,6 +151,11 @@ centered. `Stats.correlation` uses normalized
 joint moments directly, keeping finite coefficients within [-1, 1] without an
 overflowing or underflowing product of dimensional standard deviations. Existing
 zero results for empty or constant-axis inputs are preserved.
+
+`Stats.skewness` and `Stats.kurtosis` compute standardized third/fourth moments
+in centered, normalized units, avoiding raw subtraction overflow and preserving
+small represented spreads. Kurtosis subtracts three for excess kurtosis; both
+methods retain zero for constant samples and their existing minimum lengths.
 
 `Stats.harmonicMean(data: *float, length: int)` returns positive infinity when
 all samples are positive infinity. In a mixture with finite positive samples,

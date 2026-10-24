@@ -8470,3 +8470,17 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed CodeRabbit finding: x=[S,-S,S,-S,S], y=[S,-S,-S,S,t], S=1e154, t=1e-154 returns zero covariance instead of 0.16. Subtracting the large origin erases t before compensated accumulation.
 - Detect lost origin/mean subtraction terms and use compensated raw normalized cross-products and mean-product correction. Only axes with origin loss switch to zero origin, preserving close-offset differences.
 - Four native sign/order regressions fail before correction and verify covariance plus its tiny correlation coefficient.
+
+
+## Floating arithmetic mean amplifies cancellation error
+
+- Confirmed: `Stats.mean([1e308, 1, -1e308])` returns approximately `4.9896007738367995e291` instead of `1/3`. Its overflow fallback introduces a large running-mean rounding residual. The ordinary summation path also loses small terms between cancelling large values.
+- Replace the direct/running-mean paths with compensated accumulation, dividing terms by the final count when necessary. Only if those sums still overflow from rounding, use a bounded normalized fallback. Existing empty and nonfinite results are preserved.
+- Nine native regressions failed before correction, covering ordinary/extreme cancellation, signs and order, plus largest-finite constant accuracy. Controls include subnormals, a small term whose normalized value would underflow, and finite-limit overflow recovery.
+
+
+## Standardized higher moments overflow on finite extreme samples
+
+- Confirmed native O3: with S=largest finite float, `Stats.skewness([S,-S,-S])` and `Stats.kurtosis([S,-S,-S,-S])` both return positive infinity. Population coefficients are finite: `1/sqrt(2)` and excess kurtosis `-2/3`. Raw sample-minus-mean subtraction overflows before division by finite standard deviation.
+- Five skewness and five kurtosis native cases fail before correction: extreme signs/order, subnormal spread and close values at a large offset. Ordinary/constant/empty/nonfinite controls pass before correction.
+- Skewness now uses a private standardized-moment helper with centered/scaled samples and compensated mean/moment accumulation. Kurtosis now separately uses the fourth-moment path and applies the excess correction only for nonconstant samples. Existing minimum-length and constant-axis zero results are preserved.

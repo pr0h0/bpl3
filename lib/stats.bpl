@@ -7,6 +7,27 @@ import [Math] from "std/math.bpl";
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
 
+# Compensated finite summation with optional division before accumulation.
+# Signal overflow before its compensation would become an invalid infinity.
+frame statsCompensatedSum(data: *float, length: int, divisor: float) ret float {
+    local sum: float = 0.0;
+    local error: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i) / divisor;
+        local next: float = sum + sample;
+        if (Math.isInfinite(next)) {
+            return next;
+        }
+        if (Math.abs(sum) >= Math.abs(sample)) {
+            error = error + ((sum - next) + sample);
+        } else {
+            error = error + ((sample - next) + sum);
+        }
+        sum = next;
+    }
+    return sum + error;
+}
+
 # Internal fallback: normalize finite samples before accumulating deviations.
 # Return normalized variance and its scale separately to avoid squaring scale.
 frame statsScaledVariance(data: *float, length: int, divisor: int) ret (float, float) {
@@ -64,6 +85,57 @@ frame statsFloatVariance(data: *float, length: int, divisor: int) ret float {
         return (normalized * scale) * scale;
     }
     return result;
+}
+
+# Internal third/fourth standardized moment and whether a spread exists.
+# Keep the deviation and standard deviation in matching normalized units.
+frame statsStandardizedMoment(data: *float, length: int, power: int) ret (float, bool) {
+    local (variance: float, scale: float) = statsScaledVariance(data, length, length);
+    if (variance == 0.0) { return (0.0, false); }
+    if (Math.isNan(variance)) { return (variance, true); }
+    local origin: float = *data;
+    local sum: float = 0.0;
+    local error: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i);
+        local difference: float = sample - origin;
+        local normalized: float = difference / scale;
+        if (Math.isInfinite(difference)) {
+            normalized = sample / scale - origin / scale;
+        }
+        local next: float = sum + normalized;
+        if (Math.abs(sum) >= Math.abs(normalized)) {
+            error = error + ((sum - next) + normalized);
+        } else {
+            error = error + ((normalized - next) + sum);
+        }
+        sum = next;
+    }
+    local count: float = cast<float>(length);
+    local mean: float = (sum + error) / count;
+    local stddev: float = Math.sqrt(variance);
+    sum = 0.0;
+    error = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i);
+        local difference: float = sample - origin;
+        local normalized: float = difference / scale;
+        if (Math.isInfinite(difference)) {
+            normalized = sample / scale - origin / scale;
+        }
+        local standardized: float = (normalized - mean) / stddev;
+        local square: float = standardized * standardized;
+        local moment: float = square * standardized;
+        if (power == 4) { moment = square * square; }
+        local next: float = sum + moment;
+        if (Math.abs(sum) >= Math.abs(moment)) {
+            error = error + ((sum - next) + moment);
+        } else {
+            error = error + ((moment - next) + sum);
+        }
+        sum = next;
+    }
+    return ((sum + error) / count, true);
 }
 
 # Error-free subtraction residual, for finite operands and difference.
@@ -328,20 +400,14 @@ struct Stats {
 
     # Calculate the mean of a float array
     /#
-        Arithmetic mean, accumulated one sample at a time. Summing first and
-        dividing afterwards overflows for large samples even when the mean is
-        finite: two copies of 1e308 summed to infinity.
+        Arithmetic mean with compensated accumulation. Divide samples first
+        when their ordinary sum may overflow; normalize only as a last resort
+        at the finite limit, retaining small mixed-magnitude terms otherwise.
     #/
     frame mean(data: *float, length: int) ret float {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        # Summing and dividing once is exact for ordinary samples, and
-        # accumulating a scaled running mean instead is not: it drifts by
-        # about one rounding step per sample, so the mean of -3, -1, 1, 3 came
-        # out as -2.2e-16 rather than zero. The scaled form is only needed when
-        # a plain sum would leave the range, so the largest magnitude decides
-        # which to use.
         local largest: float = 0.0;
         local scan: int = 0;
         loop (scan < length) {
@@ -352,28 +418,38 @@ struct Stats {
             scan = scan + 1;
         }
 
-        local span: float = largest * cast<float>(length);
-        if (Math.isInfinite(largest) || !Math.isInfinite(span)) {
+        local count: float = cast<float>(length);
+        if (Math.isInfinite(largest)) {
+            # Preserve infinite sums and NaN from opposite infinities.
             local sum: float = 0.0;
             local j: int = 0;
             loop (j < length) {
                 sum = sum + *(data + j);
                 j = j + 1;
             }
-            return sum / cast<float>(length);
+            return sum / count;
         }
 
-        # The samples are large enough that their sum would overflow, so each
-        # one is scaled as it is folded in. This cannot overflow, at the cost
-        # of the rounding the direct path avoids.
-        local running: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local count: float = cast<float>(i + 1);
-            running = (running - (running / count)) + (*(data + i) / count);
-            i = i + 1;
+        local divisor: float = 1.0;
+        if (Math.isInfinite(largest * count)) {
+            divisor = count;
         }
-        return running;
+        local total: float = statsCompensatedSum(data, length, divisor);
+        if (!Math.isInfinite(total)) {
+            if (divisor == 1.0) { return total / count; }
+            return total;
+        }
+
+        # Rounded partial sums can overflow even when the exact mean is
+        # finite (e.g. three copies of the largest finite value). A normalized
+        # sum is bounded by the int count; clamp before restoring the scale.
+        local normalized: float = statsCompensatedSum(data, length, largest) / count;
+        if (normalized > 1.0) {
+            normalized = 1.0;
+        } else if (normalized < -1.0) {
+            normalized = -1.0;
+        }
+        return normalized * largest;
     }
 
     # Calculate the sum of an integer array
@@ -879,21 +955,8 @@ struct Stats {
         if ((data == nullptr) || (length <= 2)) {
             return 0.0;
         }
-        local mean: float = Stats.mean(data, length);
-        local stddev: float = Stats.stddev(data, length);
-
-        if (stddev == 0.0) {
-            return 0.0;
-        }
-        local sum: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local diff: float = (*(data + i) - mean) / stddev;
-            sum = sum + (diff * diff * diff);
-            i = i + 1;
-        }
-
-        return sum / cast<float>(length);
+        local (moment: float, _spread: bool) = statsStandardizedMoment(data, length, 3);
+        return moment;
     }
 
     # Calculate the kurtosis of a float array (excess kurtosis)
@@ -901,20 +964,8 @@ struct Stats {
         if ((data == nullptr) || (length <= 3)) {
             return 0.0;
         }
-        local mean: float = Stats.mean(data, length);
-        local stddev: float = Stats.stddev(data, length);
-
-        if (stddev == 0.0) {
-            return 0.0;
-        }
-        local sum: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local diff: float = (*(data + i) - mean) / stddev;
-            sum = sum + (diff * diff * diff * diff);
-            i = i + 1;
-        }
-
-        return (sum / cast<float>(length)) - 3.0; # Excess kurtosis
+        local (moment: float, spread: bool) = statsStandardizedMoment(data, length, 4);
+        if (!spread) { return 0.0; }
+        return moment - 3.0; # Excess kurtosis
     }
 }
