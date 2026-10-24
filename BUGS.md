@@ -8534,4 +8534,4 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 ## Complex cosine overflows a representable result
 
 - Confirmed native O3: `cos(i * 710)` returns `(inf, NaN)` instead of approximately `(1.1169973830808555e308, -0)`. Adding exponentials overflows before division by two.
-- Scaled hyperbolic products and signed-axis regressions are pending.
+- Fixed with scaled hyperbolic products, cancellation-free small inputs, and explicit axis/nonfinite handling. Seventeen C-oracle cases pass at O0/O3; six fail on the exponential-corrected parent.

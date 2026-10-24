@@ -422,14 +422,29 @@ struct Complex {
         return Complex.new(sine * even, cosine * odd);
     }
 
-    # Calculate cosine: cos(z) = (e^(iz) + e^(-iz)) / 2
+    # Calculate cosine using cos(x)cosh(y) - i*sin(x)sinh(y).
     frame cos(this: *Complex) ret Complex {
-        local iz: Complex = Complex.new(-this.imag, this.real);
-        local nizm: Complex = Complex.new(this.imag, -this.real);
-        local eiz: Complex = iz.exp();
-        local eniz: Complex = nizm.exp();
-        local sum: Complex = eiz.add(eniz);
-        return sum.scale(0.5);
+        local (odd: float, even: float) = complexHyperbolicParts(this.imag);
+        if (this.real == 0.0) {
+            if (Math.isNan(this.imag)) { return Complex.new(even, 0.0); }
+            return Complex.new(even, -this.real * Math.copysign(1.0, this.imag));
+        }
+        local sine: float = Math.sin(this.real);
+        local cosine: float = Math.cos(this.real);
+        if (this.imag == 0.0) {
+            if (Math.isNan(cosine)) { return Complex.new(cosine, 0.0); }
+            return Complex.new(cosine, -sine * this.imag);
+        }
+        if (Math.isInfinite(this.imag) && (Math.isNan(sine) || Math.isNan(cosine))) {
+            return Complex.new(Math.abs(this.imag), cosine);
+        }
+        if (Math.isInfinite(even)) {
+            local sign: float = Math.copysign(1.0, this.imag);
+            return Complex.new(
+                complexExpProduct(Math.abs(this.imag), cosine, 0.5),
+                -complexExpProduct(Math.abs(this.imag), sine, 0.5) * sign);
+        }
+        return Complex.new(cosine * even, -sine * odd);
     }
 
     # Check if two complex numbers are equal
