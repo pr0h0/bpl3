@@ -1416,6 +1416,11 @@ enums, generics, lambdas, simple memory allocation, memory intrinsics
 that can be pulled in by stdlib modules are present as no-op stubs so unused
 methods do not prevent standalone wasm linking.
 
+Transcendental math can require external math functions. The bundled Wasm
+runtimes and browser adapter do not supply a platform math library. In particular,
+`Math.log10` and `Math.log2` retain their existing Wasm natural-logarithm
+dependency: custom hosted runtimes can provide `env.log`.
+
 Use `--wasm-runtime host` when the module should communicate with a browser,
 WASI-style adapter, or test harness. Hosted wasm imports `env.__bpl_host_write`,
 `env.__bpl_host_exit`, `env.__bpl_host_argc`, `env.__bpl_host_argv_len`,

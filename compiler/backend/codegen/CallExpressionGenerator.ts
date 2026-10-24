@@ -14,7 +14,10 @@
  * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
 import * as AST from "../../common/AST";
+import { resolve } from "path";
 import { CompilerError } from "../../common/CompilerError";
+import { getLibPath } from "../../common/PathResolver";
+import { formatFloatingPointLiteral } from "./FloatingPointLiteral";
 import { codeGenLog } from "../../common/Logger";
 import { PRIMITIVE_STRUCT_MAP } from "../../middleend/BuiltinTypes";
 import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConversions";
@@ -369,6 +372,29 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       const intrinsicName = expr.resolvedDeclaration?.kind === "Extern"
         ? expr.resolvedDeclaration.name
         : "";
+      // Native base-log accuracy must not add new Wasm host imports. Only
+      // these private stdlib calls retain the previous natural-log provider;
+      // an ordinary user extern keeps its explicitly requested symbol.
+      if (
+        this.target?.toLowerCase().includes("wasm") &&
+        (intrinsicName === "log10" || intrinsicName === "log2") &&
+        expr.resolvedDeclaration?.location?.file &&
+        resolve(expr.resolvedDeclaration.location.file) ===
+          resolve(this.stdLibPath ?? getLibPath(), "math.bpl")
+      ) {
+        const arg = this.generateExpression(expr.args[0]!);
+        const natural = this.newRegister();
+        this.emit(`  ${natural} = call double @llvm.log.f64(double ${arg})`);
+        const divisor =
+          intrinsicName === "log10"
+            ? 2.30258509299404568402
+            : 0.69314718055994530942;
+        const result = this.newRegister();
+        this.emit(
+          `  ${result} = fdiv double ${natural}, ${formatFloatingPointLiteral(divisor, "double")}`,
+        );
+        return result;
+      }
       // Handle intrinsics
       if (intrinsicName === "likely" || intrinsicName === "unlikely") {
         const cond = this.generateExpression(expr.args[0]!);
