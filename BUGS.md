@@ -8535,3 +8535,8 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Confirmed native O3: `cos(i * 710)` returns `(inf, NaN)` instead of approximately `(1.1169973830808555e308, -0)`. Adding exponentials overflows before division by two.
 - Fixed with scaled hyperbolic products, cancellation-free small inputs, and explicit axis/nonfinite handling. Seventeen C-oracle cases pass at O0/O3; six fail on the exponential-corrected parent.
+
+## Complex example retains outdated zero-sign expectations
+
+- Ubuntu PR79 CI and a local integration run fail because the example expects the old imaginary signs for sin(0) and cos(0).
+- Updated only the two expected output lines to match the corrected implementation and the platform C reference: sin(0) = (0, +0), cos(0) = (1, -0).
