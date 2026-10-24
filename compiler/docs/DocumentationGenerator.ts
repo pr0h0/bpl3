@@ -72,12 +72,11 @@ export class DocumentationGenerator {
       ),
     );
     for (const stmt of ast.statements) {
-      if (
-        this.publicOnly &&
-        (!("name" in stmt) ||
-          typeof stmt.name !== "string" ||
-          !exportedNames.has(stmt.name))
-      )
+      let names: string[] = [];
+      if (stmt.kind === "VariableDecl") names = this.globalBindingNames(stmt);
+      else if ("name" in stmt && typeof stmt.name === "string")
+        names = [stmt.name];
+      if (this.publicOnly && !names.some((name) => exportedNames.has(name)))
         continue;
       if (stmt.kind === "VariableDecl" && (stmt as AST.VariableDecl).isGlobal) {
         globals.push(stmt as AST.VariableDecl);
@@ -98,7 +97,10 @@ export class DocumentationGenerator {
     if (globals.length > 0) {
       this.output.push("## Global Variables");
       for (const global of globals) {
-        this.documentGlobal(global);
+        this.documentGlobal(
+          global,
+          this.publicOnly ? exportedNames : undefined,
+        );
       }
       this.output.push("");
     }
@@ -179,13 +181,22 @@ export class DocumentationGenerator {
     throw new Error(`Documentation input not found: ${filePath}`);
   }
 
-  private documentGlobal(global: AST.VariableDecl) {
-    let name = "";
-    if (typeof global.name === "string") {
-      name = global.name;
-    } else {
-      name = global.name.map((n) => n.name).join(", ");
-    }
+  private globalBindingNames(global: AST.VariableDecl): string[] {
+    if (typeof global.name === "string") return [global.name];
+    const flatten = (targets: AST.DestructuringPattern[]): string[] =>
+      targets.flatMap((target) =>
+        Array.isArray(target) ? flatten(target) : [target.name],
+      );
+    return flatten(global.name);
+  }
+
+  private documentGlobal(
+    global: AST.VariableDecl,
+    exportedNames?: ReadonlySet<string>,
+  ) {
+    const name = this.globalBindingNames(global)
+      .filter((binding) => !exportedNames || exportedNames.has(binding))
+      .join(", ");
 
     const typeStr = global.typeAnnotation
       ? TypeUtils.typeToString(global.typeAnnotation)
