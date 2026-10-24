@@ -8546,3 +8546,9 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed with native O3: Math.mod(0.0, +infinity) and Math.mod(0.0, -infinity) both return NaN.
 - The zero-remainder branch uses 0.0 * divisor to copy its sign; multiplying zero by infinity is invalid. Copying the sign directly should preserve the documented zero remainder.
 - Fixed by copying the divisor sign directly with the existing copysign intrinsic. Four signed-zero/infinite-divisor cases fail before correction; all five native O0/O3 regression cases pass afterward, including ordinary and invalid-domain controls.
+
+## Range indexing returns entries outside its sequence
+
+- Confirmed native O3: Range.new(1, 5, 2).get(-1) returns -1, indexing it at 2 returns the excluded endpoint 5, and Range.new(1, 1, 1)[0] returns 1 despite being empty.
+- Range.get and its indexing operator must reject negative/out-of-range indices rather than manufacturing values outside the represented sequence.
+- Fixed with bounded position checks before multiplication, without requiring len() to fit int. Thirteen native O0/O3 cases pass (twelve fail before correction), covering invalid indices and valid ascending/descending/reversed/wide ranges. Two hosted Wasm checks also pass.
