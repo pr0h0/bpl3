@@ -66,6 +66,10 @@ WebAssembly keeps the previous natural-logarithm lowering and its precision.
 A custom hosted runtime can supply `env.log`; the bundled freestanding runtime
 and browser adapter do not provide this math dependency.
 
+`Math.mod(x, y)` uses floor-modulo signs. A zero remainder takes the
+divisor's sign, including when a zero dividend is divided by an infinite
+divisor. Zero divisors, infinite dividends, and NaN inputs return NaN.
+
 ## Trigonometric Functions
 
 | Function                                   | Description              |
