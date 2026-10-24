@@ -8572,3 +8572,8 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Confirmed: Child: Parent<int> overriding value() ret int is rejected because the inherited return is compared as raw T instead of int. The parent generic value method and the child's override are valid under the existing inheritance syntax.
 - Fixed by substituting inherited class arguments into copied signature headers and transitive parent references. Method generic parameters retain shadowing, and value/pointer receiver overloads remain distinct. Nine focused tests pass, including native O0/O3 calls; the related checker suites pass (130 tests total).
+
+## Generic receiver calls through a free function bypass an override
+
+- Confirmed native O3 with a LogicalArray<T>: Array<T> overriding get: direct base-pointer get returns 2, but the same pointer passed to a free function returns the stored value 1.
+- Fixed by preparing generic receiver instantiations and type bindings before inherited-owner and virtual-call selection. Seven native source-level cases pass at O0/O3, including aliases, differently named class parameters, transitive parents, Array getters, and a non-generic control. Two hosted Wasm cases pass at O0/O3. On the signature-corrected parent, five native cases and both hosted cases fail.
