@@ -6,11 +6,12 @@ let draftChanged = false;
 let draftPersisted = false;
 let restoredDraft = false;
 let draftStorageWarning = false;
-function persistDraft() {
+function persistDraft(edited = true) {
   if (!draftReady || !editor) return;
-  draftChanged = true;
+  draftChanged = edited !== false;
   try {
     draftPersisted = globalThis.BplDraftStore.save(window.localStorage, {
+      edited: draftChanged,
       code: editor.getValue(),
       stdin: document.getElementById("stdin-input").value,
       args: document.getElementById("args-input").value,
@@ -37,7 +38,7 @@ function restoreDraft() {
   editor.setValue(draft.code);
   document.getElementById("stdin-input").value = draft.stdin;
   document.getElementById("args-input").value = draft.args;
-  draftChanged = true;
+  draftChanged = draft.edited !== false;
   draftPersisted = true;
   showToast("Restored your local draft", "info");
   return true;
@@ -888,8 +889,7 @@ function loadExample(example, itemEl) {
     : "";
 
   draftReady = true;
-  persistDraft();
-  draftChanged = false;
+  persistDraft(false);
 
   // Clear output tabs
   document.getElementById("output-content").textContent =
