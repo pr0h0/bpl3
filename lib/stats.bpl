@@ -964,20 +964,8 @@ struct Stats {
         if ((data == nullptr) || (length <= 3)) {
             return 0.0;
         }
-        local mean: float = Stats.mean(data, length);
-        local stddev: float = Stats.stddev(data, length);
-
-        if (stddev == 0.0) {
-            return 0.0;
-        }
-        local sum: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local diff: float = (*(data + i) - mean) / stddev;
-            sum = sum + (diff * diff * diff * diff);
-            i = i + 1;
-        }
-
-        return (sum / cast<float>(length)) - 3.0; # Excess kurtosis
+        local (moment: float, spread: bool) = statsStandardizedMoment(data, length, 4);
+        if (!spread) { return 0.0; }
+        return moment - 3.0; # Excess kurtosis
     }
 }

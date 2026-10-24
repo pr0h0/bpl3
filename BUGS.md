@@ -8483,4 +8483,4 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Confirmed native O3: with S=largest finite float, `Stats.skewness([S,-S,-S])` and `Stats.kurtosis([S,-S,-S,-S])` both return positive infinity. Population coefficients are finite: `1/sqrt(2)` and excess kurtosis `-2/3`. Raw sample-minus-mean subtraction overflows before division by finite standard deviation.
 - Five skewness and five kurtosis native cases fail before correction: extreme signs/order, subnormal spread and close values at a large offset. Ordinary/constant/empty/nonfinite controls pass before correction.
-- Skewness now uses a private standardized-moment helper with centered/scaled samples and compensated mean/moment accumulation. Kurtosis remains pending separately; existing minimum-length and constant-axis results must be preserved.
+- Skewness now uses a private standardized-moment helper with centered/scaled samples and compensated mean/moment accumulation. Kurtosis now separately uses the fourth-moment path and applies the excess correction only for nonconstant samples. Existing minimum-length and constant-axis zero results are preserved.
