@@ -8388,3 +8388,10 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed: `match<Func<int>(string)>(printf)` reports true for an extern variadic `printf` declaration, despite fixed and variadic signatures being distinct in checker equality. No foreign function is called.
 - Fix: compare the variadic flag alongside callable parameter and return types, matching existing checker identity rules.
 - Four native regressions reproduce direct and tuple-nested false positives with both query spellings. Fixed-signature controls remain covered.
+
+
+## Enum type queries omit variant existence checks
+
+- Confirmed: both query spellings accept nonexistent variants such as `Color.Missing` during checking and defer failure to code generation.
+- Validate variant membership during both checker paths, using the existing `BPL_TYPE_QUERY_TYPE_NOT_FOUND` diagnostic.
+- Six checker regressions reproduce ordinary, generic, and module-qualified missing variants; six valid-variant controls pass before the correction.

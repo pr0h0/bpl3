@@ -1803,6 +1803,22 @@ function isQualifiedQueryType(
   );
 }
 
+/** Reject invalid enum-variant targets before reaching code generation. */
+function ensureEnumQueryVariant(
+  declaration: AST.EnumDecl,
+  variantName: string,
+  expression: AST.TypeMatchExpr | AST.IsExpr,
+): void {
+  if (!declaration.variants.some((variant) => variant.name === variantName)) {
+    throw new CompilerError(
+      `Cannot find variant '${variantName}' in enum '${declaration.sourceName ?? declaration.name}'`,
+      `Available variants: ${declaration.variants.map((variant) => variant.name).join(", ")}`,
+      expression.location,
+      TYPE_QUERY_TYPE_NOT_FOUND_CODE,
+    );
+  }
+}
+
 /**
  * Check a type match expression (match<T>(value))
  */
@@ -1861,6 +1877,12 @@ export function checkTypeMatch(
         TYPE_QUERY_ENUM_NOT_FOUND_CODE,
       );
     }
+
+    ensureEnumQueryVariant(
+      symbol.declaration as AST.EnumDecl,
+      variantName,
+      expr,
+    );
 
     // Update targetType to use canonical enum name so codegen can find it
     (expr.targetType as AST.BasicTypeNode).name =
@@ -1948,6 +1970,12 @@ export function checkIs(this: CheckerContext, expr: AST.IsExpr): AST.TypeNode {
           TYPE_QUERY_ENUM_NOT_FOUND_CODE,
         );
       }
+
+      ensureEnumQueryVariant(
+        symbol.declaration as AST.EnumDecl,
+        variantName,
+        expr,
+      );
 
       // Update targetType to use canonical enum name so codegen can find it
       (expr.type as AST.BasicTypeNode).name = `${symbol.name}.${variantName}`;
