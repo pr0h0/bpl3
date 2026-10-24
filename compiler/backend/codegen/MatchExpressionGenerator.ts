@@ -1699,7 +1699,11 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     let isAny = false;
     let isPtrAny = false;
 
-    if (canonVal.kind === "BasicType" && canonVal.name === "Any") {
+    if (
+      canonVal.kind === "BasicType" &&
+      canonVal.name === "Any" &&
+      canonVal.arrayDimensions.length === 0
+    ) {
       if (canonVal.pointerDepth === 0) isAny = true;
       else if (canonVal.pointerDepth === 1) isPtrAny = true;
     }

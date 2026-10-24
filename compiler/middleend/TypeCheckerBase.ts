@@ -823,6 +823,19 @@ export abstract class TypeCheckerBase {
     type: AST.TypeNode,
     checkConstraints: boolean = true,
   ): AST.TypeNode {
+    // Composite types also carry outer array dimensions.
+    if (type.kind !== "BasicType" && "arrayDimensions" in type) {
+      for (const dimension of type.arrayDimensions ?? []) {
+        if (dimension !== null && dimension <= 0) {
+          throw new CompilerError(
+            "Array size must be greater than zero.",
+            "Arrays cannot have zero or negative size.",
+            type.location,
+            ARRAY_SIZE_INVALID_CODE,
+          );
+        }
+      }
+    }
     if (type.kind === "BasicType") {
       if (
         type.name === "i32" &&
