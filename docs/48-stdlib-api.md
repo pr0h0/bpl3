@@ -122,6 +122,10 @@ Statistical functions for numerical analysis.
 - `Stats.median(data: *int, length: int) ret float` - Median value
 - `Stats.median(data: *float, length: int) ret float`
 
+Floating variance calculations center samples before updating the mean, preserving
+small spreads around large offsets. The scaled path also centers differences
+before division when they are finite, retaining close-value gaps.
+
 Floating `Stats.variance` and `Stats.sampleVariance` use a scaled fallback when
 intermediate arithmetic overflows or rounds to zero. This also recovers
 representable subnormal results; variance exceeding the floating range returns
