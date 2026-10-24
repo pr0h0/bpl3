@@ -894,17 +894,47 @@ struct Stats {
             return 0.0;
         }
         local logSum: float = 0.0;
+        local error: float = 0.0;
+        local smallest: float = 0.0;
+        local largest: float = 0.0;
+        local invalid: float = 0.0;
         local i: int = 0;
         loop (i < length) {
             local val: float = *(data + i);
             if (val <= 0.0) {
                 return 0.0; # Geometric mean undefined for non-positive values
             }
-            logSum = logSum + Math.log(val);
+            if (Math.isNan(val)) {
+                invalid = val;
+            } else {
+                if (val > largest) { largest = val; }
+                if (smallest == 0.0 || val < smallest) { smallest = val; }
+                # Keep nonfinite classification separate from compensation:
+                # an infinite logarithm would form inf - inf in the residual.
+                if (!Math.isInfinite(val)) {
+                    local term: float = Math.log(val);
+                    local next: float = logSum + term;
+                    if (Math.abs(logSum) >= Math.abs(term)) {
+                        error = error + ((logSum - next) + term);
+                    } else {
+                        error = error + ((term - next) + logSum);
+                    }
+                    logSum = next;
+                }
+            }
             i = i + 1;
         }
-
-        return Math.exp(logSum / cast<float>(length));
+        # Preserve the existing priority of nonpositive inputs over NaNs,
+        # and NaNs over positive infinity, after examining every sample.
+        if (Math.isNan(invalid)) { return invalid; }
+        if (Math.isInfinite(largest)) { return largest; }
+        if (smallest == largest) { return smallest; }
+        local result: float = Math.exp((logSum + error) / cast<float>(length));
+        # A finite positive geometric mean lies between its input extremes.
+        # Rounding logarithms must not produce infinity or erase a subnormal.
+        if (result > largest) { return largest; }
+        if (result < smallest) { return smallest; }
+        return result;
     }
 
     # Calculate the harmonic mean of a float array (all values must be positive)
@@ -920,6 +950,7 @@ struct Stats {
         # one and at least one term is exactly one, so the sum is between one
         # and the count.
         local smallest: float = 0.0;
+        local largest: float = 0.0;
         local scan: int = 0;
         loop (scan < length) {
             local sample: float = *(data + scan);
@@ -930,6 +961,7 @@ struct Stats {
             if ((smallest == 0.0) || (sample < smallest)) {
                 smallest = sample;
             }
+            if (sample > largest) { largest = sample; }
             scan = scan + 1;
         }
 
@@ -944,10 +976,15 @@ struct Stats {
             i = i + 1;
         }
 
-        # Divide before scaling back: the count over the sum is never larger
-        # than the count, so this cannot leave the range, while forming
-        # count * smallest first could.
-        return (cast<float>(length) / scaledSum) * smallest;
+        # Divide before scaling back so count * smallest cannot overflow
+        # first. The bounded dimensionless factor can still round upward
+        # enough to require clamping the final product below.
+        local result: float = (cast<float>(length) / scaledSum) * smallest;
+        # Rounded ratios may push this product past the finite limit, even
+        # when every sample is finite. Positive means stay within the inputs.
+        if (result > largest) { return largest; }
+        if (result < smallest) { return smallest; }
+        return result;
     }
 
     # Calculate the skewness of a float array
