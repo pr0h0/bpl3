@@ -35,6 +35,26 @@ frame statsScaledVariance(data: *float, length: int, divisor: int) ret (float, f
     return (squares / cast<float>(divisor), scale);
 }
 
+# Subtract an exactly represented input before updating the mean. This keeps
+# a small spread from disappearing when the absolute mean rounds to an input.
+frame statsFloatVariance(data: *float, length: int, divisor: int) ret float {
+    local origin: float = *data;
+    local running: float = 0.0;
+    local squares: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i) - origin;
+        local delta: float = sample - running;
+        running = running + delta / cast<float>(i + 1);
+        squares = squares + delta * (sample - running);
+    }
+    local result: float = squares / cast<float>(divisor);
+    if (Math.isNan(result) || Math.isInfinite(result) || result == 0.0) {
+        local (normalized: float, scale: float) = statsScaledVariance(data, length, divisor);
+        return (normalized * scale) * scale;
+    }
+    return result;
+}
+
 struct Stats {
     # Calculate the mean (average) of an integer array
     frame mean(data: *int, length: int) ret float {
@@ -228,26 +248,7 @@ struct Stats {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        # Welford's method: the mean and the sum of squared deviations are
-        # updated together, so neither a large sum nor a large mean times a
-        # large count is ever formed.
-        local running: float = 0.0;
-        local squares: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local sample: float = *(data + i);
-            local count: float = cast<float>(i + 1);
-            local delta: float = sample - running;
-            running = running + (delta / count);
-            squares = squares + (delta * (sample - running));
-            i = i + 1;
-        }
-        local result: float = squares / cast<float>(length);
-        if (Math.isNan(result) || Math.isInfinite(result) || result == 0.0) {
-            local (normalized: float, scale: float) = statsScaledVariance(data, length, length);
-            return (normalized * scale) * scale;
-        }
-        return result;
+        return statsFloatVariance(data, length, length);
     }
 
     # Calculate the sample variance of an integer array
@@ -271,20 +272,7 @@ struct Stats {
         if ((data == nullptr) || (length <= 1)) {
             return 0.0;
         }
-        local mean: float = Stats.mean(data, length);
-        local sumSquares: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local diff: float = *(data + i) - mean;
-            sumSquares = sumSquares + (diff * diff);
-            i = i + 1;
-        }
-        local result: float = sumSquares / cast<float>(length - 1);
-        if (Math.isNan(result) || Math.isInfinite(result) || result == 0.0) {
-            local (normalized: float, scale: float) = statsScaledVariance(data, length, length - 1);
-            return (normalized * scale) * scale;
-        }
-        return result;
+        return statsFloatVariance(data, length, length - 1);
     }
 
     # Calculate the standard deviation of an integer array (population)

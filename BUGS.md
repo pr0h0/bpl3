@@ -8429,3 +8429,10 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed: sample variance of +/-1.2e-162 returns zero instead of the smallest positive float. Intermediate squares round to zero before their sum becomes representable. Population variance can similarly lose a result during its final division.
 - Two native regressions fail before correction. Recompute zero results using normalized deviations, and recover representable subnormal variance during rescaling.
 - Standard-deviation fallbacks also cover subnormal variance to avoid taking a root of a heavily rounded intermediate; ordinary positive normal variance keeps the direct path.
+
+
+## Floating variance loses accuracy around a large offset
+
+- Confirmed: [1e16,1e16+2] and its reverse return population variance2/1.2325951644078315 instead of1; sample variance returns4 instead of2. Rounding the absolute mean destroys the small spread.
+- Subtract a represented input before mean updates, sharing the centered calculation between population and sample methods. Keep the existing scaled extreme fallback.
+- Four native order/method regressions fail before correction.
