@@ -66,6 +66,97 @@ frame statsFloatVariance(data: *float, length: int, divisor: int) ret float {
     return result;
 }
 
+# Internal population moments, normalized independently along both axes.
+frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, float, float, float, float) {
+    local scaleX: float = 0.0;
+    local scaleY: float = 0.0;
+    local invalidX: bool = false;
+    local invalidY: bool = false;
+    local invalid: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local x: float = *(dataX + i);
+        local y: float = *(dataY + i);
+        if (Math.isNan(x) || Math.isInfinite(x)) {
+            invalidX = true;
+            invalid = x - x;
+        } else if (Math.abs(x) > scaleX) {
+            scaleX = Math.abs(x);
+        }
+        if (Math.isNan(y) || Math.isInfinite(y)) {
+            invalidY = true;
+            invalid = y - y;
+        } else if (Math.abs(y) > scaleY) {
+            scaleY = Math.abs(y);
+        }
+    }
+    if (invalidX || invalidY) {
+        # Preserve correlation's zero result when the other finite axis has
+        # zero standard deviation, even if this axis contains NaN/infinity.
+        local varianceX: float = invalid;
+        local varianceY: float = invalid;
+        if (!invalidX) {
+            local (normalized: float, scale: float) = statsScaledVariance(dataX, length, length);
+            if (Math.sqrt(normalized) * scale == 0.0) {
+                varianceX = 0.0;
+            }
+        }
+        if (!invalidY) {
+            local (normalized: float, scale: float) = statsScaledVariance(dataY, length, length);
+            if (Math.sqrt(normalized) * scale == 0.0) {
+                varianceY = 0.0;
+            }
+        }
+        return (invalid, varianceX, varianceY, 1.0, 1.0);
+    }
+    if (scaleX == 0.0) {
+        scaleX = 1.0;
+    }
+    if (scaleY == 0.0) {
+        scaleY = 1.0;
+    }
+    local originX: float = *dataX;
+    local originY: float = *dataY;
+    local meanX: float = 0.0;
+    local meanY: float = 0.0;
+    local squaresX: float = 0.0;
+    local squaresY: float = 0.0;
+    local products: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local x: float = *(dataX + i);
+        local y: float = *(dataY + i);
+        local differenceX: float = x - originX;
+        local differenceY: float = y - originY;
+        if (Math.isInfinite(differenceX)) {
+            x = x / scaleX - originX / scaleX;
+        } else {
+            x = differenceX / scaleX;
+        }
+        if (Math.isInfinite(differenceY)) {
+            y = y / scaleY - originY / scaleY;
+        } else {
+            y = differenceY / scaleY;
+        }
+        local deltaX: float = x - meanX;
+        local deltaY: float = y - meanY;
+        local count: float = cast<float>(i + 1);
+        meanX = meanX + deltaX / count;
+        meanY = meanY + deltaY / count;
+        squaresX = squaresX + deltaX * (x - meanX);
+        squaresY = squaresY + deltaY * (y - meanY);
+        products = products + deltaX * (y - meanY);
+    }
+    local count: float = cast<float>(length);
+    local covariance: float = products / count;
+    # Original normalized samples lie in [-1,1], bounding population covariance.
+    if (covariance > 1.0) {
+        covariance = 1.0;
+    }
+    if (covariance < -1.0) {
+        covariance = -1.0;
+    }
+    return (covariance, squaresX / count, squaresY / count, scaleX, scaleY);
+}
+
 struct Stats {
     # Calculate the mean (average) of an integer array
     frame mean(data: *int, length: int) ret float {
@@ -537,17 +628,13 @@ struct Stats {
         if ((dataX == nullptr) || (dataY == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        local meanX: float = Stats.mean(dataX, length);
-        local meanY: float = Stats.mean(dataY, length);
-
-        local sum: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            sum = sum + ((*(dataX + i) - meanX) * (*(dataY + i) - meanY));
-            i = i + 1;
+        local (covariance: float, _varianceX: float, _varianceY: float, scaleX: float, scaleY: float) = statsScaledMoments(dataX, dataY, length);
+        # Restore the larger scale first: multiplying a small scale first can
+        # erase a result that the larger scale would have kept representable.
+        if (scaleX >= scaleY) {
+            return (covariance * scaleX) * scaleY;
         }
-
-        return sum / cast<float>(length);
+        return (covariance * scaleY) * scaleX;
     }
 
     # Calculate the Pearson correlation coefficient between two float arrays

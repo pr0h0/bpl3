@@ -8443,3 +8443,10 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed: population standard deviation of [1e308,1.0000000000000002e308] is1.1102230246251568e292 instead of9.9792015476735991e291, an11% error. Dividing each large input before subtracting loses the represented gap.
 - Center represented differences before division when finite; retain bounded separately normalized subtraction for opposite extremes. Center mean updates in the scaled domain as well.
 - Four native large/tiny method regressions fail before correction, each checking both input orders.
+
+
+## Floating covariance loses centered and scaled results
+
+- Confirmed: covariance of identical [1e16,1e16+2] arrays returns2 instead of1; covariance of identical +/-1e154 arrays overflows despite finite1e308 result.
+- Use centered, independently scaled population moments and restore the larger scale first. Three native regressions fail before correction.
+- Related correlation failures (2/NaN on identical shifted/extreme samples) are confirmed; dedicated correction follows separately.
