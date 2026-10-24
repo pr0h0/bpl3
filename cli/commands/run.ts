@@ -3,6 +3,7 @@
  * Compiles and executes a BPL program in one step
  */
 
+import { resolveProjectEntry } from "../ProjectEntry";
 import type { Command } from "commander";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
@@ -28,9 +29,13 @@ const log = new Logger("Run");
 export function registerRunCommand(program: Command): void {
   program
     .command("run")
-    .argument("<file>", "BPL file to compile and run")
+    .argument("[file]", "BPL file to compile and run")
     .argument("[args...]", "arguments to pass to the program")
     .description("Compile and execute a BPL program")
+    .option(
+      "--project",
+      "use main/entry from bpl.json in the current directory",
+    )
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
     .option("-O <level>", "optimization level: 0, 1, 2, or 3")
@@ -47,7 +52,7 @@ export function registerRunCommand(program: Command): void {
     .option("--no-color", "disable colored output")
     .action(
       async (
-        file: string,
+        file: string | undefined,
         args: string[],
         _options: CompileOptions,
         command: Command,
@@ -67,6 +72,15 @@ export function registerRunCommand(program: Command): void {
               globalOpts.debug ||
               globalOpts.dwarf,
           };
+          if (
+            localOpts.project &&
+            file &&
+            process.argv.includes("--")
+          ) {
+            args = [file, ...args];
+            file = undefined;
+          }
+          file = resolveProjectEntry(file, localOpts.project);
           validateCompileInputSources([file], compileOptions);
 
           await processFileAsync(file, compileOptions, args);
