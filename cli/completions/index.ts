@@ -15,7 +15,7 @@ export const COMMON_TARGET_TRIPLES = [
   "wasm32-wasi",
 ] as const;
 
-/** Generated from the shipped scripts by tools/generate_completions.ts. */
+/** Generated from the shipped scripts by scripts/generate_completions.ts. */
 export function getBashCompletionScript(): string {
   return bashCompletion;
 }
