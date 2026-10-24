@@ -8381,3 +8381,10 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   resolution, retaining dynamic slices and valid fixed dimensions.
 - Six checker regressions fail before correction, with two existing named-type
   rejection controls and six valid fixed/slice target controls passing.
+
+
+### Callable type queries ignore variadic signatures (2026-10-24)
+
+- Confirmed: `match<Func<int>(string)>(printf)` reports true for an extern variadic `printf` declaration, despite fixed and variadic signatures being distinct in checker equality. No foreign function is called.
+- Fix: compare the variadic flag alongside callable parameter and return types, matching existing checker identity rules.
+- Four native regressions reproduce direct and tuple-nested false positives with both query spellings. Fixed-signature controls remain covered.
