@@ -8402,3 +8402,10 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed ordinary `match<Color.Red>(value)` with an integer source fails compilation rather than returning false. The backend attempts to extract a variant tag without confirming source type identity. Invalid generated programs are not executed.
 - Check canonical scalar enum identity before selecting a tag. Unrelated types, arrays, and slices return false; aliases and generic enum values remain supported.
 - Twelve native cases fail compilation before correction, with a passing alias/generic control. No invalid generated program is executed.
+
+
+## Enum variant queries silently ignore type modifiers
+
+- Confirmed: type arguments, pointer prefixes, and array suffixes on variant query targets pass checking and are discarded by code generation. Even `Color.Red<Missing>` and zero-size suffixes bypass normal target validation.
+- Reject unsupported modified variant targets using the existing query-target diagnostic; retain plain tag queries including generic enum values.
+- Twelve checker regressions fail before correction; four ordinary/generic plain-variant controls pass.

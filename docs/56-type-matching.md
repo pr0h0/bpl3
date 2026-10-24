@@ -55,6 +55,11 @@ as `types.Color.Red` continue to select a variant by its tag. A missing variant
 is rejected during type checking with `BPL_TYPE_QUERY_TYPE_NOT_FOUND`.
 A variant query on a value of another type, including a whole array or slice,
 returns false; it only inspects tags on scalar values of the queried enum.
+Variant targets use plain `Enum.Variant` syntax, without pointer prefixes, array
+suffixes, or type arguments on the variant. For generic enums, the tag query
+uses the type arguments of the queried value; for example, use
+`match<Option.Some>(value)` when `value` has type `Option<int>`. Unsupported
+modified variant targets are rejected during type checking.
 Static inheritance checks do not override a failed exact comparison merely
 because two targets share a raw type name.
 Primitive aliases share their canonical identity: `float`, `f64` and `double`
