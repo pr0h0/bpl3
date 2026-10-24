@@ -16,6 +16,7 @@ import * as AST from "../../common/AST";
 import { formatFloatingPointLiteral } from "./FloatingPointLiteral";
 import { RTTI } from "../../middleend/RTTI";
 import { getPrimitiveType } from "../../common/PrimitiveTypes";
+import { applyAliasValueModifiers } from "../../common/TypeAliasModifiers";
 import { CallExpressionGenerator } from "./CallExpressionGenerator";
 
 export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
@@ -1579,34 +1580,40 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
   }
 
   protected resolveCanonicalType(type: AST.TypeNode): AST.TypeNode {
-    // 1. Substitute generics
     const substituted = this.substituteType(type, this.currentTypeMap);
+    if (substituted.kind !== "BasicType") return substituted;
 
-    // 2. Resolve aliases
-    if (substituted.kind === "BasicType") {
-      if (this.typeAliasMap.has(substituted.name)) {
-        const alias = this.typeAliasMap.get(substituted.name)!;
-        if (
-          alias.genericParams.length > 0 &&
-          substituted.genericArgs.length > 0
-        ) {
-          const typeMap = new Map<string, AST.TypeNode>();
-          for (let i = 0; i < alias.genericParams.length; i++) {
-            if (i < substituted.genericArgs.length) {
-              typeMap.set(
-                alias.genericParams[i]!.name,
-                substituted.genericArgs[i]!,
-              );
-            }
-          }
-          const aliasSubstituted = this.substituteType(alias.type, typeMap);
-          return this.resolveCanonicalType(aliasSubstituted);
-        } else if (alias.genericParams.length === 0) {
-          return this.resolveCanonicalType(alias.type);
-        }
-      }
+    const alias = this.typeAliasMap.get(substituted.name);
+    if (!alias) return substituted;
+    const parameters = alias.genericParams ?? [];
+    if (parameters.length !== substituted.genericArgs.length)
+      return substituted;
+
+    const bindings = new Map<string, AST.TypeNode>();
+    parameters.forEach((parameter, index) => {
+      bindings.set(parameter.name, substituted.genericArgs[index]!);
+    });
+    const target = this.resolveCanonicalType(
+      this.substituteType(alias.type, bindings),
+    );
+    if (target.kind !== "BasicType") {
+      return applyAliasValueModifiers(target, substituted);
     }
-    return substituted;
+    return applyAliasValueModifiers(
+      {
+        ...target,
+        pointerDepth: target.pointerDepth + substituted.pointerDepth,
+        arrayDimensions: [
+          ...substituted.arrayDimensions,
+          ...target.arrayDimensions,
+        ],
+        isConst: substituted.isConst || target.isConst,
+        aliasDeclaration: alias,
+        aliasTarget: target,
+        location: substituted.location,
+      },
+      substituted,
+    );
   }
 
   protected getCanonicalPrimitiveName(name: string): string {

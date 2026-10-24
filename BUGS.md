@@ -8341,3 +8341,15 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Use the shared primitive metadata for query identity rather than a partial
   table. Native regressions cover `float`, `f64`, `double` and `f32`; the first
   two fail before correction and the existing canonical forms pass.
+
+
+## Query alias expansion discarded use-site modifiers
+
+- A generic binding such as `Number[2]` expanded the alias body but lost the
+  array suffix, so it failed to match the equivalent `int[2]` target. Nested
+  arrays and tuple/callback aliases had the same issue.
+- Preserve alias use-site dimensions, pointer depth and value qualifiers using
+  the existing modifier rules, including outer-dimension order.
+- Six native regressions fail before correction across scalar, generic, tuple,
+  function, lambda and nested-array aliases. They verify both query spellings
+  and reject a different shape without dereferencing converted pointers.
