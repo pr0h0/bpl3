@@ -8353,3 +8353,13 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Six native regressions fail before correction across scalar, generic, tuple,
   function, lambda and nested-array aliases. They verify both query spellings
   and reject a different shape without dereferencing converted pointers.
+
+## Class-array queries reached scalar runtime class checks
+
+- After an array shape mismatch, both runtime class-check branches selected
+  scalar object operations from the element's class name. Arrays of object
+  values or references therefore failed to compile.
+- Require scalar shapes for both class-check branches, while keeping whole-array
+  exact comparisons and individual-object runtime checks unchanged.
+- Four normal class-array regressions fail compilation before correction, with
+  a passing individual-object control. Invalid generated programs are not run.

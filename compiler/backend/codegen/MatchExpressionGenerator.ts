@@ -1765,7 +1765,11 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       const targetBasic = canonicalTarget as AST.BasicTypeNode;
 
       // Check if value is a pointer to a struct with a vtable
-      if (valueBasic.pointerDepth === 1) {
+      if (
+        valueBasic.pointerDepth === 1 &&
+        valueBasic.arrayDimensions.length === 0 &&
+        targetBasic.arrayDimensions.length === 0
+      ) {
         const valueStructName = valueBasic.name;
         const targetStructName = targetBasic.name;
 
@@ -1811,7 +1815,12 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       // BUG-119: Also handle struct values (not just pointers) with vtables
       // When we have a struct value like `*animal` which has a vtable as first field,
       // we can do runtime type checking on the value
-      if (valueBasic.pointerDepth === 0 && targetBasic.pointerDepth === 0) {
+      if (
+        valueBasic.pointerDepth === 0 &&
+        targetBasic.pointerDepth === 0 &&
+        valueBasic.arrayDimensions.length === 0 &&
+        targetBasic.arrayDimensions.length === 0
+      ) {
         const valueStructName = valueBasic.name;
         const targetStructName = targetBasic.name;
 

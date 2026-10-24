@@ -55,6 +55,8 @@ Primitive aliases share their canonical identity: `float`, `f64` and `double`
 name the same floating type, while `f32` remains distinct.
 Generic bindings retain modifiers applied to aliases, including array suffixes
 and the order of nested array dimensions.
+Arrays of class values or references use whole-array type comparisons, rather
+than applying an individual-object runtime class check to the array.
 
 ## Advanced Usage
 
