@@ -57,6 +57,8 @@ Generic bindings retain modifiers applied to aliases, including array suffixes
 and the order of nested array dimensions.
 Arrays of class values or references use whole-array type comparisons, rather
 than applying an individual-object runtime class check to the array.
+Arrays and slices of `Any` also compare their aggregate types. A scalar `Any`
+continues to check the type of its boxed payload.
 
 ## Advanced Usage
 

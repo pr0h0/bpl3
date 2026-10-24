@@ -8363,3 +8363,12 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   exact comparisons and individual-object runtime checks unchanged.
 - Four normal class-array regressions fail compilation before correction, with
   a passing individual-object control. Invalid generated programs are not run.
+
+## Any-array queries reached scalar payload inspection
+
+- Fixed arrays and slices of `Any` were classified as a single boxed value,
+  so both query spellings failed compilation when extracting scalar type data.
+- Restrict boxed-payload inspection to scalar shapes. Arrays and slices use
+  whole-value type identity, while scalar `Any` keeps dynamic payload matching.
+- Six direct, alias and slice regressions fail compilation before correction;
+  the scalar control passes. Invalid generated programs are not executed.
