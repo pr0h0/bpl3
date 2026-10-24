@@ -8372,3 +8372,12 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   whole-value type identity, while scalar `Any` keeps dynamic payload matching.
 - Six direct, alias and slice regressions fail compilation before correction;
   the scalar control passes. Invalid generated programs are not executed.
+
+## Composite type resolution omitted array-size validation
+
+- Zero-length tuple, function and lambda query targets passed checking even
+  though the equivalent named-type array target was rejected.
+- Apply the existing positive-dimension rule to composite types during
+  resolution, retaining dynamic slices and valid fixed dimensions.
+- Six checker regressions fail before correction, with two existing named-type
+  rejection controls and six valid fixed/slice target controls passing.

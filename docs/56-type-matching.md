@@ -44,6 +44,8 @@ Both `match<(int, bool)>(value)` and `value is (int, bool)` use this exact-type
 comparison. Function pointers and lambdas remain different type kinds.
 Array dimensions are part of this comparison for named, tuple and callback
 element types; a different fixed length does not match.
+Fixed dimensions in query targets must be positive for all of these type kinds.
+Empty brackets continue to describe a slice rather than a zero-length array.
 Targets must name types, with valid generic arguments and defined nested element,
 parameter and return types; variable or function names cannot stand in for types.
 Module-qualified type names such as `types.Record` and `types.Box<int>` follow
