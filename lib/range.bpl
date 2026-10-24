@@ -102,10 +102,33 @@ struct Range {
     }
 
     /#
-        Returns the element at the given index (0-based)
+        Returns the element at the given index (0-based), or throws when the
+        index is negative or outside the sequence.
     #/
     frame get(this: *Range, index: int) ret int {
-        return cast<int>(cast<long>(this.start) + (cast<long>(index) * this.step));
+        local start: long = cast<long>(this.start);
+        local end: long = this.end;
+        local lastIndex: long = -1;
+        # Bound the position before multiplying. This does not require len()
+        # to fit int, and also prevents a public long step from overflowing.
+        if (this.step > cast<long>(0)) {
+            local limit: long = cast<long>(2147483647) + 1;
+            if (end > limit) { end = limit; }
+            if (start < end) {
+                lastIndex = (end - start - 1) / this.step;
+            }
+        } else if (this.step < cast<long>(0)) {
+            local limit: long = cast<long>(-2147483648) - 1;
+            if (end < limit) { end = limit; }
+            if (start > end) {
+                # Both operands are nonpositive: avoid negating a minimum step.
+                lastIndex = (end - start + 1) / this.step;
+            }
+        }
+        if ((index < 0) || (cast<long>(index) > lastIndex)) {
+            throw "Range index out of bounds";
+        }
+        return cast<int>(start + (cast<long>(index) * this.step));
     }
 
     /#

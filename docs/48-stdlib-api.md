@@ -95,6 +95,17 @@ ownership, hooks, supported types, and known failures.
 
 ## Numeric Types
 
+### Range (`std/range.bpl`)
+
+Ranges include their start and exclude their end; `betweenInclusive` includes
+both endpoints. `get(index)` and `range[index]` use zero-based indices and throw
+`"Range index out of bounds"` for negative indices, empty ranges, entries past
+the endpoint, or values outside the `int` range. Zero steps and steps pointing
+away from the endpoint describe empty sequences.
+
+Valid indexing does not require the total length to fit `int`. Calling `len()`
+on a longer sequence still throws `"Range length exceeds int"`.
+
 ### Stats (`std/stats.bpl`)
 
 Statistical functions for numerical analysis.
