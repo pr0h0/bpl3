@@ -66,6 +66,88 @@ frame statsFloatVariance(data: *float, length: int, divisor: int) ret float {
     return result;
 }
 
+# Error-free subtraction residual, for finite operands and difference.
+frame statsDifferenceError(a: float, b: float, difference: float) ret float {
+    local virtualB: float = a - difference;
+    return (a - (difference + virtualB)) + (virtualB - b);
+}
+
+# Product residual for bounded normalized samples/sums. The splitter (2^27+1)
+# cannot overflow here, since sums are bounded by twice the int sample count.
+frame statsProductError(a: float, b: float, product: float) ret float {
+    local splitA: float = 134217729.0 * a;
+    local splitB: float = 134217729.0 * b;
+    local highA: float = splitA - (splitA - a);
+    local highB: float = splitB - (splitB - b);
+    local lowA: float = a - highA;
+    local lowB: float = b - highB;
+    local error1: float = product - highA * highB;
+    local error2: float = error1 - lowA * highB;
+    local error3: float = error2 - highA * lowB;
+    return lowA * lowB - error3;
+}
+
+# Retain small raw terms when a large origin or mean would erase them.
+frame statsRawCovariance(dataX: *float, dataY: *float, length: int, originX: float, originY: float, scaleX: float, scaleY: float) ret float {
+    local sumX: float = 0.0;
+    local sumY: float = 0.0;
+    local sumProducts: float = 0.0;
+    local errorX: float = 0.0;
+    local errorY: float = 0.0;
+    local errorProducts: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local x: float = *(dataX + i);
+        local y: float = *(dataY + i);
+        local differenceX: float = x - originX;
+        local differenceY: float = y - originY;
+        if (Math.isInfinite(differenceX)) {
+            x = x / scaleX - originX / scaleX;
+        } else {
+            x = differenceX / scaleX;
+        }
+        if (Math.isInfinite(differenceY)) {
+            y = y / scaleY - originY / scaleY;
+        } else {
+            y = differenceY / scaleY;
+        }
+        local product: float = x * y;
+        local nextX: float = sumX + x;
+        if (Math.abs(sumX) >= Math.abs(x)) {
+            errorX = errorX + ((sumX - nextX) + x);
+        } else {
+            errorX = errorX + ((x - nextX) + sumX);
+        }
+        sumX = nextX;
+        local nextY: float = sumY + y;
+        if (Math.abs(sumY) >= Math.abs(y)) {
+            errorY = errorY + ((sumY - nextY) + y);
+        } else {
+            errorY = errorY + ((y - nextY) + sumY);
+        }
+        sumY = nextY;
+        local nextProduct: float = sumProducts + product;
+        if (Math.abs(sumProducts) >= Math.abs(product)) {
+            errorProducts = errorProducts + ((sumProducts - nextProduct) + product);
+        } else {
+            errorProducts = errorProducts + ((product - nextProduct) + sumProducts);
+        }
+        sumProducts = nextProduct;
+        errorProducts = errorProducts + statsProductError(x, y, product);
+    }
+    local count: float = cast<float>(length);
+    local meanProduct: float = sumX * sumY;
+    local meanError: float = statsProductError(sumX, sumY, meanProduct)
+        + sumX * errorY + errorX * sumY + errorX * errorY;
+    local quotient: float = meanProduct / count;
+    local rounded: float = quotient * count;
+    local quotientError: float = ((meanProduct - rounded)
+        - statsProductError(quotient, count, rounded) + meanError) / count;
+    local difference: float = sumProducts - quotient;
+    local correction: float = statsDifferenceError(sumProducts, quotient, difference)
+        + errorProducts - quotientError;
+    return (difference + correction) / count;
+}
+
 # Internal population moments, normalized independently along both axes.
 frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, float, float, float, float) {
     local scaleX: float = 0.0;
@@ -116,6 +198,9 @@ frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, 
     }
     local originX: float = *dataX;
     local originY: float = *dataY;
+    local lostOriginX: bool = false;
+    local lostOriginY: bool = false;
+    local lostCentered: bool = false;
     local meanX: float = 0.0;
     local meanY: float = 0.0;
     local squaresX: float = 0.0;
@@ -129,11 +214,17 @@ frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, 
         if (Math.isInfinite(differenceX)) {
             x = x / scaleX - originX / scaleX;
         } else {
+            if (statsDifferenceError(x, originX, differenceX) != 0.0) {
+                lostOriginX = true;
+            }
             x = differenceX / scaleX;
         }
         if (Math.isInfinite(differenceY)) {
             y = y / scaleY - originY / scaleY;
         } else {
+            if (statsDifferenceError(y, originY, differenceY) != 0.0) {
+                lostOriginY = true;
+            }
             y = differenceY / scaleY;
         }
         local deltaX: float = x - meanX;
@@ -169,6 +260,10 @@ frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, 
         }
         local centeredX: float = x - meanX;
         local centeredY: float = y - meanY;
+        if (statsDifferenceError(x, meanX, centeredX) != 0.0
+            || statsDifferenceError(y, meanY, centeredY) != 0.0) {
+            lostCentered = true;
+        }
         local product: float = centeredX * centeredY;
         local nextProduct: float = products + product;
         if (Math.abs(products) >= Math.abs(product)) {
@@ -195,6 +290,17 @@ frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, 
     # Correct for the rounded means using compensated centered residual sums.
     local covariance: float = ((products + productError)
         - (residualX + residualErrorX) * ((residualY + residualErrorY) / count)) / count;
+    if (lostOriginX || lostOriginY || lostCentered) {
+        local rawOriginX: float = originX;
+        local rawOriginY: float = originY;
+        if (lostOriginX) {
+            rawOriginX = 0.0;
+        }
+        if (lostOriginY) {
+            rawOriginY = 0.0;
+        }
+        covariance = statsRawCovariance(dataX, dataY, length, rawOriginX, rawOriginY, scaleX, scaleY);
+    }
     # Original normalized samples lie in [-1,1], bounding population covariance.
     if (covariance > 1.0) {
         covariance = 1.0;

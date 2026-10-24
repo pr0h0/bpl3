@@ -139,7 +139,9 @@ roots.
 `Stats.covariance` centers and scales both axes independently to preserve finite
 results across large offsets and magnitudes. Centered products are recomputed
 with compensated accumulation and a rounded-mean correction before rescaling,
-limiting cancellation errors. `Stats.correlation` uses normalized
+limiting cancellation errors. If subtraction loses mixed-magnitude contributions,
+a compensated raw-moment fallback retains them while keeping close-offset axes
+centered. `Stats.correlation` uses normalized
 joint moments directly, keeping finite coefficients within [-1, 1] without an
 overflowing or underflowing product of dimensional standard deviations. Existing
 zero results for empty or constant-axis inputs are preserved.

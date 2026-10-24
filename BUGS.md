@@ -8464,3 +8464,9 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed before merging the joint-statistics PR: symmetric orthogonal samples at1e154 produced -3.7007434154171889e291 instead of zero covariance. Online cross-moment roundoff was amplified when restoring units.
 - Recompute the cross moment around final normalized means using compensated accumulation, correcting for rounded mean residuals before rescaling.
 - Two native regressions fail before correction at1e154 and1e308. The prior reviewed head is superseded and requires fresh CI/review.
+
+## Mixed-magnitude covariance loses small raw contributions
+
+- Confirmed CodeRabbit finding: x=[S,-S,S,-S,S], y=[S,-S,-S,S,t], S=1e154, t=1e-154 returns zero covariance instead of 0.16. Subtracting the large origin erases t before compensated accumulation.
+- Detect lost origin/mean subtraction terms and use compensated raw normalized cross-products and mean-product correction. Only axes with origin loss switch to zero origin, preserving close-offset differences.
+- Four native sign/order regressions fail before correction and verify covariance plus its tiny correlation coefficient.
