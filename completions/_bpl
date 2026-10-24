@@ -95,9 +95,42 @@ _bpl() {
                     _arguments \
                         '-w[Write formatted output back to file]' \
                         '--write[Write formatted output back to file]' \
+                        '--check[Check formatting without writing]' \
+                        '--config[Explicit formatter configuration]:file:_files' \
+                        '--no-config[Ignore project formatter configuration]' \
+                        '--indent-width[Indentation width]:count:(1 2 3 4 8)' \
+                        '--use-tabs[Indent using tabs]' \
+                        '--no-use-tabs[Indent using spaces]' \
+                        '--line-ending[Layout line endings]:style:(lf crlf)' \
+                        '--stdin-filepath[Source path for stdin]:file:_files' \
+                        '--json[Machine-readable check report]' \
                         '-v[Enable verbose output]' \
                         '--verbose[Enable verbose output]' \
                         '*:file:_files -g "*.bpl"'
+                    ;;
+                lint)
+                    _arguments \
+                        '--json[Machine-readable lint report]' \
+                        '--no-fail-on-warnings[Warnings do not fail]' \
+                        '--stdin-filepath[Source path for stdin]:file:_files' \
+                        '-v[Verbose output]' \
+                        '--verbose[Verbose output]' \
+                        '*:file:_files'
+                    ;;
+                docs)
+                    _arguments \
+                        '-o[Output path]:file:_files' \
+                        '--output[Output path]:file:_files' \
+                        '--force[Replace an existing output file]' \
+                        '--public-only[Only exported declarations]' \
+                        '--json[Machine-readable report]' \
+                        '1:file:_files'
+                    ;;
+                run|build)
+                    _arguments $global_options \
+                        '--project[Use the current manifest entry]' \
+                        '--no-prelude[Disable implicit primitives]' \
+                        '*:file:_files'
                     ;;
                 init)
                     _arguments \
