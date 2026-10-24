@@ -6,7 +6,7 @@
 #   3. Reload your shell or run: source ~/.bashrc
 
 _bpl_completion() {
-    local cur prev opts base
+    local cur prev opts base match
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
@@ -134,8 +134,12 @@ _bpl_completion() {
                 if [[ "$cur" == -* ]]; then
                     COMPREPLY=( $(compgen -W "${format_opts}" -- "${cur}") )
                 else
-                    # Complete with .bpl files
-                    COMPREPLY=( $(compgen -f -X '!*.bpl' -- "${cur}") )
+                    # Keep directory inputs and both supported source extensions.
+                    while IFS= read -r match; do
+                        if [[ -d "$match" || "$match" == *.bpl || "$match" == *.x ]]; then
+                            COMPREPLY+=("$match")
+                        fi
+                    done < <(compgen -f -- "${cur}")
                 fi
                 return 0
             ;;
@@ -143,13 +147,21 @@ _bpl_completion() {
                 if [[ "$cur" == -* ]]; then
                     COMPREPLY=( $(compgen -W "${lint_opts}" -- "${cur}") )
                 else
-                    # Complete with .bpl files
-                    COMPREPLY=( $(compgen -f -X '!*.bpl' -- "${cur}") )
+                    # Keep directory inputs and both supported source extensions.
+                    while IFS= read -r match; do
+                        if [[ -d "$match" || "$match" == *.bpl || "$match" == *.x ]]; then
+                            COMPREPLY+=("$match")
+                        fi
+                    done < <(compgen -f -- "${cur}")
                 fi
                 return 0
             ;;
             docs)
-                COMPREPLY=( $(compgen -W "-o --output --force --public-only --json" -- "${cur}") )
+                if [[ "$cur" == -* ]]; then
+                    COMPREPLY=( $(compgen -W "-o --output --force --public-only --json" -- "${cur}") )
+                else
+                    while IFS= read -r match; do COMPREPLY+=("$match"); done < <(compgen -f -- "${cur}")
+                fi
                 return 0
             ;;
             run|build)
