@@ -1809,6 +1809,21 @@ function ensureEnumQueryVariant(
   variantName: string,
   expression: AST.TypeMatchExpr | AST.IsExpr,
 ): void {
+  const target =
+    expression.kind === "TypeMatch" ? expression.targetType : expression.type;
+  if (
+    target.kind === "BasicType" &&
+    (target.genericArgs.length !== 0 ||
+      target.pointerDepth !== 0 ||
+      target.arrayDimensions.length !== 0)
+  ) {
+    throw new CompilerError(
+      "Enum variant query targets do not support type modifiers.",
+      "Use Enum.Variant without type arguments, pointer prefixes, or array suffixes. Generic enum arguments come from the queried value.",
+      expression.location,
+      TYPE_QUERY_TYPE_NOT_FOUND_CODE,
+    );
+  }
   if (!declaration.variants.some((variant) => variant.name === variantName)) {
     throw new CompilerError(
       `Cannot find variant '${variantName}' in enum '${declaration.sourceName ?? declaration.name}'`,
