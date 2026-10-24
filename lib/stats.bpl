@@ -7,6 +7,27 @@ import [Math] from "std/math.bpl";
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
 
+# Compensated finite summation with optional division before accumulation.
+# Signal overflow before its compensation would become an invalid infinity.
+frame statsCompensatedSum(data: *float, length: int, divisor: float) ret float {
+    local sum: float = 0.0;
+    local error: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i) / divisor;
+        local next: float = sum + sample;
+        if (Math.isInfinite(next)) {
+            return next;
+        }
+        if (Math.abs(sum) >= Math.abs(sample)) {
+            error = error + ((sum - next) + sample);
+        } else {
+            error = error + ((sample - next) + sum);
+        }
+        sum = next;
+    }
+    return sum + error;
+}
+
 # Internal fallback: normalize finite samples before accumulating deviations.
 # Return normalized variance and its scale separately to avoid squaring scale.
 frame statsScaledVariance(data: *float, length: int, divisor: int) ret (float, float) {
@@ -328,20 +349,14 @@ struct Stats {
 
     # Calculate the mean of a float array
     /#
-        Arithmetic mean, accumulated one sample at a time. Summing first and
-        dividing afterwards overflows for large samples even when the mean is
-        finite: two copies of 1e308 summed to infinity.
+        Arithmetic mean with compensated accumulation. Divide samples first
+        when their ordinary sum may overflow; normalize only as a last resort
+        at the finite limit, retaining small mixed-magnitude terms otherwise.
     #/
     frame mean(data: *float, length: int) ret float {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        # Summing and dividing once is exact for ordinary samples, and
-        # accumulating a scaled running mean instead is not: it drifts by
-        # about one rounding step per sample, so the mean of -3, -1, 1, 3 came
-        # out as -2.2e-16 rather than zero. The scaled form is only needed when
-        # a plain sum would leave the range, so the largest magnitude decides
-        # which to use.
         local largest: float = 0.0;
         local scan: int = 0;
         loop (scan < length) {
@@ -352,28 +367,38 @@ struct Stats {
             scan = scan + 1;
         }
 
-        local span: float = largest * cast<float>(length);
-        if (Math.isInfinite(largest) || !Math.isInfinite(span)) {
+        local count: float = cast<float>(length);
+        if (Math.isInfinite(largest)) {
+            # Preserve infinite sums and NaN from opposite infinities.
             local sum: float = 0.0;
             local j: int = 0;
             loop (j < length) {
                 sum = sum + *(data + j);
                 j = j + 1;
             }
-            return sum / cast<float>(length);
+            return sum / count;
         }
 
-        # The samples are large enough that their sum would overflow, so each
-        # one is scaled as it is folded in. This cannot overflow, at the cost
-        # of the rounding the direct path avoids.
-        local running: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local count: float = cast<float>(i + 1);
-            running = (running - (running / count)) + (*(data + i) / count);
-            i = i + 1;
+        local divisor: float = 1.0;
+        if (Math.isInfinite(largest * count)) {
+            divisor = count;
         }
-        return running;
+        local total: float = statsCompensatedSum(data, length, divisor);
+        if (!Math.isInfinite(total)) {
+            if (divisor == 1.0) { return total / count; }
+            return total;
+        }
+
+        # Rounded partial sums can overflow even when the exact mean is
+        # finite (e.g. three copies of the largest finite value). A normalized
+        # sum is bounded by the int count; clamp before restoring the scale.
+        local normalized: float = statsCompensatedSum(data, length, largest) / count;
+        if (normalized > 1.0) {
+            normalized = 1.0;
+        } else if (normalized < -1.0) {
+            normalized = -1.0;
+        }
+        return normalized * largest;
     }
 
     # Calculate the sum of an integer array
