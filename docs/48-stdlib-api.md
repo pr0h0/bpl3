@@ -210,6 +210,11 @@ Complex number arithmetic.
 exponential overflows, and avoids prematurely rounding underflow-tail components.
 Zero imaginary axes preserve their sign, including nonfinite real inputs.
 
+`Complex.sin()` uses a small-input hyperbolic series to retain tiny imaginary
+components, and scales large exponential products before multiplying their
+trigonometric factors. These calculations use the existing exponential, sine,
+and cosine providers.
+
 `Complex.sqrt()` computes the principal root in scaled Cartesian coordinates,
 avoiding an overflowing intermediate magnitude. It preserves signed-zero
 branch-cut directions and derives the smaller output from the original imaginary

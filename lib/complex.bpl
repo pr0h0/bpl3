@@ -20,6 +20,31 @@ frame complexExpProduct(exponent: float, factor: float, weight: float) ret float
     return (((factor * (quarter * weight)) * quarter) * quarter) * quarter;
 }
 
+# Signed sinh and positive cosh, using only the existing exponential provider.
+# The small-input series avoids subtracting nearly equal exponentials.
+frame complexHyperbolicParts(value: float) ret (float, float) {
+    if (value == 0.0) { return (value, 1.0); }
+    local magnitude: float = Math.abs(value);
+    if (magnitude < 0.5) {
+        local square: float = magnitude * magnitude;
+        local oddTerm: float = magnitude;
+        local evenTerm: float = 1.0;
+        local odd: float = magnitude;
+        local even: float = 1.0;
+        loop (local n: int = 1; n <= 7; n = n + 1) {
+            oddTerm = oddTerm * square / cast<float>((2 * n) * (2 * n + 1));
+            evenTerm = evenTerm * square / cast<float>((2 * n - 1) * (2 * n));
+            odd = odd + oddTerm;
+            even = even + evenTerm;
+        }
+        return (Math.copysign(odd, value), even);
+    }
+    local half: float = Math.exp(magnitude * 0.5);
+    local leading: float = (half * 0.5) * half;
+    local trailing: float = (0.5 / half) / half;
+    return (Math.copysign(leading - trailing, value), leading + trailing);
+}
+
 struct Complex {
     real: float,
     imag: float,
@@ -375,14 +400,26 @@ struct Complex {
         return Complex.new(Math.abs(this.imag) / (2.0 * root), Math.copysign(root, this.imag));
     }
 
-    # Calculate sine: sin(z) = (e^(iz) - e^(-iz)) / (2i)
+    # Calculate sine using sin(x)cosh(y) + i*cos(x)sinh(y).
     frame sin(this: *Complex) ret Complex {
-        local iz: Complex = Complex.new(-this.imag, this.real); # i * z
-        local nizm: Complex = Complex.new(this.imag, -this.real); # -i * z
-        local eiz: Complex = iz.exp();
-        local eniz: Complex = nizm.exp();
-        local diff: Complex = eiz.sub(eniz);
-        return Complex.new(diff.imag / 2.0, -diff.real / 2.0);
+        local (odd: float, even: float) = complexHyperbolicParts(this.imag);
+        if (this.real == 0.0) { return Complex.new(this.real, odd); }
+        local sine: float = Math.sin(this.real);
+        local cosine: float = Math.cos(this.real);
+        if (this.imag == 0.0) {
+            if (Math.isNan(sine)) { return Complex.new(sine, this.imag); }
+            return Complex.new(sine, cosine * this.imag);
+        }
+        if (Math.isInfinite(this.imag) && (Math.isNan(sine) || Math.isNan(cosine))) {
+            return Complex.new(sine, Math.abs(this.imag));
+        }
+        if (Math.isInfinite(even)) {
+            local sign: float = Math.copysign(1.0, this.imag);
+            return Complex.new(
+                complexExpProduct(Math.abs(this.imag), sine, 0.5),
+                complexExpProduct(Math.abs(this.imag), cosine, 0.5) * sign);
+        }
+        return Complex.new(sine * even, cosine * odd);
     }
 
     # Calculate cosine: cos(z) = (e^(iz) + e^(-iz)) / 2

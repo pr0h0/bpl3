@@ -8529,7 +8529,7 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 ## Complex sine erases small imaginary inputs
 
 - Confirmed native O3: `sin(i * 1e-300)` returns zero instead of imaginary 1e-300. Subtracting two rounded exponentials erases the small term.
-- Stable hyperbolic products and finite-extreme regressions are pending.
+- Fixed using a cancellation-free small-input series, scaled hyperbolic products, and explicit axis/nonfinite handling. Nineteen C-oracle cases pass at O0/O3; eight of the original sixteen cases fail on the exponential-corrected parent.
 
 ## Complex cosine overflows a representable result
 
