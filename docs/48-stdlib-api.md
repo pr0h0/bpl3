@@ -137,7 +137,10 @@ variance overflows or becomes subnormal (including zero), retaining representabl
 roots.
 
 `Stats.covariance` centers and scales both axes independently to preserve finite
-results across large offsets and magnitudes.
+results across large offsets and magnitudes. `Stats.correlation` uses normalized
+joint moments directly, keeping finite coefficients within [-1, 1] without an
+overflowing or underflowing product of dimensional standard deviations. Existing
+zero results for empty or constant-axis inputs are preserved.
 
 `Stats.harmonicMean(data: *float, length: int)` returns positive infinity when
 all samples are positive infinity. In a mixture with finite positive samples,

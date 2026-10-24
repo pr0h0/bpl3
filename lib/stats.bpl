@@ -642,14 +642,20 @@ struct Stats {
         if ((dataX == nullptr) || (dataY == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        local cov: float = Stats.covariance(dataX, dataY, length);
-        local stdX: float = Stats.stddev(dataX, length);
-        local stdY: float = Stats.stddev(dataY, length);
-
-        if ((stdX == 0.0) || (stdY == 0.0)) {
+        local (covariance: float, varianceX: float, varianceY: float, _scaleX: float, _scaleY: float) = statsScaledMoments(dataX, dataY, length);
+        if ((varianceX == 0.0) || (varianceY == 0.0)) {
             return 0.0;
         }
-        return cov / (stdX * stdY);
+        # Units cancel in the normalized domain. Never form a dimensional
+        # covariance or product of standard deviations that can overflow.
+        local result: float = covariance / Math.sqrt(varianceX) / Math.sqrt(varianceY);
+        if (result > 1.0) {
+            return 1.0;
+        }
+        if (result < -1.0) {
+            return -1.0;
+        }
+        return result;
     }
 
     # Calculate the geometric mean of a float array (all values must be positive)

@@ -8449,4 +8449,11 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Confirmed: covariance of identical [1e16,1e16+2] arrays returns2 instead of1; covariance of identical +/-1e154 arrays overflows despite finite1e308 result.
 - Use centered, independently scaled population moments and restore the larger scale first. Three native regressions fail before correction.
-- Related correlation failures (2/NaN on identical shifted/extreme samples) are confirmed; dedicated correction follows separately.
+- Related correlation failures are addressed by the separate normalized-coefficient correction below.
+
+
+## Correlation overflows and underflows intermediate units
+
+- Confirmed: identical +/-1e308 inputs produce NaN instead of1; covariance and the product of standard deviations both overflow. Tiny data also loses its dimensionless result through underflow.
+- Compute the coefficient directly from shared normalized moments and bound floating roundoff to [-1,1], preserving empty/constant and nonfinite behavior.
+- Five native regressions fail before correction on the covariance-fixed source, spanning huge, tiny, negative, partial, and subnormal inputs.
