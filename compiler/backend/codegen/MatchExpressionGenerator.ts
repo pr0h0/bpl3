@@ -1504,7 +1504,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     if (targetType.kind === "BasicType" && targetType.name.includes(".")) {
       return this.generateEnumVariantTypeMatch(
         matchValue,
-        valueType as AST.BasicTypeNode,
+        valueType,
         targetType.name,
         expr,
       );
@@ -1520,7 +1520,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
   protected generateEnumVariantTypeMatch(
     matchValue: string,
-    valueType: AST.BasicTypeNode,
+    valueType: AST.TypeNode,
     fullTypeName: string,
     expr: AST.TypeMatchExpr,
   ): string {
@@ -1529,11 +1529,18 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     const enumName = parts[0]!;
     const variantName = parts.slice(1).join("."); // Handle nested dots if any
 
-    // Substitute types in valueType if we are in a generic context
-    const substitutedValueType = this.substituteType(
-      valueType,
-      this.currentTypeMap,
-    ) as AST.BasicTypeNode;
+    // Only a scalar value of this enum has the queried variant tag.
+    const substitutedValueType = this.resolveCanonicalType(valueType);
+    if (
+      substitutedValueType.kind !== "BasicType" ||
+      substitutedValueType.name !== enumName ||
+      substitutedValueType.pointerDepth !== 0 ||
+      substitutedValueType.arrayDimensions.length !== 0
+    ) {
+      const result = this.newRegister();
+      this.emit(`  ${result} = icmp eq i1 0, 1`);
+      return result;
+    }
 
     // Get enum information - handle generic instantiation
     let resolvedEnumName = enumName;

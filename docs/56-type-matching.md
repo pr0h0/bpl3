@@ -51,7 +51,10 @@ Targets must name types, with valid generic arguments and defined nested element
 parameter and return types; variable or function names cannot stand in for types.
 Module-qualified type names such as `types.Record` and `types.Box<int>` follow
 the same rules as imported unqualified names. Qualified enum-variant names such
-as `types.Color.Red` continue to select a variant by its tag.
+as `types.Color.Red` continue to select a variant by its tag. A missing variant
+is rejected during type checking with `BPL_TYPE_QUERY_TYPE_NOT_FOUND`.
+A variant query on a value of another type, including a whole array or slice,
+returns false; it only inspects tags on scalar values of the queried enum.
 Static inheritance checks do not override a failed exact comparison merely
 because two targets share a raw type name.
 Primitive aliases share their canonical identity: `float`, `f64` and `double`
