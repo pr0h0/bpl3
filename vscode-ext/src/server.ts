@@ -37,6 +37,11 @@ import { ASTDefinitionHandler } from "./services/ASTDefinitionHandler";
 import { ASTCompletionHandler } from "./services/ASTCompletionHandler";
 import { ASTRenameHandler } from "./services/ASTRenameHandler";
 import { unusedVariableEdit } from "./services/UnusedVariableCodeAction";
+
+import {
+  nearbyImportCodeActions,
+  importableTypeName,
+} from "./services/NearbyImportCodeActions";
 import { SelectionRangeProvider } from "./services/SelectionRangeProvider";
 import { DocumentHighlightProvider } from "./services/DocumentHighlightProvider";
 import { FoldingRangeProvider } from "./services/FoldingRangeProvider";
@@ -922,18 +927,14 @@ connection.onCodeAction((params) => {
   const document = documents.get(params.textDocument.uri);
   if (!document) return [];
 
-  const currentDir = path.dirname(fileURLToPath(document.uri));
   const text = document.getText();
 
   for (const diagnostic of params.context.diagnostics) {
     // 1. Unknown type suggestions
-    const unknownTypeMatch = /Unknown type '(\w+)'/.exec(diagnostic.message);
-    if (unknownTypeMatch) {
-      const typeName = unknownTypeMatch[1];
-
+    const typeName = importableTypeName(diagnostic);
+    if (typeName) {
       // Standard Library types
       if (
-        typeName &&
         [
           "Result",
           "Option",
@@ -963,44 +964,9 @@ connection.onCodeAction((params) => {
         });
       }
 
-      // Scan nearby files for exports
-      try {
-        const files = fs.readdirSync(currentDir);
-        for (const file of files) {
-          if (
-            file.endsWith(".bpl") &&
-            file !== path.basename(fileURLToPath(document.uri))
-          ) {
-            const content = fs.readFileSync(
-              path.join(currentDir, file),
-              "utf-8",
-            );
-            // Check for export struct TypeName or export [TypeName]
-            const exportRegex = new RegExp(
-              `export\\s+(struct\\s+${typeName}\\b|\\[\\s*${typeName}\\s*\\])`,
-            );
-            if (exportRegex.test(content)) {
-              actions.push({
-                title: `Import ${typeName} from ./${file}`,
-                kind: CodeActionKind.QuickFix,
-                diagnostics: [diagnostic],
-                edit: {
-                  changes: {
-                    [params.textDocument.uri]: [
-                      TextEdit.insert(
-                        { line: 0, character: 0 },
-                        `import [${typeName}] from "./${file}";\n`,
-                      ),
-                    ],
-                  },
-                },
-              });
-            }
-          }
-        }
-      } catch (_e) {
-        // Ignore fs errors
-      }
+      actions.push(
+        ...nearbyImportCodeActions(document, diagnostic, typeName, true),
+      );
     }
 
     // 2. Undefined symbol (function/variable) suggestions
@@ -1029,44 +995,9 @@ connection.onCodeAction((params) => {
         });
       }
 
-      // Scan nearby files for export symbolName
-      try {
-        const files = fs.readdirSync(currentDir);
-        for (const file of files) {
-          if (
-            file.endsWith(".bpl") &&
-            file !== path.basename(fileURLToPath(document.uri))
-          ) {
-            const content = fs.readFileSync(
-              path.join(currentDir, file),
-              "utf-8",
-            );
-            // Check for export frame symbolName or export symbolName
-            const exportRegex = new RegExp(
-              `export\\s+(frame\\s+${symbolName}\\b|${symbolName}\\b)`,
-            );
-            if (exportRegex.test(content)) {
-              actions.push({
-                title: `Import ${symbolName} from ./${file}`,
-                kind: CodeActionKind.QuickFix,
-                diagnostics: [diagnostic],
-                edit: {
-                  changes: {
-                    [params.textDocument.uri]: [
-                      TextEdit.insert(
-                        { line: 0, character: 0 },
-                        `import ${symbolName} from "./${file}";\n`,
-                      ),
-                    ],
-                  },
-                },
-              });
-            }
-          }
-        }
-      } catch (_e) {
-        // Ignore fs errors
-      }
+      actions.push(
+        ...nearbyImportCodeActions(document, diagnostic, symbolName, false),
+      );
     }
 
     // 3. Type mismatch suggestions

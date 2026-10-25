@@ -8705,3 +8705,14 @@ registration coverage supplements path-candidate tests and interactive verificat
   and lexes the source span to edit only the matching declared identifier.
   Stale/non-identifier spans are rejected. Tests apply edits from real compiler
   diagnostics, preserve comments/types/initializers, and revalidate the result.
+
+## Nearby auto-import quick fixes (2026-10-25)
+
+- **Fixed:** Editor suggestions used raw export regexes, matching comments or
+  strings while missing valid exports separated by comments and all `.x`
+  siblings. A directory named `*.bpl` or a broken sibling could also abort the
+  scan. Suggestions now use parsed export statements, skip unsupported/unreadable
+  candidates individually, and include both source extensions deterministically.
+  The action also now recognizes the compiler's usual `Undefined type` diagnostic,
+  previously ignored by its `Unknown type` matcher. Tests apply type/value imports
+  from real diagnostics and revalidate the source.
