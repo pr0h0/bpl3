@@ -244,7 +244,9 @@ asm("llvm") {
 - **Run Compiler**: `bun index.ts <args>`
 - **Type Check**: `bun run check` -> Runs `tsc` to verify TypeScript code. **MUST RUN before finishing a task.**
 - **Run Tests**: `bun test` -> Runs all tests.
-- **Format Code**: `bun run format` -> Formats TS files.
+- **Format Code**: `bun run format` -> Uses pinned Prettier for supported repository files; dependencies/generated output are excluded by `.prettierignore`.
+- **Check Formatting**: `bun run format:check` -> Read-only style check. Existing repository-wide formatting debt is tracked in `BUGS.md`.
+- **Baseline Tests**: `bun run test:baseline [test arguments]` -> Saves combined output while preserving failures; requires Bash.
 - **Format Examples**: `bun run format-examples` -> Formats BPL files in `examples/`.
 
 ### Development Cycle
@@ -402,6 +404,13 @@ If you discover a bug during development:
 - `tests/`: Unit and integration test runners.
 - `docs/`: Documentation files.
 - `lib/`: Standard library (`std`).
+
+Use `TODO.md` as the canonical implementation-status inventory and backlog;
+`PLAN.md` prioritizes work without duplicating that inventory. Describe supported
+behavior and remaining limits rather than treating a working MVP as exhaustive
+support. Watch mode monitors the entry tree and resolved transitive imports,
+including new `.bpl`/`.x` modules and atomic saves; unrelated dependency and
+hidden directories are excluded from recursive entry-tree discovery.
 
 ---
 

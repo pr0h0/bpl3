@@ -1,437 +1,152 @@
-# BPL3 Compiler Progress
+# BPL3 implementation status and backlog
 
-- Number inside brackets indicates priority (lower number = higher priority), x indicates completed features.
+Reviewed against source and regression tests on 2026-10-25. This is the canonical
+feature-status list; [PLAN.md](PLAN.md) describes priorities rather than repeating
+this inventory. Checked items describe implemented behavior, not a guarantee that
+all related enhancements or platform support are complete.
 
-## Completed Features
+## Implemented compiler and language features
 
-- [x] Parser Error Recovery (Multiple syntax errors)
-- [x] Formatter Robustness (Throw on Syntax Error)
-- [x] Parser Optimization (Peggy location handling)
-- [x] Advanced Generics (Constraints, Inference)
-- [x] Strict Type Compatibility Checking
-- [x] Inheritance Support (Structs)
-- [x] Generics Parsing Fix (`>>` operator)
-- [x] Control Flow Analysis (Missing Return Check)
-- [x] Declaration Hoisting (Two-pass compilation)
-- [x] Array Indexing Type Resolution
-- [x] Method `this` Support
-- [x] Module System (Imports)
-- [x] Nested Generics & Static Methods
-- [x] Generic Instantiation in Expressions
-- [x] Make `this` explicit in struct methods
-- [x] Code Generation (LLVM IR or similar)
+- [x] LLVM IR generation, native compilation through Clang, optimization levels,
+      target triples, and function attributes.
+- [x] Peggy parser with source locations and multiple-error recovery when
+      `collectAllErrors` is enabled (`tests/ParserRecovery.test.ts`).
+- [x] Declaration hoisting, explicit local types, aliases, type compatibility,
+      casts, integer literal range checks, and missing-return analysis.
+- [x] Same-scope redeclaration errors, outer-scope shadowing warnings, unused
+      variable diagnostics with `_` suppression, and unreachable-code checking.
+- [x] Structs, inheritance, methods with explicit `this`, constructors,
+      explicit destructors, and implicit initialization through an instance `new`.
+      Automatic ownership and destructor insertion are not implemented.
+- [x] Generic functions, structs, enums, constraints, monomorphization, and
+      generic-aware operator overload resolution. Inference is context-dependent;
+      examples should retain explicit local types and generic arguments.
+- [x] Specs/interfaces, function overloads, operator overloads, tuples, arrays,
+      and pointer operations.
+- [x] Imports/exports, namespace imports, module resolution, cached compilation,
+      and linking. True frontend generation of independent per-module IR remains
+      separate from the implemented bounded backend compilation job pool.
+- [x] Enums with unit/tuple/struct variants, payloads, equality, methods, guards,
+      exhaustiveness diagnostics, and `match<Type>` checks.
+- [x] Nested enum tuple-variant and tuple patterns
+      (`tests/NestedEnumPatternMatching.test.ts`, `tests/NestedTupleMatch.test.ts`).
+      Struct-variant pattern fields currently use simple bindings.
+- [x] `is`/`as` expressions and direct branch narrowing for supported type checks.
+      User-defined `ret value is Type` guard syntax is not implemented.
+- [x] `loop`, C-style loops, switch, block scope, const checking, try/catch/throw,
+      and scope-bound LIFO `defer` cleanup.
+- [x] Closures/lambdas with captures and bound methods. `Func` is a raw function
+      pointer; `Lambda` carries a function and capture context.
+- [x] Homogeneous `...T` variadics packed as `T*` plus count, and heterogeneous
+      `...Any` arguments.
+- [x] Backtick string interpolation with `${expression}`, lowered to `String`
+      operations; see [the interpolation guide](docs/54-string-interpolation.md).
+- [x] Inline assembly flavors `intel`, `att`, `llvm`, and `raw`, including operand
+      interpolation, explicit LLVM constraints, clobbers, and flavor-specific emission.
+      LLVM/Clang validate assembly content; BPL does not provide a full assembler.
+- [x] Reflection metadata through `typeof`, `TypeInfo`, `FieldInfo`, and
+      `MethodInfo` (`lib/reflection.bpl`, `tests/TypeReflection.test.ts`).
+- [x] DWARF debug metadata, source locations, type descriptors, and variable
+      declarations through `DebugInfoGenerator` and the `--dwarf`/`--debug` options.
 
-## Variadic Functions
+## Implemented tools and runtime
 
-- [x] Support homogeneous variadics (e.g., `...int`) alongside heterogeneous `...Any`.
-  - Homogeneous `...T` parameters are packed as `T*` plus the implicit `count`
-    argument.
-  - Heterogeneous `...Any` parameters wrap arguments in `Any`.
-  - Type checking enforces homogeneous variadic argument types.
+- [x] CLI build/run/check, AST/LLVM output, eval/stdin, formatter, linter,
+      documentation generation, shell completions, and toolchain doctor.
+- [x] Source-span diagnostics and in-memory source previews for eval/stdin;
+      JSON diagnostics for supported analysis and tooling commands.
+- [x] `bpl dev`/watch mode with debounce and compilation-error recovery.
+      Directory watchers discover new `.bpl`/`.x` modules/subdirectories, follow
+      transitive imports outside the entry tree, and survive atomic replacement.
+      Missing imports and watch failures retry; long-running programs run
+      asynchronously and stop before rebuilds. Unrelated dependency and hidden
+      directory trees are excluded from recursive entry-tree discovery.
+- [x] VS Code language server: completion, hover, definitions, references,
+      rename, implementation lookup, auto-import and other quick fixes, formatting,
+      semantic tokens, inlay hints, symbols, and hierarchy providers.
+      Missing-return diagnostics do not offer an invalid bare-return edit.
+- [x] Runtime checks for supported null access, bounds, division failures, and
+      stack overflow, with native error reporting and stack traces on supported
+      platforms. Raw pointers still require manual lifetime/bounds management.
+- [x] Native runtime builds on Linux/macOS and Windows compiler-component smoke
+      tests. WSL remains the documented Windows native-build workflow.
+- [x] WebAssembly MVP: wasm32 layout/codegen, direct `.wasm` output with a wasm
+      linker, object fallback without one, hosted/freestanding runtime shims, and
+      browser playground integration. WASI and broader host APIs remain follow-ups.
+- [x] C binding generator for supported prototypes, common primitive/pointer and
+      variadic mappings, constants, primitive typedefs, plain structs, and enums.
+      Complex macros, bitfields, packed layouts, and complete ABI metadata need
+      more capable header parsing.
+- [x] Fuzz generation, saved artifacts/replay/promotion, differential O0/O3 checks,
+      correctness corpora, sanitizer checks, LLVM verification, and benchmarks.
+- [x] Release smoke/manifest checks, packed CLI coverage, CI suite planning,
+      pinned local Prettier with `format`/`format:check`, and baseline test logging
+      that preserves failure status. The baseline script requires Bash.
 
-## Struct Initialization
+## Implemented libraries and packages
 
-- [x] Implicit Constructor Calls
-  - When declaring `local x: X;` without initialization:
-  - Check if `struct X` has an instance method `frame new(this: *X)`.
-  - If yes, implicitly call `x.new()` to initialize the object.
-  - This ensures structs with pointers or specific setup requirements are safely initialized.
-  - Distinguish from static `frame new(...)` which requires explicit call.
+- [x] `Option<T>`/`Result<T,E>` and typed runtime error structs.
+- [x] Strings/builders, formatting, filesystem/path helpers, argument parsing,
+      date/time/duration, JSON parsing/serialization, random/numeric helpers, and
+      stable FNV-1a/checksum hashing. Cryptographic hashes are a separate backlog item.
+- [x] Collections including arrays, maps, sets, linked lists, deques, queues,
+      stacks, priority queues, and collection iteration specs.
+- [x] Base64 and Hex codecs in `lib/base64.bpl`/`lib/hex.bpl`, UTF-8 helpers,
+      and CSV parsing/writing in the bundled `bpl-csv` package.
+- [x] Environment access through `Env`; process status/output, quoted command
+      execution, trusted-text shell execution, and sleep through `lib/process.bpl`.
+      This does not amount to a general portable signals/process-control API.
+- [x] Basic `Log.debug/info/warn/error` methods through standard IO.
+      Configurable filtering, structured formatters, and output targets remain open.
+- [x] Explicit arena/page/pool/stack allocators in `lib/memory/`, including arena
+      reset/reuse (`tests/StdlibArenaReset.test.ts`). Allocation remains manual;
+      compiler-enforced regions and ownership are not implemented.
+- [x] Bundled web packages: HTTP parser/server framework, synchronous HTTP/HTTPS
+      client, optional TLS, middleware, validation, rate limiting, authentication,
+      database/SQLite, templates, and CSV; see [packages/README.md](packages/README.md).
+      The socket stack targets Linux IPv4. Broader networking and portability
+      remain open; see each package's limits before deployment.
+- [x] Local package init/pack/install/list, manifest validation, cache checks,
+      binary links, `bpl.lock`, exact restore, and `install --locked` verification.
+      Cache-based version constraints are supported; full dependency graph
+      planning/rollback and a remote package registry remain open. See
+      [PACKAGE_MANAGER.md](PACKAGE_MANAGER.md).
 
-- [x] Canonical primitive integer types mapping
-- [x] Type casting (implicit & explicit)
-- [x] CLI compiler tool
-- [x] Unit & integration tests (basic coverage exists)
-- [x] Try/catch error handling (already implemented)
-- [x] Type Aliasing (user-defined type aliases)
-- [x] Project structure & LLVM upgrade
-- [x] Full import resolution before compilation
-- [x] Per-module compilation and linking with cache
-- [x] Replace lli with clang for running LLVM IR
-- [x] Add default exit code for main if it's void
-- [x] Packaging system for libraries/apps (init, pack, install, list commands)
-- [x] Constructors and destructors for structs
-- [x] Monomorphization for Generic Structs (Basic Support)
-- [x] Code formatter
-- [x] Error handling and diagnostics
-- [x] AST/IR printing flags (CLI `--emit` option)
-- [x] Language Specification Update
-- [x] VS Code Extension
-- [x] Language Server Protocol (LSP) Implementation
-- [x] Robust Import/Export & Linking
-- [x] Function Overloading by Parameter Types
-- [x] Standard Library Module
-- [x] Interfaces/Traits
-- [x] Enhanced Error Messages with Location Information
-- [x] Shell Autocomplete for CLI
-- [x] Operator Overloading for User Types (24 operators: arithmetic, bitwise, comparison, unary, indexing, callable)
-- [x] Generic-Aware Operator Resolution (Operators work with generic types like Array<T>, Stack<T>, etc.)
-- [x] Enum Types - Complete Implementation ✅ (All essential features implemented and tested)
-  - ✅ Enum declaration parsing (unit, tuple, struct variants)
-  - ✅ Generic enum support with explicit type parameters
-  - ✅ Type checking for enum variants
-  - ✅ Unit variant construction (e.g., `Color.Red`)
-  - ✅ Tuple variant construction (e.g., `Message.Move(10, 20)`)
-  - ✅ Struct variant construction (e.g., `Shape.Circle { radius: 5.0 }`)
-  - ✅ Match expressions with discriminant checking
-  - ✅ Exhaustiveness checking for match expressions
-  - ✅ Pattern destructuring in match arms (tuple and struct patterns)
-  - ✅ Outer scope variable access in match arm expressions
-  - ✅ Enum as function parameters and return types
-  - ✅ LLVM IR code generation with full payload storage
-  - ✅ Tuple/struct data payload storage and retrieval with proper alignment
-  - ✅ Methods on enums with `this` parameter and generic context inheritance
-  - ✅ Enum equality comparison operators (==, !=) with tag and payload comparison
-  - ✅ Recursive enums with pointer types and proper memory layout
-  - ✅ Generic enum type mangling with normalized primitive types (int→i32)
-  - ✅ Pattern guards in match expressions - Conditional matching with `if` guards (e.g., `Option.Some(x) if x > 0 => "positive"`)
-  - ✅ Type checking with `match<Type>` - Runtime variant discrimination (e.g., `if (match<Option.Some>(opt)) { ... }`)
-  - ✅ Formatter support for enums and match expressions
-  - ✅ Comprehensive test suite (93 enum-specific tests, 756 integration tests, all passing)
-  - ✅ Example programs demonstrating all enum features
-  - ✅ Full documentation (user guide and implementation details)
-  - ✅ Root Global `Type` Struct - Implicit inheritance for all structs
-  - 📝 Future enhancements (non-critical, workarounds exist):
-    - Nested pattern matching (e.g., `Outer.Wrapped(Inner.Value(v))`) - use nested match expressions
-    - Direct field access on struct variants (e.g., `msg.x`) - use pattern matching instead
-    - Namespace-qualified patterns in match (e.g., `Enums.Color.Red`) - import enum directly
-    - Generic enum type inference (e.g., `Option.Some(42)` → `Option<int>`) - requires bidirectional type checking
-- [x] Multi-Target Support (Cross-compilation via LLVM target triples)
-- [x] Root Global `Type` Struct (Implicit inheritance for all structs)
-- [x] Primitive Types as Structs Inheriting `Primitive` (Wrapper structs for int, float, bool, char)
-- [x] Defer Statement ✅
-  - ✅ `defer` keyword implemented
-  - ✅ LIFO execution order
-  - ✅ Scope-bound cleanup
-  - ✅ Void return enforcement
-  - ✅ Recursion/Stack Overflow fix (LambdaCall)
-  - ✅ VS Code Extension support
-- [x] Closures and Lambda Expressions ✅
-  - ✅ Lambda syntax `|args| body` implemented
-  - ✅ Capture by value semantics verified
-  - ✅ `Func<Ret>(Args...)` type support
-  - ✅ VS Code Extension support (Syntax Highlighting & Hover)
-  - ✅ Integration with Enum Pattern Matching (Capturing pattern bindings)
-- [x] Const Correctness ✅
-  - ✅ `const` keyword for local variables
-  - ✅ `const` keyword for function parameters
-  - ✅ Immutability enforcement in TypeChecker
+## Remaining work
 
-## Pending Features
+Priority numbers are relative (lower is more urgent). Ongoing maintenance and
+regression work is prioritized in [PLAN.md](PLAN.md).
 
-- [x] C-style For Loop Support ✅
-  - ✅ Syntax: `loop(local i:int=0; i<10; ++i) { ... }`
-  - ✅ Desugaring to `while` loop with block scope (Implemented directly in Codegen)
-  - ✅ Verify scope behavior (block vs function scope)
+### Near-term reliability
 
-- [x] Scope Verification Task ✅
-  - ✅ Validate and verify how scopes work
-  - ✅ Determine if each block has its own scope or if variables are hoisted
-  - ✅ Document findings
+- [ ] [2] Generate independent per-module IR in the frontend to use the existing
+      backend parallel compilation pool end to end.
+- [ ] [2] Plan package dependency graphs before mutation and provide rollback
+      across package replacements; retain root/transitive version constraints.
+- [ ] [2] Expand required-linker wasm execution and host API/platform coverage.
+- [ ] [3] Improve binding generation for complex C headers and ABI layouts.
+- [ ] [4] Extend nested patterns beyond the currently supported forms, including
+      recursive struct-variant field patterns; assess qualified-pattern support.
 
-  - ✅ Recursive mutability checking for member access and indexing
-  - ✅ `this` treated as const pointer in methods
+### Language and library extensions
 
-- [x] Documentation Generator ✅
-  - ✅ Multi-line comment syntax changed to `/# ... #/` to avoid Markdown conflict
-  - ✅ Markdown generation from comments
-  - ✅ Standard Library documentation
-  - ✅ CLI `docs` command
-- [x] Type Narrowing / Pattern Matching ✅
-  - ✅ `is` operator for type checking (e.g., `x is int`)
-  - ✅ `as` operator for type casting (e.g., `x as float`)
-  - ✅ Struct upcasting (e.g., `Dog` as `Animal`)
-  - ✅ Chained casts support (e.g., `x as int as float`)
-  - ✅ Formatter support for `as`/`is` expressions (parentheses enforcement)
-  - ✅ Integration with `match` expressions
-  - ✅ Comprehensive test suite covering inheritance, specs, and enums
-- [x] Unused Variable Detection ✅
-  - ✅ Compiler error for unused local variables
-  - ✅ `_` prefix suppression support
-  - ✅ Integration with all existing tests
-- [x] Internal Error Structs for Standard Library (Replace integer error codes with proper structs) ✅
-  - `ResultUnwrapError`, `OptionUnwrapError`
-  - `IndexOutOfBoundsError`, `NullPointerError`
-  - `DivisionByZeroError`, `IOError`, `CastError`
-- [x] LSP Enhancements ✅
-  - ✅ Rename Symbol
-  - ✅ Find References
-  - ✅ Go to Implementation
-  - ✅ Code Actions (Auto-import)
-  - ✅ Expanded Snippets
-- [x] Result<T, E> Type Implementation ✅
-  - ✅ `Result<T, E>` enum in standard library
-  - ✅ Helper methods: `isOk`, `isErr`, `unwrap`, `unwrapOr`, `map`, `mapErr`
-  - ✅ Operator overloading for Generic Enums (Backend support)
-  - ✅ Equality operators (`==`, `!=`) for `Result` and `Option`
-  - ✅ Integration tests verifying `Result` functionality
-- [x] CLI Eval Error Display Fix ✅
-  - ✅ `DiagnosticFormatter` uses `SourceManager` for virtual files
-  - ✅ Correct error snippets shown for `--eval` code
-- [x] Fuzz Testing Integration ✅
-  - ✅ Fuzz Target: `fuzz/fuzz_target.ts` runs lexer/parser/typechecker
-  - ✅ Fuzz Runner: `fuzz/run_fuzz.ts` generates random/mutated inputs
-  - ✅ Crash Detection: Automatically saves crashing inputs to `fuzz/crash_*.bpl`
-- [x] Compiler Performance Benchmarking ✅
-  - ✅ Benchmark Script: `benchmark/measure_compilation.ts`
-  - ✅ Synthetic Tests: Generates large files (1k-5k functions) to stress test
-  - ✅ Metrics: Measures compilation time in milliseconds
-- [x] String Interpolation ✅
-  - ✅ Syntax: `$"..."` literals with `${expr}` interpolation
-  - ✅ Lexer/Parser: Updated to handle interpolated strings
-  - ✅ Type Checker: Desugars to `String` concatenation
-  - ✅ Codegen: Generates code for concatenated strings
-  - ✅ Documentation: Added `docs/54-string-interpolation.md`
-- [x] Allow Structs to Inherit Primitives ✅
-  - ✅ Syntax: `struct A : int`
-  - ✅ Type Checker: Validates inheritance and allows casting
-  - ✅ Codegen: Handles layout (`__base__` field) and casting (wrap/unwrap)
-
-## Partially Completed Features
-
-- [x] Inline Assembly Blocks ✅
-  - ✅ Syntax: `asm("flavor") { ... }`
-  - ✅ Flavors: `intel`, `att`, `llvm`, `raw`
-  - ✅ Interpolation: `(var)` (input), `(=var)` (output), `(&var)` (address)
-  - ✅ Constraints: Explicit LLVM constraints `(var: "r")`
-  - ✅ Clobbers: `[ "eax", "memory" ]`
-  - ✅ Codegen: Generates `call asm` for x86/att, raw injection for llvm/raw
-  - ✅ Tests: `examples/asm_test`, `examples/asm_flavors_test`
-    - ❌ Flavor-based wrapping (e.g. `call asm`)
-    - ❌ Explicit register constraints
-    - ❌ Validation of assembly content
-
-- [x] **Semantic Analysis Improvements** ✅
-  - **Status:** COMPLETED
-  - Implemented:
-    - ✅ Unreachable code detection
-    - ✅ Redeclaration check (same scope)
-    - ✅ Unused variable detection
-    - ✅ Shadowing warning (outer scope)
-
-- [x] **Debugger Support (DWARF)**
-  - **Status:** COMPLETED
-  - Implemented:
-    - ✅ CLI Flag: `--dwarf`
-    - ✅ Metadata Generator: `DebugInfoGenerator` class
-    - ✅ Compile Unit: Emits `!llvm.dbg.cu` and `!DICompileUnit`
-    - ✅ Subprograms: Emits `!DISubprogram` for functions
-    - ✅ Line Info: Attaches `!dbg` location to instructions
-    - ✅ Full type descriptors for complex types (Structs, Enums, Arrays, Slices)
-    - ✅ Variable location tracking (`llvm.dbg.declare`)
-
-## Pending Features (Prioritized)
-
-### High Priority (Current Stability / DX)
-
-- [ ] **Compiler correctness and fuzz stability**
-  - Keep scheduled fuzz, differential fuzz, O0/O3 correctness, sanitizer, and
-    runtime-failure suites green.
-  - Promote minimized fuzz artifacts into regression corpora when failures
-    appear.
-  - Keep compiler failures as structured diagnostics instead of uncaught
-    exceptions.
-
-- [ ] **WebAssembly runtime and toolchain hardening**
-  - Keep hosted/freestanding wasm examples runnable on CI with
-    `BPL_REQUIRE_WASM_LD=1`.
-  - Expand compatibility matrix checks when new `examples/wasm_*` entries are
-    added.
-  - Improve browser/playground wasm execution evidence without requiring native
-    services.
-
-- [ ] **Package manager and import stability**
-  - Keep package manifest, lockfile, cache, binary-link, and import diagnostics
-    strict and JSON-parseable.
-  - Continue release-smoke coverage for packed package-manager helper paths.
-
-- [ ] **Release and CI contract coverage**
-  - Keep workflow action versions, Node 24 opt-in, runtime builds, type checks,
-    lint, CI-safe tests, correctness, wasm, and sanitizer stages covered by
-    local tests.
-
-- [ ] **Roadmap and documentation drift control**
-  - Keep `TODO.md`, `PLAN.md`, docs, playground examples, and command
-    references synchronized with shipped compiler behavior.
-
-### Completed High Priority Items
-
-- [x] **Proper Runtime Library Implementation** ✅
-  - **Status:** COMPLETED (January 2026)
-  - Description: Replace minimal stubs in `lib/runtime.ll` with a robust runtime library.
-  - **What Was Implemented:**
-    - ✅ Created `lib/runtime_support.c` - C runtime support library
-    - ✅ Signal handlers for SIGSEGV, SIGFPE, SIGILL, SIGABRT, SIGBUS
-    - ✅ Colored error boxes with ASCII box drawing
-    - ✅ Native stack traces using `backtrace()` and `dladdr()`
-    - ✅ BPL-level call stack tracking
-    - ✅ Enhanced error messages for:
-      - NULL pointer access (with expression, function, line/column)
-      - Index out of bounds (with index and size)
-      - Division by zero (with function context)
-      - Stack overflow detection
-    - ✅ Created `lib/build_runtime.sh` build script
-    - ✅ Updated `cli/BinaryRunner.ts` and `cli/CompilationRunner.ts` to link runtime
-    - ✅ Documented in `docs/66-runtime-library.md`
-
-- [x] **Advanced Type System Features** ✅
-  - ✅ Direct branch narrowing for `if (value is Type)` and `if (match<Type>(value))`
-  - ✅ Helper checks use ordinary `ret bool`; special `ret value is Type` guard syntax is not part of the language
-
-- [x] **Parallel Compilation Backend MVP** ✅
-  - Description: Utilize multi-core processors to compile independent modules in parallel.
-  - Implemented:
-    - ✅ `ModuleCache.compileModules(...)` compiles independent LLVM module inputs with a bounded async job pool.
-    - ✅ Preserves input ordering for linked object lists.
-    - ✅ Reuses module cache entries across optimization levels and target triples.
-  - Remaining: wire true per-module IR generation into the front-end compilation pipeline.
-
-- [x] **Watch Mode** ✅
-  - **Status:** COMPLETED (January 2026)
-  - Description: Add `bpl dev` watch mode to recompile on file changes.
-  - Implementation notes: Use file watcher, integrate with incremental compilation, debounce events.
-  - **What Was Implemented:**
-    - ✅ Created `cli/Watcher.ts` with file watching logic
-    - ✅ Added `bpl dev <file>` command to CLI
-    - ✅ Implemented debouncing (100ms) to prevent excessive recompilation
-    - ✅ Error recovery that continues watching after compilation failures
-    - ✅ Recursive watching of all `.bpl` files in directory tree
-    - ✅ Smart filtering (ignores node_modules, .git, bpl_modules)
-    - ✅ Documented in `docs/39-compiler-options.md` and `docs/03-quick-start.md`
-
-### Medium Priority
-
-- [4] **RAII & Automatic Resource Management**
-  - Description: Add automatic destructor calls and ownership semantics.
-  - Implementation notes:
-    - Define `Destructible` interface in stdlib.
-    - Implement compiler pass to inject `x.destroy()` at end of scope.
-    - Implement "Move Semantics" (nullify source variable on return/assignment) to prevent double-free.
-    - Add `Unique<T>` and `Shared<T>` smart pointers.
-
-- [6] **Default and Named Arguments**
-  - Description: Allow functions to define default values for parameters and allow callers to specify arguments by name.
-  - Implementation notes: Update declaration/call syntax, resolve defaults at call site, handle named args.
-
-- [6] **Parser Error Recovery**
-  - Description: Improve parser to recover from syntax errors and continue parsing.
-  - Implementation notes: Implement synchronization points, skip tokens, mark error nodes.
-
-- [6] **Nested Pattern Matching**
-  - Description: Extend pattern matching to support nested patterns (e.g., `Option.Some(Result.Ok(x))`).
-  - Implementation notes: Update parser/typechecker/codegen for recursive pattern matching.
-
-  - Description: Add public/private visibility modifiers and module encapsulation.
-  - Implementation notes: Add pub/private keywords, enforce visibility during semantic analysis, support module-level exports.
-
-- [3] ✅ **Basic Package Management (COMPLETED)**
-  - Description: Implement core package management commands to pack, install, and resolve local packages.
-  - Implementation notes: Implemented `bpl pack`, `bpl install`, and module resolution logic.
-
-- [7] **Package Registry and Advanced Dependency Management**
-  - Description: Create a centralized package registry and enhance package manager for publishing/versioning.
-  - Implemented:
-    - ✅ Local install lockfile v1 (`bpl.lock`) records package version, source archive, and content hash.
-    - ✅ `bpl install` restores exact packages from `bpl.lock`.
-    - ✅ `bpl install --locked` verifies installed versions and content hashes for CI.
-  - Remaining: registry API, publish/install commands against a remote index, and richer version-range resolution.
-
-- [x] **WebAssembly (WASM) Target MVP** ✅
-  - Description: Add compilation target for WebAssembly (WASM).
-  - Implemented:
-    - ✅ `wasm32-unknown-unknown` target triple smoke coverage.
-    - ✅ wasm32 LLVM datalayout coverage.
-    - ✅ Shell completions and docs list the target.
-    - ✅ Direct `.wasm` artifact output through a wasm linker path when available.
-    - ✅ Freestanding `runtime_wasm.ll` shim for standalone no-entry modules.
-    - ✅ Relocatable wasm object fallback when `wasm-ld`/`ld.lld` is not installed.
-    - ✅ Hosted wasm runtime shim, browser playground host import alignment, and
-      executable wasm runtime harnesses when a linker is available.
-  - Remaining: WASI-specific bindings, broader host API coverage, and more CI
-    environments that require a real wasm linker instead of local skips.
-
-- [x] **Automatic C Binding Generation (bindgen) v2** ✅
-  - Description: Tool to generate BPL `extern` declarations from C headers.
-  - Implemented:
-    - ✅ `bpl bindgen <header> [-o file]` for simple C function prototypes.
-    - ✅ Common primitive, pointer, string, `size_t`, and variadic mappings.
-    - ✅ Numeric/string `#define` constants.
-    - ✅ Primitive typedef aliases.
-    - ✅ Plain structs and enums.
-  - Remaining: libclang-backed parsing for complex macros, typedef graphs, packed layouts, bitfields, and platform ABI metadata.
-
-- [7] **Standard Library Expansions**
-  - [x] Structured Logging (Log levels, formatters, output targets)
-    - Current `Log` API provides debug/info/warn/error through standard IO; richer formatters/output targets remain a future enhancement.
-  - [x] CLI Argument Parser (Flags, Options, Subcommands, Help generation)
-  - [ ] Networking & HTTP (TCP/UDP, HTTP client)
-  - [ ] System Calls & OS Interaction (Signals, Env vars, Process control)
-  - [x] Date & Time (Date, Time, Duration, Formatting)
-  - [x] JSON & Serialization (Parse/Stringify)
-  - [x] Hashing (stable FNV-1a/checksum helpers)
-    - Remaining: cryptographic hashes such as SHA-256 and platform entropy APIs.
-  - [ ] Regular Expressions (Match, Replace, Split)
-  - [x] Advanced Collections (Set, LinkedList, Queue, Stack, PriorityQueue)
-  - [ ] BigInt & Arbitrary Precision (GMP wrapper or native)
-  - [ ] Compression & Archiving (zlib/gzip)
-  - [ ] Encoding & Decoding (Base64, Hex, CSV)
-
-### Low Priority / Long Term
-
-- [8] **Null Safety Operators**
-  - Description: Introduce null-safe navigation (`?.`) and null-coalescing (`??`) operators.
-  - Implementation notes: Implement `?.` and `??` operators, desugar to conditional checks.
-
-- [8] **Middle-end Optimizations**
-  - Description: Implement BPL-specific optimization passes before LLVM IR generation.
-  - Implementation notes: Dead code elimination, constant folding, inlining on AST/IR.
-
-- [8] **Compile-Time Function Execution (CTFE)**
-  - Description: Execute functions at compile time to generate constants.
-  - Implementation notes: Interpreter for BPL IR/AST, execute during semantic analysis.
-
-- [8] **Code Coverage Integration**
-  - Description: Generate coverage reports for tests.
-  - Implementation notes: Instrument LLVM IR with coverage mapping, support llvm-cov.
-
-- [8] **Region-Based Memory Management (Arenas)**
-  - Description: Add Arena allocators to stdlib for efficient memory management.
-  - Implementation notes: Implement Arena struct, bulk allocation/deallocation.
-
-- [8] **Async/Await**
-  - Description: Add `async` functions and `await` operator with promise-like semantics.
-  - Implementation notes: Decide on state machines vs coroutines, implement event loop integration.
-
-- [8] **Threading Support**
-  - Description: Provide language primitives to create and manage threads, synchronization primitives.
-  - Implementation notes: Integrate with target threading primitives, define memory model.
-
-- [9] **REPL (Read-Eval-Print Loop)**
-  - Description: Implement interactive shell for quick prototyping and testing.
-  - Implementation notes: Create input loop, reuse parser/compiler, use JIT or interpreter.
-
-- [x] **Source Code Display for Eval/Stdin Errors** ✅
-  - Description: Error snippets for eval and virtual-input compilation use
-    in-memory source content instead of synthetic disk paths.
-  - Implementation: `DiagnosticFormatter` uses `SourceManager` for virtual
-    files, with CLI regression coverage for eval diagnostics.
-
-- [9] **Reflection API**
-  - Description: Provide runtime type inspection and manipulation capabilities.
-  - Implementation notes: Generate type metadata during compilation, expose reflection APIs in stdlib.
-
-- [9] **Macro System**
-  - Description: Implement compile-time code generation with procedural macros.
-  - Implementation notes: Define macro syntax, implement macro expansion phase.
-
-- [9] **Extension Methods**
-  - Description: Allow adding methods to existing types without inheritance.
-  - Implementation notes: Define syntax, update symbol table to find extension methods, transpile to static calls.
-
-- [9] **Generators (yield)**
-  - Description: Simplify iterator creation using `yield` keyword.
-  - Implementation notes: Transform generator functions into state machine structs implementing Iterator.
-
-- [9] **Pipeline Operator (|>)**
-  - Description: Syntactic sugar for function chaining `x |> f` -> `f(x)`.
-  - Implementation notes: Update parser to handle `|>` operator, transform AST to nested calls.
+- [ ] [4] Automatic resource management, ownership/moves, automatic destructor
+      insertion, and smart pointers.
+- [ ] [6] Default/named function arguments and explicit member visibility rules
+      beyond the existing module import/export mechanism.
+- [ ] [7] Remote package registry/publishing and richer dependency resolution.
+- [ ] [7] Configurable/structured logging, broader portable networking and OS
+      APIs, cryptographic hashes/entropy, regex, arbitrary-precision arithmetic,
+      and compression/archiving.
+- [ ] [8] Async/await and native threading/synchronization. `lib/thread.bpl` and
+      `lib/sync.bpl` explicitly export no implementation; FFI interop is separate.
+- [ ] [8] Null-safe navigation/coalescing, BPL middle-end optimizations,
+      compile-time function evaluation, and source-level code coverage.
+- [ ] [8] Compiler-enforced region lifetimes beyond the existing manual arenas.
+- [ ] [9] Interactive REPL, macros, extension methods, generators, and pipeline
+      operator syntax.
+- [ ] [9] Complete the self-hosting compiler. Reader/scanner and supporting types
+      exist in `src/`; the parser is a scaffold whose `parse()` returns `nullptr`.
+      See [the self-hosting plan](src/SELF_HOSTING_ROADMAP.md) for that project's
+      phase breakdown. Other IDE integrations and broader C++ interop also remain
+      extensions beyond the current VS Code tooling and C binding generator.

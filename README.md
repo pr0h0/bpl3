@@ -941,6 +941,19 @@ Do not commit Agent Board credentials, API keys, local environment files, or
 private endpoint details. Board updates should describe the work and evidence,
 not secrets.
 
+### Formatting and baseline logs
+
+`bun install --frozen-lockfile` installs the pinned Prettier version. Use
+`bun run format` to format supported repository files and `bun run format:check`
+for a read-only style check. Dependencies and generated output are excluded by
+`.prettierignore`. Existing formatting drift may need a separate cleanup before
+using the repository-wide check as a required CI gate. Use `bpl format` for BPL
+source files.
+
+`bun run test:baseline` saves combined test output to `test-baseline.txt` and
+returns a nonzero status when tests fail. It requires Bash and accepts test
+arguments, for example `bun run test:baseline tests/ParserRecovery.test.ts`.
+
 ### Running Tests
 
 ```bash
@@ -1127,55 +1140,15 @@ Coming soon!
 
 ## 🚦 Roadmap
 
-### Current Status: Beta
+BPL is under active development. The LLVM compiler, type system, modules,
+formatter, package tools, VS Code extension, native runtime, and WebAssembly MVP
+are implemented, with platform and feature limits documented alongside them.
 
-BPL is under active development. The compiler has **1,300+ tests** across 140+ test files, plus hundreds of example and regression programs.
-
-**Build Status:**
-
-- ✅ 1,300+ tests in the checked-in test suite
-- ✅ CI-safe suite includes integration tests, all playground examples, and VS Code extension tests
-- ✅ 0 ESLint errors/warnings
-- ✅ 0 TypeScript errors
-- ✅ 450+ checked-in examples and regression programs
-
-### Completed ✅
-
-- [x] Full LLVM IR backend
-- [x] Static type system with generics
-- [x] Structs with inheritance
-- [x] Module system with imports/exports
-- [x] Exception handling (try/catch)
-- [x] Package manager
-- [x] Code formatter
-- [x] Cross-compilation support
-- [x] Standard library (50+ modules)
-- [x] VS Code extension
-- [x] Comprehensive test suite (1,300+ tests)
-- [x] Documentation (70+ pages)
-- [x] Enum types with pattern matching
-- [x] String interpolation
-- [x] Lambda expressions
-- [x] Tuple destructuring (including nested)
-- [x] Operator overloading (24 operators)
-- [x] Intrinsics (math, bit manipulation, memory)
-- [x] WebAssembly target (freestanding wasm32 plus hosted runtime hooks)
-
-### In Progress 🚧
-
-- [ ] IDE integrations (beyond VS Code)
-- [ ] More stdlib modules (networking, threads)
-- [ ] Optimization passes
-
-### Planned 📋
-
-- [ ] Package registry
-- [ ] Incremental compilation improvements
-- [ ] Inline assembly improvements
-- [ ] C++ interop improvements
-- [ ] Self-hosting compiler
-
-See [TODO.md](TODO.md) for detailed task list.
+[TODO.md](TODO.md) is the canonical implementation-status list and extension
+backlog. [PLAN.md](PLAN.md) prioritizes correctness, package/import reliability,
+WebAssembly coverage, developer experience, and release stability.
+[BUGS.md](BUGS.md) records specific defects and follow-ups. Test and build health
+should be assessed from current validation results rather than fixed counts here.
 
 ## 📊 Benchmarks
 

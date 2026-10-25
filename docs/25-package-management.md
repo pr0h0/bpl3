@@ -361,6 +361,13 @@ malformed lockfiles, `BPL_PACKAGE_NOT_FOUND` for package lookup misses,
 direct archive paths that are symlinks, pass through symlinked parents, or are
 not files. Reproduce the focused option/archive JSON contracts with
 `bun test tests/PackageJsonFailureContracts.test.ts -t "package install option conflict|direct archive path"`.
+Local version selection considers root and installed dependents' requirements.
+An incompatible shared dependency reports
+`BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT` before replacing that package.
+Resolution is incremental: earlier package installations are not rolled back
+when a later dependency fails. See [the package manager reference](../PACKAGE_MANAGER.md)
+for the current version-selection and lockfile limits.
+
 PackageManager manifest-loading failures also carry stable
 `BPL_PACKAGE_MANIFEST_*` codes: `BPL_PACKAGE_MANIFEST_MISSING`,
 `BPL_PACKAGE_MANIFEST_SYMLINK`, `BPL_PACKAGE_MANIFEST_NOT_FILE`,
