@@ -68,22 +68,7 @@ export async function runFormatCommand(
     }
 
     if (!files || files.length === 0) {
-      if (outputJson) {
-        emitFormatJsonAndExit(
-          createFormatJsonReport(false, {
-            mode: "check",
-            totalFiles: 0,
-            formattedFiles: 0,
-            unformattedFiles: 0,
-            errorCount: 1,
-            files: [],
-            error: "No files specified.",
-            errorCode: FORMAT_NO_INPUTS_CODE,
-          }),
-        );
-      }
-      log.error("No files specified.");
-      process.exit(1);
+      exitNoFormatInputs(outputJson, "No files specified.");
     }
     if (options.write && options.check) {
       if (outputJson) {
@@ -105,8 +90,12 @@ export async function runFormatCommand(
     }
 
     files = expandSourceInputs(files);
-    if (!files.length)
-      throw new Error("No BPL sources found in the supplied directories.");
+    if (!files.length) {
+      exitNoFormatInputs(
+        outputJson,
+        "No BPL sources found in the supplied directories.",
+      );
+    }
     if (files.includes("-") && options.write)
       throw new Error(
         "Cannot use --write with stdin; redirect formatted output instead.",
@@ -290,6 +279,25 @@ export async function runFormatCommand(
       resetLogLevel();
     }
   }
+}
+
+function exitNoFormatInputs(outputJson: boolean, message: string): never {
+  if (outputJson) {
+    emitFormatJsonAndExit(
+      createFormatJsonReport(false, {
+        mode: "check",
+        totalFiles: 0,
+        formattedFiles: 0,
+        unformattedFiles: 0,
+        errorCount: 1,
+        files: [],
+        error: message,
+        errorCode: FORMAT_NO_INPUTS_CODE,
+      }),
+    );
+  }
+  log.error(message);
+  process.exit(1);
 }
 
 function emitFormatJsonAndExit(

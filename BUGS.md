@@ -13,6 +13,15 @@ This file tracks bugs and edge cases found during comprehensive testing.
   tolerant parse behavior and programs with errors remain excluded. Matching
   is still by direct parent name, not a workspace-wide semantic implementation graph.
 
+## Empty formatter input diagnostics (2026-10-25)
+
+- **Fixed:** `format --check --json <directory>` returned
+  `BPL_FORMAT_PROCESSING_ERROR` when source discovery found no files, including
+  empty directories and trees excluded by `.bplignore` or dependency filters.
+  It now uses the existing `BPL_FORMAT_NO_INPUTS` contract, matching an omitted
+  input list. Invalid discovery configuration still reports processing errors;
+  missing explicit files retain their file-specific code.
+
 ## Quick-win review (2026-10-25)
 
 Resolved findings:
