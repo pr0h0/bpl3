@@ -91,3 +91,14 @@ test("bash completes docs paths and format/lint directories without dropping spa
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("bash registration enables readline filename quoting and directory suffixes", () => {
+  const result = spawnSync(
+    "bash",
+    ["-c", "source completions/bpl-completion.bash; complete -p bpl"],
+    { cwd: root, encoding: "utf8" },
+  );
+  expect(result.status).toBe(0);
+  expect(result.stdout).toContain("-o filenames");
+  expect(result.stdout).toContain("-F _bpl_completion bpl");
+});

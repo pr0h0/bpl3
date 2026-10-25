@@ -254,4 +254,4 @@ _bpl_completion() {
 }
 
 # Register the completion function
-complete -F _bpl_completion bpl
+complete -o filenames -F _bpl_completion bpl
