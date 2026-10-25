@@ -79,6 +79,34 @@ describe("ArgParser", () => {
     expect(result.stdout).toContain("output:\n");
   });
 
+  it("does not consume another option as a missing value", () => {
+    const result = runArgParser(["--output", "--verbose"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toContain("requires a value");
+    expect(result.stdout).not.toContain("output:");
+    expect(result.stdout).toContain("verbose:true\n");
+  });
+
+  it("accepts negative option values", () => {
+    const result = runArgParser(["--output", "-5"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("output:-5\n");
+  });
+
+  it("stops option parsing at the terminator", () => {
+    const result = runArgParser(["--", "--verbose"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("verbose:");
+  });
+
+  it("reports unknown options only on stderr", () => {
+    const result = runArgParser(["--unknown"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toContain("Unknown flag: --unknown");
+    expect(result.stdout).toBe("");
+  });
+
   it("rejects explicit values for boolean flags", () => {
     const result = runArgParser(["--verbose=true"]);
 

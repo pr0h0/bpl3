@@ -786,7 +786,7 @@ describe("Lexer - Extended Tests", () => {
       const createTokenSource = source.slice(start, end);
       expect(createTokenSource).toContain("canContainNewline = false");
       expect(createTokenSource).toContain(
-        'if (!canContainNewline || value.indexOf("\\n") === -1)',
+        'if (!canContainNewline || !/[\\r\\n]/.test(value))',
       );
       expect(createTokenSource).toContain("this.position += value.length;");
       expect(createTokenSource).toContain("this.column += value.length;");
@@ -1347,8 +1347,8 @@ describe("Lexer - Extended Tests", () => {
       expect(helperSource).toContain("this.line = line;");
       expect(helperSource).toContain("this.column = column;");
       expect(helperSource).not.toContain("this.position += 1;");
-      expect(helperSource).toContain('if (ch === " " || ch === "\\t" || ch === "\\r")');
-      expect(helperSource).toContain('if (ch === "\\n")');
+      expect(helperSource).toContain('if (ch === " " || ch === "\\t")');
+      expect(helperSource).toContain('if (ch === "\\n" || ch === "\\r")');
       expect(helperSource).toContain("tokens[tokenCount++] = token;");
 
       expect(
@@ -1403,7 +1403,7 @@ describe("Lexer - Extended Tests", () => {
       const methodSource = source.slice(start, end);
       const commentFreeStart = methodSource.indexOf("if (!hasCommentMarker)");
       const commentFreeEnd = methodSource.indexOf(
-        "const { tokens } = genericParser.parse()",
+        "const { tokens, endLine, endColumn } = genericParser.parse()",
       );
 
       expect(source).toContain("parseWithTokenEmitter");

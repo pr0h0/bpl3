@@ -241,11 +241,43 @@ describe("Incremental implicit conversion lowering", () => {
     expect(conversion.kind).toBe("unsupported");
   });
 
-  it("allows dynamic target dimensions to accept fixed source dimensions", () => {
+  it("allows only the outer dynamic target dimension to accept a fixed dimension", () => {
     expect(areArrayDimensionsAssignable([null], [3])).toBe(true);
     expect(areArrayDimensionsAssignable([null, 4], [3, 4])).toBe(true);
     expect(areArrayDimensionsAssignable([null, 4], [3, 5])).toBe(false);
     expect(areArrayDimensionsAssignable([3], [null])).toBe(false);
+    expect(areArrayDimensionsAssignable([null, null], [3, 4])).toBe(false);
+    expect(areArrayDimensionsAssignable([3, null], [3, 4])).toBe(false);
+    expect(areArrayDimensionsAssignable([null, null], [null, 4])).toBe(false);
+    expect(areArrayDimensionsAssignable([null, null], [3, null])).toBe(true);
+  });
+
+  it("does not lower a view when inner dimensions need element conversion", () => {
+    for (const [target, source] of [
+      [
+        [null, null],
+        [3, 4],
+      ],
+      [
+        [3, null],
+        [3, 4],
+      ],
+      [
+        [null, null],
+        [null, 4],
+      ],
+      [
+        [null, 4, null],
+        [3, 4, 5],
+      ],
+    ]) {
+      expect(
+        lowerImplicitConversion(
+          basic("int", { arrayDimensions: target }),
+          basic("int", { arrayDimensions: source }),
+        ).kind,
+      ).toBe("unsupported");
+    }
   });
 
   it("keeps Func and Lambda callable identities separate", () => {
@@ -298,6 +330,39 @@ describe("Incremental implicit conversion lowering", () => {
     expect(lowerImplicitConversion(target, source).kind).toBe("array-to-slice");
     expect(
       lowerImplicitConversion({ ...target, isVariadic: true }, source).kind,
+    ).toBe("unsupported");
+  });
+});
+
+describe("primitive aliases in array conversions", () => {
+  for (const [alias, canonical] of [
+    ["int", "i32"],
+    ["char", "i8"],
+    ["ulong", "u64"],
+    ["float", "double"],
+  ]) {
+    it(`recognizes ${alias}/${canonical} without changing annotations`, () => {
+      const target = basic(alias!, { arrayDimensions: [null] });
+      const source = basic(canonical!, { arrayDimensions: [2] });
+      expect(lowerImplicitConversion(target, source).kind).toBe(
+        "array-to-slice",
+      );
+      expect(target.name).toBe(alias!);
+      expect(source.name).toBe(canonical!);
+    });
+  }
+  it("retains signedness and user-type distinctions", () => {
+    expect(
+      lowerImplicitConversion(
+        basic("uint", { arrayDimensions: [null] }),
+        basic("i32", { arrayDimensions: [2] }),
+      ).kind,
+    ).toBe("unsupported");
+    expect(
+      lowerImplicitConversion(
+        basic("First", { arrayDimensions: [null] }),
+        basic("Second", { arrayDimensions: [2] }),
+      ).kind,
     ).toBe("unsupported");
   });
 });

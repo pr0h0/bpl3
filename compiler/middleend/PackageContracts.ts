@@ -13,6 +13,7 @@ export const PACKAGE_DUPLICATE_INSTALLED_CODE =
 
 export type PackageLockVerificationIssueKind =
   | "missing-lockfile"
+  | "manifest-dependency-mismatch"
   | "missing-package"
   | "invalid-package-root"
   | "invalid-manifest"

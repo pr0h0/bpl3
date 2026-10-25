@@ -562,6 +562,9 @@ frame processAnimal(animal: *Animal) {
 
 The `as` operator performs a runtime vtable check before casting. If the actual type doesn't match the target, it returns `nullptr` instead of performing an unsafe cast. See [Type Matching](56-type-matching.md) for more details.
 
+Type aliases for class-pointer targets preserve the same runtime check, including
+transitive aliases and generic aliases instantiated with a concrete class.
+
 ### Type Cast (`cast`)
 
 The `cast` operator performs an explicit type conversion.
@@ -644,27 +647,34 @@ See [Reflection and JSON](55-reflection-and-json.md) for more details.
 
 ## Operator Overloading
 
-BPL does **not** support operator overloading. Custom types cannot redefine operators.
+Overloaded unary operators evaluate their operand once. A pointer receiver borrows
+the original storage of an addressable operand, including an indexed or nested
+field; a temporary value is materialized for the call. Binary overload operands
+are evaluated once in source order, including when overload selection uses the
+right operand as its receiver. An overloaded index getter returns a value; when
+used as a pointer receiver or borrowed operand, that value is materialized for
+the operator call without invoking the getter again.
 
-To provide operator-like functionality for custom types, use named methods:
+Value receivers (`this: Box`) receive a copy, including when the operand is
+constant. Changes to receiver fields inside the operator do not change the
+original value. Pointer receivers (`this: *Box`) can change the original storage.
+The normal owning-copy rule applies: existing values that own an
+`@[auto_destroy]` destructor cannot be passed as value receivers or value
+arguments. Use pointer parameters or produce a fresh value instead.
+
+Custom types can define operator methods such as `__add__` for `+` and
+`__neg__` for unary `-`. For example, this declaration defines unary negation:
 
 ```bpl
-struct Vector {
-    x: float,
-    y: float,
-
-    frame add(this: *Vector, other: *Vector) ret Vector {
-        local result: Vector;
-        result.x = this.x + (*other).x;
-        result.y = this.y + (*other).y;
-        return result;
+struct Box {
+    value: int,
+    frame __neg__(this: *Box) ret int {
+        return -this.value;
     }
 }
-
-local v1: Vector;
-local v2: Vector;
-local sum: Vector = v1.add(&v2);  # Not: v1 + v2
 ```
+
+The expression `-box` invokes `Box.__neg__` when `box` has type `Box`.
 
 ## Common Patterns
 

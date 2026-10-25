@@ -114,7 +114,8 @@ local not: bool = !true;             # false
 
 ### Character Type
 
-8-bit unsigned integer, typically used for ASCII characters:
+`char` is an 8-bit signed integer, typically used for ASCII characters. Use
+`uchar` or `u8` for unsigned byte values:
 
 ```bpl
 local letter: char = 'A';        # ASCII 65
@@ -134,6 +135,10 @@ printf("Letter: %c, Value: %d\n", letter, num);  # Letter: A, Value: 65
 - `\\` - Backslash
 - `\'` - Single quote
 - `\0` - Null terminator
+
+Character literals must decode to exactly one character. An escaped character
+cannot have a trailing suffix: `'\nABC'` is rejected. Hexadecimal escapes
+(`\xHH`, `\uHHHH`) belong to quoted strings, not character literals.
 
 ### Void Type
 
@@ -222,8 +227,8 @@ Fixed-size or dynamic arrays:
 # Fixed-size array
 local arr: int[10];           # Array of 10 integers
 
-# Dynamic array (pointer)
-local dynArr: int[];          # Actually a pointer: *int
+# Slice (pointer and length)
+local dynArr: int[];          # Backing storage must remain alive
 
 # Multi-dimensional arrays
 local matrix: int[3][3];      # 3x3 matrix
@@ -235,6 +240,77 @@ local matrix: int[3][3];      # 3x3 matrix
 arr[0] = 10;
 local first: int = arr[0];
 ```
+
+Fixed-array expression values can be indexed for reads. Writing an element of
+a temporary fixed array or taking that element's address is rejected. If the
+element contains a pointer or slice, reading that value still permits access
+to its separately owned, mutable backing storage; the temporary array itself
+remains read-only.
+
+```bpl
+local bytes: u8[2] = [1, 2];
+```
+
+Integer array literals can use a destination element type in declarations,
+assignments, returns, fields and call arguments. These destination conversions
+accept matching element types, safe integer widening, and integer literals
+within range. They do not reinterpret existing array storage or add implicit
+narrowing for wider variable elements; use explicit casts for those elements.
+Array dimensions still have to match; a slice destination keeps
+the literal's actual element count. This also applies to nested integer arrays
+and grouped, conditional or match array literals whose branches have matching
+shapes. A match may combine an existing fixed integer array with fitting new
+array literals of the same shape; the literals adopt the existing element type.
+Incompatible existing array storage is still rejected. Match expression arms
+and block-arm return values receive the same
+destination context.
+Overload selection keeps existing exact matches ahead of these conversions.
+
+```bpl
+frame main() ret int {
+    local bytes: u8[2] = match (true) {
+        true => [1, 2],
+        false => { return [3, 4]; },
+    };
+    return cast<int>(bytes[1]) - 2;
+}
+```
+
+Every return that yields a value from a match block must have a compatible
+type; later returns cannot silently change the element type or array length.
+For scalar integers and tuple members, match results select a yielded type that
+can represent both earlier and later yields without narrowing. Integer types
+whose signedness/range cannot be represented by either yielded type require an
+explicit cast to a common type. Uncast integer literals may adopt the other
+result type when all their values fit; earlier runtime yields cannot be ignored
+when selecting that representation. This does not reinterpret existing array storage.
+
+An implicit fixed-array-to-slice conversion inside a tuple or struct literal
+borrows existing addressable array storage. Writes through that slice are
+visible through the original array. Array rvalues use temporary storage within
+the current frame; aggregate construction does not extend storage lifetime.
+
+A fixed array can return by value. Returning it through an implicit conversion or an explicit cast
+to a slice or pointer is rejected with `BPL_RETURN_ARRAY_VIEW_ESCAPES`: the
+conversion would create a view into a temporary in the returning frame. Return
+an existing borrowed slice/pointer only when its elements outlive the call.
+Explicit array-to-view casts borrow existing addressable array storage. A cast
+whose source is an array rvalue instead uses temporary storage in the current
+frame. Neither form extends storage lifetime. Constant arrays cannot produce
+mutable views, using either `cast<View>(array)` or `array as View`. Copy a
+constant fixed array into mutable fixed-array storage before borrowing it.
+Implicit conversions in returned tuple, struct, enum and array literal fields
+are checked too; wrapping a temporary view in an aggregate does not extend its
+lifetime. The explicit-cast check also covers grouped and conditional values, match
+results (including block yields), projections, method receivers, value-producing
+operators, and casts inside returned aggregate literals. Scalar reads do not
+escape a borrow; constant literal projections inspect the selected value.
+A returned call whose result can contain borrowed storage is conservatively
+rejected if an argument creates such a temporary view through an implicit
+conversion or explicit cast: the compiler cannot
+prove that the callee discards the argument. Calls returning scalar values or
+aggregates containing only values remain supported. Local view aliases are
+not tracked by this check.
 
 See [Arrays](16-arrays.md) for complete details.
 
@@ -361,6 +437,11 @@ frame scopeExample() ret void {
 ### Constants
 
 Use the `const` keyword to declare immutable variables. Once initialized, their value cannot be changed.
+For a const struct value, calling or binding a method that needs an implicit
+pointer to that value is rejected, just like explicit `&constant`. This also
+applies to operator receivers and implicit pointer arguments. Value receiver
+methods remain available and receive a copy. BPL does not currently support
+pointers to const values.
 
 ```bpl
 global const INT_MAX: int = 2147483647;
@@ -581,6 +662,25 @@ local signed: int = -1;
 local unsigned: uint = cast<uint>(signed);
 ```
 
+Array casts preserve the element type and layout. A fixed array can be cast to
+a matching slice or element pointer; casting an array or slice to the identical
+type is also supported. Casts do not convert each element, resize an array, or
+recover a fixed array or raw pointer from a slice. Unsupported conversions are
+rejected with `BPL_CAST_INVALID`; convert elements explicitly, and index a
+nonempty slice when an element address is needed.
+
+Integer-to-`string` conversions are rejected with
+`BPL_CAST_INTEGER_TO_STRING`, including through type aliases and with either
+`cast<Text>(value)` or `value as Text`. Convert a number to text with a
+formatting or string conversion function instead.
+Pointer-to-string targets such as `*string` follow the ordinary pointer-cast
+rules; they are distinct from scalar `string` targets.
+
+Implicit array views follow the same layout rule: `int[3][2]` can become
+`int[][2]`, keeping fixed rows of two integers. It cannot become `int[][]` or
+`int[3][]`; those types need rows that are themselves slice values. Build each
+row view explicitly when that representation is needed.
+
 **Warning:** Casts bypass type safety. Use carefully:
 
 ```bpl
@@ -612,6 +712,13 @@ type Matrix = float[3][3];
 type Pair<T> = (T, T);
 local coords: Pair<int> = (10, 20);
 ```
+
+Aliases preserve modifier order. With `type Row=int[2];` and
+`type Pointer<T>=*T;`, `Pointer<Row>` points to one fixed row, while
+`Pointer<Row>[2]` contains two row pointers. Wrapping the same element type in
+`type Rows<T>=T[2];` gives the same array layout as the direct array spelling.
+`Pointer<Row>[]` is a slice of row pointers, so replacing one of its elements
+updates the pointer stored in the backing array.
 
 See [Type Aliases](18-type-aliases.md) for complete details.
 

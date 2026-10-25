@@ -29,6 +29,7 @@ import { ASTPrinter } from "./common/ASTPrinter";
 import { CompilerError } from "./common/CompilerError";
 import { compilerLog } from "./common/Logger";
 import { Formatter } from "./formatter/Formatter";
+import type { FormatterOptions } from "./formatter/FormatterOptions";
 import { lexWithGrammar } from "./frontend/GrammarLexer";
 import { Parser } from "./frontend/Parser";
 import { Linker } from "./middleend/Linker";
@@ -66,6 +67,8 @@ export interface CompilerOptions {
   outputPath?: string;
   /** Type of output to generate: 'llvm' (IR), 'ast' (JSON), 'tokens' (JSON), 'formatted' (BPL source) */
   emitType?: "llvm" | "ast" | "tokens" | "formatted";
+  /** Explicit preferences for formatted output; no filesystem discovery in the API. */
+  formatterOptions?: FormatterOptions;
   /** Enable verbose logging during compilation */
   verbose?: boolean;
   /** Enable full module resolution for imports */
@@ -220,7 +223,7 @@ export class Compiler {
       }
 
       if (this.options.emitType === "formatted") {
-        const formatter = new Formatter();
+        const formatter = new Formatter(this.options.formatterOptions);
         return {
           success: true,
           output: formatter.format(ast),
@@ -1183,6 +1186,7 @@ function formatCacheStats(stats: ModuleCacheStats): string {
 
 /** Source code formatter for BPL files */
 export { Formatter } from "./formatter/Formatter";
+export type { FormatterOptions } from "./formatter/FormatterOptions";
 /** Tokenize BPL source code using the PEG grammar */
 export { lexWithGrammar } from "./frontend/GrammarLexer";
 /** Parse BPL tokens into an AST */

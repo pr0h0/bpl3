@@ -55,6 +55,12 @@ Shuffle inherits the current bias and edge cases of `Rand.range`.
 | `Algorithm.sum(arr: *Array<float>) ret float`     | Sum of all elements |
 | `Algorithm.average(arr: *Array<float>) ret float` | Average of elements |
 
+Floating `Algorithm.average` uses the same compensated and scaled calculation
+as `Stats.mean`, retaining representable means when a direct sum overflows or
+loses small terms through cancellation. It does not modify the input array.
+Empty arrays return zero; actual nonfinite samples retain the existing ordinary
+sum classification. Integer averages continue to use a widened integer sum.
+
 ## Range Generation
 
 | Function                                                              | Description           |

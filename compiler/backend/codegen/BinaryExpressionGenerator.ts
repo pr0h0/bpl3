@@ -138,46 +138,35 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   }
 
   /**
-   * Generate operator overload call
+   * Generate an overload call while evaluating each operand once in source order.
    */
   private generateOperatorOverloadCall(expr: AST.BinaryExpr): string {
     const overload = expr.operatorOverload!;
     const method = overload.methodDeclaration;
-    const leftRaw = this.generateExpression(expr.left);
-    const rightRaw = this.generateExpression(expr.right);
-
     const targetType = overload.targetType as AST.BasicTypeNode;
     const { mangledName, resolvedMethodType } = this.resolveOperatorMethod(
       method,
       targetType,
     );
 
-    const leftType = this.resolveType(expr.left.resolvedType!);
-    const rightType = this.resolveType(expr.right.resolvedType!);
-
-    let thisVal = leftRaw;
-    let thisType = leftType;
-    let otherVal = rightRaw;
-    let otherType = rightType;
-    let thisExpr = expr.left;
-    let otherExpr = expr.right;
-
+    // Lower operands in source order, even when overload selection swaps them.
+    // Borrowing an address evaluates its expression; do not load it first.
+    let thisArg: string;
+    let otherArg: { val: string; type: string };
     if (overload.swapOperands) {
-      thisVal = rightRaw;
-      thisType = rightType;
-      otherVal = leftRaw;
-      otherType = leftType;
-      thisExpr = expr.right;
-      otherExpr = expr.left;
+      otherArg = this.prepareOtherArg(expr.left, resolvedMethodType);
+      thisArg = this.prepareOperatorReceiver(
+        expr.right,
+        resolvedMethodType.paramTypes[0]!,
+      );
+    } else {
+      thisArg = this.prepareOperatorReceiver(
+        expr.left,
+        resolvedMethodType.paramTypes[0]!,
+      );
+      otherArg = this.prepareOtherArg(expr.right, resolvedMethodType);
     }
-
-    const thisArg = this.prepareThisArg(thisVal, thisType, thisExpr);
-    const { val: finalOtherVal, type: finalOtherType } = this.prepareOtherArg(
-      otherVal,
-      otherType,
-      otherExpr,
-      resolvedMethodType,
-    );
+    const { val: finalOtherVal, type: finalOtherType } = otherArg;
 
     const returnType = this.resolveType(resolvedMethodType.returnType);
     expr.resolvedType = resolvedMethodType.returnType;
@@ -199,7 +188,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   /**
    * Resolve operator method name and type
    */
-  private resolveOperatorMethod(
+  protected resolveOperatorMethod(
     method: AST.FunctionDecl,
     targetType: AST.BasicTypeNode,
   ): { mangledName: string; resolvedMethodType: AST.FunctionTypeNode } {
@@ -259,21 +248,23 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   }
 
   /**
-   * Prepare 'this' argument for operator call
+   * Pass a checked receiver value directly, or borrow/spill it once for implicit addressing.
    */
-  private prepareThisArg(
-    thisVal: string,
-    thisType: string,
+  protected prepareOperatorReceiver(
     thisExpr: AST.Expression,
+    receiverType: AST.TypeNode,
   ): string {
-    if (thisType.endsWith("*")) {
-      return `${thisType} ${thisVal}`;
+    const thisType = this.resolveType(thisExpr.resolvedType!);
+    const expectedType = this.resolveType(receiverType);
+    if (thisType === expectedType) {
+      return `${expectedType} ${this.generateExpression(thisExpr)}`;
     }
 
     let thisPtr: string;
     try {
       thisPtr = this.generateAddress(thisExpr);
     } catch {
+      const thisVal = this.generateExpression(thisExpr);
       const spillAddr = this.allocateStack(
         `op_spill_${this.labelCount++}`,
         thisType,
@@ -285,14 +276,13 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   }
 
   /**
-   * Prepare other argument for operator call
+   * Evaluate the other operand once, borrowing its address only when required.
    */
   private prepareOtherArg(
-    otherVal: string,
-    otherType: string,
     otherExpr: AST.Expression,
     methodType: AST.FunctionTypeNode,
   ): { val: string; type: string } {
+    const otherType = this.resolveType(otherExpr.resolvedType!);
     if (methodType.paramTypes.length >= 2) {
       const expectedTypeNode = methodType.paramTypes[1]!;
       const expectedType = this.resolveType(expectedTypeNode);
@@ -302,6 +292,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         try {
           otherPtr = this.generateAddress(otherExpr);
         } catch {
+          const otherVal = this.generateExpression(otherExpr);
           const spillAddr = this.allocateStack(
             `op_arg_spill_${this.labelCount++}`,
             otherType,
@@ -314,7 +305,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         return { val: otherPtr, type: `${otherType}*` };
       }
     }
-    return { val: otherVal, type: otherType };
+    return { val: this.generateExpression(otherExpr), type: otherType };
   }
 
   /**

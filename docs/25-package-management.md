@@ -234,7 +234,7 @@ symlinks, are rejected before verification so package checks never follow a
 lockfile outside the project, and before project installs decide whether there
 is anything to restore or install.
 
-To restore exactly what is recorded in `bpl.lock`, run:
+To restore recorded packages, reconciling changed root requirements in `bpl.json`, run:
 
 ```bash
 bpl install
@@ -269,8 +269,27 @@ bpl install --update
 ```
 
 Use this when a cache-backed selector such as `^1.2.0` should pick up a newer
-matching cached archive. Without `--update`, `bpl install` restores the exact
-archives already recorded in `bpl.lock`.
+matching cached archive. Without `--update`, unchanged dependencies retain their
+locked archives. A changed root requirement re-resolves its affected dependency
+subtree; shared dependencies used by unchanged packages retain their lock pins.
+If those pins conflict with the new requirements, installation fails rather than
+silently upgrading an unchanged package's dependency. Obsolete packages belonging
+only to the old subtree are removed. Lock updates are saved after reconciliation
+succeeds; installed package directories are still updated incrementally.
+
+Successful project installs also record `manifestRoots` in the lockfile. Removing
+a previously declared root then makes `--locked` fail until a normal install
+prunes that root and its private dependencies. Packages still needed transitively
+and packages installed directly are retained. Legacy lockfiles lack the history
+needed to distinguish a removed root from a direct install: run a normal project
+install before editing dependencies to record that history, or explicitly update
+the dependency graph afterward.
+
+New lock entries record dependency names so reconciliation also works when
+`bpl_modules` is missing. Older entries use installed manifests to recover those
+edges. If both that metadata and the installed package are missing, restore the
+original installation first or explicitly run `bpl install --update`; BPL refuses
+to guess which old lock entries belong to the changed dependency.
 Package-name, version selector, and exact cached archive lookup validate the
 global package cache directory itself and its parent path components before
 probing tarballs. If the cache root or one of its parents is a symlink, lookup
@@ -359,6 +378,12 @@ PackageManager manifest-loading failures also carry stable
 `BPL_PACKAGE_MANIFEST_SCRIPTS_INVALID`, and
 `BPL_PACKAGE_MANIFEST_BIN_INVALID`. Reproduce the focused JSON contract with
 `bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"`.
+
+`BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT` reports incompatible root or installed
+dependent version requirements before replacing the conflicting shared package.
+BPL currently installs one version per package name. Align the requirements or
+choose compatible versions; a failed multi-package operation does not roll back
+package directories already replaced earlier in that operation.
 
 `bpl doctor packages --json` reports malformed or unsafe lockfiles as
 `kind: "invalid-lockfile"` issues with stable `BPL_LOCKFILE_*` codes, including
@@ -1021,3 +1046,44 @@ bpl pack
 `format --check` verifies that generated archives contain formatted sources,
 while `lint --json` and `check --json` provide stable diagnostic ranges for CI
 annotations.
+
+`bpl pack` verifies the source selected by `main`, then `entry` when `main` is
+absent, or `index.bpl` when neither is declared. Both `/` and `\` separators
+are recognized in manifest source paths. A compilation failure stops
+packing before an archive is written or replaced. In `pack --json` mode, compiler
+verification failures return a `package-pack` report with `success: false`, the
+compiler error text, and its diagnostic code as `errorCode` when available.
+
+Explicit `main` or `entry` sources are included in the archive regardless of
+suffix, including `.x` files. The selected source must exist as a regular file
+inside the package root; a missing, symbolic-link, or non-file explicit entry
+fails packing before an existing archive can be replaced. `main` takes priority
+when both fields are present. Packages that omit both fields keep the existing
+source-file discovery behavior.
+
+Archives also retain regular files at the package root named README,
+LICENSE/LICENCE, COPYING or NOTICE, ignoring case, optionally followed by `.md`,
+`.txt`, `.rst` or `.markdown`. Automatic metadata discovery skips symbolic links
+and directories. This does not include arbitrary assets or dotfiles, and
+metadata alone does not satisfy the package's source-file requirement.
+
+Listing and provenance `packageHash` values cover the selected entry source even
+when it has no `.bpl` suffix. These legacy hashes continue to omit automatically
+selected documentation; portable `sha256-tree-v2` lock hashes cover all installed
+files. A historical legacy lock whose hash omitted an existing non-`.bpl` entry
+can now report a hash mismatch. Review the package source, then use an explicit
+`bpl install --update` to record a portable v2 hash. Verification does not silently
+rewrite the old lock or accept a hash that omitted the package's entry code.
+
+Package archives use a stable member order, zero timestamps and numeric owner
+and group IDs of zero. Staged regular files use mode `0644`, or `0755` when the
+source has an executable bit; directories use `0755`. These changes apply only
+to the temporary packing tree, leaving source permissions and times intact.
+With the same tar/compression toolchain and identical included bytes, paths and
+executable bits, repeated packs produce identical `.tgz` bytes. GNU tar and
+BSD/libarchive tar are supported, including long paths and Unicode names;
+byte-for-byte equality across different tools or tool versions is not promised.
+Ambient `TAR_OPTIONS` and `GZIP` are ignored during archive creation so they
+cannot silently alter package contents or compression metadata. The existing
+`BPL_TAR`/`TAR` tool selection still applies. Provenance sidecars retain their
+creation timestamp and are not themselves reproducible artifacts.

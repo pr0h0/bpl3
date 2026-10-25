@@ -52,7 +52,7 @@ describe("TypeChecker assignment mismatch diagnostics", () => {
     expect(error).toBeDefined();
     expect(error).toBeInstanceOf(CompilerError);
     expect(error?.code).toBe("E001");
-    expect(error?.message).toContain("cannot assign *i8 to i32");
+    expect(error?.message).toContain("cannot assign string to i32");
     expect(error?.hint).toContain(
       "Ensure the initializer type matches the declared type.",
     );

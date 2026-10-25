@@ -27,9 +27,19 @@ export const FORMAT_JSON_ERROR_CODES = [
 export function registerFormatCommand(program: Command): void {
   program
     .command("format [files...]")
-    .description("Format BPL source files")
+    .description("Format BPL files, directories, or stdin (-)")
+    .option(
+      "--stdin-filepath <file>",
+      "source path for stdin diagnostics and configuration",
+    )
     .option("-w, --write", "write formatted output back to file")
     .option("--check", "check whether files are formatted without writing")
+    .option("--config <path>", "use an explicit formatter JSON configuration")
+    .option("--no-config", "use BPL defaults without project configuration")
+    .option("--indent-width <count>", "override indentation width (1 to 16)")
+    .option("--use-tabs", "indent with tabs")
+    .option("--no-use-tabs", "indent with spaces")
+    .option("--line-ending <style>", "override layout line endings: lf or crlf")
     .option("-v, --verbose", "enable verbose output")
     .option("--json", "output machine-readable format check result")
     .action(

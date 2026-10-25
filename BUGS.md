@@ -5280,7 +5280,7 @@ Found by comparing against Python's `statistics.fmean` over a grid of samples ra
 
 **Observed (2026-09-19)**: A zero remainder was returned straight from the platform remainder, which gives it the sign of the dividend. Under the floor convention this function implements, a zero takes the sign of the divisor, so ten of the grid cases disagreed with Python.
 
-**Resolution**: A zero remainder is returned as `0.0 * y`, which carries the divisor's sign.
+**Resolution**: A zero remainder uses `Math.copysign(0.0, y)` to carry the divisor's sign, including infinite divisors. The original `0.0 * y` correction produced NaN for infinity.
 
 ### BUG-408: Integer gcd and lcm silently wrap
 
@@ -6020,3 +6020,2623 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   assuming its argument expression, and cover separated integer and decimal
   inputs explicitly. All 385 tests in the failed 89-file CI batch and all 47
   focused integer tests pass locally; typecheck and lint pass.
+
+## Callable and destructuring constant range bypasses (2026-10-16)
+
+- Confirmed callable structs, generic callable structs and typed tuple
+  destructuring accepted 300 into u8 without BPL_INTEGER_LITERAL_OVERFLOW.
+  Validate selected callable parameter types after generic substitution and
+  recursively construct the destructuring destination tuple for the shared
+  range checker. Nested tuples and conditional tuple expressions are covered.
+
+## Fixed generic callable operator code generation (2026-10-16)
+
+- A valid Item<u8> with __call__(this:*Item<T>,x:T) passes checking but
+  emits an unresolved generic method name and an i32 argument instead of u8.
+  Clang rejects the undefined function. Found while testing conversion fixes;
+  fixed by routing callable operators through ordinary method lowering and
+  specializing the checker return type. O0/O3 LLVM-verified tests cover generic
+  narrow arguments/returns, pointer receivers, void returns and one evaluation
+  of a receiver expression. Existing operator and integer range suites pass.
+
+## Fixed invalid initializer diagnostic cascades (2026-10-16)
+
+- A typed local with a failed initializer was absent from its scope, causing
+  false undefined-symbol diagnostics on following uses. During error collection,
+  preserve the validated declared type and suppress unused diagnostics for the
+  rejected binding. Never replace an existing declaration or invent an unknown
+  type. All 258 typechecker tests and 102 CLI JSON/recovery tests pass; typecheck
+  and lint pass. Other recovery paths still require review.
+
+## Fixed ignored argument parser configuration and token boundaries (2026-10-16)
+
+- Defaults, required positional arguments and selected command actions were
+  stored but unused. Missing flag values consumed subsequent options; unknown
+  options went to stdout; -- and negative operands were not honored. Apply
+  defaults, validate required arguments, count errors, skip actions after errors
+  and retain the successful action exit code. Default actions are initialized.
+  Reject negative getArg indexes. Tests cover aliases, empty/default overrides,
+  subcommands, error paths and O0/O3 ASan/UBSan cleanup: 11 tests pass.
+
+## Checked rational overflow follow-up (2026-10-16)
+
+- Following maintainer input, replace historical wrapping for unrepresentable
+  rational arithmetic with the existing invalid 0/0 sentinel. Exact unsigned
+  wide intermediates preserve cancellation in addition/subtraction; unsigned
+  cross-cancellation and final bounds checks cover multiplication/division,
+  including LONG_MIN. Negation/absolute value reject unrepresentable magnitudes.
+  A BigInt oracle checks representable and overflowing reduced results.
+
+## Fixed clean deleting unrelated build outputs (2026-10-16)
+
+- Confirmed clean treated generic build/dist paths and any .ll/.o/.out/main
+  file as disposable. Preserve build/dist containers, require a regular sibling
+  .bpl source for candidate outputs, and retain tracked-file and symlink
+  protection. Only the reserved .bpl-cache namespace is removed wholesale.
+  Keep standalone-file projects supported rather than require bpl.json.
+  All 17 cleanup-focused CLI tests pass, including preview/deletion agreement,
+  unrelated files, symlinked sources, tracked files and failed git probes.
+
+## Fixed ignored root dependency manifest drift (2026-10-16)
+
+- An existing lock caused newly added dependencies to be ignored and --locked
+  accepted missing/incompatible root requirements. Verify root dependencies and
+  development dependencies against lock versions and archive sources; normal
+  installation reconciles added/changed requirements. Local uninstall also
+  removes dependency entries from bpl.json, preserving other manifest metadata.
+  Restoration content integrity and full graph conflict resolution remain
+  separate P2/P3 follow-ups.
+
+## Fixed unchecked package restoration content (2026-10-16)
+
+- Project restoration accepted changed archives and rewrote the locked content
+  hash. Record archive SHA-256 in new lock entries and validate it before
+  extraction. Validate extracted version and package tree hash before replacing
+  installed contents, including legacy locks without an archive digest. Use
+  locked transitive sources during restoration and reject incompatible locked
+  version requirements before replacing their parent package. Explicit --update
+  accepts intentional content changes. Portable/full-file tree hashes, immutable
+  archive snapshots and whole-graph transaction/resolution remain P3/P4/P6/P8.
+
+## Fixed failed project updates erasing the previous lock (2026-10-16)
+
+- --update (also used by bpl lock) eagerly wrote an empty lock and could leave
+  it empty/partial after installation failed. Stage lock updates in memory,
+  commit once installation succeeds and discard pending state on every failure.
+  Preserve existing path validation and atomic-write permissions. Sort lock keys
+  using codepoint order and append a newline. All 283 package/CLI tests pass.
+  Package-directory rollback remains a separate P8 issue.
+
+## Parser action exception cleanup follow-up (2026-10-16)
+
+- A configured action that throws bypassed ownership transfer of ParsedArgs and
+  leaked 4,260 bytes over ten calls under ASan. Hold ownership behind a runtime
+  defer until parse returns successfully; on success clear the guard pointer.
+  Callback exceptions must preserve their original value. Sanitizer validation
+  is running for normal and exceptional parser paths.
+
+## Open: automatic destructors across throwing callees (2026-10-16)
+
+- The same parser reproduction still leaked when guarded solely by an
+  @[auto_destroy] local: destructors are emitted on direct throw statements,
+  but a throw in a callee unwinds past the caller without that static cleanup.
+  Runtime defer runs across frames and is used for parser ownership. General
+  automatic-destructor unwinding across function calls needs a compiler fix.
+
+## Versioned portable package tree hashes (2026-10-16)
+
+- Legacy hashes sorted native paths using localeCompare and omitted unexported
+  native sources/objects/assets. New and repaired lock entries explicitly select
+  sha256-tree-v2: normalize relative paths with /, sort by codepoint order and
+  hash regular files plus symlink identities without following links. Exclude
+  reserved package/cache/VCS directory namespaces. Content digests have fixed
+  lengths to avoid ambiguous concatenation. Old lock entries keep their legacy
+  algorithm rather than silently invalidating released locks.
+
+## Shared dependency version conflict follow-up (2026-10-16)
+
+- Root requirements could be overwritten by a later transitive installation.
+  Local cached-version selection now intersects root and installed dependents'
+  constraints, and candidate manifests are checked before a conflicting shared
+  package is replaced. Compatible intersections work in both tested installation
+  orders; incompatible requirements fail with a registered JSON error code.
+  Recognize versioned archive pins and verify transitive lock requirements.
+  Full graph planning/rollback and identity constraints for arbitrarily renamed
+  archives remain follow-ups; resolution is still incremental.
+
+## Audit CI contract follow-up (2026-10-16)
+
+- The successful clean JSON smoke fixture still expected an unrelated object file
+  to be deleted. Give its generated object a sibling BPL source so the smoke test
+  exercises the documented ownership check.
+- The new dependency conflict JSON code was absent from CI triage mappings. Map
+  it to the focused dependency conflict suite; inventory checks cover registration.
+
+## Clean partial failure reporting (2026-10-16)
+
+- Confirmed CodeRabbit's cleanup findings: a source lstat error or artifact removal
+  failure silently skipped the rest of a directory. Cleanup now handles failures
+  per path, preserves artifacts whose ownership cannot be checked, continues other
+  work and returns nonzero with BPL_CLEAN_FAILED and failed paths. Successful
+  entries/counts exclude failed removals; reserved cache removal follows the same
+  behavior. A child-process regression injects deterministic permission failures.
+
+## Manifest drift and stale transitive lock graphs (2026-10-16)
+
+- Confirmed CodeRabbit's report: changing a parent archive could still apply its
+  old locked child source/hash, reject a valid new requirement or reinstall an
+  obsolete child independently. Reconciliation now computes affected closures,
+  preserves shared pins reachable from unaffected packages, resolves changed
+  roots against the retained lock subset, and prunes obsolete private children.
+  New/repaired lock entries record dependency names; legacy entries use installed
+  manifests and fail before mutation with explicit update/restore guidance when
+  graph metadata is unavailable. Lock changes are staged until success.
+- Installed directories remain incremental, not a whole-graph rollback; that
+  existing transaction limitation is still open.
+
+### Reconciliation order for roots also referenced transitively
+
+- An unchanged package could resolve a changed root back through the old cache
+  before that root's new local archive was selected. Resolve changed roots first,
+  then pass the reconciled lock entries to later restores. Regression cases cover
+  a root archive absent from cache, with installed modules present and missing.
+
+## Same-stem extensionless cleanup (2026-10-16)
+
+- Confirmed CodeRabbit's outside-diff finding: an extensionless wrapper/data file
+  was deleted solely because a same-stem BPL source existed. Preserve all
+  extensionless files; reliable compiler provenance is not currently recorded,
+  and checking executable magic or a familiar filename cannot prove ownership.
+  Known compiled executables require explicit removal. Document the limitation
+  and extend the ownership regression to preserve same-stem extensionless files.
+
+## Removed manifest roots surviving restoration (2026-10-16)
+
+- Confirmed CodeRabbit's report: deleting a declared dependency did not trigger
+  reconciliation and --locked could accept its stale lock entry. Project installs
+  now record manifestRoots, verification detects removed roots, and restoration
+  prunes their obsolete private closures even without added/changed requirements.
+  Shared dependencies and separately installed packages are retained. Legacy
+  locks cannot distinguish removed roots from explicit installs; document how to
+  establish root history or explicitly update instead of guessing and deleting.
+  Regressions cover installed/missing modules, shared/private children, removing
+  the last declared root, --locked failure without mutation and direct installs.
+
+## Edge-case tests discarded checker diagnostics (2026-10-16)
+
+- Local and GitHub CI confirmed that the nullptr assignment test depended on
+  a secondary backend unresolved-binding error. Its helper discarded collected
+  type errors, so improved diagnostic recovery allowed invalid input to reach
+  codegen in that test. Use the shared compileToLLVM helper, which rejects checker
+  diagnostics first, and assert the primary assignment message. This exposed ten
+  outdated positive fixtures: intentionally unused bindings now use underscores,
+  the unsigned maximum uses ulong, and returning a local address is rejected.
+  Activate the previously assertion-free zero-array and pointer-to-array cases.
+  All 57 edge-case tests pass without suppressing diagnostics.
+
+## Rand low-bit repetition (audit S4, 2026-10-16)
+
+- The old generator returned raw low LCG state bits: nextBool strictly alternated
+  and fillBytes repeated every 256 bytes. Replace the output generator with PCG32
+  XSH-RR using the existing 64-bit state field and fixed stream 54. Seed performs
+  the standard warm-up; sequences intentionally differ from earlier versions.
+- Regression checks failed on the old implementation and pass at O0/O3 against
+  PCG's published seed-42 vector. A separate BigInt model checks fractions, signed
+  ranges, full-width seeds, rejection sampling and Gaussian zero resampling.
+  Deterministic tests cover the old boolean and byte cycles across multiple seeds.
+  Weighted-choice rejection still preserves generator state after seed warm-up.
+  This remains a deterministic non-cryptographic generator; API and struct fields
+  are unchanged and no extra runtime dependency is added.
+
+### Explicit uninstall and recorded manifest roots
+
+- Keep manifestRoots synchronized when uninstall removes a declared root. Without
+  this, the new removal check could report stale manifest history immediately
+  after a successful uninstall. Verification now passes after uninstalling each
+  dependency in the manifest-drift regression.
+
+## Transitive installs overwrote a root archive source (2026-10-16)
+
+- A root installed from a local archive could be reinstalled through a later
+  root's transitive dependency using a cache source. The overwritten lock source
+  then failed manifest verification immediately after a successful install.
+  Pass already selected lock entries into subsequent root dependency installs,
+  preserving the selected archive source and integrity. Root-removal regressions
+  now also cover a removed root that remains needed transitively, with installed
+  modules present and missing.
+
+## Missing user documentation for new JSON codes (2026-10-16)
+
+- Full local and GitHub CI found that BPL_CLEAN_FAILED and
+  BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT were registered but absent from the
+  user-facing command guides. Document the conditions, failure status, cleanup
+  errors/count behavior and package resolution/rollback limits. The Markdown
+  error-code inventory verifies that documentation stays aligned with exports.
+
+## Pack verification ignored the manifest entry alias
+
+- A package declaring only `entry: "src/api.bpl"` was verified against the missing
+  default index.bpl and packed successfully even when api.bpl contained type
+  errors. Match package resolution's precedence: main, then entry, then index.bpl.
+- Windows-style separators in main/entry also skipped verification on Unix.
+  Normalize both separators consistently with package resolution.
+- Compilation failures in pack --json exited before writing any JSON. Route
+  these failures through the shared JSON error path, preserving the compiler's
+  diagnostic code. Tests reject invalid main/entry sources, accept a valid entry
+  despite an invalid unused index.bpl, retain main precedence, and preserve an
+  existing archive on a subsequent verification failure.
+- This fixes the entry-verification portion of audit P5. Archive reproducibility,
+  metadata inclusion and other packing gaps are separate outstanding work.
+
+
+## Implicit method/operator addresses bypassed const bindings (audit C10)
+
+- A const struct could call or bind a pointer-receiver method and mutate its
+  stored value even though explicitly taking its address was rejected. Apply the
+  same const-address restriction during instance method selection, operator
+  receiver resolution and implicit operator pointer arguments. Preserve value
+  receivers and mutable pointer receivers, including safe overload selection.
+  Tests cover direct/bound/generic/nested methods, callable/index/binary operators
+  and const right-hand operator arguments. Native O0/O3 checks cover value copies.
+  Mixed value/pointer receiver overloads also shared a vtable key and could call
+  the wrong receiver ABI. Distinguish value receiver keys and retain the checker
+  selection when codegen guesses the other receiver mode.
+
+## Bound value-receiver methods used the wrong ABI (fixed in follow-up)
+
+- Independently reproduced on PR3's baseline and the C10 worktree: binding
+  `frame read(this: Counter) ret int {return this.value;}` as a Lambda returns
+  garbage, while the direct call returns the expected value. generateBoundMethod
+  bitcasts a function taking an aggregate receiver to a function taking i8* and
+  passes the receiver address as the aggregate. Repro saved locally for follow-up;
+  this is separate from the const-address checker fix and needs an adapter.
+
+### Bound value receiver ABI resolution
+
+- Replace the invalid function bitcast with a typed adapter that loads the
+  receiver value from the captured context and forwards its copy. Preserve
+  narrow-argument/return ABI extensions and scalar, void and aggregate results.
+  No additional allocation is needed. Recognize bound methods on call-result
+  receivers before aggregate field extraction, so those receivers evaluate once.
+  Variadic value-receiver binding now fails explicitly instead of emitting an
+  adapter that cannot forward the variadic arguments. Native O0/O3 and LLVM
+  verification cover const/mutable values, receiver changes, temporary values,
+  narrow parameters/results, enums and large aggregate results. Check receiver
+  pointers at binding before the adapter can dereference them; null binding
+  raises the normal catchable NullAccessError rather than crashing.
+
+### Virtual value receiver layout
+
+- Virtual calls passed a base receiver copy into a derived method with a larger
+  value receiver, so derived fields were read using the wrong aggregate ABI.
+  Share the value-receiver adapter with vtable entries and pass the original
+  object address. The selected concrete implementation loads its own complete
+  layout and receives a copy. A wide derived-field regression checks polymorphic
+  calls through base pointers and verifies receiver mutations stay local.
+
+## Const operator rejection used unrelated diagnostics (PR #4 review)
+
+- Operators rejected for implicit addresses of const receivers/arguments reported
+  generic not-callable/not-indexable/type errors. Retain that rejection only for
+  otherwise compatible candidates, try all safe overloads and synthesized
+  comparisons, then report BPL_ADDRESS_OF_CONSTANT at the operator expression if
+  none succeeds. Regressions assert the exact code for call/index/binary/unary
+  paths and const pointer arguments, preserve safe overloads and comparison
+  synthesis, and retain ordinary diagnostics for unrelated argument mismatches.
+- CI's inherited-vtable shape test still expected direct value-method pointers.
+  Update it to verify adapters and their concrete-layout calls, and use the
+  shared compile helper so checker diagnostics cannot be silently ignored.
+
+## Rejected const overload blocked built-in pointer arithmetic (PR #4 review)
+
+- A struct pointer plus/minus a const integer was rejected when the struct also
+  declared an operator taking an integer pointer. After rejecting that unsafe
+  overload, try built-in pointer arithmetic before reporting the const-address
+  diagnostic. O0/O3 native and LLVM-verified regressions exercise addition and
+  subtraction over a two-element struct array and check the resulting addresses.
+
+
+## Failed loop analysis leaked scope and loop depth (audit C12)
+
+- A non-boolean loop condition left the initializer variable visible after the
+  loop and made subsequent break/continue statements appear legal outside a
+  loop. Fail-fast errors in initialization, condition, step, body and unused
+  variable reporting also left the checker in a nested scope with extra depth.
+- Restore the incoming symbol scope and loop depth in finally around the whole
+  loop checker, preserving normal checks and nested-loop context. Regressions
+  check the original error plus correct later undefined-symbol and control-flow
+  diagnostics, and exact state restoration for each failure stage.
+
+
+## Excessive syntax nesting escaped as an unlocated host exception (audit C13)
+
+- 3,000 nested parentheses overflowed Peggy's call stack, while a 20,000-term
+  addition parsed successfully but overflowed recursive type analysis. Neither
+  produced a structured compiler diagnostic. Validate raw AST nesting iteratively
+  before recursive passes, limiting it to 512 AST nodes per path. Convert parser
+  stack exhaustion into BPL_SOURCE_COMPLEXITY_LIMIT, including the syntax-error
+  retry path. Other parser exceptions retain their original behavior.
+- AST depth failures point at the offending parsed node. If Peggy exhausts its
+  stack before producing an AST, only the source file is known and the diagnostic
+  uses line 1, column 1. Parser capacity may be lower than the AST limit. Tests
+  cover check/build JSON failures, native O0/O3 moderate nesting and long chains,
+  LLVM verification, and wide shallow syntax that must remain accepted.
+
+## Package archives omitted explicitly declared non-.bpl entry points (audit P5)
+
+- A verified package declaring entry: "src/api.x" reported pack success but its
+  archive contained only helper.bpl and bpl.json, making the installed package
+  unusable. Include the selected main/entry source regardless of suffix, using
+  main precedence and the same package-relative path normalization as exports.
+- Validate explicit entry points as existing regular files within the package
+  root before archive replacement, including direct PackageManager.pack callers.
+  Preserve existing export diagnostics through a shared source-file validator.
+
+## Package archives dropped README and license files (audit P5)
+
+- Packing copied source files and explicit bin/exports but omitted standard
+  root README and legal files. Include regular root README, LICENSE/LICENCE,
+  COPYING and NOTICE files, case-insensitively, with optional md/txt/rst/markdown
+  suffixes. Skip automatically discovered links and directories. Unrelated
+  assets and dotfiles remain outside this automatic selection.
+- Round-trip tests verify exact installed metadata contents and confirm private
+  files, linked metadata and metadata directories are not automatically added.
+  Source presence remains required; documentation alone does not form a package.
+
+## Legacy listing/provenance hashes omitted selected non-.bpl entries (PR #7 review)
+
+- CodeRabbit found that adding an explicit source to the archive did not add it
+  to legacy package hash selection. Changing installed .x or extensionless entry
+  code could leave list/provenance hashes unchanged. Include the selected entry
+  with the existing path, regular-file and real-path checks. Keep automatic
+  metadata outside legacy hashing; portable v2 lock hashes still cover all files.
+- Historical legacy hashes that omitted an existing non-.bpl entry now fail
+  closed with a hash mismatch. An explicit install --update migrates these pins
+  to the existing portable v2 format. Ordinary .bpl legacy coverage is unchanged.
+  Tests check listings, provenance, metadata exclusion, external-link boundaries,
+  unchanged legacy lock bytes on verification failure, and explicit migration.
+
+## Unchanged packages produced different archive bytes (audit P5)
+
+- Two packs of identical package contents produce different archive SHA256s
+  because temporary staging timestamps, filesystem order and ownership enter
+  tar headers. BSD tar also embeds the current time in its gzip header.
+- Confirmed with a regression that packs identical trees in opposite creation
+  order, with different source timestamps and umasks, across a clock boundary.
+  The fix normalizes only private staging metadata, writes an explicit sorted
+  NUL-delimited member list and suppresses variable ownership/compression
+  metadata for GNU/BSD tar. Source metadata is preserved; executable bits remain
+  meaningful. GNU-format archives retain long paths without PAX clock fields.
+- Ignore ambient TAR_OPTIONS/GZIP during creation so they cannot silently add
+  exclusions or change compression headers. BPL_TAR/TAR selection is unchanged.
+  Reproducibility is scoped to the same tar/compression toolchain, included
+  content, paths and executable bits; provenance timestamps remain informational.
+
+## Declared integer array element types were ignored for literals (audit C14)
+
+- A literal [1,2] was inferred as i32[2] even when its destination was u8[2],
+  rejecting valid local initializers, assignments, returns and function calls.
+- Plan contextual conversions for newly created integer array literals, checking
+  dimensions and each element before applying aggregate annotations. Existing
+  array storage is never reinterpreted. Preserve leaf expression types so the
+  existing array generator emits the appropriate element casts. Narrowing a
+  nonconstant element is not added by this conversion; literal range errors
+  retain BPL_INTEGER_LITERAL_OVERFLOW at known destinations.
+- Overload probes do not mutate candidate arguments; existing exact/widening
+  matches remain preferred. Apply conversions only after selecting a signature.
+  Cover aliases, nested arrays, slices, grouped/conditional arrays, fields,
+  functions, methods, function pointers, lambdas and enum tuple payloads. Empty
+  arrays and arrays nested in tuple/match result contexts are separate cases;
+  this fix does not claim a general contextual inference system.
+
+## Implicit array-to-view returns exposed a completed stack frame
+
+- A frame returning int[] from [1,2] passed checking, but the backend spilled
+  the fixed array to the callee's stack and returned a pointer into that spill.
+  AddressSanitizer confirms stack-use-after-return at O0 on staging 8d35afd1,
+  independently of the contextual-array changes. Implicit pointer returns use
+  the same temporary-storage lowering.
+- Reject direct fixed-array-to-slice/pointer return conversions with
+  BPL_RETURN_ARRAY_VIEW_ESCAPES. Fixed-array value returns and existing borrowed
+  slice/pointer returns remain supported. Tests cover literals, locals, by-value
+  parameters, groups, conditionals, aliases, and newly contextualized literals.
+  This is a targeted lowering boundary check; it is not a full lifetime analysis
+  of view aliases, explicit casts or aggregate-contained borrows.
+
+
+## Failed block and catch checking left the checker in an inner scope
+
+- Fail-fast block checking exited before restoring its enclosing scope when a
+  statement failed, an unused variable was reported, or an unreachable statement
+  was diagnosed. Catch clauses also retained their parameter scope on failure.
+- Both paths now restore the exact incoming scope in `finally`. Blocks checked
+  without creating a scope continue to use the caller's bindings.
+- Six regression cases failed before the fix; focused tests also cover normal
+  catch binding visibility and collection of multiple diagnostics.
+
+
+## Failed conditional checking retained branch scopes
+
+- Checking a then branch (including its type-guard narrowing scope) or a single
+  statement else branch could throw before leaving the branch's scope. Later
+  diagnostic collection could consequently run in an unintended inner scope.
+- Restore the exact incoming scope with `finally` around each branch scope.
+  Four fail-fast conditional regressions failed before this correction.
+
+
+## Catch annotations skipped type validation
+
+- Typed catches bound their annotation without checking whether its type existed
+  or resolving generic arguments. Unknown catch types and incorrect generic
+  argument counts consequently passed the checker.
+- Apply the existing known-type and type-resolution checks before binding the
+  caught value. Valid primitive, alias and generic catch types remain accepted.
+- Three regression cases failed before the fix; catch scope restoration still
+  applies when annotation validation fails.
+## Explicit casts bypassed the array-view return diagnostic
+
+- Explicit casts of a fixed array to a slice/pointer passed return checking,
+  including casts inside aggregate literals. Using cast<i32[]>([11,12]) in a
+  slice-returning function reproduced AddressSanitizer stack-use-after-return
+  at O0 on staging bfbaf0c9. The cast creates a callee stack spill.
+- Return checking now uses BPL_RETURN_ARRAY_VIEW_ESCAPES for these explicit
+  conversions too, including groups, conditionals and aggregate literal fields.
+  Enum tuple constructors retain arguments and are checked as aggregates.
+  This does not add general lifetime/provenance analysis for local view aliases.
+- The backend used the raw cast target instead of the checker's resolved target:
+  cast<int[]>(array) failed with Unsupported cast where cast<i32[]>(array) worked.
+  It also omitted fixed-array-to-pointer casts accepted by the checker. Use the
+  checked cast type and existing array-to-pointer spill lowering. Native O0/O3
+  tests cover primitive spellings, aliases, literal/local arrays, byte views,
+  safe immediate consumption, and existing caller-owned view passthroughs.
+
+
+## Returned calls and match results bypassed explicit array-view checks
+
+- CodeRabbit found that borrow(cast<i32[]>([11,12])) can return its temporary
+  argument, while match expression arms and block yields can also carry casts
+  past the initial guard. All three forms reproduce stack-use-after-return
+  under AddressSanitizer at O0 on 2a227519.
+- Return traversal now checks match expression values and recorded block yields.
+  For calls with view-capable results, it conservatively checks cast arguments;
+  the callee may return borrowed argument storage. Scalar-only results, including
+  fixed arrays and generic value-only structs, remain supported. Nested tuple,
+  struct and enum result types are inspected for potential borrowed storage.
+- No interprocedural ownership proof or tracking of local view aliases is added.
+  Calls returning independent storage can still be rejected because the
+  compiler cannot prove this property. Positive native tests retain scalar
+  consumers, copied aggregate
+  results, caller-owned match results and temporary views consumed in-frame.
+
+
+## Match block yield types lost block-local alias resolution
+
+- A match arm defining `type View=int[]` and yielding `cast<View>([1,2])`
+  was compared against a sibling `int[]` arm after its scope ended, producing
+  a false incompatible-arms error. Collect resolved yield types while the
+  declaring scope is live; inspect cast results using their checked types.
+- Native O0/O3 controls consume such a match value within its frame. Returning
+  that value directly instead reports BPL_RETURN_ARRAY_VIEW_ESCAPES.
+
+
+## Projections and method receivers hid returned array-view casts
+
+- CodeRabbit found unchecked Member/Index result objects and method receivers.
+  Indexing a slice array literal and returning a view through a temporary value
+  receiver both reproduce stack-use-after-return under AddressSanitizer at O0
+  on 8421d6a9. Self-review also confirmed pointer arithmetic on a cast-created
+  array pointer exposes the completed frame. Direct temporary struct-field
+  projection instead hit an existing backend lvalue error, not a native escape.
+- Return traversal now follows view-capable projections, callees/receivers and
+  other value-producing operators. Scalar reads remain allowed. Constant literal
+  projections inspect only the selected value, preserving caller-owned borrows
+  when unrelated temporary views are discarded. Native O0/O3 controls cover
+  selected caller-owned slices, numeric indexing, scalar methods and pointer reads.
+- General alias/provenance tracking and unsupported temporary-aggregate address
+  generation remain outside this change.
+
+
+## Unknown component types passed compound annotation validation
+
+- The shared known-type check returned immediately for tuples, function types
+  and lambda types. Unknown tuple elements and callable return/parameter types
+  therefore passed in local declarations, catch annotations and struct fields.
+- Traverse tuple elements and callable result/parameter types recursively, then
+  apply the existing named-type checks at each component. Generic-parameter
+  recognition and alias resolution policy are unchanged.
+- Eighteen regression cases failed before this correction; positive controls
+  preserve known aliases, nested generic types and generic parameter annotations.
+
+
+## Failed destructuring declarations caused cascading diagnostics
+
+- Recovery retained a simple typed variable after an invalid initializer, but
+  skipped destructured targets. Later uses then reported false undefined-symbol
+  errors. A partially checked tuple also produced unused-variable noise for its
+  already-bound targets.
+- During diagnostic collection, retain valid explicitly annotated targets and
+  mark bindings belonging to the failed declaration as used. Preserve unrelated
+  existing bindings, skip unknown/missing target types and leave fail-fast mode
+  unchanged. Four initial regressions failed before the correction.
+
+
+## Value symbols were accepted as type annotations
+
+- Known-type validation treated any resolved symbol as a valid type, including
+  local/global variables, function parameters and functions. Short uppercase
+  value names also bypassed validation through the generic-name heuristic.
+- Accept resolved structs, enums, specs and type aliases (including actual
+  generic parameters); reject resolved value/module symbols with the existing
+  BPL_TYPE_NOT_FOUND diagnostic category. Preserve generic-name fallback only
+  when no symbol is resolved, without changing that existing language policy.
+- Six source regressions failed before the fix across simple, nested, field
+  and catch annotations. Positive controls preserve actual type declarations.
+
+
+## Undeclared short type names bypassed annotation validation
+
+- The known-type helper accepted any unresolved single uppercase letter,
+  optionally followed by a digit, as a generic parameter. Undeclared T/A/X1
+  consequently passed local, field, catch, callable and generic-argument checks.
+- Remove that spelling heuristic and require an actual type symbol. Generic
+  parameters are already registered as type symbols in their declaration scope;
+  declared short struct/alias names remain valid. Existing BPL_TYPE_NOT_FOUND
+  diagnostics now identify undeclared names before code generation.
+- Fifteen regression cases failed before this fix; positive controls preserve
+  declared generic parameters and short type declarations.
+
+
+## Function and explicit lambda signatures skipped known-type validation
+
+- Function/method parameters and return types, plus explicit lambda signatures,
+  were resolved without checking whether their named types existed. Unknown
+  types could survive in unused parameters or in a return type whose body throws.
+- Validate signatures after registering generic parameters, before binding value
+  parameters. Lambda checks likewise run before entering the parameter scope;
+  context-inferred lambda types retain their existing path.
+- Eight regression cases failed before the correction, including nested callable
+  types and undeclared short names. External ABI declarations are outside this
+  ordinary-language checking change.
+
+
+## Failed struct and enum checks exposed generic parameter scopes
+
+- A failed field or method-signature check exited struct/enum checking before
+  restoring the enclosing scope. Later declarations could then use generic
+  parameters from the failed type as though those parameters were in scope.
+- Guard both type-body entry points with `finally` and restore the exact
+  incoming scope on success or failure. Function-body recovery already applies
+  the same rule inside methods.
+- Three collection-mode regressions failed before the correction, covering a
+  struct field, a struct method and an enum method.
+
+## Enum payload annotations skipped known-type validation
+
+- Tuple and named-field enum payloads resolved their types without checking
+  whether the names denoted declared types. Unknown names, including nested
+  callable parameters, survived declaration checking without BPL_TYPE_NOT_FOUND.
+- Validate both payload forms before resolution while the enum's generic
+  parameters are in scope. Declared generic parameters and aliases stay valid.
+- Eight negative regressions failed before the fix; two positive controls
+  preserve generic payloads and nested callable types. Found during PR review.
+
+## Known-type checks lost previously resolved namespace identity
+
+- Signature resolution can replace a qualified nominal name such as Types.Token
+  with Token while recording its declaration. Subsequent known-type validation
+  searched only the bare name and incorrectly rejected valid namespace imports.
+- Honor recorded struct/enum/spec declarations using the same guarded helper as
+  type resolution. A declaration for a different name or an enum variant does
+  not bypass name validation. Generic arguments are still validated recursively.
+- The transitive module-cache regression exposed this during CI; focused controls
+  cover all three nominal declaration kinds and mismatched names.
+
+## Return completeness ignored compound types and void pointers
+
+- Named functions only checked return completeness for basic types whose names
+  were not void. Tuple/callable returns and void pointers could fall through;
+  an alias to plain void incorrectly required a return value.
+- Resolve the declared return type before value parameters enter scope, and
+  exempt only plain void. Keep primary body errors from causing return cascades.
+- Five regression cases failed before the fix; throw-only bodies, aliases to
+  compound values and primary-error controls cover the existing behavior.
+
+## Nonvoid lambdas lacked return completeness checks
+
+- Lambdas could promise a value through an explicit or contextual signature
+  yet fall through or return only on some branches. Their bodies were type
+  checked without the named-function return-flow check.
+- Apply the existing return-flow analysis to nonvoid lambdas, exempt plain
+  void and preserve primary body errors without a missing-return cascade.
+- Eleven regressions failed before the fix, covering scalar, tuple, callable
+  and void-pointer returns, contextual signatures and partial branching.
+
+## Unconditional loops falsely failed return completeness
+
+- Return analysis always allowed loops to finish, rejecting nonvoid functions
+  that diverged in an unconditional loop. Applying the same analysis to lambdas
+  would also reject their valid diverging bodies (audit C15).
+- Treat conditionless and literal-true loops without reachable breaks as
+  diverging; nested loop/switch breaks remain local to those constructs. A
+  reachable break or a conditional loop still requires a subsequent return.
+- Twelve checking cases and a native compilation control failed before the
+  correction; ten exit-path controls preserve missing-return diagnostics.
+
+## Value parameters changed the meaning of named signature aliases
+
+- Function signature names were validated before parameter binding, but their
+  types were resolved one at a time as parameters entered scope. A parameter
+  named Number could hide the alias Number for later parameters or the return
+  type, incorrectly rejecting valid signatures and returns.
+- Resolve all parameter and return types in the declaration scope before binding
+  value parameters. Use those resolved types for body checking and variadic count
+  validation, preserving aliases and nominal declaration identity.
+- Five checking cases and one native O0/O3 fixture failed before the correction,
+  including scalar, tuple, callback and plain-void aliases.
+
+## Value parameters also hid aliases in lambda signatures
+
+- Explicit lambda parameter and return types were resolved after entering the
+  parameter scope. Earlier value parameters could hide aliases in later types,
+  producing false return mismatches or false missing-return diagnostics.
+- Resolve explicit and contextual signature types in the enclosing scope before
+  binding lambda parameters, while retaining existing context inference and
+  scope restoration on failures.
+- Six checking cases and one native O0/O3 fixture failed before the fix, covering
+  aliases to scalar, tuple, callback and plain-void types plus mixed inference.
+
+## Type alias bodies skipped known-type validation
+
+- Alias declarations resolved their bodies without checking whether named types
+  existed. Undeclared short names and unknown types nested in tuples or callable
+  signatures could survive declaration checking without BPL_TYPE_NOT_FOUND.
+- Validate alias bodies with their declared generic parameters in a temporary
+  scope, then restore the exact incoming scope before existing resolution.
+  Forward aliases and actual type declarations retain their existing behavior.
+- Ten negative cases failed before the fix; generic, forward-alias and native
+  O0/O3 controls preserve valid alias consumers.
+
+## Type aliases accepted duplicate generic parameter names
+
+- Alias parameter lists could repeat a name, allowing later substitutions to
+  overwrite earlier arguments instead of rejecting the ambiguous declaration.
+- Reject repeated names with BPL_SYMBOL_ALREADY_DEFINED while validating the
+  alias. Restore the incoming scope after duplicate failures in both checking
+  modes; distinct names and reuse in other aliases remain valid.
+- Five regressions failed before the correction, covering adjacent and separated
+  duplicates, subsequent declaration recovery and fail-fast scope restoration.
+
+## Spec method signatures skipped known-type validation
+
+- Unused specs accepted undefined parameter and return types, including short
+  undeclared names and names nested in tuples, callbacks and generic arguments.
+- Validate signatures in temporary scopes containing the spec and method generic
+  parameters. Restore the exact incoming scope on success and failure before
+  existing resolution; method parameters cannot escape into sibling signatures.
+- Twenty-seven regression cases failed before the correction. Controls retain
+  Self, forward declarations and declared generic parameters.
+
+## Specs and methods accepted duplicate generic parameters
+
+- Specs and their methods accepted repeated generic parameter names. Reject
+  duplicates per parameter list with BPL_SYMBOL_ALREADY_DEFINED; reuse in
+  separate signatures and case-sensitive names remain valid.
+- Seven regressions failed before the correction. Scope restoration is tested
+  under diagnostic collection and fail-fast checking.
+
+## Spec inheritance accepted undefined generic arguments
+
+- A declared parent spec can be instantiated with an undefined type argument
+  in another spec's inheritance list. Reproduced with unused declarations:
+  spec Parent<T>{} spec Broken:Parent<MissingType>{} frame main(){}
+- Validate inherited arguments with the child's generic parameters in scope,
+  preserving existing parent-name diagnostics and scope restoration.
+- Thirteen negative and recovery cases failed before the fix; declared child
+  parameters, forward types and existing parent-name diagnostics remain valid.
+
+## Spec validation could hide the primary inheritance diagnostic
+
+- The new spec validation initially checked generic arguments before inherited
+  spec names, so MissingParent<MissingType> reported the argument instead of
+  the undefined parent. CodeRabbit identified this ordering regression in PR #19.
+- Preserve the existing parent-name, non-spec and self-extension checks before
+  validating inherited arguments or method signatures. Three regression cases
+  protect these primary diagnostics when an argument is also undefined.
+
+## Spec inheritance silently accepted non-spec type shapes
+
+- Tuple, function and lambda parent types bypassed identity checks because only
+  BasicType parents were checked. CodeRabbit identified this outside-diff issue
+  in PR #19. Independent tests also found pointer and array wrappers around a
+  named spec accepted as parents. All nine invalid declarations were accepted.
+- Reject non-BasicType parents and BasicType pointer/array wrappers at the
+  inheritance boundary. Named specs, generic arguments and multiple parents
+  remain valid; invalid shapes report a source-located compiler diagnostic.
+
+## Parser backtracking duplicated trailing comments
+
+- Direct parsing collected the same comment repeatedly when grammar alternatives
+  revisited a trailing struct field. The CLI formatter uses direct parsing, so
+  comments multiplied on every formatting pass (audit T2).
+- Deduplicate collected comments by source position and text, retaining identical
+  comments at distinct positions. Cover line, block and nested block comments,
+  formatting idempotence, and parity with lexer-provided comments.
+
+## Formatter moved comments out of their source containers
+
+- Parameter-list and array-literal comments move out of their original container
+  into the function body. Struct field trailing comments move onto later lines.
+- Source-aware formatting now aligns code tokens and places comments at their
+  original lexical boundaries, with continuation indentation and aligned closing
+  delimiters for comment-bearing lists. Preserve trailing comments, section
+  spacing and multiline artwork; keep interpolation comments inside their token.
+- Thirty-four placement regressions failed against the prior formatter. The
+  repository corpus also exposed two pre-existing idempotence failures in
+  lib/string_builder.bpl and packages/bpl-db/src/storage.bpl; both now pass.
+- Refuse comment formatting for detached ASTs without original source instead of
+  guessing positions; callers can supply source explicitly. Parser results retain
+  weakly held provenance, without adding source text to serialized ASTs.
+
+## Token-assisted parsing dropped comments inside interpolation expressions
+
+- The lexer treats an interpolated string as one literal and excludes its text
+  from comment scanning. Parser.parse replaced grammar comments with lexer
+  comments, losing actual comments inside interpolation expressions.
+- Merge grammar comments absent from the lexer list and return that merged list;
+  cover strings with and without additional outer comments and distinguish
+  literal hash characters from actual interpolation-expression comments.
+
+## Lexer comment extraction mishandled nested comments and CR line endings
+
+- The grammar supports nested block comments, but the lexer comment scan stopped
+  at the first inner closing marker. It returned a truncated block and could
+  misclassify the outer closing marker and following code as another comment.
+- Line-comment extraction retained CR in CRLF files and consumed following lines
+  in CR-only files. Track block depth and all supported line endings, preserving
+  exact source comment bounds and positions.
+
+## CR-only files retain LF-based source line numbers (open)
+
+- The existing grammar parser and generic token positions count LF as a line
+  break, so source following a lone CR can retain the preceding line number.
+  Comment scanning now stops at CR without consuming following code, but a
+  consistent whole-frontend source-location correction remains separate work.
+
+## Format stdout added a second final newline
+
+- Formatter output already ended in one newline, but the CLI printed it through
+  console.log, adding another. Redirected stdout differed from --write output.
+- Write the formatted text directly to stdout; cover plain, comment-bearing and
+  CRLF input and check that redirected output equals the written file.
+
+## Comment-aware tokenization used different Unicode column units
+
+- GenericParser.advance counted Unicode code points while the generated parser
+  and token offsets use UTF-16 units. On the multiline-literal advance path,
+  tokens after an astral character had incorrect columns. Single-line fast
+  paths already used UTF-16 lengths.
+- Formatter source mapping relies on these coordinates. Advance through UTF-16
+  units consistently; cover plain and interpolated
+  strings, literal hash characters, actual comments and multiline literals.
+
+## Formatter example bypassed canonical C declarations
+
+- The new formatter regression example redeclared printf directly, violating the
+  repository example declaration check. Import printf from std/c.bpl instead.
+- Covered by ExampleExterns.test.ts and the formatter native/corpus checks.
+
+## Formatted build output diverged from the format command
+
+- Both frontend and full-runner formatted emits appended an extra stdout newline.
+  They also need to honor project formatter preferences consistently.
+- Write formatted text directly and share project configuration discovery. Three
+  CLI regressions cover explicit build, default invocation and advanced build.
+
+## Editor formatting rejected unsaved documents before error handling
+
+- The formatting handler converted every document URI with fileURLToPath outside
+  its try block. Untitled and other virtual documents therefore threw before the
+  formatter could run. Only file URIs now trigger path conversion/config discovery;
+  virtual buffers format directly, with errors handled by the existing boundary.
+- The shared document formatter also honors project style or editor indentation
+  preferences; regression cases cover unsaved buffers and unsaved file edits.
+
+## VS Code activation changed global format-on-save for every language
+
+- Activation wrote editor.formatOnSave=true globally, even when the user had
+  disabled it. Replace persistent settings writes with a BPL-only save hook.
+  Explicit native editor settings take precedence; enabled native formatting
+  runs once through VS Code rather than through the convenience hook.
+- Register an untitled-buffer formatter separately from the file-only server so
+  formatting unsaved documents is reachable without exposing filesystem-only
+  language-server handlers to non-file URIs.
+
+## BPL save hook formatted during delayed autosaves
+
+- CodeRabbit identified that the convenience save hook ran for AfterDelay saves,
+  while native VS Code save formatting skips that reason. An activation regression
+  expected zero formatting calls but received one. Skip AfterDelay; retain manual
+  and focus-change saves and explicit native settings precedence.
+
+## Compiler container context omitted the formatter schema
+
+- The image copied bpl-format.schema.json, but its Dockerfile-specific context
+  allowlist excluded the new root file, so BuildKit failed before compilation.
+- Include the schema in docker/Dockerfile.dockerignore and verify the actual
+  compiler image build, keeping the otherwise narrow build context.
+
+## Formatter container test had inconsistent timeout allowances
+
+- CodeRabbit noted that five sequential Docker invocations each allowed 60 seconds
+  inside a test with a 60-second overall deadline. No slow-run failure was
+  reproduced locally, but those limits could make the smoke test unreliable.
+- Bound each process to 30 seconds and allow 240 seconds for the complete test.
+
+## Formatter emitted invalid syntax for bare imports
+
+- Formatting import "./module.bpl" produced import * from "./module.bpl", which
+  the grammar does not accept. Preserve the supported bare-import syntax when
+  importing all exported symbols without a namespace.
+- Both plain and comment-bearing round trips fail before the fix.
+
+## Formatter dropped const qualifiers from extern parameters
+
+- Extern parameter printing duplicated a reduced name/type formatter and omitted
+  Parameter.isConst. Both plain and comment-bearing AST round trips fail before
+  the fix. Reuse the declaration parameter formatter so qualifiers are retained.
+
+## Import path escaping corrupted literals and displaced adjacent comments
+
+- Decoded import paths were printed inside quotes without escaping. Quotes,
+  backslashes and newline escapes could produce invalid or changed source. When
+  normalization changed the raw path token, a preceding comment could move after
+  the path. Twenty parser/formatter regressions fail before the fix.
+- Quote paths using supported BPL escapes (JSON backspace/form-feed forms need
+  Unicode equivalents) and align ordinary string tokens by decoded value. Cover
+  named/bare imports, Unicode/surrogates, controls, literal escapes and comments.
+
+## Generic-list comments did not receive continuation layout
+
+- Comment-bearing generic parameter and type/call argument lists were excluded
+  from container layout. Subsequent arguments and closing brackets remained at
+  statement indentation, unlike other multiline lists. Four layout goldens fail
+  before the fix, including nested closers next to an assignment.
+- Recognize canonical generic angle brackets separately from spaced comparisons;
+  expose boundaries inside combined closing-bracket lexer tokens. Preserve shift
+  and comparison text and verify meaning and repeated-formatting stability.
+
+## Watch mode missed atomic saves, new sources and external imports
+
+- Watching file inodes missed subsequent editor saves that replaced the source by
+  rename. A CLI regression observes the second program but never the third after
+  two atomic saves. Directory watches must survive source inode replacement.
+- Four CLI regressions fail before the fix: repeated atomic entry replacement,
+  creating a missing import, and changing external .bpl/.x modules. Watch source
+  directories, resolve transitive imports and rescan after changes.
+- Synchronous compilation/execution still blocks event handling while a program
+  runs; subprocess concurrency is a separate outstanding issue.
+
+## Recreated source directories retained obsolete watch handles
+
+- CodeRabbit identified that directory watchers were keyed only by path. Replacing
+  an entry/dependency directory preserved a handle on its former inode. Both new
+  regressions fail before the fix even after an explicit refresh.
+- Compare canonical bigint device/inode identities during refresh and recreate
+  changed handles. Store identity with its handle so error/close cleanup cannot
+  leave stale identity entries. Source snapshots use bigint IDs and nanosecond
+  timestamps as well.
+
+## Watch mode could not recover after its entry directory disappeared
+
+- Once the entry directory was absent across a refresh, no live watcher remained
+  to observe restoration. A new regression fails after restoring the directory
+  and editing its source.
+- Observe the nearest existing parent while a source directory is missing, then
+  return to source-directory watches after restoration. Do not recursively scan
+  unrelated ancestor trees. Treat file-valued path components as missing dirs.
+
+
+## Missing-entry fallback rebuilt for unrelated ancestor source files
+
+- CodeRabbit identified that extension-only relevance forced a rebuild for an
+  unrelated .bpl/.x file in a fallback ancestor, even though rescanning collected
+  no changed source. Both filesystem-event regressions fail before the fix.
+- Let those events request discovery without forcing compilation. A source
+  snapshot change, a collected source or relevant manifest still triggers the
+  rebuild. Entry restoration and new-source discovery remain observable.
+
+## Formatter combined unary signs into increment/decrement
+
+- Formatting - -value and + +value removed their separating whitespace and
+  changed the AST to decrement/increment. A sign before prefix --/++ was also
+  regrouped. Preserve a space when a single unary sign precedes the same sign.
+- Four regressions failed before the fix; controls cover other unary operators.
+  Native checks compare original and formatted behavior at O0 and O3.
+
+## Formatter emitted invalid interpolated literal escapes
+
+- Escaped backticks became raw delimiters. Some control characters were written
+  literally; combined with another escape they triggered the detailed parser and
+  made previously valid strings fail parsing. Adjacent comments could also make
+  token alignment fail before source-preserving literal replacement.
+- Fourteen round-trip cases failed before the fix. Encode literal text through
+  JSON string escaping, then escape backticks and interpolation starts. Keep
+  expression parts unchanged and verify comment/no-comment idempotence.
+
+
+## Symlinked project roots duplicated source watch identities
+
+- CodeRabbit identified that root sources used an unresolved absolute path while
+  imports used real paths. A symlinked project tracked the same source twice and
+  reported an alias path for an edited dependency. Two regressions reproduce it.
+- Canonicalize existing watch paths consistently, preserving absolute fallbacks
+  for missing files and canonicalizing their nearest existing parent. Canonical
+  temporary fixtures also work when the platform temporary directory is a link.
+
+
+## Initial dev compilation missed edits made before watch registration
+
+- CodeRabbit identified that the initial build/run completed before watching
+  sources. A deterministic CLI regression edits source while a compile-driver
+  gate pauses the first native build; no subsequent rebuild occurs before fixing.
+- Register and refresh source watches before the first compilation so queued
+  changes compare against the source baseline used for that build.
+
+
+## Retargeting a project directory link left watches on the old project
+
+- CodeRabbit identified that canonical source paths dropped observation of the
+  alias itself. Replacing a project link changed no watched target directory; a
+  regression receives no rebuild callback before the fix.
+- Also watch parents of symlink path components, without recursively scanning
+  those ancestors. Retain canonical source identities and refresh after retargets.
+
+
+## Initial-build watcher regression used a non-executable Windows driver
+
+- CodeRabbit identified that the test's .cmd wrapper cannot be launched as the
+  compiler driver with shell execution disabled on Windows.
+- Build the finite test driver as a standalone Bun executable on every platform,
+  keeping shell-free execution and exercising the same launch boundary locally.
+
+
+## A linked entry changed the project scan root to its external target
+
+- CodeRabbit found that canonicalizing the file before choosing its parent
+  scanned the target directory instead of the supplied project directory. A
+  regression misses a local sibling and includes an unrelated target sibling.
+- Canonicalize the supplied entry parent for scanning and the entry file itself
+  for source identity. Continue observing link parents and resolved dependencies.
+
+
+## Failed source watchers required another event to recover
+
+- CodeRabbit noted a residual availability risk: a directory handle error or
+  initial watch creation failure left no handle able to observe the next change.
+  Two real-handle/temporary-failure regressions fail before the fix.
+- Retry discovery/watch registration after one second without requiring a file
+  event. Coalesce recovery timers, retry creation failures, and cancel pending
+  recovery when the session closes or a manual refresh restores every handle.
+
+
+## Watch recovery missed changes made while monitoring was unavailable
+
+- Restoring a failed handle replaced the source baseline without reporting edits
+  made during the gap. A finite regression edits before the retry and receives no
+  callback before the correction.
+- Compare the old and refreshed source snapshots during recovery and report a
+  changed file, allowing dev mode to rebuild the current source immediately.
+
+
+## Persistent watch registration failures flooded logs and rescanned every second
+
+- CodeRabbit found that recovery retried persistent failures at a fixed one-second
+  interval and reported the same directory repeatedly. A finite timer/log
+  regression fails before the fix.
+- Back off retries from one second to a 30-second cap. Report each directory once
+  until it recovers, reset the delay after successful recovery, and continue to
+  cancel timers on close. Drop obsolete directory failure records during refresh.
+
+
+## Unresolved package and standard-library imports did not recover in watch mode
+
+- CodeRabbit identified that missing bare packages and explicit std/ imports
+  discarded their search paths. Three filesystem regressions fail before the fix:
+  a new local package, a workspace package, and an external BPL_HOME library module.
+- Let the resolver report candidates from its actual failed search, including
+  configured package/global/extra roots. Watch their nearest existing directories
+  without scanning ancestors. Successful resolutions keep their existing behavior.
+
+
+## Asynchronous watch-handle failures restarted the retry loop too early
+
+- CodeRabbit identified that a handle returned successfully then errored on the
+  next turn cleared the failure history. Repeated asynchronous errors therefore
+  retried every second and repeated their log message. A regression fails before
+  the fix.
+- Preserve backoff/error deduplication across newly created handles. Treat observed
+  activity or a handle lasting at least 30 seconds as a fresh healthy episode.
+  Ignore late errors from replaced handles and retain cancellation on close.
+## Malformed string escapes consumed partial hexadecimal prefixes
+
+- Both quoted-string decoders used parseInt without checking every digit. Invalid
+  escapes such as \x1g and \u12g4 became control characters and discarded suffixes;
+  a following escape could also be partly consumed. Ten lexer/parser regressions
+  fail before the fix.
+- Require exactly two/four hex digits before decoding. Malformed and incomplete
+  escapes retain their literal spelling, matching the existing fallback contract.
+
+
+## Character escape decoding discarded extra literal characters
+
+- The character decoder returned the first escaped character and ignored the rest,
+  accepting literals such as '\nABC' and '\x41' despite the one-character rule.
+  Seven rejection regressions fail before the fix; ordinary 'ab' already failed.
+- Require an escaped literal to contain exactly the backslash and one escape
+  character before decoding. Existing supported escapes and legacy single unknown
+  escapes retain their values; hexadecimal character escapes remain unsupported.
+
+
+## Formatter removed enum implemented-spec lists
+
+- Enum formatting omitted EnumDecl.implements entirely. Both plain and commented
+  implemented-spec lists disappeared, changing the parsed declaration; three
+  formatter round-trip regressions fail before the fix.
+- Emit the existing type list after the enum name/generic parameters, preserving
+  implemented contracts and their surrounding comments without new syntax.
+
+
+## Multiline declaration headers introduced body spacing on repeated formatting
+
+- Struct/spec/enum printers measured the first body member's gap from the start
+  of the declaration, including multiline header comments. A subsequent format
+  inserted an unwanted blank body line. Twenty-four configured regressions fail
+  before the fix.
+- Use the source opening-brace line for that initial gap. Locate it with lexer
+  tokens so braces in comments do not count, and reuse lazily collected tokens.
+
+
+## Comment-free declaration headers lost source brace spacing
+
+- CodeRabbit identified that original source was retained only for programs with
+  comments. Brace-on-next-line structs/specs/enums therefore acquired an unwanted
+  blank body line. Four focused regressions fail before the correction.
+- Retain source provenance in the existing weak map for every parsed program and
+  use it for declaration layout, including comment-free files. The source remains
+  outside AST serialization/traversal and is released with its program.
+## Spaced comparisons were parsed as generic applications (audit C2)
+
+- Postfix parsing consumed trivia before `<`, so comparison arguments such as
+  consume(a < b, c > (d)) became a generic call instead of two comparisons.
+  Twelve focused cases fail before the fix, including native compilation and
+  the newly required rejection of spaced generic declarations/literals.
+- Per the maintainer's syntax decision, require an adjacent generic `<` across
+  declarations, references, calls and literals. Preserve whitespace/comments
+  inside brackets and ordinary trivia before other postfix operators. Update
+  both grammar and generated fast paths, and compare the optimized postfix
+  scanner against the original Peggy production.
+
+
+## Callable types retained spaced angle openers after adjacency tightening
+
+- CodeRabbit identified FunctionType and LambdaType still accepting trivia
+  before `<`, inconsistent with the chosen generic type syntax. Eight rejection
+  cases reproduce this for whitespace, newlines and comments.
+- Require the opening bracket to touch Func/Lambda as well; valid callable
+  type forms and spaces inside their brackets remain supported.
+
+
+## Diagnostics exposed internal boolean/string spellings (audit C18)
+
+- Assignment, return and overload diagnostics printed i1 and *i8 where the
+  language guide uses bool and string. Three focused regressions fail before
+  the fix.
+- Use a dedicated diagnostic type printer that preserves compound structure,
+  qualifiers and dimensions. Keep canonical strings unchanged for signature
+  identity and runtime type IDs.
+
+
+## Missing generic arguments were reported as wrong value argument counts (C18)
+
+- Calling identity(1) when only identity<T>(value:T) exists reported a value
+  argument-count mismatch despite the matching value arity. One diagnostic
+  regression fails before the fix.
+- Track generic counts among candidates whose value arity matches, and report
+  BPL_GENERIC_ARITY_MISMATCH when their explicit type-argument counts differ.
+  Keep inference disabled and retain normal value/type mismatch diagnostics.
+
+
+## Circular dependency diagnostics pointed at nonexistent line zero (audit C18)
+
+- Module graph cycle detection reported the revisited module at 0:0 rather than
+  the import completing the cycle. Both self-import and two-module location
+  regressions fail before the fix.
+- Retain source locations for dependency edges and carry the incoming edge
+  through graph sorting. Report the closing import location, with a 1:1 fallback
+  only for synthetic graphs without source import metadata.
+
+
+## Diagnostic string aliases hid explicit byte pointer types
+
+- CodeRabbit identified that the diagnostic printer rendered every explicit i8
+  pointer as string, hiding the distinction in source spelling from a resolved
+  string alias. Two new pointer regression tests fail before the correction.
+- Inspect existing string-alias provenance, including alias-target chains, before
+  using string spelling for resolved i8 pointers. Preserve explicit pointers and
+  guard metadata traversal against cycles; canonical identity remains untouched.
+
+
+## Diagnostic type formatting exposed undefined for runtime-only types
+
+- CodeRabbit found that internal module types fall outside the parsed type union.
+  The diagnostic formatter left their name unassigned and printed undefined.
+- A regression reproduces the fallback failure. Use unknown for unsupported
+  kinds while preserving existing qualifier and array-dimension formatting.
+
+
+## JSON build validation matrix exceeded the default test timeout
+
+- The full CI-safe run reproduced a 7.5-second timeout in a test that launches
+  thirteen compiler processes sequentially under Bun's five-second default.
+- Give that existing integration matrix a bounded 30-second test budget; keep
+  all expected JSON error codes and stdout/stderr assertions unchanged.
+
+
+## Diagnostic types erased pointer-to-array grouping
+
+- CodeRabbit found that `(*int)[4]` and `*int[4]` printed identically, hiding
+  distinct checked array/pointer shapes. Three checked-metadata cases fail against
+  the original printer; a real assignment control covers address-of-array types.
+- Keep parentheses for pointer-to-array nodes and avoid collapsing their pointer
+  into a string alias. Canonical type keys and runtime type IDs remain untouched.
+
+
+## Raw char pointer diagnostics were renamed to string
+
+- CodeRabbit noted that the display helper changed explicit *char/**char nodes
+  to string/*string even without string-alias provenance. Two raw-type regression
+  cases fail before the fix.
+- Restrict the string spelling to checked i8 types with string alias metadata;
+  preserve raw char pointer spellings and checked pointer-to-array grouping.
+## Dev execution blocked source watching and left programs running on shutdown
+
+- Watch mode ran programs synchronously before registering source watches. A
+  long-running app blocked reloads indefinitely, with and without module caching.
+  Terminating dev also left the app running. Three CLI regressions fail before
+  the fix.
+- Register watches before the initial build, run the app as an owned async child,
+  serialize restarts and await the old child before rebuilding. Stop it on session
+  close/SIGINT/SIGTERM, preserving run timeouts and compilation error recovery.
+  Compilation itself still runs synchronously during each individual rebuild.
+
+
+## Long dev run timeouts expired immediately through JavaScript timer limits
+
+- During asynchronous runner validation, a valid BPL_RUN_TIMEOUT_MS of 2147483648
+  was clamped to one millisecond by the JavaScript timer API. A normal short-lived
+  program was terminated immediately; a focused regression reproduces this.
+- Schedule bounded timer segments using monotonic elapsed time, preserving the
+  existing positive-safe-integer environment contract. Clear the active segment
+  when the program finishes or the dev session stops.
+
+
+## Repeated shutdown signals could interrupt dev child cleanup
+
+- CodeRabbit identified that signal handlers were removed before awaiting child
+  termination. A second signal could exit dev while its child was still stopping.
+- Keep both handlers until cleanup finishes, removing them in finally. A gated
+  runner-stop regression fails before the fix and checks handler retention,
+  coalesced close requests and eventual listener cleanup without sending signals.
+
+
+## Watch runner readiness could read an empty PID file
+
+- CodeRabbit identified a test race between file creation and writing the child
+  PID. A deterministic delayed-write fixture reproduces it: Number("") became
+  zero, invalidating the later process-exit assertion.
+- Wait for a positive safe integer PID before continuing with shutdown checks.
+
+
+## Watch execution passed WebAssembly output to the native process runner
+
+- CodeRabbit found that the new asynchronous runner received .wasm output as
+  though it were a host executable. Four cached/uncached output-selection
+  regressions fail before the fix.
+- Keep WebAssembly builds out of native watch execution and warn once when run
+  was requested. Watch compilation remains available; a WebAssembly runtime must
+  execute the module separately. Native execution paths remain selected normally.
+
+
+## CR-only source locations and newline characters in diagnostic snippets
+
+- CR-only source files were accepted as whitespace but their tokens, AST nodes,
+  comments and syntax errors stayed on the preceding line. This also caused
+  formatter comment placement to use incorrect source offsets. Mixed newlines
+  inside multiline literals had the same issue.
+- Count LF, CRLF and standalone CR consistently across both lexer paths,
+  parser AST/error locations and formatter source offsets. CRLF counts once;
+  source text, literal payloads and UTF-16 offsets remain unchanged.
+- Split diagnostic source snippets on all three newline forms for both cached
+  and disk-backed sources, removing CRLF carriage returns from displayed lines.
+- Absolute-position, formatter round-trip, syntax-error and source-snippet
+  regressions are in `tests/SourceLineEndings.test.ts`.
+
+
+## CR-only documentation lost sections and parameter help
+
+- After source coordinates were corrected, documentation block comments attached
+  to declarations in CR-only files, but DocParser still recognized only LF/CRLF.
+  Section headers remained inside the description, and parameter help was lost.
+- Split standalone CR as well. Direct section/parameter regressions and generated
+  Markdown equivalence tests across all three newline forms cover the fix.
+
+
+## CR-only comment spacing lost blank lines
+
+- CodeRabbit found that both blank-line checks beside comments required LF, so
+  CR-only sources lost their section spacing. Two regressions reproduce this.
+- Recognize logical LF/CRLF/CR separators before and after comments, preserve
+  at most one blank line, and guard against treating a single CRLF as two breaks.
+  Tests cover one, two and three separators, exact output and idempotence.
+
+
+## Empty cached source displayed stale diagnostic snippets
+
+- DiagnosticFormatter treated an empty cached source as a cache miss and read
+  old source from disk. An emptied editor buffer could therefore show obsolete
+  text in terminal and JSON diagnostics, disagreeing with CompilerError output.
+- Distinguish undefined (no cached document) from the valid empty string. A
+  regression covers disk fallback before caching, authoritative empty content,
+  and text, structured-object and JSON output.
+
+
+## Lexer EOF positions ignored trailing source text
+
+- EOF was computed from the last token's start and lexeme length, so trailing
+  whitespace/comments and multiline literals produced incorrect end positions.
+  Whitespace-only input incorrectly reported 1:1. Eleven boundary cases fail.
+- Return the final scanner coordinates from both GenericParser paths and use
+  them for EOF, without rescanning or changing preceding tokens. Regressions
+  cover LF/CRLF/CR, comment-only input, multiline literals and UTF-16 columns.
+
+
+## Editor line endings disagreed with compiler coordinates
+
+- CR-only files produced wrong words, diagnostics, semantic declaration columns,
+  multiline import links, source slices and rename ranges because editor services
+  still split only LF. Hover documentation also retained bare CR separators.
+- Use logical newline splitting for line-based services and TextDocument offsets
+  for source slices/import links, retaining original newline and literal bytes.
+- Regressions cover service APIs across LF/CRLF/CR, including position-clamping
+  controls. All seven CR-only service failures are corrected.
+
+## Implicit void return annotations shadow function-name hover
+
+- Hovering the name in `frame run() {}` returns built-in `void` information
+  instead of the function signature/docs. The implicit annotation shares the
+  declaration range. Exclude that synthetic annotation from source-node
+  selection, preserving actual explicit void type hovers and semantic tokens.
+  Function/method regressions cover LF/CRLF/CR and explicit annotation controls.
+
+
+## Declaration rename ranges covered whole declarations
+
+- Preparing a rename on `frame run() {}` selected the entire declaration instead
+  of `run`. Actual global edits also replaced whole declarations and duplicated
+  their identifier edits. Const and multiline parameter ranges were incorrect;
+  comment text could be mistaken for an alias/extern name.
+- Locate the declaration's identifier token after its keyword, accounting for
+  modifiers/comments and multiline UTF-16 coordinates. Global declaration edits
+  use that same exact name range. Invalid names produce no declaration edit.
+- Twenty-seven failing-before cases cover LF/CRLF/CR, declaration families,
+  modifiers and applying function/struct renames without changing their bodies.
+
+
+## Rejecting cross-file rename also hid read-only imported references
+
+- The fail-closed rename correction removed the old defining-file reference
+  lookup from find-references as well. CodeRabbit identified this regression.
+- Separate read-only imported reference lookup from rename eligibility. Resolve
+  the current document's actual imports, retain cached live defining-file source,
+  and return reference locations without permitting cross-file edits.
+- Nine regressions fail before and pass after, including a same-named unrelated
+  indexed file and unsaved defining-buffer offsets/cache preservation.
+
+## Imported global rename returned incomplete cross-file edits
+
+- CodeRabbit confirmed that imported global variables/constants newly reached a
+  fallback which edited the declaring file but left the calling document unchanged.
+  Imported functions already used this incomplete fallback. Saved defining-file
+  offsets could also disagree with an open unsaved buffer.
+- Decline cross-file rename requests until complete workspace binding/live-buffer
+  resolution exists. No partial edit is returned. Nine failing-before regressions
+  cover variables/constants/functions, unsaved buffers and LF/CRLF/CR.
+
+## Read-only imported lookup ignored locally bound identifiers
+
+- The imported-symbol fallback ran whenever ordinary lookup returned no
+  references, including unsupported lambda and match-pattern binding references.
+  This showed locations for an imported global instead of the selected local.
+- Require the selected Identifier to be an unshadowed value reference in the
+  cached AST before using imported lookup. Six failing-before cases cover
+  lambda/match bindings and LF/CRLF/CR, with unshadowed import controls.
+
+## Exported declaration rename left importing files inconsistent
+
+- Declining rename from importing files still allowed a defining file to rename
+  an exported declaration and its export list without updating importers.
+- Decline exported-name preparation and edits until complete workspace rename
+  exists. Keep read-only references available. Eighteen failing-before cases
+  cover functions, globals/constants, aliases, structs/enums and LF/CRLF/CR.
+
+## Method rename could target a different same-named global
+
+- Struct/enum method declarations were classified as functions, and global
+  reference lookup matched only their spelling. A method rename could edit a
+  same-named top-level function while leaving the selected method untouched.
+- Pass the resolved declaration node into global lookup and require identity
+  with the live top-level declaration. Decline unsupported method preparation.
+  Six failing-before cases cover struct/enum methods and LF/CRLF/CR.
+
+## Failed live parsing left old ASTs available to rename operations
+
+- A failed live parse kept the previous AST cache. Rename preparation, edits
+  and read-only references ignored the parse result and could use stale nodes.
+- Decline all three requests immediately when parsing returns null. Nine
+  failing-before cases warm the cache then introduce an unterminated literal
+  across LF/CRLF/CR; each operation now returns no result.
+
+## Rename reloaded saved files over unsaved document contents
+
+- Node selection reloaded disk ASTs after parsing the current editor buffer;
+  global edits also used saved source and stale indexed declaration names.
+  Renaming from a global variable/constant reference produced no edits because
+  index classifications did not match the rename dispatcher.
+- Prefer the parsed live AST and live top-level declarations, search their live
+  document, and map external variable/constant classifications consistently.
+  Thirty-six regressions cover declaration/reference initiation, changed names,
+  shifted source positions, globals/constants/functions and LF/CRLF/CR.
+- Remaining reference matching still uses word regexes for global/alias/extern
+  names; comment/literal and shadowing correctness require a separate fix.
+
+
+## Global rename changed comments and literal payloads
+
+- Global/function/alias/extern reference discovery matched every word in source,
+  including documentation, nested comments and literal/interpolated string text.
+- Collect identifier tokens instead. Interpolated expression parts are scanned
+  separately using their parsed source ranges, preserving literal portions.
+  Nine regressions failed before and pass after across LF/CRLF/CR, including
+  type references inside interpolation. Binding/shadowing remains follow-up work.
+
+
+## Rename accepted declaration keywords, comments and whitespace
+
+- A function declaration's enclosing AST range let cursor positions on `frame`,
+  header/body comments or a closing brace trigger renaming its function name.
+- Prepare-rename, rename and find-references now require the cursor to lie on
+  the actual identifier range. The trailing name boundary remains accepted for
+  editor cursor placement. Fifteen failing positions and nine name controls
+  cover LF/CRLF/CR.
+
+## Global value renames crossed local binding and member boundaries
+
+- Renaming a global value also changed same-named parameters, local variables,
+  lambda/catch/match bindings, struct field labels and unrelated member names.
+- Filter identifier tokens through a lexical AST walk. Local bindings start
+  after their initializer and end with their block/loop/arm/catch/lambda scope;
+  member labels/method declarations are not global value references.
+- Seventy-eight regressions cover eight unrelated-name categories for globals,
+  functions and externs, scope/initializer
+  boundaries, destructuring, exports and LF/CRLF/CR. Unsupported lambda-binding
+  requests cannot fall through into renaming the global instead.
+- Type-name/generic binding and workspace-wide import resolution remain separate
+  limitations. Lambda-parameter rename itself is not implemented by this fix.
+
+
+## CI workflow test still expected the old extension test script
+
+- After adding production compilation to the extension test pipeline, the
+  workflow contract test still required its exact previous command string.
+- Validate production build, test typecheck and Bun execution ordering instead.
+  The reproduced Ubuntu CI assertion and the local workflow suite now pass.
+
+## Extension production build was not checked by its test command
+
+- `npm run compile --prefix vscode-ext` failed TS2550 for Object.hasOwn in
+  imported compiler modules. Its es2021 library differed from the es2022 test
+  configuration, so extension tests passed while the production build failed.
+- Align the production library with es2022 and run the production build before
+  the existing test typecheck/suite. This also covers it through test:ci's
+  existing extension step. Keep the emitted target and package version unchanged.
+
+
+## Integer array literals lost their destination type inside tuples
+
+- A direct `u8[2] = [1,2]` worked, but `local pair: (u8[2], int) =
+  ([1,2],3)` failed in declarations, assignment, return values, arguments,
+  struct fields, aliases, nested tuples and grouped/ternary expressions.
+- Extend the existing transactional literal-array conversion planner through
+  tuple containers. Preserve original scalar operator annotations; tuple
+  lowering converts each element to the contextual tuple type, including when
+  nested in a struct or ternary. Overload probes do not mutate candidates.
+- Typechecker and O0/O3 native regressions retain overflow/storage restrictions,
+  overload priority, scalar conversions, aliases, slices and callable arguments.
+  Empty arrays and match result contextual typing remain separate work.
+
+## Returned tuple array members lacked temporary storage
+
+- The checker accepted `make().0[0]`, but array indexing tried to take the
+  address of the tuple call before generating its field address and failed.
+- Materialize a returned tuple once before addressing its members. Native
+  O0/O3 controls cover direct/grouped calls and assert one factory evaluation
+  per access. Existing tuple storage/const checks remain green.
+
+## Tuple members could not generate their addresses
+
+- `frame read(pair:(u8[2],u8)) ret int { return cast<int>(pair.0[0]); }`
+  typechecks, but native code generation rejects the tuple member as a non-struct
+  when indexing its array element. Copying `pair.0` to a local array works.
+- Generate tuple field addresses using their checked numeric index and tuple
+  layout. Native O0/O3 regressions cover indexing, assignment, address-taking,
+  nested/aliased tuples, struct fields, slice members and by-value parameters.
+  Const assignment checks remain in force.
+
+## Aggregate array-to-slice conversions copied or rejected existing storage
+
+- `(int[],int) = (values,22)` creates a view of copied array storage. Mutating
+  the tuple's slice does not affect the original fixed array, unlike a direct
+  `local borrowed:int[]=values` conversion. Confirmed during tuple address tests.
+- Struct slice fields could instead emit invalid native aggregate types.
+  Generate tuple/struct elements through checked conversions, borrowing the
+  address of existing array storage and materializing only array rvalues.
+- Native O0/O3 regressions cover aliases/generics, nested aggregates, selected
+  storage and returned arrays evaluated once, and scalar/callback field
+  conversions. Existing explicit array-to-view casts retain copy semantics.
+
+
+## Primitive aliases disagreed across implicit conversion metadata
+
+- A raw declaration such as `int[]` and a checked expression such as `i32[2]`
+  describe compatible element types, but conversion lowering compared names
+  literally and classified the array-to-slice conversion as unsupported.
+- Compare primitive canonical names without rewriting either annotation.
+  Four failing-before alias cases pass; signedness and unrelated nominal type
+  distinctions remain enforced.
+
+
+## Aggregate slice conversion bypassed overloaded indexing and dereferencing
+
+- Array-valued `__get__` and unary `__mul__` results were mistaken for
+  addressable source storage when inserted into tuple or struct slice fields.
+  Indexing failed with `Indexing non-array/non-pointer`; unary dereferencing
+  emitted an invalid struct-to-pointer LLVM cast.
+- Treat overloaded operators as values, evaluate the overload once and
+  materialize its returned array. Ordinary indexing/dereferencing still borrows
+  existing storage. Native O0/O3 regressions check both operators, call counts
+  and that modifying the returned view does not modify the source array.
+
+
+## Large repeated condition formatting could not preserve comments
+
+- Formatting 600 repeated `if((true)){}` conditions with comments exceeded the
+  bounded token alignment distance when redundant parentheses were removed.
+  Ordinary repeated source was rejected despite matching parsed semantics.
+- Align unchanged non-parenthesis tokens in order before aligning the small
+  parenthesis gaps. Retain bounded alignment and reject changed source content.
+- Regressions cover LF, CRLF and CR inputs, configured indentation/newlines,
+  distinct comment order, semantic preservation and idempotence. Mixed
+  parenthesis additions/removals are covered too: a small net token count
+  change does not imply a small alignment distance.
+
+
+## Local rename included references from its own initializer
+
+- Renaming `local target:int=target+1` rewrote the initializer reference to
+  the new local name even though it resolves to the outer binding. Selecting
+  the initializer also resolved rename/reference lookup to the wrong local.
+- Exclude a declaration's type annotation and initializer from its own scope
+  in local-binding classification, reference grouping and parameter-shadow
+  filtering. Tests cover
+  block and loop declarations, multiline initializers and LF/CRLF/CR source.
+- Nine further regressions showed same-line nested declarations borrowed the
+  whole function scope. Choose the innermost containing scope structurally,
+  preserving outer references after minified blocks and loops. An additional
+  18 failing-before cases ensure parameter rename includes references in the
+  shadowing local initializer. Global and outer-local controls remain covered.
+
+
+## Rename accepted recovered ASTs with omitted statements
+
+- Live parsing can return a non-null program with parser errors and omit a
+  malformed statement. Rename/reference lookup treated that partial program as
+  complete and could omit references from its edits.
+- Reject programs with parser errors in prepare, rename and reference entry
+  points. Nine failing-before cases cover recovered programs across LF/CRLF/CR,
+  alongside the existing failed-parse cache controls. Completion still recovers.
+
+
+## Imported references used stale declarations from disk
+
+- When an unsaved defining buffer removed an imported global, the disk index
+  still resolved its name. Reference lookup fell back to matching tokens and
+  returned unrelated local declarations/parameters from the live buffer.
+- Require a valid live AST and matching declaration before collecting module
+  references. Nine failing-before regressions cover removed globals and
+  recovered invalid defining buffers across LF/CRLF/CR.
+
+
+## Parenthesis alignment could accept changed expression precedence
+
+- Large-input token alignment ignored parenthesis positions and could accept
+  supplied source with `(a+b)*c` changed to `a+(b*c)` while formatting the
+  original AST. Both attached and copied AST API cases reproduced the issue.
+- Before accepting parenthesis normalization, compare raw source and printed
+  parses using shared formatter semantics, ignoring redundant groups and source
+  metadata while retaining operators and expression structure. Reject changed
+  program meaning; retain valid large normalization and comment placement.
+- Two failing-before cases and the full formatter corpus/native suite pass.
+
+
+## Match block typechecking ignored later yields
+
+- A block yielding an integer array first could later yield void, an array of
+  another length or a string without a diagnostic. Only its first return type
+  contributed to match result checking. Three regressions reproduce acceptance.
+- Check compatibility of every recorded block yield before using the block's
+  result type. Existing scalar widening and independent function/lambda return
+  contexts must retain their behavior.
+
+
+## Match results lost integer-array destination context
+
+- Direct integer-array literals and tuple containers received destination
+  element types, but equivalent match results still inferred i32 arrays and
+  failed declarations, assignments, calls, returns, fields and aliases.
+- Extend the transactional conversion planner through expression arms and
+  recorded block yields, requiring compatible representations before applying
+  any annotation changes. Preserve scalar annotations and overload priority.
+- Cover nested/grouped matches, mixed block/expression and diverging arms,
+  tuples and slices; retain overflow, array-shape and storage restrictions.
+
+
+## Returned aggregates hid implicit temporary array views
+
+- Returning tuples, structs, enum payloads or arrays containing implicit
+  array-to-slice conversions bypassed the existing temporary-view diagnostic.
+  Thirteen checker regressions were accepted before this fix, including
+  contextual match results, generic payloads and literal projections.
+- Carry destination field/element types through returned literal traversal;
+  diagnose implicit conversions with `BPL_RETURN_ARRAY_VIEW_ESCAPES` alongside
+  explicit casts. Preserve caller-owned views and selected fields that discard
+  unrelated temporary views. This is a local expression check, not general
+  lifetime or alias tracking.
+
+
+## Returned calls hid implicit array-to-view argument conversions
+
+- A call returning borrowed storage could receive a fixed-array argument through
+  implicit slice/pointer conversion and return a view of its temporary storage.
+  The expression check previously found only explicit casts and enum payloads.
+- Carry resolved function/lambda and callable-operator parameter types into
+  argument traversal, including specialized generics and instance methods.
+  Eight checker regressions fail before the fix; retain fixed-array returns,
+  existing caller-owned views and scalar consumers of temporary views.
+
+
+## Match results silently narrowed later integer yields
+
+- Keeping the first match-block/arm type allowed a later 256 to truncate to u8
+  before an enclosing int return widened it. Tuple members had the same issue.
+  Four native and two checker regressions fail before the fix.
+- Unify block yields and sibling arms with the same non-narrowing integer/tuple
+  rule. Choose a yielded type that can represent both; reject incompatible
+  signedness/ranges instead of emitting an implicit truncation. Preserve
+  scalar expression annotations and existing array-storage restrictions.
+
+
+## Generic storage accepted incompatible payload representations
+
+- Enum constructors inferred with fixed-array payloads were accepted as enums
+  containing slices, while backend enum conversion copied incompatible payload
+  bytes. The same compatibility hole accepted stored enum/struct values,
+  differing integer widths, nested wrappers and pointer arguments.
+- Require equivalent generic arguments for stored instantiations, preserving
+  primitive aliases and valid inherited-type handling. Call/return/assignment
+  conversion of an outer wrapper must not silently convert its fields.
+- Use the contextual matching enum type for payload inspection as well. Cover
+  inferred constructors, aliases, groups, tuple/match containers and existing
+  caller-owned views; native aliases and by-value array payloads remain valid.
+
+
+## Safe match-width inference rejected fitting unsigned literal arms
+
+- The database example's u64 hash match also returns literal 0/1. Strict integer
+  type widening rejected those valid fallback blocks after the width fix.
+- Carry every arm/block yield expression through unification. Allow only fitting
+  uncast integer literals to adopt the other integer type, including tuple
+  members; reject runtime values or explicit casts requiring narrowing.
+- Native O0/O3 tests cover both arm orders, all block yields and tuples, with
+  rejection controls that retain every prior runtime value.
+
+
+## Native regression fixtures used the default five-second test deadline
+
+- macOS LLVM CI killed an ordinary arithmetic fixture while compiling/linking
+  its O0/O3 comparison at the test runner's default five-second deadline.
+- Give each promoted native fixture the same bounded sixty-second test budget
+  used by other compiler correctness tests. Individual compiler/runtime process
+  timeouts remain in force; compiler semantics and generated programs are unchanged.
+
+
+## Match unification rejected mixed stored arrays and fresh literals
+
+- Existing u8 arrays could not be matched with fitting integer-array literals:
+  type unification rejected the initial i32 literal type before destination
+  planning. Sixteen failing-before regressions cover declarations, assignments,
+  fields, calls, returns, aliases, generics, blocks, groups and tuple matches.
+- Probe the existing literal conversion planner without mutation while choosing
+  a compatible array representation. Commit plans only after every arm has
+  passed checking. Existing array storage remains unchanged.
+- Tuple projections retain complete nested yield sets; stored tuple scalar
+  fields may widen without changing their source annotations. Preserve integer
+  ranges, scalar arithmetic, evaluation counts and returned-view diagnostics.
+
+
+## Struct field reads required an address for temporary values
+
+- Field reads on literal, conditional, match and nested struct values passed
+  checking but failed native code generation as non-lvalues. Six failing-before
+  native regressions cover these reads and selecting a caller-owned slice.
+- Materialize non-addressable aggregate values once when reading a field, as
+  for existing call results. Unwrap grouped calls before choosing their pointer
+  base. Preserve ordinary variable storage and address-taking/assignment rules.
+- Add LLVM/O0/O3 controls for generic literals, evaluation counts and grouped
+  pointer-returning calls.
+
+## Match-pattern rename confused arm bindings with outer parameters
+
+- Renaming a match binding could omit its declaration and edit a same-named
+  global or function parameter. Local shadow cases could decline valid renames.
+- Resolve identifier, tuple and enum-tuple bindings within their own arm's guard
+  and body, including nested scopes and declaration initializer boundaries.
+  Exclude these references from outer local, parameter and catch renames.
+- Struct-pattern bindings without individual declaration nodes and duplicate
+  pattern bindings decline rename rather than returning partial edits.
+- Regression coverage includes rename and find-references from declaration,
+  guard and body, nested scopes, minified source, LF, CRLF and standalone CR.
+
+## Reading indexed expression values required an lvalue
+
+- Array-valued match and conditional expressions passed checking but failed
+  code generation when indexed directly. Temporary struct and tuple array
+  fields, and conditional or matched slices and pointers, shared the failure.
+- Materialize a non-addressable index base once in the read generator, then
+  use the existing indexing and bounds/null-check path. Address generation
+  retains its existing rules for assignments and explicit address-taking.
+- Native O0/O3 and LLVM regressions cover array matches, conditionals, nested
+  dimensions, field and tuple projections, returned arrays, aliases, generics,
+  slices, pointers and object-before-index evaluation order.
+
+## Returned fixed-array elements accepted writes to temporary copies
+
+- CodeRabbit identified that fixed-array calls still permitted assignments and
+  element addresses, despite the temporary-element read contract. Checker-only
+  regressions also cover aliases, generic calls, tuple/struct fields, nested
+  dimensions, literals, matches and conditionals.
+- Reject writes, compound assignments, increments and addresses when the indexed
+  storage belongs to a temporary owned array. Share the ownership predicate with
+  address generation; reading the same values still materializes them normally.
+- Keep returned slice and pointer storage writable and preserve single base
+  evaluation. Grouped mutation checks retain const checking.
+
+## Explicit array view casts copied stored arrays
+
+- While validating returned pointer writes, `cast<*int>(a)` for a stored fixed
+  array materialized an array copy. Mutating that pointer did not update `a`,
+  unlike implicit pointer conversion or `&a[0]`.
+- For `local a:int[2]=[1,2]; local p:*int=cast<*int>(a); p[1]=7;`,
+  `a[1]` incorrectly remained 2. Explicit pointer and slice casts now use
+  existing addressable array storage, with one evaluation of the source.
+- Constant arrays cannot produce mutable explicit views. Casts of temporary
+  arrays retain frame-local storage and the existing return-lifetime checks.
+
+## Aggregate casts incorrectly used scalar conversion rules
+
+- Cast checking accepted unsupported array/slice conversions, including
+  `cast<*int>(slice)`, `cast<int>(array)`, `cast<int[2]>(scalar)`, slice-to-fixed
+  array casts, and changing array element widths. These failed later during
+  code generation instead of producing a cast diagnostic.
+- Check aggregate shape before assignment compatibility and scalar numeric or
+  pointer rules. Preserve identical array/slice types and supported fixed-array
+  views; reject unsupported conversions with `BPL_CAST_INVALID`.
+- Explicit fixed-array views of tuples and callbacks now use the supported
+  conversion direction instead of the reversed assignment compatibility check.
+- Pointers to array aliases remain pointer values. Arrays whose elements are
+  pointers remain aggregates and cannot use scalar pointer reinterpretation.
+- CodeRabbit identified that the new aggregate fast path could skip nominal
+  declaration checks. Conversion lowering now retains declaration identity,
+  including element types nested in generic, tuple and callable types. Reparsed
+  declarations from the same source retain compatibility.
+
+## Nested array conversions changed row layout without converting elements
+
+- Assigning `int[2][2]` to `int[][]` passed checking and constructed a view of
+  slice rows backed by fixed rows. A slice row contains a pointer and length;
+  it cannot share the layout of a fixed row of integers.
+- Array dimension compatibility now allows only the outer fixed dimension to
+  become a slice dimension. Inner dimensions must match exactly. This applies
+  to assignment compatibility and conversion lowering, including aliases.
+- `int[2][2]` to `int[][2]` remains supported. To build a slice of slices,
+  construct individual row views and then an array of those views explicitly.
+
+## Generic pointer aliases became outer pointers when wrapped in arrays
+
+- `type Row=int[2];type Pointer<T>=*T;type Rows<T>=T[2];` followed by
+  `local rows:Rows<Pointer<Row>>=[&first,&second];` passed checking but failed
+  compilation with an unsupported cast from an array of row pointers to a
+  pointer to a matrix.
+- Generic substitution and alias resolution retained `isPointerToArray` from
+  the element type after adding outer array dimensions. The flag describes an
+  outer pointer, so it cannot classify an array whose elements are pointers.
+- Array-literal inference also retained the flag from its first element,
+  including literals returned as arrays of generic pointers. Clear the outer
+  pointer flag when wrapping elements in an array and retain pointee metadata.
+- Follow-up validation covers generic and direct array wrappers, nested aliases,
+  borrowed slices and element writes while preserving actual outer pointers.
+
+## Indexing through pointer values in temporary arrays required temporary addresses
+
+- Reading a pointer from a returned fixed array and indexing its caller-owned
+  pointee passed checking, but backend address generation tried to address the
+  temporary array element instead of loading its pointer value.
+- This differs from writing the temporary array element itself, which remains
+  invalid. Read the pointer or slice descriptor once into an index-base slot
+  before applying the existing pointee bounds/null checks and element store.
+- For slice descriptors read from temporary arrays, mutability checking stops
+  at the borrowed storage boundary after retaining the constant-storage check.
+- LLVM/O0/O3 regressions cover calls, literals, conditional/match arrays, generic
+  row pointers, slices, tuple/struct pointer fields, and single source-order
+  evaluation of the base and both indices. Temporary array element writes and
+  addresses remain rejected by the existing checker and backend guards.
+
+## Array guide described slices and explicit view casts incorrectly
+
+- The type guide called a slice a raw pointer, although its representation also
+  contains a length. It also claimed all explicit array views copy their source,
+  despite addressable sources borrowing existing array storage.
+- Correct the slice descriptor and cast descriptions, and distinguish temporary
+  array element mutation from writes through borrowed pointer/slice values.
+- Existing LLVM/O0/O3 storage-view tests and the new temporary-array regressions
+  validate the documented behavior.
+
+## Constant aggregate slice descriptors lost their readonly storage boundary
+
+- Follow-up checks of the temporary slice path found that constant tuple and
+  callback descriptors were not recognized by the constant-storage predicate,
+  which inspected the resolved type qualifier only for basic types.
+- The same predicate allowed type-qualified constant tuple/callback arrays to
+  produce mutable slice casts when their binding was not separately constant.
+- Honor `isConst` on every resolved type that supports it, keeping tuple,
+  callback and closure qualifiers alongside primitive qualifiers. Reject writes
+  through constant temporary descriptors while preserving mutable descriptor
+  access to caller-owned storage.
+
+## Indexing borrowed conditional and cast values required an lvalue base
+
+- A pointer selected by a conditional passes type checking, but writing through
+  `(true ? pointer(&value) : pointer(&value))[0]` fails code generation with
+  `Expression is not an lvalue: Ternary`. The pointer value is an index base,
+  rather than storage whose address is required.
+- Match-selected pointers, explicit pointer/slice casts and address-of bases
+  had the same problem. Materialize these borrowed expression values once into
+  an index-base slot, retaining the existing bounds and null checks.
+- LLVM/O0/O3 regressions verify pointer and slice stores, compound assignment,
+  element addresses, branch selection and base/index evaluation order. Owned
+  temporary array element writes remain rejected.
+
+## Computed struct pointers could be read but not used for field writes
+
+- A conditional selecting a `*Box` passes checking, but assigning its `.value`
+  fails code generation with `Expression is not an lvalue: Ternary`. Field
+  addressing requires the pointer value, not an address for that expression.
+- Match/cast/address-of bases and grouped pointer calls failed similarly;
+  pointers read from temporary arrays or struct fields also required an
+  address for their containing temporary instead of reading the pointer value.
+- Evaluate struct pointer bases once as values, reusing identifier pointer
+  adaptation and retaining the existing null checks. Remove the duplicated
+  load logic which mishandled grouped calls.
+- LLVM/O0/O3 tests cover stores, compound stores, field addresses, chosen
+  branches, evaluation order and controlled null diagnostics. Ordinary pointer
+  identifiers/calls and returned tuple pointers remain passing controls.
+
+## Computed pointer field reads bypassed null checks on their receivers
+
+- PR57 review found that evaluating a nested pointer field as a value routes
+  computed struct receivers through the fast field-read path, which lacks the
+  null check performed by member addressing. `holder().p.value=7` can fail
+  before the outer field's check when `holder()` returns null.
+- Route pointer field reads through checked member addressing; reserve the
+  unchecked temporary-struct materialization path for owned struct values.
+- Runtime diagnostic regressions cover call, grouped-call, conditional, match
+  and cast receivers, as well as direct computed-pointer reads. A non-null
+  nested read/write/address control retains single receiver evaluation.
+
+## Tuple-destructured member and pointer-index targets skipped null checks
+
+- PR58 outside-diff review found tuple assignment passes the skip-null-check
+  flag when obtaining target addresses. Member stores through null pointers
+  can bypass the normal runtime diagnostic; pointer-index targets use the
+  same flag and require validation too.
+- Use normal checked addressing for every tuple target, covering both
+  member and pointer-index stores. Dereference checks remain intact.
+- Runtime regressions cover identifiers, calls and computed member/index
+  bases. A non-null LLVM/O0/O3 control preserves RHS-first, left-to-right
+  single evaluation of target expressions and their indices.
+
+## Tuple stores did not invalidate cached pointer and integer facts
+
+- PR58 architecture review identified a stale-proof interaction: an earlier
+  tuple target may establish that `p` is non-null, then a later target replaces
+  `p`. Tuple stores omit the fact invalidation used by normal assignments.
+- Clear cached pointer and integer facts after each tuple store. Conservative
+  invalidation covers later target addresses, subsequent accesses, aggregate
+  replacement and aliases without requiring alias-independence assumptions.
+- Runtime regressions reproduce stale direct-pointer, aggregate and nonzero
+  divisor facts. Aliased replacement and valid ordered stores are retained
+  controls. Checked failures remain consistent across O0 and O3.
+
+## Empty array literals escaped checking with no resolved type
+
+- `local values:int[2]=[];` passes `check`, then building fails with an internal
+  `Cannot resolve undefined type` error at `0:0`. Empty literals return no type
+  and are excluded from the current contextual array typing implementation.
+- Reject unsupported empty literals during checking with the existing
+  `BPL_ARRAY_LITERAL_TYPE_MISMATCH` code and their actual source location.
+  Check/build JSON now agree and no backend artifact is emitted.
+- This does not add empty-array inference or change valid nonempty literals.
+  Fixed arrays can still be declared and filled manually. The array guide
+  documents the current limitation.
+
+## Overloaded index setters evaluated their receiver twice
+
+- `boxes[next()][0]=7` on a struct with `__set__` reads the receiver value,
+  then computes its address again. The receiver index runs twice and the
+  setter can modify a different array element than the source selected.
+- The overloaded getter had the same duplicated receiver evaluation.
+- Select addressable receiver storage once, or evaluate and spill a temporary
+  value once, before evaluating the operator arguments. Remove speculative
+  address-generation retries after receiver evaluation.
+- LLVM/O0/O3 regressions verify getter/setter receiver counts and source order,
+  nested member/index receivers and existing temporary receiver behavior.
+
+## Built-in arrays and pointers were routed to element index setters
+
+- A built-in `Box[2]` element assignment type-checks, but the backend detects
+  `Box.__set__` by name and emits a setter call using the entire array as its
+  receiver and a Box value where the setter expects an integer.
+- Raw pointer element assignments can reach the same unchecked name-based
+  dispatch. Only a checked overloaded-index expression may invoke a setter.
+- Require the checker's overloaded-index annotation before considering a
+  setter. Built-in fixed-array, slice and raw-pointer element stores retain
+  normal address generation even when the element struct defines setters.
+- Three IR regressions reject the wrong call before executing native code;
+  after the fix their LLVM/O0/O3 stores work and do not invoke a setter.
+
+## Ordinary indexed assignments skipped pointer null checks
+
+- Normal assignment enabled the skip-null-check flag for every non-member
+  target, including pointer indexing. Both simple and compound indexed stores
+  could miss the expected `NULL POINTER ACCESS` diagnostic.
+- Use normal checked assignment addressing for both simple and compound
+  stores, retaining receiver/index/value evaluation order. Direct identifiers
+  do not require a dereference check in address generation.
+- Five runtime regressions fail before the fix; indexed increment and valid
+  evaluation-order controls pass before and after. LLVM/O0/O3 tests cover raw,
+  computed, returned and array-alias pointer bases.
+
+## Index setter signatures were not checked before code generation
+
+- PR59 review found that an overloaded-index annotation validates `__get__`,
+  while assignment chooses `__set__` by name without checking its index/value
+  parameters. Incompatible setter calls can reach native code generation.
+- Resolve a compatible setter independently, validate its signature and
+  assignment result, and record the checked declaration/signature for codegen.
+  Emit receiver/index/value arguments using that signature, preserving scalar
+  and array borrowing, const checks and original void-assignment values.
+- Implicit address arguments require exact pointee types; numeric-compatible
+  pointees must not be reinterpreted. Unsupported compound index assignments
+  fail during checking. The array guide documents these existing boundaries.
+- Setter result types follow their declarations; invalid uses are rejected by
+  the caller's normal type checks. Resolve imported signatures in their owning
+  module before matching, preserving private aliases and generic arguments.
+- Twenty-four signature/ABI/const/result cases pass; twenty fail before this
+  correction and four valid controls pass. An imported-module case also passes.
+  Original receiver/routing/null regressions remain passing.
+
+## Checked index setter symbols retained enclosing generic parameters
+
+- A setter used inside a generic function or generic struct method retained `T`
+  in its mangled callee symbol even when LLVM argument types were concrete.
+  Native compilation failed with an undefined setter symbol.
+- Substitute the checked signature using the active instantiation map before
+  constructing the callee name and lowering arguments. Two LLVM/O0/O3 cases
+  cover void and nonvoid setters in generic callers and distinct instantiations.
+
+## Index setters treated null pointer values as implicit address arguments
+
+- Setter argument lowering used pointer-depth difference alone to decide to
+  take an address. A `nullptr` index or value became a pointer to a temporary
+  stack slot instead of the null value accepted by the checked signature.
+- Require an exact resolved pointee match for implicit address lowering and
+  its const-storage check. Ordinary null-to-pointer conversions remain values.
+- Four LLVM/O0/O3 regressions cover null indices, null RHS values, both together
+  and an existing typed-pointer control: three fail before, the control passes.
+
+## Index setter pointer temporaries borrowed pointees instead of pointer slots
+
+- A pointer-returning call was considered addressable when a setter implicitly
+  borrowed its result as a pointer-to-pointer argument. Address generation
+  returned the pointer value rather than a slot containing that value.
+- Spill call results before taking their implicit address, including grouped
+  calls. Keep genuine pointer variables and fields borrowing their own storage.
+- Five regressions cover returned index/RHS pointers, both together, grouped
+  calls and pointer variables. Four fail before the correction; the variable
+  control passes. They also verify receiver state, original assignment results,
+  call counts and that borrowing temporaries does not modify their pointees.
+
+## Indexed getters did not lower arguments using their selected signature
+
+- Getter calls used a pointer receiver and the original index type regardless
+  of the checked method signature. Value receivers, widened integer indices
+  and implicitly borrowed indices could reach calls with mismatched LLVM ABI.
+- Generic callers could also retain uninstantiated types in getter symbols.
+- Lower receiver and index once through the existing checked index-argument
+  conversion helper, and instantiate the signature before mangling its symbol.
+- Four regressions first inspect every direct getter call's argument types,
+  then validate LLVM and run O0/O3. All four fail at the IR gate before the fix.
+  Broader getter module-alias resolution and lifetime analysis remain separate
+  audit candidates and are not established by this correction.
+
+## Index operators bypassed argument range, const-storage and owning-copy checks
+
+- Getter arguments did not apply literal range checks or reject borrowing a
+  const fixed array as a mutable view. Value receivers and by-value owning
+  indices also bypassed the normal ownership-copy restriction.
+- Getter checking now records its resolved signature and applies those existing
+  call rules; setter checking also rejects copying owning index arguments.
+- Five checker regressions cover an out-of-range getter key, const array view,
+  owning getter receiver/index, and an owning setter index. All fail before.
+
+## Imported index getters matched aliases in the caller module
+
+- A getter whose index parameter uses a private alias was matched before its
+  declaring-module signature was resolved. Valid reads were reported as not
+  indexable, including generic getters and callers with colliding alias names.
+- A colliding caller alias could also authorize an incompatible argument using
+  the caller definition rather than the getter's parameter type.
+- Share module-aware index operator resolution between getters and setters,
+  retaining the original declaration plus its resolved generic signature.
+- Six LLVM/O0/O3 regressions cover integer, pointer and generic private aliases,
+  a caller alias collision, receiver aliases and combined reads/writes. A checker
+  case rejects incompatible arguments hidden by a collision. All seven fail
+  before the correction.
+
+## Void index getters emitted invalid LLVM result assignments
+
+- A getter returning void passed checking as an expression statement but was
+  emitted as `%result = call void ...`, which cannot produce an LLVM value.
+- Emit a normal void call without a result register, following ordinary call
+  lowering. Receiver/index evaluation and value-receiver copying stay intact.
+- Pointer- and value-receiver regressions fail at the IR gate before the fix;
+  an existing void-to-integer assignment rejection remains a passing control.
+
+## Module aliases shadowed imported index operator generic parameters
+
+- Resolving `Box<T>` index signatures directly in the module scope could bind
+  `T` to a module-level alias instead of the owner's generic parameter. Valid
+  concrete and generic reads/writes were then rejected as not indexable.
+- Resolve index signatures in a temporary child scope containing the owner's
+  generic parameters. Keep ordinary module aliases in their defining scope and
+  restore the caller scope even when resolution fails.
+- Regressions cover getters, setters, generic callers, lexical alias definitions
+  and an unshadowed control. This correction is scoped to index signatures;
+  unrelated method and lifetime behavior is not claimed fixed.
+
+## Imported generic method signatures lost owner parameter scope
+
+- Ordinary instance, bound, overloaded and static member signatures were
+  resolved directly in module scope. A module-level alias named `T` could
+  replace the `T` declared by `Box<T>` and reject valid method calls.
+- Bound methods also used template signatures, while virtual overload selection
+  compared instantiated and template symbols without their declaration identity.
+- Supply the resolved member owner's generic parameters to the existing
+  module signature resolver before compatibility checks and substitution.
+  Preserve concrete checked declarations during binding and virtual selection.
+- Regressions cover pointer/value receivers, bound methods, overloads, static
+  methods and unshadowed instance/static controls. Nine cases fail before the
+  correction and two controls pass; all eleven pass after it. Other method-generic and
+  lifetime behavior remains outside this specific correction.
+
+## Generic enum bindings retained template or unrelated owner signatures
+
+- Concrete enum declarations retain their template methods. Binding one could
+  emit an undefined `Box<T>` method or instantiate a module alias's type instead
+  of the actual receiver argument, even with a correctly checked lambda type.
+- Substitute the receiver owner's generic arguments into the checked callable
+  signature before resolving types or mangling its symbol. Retain the existing
+  concrete-method lookup for structs.
+- Six cases fail the IR gate before native execution, including pointer/value
+  receivers, colliding module aliases, floating owners and a generic factory.
+  The nongeneric enum control passes before and after the correction.
+
+## Module symbol uniquing renamed lexical generic parameters as global aliases
+
+- When module-level aliases collided, the uniquing pass renamed raw `T`
+  references inside generic declarations to a renamed module alias. Generic
+  enum constructors and struct fields could then use string storage for float
+  payloads even though the checked owner argument was float.
+- Hide lexical generic names from fallback module-name rewriting. Leave the
+  surrounding map unchanged, and visit declaration links only through their
+  owning syntax tree rather than under a use site's generic scope.
+- Scope cases cover functions, structs, enums, specs, generic aliases and methods;
+  native cases cover tuple/struct enum payloads and generic fields with a forward
+  module alias. Existing module aliases outside those scopes still rename.
+
+## Unary overloaded operators evaluated computed receivers twice
+
+- Lowering generated the operand value before requesting its address. For indexed, nested-member and dereferenced receivers, address generation evaluated the same expression again. Receiver-side effects ran twice before the operator.
+- Generate the address first; evaluate and spill a value only when the operand has no address. The operator continues to mutate the original addressable receiver.
+- Seven LLVM/O0/O3 regressions cover indexed/grouped/nested receivers, dereferenced and field-bearing pointer calls, plus temporary call/conditional controls. Five fail before correction; both controls pass. This does not close every speculative address-generation fallback.
+
+## Binary overloaded operators re-evaluated borrowed operands
+
+- Binary operator lowering loaded both values before requesting receiver/argument addresses. Computed borrowed operands ran twice, and address-side effects moved after right-operand evaluation.
+- Prepare each argument once in source order, retaining the selected receiver/other-argument order for swapped overloads. Only temporary values need spill evaluation.
+- Four LLVM/O0/O3 cases cover indexed receivers, a swapped builtin-left overload, a borrowed right operand, and a temporary control. Three fail before correction; the temporary control passes. Broader operator ABI and speculative fallback paths remain outside this correction.
+
+## Failed address probes evaluated overloaded index inputs before spilling
+
+- Operator receiver/argument preparation tried to borrow an overloaded index as built-in element storage. Address generation evaluated its receiver/index and then failed, so fallback getter evaluation observed already-changed state and could use a later index.
+- Reject `__get__` expressions at the index-address boundary before emitting either input. Callers then evaluate and materialize the returned value once.
+- Five LLVM/O0/O3 regressions fail before the correction and cover unary/grouped/nested-field receivers, binary receivers and borrowed arguments, checking both inputs, getter count, order and selected result.
+
+## Operators passed value receivers as pointers
+
+- Unary and binary operator lowering unconditionally borrowed receiver addresses even for checked methods declared with `this: Box`. This emitted pointer arguments for value-parameter functions and prevented correct value-copy behavior, including const receivers.
+- Use the selected concrete receiver signature: pass values directly when it matches the operand; borrow/spill only for an implicit address argument. Unary operators share the existing operator-signature resolution and receiver preparation with binary operators.
+- Nine value-receiver IR-gated LLVM/O0/O3 cases cover mutable/const/indexed/temporary unary receivers and mutable/const/indexed/swapped/borrowed-argument binary receivers. Explicit pointer unary receivers also passed an extra pointer level; a pointer binary control already worked. The call-ABI assertions run before native execution.
+
+## Value operators bypassed existing owning-copy diagnostics
+
+- Operator selection did not apply the normal `@[auto_destroy]` no-copy rule to its receiver or value arguments. Existing owning storage was accepted where a normal function argument would report `BPL_OWNING_VALUE_COPIED`.
+- Validate the selected concrete parameter types after operator synthesis and generic substitution, preserving borrowed pointer parameters and fresh values. This is a checker-level rule; no resource-release failure is required to reproduce it.
+- Eight negative checker regressions fail before correction, including grouped/indexed/dereferenced receivers, swapped comparisons, value arguments and generic aggregates. Five controls retain pointer receivers, borrowed arguments and freshly produced values.
+
+## Computed dereferences bypassed owning-copy checks
+
+Status: fixed; 15 targeted cases pass (11 failures and four controls before correction).
+
+- Built-in dereference was considered existing storage only when its pointer
+  operand also named storage. Dereferencing a call, conditional, cast or address
+  expression consequently escaped the existing `BPL_OWNING_VALUE_COPIED` rule.
+- A built-in dereference names pointee storage regardless of how the pointer is
+  computed. Checker regressions cover initializers, assignments, ordinary calls,
+  operator receivers/arguments and aggregate fields, with fresh/borrow controls.
+
+## Fresh overloaded star results were mistaken for owning storage copies
+
+Status: fixed for concrete nongeneric receivers; direct/grouped checker cases and normal cleanup regression pass. Generic owners retain the previous restriction.
+
+- The owning-copy classifier treated a value-producing overloaded `*` expression
+  as a built-in dereference. Assigning its fresh result to an owning local was
+  incorrectly rejected, including through grouping.
+- Distinguish checked overload calls from built-in pointee access. Checker and
+  normal cleanup-count regressions cover the fresh value result.
+
+## Fresh overloaded index results were mistaken for owning storage copies
+
+Status: fixed for concrete nongeneric receivers; generic owners retain the previous restriction.
+
+- Checked `__get__` expressions were classified as built-in element storage,
+  so a getter returning a fresh owning value could not transfer it to a local.
+- Classify getter calls as value producers while keeping built-in indexing and
+  dereferences of borrowed pointer results subject to the no-copy rule.
+- Direct/grouped checker cases and a normal cleanup-count regression reproduce
+  the false rejection. A borrowed-pointer getter control remains rejected.
+
+## Preserve owning-copy restrictions for generic overload results
+
+- Allowing fresh concrete getter/star results also accepted resource-owning
+  values returned from generic receiver fields, whose bodies are not checked
+  again with concrete owner arguments. This composition was found before merge.
+- Preserve the previous no-copy restriction for generic operator owners; their
+  owning results remain unsupported for transfer until that validation exists.
+  Nonowning results and borrowed pointer results remain available.
+- Four checker regressions cover getter/star fields, a generic receiver alias
+  and the documented conservative restriction even for a fresh generic result.
+  Two nonowning/pointer controls pass. No invalid owning copy is executed.
+
+## Method-generic operators were omitted from the conservative owning guard
+
+- A nongeneric owner can declare a method-generic operator. The owner-only
+  guard classified its owning result as fresh despite the documented generic
+  restriction. The checker regression reproduces that missing rejection.
+- Include the selected method's generic parameters as well as its owner's.
+  The existing nonowning and borrowed-pointer controls remain accepted.
+
+## Match results bypassed owning-copy validation
+
+- Expression arms and early-returning value arm blocks could yield existing
+  owning fields without the checks applied to direct frame returns. Concrete
+  overloads returning such matches were therefore accepted as fresh values.
+- Check each yielded arm value. Explicit arm-local returns may transfer locals
+  whose cleanup scope ends there; retained outer locals remain copy sources.
+  Fresh expressions continue to transfer without classifying all matches as storage.
+- Nine negative checker cases fail before correction; a normal cleanup-count
+  control preserves fresh values and explicit arm-local ownership transfer.
+
+## Fresh owning overload assignments skipped replacement cleanup
+
+Status: fixed conservatively; owning overload replacement remains rejected.
+
+- Reassignment from concrete overloaded star/getter results overwrote an existing
+  owning value without releasing it. Normal counter-only programs create two
+  values but observe one destructor. No physical resources are allocated.
+- Preserve the pre-existing assignment rejection for these overload results
+  until replacement cleanup and initialization state are supported.
+- Seven checker cases reproduce the missing rejection; four controls retain
+  fresh declaration initializers and nonowning/borrowed-pointer assignments.
+
+## Owning replacement cleanup was also bypassed through fresh RHS wrappers
+
+- An ordinary fresh call also overwrote an owning slot without releasing the
+  previous value; a counter-only program confirms two values and one destructor.
+  Conditionals, matches, aggregates and forwarding calls could wrap overload
+  results and bypass a source-shape-only guard.
+- Reject owning replacement assignments regardless of RHS shape until cleanup
+  and initialization state are implemented. Fresh declaration initializers and
+  argument transfers remain available; borrowed/nonowning assignments remain valid.
+- Five additional negative checker cases fail before the generalized guard.
+  This is a documented conservative restriction, with the existing ownership
+  diagnostic code and a replacement-specific message.
+
+## Conditional branches bypassed owning-copy checks
+
+- Wrapping owning storage in a conditional hid the copy from callers and frame
+  returns, including concrete getter/star bodies that appeared to return fresh values.
+- Validate each branch value after type compatibility, preserving fresh values
+  and borrowed results. Six negative checker cases fail before correction;
+  the fresh-value normal-cleanup control passes before and after.
+
+## Cast sources bypassed owning-copy checks
+
+Status: fixed; cast sources are checked after cast validity and view rules.
+
+- Casting existing owning storage to the same owning type hid the copy in
+  initializers, returns, arguments and aggregates, including through aliases.
+- Seven checker cases reproduce the bypass. A fresh-value/pointer cleanup
+  control remains valid. Negative copy cases are never executed.
+
+
+## `as` conversions bypassed owning-copy checks
+
+- Existing owning storage converted with `value as Owner` was treated as a
+  fresh result, bypassing the checks applied to `cast<Owner>(value)`.
+- Validate the source after conversion validity, preserving fresh values and
+  borrowed pointers. Checker regressions cover initializers, returns,
+  arguments, aggregates and aliases; invalid copy sources are not executed.
+
+## `as` conversions allowed mutable views of constant arrays
+
+- `data as int[]` and `data as *int` accepted constant array storage even
+  though the equivalent `cast` conversions rejected it.
+- Both syntaxes now share the constant-array guard, including grouped sources,
+  aliases, nested arrays and fields of constant aggregate bindings.
+- Six diagnostic regressions failed before correction. Mutable borrows,
+  independent fixed-array copies and local literal views remain supported.
+
+
+## String aliases bypassed integer-to-string conversion rejection
+
+- Both `cast<Text>(number)` and `number as Text` accepted integer-to-string
+  conversions when `Text` aliased `string`, despite rejecting the direct spelling.
+- Preserve the existing rejection through resolved alias chains, including
+  transitive and generic aliases, while retaining numeric, pointer and string
+  identity conversions. Negative cases are checked without executing them.
+
+## Integer-to-string rejection also classified byte arrays as scalar integers
+
+- The numeric helper classifies an array by its element name. Using it without
+  excluding dimensions rejected valid mutable byte-array string views, including
+  aliases after the conversion guard was shared. Direct string targets had the
+  same false rejection in the earlier guard.
+- Restrict this diagnostic to scalar integer sources. Array conversions reach
+  the existing layout and constant-storage checks; scalar integers still reject.
+- The ordinary `as` fallback must also retain its resolved target when creating
+  the cast node, so string aliases reach the existing array-to-pointer lowering.
+- Regression tests cover both syntaxes, aliases, constant inputs, and shared
+  mutable byte-array storage without executing rejected inputs.
+
+## `as` target aliases skipped class downcast checks
+
+- The checker validated a resolved target but retained its alias spelling on
+  the expression. Code generation selected the runtime class check from that
+  unnormalized spelling, so an aliased class pointer fell back to a plain cast.
+- A normal class-conversion reproduction returns `nullptr` for the direct target
+  and a non-null value for its alias. It compares conversion results only and
+  never accesses a mismatched object. Retain the checker's normalized target for
+  runtime downcast selection. Four alias cases failed before correction, with
+  a passing source-alias control; tests check mismatches, matches and nulls.
+
+## Direct pointer-to-string targets were treated as scalar strings
+
+- The direct-name integer conversion check rejected `0 as *string` and
+  `cast<*string>(0)`, while accepting their equivalent pointer aliases.
+  Integer-to-string-array conversions also received the wrong diagnostic.
+- Require zero pointer depth and no array dimensions for the direct scalar
+  string check. Preserve scalar string rejection and existing pointer/layout
+  conversion rules. Four diagnostic regressions failed before correction,
+  while two pointer-alias controls passed; no converted pointer is dereferenced.
+
+
+## Composite type-query targets were treated as named types
+
+- `match<(int,int)>(value)` and callback-type targets accessed a nonexistent
+  name and threw an internal TypeError. `is` accepted such targets during checking
+  but made the same assumption during generation.
+- Discriminate target kinds before interpreting enum paths and pass composite
+  types through the existing exact-type comparison. Lambda signatures require
+  the same return/parameter comparisons as function signatures.
+- Regressions cover tuples, nested tuples, functions and lambdas in both syntaxes,
+  plus normal native exact/mismatched comparisons.
+
+
+## Regular type queries did not fully validate target types
+
+- `match<variable>(value)` and function-name targets passed checking, while
+  generic argument counts and unknown generic arguments were not validated.
+- `is` expressions also accepted composite targets containing undefined types.
+- Use the shared known-type and resolution checks for regular targets while
+  preserving existing unknown-plain-type and enum-path query diagnostics.
+- Seven checker regressions fail before correction; existing primitive, generic
+  and composite query controls remain supported.
+
+
+## Qualified type-query targets were confused with enum variants
+
+- Every dotted query target was interpreted as an enum-and-variant path, so
+  ordinary imported types such as `types.Record` failed in both query syntaxes.
+- Recognize exported module type symbols before falling back to enum paths,
+  and retain the resolved target for generation. Namespace lookup uses the
+  module's own exported scope rather than a parent-scope fallback.
+- Regressions cover struct, primitive/tuple aliases and enum type targets,
+  preserve distinct module identities, and retain existing enum-variant checks.
+
+## Static query inheritance fallback ignored failed exact type comparisons
+
+- Queries matched `Box<int>` with `Box<bool>` and arrays of different lengths
+  because raw-name equality was accepted as inheritance after exact comparison
+  had already failed.
+- Restrict the static inheritance fallback to distinct non-array type names;
+  existing genuine inheritance matches remain available.
+- Four native regression cases fail before correction, with one passing
+  inheritance control. Matching forms are checked before the mismatches.
+
+## Composite query comparisons omitted array dimensions
+
+- Tuple, function and lambda array queries compared only their element or
+  signature types, so different array lengths incorrectly matched.
+- Compare dimensions before kind-specific type identity, retaining the existing
+  checks for element types, callback signatures and generic arguments.
+- Six native regression cases fail before correction. Each first verifies that
+  the matching array shape is accepted, then rejects the different length.
+
+
+## Query primitive normalization omitted floating aliases
+
+- Resolving query targets exposed a local primitive-name table that omitted
+  `float` and `f64`. Generic bindings retained those spellings while the target
+  resolved to `double`, so the existing type-reflection example stopped matching.
+- Use the shared primitive metadata for query identity rather than a partial
+  table. Native regressions cover `float`, `f64`, `double` and `f32`; the first
+  two fail before correction and the existing canonical forms pass.
+
+
+## Query alias expansion discarded use-site modifiers
+
+- A generic binding such as `Number[2]` expanded the alias body but lost the
+  array suffix, so it failed to match the equivalent `int[2]` target. Nested
+  arrays and tuple/callback aliases had the same issue.
+- Preserve alias use-site dimensions, pointer depth and value qualifiers using
+  the existing modifier rules, including outer-dimension order.
+- Six native regressions fail before correction across scalar, generic, tuple,
+  function, lambda and nested-array aliases. They verify both query spellings
+  and reject a different shape without dereferencing converted pointers.
+
+## Class-array queries reached scalar runtime class checks
+
+- After an array shape mismatch, both runtime class-check branches selected
+  scalar object operations from the element's class name. Arrays of object
+  values or references therefore failed to compile.
+- Require scalar shapes for both class-check branches, while keeping whole-array
+  exact comparisons and individual-object runtime checks unchanged.
+- Four normal class-array regressions fail compilation before correction, with
+  a passing individual-object control. Invalid generated programs are not run.
+
+## Any-array queries reached scalar payload inspection
+
+- Fixed arrays and slices of `Any` were classified as a single boxed value,
+  so both query spellings failed compilation when extracting scalar type data.
+- Restrict boxed-payload inspection to scalar shapes. Arrays and slices use
+  whole-value type identity, while scalar `Any` keeps dynamic payload matching.
+- Six direct, alias and slice regressions fail compilation before correction;
+  the scalar control passes. Invalid generated programs are not executed.
+
+## Composite type resolution omitted array-size validation
+
+- Zero-length tuple, function and lambda query targets passed checking even
+  though the equivalent named-type array target was rejected.
+- Apply the existing positive-dimension rule to composite types during
+  resolution, retaining dynamic slices and valid fixed dimensions.
+- Six checker regressions fail before correction, with two existing named-type
+  rejection controls and six valid fixed/slice target controls passing.
+
+
+### Callable type queries ignore variadic signatures (2026-10-24)
+
+- Confirmed: `match<Func<int>(string)>(printf)` reports true for an extern variadic `printf` declaration, despite fixed and variadic signatures being distinct in checker equality. No foreign function is called.
+- Fix: compare the variadic flag alongside callable parameter and return types, matching existing checker identity rules.
+- Four native regressions reproduce direct and tuple-nested false positives with both query spellings. Fixed-signature controls remain covered.
+
+
+## Enum type queries omit variant existence checks
+
+- Confirmed: both query spellings accept nonexistent variants such as `Color.Missing` during checking and defer failure to code generation.
+- Validate variant membership during both checker paths, using the existing `BPL_TYPE_QUERY_TYPE_NOT_FOUND` diagnostic.
+- Six checker regressions reproduce ordinary, generic, and module-qualified missing variants; six valid-variant controls pass before the correction.
+
+
+## Enum variant queries assume the source is the queried enum
+
+- Confirmed ordinary `match<Color.Red>(value)` with an integer source fails compilation rather than returning false. The backend attempts to extract a variant tag without confirming source type identity. Invalid generated programs are not executed.
+- Check canonical scalar enum identity before selecting a tag. Unrelated types, arrays, and slices return false; aliases and generic enum values remain supported.
+- Twelve native cases fail compilation before correction, with a passing alias/generic control. No invalid generated program is executed.
+
+
+## Enum variant queries silently ignore type modifiers
+
+- Confirmed: type arguments, pointer prefixes, and array suffixes on variant query targets pass checking and are discarded by code generation. Even `Color.Red<Missing>` and zero-size suffixes bypass normal target validation.
+- Reject unsupported modified variant targets using the existing query-target diagnostic; retain plain tag queries including generic enum values.
+- Twelve checker regressions fail before correction; four ordinary/generic plain-variant controls pass.
+
+
+## Floating variance overflows before its representable result
+
+- Confirmed: population variance of +/-1e154 and sample variance of [1e154,-1e154,0] return infinity instead of1e308. Opposite finite +/-1e308 inputs return negative infinity for population variance.
+- Retain ordinary arithmetic paths, falling back to normalized finite deviations when intermediate arithmetic produces a nonfinite result. Rescale only after dividing by the population/sample divisor.
+- Three native regressions fail before correction; truly overflowing variance returns positive infinity, and nonfinite samples continue to propagate NaN.
+
+
+## Floating standard deviation loses finite roots through variance
+
+- Confirmed on the variance-fixed source: population/sample standard deviation returns infinity for finite1e308 roots, and zero for finite1e-200 roots. Four native regressions fail before this correction.
+- For overflowing or zero intermediate variance, take the normalized square root before restoring scale. Retain ordinary paths and empty/singleton behavior.
+
+
+## Floating variance loses representable subnormal results
+
+- Confirmed: sample variance of +/-1.2e-162 returns zero instead of the smallest positive float. Intermediate squares round to zero before their sum becomes representable. Population variance can similarly lose a result during its final division.
+- Two native regressions fail before correction. Recompute zero results using normalized deviations, and recover representable subnormal variance during rescaling.
+- Standard-deviation fallbacks also cover subnormal variance to avoid taking a root of a heavily rounded intermediate; ordinary positive normal variance keeps the direct path.
+
+
+## Floating variance loses accuracy around a large offset
+
+- Confirmed: [1e16,1e16+2] and its reverse return population variance2/1.2325951644078315 instead of1; sample variance returns4 instead of2. Rounding the absolute mean destroys the small spread.
+- Subtract a represented input before mean updates, sharing the centered calculation between population and sample methods. Keep the existing scaled extreme fallback.
+- Four native order/method regressions fail before correction.
+
+
+## Scaled statistics lose close-value deviations while normalizing
+
+- Confirmed: population standard deviation of [1e308,1.0000000000000002e308] is1.1102230246251568e292 instead of9.9792015476735991e291, an11% error. Dividing each large input before subtracting loses the represented gap.
+- Center represented differences before division when finite; retain bounded separately normalized subtraction for opposite extremes. Center mean updates in the scaled domain as well.
+- Four native large/tiny method regressions fail before correction, each checking both input orders.
+
+
+## Floating covariance loses centered and scaled results
+
+- Confirmed: covariance of identical [1e16,1e16+2] arrays returns2 instead of1; covariance of identical +/-1e154 arrays overflows despite finite1e308 result.
+- Use centered, independently scaled population moments and restore the larger scale first. Three native regressions fail before correction.
+- Related correlation failures are addressed by the separate normalized-coefficient correction below.
+
+
+## Correlation overflows and underflows intermediate units
+
+- Confirmed: identical +/-1e308 inputs produce NaN instead of1; covariance and the product of standard deviations both overflow. Tiny data also loses its dimensionless result through underflow.
+- Compute the coefficient directly from shared normalized moments and bound floating roundoff to [-1,1], preserving empty/constant and nonfinite behavior.
+- Five native regressions fail before correction on the covariance-fixed source, spanning huge, tiny, negative, partial, and subnormal inputs.
+
+
+## Joint-moment cancellation is amplified by covariance rescaling
+
+- Confirmed before merging the joint-statistics PR: symmetric orthogonal samples at1e154 produced -3.7007434154171889e291 instead of zero covariance. Online cross-moment roundoff was amplified when restoring units.
+- Recompute the cross moment around final normalized means using compensated accumulation, correcting for rounded mean residuals before rescaling.
+- Two native regressions fail before correction at1e154 and1e308. The prior reviewed head is superseded and requires fresh CI/review.
+
+## Mixed-magnitude covariance loses small raw contributions
+
+- Confirmed CodeRabbit finding: x=[S,-S,S,-S,S], y=[S,-S,-S,S,t], S=1e154, t=1e-154 returns zero covariance instead of 0.16. Subtracting the large origin erases t before compensated accumulation.
+- Detect lost origin/mean subtraction terms and use compensated raw normalized cross-products and mean-product correction. Only axes with origin loss switch to zero origin, preserving close-offset differences.
+- Four native sign/order regressions fail before correction and verify covariance plus its tiny correlation coefficient.
+
+
+## Floating arithmetic mean amplifies cancellation error
+
+- Confirmed: `Stats.mean([1e308, 1, -1e308])` returns approximately `4.9896007738367995e291` instead of `1/3`. Its overflow fallback introduces a large running-mean rounding residual. The ordinary summation path also loses small terms between cancelling large values.
+- Replace the direct/running-mean paths with compensated accumulation, dividing terms by the final count when necessary. Only if those sums still overflow from rounding, use a bounded normalized fallback. Existing empty and nonfinite results are preserved.
+- Nine native regressions failed before correction, covering ordinary/extreme cancellation, signs and order, plus largest-finite constant accuracy. Controls include subnormals, a small term whose normalized value would underflow, and finite-limit overflow recovery.
+
+
+## Standardized higher moments overflow on finite extreme samples
+
+- Confirmed native O3: with S=largest finite float, `Stats.skewness([S,-S,-S])` and `Stats.kurtosis([S,-S,-S,-S])` both return positive infinity. Population coefficients are finite: `1/sqrt(2)` and excess kurtosis `-2/3`. Raw sample-minus-mean subtraction overflows before division by finite standard deviation.
+- Five skewness and five kurtosis native cases fail before correction: extreme signs/order, subnormal spread and close values at a large offset. Ordinary/constant/empty/nonfinite controls pass before correction.
+- Skewness now uses a private standardized-moment helper with centered/scaled samples and compensated mean/moment accumulation. Kurtosis now separately uses the fourth-moment path and applies the excess correction only for nonconstant samples. Existing minimum-length and constant-axis zero results are preserved.
+
+
+## Complex square root overflows a representable result
+
+- Confirmed native O3: the square root of `(largest finite, largest finite)` returns `(inf, inf)`, although both root components are finite. The polar implementation materializes an overflowing magnitude before taking its square root. It also leaves a spurious nonzero real component for `sqrt(-4+0i)`.
+- Fixed with an even-exponent scaled Cartesian formula. Restore the dominant root component before deriving the minor component from the original imaginary input, preserving tiny represented components. Handle axes, signed zero, infinities and NaNs explicitly.
+- All 22 native cases pass after correction; 14 fail before it, covering finite extremes, subnormals, axis residue, mixed magnitudes and nonfinite classifications.
+
+## Inverse trigonometric functions accept out-of-domain input
+
+- Reconfirmed the original audit finding: `Math.asin(2)` returns pi/2 and `Math.acos(1.5)` returns zero instead of NaN. `asin` clamps its input rather than rejecting values outside [-1,1]; `acos` inherits this behavior.
+- Fixed `asin` with explicit domain rejection and a factored-root `atan2` identity. `acos` inherits NaN for out-of-domain input. Four native domain regressions fail before correction and pass after; endpoints, signed zero, valid samples and NaN controls pass.
+
+## Arc cosine loses endpoint accuracy through subtraction
+
+- Confirmed native O3 at x=0.999999999999: `Math.acos` differs from the platform result by about 8.25e-12 relatively. Computing pi/2 minus asin cancels significant digits near +1.
+- Fixed with a direct factored-root `atan2` formula instead of subtracting angles. Three endpoint regressions fail on the asin-fixed parent and pass after correction; the full inverse-trig set covers valid values, domain failures, endpoints, signed zero and NaN.
+
+
+## Integer absolute value returns a negative magnitude
+
+- Confirmed native O3: `Math.abs(-2147483648)` returns -2147483648. Its nonnegative magnitude cannot fit the existing `int` return type.
+- Fixed with the existing checked-helper convention: throw `"Math.abs result exceeds int"` before negation, preserving the public return type. Literal and runtime-input regressions fail before correction and pass after; ordinary integer and float-overload controls pass.
+
+## Base logarithms lose exact power results
+
+- Confirmed native O3: `Math.log10(1000)` returns 2.9999999999999996 instead of 3; `Math.log2(2^1000)` returns 1000.0000000000001 instead of 1000. Dividing a rounded natural logarithm by a rounded base constant loses accuracy.
+- Base-10 logarithms now call the platform `log10` directly. Six exact-power regressions fail before correction and pass after, with ordinary/limit/domain controls preserved. Binary logarithms now separately call platform `log2`; both binary-power regressions also pass after correction. Domain, infinity, NaN, signed-zero input and subnormal controls pass for both functions.
+
+
+## Native logarithm correction changes existing Wasm host requirements
+
+- Confirmed on the initial PR78 head: a hosted Math.log10/log2 program previously instantiated with only an `env.log` math provider, but the changed code requires unavailable `env.log10` and `env.log2`. The bundled freestanding runtime already lacks natural logarithms: the parent fails on `log`, while the initial head fails on the new symbols.
+- Fixed with Wasm lowering scoped to the private declarations in the configured standard-library Math module. Retain the prior natural-log provider and precision while native targets use base-specific calls. Ordinary user extern bindings are preserved.
+- Four hosted-application regressions fail before correction and pass at O0/O3 after; two user-extern controls also pass. The pre-existing bundled-runtime math limitation is now explicit in the guides.
+
+
+## Complex exponential loses finite components to intermediate overflow
+
+- Confirmed native O3: `exp(710 + i)` returns `(inf, inf)`; the platform C complex function retains a finite real part, approximately 1.2070325234545281e308.
+- Fixed with bounded exponential products in overflow/underflow tails and explicit zero-axis/nonfinite handling. The ordinary finite path keeps one exponential evaluation. Thirteen C-oracle cases pass; nine fail on the initial source. Existing math-provider dependencies are retained.
+
+## Complex sine erases small imaginary inputs
+
+- Confirmed native O3: `sin(i * 1e-300)` returns zero instead of imaginary 1e-300. Subtracting two rounded exponentials erases the small term.
+- Fixed using a cancellation-free small-input series, scaled hyperbolic products, and explicit axis/nonfinite handling. Nineteen C-oracle cases pass at O0/O3; eight of the original sixteen cases fail on the exponential-corrected parent.
+
+## Complex cosine overflows a representable result
+
+- Confirmed native O3: `cos(i * 710)` returns `(inf, NaN)` instead of approximately `(1.1169973830808555e308, -0)`. Adding exponentials overflows before division by two.
+- Fixed with scaled hyperbolic products, cancellation-free small inputs, and explicit axis/nonfinite handling. Seventeen C-oracle cases pass at O0/O3; six fail on the exponential-corrected parent.
+
+## Complex example retains outdated zero-sign expectations
+
+- Ubuntu PR79 CI and a local integration run fail because the example expects the old imaginary signs for sin(0) and cos(0).
+- Updated only the two expected output lines to match the corrected implementation and the platform C reference: sin(0) = (0, +0), cos(0) = (1, -0).
+
+## Floor modulo of zero by infinity becomes NaN
+
+- Confirmed with native O3: Math.mod(0.0, +infinity) and Math.mod(0.0, -infinity) both return NaN.
+- The zero-remainder branch uses 0.0 * divisor to copy its sign; multiplying zero by infinity is invalid. Copying the sign directly should preserve the documented zero remainder.
+- Fixed by copying the divisor sign directly with the existing copysign intrinsic. Four signed-zero/infinite-divisor cases fail before correction; all five native O0/O3 regression cases pass afterward, including ordinary and invalid-domain controls.
+
+## Range indexing returns entries outside its sequence
+
+- Confirmed native O3: Range.new(1, 5, 2).get(-1) returns -1, indexing it at 2 returns the excluded endpoint 5, and Range.new(1, 1, 1)[0] returns 1 despite being empty.
+- Range.get and its indexing operator must reject negative/out-of-range indices rather than manufacturing values outside the represented sequence.
+- Fixed with bounded position checks before multiplication, without requiring len() to fit int. Thirteen native O0/O3 cases pass (twelve fail before correction), covering invalid indices and valid ascending/descending/reversed/wide ranges. Two hosted Wasm checks also pass.
+
+## Geometric mean overflows for finite identical samples
+
+- Confirmed native O3: Stats.geometricMean of 70 copies of the largest finite float returns infinity, even though the exact result is that same finite value. Repeatedly accumulating rounded logarithms pushes the average outside the input range.
+- Fixed with compensated finite logarithm accumulation, exact identical-sample returns, and output clamping to the sample bounds. Nonpositive inputs still take precedence over NaNs, and NaNs over positive infinity. Twelve native and two hosted Wasm regression tests pass at O0/O3; five native cases and two hosted cases fail on the parent. Existing log/exp provider dependencies are retained.
+
+## Harmonic mean escapes finite sample bounds near the limit
+
+- Confirmed native O3: six samples of 1.7976931348623157e308 and one of 1.7976931348623155e308 produce infinity. The exact positive harmonic mean must lie between those finite input values.
+- Fixed by tracking the largest sample and constraining the final scaled product to the valid input interval. Existing scaled accumulation, nonfinite and input-order validation conventions are preserved. Three native cases and two hosted Wasm cases fail on the geometric-corrected parent; separate controls cover input order, infinities, identical values and mixed scales.
+
+
+## QoL: stale completion options and language-hook lint warnings
+
+Confirmed formatter/configuration flags were absent from shell completion and
+L001 warned on valid operator names. Both shipped/embedded shell scripts now
+share generated content with parity coverage. Naming lint accepts defined hooks;
+warning failure remains default with an explicit opt-out.
+
+## QoL: editor document and filesystem lifecycle
+
+Source review confirmed filesystem notifications did not invalidate imports,
+Run did not save dirty documents, diagnostics lacked debounce/stale-result
+protection, and formatting failures appeared only in logs. Filesystem batches now
+invalidate caches and revalidate live buffers; Run awaits save, validation cancels
+obsolete work, close clears state, and formatting failures notify once.
+
+## QoL: documentation output silently replaces existing files
+
+An isolated CLI reproduction overwrote handwritten docs.md and emitted an
+absolute machine path. Existing output now requires --force and module labels
+are relative to the input directory. Public-only output is an explicit option.
+
+## QoL: playground example switching discards edited code
+
+Example selection replaced the editor without preserving draft source/input/args.
+Versioned local drafts restore on reload, edited example switches confirm, reset
+clears stored drafts, and denied storage leaves editing usable with a warning.
+
+## QoL review: argument boundaries, public globals, completions and draft state
+
+PR review confirmed that project Run could reinterpret a pre-delimiter explicit
+file as a program argument, public-only docs omitted exported destructured globals,
+and Bash completion excluded directory inputs and docs paths. Prefix option parsing
+now distinguishes operands from option values, export filtering follows individual
+global bindings, and completion retains valid source paths and directories.
+
+Untouched playground examples were restored as edited drafts, and a failed saved
+draft removal falsely reported success. Drafts now retain edited state and failed
+removal leaves an unpersisted change with a warning. Focused CLI/docs/completion
+and real Chromium draft/reset regressions cover these corrected behaviors.
+
+## Algorithm.average overflows before dividing finite float samples
+
+- Confirmed native O3 on staging c70be811: an Array<float> containing [1e308, 1e308] averages to infinity instead of 1e308. The wrapper still forms an ordinary sum before division and also loses small terms between cancelling large values.
+- Fixed with compensated/scaled getter-based accumulation, retaining logical inherited getters without a temporary array. Eleven native and two hosted Wasm cases pass at O0/O3; five native and two hosted cases fail on the original parent. Integer/empty/nonfinite behavior and input contents remain covered. Existing browser imports suffice.
+
+
+## Bash completion inserts paths with spaces as multiple arguments
+
+An interactive Bash reproduction confirmed that a single `src folder` COMPREPLY
+entry was inserted as unquoted text and became two shell arguments. Registration
+now enables `-o filenames`, letting readline quote filename matches and retain
+directory slashes. The shipped and embedded scripts are regenerated together;
+registration coverage supplements path-candidate tests and interactive verification.
+
+
+## Release smoke rejects the shipped formatter schema
+
+- Confirmed during 0.1.1 packaging validation: npm pack includes the advertised
+  bpl-format.schema.json, but the smoke allowlist rejects that file.
+- Added the formatter schema to required packaged files and the narrow allowlist;
+  unrelated paths and local audit reports remain excluded.
+
+
+## Release smoke expects obsolete Bash completion registration
+
+- The packed completion JSON check rejected the corrected `-o filenames`
+  registration because it matched the former literal registration line.
+- Updated the assertion to require filename handling in the packed script.
+
+
+## Project-mode build registration loses no-input JSON diagnostics
+
+- Confirmed `bpl build --json` emitted plain stderr after the file argument became
+  optional for --project. The root build JSON no-input path remained correct.
+- Reused the existing BPL_BUILD_NO_INPUTS report before resolving project entries
+  when neither a file nor --project is supplied; the source CLI regression passes.

@@ -132,6 +132,8 @@ export const PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT_CODE =
   "BPL_PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT";
 export const PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT_CODE =
   "BPL_PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT";
+export const PACKAGE_DEPENDENCY_VERSION_CONFLICT_CODE =
+  "BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT";
 export const PACKAGE_LIST_JSON_ERROR_CODES = [
   PACKAGE_SEARCH_DIR_SYMLINK_CODE,
   PACKAGE_SEARCH_DIR_NOT_DIRECTORY_CODE,
@@ -146,6 +148,7 @@ export const PACKAGE_INSTALL_JSON_ERROR_CODES = [
   PACKAGE_INSTALL_LOCKED_REPAIR_CONFLICT_CODE,
   PACKAGE_INSTALL_UPDATE_REPAIR_CONFLICT_CODE,
   PACKAGE_INSTALL_LOCK_VERIFY_FAILED_CODE,
+  PACKAGE_DEPENDENCY_VERSION_CONFLICT_CODE,
 ] as const;
 
 export const PACKAGE_ARCHIVE_SYMLINK_CODE = "BPL_PACKAGE_ARCHIVE_SYMLINK";
@@ -275,12 +278,16 @@ export interface PackageArchiveProvenance {
 
 export interface PackageLockFile {
   lockfileVersion: 1;
+  manifestRoots?: string[];
   packages: Record<
     string,
     {
       version: string;
       source: string;
       hash: string;
+      archiveSha256?: string;
+      hashAlgorithm?: "sha256-tree-v2";
+      dependencies?: string[];
     }
   >;
 }
@@ -345,9 +352,13 @@ interface ResolvedDependencySource {
 
 interface PackageInstallSourceContext {
   lockSource?: string;
+  expectedLockEntry?: PackageLockFile["packages"][string];
+  lockedPackages?: PackageLockFile["packages"];
 }
 
 export class PackageManager {
+  private pendingProjectLock?: PackageLockFile;
+  private reconcilingPackages = new Set<string>();
   private projectRoot: string;
   private globalPackageDir: string;
   private localPackageDir: string;
@@ -713,6 +724,7 @@ export class PackageManager {
   }
 
   loadLockFile(): PackageLockFile {
+    if (this.pendingProjectLock) return this.pendingProjectLock;
     const lockPath = this.getLockFilePath();
     const location: SourceLocation = {
       file: lockPath,
@@ -743,6 +755,7 @@ export class PackageManager {
     return {
       lockfileVersion: 1,
       packages: parsed.packages || {},
+      ...(parsed.manifestRoots ? {manifestRoots: parsed.manifestRoots} : {}),
     };
   }
 
@@ -790,6 +803,7 @@ export class PackageManager {
     const rawLock = lock as {
       lockfileVersion?: unknown;
       packages?: unknown;
+      manifestRoots?: unknown;
     };
 
     if (
@@ -818,6 +832,17 @@ export class PackageManager {
       );
     }
 
+    if (rawLock.manifestRoots !== undefined &&
+        (!Array.isArray(rawLock.manifestRoots) ||
+         !rawLock.manifestRoots.every((name: unknown) => typeof name === "string" && isValidPackageName(name)))) {
+      throw new CompilerError(
+        "Invalid bpl.lock manifest roots",
+        "manifestRoots must be an array of valid package names.",
+        location,
+        "BPL_LOCKFILE_INVALID_SHAPE",
+      );
+    }
+
     const packages = (rawLock.packages || {}) as Record<string, unknown>;
     for (const [packageName, entry] of Object.entries(packages)) {
       if (!isValidPackageName(packageName)) {
@@ -842,7 +867,21 @@ export class PackageManager {
         version?: unknown;
         source?: unknown;
         hash?: unknown;
+        archiveSha256?: unknown;
+        hashAlgorithm?: unknown;
+        dependencies?: unknown;
       };
+
+      if (rawEntry.dependencies !== undefined &&
+          (!Array.isArray(rawEntry.dependencies) ||
+           !rawEntry.dependencies.every((name: unknown) => typeof name === "string" && isValidPackageName(name)))) {
+        throw new CompilerError(
+          `Invalid bpl.lock dependencies for ${packageName}`,
+          "Lock entry dependencies must be an array of valid package names.",
+          location,
+          "BPL_LOCKFILE_INVALID_ENTRY",
+        );
+      }
 
       if (
         typeof rawEntry.version !== "string" ||
@@ -869,6 +908,23 @@ export class PackageManager {
         throw new CompilerError(
           `Invalid bpl.lock hash for ${packageName}`,
           "Lock entry hashes must be non-empty strings.",
+          location,
+          "BPL_LOCKFILE_INVALID_ENTRY_HASH",
+        );
+      }
+      if (rawEntry.archiveSha256 !== undefined &&
+          (typeof rawEntry.archiveSha256 !== "string" || !/^[a-f0-9]{64}$/.test(rawEntry.archiveSha256))) {
+        throw new CompilerError(
+          `Invalid bpl.lock archive checksum for ${packageName}`,
+          "Archive checksums must be lowercase SHA-256 hex strings.",
+          location,
+          "BPL_LOCKFILE_INVALID_ENTRY_HASH",
+        );
+      }
+      if (rawEntry.hashAlgorithm !== undefined && rawEntry.hashAlgorithm !== "sha256-tree-v2") {
+        throw new CompilerError(
+          `Unsupported bpl.lock hash algorithm for ${packageName}`,
+          "Use a compatible compiler or regenerate the lockfile explicitly.",
           location,
           "BPL_LOCKFILE_INVALID_ENTRY_HASH",
         );
@@ -909,7 +965,17 @@ export class PackageManager {
       );
     }
 
-    this.writeFileAtomically(lockPath, JSON.stringify(lock, null, 2));
+    if (this.pendingProjectLock) {
+      this.pendingProjectLock = lock;
+      return;
+    }
+    const packages = Object.fromEntries(
+      Object.entries(lock.packages).sort(([left], [right]) => {
+        if (left === right) return 0;
+        return left < right ? -1 : 1;
+      }),
+    );
+    this.writeFileAtomically(lockPath, JSON.stringify({ ...lock, packages }, null, 2) + "\n");
   }
 
   private writeFileAtomically(filePath: string, content: string): void {
@@ -1009,14 +1075,63 @@ export class PackageManager {
     installPath: string,
     source: string,
     existingLock?: PackageLockFile,
+    archiveSha256?: string,
   ): void {
     const lock = existingLock ?? this.loadLockFile();
     lock.packages[manifest.name] = {
       version: manifest.version,
       source,
-      hash: this.calculatePackageHash(installPath),
+      hash: this.calculatePackageHash(installPath, true),
+      hashAlgorithm: "sha256-tree-v2",
+      dependencies: Object.keys(manifest.dependencies ?? {}).sort(),
+      ...(archiveSha256 ? { archiveSha256 } : {}),
     };
     this.saveLockFile(lock);
+  }
+
+  private manifestLockIssues(
+    lock: PackageLockFile,
+  ): PackageLockVerificationIssue[] {
+    if (!this.tryLstat(path.join(this.projectRoot, "bpl.json"))) return [];
+    const manifest = this.loadManifest(this.projectRoot);
+    const dependencies = { ...manifest.dependencies, ...manifest.devDependencies };
+    const issues: PackageLockVerificationIssue[] = [];
+    for (const [name, source] of Object.entries(dependencies)) {
+      const entry = lock.packages[name];
+      const requested = this.stripPackageFileSourcePrefix(source);
+      let matches = Boolean(entry);
+      if (entry && isVersionSelectorSpec(requested)) {
+        matches = satisfiesVersionSelector(entry.version, requested);
+      } else if (entry && isPackageFileSource(requested)) {
+        matches =
+          this.resolveDependencyFileSource(this.projectRoot, requested) ===
+          this.resolveDependencyFileSource(
+            this.projectRoot,
+            this.stripPackageFileSourcePrefix(entry.source),
+          );
+      }
+      if (!matches) {
+        issues.push({
+          packageName: name,
+          kind: "manifest-dependency-mismatch",
+          message: `${name}: bpl.lock does not satisfy bpl.json dependency ${source}`,
+          requestedSource: source,
+          source: entry?.source,
+          actualVersion: entry?.version,
+          packagePath: path.join(this.projectRoot, "bpl.json"),
+        });
+      }
+    }
+    for (const name of lock.manifestRoots ?? []) {
+      if (dependencies[name] !== undefined) continue;
+      issues.push({
+        packageName: name,
+        kind: "manifest-dependency-mismatch",
+        message: `${name}: dependency was removed from bpl.json`,
+        packagePath: path.join(this.projectRoot, "bpl.json"),
+      });
+    }
+    return issues;
   }
 
   verifyLockFile(): PackageLockVerification {
@@ -1039,7 +1154,7 @@ export class PackageManager {
     }
 
     const lock = this.loadLockFile();
-    const issues: PackageLockVerificationIssue[] = [];
+    const issues: PackageLockVerificationIssue[] = this.manifestLockIssues(lock);
     const addIssue = (issue: PackageLockVerificationIssue) => {
       issues.push(issue);
     };
@@ -1150,7 +1265,7 @@ export class PackageManager {
         });
       }
 
-      const actualHash = this.calculatePackageHash(installPath);
+      const actualHash = this.calculatePackageHash(installPath, entry.hashAlgorithm === "sha256-tree-v2");
       if (actualHash !== entry.hash) {
         addIssue({
           packageName,
@@ -1180,6 +1295,22 @@ export class PackageManager {
         manifest.dependencies || {},
       )) {
         dependencyNamesReferencedByLockEntries.add(dependencyName);
+        const lockedDependency = lock.packages[dependencyName];
+        const requestedArchive = parsePackageTarballName(this.getPackageSourceBasename(this.stripPackageFileSourcePrefix(requestedSource)));
+        let versionRequirement: string | undefined;
+        if (isVersionSelectorSpec(requestedSource)) versionRequirement = requestedSource;
+        else if (requestedArchive?.name === dependencyName) versionRequirement = requestedArchive.version;
+        if (lockedDependency && versionRequirement &&
+            !satisfiesVersionSelector(lockedDependency.version, versionRequirement)) {
+          addIssue({
+            packageName: dependencyName,
+            dependencyOf: packageName,
+            kind: "version-mismatch",
+            message: `${packageName}: locked ${dependencyName}@${lockedDependency.version} does not satisfy ${requestedSource}`,
+            requestedSource,
+            actualVersion: lockedDependency.version,
+          });
+        }
         const dependencyPath = path.join(this.localPackageDir, dependencyName);
         const dependencyStats = this.tryLstat(dependencyPath);
         if (
@@ -1373,6 +1504,30 @@ export class PackageManager {
   installProject(
     options: PackageOptionsVerbose = { verbose: false, global: false },
   ): PackageProjectInstallResult {
+    const previousPendingLock = this.pendingProjectLock;
+    const previousReconcilingPackages = this.reconcilingPackages;
+    try {
+      const result = this.installProjectInContext(options);
+      if (!options.locked && this.tryLstat(path.join(this.projectRoot, "bpl.json")) &&
+          (this.pendingProjectLock || this.tryLstat(this.getLockFilePath()))) {
+        const manifest = this.loadManifest(this.projectRoot);
+        const lock = this.loadLockFile();
+        lock.manifestRoots = Object.keys({...manifest.dependencies, ...manifest.devDependencies}).sort();
+        this.saveLockFile(lock);
+      }
+      const pending = this.pendingProjectLock;
+      this.pendingProjectLock = previousPendingLock;
+      if (pending) this.saveLockFile(pending);
+      return result;
+    } finally {
+      this.pendingProjectLock = previousPendingLock;
+      this.reconcilingPackages = previousReconcilingPackages;
+    }
+  }
+
+  private installProjectInContext(
+    options: PackageOptionsVerbose,
+  ): PackageProjectInstallResult {
     if (options.global) {
       throw new CompilerError(
         "Project dependency install cannot be global",
@@ -1482,16 +1637,53 @@ export class PackageManager {
       const lock = this.loadLockFile();
       const entries = Object.entries(lock.packages);
       if (entries.length > 0) {
-        compilerLog.info(`Restoring ${entries.length} locked packages...`);
-        for (const [packageName, entry] of entries) {
+        const changedRoots = new Set(this.manifestLockIssues(lock)
+          .map(issue => issue.packageName).filter(name => deps[name] !== undefined));
+        const removedRoots = new Set((lock.manifestRoots ?? []).filter(name => deps[name] === undefined));
+        const reconcileGraph = changedRoots.size > 0 || removedRoots.size > 0;
+        const affected = new Set<string>();
+        const collectAffected = (name: string): void => {
+          if (affected.has(name)) return;
+          affected.add(name);
+          const entry = lock.packages[name];
+          if (!entry) return;
+          for (const child of this.lockEntryDependencies(name, entry)) collectAffected(child);
+        };
+        for (const name of [...changedRoots, ...removedRoots]) collectAffected(name);
+        if (reconcileGraph) {
+          // Shared dependencies reachable from an unchanged package stay pinned.
+          const protectedPackages = new Set<string>();
+          const protect = (name: string): void => {
+            if (changedRoots.has(name) || protectedPackages.has(name)) return;
+            protectedPackages.add(name);
+            const entry = lock.packages[name];
+            if (entry) for (const child of this.lockEntryDependencies(name, entry)) protect(child);
+          };
+          for (const [name] of entries) if (!affected.has(name)) protect(name);
+          for (const name of protectedPackages) affected.delete(name);
+        }
+        // Resolve changed roots first so unchanged parents that reference them
+        // can use the selected root archive even when it is absent from cache.
+        const sources = new Map<string, string>([...changedRoots].map(name => [name, deps[name]!]));
+        for (const [name, entry] of entries) {
+          if (!affected.has(name)) sources.set(name, entry.source);
+        }
+        const retainedLocks = Object.fromEntries(entries.filter(([name]) => !affected.has(name)));
+        if (reconcileGraph) {
+          // Stage lock changes until the complete reconciliation succeeds.
+          this.pendingProjectLock = {...lock, packages: {...lock.packages}};
+          this.reconcilingPackages = new Set(affected);
+        }
+        compilerLog.info(`Restoring ${sources.size} project packages...`);
+        for (const [packageName, source] of sources) {
           if (options.verbose) {
             compilerLog.info(
-              `Restoring ${packageName}@${entry.version} from ${entry.source}`,
+              `Restoring ${packageName} from ${source}`,
             );
           }
           const resolved = this.resolveDependencySource(
             packageName,
-            entry.source,
+            source,
             this.projectRoot,
           );
           this.install(
@@ -1503,15 +1695,41 @@ export class PackageManager {
             },
             [],
             packageName,
-            { lockSource: resolved.lockSource },
+            {
+              lockSource: resolved.lockSource,
+              expectedLockEntry: retainedLocks[packageName],
+              lockedPackages: !reconcileGraph ? retainedLocks : Object.fromEntries(
+                Object.entries(this.loadLockFile().packages).filter(([name]) => !this.reconcilingPackages.has(name)),
+              ),
+            },
           );
         }
-        return { action: "restored", packages: entries.length };
+        if (reconcileGraph) {
+          const currentLock = this.loadLockFile();
+          const reachable = new Set<string>();
+          const visit = (name: string): void => {
+            if (reachable.has(name)) return;
+            reachable.add(name);
+            const entry = currentLock.packages[name];
+            if (entry) for (const child of this.lockEntryDependencies(name, entry)) visit(child);
+          };
+          for (const name of sources.keys()) visit(name);
+          for (const name of affected) {
+            if (reachable.has(name)) continue;
+            if (this.tryLstat(path.join(this.localPackageDir, name))) this.uninstall(name);
+            else delete currentLock.packages[name];
+          }
+          this.saveLockFile(currentLock);
+        }
+        return { action: "restored", packages: sources.size };
       }
     }
 
     if (options.update) {
-      this.saveLockFile({ lockfileVersion: 1, packages: {} });
+      this.pendingProjectLock = { lockfileVersion: 1, packages: {} };
+      // Validate the output path now, but keep the new graph in memory until
+      // installation completes. A failure must leave the previous lock intact.
+      this.saveLockFile(this.pendingProjectLock);
     }
 
     if (Object.keys(deps).length === 0) {
@@ -1535,10 +1753,35 @@ export class PackageManager {
         },
         [],
         name,
-        { lockSource: resolved.lockSource },
+        {
+          lockSource: resolved.lockSource,
+          // Keep explicit root archive identity; selector-based choices may
+          // still need to converge on a compatible shared version.
+          lockedPackages: Object.fromEntries(Object.entries(this.loadLockFile().packages)
+            .filter(([packageName]) => deps[packageName] !== undefined &&
+              isPackageFileSource(this.stripPackageFileSourcePrefix(deps[packageName]!)))),
+        },
       );
     }
     return { action: "installed", packages: dependencyEntries.length };
+  }
+
+  private lockEntryDependencies(
+    name: string,
+    entry: PackageLockFile["packages"][string],
+  ): string[] {
+    if (entry.dependencies) return entry.dependencies;
+    const directory = path.join(this.localPackageDir, name);
+    const stats = this.tryLstat(directory);
+    if (stats?.isDirectory() && !stats.isSymbolicLink()) {
+      return Object.keys(this.loadManifest(directory).dependencies ?? {});
+    }
+    throw new CompilerError(
+      `Cannot reconcile legacy lock entry '${name}' without its installed manifest`,
+      "Restore the original bpl_modules first, or run 'bpl install --update' to resolve the whole dependency graph.",
+      {file: this.getLockFilePath(), startLine: 1, startColumn: 1, endLine: 1, endColumn: 1},
+      "BPL_LOCKFILE_INVALID_ENTRY",
+    );
   }
 
   private formatLockVerificationHelp(
@@ -1548,6 +1791,10 @@ export class PackageManager {
 
     if (issueKinds.has("missing-lockfile")) {
       return "Run 'bpl install' to create bpl.lock from bpl.json dependencies.";
+    }
+
+    if (issueKinds.has("manifest-dependency-mismatch")) {
+      return "Run 'bpl install' to reconcile bpl.json dependencies with bpl.lock, then retry --locked.";
     }
 
     const restoreHelp = "Run 'bpl install' to restore packages from bpl.lock.";
@@ -1583,6 +1830,7 @@ export class PackageManager {
     packageName: string,
     source: string,
     baseDir: string = this.projectRoot,
+    local = true,
   ): ResolvedDependencySource {
     const fileSource = source.startsWith("file:") ? source.slice(5) : source;
     const baseRelativePath = this.resolveDependencyFileSource(
@@ -1606,6 +1854,7 @@ export class PackageManager {
       const packageSource = this.resolveGlobalPackageVersionSource(
         packageName,
         fileSource,
+        local,
       );
       return {
         packageSource,
@@ -1711,6 +1960,7 @@ export class PackageManager {
 
     const lock = existingLock ?? this.loadLockFile();
     delete lock.packages[packageName];
+    if (lock.manifestRoots) lock.manifestRoots = lock.manifestRoots.filter(name => name !== packageName);
     this.saveLockFile(lock);
   }
 
@@ -2130,11 +2380,14 @@ export class PackageManager {
     return fullPath;
   }
 
-  private validatePackageExportFile(
+  private validatePackageSourceFile(
     packageDir: string,
     relativePath: string,
     manifestPath: string,
+    kind: "export" | "entrypoint",
   ): string {
+    const label = kind === "export" ? "export entry" : "entry point";
+    const entries = kind === "export" ? "export entries" : "entry points";
     const location: SourceLocation = {
       file: manifestPath,
       startLine: 1,
@@ -2143,38 +2396,38 @@ export class PackageManager {
       endColumn: 1,
     };
     const fullPath = this.resolvePackageRelativePath(packageDir, relativePath);
-    const exportStat = this.tryLstat(fullPath);
+    const sourceStat = this.tryLstat(fullPath);
 
-    if (!exportStat) {
+    if (!sourceStat) {
       throw new CompilerError(
-        `Missing package export entry: ${relativePath}`,
-        "Package export entries must point to regular source files included in the package.",
+        `Missing package ${label}: ${relativePath}`,
+        `Package ${entries} must point to regular source files included in the package.`,
         location,
       );
     }
 
-    if (exportStat.isSymbolicLink()) {
+    if (sourceStat.isSymbolicLink()) {
       throw new CompilerError(
-        `Unsupported package export entry: ${relativePath}`,
-        "Package export entries must be regular source files, not symbolic links.",
+        `Unsupported package ${label}: ${relativePath}`,
+        `Package ${entries} must be regular source files, not symbolic links.`,
         location,
       );
     }
 
-    if (!exportStat.isFile()) {
+    if (!sourceStat.isFile()) {
       throw new CompilerError(
-        `Unsupported package export entry: ${relativePath}`,
-        "Package export entries must point to regular source files.",
+        `Unsupported package ${label}: ${relativePath}`,
+        `Package ${entries} must point to regular source files.`,
         location,
       );
     }
 
     const packageRoot = fs.realpathSync(packageDir);
-    const realExportPath = fs.realpathSync(fullPath);
-    if (!this.isWithinPackage(packageRoot, realExportPath)) {
+    const realSourcePath = fs.realpathSync(fullPath);
+    if (!this.isWithinPackage(packageRoot, realSourcePath)) {
       throw new CompilerError(
-        `Invalid package export entry: ${relativePath}`,
-        "Package export entries must resolve inside the package root.",
+        `Invalid package ${label}: ${relativePath}`,
+        `Package ${entries} must resolve inside the package root.`,
         location,
       );
     }
@@ -2190,7 +2443,12 @@ export class PackageManager {
     if (!manifest.exports) return [];
 
     return manifest.exports.map((exportPath) =>
-      this.validatePackageExportFile(packageDir, exportPath, manifestPath),
+      this.validatePackageSourceFile(
+        packageDir,
+        exportPath,
+        manifestPath,
+        "export",
+      ),
     );
   }
 
@@ -2273,7 +2531,8 @@ export class PackageManager {
   /**
    * Calculate hash of package contents
    */
-  private calculatePackageHash(packageDir: string): string {
+  private calculatePackageHash(packageDir: string, portable = false): string {
+    if (portable) return this.calculatePortablePackageHash(packageDir);
     const hash = crypto.createHash("sha256");
     const packageRoot = path.resolve(packageDir);
 
@@ -2299,6 +2558,45 @@ export class PackageManager {
     return hash.digest("hex");
   }
 
+  private calculatePortablePackageHash(packageDir: string): string {
+    const entries: { relative: string; file: string; kind: string }[] = [];
+    const excluded = new Set([".git", "node_modules", "bpl_modules", ".bpl-cache"]);
+    const visit = (directory: string, prefix: string): void => {
+      for (const name of fs.readdirSync(directory)) {
+        if (excluded.has(name)) continue;
+        const file = path.join(directory, name);
+        const relative = prefix ? `${prefix}/${name}` : name;
+        const stat = fs.lstatSync(file);
+        if (stat.isDirectory()) visit(file, relative);
+        else if (stat.isSymbolicLink() || stat.isFile()) {
+          entries.push({ relative, file, kind: stat.isSymbolicLink() ? "link" : "file" });
+        } else {
+          throw new CompilerError(
+            `Unsupported file type in package: ${relative}`,
+            "Package contents must be regular files, directories or symbolic links.",
+            { file, startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+          );
+        }
+      }
+    };
+    visit(packageDir, "");
+    entries.sort((left, right) => {
+      if (left.relative === right.relative) return 0;
+      return left.relative < right.relative ? -1 : 1;
+    });
+    const hash = crypto.createHash("sha256");
+    hash.update("bpl-tree-v2\0");
+    for (const entry of entries) {
+      const content = entry.kind === "link"
+        ? Buffer.from(fs.readlinkSync(entry.file))
+        : fs.readFileSync(entry.file);
+      hash.update(`${entry.kind}\0${entry.relative}\0`);
+      // Fixed-size content digests avoid ambiguous concatenation of file bytes.
+      hash.update(crypto.createHash("sha256").update(content).digest());
+    }
+    return hash.digest("hex");
+  }
+
   private calculateFileHash(filePath: string): string {
     const hash = crypto.createHash("sha256");
     hash.update(fs.readFileSync(filePath));
@@ -2318,6 +2616,20 @@ export class PackageManager {
     }
 
     const manifest = this.tryReadManifestJson(manifestPath);
+    const entry = manifest?.main ?? manifest?.entry;
+    if (typeof entry === "string" && this.isSafePackageRelativePath(entry)) {
+      const entryPath = this.resolvePackageRelativePath(packageDir, entry);
+      if (this.isWithinPackage(packageDir, entryPath) && fs.existsSync(entryPath)) {
+        const stat = fs.lstatSync(entryPath);
+        if (!stat.isSymbolicLink() && stat.isFile()) {
+          const packageRoot = fs.realpathSync(packageDir);
+          const realEntryPath = fs.realpathSync(entryPath);
+          if (this.isWithinPackage(packageRoot, realEntryPath)) {
+            files.add(entryPath);
+          }
+        }
+      }
+    }
     if (
       manifest?.bin &&
       typeof manifest.bin === "object" &&
@@ -2487,6 +2799,19 @@ export class PackageManager {
       files.add(fullPath);
     }
 
+    // Explicit entry points must survive packing even without a .bpl suffix.
+    const entry = manifest.main ?? manifest.entry;
+    if (entry !== undefined) {
+      files.add(
+        this.validatePackageSourceFile(
+          packageDir,
+          entry,
+          manifestPath,
+          "entrypoint",
+        ),
+      );
+    }
+
     if (files.size === 0) {
       throw new CompilerError(
         "No .bpl files found in package",
@@ -2501,7 +2826,19 @@ export class PackageManager {
       );
     }
 
-    compilerLog.info(`Including ${files.size} source files`);
+    // Keep standard package documentation and legal notices without adding
+    // arbitrary assets or following automatically discovered symbolic links.
+    for (const name of fs.readdirSync(packageDir)) {
+      if (
+        !/^(?:readme|licen[cs]e|copying|notice)(?:\.(?:md|txt|rst|markdown))?$/i.test(name)
+      ) {
+        continue;
+      }
+      const metadataPath = path.join(packageDir, name);
+      if (fs.lstatSync(metadataPath).isFile()) files.add(metadataPath);
+    }
+
+    compilerLog.info(`Including ${files.size} package files`);
 
     // Create a temporary directory for packing
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-pack-"));
@@ -2526,6 +2863,42 @@ export class PackageManager {
 
         fs.copyFileSync(file, targetPath);
       }
+
+      // Normalize only the private staging tree; never mutate source metadata.
+      // An explicit NUL-delimited member list avoids filesystem enumeration order
+      // and safely represents spaces, Unicode and newline characters in names.
+      const members: string[] = [];
+      const normalize = (directory: string): void => {
+        members.push(path.relative(tempDir, directory).split(path.sep).join("/"));
+        for (const name of fs.readdirSync(directory).sort()) {
+          const file = path.join(directory, name);
+          const stat = fs.lstatSync(file);
+          if (stat.isDirectory()) {
+            normalize(file);
+          } else {
+            if (!stat.isFile()) {
+              throw new CompilerError(
+                `Unsupported file type in package staging tree: ${file}`,
+                "Package contents must be regular files and directories.",
+                {
+                  file: manifestPath,
+                  startLine: 1,
+                  startColumn: 1,
+                  endLine: 1,
+                  endColumn: 1,
+                },
+              );
+            }
+            members.push(path.relative(tempDir, file).split(path.sep).join("/"));
+            fs.chmodSync(file, stat.mode & 0o111 ? 0o755 : 0o644);
+            fs.utimesSync(file, 0, 0);
+          }
+        }
+        fs.chmodSync(directory, 0o755);
+        fs.utimesSync(directory, 0, 0);
+      };
+      normalize(packageRoot);
+      fs.writeFileSync(path.join(tempDir, "members"), members.join("\0") + "\0");
 
       // Create tarball
       const archiveTool = getPackageArchiveTool();
@@ -2557,6 +2930,45 @@ export class PackageManager {
     tempDir: string,
     manifestPath: string,
   ): void {
+    const version = spawnSync(archiveTool, ["--version"], {
+      encoding: "utf8",
+      timeout: getPackageArchiveToolTimeoutMs(),
+      maxBuffer: 64 * 1024,
+    });
+    if (version.error) {
+      throw new CompilerError(
+        `Failed to create tarball: ${this.formatSpawnFailure(version, "Unknown error")}`,
+        `Check if '${archiveTool}' is available and you have write permissions.`,
+        {
+          file: manifestPath,
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 1,
+        },
+      );
+    }
+    // GNU and libarchive use different ownership and gzip timestamp controls.
+    // Unknown wrappers retain the GNU-compatible path and normal tool errors.
+    const archiveOptions = /bsdtar|libarchive/i.test(version.stdout ?? "")
+      ? [
+          "--format=gnutar",
+          "--uid=0",
+          "--gid=0",
+          "--uname=",
+          "--gname=",
+          "--options=gzip:!timestamp",
+          "--no-acls",
+          "--no-xattrs",
+          "--no-fflags",
+          "--no-mac-metadata",
+        ]
+      : ["--format=gnu", "--owner=0", "--group=0", "--numeric-owner"];
+    const env: NodeJS.ProcessEnv = { ...process.env, COPYFILE_DISABLE: "1" };
+    // These variables can silently add archive members, options or gzip headers.
+    delete env.TAR_OPTIONS;
+    delete env.GZIP;
+
     for (let attempt = 0; attempt < 10; attempt++) {
       const tempTarballPath = this.getAtomicWriteTempPath(tarballPath, attempt);
       if (this.tryLstat(tempTarballPath)) {
@@ -2566,9 +2978,20 @@ export class PackageManager {
       try {
         const result = spawnSync(
           archiveTool,
-          ["-czf", tempTarballPath, "-C", tempDir, "package"],
+          [
+            "-czf",
+            tempTarballPath,
+            ...archiveOptions,
+            "--no-recursion",
+            "-C",
+            tempDir,
+            "--null",
+            "-T",
+            path.join(tempDir, "members"),
+          ],
           {
             stdio: "pipe",
+            env,
             timeout: getPackageArchiveToolTimeoutMs(),
           },
         );
@@ -2797,7 +3220,7 @@ export class PackageManager {
       }
     } else {
       // Look for package in global registry
-      const globalTarballPath = this.resolveGlobalPackageSource(packageSource);
+      const globalTarballPath = this.resolveGlobalPackageSource(packageSource, !options.global);
 
       if (!globalTarballPath) {
         throw new CompilerError(
@@ -2826,6 +3249,23 @@ export class PackageManager {
     }
 
     this.ensurePackageArchiveFile(tarballPath);
+    const expectedEntry = sourceContext.expectedLockEntry;
+    const archiveSha256 = this.calculateFileHash(tarballPath);
+    if (expectedEntry?.archiveSha256 && expectedEntry.archiveSha256 !== archiveSha256) {
+      const issue: PackageLockVerificationIssue = {
+        packageName: expectedPackageName ?? packageSource,
+        kind: "hash-mismatch",
+        message: `${expectedPackageName ?? packageSource}: archive hash does not match bpl.lock`,
+        packagePath: tarballPath,
+        expectedHash: expectedEntry.archiveSha256,
+        actualHash: archiveSha256,
+      };
+      throw new PackageLockVerificationError(
+        { ok: false, errors: [issue.message], issues: [issue], packagesChecked: 1 },
+        this.getLockFilePath(),
+        "Restore the original archive, or explicitly use --update to accept changed dependencies.",
+      );
+    }
     this.verifyArchiveProvenanceBeforeInstall(tarballPath);
 
     // Extract to a unique temporary directory first.
@@ -2909,6 +3349,59 @@ export class PackageManager {
         extractedManifestPath,
       );
 
+      if (!options.global) {
+        for (const { owner, requirement } of this.localVersionRequirements(manifest.name)) {
+          if (!satisfiesVersionSelector(manifest.version, requirement)) {
+            throw new CompilerError(
+              `Dependency version conflict: ${owner} requires ${manifest.name}@${requirement}, got ${manifest.version}`,
+              "Align dependency requirements; only one installed version per package name is supported.",
+              { file: extractedManifestPath, startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+              PACKAGE_DEPENDENCY_VERSION_CONFLICT_CODE,
+            );
+          }
+        }
+      }
+
+      if (expectedEntry) {
+        const actualHash = this.calculatePackageHash(packageDir, expectedEntry.hashAlgorithm === "sha256-tree-v2");
+        if (manifest.version !== expectedEntry.version || actualHash !== expectedEntry.hash) {
+          const issue: PackageLockVerificationIssue = {
+            packageName: manifest.name,
+            kind: manifest.version !== expectedEntry.version ? "version-mismatch" : "hash-mismatch",
+            message: `${manifest.name}: restored package does not match bpl.lock version/content hash`,
+            expectedVersion: expectedEntry.version,
+            actualVersion: manifest.version,
+            expectedHash: expectedEntry.hash,
+            actualHash,
+          };
+          throw new PackageLockVerificationError(
+            { ok: false, errors: [issue.message], issues: [issue], packagesChecked: 1 },
+            this.getLockFilePath(),
+            "Restore the original archive, or explicitly use --update to accept changed dependencies.",
+          );
+        }
+      }
+
+      for (const [name, requirement] of Object.entries(manifest.dependencies ?? {})) {
+        const locked = sourceContext.lockedPackages?.[name];
+        if (locked && isVersionSelectorSpec(requirement) &&
+            !satisfiesVersionSelector(locked.version, requirement)) {
+          const issue: PackageLockVerificationIssue = {
+            packageName: name,
+            dependencyOf: manifest.name,
+            kind: "version-mismatch",
+            message: `${manifest.name}: locked ${name}@${locked.version} does not satisfy ${requirement}`,
+            requestedSource: requirement,
+            actualVersion: locked.version,
+          };
+          throw new PackageLockVerificationError(
+            { ok: false, errors: [issue.message], issues: [issue], packagesChecked: 1 },
+            this.getLockFilePath(),
+            "Resolve conflicting dependency requirements before updating the lockfile.",
+          );
+        }
+      }
+
       this.ensurePackageManagerDirectory(targetDir, targetDirLabel);
       const localLock = options.global ? undefined : this.loadLockFile();
       if (options.global) {
@@ -2948,7 +3441,7 @@ export class PackageManager {
         }
         this.writeArchiveProvenance(cachedArchivePath, packageDir, manifest);
       } else {
-        this.recordLocalInstall(manifest, installPath, lockSource, localLock);
+        this.recordLocalInstall(manifest, installPath, lockSource, localLock, archiveSha256);
       }
 
       compilerLog.info(`✓ Installed ${manifest.name}@${manifest.version}`);
@@ -2957,11 +3450,13 @@ export class PackageManager {
         compilerLog.info(`Location: ${installPath}`);
       }
 
+      this.reconcilingPackages.delete(manifest.name);
       this.installPackageDependencies(
         manifest,
         options,
         [...installStack, manifest.name],
         dependencyBaseDir,
+        sourceContext.lockedPackages,
       );
     } finally {
       // Clean up temp directory
@@ -3178,6 +3673,7 @@ export class PackageManager {
     options: PackageOptionsVerbose,
     installStack: string[],
     dependencyBaseDir: string,
+    lockedPackages?: PackageLockFile["packages"],
   ): void {
     const deps = manifest.dependencies || {};
     const entries = Object.entries(deps);
@@ -3188,10 +3684,12 @@ export class PackageManager {
     );
 
     for (const [name, source] of entries) {
+      const locked = lockedPackages?.[name];
       const resolved = this.resolveDependencySource(
         name,
-        source,
-        dependencyBaseDir,
+        locked?.source ?? source,
+        locked ? this.projectRoot : dependencyBaseDir,
+        !options.global,
       );
       this.install(
         resolved.packageSource,
@@ -3201,7 +3699,7 @@ export class PackageManager {
         },
         installStack,
         name,
-        { lockSource: resolved.lockSource },
+        { lockSource: resolved.lockSource, expectedLockEntry: locked, lockedPackages },
       );
     }
   }
@@ -3220,7 +3718,41 @@ export class PackageManager {
     return undefined;
   }
 
-  private resolveGlobalPackageSource(packageSource: string): string | null {
+  private localVersionRequirements(packageName: string): { owner: string; requirement: string }[] {
+    const requirements: { owner: string; requirement: string }[] = [];
+    const add = (manifest: PackageManifest, root = false): void => {
+      const sources = root
+        ? [manifest.dependencies, manifest.devDependencies]
+        : [manifest.dependencies];
+      for (const dependencies of sources) {
+        const source = dependencies?.[packageName];
+        const archive = source && isPackageFileSource(this.stripPackageFileSourcePrefix(source))
+          ? parsePackageTarballName(this.getPackageSourceBasename(this.stripPackageFileSourcePrefix(source)))
+          : undefined;
+        let requirement: string | undefined;
+        if (source && isVersionSelectorSpec(source)) requirement = source;
+        else if (archive?.name === packageName) requirement = archive.version;
+        if (requirement) {
+          requirements.push({ owner: manifest.name, requirement });
+        }
+      }
+    };
+    if (this.tryLstat(path.join(this.projectRoot, "bpl.json"))) {
+      add(this.loadManifest(this.projectRoot), true);
+    }
+    if (this.readPackageManagerDirectoryStats(this.localPackageDir, "Local package directory")) {
+      for (const name of fs.readdirSync(this.localPackageDir)) {
+        if (name === packageName || name.startsWith(".") || this.reconcilingPackages.has(name)) continue;
+        const directory = path.join(this.localPackageDir, name);
+        const stat = this.tryLstat(directory);
+        if (!stat?.isDirectory() || stat.isSymbolicLink() || !this.tryLstat(path.join(directory, "bpl.json"))) continue;
+        add(this.loadManifest(directory));
+      }
+    }
+    return requirements;
+  }
+
+  private resolveGlobalPackageSource(packageSource: string, local = false): string | null {
     if (
       !this.readPackageManagerDirectoryStats(
         this.globalPackageDir,
@@ -3251,6 +3783,7 @@ export class PackageManager {
       return this.resolveGlobalPackageVersionSource(
         installSpec.name,
         installSpec.versionSpec,
+        local,
       );
     }
 
@@ -3265,10 +3798,24 @@ export class PackageManager {
   private resolveGlobalPackageVersionSource(
     packageName: string,
     versionSpec: string,
+    local = false,
   ): string {
-    const matching = this.findGlobalPackageTarballs(packageName).filter((entry) =>
+    const requested = this.findGlobalPackageTarballs(packageName).filter((entry) =>
       satisfiesVersionSelector(entry.versionText, versionSpec),
     );
+    const constraints = local ? this.localVersionRequirements(packageName) : [];
+    const matching = requested.filter((entry) => constraints.every(({ requirement }) =>
+      satisfiesVersionSelector(entry.versionText, requirement),
+    ));
+
+    if (requested.length > 0 && matching.length === 0) {
+      throw new CompilerError(
+        `Dependency version conflict for ${packageName}@${versionSpec}`,
+        constraints.map(({ owner, requirement }) => `${owner} requires ${requirement}`).join("; "),
+        { file: this.projectRoot, startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+        PACKAGE_DEPENDENCY_VERSION_CONFLICT_CODE,
+      );
+    }
 
     if (matching.length === 0) {
       throw new CompilerError(
@@ -3898,6 +4445,11 @@ export class PackageManager {
     }
 
     const manifest = this.loadManifest(packagePath);
+    const projectManifestPath = path.join(this.projectRoot, "bpl.json");
+    const projectManifest =
+      !options.global && this.tryLstat(projectManifestPath)
+        ? this.loadManifest(this.projectRoot)
+        : undefined;
     const localLock =
       !options.global && this.tryLstat(this.getLockFilePath())
         ? this.loadLockFile()
@@ -3982,6 +4534,18 @@ export class PackageManager {
 
     if (!options.global) {
       this.removeLocalLockEntry(manifest.name, localLock);
+      if (
+        projectManifest &&
+        (projectManifest.dependencies?.[manifest.name] !== undefined ||
+          projectManifest.devDependencies?.[manifest.name] !== undefined)
+      ) {
+        delete projectManifest.dependencies?.[manifest.name];
+        delete projectManifest.devDependencies?.[manifest.name];
+        this.writeFileAtomically(
+          projectManifestPath,
+          JSON.stringify(projectManifest, null, 2) + "\n",
+        );
+      }
     }
 
     compilerLog.info(`✓ Uninstalled ${manifest.name}@${manifest.version}`);
@@ -4479,7 +5043,7 @@ export class PackageManager {
 
   repairLockFile(): PackageLockRepairResult {
     const existingLock = this.loadLockFile();
-    const nextLock: PackageLockFile = { lockfileVersion: 1, packages: {} };
+    const nextLock: PackageLockFile = { ...existingLock, packages: {} };
     const updated: string[] = [];
     const installedPackages = this.list({ global: false }).sort(
       (left, right) =>
@@ -4526,7 +5090,9 @@ export class PackageManager {
         version: pkg.manifest.version,
         source:
           existing?.source ?? `${pkg.manifest.name}-${pkg.manifest.version}.tgz`,
-        hash: pkg.hash,
+        hash: this.calculatePackageHash(pkg.path, true),
+        hashAlgorithm: "sha256-tree-v2" as const,
+        dependencies: Object.keys(pkg.manifest.dependencies ?? {}).sort(),
       };
 
       nextLock.packages[pkg.manifest.name] = nextEntry;

@@ -57,7 +57,7 @@ class ResolveCountingTypeChecker extends TypeChecker {
 }
 
 describe("TypeChecker", () => {
-  it("keeps known builtin and generic-like names off scope resolution", () => {
+  it("checks generic-like names for shadowing while keeping builtin names off scope resolution", () => {
     const location = {
       file: "test.bpl",
       startLine: 1,
@@ -76,17 +76,24 @@ describe("TypeChecker", () => {
     };
 
     for (const name of ["int", "T"]) {
-      checker.ensureKnownType({
+      const annotation: AST.BasicTypeNode = {
         kind: "BasicType",
         name,
         genericArgs: [],
         pointerDepth: 0,
         arrayDimensions: [],
         location,
-      });
+      };
+      if (name === "T") {
+        expect(() => checker.ensureKnownType(annotation)).toThrow(
+          "Undefined type 'T'",
+        );
+      } else {
+        checker.ensureKnownType(annotation);
+      }
     }
 
-    expect(resolvedNames).toEqual([]);
+    expect(resolvedNames).toEqual(["T"]);
   });
 
   it("defers implicit primitive wrapper imports for programs that only use builtin aliases", () => {
@@ -1743,7 +1750,7 @@ describe("TypeChecker", () => {
     );
     const binaryStart = source.indexOf("export function checkBinary");
     const firstResolverCall = source.indexOf(
-      "this.findOperatorOverload(leftType, methodName, [rightType])",
+      "this.findOperatorOverload(",
       binaryStart,
     );
     const binaryGuard = source.indexOf(

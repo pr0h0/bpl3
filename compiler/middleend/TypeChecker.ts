@@ -1,3 +1,11 @@
+import {
+  isConstantArrayStorage,
+  isTemporaryArrayElement,
+} from "../common/ArrayElementStorage";
+import {
+  isSliceTypeNode,
+  lowerImplicitConversion,
+} from "./lowering/ImplicitConversions";
 /**
  * TypeChecker - Main type checking class for BPL
  * Extends TypeCheckerBase and uses modular checker functions
@@ -12,10 +20,12 @@ import {
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
 import {
+  ADDRESS_OF_CONSTANT_CODE,
   ASSIGNMENT_TARGET_CONSTANT_CODE,
   ASSIGNMENT_TARGET_INVALID_CODE,
   ASSIGNMENT_TYPE_MISMATCH_CODE,
   BITWISE_OPERAND_TYPE_MISMATCH_CODE,
+  CALL_ARGUMENT_TYPE_MISMATCH_CODE,
   BUILTIN_TYPE_REDEFINITION_CODE,
   ENUM_VARIANT_FIELD_TYPE_MISMATCH_CODE,
   ENUM_VARIANT_FIELD_UNKNOWN_CODE,
@@ -30,7 +40,10 @@ import {
   VOID_TYPE_INVALID_CODE,
 } from "./TypeCheckerBase";
 import { KNOWN_TYPES, TypeUtils } from "./TypeUtils";
-import { OverloadResolver } from "./OverloadResolver";
+import {
+  OverloadResolver,
+  rejectConstantOperatorAddress,
+} from "./OverloadResolver";
 import { ImportHandler } from "./ImportHandler";
 import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import type { CheckerContext } from "./CheckerContext";
@@ -319,6 +332,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     expectedType?: AST.TypeNode;
     inferredTypes: AST.TypeNode[];
     inferredValues?: AST.Expression[];
+    retainedScope?: SymbolTable;
   }[] = [];
 
   constructor(
@@ -776,7 +790,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   // ========== Expression Checking ==========
 
-  public checkExpression(expr: AST.Expression): AST.TypeNode | undefined {
+  public checkExpression(
+    expr: AST.Expression,
+    indexAssignmentTarget = false,
+  ): AST.TypeNode | undefined {
     const previousResolvedType = expr.resolvedType;
     let type: AST.TypeNode | undefined;
     switch (expr.kind) {
@@ -805,7 +822,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         type = CallChecker.checkMember.call(this, expr);
         break;
       case "Index":
-        type = CallChecker.checkIndex.call(this, expr);
+        type = CallChecker.checkIndex.call(this, expr, !indexAssignmentTarget);
         break;
       case "Ternary":
         type = ExprChecker.checkTernary.call(this, expr);
@@ -884,7 +901,81 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Variable Declaration ==========
 
   private checkVariableDecl(decl: AST.VariableDecl): void {
-    StmtChecker.checkVariableDecl.call(this, decl);
+    const scope = this.currentScope;
+    try {
+      StmtChecker.checkVariableDecl.call(this, decl);
+    } catch (error) {
+      // A known declared type remains useful after an invalid initializer.
+      // Keep that binding during diagnostic collection, without inventing a
+      // type for unknown declarations or replacing an existing declaration.
+      if (
+        this.collectAllErrors &&
+        error instanceof CompilerError &&
+        typeof decl.name === "string" &&
+        decl.resolvedType &&
+        !scope.getInCurrentScope(decl.name)
+      ) {
+        scope.define({
+          name: decl.name,
+          kind: "Variable",
+          type: decl.resolvedType,
+          declaration: decl,
+          isConst: decl.isConst,
+          used: true,
+        });
+      }
+      if (
+        this.collectAllErrors &&
+        error instanceof CompilerError &&
+        Array.isArray(decl.name)
+      ) {
+        const recoverTarget = (target: AST.DestructuringPattern): void => {
+          if (Array.isArray(target)) {
+            for (const nested of target) recoverTarget(nested);
+            return;
+          }
+          if (target.name === "_" || !target.type) return;
+
+          const existing = scope.getInCurrentScope(target.name);
+          if (existing) {
+            // Suppress secondary unused errors only for this declaration.
+            if (existing.declaration === target.bindingDeclaration) {
+              existing.used = true;
+            }
+            return;
+          }
+
+          let type: AST.TypeNode;
+          try {
+            this.ensureKnownType(target.type);
+            type = this.resolveType(target.type);
+          } catch (secondary) {
+            if (!(secondary instanceof CompilerError)) throw secondary;
+            return; // No usable type: preserve the original diagnostic.
+          }
+          const binding: AST.VariableDecl = {
+            kind: "VariableDecl",
+            name: target.name,
+            typeAnnotation: target.type,
+            resolvedType: type,
+            isGlobal: decl.isGlobal,
+            isConst: decl.isConst,
+            location: decl.location,
+          };
+          target.bindingDeclaration = binding;
+          scope.define({
+            name: target.name,
+            kind: "Variable",
+            type,
+            declaration: binding,
+            isConst: decl.isConst,
+            used: true,
+          });
+        };
+        for (const target of decl.name) recoverTarget(target);
+      }
+      throw error;
+    }
   }
 
   // ========== Function Body Checking ==========
@@ -1005,6 +1096,15 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
     this.checkFunctionAttributes(decl, parentStruct);
 
+    // Validate signature names before value parameters can shadow type names.
+    for (const param of decl.params) this.ensureKnownType(param.type);
+    this.ensureKnownType(decl.returnType);
+    const parameterTypes = decl.params.map((param) =>
+      this.resolveType(param.type),
+    );
+    const returnType = this.resolveType(decl.returnType);
+    const returnsVoid = TypeUtils.isVoidType(returnType);
+
     // Add params to scope
     const paramNames = decl.params.length > 1 ? new Set<string>() : undefined;
     for (let i = 0; i < decl.params.length; i++) {
@@ -1023,7 +1123,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         paramNames.add(param.name);
       }
 
-      let paramType = this.resolveType(param.type);
+      let paramType = parameterTypes[i]!;
 
       if (
         paramType.kind === "BasicType" &&
@@ -1053,7 +1153,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
         // The following parameter must be of type int
         const countParam = decl.params[i + 1]!;
-        const countType = this.resolveType(countParam.type);
+        const countType = parameterTypes[i + 1]!;
         if (
           countType.kind !== "BasicType" ||
           (countType.name !== "int" && countType.name !== "i32") ||
@@ -1090,12 +1190,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     this.rejectEscapingSpecPointer(
-      decl.returnType,
+      returnType,
       "a return type",
       decl.location,
     );
 
-    this.currentFunctionReturnType = decl.returnType;
+    this.currentFunctionReturnType = returnType;
     const prevReboundParameters = this.reboundParameters;
     this.reboundParameters = collectReboundParameters(decl);
 
@@ -1118,11 +1218,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
     }
     // Warnings alone must not suppress a real missing-return error.
-    if (
-      !bodyHasErrors &&
-      decl.returnType.kind === "BasicType" &&
-      decl.returnType.name !== "void"
-    ) {
+    if (!bodyHasErrors && !returnsVoid) {
       if (!StmtChecker.checkAllPathsReturn.call(this, decl.body)) {
         throw new CompilerError(
           `Function '${decl.name}' may not return a value on all code paths`,
@@ -1209,7 +1305,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       ) {
         throw new CompilerError(
           `Method '${method.name}' in struct '${structDecl.name}' has incorrect return type`,
-          `Expected '${this.typeToString(expectedReturnType)}', got '${this.typeToString(resolvedActualReturnType)}'`,
+          `Expected '${this.formatDiagnosticType(expectedReturnType)}', got '${this.formatDiagnosticType(resolvedActualReturnType)}'`,
           structMethod.location,
         );
       }
@@ -1232,7 +1328,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         if (!this.areTypesCompatible(expectedParamType, actualParamType)) {
           throw new CompilerError(
             `Parameter '${method.params[i]!.name}' of method '${method.name}' has incorrect type`,
-            `Expected '${this.typeToString(expectedParamType)}', got '${this.typeToString(actualParamType)}'`,
+            `Expected '${this.formatDiagnosticType(expectedParamType)}', got '${this.formatDiagnosticType(actualParamType)}'`,
             structMethod.params[i]!.type.location,
           );
         }
@@ -1482,9 +1578,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         this.addError(
           new CompilerError(
             `Invalid override of method '${method.name}' in struct '${decl.name}'`,
-            `Override return type '${this.typeToString(
+            `Override return type '${this.formatDiagnosticType(
               method.returnType,
-            )}' must match inherited return type '${this.typeToString(
+            )}' must match inherited return type '${this.formatDiagnosticType(
               parentMethod.returnType,
             )}'.`,
             method.location,
@@ -1508,6 +1604,15 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   }
 
   private checkStructBody(decl: AST.StructDecl): void {
+    const previousScope = this.currentScope;
+    try {
+      this.checkStructBodyInScope(decl);
+    } finally {
+      this.currentScope = previousScope;
+    }
+  }
+
+  private checkStructBodyInScope(decl: AST.StructDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
     // Check for circular inheritance FIRST, before any type resolution
@@ -1798,6 +1903,15 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Enum Body Checking ==========
 
   private checkEnumBody(decl: AST.EnumDecl): void {
+    const previousScope = this.currentScope;
+    try {
+      this.checkEnumBodyInScope(decl);
+    } finally {
+      this.currentScope = previousScope;
+    }
+  }
+
+  private checkEnumBodyInScope(decl: AST.EnumDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
     // Check for empty enum
@@ -1877,10 +1991,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (variant.dataType) {
         if (variant.dataType.kind === "EnumVariantTuple") {
           for (const type of variant.dataType.types) {
+            this.ensureKnownType(type);
             this.resolveType(type);
           }
         } else if (variant.dataType.kind === "EnumVariantStruct") {
           for (const field of variant.dataType.fields) {
+            this.ensureKnownType(field.type);
             this.resolveType(field.type);
           }
         }
@@ -1913,6 +2029,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     // Validate inheritance list
     if (decl.extends) {
       for (const parentType of decl.extends) {
+        if (
+          parentType.kind !== "BasicType" ||
+          parentType.pointerDepth !== 0 ||
+          parentType.arrayDimensions.length > 0
+        ) {
+          throw new CompilerError(
+            "Spec inheritance requires a named spec type",
+            "Use a named spec without tuple, callable, pointer or array wrappers.",
+            parentType.location || decl.location,
+          );
+        }
         // Check for self-extension
         if (parentType.kind === "BasicType" && parentType.name === decl.name) {
           throw new CompilerError(
@@ -1943,6 +2070,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         this.resolveType(parentType, false);
       }
     }
+
+    this.validateSpecTypes(decl);
 
     // BUG-129: Check for duplicate method signatures
     const methodSignatures =
@@ -1995,10 +2124,116 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
+  private validateSpecTypes(decl: AST.SpecDecl): void {
+    const defineParameters = (parameters: AST.GenericParam[]): void => {
+      const parameterNames =
+        parameters.length > 1 ? new Set<string>() : undefined;
+      for (const parameter of parameters) {
+        if (parameterNames?.has(parameter.name)) {
+          throw new CompilerError(
+            `Duplicate generic type parameter '${parameter.name}'`,
+            "Each spec or method generic parameter list must contain unique names.",
+            parameter.location || decl.location,
+            SYMBOL_ALREADY_DEFINED_CODE,
+          );
+        }
+        parameterNames?.add(parameter.name);
+        this.defineSymbol(
+          parameter.name,
+          "TypeAlias",
+          {
+            kind: "BasicType",
+            name: parameter.name,
+            genericArgs: [],
+            pointerDepth: 0,
+            arrayDimensions: [],
+            location: parameter.location || decl.location,
+          },
+          {
+            kind: "GenericParam",
+            location: decl.location,
+            ...parameter,
+          } as AST.ASTNode,
+        );
+      }
+    };
+
+    const declarationScope = this.currentScope;
+    try {
+      if (decl.genericParams.length > 0) {
+        this.currentScope = this.currentScope.enterScope();
+        defineParameters(decl.genericParams);
+      }
+      for (const parent of decl.extends) {
+        if (parent.kind === "BasicType") {
+          for (const argument of parent.genericArgs)
+            this.ensureKnownType(argument);
+        }
+      }
+      for (const method of decl.methods) {
+        const specScope = this.currentScope;
+        try {
+          if (method.genericParams.length > 0) {
+            this.currentScope = this.currentScope.enterScope();
+            defineParameters(method.genericParams);
+          }
+          for (const parameter of method.params) {
+            this.ensureKnownType(parameter.type);
+          }
+          if (method.returnType) this.ensureKnownType(method.returnType);
+        } finally {
+          this.currentScope = specScope;
+        }
+      }
+    } finally {
+      this.currentScope = declarationScope;
+    }
+  }
+
   // ========== Type Alias Checking ==========
 
   private checkTypeAlias(decl: AST.TypeAliasDecl): void {
     this.ensureNotBuiltinTypeRedefinition(decl.name, decl.location);
+
+    const previousScope = this.currentScope;
+    try {
+      if (decl.genericParams.length > 0) {
+        this.currentScope = this.currentScope.enterScope();
+        const parameterNames =
+          decl.genericParams.length > 1 ? new Set<string>() : undefined;
+        for (const parameter of decl.genericParams) {
+          if (parameterNames?.has(parameter.name)) {
+            throw new CompilerError(
+              `Duplicate generic type parameter '${parameter.name}'`,
+              `The generic type parameter '${parameter.name}' is declared multiple times in type alias '${decl.name}'.`,
+              parameter.location || decl.location,
+              SYMBOL_ALREADY_DEFINED_CODE,
+            );
+          }
+          parameterNames?.add(parameter.name);
+          this.defineSymbol(
+            parameter.name,
+            "TypeAlias",
+            {
+              kind: "BasicType",
+              name: parameter.name,
+              genericArgs: [],
+              pointerDepth: 0,
+              arrayDimensions: [],
+              location: parameter.location || decl.location,
+            },
+            {
+              kind: "GenericParam",
+              location: decl.location,
+              ...parameter,
+            } as AST.ASTNode,
+          );
+        }
+      }
+      this.ensureKnownType(decl.type);
+    } finally {
+      this.currentScope = previousScope;
+    }
 
     const resolved = this.resolveType(decl.type);
     if (!this.currentScope.getInCurrentScope(decl.name)) {
@@ -2016,6 +2251,18 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // These need to remain in the main class due to complexity
 
   public checkIsMutable(expr: AST.Expression): void {
+    if (isTemporaryArrayElement(expr, (type) => this.resolveType(type))) {
+      throw new CompilerError(
+        "Cannot assign to an element of a temporary array",
+        "Store the array in a local variable before modifying its elements.",
+        expr.location,
+        ASSIGNMENT_TARGET_INVALID_CODE,
+      );
+    }
+    if (expr.kind === "Group") {
+      this.checkIsMutable(expr.expression);
+      return;
+    }
     if (
       (expr.kind === "Identifier" || expr.kind === "Member") &&
       expr.resolvedDeclaration?.kind === "VariableDecl" &&
@@ -2058,6 +2305,16 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (objType && (objType as AST.BasicTypeNode).pointerDepth > 0) {
         return;
       }
+      if (
+        objType &&
+        isSliceTypeNode(objType) &&
+        isTemporaryArrayElement(index.object, (type) => this.resolveType(type)) &&
+        !isConstantArrayStorage(index.object, (type) => this.resolveType(type))
+      ) {
+        // Modifying borrowed elements reads the temporary slice descriptor;
+        // it does not modify the temporary array that contained it.
+        return;
+      }
       this.checkIsMutable(index.object);
     } else if (expr.kind === "TupleLiteral") {
       const tuple = expr as AST.TupleLiteralExpr;
@@ -2071,6 +2328,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
+  /** Validate assignment targets and select the setter invoked by an index store. */
   private checkAssignment(expr: AST.AssignmentExpr): AST.TypeNode | undefined {
     // Check if assignee is an l-value
     if (
@@ -2111,17 +2369,30 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
     }
 
-    const targetType = this.checkExpression(expr.assignee);
+    // A simple indexed store invokes only its setter, so validate getter-call
+    // argument rules only for actual reads, including reads nested in the target.
+    const targetType = this.checkExpression(
+      expr.assignee,
+      expr.assignee.kind === "Index" && expr.operator.type === TokenType.Equal,
+    );
 
     // Check const correctness
     this.checkIsMutable(expr.assignee);
 
-    const valueType = this.checkExpression(expr.value);
+    const initialValueType = this.checkExpression(expr.value);
+    const valueType =
+      targetType && expr.operator.type === TokenType.Equal
+        ? (this.contextualizeArrayLiteral(expr.value, targetType) ??
+          initialValueType)
+        : initialValueType;
     this.rejectOwningCopy(
       expr.value,
       valueType,
       "on the right of an assignment",
       expr.value.location,
+      // Replacement cleanup is unavailable for owning assignments, even when
+      // the RHS is a fresh call, conditional, match or aggregate value.
+      false,
     );
 
     if (targetType && valueType) {
@@ -2154,14 +2425,107 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
       if (!compatible) {
         throw new CompilerError(
-          `Type mismatch in assignment: cannot assign ${this.typeToString(
+          `Type mismatch in assignment: cannot assign ${this.formatDiagnosticType(
             valueType,
-          )} to ${this.typeToString(targetType)}`,
+          )} to ${this.formatDiagnosticType(targetType)}`,
           "The assigned value is not compatible with the target variable's type.",
           expr.location,
           ASSIGNMENT_TYPE_MISMATCH_CODE,
         );
       }
+    }
+    if (
+      targetType &&
+      valueType &&
+      expr.assignee.kind === "Index" &&
+      expr.assignee.operatorOverload
+    ) {
+      const index = expr.assignee;
+      if (expr.operator.type !== TokenType.Equal) {
+        throw new CompilerError(
+          "Compound assignment through overloaded indexing is not supported",
+          "Use a simple indexed assignment to invoke __set__.",
+          expr.location,
+          ASSIGNMENT_TARGET_INVALID_CODE,
+        );
+      }
+      const objectType = index.object.resolvedType!;
+      const rejections: { constantAddress?: boolean } = {};
+      const selected = this.resolveIndexOperator(
+        objectType,
+        "__set__",
+        [index.index.resolvedType!, valueType],
+        rejections,
+      );
+      const setter = selected?.declaration;
+      if (!setter || setter.params.some((parameter) => parameter.isVariadic)) {
+        rejectConstantOperatorAddress(rejections, expr.location);
+        throw new CompilerError(
+          "No compatible __set__ index setter",
+          "Define an instance __set__ method accepting this index and assigned value.",
+          expr.location,
+          CALL_ARGUMENT_TYPE_MISMATCH_CODE,
+        );
+      }
+      const methodType = selected!.signature;
+      const result = methodType.returnType;
+      const returnsVoid =
+        result.kind === "BasicType" &&
+        result.name === "void" &&
+        result.pointerDepth === 0 &&
+        result.arrayDimensions.length === 0;
+      for (const [argument, expected] of [
+        [index.index, methodType.paramTypes[1]!],
+        [expr.value, methodType.paramTypes[2]!],
+      ] as const) {
+        const actual = this.resolveType(argument.resolvedType!);
+        const conversion = lowerImplicitConversion(expected, actual);
+        const takesAddress =
+          expected.kind === "BasicType" &&
+          actual.kind === "BasicType" &&
+          expected.pointerDepth === actual.pointerDepth + 1 &&
+          this.areTypesExactMatch(
+            { ...expected, pointerDepth: expected.pointerDepth - 1 },
+            actual,
+          );
+        if (
+          (takesAddress ||
+            conversion.kind === "array-to-slice" ||
+            conversion.kind === "array-to-pointer") &&
+          isConstantArrayStorage(argument, (type) => this.resolveType(type))
+        ) {
+          throw new CompilerError(
+            "Cannot borrow constant storage for an index setter argument",
+            "Pass mutable storage or use a setter accepting a value.",
+            argument.location,
+            ADDRESS_OF_CONSTANT_CODE,
+          );
+        }
+      }
+      this.rejectOwningCopy(
+        index.index,
+        methodType.paramTypes[1],
+        "into an index setter argument",
+        index.index.location,
+      );
+      this.checkIntegerConstantRange(index.index, methodType.paramTypes[1]!);
+      this.checkIntegerConstantRange(expr.value, methodType.paramTypes[2]!);
+      const receiver = methodType.paramTypes[0]!;
+      if (receiver.kind !== "BasicType" || receiver.pointerDepth === 0) {
+        this.rejectOwningCopy(
+          index.object,
+          objectType,
+          "into an index setter value receiver",
+          index.object.location,
+        );
+      }
+      index.operatorOverload = {
+        methodName: "__set__",
+        methodDeclaration: setter,
+        targetType: objectType,
+        methodType,
+      };
+      return returnsVoid ? targetType : result;
     }
     return targetType;
   }
@@ -2308,9 +2672,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         !this.areTypesCompatible(resolvedExpectedType, valueType)
       ) {
         throw new CompilerError(
-          `Type mismatch for field '${field.name}': expected ${this.typeToString(
+          `Type mismatch for field '${field.name}': expected ${this.formatDiagnosticType(
             expectedType,
-          )}, got ${this.typeToString(valueType)}`,
+          )}, got ${this.formatDiagnosticType(valueType)}`,
           "Field value must match the declared type.",
           field.value.location,
           ENUM_VARIANT_FIELD_TYPE_MISMATCH_CODE,
@@ -2450,7 +2814,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     throw new CompilerError(
-      `Cannot apply ${expr.genericArgs.length} generic arguments to '${this.typeToString(baseType)}'`,
+      `Cannot apply ${expr.genericArgs.length} generic arguments to '${this.formatDiagnosticType(baseType)}'`,
       "Use a generic type or a function with a matching number of generic parameters.",
       expr.location,
       "BPL_GENERIC_INSTANTIATION_INVALID",
@@ -2465,6 +2829,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     argTypes: (AST.TypeNode | undefined)[],
     genericArgs: AST.TypeNode[],
     location: SourceLocation,
+    arguments_?: AST.Expression[],
   ): {
     symbol: Symbol;
     type: AST.FunctionTypeNode;
@@ -2477,21 +2842,94 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       argTypes,
       genericArgs,
       location,
+      arguments_,
     );
   }
 
   // ========== Operator Overload Resolution ==========
 
+  /** Resolve index operators in their defining module before matching arguments. */
+  public resolveIndexOperator(
+    targetType: AST.TypeNode,
+    methodName: "__get__" | "__set__",
+    paramTypes: AST.TypeNode[],
+    rejections?: { constantAddress?: boolean },
+  ):
+    | { declaration: AST.FunctionDecl; signature: AST.FunctionTypeNode }
+    | undefined {
+    const declarations = new Map<AST.FunctionDecl, AST.FunctionDecl>();
+    const selected = this.overloadResolver.findOperatorOverload(
+      targetType,
+      methodName,
+      paramTypes,
+      (type, name) => {
+        const context = this.resolveMemberWithContext(type, name);
+        if (!context) return undefined;
+        return {
+          ...context,
+          members: context.members.map((member) => {
+            if (member.kind !== "FunctionDecl") return member;
+            const signature = CallChecker.resolveMethodTypesInModuleContext(
+              this,
+              member,
+              context.decl.genericParams,
+            );
+            const resolved: AST.FunctionDecl = {
+              ...member,
+              params: member.params.map((parameter, parameterIndex) => ({
+                ...parameter,
+                type: signature.paramTypes[parameterIndex]!,
+              })),
+              returnType: signature.returnType,
+            };
+            declarations.set(resolved, member);
+            return resolved;
+          }),
+        };
+      },
+      rejections,
+    );
+    const declaration = selected ? declarations.get(selected) : undefined;
+    if (!declaration) return undefined;
+    const context = this.resolveMemberWithContext(
+      targetType as AST.BasicTypeNode,
+      methodName,
+    );
+    const signature = CallChecker.resolveMethodTypesInModuleContext(
+      this,
+      declaration,
+      context?.decl.genericParams,
+    );
+    const resolve = (type: AST.TypeNode): AST.TypeNode =>
+      this.resolveType(
+        context?.genericMap?.size
+          ? this.substituteType(type, context.genericMap)
+          : type,
+        false,
+      );
+    return {
+      declaration,
+      signature: {
+        kind: "FunctionType",
+        paramTypes: signature.paramTypes.map(resolve),
+        returnType: resolve(signature.returnType),
+        location: declaration.location,
+      },
+    };
+  }
+
   public findOperatorOverload(
     targetType: AST.TypeNode,
     methodName: string,
     paramTypes: AST.TypeNode[],
+    rejections?: { constantAddress?: boolean },
   ): AST.FunctionDecl | undefined {
     return this.overloadResolver.findOperatorOverload(
       targetType,
       methodName,
       paramTypes,
       this.resolveMemberWithContext.bind(this),
+      rejections,
     );
   }
 
@@ -2977,6 +3415,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
+  /** Check an arm, unifying every value-producing block yield without narrowing. */
   public checkMatchArmBody(
     body: AST.Expression | AST.BlockStmt,
     isStatementPosition: boolean = false,
@@ -2988,16 +3427,37 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         return this.makeVoidType();
       }
       // Push context for collecting return types
-      this.matchContext.push({ inferredTypes: [], inferredValues: [] });
+      this.matchContext.push({
+        inferredTypes: [],
+        inferredValues: [],
+        retainedScope: this.currentScope,
+      });
       try {
         StmtChecker.checkBlock.call(this, body);
         // If we have collected return types, unify them
         const context = this.matchContext[this.matchContext.length - 1]!;
         this.matchYieldValues.set(body, context.inferredValues!);
         if (context.inferredTypes.length > 0) {
-          // For now, just take the first one or check compatibility
-          // Ideally we should unify all of them
-          return context.inferredTypes[0];
+          let resultType = context.inferredTypes[0]!;
+          for (let index = 1; index < context.inferredTypes.length; index++) {
+            const yieldedType = context.inferredTypes[index]!;
+            const value = context.inferredValues?.[index];
+            const commonType = this.unifyMatchResultTypes(
+              resultType,
+              yieldedType,
+              context.inferredValues?.slice(0, index),
+              value ? [value] : [],
+            );
+            if (!commonType) {
+              throw new CompilerError(
+                `Match block yields must have compatible types: ${this.formatDiagnosticType(resultType)} vs ${this.formatDiagnosticType(yieldedType)}`,
+                "All returns that yield a match block value must have compatible types.",
+                body.location,
+              );
+            }
+            resultType = commonType;
+          }
+          return resultType;
         }
 
         // Check if the block diverges (ends with Throw, Break, or Continue)
@@ -3017,7 +3477,16 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         this.matchContext.pop();
       }
     } else {
-      return this.checkExpression(body);
+      const type = this.checkExpression(body);
+      if (!isStatementPosition) {
+        this.rejectOwningCopy(
+          body,
+          type,
+          "out of a match expression arm",
+          body.location,
+        );
+      }
+      return type;
     }
   }
 

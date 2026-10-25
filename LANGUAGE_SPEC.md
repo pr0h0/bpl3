@@ -21,6 +21,13 @@ numbered guides in [docs/](docs/) cover features not described here.
 
 ## 1. Lexical Structure
 
+### Source line endings and coordinates
+
+Source files accept LF, CRLF and standalone CR line endings. Each counts as one
+newline for token, AST and diagnostic locations. Lines and columns are 1-based;
+columns count UTF-16 code units. Source coordinates do not normalize or change
+string literal contents.
+
 ### Comments
 
 - **[R-LEX-1]** A `#` starts a comment that continues to the end of the line.
@@ -58,12 +65,16 @@ multi-line comment
   are separate tokens, so `1 2` is a syntax error.
 - **[R-LEX-6]** A floating-point literal has digits on both sides of the `.`
   (`3.14`). Exponent syntax (`1e3`) and forms such as `.5` are not supported.
-- **[R-LEX-7]** An integer literal has type `int` when its value fits in
-  `i32` and type `long` otherwise. A floating-point literal has the 64-bit
-  floating-point type.
+- **[R-LEX-7]** A nonnegative integer literal has type `int` through
+  `2147483647`, `long` through `9223372036854775807`, and `u64` through
+  `18446744073709551615`. Larger literals are rejected. A leading minus is a
+  unary operator; negating the literal `9223372036854775808` produces the signed
+  `long` minimum. A floating-point literal has the 64-bit floating-point type.
 - **[R-LEX-8]** A string literal `"..."` has type `string`. The escapes `\n`,
-  `\t`, `\r`, `\0`, `\\`, `\'`, `\"`, and `\xHH` produce the corresponding
-  character.
+  `\t`, `\r`, `\0`, `\\`, `\'`, `\"`, `\xHH`, and `\uHHHH` produce the corresponding
+  character/code unit. Hex escapes decode only when all required digits are
+  present and valid. Unknown, malformed and incomplete escapes retain their
+  backslash spelling; subsequent complete escapes are processed independently.
 - **[R-LEX-9]** A character literal `'c'` has type `char` and must contain
   exactly one character after escape processing.
 - **[R-LEX-10]** `true` and `false` are `bool` literals. `null` and `nullptr`
@@ -388,7 +399,11 @@ frame main() ret int {
 - **[R-FN-8]** A generic function `frame name<T, U>(...)` is instantiated with
   explicit type arguments at each call, such as `identity<int>(1)`. Type
   arguments are not inferred from call arguments, and a call with the wrong
-  number of type arguments is rejected.
+  number of type arguments is rejected. The opening `<` must immediately follow
+  the preceding name/base, with no whitespace or comment between them. This
+  applies to generic declarations, types, calls, literals and standalone generic
+  references. `f<T>` is a generic reference; `a < b` uses comparison syntax.
+  Whitespace and comments inside `<...>` and after its closing `>` are allowed.
 - **[R-FN-9]** A constrained type parameter `<T: Spec>` accepts only types that
   implement `Spec`, whether the spec is listed directly, after a parent struct,
   or on a parent struct.
@@ -458,6 +473,15 @@ struct Box<T> {
 ```
 
 ## 7.1 Specs - Interfaces
+
+Spec method parameter and return types must name existing types or generic
+parameters declared by the spec or that method. This also applies to types
+nested in tuples, callbacks and generic arguments. Method generic parameters
+are scoped to their own signature; `Self` denotes the implementing type. Each
+spec or method generic parameter list must use unique names. Inherited spec
+arguments must also name existing types or the child spec's declared generic
+parameters. Parent entries must be named specs, optionally with generic
+arguments; tuple, callable, pointer and array types cannot be spec parents.
 
 - **[R-SPEC-1]** `spec Name { frame method(this: *Self, ...) ret Type; }`
   declares required methods, where `Self` is the implementing struct.

@@ -452,9 +452,8 @@
             // Hex escape: \xHH
             if (i + 3 < inner.length) {
               const hex = inner.slice(i + 2, i + 4);
-              const code = parseInt(hex, 16);
-              if (!isNaN(code)) {
-                result += String.fromCharCode(code);
+              if (/^[0-9a-fA-F]{2}$/.test(hex)) {
+                result += String.fromCharCode(parseInt(hex, 16));
                 i += 4;
                 break;
               }
@@ -468,9 +467,8 @@
             // Unicode escape: \uHHHH
             if (i + 5 < inner.length) {
               const hex = inner.slice(i + 2, i + 6);
-              const code = parseInt(hex, 16);
-              if (!isNaN(code)) {
-                result += String.fromCharCode(code);
+              if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+                result += String.fromCharCode(parseInt(hex, 16));
                 i += 6;
                 break;
               }
@@ -637,6 +635,8 @@
 
   function parseChar(raw) {
     const inner = raw.slice(1, -1);
+    // Escape decoding must not discard trailing characters before the width check.
+    if (inner.startsWith("\\") && inner.length !== 2) return inner;
     if (inner.startsWith("\\")) {
       const esc = inner[1];
       switch (esc) {
@@ -755,7 +755,7 @@ FunctionAttribute
     }
 
 FunctionDeclaration
-  = attrs:(_ AttributeList _)? K_frame _ name:Identifier _ gen:GenericParamList? _ "(" _ params:ParameterList? _ ")" _ ret:ReturnType? _ body:Block {
+  = attrs:(_ AttributeList _)? K_frame _ name:Identifier gen:GenericParamList? _ "(" _ params:ParameterList? _ ")" _ ret:ReturnType? _ body:Block {
       const genericParams = gen ? gen : [];
       const paramList = params ? params : [];
       const returnType = ret ? ret.returnType : voidType(location());
@@ -765,7 +765,7 @@ FunctionDeclaration
     }
 
 StructDeclaration
-  = K_struct _ name:Identifier _ gen:GenericParamList? _ inheritance:(_ ":" _ TypeList)? _ "{" _ members:StructMemberList? _ "}" {
+  = K_struct _ name:Identifier gen:GenericParamList? _ inheritance:(_ ":" _ TypeList)? _ "{" _ members:StructMemberList? _ "}" {
       const genericParams = gen ? gen : [];
       const inheritanceList = inheritance ? inheritance[3] : [];
       const memberList = members ? members : [];
@@ -773,7 +773,7 @@ StructDeclaration
     }
 
 EnumDeclaration
-  = K_enum _ name:Identifier _ gen:GenericParamList? _ ext:(_ ":" _ TypeList)? _ "{" _ content:EnumContent? _ "}" {
+  = K_enum _ name:Identifier gen:GenericParamList? _ ext:(_ ":" _ TypeList)? _ "{" _ content:EnumContent? _ "}" {
       const genericParams = gen ? gen : [];
       const implementsList = ext ? ext[3] : [];
       const variantList = content ? content.variants : [];
@@ -823,7 +823,7 @@ StructField
     }
 
 SpecDeclaration
-  = K_spec _ name:Identifier _ gen:GenericParamList? _ ext:(_ ":" _ TypeList)? _ "{" _ methods:SpecMethodList? _ "}" {
+  = K_spec _ name:Identifier gen:GenericParamList? _ ext:(_ ":" _ TypeList)? _ "{" _ methods:SpecMethodList? _ "}" {
       const genericParams = gen ? gen : [];
       const extendsList = ext ? ext[3] : [];
       const methodList = methods ? methods : [];
@@ -836,7 +836,7 @@ SpecMethodList
     }
 
 SpecMethod
-  = K_frame _ name:Identifier _ gen:GenericParamList? _ "(" _ params:ParameterList? _ ")" _ ret:(_ K_ret _ Type)? _ ";" {
+  = K_frame _ name:Identifier gen:GenericParamList? _ "(" _ params:ParameterList? _ ")" _ ret:(_ K_ret _ Type)? _ ";" {
       const genericParams = gen ? gen : [];
       const paramList = params ? params : [];
       const returnType = ret ? ret[3] : undefined;
@@ -854,7 +854,7 @@ StructMember
   / name:Identifier _ ":" _ type:Type &(_ "}") { return { kind: "StructField", name, type, location: location() }; }
 
 TypeAlias
-  = K_type _ name:Identifier _ gen:GenericParamList? _ "=" _ type:Type _ ";" {
+  = K_type _ name:Identifier gen:GenericParamList? _ "=" _ type:Type _ ";" {
       const genericParams = gen ? gen : [];
       return typeAlias(name, genericParams, type, location());
     }
@@ -1240,7 +1240,7 @@ Postfix
     }
 
 PostfixTail
-  = _ tail:PostfixTailAfterTrivia {
+  = PostfixTrivia tail:PostfixTailAfterTrivia {
       tail.startPos = peg$savedPos;
       tail.endPos = offset();
       return tail;
@@ -1268,6 +1268,11 @@ PostfixTailAfterTrivia
   / op:("++" / "--") {
       return { type: "postfixUnary", operator: op, operatorType: operatorTypeMap[op] || "Unknown" };
     }
+
+// Generic application is adjacent; other postfix operators may follow trivia.
+PostfixTrivia
+  = &"<"
+  / _ !"<"
 
 ArgumentList
   = head:Expression tail:(_ "," _ Expression)* _ ","? {
@@ -1526,7 +1531,7 @@ ArrayElements
   = head:Expression tail:(_ "," _ Expression)* _ ","? { return [head, ...tail.map(t => t[3])]; }
 
 StructLiteral
-  = name:Identifier _ gen:GenericArgs? _ "{" _ fields:StructLiteralFields? _ "}" {
+  = name:Identifier gen:GenericArgs? _ "{" _ fields:StructLiteralFields? _ "}" {
       return structLiteral(name, fields || [], location(), gen || []);
     }
 
@@ -1660,14 +1665,14 @@ ParenthesizedType
     }
 
 FunctionType
-  = K_Func _ "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" arr:ArraySuffix* { 
+  = K_Func "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" arr:ArraySuffix* { 
       const t = functionType(ret, params || [], location());
       t.arrayDimensions = arr.length ? arr.map(a => a) : [];
       return t;
     }
 
 LambdaType
-  = K_Lambda _ "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" arr:ArraySuffix* { 
+  = K_Lambda "<" _ ret:Type _ ">" _ "(" _ params:TypeList? _ ")" arr:ArraySuffix* { 
       const t = lambdaType(ret, params || [], location());
       t.arrayDimensions = arr.length ? arr.map(a => a) : [];
       return t;

@@ -58,6 +58,9 @@ export interface GenericParseResult<T> {
   type: "Program";
   tokens: T[];
   startRule: string;
+  /** Position after all source text, including trailing whitespace and comments. */
+  endLine: number;
+  endColumn: number;
 }
 
 export interface ParseResult extends GenericParseResult<TokenNode> {}
@@ -244,9 +247,7 @@ function classifyIdentifierLike(
         case 2:
           return value === "if" ? IF_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 6:
-          return value === "import"
-            ? IMPORT_TOKEN_KIND
-            : IDENTIFIER_TOKEN_KIND;
+          return value === "import" ? IMPORT_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     case 108:
@@ -276,9 +277,7 @@ function classifyIdentifierLike(
         case 3:
           return value === "ret" ? RET_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
         case 6:
-          return value === "return"
-            ? RETURN_TOKEN_KIND
-            : IDENTIFIER_TOKEN_KIND;
+          return value === "return" ? RETURN_TOKEN_KIND : IDENTIFIER_TOKEN_KIND;
       }
       return IDENTIFIER_TOKEN_KIND;
     case 115:
@@ -393,6 +392,8 @@ export class GenericParser {
       type: "Program",
       tokens,
       startRule: this.grammar.startRule,
+      endLine: this.line,
+      endColumn: this.column,
     };
   }
 
@@ -412,13 +413,13 @@ export class GenericParser {
 
       while (position < sourceLength) {
         const ch = source[position]!;
-        if (ch === " " || ch === "\t" || ch === "\r") {
+        if (ch === " " || ch === "\t") {
           position += 1;
           column += 1;
           continue;
         }
-        if (ch === "\n") {
-          position += 1;
+        if (ch === "\n" || ch === "\r") {
+          position += ch === "\r" && source[position + 1] === "\n" ? 2 : 1;
           line += 1;
           column = 1;
           continue;
@@ -449,6 +450,8 @@ export class GenericParser {
       type: "Program",
       tokens,
       startRule: this.grammar.startRule,
+      endLine: this.line,
+      endColumn: this.column,
     };
   }
 
@@ -466,13 +469,23 @@ export class GenericParser {
 
       // multiline comment /# ... #/
       if (this.source.startsWith("/#", this.position)) {
-        const end = this.source.indexOf("#/", this.position + 2);
-        if (end === -1) {
+        let end = this.position + 2;
+        let depth = 1;
+        while (end < this.source.length && depth > 0) {
+          if (this.source.startsWith("/#", end)) {
+            depth++;
+            end += 2;
+          } else if (this.source.startsWith("#/", end)) {
+            depth--;
+            end += 2;
+          } else end++;
+        }
+        if (depth !== 0) {
           throw new Error(
             `Unterminated multiline comment at ${this.line}:${this.column}`,
           );
         }
-        const slice = this.source.slice(this.position, end + 2);
+        const slice = this.source.slice(this.position, end);
         this.advance(slice);
         advanced = true;
         continue;
@@ -480,8 +493,13 @@ export class GenericParser {
 
       // single-line comment # ...
       if (this.source[this.position] === "#") {
-        let end = this.source.indexOf("\n", this.position);
-        if (end === -1) end = this.source.length;
+        let end = this.position;
+        while (
+          end < this.source.length &&
+          this.source[end] !== "\n" &&
+          this.source[end] !== "\r"
+        )
+          end++;
         const slice = this.source.slice(this.position, end);
         this.advance(slice);
         advanced = true;
@@ -494,13 +512,14 @@ export class GenericParser {
 
     while (this.position < this.source.length) {
       const ch = this.source[this.position]!;
-      if (ch === " " || ch === "\t" || ch === "\r") {
+      if (ch === " " || ch === "\t") {
         this.position += 1;
         this.column += 1;
         continue;
       }
-      if (ch === "\n") {
-        this.position += 1;
+      if (ch === "\n" || ch === "\r") {
+        this.position +=
+          ch === "\r" && this.source[this.position + 1] === "\n" ? 2 : 1;
         this.line += 1;
         this.column = 1;
         continue;
@@ -1026,7 +1045,7 @@ export class GenericParser {
     const start = this.position;
     const line = this.line;
     const column = this.column;
-    if (!canContainNewline || value.indexOf("\n") === -1) {
+    if (!canContainNewline || !/[\r\n]/.test(value)) {
       this.position += value.length;
       this.column += value.length;
     } else {
@@ -1078,8 +1097,13 @@ export class GenericParser {
   }
 
   private advance(text: string): void {
-    for (const ch of text) {
-      if (ch === "\n") {
+    // Source locations use JavaScript/UTF-16 offsets, including surrogate pairs.
+    for (let index = 0; index < text.length; index++) {
+      if (
+        text.charCodeAt(index) === 10 ||
+        (text.charCodeAt(index) === 13 &&
+          this.source[this.position + index + 1] !== "\n")
+      ) {
         this.line += 1;
         this.column = 1;
       } else {

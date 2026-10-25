@@ -369,7 +369,7 @@ describe("GitHub Actions workflows", () => {
     expect(correctnessIndex).toBeGreaterThan(ciSuiteIndex);
   });
 
-  test("VS Code extension package test script type-checks tests before Bun", () => {
+  test("VS Code extension package test script builds production and type-checks tests before Bun", () => {
     const extensionPackageJson = JSON.parse(
       readFileSync(join(import.meta.dir, "../vscode-ext/package.json"), "utf8"),
     );
@@ -377,9 +377,13 @@ describe("GitHub Actions workflows", () => {
     expect(extensionPackageJson.scripts["compile:test"]).toBe(
       "tsc --project tsconfig.test.json",
     );
-    expect(extensionPackageJson.scripts.test).toBe(
-      "npm run compile:test && bun test ./src/test",
-    );
+    const commands = extensionPackageJson.scripts.test.split(/\s*&&\s*/);
+    const production = commands.indexOf("npm run compile");
+    const testTypes = commands.indexOf("npm run compile:test");
+    const tests = commands.indexOf("bun test ./src/test");
+    expect(production).toBeGreaterThanOrEqual(0);
+    expect(testTypes).toBeGreaterThan(production);
+    expect(tests).toBeGreaterThan(testTypes);
     expect(extensionPackageJson.dependencies).toHaveProperty(
       "vscode-languageserver-textdocument",
     );

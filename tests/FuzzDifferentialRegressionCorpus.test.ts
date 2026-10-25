@@ -14,12 +14,13 @@ describe("Differential fuzz regression corpus", () => {
   });
 
   for (const file of corpusFiles) {
+    // Each fixture compiles and links twice; cold CI hosts can exceed five seconds.
     test(`${file} behaves the same at -O0 and -O3`, () => {
       const source = readFileSync(join(corpusDir, file), "utf8");
       const result = expectSameBehaviorAtO0AndO3(source);
 
       expect(result.o0.exitCode).toBe(0);
       expect(result.o3.exitCode).toBe(0);
-    });
+    }, 60000);
   }
 });

@@ -61,14 +61,14 @@ export function lexWithGrammar(source: string, filePath: string): Token[] {
   );
 
   if (!hasCommentMarker) {
-    const { tokens } = genericParser.parseWithTokenEmitter(
+    const { tokens, endLine, endColumn } = genericParser.parseWithTokenEmitter(
       createFrontendTokenFromParts,
     );
-    appendEofToken(tokens, filePath);
+    appendEofToken(tokens, filePath, endLine, endColumn);
     return tokens;
   }
 
-  const { tokens } = genericParser.parse();
+  const { tokens, endLine, endColumn } = genericParser.parse();
 
   const mapped = new Array<Token>(tokens.length);
   for (let i = 0; i < tokens.length; i++) {
@@ -86,16 +86,17 @@ export function lexWithGrammar(source: string, filePath: string): Token[] {
     }
   }
 
-  appendEofToken(mapped, filePath);
+  appendEofToken(mapped, filePath, endLine, endColumn);
   return mapped;
 }
 
-function appendEofToken(tokens: Token[], filePath: string): void {
-  const last = tokens[tokens.length - 1];
-  const eofLine = last ? last.line : 1;
-  const eofColumn = last ? last.column + last.lexeme.length : 1;
-
-  tokens.push(new Token(TokenType.EOF, "", null, eofLine, eofColumn, filePath));
+function appendEofToken(
+  tokens: Token[],
+  filePath: string,
+  endLine: number,
+  endColumn: number,
+): void {
+  tokens.push(new Token(TokenType.EOF, "", null, endLine, endColumn, filePath));
 }
 
 function extractComments(
@@ -122,6 +123,7 @@ function extractComments(
   let column = 1;
   let rangeIdx = 0;
   let blockCommentStart = -1;
+  let blockCommentDepth = 0;
   let blockCommentLine = 0;
   let blockCommentColumn = 0;
 
@@ -140,7 +142,11 @@ function extractComments(
     ) {
       const rangeEnd = excludeRanges[rangeIdx]!.end;
       while (position < rangeEnd) {
-        if (source.charCodeAt(position) === 10) {
+        if (
+          source.charCodeAt(position) === 10 ||
+          (source.charCodeAt(position) === 13 &&
+            source.charCodeAt(position + 1) !== 10)
+        ) {
           line++;
           column = 1;
         } else {
@@ -155,6 +161,7 @@ function extractComments(
     if (blockCommentStart < 0) {
       if (currentCode === 47 && source.charCodeAt(position + 1) === 35) {
         blockCommentStart = position;
+        blockCommentDepth = 1;
         blockCommentLine = line;
         blockCommentColumn = column;
         position += 2;
@@ -163,8 +170,13 @@ function extractComments(
       }
 
       if (currentCode === 35) {
-        const lineEnd = source.indexOf("\n", position);
-        const commentEnd = lineEnd < 0 ? sourceLength : lineEnd;
+        let commentEnd = position;
+        while (
+          commentEnd < sourceLength &&
+          source.charCodeAt(commentEnd) !== 10 &&
+          source.charCodeAt(commentEnd) !== 13
+        )
+          commentEnd++;
         comments.push(
           new Token(
             TokenType.Comment,
@@ -179,12 +191,15 @@ function extractComments(
         position = commentEnd;
         continue;
       }
-    } else if (
-      currentCode === 35 &&
-      source.charCodeAt(position + 1) === 47
-    ) {
+    } else if (currentCode === 47 && source.charCodeAt(position + 1) === 35) {
+      blockCommentDepth++;
       position += 2;
       column += 2;
+      continue;
+    } else if (currentCode === 35 && source.charCodeAt(position + 1) === 47) {
+      position += 2;
+      column += 2;
+      if (--blockCommentDepth > 0) continue;
       comments.push(
         new Token(
           TokenType.Comment,
@@ -200,7 +215,10 @@ function extractComments(
     }
 
     position++;
-    if (currentCode === 10) {
+    if (
+      currentCode === 10 ||
+      (currentCode === 13 && source.charCodeAt(position) !== 10)
+    ) {
       line++;
       column = 1;
     } else {
@@ -231,10 +249,7 @@ function createFrontendTokenFromParts(
   column: number,
   file: string,
 ): Token {
-  if (
-    typeCode <= GENERIC_TOKEN_KEYWORD ||
-    typeCode === GENERIC_TOKEN_NULLPTR
-  ) {
+  if (typeCode <= GENERIC_TOKEN_KEYWORD || typeCode === GENERIC_TOKEN_NULLPTR) {
     return {
       type: _type as TokenType,
       lexeme: value,
@@ -343,8 +358,7 @@ function parseNumber(raw: string): number {
       fourthCode <= 57
     ) {
       return (
-        (((firstCode - 48) * 10 + secondCode - 48) * 10 + thirdCode - 48) *
-          10 +
+        (((firstCode - 48) * 10 + secondCode - 48) * 10 + thirdCode - 48) * 10 +
         fourthCode -
         48
       );
@@ -430,9 +444,8 @@ function decodeString(raw: string): string {
           // Hex escape: \xHH
           if (i + 3 < inner.length) {
             const hex = inner.slice(i + 2, i + 4);
-            const code = parseInt(hex, 16);
-            if (!isNaN(code)) {
-              result += String.fromCharCode(code);
+            if (/^[0-9a-fA-F]{2}$/.test(hex)) {
+              result += String.fromCharCode(parseInt(hex, 16));
               i += 4;
               break;
             }
@@ -446,9 +459,8 @@ function decodeString(raw: string): string {
           // Unicode escape: \uHHHH
           if (i + 5 < inner.length) {
             const hex = inner.slice(i + 2, i + 6);
-            const code = parseInt(hex, 16);
-            if (!isNaN(code)) {
-              result += String.fromCharCode(code);
+            if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+              result += String.fromCharCode(parseInt(hex, 16));
               i += 6;
               break;
             }

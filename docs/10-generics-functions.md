@@ -15,6 +15,15 @@ Generic functions allow you to write code that works with multiple types while m
 
 ## Basic Syntax
 
+Generic parameters must be declared in a generic parameter list; a capitalized
+name such as `T` does not declare a type by itself. Function bodies may use
+parameters from their function or an enclosing generic type.
+
+The opening `<` must touch the function name: write `identity<T>`, not
+`identity <T>`. Use the same rule for calls, standalone generic references and
+generic types/literals. Whitespace or a comment before `<` makes it a comparison
+operator in an expression. Spaces and comments inside `<...>` are allowed.
+
 Generic parameters are specified in angle brackets `<T>` after the function name:
 
 ```bpl
@@ -30,6 +39,10 @@ frame identity<T>(val: T) ret T {
 - `<T>` - Generic type parameter(s)
 - `(val: T)` - Parameters using the generic type
 - `ret T` - Return type using the generic type
+
+A call that matches the value-argument count but omits required explicit type
+arguments reports `BPL_GENERIC_ARITY_MISMATCH`, with a reminder that type arguments
+are not inferred. A wrong value-argument count remains a separate diagnostic.
 
 ## Type Parameters
 

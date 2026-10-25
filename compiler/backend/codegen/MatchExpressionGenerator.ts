@@ -15,6 +15,8 @@
 import * as AST from "../../common/AST";
 import { formatFloatingPointLiteral } from "./FloatingPointLiteral";
 import { RTTI } from "../../middleend/RTTI";
+import { getPrimitiveType } from "../../common/PrimitiveTypes";
+import { applyAliasValueModifiers } from "../../common/TypeAliasModifiers";
 import { CallExpressionGenerator } from "./CallExpressionGenerator";
 
 export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
@@ -102,8 +104,11 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       `  ${bytePtr} = bitcast ${this.getEnumDataType(enumName)}* ${dataPtr} to i8*`,
     );
 
-    const values: { value: string; llvmType: string; typeNode: AST.TypeNode }[] =
-      [];
+    const values: {
+      value: string;
+      llvmType: string;
+      typeNode: AST.TypeNode;
+    }[] = [];
     const fieldTypes = variant.dataType.types;
 
     for (let i = 0; i < pattern.bindings.length; i++) {
@@ -149,9 +154,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         Number(pattern.value.value),
         llvmType,
       );
-      this.emit(
-        `  ${cmpReg} = fcmp oeq ${llvmType} ${value}, ${literalValue}`,
-      );
+      this.emit(`  ${cmpReg} = fcmp oeq ${llvmType} ${value}, ${literalValue}`);
     } else if (llvmType === "i8*") {
       const strcmpResult = this.newRegister();
       this.emit(
@@ -181,7 +184,13 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     }
 
     if (pattern.kind === "PatternLiteral") {
-      this.emitLiteralPatternCheck(pattern, value, llvmType, successLabel, failLabel);
+      this.emitLiteralPatternCheck(
+        pattern,
+        value,
+        llvmType,
+        successLabel,
+        failLabel,
+      );
       return "checked";
     }
 
@@ -189,15 +198,16 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       if (typeNode.kind !== "TupleType") return "never";
       if (pattern.patterns.length !== typeNode.types.length) return "never";
 
-      const nestedValues: { value: string; llvmType: string; typeNode: AST.TypeNode }[] =
-        [];
+      const nestedValues: {
+        value: string;
+        llvmType: string;
+        typeNode: AST.TypeNode;
+      }[] = [];
       for (let i = 0; i < typeNode.types.length; i++) {
         const nestedType = typeNode.types[i]!;
         const nestedLlvmType = this.resolveType(nestedType);
         const nestedValue = this.newRegister();
-        this.emit(
-          `  ${nestedValue} = extractvalue ${llvmType} ${value}, ${i}`,
-        );
+        this.emit(`  ${nestedValue} = extractvalue ${llvmType} ${value}, ${i}`);
         nestedValues.push({
           value: nestedValue,
           llvmType: nestedLlvmType,
@@ -213,10 +223,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       );
     }
 
-    if (
-      pattern.kind === "PatternEnum" ||
-      pattern.kind === "PatternEnumTuple"
-    ) {
+    if (pattern.kind === "PatternEnum" || pattern.kind === "PatternEnumTuple") {
       if (typeNode.kind !== "BasicType") return "never";
       const enumName = this.getRuntimeEnumName(typeNode);
       if (!enumName) return "never";
@@ -351,9 +358,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         const nestedType = typeNode.types[i]!;
         const nestedLlvmType = this.resolveType(nestedType);
         const nestedValue = this.newRegister();
-        this.emit(
-          `  ${nestedValue} = extractvalue ${llvmType} ${value}, ${i}`,
-        );
+        this.emit(`  ${nestedValue} = extractvalue ${llvmType} ${value}, ${i}`);
         this.bindPatternValue(
           nestedPattern,
           nestedValue,
@@ -523,9 +528,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         pattern.kind === "PatternEnumStruct"
       ) {
         const enumPattern = pattern as
-          | AST.PatternEnum
-          | AST.PatternEnumTuple
-          | AST.PatternEnumStruct;
+          AST.PatternEnum | AST.PatternEnumTuple | AST.PatternEnumStruct;
         const variant = variantInfo.get(enumPattern.variantName);
         if (variant) {
           // Only add switch case for the FIRST arm with this variant
@@ -741,8 +744,17 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       // Implicit return from block is not yet supported in AST
       return null;
     }
-    // Expression - generate and return
-    return this.generateExpression(body as AST.Expression);
+    // Expression arms join the same result representation as block yields.
+    const value = this.generateExpression(body);
+    const match = this.matchStack[this.matchStack.length - 1];
+    if (!match || match.isStatementPosition || !body.resolvedType) return value;
+    return this.emitCast(
+      value,
+      this.resolveType(body.resolvedType),
+      match.resultType,
+      body.resolvedType,
+      match.resultTypeNode,
+    );
   }
 
   protected llvmTypeToBplType(llvmType: string): string {
@@ -1486,15 +1498,14 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       throw this.createError("TypeMatch value has no resolved type", valueExpr);
     }
 
-    const targetType = expr.targetType as AST.BasicTypeNode;
-    const fullTypeName = targetType.name;
+    const targetType = expr.targetType;
 
-    // Check if this is an enum variant pattern (contains a dot)
-    if (fullTypeName.includes(".")) {
+    // Only a named target can identify an enum variant.
+    if (targetType.kind === "BasicType" && targetType.name.includes(".")) {
       return this.generateEnumVariantTypeMatch(
         matchValue,
-        valueType as AST.BasicTypeNode,
-        fullTypeName,
+        valueType,
+        targetType.name,
         expr,
       );
     }
@@ -1509,7 +1520,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
   protected generateEnumVariantTypeMatch(
     matchValue: string,
-    valueType: AST.BasicTypeNode,
+    valueType: AST.TypeNode,
     fullTypeName: string,
     expr: AST.TypeMatchExpr,
   ): string {
@@ -1518,11 +1529,18 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     const enumName = parts[0]!;
     const variantName = parts.slice(1).join("."); // Handle nested dots if any
 
-    // Substitute types in valueType if we are in a generic context
-    const substitutedValueType = this.substituteType(
-      valueType,
-      this.currentTypeMap,
-    ) as AST.BasicTypeNode;
+    // Only a scalar value of this enum has the queried variant tag.
+    const substitutedValueType = this.resolveCanonicalType(valueType);
+    if (
+      substitutedValueType.kind !== "BasicType" ||
+      substitutedValueType.name !== enumName ||
+      substitutedValueType.pointerDepth !== 0 ||
+      substitutedValueType.arrayDimensions.length !== 0
+    ) {
+      const result = this.newRegister();
+      this.emit(`  ${result} = icmp eq i1 0, 1`);
+      return result;
+    }
 
     // Get enum information - handle generic instantiation
     let resolvedEnumName = enumName;
@@ -1569,77 +1587,44 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
   }
 
   protected resolveCanonicalType(type: AST.TypeNode): AST.TypeNode {
-    // 1. Substitute generics
     const substituted = this.substituteType(type, this.currentTypeMap);
+    if (substituted.kind !== "BasicType") return substituted;
 
-    // 2. Resolve aliases
-    if (substituted.kind === "BasicType") {
-      if (this.typeAliasMap.has(substituted.name)) {
-        const alias = this.typeAliasMap.get(substituted.name)!;
-        if (
-          alias.genericParams.length > 0 &&
-          substituted.genericArgs.length > 0
-        ) {
-          const typeMap = new Map<string, AST.TypeNode>();
-          for (let i = 0; i < alias.genericParams.length; i++) {
-            if (i < substituted.genericArgs.length) {
-              typeMap.set(
-                alias.genericParams[i]!.name,
-                substituted.genericArgs[i]!,
-              );
-            }
-          }
-          const aliasSubstituted = this.substituteType(alias.type, typeMap);
-          return this.resolveCanonicalType(aliasSubstituted);
-        } else if (alias.genericParams.length === 0) {
-          return this.resolveCanonicalType(alias.type);
-        }
-      }
+    const alias = this.typeAliasMap.get(substituted.name);
+    if (!alias) return substituted;
+    const parameters = alias.genericParams ?? [];
+    if (parameters.length !== substituted.genericArgs.length)
+      return substituted;
+
+    const bindings = new Map<string, AST.TypeNode>();
+    parameters.forEach((parameter, index) => {
+      bindings.set(parameter.name, substituted.genericArgs[index]!);
+    });
+    const target = this.resolveCanonicalType(
+      this.substituteType(alias.type, bindings),
+    );
+    if (target.kind !== "BasicType") {
+      return applyAliasValueModifiers(target, substituted);
     }
-    return substituted;
+    return applyAliasValueModifiers(
+      {
+        ...target,
+        pointerDepth: target.pointerDepth + substituted.pointerDepth,
+        arrayDimensions: [
+          ...substituted.arrayDimensions,
+          ...target.arrayDimensions,
+        ],
+        isConst: substituted.isConst || target.isConst,
+        aliasDeclaration: alias,
+        aliasTarget: target,
+        location: substituted.location,
+      },
+      substituted,
+    );
   }
 
   protected getCanonicalPrimitiveName(name: string): string {
-    switch (name) {
-      case "int":
-        return "i32";
-      case "i32":
-        return "i32";
-      case "uint":
-        return "u32";
-      case "u32":
-        return "u32";
-      case "long":
-        return "i64";
-      case "i64":
-        return "i64";
-      case "ulong":
-        return "u64";
-      case "u64":
-        return "u64";
-      case "short":
-        return "i16";
-      case "i16":
-        return "i16";
-      case "ushort":
-        return "u16";
-      case "u16":
-        return "u16";
-      case "char":
-        return "i8";
-      case "uchar":
-        return "u8";
-      case "u8":
-        return "u8";
-      case "i8":
-        return "i8";
-      case "bool":
-        return "bool";
-      case "i1":
-        return "bool";
-      default:
-        return name;
-    }
+    return getPrimitiveType(name)?.canonicalName ?? name;
   }
 
   protected areTypesSemanticallyEqual(
@@ -1651,16 +1636,21 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
 
     if (ct1.kind !== ct2.kind) return false;
 
+    const dimensions1 =
+      "arrayDimensions" in ct1 ? (ct1.arrayDimensions ?? []) : [];
+    const dimensions2 =
+      "arrayDimensions" in ct2 ? (ct2.arrayDimensions ?? []) : [];
+    if (dimensions1.length !== dimensions2.length) return false;
+    if (
+      dimensions1.some((dimension, index) => dimension !== dimensions2[index])
+    )
+      return false;
+
     if (ct1.kind === "BasicType" && ct2.kind === "BasicType") {
       const name1 = this.getCanonicalPrimitiveName(ct1.name);
       const name2 = this.getCanonicalPrimitiveName(ct2.name);
       if (name1 !== name2) return false;
       if (ct1.pointerDepth !== ct2.pointerDepth) return false;
-      if (ct1.arrayDimensions.length !== ct2.arrayDimensions.length)
-        return false;
-      for (let i = 0; i < ct1.arrayDimensions.length; i++) {
-        if (ct1.arrayDimensions[i] !== ct2.arrayDimensions[i]) return false;
-      }
       if (ct1.genericArgs.length !== ct2.genericArgs.length) return false;
       for (let i = 0; i < ct1.genericArgs.length; i++) {
         if (
@@ -1674,7 +1664,11 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       return true;
     }
 
-    if (ct1.kind === "FunctionType" && ct2.kind === "FunctionType") {
+    if (
+      (ct1.kind === "FunctionType" && ct2.kind === "FunctionType") ||
+      (ct1.kind === "LambdaType" && ct2.kind === "LambdaType")
+    ) {
+      if (!!ct1.isVariadic !== !!ct2.isVariadic) return false;
       if (!this.areTypesSemanticallyEqual(ct1.returnType, ct2.returnType))
         return false;
       if (ct1.paramTypes.length !== ct2.paramTypes.length) return false;
@@ -1705,7 +1699,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
   protected generateRegularTypeMatch(
     matchValue: string,
     valueType: AST.TypeNode,
-    targetType: AST.BasicTypeNode,
+    targetType: AST.TypeNode,
     _expr: AST.TypeMatchExpr,
   ): string {
     // Check if valueType is Any or *Any
@@ -1713,7 +1707,11 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     let isAny = false;
     let isPtrAny = false;
 
-    if (canonVal.kind === "BasicType" && canonVal.name === "Any") {
+    if (
+      canonVal.kind === "BasicType" &&
+      canonVal.name === "Any" &&
+      canonVal.arrayDimensions.length === 0
+    ) {
       if (canonVal.pointerDepth === 0) isAny = true;
       else if (canonVal.pointerDepth === 1) isPtrAny = true;
     }
@@ -1779,7 +1777,11 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       const targetBasic = canonicalTarget as AST.BasicTypeNode;
 
       // Check if value is a pointer to a struct with a vtable
-      if (valueBasic.pointerDepth === 1) {
+      if (
+        valueBasic.pointerDepth === 1 &&
+        valueBasic.arrayDimensions.length === 0 &&
+        targetBasic.arrayDimensions.length === 0
+      ) {
         const valueStructName = valueBasic.name;
         const targetStructName = targetBasic.name;
 
@@ -1825,7 +1827,12 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       // BUG-119: Also handle struct values (not just pointers) with vtables
       // When we have a struct value like `*animal` which has a vtable as first field,
       // we can do runtime type checking on the value
-      if (valueBasic.pointerDepth === 0 && targetBasic.pointerDepth === 0) {
+      if (
+        valueBasic.pointerDepth === 0 &&
+        targetBasic.pointerDepth === 0 &&
+        valueBasic.arrayDimensions.length === 0 &&
+        targetBasic.arrayDimensions.length === 0
+      ) {
         const valueStructName = valueBasic.name;
         const targetStructName = targetBasic.name;
 
@@ -1877,8 +1884,14 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         }
       }
 
-      // Static inheritance checking (fallback for non-pointer types)
-      if (valueBasic.pointerDepth === targetBasic.pointerDepth) {
+      // Exact identity, including dimensions and generic arguments, was checked
+      // above. Equal raw names and array element inheritance cannot replace it.
+      if (
+        valueBasic.pointerDepth === targetBasic.pointerDepth &&
+        valueBasic.name !== targetBasic.name &&
+        valueBasic.arrayDimensions.length === 0 &&
+        targetBasic.arrayDimensions.length === 0
+      ) {
         if (this.checkInheritance(valueBasic.name, targetBasic.name)) {
           const result = this.newRegister();
           this.emit(`  ${result} = icmp eq i1 1, 1`);
@@ -2002,7 +2015,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       kind: "Cast",
       expression: expr.expression,
       targetType: expr.type,
-      resolvedType: expr.type,
+      resolvedType: expr.resolvedType ?? expr.type,
       location: expr.location,
     };
     return this.generateCast(castExpr);

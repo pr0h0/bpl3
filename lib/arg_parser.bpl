@@ -117,6 +117,11 @@ struct Argument {
     }
 }
 
+frame noCommandAction(parsed: *ParsedArgs) ret int {
+    parsed;
+    return 0;
+}
+
 struct Command {
     name: String,
     description: String,
@@ -135,12 +140,7 @@ struct Command {
         c.arguments = Array<*Argument>.new(4);
         c.subcommands = Array<*Command>.new(4);
 
-        # Initialize with null/empty check handle
-        # Explicitly setting action to a valid but empty handler would be better
-        # For now, just ensure it's not random garbage if possible, though assignment
-        # of uninit var might be the issue.
-        # We can't assign 'null' to Func type unless it's nullable or handled.
-        # Let's rely on users calling setAction.
+        c.action = noCommandAction;
 
         return c;
     }
@@ -254,12 +254,16 @@ struct ParsedArgs: Destructible {
     commandPath: Array<*String>,
     flags: Array<*FlagEntry>,
     positional: Array<*String>,
+    errorCount: int,
+    exitCode: int,
     frame new() ret *ParsedArgs {
         local dummy: ParsedArgs;
         local pa: *ParsedArgs = alloc_with_vtable<ParsedArgs>(&dummy);
         pa.commandPath = Array<*String>.new(4);
         pa.flags = Array<*FlagEntry>.new(8);
         pa.positional = Array<*String>.new(8);
+        pa.errorCount = 0;
+        pa.exitCode = 0;
         return pa;
     }
 
@@ -310,7 +314,7 @@ struct ParsedArgs: Destructible {
     }
 
     frame getArg(this: *ParsedArgs, index: int) ret Option<*String> {
-        if (index < this.positional.len()) {
+        if ((index >= 0) && (index < this.positional.len())) {
             return Option<*String>.Some(this.positional.get(index));
         }
         return Option<*String>.None;
@@ -351,12 +355,44 @@ struct ParsedArgs: Destructible {
     }
 }
 
+# Own the result until parse successfully transfers it to the caller. This also
+# releases accumulated strings if a configured action throws.
+struct ParsedArgsOwner {
+    value: *ParsedArgs,
+    frame destroy(this: *ParsedArgsOwner) {
+        if (this.value != nullptr) {
+            this.value.destroy();
+            free(cast<*void>(this.value));
+        }
+    }
+}
+
 struct ArgParser {
     root: *Command,
     frame new(rootCmd: *Command) ret ArgParser {
         local ap: ArgParser;
         ap.root = rootCmd;
         return ap;
+    }
+
+    frame applyDefaults(command: *Command, parsed: *ParsedArgs) {
+        loop (local i: int = 0; i < command.flags.len(); i = i + 1) {
+            local flag: *Flag = command.flags.get(i);
+            if ((flag.defaultValue.data != nullptr) && !parsed.hasFlag(flag.name.data)) {
+                parsed.setFlag(flag.name, flag.defaultValue);
+                if (!flag.alias.isEmpty()) { parsed.setFlag(flag.alias, flag.defaultValue); }
+            }
+        }
+    }
+
+    frame validateArguments(command: *Command, parsed: *ParsedArgs, start: int) {
+        loop (local i: int = 0; i < command.arguments.len(); i = i + 1) {
+            local arg: *Argument = command.arguments.get(i);
+            if (arg.required && ((parsed.positional.len() - start) <= i)) {
+                ArgParser.reportError("Error: Missing required argument %s.\n", arg.name.data);
+                parsed.errorCount = parsed.errorCount + 1;
+            }
+        }
     }
 
     # Matches a raw string arg against a flag definition
@@ -408,8 +444,30 @@ struct ArgParser {
         return Option<*Flag>.None;
     }
 
+    # A leading minus on a decimal operand is not an option prefix.
+    frame isNegativeNumber(text: string) ret bool {
+        if (text[0] != '-') { return false; }
+        local i: int = 1;
+        local digits: int = 0;
+        local dot: bool = false;
+        loop (text[i] != 0) {
+            if ((text[i] >= '0') && (text[i] <= '9')) {
+                digits = digits + 1;
+            } else if ((text[i] == '.') && !dot) {
+                dot = true;
+            } else {
+                return false;
+            }
+            i = i + 1;
+        }
+        return digits > 0;
+    }
+
     frame parse(this: *ArgParser, args: *Args) ret *ParsedArgs {
         local parsed: *ParsedArgs = ParsedArgs.new();
+        local owner: ParsedArgsOwner = ParsedArgsOwner { value: parsed };
+        local ownerPointer: *ParsedArgsOwner = &owner;
+        defer ownerPointer.destroy();
         local currentCmd: *Command = this.root;
 
         local rootName: *String = alloc<String>();
@@ -418,20 +476,31 @@ struct ArgParser {
 
         local i: int = 1; # Skip executable name (argv[0])
         local argCount: int = args.count();
+        local optionsEnded: bool = false;
+        local positionalStart: int = 0;
+        ArgParser.applyDefaults(currentCmd, parsed);
 
         loop (i < argCount) {
             local rawArg: String = args.get(i);
             local rawOwner: *String = &rawArg;
             defer rawOwner.destroy();
             local argStr: string = rawArg.data;
+            if (!optionsEnded && (strcmp(argStr, "--") == 0)) {
+                optionsEnded = true;
+                i = i + 1;
+                continue;
+            }
 
             # 1. Check if it's a subcommand
             local isSubCmd: bool = false;
             local j: int = 0;
-            loop (j < currentCmd.subcommands.len()) {
+            loop (!optionsEnded && (j < currentCmd.subcommands.len())) {
                 local sub: *Command = currentCmd.subcommands.get(j);
                 if (rawArg == sub.name) {
+                    ArgParser.validateArguments(currentCmd, parsed, positionalStart);
+                    positionalStart = parsed.positional.len();
                     currentCmd = sub; # Switch context
+                    ArgParser.applyDefaults(currentCmd, parsed);
 
                     local subName: *String = alloc<String>();
                     *subName = sub.name.clone();
@@ -448,7 +517,8 @@ struct ArgParser {
                 continue;
             }
             # 2. Check if it is a flag
-            if (StringUtils.startsWith(argStr, "-")) {
+            if (!optionsEnded && (strcmp(argStr, "-") != 0)
+                && StringUtils.startsWith(argStr, "-") && !ArgParser.isNegativeNumber(argStr)) {
                 local flagOpt: Option<*Flag> = this.matchFlag(currentCmd, argStr);
                 match (flagOpt) {
                     Option.Some(flag) => {
@@ -469,18 +539,31 @@ struct ArgParser {
                                 );
                                 val = String.new("");
                                 shouldSet = false;
+                                parsed.errorCount = parsed.errorCount + 1;
                             }
                         } else {
                             if (flag.hasValue) {
-                                i = i + 1;
-                                if (i < argCount) {
-                                    val = args.get(i);
+                                if ((i + 1) < argCount) {
+                                    local next: String = args.get(i + 1);
+                                    local nextOwner: *String = &next;
+                                    defer nextOwner.destroy();
+                                    if (StringUtils.startsWith(next.data, "-")
+                                        && (strcmp(next.data, "-") != 0)
+                                        && !ArgParser.isNegativeNumber(next.data)) {
+                                        ArgParser.reportError("Error: Flag %s requires a value.\n", flag.name.data);
+                                        shouldSet = false;
+                                        parsed.errorCount = parsed.errorCount + 1;
+                                    } else {
+                                        val = next.clone();
+                                        i = i + 1;
+                                    }
                                 } else {
                                     ArgParser.reportError(
                                         "Error: Flag %s requires a value.\n",
                                         flag.name.data,
                                     );
-                                    val = String.new("");
+                                    shouldSet = false;
+                                    parsed.errorCount = parsed.errorCount + 1;
                                 }
                             } else {
                                 val = String.new("true");
@@ -497,7 +580,8 @@ struct ArgParser {
                         }
                     },
                     Option.None => {
-                        printf("Unknown flag: %s\n", argStr);
+                        ArgParser.reportError("Unknown flag: %s\n", argStr);
+                        parsed.errorCount = parsed.errorCount + 1;
                     },
                 };
             } else {
@@ -510,6 +594,13 @@ struct ArgParser {
             i = i + 1;
         }
 
+        ArgParser.validateArguments(currentCmd, parsed, positionalStart);
+        if (parsed.errorCount == 0) {
+            parsed.exitCode = currentCmd.action(parsed);
+        } else {
+            parsed.exitCode = 1;
+        }
+        owner.value = nullptr;
         return parsed;
     }
 }

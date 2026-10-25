@@ -6,9 +6,12 @@
 import * as AST from "../common/AST";
 import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
 import { INTEGER_TYPES, TypeUtils } from "./TypeUtils";
-import { isImplicitIntegerToBool } from "./lowering/ImplicitConversions";
+import {
+  isImplicitIntegerToBool,
+  lowerImplicitConversion,
+} from "./lowering/ImplicitConversions";
 import type { CheckerContext } from "./CheckerContext";
-import type { Symbol } from "./SymbolTable";
+import type { Symbol, SymbolTable } from "./SymbolTable";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import {
   CAPTURED_VALUE_ASSIGNED_CODE,
@@ -18,6 +21,7 @@ import {
   DEFER_RETURN_VALUE_INVALID_CODE,
   FALLTHROUGH_OUTSIDE_SWITCH_CODE,
   RETURN_TYPE_MISMATCH_CODE,
+  RETURN_ARRAY_VIEW_ESCAPES_CODE,
   SWITCH_CASE_TYPE_MISMATCH_CODE,
   SWITCH_VALUE_TYPE_MISMATCH_CODE,
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
@@ -162,6 +166,303 @@ function findReturnedStackAddress(
   return undefined;
 }
 
+/** Without interprocedural provenance, a borrowed result may retain an argument. */
+function mayReturnBorrowedStorage(
+  context: CheckerContext,
+  type: AST.TypeNode | undefined,
+  depth = 0,
+): boolean {
+  if (!type || depth > 64) return true;
+  const resolved = context.resolveType(type);
+  if ("arrayDimensions" in resolved && resolved.arrayDimensions?.includes(null))
+    return true;
+  if (resolved.kind === "TupleType") {
+    return resolved.types.some((element) =>
+      mayReturnBorrowedStorage(context, element, depth + 1),
+    );
+  }
+  if (resolved.kind !== "BasicType") return true;
+  if (resolved.pointerDepth > 0 || resolved.name === "string") return true;
+  const element = { ...resolved, arrayDimensions: [] };
+  if (
+    TypeUtils.isNumericType(element) ||
+    resolved.name === "void" ||
+    resolved.name === "nullptr"
+  )
+    return false;
+  const decl = resolved.resolvedDeclaration;
+  if (decl?.kind !== "StructDecl" && decl?.kind !== "EnumDecl") return true;
+  const map = new Map<string, AST.TypeNode>();
+  for (let i = 0; i < decl.genericParams.length; i++) {
+    const argument = resolved.genericArgs[i];
+    if (argument) map.set(decl.genericParams[i]!.name, argument);
+  }
+  const contains = (member: AST.TypeNode) =>
+    mayReturnBorrowedStorage(
+      context,
+      context.substituteType(member, map),
+      depth + 1,
+    );
+  if (decl.kind === "StructDecl") {
+    return (
+      decl.inheritanceList.some(contains) ||
+      decl.members.some(
+        (member) => member.kind === "StructField" && contains(member.type),
+      )
+    );
+  }
+  return decl.variants.some((variant) => {
+    const data = variant.dataType;
+    if (data?.kind === "EnumVariantTuple") return data.types.some(contains);
+    if (data?.kind === "EnumVariantStruct")
+      return data.fields.some((field) => contains(field.type));
+    return false;
+  });
+}
+
+/** Conversions in returned aggregates can create the same spills as return decay.
+ * Calls with borrowed results may retain arguments; scalar results cannot.
+ */
+function findReturnedArrayViewCast(
+  context: CheckerContext,
+  expr: AST.Expression | undefined,
+  expectedType?: AST.TypeNode,
+): AST.Expression | undefined {
+  if (!expr) return undefined;
+  const destination = expectedType && context.resolveType(expectedType);
+  if (destination && expr.resolvedType) {
+    const conversion = lowerImplicitConversion(
+      destination,
+      context.resolveType(expr.resolvedType),
+    );
+    if (
+      conversion.kind === "array-to-slice" ||
+      conversion.kind === "array-to-pointer"
+    )
+      return expr;
+  }
+  // Aggregate literals lower each member using its destination type. Follow
+  // those implicit conversions as well as explicit casts in the expression.
+  const aggregateType =
+    destination ??
+    (expr.resolvedType && context.resolveType(expr.resolvedType));
+  const variantInfo =
+    expr.kind === "Call" || expr.kind === "EnumStructVariant"
+      ? expr.enumVariantInfo
+      : undefined;
+  const variantGenerics = new Map<string, AST.TypeNode>();
+  if (variantInfo) {
+    const contextualGenericArgs =
+      aggregateType?.kind === "BasicType" &&
+      aggregateType.genericArgs.length > 0 &&
+      (aggregateType.resolvedDeclaration === variantInfo.enumDecl ||
+        (aggregateType.resolvedDeclaration?.kind !== "EnumDecl" &&
+          aggregateType.name === variantInfo.enumDecl.name))
+        ? aggregateType.genericArgs
+        : variantInfo.genericArgs;
+    variantInfo.enumDecl.genericParams.forEach((parameter, index) => {
+      const argument = contextualGenericArgs[index];
+      if (argument) variantGenerics.set(parameter.name, argument);
+    });
+  }
+  switch (expr.kind) {
+    case "Cast":
+    case "As": {
+      const source = expr.expression.resolvedType;
+      if (source) {
+        const conversion = lowerImplicitConversion(
+          context.resolveType(
+            expr.resolvedType ??
+              (expr.kind === "Cast" ? expr.targetType : expr.type),
+          ),
+          context.resolveType(source),
+        );
+        if (
+          conversion.kind === "array-to-slice" ||
+          conversion.kind === "array-to-pointer"
+        ) {
+          return expr;
+        }
+      }
+      return findReturnedArrayViewCast(context, expr.expression);
+    }
+    case "Group":
+      return findReturnedArrayViewCast(context, expr.expression, destination);
+    case "Ternary":
+      return (
+        findReturnedArrayViewCast(context, expr.trueExpr, destination) ??
+        findReturnedArrayViewCast(context, expr.falseExpr, destination)
+      );
+    case "StructLiteral":
+    case "EnumStructVariant":
+      for (const field of expr.fields) {
+        let fieldType: AST.TypeNode | undefined;
+        if (
+          expr.kind === "StructLiteral" &&
+          aggregateType?.kind === "BasicType"
+        ) {
+          const member = context.resolveMemberWithContext(
+            aggregateType,
+            field.name,
+          );
+          const declaration = member?.members.find(
+            (candidate): candidate is AST.StructField =>
+              candidate.kind === "StructField",
+          );
+          if (declaration) {
+            fieldType = context.substituteType(
+              declaration.type,
+              member?.genericMap ?? new Map(),
+            );
+          }
+        } else if (
+          variantInfo?.variant.dataType?.kind === "EnumVariantStruct"
+        ) {
+          const declaration = variantInfo.variant.dataType.fields.find(
+            (candidate) => candidate.name === field.name,
+          );
+          if (declaration)
+            fieldType = context.substituteType(
+              declaration.type,
+              variantGenerics,
+            );
+        }
+        const cast = findReturnedArrayViewCast(context, field.value, fieldType);
+        if (cast) return cast;
+      }
+      break;
+    case "Match":
+      for (const arm of expr.arms) {
+        const values =
+          arm.body.kind === "Block"
+            ? (context.matchYieldValues.get(arm.body) ?? [])
+            : [arm.body];
+        for (const value of values) {
+          const cast = findReturnedArrayViewCast(context, value, destination);
+          if (cast) return cast;
+        }
+      }
+      break;
+    case "Call":
+      // Constructors store their payloads. Other calls may return a borrowed
+      // argument, unless their result cannot carry borrowed storage.
+      if (
+        expr.enumVariantInfo ||
+        mayReturnBorrowedStorage(context, expr.resolvedType)
+      ) {
+        const receiverCast = findReturnedArrayViewCast(context, expr.callee);
+        if (receiverCast) return receiverCast;
+        const signature =
+          expr.callee.resolvedType &&
+          context.resolveType(expr.callee.resolvedType);
+        const overload = expr.operatorOverload;
+        const overloadContext =
+          overload?.targetType.kind === "BasicType"
+            ? context.resolveMemberWithContext(
+                overload.targetType,
+                overload.methodName,
+              )
+            : undefined;
+        for (const [index, argument] of expr.args.entries()) {
+          const payload = variantInfo?.variant.dataType;
+          let fieldType =
+            payload?.kind === "EnumVariantTuple" && payload.types[index]
+              ? context.substituteType(payload.types[index]!, variantGenerics)
+              : undefined;
+          if (
+            signature?.kind === "FunctionType" ||
+            signature?.kind === "LambdaType"
+          ) {
+            fieldType = signature.paramTypes[index];
+          } else if (overload?.methodDeclaration.params[index + 1]) {
+            fieldType = context.substituteType(
+              overload.methodDeclaration.params[index + 1]!.type,
+              overloadContext?.genericMap ?? new Map(),
+            );
+          }
+          const cast = findReturnedArrayViewCast(context, argument, fieldType);
+          if (cast) return cast;
+        }
+      }
+      break;
+    case "Member":
+    case "Index": {
+      if (!mayReturnBorrowedStorage(context, expr.resolvedType)) break;
+      let object = expr.object;
+      while (object.kind === "Group") object = object.expression;
+      // Literal projections can select exactly one value. Do not reject an
+      // unrelated temporary borrow that is discarded with the aggregate.
+      if (expr.kind === "Member" && object.kind === "StructLiteral") {
+        const field = object.fields.find(
+          (candidate) => candidate.name === expr.property,
+        );
+        if (field)
+          return findReturnedArrayViewCast(
+            context,
+            field.value,
+            expr.resolvedType,
+          );
+      }
+      if (
+        expr.kind === "Index" &&
+        object.kind === "ArrayLiteral" &&
+        expr.index.kind === "Literal" &&
+        typeof expr.index.value === "number" &&
+        Number.isInteger(expr.index.value)
+      ) {
+        const element = object.elements[expr.index.value];
+        if (element)
+          return findReturnedArrayViewCast(context, element, expr.resolvedType);
+      }
+      return findReturnedArrayViewCast(context, object);
+    }
+    case "Unary":
+      if (mayReturnBorrowedStorage(context, expr.resolvedType)) {
+        return findReturnedArrayViewCast(context, expr.operand);
+      }
+      break;
+    case "Binary":
+      if (mayReturnBorrowedStorage(context, expr.resolvedType)) {
+        return (
+          findReturnedArrayViewCast(context, expr.left) ??
+          findReturnedArrayViewCast(context, expr.right)
+        );
+      }
+      break;
+    case "Assignment":
+      if (mayReturnBorrowedStorage(context, expr.resolvedType)) {
+        return findReturnedArrayViewCast(context, expr.value);
+      }
+      break;
+    case "GenericInstantiation":
+      return findReturnedArrayViewCast(context, expr.base);
+    case "TupleLiteral":
+    case "ArrayLiteral":
+      for (const [index, element] of expr.elements.entries()) {
+        let elementType: AST.TypeNode | undefined;
+        if (
+          expr.kind === "TupleLiteral" &&
+          aggregateType?.kind === "TupleType"
+        ) {
+          elementType = aggregateType.types[index];
+        } else if (
+          expr.kind === "ArrayLiteral" &&
+          aggregateType?.kind === "BasicType" &&
+          aggregateType.arrayDimensions.length
+        ) {
+          elementType = {
+            ...aggregateType,
+            arrayDimensions: aggregateType.arrayDimensions.slice(1),
+          };
+        }
+        const cast = findReturnedArrayViewCast(context, element, elementType);
+        if (cast) return cast;
+      }
+      break;
+  }
+  return undefined;
+}
+
 function getShadowedValueKind(symbol: Symbol): "parameter" | "variable" {
   return symbol.kind === "Parameter" || symbol.declaration.kind === "Parameter"
     ? "parameter"
@@ -280,25 +581,28 @@ function checkThenBranchWithNarrowing(
   branch: AST.Statement,
   narrowing: BranchNarrowing | undefined,
 ): void {
-  context.currentScope = context.currentScope.enterScope();
-  if (narrowing) {
-    context.defineSymbol(
-      narrowing.name,
-      "Variable",
-      narrowing.type,
-      narrowing.declaration,
-      undefined,
-      narrowing.isConst,
-    );
-  }
+  const previousScope = context.currentScope;
+  context.currentScope = previousScope.enterScope();
+  try {
+    if (narrowing) {
+      context.defineSymbol(
+        narrowing.name,
+        "Variable",
+        narrowing.type,
+        narrowing.declaration,
+        undefined,
+        narrowing.isConst,
+      );
+    }
 
-  if (branch.kind === "Block") {
-    checkBlock.call(context, branch as AST.BlockStmt, true);
-  } else {
-    context.checkStatement(branch);
+    if (branch.kind === "Block") {
+      checkBlock.call(context, branch as AST.BlockStmt, true);
+    } else {
+      context.checkStatement(branch);
+    }
+  } finally {
+    context.currentScope = previousScope;
   }
-
-  context.currentScope = context.currentScope.exitScope();
 }
 
 /**
@@ -309,62 +613,66 @@ export function checkBlock(
   stmt: AST.BlockStmt,
   newScope: boolean = true,
 ): void {
-  if (newScope) {
-    this.currentScope = this.currentScope.enterScope();
-  }
+  const previousScope = this.currentScope;
+  try {
+    if (newScope) {
+      this.currentScope = this.currentScope.enterScope();
+    }
 
-  let terminated = false;
-  for (const s of stmt.statements) {
-    if (terminated) {
-      const error = new CompilerError(
-        "Unreachable code detected.",
-        "This statement follows a return, break, continue, or throw statement and will never be executed.",
-        s.location,
-      ).setSeverity(DiagnosticSeverity.Warning);
-      if (this.collectAllErrors) {
-        this.errors.push(error);
-      } else {
-        throw error;
+    let terminated = false;
+    for (const s of stmt.statements) {
+      if (terminated) {
+        const error = new CompilerError(
+          "Unreachable code detected.",
+          "This statement follows a return, break, continue, or throw statement and will never be executed.",
+          s.location,
+        ).setSeverity(DiagnosticSeverity.Warning);
+        if (this.collectAllErrors) {
+          this.errors.push(error);
+        } else {
+          throw error;
+        }
+      }
+
+      try {
+        this.checkStatement(s);
+      } catch (e) {
+        if (this.collectAllErrors && e instanceof CompilerError) {
+          this.errors.push(e);
+          continue;
+        }
+        throw e;
+      }
+
+      if (
+        s.kind === "Return" ||
+        s.kind === "Break" ||
+        s.kind === "Continue" ||
+        s.kind === "Throw" ||
+        s.kind === "Fallthrough"
+      ) {
+        terminated = true;
       }
     }
 
-    try {
-      this.checkStatement(s);
-    } catch (e) {
-      if (this.collectAllErrors && e instanceof CompilerError) {
-        this.errors.push(e);
-        continue;
-      }
-      throw e;
-    }
-
-    if (
-      s.kind === "Return" ||
-      s.kind === "Break" ||
-      s.kind === "Continue" ||
-      s.kind === "Throw" ||
-      s.kind === "Fallthrough"
-    ) {
-      terminated = true;
-    }
-  }
-
-  if (newScope) {
-    const unused = this.currentScope.getUnusedVariables();
-    for (const symbol of unused) {
-      if (symbol.name.startsWith("_")) continue;
-      const error = new CompilerError(
-        `Unused variable '${symbol.name}'`,
-        "Variable is declared but never used.",
-        symbol.declaration.location,
-      );
-      if (this.collectAllErrors) {
-        this.errors.push(error);
-      } else {
-        throw error;
+    if (newScope) {
+      const unused = this.currentScope.getUnusedVariables();
+      for (const symbol of unused) {
+        if (symbol.name.startsWith("_")) continue;
+        const error = new CompilerError(
+          `Unused variable '${symbol.name}'`,
+          "Variable is declared but never used.",
+          symbol.declaration.location,
+        );
+        if (this.collectAllErrors) {
+          this.errors.push(error);
+        } else {
+          throw error;
+        }
       }
     }
-    this.currentScope = this.currentScope.exitScope();
+  } finally {
+    if (newScope) this.currentScope = previousScope;
   }
 }
 
@@ -375,7 +683,7 @@ export function checkIf(this: CheckerContext, stmt: AST.IfStmt): void {
   const condType = this.checkExpression(stmt.condition);
   if (condType && !this.isBoolType(condType)) {
     throw new CompilerError(
-      `If condition must be boolean, got ${this.typeToString(condType)}`,
+      `If condition must be boolean, got ${this.formatDiagnosticType(condType)}`,
       "Ensure the condition evaluates to a boolean.",
       stmt.condition.location,
       CONDITION_TYPE_MISMATCH_CODE,
@@ -397,9 +705,13 @@ export function checkIf(this: CheckerContext, stmt: AST.IfStmt): void {
       // Else if - no new scope needed for the 'if' itself as it handles its own scopes
       this.checkStatement(stmt.elseBranch);
     } else {
-      this.currentScope = this.currentScope.enterScope();
-      this.checkStatement(stmt.elseBranch);
-      this.currentScope = this.currentScope.exitScope();
+      const previousScope = this.currentScope;
+      this.currentScope = previousScope.enterScope();
+      try {
+        this.checkStatement(stmt.elseBranch);
+      } finally {
+        this.currentScope = previousScope;
+      }
     }
   }
 }
@@ -408,75 +720,79 @@ export function checkIf(this: CheckerContext, stmt: AST.IfStmt): void {
  * Check a loop statement (for/while)
  */
 export function checkLoop(this: CheckerContext, stmt: AST.LoopStmt): void {
-  this.loopDepth++;
+  const previousScope = this.currentScope;
+  const previousLoopDepth = this.loopDepth;
+  try {
+    this.loopDepth = previousLoopDepth + 1;
 
-  // Enter loop scope for init variable
-  this.currentScope = this.currentScope.enterScope();
+    // Enter loop scope for init variable
+    this.currentScope = this.currentScope.enterScope();
 
-  if (stmt.init) {
-    this.checkStatement(stmt.init);
-  }
-
-  if (stmt.condition) {
-    const condType = this.checkExpression(stmt.condition);
-    if (condType && !this.isBoolType(condType)) {
-      throw new CompilerError(
-        `Loop condition must be boolean, got ${this.typeToString(condType)}`,
-        "Ensure the condition evaluates to a boolean.",
-        stmt.condition.location,
-        CONDITION_TYPE_MISMATCH_CODE,
-      );
+    if (stmt.init) {
+      this.checkStatement(stmt.init);
     }
-  }
 
-  if (stmt.step) {
-    this.checkExpression(stmt.step);
-  }
-
-  if (stmt.body) {
-    if (stmt.body.kind === "Block") {
-      checkBlock.call(this, stmt.body as AST.BlockStmt, true);
-    } else {
-      this.currentScope = this.currentScope.enterScope();
-      this.checkStatement(stmt.body);
-
-      // Check for unused variables in the loop body scope
-      const unused = this.currentScope.getUnusedVariables();
-      for (const symbol of unused) {
-        if (symbol.name.startsWith("_")) continue;
-        const error = new CompilerError(
-          `Unused variable '${symbol.name}'`,
-          "Variable is declared but never used.",
-          symbol.declaration.location,
+    if (stmt.condition) {
+      const condType = this.checkExpression(stmt.condition);
+      if (condType && !this.isBoolType(condType)) {
+        throw new CompilerError(
+          `Loop condition must be boolean, got ${this.formatDiagnosticType(condType)}`,
+          "Ensure the condition evaluates to a boolean.",
+          stmt.condition.location,
+          CONDITION_TYPE_MISMATCH_CODE,
         );
-        if (this.collectAllErrors) {
-          this.errors.push(error);
-        } else {
-          throw error;
-        }
       }
-      this.currentScope = this.currentScope.exitScope();
     }
-  }
 
-  // Check for unused variables in the loop scope (init vars)
-  const unused = this.currentScope.getUnusedVariables();
-  for (const symbol of unused) {
-    if (symbol.name.startsWith("_")) continue;
-    const error = new CompilerError(
-      `Unused variable '${symbol.name}'`,
-      "Variable is declared but never used.",
-      symbol.declaration.location,
-    );
-    if (this.collectAllErrors) {
-      this.errors.push(error);
-    } else {
-      throw error;
+    if (stmt.step) {
+      this.checkExpression(stmt.step);
     }
-  }
 
-  this.currentScope = this.currentScope.exitScope();
-  this.loopDepth--;
+    if (stmt.body) {
+      if (stmt.body.kind === "Block") {
+        checkBlock.call(this, stmt.body as AST.BlockStmt, true);
+      } else {
+        this.currentScope = this.currentScope.enterScope();
+        this.checkStatement(stmt.body);
+
+        // Check for unused variables in the loop body scope
+        const unused = this.currentScope.getUnusedVariables();
+        for (const symbol of unused) {
+          if (symbol.name.startsWith("_")) continue;
+          const error = new CompilerError(
+            `Unused variable '${symbol.name}'`,
+            "Variable is declared but never used.",
+            symbol.declaration.location,
+          );
+          if (this.collectAllErrors) {
+            this.errors.push(error);
+          } else {
+            throw error;
+          }
+        }
+        this.currentScope = this.currentScope.exitScope();
+      }
+    }
+
+    // Check for unused variables in the loop scope (init vars)
+    const unused = this.currentScope.getUnusedVariables();
+    for (const symbol of unused) {
+      if (symbol.name.startsWith("_")) continue;
+      const error = new CompilerError(
+        `Unused variable '${symbol.name}'`,
+        "Variable is declared but never used.",
+        symbol.declaration.location,
+      );
+      if (this.collectAllErrors) {
+        this.errors.push(error);
+      } else {
+        throw error;
+      }
+    }
+  } finally {
+    this.currentScope = previousScope;
+    this.loopDepth = previousLoopDepth;
+  }
 }
 
 /**
@@ -495,7 +811,7 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     return;
   }
 
-  const returnType = stmt.value
+  let returnType = stmt.value
     ? this.checkExpression(stmt.value)
     : this.makeVoidType();
 
@@ -503,22 +819,34 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     return;
   }
 
-  // Check if we are in a match arm block
-  // We need to access the TypeChecker instance which has matchContext
-  // Since 'this' is StatementCheckerContext, we might need to cast or add it to context
-  const typeChecker = this as any;
-  if (typeChecker.matchContext && typeChecker.matchContext.length > 0) {
-    const context =
-      typeChecker.matchContext[typeChecker.matchContext.length - 1];
+  // Match yields may transfer locals whose scopes end at the arm boundary.
+  const match = this.matchContext[this.matchContext.length - 1];
+  if (match) {
+    if (
+      stmt.value &&
+      !isOwnershipTransfer(this, stmt.value, match.retainedScope)
+    ) {
+      this.rejectOwningCopy(
+        stmt.value,
+        returnType,
+        "out of a match arm",
+        stmt.value.location,
+      );
+    }
     if (returnType) {
-      context.inferredTypes.push(returnType);
-      if (stmt.value) context.inferredValues?.push(stmt.value);
+      // Preserve block-local aliases before the match arm scope is exited.
+      match.inferredTypes.push(this.resolveType(returnType));
+      if (stmt.value) match.inferredValues?.push(stmt.value);
     }
     return;
   }
 
   if (this.currentFunctionReturnType) {
     const resolvedExpected = this.resolveType(this.currentFunctionReturnType);
+    if (stmt.value) {
+      returnType =
+        this.contextualizeArrayLiteral(stmt.value, resolvedExpected) ?? returnType;
+    }
     const resolvedActual = returnType
       ? this.resolveType(returnType)
       : this.makeVoidType();
@@ -543,12 +871,33 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
 
     if (!this.areTypesCompatible(resolvedExpected, resolvedActual)) {
       throw new CompilerError(
-        `Return type mismatch: expected ${this.typeToString(
+        `Return type mismatch: expected ${this.formatDiagnosticType(
           resolvedExpected,
-        )}, got ${this.typeToString(resolvedActual)}`,
+        )}, got ${this.formatDiagnosticType(resolvedActual)}`,
         "Ensure the returned value matches the function's return type.",
         stmt.location,
         RETURN_TYPE_MISMATCH_CODE,
+      );
+    }
+
+    // Return lowering spills a fixed-array value before creating its view.
+    // That spill belongs to this frame even if the value came from a global.
+    const conversion = lowerImplicitConversion(resolvedExpected, resolvedActual);
+    const returnedCast = findReturnedArrayViewCast(
+      this,
+      stmt.value,
+      resolvedExpected,
+    );
+    if (
+      conversion.kind === "array-to-slice" ||
+      conversion.kind === "array-to-pointer" ||
+      returnedCast
+    ) {
+      throw new CompilerError(
+        "Cannot return a borrowed view of a fixed array by conversion",
+        "Return the fixed array by value, or return an existing slice/pointer whose elements outlive the call.",
+        returnedCast?.location ?? stmt.value?.location ?? stmt.location,
+        RETURN_ARRAY_VIEW_ESCAPES_CODE,
       );
     }
 
@@ -600,13 +949,19 @@ export function checkTry(this: CheckerContext, stmt: AST.TryStmt): void {
 
   // Check catch clauses
   for (const clause of stmt.catchClauses) {
-    this.currentScope = this.currentScope.enterScope();
-    // Only define variable if it's a typed catch (not catch-all)
-    if (clause.variable && clause.type) {
-      this.defineSymbol(clause.variable, "Variable", clause.type, clause);
+    const previousScope = this.currentScope;
+    this.currentScope = previousScope.enterScope();
+    try {
+      // Only define variable if it's a typed catch (not catch-all)
+      if (clause.variable && clause.type) {
+        this.ensureKnownType(clause.type);
+        const caughtType = this.resolveType(clause.type);
+        this.defineSymbol(clause.variable, "Variable", caughtType, clause);
+      }
+      checkBlock.call(this, clause.body);
+    } finally {
+      this.currentScope = previousScope;
     }
-    checkBlock.call(this, clause.body);
-    this.currentScope = this.currentScope.exitScope();
   }
 }
 
@@ -634,6 +989,7 @@ export function checkThrow(this: CheckerContext, stmt: AST.ThrowStmt): void {
 function isOwnershipTransfer(
   context: CheckerContext,
   expr: AST.Expression | undefined,
+  retainedScope?: SymbolTable,
 ): boolean {
   let current: AST.Expression | undefined = expr;
   while (current && current.kind === "Group") {
@@ -645,6 +1001,14 @@ function isOwnershipTransfer(
     (current as AST.IdentifierExpr).name,
   );
   if (!symbol) return false;
+  if (retainedScope) {
+    let scope: SymbolTable | undefined = context.currentScope;
+    while (scope && scope !== retainedScope) {
+      if (scope.getInCurrentScope(current.name) === symbol) break;
+      scope = scope.getParent();
+    }
+    if (!scope || scope === retainedScope) return false;
+  }
   if (symbol.kind === "Parameter" || symbol.declaration?.kind === "Parameter") {
     return true;
   }
@@ -682,7 +1046,7 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
 
       if (!isValid) {
         throw new CompilerError(
-          `Switch value must be an integer, string or enum type, got ${this.typeToString(
+          `Switch value must be an integer, string or enum type, got ${this.formatDiagnosticType(
             valueType,
           )}`,
           "Ensure the switch expression evaluates to an integer, string or enum.",
@@ -702,9 +1066,9 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
         !this.areTypesCompatible(valueType, patternType)
       ) {
         throw new CompilerError(
-          `Case pattern type ${this.typeToString(
+          `Case pattern type ${this.formatDiagnosticType(
             patternType,
-          )} not compatible with switch value type ${this.typeToString(valueType)}`,
+          )} not compatible with switch value type ${this.formatDiagnosticType(valueType)}`,
           "Ensure case patterns match the switch value type.",
           caseItem.value.location,
           SWITCH_CASE_TYPE_MISMATCH_CODE,
@@ -917,7 +1281,7 @@ export function checkVariableDecl(
       const validateAndAssignTypes = (
         nestedTargets: AST.DestructuringPattern[],
         tupleNode: AST.TypeNode,
-      ): void => {
+      ): AST.TypeNode => {
         const resolvedTuple = this.resolveType(tupleNode);
         if (resolvedTuple.kind !== "TupleType") {
           throw new CompilerError(
@@ -937,13 +1301,14 @@ export function checkVariableDecl(
           );
         }
 
+        const destinationTypes: AST.TypeNode[] = [];
         for (let i = 0; i < nestedTargets.length; i++) {
           const target = nestedTargets[i]!;
           const inferredType = resolvedTuple.types[i];
 
           if (Array.isArray(target)) {
             if (inferredType) {
-              validateAndAssignTypes(target, inferredType);
+              destinationTypes.push(validateAndAssignTypes(target, inferredType));
             }
             continue;
           }
@@ -954,9 +1319,9 @@ export function checkVariableDecl(
             const resolvedInferred = this.resolveType(inferredType);
             if (!this.areTypesCompatible(resolvedTarget, resolvedInferred)) {
               throw new CompilerError(
-                `Type mismatch: cannot assign ${this.typeToString(
+                `Type mismatch: cannot assign ${this.formatDiagnosticType(
                   resolvedInferred,
-                )} to ${this.typeToString(resolvedTarget)}`,
+                )} to ${this.formatDiagnosticType(resolvedTarget)}`,
                 "Ensure the destructuring target type matches the tuple element type.",
                 decl.location,
                 "E001",
@@ -965,10 +1330,18 @@ export function checkVariableDecl(
           }
 
           defineDestructuredTarget(target, finalType);
+          destinationTypes.push(this.resolveType(finalType!));
         }
+        return { ...resolvedTuple, types: destinationTypes };
       };
 
-      validateAndAssignTypes(decl.name as AST.DestructuringPattern[], initType);
+      const destinationType = validateAndAssignTypes(
+        decl.name as AST.DestructuringPattern[],
+        initType,
+      );
+      if (decl.initializer) {
+        this.checkIntegerConstantRange(decl.initializer, destinationType);
+      }
     } else {
       for (const target of targets) {
         const finalType = target.type || initType;
@@ -1022,6 +1395,10 @@ export function checkVariableDecl(
     }
     try {
       initType = this.checkExpression(decl.initializer);
+      if (declaredType) {
+        initType =
+          this.contextualizeArrayLiteral(decl.initializer, declaredType) ?? initType;
+      }
       this.rejectOwningCopy(
         decl.initializer,
         declaredType ?? initType,
@@ -1094,9 +1471,9 @@ export function checkVariableDecl(
 
             if (!isStructLiteralToPointer) {
               throw new CompilerError(
-                `Type mismatch: cannot assign ${this.typeToString(
+                `Type mismatch: cannot assign ${this.formatDiagnosticType(
                   resolvedInit,
-                )} to ${this.typeToString(resolvedDecl)}`,
+                )} to ${this.formatDiagnosticType(resolvedDecl)}`,
                 "Ensure the initializer type matches the declared type.",
                 decl.location,
                 "E001",
@@ -1115,9 +1492,9 @@ export function checkVariableDecl(
 
           if (!isStructLiteralToPointer) {
             throw new CompilerError(
-              `Type mismatch: cannot assign ${this.typeToString(
+              `Type mismatch: cannot assign ${this.formatDiagnosticType(
                 resolvedInit,
-              )} to ${this.typeToString(resolvedDecl)}`,
+              )} to ${this.formatDiagnosticType(resolvedDecl)}`,
               "Ensure the initializer type matches the declared type.",
               decl.location,
               "E001",
@@ -1219,12 +1596,18 @@ function statementReturnFlow(stmt: AST.Statement): number {
           ? statementReturnFlow(stmt.elseBranch)
           : ReturnFlow.Next)
       );
-    case "Loop":
-      // Conservatively allow a loop to finish. Its breaks and continues are
-      // consumed here, rather than escaping an enclosing switch.
+    case "Loop": {
+      const bodyFlow = statementReturnFlow(stmt.body);
+      const unconditional =
+        !stmt.condition ||
+        (stmt.condition.kind === "Literal" && stmt.condition.value === true);
+      // Break exits this loop; continue and normal iteration stay inside it.
+      // Zero flow represents divergence with no reachable outward transfer.
       return (
-        ReturnFlow.Next | (statementReturnFlow(stmt.body) & ReturnFlow.Return)
+        (bodyFlow & ReturnFlow.Return) |
+        (!unconditional || bodyFlow & ReturnFlow.Break ? ReturnFlow.Next : 0)
       );
+    }
     case "Try": {
       let flow = statementReturnFlow(stmt.tryBlock);
       for (const clause of stmt.catchClauses)
@@ -1271,12 +1654,12 @@ function statementReturnFlow(stmt: AST.Statement): number {
   }
 }
 
-/** Check whether every reachable path returns or throws. */
+/** Check whether every reachable path returns, throws, or diverges. */
 export function checkAllPathsReturn(
   this: CheckerContext,
   stmt: AST.Statement,
 ): boolean {
-  return statementReturnFlow(stmt) === ReturnFlow.Return;
+  return (statementReturnFlow(stmt) & ~ReturnFlow.Return) === 0;
 }
 
 /**

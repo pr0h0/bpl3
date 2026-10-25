@@ -116,7 +116,7 @@ export class CompilerError extends Error {
       // Check SourceManager first (for virtual files like stdin/eval)
       const cachedSource = SourceManager.getSource(this.location.file);
       if (cachedSource !== undefined) {
-        this.sourceLines = cachedSource.split("\n");
+        this.sourceLines = cachedSource.split(/\r\n|\r|\n/);
         return;
       }
 
@@ -131,7 +131,7 @@ export class CompilerError extends Error {
 
       if (fs.existsSync(this.location.file)) {
         const content = fs.readFileSync(this.location.file, "utf-8");
-        this.sourceLines = content.split("\n");
+        this.sourceLines = content.split(/\r\n|\r|\n/);
       }
     } catch {
       // Silently fail if we can't read the file

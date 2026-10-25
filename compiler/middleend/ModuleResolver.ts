@@ -16,7 +16,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { getLibPath } from "../common/PathResolver";
-import { CompilerError } from "../common/CompilerError";
+import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { compilerLog } from "../common/Logger";
 import { findCaseMismatchPath } from "../common/PathSafety";
 import { walkAST } from "../common/ASTTraversal";
@@ -61,6 +61,9 @@ export interface ModuleInfo {
 
   /** Modules this module depends on (imports) */
   dependencies: Set<string>;
+
+  /** Source import edge used when reporting dependency cycles. */
+  dependencyLocations?: ReadonlyMap<string, SourceLocation>;
 
   /** Whether this module has been type-checked */
   checked: boolean;
@@ -253,9 +256,34 @@ export class ModuleResolver {
    * Resolve a module path from an import statement
    * Supports: relative paths, absolute paths, stdlib, and packages
    */
-  resolveModulePath(importSource: string, fromFile: string): string {
+  resolveModulePath(
+    importSource: string,
+    fromFile: string,
+    onMissingCandidate?: (candidate: string) => void,
+  ): string {
+    const candidates = onMissingCandidate ? new Set<string>() : undefined;
+    try {
+      return this.resolveModulePathWithCandidates(
+        importSource,
+        fromFile,
+        candidates,
+      );
+    } catch (error) {
+      // Watchers can observe these exact search locations while resolution fails.
+      if (candidates)
+        for (const candidate of candidates) onMissingCandidate?.(candidate);
+      throw error;
+    }
+  }
+
+  private resolveModulePathWithCandidates(
+    importSource: string,
+    fromFile: string,
+    candidates?: Set<string>,
+  ): string {
     // Handle absolute paths
     if (path.isAbsolute(importSource)) {
+      candidates?.add(importSource);
       const resolved = this.tryResolveWithExtensions(importSource);
       if (resolved) {
         return resolved;
@@ -278,6 +306,7 @@ export class ModuleResolver {
     if (importSource.startsWith("./") || importSource.startsWith("../")) {
       const fromDir = path.dirname(fromFile);
       const resolved = path.resolve(fromDir, importSource);
+      candidates?.add(resolved);
       const result = this.tryResolveWithExtensions(resolved);
 
       if (result) {
@@ -301,6 +330,7 @@ export class ModuleResolver {
     // Handle standard library imports (e.g., "std", "io", "math")
     if (!importSource.includes("/") && !importSource.includes("\\")) {
       const stdPath = path.join(this.stdLibPath, `${importSource}.x`);
+      candidates?.add(stdPath);
       const result = this.tryResolveWithExtensions(stdPath);
       if (result) {
         return result;
@@ -308,6 +338,7 @@ export class ModuleResolver {
 
       // Also try in stdlib subdirectories (e.g., "std/io")
       const stdSubPath = path.join(this.stdLibPath, importSource);
+      candidates?.add(stdSubPath);
       const subResult = this.tryResolveWithExtensions(stdSubPath);
       if (subResult) {
         return subResult;
@@ -341,6 +372,7 @@ export class ModuleResolver {
         this.stdLibPath,
         ...relativePath.split(/[\\/]/),
       );
+      candidates?.add(stdPath);
       const result = this.tryResolveWithExtensions(stdPath);
       if (result) {
         this.resolvedExplicitStdImports.set(importSource, result);
@@ -380,6 +412,12 @@ export class ModuleResolver {
         packageResolutionOptions,
       );
       packageTraces.push(fromFilePackage.trace);
+      if (candidates)
+        for (const candidate of [
+          ...fromFilePackage.trace.searchedPaths,
+          ...fromFilePackage.trace.entryCandidates,
+        ])
+          candidates.add(candidate);
       if (fromFilePackage.result) {
         const result = this.tryResolveWithExtensions(
           fromFilePackage.result.filePath,
@@ -396,6 +434,12 @@ export class ModuleResolver {
           packageResolutionOptions,
         );
         packageTraces.push(cwdPackage.trace);
+        if (candidates)
+          for (const candidate of [
+            ...cwdPackage.trace.searchedPaths,
+            ...cwdPackage.trace.entryCandidates,
+          ])
+            candidates.add(candidate);
         if (cwdPackage.result) {
           const result = this.tryResolveWithExtensions(
             cwdPackage.result.filePath,
@@ -413,6 +457,7 @@ export class ModuleResolver {
       for (const searchPath of this.searchPaths) {
         const resolved = path.join(searchPath, importSource);
         extraSearchCandidates.push(resolved);
+        candidates?.add(resolved);
         const result = this.tryResolveWithExtensions(resolved);
         if (result) {
           return result;
@@ -488,7 +533,9 @@ export class ModuleResolver {
     const ast = parser.parse(true);
 
     // Create module info
+    const dependencyLocations = new Map<string, SourceLocation>();
     const moduleInfo: ModuleInfo = {
+      dependencyLocations,
       path: modulePath,
       ast,
       dependencies: new Set(),
@@ -506,6 +553,8 @@ export class ModuleResolver {
         try {
           const depPath = this.resolveModulePath(importStmt.source, modulePath);
           moduleInfo.dependencies.add(depPath);
+          if (!dependencyLocations.has(depPath))
+            dependencyLocations.set(depPath, importStmt.location);
 
           // Recursively load dependency
           this.loadModule(depPath, new Set(visited));
@@ -593,19 +642,19 @@ export class ModuleResolver {
     const visited = new Set<string>();
     const visiting = new Set<string>();
 
-    const visit = (modulePath: string) => {
+    const visit = (modulePath: string, importLocation?: SourceLocation) => {
       if (visited.has(modulePath)) return;
 
       if (visiting.has(modulePath)) {
         throw new CompilerError(
           `Circular dependency detected involving: ${modulePath}`,
           "Refactor code to avoid circular imports.",
-          {
+          importLocation ?? {
             file: modulePath,
-            startLine: 0,
-            startColumn: 0,
-            endLine: 0,
-            endColumn: 0,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
           },
         );
       }
@@ -629,7 +678,7 @@ export class ModuleResolver {
 
       // Visit dependencies first
       for (const dep of module.dependencies) {
-        visit(dep);
+        visit(dep, module.dependencyLocations?.get(dep));
       }
 
       visiting.delete(modulePath);
@@ -681,18 +730,18 @@ export class ModuleResolver {
     const visiting = new Set<string>();
     const sorted: string[] = [];
 
-    const visit = (modulePath: string) => {
+    const visit = (modulePath: string, importLocation?: SourceLocation) => {
       if (visited.has(modulePath)) return;
       if (visiting.has(modulePath)) {
         throw new CompilerError(
           `Circular dependency detected: ${modulePath}`,
           "Refactor code to avoid circular imports.",
-          {
+          importLocation ?? {
             file: modulePath,
-            startLine: 0,
-            startColumn: 0,
-            endLine: 0,
-            endColumn: 0,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 1,
           },
         );
       }
@@ -716,7 +765,7 @@ export class ModuleResolver {
 
       // Visit dependencies first
       for (const dep of module.dependencies) {
-        visit(dep);
+        visit(dep, module.dependencyLocations?.get(dep));
       }
 
       visiting.delete(modulePath);
@@ -907,7 +956,9 @@ function expressionMayBePrimitiveValue(
       const call = expr as AST.CallExpr;
       if (
         call.callee.kind === "Identifier" &&
-        primitiveReturningFunctions.has((call.callee as AST.IdentifierExpr).name)
+        primitiveReturningFunctions.has(
+          (call.callee as AST.IdentifierExpr).name,
+        )
       ) {
         return true;
       }

@@ -18,6 +18,7 @@ import {
 } from "../../compiler/common/JsonContracts";
 import { findSymlinkedPathComponent } from "../../compiler/common/PathSafety";
 import {
+  CLEAN_FAILED_CODE,
   CLEAN_GIT_TRACKED_UNAVAILABLE_CODE,
   CLEAN_WORKDIR_SYMLINK_CODE,
 } from "./CleanContracts";
@@ -60,6 +61,31 @@ export function runCleanCommand(
     outputJson = Boolean(options.json || globalOpts.json);
     assertNoSymlinkedWorkingDirectoryPath(cwd);
     const entriesToDelete: CleanEntry[] = [];
+    const errors: { path: string; error: string }[] = [];
+    function recordError(filePath: string, error: unknown): void {
+      errors.push({
+        path: path.relative(cwd, filePath) || ".",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    function removeEntry(fullPath: string, entry: CleanEntry): void {
+      try {
+        if (!options.dryRun) {
+          fs.rmSync(fullPath, {
+            recursive: entry.type === "directory",
+            force: true,
+          });
+        }
+        entriesToDelete.push(entry);
+        if (!outputJson && (options.verbose || options.dryRun)) {
+          log.info(
+            `${options.dryRun ? "Would delete" : "Deleted"}: ${entry.path}`,
+          );
+        }
+      } catch (error) {
+        recordError(fullPath, error);
+      }
+    }
     const trackedPaths = getGitTrackedPaths(cwd);
     if (!trackedPaths) {
       throw new CleanValidationError(
@@ -68,11 +94,7 @@ export function runCleanCommand(
       );
     }
     const trackedPathSet = trackedPaths;
-    const cacheDirs = [
-      path.join(cwd, ".bpl-cache"),
-      path.join(cwd, "build"),
-      path.join(cwd, "dist"),
-    ];
+    const cacheDirs = [path.join(cwd, ".bpl-cache")];
     const topLevelCacheDirs = new Set(
       cacheDirs.map((dir) => path.resolve(dir)),
     );
@@ -114,31 +136,28 @@ export function runCleanCommand(
             const base = path.basename(entry.name, ext);
 
             if (
-              isBuildArtifact(base, ext) &&
-              !trackedPathSet.has(gitRelativePath)
+              !isBuildArtifact(ext) ||
+              trackedPathSet.has(gitRelativePath)
             ) {
-              const entryType = entry.isSymbolicLink() ? "symlink" : "file";
-              entriesToDelete.push({
+              continue;
+            }
+            const sourcePath = path.join(dir, `${base}.bpl`);
+            let ownsArtifact = false;
+            try {
+              ownsArtifact = Boolean(tryLstat(sourcePath)?.isFile());
+            } catch (error) {
+              recordError(sourcePath, error);
+            }
+            if (ownsArtifact) {
+              removeEntry(fullPath, {
                 path: relativePath,
-                type: entryType,
+                type: entry.isSymbolicLink() ? "symlink" : "file",
               });
-
-              if (!outputJson && (options.verbose || options.dryRun)) {
-                log.info(
-                  options.dryRun
-                    ? `Would delete: ${relativePath}`
-                    : `Deleting: ${relativePath}`,
-                );
-              }
-
-              if (!options.dryRun) {
-                fs.rmSync(fullPath, { force: true });
-              }
             }
           }
         }
-      } catch (_e) {
-        // Skip directories we can't read
+      } catch (error) {
+        recordError(dir, error);
       }
     }
 
@@ -146,7 +165,13 @@ export function runCleanCommand(
     findFiles(cwd);
 
     for (const dir of cacheDirs) {
-      const stats = tryLstat(dir);
+      let stats: fs.Stats | null;
+      try {
+        stats = tryLstat(dir);
+      } catch (error) {
+        recordError(dir, error);
+        continue;
+      }
       if (stats) {
         const relativePath = path.relative(cwd, dir);
         const gitRelativePath = normalizeGitRelativePath(relativePath);
@@ -163,33 +188,36 @@ export function runCleanCommand(
           entryType = "directory";
         }
 
-        entriesToDelete.push({
-          path: reportPath,
-          type: entryType,
-        });
-
-        if (!outputJson && (options.verbose || options.dryRun)) {
-          log.info(
-            options.dryRun
-              ? `Would delete: ${reportPath}`
-              : `Deleting: ${reportPath}`,
-          );
-        }
-
-        if (!options.dryRun) {
-          fs.rmSync(dir, { recursive: isDirectory, force: true });
-        }
+        removeEntry(dir, { path: reportPath, type: entryType });
       }
     }
 
-    const report: CleanReport = createJsonReport(CLI_JSON_CHECKS.clean, true, {
-      dryRun: Boolean(options.dryRun),
-      count: entriesToDelete.length,
-      entries: entriesToDelete,
-    });
+    const report: CleanReport = createJsonReport(
+      CLI_JSON_CHECKS.clean,
+      errors.length === 0,
+      {
+        dryRun: Boolean(options.dryRun),
+        count: entriesToDelete.length,
+        entries: entriesToDelete,
+        ...(errors.length > 0
+          ? {
+              errorCode: CLEAN_FAILED_CODE,
+              error: "Some paths could not be cleaned",
+              errors,
+            }
+          : {}),
+      },
+    );
 
+    if (errors.length > 0) process.exitCode = 1;
     if (outputJson) {
       console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+
+    if (errors.length > 0) {
+      for (const failure of errors)
+        log.error(`${failure.path}: ${failure.error}`);
       return;
     }
 
@@ -294,15 +322,8 @@ function tryLstat(filePath: string): fs.Stats | null {
   }
 }
 
-function isBuildArtifact(base: string, ext: string): boolean {
-  return (
-    ext === ".ll" ||
-    ext === ".o" ||
-    ext === ".exe" ||
-    ext === ".out" ||
-    (base === "main" && ext === "") ||
-    (base === "a" && ext === ".out")
-  );
+function isBuildArtifact(ext: string): boolean {
+  return ext === ".ll" || ext === ".o" || ext === ".exe" || ext === ".out";
 }
 
 function getGitTrackedPaths(cwd: string): Set<string> | null {

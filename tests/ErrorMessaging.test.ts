@@ -8,6 +8,7 @@ import {
   DiagnosticSeverity,
 } from "../compiler/common/CompilerError";
 import { DiagnosticFormatter } from "../compiler/common/DiagnosticFormatter";
+import { SourceManager } from "../compiler/common/SourceManager";
 
 describe("Enhanced Error Messaging", () => {
   test("should format error with location information", () => {
@@ -391,4 +392,38 @@ describe("Enhanced Error Messaging", () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+});
+
+test("empty cached source overrides stale disk text in text and JSON diagnostics", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-empty-source-"));
+  const file = path.join(dir, "main.bpl");
+  const staleText = "stale disk source must not be displayed";
+  fs.writeFileSync(file, staleText);
+  const formatter = new DiagnosticFormatter({ colorize: false });
+  const error = () =>
+    new CompilerError("test diagnostic", "", {
+      file,
+      startLine: 1,
+      startColumn: 1,
+      endLine: 1,
+      endColumn: 1,
+    });
+  try {
+    // With no cached document, disk content is still available.
+    expect(formatter.formatDiagnosticObjects([error()])[0]!.source?.line).toBe(
+      staleText,
+    );
+    // An emptied editor buffer is an authoritative source, not a cache miss.
+    SourceManager.setSource(file, "");
+    const emptyError = error();
+    expect(emptyError.toString()).not.toContain(staleText);
+    expect(formatter.formatError(emptyError)).not.toContain(staleText);
+    expect(
+      formatter.formatDiagnosticObjects([emptyError])[0]!.source?.line,
+    ).toBe("");
+    expect(formatter.formatAsJSON([emptyError])).not.toContain(staleText);
+  } finally {
+    SourceManager.clear();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

@@ -3,8 +3,18 @@ import {
   window,
   workspace,
   commands,
-  type Terminal,
+  languages,
+  Range,
+  TextEdit,
+  TextDocumentSaveReason,
+  tasks,
+  Task,
+  TaskScope,
+  ShellExecution,
+  ShellQuoting,
+  Uri,
   type ExtensionContext,
+  type TextEdit as TextEditType,
 } from "vscode";
 import {
   LanguageClient,
@@ -13,8 +23,12 @@ import {
   type ServerOptions,
 } from "vscode-languageclient/node";
 
+import { FormattingFailures } from "./FormattingFailures";
+import { saveAndRunDocument } from "./RunDocument";
+import { shouldUseBplSaveFormatting } from "./FormatOnSave";
+
 let client: LanguageClient;
-let terminal: Terminal | undefined;
+const formattingFailures = new FormattingFailures();
 
 export async function activate(context: ExtensionContext) {
   // The server is implemented in node
@@ -38,7 +52,7 @@ export async function activate(context: ExtensionContext) {
     documentSelector: [{ scheme: "file", language: "bpl" }],
     synchronize: {
       // Notify the server about file changes to '.clientrc files contained in the workspace
-      fileEvents: workspace.createFileSystemWatcher("**/.clientrc"),
+      fileEvents: workspace.createFileSystemWatcher("**/*.{bpl,x,json}"),
     },
   };
 
@@ -55,41 +69,124 @@ export async function activate(context: ExtensionContext) {
 
   // Register Run Command
   context.subscriptions.push(
-    commands.registerCommand("bpl.runFile", (uri: string) => {
-      if (!terminal) {
-        terminal = window.createTerminal("BPL Run");
-      }
-      terminal.show();
-      // If uri is passed as string (from CodeLens), use it. Otherwise use active editor.
-      let filePath = uri;
-      if (!filePath && window.activeTextEditor) {
-        filePath = window.activeTextEditor.document.uri.fsPath;
-      }
-      if (filePath) {
-        // Quote path to handle spaces
-        terminal.sendText(`bpl run "${filePath}"`);
-      } else {
-        window.showErrorMessage("No file to run.");
+    commands.registerCommand("bpl.runFile", async (target?: string | Uri) => {
+      try {
+        let uri = typeof target === "string" ? Uri.file(target) : target;
+        if (typeof target === "string" && target.startsWith("file:"))
+          uri = Uri.parse(target);
+        uri ||= window.activeTextEditor?.document.uri;
+        if (!uri || uri.scheme !== "file") {
+          void window.showErrorMessage("Save the BPL file before running it.");
+          return;
+        }
+        const fileUri = uri;
+        const document = await workspace.openTextDocument(fileUri);
+        const launched = await saveAndRunDocument(document, () =>
+          tasks.executeTask(
+            new Task(
+              { type: "bpl", file: fileUri.fsPath },
+              workspace.getWorkspaceFolder(fileUri) || TaskScope.Global,
+              "Run BPL file",
+              "BPL",
+              new ShellExecution(
+                "bpl",
+                [
+                  "run",
+                  { value: fileUri.fsPath, quoting: ShellQuoting.Strong },
+                ],
+                { cwd: path.dirname(fileUri.fsPath) },
+              ),
+            ),
+          ),
+        );
+        if (!launched)
+          void window.showWarningMessage(
+            "BPL Run cancelled because the file was not saved.",
+          );
+      } catch (error) {
+        void window.showErrorMessage(
+          `BPL Run failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
   );
 
-  // Enable format-on-save by default, honoring user setting
-  const config = workspace.getConfiguration();
-  const enabled = config.get<boolean>("bplLanguageServer.formatOnSave", true);
-  if (enabled) {
-    const _currentLanguages = config.get<string[]>(
-      "editor.formatOnSaveAllowList",
-    );
-    // Prefer per-language setting; if unavailable, set global formatOnSave true
-    config.update("editor.formatOnSave", true, true).then(() => {
-      // Optionally inform the user how to disable
-      window.setStatusBarMessage(
-        "BPL: format-on-save enabled (toggle in settings)",
-        3000,
+  // Untitled buffers are intentionally outside the file-only language server.
+  context.subscriptions.push(
+    languages.registerDocumentFormattingEditProvider(
+      { language: "bpl", scheme: "untitled" },
+      {
+        async provideDocumentFormattingEdits(document, options) {
+          try {
+            const { formatDocumentText } =
+              await import("./services/DocumentFormatter");
+            const text = document.getText();
+            const formatted = formatDocumentText(
+              text,
+              document.uri.toString(),
+              options,
+            );
+            formattingFailures.clear(document.uri.toString());
+            return [
+              TextEdit.replace(
+                new Range(
+                  document.positionAt(0),
+                  document.positionAt(text.length),
+                ),
+                formatted,
+              ),
+            ];
+          } catch (error) {
+            formattingFailures.report(
+              document.uri.toString(),
+              error,
+              (message) => {
+                void window.showErrorMessage(message);
+              },
+            );
+            return [];
+          }
+        },
+      },
+    ),
+    workspace.onDidCloseTextDocument((document) =>
+      formattingFailures.clear(document.uri.toString()),
+    ),
+    workspace.onWillSaveTextDocument((event) => {
+      if (event.reason === TextDocumentSaveReason.AfterDelay) return;
+      const document = event.document;
+      const editor = workspace.getConfiguration("editor", document);
+      const enabled = workspace
+        .getConfiguration("bplLanguageServer", document)
+        .get<boolean>("formatOnSave", true);
+      if (!shouldUseBplSaveFormatting(document.languageId, enabled, editor))
+        return;
+      event.waitUntil(
+        commands
+          .executeCommand<TextEditType[]>(
+            "vscode.executeFormatDocumentProvider",
+            document.uri,
+            {
+              tabSize: editor.get<number>("tabSize", 4),
+              insertSpaces: editor.get<boolean>("insertSpaces", true),
+            },
+          )
+          .then(
+            (edits) => edits ?? [],
+            (error) => {
+              formattingFailures.report(
+                document.uri.toString(),
+                error,
+                (message) => {
+                  void window.showErrorMessage(message);
+                },
+              );
+              return [];
+            },
+          ),
       );
-    });
-  }
+    }),
+  );
 }
 
 export function deactivate(): Thenable<void> | undefined {

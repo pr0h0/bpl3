@@ -195,7 +195,7 @@ export function getWordAtPosition(
   position: { line: number; character: number },
 ): string {
   const text = document.getText();
-  const lines = text.split("\n");
+  const lines = text.split(/\r\n|\r|\n/);
   const line = lines[position.line] ?? "";
 
   let start = position.character;
@@ -230,7 +230,7 @@ export function uriToFilePath(uri: string): string {
  * Find the enclosing struct at a given line
  */
 export function findEnclosingStruct(text: string, line: number): string | null {
-  const lines = text.split(/\r?\n/);
+  const lines = text.split(/\r\n|\r|\n/);
   for (let i = line; i >= 0; i--) {
     const l = lines[i] || "";
     const match = /struct\s+([a-zA-Z0-9_]+)/.exec(l);
@@ -247,7 +247,7 @@ export function findVariableType(
   varName: string,
   line: number,
 ): string | null {
-  const lines = text.split(/\r?\n/);
+  const lines = text.split(/\r\n|\r|\n/);
   // Search backwards for local declaration or function arg
   for (let i = line; i >= 0; i--) {
     const l = lines[i] || "";

@@ -3,11 +3,15 @@
  * Explicit compilation command for building BPL programs
  */
 
+import { resolveProjectEntry } from "../ProjectEntry";
 import type { Command } from "commander";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
 import { getExplicitParentCompileOptions } from "./compileOptions";
-import { validateCompileInputSources } from "../BuildInputValidation";
+import {
+  validateCompileInputSources,
+  emitNoInputBuildErrorAndExit,
+} from "../BuildInputValidation";
 
 const log = new Logger("Build");
 
@@ -68,7 +72,7 @@ export function shouldUseFrontendBuildAction(options: CompileOptions): boolean {
 export function registerBuildCommand(program: Command): void {
   program
     .command("build")
-    .argument("<file>", "BPL file to compile")
+    .argument("[file]", "BPL file to compile")
     .description("Compile a BPL program")
     .option("-o, --output <file>", "output file path")
     .option(
@@ -80,6 +84,10 @@ export function registerBuildCommand(program: Command): void {
       "write a C header for c_export functions (requires --shared)",
     )
     .option("--emit <type>", "emit type: llvm, ast, tokens, formatted")
+    .option(
+      "--project",
+      "use main/entry from bpl.json in the current directory",
+    )
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
     .option("-O <level>", "optimization level: 0, 1, 2, or 3")
@@ -112,7 +120,11 @@ export function registerBuildCommand(program: Command): void {
     .option("--no-color", "disable colored output")
     .option("--json", "output in JSON format")
     .action(
-      async (file: string, _options: CompileOptions, command: Command) => {
+      async (
+        file: string | undefined,
+        _options: CompileOptions,
+        command: Command,
+      ) => {
         try {
           // Merge parent options if any
           const globalOpts = getExplicitParentCompileOptions(command);
@@ -126,6 +138,9 @@ export function registerBuildCommand(program: Command): void {
               globalOpts.debug ||
               globalOpts.dwarf,
           };
+          if (!file && !localOpts.project)
+            emitNoInputBuildErrorAndExit(compileOptions);
+          file = resolveProjectEntry(file, localOpts.project);
           validateCompileInputSources([file], compileOptions);
 
           if (shouldUseFrontendBuildAction(compileOptions)) {

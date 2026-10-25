@@ -2,6 +2,11 @@
 
 BPL has a comprehensive VS Code extension that provides full language server protocol (LSP) support, making development fast and productive.
 
+Editor source positions recognize LF, CRLF and standalone CR line endings.
+LSP ranges use zero-based lines and UTF-16 columns; compiler diagnostics are
+converted from the compiler's one-based coordinates. Multiline source slices
+retain their original newline sequences and literal contents.
+
 ## Features
 
 ### Syntax Highlighting
@@ -44,6 +49,10 @@ CLI commands rather than editor snippets.
 
 ### Hover Information
 
+Function and method names show their declaration and documentation when the
+return type is omitted. An explicit `void` annotation still provides type help
+when the annotation itself is hovered.
+
 Rich tooltips with full type information:
 
 - **Functions**: See full signatures with parameter names and return types
@@ -63,6 +72,39 @@ Jump to symbol definitions:
 - **Stdlib Symbols**: Jump to standard library implementations
 - **Package Symbols**: Navigate into installed packages
 - **Clickable Imports**: Import string paths are document links with exact ranges
+
+### Rename ranges
+
+Imported symbols and exported declarations cannot currently be renamed across
+files. These requests are
+declined so they cannot return incomplete edits that break importing code.
+Read-only imported-symbol references can still be found in the defining file,
+using its cached live source when available. This is not a complete workspace
+reference search. A missing declaration or parser errors in the live defining
+file suppress its reference results.
+
+Rename and reference operations decline documents with parser errors, including
+recovered parses that omit malformed statements. Completion can still use
+partial parses.
+
+Rename preparation locates declaration names using lexer tokens, including
+comments, modifiers and multiline headers. Rename and find-references require
+the cursor on the name (including its trailing boundary). Declaration edits select the name
+rather than replacing the whole declaration or function body.
+Global declarations and references in the current document use its unsaved
+source and names. Global reference searches currently cover the defining file;
+workspace-wide import resolution is not implemented. Identifier matching skips
+comments and string payloads, including text around interpolated expressions.
+Global value renames respect local, parameter, lambda, catch and match bindings
+and preserve unrelated member names. Renaming lambda parameters and resolving
+type-name/generic shadowing are still incomplete.
+
+Match-pattern renames apply to the binding declaration and its uses in that
+arm's guard and body. Identifier, tuple and enum-tuple bindings preserve
+same-named outer variables, parameters and sibling or nested bindings. Local
+initializers still refer to the preceding binding. Struct-pattern string
+bindings and duplicate names within a single pattern currently decline rename
+because they do not provide an unambiguous supported declaration target.
 
 ### Inlay Hints
 
@@ -221,9 +263,11 @@ npm run compile --prefix vscode-ext
 
 `npm run compile:test --prefix vscode-ext` type-checks the extension test
 sources under `vscode-ext/src/test` with strict settings before CI. `npm test
---prefix vscode-ext` runs that type-check first and then runs the Bun language
-server tests. `npm run compile --prefix vscode-ext` remains the production
-extension compile used for packaging.
+--prefix vscode-ext` first builds the production extension, then runs that
+type-check, and then runs the Bun language server tests. Production and test
+configurations both include ES2022 library declarations.
+`npm run compile --prefix vscode-ext` remains the production extension compile
+used for packaging.
 
 VS Code type-check failures map to these same focused commands in `bun run
 ci:triage`, including missing `vscode-languageserver-textdocument` declarations
@@ -241,6 +285,7 @@ Tests cover:
 - Hover information (functions, structs, enums)
 - Go-to-definition navigation
 - Symbol resolution across files
+- Local rename preserves references to outer bindings in declaration initializers
 - Type inference and checking
 - Snippet JSON validity for package and type-match snippets
 
@@ -282,3 +327,30 @@ The VS Code extension is part of the BPL project and is licensed under the Apach
 
 The completion examples intentionally end at an unfinished member access, such as
 `user.`. They illustrate editor state and are not complete compilable programs.
+
+## Formatting and save preferences
+
+Format Document works on the current file buffer and on untitled BPL buffers.
+The nearest `.bplfmt.json` controls file formatting; without a project config,
+editor indentation preferences apply, with four spaces as the BPL default.
+See [Code Formatting](38-code-formatting.md) for settings and precedence.
+
+The extension never updates global `editor.formatOnSave`. Its BPL-only save
+hook uses `bplLanguageServer.formatOnSave` (default true) only when native
+`editor.formatOnSave` is not explicitly configured. Native settings take
+precedence, so explicit `false` disables automatic formatting and explicit
+`true` lets VS Code handle it once. Manual Format Document remains available.
+
+The BPL save hook skips delayed autosaves (`files.autoSave: "afterDelay"`),
+matching native save formatting. Manual and focus-change saves remain eligible.
+
+## Workflow feedback
+
+Run saves the selected file before launching a shell-quoted VS Code task. A
+cancelled or failed save does not launch the previous disk version. Untitled
+buffers must first be saved. Filesystem changes to sources/manifests refresh
+import state and revalidate open documents; diagnostics are debounced and stale
+results are discarded. Closing a document clears its diagnostics and analysis.
+Formatting failures show the source/configuration problem once until it changes
+or formatting succeeds. Both manifest and formatter schemas are bundled for
+local editor validation, including existing manifests without `$schema`.

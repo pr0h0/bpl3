@@ -186,7 +186,7 @@ describe("CLI Tests", () => {
       {
         args: ["build", "--help"],
         snippets: [
-          "Usage: bpl build [options] <file>",
+          "Usage: bpl build [options] [file]",
           "--emit <type>",
           "--wasm-runtime <mode>",
           "--debug-ir-path <file>",
@@ -197,7 +197,7 @@ describe("CLI Tests", () => {
       {
         args: ["run", "--help"],
         snippets: [
-          "Usage: bpl run [options] <file> [args...]",
+          "Usage: bpl run [options] [file] [args...]",
           "--debug-ir-path <file>",
         ],
       },
@@ -262,7 +262,7 @@ describe("CLI Tests", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("error[E001]");
     expect(result.stderr).toContain("Type mismatch");
-    expect(result.stderr).toContain("cannot assign *i8 to i32");
+    expect(result.stderr).toContain("cannot assign string to i32");
   });
 
   it("should reject invalid optimization levels for eval input", () => {
@@ -1784,7 +1784,7 @@ describe("CLI Tests", () => {
     }
   });
 
-  it("should reject directories in source analysis commands", () => {
+  it("should reject check directories and report empty format/lint discovery", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-analysis-dir-"),
     );
@@ -1812,25 +1812,11 @@ describe("CLI Tests", () => {
 
       const lint = runCLI(["lint", "--json", sourceDir]);
       expect(lint.status).toBe(1);
-      expect(
-        parseJsonObjectStdout<{
-          files: Array<{
-            file: string;
-            success: boolean;
-            error: string;
-            errorCode: string;
-          }>;
-        }>(lint).files[0],
-      ).toEqual({
-        file: sourceDir,
-        success: false,
-        error: "Input path is not a file",
-        errorCode: "BPL_LINT_INPUT_NOT_FILE",
-      });
-
+      expect(JSON.parse(lint.stdout).errorCode).toBe("BPL_LINT_NO_INPUTS");
+      expect(JSON.parse(lint.stdout).error).toContain("No BPL sources");
       const format = runCLI(["format", sourceDir]);
       expect(format.status).toBe(1);
-      expect(format.stderr).toContain("Input path is not a file");
+      expect(format.stderr).toContain("No BPL sources");
       expect(format.stderr).not.toContain("EISDIR");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -2322,13 +2308,13 @@ describe("CLI Tests", () => {
         check: "clean",
         success: true,
         dryRun: true,
-        count: 2,
+        count: 1,
       });
       expect(dryRunReport.entries).toContainEqual({
         path: "main.ll",
         type: "file",
       });
-      expect(dryRunReport.entries).toContainEqual({
+      expect(dryRunReport.entries).not.toContainEqual({
         path: "build/",
         type: "directory",
       });
@@ -2354,9 +2340,9 @@ describe("CLI Tests", () => {
         success: true,
       });
       expect(cleanReport.dryRun).toBe(false);
-      expect(cleanReport.count).toBe(2);
+      expect(cleanReport.count).toBe(1);
       expect(fs.existsSync(path.join(tempDir, "main.ll"))).toBe(false);
-      expect(fs.existsSync(buildDir)).toBe(false);
+      expect(fs.existsSync(buildDir)).toBe(true);
       expect(fs.existsSync(path.join(tempDir, "main.bpl"))).toBe(true);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -2389,11 +2375,11 @@ describe("CLI Tests", () => {
         path: ".bpl-cache",
         type: "file",
       });
-      expect(dryRunReport.entries).toContainEqual({
+      expect(dryRunReport.entries).not.toContainEqual({
         path: "build",
         type: "file",
       });
-      expect(dryRunReport.entries).toContainEqual({
+      expect(dryRunReport.entries).not.toContainEqual({
         path: "dist",
         type: "symlink",
       });
@@ -2413,8 +2399,8 @@ describe("CLI Tests", () => {
 
       expect(clean.status).toBe(0);
       expect(fs.existsSync(cacheFile)).toBe(false);
-      expect(fs.existsSync(buildFile)).toBe(false);
-      expect(() => fs.lstatSync(distLink)).toThrow();
+      expect(fs.existsSync(buildFile)).toBe(true);
+      expect(fs.lstatSync(distLink).isSymbolicLink()).toBe(true);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -2426,6 +2412,7 @@ describe("CLI Tests", () => {
     const artifactLink = path.join(tempDir, "main.ll");
     fs.writeFileSync(outsideTarget, "; keep target");
     fs.symlinkSync(outsideTarget, artifactLink, "file");
+    fs.writeFileSync(path.join(tempDir, "main.bpl"), "frame main() {}");
 
     try {
       const dryRun = spawnSync(
@@ -2561,6 +2548,8 @@ describe("CLI Tests", () => {
 
     fs.writeFileSync(trackedLl, "; tracked runtime ir");
     fs.writeFileSync(trackedBuildFile, "tracked artifact");
+    fs.writeFileSync(path.join(tempDir, "generated.bpl"), "frame main() {}");
+    fs.writeFileSync(path.join(buildDir, "generated.bpl"), "frame main() {}");
     fs.writeFileSync(untrackedObject, "object");
     fs.writeFileSync(untrackedBuildObject, "object");
 

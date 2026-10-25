@@ -1,3 +1,4 @@
+import { formatDiagnosticType } from "./DiagnosticTypeFormatter";
 import {
   applyAliasValueModifiers,
   TYPE_ALIAS_POINTER_UNSUPPORTED_CODE,
@@ -20,6 +21,7 @@ import {
 } from "./BuiltinTypes";
 import {
   TypeUtils,
+  arrayCastAllowance,
   haveDistinctNominalDeclarations,
   TypeSubstitution,
   NUMERIC_TYPES,
@@ -51,6 +53,7 @@ export const BUILTIN_TYPE_REDEFINITION_CODE =
   "BPL_BUILTIN_TYPE_REDEFINITION";
 export const ARRAY_SIZE_INVALID_CODE = "BPL_ARRAY_SIZE_INVALID";
 export const RETURN_TYPE_MISMATCH_CODE = "BPL_RETURN_TYPE_MISMATCH";
+export const RETURN_ARRAY_VIEW_ESCAPES_CODE = "BPL_RETURN_ARRAY_VIEW_ESCAPES";
 export const ASSIGNMENT_TYPE_MISMATCH_CODE =
   "BPL_ASSIGNMENT_TYPE_MISMATCH";
 export const VARIABLE_TYPE_ANNOTATION_MISSING_CODE =
@@ -191,6 +194,7 @@ export const TYPE_CHECKER_FAILURE_CODES = [
   BUILTIN_TYPE_REDEFINITION_CODE,
   ARRAY_SIZE_INVALID_CODE,
   RETURN_TYPE_MISMATCH_CODE,
+  RETURN_ARRAY_VIEW_ESCAPES_CODE,
   ASSIGNMENT_TYPE_MISMATCH_CODE,
   VARIABLE_TYPE_ANNOTATION_MISSING_CODE,
   VARIABLE_REDECLARATION_CODE,
@@ -718,7 +722,17 @@ export abstract class TypeCheckerBase {
     return this.currentScope;
   }
 
+  /** Check known-type rules for each named component of an annotation. */
   public ensureKnownType(type: AST.TypeNode): void {
+    if (type.kind === "TupleType") {
+      for (const element of type.types) this.ensureKnownType(element);
+      return;
+    }
+    if (type.kind === "FunctionType" || type.kind === "LambdaType") {
+      this.ensureKnownType(type.returnType);
+      for (const parameter of type.paramTypes) this.ensureKnownType(parameter);
+      return;
+    }
     if (type.kind !== "BasicType") {
       return;
     }
@@ -734,11 +748,24 @@ export abstract class TypeCheckerBase {
       return;
     }
 
-    const looksLikeGenericParam =
-      typeName.length <= 2 && /^[A-Z][0-9]?$/.test(typeName);
-
-    if (looksLikeGenericParam || this.resolveTypeSymbol(typeName)) {
+    const symbol =
+      recordedDeclarationSymbol(type) ?? this.resolveTypeSymbol(typeName);
+    if (
+      symbol?.kind === "Struct" ||
+      symbol?.kind === "Enum" ||
+      symbol?.kind === "Spec" ||
+      symbol?.kind === "TypeAlias"
+    ) {
       return;
+    }
+
+    if (symbol) {
+      throw new CompilerError(
+        `Symbol '${typeName}' is a ${formatSymbolKind(symbol.kind)}, not a type`,
+        "Use a struct, enum, spec, type alias, or generic type parameter in a type annotation.",
+        type.location,
+        TYPE_NOT_FOUND_CODE,
+      );
     }
 
     throw new CompilerError(
@@ -796,6 +823,19 @@ export abstract class TypeCheckerBase {
     type: AST.TypeNode,
     checkConstraints: boolean = true,
   ): AST.TypeNode {
+    // Composite types also carry outer array dimensions.
+    if (type.kind !== "BasicType" && "arrayDimensions" in type) {
+      for (const dimension of type.arrayDimensions ?? []) {
+        if (dimension !== null && dimension <= 0) {
+          throw new CompilerError(
+            "Array size must be greater than zero.",
+            "Arrays cannot have zero or negative size.",
+            type.location,
+            ARRAY_SIZE_INVALID_CODE,
+          );
+        }
+      }
+    }
     if (type.kind === "BasicType") {
       if (
         type.name === "i32" &&
@@ -956,9 +996,9 @@ export abstract class TypeCheckerBase {
                   !this.areTypesCompatible(substitutedConstraint, arg, false)
                 ) {
                   throw new CompilerError(
-                    `Type '${this.typeToString(
+                    `Type '${this.formatDiagnosticType(
                       arg,
-                    )}' does not satisfy constraint '${this.typeToString(substitutedConstraint)}'`,
+                    )}' does not satisfy constraint '${this.formatDiagnosticType(substitutedConstraint)}'`,
                     `Ensure the type argument satisfies the constraint.`,
                     type.location,
                   );
@@ -1117,18 +1157,21 @@ export abstract class TypeCheckerBase {
             );
 
             if (resolvedSubstituted.kind === "BasicType") {
-              return {
-                ...resolvedSubstituted,
-                pointerDepth:
-                  resolvedSubstituted.pointerDepth + type.pointerDepth,
-                arrayDimensions: [
-                  ...type.arrayDimensions,
-                  ...resolvedSubstituted.arrayDimensions,
-                ],
-                location: type.location,
-                aliasDeclaration: decl,
-                aliasTarget: resolvedSubstituted,
-              };
+              return applyAliasValueModifiers(
+                {
+                  ...resolvedSubstituted,
+                  pointerDepth:
+                    resolvedSubstituted.pointerDepth + type.pointerDepth,
+                  arrayDimensions: [
+                    ...type.arrayDimensions,
+                    ...resolvedSubstituted.arrayDimensions,
+                  ],
+                  location: type.location,
+                  aliasDeclaration: decl,
+                  aliasTarget: resolvedSubstituted,
+                },
+                type,
+              );
             }
             return applyAliasValueModifiers(resolvedSubstituted, type);
           }
@@ -1157,7 +1200,7 @@ export abstract class TypeCheckerBase {
               aliasDeclaration: decl,
               aliasTarget: resolvedBase,
             };
-            return result;
+            return applyAliasValueModifiers(result, type);
           }
 
           return applyAliasValueModifiers(resolvedBase, type);
@@ -1277,6 +1320,10 @@ export abstract class TypeCheckerBase {
 
   // ========== Type Utilities ==========
 
+  public formatDiagnosticType(type: AST.TypeNode | undefined): string {
+    return formatDiagnosticType(type);
+  }
+
   public typeToString(type: AST.TypeNode | undefined): string {
     return TypeUtils.typeToString(type);
   }
@@ -1336,6 +1383,316 @@ export abstract class TypeCheckerBase {
     return TypeUtils.isIntegerTypeCompatible(val, targetType, (t) =>
       this.resolveType(t),
     );
+  }
+
+  /** Choose a match representation without narrowing an earlier or later yield. */
+  public unifyMatchResultTypes(
+    first: AST.TypeNode,
+    next: AST.TypeNode,
+    previousValues: readonly AST.Expression[] = [],
+    nextValues: readonly AST.Expression[] = [],
+  ): AST.TypeNode | undefined {
+    const left = this.resolveType(first);
+    const right = this.resolveType(next);
+    if (this.areTypesExactMatch(left, right)) return left;
+    if (
+      left.kind === "BasicType" &&
+      right.kind === "BasicType" &&
+      left.pointerDepth === 0 &&
+      right.pointerDepth === 0 &&
+      left.arrayDimensions.length > 0 &&
+      right.arrayDimensions.length > 0 &&
+      left.arrayDimensions.every((dimension) => dimension !== null) &&
+      right.arrayDimensions.every((dimension) => dimension !== null)
+    ) {
+      const literalsMatch = (
+        values: readonly AST.Expression[],
+        target: AST.TypeNode,
+      ) =>
+        values.length > 0 &&
+        values.every((value) => {
+          const planned = this.contextualizeArrayLiteral(value, target, false);
+          return (
+            planned !== undefined && this.areTypesExactMatch(target, planned)
+          );
+        });
+      if (literalsMatch(nextValues, left)) return left;
+      if (literalsMatch(previousValues, right)) return right;
+    }
+    if (
+      left.kind === "TupleType" &&
+      right.kind === "TupleType" &&
+      !left.arrayDimensions?.length &&
+      !right.arrayDimensions?.length &&
+      left.types.length === right.types.length
+    ) {
+      const tupleElements = (
+        values: readonly AST.Expression[],
+        index: number,
+      ): AST.Expression[] => {
+        const elements: AST.Expression[] = [];
+        const project = (value: AST.Expression): boolean => {
+          if (value.kind === "Group") return project(value.expression);
+          if (value.kind === "TupleLiteral") {
+            const element = value.elements[index];
+            if (!element) return false;
+            elements.push(element);
+            return true;
+          }
+          if (value.kind === "Ternary")
+            return project(value.trueExpr) && project(value.falseExpr);
+          if (value.kind === "Match") {
+            return value.arms.every((arm) => {
+              const yields =
+                arm.body.kind === "Block"
+                  ? (this.matchYieldValues.get(arm.body) ?? [])
+                  : [arm.body];
+              return yields.every(project);
+            });
+          }
+          return false;
+        };
+        return values.every(project) ? elements : [];
+      };
+      const types: AST.TypeNode[] = [];
+      for (let index = 0; index < left.types.length; index++) {
+        const common = this.unifyMatchResultTypes(
+          left.types[index]!,
+          right.types[index]!,
+          tupleElements(previousValues, index),
+          tupleElements(nextValues, index),
+        );
+        if (!common) return;
+        types.push(common);
+      }
+      return { ...left, types };
+    }
+    if (
+      left.kind === "BasicType" &&
+      right.kind === "BasicType" &&
+      left.pointerDepth === 0 &&
+      right.pointerDepth === 0 &&
+      !left.arrayDimensions.length &&
+      !right.arrayDimensions.length &&
+      TypeUtils.isIntegerType(left) &&
+      TypeUtils.isIntegerType(right) &&
+      !this.isBoolType(left) &&
+      !this.isBoolType(right)
+    ) {
+      if (this.isImplicitWideningAllowed(right, left)) return left;
+      if (this.isImplicitWideningAllowed(left, right)) return right;
+      const literalsFit = (
+        values: readonly AST.Expression[],
+        target: AST.TypeNode,
+      ) =>
+        values.length > 0 &&
+        values.every((expression) => {
+          let value = expression;
+          while (value.kind === "Group") value = value.expression;
+          while (
+            value.kind === "Unary" &&
+            (value.operator.type === TokenType.Plus ||
+              value.operator.type === TokenType.Minus)
+          ) {
+            value = value.operand;
+            while (value.kind === "Group") value = value.expression;
+          }
+          // Explicitly typed casts and runtime arithmetic retain their types.
+          if (value.kind !== "Literal") return false;
+          const constant = this.getIntegerConstantValue(expression);
+          return (
+            constant !== undefined &&
+            this.isIntegerTypeCompatible(constant, target)
+          );
+        });
+      if (literalsFit(nextValues, left)) return left;
+      if (literalsFit(previousValues, right)) return right;
+      return;
+    }
+    return this.areTypesCompatible(left, right) ? left : undefined;
+  }
+
+  /** Plan literal array conversions without changing overload candidates' ASTs. */
+  public contextualizeArrayLiteral(
+    expr: AST.Expression,
+    targetType: AST.TypeNode,
+    apply: boolean = true,
+  ): AST.TypeNode | undefined {
+    if (
+      expr.kind !== "ArrayLiteral" &&
+      expr.kind !== "TupleLiteral" &&
+      expr.kind !== "Group" &&
+      expr.kind !== "Ternary" &&
+      expr.kind !== "Match"
+    )
+      return;
+    const rootTarget = this.resolveType(targetType);
+    if (!(
+      (rootTarget.kind === "BasicType" && rootTarget.arrayDimensions.length) ||
+      (rootTarget.kind === "TupleType" && !rootTarget.arrayDimensions?.length)
+    ))
+      return;
+    const updates = new Map<AST.Expression, AST.TypeNode>();
+    let hasArray = false;
+    const visit = (
+      value: AST.Expression,
+      expected: AST.TypeNode,
+    ): AST.TypeNode | undefined => {
+      const target = this.resolveType(expected);
+      if (value.kind === "Group") {
+        const type = visit(value.expression, target);
+        if (type && updates.has(value.expression)) updates.set(value, type);
+        return type;
+      }
+      if (
+        value.kind === "Match" &&
+        ((target.kind === "BasicType" && target.arrayDimensions.length) ||
+          (target.kind === "TupleType" && !target.arrayDimensions?.length))
+      ) {
+        let result: AST.TypeNode | undefined;
+        for (const arm of value.arms) {
+          const yields =
+            arm.body.kind === "Block"
+              ? (this.matchYieldValues.get(arm.body) ?? [])
+              : [arm.body];
+          // A checked value match may also have diverging block arms.
+          for (const yielded of yields) {
+            const type = visit(yielded, target);
+            if (!type || (result && !this.areTypesExactMatch(result, type)))
+              return;
+            result = type;
+          }
+        }
+        if (result) updates.set(value, result);
+        return result;
+      }
+      if (
+        value.kind === "Ternary" &&
+        ((target.kind === "BasicType" && target.arrayDimensions.length) ||
+          (target.kind === "TupleType" && !target.arrayDimensions?.length))
+      ) {
+        const left = visit(value.trueExpr, target);
+        const right = visit(value.falseExpr, target);
+        if (!left || !right || !this.areTypesExactMatch(left, right)) return;
+        updates.set(value, left);
+        return left;
+      }
+      if (value.kind === "TupleLiteral") {
+        if (
+          target.kind !== "TupleType" ||
+          target.arrayDimensions?.length ||
+          target.types.length !== value.elements.length
+        )
+          return;
+        const types: AST.TypeNode[] = [];
+        for (let index = 0; index < value.elements.length; index++) {
+          const element = value.elements[index]!;
+          const expectedElement = target.types[index]!;
+          const planned = visit(element, expectedElement);
+          const actual = element.resolvedType;
+          if (!planned && (!actual || !this.areTypesCompatible(expectedElement, actual))) return;
+          // Tuple lowering converts each element; scalar expression annotations
+          // keep the original types emitted by their operators.
+          types.push(this.resolveType(expectedElement));
+        }
+        const type: AST.TupleTypeNode = {
+          kind: "TupleType",
+          types,
+          location: value.location,
+        };
+        updates.set(value, type);
+        return type;
+      }
+      if (value.kind === "ArrayLiteral") {
+        // Keep this conversion specific to integer literal arrays. In particular,
+        // do not reinterpret existing array storage or infer callback signatures.
+        if (
+          target.kind !== "BasicType" ||
+          target.pointerDepth !== 0 ||
+          !target.arrayDimensions.length ||
+          !TypeUtils.isIntegerType({
+            ...target,
+            arrayDimensions: [],
+          }) ||
+          value.elements.length === 0 ||
+          (target.arrayDimensions[0] !== null &&
+            target.arrayDimensions[0] !== value.elements.length)
+        )
+          return;
+        hasArray = true;
+        // A new literal has its own canonical shape. Alias provenance describes
+        // the destination storage and would reopen consumed dimensions in codegen.
+        const literalType: AST.BasicTypeNode = {
+          kind: "BasicType",
+          name: target.name,
+          genericArgs: [],
+          pointerDepth: 0,
+          arrayDimensions: target.arrayDimensions,
+          location: value.location,
+        };
+        const elementType = {
+          ...literalType,
+          arrayDimensions: target.arrayDimensions.slice(1),
+        };
+        for (const element of value.elements) {
+          if (!visit(element, elementType)) return;
+        }
+        const type = {
+          ...literalType,
+          arrayDimensions: [
+            value.elements.length,
+            ...target.arrayDimensions.slice(1),
+          ],
+        };
+        updates.set(value, type);
+        return type;
+      }
+      const actual = value.resolvedType;
+      if (target.kind === "TupleType" && actual?.kind === "TupleType") {
+        const common = this.unifyMatchResultTypes(target, actual);
+        if (common && this.areTypesExactMatch(target, common)) return target;
+      }
+      if (
+        actual &&
+        (this.areTypesExactMatch(target, actual) ||
+          this.isImplicitWideningAllowed(actual, target))
+      )
+        return actual;
+      // A scalar constant cannot stand in for a remaining array dimension.
+      if (
+        target.kind !== "BasicType" ||
+        target.pointerDepth !== 0 ||
+        target.arrayDimensions.length !== 0
+      )
+        return;
+      const constant = this.getIntegerConstantValue(value);
+      if (
+        constant !== undefined &&
+        this.isIntegerTypeCompatible(constant, target)
+      ) {
+        return target;
+      }
+      return undefined;
+    };
+    // Scalar expressions retain their usual typing and overload priority.
+    if (apply) this.checkIntegerConstantRange(expr, targetType);
+    const type = visit(expr, targetType);
+    if (!type || !hasArray) return;
+    if (apply) {
+      for (const [value, contextualType] of updates) {
+        // Scalar leaf annotations must keep the type their operators generate;
+        // array lowering performs the checked element conversion itself.
+        if (
+          value.kind === "ArrayLiteral" ||
+          value.kind === "TupleLiteral" ||
+          (value.kind === "Group" && updates.has(value.expression)) ||
+          value.kind === "Ternary" ||
+          value.kind === "Match"
+        )
+          value.resolvedType = contextualType;
+      }
+    }
+    return type;
   }
 
   public checkIntegerConstantRange(
@@ -1398,8 +1755,8 @@ export abstract class TypeCheckerBase {
     )
       return;
     throw new CompilerError(
-      `Integer overflow: value ${value} does not fit in type ${this.typeToString(resolved)}`,
-      `Ensure the value is within the range of ${this.typeToString(resolved)}. Use an explicit cast for intentional truncation.`,
+      `Integer overflow: value ${value} does not fit in type ${this.formatDiagnosticType(resolved)}`,
+      `Ensure the value is within the range of ${this.formatDiagnosticType(resolved)}. Use an explicit cast for intentional truncation.`,
       location,
       INTEGER_LITERAL_OVERFLOW_CODE,
     );
@@ -1673,14 +2030,14 @@ export abstract class TypeCheckerBase {
         if (conversion.kind === "unsupported") return false;
       }
 
-      // Generic args match
+      // Generic storage is invariant: argument conversions do not convert fields.
       if (!isWildcard) {
         if (rt1.genericArgs.length !== rt2.genericArgs.length) {
           return false;
         }
         for (let i = 0; i < rt1.genericArgs.length; i++) {
           if (
-            !this.areTypesCompatible(rt1.genericArgs[i]!, rt2.genericArgs[i]!)
+            !this.areTypesExactMatch(rt1.genericArgs[i]!, rt2.genericArgs[i]!)
           ) {
             return false;
           }
@@ -2399,46 +2756,75 @@ export abstract class TypeCheckerBase {
   /**
    * True when this expression names existing storage rather than producing a
    * fresh value. Reading one copies what is there; a call or a literal hands
-   * over something new instead.
+   * over something new instead. Checked getter and unary overloads follow
+   * call-result transfer rules for concrete, nongeneric operator owners.
    */
   protected isPlaceExpression(expr: AST.Expression): boolean {
     switch (expr.kind) {
       case "Identifier":
       case "Member":
-      case "Index":
         return true;
+      case "Index":
+        return (
+          expr.operatorOverload?.methodName !== "__get__" ||
+          this.hasGenericOperatorBody(expr.operatorOverload)
+        );
       case "Group":
         return this.isPlaceExpression((expr as AST.GroupExpr).expression);
       case "Unary":
+        // Computing a pointer does not produce a fresh pointee value.
         return (
           (expr as AST.UnaryExpr).operator.type === TokenType.Star &&
-          this.isPlaceExpression((expr as AST.UnaryExpr).operand)
+          (!expr.operatorOverload ||
+            this.hasGenericOperatorBody(expr.operatorOverload))
         );
       default:
         return false;
     }
   }
 
+  /** Preserve no-copy checks until generic operator bodies have concrete ownership validation. */
+  private hasGenericOperatorBody(overload: {
+    targetType: AST.TypeNode;
+    methodName: string;
+    methodDeclaration: AST.FunctionDecl;
+  }): boolean {
+    const target = this.resolveType(overload.targetType, false);
+    if (target.kind !== "BasicType") return false;
+    return (
+      target.genericArgs.length > 0 ||
+      overload.methodDeclaration.genericParams.length > 0 ||
+      (this.resolveMemberWithContext(target, overload.methodName)?.decl
+        .genericParams.length ?? 0) > 0
+    );
+  }
+
   /**
    * Rejects copying a value that owns a destructor. Aggregates are copied
    * bitwise and there are no move semantics, so a copy leaves two owners and
    * the resource is released twice. Producing a value fresh, and returning or
-   * throwing a local, hand ownership over instead of duplicating it.
+   * throwing a local, hand ownership over instead of duplicating it. Callers
+   * can also reject fresh values where replacement cleanup is unsupported.
    */
   public rejectOwningCopy(
     expr: AST.Expression | undefined,
     type: AST.TypeNode | undefined,
     position: string,
     location: AST.ASTNode["location"],
+    allowFreshValues = true,
   ): void {
-    if (!expr || !this.isPlaceExpression(expr)) return;
+    if (!expr || (allowFreshValues && !this.isPlaceExpression(expr))) return;
     const owner = this.findAutoDestroyOwner(type ?? expr.resolvedType);
     if (!owner) return;
 
     this.addError(
       new CompilerError(
-        `Cannot copy '${owner.name}', which has an '@[auto_destroy]' destructor, ${position}`,
-        "Copying it would leave two owners and free the same resource twice. Pass a pointer to it, or produce a new value instead of copying this one.",
+        allowFreshValues
+          ? `Cannot copy '${owner.name}', which has an '@[auto_destroy]' destructor, ${position}`
+          : `Cannot assign owning '${owner.name}' ${position}: replacement cleanup is not supported`,
+        allowFreshValues
+          ? "Copying it would leave two owners and free the same resource twice. Pass a pointer to it, or produce a new value instead of copying this one."
+          : "Initialize an owning value in its declaration instead of replacing existing owning storage.",
         location,
         OWNING_VALUE_COPIED_CODE,
       ),
@@ -2486,6 +2872,9 @@ export abstract class TypeCheckerBase {
   public isCastAllowed(source: AST.TypeNode, target: AST.TypeNode): boolean {
     const resolvedSource = this.resolveType(source);
     const resolvedTarget = this.resolveType(target);
+
+    const arrayAllowance = arrayCastAllowance(resolvedSource, resolvedTarget);
+    if (arrayAllowance !== undefined) return arrayAllowance;
 
     // Allow casting TO Any from anything
     if (

@@ -9,6 +9,8 @@ or historical results rather than guarantees about the current implementation.
 
 - 🚀 [Quick Start](03-quick-start.md) - Write your first BPL program in 5 minutes
 - 📚 [Language Reference](../AGENTS.MD) - Concise language reference
+- 🧪 [Validation commands](development-validation.md) - Choose focused checks and understand CI coverage
+- 🧰 [Standard-library recipes](stdlib-recipes.md) - Find APIs, ownership rules and failure checks
 - 💡 [Examples](../examples/) - Real-world code examples
 
 ## Table of Contents

@@ -1474,7 +1474,7 @@ describe("Markdown documentation", () => {
 
     expectDocsContainSnippets(docs, [
       "Return type mismatch failures use `BPL_RETURN_TYPE_MISMATCH`",
-      "`Return type mismatch: expected i32, got *i8`",
+      "`Return type mismatch: expected i32, got string`",
       "`Ensure the returned value matches the function's return type.`",
       "mismatched return expressions and `return;` in non-void functions",
       "integer literal returns that fit the declared type remain valid",

@@ -52,6 +52,25 @@ test("same-named declarations in different modules remain nominally distinct", (
       expect(JSON.parse(result.stdout).errorCount).toBeGreaterThan(0);
     }
     for (const body of [
+      "local values:b.P[2];local target:a.P[2]=cast<a.P[2]>(values);return target[0].x;",
+      "local values:b.P[2];local target:a.P[]=cast<a.P[]>(values);return target[0].x;",
+      "local values:b.P[2];local target:*a.P=cast<*a.P>(values);return target[0].x;",
+      "local values:(b.P,int)[2];local target:(a.P,int)[]=cast<(a.P,int)[]>(values);return target[0].0.x;",
+      "local values:Func<b.P>()[2];local target:Func<a.P>()[]=cast<Func<a.P>()[]>(values);return target[0]().x;",
+      "local values:Func<int>(b.P)[2];local target:Func<int>(a.P)[]=cast<Func<int>(a.P)[]>(values);local p:a.P;return target[0](p);",
+      "local values:a.Wrap<b.P>[2];local target:a.Wrap<a.P>[]=cast<a.Wrap<a.P>[]>(values);return target[0].inner.value.x;",
+    ]) {
+      const result = check(body);
+      expect(result.status, body + result.stdout + result.stderr).toBe(1);
+      const report = JSON.parse(result.stdout);
+      expect(
+        report.files[0].diagnostics.some(
+          (error: { code?: string }) => error.code === "BPL_CAST_INVALID",
+        ),
+        body + result.stdout,
+      ).toBe(true);
+    }
+    for (const body of [
       "local value:a.P;local target:again.P;target=value;return a.accept(target);",
       "local value:a.Derived;return a.acceptPointer(&value);",
       "local value:a.Wrap<int>;return value.inner.get();",

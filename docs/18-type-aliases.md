@@ -10,6 +10,12 @@ type Point = (int, int);
 type Handler = Func<void>(int);
 ```
 
+Names in an alias body must denote declared types, including in-scope generic
+parameters. This also applies inside tuples, callable signatures and generic
+arguments. Forward references to other declared aliases remain supported.
+Generic parameter names must be distinct within an alias; they are local to
+that declaration and can be reused in other aliases.
+
 ## Usage
 
 ```bpl

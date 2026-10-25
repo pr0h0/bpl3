@@ -271,9 +271,17 @@ or malformed provenance sidecars for otherwise valid cached archives.
 
 Remove build artifacts. In git repositories, tracked files are skipped so
 checked-in runtime IR, examples, or release artifacts are not removed by
-accident. If `build/`, `dist/`, or `.bpl-cache/` contains tracked files,
-`bpl clean` preserves the directory and tracked contents while still removing
-untracked build artifacts inside it.
+accident. Candidate `.ll`, `.o`, `.exe` and `.out` outputs require
+a regular sibling source with the same basename and `.bpl` extension. Symlinked
+sources do not establish ownership. Generic `build/` and `dist/` directories and
+unrelated files are preserved. The compiler's reserved `.bpl-cache/` directory
+can be removed wholesale unless it contains tracked files. In that case the
+directory and tracked contents remain, and only matching outputs are removed.
+Standalone source files do not require a package manifest. Custom output paths
+without a matching sibling source must be removed explicitly. Extensionless files
+are preserved even with a matching source: a sibling source cannot distinguish
+a compiled executable from an unrelated wrapper or data file. Remove such
+executables explicitly after checking their ownership.
 The git tracked-file probe is bounded by `BPL_CLEAN_GIT_TIMEOUT_MS`, defaulting
 to 5000 milliseconds; if the probe fails or times out inside a git repository,
 `bpl clean` refuses to remove files. The same timeout bounds automatic
@@ -482,6 +490,10 @@ git repositories use `BPL_CLEAN_GIT_TRACKED_UNAVAILABLE`. These codes are
 additive fields on the stdout JSON failure report, preserving the
 human-readable `error` text while keeping `count: 0` and `entries: []` so
 automation can confirm no cleanup happened.
+Filesystem inspection/removal failures use `BPL_CLEAN_FAILED`. Cleanup continues
+with other paths and exits nonzero; JSON reports `success: false`, an `errors`
+array containing each failed `path` and `error`, and only successful removals in
+`entries`/`count`. An ownership-inspection failure preserves that artifact.
 
 Format JSON reports are stable for `bpl format --check --json`. `--json`
 without `--check` uses `BPL_FORMAT_JSON_REQUIRES_CHECK`, missing file lists use
@@ -724,10 +736,18 @@ bun test tests/TypeCheckerInvalidArraySizes.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "invalid array size"
 ```
 
+Circular-import build failures point to the source import that completes the
+dependency cycle, including self-imports.
+
+Diagnostic type names prefer `bool` and `string` over internal spellings.
+Resolved string aliases retain `string`; explicit `*i8` byte pointers remain
+pointers. Compound types,
+`const` qualifiers and array dimensions remain visible.
+
 Return type mismatch failures use `BPL_RETURN_TYPE_MISMATCH`. This covers
 mismatched return expressions and `return;` in non-void functions. For example,
 `return "wrong";` from a function declared `ret int` reports
-`Return type mismatch: expected i32, got *i8` with the hint
+`Return type mismatch: expected i32, got string` with the hint
 `Ensure the returned value matches the function's return type.`. Valid returns
 remain valid; integer literal returns that fit the declared type remain valid.
 Reproduce the type-checker and JSON contracts with:
@@ -884,14 +904,14 @@ bun test tests/TypeCheckerStatementSemanticGuards.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "statement semantic guard"
 ```
 
-Struct literal semantic failures use `BPL_STRUCT_LITERAL_UNKNOWN_STRUCT`, `BPL_GENERIC_ARITY_MISMATCH`, `BPL_STRUCT_LITERAL_FIELD_MISSING`, `BPL_STRUCT_LITERAL_FIELD_UNKNOWN`, and `BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH`. This covers unknown struct names, generic arity mismatches, missing fields, unknown fields, and field type mismatches in struct literals. Representative messages include `Unknown struct 'Missing'`, `Generic type 'Box' expects 1 arguments, but got 2`, `Missing field 'y' in struct literal for 'Point'`, `Unknown field 'z' in struct 'Point'`, and `Type mismatch for field 'x': expected i32, got *i8`. The corresponding hints include `Ensure the struct is defined.`, `Provide the correct number of generic arguments.`, `Field 'y' is required.`, `Check the struct definition for valid fields.`, and `Field value must match the declared type.`. Valid concrete and generic struct literals remain accepted. Reproduce the type-checker and JSON contracts with:
+Struct literal semantic failures use `BPL_STRUCT_LITERAL_UNKNOWN_STRUCT`, `BPL_GENERIC_ARITY_MISMATCH`, `BPL_STRUCT_LITERAL_FIELD_MISSING`, `BPL_STRUCT_LITERAL_FIELD_UNKNOWN`, and `BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH`. This covers unknown struct names, generic arity mismatches, missing fields, unknown fields, and field type mismatches in struct literals. Representative messages include `Unknown struct 'Missing'`, `Generic type 'Box' expects 1 arguments, but got 2`, `Missing field 'y' in struct literal for 'Point'`, `Unknown field 'z' in struct 'Point'`, and `Type mismatch for field 'x': expected i32, got string`. The corresponding hints include `Ensure the struct is defined.`, `Provide the correct number of generic arguments.`, `Field 'y' is required.`, `Check the struct definition for valid fields.`, and `Field value must match the declared type.`. Valid concrete and generic struct literals remain accepted. Reproduce the type-checker and JSON contracts with:
 
 ```bash
 bun test tests/TypeCheckerStructLiteralDiagnostics.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "struct literal diagnostics"
 ```
 
-Enum variant field semantic failures use `BPL_ENUM_VARIANT_FIELD_UNKNOWN` and `BPL_ENUM_VARIANT_FIELD_TYPE_MISMATCH`. This covers unknown enum struct variant construction fields, unknown enum struct pattern fields, and enum struct variant field type mismatches. Representative messages include `Unknown field 'z' in variant 'MouseMove'` and `Type mismatch for field 'x': expected int, got *i8`. The corresponding hints include `Check the variant definition.` and `Field value must match the declared type.`. Valid enum struct variant construction and struct-pattern matching remain accepted. Reproduce the type-checker and JSON contracts with:
+Enum variant field semantic failures use `BPL_ENUM_VARIANT_FIELD_UNKNOWN` and `BPL_ENUM_VARIANT_FIELD_TYPE_MISMATCH`. This covers unknown enum struct variant construction fields, unknown enum struct pattern fields, and enum struct variant field type mismatches. Representative messages include `Unknown field 'z' in variant 'MouseMove'` and `Type mismatch for field 'x': expected int, got string`. The corresponding hints include `Check the variant definition.` and `Field value must match the declared type.`. Valid enum struct variant construction and struct-pattern matching remain accepted. Reproduce the type-checker and JSON contracts with:
 
 ```bash
 bun test tests/TypeCheckerEnumVariantFieldDiagnostics.test.ts
@@ -1004,13 +1024,33 @@ The `bpl dev` command provides watch mode for rapid development. It monitors you
 
 ### Features
 
-- **Automatic Recompilation**: Detects changes to `.bpl` files and recompiles automatically
-- **Auto-Run**: Executes your program after successful compilation (use `--no-run` to disable)
+- **Automatic Recompilation**: Detects changes to `.bpl` and `.x` files and recompiles automatically
+- **Auto-Run**: Starts your program after successful compilation (use `--no-run` to disable).
+  Programs run asynchronously, so long-running servers do not block source watching.
+  On a source change, the previous program stops before the next build starts.
+  Closing the session or using Ctrl+C/SIGTERM stops the running program too.
 - **Error Recovery**: Continues watching even if compilation fails
 - **Debouncing**: Prevents excessive recompilation from rapid file changes (100ms delay)
-- **Recursive Watching**: Watches all `.bpl` files in the directory tree
+- **Recursive Watching**: Watches `.bpl` and `.x` sources under the entry directory,
+  newly created source directories, and resolved transitive imports outside it.
+  Directory watches follow editor saves that replace files by rename. Replaced
+  source directories receive new watch handles; missing roots are observed through
+  their nearest existing parent until restored. Watch-handle errors and temporary
+  watch-creation failures retry registration even when the directory is quiet.
+  Persistent failures back off from one second to a 30-second cap and report each
+  directory once until it recovers. Missing package and standard-library imports
+  observe their configured search locations and rebuild when modules become available.
 - **Smart Filtering**: Ignores `node_modules`, `.git`, `bpl_modules`, and hidden directories
 - **Screen Clearing**: Optional screen clear on recompile with `--clear`
+
+For missing imports, watch mode observes their nearest existing search ancestors
+so a later package installation or directory creation can recover automatically.
+Those ancestor directories are watched for events; source scanning remains limited
+to the entry tree and resolved imports.
+
+WebAssembly targets can be rebuilt in watch mode, but watch mode does not launch
+a WebAssembly runtime. Use `--no-run` and execute the generated module with the
+runtime or browser host required by that module.
 
 ### Usage
 
@@ -1037,13 +1077,13 @@ $ bpl dev main.bpl
 [Watch] Entry point: main.bpl
 [Watch] Press Ctrl+C to stop
 
+[Watch] Found 3 source files to watch
+
 [12:00:00] Compiling /path/to/project/main.bpl...
-Hello, World!
 [12:00:00] ✓ Compilation successful
 
-[Watch] Found 3 BPL files to watch
-
 [Watch] Watching for changes...
+Hello, World!
 
 # (File is edited and saved)
 [Watch] File changed: /path/to/project/main.bpl
@@ -1077,6 +1117,12 @@ help: Check if the symbol is declared.
 ### Limitations
 
 - Development mode only supports a single entry file (not multiple files at once)
+- Each compilation still runs synchronously during a rebuild. Program execution
+  is asynchronous; edits can restart a running server. A failed rebuild leaves
+  the previous program stopped until the source is corrected.
+- Session shutdown owns the launched program process. Programs that start their
+  own detached subprocesses must manage those subprocesses themselves.
+- `BPL_RUN_TIMEOUT_MS`, when set, also applies to programs launched by dev mode.
 - Use Ctrl+C to stop watching
 
 ## Emit Types
@@ -1370,6 +1416,11 @@ enums, generics, lambdas, simple memory allocation, memory intrinsics
 that can be pulled in by stdlib modules are present as no-op stubs so unused
 methods do not prevent standalone wasm linking.
 
+Transcendental math can require external math functions. The bundled Wasm
+runtimes and browser adapter do not supply a platform math library. In particular,
+`Math.log10` and `Math.log2` retain their existing Wasm natural-logarithm
+dependency: custom hosted runtimes can provide `env.log`.
+
 Use `--wasm-runtime host` when the module should communicate with a browser,
 WASI-style adapter, or test harness. Hosted wasm imports `env.__bpl_host_write`,
 `env.__bpl_host_exit`, `env.__bpl_host_argc`, `env.__bpl_host_argv_len`,
@@ -1480,3 +1531,34 @@ bpl build main.bpl -O 2 --time --json
 # Clean before build
 bpl clean && bpl build main.bpl -O 2
 ```
+
+### Source nesting limits
+
+`BPL_SOURCE_COMPLEXITY_LIMIT` reports syntax that exceeds the compiler's nesting
+capacity. The frontend checks the raw AST iteratively and rejects paths deeper
+than 512 AST nodes before recursive compiler passes run. This is a nesting limit,
+not a limit on the total number of statements or array elements.
+
+The parser can exhaust its own stack before an AST is available; its exact
+capacity depends on the syntax and host runtime. That failure uses the same
+structured diagnostic at the source file's line 1, column 1. AST depth failures
+point to the parsed node that crosses the limit. Split deep expressions into
+smaller expressions or helper functions. Both `check --json` and `build --json`
+return a failure with this diagnostic instead of an unlocated host stack error.
+
+## Build and run the current project
+
+`bpl build --project` and `bpl run --project` read `bpl.json` only from the current
+directory. They use `main`, then `entry`, then `index.bpl`; entries must be
+package-relative files. No parent-directory search or guessed source selection
+occurs. Do not combine `--project` with an explicit file. Program arguments that
+look like options should follow `--`, for example `bpl run --project -- --help`.
+
+## Generate documentation safely
+
+`bpl docs main.bpl -o api.md` documents the module and relative imports, including
+internal declarations by default. `--public-only` restricts top-level declarations
+to explicitly exported names in each visited module. Nonrelative package imports
+are not traversed. File labels are relative to the input module's directory.
+Existing output is preserved unless `--force` is supplied, including an explicit
+`-o` destination. JSON callers receive `BPL_DOCS_OUTPUT_EXISTS` on this refusal.

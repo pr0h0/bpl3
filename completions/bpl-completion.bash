@@ -6,7 +6,7 @@
 #   3. Reload your shell or run: source ~/.bashrc
 
 _bpl_completion() {
-    local cur prev opts base
+    local cur prev opts base match
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
@@ -18,10 +18,10 @@ _bpl_completion() {
     local global_opts="-e --eval --stdin -o --output --emit --target --sysroot --cpu --march --clang-flag --wasm-runtime --debug-ir-path -l --lib -L --lib-path --object -v --verbose -q --quiet --cache --cache-stats -j --jobs -h --help -V --version -d --dwarf --debug --time --json --color --no-color -O"
 
     # Format command options
-    local format_opts="-w --write -v --verbose"
+    local format_opts="-w --write --check --config --no-config --indent-width --use-tabs --no-use-tabs --line-ending --stdin-filepath -v --verbose --json"
 
     # Lint command options
-    local lint_opts="-v --verbose"
+    local lint_opts="-v --verbose --json --no-fail-on-warnings --stdin-filepath"
 
     # Init command options
     local init_opts="-v --verbose"
@@ -69,9 +69,13 @@ _bpl_completion() {
 
     # Check if we're after a specific option that needs a value
     case "${prev}" in
-        -o|--output|--debug-ir-path)
+        -o|--output|--debug-ir-path|--config|--stdin-filepath)
             # Complete with file paths
             COMPREPLY=( $(compgen -f -- "${cur}") )
+            return 0
+        ;;
+        --line-ending)
+            COMPREPLY=( $(compgen -W "lf crlf" -- "${cur}") )
             return 0
         ;;
         --emit)
@@ -130,8 +134,12 @@ _bpl_completion() {
                 if [[ "$cur" == -* ]]; then
                     COMPREPLY=( $(compgen -W "${format_opts}" -- "${cur}") )
                 else
-                    # Complete with .bpl files
-                    COMPREPLY=( $(compgen -f -X '!*.bpl' -- "${cur}") )
+                    # Keep directory inputs and both supported source extensions.
+                    while IFS= read -r match; do
+                        if [[ -d "$match" || "$match" == *.bpl || "$match" == *.x ]]; then
+                            COMPREPLY+=("$match")
+                        fi
+                    done < <(compgen -f -- "${cur}")
                 fi
                 return 0
             ;;
@@ -139,8 +147,28 @@ _bpl_completion() {
                 if [[ "$cur" == -* ]]; then
                     COMPREPLY=( $(compgen -W "${lint_opts}" -- "${cur}") )
                 else
-                    # Complete with .bpl files
-                    COMPREPLY=( $(compgen -f -X '!*.bpl' -- "${cur}") )
+                    # Keep directory inputs and both supported source extensions.
+                    while IFS= read -r match; do
+                        if [[ -d "$match" || "$match" == *.bpl || "$match" == *.x ]]; then
+                            COMPREPLY+=("$match")
+                        fi
+                    done < <(compgen -f -- "${cur}")
+                fi
+                return 0
+            ;;
+            docs)
+                if [[ "$cur" == -* ]]; then
+                    COMPREPLY=( $(compgen -W "-o --output --force --public-only --json" -- "${cur}") )
+                else
+                    while IFS= read -r match; do COMPREPLY+=("$match"); done < <(compgen -f -- "${cur}")
+                fi
+                return 0
+            ;;
+            run|build)
+                if [[ "$cur" == -* ]]; then
+                    COMPREPLY=( $(compgen -W "${global_opts} --project --no-prelude" -- "${cur}") )
+                else
+                    COMPREPLY=( $(compgen -f -- "${cur}") )
                 fi
                 return 0
             ;;
@@ -226,4 +254,4 @@ _bpl_completion() {
 }
 
 # Register the completion function
-complete -F _bpl_completion bpl
+complete -o filenames -F _bpl_completion bpl

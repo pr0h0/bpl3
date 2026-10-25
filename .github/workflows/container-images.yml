@@ -65,7 +65,7 @@ jobs:
           BPL_TEST_COMPILER_DOCKER: "1"
           BPL_COMPILER_IMAGE: bpl-compiler:ci
           BPL_CONTAINER_PLAYGROUND_IMAGE: bpl-playground:ci
-        run: bun test tests/CompilerDocker.test.ts
+        run: bun test tests/CompilerDocker.test.ts tests/FormatterDocker.test.ts
       - name: Test disposable playground workers
         env:
           BPL_TEST_DOCKER: "1"

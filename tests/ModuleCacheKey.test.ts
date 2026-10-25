@@ -38,7 +38,7 @@ function resolveAndCheckModules(entryPath: string): ModuleInfo[] {
     ...typeChecker.getErrors(),
     ...typeChecker.getLinkerSymbolTable().verifySymbols(),
   ];
-  expect(errors).toHaveLength(0);
+  expect(errors.map((error) => error.message)).toEqual([]);
 
   return modules;
 }

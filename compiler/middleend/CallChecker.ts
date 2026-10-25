@@ -3,12 +3,19 @@
  */
 import * as AST from "../common/AST";
 import { CompilerError } from "../common/CompilerError";
-import { TokenType } from "../frontend/TokenType";
-import { TypeUtils } from "./TypeUtils";
+import { isConstantArrayStorage } from "../common/ArrayElementStorage";
+import { lowerImplicitConversion } from "./lowering/ImplicitConversions";
+import { TypeUtils, implicitlyAddressesConstant } from "./TypeUtils";
+import {
+  rejectConstantOperatorAddress,
+  type OperatorOverloadRejections,
+} from "./OverloadResolver";
 import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import type { CheckerContext } from "./CheckerContext";
+import { SymbolTable } from "./SymbolTable";
 import { validateExternVariadicArguments } from "./validators/ExternAbiValidator";
 import {
+  ADDRESS_OF_CONSTANT_CODE,
   ARRAY_INDEX_TYPE_MISMATCH_CODE,
   CALL_ARGUMENT_COUNT_MISMATCH_CODE,
   CALL_ARGUMENT_TYPE_MISMATCH_CODE,
@@ -198,6 +205,7 @@ export function checkCall(
         argTypes,
         genericArgs,
         expr.location,
+        expr.args,
       );
 
       expr.resolvedDeclaration = match.declaration as
@@ -217,6 +225,8 @@ export function checkCall(
       expr.args.forEach((argument, index) => {
         const parameterType = match.type.paramTypes[index];
         if (parameterType && index < fixedParamCount) {
+          argTypes[index] =
+            this.contextualizeArrayLiteral(argument, parameterType) ?? argTypes[index];
           this.checkIntegerConstantRange(argument, parameterType);
         }
         this.rejectOwningCopy(
@@ -299,23 +309,43 @@ export function checkCall(
     calleeType.kind !== "FunctionType" &&
     calleeType.kind !== "LambdaType"
   ) {
+    const rejections: OperatorOverloadRejections = {};
     const method = this.findOperatorOverload(
       calleeType,
       "__call__",
       argTypes.filter((t): t is AST.TypeNode => t !== undefined),
+      rejections,
     );
+    if (!method) rejectConstantOperatorAddress(rejections, expr.location);
 
     if (method) {
+      const context = this.resolveMemberWithContext(
+        calleeType as AST.BasicTypeNode,
+        "__call__",
+      );
+      for (let i = 0; i < expr.args.length; i++) {
+        const parameter = method.params[i + 1];
+        if (parameter) {
+          const parameterType = context?.genericMap
+            ? this.substituteType(parameter.type, context.genericMap)
+            : parameter.type;
+          this.checkIntegerConstantRange(expr.args[i]!, parameterType);
+        }
+      }
       expr.operatorOverload = {
         methodName: "__call__",
         targetType: calleeType,
         methodDeclaration: method,
       };
-      return this.resolveType(method.returnType);
+      return this.resolveType(
+        context?.genericMap
+          ? this.substituteType(method.returnType, context.genericMap)
+          : method.returnType,
+      );
     }
 
     throw new CompilerError(
-      `Type '${this.typeToString(calleeType)}' is not callable`,
+      `Type '${this.formatDiagnosticType(calleeType)}' is not callable`,
       "Only functions or types with __call__ operator can be called.",
       expr.location,
       CALL_TARGET_NOT_CALLABLE_CODE,
@@ -332,79 +362,87 @@ export function checkCall(
     if (overloads && overloads.length > 0) {
       let bestMatch: AST.FunctionTypeNode | undefined;
 
-      for (const candidate of overloads) {
-        if (
-          !candidate.isVariadic &&
-          candidate.paramTypes.length !== argTypes.length
-        )
-          continue;
+      // Keep existing matches ahead of newly eligible literal conversions.
+      for (const allowContextual of [false, true]) {
+        for (const candidate of overloads) {
+          if (
+            !candidate.isVariadic &&
+            candidate.paramTypes.length !== argTypes.length
+          )
+            continue;
 
-        let match = true;
-        let variadicElementType: AST.TypeNode | undefined;
+          let match = true;
+          let variadicElementType: AST.TypeNode | undefined;
 
-        for (let i = 0; i < candidate.paramTypes.length; i++) {
-          const paramType = candidate.paramTypes[i]!;
-          const argType = argTypes[i];
+          for (let i = 0; i < candidate.paramTypes.length; i++) {
+            const paramType = candidate.paramTypes[i]!;
+            const argType = argTypes[i];
 
-          let checkType = paramType;
+            let checkType = paramType;
 
-          // Check if this param is variadic
-          if (candidate.declaration) {
-            const decl = candidate.declaration as AST.FunctionDecl;
-            if (i < decl.params.length && decl.params[i]!.isVariadic) {
-              // Unwrap pointer for variadic param
-              if (
-                paramType.kind === "BasicType" &&
-                paramType.pointerDepth > 0
-              ) {
-                checkType = {
-                  ...paramType,
-                  pointerDepth: paramType.pointerDepth - 1,
-                };
+            // Check if this param is variadic
+            if (candidate.declaration) {
+              const decl = candidate.declaration as AST.FunctionDecl;
+              if (i < decl.params.length && decl.params[i]!.isVariadic) {
+                // Unwrap pointer for variadic param
+                if (
+                  paramType.kind === "BasicType" &&
+                  paramType.pointerDepth > 0
+                ) {
+                  checkType = {
+                    ...paramType,
+                    pointerDepth: paramType.pointerDepth - 1,
+                  };
+                }
+                variadicElementType = checkType;
               }
-              variadicElementType = checkType;
             }
-          }
 
-          if (argType) {
-            // Special handling for Any in variadic
-            const isAny =
-              checkType.kind === "BasicType" && checkType.name === "Any";
-            if (!isAny && !this.areTypesCompatible(checkType, argType)) {
-              match = false;
-              break;
-            }
-          }
-        }
-
-        // Check remaining args against variadicElementType
-        if (
-          match &&
-          variadicElementType &&
-          argTypes.length > candidate.paramTypes.length
-        ) {
-          const isAny =
-            variadicElementType.kind === "BasicType" &&
-            variadicElementType.name === "Any";
-          if (!isAny) {
-            for (
-              let j = candidate.paramTypes.length;
-              j < argTypes.length;
-              j++
-            ) {
-              // Check against variadic element type
-              if (!this.areTypesCompatible(variadicElementType, argTypes[j]!)) {
+            if (argType) {
+              // Special handling for Any in variadic
+              const isAny =
+                checkType.kind === "BasicType" && checkType.name === "Any";
+              if (
+                !isAny && !this.areTypesCompatible(checkType, argType) &&
+                (!allowContextual || variadicElementType !== undefined ||
+                  !this.contextualizeArrayLiteral(expr.args[i]!, checkType, false))
+              ) {
                 match = false;
                 break;
               }
             }
           }
-        }
 
-        if (match) {
-          bestMatch = candidate;
-          break;
+          // Check remaining args against variadicElementType
+          if (
+            match &&
+            variadicElementType &&
+            argTypes.length > candidate.paramTypes.length
+          ) {
+            const isAny =
+              variadicElementType.kind === "BasicType" &&
+              variadicElementType.name === "Any";
+            if (!isAny) {
+              for (
+                let j = candidate.paramTypes.length;
+                j < argTypes.length;
+                j++
+              ) {
+                // Check against variadic element type
+                if (!this.areTypesCompatible(variadicElementType, argTypes[j]!)) {
+                  match = false;
+                  break;
+                }
+              }
+            }
+          }
+
+          if (match) {
+            bestMatch = candidate;
+            break;
+          }
         }
+        if (bestMatch) break;
       }
 
       if (bestMatch) {
@@ -623,7 +661,7 @@ function handleEnumVariantCall(
         throw new CompilerError(
           `Enum variant '${variant.name}' expects ${expectedTypes.length} arguments, but got ${argTypes.length}`,
           `Usage: ${enumDecl.name}.${variant.name}(${expectedTypes
-            .map((t: AST.TypeNode) => this.typeToString(t))
+            .map((t: AST.TypeNode) => this.formatDiagnosticType(t))
             .join(", ")})`,
           expr.location,
           ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH_CODE,
@@ -636,13 +674,15 @@ function handleEnumVariantCall(
           expectedType = this.substituteType(expectedType, typeMap);
         }
         expectedType = this.resolveType(expectedType);
-        const actualType = argTypes[i];
+        const actualType =
+          this.contextualizeArrayLiteral(expr.args[i]!, expectedType) ?? argTypes[i];
+        argTypes[i] = actualType;
         if (actualType) this.checkIntegerConstantRange(expr.args[i]!, expectedType);
         if (actualType && !this.areTypesCompatible(expectedType, actualType)) {
           throw new CompilerError(
-            `Type mismatch for argument ${i + 1} of '${variant.name}': expected ${this.typeToString(
+            `Type mismatch for argument ${i + 1} of '${variant.name}': expected ${this.formatDiagnosticType(
               expectedType,
-            )}, got ${this.typeToString(actualType)}`,
+            )}, got ${this.formatDiagnosticType(actualType)}`,
             "Check the variant definition and argument types.",
             expr.location,
             ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH_CODE,
@@ -711,9 +751,11 @@ function validateFunctionCall(
 
   for (let i = 0; i < funcType.paramTypes.length; i++) {
     const paramType = funcType.paramTypes[i]!;
-    const argType = argTypes[i];
+    let argType = argTypes[i];
     const argument = expr.args[i];
     if (argument) {
+      argType = this.contextualizeArrayLiteral(argument, paramType) ?? argType;
+      argTypes[i] = argType;
       this.checkIntegerConstantRange(argument, paramType);
       this.rejectOwningCopy(
         argument,
@@ -724,9 +766,9 @@ function validateFunctionCall(
     }
     if (argType && !this.areTypesCompatible(paramType, argType)) {
       throw new CompilerError(
-        `Argument ${i + 1} type mismatch: expected ${this.typeToString(
+        `Argument ${i + 1} type mismatch: expected ${this.formatDiagnosticType(
           paramType,
-        )}, got ${this.typeToString(argType)}`,
+        )}, got ${this.formatDiagnosticType(argType)}`,
         "Ensure argument types match.",
         expr.args[i]!.location,
         CALL_ARGUMENT_TYPE_MISMATCH_CODE,
@@ -943,6 +985,7 @@ export function checkMember(
           let { returnType, paramTypes } = resolveMethodTypesInModuleContext(
             this,
             singleMethod,
+            memberContext.decl.genericParams,
           );
 
           if (genericMap && genericMap.size > 0) {
@@ -971,6 +1014,7 @@ export function checkMember(
             let { returnType, paramTypes } = resolveMethodTypesInModuleContext(
               this,
               method,
+              memberContext.decl.genericParams,
             );
 
             // Substitute generics if we have a map
@@ -1075,6 +1119,7 @@ export function checkMember(
         (member.kind === "FunctionDecl" || member.kind === "SpecMethod")
       ) {
         // Filter out static methods and check 'this' compatibility
+        let rejectedConstantReceiver = false;
         let compatibleMethod: AST.FunctionDecl | AST.SpecMethod | undefined;
         let compatibleMethods:
           | (AST.FunctionDecl | AST.SpecMethod)[]
@@ -1098,11 +1143,17 @@ export function checkMember(
             let thisParamType = resolveMethodTypesInModuleContext(
               this,
               method,
+              memberContext.decl.genericParams,
             ).paramTypes[0]!;
 
             // Substitute generics if needed
             if (genericMap && genericMap.size > 0) {
               thisParamType = this.substituteType(thisParamType, genericMap);
+            }
+
+            if (implicitlyAddressesConstant(thisParamType, effectiveObjectType)) {
+              rejectedConstantReceiver = true;
+              continue;
             }
 
             // Check compatibility of 'this' parameter type with object type
@@ -1159,8 +1210,16 @@ export function checkMember(
         }
 
         if (!compatibleMethod) {
+          if (rejectedConstantReceiver) {
+            throw new CompilerError(
+              "Cannot take address of constant expression for method receiver.",
+              "Use a value receiver or a mutable binding; pointers to constants are not supported.",
+              expr.location,
+              ADDRESS_OF_CONSTANT_CODE,
+            );
+          }
           throw new CompilerError(
-            `No compatible instance method '${expr.property}' found on type '${this.typeToString(
+            `No compatible instance method '${expr.property}' found on type '${this.formatDiagnosticType(
               effectiveObjectType,
             )}'`,
             "Static methods must be called on the type, not an instance.",
@@ -1174,7 +1233,11 @@ export function checkMember(
 
           // Resolve types in module context first
           const { returnType: initReturnType, paramTypes: allParamTypes } =
-            resolveMethodTypesInModuleContext(this, method);
+            resolveMethodTypesInModuleContext(
+              this,
+              method,
+              memberContext.decl.genericParams,
+            );
           let returnType = initReturnType;
 
           // Strip 'this' parameter
@@ -1224,7 +1287,11 @@ export function checkMember(
 
           const candidates = compatibleMethods.map((method) => {
             const { returnType: rt, paramTypes: apt } =
-              resolveMethodTypesInModuleContext(this, method);
+              resolveMethodTypesInModuleContext(
+                this,
+                method,
+                memberContext.decl.genericParams,
+              );
 
             let ret = rt;
             let pts = apt.slice(1); // Strip this
@@ -1269,7 +1336,7 @@ export function checkMember(
   }
 
   throw new CompilerError(
-    `Cannot access member '${expr.property}' on type '${this.typeToString(effectiveObjectType)}'`,
+    `Cannot access member '${expr.property}' on type '${this.formatDiagnosticType(effectiveObjectType)}'`,
     "Check the type definition for available members.",
     expr.location,
     MEMBER_NOT_FOUND_CODE,
@@ -1282,6 +1349,7 @@ export function checkMember(
 export function checkIndex(
   this: CheckerContext,
   expr: AST.IndexExpr,
+  validateGetterCall = true,
 ): AST.TypeNode | undefined {
   const objectType = this.checkExpression(expr.object);
   const indexType = this.checkExpression(expr.index);
@@ -1295,7 +1363,7 @@ export function checkIndex(
   if (pointerElement) {
     if (indexType && !TypeUtils.isIntegerType(indexType)) {
       throw new CompilerError(
-        `Pointer index must be an integer, got ${this.typeToString(indexType)}`,
+        `Pointer index must be an integer, got ${this.formatDiagnosticType(indexType)}`,
         "Ensure the index expression evaluates to an integer.",
         expr.index.location,
         POINTER_INDEX_TYPE_MISMATCH_CODE,
@@ -1312,7 +1380,7 @@ export function checkIndex(
   ) {
     if (indexType && !TypeUtils.isIntegerType(indexType)) {
       throw new CompilerError(
-        `Pointer index must be an integer, got ${this.typeToString(indexType)}`,
+        `Pointer index must be an integer, got ${this.formatDiagnosticType(indexType)}`,
         "Ensure the index expression evaluates to an integer.",
         expr.index.location,
         POINTER_INDEX_TYPE_MISMATCH_CODE,
@@ -1332,7 +1400,7 @@ export function checkIndex(
   ) {
     if (indexType && !TypeUtils.isIntegerType(indexType)) {
       throw new CompilerError(
-        `Array index must be an integer, got ${this.typeToString(indexType)}`,
+        `Array index must be an integer, got ${this.formatDiagnosticType(indexType)}`,
         "Ensure the index expression evaluates to an integer.",
         expr.index.location,
         ARRAY_INDEX_TYPE_MISMATCH_CODE,
@@ -1348,49 +1416,68 @@ export function checkIndex(
 
   // Try __get__ operator overload
   if (indexType) {
-    const method = this.findOperatorOverload(objectType, "__get__", [
-      indexType,
-    ]);
+    const rejections: OperatorOverloadRejections = {};
+    const selected = this.resolveIndexOperator(
+      objectType,
+      "__get__",
+      [indexType],
+      rejections,
+    );
+    const method = selected?.declaration;
+    if (!method) rejectConstantOperatorAddress(rejections, expr.location);
     if (method) {
+      const methodType = selected!.signature;
+      if (validateGetterCall) {
+        const expected = methodType.paramTypes[1]!;
+        const actual = this.resolveType(indexType);
+        const conversion = lowerImplicitConversion(expected, actual);
+        const takesAddress =
+          expected.kind === "BasicType" &&
+          actual.kind === "BasicType" &&
+          expected.pointerDepth === actual.pointerDepth + 1 &&
+          this.areTypesExactMatch(
+            { ...expected, pointerDepth: expected.pointerDepth - 1 },
+            actual,
+          );
+        if (
+          (takesAddress ||
+            conversion.kind === "array-to-slice" ||
+            conversion.kind === "array-to-pointer") &&
+          isConstantArrayStorage(expr.index, (type) => this.resolveType(type))
+        ) {
+          throw new CompilerError(
+            "Cannot borrow constant storage for an index getter argument",
+            "Pass mutable storage or use a getter accepting a value.",
+            expr.index.location,
+            ADDRESS_OF_CONSTANT_CODE,
+          );
+        }
+        this.checkIntegerConstantRange(expr.index, expected);
+        this.rejectOwningCopy(
+          expr.object,
+          methodType.paramTypes[0],
+          "into an index getter value receiver",
+          expr.object.location,
+        );
+        this.rejectOwningCopy(
+          expr.index,
+          expected,
+          "into an index getter argument",
+          expr.index.location,
+        );
+      }
       expr.operatorOverload = {
         methodName: "__get__",
         targetType: objectType,
         methodDeclaration: method,
+        methodType,
       };
-
-      // Build type substitution map for return type resolution (for generics)
-      const typeSubstitutionMap = new Map<string, AST.TypeNode>();
-      if (
-        objectType.kind === "BasicType" &&
-        objectType.genericArgs.length > 0
-      ) {
-        const decl = objectType.resolvedDeclaration;
-        if (
-          decl &&
-          (decl.kind === "StructDecl" ||
-            decl.kind === "EnumDecl" ||
-            decl.kind === "SpecDecl" ||
-            decl.kind === "TypeAlias") &&
-          decl.genericParams &&
-          decl.genericParams.length > 0
-        ) {
-          for (let i = 0; i < decl.genericParams.length; i++) {
-            typeSubstitutionMap.set(
-              decl.genericParams[i]!.name,
-              objectType.genericArgs[i]!,
-            );
-          }
-        }
-      }
-
-      return typeSubstitutionMap.size > 0
-        ? this.substituteType(method.returnType, typeSubstitutionMap)
-        : this.resolveType(method.returnType);
+      return methodType.returnType;
     }
   }
 
   throw new CompilerError(
-    `Type '${this.typeToString(objectType)}' is not indexable`,
+    `Type '${this.formatDiagnosticType(objectType)}' is not indexable`,
     "Only arrays, pointers, or types with __get__ operator can be indexed.",
     expr.location,
     INDEX_TARGET_NOT_INDEXABLE_CODE,
@@ -1468,9 +1555,11 @@ function inferGenericArgs(
   }
 }
 
-function resolveMethodTypesInModuleContext(
+/** Resolve module aliases while optionally preserving owner type parameters. */
+export function resolveMethodTypesInModuleContext(
   context: CheckerContext,
   method: AST.FunctionDecl | AST.SpecMethod,
+  ownerGenericParams: readonly AST.GenericParam[] = [],
 ): { returnType: AST.TypeNode; paramTypes: AST.TypeNode[] } {
   const returnType: AST.TypeNode = method.returnType || {
     kind: "BasicType",
@@ -1481,16 +1570,37 @@ function resolveMethodTypesInModuleContext(
     location: method.location,
   };
 
-  if (method.location && (context as any).modules) {
+  if (method.location && context.modules) {
     const modulePath = method.location.file;
-    const moduleScope = (context as any).modules.get(modulePath);
+    const moduleScope = context.modules.get(modulePath);
     if (moduleScope) {
-      const oldScope = (context as any).currentScope;
-      (context as any).currentScope = moduleScope;
+      const signatureScope = ownerGenericParams.length
+        ? new SymbolTable(moduleScope)
+        : moduleScope;
+      for (const parameter of ownerGenericParams) {
+        signatureScope.define({
+          name: parameter.name,
+          kind: "TypeAlias",
+          type: {
+            kind: "BasicType",
+            name: parameter.name,
+            genericArgs: [],
+            pointerDepth: 0,
+            arrayDimensions: [],
+            location: parameter.location ?? method.location,
+          },
+          declaration: {
+            ...parameter,
+            kind: "GenericParam",
+            location: parameter.location ?? method.location,
+          },
+        });
+      }
+      const oldScope = context.currentScope;
+      context.currentScope = signatureScope;
       try {
-        // The module scope has no generic parameters of the owning type, so a
-        // signature such as `this: *Wrapper<T>` cannot be constraint-checked
-        // here; declarations and instantiations check those.
+        // Resolve symbolic parameters without checking instantiated constraints;
+        // declarations and concrete instantiations check those.
         return {
           returnType: context.resolveType(returnType, false),
           paramTypes: method.params.map((p) =>
@@ -1498,7 +1608,7 @@ function resolveMethodTypesInModuleContext(
           ),
         };
       } finally {
-        (context as any).currentScope = oldScope;
+        context.currentScope = oldScope;
       }
     }
   }
@@ -1650,44 +1760,9 @@ function packVariadicArguments(
         resolvedType: pointerType,
       };
     } else {
-      // &array[0]
-      const indexExpr: AST.IndexExpr = {
-        kind: "Index",
-        object: arrayLiteral,
-        index: {
-          kind: "Literal",
-          value: 0n,
-          raw: "0",
-          type: "number",
-          location: expr.location,
-          resolvedType: {
-            kind: "BasicType",
-            name: "int",
-            genericArgs: [],
-            pointerDepth: 0,
-            arrayDimensions: [],
-            location: expr.location,
-          },
-        },
-        location: expr.location,
-        resolvedType: elementType,
-      };
-
-      argsPtrExpr = {
-        kind: "Unary",
-        operator: {
-          type: TokenType.Ampersand,
-          lexeme: "&",
-          literal: "&",
-          line: 0,
-          column: 0,
-          file: "internal",
-        },
-        operand: indexExpr,
-        isPrefix: true,
-        location: expr.location,
-        resolvedType: pointerType,
-      };
+      // Pass the owned pack through normal array-to-pointer conversion.
+      // A source-level &temporary[0] is deliberately not an addressable place.
+      argsPtrExpr = arrayLiteral;
     }
 
     // Count literal

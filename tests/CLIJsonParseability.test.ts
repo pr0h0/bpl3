@@ -164,6 +164,7 @@ describe("CLI JSON parseability", () => {
     const buildDir = path.join(tempDir, "build");
     fs.mkdirSync(buildDir);
     fs.writeFileSync(path.join(buildDir, "generated.o"), "object");
+    fs.writeFileSync(path.join(buildDir, "generated.bpl"), "frame main() {}\n");
     const buildSource = path.join(tempDir, "main.bpl");
     const buildOutput = path.join(tempDir, "json-build-app");
     fs.writeFileSync(buildSource, "frame main() ret int { return 0; }\n");
@@ -354,14 +355,16 @@ describe("CLI JSON parseability", () => {
         error: "Input path is a symbolic link",
         errorCode: "BPL_LINT_INPUT_SYMLINK",
       },
-      {
-        args: ["lint", "--json", sourceDir],
-        check: "lint",
-        file: sourceDir,
-        error: "Input path is not a file",
-        errorCode: "BPL_LINT_INPUT_NOT_FILE",
-      },
     ];
+
+    const emptyDirectory = expectJsonStdoutReport(runCli(["lint", "--json", sourceDir]), {
+      status: 1, check: "lint", success: false,
+    });
+    expect(emptyDirectory).toMatchObject({
+      totalFiles: 0, errorCount: 1, files: [],
+      error: "No BPL sources found in the supplied directories.",
+      errorCode: "BPL_LINT_NO_INPUTS",
+    });
 
     for (const testCase of cases) {
       const report = expectJsonStdoutReport<{
@@ -3655,7 +3658,7 @@ describe("CLI JSON parseability", () => {
     expect(checkDiagnostic.code).toBe("BPL_RETURN_TYPE_MISMATCH");
     expect(checkDiagnostic.source?.preview).toContain('return "wrong"');
     expect(checkDiagnostic.message).toContain(
-      "Return type mismatch: expected i32, got *i8",
+      "Return type mismatch: expected i32, got string",
     );
     expect(checkDiagnostic.hint).toContain(
       "Ensure the returned value matches the function's return type.",
@@ -3685,7 +3688,7 @@ describe("CLI JSON parseability", () => {
     });
     expect(buildReport.diagnostics).toHaveLength(1);
     expect(buildReport.diagnostics[0]?.message).toContain(
-      "Return type mismatch: expected i32, got *i8",
+      "Return type mismatch: expected i32, got string",
     );
     expect(buildReport.diagnostics[0]?.hint).toContain(
       "Ensure the returned value matches the function's return type.",
@@ -6966,5 +6969,5 @@ describe("CLI JSON parseability", () => {
       "BPL_BUILD_OUTPUT_DIRECTORY",
     );
     expect(fs.existsSync(`${executableDirectoryOutput}.ll`)).toBe(false);
-  });
+  }, 30000);
 });

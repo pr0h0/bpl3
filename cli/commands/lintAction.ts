@@ -4,6 +4,8 @@
  */
 
 import * as fs from "fs";
+import { expandSourceInputs } from "../SourceInputs";
+import { DiagnosticSeverity } from "../../compiler/common/CompilerError";
 import type { Command } from "commander";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 import type { LintOptions } from "../types";
@@ -59,6 +61,30 @@ export async function runLintCommand(
     process.exit(1);
   }
 
+  try {
+    files = expandSourceInputs(files);
+    if (!files.length)
+      throw new Error("No BPL sources found in the supplied directories.");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json)
+      console.log(
+        JSON.stringify(
+          createJsonReport(CLI_JSON_CHECKS.lint, false, {
+            totalFiles: 0,
+            errorCount: 1,
+            files: [],
+            error: message,
+            errorCode: LINT_NO_INPUTS_CODE,
+          }),
+          null,
+          2,
+        ),
+      );
+    else log.error(message);
+    process.exit(1);
+  }
+  const stdin = files.includes("-") ? fs.readFileSync(0, "utf8") : undefined;
   const { CompilerError, createLintEngine } = await import("./lintEngine");
   const lintSource = createLintEngine();
   let hasErrors = false;
@@ -72,7 +98,7 @@ export async function runLintCommand(
 
   for (const file of files) {
     try {
-      const inputError = getInputFilePathError(file);
+      const inputError = file === "-" ? null : getInputFilePathError(file);
       if (inputError) {
         if (options.json) {
           results.push({
@@ -88,14 +114,22 @@ export async function runLintCommand(
         continue;
       }
 
-      const content = fs.readFileSync(file, "utf-8");
-      const errors = lintSource(content, file);
+      const content = file === "-" ? stdin! : fs.readFileSync(file, "utf-8");
+      const errors = lintSource(
+        content,
+        file === "-" ? options.stdinFilepath || "stdin.bpl" : file,
+      );
       if (errors.length > 0) {
-        hasErrors = true;
+        const fails =
+          options.failOnWarnings !== false ||
+          errors.some(
+            (e) => e.toDiagnostic().severity === DiagnosticSeverity.Error,
+          );
+        hasErrors ||= fails;
         if (options.json) {
           results.push({
             file,
-            success: false,
+            success: !fails,
             diagnostics: diagnosticFormatter.formatDiagnosticObjects(errors),
           });
         } else {

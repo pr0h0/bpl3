@@ -5,11 +5,32 @@
 
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
+import { implicitlyAddressesConstant } from "./TypeUtils";
 import type { Symbol, SymbolTable } from "./SymbolTable";
 import {
+  ADDRESS_OF_CONSTANT_CODE,
   CALL_ARGUMENT_COUNT_MISMATCH_CODE,
+  GENERIC_ARITY_MISMATCH_CODE,
   CALL_ARGUMENT_TYPE_MISMATCH_CODE,
 } from "./TypeCheckerBase";
+
+export interface OperatorOverloadRejections {
+  constantAddress?: boolean;
+}
+
+/** Report only after every overload and synthesized operator has been tried. */
+export function rejectConstantOperatorAddress(
+  rejections: OperatorOverloadRejections,
+  location: SourceLocation,
+): void {
+  if (!rejections.constantAddress) return;
+  throw new CompilerError(
+    "Cannot take address of constant expression for operator argument.",
+    "Use a value receiver or argument, or a mutable binding; pointers to constants are not supported.",
+    location,
+    ADDRESS_OF_CONSTANT_CODE,
+  );
+}
 
 /**
  * Operator to method name mapping for operator overloading
@@ -63,7 +84,13 @@ export interface OverloadResolutionContext {
     map: Map<string, AST.TypeNode>,
   ) => AST.TypeNode;
   typeToString: (type: AST.TypeNode | undefined) => string;
+  formatDiagnosticType: (type: AST.TypeNode | undefined) => string;
   getCurrentScope: () => SymbolTable;
+  contextualizeArrayLiteral: (
+    expr: AST.Expression,
+    targetType: AST.TypeNode,
+    apply?: boolean,
+  ) => AST.TypeNode | undefined;
 }
 
 /**
@@ -103,6 +130,7 @@ export class OverloadResolver {
     argTypes: (AST.TypeNode | undefined)[],
     genericArgs: AST.TypeNode[],
     location: SourceLocation,
+    arguments_?: AST.Expression[],
   ): {
     symbol: Symbol;
     type: AST.FunctionTypeNode;
@@ -114,6 +142,7 @@ export class OverloadResolver {
       inferredArgs?: AST.TypeNode[];
       isExplicitVariadic?: boolean;
     }[] = [];
+    const expectedGenericCounts = new Set<number>();
 
     for (const c of candidates) {
       const ft = c.type as AST.FunctionTypeNode;
@@ -146,6 +175,9 @@ export class OverloadResolver {
         if (!isExplicitVariadic) continue;
       }
 
+      expectedGenericCounts.add(
+        decl.kind === "FunctionDecl" ? decl.genericParams.length : 0,
+      );
       if (genericArgs.length > 0) {
         // Explicit generics
         if (decl.kind !== "FunctionDecl") continue;
@@ -165,13 +197,26 @@ export class OverloadResolver {
     }
 
     if (viableCandidates.length === 0) {
+      if (
+        expectedGenericCounts.size > 0 &&
+        !expectedGenericCounts.has(genericArgs.length)
+      ) {
+        const counts = [...expectedGenericCounts].sort((a, b) => a - b).join(" or ");
+        throw new CompilerError(
+          `Generic argument count mismatch for call to '${name}': got ${genericArgs.length} type arguments, expected ${counts}.`,
+          "Provide explicit type arguments; type arguments are not inferred.\n" +
+            `Available overloads:\n${candidates.map((candidate) => this.ctx.formatDiagnosticType(candidate.type)).join("\n")}`,
+          location,
+          GENERIC_ARITY_MISMATCH_CODE,
+        );
+      }
       throw new CompilerError(
         `No matching function for call to '${name}' with ${argTypes.length} arguments${
           genericArgs.length > 0
             ? ` and ${genericArgs.length} generic arguments`
             : ""
         }.`,
-        `Available overloads:\n${candidates.map((c) => this.ctx.typeToString(c.type!)).join("\n")}`,
+        `Available overloads:\n${candidates.map((c) => this.ctx.formatDiagnosticType(c.type!)).join("\n")}`,
         location,
         CALL_ARGUMENT_COUNT_MISMATCH_CODE,
       );
@@ -204,7 +249,7 @@ export class OverloadResolver {
               !this.ctx.areTypesCompatible(substitutedConstraint, arg, false)
             ) {
               throw new CompilerError(
-                `Type argument '${this.ctx.typeToString(arg)}' does not satisfy constraint '${this.ctx.typeToString(substitutedConstraint)}'`,
+                `Type argument '${this.ctx.formatDiagnosticType(arg)}' does not satisfy constraint '${this.ctx.formatDiagnosticType(substitutedConstraint)}'`,
                 "Ensure the type argument satisfies the constraint.",
                 location,
               );
@@ -245,6 +290,7 @@ export class OverloadResolver {
     const exactMatches: typeof substitutedCandidates = [];
     const wideningMatches: typeof substitutedCandidates = [];
     const compatibleMatches: typeof substitutedCandidates = [];
+    const contextualMatches: typeof substitutedCandidates = [];
 
     for (const c of substitutedCandidates) {
       const ft = c.type;
@@ -252,6 +298,7 @@ export class OverloadResolver {
       let isExact = true;
       let needsWidening = false;
       let allCompatible = true;
+      let needsContextual = false;
 
       // Determine number of parameters to check
       let paramsToCheck = ft.paramTypes.length;
@@ -339,16 +386,24 @@ export class OverloadResolver {
           continue;
         }
 
-        const compatible = this.ctx.areTypesCompatible(paramType, argTypes[i]!);
-        if (!compatible) {
-          allCompatible = false;
-          break;
+        if (this.ctx.areTypesCompatible(paramType, argTypes[i]!)) continue;
+        const argument = arguments_?.[i];
+        if (
+          i < paramsToCheck && argument &&
+          this.ctx.contextualizeArrayLiteral(argument, paramType, false)
+        ) {
+          needsContextual = true;
+          continue;
         }
+        allCompatible = false;
+        break;
       }
 
       if (!allCompatible) continue;
 
-      if (isExact) {
+      if (needsContextual) {
+        contextualMatches.push(c);
+      } else if (isExact) {
         exactMatches.push(c);
       } else if (needsWidening) {
         wideningMatches.push(c);
@@ -357,14 +412,16 @@ export class OverloadResolver {
       }
     }
 
-    // Prefer exact matches, then widening, then compatible
+    // Prefer existing exact/widening/compatible matches before contextual ones.
     let matched: typeof substitutedCandidates;
     if (exactMatches.length > 0) {
       matched = exactMatches;
     } else if (wideningMatches.length > 0) {
       matched = wideningMatches;
-    } else {
+    } else if (compatibleMatches.length > 0) {
       matched = compatibleMatches;
+    } else {
+      matched = contextualMatches;
     }
 
     if (matched.length > 1) {
@@ -380,7 +437,7 @@ export class OverloadResolver {
     if (matched.length === 0) {
       throw new CompilerError(
         `No matching function for call to '${name}' with provided argument types.`,
-        `Available overloads:\n${candidates.map((c) => this.ctx.typeToString(c.type!)).join("\n")}`,
+        `Available overloads:\n${candidates.map((c) => this.ctx.formatDiagnosticType(c.type!)).join("\n")}`,
         location,
         CALL_ARGUMENT_TYPE_MISMATCH_CODE,
       );
@@ -408,6 +465,7 @@ export class OverloadResolver {
           genericMap: Map<string, AST.TypeNode>;
         }
       | undefined,
+    rejections?: OperatorOverloadRejections,
   ): AST.FunctionDecl | undefined {
     // Only structs can have operator overloads
     if (targetType.kind !== "BasicType") return undefined;
@@ -489,6 +547,7 @@ export class OverloadResolver {
     // Find matching overload by checking parameter types
     for (const method of methods) {
       const funcDecl = method as AST.FunctionDecl;
+      let addressesConstant = false;
 
       // Skip static methods - operator overloads must be instance methods
       if (funcDecl.isStatic) continue;
@@ -503,6 +562,11 @@ export class OverloadResolver {
 
         const resolvedThisType = this.ctx.resolveType(declaredThisType);
         const resolvedTargetType = this.ctx.resolveType(targetType);
+
+        addressesConstant = implicitlyAddressesConstant(
+          resolvedThisType,
+          resolvedTargetType,
+        );
 
         // Check if 'this' type matches target type exactly
         const exactMatch = this.ctx.areTypesCompatible(
@@ -565,12 +629,16 @@ export class OverloadResolver {
         const resolvedExpected = this.ctx.resolveType(expectedType);
         const resolvedActual = this.ctx.resolveType(paramTypes[i]!);
 
+        if (implicitlyAddressesConstant(resolvedExpected, resolvedActual)) {
+          addressesConstant = true;
+        }
+
         // Allow implicit address-of for operator parameters (T -> *T)
         const isAddressOfMatch =
           resolvedExpected.kind === "BasicType" &&
           resolvedActual.kind === "BasicType" &&
           resolvedExpected.pointerDepth === resolvedActual.pointerDepth + 1 &&
-          this.ctx.areTypesCompatible(
+          this.ctx.areTypesExactMatch(
             {
               ...resolvedExpected,
               pointerDepth: resolvedExpected.pointerDepth - 1,
@@ -588,6 +656,10 @@ export class OverloadResolver {
       }
 
       if (allMatch) {
+        if (addressesConstant) {
+          if (rejections) rejections.constantAddress = true;
+          continue;
+        }
         return funcDecl;
       }
     }

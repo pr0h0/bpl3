@@ -1,9 +1,27 @@
 import * as fs from "fs";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import { Parser } from "../../../compiler/frontend/Parser";
 import { lexWithGrammar } from "../../../compiler/frontend/GrammarLexer";
 import * as AST from "../../../compiler/common/AST";
 import { SymbolIndex } from "./SymbolIndex";
-import { debugLog, typeNodeToString } from "./utils";
+import { debugLog, filePathToUri, typeNodeToString } from "./utils";
+
+/** Implicit void has the enclosing declaration's range, but no source token. */
+function hasImplicitVoidReturnType(node: AST.FunctionDecl): boolean {
+  const type = node.returnType;
+  if (type?.kind !== "BasicType" || type.name !== "void") return false;
+  const location = type.location;
+  const owner = node.location;
+  return (
+    !!location &&
+    !!owner &&
+    location.file === owner.file &&
+    location.startLine === owner.startLine &&
+    location.startColumn === owner.startColumn &&
+    location.endLine === owner.endLine &&
+    location.endColumn === owner.endColumn
+  );
+}
 
 interface ASTCache {
   ast: AST.Program;
@@ -179,6 +197,14 @@ export class ASTResolver {
 
     // Traverse all properties that might contain child nodes
     for (const key of Object.keys(node)) {
+      // Synthetic annotations must not replace an actual source declaration.
+      if (
+        key === "returnType" &&
+        node.kind === "FunctionDecl" &&
+        hasImplicitVoidReturnType(node)
+      ) {
+        continue;
+      }
       const value = node[key];
 
       if (Array.isArray(value)) {
@@ -1115,34 +1141,22 @@ export class ASTResolver {
     const cached = this.astCache.get(filePath);
     if (!cached || !node.location) return null;
 
-    const lines = cached.source.split("\n");
-    const startLine = node.location.startLine - 1;
-    const endLine = node.location.endLine - 1;
-    const startCol = node.location.startColumn - 1;
-    const endCol = node.location.endColumn - 1;
-
-    if (startLine === endLine) {
-      const line = lines[startLine];
-      return line ? line.substring(startCol, endCol) : "";
-    }
-
-    // Multi-line node
-    const result: string[] = [];
-    const firstLine = lines[startLine];
-    if (firstLine) {
-      result.push(firstLine.substring(startCol));
-    }
-    for (let i = startLine + 1; i < endLine; i++) {
-      const line = lines[i];
-      if (line !== undefined) {
-        result.push(line);
-      }
-    }
-    const lastLine = lines[endLine];
-    if (lastLine) {
-      result.push(lastLine.substring(0, endCol));
-    }
-
-    return result.join("\n");
+    // Slice the original text so multiline literals retain their newline bytes.
+    const document = TextDocument.create(
+      filePathToUri(filePath),
+      "bpl",
+      0,
+      cached.source,
+    );
+    return document.getText({
+      start: {
+        line: node.location.startLine - 1,
+        character: node.location.startColumn - 1,
+      },
+      end: {
+        line: node.location.endLine - 1,
+        character: node.location.endColumn - 1,
+      },
+    });
   }
 }

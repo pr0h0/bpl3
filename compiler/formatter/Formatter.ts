@@ -1,88 +1,60 @@
 import * as AST from "../common/AST";
-import { Token } from "../frontend/Token";
+import { lexWithGrammar } from "../frontend/GrammarLexer";
+import type { Token } from "../frontend/Token";
+import { TokenType } from "../frontend/TokenType";
+import { getParsedSource } from "../frontend/ParsedSource";
+import { placeSourceComments, formatLineEndings } from "./CommentPlacement";
+import {
+  resolveFormatterOptions,
+  type FormatterOptions,
+  type ResolvedFormatterOptions,
+} from "./FormatterOptions";
 
 export class Formatter {
   private indentLevel: number = 0;
-  private indentString: string = "    "; // 4 spaces
-  private comments: Token[] = [];
-  private currentCommentIndex: number = 0;
+  private indentString: string = "    "; // Default BPL indentation
   private lastLineProcessed: number = 0;
+  private sourceText?: string;
+  private sourceTokens?: Token[];
+  private readonly options: ResolvedFormatterOptions;
 
-  format(program: AST.Program): string {
+  constructor(options: FormatterOptions = {}) {
+    this.options = resolveFormatterOptions(options);
+    this.indentString = this.options.useTabs
+      ? "\t"
+      : " ".repeat(this.options.indentWidth);
+  }
+
+  format(program: AST.Program, sourceText?: string): string {
     if ((program as any).errors && (program as any).errors.length > 0) {
       throw (program as any).errors[0];
     }
 
     this.indentLevel = 0;
-    this.comments = program.comments || [];
-    // Sort comments by position
-    this.comments.sort((a, b) => {
-      if (a.line !== b.line) return a.line - b.line;
-      return a.column - b.column;
-    });
-    this.currentCommentIndex = 0;
+    const source = program.comments?.length
+      ? (sourceText ?? getParsedSource(program))
+      : undefined;
+    if (program.comments?.length && source === undefined) {
+      throw new Error(
+        "Original source text is required to preserve comments in a detached AST. Pass it as the second format argument.",
+      );
+    }
     this.lastLineProcessed = 0;
+    this.sourceText = source ?? sourceText ?? getParsedSource(program);
+    this.sourceTokens = undefined;
 
-    let output = this.formatStatements(program.statements);
-
-    // Print remaining comments
-    output += this.printRemainingComments();
-
-    return output.trim() + "\n";
-  }
-
-  private printCommentsBefore(line: number): string {
-    let output = "";
-    while (this.currentCommentIndex < this.comments.length) {
-      const comment = this.comments[this.currentCommentIndex];
-      if (comment && comment.line < line) {
-        // Check for gap before comment
-        if (
-          this.lastLineProcessed > 0 &&
-          comment.line > this.lastLineProcessed + 1
-        ) {
-          output += "\n";
-        }
-
-        const indent = this.getIndent();
-        output += `${indent}${comment.lexeme}\n`;
-
-        // Update lastLineProcessed
-        // Estimate comment height based on newlines in lexeme
-        const lines = comment.lexeme.split("\n").length;
-        this.lastLineProcessed = comment.line + lines - 1;
-
-        this.currentCommentIndex++;
-      } else {
-        break;
-      }
-    }
-    return output;
-  }
-
-  private getInlineComment(line: number): string {
-    // Check if there's a comment on the same line
-    if (this.currentCommentIndex < this.comments.length) {
-      const comment = this.comments[this.currentCommentIndex];
-      if (comment && comment.line === line) {
-        this.currentCommentIndex++;
-        return ` ${comment.lexeme}`;
-      }
-    }
-    return "";
-  }
-
-  private printRemainingComments(): string {
-    let output = "";
-    while (this.currentCommentIndex < this.comments.length) {
-      const comment = this.comments[this.currentCommentIndex];
-      if (comment) {
-        const indent = this.getIndent();
-        output += `\n${indent}${comment.lexeme}`;
-      }
-      this.currentCommentIndex++;
-    }
-    return output;
+    const formatted = this.formatStatements(program.statements).trim() + "\n";
+    const withComments =
+      source === undefined
+        ? formatted
+        : placeSourceComments(
+            source,
+            formatted,
+            program.comments || [],
+            this.indentString,
+            this.options.indentWidth,
+          );
+    return formatLineEndings(withComments, this.options.lineEnding);
   }
 
   private formatStatements(statements: AST.Statement[]): string {
@@ -91,8 +63,6 @@ export class Formatter {
       if (stmt.kind === "Import" && (stmt as AST.ImportStmt).isImplicit) {
         continue;
       }
-
-      output += this.printCommentsBefore(stmt.location.startLine);
 
       // Check for gap before statement (after comments)
       if (
@@ -103,8 +73,7 @@ export class Formatter {
       }
 
       const formatted = this.formatStatement(stmt);
-      const inlineComment = this.getInlineComment(stmt.location.endLine);
-      output += formatted + inlineComment;
+      output += formatted;
       output += "\n";
 
       this.lastLineProcessed = stmt.location.endLine;
@@ -244,6 +213,43 @@ export class Formatter {
     return output;
   }
 
+  /** Header comments can span lines before the actual body opening brace. */
+  private declarationBodyStartLine(
+    declaration: AST.StructDecl | AST.EnumDecl | AST.SpecDecl,
+    firstMember: AST.ASTNode | undefined,
+  ): number {
+    const start = declaration.location;
+    if (
+      !this.sourceText ||
+      !firstMember ||
+      firstMember.location.startLine <= start.startLine + 1
+    )
+      return start.startLine;
+
+    const tokens = (this.sourceTokens ??= lexWithGrammar(
+      this.sourceText,
+      start.file,
+    ));
+    let lower = 0;
+    let upper = tokens.length;
+    while (lower < upper) {
+      const middle = (lower + upper) >>> 1;
+      const token = tokens[middle]!;
+      if (
+        token.line < start.startLine ||
+        (token.line === start.startLine && token.column < start.startColumn)
+      )
+        lower = middle + 1;
+      else upper = middle;
+    }
+    for (let index = lower; index < tokens.length; index++) {
+      const token = tokens[index]!;
+      if (token.line > firstMember.location.startLine) break;
+      if (token.type === TokenType.LeftBrace) return token.line;
+    }
+    return start.startLine;
+  }
+
   private formatStructDecl(decl: AST.StructDecl): string {
     const indent = this.getIndent();
     let output = `${indent}struct ${decl.name}`;
@@ -257,12 +263,12 @@ export class Formatter {
     output += " {\n";
     this.indentLevel++;
 
-    this.lastLineProcessed = decl.location.startLine;
+    this.lastLineProcessed = this.declarationBodyStartLine(
+      decl,
+      decl.members[0],
+    );
 
     for (const member of decl.members) {
-      // Print comments before member
-      output += this.printCommentsBefore(member.location.startLine);
-
       if (
         this.lastLineProcessed > 0 &&
         member.location.startLine > this.lastLineProcessed + 1
@@ -279,9 +285,6 @@ export class Formatter {
       this.lastLineProcessed = member.location.endLine;
     }
 
-    // Print comments inside struct (before closing brace)
-    output += this.printCommentsBefore(decl.location.endLine);
-
     this.indentLevel--;
     output += `${indent}}`;
     return output;
@@ -293,22 +296,21 @@ export class Formatter {
 
     output += this.formatGenericParams(decl.genericParams);
 
+    if (decl.implements.length > 0) {
+      output += `: ${decl.implements.map((type) => this.formatType(type)).join(", ")}`;
+    }
+
     output += " {\n";
     this.indentLevel++;
 
-    this.lastLineProcessed = decl.location.startLine;
+    this.lastLineProcessed = this.declarationBodyStartLine(
+      decl,
+      decl.variants[0],
+    );
 
     // Format variants
     for (let i = 0; i < decl.variants.length; i++) {
       const variant = decl.variants[i]!;
-
-      // Print comments before variant (on same or previous line)
-      const commentsBefore = this.printCommentsBefore(
-        variant.location.startLine,
-      );
-      if (commentsBefore) {
-        output += commentsBefore;
-      }
 
       // Add blank line if there's a gap in source
       if (
@@ -339,12 +341,6 @@ export class Formatter {
 
       output += ",";
 
-      // Print inline comments (on same line as variant)
-      const inlineComment = this.getInlineComment(variant.location.endLine);
-      if (inlineComment) {
-        output += inlineComment;
-      }
-
       output += "\n";
 
       this.lastLineProcessed = variant.location.endLine;
@@ -354,18 +350,7 @@ export class Formatter {
     if (decl.methods && decl.methods.length > 0) {
       for (let i = 0; i < decl.methods.length; i++) {
         const method = decl.methods[i]!;
-
-        // Print comments before method (which handles gap detection)
-        const commentsBefore = this.printCommentsBefore(
-          method.location.startLine,
-        );
-        if (commentsBefore) {
-          output += commentsBefore;
-        } else if (i === 0) {
-          // If no comments and this is the first method, add separator
-          output += "\n";
-        } else if (method.location.startLine > this.lastLineProcessed + 1) {
-          // Gap between methods
+        if (i === 0 || method.location.startLine > this.lastLineProcessed + 1) {
           output += "\n";
         }
 
@@ -375,12 +360,6 @@ export class Formatter {
 
         this.lastLineProcessed = method.location.endLine;
       }
-    }
-
-    // Print comments inside enum (before closing brace)
-    const finalComments = this.printCommentsBefore(decl.location.endLine);
-    if (finalComments && !finalComments.match(/^\s*$/)) {
-      output += finalComments;
     }
 
     this.indentLevel--;
@@ -401,12 +380,12 @@ export class Formatter {
     output += " {\n";
     this.indentLevel++;
 
-    this.lastLineProcessed = decl.location.startLine;
+    this.lastLineProcessed = this.declarationBodyStartLine(
+      decl,
+      decl.methods[0],
+    );
 
     for (const method of decl.methods) {
-      // Print comments before method
-      output += this.printCommentsBefore(method.location.startLine);
-
       if (
         this.lastLineProcessed > 0 &&
         method.location.startLine > this.lastLineProcessed + 1
@@ -418,9 +397,6 @@ export class Formatter {
 
       this.lastLineProcessed = method.location.endLine;
     }
-
-    // Print comments inside spec (before closing brace)
-    output += this.printCommentsBefore(decl.location.endLine);
 
     this.indentLevel--;
     output += `${indent}}`;
@@ -461,15 +437,33 @@ export class Formatter {
     return output;
   }
 
-  private formatParameter(param: AST.Parameter): string {
+  private formatParameter(
+    param: Pick<AST.Parameter, "name" | "type" | "isConst" | "isVariadic">,
+  ): string {
     const constPrefix = param.isConst ? "const " : "";
     const variadicPrefix = param.isVariadic ? "..." : "";
     return `${constPrefix}${param.name}: ${variadicPrefix}${this.formatType(param.type)}`;
   }
 
+  /** JSON escapes align with BPL except for the short backspace/form-feed forms. */
+  private quoteImportSource(source: string): string {
+    return JSON.stringify(source).replace(
+      /\\(?:["\\bfnrt]|u[0-9a-fA-F]{4})/g,
+      (sequence) => {
+        if (sequence === "\\b") return "\\u0008";
+        if (sequence === "\\f") return "\\u000c";
+        return sequence;
+      },
+    );
+  }
+
   private formatImport(stmt: AST.ImportStmt): string {
     const indent = this.getIndent();
     let output = `${indent}import `;
+
+    if (stmt.importAll && !stmt.namespace) {
+      return `${indent}import ${this.quoteImportSource(stmt.source)};`;
+    }
 
     if (stmt.importAll) {
       output += "*";
@@ -495,7 +489,7 @@ export class Formatter {
       output += `${items}`;
     }
 
-    output += ` from "${stmt.source}";`;
+    output += ` from ${this.quoteImportSource(stmt.source)};`;
     return output;
   }
 
@@ -522,9 +516,7 @@ export class Formatter {
     const indent = this.getIndent();
     let output = `${indent}extern ${decl.name}(`;
 
-    output += decl.params
-      .map((p) => `${p.name}: ${this.formatType(p.type)}`)
-      .join(", ");
+    output += decl.params.map((p) => this.formatParameter(p)).join(", ");
 
     if (decl.isVariadic) {
       if (decl.params.length > 0) output += ", ";
@@ -545,22 +537,6 @@ export class Formatter {
     const indent = this.getIndent();
     const flavor = stmt.flavor ? `("${stmt.flavor}")` : "";
     let content = stmt.content;
-
-    // Skip comments that are inside the asm block to avoid duplication
-    while (this.currentCommentIndex < this.comments.length) {
-      const c = this.comments[this.currentCommentIndex];
-      if (!c) break;
-      if (c.line < stmt.location.endLine) {
-        this.currentCommentIndex++;
-      } else if (
-        c.line === stmt.location.endLine &&
-        c.column < stmt.location.endColumn
-      ) {
-        this.currentCommentIndex++;
-      } else {
-        break;
-      }
-    }
 
     // Re-indent content
     const lines = content.split("\n");
@@ -760,9 +736,6 @@ export class Formatter {
 
     output += this.formatStatements(stmt.statements);
 
-    // Print comments inside the block (before the closing brace)
-    output += this.printCommentsBefore(stmt.location.endLine);
-
     this.indentLevel--;
     output += `${this.getIndent()}}`;
     return output;
@@ -819,10 +792,7 @@ export class Formatter {
 
         if (body.statements.length === 1 && isSameLine) {
           const stmtStr = this.formatStatement(firstStmt).trimStart();
-          const inlineComment = this.getInlineComment(
-            firstStmt.location.endLine,
-          );
-          return " " + stmtStr + inlineComment;
+          return " " + stmtStr;
         }
         this.indentLevel++;
         this.lastLineProcessed = headerLine;
@@ -834,8 +804,6 @@ export class Formatter {
     };
 
     for (const kase of stmt.cases) {
-      output += this.printCommentsBefore(kase.location.startLine);
-
       if (
         this.lastLineProcessed > 0 &&
         kase.location.startLine > this.lastLineProcessed + 1
@@ -852,7 +820,6 @@ export class Formatter {
 
     if (stmt.defaultCase) {
       // Default case doesn't have explicit location in AST usually, but block does
-      output += this.printCommentsBefore(stmt.defaultCase.location.startLine);
 
       if (
         this.lastLineProcessed > 0 &&
@@ -870,8 +837,6 @@ export class Formatter {
 
       this.lastLineProcessed = stmt.defaultCase.location.endLine;
     }
-
-    output += this.printCommentsBefore(stmt.location.endLine);
 
     this.indentLevel--;
     output += `${indent}}`;
@@ -1009,13 +974,12 @@ export class Formatter {
   }
 
   private escapeInterpolatedStringPart(s: string): string {
-    return s
-      .replace(/\\/g, "\\\\")
-      .replace(/"/g, '\\"')
-      .replace(/\${/g, "\\${")
-      .replace(/\n/g, "\\n")
-      .replace(/\r/g, "\\r")
-      .replace(/\t/g, "\\t");
+    // Interpolated strings decode JSON escapes, including \b and \f.
+    // Raw U+2028/U+2029 are valid text in these literals as well.
+    return JSON.stringify(s)
+      .slice(1, -1)
+      .replace(/`/g, "\\`")
+      .replace(/\$\{/g, "\\${");
   }
 
   private formatBinary(expr: AST.BinaryExpr): string {
@@ -1066,7 +1030,14 @@ export class Formatter {
     const operandStr = this.formatExpression(expr.operand);
     const wrappedOperand = operandIsComplex ? `(${operandStr})` : operandStr;
     if (expr.isPrefix) {
-      return `${expr.operator.lexeme}${wrappedOperand}`;
+      const operator = expr.operator.lexeme;
+      // Keep two unary signs distinct from increment/decrement tokens.
+      const separator =
+        (operator === "+" || operator === "-") &&
+        wrappedOperand.startsWith(operator)
+          ? " "
+          : "";
+      return `${operator}${separator}${wrappedOperand}`;
     }
     return `${wrappedOperand}${expr.operator.lexeme}`;
   }
@@ -1153,12 +1124,6 @@ export class Formatter {
     for (let i = 0; i < expr.arms.length; i++) {
       const arm = expr.arms[i]!;
 
-      // Print comments before this arm
-      const commentsBefore = this.printCommentsBefore(arm.location.startLine);
-      if (commentsBefore) {
-        output += commentsBefore;
-      }
-
       // Add blank line if there's a gap
       if (
         this.lastLineProcessed > 0 &&
@@ -1184,21 +1149,9 @@ export class Formatter {
 
       output += ",";
 
-      // Print inline comments (on same line as arm)
-      const inlineComment = this.getInlineComment(arm.location.endLine);
-      if (inlineComment) {
-        output += inlineComment;
-      }
-
       output += "\n";
 
       this.lastLineProcessed = arm.location.endLine;
-    }
-
-    // Print any remaining comments before closing brace
-    const finalComments = this.printCommentsBefore(expr.location.endLine);
-    if (finalComments && !finalComments.match(/^\s*$/)) {
-      output += finalComments;
     }
 
     this.indentLevel--;

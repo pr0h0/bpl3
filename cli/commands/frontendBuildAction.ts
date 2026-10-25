@@ -16,6 +16,7 @@ import { CompilerError } from "../../compiler/common/CompilerError";
 import { updateConfig } from "../../compiler/common/Config";
 import { Logger, LogLevel, setLogLevel } from "../../compiler/common/Logger";
 import { Formatter } from "../../compiler/formatter/Formatter";
+import { loadFormatterConfig } from "../../compiler/formatter/FormatterConfig";
 import { lexWithGrammar } from "../../compiler/frontend/GrammarLexer";
 import { Parser } from "../../compiler/frontend/Parser";
 
@@ -90,12 +91,15 @@ function emitFrontendOutput(
     return;
   }
 
-  const formatted = new Formatter().format(ast);
+  const formatted = new Formatter(loadFormatterConfig(filePath).options).format(
+    ast,
+    content,
+  );
   if (options.write) {
     assertWritableInputFilePath(filePath);
     writeFileAtomically(filePath, formatted);
     if (options.verbose) log.info(`Formatted ${filePath}`);
   } else {
-    console.log(formatted);
+    process.stdout.write(formatted);
   }
 }

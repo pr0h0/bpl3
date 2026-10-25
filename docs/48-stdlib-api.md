@@ -58,6 +58,18 @@ import [Args], [ArgParser], [Command], [Flag], [ParsedArgs] from "std";
 `ArgParser` provide a small command parser for flags, aliases, arguments, help
 text, and parsed flag lookup.
 
+`parse()` applies flag defaults, checks required positional arguments for each
+selected command, and invokes the final command's `setAction` handler once if
+there are no parsing errors. `ParsedArgs.errorCount` counts parsing errors;
+`exitCode` is 1 on a parsing error or the handler's return value on success
+(0 when no handler is set). The caller owns and must destroy the returned
+`ParsedArgs` even when parsing fails. Diagnostics go to stderr.
+
+Flags accept `--name=value` or a separate value. A following option is not
+consumed as a missing value; use `--name=-filename` for a value beginning with
+an option prefix. Negative decimal numbers and a lone `-` are operands.
+`--` stops both option and subcommand recognition for the remaining tokens.
+
 ### JSON (`std/json.bpl`)
 
 JSON helpers are available directly through `std`:
@@ -83,6 +95,17 @@ ownership, hooks, supported types, and known failures.
 
 ## Numeric Types
 
+### Range (`std/range.bpl`)
+
+Ranges include their start and exclude their end; `betweenInclusive` includes
+both endpoints. `get(index)` and `range[index]` use zero-based indices and throw
+`"Range index out of bounds"` for negative indices, empty ranges, entries past
+the endpoint, or values outside the `int` range. Zero steps and steps pointing
+away from the endpoint describe empty sequences.
+
+Valid indexing does not require the total length to fit `int`. Calling `len()`
+on a longer sequence still throws `"Range length exceeds int"`.
+
 ### Stats (`std/stats.bpl`)
 
 Statistical functions for numerical analysis.
@@ -102,11 +125,62 @@ Statistical functions for numerical analysis.
 - `Stats.variance(data: *int, length: int) ret float` - Population variance
 - `Stats.variance(data: *float, length: int) ret float`
 - `Stats.sampleVariance(data: *int, length: int) ret float` - Sample variance
+- `Stats.sampleVariance(data: *float, length: int) ret float`
 - `Stats.stddev(data: *int, length: int) ret float` - Population std deviation
 - `Stats.stddev(data: *float, length: int) ret float`
 - `Stats.sampleStddev(data: *int, length: int) ret float` - Sample std deviation
+- `Stats.sampleStddev(data: *float, length: int) ret float`
+- `Stats.covariance(dataX: *float, dataY: *float, length: int) ret float` - Population covariance
+- `Stats.correlation(dataX: *float, dataY: *float, length: int) ret float` - Pearson correlation
 - `Stats.median(data: *int, length: int) ret float` - Median value
 - `Stats.median(data: *float, length: int) ret float`
+- `Stats.geometricMean(data: *float, length: int) ret float` - Geometric mean of positive samples
+- `Stats.harmonicMean(data: *float, length: int) ret float` - Harmonic mean of positive samples
+
+Floating `Stats.mean` uses compensated summation to limit cancellation error.
+When the unscaled sum may overflow, it divides samples by the final count before
+accumulation. A bounded normalized fallback handles sums that still overflow
+because of rounding near the finite limit. Null or empty input returns zero;
+nonfinite inputs retain ordinary sum semantics.
+
+`Stats.geometricMean` uses compensated logarithm accumulation and keeps finite
+positive results within the input bounds. Identical positive samples return that
+sample exactly. Null or empty input returns zero. Any nonpositive sample returns
+zero, including when a NaN is also present. Otherwise NaNs propagate, and positive
+infinity produces an infinite mean.
+
+`Stats.harmonicMean` scales reciprocal terms by the smallest sample. For finite
+positive samples, its result stays between their minimum and maximum. Null or
+empty input returns zero. Validation runs in input order: a nonpositive value
+returns zero, while a NaN encountered earlier returns NaN. An all-positive-infinity
+group returns positive infinity.
+
+Floating variance calculations center samples before updating the mean, preserving
+small spreads around large offsets. The scaled path also centers differences
+before division when they are finite, retaining close-value gaps.
+
+Floating `Stats.variance` and `Stats.sampleVariance` use a scaled fallback when
+intermediate arithmetic overflows or rounds to zero. This also recovers
+representable subnormal results; variance exceeding the floating range returns
+positive infinity.
+Floating standard-deviation methods take a scaled square root when intermediate
+variance overflows or becomes subnormal (including zero), retaining representable
+roots.
+
+`Stats.covariance` centers and scales both axes independently to preserve finite
+results across large offsets and magnitudes. Centered products are recomputed
+with compensated accumulation and a rounded-mean correction before rescaling,
+limiting cancellation errors. If subtraction loses mixed-magnitude contributions,
+a compensated raw-moment fallback retains them while keeping close-offset axes
+centered. `Stats.correlation` uses normalized
+joint moments directly, keeping finite coefficients within [-1, 1] without an
+overflowing or underflowing product of dimensional standard deviations. Existing
+zero results for empty or constant-axis inputs are preserved.
+
+`Stats.skewness` and `Stats.kurtosis` compute standardized third/fourth moments
+in centered, normalized units, avoiding raw subtraction overflow and preserving
+small represented spreads. Kurtosis subtracts three for excess kurtosis; both
+methods retain zero for constant samples and their existing minimum lengths.
 
 `Stats.harmonicMean(data: *float, length: int)` returns positive infinity when
 all samples are positive infinity. In a mixture with finite positive samples,
@@ -157,6 +231,21 @@ Complex number arithmetic.
 - `c.sin() ret Complex`
 - `c.cos() ret Complex`
 
+`Complex.exp()` preserves representable components when the intermediate real
+exponential overflows, and avoids prematurely rounding underflow-tail components.
+Zero imaginary axes preserve their sign, including nonfinite real inputs.
+
+`Complex.sin()` and `Complex.cos()` use a small-input hyperbolic series to retain
+tiny imaginary components, and scale large exponential products before multiplying their
+trigonometric factors. These calculations use the existing exponential, sine,
+and cosine providers.
+
+`Complex.sqrt()` computes the principal root in scaled Cartesian coordinates,
+avoiding an overflowing intermediate magnitude. It preserves signed-zero
+branch-cut directions and derives the smaller output from the original imaginary
+component so mixed scales do not erase a representable result. Infinities and
+NaNs are handled explicitly.
+
 `Complex.log()` computes its real part without materializing the magnitude,
 avoiding intermediate overflow for large finite components and preserving
 small logarithmic corrections near unit magnitude. Its imaginary part is the
@@ -180,8 +269,10 @@ invalid `0/0` sentinel for a zero denominator or when the reduced fraction canno
 have a positive `long` denominator and a representable `long` numerator. For
 example, `new(1, LONG_MIN)` and `new(LONG_MIN, -1)` are invalid, while
 `new(LONG_MIN, -2)` reduces to `4611686018427387904/1`. Check `isValid()` before
-using a result. Arithmetic overflow beyond the representable reduced range is
-still a separate limitation.
+using a result. Addition, subtraction, multiplication and division reduce exact
+intermediates before checking the result. If the reduced numerator or positive
+denominator does not fit `long`, arithmetic returns `0/0` rather than wrapping.
+Negating or taking the absolute value of `LONG_MIN/1` also returns `0/0`.
 
 **Operations:**
 
@@ -531,7 +622,7 @@ the same rules as Date. Operations return new values without mutating the input.
 
 ### Rand (`std/rand.bpl`)
 
-Pseudo-random number generator (LCG).
+Deterministic PCG32 generator with 64-bit state and a fixed stream (54).
 
 **Creation:**
 
@@ -558,7 +649,10 @@ Pseudo-random number generator (LCG).
 
 ## Random-number limitations
 
-`Rand` is a deterministic 32-bit LCG, not a cryptographic generator. `seedFromTime`
+`Rand` uses PCG32 (XSH-RR), with 64-bit state and 32-bit output. It is not a
+cryptographic generator. `Rand.seed` initializes the fixed stream rather than
+assigning the seed directly to `state`. Equal seeds reproduce the same sequence;
+sequences differ from the previous LCG implementation. `seedFromTime`
 uses whole seconds, so equal seeds repeat sequences. `nextFloat` maps unsigned
 32-bit output to [0, 1). Integer `range` uses rejection sampling to remove modulo
 bias and supports intervals spanning signed boundaries; empty or reversed ranges
@@ -567,10 +661,10 @@ return `min` without advancing the generator.
 For finite floating bounds, `range` uses a convex combination to avoid overflow
 in `max - min`. Rounding can produce an endpoint. `nextGaussian` uses Box–Muller
 with native logarithm, square root, and cosine, resampling zero before the
-logarithm. These fixes change generated fractions, ranges, and Gaussian sequences
-from earlier releases. They do not remove the correlations or limited state space
-of the underlying LCG. `nextBool` and `fillBytes` still use its low bits, which
-have short repeating patterns; use OS entropy for security-sensitive randomness.
+logarithm. `nextBool` and `fillBytes` use the permuted PCG32 output rather than
+raw LCG state bits, removing the old strictly alternating booleans and 256-byte
+repeat pattern. Use OS entropy for security-sensitive randomness. The generator
+is checked against the [PCG32 reference vector](https://www.pcg-random.org/using-pcg-c-basic.html).
 `weightedChoice` requires nonnegative weights with a positive total fitting
 signed int. Negative weights, an empty or all-zero array, and a total above
 2,147,483,647 throw a string error before advancing the generator. Valid weights

@@ -28,6 +28,7 @@ export interface CheckerContext {
     expectedType?: AST.TypeNode;
     inferredTypes: AST.TypeNode[];
     inferredValues?: AST.Expression[];
+    retainedScope?: SymbolTable;
   }[];
   modules: Map<string, SymbolTable>;
 
@@ -45,7 +46,15 @@ export interface CheckerContext {
     t2: AST.TypeNode,
     checkConstraints?: boolean,
   ): boolean;
+  areTypesExactMatch(t1: AST.TypeNode, t2: AST.TypeNode): boolean;
+  unifyMatchResultTypes(
+    first: AST.TypeNode,
+    next: AST.TypeNode,
+    previousValues?: readonly AST.Expression[],
+    nextValues?: readonly AST.Expression[],
+  ): AST.TypeNode | undefined;
   typeToString(type: AST.TypeNode | undefined): string;
+  formatDiagnosticType(type: AST.TypeNode | undefined): string;
   substituteType(
     type: AST.TypeNode,
     map: Map<string, AST.TypeNode>,
@@ -77,6 +86,11 @@ export interface CheckerContext {
   makeVoidType(): AST.TypeNode;
   isIntegerTypeCompatible(val: bigint, targetType: AST.TypeNode): boolean;
   getIntegerConstantValue(expr: AST.Expression): bigint | undefined;
+  contextualizeArrayLiteral(
+    expr: AST.Expression,
+    targetType: AST.TypeNode,
+    apply?: boolean,
+  ): AST.TypeNode | undefined;
   checkIntegerConstantRange(
     expr: AST.Expression,
     targetType: AST.TypeNode,
@@ -85,10 +99,19 @@ export interface CheckerContext {
   getEnumVariantIndex(expr: AST.Expression): number | undefined;
 
   // Overload & Member Resolution
+  resolveIndexOperator(
+    targetType: AST.TypeNode,
+    methodName: "__get__" | "__set__",
+    paramTypes: AST.TypeNode[],
+    rejections?: { constantAddress?: boolean },
+  ):
+    | { declaration: AST.FunctionDecl; signature: AST.FunctionTypeNode }
+    | undefined;
   findOperatorOverload(
     targetType: AST.TypeNode,
     methodName: string,
     paramTypes: AST.TypeNode[],
+    rejections?: { constantAddress?: boolean },
   ): AST.FunctionDecl | undefined;
   resolveOverload(
     name: string,
@@ -96,6 +119,7 @@ export interface CheckerContext {
     argTypes: (AST.TypeNode | undefined)[],
     genericArgs: AST.TypeNode[],
     location: SourceLocation,
+    arguments_?: AST.Expression[],
   ): {
     symbol: Symbol;
     type: AST.FunctionTypeNode;
@@ -112,6 +136,7 @@ export interface CheckerContext {
     type: AST.TypeNode | undefined,
     position: string,
     location: AST.ASTNode["location"],
+    allowFreshValues?: boolean,
   ): void;
   resolveMemberWithContext(
     baseType: AST.BasicTypeNode,

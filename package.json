@@ -1,6 +1,6 @@
 {
   "name": "bpl-v3",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A transpiler for the BPL programming language targeting LLVM IR.",
   "bin": {
     "bpl": "./bpl"
@@ -17,6 +17,7 @@
     "bpl",
     "bpl-wrapper.sh",
     "bpl-package.schema.json",
+    "bpl-format.schema.json",
     "cli/index.d.ts",
     "cli/index.js",
     "completions",

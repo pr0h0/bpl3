@@ -3,7 +3,7 @@ FROM oven/bun:1.4.2 AS bun
 FROM docker:29.5.0-cli AS docker-cli
 
 FROM ubuntu:24.04 AS compiler
-ARG BPL_VERSION=0.1.0
+ARG BPL_VERSION=0.1.1
 ARG BPL_REVISION=local
 LABEL org.opencontainers.image.source="https://github.com/pr0h0/bpl3" \
       org.opencontainers.image.version="${BPL_VERSION}" \
@@ -22,6 +22,7 @@ RUN bun install --frozen-lockfile --production \
     && printf '%s\n' "$BPL_VERSION" | grep -Eq '^0\.1\.(0|[1-9][0-9]*)$'
 COPY compiler ./compiler
 COPY cli ./cli
+COPY bpl-format.schema.json ./
 COPY grammar ./grammar
 COPY lib ./lib
 COPY packages ./packages

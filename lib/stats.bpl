@@ -7,6 +7,382 @@ import [Math] from "std/math.bpl";
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
 
+# Compensated finite summation with optional division before accumulation.
+# Signal overflow before its compensation would become an invalid infinity.
+frame statsCompensatedSum(data: *float, length: int, divisor: float) ret float {
+    local sum: float = 0.0;
+    local error: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i) / divisor;
+        local next: float = sum + sample;
+        if (Math.isInfinite(next)) {
+            return next;
+        }
+        if (Math.abs(sum) >= Math.abs(sample)) {
+            error = error + ((sum - next) + sample);
+        } else {
+            error = error + ((sample - next) + sum);
+        }
+        sum = next;
+    }
+    return sum + error;
+}
+
+# Internal fallback: normalize finite samples before accumulating deviations.
+# Return normalized variance and its scale separately to avoid squaring scale.
+frame statsScaledVariance(data: *float, length: int, divisor: int) ret (float, float) {
+    local scale: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i);
+        if (Math.isNan(sample) || Math.isInfinite(sample)) {
+            return (sample - sample, 1.0);
+        }
+        local magnitude: float = Math.abs(sample);
+        if (magnitude > scale) {
+            scale = magnitude;
+        }
+    }
+    if (scale == 0.0) {
+        return (0.0, 1.0);
+    }
+    local origin: float = *data;
+    local running: float = 0.0;
+    local squares: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i);
+        local difference: float = sample - origin;
+        if (Math.isInfinite(difference)) {
+            # Opposite extremes can overflow subtraction; normalized operands
+            # remain bounded even when their unscaled difference does not.
+            sample = sample / scale - origin / scale;
+        } else {
+            # Close inputs have an accurately represented difference. Dividing
+            # them first would lose that small gap near a large common offset.
+            sample = difference / scale;
+        }
+        local delta: float = sample - running;
+        running = running + delta / cast<float>(i + 1);
+        squares = squares + delta * (sample - running);
+    }
+    return (squares / cast<float>(divisor), scale);
+}
+
+# Subtract an exactly represented input before updating the mean. This keeps
+# a small spread from disappearing when the absolute mean rounds to an input.
+frame statsFloatVariance(data: *float, length: int, divisor: int) ret float {
+    local origin: float = *data;
+    local running: float = 0.0;
+    local squares: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i) - origin;
+        local delta: float = sample - running;
+        running = running + delta / cast<float>(i + 1);
+        squares = squares + delta * (sample - running);
+    }
+    local result: float = squares / cast<float>(divisor);
+    if (Math.isNan(result) || Math.isInfinite(result) || result == 0.0) {
+        local (normalized: float, scale: float) = statsScaledVariance(data, length, divisor);
+        return (normalized * scale) * scale;
+    }
+    return result;
+}
+
+# Internal third/fourth standardized moment and whether a spread exists.
+# Keep the deviation and standard deviation in matching normalized units.
+frame statsStandardizedMoment(data: *float, length: int, power: int) ret (float, bool) {
+    local (variance: float, scale: float) = statsScaledVariance(data, length, length);
+    if (variance == 0.0) { return (0.0, false); }
+    if (Math.isNan(variance)) { return (variance, true); }
+    local origin: float = *data;
+    local sum: float = 0.0;
+    local error: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i);
+        local difference: float = sample - origin;
+        local normalized: float = difference / scale;
+        if (Math.isInfinite(difference)) {
+            normalized = sample / scale - origin / scale;
+        }
+        local next: float = sum + normalized;
+        if (Math.abs(sum) >= Math.abs(normalized)) {
+            error = error + ((sum - next) + normalized);
+        } else {
+            error = error + ((normalized - next) + sum);
+        }
+        sum = next;
+    }
+    local count: float = cast<float>(length);
+    local mean: float = (sum + error) / count;
+    local stddev: float = Math.sqrt(variance);
+    sum = 0.0;
+    error = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local sample: float = *(data + i);
+        local difference: float = sample - origin;
+        local normalized: float = difference / scale;
+        if (Math.isInfinite(difference)) {
+            normalized = sample / scale - origin / scale;
+        }
+        local standardized: float = (normalized - mean) / stddev;
+        local square: float = standardized * standardized;
+        local moment: float = square * standardized;
+        if (power == 4) { moment = square * square; }
+        local next: float = sum + moment;
+        if (Math.abs(sum) >= Math.abs(moment)) {
+            error = error + ((sum - next) + moment);
+        } else {
+            error = error + ((moment - next) + sum);
+        }
+        sum = next;
+    }
+    return ((sum + error) / count, true);
+}
+
+# Error-free subtraction residual, for finite operands and difference.
+frame statsDifferenceError(a: float, b: float, difference: float) ret float {
+    local virtualB: float = a - difference;
+    return (a - (difference + virtualB)) + (virtualB - b);
+}
+
+# Product residual for bounded normalized samples/sums. The splitter (2^27+1)
+# cannot overflow here, since sums are bounded by twice the int sample count.
+frame statsProductError(a: float, b: float, product: float) ret float {
+    local splitA: float = 134217729.0 * a;
+    local splitB: float = 134217729.0 * b;
+    local highA: float = splitA - (splitA - a);
+    local highB: float = splitB - (splitB - b);
+    local lowA: float = a - highA;
+    local lowB: float = b - highB;
+    local error1: float = product - highA * highB;
+    local error2: float = error1 - lowA * highB;
+    local error3: float = error2 - highA * lowB;
+    return lowA * lowB - error3;
+}
+
+# Retain small raw terms when a large origin or mean would erase them.
+frame statsRawCovariance(dataX: *float, dataY: *float, length: int, originX: float, originY: float, scaleX: float, scaleY: float) ret float {
+    local sumX: float = 0.0;
+    local sumY: float = 0.0;
+    local sumProducts: float = 0.0;
+    local errorX: float = 0.0;
+    local errorY: float = 0.0;
+    local errorProducts: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local x: float = *(dataX + i);
+        local y: float = *(dataY + i);
+        local differenceX: float = x - originX;
+        local differenceY: float = y - originY;
+        if (Math.isInfinite(differenceX)) {
+            x = x / scaleX - originX / scaleX;
+        } else {
+            x = differenceX / scaleX;
+        }
+        if (Math.isInfinite(differenceY)) {
+            y = y / scaleY - originY / scaleY;
+        } else {
+            y = differenceY / scaleY;
+        }
+        local product: float = x * y;
+        local nextX: float = sumX + x;
+        if (Math.abs(sumX) >= Math.abs(x)) {
+            errorX = errorX + ((sumX - nextX) + x);
+        } else {
+            errorX = errorX + ((x - nextX) + sumX);
+        }
+        sumX = nextX;
+        local nextY: float = sumY + y;
+        if (Math.abs(sumY) >= Math.abs(y)) {
+            errorY = errorY + ((sumY - nextY) + y);
+        } else {
+            errorY = errorY + ((y - nextY) + sumY);
+        }
+        sumY = nextY;
+        local nextProduct: float = sumProducts + product;
+        if (Math.abs(sumProducts) >= Math.abs(product)) {
+            errorProducts = errorProducts + ((sumProducts - nextProduct) + product);
+        } else {
+            errorProducts = errorProducts + ((product - nextProduct) + sumProducts);
+        }
+        sumProducts = nextProduct;
+        errorProducts = errorProducts + statsProductError(x, y, product);
+    }
+    local count: float = cast<float>(length);
+    local meanProduct: float = sumX * sumY;
+    local meanError: float = statsProductError(sumX, sumY, meanProduct)
+        + sumX * errorY + errorX * sumY + errorX * errorY;
+    local quotient: float = meanProduct / count;
+    local rounded: float = quotient * count;
+    local quotientError: float = ((meanProduct - rounded)
+        - statsProductError(quotient, count, rounded) + meanError) / count;
+    local difference: float = sumProducts - quotient;
+    local correction: float = statsDifferenceError(sumProducts, quotient, difference)
+        + errorProducts - quotientError;
+    return (difference + correction) / count;
+}
+
+# Internal population moments, normalized independently along both axes.
+frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, float, float, float, float) {
+    local scaleX: float = 0.0;
+    local scaleY: float = 0.0;
+    local invalidX: bool = false;
+    local invalidY: bool = false;
+    local invalid: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local x: float = *(dataX + i);
+        local y: float = *(dataY + i);
+        if (Math.isNan(x) || Math.isInfinite(x)) {
+            invalidX = true;
+            invalid = x - x;
+        } else if (Math.abs(x) > scaleX) {
+            scaleX = Math.abs(x);
+        }
+        if (Math.isNan(y) || Math.isInfinite(y)) {
+            invalidY = true;
+            invalid = y - y;
+        } else if (Math.abs(y) > scaleY) {
+            scaleY = Math.abs(y);
+        }
+    }
+    if (invalidX || invalidY) {
+        # Preserve correlation's zero result when the other finite axis has
+        # zero standard deviation, even if this axis contains NaN/infinity.
+        local varianceX: float = invalid;
+        local varianceY: float = invalid;
+        if (!invalidX) {
+            local (normalized: float, scale: float) = statsScaledVariance(dataX, length, length);
+            if (Math.sqrt(normalized) * scale == 0.0) {
+                varianceX = 0.0;
+            }
+        }
+        if (!invalidY) {
+            local (normalized: float, scale: float) = statsScaledVariance(dataY, length, length);
+            if (Math.sqrt(normalized) * scale == 0.0) {
+                varianceY = 0.0;
+            }
+        }
+        return (invalid, varianceX, varianceY, 1.0, 1.0);
+    }
+    if (scaleX == 0.0) {
+        scaleX = 1.0;
+    }
+    if (scaleY == 0.0) {
+        scaleY = 1.0;
+    }
+    local originX: float = *dataX;
+    local originY: float = *dataY;
+    local lostOriginX: bool = false;
+    local lostOriginY: bool = false;
+    local lostCentered: bool = false;
+    local meanX: float = 0.0;
+    local meanY: float = 0.0;
+    local squaresX: float = 0.0;
+    local squaresY: float = 0.0;
+    local products: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local x: float = *(dataX + i);
+        local y: float = *(dataY + i);
+        local differenceX: float = x - originX;
+        local differenceY: float = y - originY;
+        if (Math.isInfinite(differenceX)) {
+            x = x / scaleX - originX / scaleX;
+        } else {
+            if (statsDifferenceError(x, originX, differenceX) != 0.0) {
+                lostOriginX = true;
+            }
+            x = differenceX / scaleX;
+        }
+        if (Math.isInfinite(differenceY)) {
+            y = y / scaleY - originY / scaleY;
+        } else {
+            if (statsDifferenceError(y, originY, differenceY) != 0.0) {
+                lostOriginY = true;
+            }
+            y = differenceY / scaleY;
+        }
+        local deltaX: float = x - meanX;
+        local deltaY: float = y - meanY;
+        local count: float = cast<float>(i + 1);
+        meanX = meanX + deltaX / count;
+        meanY = meanY + deltaY / count;
+        squaresX = squaresX + deltaX * (x - meanX);
+        squaresY = squaresY + deltaY * (y - meanY);
+    }
+    local count: float = cast<float>(length);
+    # Recompute the cross moment around the final means. Online updates can
+    # leave a tiny residual at exact cancellation, which rescaling amplifies.
+    local productError: float = 0.0;
+    local residualX: float = 0.0;
+    local residualY: float = 0.0;
+    local residualErrorX: float = 0.0;
+    local residualErrorY: float = 0.0;
+    loop (local i: int = 0; i < length; i = i + 1) {
+        local x: float = *(dataX + i);
+        local y: float = *(dataY + i);
+        local differenceX: float = x - originX;
+        local differenceY: float = y - originY;
+        if (Math.isInfinite(differenceX)) {
+            x = x / scaleX - originX / scaleX;
+        } else {
+            x = differenceX / scaleX;
+        }
+        if (Math.isInfinite(differenceY)) {
+            y = y / scaleY - originY / scaleY;
+        } else {
+            y = differenceY / scaleY;
+        }
+        local centeredX: float = x - meanX;
+        local centeredY: float = y - meanY;
+        if (statsDifferenceError(x, meanX, centeredX) != 0.0
+            || statsDifferenceError(y, meanY, centeredY) != 0.0) {
+            lostCentered = true;
+        }
+        local product: float = centeredX * centeredY;
+        local nextProduct: float = products + product;
+        if (Math.abs(products) >= Math.abs(product)) {
+            productError = productError + ((products - nextProduct) + product);
+        } else {
+            productError = productError + ((product - nextProduct) + products);
+        }
+        products = nextProduct;
+        local nextX: float = residualX + centeredX;
+        if (Math.abs(residualX) >= Math.abs(centeredX)) {
+            residualErrorX = residualErrorX + ((residualX - nextX) + centeredX);
+        } else {
+            residualErrorX = residualErrorX + ((centeredX - nextX) + residualX);
+        }
+        residualX = nextX;
+        local nextY: float = residualY + centeredY;
+        if (Math.abs(residualY) >= Math.abs(centeredY)) {
+            residualErrorY = residualErrorY + ((residualY - nextY) + centeredY);
+        } else {
+            residualErrorY = residualErrorY + ((centeredY - nextY) + residualY);
+        }
+        residualY = nextY;
+    }
+    # Correct for the rounded means using compensated centered residual sums.
+    local covariance: float = ((products + productError)
+        - (residualX + residualErrorX) * ((residualY + residualErrorY) / count)) / count;
+    if (lostOriginX || lostOriginY || lostCentered) {
+        local rawOriginX: float = originX;
+        local rawOriginY: float = originY;
+        if (lostOriginX) {
+            rawOriginX = 0.0;
+        }
+        if (lostOriginY) {
+            rawOriginY = 0.0;
+        }
+        covariance = statsRawCovariance(dataX, dataY, length, rawOriginX, rawOriginY, scaleX, scaleY);
+    }
+    # Original normalized samples lie in [-1,1], bounding population covariance.
+    if (covariance > 1.0) {
+        covariance = 1.0;
+    }
+    if (covariance < -1.0) {
+        covariance = -1.0;
+    }
+    return (covariance, squaresX / count, squaresY / count, scaleX, scaleY);
+}
+
 struct Stats {
     # Calculate the mean (average) of an integer array
     frame mean(data: *int, length: int) ret float {
@@ -24,20 +400,14 @@ struct Stats {
 
     # Calculate the mean of a float array
     /#
-        Arithmetic mean, accumulated one sample at a time. Summing first and
-        dividing afterwards overflows for large samples even when the mean is
-        finite: two copies of 1e308 summed to infinity.
+        Arithmetic mean with compensated accumulation. Divide samples first
+        when their ordinary sum may overflow; normalize only as a last resort
+        at the finite limit, retaining small mixed-magnitude terms otherwise.
     #/
     frame mean(data: *float, length: int) ret float {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        # Summing and dividing once is exact for ordinary samples, and
-        # accumulating a scaled running mean instead is not: it drifts by
-        # about one rounding step per sample, so the mean of -3, -1, 1, 3 came
-        # out as -2.2e-16 rather than zero. The scaled form is only needed when
-        # a plain sum would leave the range, so the largest magnitude decides
-        # which to use.
         local largest: float = 0.0;
         local scan: int = 0;
         loop (scan < length) {
@@ -48,28 +418,38 @@ struct Stats {
             scan = scan + 1;
         }
 
-        local span: float = largest * cast<float>(length);
-        if (Math.isInfinite(largest) || !Math.isInfinite(span)) {
+        local count: float = cast<float>(length);
+        if (Math.isInfinite(largest)) {
+            # Preserve infinite sums and NaN from opposite infinities.
             local sum: float = 0.0;
             local j: int = 0;
             loop (j < length) {
                 sum = sum + *(data + j);
                 j = j + 1;
             }
-            return sum / cast<float>(length);
+            return sum / count;
         }
 
-        # The samples are large enough that their sum would overflow, so each
-        # one is scaled as it is folded in. This cannot overflow, at the cost
-        # of the rounding the direct path avoids.
-        local running: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local count: float = cast<float>(i + 1);
-            running = (running - (running / count)) + (*(data + i) / count);
-            i = i + 1;
+        local divisor: float = 1.0;
+        if (Math.isInfinite(largest * count)) {
+            divisor = count;
         }
-        return running;
+        local total: float = statsCompensatedSum(data, length, divisor);
+        if (!Math.isInfinite(total)) {
+            if (divisor == 1.0) { return total / count; }
+            return total;
+        }
+
+        # Rounded partial sums can overflow even when the exact mean is
+        # finite (e.g. three copies of the largest finite value). A normalized
+        # sum is bounded by the int count; clamp before restoring the scale.
+        local normalized: float = statsCompensatedSum(data, length, largest) / count;
+        if (normalized > 1.0) {
+            normalized = 1.0;
+        } else if (normalized < -1.0) {
+            normalized = -1.0;
+        }
+        return normalized * largest;
     }
 
     # Calculate the sum of an integer array
@@ -200,21 +580,7 @@ struct Stats {
         if ((data == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        # Welford's method: the mean and the sum of squared deviations are
-        # updated together, so neither a large sum nor a large mean times a
-        # large count is ever formed.
-        local running: float = 0.0;
-        local squares: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local sample: float = *(data + i);
-            local count: float = cast<float>(i + 1);
-            local delta: float = sample - running;
-            running = running + (delta / count);
-            squares = squares + (delta * (sample - running));
-            i = i + 1;
-        }
-        return squares / cast<float>(length);
+        return statsFloatVariance(data, length, length);
     }
 
     # Calculate the sample variance of an integer array
@@ -238,15 +604,7 @@ struct Stats {
         if ((data == nullptr) || (length <= 1)) {
             return 0.0;
         }
-        local mean: float = Stats.mean(data, length);
-        local sumSquares: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local diff: float = *(data + i) - mean;
-            sumSquares = sumSquares + (diff * diff);
-            i = i + 1;
-        }
-        return sumSquares / cast<float>(length - 1);
+        return statsFloatVariance(data, length, length - 1);
     }
 
     # Calculate the standard deviation of an integer array (population)
@@ -256,7 +614,17 @@ struct Stats {
 
     # Calculate the standard deviation of a float array (population)
     frame stddev(data: *float, length: int) ret float {
-        return Math.sqrt(Stats.variance(data, length));
+        if ((data == nullptr) || (length <= 0)) {
+            return 0.0;
+        }
+        local variance: float = Stats.variance(data, length);
+        # A finite root may survive an overflowing or underflowing variance.
+        # Subnormal variance rounding can also distort a representable root.
+        if (Math.isInfinite(variance) || variance < Math.pow(2.0, -1022.0)) {
+            local (normalized: float, scale: float) = statsScaledVariance(data, length, length);
+            return Math.sqrt(normalized) * scale;
+        }
+        return Math.sqrt(variance);
     }
 
     # Calculate the sample standard deviation of an integer array
@@ -266,7 +634,17 @@ struct Stats {
 
     # Calculate the sample standard deviation of a float array
     frame sampleStddev(data: *float, length: int) ret float {
-        return Math.sqrt(Stats.sampleVariance(data, length));
+        if ((data == nullptr) || (length <= 1)) {
+            return 0.0;
+        }
+        local variance: float = Stats.sampleVariance(data, length);
+        # A finite root may survive an overflowing or underflowing variance.
+        # Subnormal variance rounding can also distort a representable root.
+        if (Math.isInfinite(variance) || variance < Math.pow(2.0, -1022.0)) {
+            local (normalized: float, scale: float) = statsScaledVariance(data, length, length - 1);
+            return Math.sqrt(normalized) * scale;
+        }
+        return Math.sqrt(variance);
     }
 
     /#
@@ -480,17 +858,13 @@ struct Stats {
         if ((dataX == nullptr) || (dataY == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        local meanX: float = Stats.mean(dataX, length);
-        local meanY: float = Stats.mean(dataY, length);
-
-        local sum: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            sum = sum + ((*(dataX + i) - meanX) * (*(dataY + i) - meanY));
-            i = i + 1;
+        local (covariance: float, _varianceX: float, _varianceY: float, scaleX: float, scaleY: float) = statsScaledMoments(dataX, dataY, length);
+        # Restore the larger scale first: multiplying a small scale first can
+        # erase a result that the larger scale would have kept representable.
+        if (scaleX >= scaleY) {
+            return (covariance * scaleX) * scaleY;
         }
-
-        return sum / cast<float>(length);
+        return (covariance * scaleY) * scaleX;
     }
 
     # Calculate the Pearson correlation coefficient between two float arrays
@@ -498,14 +872,20 @@ struct Stats {
         if ((dataX == nullptr) || (dataY == nullptr) || (length <= 0)) {
             return 0.0;
         }
-        local cov: float = Stats.covariance(dataX, dataY, length);
-        local stdX: float = Stats.stddev(dataX, length);
-        local stdY: float = Stats.stddev(dataY, length);
-
-        if ((stdX == 0.0) || (stdY == 0.0)) {
+        local (covariance: float, varianceX: float, varianceY: float, _scaleX: float, _scaleY: float) = statsScaledMoments(dataX, dataY, length);
+        if ((varianceX == 0.0) || (varianceY == 0.0)) {
             return 0.0;
         }
-        return cov / (stdX * stdY);
+        # Units cancel in the normalized domain. Never form a dimensional
+        # covariance or product of standard deviations that can overflow.
+        local result: float = covariance / Math.sqrt(varianceX) / Math.sqrt(varianceY);
+        if (result > 1.0) {
+            return 1.0;
+        }
+        if (result < -1.0) {
+            return -1.0;
+        }
+        return result;
     }
 
     # Calculate the geometric mean of a float array (all values must be positive)
@@ -514,17 +894,47 @@ struct Stats {
             return 0.0;
         }
         local logSum: float = 0.0;
+        local error: float = 0.0;
+        local smallest: float = 0.0;
+        local largest: float = 0.0;
+        local invalid: float = 0.0;
         local i: int = 0;
         loop (i < length) {
             local val: float = *(data + i);
             if (val <= 0.0) {
                 return 0.0; # Geometric mean undefined for non-positive values
             }
-            logSum = logSum + Math.log(val);
+            if (Math.isNan(val)) {
+                invalid = val;
+            } else {
+                if (val > largest) { largest = val; }
+                if (smallest == 0.0 || val < smallest) { smallest = val; }
+                # Keep nonfinite classification separate from compensation:
+                # an infinite logarithm would form inf - inf in the residual.
+                if (!Math.isInfinite(val)) {
+                    local term: float = Math.log(val);
+                    local next: float = logSum + term;
+                    if (Math.abs(logSum) >= Math.abs(term)) {
+                        error = error + ((logSum - next) + term);
+                    } else {
+                        error = error + ((term - next) + logSum);
+                    }
+                    logSum = next;
+                }
+            }
             i = i + 1;
         }
-
-        return Math.exp(logSum / cast<float>(length));
+        # Preserve the existing priority of nonpositive inputs over NaNs,
+        # and NaNs over positive infinity, after examining every sample.
+        if (Math.isNan(invalid)) { return invalid; }
+        if (Math.isInfinite(largest)) { return largest; }
+        if (smallest == largest) { return smallest; }
+        local result: float = Math.exp((logSum + error) / cast<float>(length));
+        # A finite positive geometric mean lies between its input extremes.
+        # Rounding logarithms must not produce infinity or erase a subnormal.
+        if (result > largest) { return largest; }
+        if (result < smallest) { return smallest; }
+        return result;
     }
 
     # Calculate the harmonic mean of a float array (all values must be positive)
@@ -540,6 +950,7 @@ struct Stats {
         # one and at least one term is exactly one, so the sum is between one
         # and the count.
         local smallest: float = 0.0;
+        local largest: float = 0.0;
         local scan: int = 0;
         loop (scan < length) {
             local sample: float = *(data + scan);
@@ -550,6 +961,7 @@ struct Stats {
             if ((smallest == 0.0) || (sample < smallest)) {
                 smallest = sample;
             }
+            if (sample > largest) { largest = sample; }
             scan = scan + 1;
         }
 
@@ -564,10 +976,15 @@ struct Stats {
             i = i + 1;
         }
 
-        # Divide before scaling back: the count over the sum is never larger
-        # than the count, so this cannot leave the range, while forming
-        # count * smallest first could.
-        return (cast<float>(length) / scaledSum) * smallest;
+        # Divide before scaling back so count * smallest cannot overflow
+        # first. The bounded dimensionless factor can still round upward
+        # enough to require clamping the final product below.
+        local result: float = (cast<float>(length) / scaledSum) * smallest;
+        # Rounded ratios may push this product past the finite limit, even
+        # when every sample is finite. Positive means stay within the inputs.
+        if (result > largest) { return largest; }
+        if (result < smallest) { return smallest; }
+        return result;
     }
 
     # Calculate the skewness of a float array
@@ -575,21 +992,8 @@ struct Stats {
         if ((data == nullptr) || (length <= 2)) {
             return 0.0;
         }
-        local mean: float = Stats.mean(data, length);
-        local stddev: float = Stats.stddev(data, length);
-
-        if (stddev == 0.0) {
-            return 0.0;
-        }
-        local sum: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local diff: float = (*(data + i) - mean) / stddev;
-            sum = sum + (diff * diff * diff);
-            i = i + 1;
-        }
-
-        return sum / cast<float>(length);
+        local (moment: float, _spread: bool) = statsStandardizedMoment(data, length, 3);
+        return moment;
     }
 
     # Calculate the kurtosis of a float array (excess kurtosis)
@@ -597,20 +1001,8 @@ struct Stats {
         if ((data == nullptr) || (length <= 3)) {
             return 0.0;
         }
-        local mean: float = Stats.mean(data, length);
-        local stddev: float = Stats.stddev(data, length);
-
-        if (stddev == 0.0) {
-            return 0.0;
-        }
-        local sum: float = 0.0;
-        local i: int = 0;
-        loop (i < length) {
-            local diff: float = (*(data + i) - mean) / stddev;
-            sum = sum + (diff * diff * diff * diff);
-            i = i + 1;
-        }
-
-        return (sum / cast<float>(length)) - 3.0; # Excess kurtosis
+        local (moment: float, spread: bool) = statsStandardizedMoment(data, length, 4);
+        if (!spread) { return 0.0; }
+        return moment - 3.0; # Excess kurtosis
     }
 }

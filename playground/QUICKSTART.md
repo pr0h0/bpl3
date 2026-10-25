@@ -228,3 +228,12 @@ switch (value) { case x: break; }
 - Check `playground/README.md` for detailed docs
 - View compiler docs in parent directory
 - Report issues on the project repository
+
+## Local drafts
+
+The playground saves source, stdin and program arguments in this browser's local
+storage and restores them on reload. Switching examples asks before replacing
+an edited draft. Clear editor also clears stdin, arguments and the saved draft.
+Drafts are local to this origin/browser, not a shared link or remote backup.
+If storage is blocked or full, a warning explains that you should copy your code;
+leaving with an unpersisted edit requests the browser's unload confirmation.

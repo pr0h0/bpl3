@@ -11,6 +11,40 @@ extern frexp(value: float, exponent: *int) ret float;
 extern ldexp(value: float, exponent: int) ret float;
 extern log1p(value: float) ret float;
 
+# Multiply by a weighted exponential without first overflowing its magnitude.
+# Four equal factors keep every intermediate finite when the result fits.
+# The negative tail also avoids rounding a subnormal exponential before use.
+frame complexExpProduct(exponent: float, factor: float, weight: float) ret float {
+    if (factor == 0.0) { return factor; }
+    local quarter: float = Math.exp(exponent * 0.25);
+    return (((factor * (quarter * weight)) * quarter) * quarter) * quarter;
+}
+
+# Signed sinh and positive cosh, using only the existing exponential provider.
+# The small-input series avoids subtracting nearly equal exponentials.
+frame complexHyperbolicParts(value: float) ret (float, float) {
+    if (value == 0.0) { return (value, 1.0); }
+    local magnitude: float = Math.abs(value);
+    if (magnitude < 0.5) {
+        local square: float = magnitude * magnitude;
+        local oddTerm: float = magnitude;
+        local evenTerm: float = 1.0;
+        local odd: float = magnitude;
+        local even: float = 1.0;
+        loop (local n: int = 1; n <= 7; n = n + 1) {
+            oddTerm = oddTerm * square / cast<float>((2 * n) * (2 * n + 1));
+            evenTerm = evenTerm * square / cast<float>((2 * n - 1) * (2 * n));
+            odd = odd + oddTerm;
+            even = even + evenTerm;
+        }
+        return (Math.copysign(odd, value), even);
+    }
+    local half: float = Math.exp(magnitude * 0.5);
+    local leading: float = (half * 0.5) * half;
+    local trailing: float = (0.5 / half) / half;
+    return (Math.copysign(leading - trailing, value), leading + trailing);
+}
+
 struct Complex {
     real: float,
     imag: float,
@@ -250,8 +284,23 @@ struct Complex {
 
     # Calculate e^z = e^a * (cos(b) + i*sin(b))
     frame exp(this: *Complex) ret Complex {
-        local ea: float = Math.exp(this.real);
-        return Complex.new(ea * Math.cos(this.imag), ea * Math.sin(this.imag));
+        if (this.imag == 0.0) {
+            return Complex.new(Math.exp(this.real), this.imag);
+        }
+        if (Math.isInfinite(this.real)
+            && (Math.isNan(this.imag) || Math.isInfinite(this.imag))) {
+            if (this.real < 0.0) {
+                return Complex.new(0.0, Math.copysign(0.0, this.imag));
+            }
+            return Complex.new(this.real, this.imag - this.imag);
+        }
+        local radial: float = Math.exp(this.real);
+        if (!Math.isInfinite(radial) && (this.real >= -700.0)) {
+            return Complex.new(radial * Math.cos(this.imag), radial * Math.sin(this.imag));
+        }
+        return Complex.new(
+            complexExpProduct(this.real, Math.cos(this.imag), 1.0),
+            complexExpProduct(this.real, Math.sin(this.imag), 1.0));
     }
 
     # Calculate the natural logarithm ln(z) = ln|z| + i*arg(z)
@@ -311,30 +360,91 @@ struct Complex {
 
     # Calculate the square root
     frame sqrt(this: *Complex) ret Complex {
-        local r: float = this.abs();
-        local theta: float = this.phase() / 2.0;
-        local sqrtR: float = Math.sqrt(r);
-        return Complex.new(sqrtR * Math.cos(theta), sqrtR * Math.sin(theta));
+        if (Math.isInfinite(this.imag)) {
+            return Complex.new(Math.abs(this.imag), this.imag);
+        }
+        if (Math.isInfinite(this.real)) {
+            if (this.real > 0.0) {
+                if (Math.isNan(this.imag)) { return Complex.new(this.real, this.imag); }
+                return Complex.new(this.real, Math.copysign(0.0, this.imag));
+            }
+            if (Math.isNan(this.imag)) {
+                return Complex.new(this.imag, Math.copysign(-this.real, this.imag));
+            }
+            return Complex.new(0.0, Math.copysign(-this.real, this.imag));
+        }
+        if (Math.isNan(this.real) || Math.isNan(this.imag)) {
+            local nan: float = this.real + this.imag;
+            return Complex.new(nan, nan);
+        }
+        if ((this.real == 0.0) && (this.imag == 0.0)) {
+            return Complex.new(0.0, this.imag);
+        }
+
+        # An even exponent keeps the dominant component bounded while its
+        # square-root scale can be restored exactly without forming |z|.
+        local largest: float = Math.max(Math.abs(this.real), Math.abs(this.imag));
+        local exponent: int = 0;
+        frexp(largest, &exponent);
+        if ((exponent % 2) != 0) { exponent = exponent - 1; }
+        local real: float = ldexp(this.real, -exponent);
+        local imag: float = ldexp(this.imag, -exponent);
+        local magnitude: float = Math.sqrt(real * real + imag * imag);
+        if (this.real >= 0.0) {
+            local root: float = ldexp(Math.sqrt((magnitude + real) * 0.5), exponent / 2);
+            # Use the original component here: normalization may erase a
+            # tiny value whose resulting root component is representable.
+            return Complex.new(root, this.imag / (2.0 * root));
+        }
+        local root: float = ldexp(Math.sqrt((magnitude - real) * 0.5), exponent / 2);
+        return Complex.new(Math.abs(this.imag) / (2.0 * root), Math.copysign(root, this.imag));
     }
 
-    # Calculate sine: sin(z) = (e^(iz) - e^(-iz)) / (2i)
+    # Calculate sine using sin(x)cosh(y) + i*cos(x)sinh(y).
     frame sin(this: *Complex) ret Complex {
-        local iz: Complex = Complex.new(-this.imag, this.real); # i * z
-        local nizm: Complex = Complex.new(this.imag, -this.real); # -i * z
-        local eiz: Complex = iz.exp();
-        local eniz: Complex = nizm.exp();
-        local diff: Complex = eiz.sub(eniz);
-        return Complex.new(diff.imag / 2.0, -diff.real / 2.0);
+        local (odd: float, even: float) = complexHyperbolicParts(this.imag);
+        if (this.real == 0.0) { return Complex.new(this.real, odd); }
+        local sine: float = Math.sin(this.real);
+        local cosine: float = Math.cos(this.real);
+        if (this.imag == 0.0) {
+            if (Math.isNan(sine)) { return Complex.new(sine, this.imag); }
+            return Complex.new(sine, cosine * this.imag);
+        }
+        if (Math.isInfinite(this.imag) && (Math.isNan(sine) || Math.isNan(cosine))) {
+            return Complex.new(sine, Math.abs(this.imag));
+        }
+        if (Math.isInfinite(even)) {
+            local sign: float = Math.copysign(1.0, this.imag);
+            return Complex.new(
+                complexExpProduct(Math.abs(this.imag), sine, 0.5),
+                complexExpProduct(Math.abs(this.imag), cosine, 0.5) * sign);
+        }
+        return Complex.new(sine * even, cosine * odd);
     }
 
-    # Calculate cosine: cos(z) = (e^(iz) + e^(-iz)) / 2
+    # Calculate cosine using cos(x)cosh(y) - i*sin(x)sinh(y).
     frame cos(this: *Complex) ret Complex {
-        local iz: Complex = Complex.new(-this.imag, this.real);
-        local nizm: Complex = Complex.new(this.imag, -this.real);
-        local eiz: Complex = iz.exp();
-        local eniz: Complex = nizm.exp();
-        local sum: Complex = eiz.add(eniz);
-        return sum.scale(0.5);
+        local (odd: float, even: float) = complexHyperbolicParts(this.imag);
+        if (this.real == 0.0) {
+            if (Math.isNan(this.imag)) { return Complex.new(even, 0.0); }
+            return Complex.new(even, -this.real * Math.copysign(1.0, this.imag));
+        }
+        local sine: float = Math.sin(this.real);
+        local cosine: float = Math.cos(this.real);
+        if (this.imag == 0.0) {
+            if (Math.isNan(cosine)) { return Complex.new(cosine, 0.0); }
+            return Complex.new(cosine, -sine * this.imag);
+        }
+        if (Math.isInfinite(this.imag) && (Math.isNan(sine) || Math.isNan(cosine))) {
+            return Complex.new(Math.abs(this.imag), cosine);
+        }
+        if (Math.isInfinite(even)) {
+            local sign: float = Math.copysign(1.0, this.imag);
+            return Complex.new(
+                complexExpProduct(Math.abs(this.imag), cosine, 0.5),
+                -complexExpProduct(Math.abs(this.imag), sine, 0.5) * sign);
+        }
+        return Complex.new(cosine * even, -sine * odd);
     }
 
     # Check if two complex numbers are equal

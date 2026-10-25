@@ -4,6 +4,8 @@
  */
 
 import * as fs from "fs";
+import * as path from "path";
+import { expandSourceInputs } from "../SourceInputs";
 import type { Command } from "commander";
 import type { FormatOptions } from "../types";
 import {
@@ -102,7 +104,19 @@ export async function runFormatCommand(
       process.exit(1);
     }
 
+    files = expandSourceInputs(files);
+    if (!files.length)
+      throw new Error("No BPL sources found in the supplied directories.");
+    if (files.includes("-") && options.write)
+      throw new Error(
+        "Cannot use --write with stdin; redirect formatted output instead.",
+      );
+    const stdin = files.includes("-") ? fs.readFileSync(0, "utf8") : undefined;
     const { formatSource } = await import("./formatEngine");
+    const { loadFormatterConfig } =
+      await import("../../compiler/formatter/FormatterConfig");
+    const { validateFormatterOptions } =
+      await import("../../compiler/formatter/FormatterOptions");
     let totalFiles = 0;
     let updatedFiles = 0;
     let hasError = false;
@@ -114,7 +128,9 @@ export async function runFormatCommand(
     for (const filePath of files) {
       totalFiles++;
       try {
-        if (options.write) {
+        if (filePath === "-") {
+          // stdin has no on-disk input to validate.
+        } else if (options.write) {
           assertWritableInputFilePath(filePath);
         } else if (!fs.existsSync(filePath)) {
           if (outputJson) {
@@ -146,8 +162,28 @@ export async function runFormatCommand(
           continue;
         }
 
-        const content = fs.readFileSync(filePath, "utf-8");
-        const formatted = formatSource(content, filePath);
+        const sourcePath =
+          filePath === "-"
+            ? path.resolve(options.stdinFilepath || "stdin.bpl")
+            : filePath;
+        const project = loadFormatterConfig(sourcePath, options.config);
+        const overrides = validateFormatterOptions({
+          ...(options.indentWidth !== undefined
+            ? { indentWidth: Number(options.indentWidth) }
+            : {}),
+          ...(options.useTabs !== undefined
+            ? { useTabs: options.useTabs }
+            : {}),
+          ...(options.lineEnding !== undefined
+            ? { lineEnding: options.lineEnding }
+            : {}),
+        });
+        const content =
+          filePath === "-" ? stdin! : fs.readFileSync(filePath, "utf-8");
+        const formatted = formatSource(content, sourcePath, {
+          ...project.options,
+          ...overrides,
+        });
 
         if (options.check) {
           if (content !== formatted) {
@@ -188,7 +224,7 @@ export async function runFormatCommand(
             log.debug(`${filePath} (unchanged)`);
           }
         } else {
-          console.log(formatted);
+          process.stdout.write(formatted);
         }
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
@@ -232,6 +268,23 @@ export async function runFormatCommand(
     }
 
     if (hasError) process.exit(1);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (outputJson)
+      emitFormatJsonAndExit(
+        createFormatJsonReport(false, {
+          mode: options.check ? "check" : "stdout",
+          totalFiles: files.length,
+          formattedFiles: 0,
+          unformattedFiles: 0,
+          errorCount: 1,
+          files: [],
+          error: message,
+          errorCode: FORMAT_PROCESSING_ERROR_CODE,
+        }),
+      );
+    log.error(message);
+    process.exit(1);
   } finally {
     if (outputJson) {
       resetLogLevel();

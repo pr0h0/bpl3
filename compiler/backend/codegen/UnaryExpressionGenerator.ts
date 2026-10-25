@@ -22,87 +22,27 @@ import { MatchExpressionGenerator } from "./MatchExpressionGenerator";
 export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator {
   protected abstract generateExpression(expr: AST.Expression): string;
 
+  /** Lower unary operations, borrowing an overloaded receiver or spilling its value once. */
   protected generateUnary(expr: AST.UnaryExpr): string {
     // Check for operator overload (only for prefix operators)
     if (expr.operatorOverload && expr.isPrefix) {
       const overload = expr.operatorOverload;
       const method = overload.methodDeclaration;
-      const operandRaw = this.generateExpression(expr.operand);
 
       const targetType = overload.targetType as AST.BasicTypeNode;
 
-      // Handle generic struct method calls
-      let mangledName: string;
-      if (targetType.genericArgs && targetType.genericArgs.length > 0) {
-        // Generic struct - need monomorphized method name
-        const structDecl = this.structMap.get(targetType.name);
-        if (structDecl && structDecl.genericParams.length > 0) {
-          // Build context map for generic substitution
-          const contextMap = new Map<string, AST.TypeNode>();
-          for (let i = 0; i < structDecl.genericParams.length; i++) {
-            contextMap.set(
-              structDecl.genericParams[i]!.name,
-              targetType.genericArgs[i]!,
-            );
-          }
-
-          // Build monomorphized struct name using mangleType (avoids recursion)
-          const argNames = targetType.genericArgs
-            .map((arg) => this.mangleType(arg))
-            .join("_");
-          const structName = `${targetType.name}_${argNames}`;
-
-          // Build method name
-          const methodType = method.resolvedType as AST.FunctionTypeNode;
-          const fullMethodName = `${structName}_${method.name}`;
-
-          // Get mangled name with substituted types
-          const substitutedMethodType = this.substituteType(
-            methodType,
-            contextMap,
-          ) as AST.FunctionTypeNode;
-
-          mangledName = this.getMangledName(
-            fullMethodName,
-            substitutedMethodType,
-          );
-        } else {
-          // Fallback: non-generic or already concrete
-          const structName = targetType.name;
-          const methodType = method.resolvedType as AST.FunctionTypeNode;
-          const fullMethodName = `${structName}_${method.name}`;
-          mangledName = this.getMangledName(fullMethodName, methodType);
-        }
-      } else {
-        // Non-generic struct
-        const structName = targetType.name;
-        const methodType = method.resolvedType as AST.FunctionTypeNode;
-        const fullMethodName = `${structName}_${method.name}`;
-        mangledName = this.getMangledName(fullMethodName, methodType);
-      }
-
-      // Get address of operand (this pointer)
-      const operandType = this.resolveType(expr.operand.resolvedType!);
-      let thisPtr: string;
-      try {
-        thisPtr = this.generateAddress(expr.operand);
-      } catch {
-        // If we can't get address, spill to stack
-        const spillAddr = this.allocateStack(
-          `op_spill_${this.labelCount++}`,
-          operandType,
-        );
-        this.emit(
-          `  store ${operandType} ${operandRaw}, ${operandType}* ${spillAddr}`,
-        );
-        thisPtr = spillAddr;
-      }
-
-      // Call the operator method
-      const returnType = this.resolveType(method.returnType);
+      const { mangledName, resolvedMethodType } = this.resolveOperatorMethod(
+        method,
+        targetType,
+      );
+      const thisArg = this.prepareOperatorReceiver(
+        expr.operand,
+        resolvedMethodType.paramTypes[0]!,
+      );
+      const returnType = this.resolveType(resolvedMethodType.returnType);
       const resultReg = this.newRegister();
       this.emit(
-        `  ${resultReg} = call ${returnType} @${mangledName}(${operandType}* ${thisPtr})`,
+        `  ${resultReg} = call ${returnType} @${mangledName}(${thisArg})`,
       );
       return resultReg;
     }
@@ -527,13 +467,16 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
   protected generateCast(expr: AST.CastExpr): string {
     const val = this.generateExpression(expr.expression);
     const srcType = this.resolveType(expr.expression.resolvedType!);
-    const destType = this.resolveType(expr.targetType);
+    // The checker canonicalizes primitive spellings and substitutes aliases in
+    // resolvedType. LLVM type strings alone lose the shape needed for decay.
+    const targetTypeNode = expr.resolvedType ?? expr.targetType;
+    const destType = this.resolveType(targetTypeNode);
     return this.emitCast(
       val,
       srcType,
       destType,
       expr.expression.resolvedType!,
-      expr.targetType,
+      targetTypeNode,
     );
   }
 
@@ -748,6 +691,13 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       this.isFixedArrayTypeNode(srcTypeNode)
     ) {
       return this.emitSliceFromArrayValue(val, srcTypeNode, effectiveDest);
+    }
+
+    if (
+      conversion.kind === "array-to-pointer" &&
+      this.isFixedArrayTypeNode(srcTypeNode)
+    ) {
+      return this.emitPointerFromArrayValue(val, srcTypeNode);
     }
 
     if (

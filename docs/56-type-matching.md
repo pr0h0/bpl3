@@ -38,6 +38,39 @@ The `match<Type>(value)` expression always returns a `bool`:
 - `true`: If the value matches the specified type or variant.
 - `false`: Otherwise.
 
+Composite targets use their complete type shape: tuples compare their element
+types, and function or lambda types compare their parameter and return types.
+Both `match<(int, bool)>(value)` and `value is (int, bool)` use this exact-type
+comparison. Variadic and fixed-parameter signatures remain distinct, as do
+function pointers and lambdas.
+Array dimensions are part of this comparison for named, tuple and callback
+element types; a different fixed length does not match.
+Fixed dimensions in query targets must be positive for all of these type kinds.
+Empty brackets continue to describe a slice rather than a zero-length array.
+Targets must name types, with valid generic arguments and defined nested element,
+parameter and return types; variable or function names cannot stand in for types.
+Module-qualified type names such as `types.Record` and `types.Box<int>` follow
+the same rules as imported unqualified names. Qualified enum-variant names such
+as `types.Color.Red` continue to select a variant by its tag. A missing variant
+is rejected during type checking with `BPL_TYPE_QUERY_TYPE_NOT_FOUND`.
+A variant query on a value of another type, including a whole array or slice,
+returns false; it only inspects tags on scalar values of the queried enum.
+Variant targets use plain `Enum.Variant` syntax, without pointer prefixes, array
+suffixes, or type arguments on the variant. For generic enums, the tag query
+uses the type arguments of the queried value; for example, use
+`match<Option.Some>(value)` when `value` has type `Option<int>`. Unsupported
+modified variant targets are rejected during type checking.
+Static inheritance checks do not override a failed exact comparison merely
+because two targets share a raw type name.
+Primitive aliases share their canonical identity: `float`, `f64` and `double`
+name the same floating type, while `f32` remains distinct.
+Generic bindings retain modifiers applied to aliases, including array suffixes
+and the order of nested array dimensions.
+Arrays of class values or references use whole-array type comparisons, rather
+than applying an individual-object runtime class check to the array.
+Arrays and slices of `Any` also compare their aggregate types. A scalar `Any`
+continues to check the type of its boxed payload.
+
 ## Advanced Usage
 
 ### Using in Logical Expressions

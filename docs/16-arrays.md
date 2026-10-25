@@ -56,7 +56,11 @@ frame main() ret int {
 
 ## Array Literals
 
-Array literals provide a concise way to create arrays with initial values:
+Array literals provide a concise way to create arrays with initial values.
+They must contain at least one element: `[]` is currently unsupported, even with
+an explicit target type, and reports `BPL_ARRAY_LITERAL_TYPE_MISMATCH` during
+checking. To fill a fixed-size array manually, declare it without an initializer
+and write each element before reading it.
 
 ```bpl
 extern printf(fmt: string, ...);
@@ -87,6 +91,16 @@ frame main() ret int {
 ```
 
 ## Accessing Elements
+
+You can read elements directly from array-valued calls, conditionals and match
+expressions, for example `(match (flag) { true => [1, 2], false => [3, 4], })[0]`.
+Temporary tuple and struct array fields can also be indexed. The base expression
+is evaluated once before the index. These reads preserve fixed-array bounds
+checks; they do not make temporary array elements writable or allow taking
+their address. This includes fixed-array function results and their nested
+array fields. Store such a result in a local variable before modifying it.
+Conditional and match expressions selecting existing slices or
+pointers can be indexed directly as well.
 
 Elements are accessed using square brackets `[]` with 0-based indices:
 
@@ -141,6 +155,29 @@ frame safeGet(arr: *int, len: int, idx: int) ret int {
 }
 ```
 
+### Struct index operators
+
+A struct can define `__get__` for indexed reads. Indexed assignment also requires
+an instance `__set__` accepting the index and assigned value. Setter selection
+checks both arguments and performs their supported conversions. The assigned
+value must also be compatible with the getter's element type. Implicitly
+borrowing an argument requires mutable storage and an exact pointee type.
+
+Index operator calls also obey argument range, mutable-storage and ownership-copy checks.
+Imported operator signatures resolve aliases in their defining module, independently
+of aliases declared by the caller. Within an index signature, the owner's generic
+parameters take precedence over module-level aliases.
+A void-returning getter can be called as an expression statement; it supplies no value.
+
+The receiver is evaluated once, followed by the index and the assigned value.
+A void setter leaves the assignment expression with its original assigned value;
+a nonvoid setter supplies its declared return value and type.
+Compound assignments through overloaded indexing, such as `object[index] += n`,
+are unsupported; use a simple indexed assignment.
+
+Built-in array, slice and raw-pointer element assignments always store into their
+selected element, even when that element's struct defines index operators.
+
 ## Array Length
 
 For fixed-size arrays, you can use `sizeof` to calculate the length:
@@ -167,6 +204,14 @@ frame main() ret int {
 ```
 
 ## Arrays and Pointers
+
+Explicit casts from an addressable fixed array to a slice or element pointer
+borrow its existing storage, just like implicit conversions. For example,
+after `local view:int[]=cast<int[]>(values);`, changing `view[0]` also changes
+`values[0]`. The array must remain
+alive while that view is used. Constant arrays cannot be cast to mutable views;
+copy the array into mutable storage first. Casts of temporary array values use
+frame-local storage, and returning those views is rejected.
 
 Arrays decay to pointers when passed to functions or used in expressions:
 

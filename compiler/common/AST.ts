@@ -179,6 +179,8 @@ export interface CallExpr extends ASTNode {
   args: Expression[];
   genericArgs: TypeNode[];
   resolvedDeclaration?: FunctionDecl | ExternDecl;
+  /** Enum tuple construction stores arguments in the resulting value. */
+  enumVariantInfo?: EnumStructVariantExpr["enumVariantInfo"];
   variadicPacked?: boolean;
   operatorOverload?: {
     methodName: string; // "__call__"
@@ -203,6 +205,8 @@ export interface IndexExpr extends ASTNode {
     methodName: string; // "__get__" or "__set__"
     targetType: TypeNode;
     methodDeclaration: FunctionDecl;
+    /** Resolved signature for a checked index operator call. */
+    methodType?: FunctionTypeNode;
   };
 }
 
@@ -602,7 +606,7 @@ export interface ExportStmt extends ASTNode {
 export interface ExternDecl extends ASTNode {
   kind: "Extern";
   name: string;
-  params: { name: string; type: TypeNode }[];
+  params: Pick<Parameter, "name" | "type" | "isConst" | "isVariadic">[];
   isVariadic: boolean;
   returnType?: TypeNode;
 }

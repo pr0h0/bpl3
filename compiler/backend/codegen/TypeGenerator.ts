@@ -1888,6 +1888,37 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     return type;
   }
 
+  /** Erase a value receiver without changing the method's aggregate ABI. */
+  protected requestValueReceiverThunk(
+    functionName: string,
+    functionType: AST.FunctionTypeNode,
+  ): string {
+    const thunkName = `__bpl_value_receiver_${functionName}`;
+    if (this.thunks.has(thunkName)) return thunkName;
+    this.thunks.add(thunkName);
+    const retType = this.resolveType(functionType.returnType);
+    const returnExtension = this.getCAbiReturnExtension(functionType.returnType);
+    const receiverType = this.resolveType(functionType.paramTypes[0]!);
+    const params = functionType.paramTypes
+      .slice(1)
+      .map(
+        (type, i) =>
+          `${this.resolveType(type)} ${this.getCAbiParameterExtension(type)}%p${i}`,
+      );
+    this.declarationsOutput.push(
+      [
+        `define internal ${returnExtension}${retType} @${thunkName}(i8* %ctx${params.length ? ", " + params.join(", ") : ""}) {`,
+        "entry:",
+        `  %receiver.ptr = bitcast i8* %ctx to ${receiverType}*`,
+        `  %receiver = load ${receiverType}, ${receiverType}* %receiver.ptr`,
+        `  ${retType === "void" ? "" : "%result = "}call ${returnExtension}${retType} @${functionName}(${receiverType} %receiver${params.length ? ", " + params.join(", ") : ""})`,
+        retType === "void" ? "  ret void" : `  ret ${retType} %result`,
+        "}",
+      ].join("\n"),
+    );
+    return thunkName;
+  }
+
   /** C callers extend narrow integer parameters on these target ABIs. */
   protected getCAbiParameterExtension(type: AST.TypeNode): string {
     const llvmType = this.resolveType(type);

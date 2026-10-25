@@ -48,7 +48,7 @@ semantics. Explicit integer-to-`bool` casts retain the low bit.
 - **Tuples**: `(T1, T2)` (e.g., `(int, bool)`)
 - **Function Types**: `Func<Ret>(Arg1, Arg2)`
 - **Lambda Types**: Lambda<Ret>(Arg1, Arg2)
-- **Generics**: `Struct<T>`, `Func<T>`
+- **Generics**: `Struct<T>`, `Func<T>`. The opening `<` must touch the preceding name/base; whitespace or comments before it use comparison syntax in expressions.
 - **String**: `string` (C-compatible null-terminated pointer)
 
 ### Variables
@@ -98,6 +98,14 @@ Inheritance uses `struct Dog : Animal { ... }`.
 ### Bound Methods
 
 Methods can be used as values, creating a `Lambda` that captures the object instance (`this`).
+
+Pointer receivers cannot implicitly take the address of a const value. Implicit
+operator address arguments require exact pointee types; numeric conversions do
+not reinterpret addressed storage. Value receivers receive a copy on every call,
+including bound and virtual calls.
+Bound methods borrow receiver storage and do not extend its lifetime; a value
+receiver observes that storage's current contents on each invocation. Variadic
+value-receiver methods cannot currently be bound.
 
 ```bpl
 struct Counter {
@@ -250,6 +258,10 @@ asm("llvm") {
 
 ### Release policy
 
+- Work on feature branches and target implementation pull requests at `staging`. Route all merges through pull requests; do not push implementation changes directly to `staging` or `master`, or merge into them locally.
+- CodeRabbit must review every PR, including PRs targeting `staging`. Read its comments and address actionable feedback before merging, alongside passing repository CI.
+- Merge `staging` into `master` through a release PR only when the maintainer explicitly decides to release. A staging merge does not authorize a release.
+
 - Keep compiler and bundled BPL package versions in the `0.1.x` series until the maintainer explicitly changes this policy. Only patch increments are allowed; never increment minor or major versions.
 - The maintainer controls version bumps and publication. Do not create release tags, GitHub releases, publish packages, or push container images without an explicit request. Permission for an initial release does not authorize subsequent releases.
 - Implementing, testing and committing code does not itself authorize a release.
@@ -327,6 +339,9 @@ Before marking a task as complete:
 ## 6. Common Pitfalls & Debugging
 
 - **Parser Issues**: If `grammar/bpl.peggy` is modified, the parser is auto-generated at runtime (or cached). Ensure grammar logic is correct.
+- **Source Depth**: Raw syntax paths deeper than 512 AST nodes are rejected with
+  `BPL_SOURCE_COMPLEXITY_LIMIT` before recursive passes. Parser stack exhaustion
+  uses the same code at file position 1:1 when no AST location is available.
 - **LLVM IR**: Use `--emit llvm` to inspect generated IR.
   ```bash
   bun index.ts examples/my_test/main.bpl --emit llvm
@@ -343,6 +358,28 @@ fragments explicitly using the conventions in `docs/documentation-validation.md`
 The generated declaration reference is checked by `tests/StdlibReference.test.ts`;
 regenerate it with `bun run docs:stdlib` after public library changes.
 
+## Source coordinates
+
+Source locations use 1-based lines and UTF-16 columns. LF, CRLF and standalone
+CR each count as one newline. Keep lexer, parser AST/error positions, diagnostic
+snippets and formatter source offsets consistent; do not normalize literal bytes.
+EOF points after all source text, including trailing whitespace and comments.
+Editor ranges use zero-based LSP coordinates with the same newline/UTF-16
+convention. Use TextDocument offsets for raw source slices so literal bytes
+are preserved, rather than rejoining split lines.
+
+## Formatter correctness
+
+Formatting must preserve program meaning and comment text/order, keep comments
+attached to their surrounding source tokens, and be idempotent. Run the
+formatter tests, including the repository corpus and native before/after checks,
+when changing formatting. A copied or serialized AST with comments needs the
+original source as the second Formatter.format argument.
+Default formatting follows the language style (four spaces, LF). Project
+`.bplfmt.json` preferences and CLI overrides must share strict validation;
+line-ending preferences must not change literal payloads. Keep CLI and editor
+formatting consistent when a project configuration exists.
+
 ## 7. Bug Reporting
 
 If you discover a bug during development:
@@ -357,7 +394,8 @@ If you discover a bug during development:
 - `compiler/`: Source code for the compiler.
   - `frontend/`: Lexer, Parser (Peggy).
   - `middleend/`: TypeChecker, PackageManager.
-  - `backend/`: CodeGenerator (LLVM), Formatter.
+  - `backend/`: CodeGenerator (LLVM).
+  - `formatter/`: Source formatting and comment placement.
   - `common/`: AST, Errors, Utils.
 - `grammar/`: Peggy grammar file (`bpl.peggy`).
 - `examples/`: Integration test cases.

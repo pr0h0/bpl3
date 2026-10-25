@@ -37,6 +37,9 @@ global const LN10: float = 2.30258509299404568402;
 | `Math.sign(x: int) ret int`                              | Sign of integer (-1, 0, 1)     |
 | `Math.sign(x: float) ret float`                          | Sign of float (-1.0, 0.0, 1.0) |
 
+`Math.abs(x: int)` throws `"Math.abs result exceeds int"` for -2,147,483,648,
+whose nonnegative magnitude cannot fit in the existing `int` result type.
+
 ## Float Functions
 
 | Function                                            | Description           |
@@ -54,6 +57,19 @@ global const LN10: float = 2.30258509299404568402;
 | `Math.mod(x: float, y: float) ret float`            | Floating-point modulo |
 | `Math.lerp(a: float, b: float, t: float) ret float` | Linear interpolation  |
 
+On native targets, `Math.log10` and `Math.log2` use platform base-specific
+logarithms directly, avoiding accuracy loss from dividing rounded natural
+logarithms. Zero inputs return negative infinity;
+negative inputs and NaN produce NaN, and positive infinity stays positive infinity.
+
+WebAssembly keeps the previous natural-logarithm lowering and its precision.
+A custom hosted runtime can supply `env.log`; the bundled freestanding runtime
+and browser adapter do not provide this math dependency.
+
+`Math.mod(x, y)` uses floor-modulo signs. A zero remainder takes the
+divisor's sign, including when a zero dividend is divided by an infinite
+divisor. Zero divisors, infinite dividends, and NaN inputs return NaN.
+
 ## Trigonometric Functions
 
 | Function                                   | Description              |
@@ -65,6 +81,12 @@ global const LN10: float = 2.30258509299404568402;
 | `Math.acos(x: float) ret float`            | Arc cosine               |
 | `Math.atan(x: float) ret float`            | Arc tangent              |
 | `Math.atan2(y: float, x: float) ret float` | Two-argument arc tangent |
+
+`Math.asin` and `Math.acos` return NaN for inputs outside [-1, 1], including
+infinities, and propagate NaN. `asin` preserves signed zero and handles the
+endpoints directly using a factored square root and `atan2`. `acos` uses the
+corresponding direct `atan2` identity rather than subtracting nearly equal angles
+near +1.
 
 ## Angle Conversion
 

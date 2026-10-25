@@ -4,6 +4,7 @@ export [Algorithm];
 
 import [Array] from "std/array.bpl";
 import [Rand] from "std/rand.bpl";
+import [Math] from "std/math.bpl";
 
 struct Algorithm {
     # ============ Integer Array Operations ============
@@ -351,10 +352,71 @@ struct Algorithm {
     }
 
     frame average(arr: *Array<float>) ret float {
-        if (arr.len() == 0) 
+        local length: int = arr.len();
+        if (length <= 0) {
             return 0.0;
-        local sum: float = Algorithm.sum(arr);
-        return sum / cast<float>(arr.len());
+        }
+        local largest: float = 0.0;
+        local scan: int = 0;
+        loop (scan < length) {
+            local magnitude: float = Math.abs(arr.get(scan));
+            if (magnitude > largest) {
+                largest = magnitude;
+            }
+            scan = scan + 1;
+        }
+
+        local count: float = cast<float>(length);
+        if (Math.isInfinite(largest)) {
+            # Preserve infinite sums and NaN from opposite infinities.
+            local sum: float = 0.0;
+            local j: int = 0;
+            loop (j < length) {
+                sum = sum + arr.get(j);
+                j = j + 1;
+            }
+            return sum / count;
+        }
+
+        local divisor: float = 1.0;
+        if (Math.isInfinite(largest * count)) {
+            divisor = count;
+        }
+        # Keep reduction in this method so logical array getters retain
+        # their virtual dispatch. The optional second reduction is bounded.
+        local normalizedPass: bool = false;
+        loop {
+            local running: float = 0.0;
+            local correction: float = 0.0;
+            loop (local i: int = 0; i < length; i = i + 1) {
+                local sample: float = arr.get(i) / divisor;
+                local next: float = running + sample;
+                if (Math.isInfinite(next)) {
+                    running = next;
+                    break;
+                }
+                if (Math.abs(running) >= Math.abs(sample)) {
+                    correction = correction + ((running - next) + sample);
+                } else {
+                    correction = correction + ((sample - next) + running);
+                }
+                running = next;
+            }
+            local total: float = running + correction;
+            if (normalizedPass) {
+                local normalized: float = total / count;
+                if (normalized > 1.0) { normalized = 1.0; }
+                if (normalized < -1.0) { normalized = -1.0; }
+                return normalized * largest;
+            }
+            if (!Math.isInfinite(total)) {
+                if (divisor == 1.0) { return total / count; }
+                return total;
+            }
+            # Rounded scaled partial sums can still overflow at the limit.
+            divisor = largest;
+            normalizedPass = true;
+        }
     }
 
     # Heapsort, for the same reason as the integer form above.

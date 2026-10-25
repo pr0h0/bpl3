@@ -1,3 +1,4 @@
+import { isTemporaryArrayElement } from "../../common/ArrayElementStorage";
 import type { ArrayTypeNode } from "../../middleend/lowering/ImplicitConversions";
 /**
  * Handles address generation, pointer operations, and null checks.
@@ -46,6 +47,13 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       );
     }
     if (expr.kind === "Index") {
+      if (isTemporaryArrayElement(expr, (type) => this.resolveInstantiatedValueType(type))) {
+        throw new CompilerError(
+          "Cannot address an element of a temporary array",
+          "Store the array in a local variable before writing or borrowing an element.",
+          expr.location,
+        );
+      }
       return this.generateIndexAddress(
         expr as AST.IndexExpr,
         skipNullObjectCheck,
@@ -170,10 +178,44 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       return `@${memberExpr.property}`;
     }
 
-    const objectAddr = this.generateAddress(
-      memberExpr.object,
-      skipNullObjectCheck,
-    );
+    let tupleBase = memberExpr.object;
+    while (tupleBase.kind === "Group") tupleBase = tupleBase.expression;
+    let objectAddr: string;
+    if (objType?.kind === "BasicType" && objType.pointerDepth > 0) {
+      // A struct pointer already is the field base. Evaluate it as a value,
+      // including computed and grouped bases, without taking its address.
+      objectAddr = this.generateExpression(memberExpr.object);
+    } else if (
+      tupleBase.kind === "Call" &&
+      objType?.kind === "TupleType" &&
+      !objType.arrayDimensions?.length
+    ) {
+      const tupleType = this.resolveType(objType);
+      const value = this.generateExpression(memberExpr.object);
+      objectAddr = this.allocateStack(
+        `tuple_member_base_${this.labelCount++}`, tupleType,
+      );
+      this.emit(`  store ${tupleType} ${value}, ${tupleType}* ${objectAddr}`);
+    } else {
+      objectAddr = this.generateAddress(memberExpr.object, skipNullObjectCheck);
+    }
+
+    if (objType?.kind === "TupleType" && !objType.arrayDimensions?.length) {
+      const index = Number(memberExpr.property);
+      if (!Number.isInteger(index) || index < 0 || index >= objType.types.length) {
+        throw new CompilerError(
+          `Invalid tuple index '${memberExpr.property}'`,
+          `Valid indices are 0-${objType.types.length - 1}`,
+          memberExpr.location,
+        );
+      }
+      const tupleType = this.resolveType(objType);
+      const address = this.newRegister();
+      this.emit(
+        `  ${address} = getelementptr inbounds ${tupleType}, ${tupleType}* ${objectAddr}, i32 0, i32 ${index}`,
+      );
+      return address;
+    }
 
     if (!objType || objType.kind !== "BasicType") {
       throw new CompilerError(
@@ -223,38 +265,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       );
     }
 
-    let baseAddr = objectAddr;
-    if (memberExpr.object.kind === "Call") {
-      const objLlvmType = this.resolveType(objType);
-      if (objLlvmType.endsWith("*")) {
-        baseAddr = objectAddr;
-      }
-    } else if (objType.pointerDepth > 0) {
-      const ptrType = llvmType ?? this.resolveType(objType);
-      if (memberExpr.object.kind === "Identifier") {
-        const identifier = memberExpr.object as AST.IdentifierExpr;
-        const declaredType = this.localTypes.get(identifier.name);
-        const declaredLlvmType = declaredType
-          ? this.resolveType(declaredType)
-          : ptrType;
-
-        if (
-          declaredLlvmType !== ptrType &&
-          declaredLlvmType.endsWith("*") &&
-          ptrType.endsWith("*")
-        ) {
-          baseAddr = this.generateExpression(memberExpr.object);
-        } else {
-          const ptrReg = this.newRegister();
-          this.emit(`  ${ptrReg} = load ${ptrType}, ${ptrType}* ${objectAddr}`);
-          baseAddr = ptrReg;
-        }
-      } else {
-        const ptrReg = this.newRegister();
-        this.emit(`  ${ptrReg} = load ${ptrType}, ${ptrType}* ${objectAddr}`);
-        baseAddr = ptrReg;
-      }
-    }
+    const baseAddr = objectAddr;
 
     // Runtime null check for pointer dereference
     if (objType.pointerDepth > 0 && !skipNullObjectCheck) {
@@ -276,14 +287,24 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     return addr;
   }
 
-  private generateIndexAddress(
+  /** Address built-in element storage, rejecting getter values before evaluating their inputs. */
+  protected generateIndexAddress(
     indexExpr: AST.IndexExpr,
     skipNullObjectCheck: boolean,
+    objectAddress?: string,
   ): string {
-    const objectAddr = this.generateIndexObjectAddress(
-      indexExpr.object,
-      skipNullObjectCheck,
-    );
+    // A getter returns a value, not the storage of a built-in indexed element.
+    // Reject before evaluating either input so callers may safely spill it.
+    if (indexExpr.operatorOverload?.methodName === "__get__") {
+      throw new CompilerError(
+        "Cannot address an overloaded index",
+        "Overloaded index expressions return values without borrowable element storage.",
+        indexExpr.location,
+      );
+    }
+    const objectAddr =
+      objectAddress ??
+      this.generateIndexObjectAddress(indexExpr.object, skipNullObjectCheck);
     const indexValRaw = this.generateExpression(indexExpr.index);
 
     // Cast index to i64 if needed
@@ -391,10 +412,10 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
   /**
    * The location holding the value being indexed.
    *
-   * Indexing loads its base from a slot, so the object has to be one. A call
-   * produces a value rather than a location: treating the returned pointer as
-   * that slot loads through it, so `makeInts()[1]` read the first element and
-   * then used it as an address. The value is materialized into a slot instead.
+   * Indexing loads its base from a slot. Borrowed pointer/slice expressions
+   * can produce values without addressable storage, so materialize them first.
+   * Treating a returned pointer itself as that slot would load through it and
+   * use its first element as an address instead of indexing the pointer value.
    * Member access is unaffected, because there the returned pointer really is
    * the address the field is measured from.
    */
@@ -409,13 +430,25 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       );
     }
 
-    if (object.kind === "Call" && object.resolvedType) {
+    if (
+      object.resolvedType &&
+      (object.kind === "Call" ||
+        ((object.kind === "Ternary" ||
+          object.kind === "Match" ||
+          object.kind === "Cast" ||
+          (object.kind === "Unary" &&
+            object.operator.type === TokenType.Ampersand)) &&
+          (this.isSliceTypeNode(object.resolvedType) ||
+            this.resolveType(object.resolvedType).endsWith("*"))) ||
+        isTemporaryArrayElement(object, (type) =>
+          this.resolveInstantiatedValueType(type),
+        ))
+    ) {
+      // Borrowed pointer/slice values need a slot for indexing, even when
+      // the expression producing the value has no address of its own.
       const type = this.resolveType(object.resolvedType);
       const value = this.generateExpression(object);
-      const slot = this.allocateStack(
-        `index_base_${this.labelCount++}`,
-        type,
-      );
+      const slot = this.allocateStack(`index_base_${this.labelCount++}`, type);
       this.emit(`  store ${type} ${value}, ${type}* ${slot}`);
       return slot;
     }

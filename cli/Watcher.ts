@@ -5,62 +5,17 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { processFile } from "./CompilationRunner";
+import { processFile, getCompiledExecutablePath } from "./CompilationRunner";
+import { WatchProgramRunner } from "./WatchProgramRunner";
 import type { CompileOptions } from "./types";
+import { isWasmTarget } from "../compiler/common/CompilerDriver";
 import { Logger } from "../compiler/common/Logger";
+import { createSourceWatcher, type SourceWatcher } from "./SourceWatcher";
 
 const log = new Logger("Watch");
 
-/**
- * Debounce utility to prevent excessive recompilation
- */
-function debounce<T extends (...args: any[]) => void>(
-  fn: T,
-  delay: number,
-): (...args: Parameters<T>) => void {
-  let timeoutId: NodeJS.Timeout | null = null;
-
-  return (...args: Parameters<T>) => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-    timeoutId = setTimeout(() => fn(...args), delay);
-  };
-}
-
-/**
- * Watch a directory recursively and collect all .bpl files
- */
-function collectBPLFiles(dir: string): string[] {
-  const files: string[] = [];
-
-  try {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-
-      // Skip node_modules, .git, bpl_modules, and other common ignore patterns
-      if (
-        entry.name === "node_modules" ||
-        entry.name === ".git" ||
-        entry.name === "bpl_modules" ||
-        entry.name.startsWith(".")
-      ) {
-        continue;
-      }
-
-      if (entry.isDirectory()) {
-        files.push(...collectBPLFiles(fullPath));
-      } else if (entry.isFile() && entry.name.endsWith(".bpl")) {
-        files.push(fullPath);
-      }
-    }
-  } catch (_e) {
-    // Ignore errors (e.g., permission denied)
-  }
-
-  return files;
+export interface WatchSession extends SourceWatcher {
+  close(): Promise<void>;
 }
 
 /**
@@ -70,7 +25,7 @@ export function watchMode(
   entryFile: string,
   options: CompileOptions,
   programArgs?: string[],
-): void {
+): WatchSession {
   const absolutePath = path.resolve(entryFile);
 
   if (!fs.existsSync(absolutePath)) {
@@ -85,49 +40,79 @@ export function watchMode(
   log.info(`Watching directory: ${watchDir}`);
   log.info(`Entry point: ${fileName}`);
   log.info("Press Ctrl+C to stop\n");
-
-  // Initial compilation
-  compile(absolutePath, options, programArgs);
-
-  // Track watched files to avoid duplicate watchers
-  const watchedPaths = new Set<string>();
-
-  // Collect all .bpl files in the directory tree
-  const bplFiles = collectBPLFiles(watchDir);
-  log.info(`Found ${bplFiles.length} BPL files to watch\n`);
-
-  // Debounced compilation function
-  const debouncedCompile = debounce(
-    (changedFile: string) => {
-      log.warn(`File changed: ${changedFile}`);
-      compile(absolutePath, options, programArgs);
-    },
-    100, // 100ms debounce
-  );
-
-  // Watch each .bpl file
-  for (const file of bplFiles) {
-    if (watchedPaths.has(file)) continue;
-    watchedPaths.add(file);
-
-    try {
-      const watcher = fs.watch(file, (eventType, _filename) => {
-        if (eventType === "change") {
-          debouncedCompile(file);
-        }
-      });
-
-      // Handle watcher errors
-      watcher.on("error", (err) => {
-        log.error(`Error watching ${file}`, err);
-      });
-    } catch (_e) {
-      log.error(`Failed to watch ${file}`);
-    }
+  if (options.run && options.noRun !== true && isWasmTarget(options.target)) {
+    log.warn(
+      "Watch mode cannot run WebAssembly modules directly. Use --no-run and a WebAssembly runtime.",
+    );
   }
 
-  // Keep the process alive
-  log.info("Watching for changes...\n");
+  const runner = new WatchProgramRunner(
+    (message) => log.error(message),
+    (message) => log.warn(message),
+  );
+  let closed = false;
+  let pending = false;
+  let rebuilding: Promise<void> | undefined;
+  const requestCompile = (): Promise<void> => {
+    pending = true;
+    if (rebuilding) return rebuilding;
+    rebuilding = (async () => {
+      while (pending && !closed) {
+        pending = false;
+        await runner.stop();
+        if (closed) break;
+        compile(absolutePath, options, runner, programArgs);
+      }
+    })().finally(() => {
+      rebuilding = undefined;
+    });
+    return rebuilding;
+  };
+
+  const watcher = createSourceWatcher(
+    absolutePath,
+    (changedFile) => {
+      log.warn(`File changed: ${changedFile}`);
+      void requestCompile();
+    },
+    (directory, error) =>
+      log.error(
+        `Error watching ${directory}: ${error instanceof Error ? error.message : String(error)}`,
+      ),
+  );
+  const sourceCount = watcher.refresh();
+  log.info(`Found ${sourceCount} source files to watch\n`);
+
+  let shutdown: Promise<void> | undefined;
+  const close = (): Promise<void> => {
+    if (shutdown) return shutdown;
+    closed = true;
+    pending = false;
+    watcher.close();
+    shutdown = (async () => {
+      try {
+        await runner.stop();
+        await rebuilding;
+      } finally {
+        process.removeListener("SIGINT", onInterrupt);
+        process.removeListener("SIGTERM", onTerminate);
+      }
+    })();
+    return shutdown;
+  };
+  const onInterrupt = () => {
+    void close().then(() => process.exit(130));
+  };
+  const onTerminate = () => {
+    void close().then(() => process.exit(143));
+  };
+  process.on("SIGINT", onInterrupt);
+  process.on("SIGTERM", onTerminate);
+
+  void requestCompile().finally(() => {
+    if (!closed) log.info("Watching for changes...\n");
+  });
+  return { refresh: () => watcher.refresh(), close };
 }
 
 /**
@@ -136,6 +121,7 @@ export function watchMode(
 function compile(
   filePath: string,
   options: CompileOptions,
+  runner: WatchProgramRunner,
   programArgs?: string[],
 ): void {
   // Clear screen if --clear flag is set
@@ -150,7 +136,12 @@ function compile(
 
   try {
     // Keep watch flag true so error handling doesn't exit the process
-    processFile(filePath, options, programArgs);
+    processFile(filePath, { ...options, watch: true, run: false }, programArgs);
+    const executable = getCompiledExecutablePath(filePath, options);
+    if (options.run && options.noRun !== true && executable) {
+      if (options.verbose) log.info(`Running executable: ${executable}`);
+      runner.start(executable, programArgs ?? []);
+    }
 
     const elapsed = Date.now() - startTime;
 

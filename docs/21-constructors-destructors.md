@@ -97,6 +97,22 @@ parameter is destroyed when that instance's argument owns a destructor.
 Tuple elements are followed like struct fields, and a local bound by tuple
 destructuring is an ordinary local that destroys what it holds.
 
+A built-in dereference reads existing pointee storage even when its pointer
+comes from a call, conditional, cast or address expression. The no-copy rule
+applies to that read just as it does to reading a local binding. A checked
+overloaded `*` expression on a nongeneric receiver is a method call rather than
+built-in pointee access;
+its returned value follows the same transfer rules as other fresh call results.
+The same applies to a nongeneric overloaded index getter returning a value. If a getter
+returns a pointer instead, dereferencing it still reads existing pointee storage.
+Owning results from generic receiver or method overloads retain the no-copy restriction:
+their bodies are not yet checked again with the concrete owner arguments.
+Nonowning results and borrowed pointer results are unaffected. Fresh owning
+values can initialize a new binding or be passed to a value parameter. Owning
+replacement assignments are unsupported because they do not release the previous
+value; use declaration initializers instead. This restriction also applies when
+the new value comes from an ordinary call, conditional, match or aggregate.
+
 A value with an `@[auto_destroy]` destructor cannot be copied
 (`BPL_OWNING_VALUE_COPIED`). Copying is what reading one out of existing
 storage does, so these are all rejected:
@@ -115,10 +131,22 @@ producing a value fresh from a call or a literal, returning a local or a
 parameter, and throwing one. So `local r: Resource = make();`, `use(make())`,
 and `return r;` are all valid, and passing a pointer copies nothing.
 
+A value-producing `match` checks each arm's owning value. Fresh results can
+transfer, and an explicit arm-block return can transfer an arm-local value.
+Fields and outer locals whose scopes remain live cannot be copied into the
+match result.
+
+Conditional branch values follow the same no-copy rule: choose a fresh value
+or a borrowed pointer rather than copying existing owning storage through the
+conditional result. Casting existing owning storage to an owning value is also
+rejected with either `cast<Owner>(value)` or `value as Owner`; conversions of
+fresh values and borrowed pointers follow their normal rules.
+
 A by-value parameter is therefore always a transfer, and the callee destroys it
 when it returns, including when it leaves through a `throw`. Returning the
-parameter hands it on instead. A `this` parameter is a pointer, so a method does
-not destroy the value it was called on.
+parameter hands it on instead. A pointer receiver (`this: *T`) borrows the
+value it was called on. A value receiver (`this: T`) follows the same
+owning-copy and cleanup rules as other value parameters.
 
 One consequence is worth knowing: a tuple holding owning values can be built
 and destroyed but not read, because destructuring it would copy the elements

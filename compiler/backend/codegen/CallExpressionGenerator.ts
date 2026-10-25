@@ -14,7 +14,10 @@
  * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
 import * as AST from "../../common/AST";
+import { resolve } from "path";
 import { CompilerError } from "../../common/CompilerError";
+import { getLibPath } from "../../common/PathResolver";
+import { formatFloatingPointLiteral } from "./FloatingPointLiteral";
 import { codeGenLog } from "../../common/Logger";
 import { PRIMITIVE_STRUCT_MAP } from "../../middleend/BuiltinTypes";
 import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConversions";
@@ -144,52 +147,21 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
   protected handleCallOperatorOverload(expr: AST.CallExpr): string | null {
     if (!expr.operatorOverload) return null;
 
-    const overload = expr.operatorOverload;
-    const method = overload.methodDeclaration;
-    const calleeRaw = this.generateExpression(expr.callee);
-
-    const targetType = overload.targetType as AST.BasicTypeNode;
-    const structName = targetType.name;
-
-    const methodType = method.resolvedType as AST.FunctionTypeNode;
-    const fullMethodName = `${structName}_${method.name}`;
-    const mangledName = this.getMangledName(fullMethodName, methodType);
-
-    const calleeType = this.resolveType(expr.callee.resolvedType!);
-    let thisPtr: string;
-    try {
-      thisPtr = this.generateAddress(expr.callee);
-    } catch {
-      const spillAddr = this.allocateStack(
-        `op_spill_${this.labelCount++}`,
-        calleeType,
-      );
-      this.emit(
-        `  store ${calleeType} ${calleeRaw}, ${calleeType}* ${spillAddr}`,
-      );
-      thisPtr = spillAddr;
-    }
-
-    const argRegs: string[] = [];
-    const argTypes: string[] = [];
-    for (const arg of expr.args) {
-      const argVal = this.generateExpression(arg);
-      const argType = this.resolveType(arg.resolvedType!);
-      argRegs.push(argVal);
-      argTypes.push(argType);
-    }
-
-    const callArgs = [`i8* null`, `${calleeType}* ${thisPtr}`];
-    for (let i = 0; i < argRegs.length; i++) {
-      callArgs.push(`${argTypes[i]} ${argRegs[i]}`);
-    }
-
-    const returnType = this.resolveType(method.returnType);
-    const resultReg = this.newRegister();
-    this.emit(
-      `  ${resultReg} = call ${returnType} @${mangledName}(${callArgs.join(", ")})`,
-    );
-    return resultReg;
+    const method = expr.operatorOverload.methodDeclaration;
+    // Use ordinary method lowering for specialization, ABI conversions, receiver
+    // evaluation and void returns rather than a second, incomplete call path.
+    return this.generateCall({
+      ...expr,
+      operatorOverload: undefined,
+      resolvedDeclaration: method,
+      callee: {
+        kind: "Member",
+        object: expr.callee,
+        property: method.name,
+        resolvedType: method.resolvedType,
+        location: expr.callee.location,
+      },
+    });
   }
 
   protected generateCall(expr: AST.CallExpr): string {
@@ -371,59 +343,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
     // Check for operator overload (__call__)
     if (expr.operatorOverload) {
-      const overload = expr.operatorOverload;
-      const method = overload.methodDeclaration;
-      const calleeRaw = this.generateExpression(expr.callee);
-
-      // Get the struct name from the target type
-      const targetType = overload.targetType as AST.BasicTypeNode;
-      const structName = targetType.name;
-
-      // Build the method name with struct prefix
-      const methodType = method.resolvedType as AST.FunctionTypeNode;
-      const fullMethodName = `${structName}_${method.name}`;
-      const mangledName = this.getMangledName(fullMethodName, methodType);
-
-      // Get address of callee (this pointer)
-      const calleeType = this.resolveType(expr.callee.resolvedType!);
-      let thisPtr: string;
-      try {
-        thisPtr = this.generateAddress(expr.callee);
-      } catch {
-        // If we can't get address, spill to stack
-        const spillAddr = this.allocateStack(
-          `op_spill_${this.labelCount++}`,
-          calleeType,
-        );
-        this.emit(
-          `  store ${calleeType} ${calleeRaw}, ${calleeType}* ${spillAddr}`,
-        );
-        thisPtr = spillAddr;
-      }
-
-      // Generate arguments
-      const argRegs: string[] = [];
-      const argTypes: string[] = [];
-      for (const arg of expr.args) {
-        const argVal = this.generateExpression(arg);
-        const argType = this.resolveType(arg.resolvedType!);
-        argRegs.push(argVal);
-        argTypes.push(argType);
-      }
-
-      // Build argument list for call: context + this pointer + actual args
-      const callArgs = [`${calleeType}* ${thisPtr}`];
-      for (let i = 0; i < argRegs.length; i++) {
-        callArgs.push(`${argTypes[i]} ${argRegs[i]}`);
-      }
-
-      // Call the __call__ method
-      const returnType = this.resolveType(method.returnType);
-      const resultReg = this.newRegister();
-      this.emit(
-        `  ${resultReg} = call ${returnType} @${mangledName}(${callArgs.join(", ")})`,
-      );
-      return resultReg;
+      return this.handleCallOperatorOverload(expr)!;
     }
 
     let funcName = "";
@@ -452,6 +372,29 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       const intrinsicName = expr.resolvedDeclaration?.kind === "Extern"
         ? expr.resolvedDeclaration.name
         : "";
+      // Native base-log accuracy must not add new Wasm host imports. Only
+      // these private stdlib calls retain the previous natural-log provider;
+      // an ordinary user extern keeps its explicitly requested symbol.
+      if (
+        this.target?.toLowerCase().includes("wasm") &&
+        (intrinsicName === "log10" || intrinsicName === "log2") &&
+        expr.resolvedDeclaration?.location?.file &&
+        resolve(expr.resolvedDeclaration.location.file) ===
+          resolve(this.stdLibPath ?? getLibPath(), "math.bpl")
+      ) {
+        const arg = this.generateExpression(expr.args[0]!);
+        const natural = this.newRegister();
+        this.emit(`  ${natural} = call double @llvm.log.f64(double ${arg})`);
+        const divisor =
+          intrinsicName === "log10"
+            ? 2.30258509299404568402
+            : 0.69314718055994530942;
+        const result = this.newRegister();
+        this.emit(
+          `  ${result} = fdiv double ${natural}, ${formatFloatingPointLiteral(divisor, "double")}`,
+        );
+        return result;
+      }
       // Handle intrinsics
       if (intrinsicName === "likely" || intrinsicName === "unlikely") {
         const cond = this.generateExpression(expr.args[0]!);
@@ -967,9 +910,16 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             let lookupName = memberExpr.property;
             // Try to resolve specific overload using resolvedDeclaration
             // Use 'decl' if available (it might be the concrete implementation found in owner)
-            const targetDecl =
+            let targetDecl =
               (decl as AST.FunctionDecl) ||
               (expr.resolvedDeclaration as AST.FunctionDecl);
+            const selectedDecl = expr.resolvedDeclaration as AST.FunctionDecl | undefined;
+            const selectedReceiver = selectedDecl?.params?.[0]?.type;
+            const guessedReceiver = targetDecl?.params?.[0]?.type;
+            if (selectedReceiver?.kind === "BasicType" && guessedReceiver?.kind === "BasicType" &&
+                selectedReceiver.pointerDepth !== guessedReceiver.pointerDepth) {
+              targetDecl = selectedDecl!;
+            }
 
             if (targetDecl && targetDecl.kind === "FunctionDecl") {
               if (
@@ -992,7 +942,10 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
                 const mangledParams = paramTypes
                   .map((t) => this.mangleType(t))
                   .join("_");
-                lookupName = `${targetDecl.name}_${mangledParams}`;
+                const receiver = typeToMangle.paramTypes[0];
+                const valueReceiver = targetDecl.params[0]?.name === "this" && receiver &&
+                  !this.resolveType(receiver).endsWith("*");
+                lookupName = `${targetDecl.name}_${mangledParams}${valueReceiver ? "#value" : ""}`;
               }
             }
 

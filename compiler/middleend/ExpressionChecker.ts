@@ -1,3 +1,9 @@
+import { lowerImplicitConversion } from "./lowering/ImplicitConversions";
+import {
+  isTemporaryArrayElement,
+  isConstantArrayStorage,
+} from "../common/ArrayElementStorage";
+import { formatDiagnosticType } from "./DiagnosticTypeFormatter";
 /**
  * ExpressionChecker - Handles type checking of expressions
  * These methods are designed to be bound to a TypeChecker instance using .call()
@@ -6,14 +12,19 @@
 import * as AST from "../common/AST";
 import { lowerStringInterpolation } from "./lowering/StringInterpolation";
 import { getPrimitiveType } from "../common/PrimitiveTypes";
-import { CompilerError } from "../common/CompilerError";
+import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
 import { typeCheckerLog } from "../common/Logger";
 import { TokenType } from "../frontend/TokenType";
 import { type Symbol, SymbolTable } from "./SymbolTable";
 import { TypeUtils, KNOWN_TYPES } from "./TypeUtils";
-import { OPERATOR_METHOD_MAP } from "./OverloadResolver";
+import {
+  OPERATOR_METHOD_MAP,
+  rejectConstantOperatorAddress,
+  type OperatorOverloadRejections,
+} from "./OverloadResolver";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import type { CheckerContext } from "./CheckerContext";
+import { checkAllPathsReturn } from "./StatementChecker";
 import {
   ADDRESS_OF_CONSTANT_CODE,
   CAPTURED_VALUE_ASSIGNED_CODE,
@@ -53,6 +64,30 @@ import {
 } from "./TypeCheckerBase";
 
 const STRUCT_LITERAL_FIELD_SET_THRESHOLD = 4;
+
+/** Apply normal no-copy rules to the selected operator's receiver and arguments. */
+function rejectOperatorOwningCopies(
+  context: CheckerContext,
+  method: AST.FunctionDecl,
+  bindings: Map<string, AST.TypeNode>,
+  operands: readonly AST.Expression[],
+): void {
+  operands.forEach((operand, index) => {
+    const parameter =
+      method.resolvedType?.kind === "FunctionType"
+        ? method.resolvedType.paramTypes[index]
+        : method.params[index]?.type;
+    if (!parameter) return;
+    context.rejectOwningCopy(
+      operand,
+      context.substituteType(parameter, bindings),
+      index === 0
+        ? "into an operator value receiver"
+        : "into an operator argument",
+      operand.location,
+    );
+  });
+}
 
 function isGenericParameterType(
   context: CheckerContext,
@@ -362,7 +397,7 @@ export function checkInterpolatedString(
           // For arrays without toString, we will report an error.
           // This fulfills "rule it that it's not allowed".
           throw new CompilerError(
-            `Array type '${this.typeToString(partType)}' cannot be interpolated directly. Please implement a 'toString' method or convert it to a string manually.`,
+            `Array type '${this.formatDiagnosticType(partType)}' cannot be interpolated directly. Please implement a 'toString' method or convert it to a string manually.`,
             "Array interpolation requires a 'toString' method.",
             part.location,
           );
@@ -537,9 +572,10 @@ export function checkBinary(
 
   // Try operator overload first (for user-defined types), but not for pointer comparisons
   const methodName = OPERATOR_METHOD_MAP[expr.operator.lexeme];
+  const rejections: OperatorOverloadRejections = {};
   if (methodName && !isPointerComparison) {
     let method = canHaveOperatorOverload(leftType)
-      ? this.findOperatorOverload(leftType, methodName, [rightType])
+      ? this.findOperatorOverload(leftType, methodName, [rightType], rejections)
       : undefined;
     let swapOperands = false;
     let negateResult = false;
@@ -549,14 +585,24 @@ export function checkBinary(
     if (!method) {
       if (op === TokenType.BangEqual && canHaveOperatorOverload(leftType)) {
         // != -> !(__eq__)
-        method = this.findOperatorOverload(leftType, "__eq__", [rightType]);
+        method = this.findOperatorOverload(
+          leftType,
+          "__eq__",
+          [rightType],
+          rejections,
+        );
         if (method) negateResult = true;
       } else if (
         op === TokenType.Greater &&
         canHaveOperatorOverload(rightType)
       ) {
         // > -> < (swapped)
-        method = this.findOperatorOverload(rightType, "__lt__", [leftType]);
+        method = this.findOperatorOverload(
+          rightType,
+          "__lt__",
+          [leftType],
+          rejections,
+        );
         if (method) {
           swapOperands = true;
           targetType = rightType;
@@ -589,6 +635,13 @@ export function checkBinary(
           }
         }
       }
+
+      rejectOperatorOwningCopies(
+        this,
+        method,
+        typeSubstitutionMap,
+        swapOperands ? [expr.right, expr.left] : [expr.left, expr.right],
+      );
 
       // Found operator overload! Annotate the node
       expr.operatorOverload = {
@@ -634,9 +687,9 @@ export function checkBinary(
     ) {
       if (!this.areTypesCompatible(leftType, rightType)) {
         throw new CompilerError(
-          `Cannot compare pointer difference between ${this.typeToString(
+          `Cannot compare pointer difference between ${this.formatDiagnosticType(
             leftType,
-          )} and ${this.typeToString(rightType)}`,
+          )} and ${this.formatDiagnosticType(rightType)}`,
           "Pointer subtraction requires compatible pointee types.",
           expr.location,
           POINTER_DIFFERENCE_TYPE_MISMATCH_CODE,
@@ -653,6 +706,9 @@ export function checkBinary(
       };
     }
   }
+
+  // A rejected overload must not suppress valid built-in pointer arithmetic.
+  rejectConstantOperatorAddress(rejections, expr.location);
 
   // String concatenation
   const isLeftString =
@@ -683,9 +739,9 @@ export function checkBinary(
   if (op === TokenType.AndAnd || op === TokenType.OrOr) {
     if (!isBoolType(leftType) || !isBoolType(rightType)) {
       throw new CompilerError(
-        `Logical operators require boolean operands, got ${this.typeToString(
+        `Logical operators require boolean operands, got ${this.formatDiagnosticType(
           leftType,
-        )} and ${this.typeToString(rightType)}`,
+        )} and ${this.formatDiagnosticType(rightType)}`,
         "Ensure both operands are boolean expressions.",
         expr.location,
         LOGICAL_OPERAND_TYPE_MISMATCH_CODE,
@@ -699,7 +755,7 @@ export function checkBinary(
     // Allow comparison between compatible types
     if (!this.areTypesCompatible(leftType, rightType)) {
       throw new CompilerError(
-        `Cannot compare ${this.typeToString(leftType)} and ${this.typeToString(rightType)}`,
+        `Cannot compare ${this.formatDiagnosticType(leftType)} and ${this.formatDiagnosticType(rightType)}`,
         "Operands must be of compatible types.",
         expr.location,
         COMPARISON_TYPE_MISMATCH_CODE,
@@ -728,9 +784,9 @@ export function checkBinary(
       !TypeUtils.isIntegerType(rightType)
     ) {
       throw new CompilerError(
-        `Bitwise operators require integer operands, got ${this.typeToString(
+        `Bitwise operators require integer operands, got ${this.formatDiagnosticType(
           leftType,
-        )} and ${this.typeToString(rightType)}`,
+        )} and ${this.formatDiagnosticType(rightType)}`,
         "Ensure both operands are integers.",
         expr.location,
         BITWISE_OPERAND_TYPE_MISMATCH_CODE,
@@ -754,7 +810,7 @@ export function checkBinary(
             : 0;
         if (bitWidth > 0 && shiftCount >= BigInt(bitWidth)) {
           throw new CompilerError(
-            `Shift count ${shiftCount.toString()} is out of range for ${bitWidth}-bit ${this.typeToString(
+            `Shift count ${shiftCount.toString()} is out of range for ${bitWidth}-bit ${this.formatDiagnosticType(
               leftType,
             )}`,
             "Use a shift count smaller than the width of the left operand.",
@@ -774,9 +830,9 @@ export function checkBinary(
       !TypeUtils.isIntegerType(rightType)
     ) {
       throw new CompilerError(
-        `Modulo operator requires integer operands, got ${this.typeToString(
+        `Modulo operator requires integer operands, got ${this.formatDiagnosticType(
           leftType,
-        )} and ${this.typeToString(rightType)}`,
+        )} and ${this.formatDiagnosticType(rightType)}`,
         "Ensure both operands are integers.",
         expr.location,
         MODULO_OPERAND_TYPE_MISMATCH_CODE,
@@ -797,7 +853,7 @@ export function checkBinary(
   // Arithmetic operators
   if (!this.areTypesCompatible(leftType, rightType)) {
     throw new CompilerError(
-      `Type mismatch: ${this.typeToString(leftType)} and ${this.typeToString(rightType)}`,
+      `Type mismatch: ${this.formatDiagnosticType(leftType)} and ${this.formatDiagnosticType(rightType)}`,
       "Ensure operands have compatible types.",
       expr.location,
       BINARY_OPERAND_TYPE_MISMATCH_CODE,
@@ -816,9 +872,9 @@ export function checkBinary(
       !isArithmeticOperandType(this, rightType)
     ) {
       throw new CompilerError(
-        `Operator '${expr.operator.lexeme}' cannot be applied to types '${this.typeToString(
+        `Operator '${expr.operator.lexeme}' cannot be applied to types '${this.formatDiagnosticType(
           leftType,
-        )}' and '${this.typeToString(rightType)}'`,
+        )}' and '${this.formatDiagnosticType(rightType)}'`,
         "Arithmetic operators require numeric types.",
         expr.location,
         ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
@@ -862,7 +918,14 @@ export function checkUnary(
   }
   const methodName = OPERATOR_METHOD_MAP[lookupKey];
   if (methodName && canHaveOperatorOverload(operandType)) {
-    const method = this.findOperatorOverload(operandType, methodName, []);
+    const rejections: OperatorOverloadRejections = {};
+    const method = this.findOperatorOverload(
+      operandType,
+      methodName,
+      [],
+      rejections,
+    );
+    if (!method) rejectConstantOperatorAddress(rejections, expr.location);
 
     if (method) {
       // Build type substitution map for return type resolution (for generics)
@@ -890,6 +953,10 @@ export function checkUnary(
         }
       }
 
+      rejectOperatorOwningCopies(this, method, typeSubstitutionMap, [
+        expr.operand,
+      ]);
+
       // Found operator overload! Annotate the node
       expr.operatorOverload = {
         methodName,
@@ -905,6 +972,16 @@ export function checkUnary(
 
   // Address-of operator (&)
   if (op === TokenType.Ampersand) {
+    if (
+      isTemporaryArrayElement(expr.operand, (type) => this.resolveType(type))
+    ) {
+      throw new CompilerError(
+        "Cannot take the address of an element of a temporary array",
+        "Store the array in a local variable before taking an element address.",
+        expr.location,
+        ADDRESS_OF_TARGET_INVALID_CODE,
+      );
+    }
     if (operandType.kind === "BasicType") {
       if (operandType.isConst) {
         throw new CompilerError(
@@ -944,7 +1021,7 @@ export function checkUnary(
     }
 
     throw new CompilerError(
-      `Cannot take address of ${this.typeToString(operandType)}`,
+      `Cannot take address of ${this.formatDiagnosticType(operandType)}`,
       "Address-of requires an lvalue.",
       expr.location,
       ADDRESS_OF_TARGET_INVALID_CODE,
@@ -974,7 +1051,7 @@ export function checkUnary(
     }
 
     throw new CompilerError(
-      `Cannot dereference non-pointer type ${this.typeToString(operandType)}`,
+      `Cannot dereference non-pointer type ${this.formatDiagnosticType(operandType)}`,
       "Dereference requires a pointer type.",
       expr.location,
       DEREFERENCE_TARGET_INVALID_CODE,
@@ -985,7 +1062,7 @@ export function checkUnary(
   if (op === TokenType.Bang) {
     if (!this.isBoolType(operandType)) {
       throw new CompilerError(
-        `Logical not requires boolean operand, got ${this.typeToString(operandType)}`,
+        `Logical not requires boolean operand, got ${this.formatDiagnosticType(operandType)}`,
         "Ensure the operand is a boolean expression.",
         expr.location,
         LOGICAL_NOT_OPERAND_TYPE_MISMATCH_CODE,
@@ -998,7 +1075,7 @@ export function checkUnary(
   if (op === TokenType.Tilde) {
     if (!TypeUtils.isIntegerType(operandType)) {
       throw new CompilerError(
-        `Bitwise not requires integer operand, got ${this.typeToString(operandType)}`,
+        `Bitwise not requires integer operand, got ${this.formatDiagnosticType(operandType)}`,
         "Ensure the operand is an integer.",
         expr.location,
         BITWISE_NOT_OPERAND_TYPE_MISMATCH_CODE,
@@ -1016,7 +1093,7 @@ export function checkUnary(
         operandType.name !== "double")
     ) {
       throw new CompilerError(
-        `Unary operator '-' cannot be applied to type '${this.typeToString(operandType)}'`,
+        `Unary operator '-' cannot be applied to type '${this.formatDiagnosticType(operandType)}'`,
         "Negation requires a numeric type.",
         expr.location,
         UNARY_NEGATION_OPERAND_TYPE_MISMATCH_CODE,
@@ -1059,7 +1136,7 @@ export function checkUnary(
     }
     if (!TypeUtils.isNumericType(operandType) || this.isBoolType(operandType)) {
       throw new CompilerError(
-        `Operator '${expr.operator.lexeme}' cannot be applied to type '${this.typeToString(operandType)}'`,
+        `Operator '${expr.operator.lexeme}' cannot be applied to type '${this.formatDiagnosticType(operandType)}'`,
         "Increment and decrement require an integer or floating-point operand. Use explicit arithmetic for pointers.",
         expr.location,
       );
@@ -1088,7 +1165,14 @@ export function checkArrayLiteral(
   this: CheckerContext,
   expr: AST.ArrayLiteralExpr,
 ): AST.TypeNode | undefined {
-  if (expr.elements.length === 0) return undefined;
+  if (expr.elements.length === 0) {
+    throw new CompilerError(
+      "Empty array literals are not supported",
+      "Provide at least one element. Fixed arrays may also be declared without an initializer.",
+      expr.location,
+      ARRAY_LITERAL_TYPE_MISMATCH_CODE,
+    );
+  }
 
   const firstType = this.checkExpression(expr.elements[0]!);
   this.rejectOwningCopy(
@@ -1111,9 +1195,9 @@ export function checkArrayLiteral(
       !this.areTypesCompatible(firstType, elemType)
     ) {
       throw new CompilerError(
-        `Array literal has inconsistent element types: ${this.typeToString(
+        `Array literal has inconsistent element types: ${this.formatDiagnosticType(
           firstType,
-        )} vs ${this.typeToString(elemType)}`,
+        )} vs ${this.formatDiagnosticType(elemType)}`,
         "All elements in an array literal must have the same type.",
         expr.elements[i]!.location,
         ARRAY_LITERAL_TYPE_MISMATCH_CODE,
@@ -1130,6 +1214,10 @@ export function checkArrayLiteral(
   ) {
     return {
       ...firstType,
+      // The literal owns an outer array; any pointer belongs to its elements.
+      ...(firstType.kind === "BasicType" && firstType.isPointerToArray
+        ? { isPointerToArray: false }
+        : {}),
       arrayDimensions: [
         expr.elements.length,
         ...(firstType.arrayDimensions ?? []),
@@ -1276,14 +1364,16 @@ export function checkStructLiteral(
           genericMap,
         );
       }
-      const resolvedValueType = this.resolveType(valueType);
+      const resolvedValueType =
+        this.contextualizeArrayLiteral(field.value, resolvedMemberType) ??
+        this.resolveType(valueType);
       this.checkIntegerConstantRange(field.value, resolvedMemberType);
 
       if (!this.areTypesCompatible(resolvedMemberType, resolvedValueType)) {
         throw new CompilerError(
-          `Type mismatch for field '${field.name}': expected ${this.typeToString(
+          `Type mismatch for field '${field.name}': expected ${this.formatDiagnosticType(
             memberType,
-          )}, got ${this.typeToString(valueType)}`,
+          )}, got ${this.formatDiagnosticType(valueType)}`,
           "Field value must match the declared type.",
           field.value.location,
           STRUCT_LITERAL_FIELD_TYPE_MISMATCH_CODE,
@@ -1343,7 +1433,7 @@ export function checkTernary(
   const condType = this.checkExpression(expr.condition);
   if (condType && !this.isBoolType(condType)) {
     throw new CompilerError(
-      `Ternary condition must be boolean, got ${this.typeToString(condType)}`,
+      `Ternary condition must be boolean, got ${this.formatDiagnosticType(condType)}`,
       "Ensure the condition evaluates to a boolean.",
       expr.condition.location,
       CONDITION_TYPE_MISMATCH_CODE,
@@ -1355,16 +1445,102 @@ export function checkTernary(
 
   if (thenType && elseType && !this.areTypesCompatible(thenType, elseType)) {
     throw new CompilerError(
-      `Ternary branches must have compatible types: ${this.typeToString(
+      `Ternary branches must have compatible types: ${this.formatDiagnosticType(
         thenType,
-      )} vs ${this.typeToString(elseType)}`,
+      )} vs ${this.formatDiagnosticType(elseType)}`,
       "Both branches must return the same type.",
       expr.location,
       TERNARY_BRANCH_TYPE_MISMATCH_CODE,
     );
   }
 
+  this.rejectOwningCopy(
+    expr.trueExpr,
+    thenType,
+    "out of a conditional branch",
+    expr.trueExpr.location,
+  );
+  this.rejectOwningCopy(
+    expr.falseExpr,
+    elseType,
+    "out of a conditional branch",
+    expr.falseExpr.location,
+  );
   return thenType;
+}
+
+/** String aliases retain the direct spelling's integer conversion restriction. */
+function rejectIntegerToString(
+  context: CheckerContext,
+  expr: AST.CastExpr | AST.AsExpr,
+  source: AST.TypeNode,
+  target: AST.TypeNode,
+): void {
+  if (
+    source.kind !== "BasicType" ||
+    source.pointerDepth !== 0 ||
+    source.arrayDimensions.length !== 0 ||
+    !TypeUtils.isIntegerType(source)
+  )
+    return;
+
+  const declaredTarget = expr.kind === "Cast" ? expr.targetType : expr.type;
+  let isString =
+    declaredTarget.kind === "BasicType" &&
+    declaredTarget.name === "string" &&
+    declaredTarget.pointerDepth === 0 &&
+    declaredTarget.arrayDimensions.length === 0;
+  // Resolution records string's builtin alias separately from ordinary *char.
+  if (
+    target.kind === "BasicType" &&
+    target.name === "i8" &&
+    target.pointerDepth === 1 &&
+    target.arrayDimensions.length === 0 &&
+    !target.isPointerToArray
+  ) {
+    const seen = new Set<AST.TypeNode>();
+    let current: AST.TypeNode | undefined = target;
+    while (current?.kind === "BasicType" && !seen.has(current)) {
+      if (current.aliasDeclaration?.name === "string") {
+        isString = true;
+        break;
+      }
+      seen.add(current);
+      current = current.aliasTarget;
+    }
+  }
+  if (isString) {
+    throw new CompilerError(
+      `Cannot cast integer type '${context.formatDiagnosticType(source)}' to 'string'`,
+      "Casting integers to string is not allowed. Use .toString() or similar conversion methods.",
+      expr.location,
+      CAST_INTEGER_TO_STRING_CODE,
+    );
+  }
+}
+
+/** Both cast syntaxes must preserve constant array storage protections. */
+function rejectConstantArrayView(
+  context: CheckerContext,
+  expr: AST.CastExpr | AST.AsExpr,
+  source: AST.TypeNode,
+  target: AST.TypeNode,
+): void {
+  const conversion = lowerImplicitConversion(target, source);
+  if (
+    isConstantArrayStorage(expr.expression, (type) =>
+      context.resolveType(type),
+    ) &&
+    (conversion.kind === "array-to-pointer" ||
+      conversion.kind === "array-to-slice")
+  ) {
+    throw new CompilerError(
+      "Cannot cast a constant array to a mutable view",
+      "BPL does not support views of constant elements. Copy the array to mutable storage first.",
+      expr.location,
+      CAST_INVALID_CODE,
+    );
+  }
 }
 
 /**
@@ -1377,39 +1553,27 @@ export function checkCast(
   const exprType = this.checkExpression(expr.expression);
 
   if (exprType) {
-    // Disallow casting integers to string
-    if (
-      expr.targetType.kind === "BasicType" &&
-      expr.targetType.name === "string"
-    ) {
-      const resolvedSource = this.resolveType(exprType);
-      // Check if source is integer and not a pointer
-      if (
-        resolvedSource.kind === "BasicType" &&
-        resolvedSource.pointerDepth === 0 &&
-        TypeUtils.isIntegerType(resolvedSource)
-      ) {
-        throw new CompilerError(
-          `Cannot cast integer type '${this.typeToString(resolvedSource)}' to 'string'`,
-          "Casting integers to string is not allowed. Use .toString() or similar conversion methods.",
-          expr.location,
-          CAST_INTEGER_TO_STRING_CODE,
-        );
-      }
-    }
-
     const resolved = this.resolveType(exprType);
     const target = this.resolveType(expr.targetType);
+
+    rejectIntegerToString(this, expr, resolved, target);
+    rejectConstantArrayView(this, expr, resolved, target);
 
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {
       throw new CompilerError(
-        `Cannot cast ${this.typeToString(resolved)} to ${this.typeToString(target)}`,
+        `Cannot cast ${this.formatDiagnosticType(resolved)} to ${this.formatDiagnosticType(target)}`,
         "This cast is not allowed.",
         expr.location,
         CAST_INVALID_CODE,
       );
     }
+    this.rejectOwningCopy(
+      expr.expression,
+      target,
+      "through a cast",
+      expr.expression.location,
+    );
   }
 
   return expr.targetType;
@@ -1575,7 +1739,7 @@ export function checkOffsetOf(
   if (resolvedType.kind !== "BasicType") {
     throw new CompilerError(
       "offsetof requires a struct type",
-      `Got ${TypeUtils.typeToString(resolvedType)}`,
+      `Got ${formatDiagnosticType(resolvedType)}`,
       expr.location,
     );
   }
@@ -1586,7 +1750,7 @@ export function checkOffsetOf(
   if (!decl || decl.kind !== "StructDecl") {
     throw new CompilerError(
       "offsetof requires a struct type",
-      `Got ${TypeUtils.typeToString(targetType)} which is not a struct`,
+      `Got ${formatDiagnosticType(targetType)} which is not a struct`,
       expr.location,
     );
   }
@@ -1619,6 +1783,57 @@ export function checkOffsetOf(
   };
 }
 
+/** A module-qualified type is distinct from an enum-and-variant path. */
+function isQualifiedQueryType(
+  context: CheckerContext,
+  type: AST.BasicTypeNode,
+): boolean {
+  const parts = type.name.split(".");
+  if (parts.length < 2) return false;
+  let symbol = context.currentScope.resolve(parts[0]!);
+  for (const part of parts.slice(1)) {
+    symbol = symbol?.moduleScope?.getInCurrentScope(part);
+    if (!symbol) return false;
+  }
+  return (
+    symbol?.kind === "Struct" ||
+    symbol?.kind === "Enum" ||
+    symbol?.kind === "TypeAlias" ||
+    symbol?.kind === "Spec"
+  );
+}
+
+/** Reject invalid enum-variant targets before reaching code generation. */
+function ensureEnumQueryVariant(
+  declaration: AST.EnumDecl,
+  variantName: string,
+  expression: AST.TypeMatchExpr | AST.IsExpr,
+): void {
+  const target =
+    expression.kind === "TypeMatch" ? expression.targetType : expression.type;
+  if (
+    target.kind === "BasicType" &&
+    (target.genericArgs.length !== 0 ||
+      target.pointerDepth !== 0 ||
+      target.arrayDimensions.length !== 0)
+  ) {
+    throw new CompilerError(
+      "Enum variant query targets do not support type modifiers.",
+      "Use Enum.Variant without type arguments, pointer prefixes, or array suffixes. Generic enum arguments come from the queried value.",
+      expression.location,
+      TYPE_QUERY_TYPE_NOT_FOUND_CODE,
+    );
+  }
+  if (!declaration.variants.some((variant) => variant.name === variantName)) {
+    throw new CompilerError(
+      `Cannot find variant '${variantName}' in enum '${declaration.sourceName ?? declaration.name}'`,
+      `Available variants: ${declaration.variants.map((variant) => variant.name).join(", ")}`,
+      expression.location,
+      TYPE_QUERY_TYPE_NOT_FOUND_CODE,
+    );
+  }
+}
+
 /**
  * Check a type match expression (match<T>(value))
  */
@@ -1630,11 +1845,18 @@ export function checkTypeMatch(
     this.checkExpression(expr.value as AST.Expression);
   }
 
-  const targetType = expr.targetType as AST.BasicTypeNode;
-  const targetTypeName = targetType.name;
+  const targetType = expr.targetType;
+  const targetTypeName =
+    targetType.kind === "BasicType" ? targetType.name : undefined;
 
   // Check if this is an enum variant pattern
-  if (targetTypeName.includes(".")) {
+  if (
+    targetType.kind === "BasicType" &&
+    isQualifiedQueryType(this, targetType)
+  ) {
+    this.ensureKnownType(targetType);
+    expr.targetType = this.resolveType(targetType);
+  } else if (targetTypeName?.includes(".")) {
     const parts = targetTypeName.split(".");
     const variantName = parts.pop()!;
     const enumPath = parts;
@@ -1671,12 +1893,18 @@ export function checkTypeMatch(
       );
     }
 
+    ensureEnumQueryVariant(
+      symbol.declaration as AST.EnumDecl,
+      variantName,
+      expr,
+    );
+
     // Update targetType to use canonical enum name so codegen can find it
     (expr.targetType as AST.BasicTypeNode).name =
       `${symbol.name}.${variantName}`;
     (expr.targetType as AST.BasicTypeNode).resolvedDeclaration =
       symbol.declaration as AST.EnumDecl;
-  } else {
+  } else if (targetTypeName !== undefined) {
     const isDefined =
       KNOWN_TYPES.includes(targetTypeName) ||
       this.currentScope.resolve(targetTypeName);
@@ -1689,6 +1917,11 @@ export function checkTypeMatch(
         TYPE_QUERY_TYPE_NOT_FOUND_CODE,
       );
     }
+    this.ensureKnownType(targetType);
+    expr.targetType = this.resolveType(targetType);
+  } else {
+    this.ensureKnownType(targetType);
+    expr.targetType = this.resolveType(targetType);
   }
 
   return {
@@ -1713,7 +1946,10 @@ export function checkIs(this: CheckerContext, expr: AST.IsExpr): AST.TypeNode {
     const targetTypeName = targetType.name;
 
     // Check if this is an enum variant pattern
-    if (targetTypeName.includes(".")) {
+    if (isQualifiedQueryType(this, targetType)) {
+      this.ensureKnownType(targetType);
+      expr.type = this.resolveType(targetType);
+    } else if (targetTypeName.includes(".")) {
       const parts = targetTypeName.split(".");
       const variantName = parts.pop()!;
       const enumPath = parts;
@@ -1750,6 +1986,12 @@ export function checkIs(this: CheckerContext, expr: AST.IsExpr): AST.TypeNode {
         );
       }
 
+      ensureEnumQueryVariant(
+        symbol.declaration as AST.EnumDecl,
+        variantName,
+        expr,
+      );
+
       // Update targetType to use canonical enum name so codegen can find it
       (expr.type as AST.BasicTypeNode).name = `${symbol.name}.${variantName}`;
       (expr.type as AST.BasicTypeNode).resolvedDeclaration =
@@ -1769,9 +2011,11 @@ export function checkIs(this: CheckerContext, expr: AST.IsExpr): AST.TypeNode {
           TYPE_QUERY_TYPE_NOT_FOUND_CODE,
         );
       }
+      this.ensureKnownType(expr.type);
       expr.type = resolved;
     }
   } else {
+    this.ensureKnownType(expr.type);
     const resolved = this.resolveType(expr.type);
     if (
       resolved.kind === "BasicType" &&
@@ -1805,36 +2049,29 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
   const exprType = this.checkExpression(expr.expression);
 
   if (exprType) {
-    // Disallow casting integers to string
-    if (expr.type.kind === "BasicType" && expr.type.name === "string") {
-      const resolvedSource = this.resolveType(exprType);
-      // Check if source is integer and not a pointer
-      if (
-        resolvedSource.kind === "BasicType" &&
-        resolvedSource.pointerDepth === 0 &&
-        TypeUtils.isIntegerType(resolvedSource)
-      ) {
-        throw new CompilerError(
-          `Cannot cast integer type '${this.typeToString(resolvedSource)}' to 'string'`,
-          "Casting integers to string is not allowed. Use .toString() or similar conversion methods.",
-          expr.location,
-          CAST_INTEGER_TO_STRING_CODE,
-        );
-      }
-    }
-
     const resolved = this.resolveType(exprType);
     const target = this.resolveType(expr.type);
+
+    rejectIntegerToString(this, expr, resolved, target);
+    rejectConstantArrayView(this, expr, resolved, target);
 
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {
       throw new CompilerError(
-        `Cannot cast ${this.typeToString(resolved)} to ${this.typeToString(target)}`,
+        `Cannot cast ${this.formatDiagnosticType(resolved)} to ${this.formatDiagnosticType(target)}`,
         "This cast is not allowed.",
         expr.location,
         CAST_INVALID_CODE,
       );
     }
+    this.rejectOwningCopy(
+      expr.expression,
+      target,
+      "through an 'as' conversion",
+      expr.expression.location,
+    );
+    // Runtime downcast selection must see the checked target, including aliases.
+    expr.type = target;
   }
 
   return expr.type;
@@ -1904,6 +2141,7 @@ function checkMatchExprBody(
   // checkPattern and checkMatchExhaustiveness handle undefined enumDecl now.
 
   let resultType: AST.TypeNode | undefined;
+  const yieldedValues: AST.Expression[] = [];
   for (const arm of expr.arms) {
     this.currentScope = this.currentScope.enterScope();
 
@@ -1913,7 +2151,7 @@ function checkMatchExprBody(
       const guardType = this.checkExpression(arm.guard);
       if (guardType && !this.isBoolType(guardType)) {
         throw new CompilerError(
-          `Match guard must be a boolean expression, got ${this.typeToString(guardType)}`,
+          `Match guard must be a boolean expression, got ${this.formatDiagnosticType(guardType)}`,
           "Guards must evaluate to bool.",
           arm.guard.location,
         );
@@ -1931,21 +2169,37 @@ function checkMatchExprBody(
       // A match statement discards arm values, so they need no common type.
       continue;
     }
+    const armValues =
+      arm.body.kind === "Block"
+        ? (this.matchYieldValues.get(arm.body) ?? [])
+        : [arm.body];
     if (!resultType) {
       resultType = armType;
-    } else if (armType && !this.areTypesCompatible(resultType, armType)) {
-      throw new CompilerError(
-        `Match arms must have compatible types: ${this.typeToString(
-          resultType,
-        )} vs ${this.typeToString(armType)}`,
-        "All match arms must return the same type.",
-        arm.location,
+    } else if (armType) {
+      const commonType = this.unifyMatchResultTypes(
+        resultType,
+        armType,
+        yieldedValues,
+        armValues,
       );
+      if (!commonType) {
+        throw new CompilerError(
+          `Match arms must have compatible types: ${this.formatDiagnosticType(
+            resultType,
+          )} vs ${this.formatDiagnosticType(armType)}`,
+          "Use compatible result types or explicitly cast yields to a common type.",
+          arm.location,
+        );
+      }
+      resultType = commonType;
     }
+    if (armType) yieldedValues.push(...armValues);
   }
 
   this.checkMatchExhaustiveness(expr, enumDecl, valueType);
 
+  // Commit literal array plans only after every arm has a compatible result.
+  if (resultType) this.contextualizeArrayLiteral(expr, resultType);
   return resultType || this.makeVoidType();
 }
 
@@ -1978,6 +2232,12 @@ function checkLambdaBody(
   this: CheckerContext,
   expr: AST.LambdaExpr,
 ): AST.TypeNode {
+  // Explicit signature names belong to the enclosing declaration scope.
+  for (const param of expr.params) {
+    if (param.type) this.ensureKnownType(param.type);
+  }
+  if (expr.returnType) this.ensureKnownType(expr.returnType);
+
   // 0. Infer types from context
   let expectedFuncType: AST.FunctionTypeNode | undefined;
   if (this.matchContext && this.matchContext.length > 0) {
@@ -1991,30 +2251,36 @@ function checkLambdaBody(
     }
   }
 
+  // Resolve the entire signature before value parameters can hide aliases.
+  const paramTypes = expr.params.map((param, i) => {
+    if (param.type) {
+      return this.resolveType(param.type);
+    }
+    if (expectedFuncType && i < expectedFuncType.paramTypes.length) {
+      return this.resolveType(expectedFuncType.paramTypes[i]!);
+    }
+    throw new CompilerError(
+      "Lambda parameter types must be explicit or inferred from context",
+      "Mark all lambda parameters with explicit types or ensure context provides function type.",
+      param.location,
+    );
+  });
+  let lambdaReturnType = this.makeVoidType();
+  if (expr.returnType) {
+    lambdaReturnType = this.resolveType(expr.returnType);
+  } else if (expectedFuncType) {
+    lambdaReturnType = this.resolveType(expectedFuncType.returnType);
+  }
+
   // 1. Create new scope
   const lambdaScope = new SymbolTable(this.currentScope);
   const previousScope = this.currentScope;
   this.currentScope = lambdaScope;
 
   // 2. Define parameters
-  const paramTypes: AST.TypeNode[] = [];
   for (let i = 0; i < expr.params.length; i++) {
     const param = expr.params[i]!;
-    let resolvedType: AST.TypeNode | undefined;
-
-    if (param.type) {
-      resolvedType = this.resolveType(param.type);
-    } else if (expectedFuncType && i < expectedFuncType.paramTypes.length) {
-      resolvedType = expectedFuncType.paramTypes[i];
-    } else {
-      throw new CompilerError(
-        "Lambda parameter types must be explicit or inferred from context",
-        "Mark all lambda parameters with explicit types or ensure context provides function type.",
-        param.location,
-      );
-    }
-
-    paramTypes.push(resolvedType!);
+    const resolvedType = paramTypes[i]!;
 
     // Define parameter in scope (skip if _)
     if (param.name !== "_") {
@@ -2043,29 +2309,32 @@ function checkLambdaBody(
   checker.loopDepth = 0;
   checker.switchDepth = 0;
 
-  if (expr.returnType) {
-    checker.currentFunctionReturnType = this.resolveType(expr.returnType);
-  } else if (expectedFuncType) {
-    checker.currentFunctionReturnType = expectedFuncType.returnType;
-  } else {
-    // Default to void if not specified for now
-    checker.currentFunctionReturnType = {
-      kind: "BasicType",
-      name: "void",
-      genericArgs: [],
-      pointerDepth: 0,
-      arrayDimensions: [],
-      location: expr.location,
-    };
-  }
+  checker.currentFunctionReturnType = lambdaReturnType;
 
   // Save and clear matchContext to prevent return statements from being captured by outer match/variable context
   const savedMatchContext = checker.matchContext;
   checker.matchContext = [];
 
+  const bodyDiagnosticStart = this.errors.length;
   try {
     // Check the body
     this.checkBlock(expr.body, false); // false because we already created the scope
+    const bodyHasErrors = this.errors
+      .slice(bodyDiagnosticStart)
+      .some(
+        (error) => error.toDiagnostic().severity === DiagnosticSeverity.Error,
+      );
+    if (
+      !bodyHasErrors &&
+      !TypeUtils.isVoidType(checker.currentFunctionReturnType) &&
+      !checkAllPathsReturn.call(this, expr.body)
+    ) {
+      throw new CompilerError(
+        "Lambda may not return a value on all code paths",
+        "Ensure all paths return a value.",
+        expr.location,
+      );
+    }
   } finally {
     checker.matchContext = savedMatchContext;
     checker.inDefer = prevInDefer; // Restore defer state

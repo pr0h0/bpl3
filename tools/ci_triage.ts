@@ -408,6 +408,10 @@ const RETURN_TYPE_MISMATCH_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const RETURN_ARRAY_VIEW_ESCAPES_STEP_PATTERN = new RegExp(
+  "BPL_RETURN_ARRAY_VIEW_ESCAPES|Cannot return a borrowed view of a fixed array",
+  "i",
+);
 const ASSIGNMENT_TYPE_MISMATCH_STEP_PATTERN = new RegExp(
   [
     "BPL_ASSIGNMENT_TYPE_MISMATCH",
@@ -1035,6 +1039,9 @@ const PACKAGE_IMPORT_MANIFEST_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const PACKAGE_DEPENDENCY_CONFLICT_STEP_PATTERN =
+  /BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT|PackageDependencyConflicts\.test/i;
+
 const PACKAGE_JSON_CONTRACT_STEP_PATTERN = new RegExp(
   [
     "PackageJsonFailureContracts\\.test",
@@ -1750,6 +1757,8 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "return type mismatch"',
   ],
   [RETURN_TYPE_MISMATCH_STEP_PATTERN, "bun run check"],
+  [RETURN_ARRAY_VIEW_ESCAPES_STEP_PATTERN, "bun test tests/ReturnedArrayViews.test.ts"],
+  [RETURN_ARRAY_VIEW_ESCAPES_STEP_PATTERN, "bun run check"],
   [
     ASSIGNMENT_TYPE_MISMATCH_STEP_PATTERN,
     "bun test tests/TypeCheckerAssignmentMismatch.test.ts",
@@ -2327,6 +2336,10 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [
     PACKAGE_DOCTOR_LOCK_DRIFT_STEP_PATTERN,
     "bun index.ts doctor packages --json",
+  ],
+  [
+    PACKAGE_DEPENDENCY_CONFLICT_STEP_PATTERN,
+    "bun test tests/PackageDependencyConflicts.test.ts",
   ],
   [
     PACKAGE_JSON_CONTRACT_STEP_PATTERN,
