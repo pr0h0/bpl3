@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   statement blocks and emitted invalid BPL comment syntax.
 - Limit `format-examples` to recursive `.bpl`/`.x` discovery under `examples`,
   respecting source-discovery exclusions and `.bplignore`.
+- Recognize actual unused-variable editor diagnostics and prefix only the
+  declaration name, preserving type annotations, initializers, and comments.
 
 ## [0.1.1] - 2026-10-25
 

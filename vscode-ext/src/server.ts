@@ -36,6 +36,7 @@ import { ASTHoverHandler } from "./services/ASTHoverHandler";
 import { ASTDefinitionHandler } from "./services/ASTDefinitionHandler";
 import { ASTCompletionHandler } from "./services/ASTCompletionHandler";
 import { ASTRenameHandler } from "./services/ASTRenameHandler";
+import { unusedVariableEdit } from "./services/UnusedVariableCodeAction";
 import { SelectionRangeProvider } from "./services/SelectionRangeProvider";
 import { DocumentHighlightProvider } from "./services/DocumentHighlightProvider";
 import { FoldingRangeProvider } from "./services/FoldingRangeProvider";
@@ -1109,24 +1110,15 @@ connection.onCodeAction((params) => {
     // Missing-return diagnostics need a user-chosen value and insertion point.
     // Do not offer a bare return, which is invalid in a value-returning frame.
 
-    // 5. Unused variable
-    if (diagnostic.message.includes("unused")) {
-      const unusedVarMatch = /'(\w+)'/.exec(diagnostic.message);
-      if (unusedVarMatch) {
-        const varName = unusedVarMatch[1];
-        actions.push({
-          title: `Prefix with '_' to mark as intentionally unused`,
-          kind: CodeActionKind.QuickFix,
-          diagnostics: [diagnostic],
-          edit: {
-            changes: {
-              [params.textDocument.uri]: [
-                TextEdit.replace(diagnostic.range, `_${varName}`),
-              ],
-            },
-          },
-        });
-      }
+    // 5. Unused variable: diagnostics span declarations, not just their names.
+    const unusedEdit = unusedVariableEdit(document, diagnostic);
+    if (unusedEdit) {
+      actions.push({
+        title: "Prefix with '_' to mark as intentionally unused",
+        kind: CodeActionKind.QuickFix,
+        diagnostics: [diagnostic],
+        edit: { changes: { [params.textDocument.uri]: [unusedEdit] } },
+      });
     }
 
     // 6. Missing semicolon
