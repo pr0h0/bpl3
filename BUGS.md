@@ -8632,3 +8632,11 @@ registration coverage supplements path-candidate tests and interactive verificat
 - The packed completion JSON check rejected the corrected `-o filenames`
   registration because it matched the former literal registration line.
 - Updated the assertion to require filename handling in the packed script.
+
+
+## Project-mode build registration loses no-input JSON diagnostics
+
+- Confirmed `bpl build --json` emitted plain stderr after the file argument became
+  optional for --project. The root build JSON no-input path remained correct.
+- Reused the existing BPL_BUILD_NO_INPUTS report before resolving project entries
+  when neither a file nor --project is supplied; the source CLI regression passes.
