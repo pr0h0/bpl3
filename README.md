@@ -948,7 +948,8 @@ not secrets.
 for a read-only style check. Dependencies and generated output are excluded by
 `.prettierignore`. Existing formatting drift may need a separate cleanup before
 using the repository-wide check as a required CI gate. Use `bpl format` for BPL
-source files.
+source files. `bun run format-examples` formats only the `examples/` tree,
+including `.bpl` and `.x` sources, and respects `.bplignore` and discovery exclusions.
 
 `bun run test:baseline` saves combined test output to `test-baseline.txt` and
 returns a nonzero status when tests fail. It requires Bash and accepts test

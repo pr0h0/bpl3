@@ -1148,28 +1148,9 @@ connection.onCodeAction((params) => {
       });
     }
 
-    // 7. Suggest null check
-    if (
-      diagnostic.message.includes("possibly null") ||
-      diagnostic.message.includes("may be null")
-    ) {
-      const errorText = document.getText(diagnostic.range);
-      actions.push({
-        title: "Add null check",
-        kind: CodeActionKind.QuickFix,
-        diagnostics: [diagnostic],
-        edit: {
-          changes: {
-            [params.textDocument.uri]: [
-              TextEdit.replace(
-                diagnostic.range,
-                `if (${errorText} != nullptr) {\n        // TODO: Handle non-null case\n    }`,
-              ),
-            ],
-          },
-        },
-      });
-    }
+    // A null guard needs the pointer expression, enclosing statement, and
+    // user-selected fallback. Replacing a diagnostic span can corrupt code,
+    // so do not offer a guard without that context.
   }
   return actions;
 });

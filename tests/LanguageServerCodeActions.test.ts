@@ -10,7 +10,7 @@ import {
 } from "vscode-jsonrpc/node";
 import type { CodeAction, Diagnostic } from "vscode-languageserver/node";
 
-test("language server suppresses invalid missing-return edits while retaining other quick fixes", async () => {
+test("language server suppresses invalid missing-return and null-guard edits while retaining other quick fixes", async () => {
   const child = spawn(
     process.execPath,
     [resolve("vscode-ext/src/server.ts"), "--stdio"],
@@ -53,6 +53,8 @@ test("language server suppresses invalid missing-return edits while retaining ot
         for (const message of [
           "Missing return statement",
           "Not all code paths return a value",
+          "Pointer may be null",
+          "Value is possibly null",
         ]) {
           const diagnostics: Diagnostic[] = [{ range, message }];
           const actions = await connection.sendRequest<CodeAction[]>(

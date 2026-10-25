@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Suppress the unsafe editor null-check action that replaced expressions with
+  statement blocks and emitted invalid BPL comment syntax.
+- Limit `format-examples` to recursive `.bpl`/`.x` discovery under `examples`,
+  respecting source-discovery exclusions and `.bplignore`.
+
 ## [0.1.1] - 2026-10-25
 
 ### Fixed

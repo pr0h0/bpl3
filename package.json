@@ -64,7 +64,7 @@
     "fuzz:repro": "bun tools/fuzz_artifact_repro.ts",
     "fuzz:validate-artifacts": "bun test tests/FuzzFailureArtifactCorpus.test.ts",
     "format": "prettier --write --ignore-unknown .",
-    "format-examples": "bun index.ts format -w **/**/*.bpl",
+    "format-examples": "bun index.ts format -w examples",
     "playground": "bash playground/start.sh",
     "playground:host": "BPL_PLAYGROUND_RUNNER=host bash playground/start.sh",
     "playground:build": "docker build -f playground/Dockerfile -t bpl-playground-worker:local .",
