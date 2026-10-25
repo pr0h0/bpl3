@@ -12,6 +12,11 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+# Keep only the latest revision of each PR; non-PR runs retain independent groups.
+concurrency:
+  group: playground-docker-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   playground-docker:
     name: Disposable playground workers
