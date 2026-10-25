@@ -1486,6 +1486,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
+  /** Collect inherited headers with class arguments applied, preserving templates. */
   private getInheritedMethodsByName(
     decl: AST.StructDecl,
     methodName: string,
@@ -1516,14 +1517,35 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (visited.has(parentDecl.name)) return;
       visited.add(parentDecl.name);
 
+      const genericMap = new Map<string, AST.TypeNode>();
+      for (let i = 0; i < parentDecl.genericParams.length; i++) {
+        const argument = resolvedParent.genericArgs[i];
+        if (argument) {
+          genericMap.set(parentDecl.genericParams[i]!.name, argument);
+        }
+      }
+
       for (const member of parentDecl.members) {
         if (member.kind === "FunctionDecl" && member.name === methodName) {
-          methods.push(member as AST.FunctionDecl);
+          // Compare instantiated headers without changing the shared template.
+          // A method's own parameters shadow equally named class parameters.
+          const methodMap = new Map(genericMap);
+          for (const parameter of member.genericParams) {
+            methodMap.delete(parameter.name);
+          }
+          methods.push({
+            ...member,
+            params: member.params.map((parameter) => ({
+              ...parameter,
+              type: this.substituteType(parameter.type, methodMap),
+            })),
+            returnType: this.substituteType(member.returnType, methodMap),
+          });
         }
       }
 
       for (const grandParent of parentDecl.inheritanceList) {
-        visitParent(grandParent);
+        visitParent(this.substituteType(grandParent, genericMap));
       }
     };
 
@@ -1534,10 +1556,25 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     return methods;
   }
 
+  /** Match override parameters and receiver mode without comparing owner names. */
   private methodParamsMatchIgnoringThis(
     childMethod: AST.FunctionDecl,
     parentMethod: AST.FunctionDecl,
   ): boolean {
+    const childReceiver = childMethod.params[0]?.type;
+    const parentReceiver = parentMethod.params[0]?.type;
+    if (childReceiver && parentReceiver) {
+      const childType = this.resolveType(childReceiver, false);
+      const parentType = this.resolveType(parentReceiver, false);
+      if (
+        childType.kind === "BasicType" &&
+        parentType.kind === "BasicType" &&
+        childType.pointerDepth > 0 !== parentType.pointerDepth > 0
+      ) {
+        return false;
+      }
+    }
+
     const childParams = childMethod.params.slice(1);
     const parentParams = parentMethod.params.slice(1);
 
