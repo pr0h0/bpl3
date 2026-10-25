@@ -2,6 +2,35 @@
 
 This file tracks bugs and edge cases found during comprehensive testing.
 
+## Quick-win review (2026-10-25)
+
+Resolved findings:
+
+- **Already fixed on staging:** SourceWatcher tracks new/deleted/recreated
+  `.bpl`/`.x` sources, atomic saves, external imports, missing-import recovery,
+  and watcher retries. The earlier branch's duplicate directory watcher was
+  removed during integration to preserve staging's more complete implementation.
+- **Fixed:** The missing-return editor quick fix inserted an invalid bare
+  `return;` and a non-BPL `//` comment. The action is suppressed until a safe,
+  context-aware edit can be offered. The live language-server regression in
+  `tests/LanguageServerCodeActions.test.ts` also checks other fixes still work.
+- **Fixed:** `test:baseline` could mask failed tests behind a successful `tee`.
+  Bash pipefail now preserves failure status and forwards test arguments;
+  `tests/BaselineExitStatus.test.ts` covers passing and failing subprocesses.
+- **Fixed:** `format` depended on an undeclared Prettier installation. Prettier
+  is pinned in the manifest/lockfile; format/check share scope and ignore rules.
+- **Existing formatting debt:** The new repository-wide `format:check` reports
+  pre-existing style drift (320 files in the initial run). Functional changes
+  are formatted separately; a repository-wide rewrite remains a follow-up.
+- **Fixed documentation drift:** The numbered package guide now describes
+  `BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT` and incremental installation limits,
+  matching the implemented behavior already documented in `PACKAGE_MANAGER.md`.
+
+- **Historical baseline failure, fixed upstream:** The old checkout's
+  `tests/EdgeCases.test.ts` helper ignored collected checker errors. Current
+  staging already repairs that helper; recheck it after rebasing. The original
+  stopped full-suite run is not evidence of current staging health.
+
 ## Summary
 
 | ID      | Category            | Description                                                                                                                | Status   | Notes                                                                                                                                                                                                                                                                                    |

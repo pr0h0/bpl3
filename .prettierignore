@@ -1,3 +1,27 @@
+# Dependencies and generated output (Prettier does not read .gitignore).
+node_modules/
+bpl_modules/
+.worktrees/
+.cache/
+.bpl-cache/
+dist/
+out/
+coverage/
+tmp/
+temp/
+**/out/
+**/node_modules/
+**/bpl_modules/
+test-baseline.txt
+bun.lock
+compiler/frontend/generated/
+
+# Local agent state and logs.
+.claude/
+.codex/
+.agents/
+.aws/
+logs/
 
 # Exact generated shell literals; regenerate with scripts/generate_completions.ts.
 cli/completions/scripts.generated.ts

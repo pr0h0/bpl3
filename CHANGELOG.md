@@ -37,6 +37,11 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
 
 ### Added
 
+- Pinned local Prettier tooling and a read-only `format:check` command with
+  dependency/generated-output exclusions.
+- Consolidated implementation status and remaining work in `TODO.md`, with
+  priorities in `PLAN.md` and explicit limits for partially supported features.
+
 - **Starter-Gated Basic-Type Optional Parsers** -
   generated simple basic-type parsing now checks for `*`, `<`, and `[` before
   invoking the pointer-prefix, generic-argument, and array-suffix parsers on
@@ -2959,6 +2964,10 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
   - Added examples for runtime type checking and safe downcasting patterns
 
 ### Fixed
+
+- Removed the editor's invalid missing-return quick fix; return values remain
+  user-selected, and other quick fixes remain available.
+- Baseline test logs preserve test failures through `tee` and forward arguments.
 
 - **Virtual-Source Artifact Cleanup** - `bpl --eval` and `bpl --stdin` no
   longer create literal `<eval>`, `<eval>.ll`, `<stdin>`, or `<stdin>.ll`

@@ -1,6 +1,6 @@
 # Self-Hosting Compiler Roadmap
 
-This document outlines the requirements, feature gaps, and implementation plan to transition the BPL compiler from a TypeScript application to a self-hosted BPL application.
+This document outlines the requirements, feature gaps, and implementation plan to transition the BPL compiler from a TypeScript application to a self-hosted BPL application. General language/library implementation status is maintained in [TODO.md](../TODO.md).
 
 ## 1. Core Goal
 
@@ -96,7 +96,7 @@ Currently, we rely on `libc` (`printf`, `malloc`, `fopen`).
 - [x] **AST Defs**: Define `enum NodeKind` and `struct Node` hierarchy in BPL (`src/ast.bpl`).
 - [x] **Symbol Table**: Define `Symbol`, `SymbolKind` and `SymbolTable` (`src/symbols.bpl`).
 - [x] **Semantic Types**: Define `Type` and `TypeKind` (`src/types.bpl`).
-- [ ] **Parser**: Recursive descent parser building AST nodes in the Arena (to be implemented in `src/parser.bpl`).
+- [ ] **Parser**: Recursive descent parser building AST nodes in the Arena (`src/parser.bpl` contains a scaffold; `parse()` currently returns `nullptr` and synchronization is a placeholder).
 
 ### Phase 3: Middle & Backend
 

@@ -10,7 +10,7 @@ import { tmpdir } from "os";
  * 1. Unknown types → Import suggestions
  * 2. Unknown symbols → Import suggestions, typo corrections
  * 3. Type mismatches → Cast suggestions
- * 4. Missing return → Add return statement
+ * 4. Missing return → Requires a user-chosen return value
  * 5. Unused variables → Prefix with underscore
  * 6. Missing semicolons → Add semicolon
  * 7. Null safety → Add null checks
@@ -183,31 +183,6 @@ frame main() ret int {
       console.log("✓ Code Action: Pointer type mismatch");
       console.log("  - Error: Expected '*int', got 'int'");
       console.log("  - Suggested fix: Cast to *int");
-    });
-  });
-
-  describe("Missing Return Statement", () => {
-    it("creates test for missing return", () => {
-      const testFile = join(TEST_DIR, "ca_missing_return.bpl");
-      const code = `
-frame getValue() ret int {  # ERROR: Missing return statement
-    local x: int = 42;
-    # QUICK FIX: Add return statement
-    # Result: Inserts 'return; // TODO: Add return value'
-}
-
-frame main() ret int {
-    local val: int = getValue();
-    return val;
-}
-`;
-      fs.writeFileSync(testFile, code);
-      expect(fs.existsSync(testFile)).toBe(true);
-
-      console.log("✓ Code Action: Missing return statement");
-      console.log("  - Error: Missing return statement");
-      console.log("  - Suggested fix: Add return statement");
-      console.log("  - Inserts 'return; // TODO: Add return value'");
     });
   });
 

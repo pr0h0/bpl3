@@ -1106,24 +1106,8 @@ connection.onCodeAction((params) => {
       }
     }
 
-    // 4. Missing return statement
-    if (diagnostic.message.includes("Missing return statement")) {
-      actions.push({
-        title: "Add return statement",
-        kind: CodeActionKind.QuickFix,
-        diagnostics: [diagnostic],
-        edit: {
-          changes: {
-            [params.textDocument.uri]: [
-              TextEdit.insert(
-                diagnostic.range.start,
-                "    return; // TODO: Add return value\n",
-              ),
-            ],
-          },
-        },
-      });
-    }
+    // Missing-return diagnostics need a user-chosen value and insertion point.
+    // Do not offer a bare return, which is invalid in a value-returning frame.
 
     // 5. Unused variable
     if (diagnostic.message.includes("unused")) {
