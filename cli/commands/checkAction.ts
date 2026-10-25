@@ -51,7 +51,7 @@ export async function runCheckCommand(
 
   // Handle quiet mode
   if (options.quiet) {
-    setLogLevel(LogLevel.SILENT);
+    setLogLevel(LogLevel.ERROR);
   }
   if (options.color !== undefined) {
     updateConfig({

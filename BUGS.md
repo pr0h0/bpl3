@@ -22,6 +22,16 @@ This file tracks bugs and edge cases found during comprehensive testing.
   input list. Invalid discovery configuration still reports processing errors;
   missing explicit files retain their file-specific code.
 
+## Quiet check input errors (2026-10-25)
+
+- **Fixed:** `bpl check --quiet missing.bpl` exited 1 without printing the
+  missing-file error because quiet mode selected `LogLevel.SILENT`, hiding
+  error logs as well as progress. Quiet mode now selects `LogLevel.ERROR`;
+  successful checks stay silent, while missing/non-file inputs, missing
+  arguments, and compiler diagnostics remain visible. JSON mode keeps its
+  structured stdout report without extra stderr text. Local/global quiet
+  option placement is covered by CLI subprocess tests.
+
 ## Quick-win review (2026-10-25)
 
 Resolved findings:
