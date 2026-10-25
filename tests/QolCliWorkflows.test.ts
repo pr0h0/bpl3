@@ -152,3 +152,15 @@ test("project run rejects a file before the delimiter but forwards program opera
     expect(matchingOptionValue.status).toBe(0);
     expect(matchingOptionValue.stdout).toContain("foo");
   }));
+
+test("build without a file preserves the JSON no-input contract", () =>
+  fixture((_dir, run) => {
+    const result = run(["build", "--json"]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      check: "build",
+      success: false,
+      errorCode: "BPL_BUILD_NO_INPUTS",
+    });
+  }));

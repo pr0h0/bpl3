@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-25
+
+### Fixed
+
+- Instantiate inherited generic-parent signatures before override validation.
+- Preserve derived dispatch through generic parent pointers and bound methods,
+  including transitive parents and derived value-receiver adapters.
+- Compiler type/generic validation, return checking, const receivers, aggregate
+  conversions, temporary storage, ownership checks and runtime type queries.
+- Formatter comment preservation, expression boundaries, idempotence and source
+  locations; project configuration now agrees across CLI and editor workflows.
+- Package lock enforcement, dependency reconciliation, archive integrity,
+  package entry verification and reproducible archives.
+- Watch/restart recovery, safe cleanup, editor rename and import/diagnostic lifecycle.
+- Standard-library random output, argument parsing, rational arithmetic, range
+  bounds and numerical stability in statistics, complex math and array averages.
+
+### Improved
+
+- Directory/stdin formatting and linting, explicit project-entry build/run,
+  protected documentation output, public-only API docs and shell completions.
+- Save-before-run editor tasks, bundled manifest schema and persistent playground
+  drafts with clear replacement/reset behavior.
+- Validation-command guidance and standard-library ownership/error recipes.
+
+See [release notes](docs/releases/v0.1.1.md) for the release scope and validation.
+
+## [0.1.0] - Historical development notes
+
 ### Added
 
 - **Starter-Gated Basic-Type Optional Parsers** -

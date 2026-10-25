@@ -8632,3 +8632,26 @@ entry was inserted as unquoted text and became two shell arguments. Registration
 now enables `-o filenames`, letting readline quote filename matches and retain
 directory slashes. The shipped and embedded scripts are regenerated together;
 registration coverage supplements path-candidate tests and interactive verification.
+
+
+## Release smoke rejects the shipped formatter schema
+
+- Confirmed during 0.1.1 packaging validation: npm pack includes the advertised
+  bpl-format.schema.json, but the smoke allowlist rejects that file.
+- Added the formatter schema to required packaged files and the narrow allowlist;
+  unrelated paths and local audit reports remain excluded.
+
+
+## Release smoke expects obsolete Bash completion registration
+
+- The packed completion JSON check rejected the corrected `-o filenames`
+  registration because it matched the former literal registration line.
+- Updated the assertion to require filename handling in the packed script.
+
+
+## Project-mode build registration loses no-input JSON diagnostics
+
+- Confirmed `bpl build --json` emitted plain stderr after the file argument became
+  optional for --project. The root build JSON no-input path remained correct.
+- Reused the existing BPL_BUILD_NO_INPUTS report before resolving project entries
+  when neither a file nor --project is supplied; the source CLI regression passes.
