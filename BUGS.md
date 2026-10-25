@@ -8617,3 +8617,11 @@ entry was inserted as unquoted text and became two shell arguments. Registration
 now enables `-o filenames`, letting readline quote filename matches and retain
 directory slashes. The shipped and embedded scripts are regenerated together;
 registration coverage supplements path-candidate tests and interactive verification.
+
+
+## Release smoke rejects the shipped formatter schema
+
+- Confirmed during 0.1.1 packaging validation: npm pack includes the advertised
+  bpl-format.schema.json, but the smoke allowlist rejects that file.
+- Added the formatter schema to required packaged files and the narrow allowlist;
+  unrelated paths and local audit reports remain excluded.

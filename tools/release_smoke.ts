@@ -553,6 +553,7 @@ function runPackedPackageSmoke(): void {
     assertPackedFiles(packEntry, [
       "bpl",
       "bpl-package.schema.json",
+      "bpl-format.schema.json",
       "package.json",
       "README.md",
       "LICENSE",
@@ -5642,6 +5643,7 @@ function assertPackedFileAllowlist(
     "bpl",
     "bpl-wrapper.sh",
     "bpl-package.schema.json",
+    "bpl-format.schema.json",
     "cli/index.d.ts",
     "cli/index.js",
     "package.json",
