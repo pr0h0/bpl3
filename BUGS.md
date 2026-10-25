@@ -8609,6 +8609,21 @@ and real Chromium draft/reset regressions cover these corrected behaviors.
 - Confirmed native O3 on staging c70be811: an Array<float> containing [1e308, 1e308] averages to infinity instead of 1e308. The wrapper still forms an ordinary sum before division and also loses small terms between cancelling large values.
 - Fixed with compensated/scaled getter-based accumulation, retaining logical inherited getters without a temporary array. Eleven native and two hosted Wasm cases pass at O0/O3; five native and two hosted cases fail on the original parent. Integer/empty/nonfinite behavior and input contents remain covered. Existing browser imports suffice.
 
+## Concrete generic-base overrides compare uninstantiated return types
+
+- Confirmed: Child: Parent<int> overriding value() ret int is rejected because the inherited return is compared as raw T instead of int. The parent generic value method and the child's override are valid under the existing inheritance syntax.
+- Fixed by substituting inherited class arguments into copied signature headers and transitive parent references. Method generic parameters retain shadowing, and value/pointer receiver overloads remain distinct. Nine focused tests pass, including native O0/O3 calls; the related checker suites pass (130 tests total).
+
+## Generic receiver calls through a free function bypass an override
+
+- Confirmed native O3 with a LogicalArray<T>: Array<T> overriding get: direct base-pointer get returns 2, but the same pointer passed to a free function returns the stored value 1.
+- Fixed by preparing generic receiver instantiations and type bindings before inherited-owner and virtual-call selection. Seven native source-level cases pass at O0/O3, including aliases, differently named class parameters, transitive parents, Array getters, and a non-generic control. Two hosted Wasm cases pass at O0/O3. On the signature-corrected parent, five native cases and both hosted cases fail.
+
+## Bound generic parent methods select the parent implementation
+
+- Confirmed native O0/O3 on 9d4a538f: a `Lambda<int>()` bound from a valid `*Parent<int>` pointing to `Child<int>` returns the parent value 1 instead of the child override 2. Both binding in main and binding inside a free function produce 1, while ordinary direct calls are corrected by the preceding fix.
+- Fixed by binding the selected virtual-table entry after generic receiver preparation, retaining borrowed storage and derived value-receiver adapters. Seven native cases and two hosted Wasm cases cover generic/non-generic parents, aliases/null checks, arguments, receiver evaluation and the existing variadic rejection at O0/O3.
+
 
 ## Bash completion inserts paths with spaces as multiple arguments
 

@@ -59,8 +59,9 @@ frame main() ret int {
 
 Methods declared in a parent struct can be overridden in a child struct by defining a method with the same name.
 
-- **Virtual Dispatch**: When a method is called on a pointer to a parent type, the runtime looks up the actual implementation in the vtable of the object. This ensures the correct method (e.g., `Dog.makeSound`) is called even if the variable is of type `*Animal`.
+- **Virtual Dispatch**: When a method is called on a pointer to a parent type, the runtime looks up the actual implementation in the vtable of the object. This ensures the correct method (e.g., `Dog.makeSound`) is called even if the variable is of type `*Animal`. The same rule applies inside free functions accepting a pointer to an instantiated generic parent.
 - **VTable**: The compiler automatically generates a Virtual Method Table (vtable) for each struct that participates in inheritance.
+- **Generic parents**: Override signatures use the parent’s instantiated class arguments, including through intermediate parents. If `Parent<T>.value` returns `T`, its override in a child of `Parent<int>` must return `int`. Matching parameter lists require matching return types; value and pointer receiver overloads are distinct.
 
 ## Calling Parent Methods (Super)
 
@@ -105,3 +106,9 @@ struct Point {
     }
 }
 ```
+
+Bound methods selected through a parent pointer retain the derived virtual override,
+including instantiated generic parents. The resulting `Lambda` borrows the selected
+receiver storage; it does not extend that storage's lifetime. Virtual value receivers
+copy the derived value on each invocation. Lifecycle methods retain direct binding,
+and variadic value-receiver bindings remain unsupported.

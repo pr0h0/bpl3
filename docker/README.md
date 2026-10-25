@@ -113,7 +113,7 @@ runs verification, but publishing a different commit requires a new patch versio
 A retry at the same commit can finish a partially completed two-image publication.
 Annotated and lightweight tags identify the checked-out commit in image metadata.
 
-After initial publication, the intended names are:
+For the prepared 0.1.1 release, these names become available only after publication:
 
 - ghcr.io/pr0h0/bpl3-compiler:0.1.1
 - ghcr.io/pr0h0/bpl3-playground:0.1.1

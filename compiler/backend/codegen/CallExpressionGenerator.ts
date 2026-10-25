@@ -798,6 +798,48 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             structName = objType.name;
           }
 
+          // Materialize generic receivers before selecting inherited or virtual calls.
+          const structDecl =
+            this.structMap.get(objType.name) ?? this.enumDeclMap.get(objType.name);
+
+          if (
+            structDecl &&
+            structDecl.genericParams.length > 0 &&
+            objType.genericArgs.length > 0
+          ) {
+            // Force generation of the monomorphized struct and its methods
+            // This is crucial if the struct was only used as a pointer before (e.g. *Array<int>)
+            // and thus skipped generation, but now we are calling a method on it.
+            if (structDecl.kind === "StructDecl") {
+              const substitutedArgs = objType.genericArgs.map((arg) =>
+                this.substituteType(arg, this.currentTypeMap),
+              );
+              // We pass undefined for skipGeneration to let it auto-detect placeholders.
+              // If args are concrete, it will generate the struct and methods.
+              this.resolveMonomorphizedType(structDecl, substitutedArgs);
+            }
+
+            contextMap = new Map();
+            for (let i = 0; i < structDecl.genericParams.length; i++) {
+              if (i < objType.genericArgs.length) {
+                let genericArg = objType.genericArgs[i]!;
+                // Substitute any generic parameters in the argument using currentTypeMap
+                // This handles cases like Array<Pair<K, V>> where K, V need to be resolved
+                if (this.currentTypeMap.size > 0) {
+                  genericArg = this.substituteType(
+                    genericArg,
+                    this.currentTypeMap,
+                  );
+                }
+                contextMap.set(structDecl.genericParams[i]!.name, genericArg);
+                callSubstitutionMap.set(
+                  structDecl.genericParams[i]!.name,
+                  genericArg,
+                );
+              }
+            }
+          }
+
           // Check for inherited method
           ownerDecl = this.findMethodOwner(structName, memberExpr.property);
 
@@ -989,53 +1031,6 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           // Instance call: pass object as first argument
           argsToGenerate = [memberExpr.object, ...expr.args];
           isInstanceCall = true;
-
-          // Prepare context if object is instantiated generic struct
-          let structDecl = this.structMap.get(objType.name); // Original generic struct
-          if (!structDecl) {
-            structDecl = this.enumDeclMap.get(objType.name) as any;
-          }
-
-          if (
-            structDecl &&
-            structDecl.genericParams.length > 0 &&
-            objType.genericArgs.length > 0
-          ) {
-            // Force generation of the monomorphized struct and its methods
-            // This is crucial if the struct was only used as a pointer before (e.g. *Array<int>)
-            // and thus skipped generation, but now we are calling a method on it.
-            if (structDecl.kind === "StructDecl") {
-              const substitutedArgs = objType.genericArgs.map((arg) =>
-                this.substituteType(arg, this.currentTypeMap),
-              );
-              // We pass undefined for skipGeneration to let it auto-detect placeholders.
-              // If args are concrete, it will generate the struct and methods.
-              this.resolveMonomorphizedType(
-                structDecl as AST.StructDecl,
-                substitutedArgs,
-              );
-            }
-
-            contextMap = new Map();
-            for (let i = 0; i < structDecl.genericParams.length; i++) {
-              if (i < objType.genericArgs.length) {
-                let genericArg = objType.genericArgs[i]!;
-                // Substitute any generic parameters in the argument using currentTypeMap
-                // This handles cases like Array<Pair<K, V>> where K, V need to be resolved
-                if (this.currentTypeMap.size > 0) {
-                  genericArg = this.substituteType(
-                    genericArg,
-                    this.currentTypeMap,
-                  );
-                }
-                contextMap.set(structDecl.genericParams[i]!.name, genericArg);
-                callSubstitutionMap.set(
-                  structDecl.genericParams[i]!.name,
-                  genericArg,
-                );
-              }
-            }
-          }
         } else if (objType.kind === "MetaType") {
           const inner = (objType as any).type;
           if (inner.kind === "BasicType") {

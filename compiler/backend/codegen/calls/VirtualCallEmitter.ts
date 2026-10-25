@@ -50,12 +50,7 @@ export function emitVirtualCall(
     structName,
   );
 
-  const methodVoidPtr = loadVTableMethod(
-    host,
-    objPtr,
-    structType,
-    methodIndex,
-  );
+  const methodVoidPtr = loadVTableMethod(host, objPtr, structType, methodIndex);
 
   const {
     funcType: _funcType,
@@ -177,8 +172,9 @@ function boxPrimitiveForVirtualCall(
   return { objPtr: wrapperPtr, structType: wrapperType + "*" };
 }
 
-function loadVTableMethod(
-  host: VirtualCallHost,
+/** Load an object's selected virtual entry after its receiver is prepared. */
+export function loadVTableMethod(
+  host: Pick<VirtualCallHost, "newRegister" | "emit">,
   objPtr: string,
   structType: string,
   methodIndex: number,

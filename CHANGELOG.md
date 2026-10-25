@@ -6,12 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-Changes after the 0.1.1 baseline will be collected for 0.1.2.
-
 ## [0.1.1] - 2026-10-25
 
 ### Fixed
 
+- Instantiate inherited generic-parent signatures before override validation.
+- Preserve derived dispatch through generic parent pointers and bound methods,
+  including transitive parents and derived value-receiver adapters.
 - Compiler type/generic validation, return checking, const receivers, aggregate
   conversions, temporary storage, ownership checks and runtime type queries.
 - Formatter comment preservation, expression boundaries, idempotence and source
