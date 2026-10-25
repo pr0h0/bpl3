@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   ignoring comment/string lookalikes and skipping malformed sibling modules.
 - Suppress the unsafe editor null-check action that replaced expressions with
   statement blocks and emitted invalid BPL comment syntax.
+- Use parsed parent lists for Go to Implementation, including multiple parents,
+  generics, specs and enums, while excluding comment/string lookalikes.
 - Limit `format-examples` to recursive `.bpl`/`.x` discovery under `examples`,
   respecting source-discovery exclusions and `.bplignore`.
 - Recognize actual unused-variable editor diagnostics and prefix only the
