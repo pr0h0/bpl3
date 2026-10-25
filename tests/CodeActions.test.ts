@@ -94,7 +94,7 @@ frame calculateSum(a: int, b: int) ret int {
 }
 
 frame main() ret int {
-    local result: int = calcuateSum(5, 3);  # ERROR: Unknown symbol 'calcuateSum' (typo)
+    local result: int = calcuateSum(5, 3);  # ERROR: Undefined symbol 'calcuateSum' (typo)
     # QUICK FIX: Did you mean 'calculateSum'?
     return result;
 }
@@ -105,7 +105,7 @@ frame main() ret int {
       console.log("✓ Code Action: Typo in function name");
       console.log("  - Error: Unknown symbol 'calcuateSum'");
       console.log("  - Suggested fix: Did you mean 'calculateSum'?");
-      console.log("  - Uses Levenshtein distance to find similar names");
+      console.log("  - Uses the compiler scope-aware suggestion");
     });
 
     it("creates test for unknown function from import", () => {

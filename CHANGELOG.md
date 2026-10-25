@@ -26,6 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   respecting source-discovery exclusions and `.bplignore`.
 - Recognize actual unused-variable editor diagnostics and prefix only the
   declaration name, preserving type annotations, initializers, and comments.
+- Use compiler scope-aware hints for typo quick fixes instead of suggesting
+  comment/string words and names from unrelated local scopes.
 
 ## [0.1.1] - 2026-10-25
 
