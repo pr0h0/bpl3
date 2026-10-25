@@ -41,6 +41,7 @@ import { unusedVariableEdit } from "./services/UnusedVariableCodeAction";
 import {
   nearbyImportCodeActions,
   importableTypeName,
+  type NearbyImportCache,
 } from "./services/NearbyImportCodeActions";
 import { SelectionRangeProvider } from "./services/SelectionRangeProvider";
 import { DocumentHighlightProvider } from "./services/DocumentHighlightProvider";
@@ -928,6 +929,7 @@ connection.onCodeAction((params) => {
   if (!document) return [];
 
   const text = document.getText();
+  const parsedNearbyModules: NearbyImportCache = new Map();
 
   for (const diagnostic of params.context.diagnostics) {
     // 1. Unknown type suggestions
@@ -965,7 +967,13 @@ connection.onCodeAction((params) => {
       }
 
       actions.push(
-        ...nearbyImportCodeActions(document, diagnostic, typeName, true),
+        ...nearbyImportCodeActions(
+          document,
+          diagnostic,
+          typeName,
+          true,
+          parsedNearbyModules,
+        ),
       );
     }
 
@@ -996,7 +1004,13 @@ connection.onCodeAction((params) => {
       }
 
       actions.push(
-        ...nearbyImportCodeActions(document, diagnostic, symbolName, false),
+        ...nearbyImportCodeActions(
+          document,
+          diagnostic,
+          symbolName,
+          false,
+          parsedNearbyModules,
+        ),
       );
     }
 

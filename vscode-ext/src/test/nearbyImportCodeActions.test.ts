@@ -8,11 +8,78 @@ import { Range } from "vscode-languageserver/node";
 import {
   nearbyImportCodeActions,
   importableTypeName,
+  type NearbyImportCache,
 } from "../services/NearbyImportCodeActions";
 import { DiagnosticsProvider } from "../services/DiagnosticsProvider";
 import { SymbolIndex } from "../services/SymbolIndex";
 
 const testPosix = process.platform === "win32" ? test.skip : test;
+
+test("a request reuses successful and failed sibling parses; the next request observes edits", () => {
+  const directory = mkdtempSync(join(tmpdir(), "bpl-import-cache-"));
+  try {
+    const module = join(directory, "module.x");
+    const broken = join(directory, "broken.bpl");
+    writeFileSync(module, "struct Widget {} export [Widget];");
+    writeFileSync(broken, "struct Broken {");
+    const document = TextDocument.create(
+      pathToFileURL(join(directory, "main.bpl")).href,
+      "bpl",
+      1,
+      "",
+    );
+    const diagnostic = {
+      range: Range.create(0, 0, 0, 0),
+      message: "Undefined type 'Widget'",
+    };
+    const cache: NearbyImportCache = new Map();
+    expect(
+      nearbyImportCodeActions(document, diagnostic, "Widget", true, cache),
+    ).toHaveLength(1);
+    writeFileSync(module, "struct Replacement {} export [Replacement];");
+    writeFileSync(broken, "struct Repaired {} export [Repaired];");
+    // One request keeps a consistent snapshot, including negative parse results.
+    expect(
+      nearbyImportCodeActions(document, diagnostic, "Widget", true, cache),
+    ).toHaveLength(1);
+    expect(
+      nearbyImportCodeActions(document, diagnostic, "Replacement", true, cache),
+    ).toEqual([]);
+    expect(
+      nearbyImportCodeActions(document, diagnostic, "Repaired", true, cache),
+    ).toEqual([]);
+    const nextRequest: NearbyImportCache = new Map();
+    expect(
+      nearbyImportCodeActions(
+        document,
+        diagnostic,
+        "Widget",
+        true,
+        nextRequest,
+      ),
+    ).toEqual([]);
+    expect(
+      nearbyImportCodeActions(
+        document,
+        diagnostic,
+        "Replacement",
+        true,
+        nextRequest,
+      ),
+    ).toHaveLength(1);
+    expect(
+      nearbyImportCodeActions(
+        document,
+        diagnostic,
+        "Repaired",
+        true,
+        nextRequest,
+      ),
+    ).toHaveLength(1);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 testPosix(
   "nearby imports escape quoted and control-character filenames",

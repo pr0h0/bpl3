@@ -8715,4 +8715,6 @@ registration coverage supplements path-candidate tests and interactive verificat
   candidates individually, and include both source extensions deterministically.
   The action also now recognizes the compiler's usual `Undefined type` diagnostic,
   previously ignored by its `Unknown type` matcher. Tests apply type/value imports
-  from real diagnostics and revalidate the source.
+  from real diagnostics and revalidate the source. Sibling parse results, including
+  failures, are shared across diagnostics within one request and discarded before
+  the next request to avoid repeated synchronous parsing without stale caches.

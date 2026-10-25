@@ -10,6 +10,9 @@ import {
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import { Parser } from "../../../compiler/frontend/Parser";
 
+/** Discard after the code-action request, including failed parse results. */
+export type NearbyImportCache = Map<string, ReturnType<Parser["parse"]> | null>;
+
 /** Both spellings are emitted by compiler type-resolution paths. */
 export function importableTypeName(diagnostic: Diagnostic): string | undefined {
   return /(?:Unknown|Undefined) type '(\w+)'/.exec(diagnostic.message)?.[1];
@@ -21,6 +24,7 @@ export function nearbyImportCodeActions(
   diagnostic: Diagnostic,
   name: string,
   isType: boolean,
+  parsedModules: NearbyImportCache = new Map(),
 ): CodeAction[] {
   const actions: CodeAction[] = [];
   try {
@@ -41,8 +45,19 @@ export function nearbyImportCodeActions(
         continue;
       try {
         const file = path.join(directory, entry.name);
-        const program = new Parser(fs.readFileSync(file, "utf8"), file).parse();
-        if (program.errors?.length) continue;
+        if (!parsedModules.has(file)) {
+          try {
+            const parsed = new Parser(
+              fs.readFileSync(file, "utf8"),
+              file,
+            ).parse();
+            parsedModules.set(file, parsed.errors?.length ? null : parsed);
+          } catch {
+            parsedModules.set(file, null);
+          }
+        }
+        const program = parsedModules.get(file);
+        if (!program) continue;
         const exported = program.statements.some(
           (statement) =>
             statement.kind === "Export" &&
