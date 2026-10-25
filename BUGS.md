@@ -8625,3 +8625,10 @@ registration coverage supplements path-candidate tests and interactive verificat
   bpl-format.schema.json, but the smoke allowlist rejects that file.
 - Added the formatter schema to required packaged files and the narrow allowlist;
   unrelated paths and local audit reports remain excluded.
+
+
+## Release smoke expects obsolete Bash completion registration
+
+- The packed completion JSON check rejected the corrected `-o filenames`
+  registration because it matched the former literal registration line.
+- Updated the assertion to require filename handling in the packed script.

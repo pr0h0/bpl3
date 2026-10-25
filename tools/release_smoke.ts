@@ -1016,7 +1016,7 @@ function runPackedCompletionJsonSmoke(
     !bashReport.success ||
     bashReport.shell !== "bash" ||
     typeof bashReport.script !== "string" ||
-    !bashReport.script.includes("complete -F _bpl_completion bpl") ||
+    !bashReport.script.includes("complete -o filenames -F _bpl_completion bpl") ||
     !bashReport.script.includes("completion_opts=\"bash zsh --json\"")
   ) {
     throw new Error(
