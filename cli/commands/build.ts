@@ -8,7 +8,10 @@ import type { Command } from "commander";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
 import { getExplicitParentCompileOptions } from "./compileOptions";
-import { validateCompileInputSources } from "../BuildInputValidation";
+import {
+  validateCompileInputSources,
+  emitNoInputBuildErrorAndExit,
+} from "../BuildInputValidation";
 
 const log = new Logger("Build");
 
@@ -135,6 +138,8 @@ export function registerBuildCommand(program: Command): void {
               globalOpts.debug ||
               globalOpts.dwarf,
           };
+          if (!file && !localOpts.project)
+            emitNoInputBuildErrorAndExit(compileOptions);
           file = resolveProjectEntry(file, localOpts.project);
           validateCompileInputSources([file], compileOptions);
 

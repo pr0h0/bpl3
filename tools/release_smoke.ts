@@ -553,6 +553,7 @@ function runPackedPackageSmoke(): void {
     assertPackedFiles(packEntry, [
       "bpl",
       "bpl-package.schema.json",
+      "bpl-format.schema.json",
       "package.json",
       "README.md",
       "LICENSE",
@@ -1015,7 +1016,7 @@ function runPackedCompletionJsonSmoke(
     !bashReport.success ||
     bashReport.shell !== "bash" ||
     typeof bashReport.script !== "string" ||
-    !bashReport.script.includes("complete -F _bpl_completion bpl") ||
+    !bashReport.script.includes("complete -o filenames -F _bpl_completion bpl") ||
     !bashReport.script.includes("completion_opts=\"bash zsh --json\"")
   ) {
     throw new Error(
@@ -5642,6 +5643,7 @@ function assertPackedFileAllowlist(
     "bpl",
     "bpl-wrapper.sh",
     "bpl-package.schema.json",
+    "bpl-format.schema.json",
     "cli/index.d.ts",
     "cli/index.js",
     "package.json",
