@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Use parsed nearby `.bpl`/`.x` exports for editor auto-import suggestions,
+  ignoring comment/string lookalikes and skipping malformed sibling modules.
 - Suppress the unsafe editor null-check action that replaced expressions with
   statement blocks and emitted invalid BPL comment syntax.
 - Limit `format-examples` to recursive `.bpl`/`.x` discovery under `examples`,
