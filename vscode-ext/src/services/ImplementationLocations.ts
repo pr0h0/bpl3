@@ -13,10 +13,13 @@ export function implementationLocations(
   const locations: Location[] = [];
   for (const document of documents) {
     try {
-      const program = resolver.parseDocumentContent(
-        fileURLToPath(document.uri),
-        document.getText(),
-      );
+      const filePath = fileURLToPath(document.uri);
+      const source = document.getText();
+      const cached = resolver.getCachedAST(filePath);
+      const program =
+        cached && resolver.getSource(filePath) === source
+          ? cached
+          : resolver.parseDocumentContent(filePath, source);
       if (!program || program.errors?.length) continue;
       for (const declaration of program.statements) {
         let parents: readonly TypeNode[];

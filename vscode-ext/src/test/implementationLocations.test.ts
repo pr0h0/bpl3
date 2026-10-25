@@ -1,10 +1,55 @@
 import { expect, test } from "bun:test";
 import { resolve } from "path";
-import { pathToFileURL } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { ASTResolver } from "../services/ASTResolver";
 import { SymbolIndex } from "../services/SymbolIndex";
 import { implementationLocations } from "../services/ImplementationLocations";
+
+class CountingResolver extends ASTResolver {
+  parses = 0;
+
+  override parseDocumentContent(filePath: string, content: string) {
+    this.parses++;
+    return super.parseDocumentContent(filePath, content);
+  }
+}
+
+test("implementation requests reuse only source-matching cached ASTs and preserve parse errors", () => {
+  const resolver = new CountingResolver(new SymbolIndex());
+  const uri = pathToFileURL(resolve("tmp/cached-implementation.x")).href;
+  const original = TextDocument.create(uri, "bpl", 1, "struct Child : Base {}");
+  expect(implementationLocations("Base", [original], resolver)).toHaveLength(1);
+  expect(resolver.parses).toBe(1);
+  const sameText = TextDocument.create(uri, "bpl", 2, original.getText());
+  expect(implementationLocations("Base", [sameText], resolver)).toHaveLength(1);
+  expect(resolver.parses).toBe(1);
+
+  const changed = TextDocument.create(
+    uri,
+    "bpl",
+    3,
+    "struct Child : Different {}",
+  );
+  expect(implementationLocations("Base", [changed], resolver)).toEqual([]);
+  expect(resolver.parses).toBe(2);
+  resolver.clearCache(fileURLToPath(uri));
+  expect(
+    implementationLocations("Different", [changed], resolver),
+  ).toHaveLength(1);
+  expect(resolver.parses).toBe(3);
+
+  const broken = TextDocument.create(
+    uri,
+    "bpl",
+    4,
+    "struct Child : Different {",
+  );
+  expect(implementationLocations("Different", [broken], resolver)).toEqual([]);
+  expect(resolver.parses).toBe(4);
+  expect(implementationLocations("Different", [broken], resolver)).toEqual([]);
+  expect(resolver.parses).toBe(4);
+});
 
 test("implementation navigation handles every parent, comments, generics, specs and enums", () => {
   const resolver = new ASTResolver(new SymbolIndex());

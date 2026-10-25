@@ -37,7 +37,6 @@ import { ASTDefinitionHandler } from "./services/ASTDefinitionHandler";
 import { ASTCompletionHandler } from "./services/ASTCompletionHandler";
 import { ASTRenameHandler } from "./services/ASTRenameHandler";
 import { unusedVariableEdit } from "./services/UnusedVariableCodeAction";
-import { implementationLocations } from "./services/ImplementationLocations";
 import { SelectionRangeProvider } from "./services/SelectionRangeProvider";
 import { DocumentHighlightProvider } from "./services/DocumentHighlightProvider";
 import { FoldingRangeProvider } from "./services/FoldingRangeProvider";
@@ -49,6 +48,7 @@ import {
 } from "./services/SemanticTokenProvider";
 import { CallHierarchyProvider } from "./services/CallHierarchyProvider";
 import { TypeHierarchyProvider } from "./services/TypeHierarchyProvider";
+import { implementationLocations } from "./services/ImplementationLocations";
 import { WorkspaceSymbolProvider } from "./services/WorkspaceSymbolProvider";
 import { CodeLensProvider } from "./services/CodeLensProvider";
 import { DocumentLinkProvider } from "./services/DocumentLinkProvider";
