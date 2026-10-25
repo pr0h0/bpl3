@@ -1,4 +1,13 @@
 import * as AST from "../common/AST";
+import { OPERATOR_METHOD_MAP } from "../middleend/OverloadResolver";
+const languageHooks = new Set([
+  ...Object.values(OPERATOR_METHOD_MAP),
+  "__init__",
+  "__destroy__",
+  "__get__",
+  "__set__",
+  "__call__",
+]);
 import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
 
 export interface LintRule {
@@ -337,7 +346,8 @@ export class Linter {
         }
         break;
       case "PatternEnumTuple":
-        for (const genericArg of (node as AST.PatternEnumTuple).genericArgs ?? []) {
+        for (const genericArg of (node as AST.PatternEnumTuple).genericArgs ??
+          []) {
           this.visit(genericArg, context);
         }
         for (const binding of (node as AST.PatternEnumTuple).bindings) {
@@ -345,7 +355,8 @@ export class Linter {
         }
         break;
       case "PatternEnumStruct":
-        for (const genericArg of (node as AST.PatternEnumStruct).genericArgs ?? []) {
+        for (const genericArg of (node as AST.PatternEnumStruct).genericArgs ??
+          []) {
           this.visit(genericArg, context);
         }
         for (const field of (node as AST.PatternEnumStruct).fields) {
@@ -420,7 +431,7 @@ class NamingConventionRule implements LintRule {
     } else if (node.kind === "FunctionDecl") {
       const decl = node as AST.FunctionDecl;
       // Skip main
-      if (decl.name === "main") return;
+      if (decl.name === "main" || languageHooks.has(decl.name)) return;
 
       if (!/^[a-z][a-zA-Z0-9]*$/.test(decl.name)) {
         context.report(

@@ -767,7 +767,7 @@ function runPackedHelpSmoke(installedBpl: string, installDir: string): void {
       label: "check packed npm CLI build help output",
       args: ["build", "--help"],
       snippets: [
-        "Usage: bpl build [options] <file>",
+        "Usage: bpl build [options] [file]",
         "--emit <type>",
         "--wasm-runtime <mode>",
         "--cache-stats",

@@ -118,6 +118,7 @@ describe("Playground frontend static assets", () => {
     expect(htmlAssets).toEqual([
       "app.js",
       "browserWasmRuntime.js",
+      "draftStore.js",
       "style.css",
       "tutorial.css",
       "tutorial.js",

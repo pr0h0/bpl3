@@ -41,6 +41,10 @@
       {
         "fileMatch": ".bplfmt.json",
         "url": "./bpl-format.schema.json"
+      },
+      {
+        "fileMatch": "bpl.json",
+        "url": "./bpl-package.schema.json"
       }
     ],
     "configurationDefaults": {

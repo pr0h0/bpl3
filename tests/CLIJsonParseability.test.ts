@@ -355,14 +355,16 @@ describe("CLI JSON parseability", () => {
         error: "Input path is a symbolic link",
         errorCode: "BPL_LINT_INPUT_SYMLINK",
       },
-      {
-        args: ["lint", "--json", sourceDir],
-        check: "lint",
-        file: sourceDir,
-        error: "Input path is not a file",
-        errorCode: "BPL_LINT_INPUT_NOT_FILE",
-      },
     ];
+
+    const emptyDirectory = expectJsonStdoutReport(runCli(["lint", "--json", sourceDir]), {
+      status: 1, check: "lint", success: false,
+    });
+    expect(emptyDirectory).toMatchObject({
+      totalFiles: 0, errorCount: 1, files: [],
+      error: "No BPL sources found in the supplied directories.",
+      errorCode: "BPL_LINT_NO_INPUTS",
+    });
 
     for (const testCase of cases) {
       const report = expectJsonStdoutReport<{

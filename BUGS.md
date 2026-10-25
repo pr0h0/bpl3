@@ -8563,7 +8563,57 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed native O3: six samples of 1.7976931348623157e308 and one of 1.7976931348623155e308 produce infinity. The exact positive harmonic mean must lie between those finite input values.
 - Fixed by tracking the largest sample and constraining the final scaled product to the valid input interval. Existing scaled accumulation, nonfinite and input-order validation conventions are preserved. Three native cases and two hosted Wasm cases fail on the geometric-corrected parent; separate controls cover input order, infinities, identical values and mixed scales.
 
+
+## QoL: stale completion options and language-hook lint warnings
+
+Confirmed formatter/configuration flags were absent from shell completion and
+L001 warned on valid operator names. Both shipped/embedded shell scripts now
+share generated content with parity coverage. Naming lint accepts defined hooks;
+warning failure remains default with an explicit opt-out.
+
+## QoL: editor document and filesystem lifecycle
+
+Source review confirmed filesystem notifications did not invalidate imports,
+Run did not save dirty documents, diagnostics lacked debounce/stale-result
+protection, and formatting failures appeared only in logs. Filesystem batches now
+invalidate caches and revalidate live buffers; Run awaits save, validation cancels
+obsolete work, close clears state, and formatting failures notify once.
+
+## QoL: documentation output silently replaces existing files
+
+An isolated CLI reproduction overwrote handwritten docs.md and emitted an
+absolute machine path. Existing output now requires --force and module labels
+are relative to the input directory. Public-only output is an explicit option.
+
+## QoL: playground example switching discards edited code
+
+Example selection replaced the editor without preserving draft source/input/args.
+Versioned local drafts restore on reload, edited example switches confirm, reset
+clears stored drafts, and denied storage leaves editing usable with a warning.
+
+## QoL review: argument boundaries, public globals, completions and draft state
+
+PR review confirmed that project Run could reinterpret a pre-delimiter explicit
+file as a program argument, public-only docs omitted exported destructured globals,
+and Bash completion excluded directory inputs and docs paths. Prefix option parsing
+now distinguishes operands from option values, export filtering follows individual
+global bindings, and completion retains valid source paths and directories.
+
+Untouched playground examples were restored as edited drafts, and a failed saved
+draft removal falsely reported success. Drafts now retain edited state and failed
+removal leaves an unpersisted change with a warning. Focused CLI/docs/completion
+and real Chromium draft/reset regressions cover these corrected behaviors.
+
 ## Algorithm.average overflows before dividing finite float samples
 
 - Confirmed native O3 on staging c70be811: an Array<float> containing [1e308, 1e308] averages to infinity instead of 1e308. The wrapper still forms an ordinary sum before division and also loses small terms between cancelling large values.
 - Fixed with compensated/scaled getter-based accumulation, retaining logical inherited getters without a temporary array. Eleven native and two hosted Wasm cases pass at O0/O3; five native and two hosted cases fail on the original parent. Integer/empty/nonfinite behavior and input contents remain covered. Existing browser imports suffice.
+
+
+## Bash completion inserts paths with spaces as multiple arguments
+
+An interactive Bash reproduction confirmed that a single `src folder` COMPREPLY
+entry was inserted as unquoted text and became two shell arguments. Registration
+now enables `-o filenames`, letting readline quote filename matches and retain
+directory slashes. The shipped and embedded scripts are regenerated together;
+registration coverage supplements path-candidate tests and interactive verification.

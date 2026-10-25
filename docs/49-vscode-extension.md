@@ -343,3 +343,14 @@ precedence, so explicit `false` disables automatic formatting and explicit
 
 The BPL save hook skips delayed autosaves (`files.autoSave: "afterDelay"`),
 matching native save formatting. Manual and focus-change saves remain eligible.
+
+## Workflow feedback
+
+Run saves the selected file before launching a shell-quoted VS Code task. A
+cancelled or failed save does not launch the previous disk version. Untitled
+buffers must first be saved. Filesystem changes to sources/manifests refresh
+import state and revalidate open documents; diagnostics are debounced and stale
+results are discarded. Closing a document clears its diagnostics and analysis.
+Formatting failures show the source/configuration problem once until it changes
+or formatting succeeds. Both manifest and formatter schemas are bundled for
+local editor validation, including existing manifests without `$schema`.

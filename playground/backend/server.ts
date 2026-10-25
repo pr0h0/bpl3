@@ -359,6 +359,15 @@ const server = Bun.serve({
       });
     }
 
+    if (url.pathname === "/draftStore.js") {
+      return new Response(
+        readStaticTextFile(path.join(__dirname, "../frontend/draftStore.js")),
+        {
+          headers: { ...headers, "Content-Type": "application/javascript" },
+        },
+      );
+    }
+
     if (url.pathname === "/app.js") {
       const js = readStaticTextFile(path.join(__dirname, "../frontend/app.js"));
       return new Response(js, {

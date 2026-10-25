@@ -41,8 +41,12 @@ const editor = {
   },
 };
 mock.module("vscode", () => ({
-  window: {},
+  window: { showErrorMessage: async () => {}, showWarningMessage: async () => {} },
+  tasks: { executeTask: async () => {} },
+  Task: class {}, TaskScope: { Global: 1 }, ShellExecution: class {},
+  ShellQuoting: { Strong: 1 }, Uri: {},
   workspace: {
+    onDidCloseTextDocument: () => ({ dispose() {} }),
     createFileSystemWatcher: () => ({ dispose() {} }),
     getConfiguration: (section: string) =>
       section === "editor"

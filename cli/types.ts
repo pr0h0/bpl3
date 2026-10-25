@@ -7,6 +7,7 @@
  * Options passed from CLI to compilation commands
  */
 export interface CompileOptions {
+  project?: boolean;
   output?: string;
   shared?: boolean;
   header?: string;
@@ -48,6 +49,7 @@ export interface CompileOptions {
  * Options for format command
  */
 export interface FormatOptions {
+  stdinFilepath?: string;
   config?: string | boolean;
   indentWidth?: string;
   useTabs?: boolean;
@@ -62,6 +64,8 @@ export interface FormatOptions {
  * Options for lint command
  */
 export interface LintOptions {
+  stdinFilepath?: string;
+  failOnWarnings?: boolean;
   verbose?: boolean;
   json?: boolean;
 }
