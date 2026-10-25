@@ -53,6 +53,17 @@ Resolved findings:
   only the `examples` directory to the CLI's recursive source discovery, which
   respects `.bplignore` and skips dependency, hidden, and symlinked entries.
 
+## Symbol typo quick fixes (2026-10-25)
+
+- **Fixed:** The editor's raw-word typo scan suggested names from comments,
+  strings, and unrelated local scopes instead of following the compiler's
+  existing scope-aware `Did you mean` hint. Live reproduction offered
+  `calcuateSun` from a comment and `calcuateSut` from another function as fixes
+  for `calcuateSum`. Actions now use only the compiler hint and require the
+  diagnostic range to still contain exactly the missing identifier. The
+  duplicate full-document Levenshtein scan is removed. Live tests apply the
+  correction and verify diagnostics clear; missing hints produce no typo edit.
+
 ## Summary
 
 | ID      | Category            | Description                                                                                                                | Status   | Notes                                                                                                                                                                                                                                                                                    |

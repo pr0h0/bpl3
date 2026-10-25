@@ -37,6 +37,7 @@ import { ASTDefinitionHandler } from "./services/ASTDefinitionHandler";
 import { ASTCompletionHandler } from "./services/ASTCompletionHandler";
 import { ASTRenameHandler } from "./services/ASTRenameHandler";
 import { unusedVariableEdit } from "./services/UnusedVariableCodeAction";
+import { compilerTypoEdit } from "./services/CompilerTypoCodeAction";
 
 import {
   nearbyImportCodeActions,
@@ -907,7 +908,6 @@ connection.onCodeAction((params) => {
   const document = documents.get(params.textDocument.uri);
   if (!document) return [];
 
-  const text = document.getText();
   const parsedNearbyModules: NearbyImportCache = new Map();
 
   for (const diagnostic of params.context.diagnostics) {
@@ -965,20 +965,13 @@ connection.onCodeAction((params) => {
 
       if (!symbolName) continue;
 
-      // Check if it's a common typo or similar name
-      const similarSymbols = findSimilarSymbols(symbolName, text);
-      for (const similar of similarSymbols) {
+      const typoEdit = compilerTypoEdit(document, diagnostic);
+      if (typoEdit) {
         actions.push({
-          title: `Change to '${similar}'`,
+          title: `Change to '${typoEdit.newText}'`,
           kind: CodeActionKind.QuickFix,
           diagnostics: [diagnostic],
-          edit: {
-            changes: {
-              [params.textDocument.uri]: [
-                TextEdit.replace(diagnostic.range, similar),
-              ],
-            },
-          },
+          edit: { changes: { [document.uri]: [typoEdit] } },
         });
       }
 
@@ -1070,63 +1063,6 @@ connection.onCodeAction((params) => {
   }
   return actions;
 });
-
-/**
- * Find similar symbol names using Levenshtein distance
- */
-function findSimilarSymbols(target: string, text: string): string[] {
-  const symbols = new Set<string>();
-  const symbolRegex = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g;
-  let match;
-
-  while ((match = symbolRegex.exec(text)) !== null) {
-    symbols.add(match[0]);
-  }
-
-  const similar: Array<{ name: string; distance: number }> = [];
-  for (const symbol of symbols) {
-    if (symbol === target) continue;
-    const distance = levenshteinDistance(target, symbol);
-    if (distance <= 2 && distance > 0) {
-      // Max 2 character difference
-      similar.push({ name: symbol, distance });
-    }
-  }
-
-  // Sort by distance and return top 3
-  similar.sort((a, b) => a.distance - b.distance);
-  return similar.slice(0, 3).map((s) => s.name);
-}
-
-/**
- * Calculate Levenshtein distance between two strings
- */
-function levenshteinDistance(a: string, b: string): number {
-  const matrix: number[][] = [];
-
-  for (let i = 0; i <= b.length; i++) {
-    matrix[i] = [i];
-  }
-
-  for (let j = 0; j <= a.length; j++) {
-    matrix[0]![j] = j;
-  }
-
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i]![j] = matrix[i - 1]![j - 1]!;
-      } else {
-        const substitution = matrix[i - 1]![j - 1]! + 1;
-        const insertion = matrix[i]![j - 1]! + 1;
-        const deletion = matrix[i - 1]![j]! + 1;
-        matrix[i]![j] = Math.min(substitution, insertion, deletion);
-      }
-    }
-  }
-
-  return matrix[b.length]![a.length]!;
-}
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events
