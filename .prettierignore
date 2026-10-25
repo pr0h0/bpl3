@@ -1,0 +1,3 @@
+
+# Exact generated shell literals; regenerate with scripts/generate_completions.ts.
+cli/completions/scripts.generated.ts

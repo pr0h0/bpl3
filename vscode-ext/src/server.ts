@@ -1,4 +1,6 @@
 import * as fs from "fs";
+import { ValidationScheduler } from "./ValidationScheduler";
+import { FormattingFailures } from "./FormattingFailures";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -67,6 +69,8 @@ const diagnosticsProvider = new DiagnosticsProvider(
 
 // AST-based resolver (uses compiler's parser)
 const astResolver = new ASTResolver(symbolIndex);
+const validationScheduler = new ValidationScheduler();
+const formattingFailures = new FormattingFailures();
 
 // AST-based hover handler
 const astHoverHandler = new ASTHoverHandler(astResolver, symbolIndex);
@@ -328,6 +332,11 @@ function getDocumentSettings(resource: string): Promise<ExampleSettings> {
 // Only keep settings for open documents
 documents.onDidClose((e) => {
   documentSettings.delete(e.document.uri);
+  validationScheduler.cancel(e.document.uri);
+  formattingFailures.clear(e.document.uri);
+  documentAnalysis.delete(e.document.uri);
+  astResolver.clearCache(fileURLToPath(e.document.uri));
+  connection.sendDiagnostics({ uri: e.document.uri, diagnostics: [] });
 });
 
 // The content of a text document has changed. This event is emitted
@@ -533,16 +542,28 @@ function _shouldSuppressImportError(
   return false;
 }
 
-async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-  const settings = await getDocumentSettings(textDocument.uri);
-  const result = diagnosticsProvider.analyze(textDocument, settings);
-  if (result.analysis) {
-    documentAnalysis.set(textDocument.uri, result.analysis);
-  }
-  connection.sendDiagnostics({
-    uri: textDocument.uri,
-    diagnostics: result.diagnostics,
-  });
+function validateTextDocument(textDocument: TextDocument): Promise<void> {
+  const uri = textDocument.uri;
+  const version = textDocument.version;
+  validationScheduler.schedule(
+    uri,
+    async (isCurrent) => {
+      const settings = await getDocumentSettings(uri);
+      if (!isCurrent() || documents.get(uri)?.version !== version) return;
+      const result = diagnosticsProvider.analyze(textDocument, settings);
+      if (!isCurrent() || documents.get(uri)?.version !== version) return;
+      astResolver.parseDocumentContent(
+        fileURLToPath(uri),
+        textDocument.getText(),
+      );
+      if (result.analysis) documentAnalysis.set(uri, result.analysis);
+      else documentAnalysis.delete(uri);
+      connection.sendDiagnostics({ uri, diagnostics: result.diagnostics });
+    },
+    (error) =>
+      connection.console.error(`BPL validation failed: ${String(error)}`),
+  );
+  return Promise.resolve();
 }
 
 // Formatting: full document only; no on-type formatting
@@ -552,6 +573,7 @@ connection.onDocumentFormatting(async (params) => {
   const text = doc.getText();
   try {
     const formatted = formatDocumentText(text, doc.uri, params.options);
+    formattingFailures.clear(doc.uri);
     const fullRange = Range.create(0, 0, doc.lineCount, 0);
     return [
       {
@@ -561,14 +583,31 @@ connection.onDocumentFormatting(async (params) => {
     ];
   } catch (e: any) {
     // If formatting fails, return no edits
-    connection.console.error(`Formatting failed: ${e?.message || e}`);
+    formattingFailures.report(doc.uri, e, (message) => {
+      void connection.window.showErrorMessage(message);
+    });
     return [];
   }
 });
 
-connection.onDidChangeWatchedFiles((_change) => {
-  // Monitored files have change in VSCode
-  debugLog("We received an file change event");
+let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+connection.onDidChangeWatchedFiles(() => {
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => {
+    // Resolution has no reverse-dependency graph: invalidate once per filesystem
+    // batch, never on each keystroke. Reparse live buffers after disk invalidation.
+    symbolIndex.getResolver().clearCache();
+    symbolIndex.clear();
+    astResolver.clearCache();
+    documentAnalysis.clear();
+    for (const document of documents.all()) {
+      astResolver.parseDocumentContent(
+        fileURLToPath(document.uri),
+        document.getText(),
+      );
+      void validateTextDocument(document);
+    }
+  }, 150);
 });
 
 // This handler provides the initial list of the completion items.

@@ -1,6 +1,50 @@
 // Initialize Monaco Editor
 let editor;
 let currentExample = null;
+let draftReady = false;
+let draftChanged = false;
+let draftPersisted = false;
+let restoredDraft = false;
+let draftStorageWarning = false;
+/** Persist editor inputs while distinguishing edits from untouched examples. */
+function persistDraft(edited = true) {
+  if (!draftReady || !editor) return;
+  draftChanged = edited !== false;
+  try {
+    draftPersisted = globalThis.BplDraftStore.save(window.localStorage, {
+      edited: draftChanged,
+      code: editor.getValue(),
+      stdin: document.getElementById("stdin-input").value,
+      args: document.getElementById("args-input").value,
+    });
+  } catch {
+    draftPersisted = false;
+  }
+  if (!draftPersisted && !draftStorageWarning) {
+    draftStorageWarning = true;
+    showToast(
+      "Draft storage is unavailable. Copy your code before leaving.",
+      "warning",
+    );
+  }
+}
+/** Restore a validated local draft without marking a clean example as edited. */
+function restoreDraft() {
+  let draft;
+  try {
+    draft = globalThis.BplDraftStore.load(window.localStorage);
+  } catch {
+    /* private storage */
+  }
+  if (!draft) return false;
+  editor.setValue(draft.code);
+  document.getElementById("stdin-input").value = draft.stdin;
+  document.getElementById("args-input").value = draft.args;
+  draftChanged = draft.edited !== false;
+  draftPersisted = true;
+  showToast("Restored your local draft", "info");
+  return true;
+}
 let allExamples = []; // Store all examples for searching
 let latestCompileRequest = null;
 let compileArtifactsLoaded = false;
@@ -224,6 +268,7 @@ require(["vs/editor/editor.main"], function () {
   // Update editor info on content change
   editor.onDidChangeModelContent(() => {
     updateEditorInfo();
+    persistDraft();
     latestCompileRequest = null;
     compileArtifactsLoaded = false;
     compileArtifactsPromise = null;
@@ -244,8 +289,7 @@ require(["vs/editor/editor.main"], function () {
     },
   );
 
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, (e) => {
-    e.preventDefault();
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
     document.getElementById("format-btn").click();
   });
 
@@ -262,7 +306,18 @@ require(["vs/editor/editor.main"], function () {
   setupFullscreen();
   updateEditorInfo();
 
-  // Load examples
+  restoredDraft = restoreDraft();
+  draftReady = true;
+  for (const id of ["stdin-input", "args-input"]) {
+    document.getElementById(id).addEventListener("input", persistDraft);
+  }
+  window.addEventListener("beforeunload", (event) => {
+    if (draftChanged && !draftPersisted) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  });
+  // Load examples without replacing a restored draft.
   loadExamples();
 
   // Start stats polling
@@ -789,7 +844,7 @@ async function loadExamples() {
 
     // Load first example by default
     if (examples.length > 0) {
-      loadExample(examples[0], listEl.firstChild);
+      if (!restoredDraft) loadExample(examples[0], listEl.firstChild);
     }
   } catch (error) {
     console.error("Failed to load examples:", error);
@@ -802,6 +857,14 @@ async function loadExamples() {
 }
 
 function loadExample(example, itemEl) {
+  if (
+    draftChanged &&
+    !confirm(
+      "Replace your edited draft with this example? Copy any code you want to keep first.",
+    )
+  )
+    return;
+  draftReady = false;
   currentExample = example;
 
   // Update active state
@@ -826,6 +889,9 @@ function loadExample(example, itemEl) {
   document.getElementById("args-input").value = example.args
     ? example.args.join(" ")
     : "";
+
+  draftReady = true;
+  persistDraft(false);
 
   // Clear output tabs
   document.getElementById("output-content").textContent =
@@ -902,8 +968,23 @@ function setupQuickActions() {
   // Clear editor
   document.getElementById("clear-editor-btn").addEventListener("click", () => {
     if (confirm("Clear the editor? This will remove all your code.")) {
+      draftReady = false;
       editor.setValue("");
-      showToast("Editor cleared", "info");
+      document.getElementById("stdin-input").value = "";
+      document.getElementById("args-input").value = "";
+      try {
+        draftPersisted = globalThis.BplDraftStore.clear(window.localStorage);
+      } catch {
+        draftPersisted = false;
+      }
+      draftChanged = !draftPersisted;
+      draftReady = true;
+      if (draftPersisted) showToast("Editor and saved draft cleared", "info");
+      else
+        showToast(
+          "Editor cleared, but the saved draft could not be removed and may return on reload.",
+          "warning",
+        );
     }
   });
 

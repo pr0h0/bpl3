@@ -186,7 +186,7 @@ describe("CLI Tests", () => {
       {
         args: ["build", "--help"],
         snippets: [
-          "Usage: bpl build [options] <file>",
+          "Usage: bpl build [options] [file]",
           "--emit <type>",
           "--wasm-runtime <mode>",
           "--debug-ir-path <file>",
@@ -197,7 +197,7 @@ describe("CLI Tests", () => {
       {
         args: ["run", "--help"],
         snippets: [
-          "Usage: bpl run [options] <file> [args...]",
+          "Usage: bpl run [options] [file] [args...]",
           "--debug-ir-path <file>",
         ],
       },
@@ -1784,7 +1784,7 @@ describe("CLI Tests", () => {
     }
   });
 
-  it("should reject directories in source analysis commands", () => {
+  it("should reject check directories and report empty format/lint discovery", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "bpl-analysis-dir-"),
     );
@@ -1812,25 +1812,11 @@ describe("CLI Tests", () => {
 
       const lint = runCLI(["lint", "--json", sourceDir]);
       expect(lint.status).toBe(1);
-      expect(
-        parseJsonObjectStdout<{
-          files: Array<{
-            file: string;
-            success: boolean;
-            error: string;
-            errorCode: string;
-          }>;
-        }>(lint).files[0],
-      ).toEqual({
-        file: sourceDir,
-        success: false,
-        error: "Input path is not a file",
-        errorCode: "BPL_LINT_INPUT_NOT_FILE",
-      });
-
+      expect(JSON.parse(lint.stdout).errorCode).toBe("BPL_LINT_NO_INPUTS");
+      expect(JSON.parse(lint.stdout).error).toContain("No BPL sources");
       const format = runCLI(["format", sourceDir]);
       expect(format.status).toBe(1);
-      expect(format.stderr).toContain("Input path is not a file");
+      expect(format.stderr).toContain("No BPL sources");
       expect(format.stderr).not.toContain("EISDIR");
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });

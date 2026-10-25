@@ -10,13 +10,23 @@ export class DocumentationGenerator {
   private visitedFiles = new Set<string>();
   private output: string[] = [];
 
-  public generate(filePath: string): string {
+  private root = "";
+  private publicOnly = false;
+
+  /** Render the input and relative imports with portable labels and optional export filtering. */
+  public generate(
+    filePath: string,
+    options: { publicOnly?: boolean } = {},
+  ): string {
+    this.root = path.dirname(path.resolve(filePath));
+    this.publicOnly = options.publicOnly ?? false;
     this.visitedFiles = new Set<string>();
     this.output = [];
     this.processFile(path.resolve(filePath));
     return this.output.join("\n");
   }
 
+  /** Visit a module once, then render its selected top-level declarations. */
   private processFile(filePath: string) {
     const resolvedFilePath = this.resolveDocumentationFilePath(filePath);
     if (this.visitedFiles.has(resolvedFilePath)) return;
@@ -46,7 +56,9 @@ export class DocumentationGenerator {
     // Pass 2: Generate documentation for this module
     const fileName = path.basename(resolvedFilePath);
     this.output.push(`# Module: ${fileName}`);
-    this.output.push(`*File: ${resolvedFilePath}*\n`);
+    this.output.push(
+      `*File: ${path.relative(this.root, resolvedFilePath).split(path.sep).join("/")}*\n`,
+    );
 
     // Group declarations
     const globals: AST.VariableDecl[] = [];
@@ -56,7 +68,18 @@ export class DocumentationGenerator {
     const specs: AST.SpecDecl[] = [];
     const functions: AST.FunctionDecl[] = [];
 
+    const exportedNames = new Set(
+      ast.statements.flatMap((stmt) =>
+        stmt.kind === "Export" ? stmt.items.map((item) => item.name) : [],
+      ),
+    );
     for (const stmt of ast.statements) {
+      let names: string[] = [];
+      if (stmt.kind === "VariableDecl") names = this.globalBindingNames(stmt);
+      else if ("name" in stmt && typeof stmt.name === "string")
+        names = [stmt.name];
+      if (this.publicOnly && !names.some((name) => exportedNames.has(name)))
+        continue;
       if (stmt.kind === "VariableDecl" && (stmt as AST.VariableDecl).isGlobal) {
         globals.push(stmt as AST.VariableDecl);
       } else if (stmt.kind === "TypeAlias") {
@@ -76,7 +99,10 @@ export class DocumentationGenerator {
     if (globals.length > 0) {
       this.output.push("## Global Variables");
       for (const global of globals) {
-        this.documentGlobal(global);
+        this.documentGlobal(
+          global,
+          this.publicOnly ? exportedNames : undefined,
+        );
       }
       this.output.push("");
     }
@@ -157,13 +183,24 @@ export class DocumentationGenerator {
     throw new Error(`Documentation input not found: ${filePath}`);
   }
 
-  private documentGlobal(global: AST.VariableDecl) {
-    let name = "";
-    if (typeof global.name === "string") {
-      name = global.name;
-    } else {
-      name = global.name.map((n) => n.name).join(", ");
-    }
+  /** Flatten nested destructuring so export selection follows individual bindings. */
+  private globalBindingNames(global: AST.VariableDecl): string[] {
+    if (typeof global.name === "string") return [global.name];
+    const flatten = (targets: AST.DestructuringPattern[]): string[] =>
+      targets.flatMap((target) =>
+        Array.isArray(target) ? flatten(target) : [target.name],
+      );
+    return flatten(global.name);
+  }
+
+  /** Render only the selected global bindings while retaining declaration documentation. */
+  private documentGlobal(
+    global: AST.VariableDecl,
+    exportedNames?: ReadonlySet<string>,
+  ) {
+    const name = this.globalBindingNames(global)
+      .filter((binding) => !exportedNames || exportedNames.has(binding))
+      .join(", ");
 
     const typeStr = global.typeAnnotation
       ? TypeUtils.typeToString(global.typeAnnotation)

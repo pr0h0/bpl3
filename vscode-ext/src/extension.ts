@@ -7,7 +7,12 @@ import {
   Range,
   TextEdit,
   TextDocumentSaveReason,
-  type Terminal,
+  tasks,
+  Task,
+  TaskScope,
+  ShellExecution,
+  ShellQuoting,
+  Uri,
   type ExtensionContext,
   type TextEdit as TextEditType,
 } from "vscode";
@@ -18,10 +23,12 @@ import {
   type ServerOptions,
 } from "vscode-languageclient/node";
 
+import { FormattingFailures } from "./FormattingFailures";
+import { saveAndRunDocument } from "./RunDocument";
 import { shouldUseBplSaveFormatting } from "./FormatOnSave";
 
 let client: LanguageClient;
-let terminal: Terminal | undefined;
+const formattingFailures = new FormattingFailures();
 
 export async function activate(context: ExtensionContext) {
   // The server is implemented in node
@@ -45,7 +52,7 @@ export async function activate(context: ExtensionContext) {
     documentSelector: [{ scheme: "file", language: "bpl" }],
     synchronize: {
       // Notify the server about file changes to '.clientrc files contained in the workspace
-      fileEvents: workspace.createFileSystemWatcher("**/.clientrc"),
+      fileEvents: workspace.createFileSystemWatcher("**/*.{bpl,x,json}"),
     },
   };
 
@@ -62,21 +69,44 @@ export async function activate(context: ExtensionContext) {
 
   // Register Run Command
   context.subscriptions.push(
-    commands.registerCommand("bpl.runFile", (uri: string) => {
-      if (!terminal) {
-        terminal = window.createTerminal("BPL Run");
-      }
-      terminal.show();
-      // If uri is passed as string (from CodeLens), use it. Otherwise use active editor.
-      let filePath = uri;
-      if (!filePath && window.activeTextEditor) {
-        filePath = window.activeTextEditor.document.uri.fsPath;
-      }
-      if (filePath) {
-        // Quote path to handle spaces
-        terminal.sendText(`bpl run "${filePath}"`);
-      } else {
-        window.showErrorMessage("No file to run.");
+    commands.registerCommand("bpl.runFile", async (target?: string | Uri) => {
+      try {
+        let uri = typeof target === "string" ? Uri.file(target) : target;
+        if (typeof target === "string" && target.startsWith("file:"))
+          uri = Uri.parse(target);
+        uri ||= window.activeTextEditor?.document.uri;
+        if (!uri || uri.scheme !== "file") {
+          void window.showErrorMessage("Save the BPL file before running it.");
+          return;
+        }
+        const fileUri = uri;
+        const document = await workspace.openTextDocument(fileUri);
+        const launched = await saveAndRunDocument(document, () =>
+          tasks.executeTask(
+            new Task(
+              { type: "bpl", file: fileUri.fsPath },
+              workspace.getWorkspaceFolder(fileUri) || TaskScope.Global,
+              "Run BPL file",
+              "BPL",
+              new ShellExecution(
+                "bpl",
+                [
+                  "run",
+                  { value: fileUri.fsPath, quoting: ShellQuoting.Strong },
+                ],
+                { cwd: path.dirname(fileUri.fsPath) },
+              ),
+            ),
+          ),
+        );
+        if (!launched)
+          void window.showWarningMessage(
+            "BPL Run cancelled because the file was not saved.",
+          );
+      } catch (error) {
+        void window.showErrorMessage(
+          `BPL Run failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
   );
@@ -96,6 +126,7 @@ export async function activate(context: ExtensionContext) {
               document.uri.toString(),
               options,
             );
+            formattingFailures.clear(document.uri.toString());
             return [
               TextEdit.replace(
                 new Range(
@@ -106,11 +137,20 @@ export async function activate(context: ExtensionContext) {
               ),
             ];
           } catch (error) {
-            console.error("BPL formatting failed:", error);
+            formattingFailures.report(
+              document.uri.toString(),
+              error,
+              (message) => {
+                void window.showErrorMessage(message);
+              },
+            );
             return [];
           }
         },
       },
+    ),
+    workspace.onDidCloseTextDocument((document) =>
+      formattingFailures.clear(document.uri.toString()),
     ),
     workspace.onWillSaveTextDocument((event) => {
       if (event.reason === TextDocumentSaveReason.AfterDelay) return;
@@ -134,7 +174,13 @@ export async function activate(context: ExtensionContext) {
           .then(
             (edits) => edits ?? [],
             (error) => {
-              console.error("BPL format-on-save failed:", error);
+              formattingFailures.report(
+                document.uri.toString(),
+                error,
+                (message) => {
+                  void window.showErrorMessage(message);
+                },
+              );
               return [];
             },
           ),

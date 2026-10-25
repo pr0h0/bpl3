@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BPL Package Manifest",
+  "type": "object",
+  "required": ["name", "version"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URI for editor validation"
+    },
+    "name": {
+      "type": "string",
+      "description": "Package name (lowercase, hyphens allowed)",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version (e.g., 1.0.0)",
+      "pattern": "^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Short description of the package"
+    },
+    "author": {
+      "type": "string",
+      "description": "Package author name"
+    },
+    "license": {
+      "type": "string",
+      "description": "License identifier (e.g., MIT, Apache-2.0)"
+    },
+    "main": {
+      "type": "string",
+      "description": "Entry point file (e.g., lib/index.bpl)",
+      "default": "index.bpl",
+      "pattern": "^(?![/\\\\])(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])(?:\\.|\\.\\.)(?:[\\\\/]|$))(?!.*[\\\\/]{2}).+$"
+    },
+    "entry": {
+      "type": "string",
+      "description": "Entry point file alias (e.g., lib/index.bpl)",
+      "pattern": "^(?![/\\\\])(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])(?:\\.|\\.\\.)(?:[\\\\/]|$))(?!.*[\\\\/]{2}).+$"
+    },
+    "bin": {
+      "type": "object",
+      "description": "Executable files to link into bpl_modules/.bin",
+      "propertyNames": {
+        "pattern": "^(?!\\.\\.?$)[^/\\\\]+$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(?![/\\\\])(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])(?:\\.|\\.\\.)(?:[\\\\/]|$))(?!.*[\\\\/]{2}).+$"
+      }
+    },
+    "exports": {
+      "type": "array",
+      "description": "Public API exports",
+      "items": {
+        "type": "string",
+        "pattern": "^(?![/\\\\])(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])(?:\\.|\\.\\.)(?:[\\\\/]|$))(?!.*[\\\\/]{2}).+$"
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Runtime dependencies",
+      "propertyNames": {
+        "pattern": "^[a-z0-9-]+$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(?:(?:file:)?(?:(?:.+\\.tgz)|(?:\\.{1,2}(?:[\\\\/].*)?)|(?:[/\\\\].*)|(?:[A-Za-z]:[\\\\/].*)|(?:.*[\\\\/].*))|(?:\\*|latest|[a-z0-9-]+|(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)|[~^](?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)|(?:>=|>|<=|<|=)(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)|(?:>=|>|<=|<|=)?(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:\\s+(?:>=|>|<=|<|=)?(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*))+))$"
+      }
+    },
+    "devDependencies": {
+      "type": "object",
+      "description": "Development dependencies",
+      "propertyNames": {
+        "pattern": "^[a-z0-9-]+$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(?:(?:file:)?(?:(?:.+\\.tgz)|(?:\\.{1,2}(?:[\\\\/].*)?)|(?:[/\\\\].*)|(?:[A-Za-z]:[\\\\/].*)|(?:.*[\\\\/].*))|(?:\\*|latest|[a-z0-9-]+|(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)|[~^](?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)|(?:>=|>|<=|<|=)(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)|(?:>=|>|<=|<|=)?(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:\\s+(?:>=|>|<=|<|=)?(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*))+))$"
+      }
+    },
+    "scripts": {
+      "type": "object",
+      "description": "Script commands to be executed by 'bpl run-script'",
+      "propertyNames": {
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "\\S"
+      }
+    },
+    "repository": {
+      "type": "object",
+      "required": ["type", "url"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["git"]
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
