@@ -13,7 +13,7 @@ import { tmpdir } from "os";
  * 4. Missing return → Requires a user-chosen return value
  * 5. Unused variables → Prefix with underscore
  * 6. Missing semicolons → Add semicolon
- * 7. Null safety → Add null checks
+ * 7. Null guards require context and a user-selected fallback
  */
 
 const TEST_DIR = join(tmpdir(), "bpl-code-actions-test");
@@ -245,45 +245,6 @@ frame main() ret int {
       console.log("  - Error: Expected ';'");
       console.log("  - Suggested fix: Add semicolon");
       console.log("  - Appends ';' at end of line");
-    });
-  });
-
-  describe("Null Safety", () => {
-    it("creates test for null pointer dereference", () => {
-      const testFile = join(TEST_DIR, "ca_null_check.bpl");
-      const code = `
-frame processPointer(ptr: *int) ret int {
-    return *ptr;  # ERROR: 'ptr' may be null
-    # QUICK FIX: Add null check
-    # Result: Wraps in if (ptr != nullptr) { ... }
-}
-`;
-      fs.writeFileSync(testFile, code);
-      expect(fs.existsSync(testFile)).toBe(true);
-
-      console.log("✓ Code Action: Null pointer check");
-      console.log("  - Error: 'ptr' may be null");
-      console.log("  - Suggested fix: Add null check");
-      console.log("  - Wraps in if (ptr != nullptr) { ... }");
-    });
-
-    it("creates test for optional type access", () => {
-      const testFile = join(TEST_DIR, "ca_optional_access.bpl");
-      const code = `
-import [Option] from "std";
-
-frame getValue(opt: Option<int>) ret int {
-    return opt;  # ERROR: Cannot use Option<int> as int (possibly null)
-    # QUICK FIX: Add null check or unwrap
-    return 0;
-}
-`;
-      fs.writeFileSync(testFile, code);
-      expect(fs.existsSync(testFile)).toBe(true);
-
-      console.log("✓ Code Action: Optional type safety");
-      console.log("  - Error: Option<int> used as int");
-      console.log("  - Suggested fix: Add null check or use .unwrap()");
     });
   });
 

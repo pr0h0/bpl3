@@ -31,20 +31,16 @@ Resolved findings:
   staging already repairs that helper; recheck it after rebasing. The original
   stopped full-suite run is not evidence of current staging health.
 
-## Additional quick-win candidates (2026-10-25)
+## Editor and example-formatting fixes (2026-10-25)
 
-Source-reviewed follow-ups, not implemented in the development-tooling PR:
-
-- The editor's "Add null check" action still emits a non-BPL `// TODO` comment
-  and replaces the selected expression with a statement block. It should offer
-  an edit only when it can preserve the enclosing statement and use BPL syntax
-  (`vscode-ext/src/server.ts`).
-- `format-examples` uses the repository-wide `**/**/*.bpl` shell glob, which
-  includes standard-library, package, benchmark, documentation-generated, and
-  temporary sources rather than just examples. It omits `.x` sources. The
-  formatter already supports recursive directory inputs with dependency/hidden
-  exclusions, so an explicit `examples` directory is a smaller, predictable
-  scope (`package.json`, `cli/SourceInputs.ts`).
+- **Fixed:** The editor's "Add null check" action emitted a non-BPL `//` comment
+  and replaced an expression with a statement block. Suppress that action until
+  pointer/statement context and a user-selected fallback can be preserved.
+  Live LSP coverage checks both null-diagnostic spellings and other quick fixes.
+- **Fixed:** `format-examples` expanded a repository-wide `.bpl` shell glob,
+  touching library/package/temp sources and missing `.x` files. It now passes
+  only the `examples` directory to the CLI's recursive source discovery, which
+  respects `.bplignore` and skips dependency, hidden, and symlinked entries.
 
 ## Summary
 
