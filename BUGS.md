@@ -8695,3 +8695,13 @@ registration coverage supplements path-candidate tests and interactive verificat
   optional for --project. The root build JSON no-input path remained correct.
 - Reused the existing BPL_BUILD_NO_INPUTS report before resolving project entries
   when neither a file nor --project is supplied; the source CLI regression passes.
+
+## Unused-variable quick fix (2026-10-25)
+
+- **Fixed:** Compiler diagnostics start with `Unused variable`, but the editor
+  searched case-sensitively for `unused`, so the real diagnostic had no action.
+  The old fallback also replaced the declaration's entire diagnostic range,
+  dropping its type and initializer. The action now recognizes the diagnostic
+  and lexes the source span to edit only the matching declared identifier.
+  Stale/non-identifier spans are rejected. Tests apply edits from real compiler
+  diagnostics, preserve comments/types/initializers, and revalidate the result.
