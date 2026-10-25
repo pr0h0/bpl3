@@ -8577,3 +8577,8 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Confirmed native O3 with a LogicalArray<T>: Array<T> overriding get: direct base-pointer get returns 2, but the same pointer passed to a free function returns the stored value 1.
 - Fixed by preparing generic receiver instantiations and type bindings before inherited-owner and virtual-call selection. Seven native source-level cases pass at O0/O3, including aliases, differently named class parameters, transitive parents, Array getters, and a non-generic control. Two hosted Wasm cases pass at O0/O3. On the signature-corrected parent, five native cases and both hosted cases fail.
+
+## Bound generic parent methods select the parent implementation
+
+- Confirmed native O0/O3 on 9d4a538f: a `Lambda<int>()` bound from a valid `*Parent<int>` pointing to `Child<int>` returns the parent value 1 instead of the child override 2. Both binding in main and binding inside a free function produce 1, while ordinary direct calls are corrected by the preceding fix.
+- Fixed by binding the selected virtual-table entry after generic receiver preparation, retaining borrowed storage and derived value-receiver adapters. Seven native cases and two hosted Wasm cases cover generic/non-generic parents, aliases/null checks, arguments, receiver evaluation and the existing variadic rejection at O0/O3.

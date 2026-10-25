@@ -20,6 +20,7 @@ import { TokenType } from "../../frontend/TokenType";
 import { UnaryExpressionGenerator } from "./UnaryExpressionGenerator";
 import { formatFloatingPointLiteral } from "./FloatingPointLiteral";
 import { lowerImplicitConversion } from "../../middleend/lowering/ImplicitConversions";
+import { loadVTableMethod } from "./calls/VirtualCallEmitter";
 
 const STRUCT_LITERAL_FIELD_MAP_THRESHOLD = 4;
 const COMPOUND_BINARY_OPERATORS: Partial<Record<TokenType, TokenType>> = {
@@ -47,7 +48,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     const failureLabel = this.newLabel("allocation.failed");
     const successLabel = this.newLabel("allocation.ready");
     this.emit(`  ${failed} = icmp eq i8* ${pointer}, null`);
-    this.emit(`  br i1 ${failed}, label %${failureLabel}, label %${successLabel}`);
+    this.emit(
+      `  br i1 ${failed}, label %${failureLabel}, label %${successLabel}`,
+    );
     this.emit(`${failureLabel}:`);
     if (cleanupPointer) {
       this.emit(`  call void @free(i8* ${cleanupPointer})`);
@@ -649,7 +652,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         try {
           const sourceAddr = this.generateAddress(expr.value);
           castVal = this.emitSliceFromArrayAddress(
-            sourceAddr, sourceTypeNode, destTypeNode,
+            sourceAddr,
+            sourceTypeNode,
+            destTypeNode,
           );
         } catch {
           castVal = this.emitSliceFromArrayValue(
@@ -660,7 +665,8 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         }
       } else {
         castVal =
-          expr.value.kind === "TupleLiteral" && destTypeNode.kind === "TupleType"
+          expr.value.kind === "TupleLiteral" &&
+          destTypeNode.kind === "TupleType"
             ? this.generateTupleLiteralForTarget(
                 expr.value as AST.TupleLiteralExpr,
                 destTypeNode,
@@ -709,20 +715,28 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
     // Reuse binary arithmetic after evaluating the address and operands once.
     // Keep narrowing visible so constant-divisor checks use the stored width.
-    const right: AST.Expression = srcType === destType ? expr.value : {
-      kind: "Cast",
-      expression: expr.value,
-      targetType: expr.assignee.resolvedType!,
-      resolvedType: expr.assignee.resolvedType!,
-      location: expr.value.location,
-    };
-    const result = this.generateStandardBinaryOp({
-      kind: "Binary",
-      left: expr.assignee,
-      right,
-      operator: { ...expr.operator, type: operator },
-      location: expr.location,
-    }, currentValue, castVal, destType);
+    const right: AST.Expression =
+      srcType === destType
+        ? expr.value
+        : {
+            kind: "Cast",
+            expression: expr.value,
+            targetType: expr.assignee.resolvedType!,
+            resolvedType: expr.assignee.resolvedType!,
+            location: expr.value.location,
+          };
+    const result = this.generateStandardBinaryOp(
+      {
+        kind: "Binary",
+        left: expr.assignee,
+        right,
+        operator: { ...expr.operator, type: operator },
+        location: expr.location,
+      },
+      currentValue,
+      castVal,
+      destType,
+    );
     this.emit(`  store ${destType} ${result}, ${destType}* ${addr}`);
     this.clearBasicBlockIntegerExpressionFact(
       this.exprToDescription(expr.assignee),
@@ -750,8 +764,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     // aggregate field extraction; the receiver is evaluated once by the binder.
     const boundDeclaration = (
       expr.resolvedType as
-        | (AST.LambdaTypeNode & { declaration?: AST.FunctionDecl })
-        | undefined
+        (AST.LambdaTypeNode & { declaration?: AST.FunctionDecl }) | undefined
     )?.declaration;
     if (
       expr.resolvedType?.kind === "LambdaType" &&
@@ -794,8 +807,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         !this.isAddressableAggregateSource(expr.object))
     ) {
       const callType = expr.object.resolvedType as
-        | AST.BasicTypeNode
-        | undefined;
+        AST.BasicTypeNode | undefined;
       if (!callType || callType.kind !== "BasicType") {
         throw new CompilerError(
           "Member access on non-struct type",
@@ -890,18 +902,44 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     return reg;
   }
 
-  /** Bind the concrete checked method, adapting value receivers to borrowed storage. */
+  /** Bind the checked virtual entry or direct method to borrowed receiver storage. */
   protected generateBoundMethod(
     expr: AST.MemberExpr,
     methodDecl: AST.FunctionDecl,
   ): string {
-    const objType = expr.object.resolvedType as AST.BasicTypeNode;
+    const objType = this.resolveInstantiatedValueType(
+      expr.object.resolvedType!,
+    ) as AST.BasicTypeNode;
+    const ownerBindings = new Map<string, AST.TypeNode>();
+    const declaration = objType.resolvedDeclaration;
+    if (
+      declaration?.kind === "StructDecl" ||
+      declaration?.kind === "EnumDecl"
+    ) {
+      declaration.genericParams.forEach((parameter, index) => {
+        const argument = objType.genericArgs[index];
+        if (argument) {
+          ownerBindings.set(
+            parameter.name,
+            this.substituteType(argument, this.currentTypeMap),
+          );
+        }
+      });
+      if (declaration.kind === "StructDecl" && objType.genericArgs.length) {
+        this.resolveMonomorphizedType(
+          declaration,
+          objType.genericArgs.map((argument) =>
+            this.substituteType(argument, this.currentTypeMap),
+          ),
+        );
+      }
+    }
     let valPtr: string;
     let valPtrType: string;
 
     // 1. Get Context Pointer (this)
     if (expr.object.kind === "Call") {
-      const callType = expr.object.resolvedType as AST.BasicTypeNode;
+      const callType = objType;
       const llvmObjType = this.resolveType(callType);
 
       if (callType.pointerDepth > 0) {
@@ -964,22 +1002,6 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     };
     // Enum instantiations keep their template method declarations. Apply their
     // owner arguments before resolving any remaining names or mangling symbols.
-    const ownerBindings = new Map<string, AST.TypeNode>();
-    const declaration = objType.resolvedDeclaration;
-    if (
-      declaration?.kind === "StructDecl" ||
-      declaration?.kind === "EnumDecl"
-    ) {
-      declaration.genericParams.forEach((parameter, index) => {
-        const argument = objType.genericArgs[index];
-        if (argument) {
-          ownerBindings.set(
-            parameter.name,
-            this.substituteType(argument, this.currentTypeMap),
-          );
-        }
-      });
-    }
     if (ownerBindings.size) {
       funcType = this.substituteType(
         funcType,
@@ -1014,20 +1036,56 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     const specificParamTypesStr = specificParamTypes.join(", ");
     const specificFuncPtrType = `${specificRetTypeStr} (${specificParamTypesStr})*`;
 
-    // A pointer receiver shares the erased context-pointer ABI. A value
-    // receiver needs an adapter that loads a copy before calling the method.
-    let castFuncPtr: string;
-    if (
+    const valueReceiver =
       methodDecl.params[0]?.name === "this" &&
-      !specificParamTypes[0]!.endsWith("*")
-    ) {
-      if (funcType.isVariadic) {
-        throw new CompilerError(
-          "Cannot bind a variadic value-receiver method",
-          "Use a non-variadic method signature for binding callbacks.",
+      !specificParamTypes[0]!.endsWith("*");
+    if (valueReceiver && funcType.isVariadic) {
+      throw new CompilerError(
+        "Cannot bind a variadic value-receiver method",
+        "Use a non-variadic method signature for binding callbacks.",
+        expr.location,
+      );
+    }
+
+    // Virtual value-receiver entries already contain the adapter that copies
+    // the derived layout. Bind the selected entry with the borrowed context.
+    const layout = this.vtableLayouts.get(receiverName);
+    const methodKey = this.getVTableMethodName({
+      ...methodDecl,
+      resolvedType: funcType,
+    });
+    const methodIndex = layout?.indexOf(methodKey) ?? -1;
+    const directLifecycleMethod = [
+      "new",
+      "init",
+      "destroy",
+      "cleanup",
+    ].includes(methodDecl.name);
+    let castFuncPtr: string;
+    if (methodIndex >= 0 && !directLifecycleMethod) {
+      if (objType.pointerDepth > 0) {
+        this.emitNullPointerCheck(
+          valPtr,
+          valPtrType,
           expr.location,
+          this.exprToDescription(expr.object),
+          "Attempted to bind a method through nullptr",
         );
       }
+      const methodPointer = loadVTableMethod(
+        {
+          newRegister: () => this.newRegister(),
+          emit: (line) => this.emit(line),
+        },
+        valPtr,
+        valPtrType,
+        methodIndex,
+      );
+      castFuncPtr = this.newRegister();
+      this.emit(
+        `  ${castFuncPtr} = bitcast i8* ${methodPointer} to ${genericFuncPtrType}`,
+      );
+    } else if (valueReceiver) {
       if (objType.pointerDepth > 0) {
         this.emitNullPointerCheck(
           valPtr,
@@ -1064,25 +1122,41 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
   protected override generateCast(expr: AST.CastExpr): string {
     const rawSource = expr.expression.resolvedType!;
-    if (rawSource.kind === "BasicType" && rawSource.pointerDepth > 0 && rawSource.arrayDimensions.length === 0)
+    if (
+      rawSource.kind === "BasicType" &&
+      rawSource.pointerDepth > 0 &&
+      rawSource.arrayDimensions.length === 0
+    )
       return super.generateCast(expr);
     const sourceType = this.resolveInstantiatedValueType(rawSource);
-    if (!this.isFixedArrayTypeNode(sourceType) ||
+    if (
+      !this.isFixedArrayTypeNode(sourceType) ||
       !this.resolveType(sourceType).startsWith("[") ||
-      !this.isAddressableAggregateSource(expr.expression))
+      !this.isAddressableAggregateSource(expr.expression)
+    )
       return super.generateCast(expr);
-    const targetType = this.resolveInstantiatedValueType(expr.resolvedType ?? expr.targetType);
+    const targetType = this.resolveInstantiatedValueType(
+      expr.resolvedType ?? expr.targetType,
+    );
     const conversion = lowerImplicitConversion(targetType, sourceType);
-    if (this.isFixedArrayTypeNode(sourceType) &&
-      this.isAddressableAggregateSource(expr.expression)) {
-      if (conversion.kind === "array-to-slice" && this.isSliceTypeNode(targetType)) {
+    if (
+      this.isFixedArrayTypeNode(sourceType) &&
+      this.isAddressableAggregateSource(expr.expression)
+    ) {
+      if (
+        conversion.kind === "array-to-slice" &&
+        this.isSliceTypeNode(targetType)
+      ) {
         return this.emitSliceFromArrayAddress(
-          this.generateAddress(expr.expression), sourceType, targetType,
+          this.generateAddress(expr.expression),
+          sourceType,
+          targetType,
         );
       }
       if (conversion.kind === "array-to-pointer") {
         return this.emitPointerFromArrayAddress(
-          this.generateAddress(expr.expression), sourceType,
+          this.generateAddress(expr.expression),
+          sourceType,
         );
       }
     }

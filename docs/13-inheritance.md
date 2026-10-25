@@ -106,3 +106,9 @@ struct Point {
     }
 }
 ```
+
+Bound methods selected through a parent pointer retain the derived virtual override,
+including instantiated generic parents. The resulting `Lambda` borrows the selected
+receiver storage; it does not extend that storage's lifetime. Virtual value receivers
+copy the derived value on each invocation. Lifecycle methods retain direct binding,
+and variadic value-receiver bindings remain unsupported.
