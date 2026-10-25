@@ -8738,3 +8738,13 @@ registration coverage supplements path-candidate tests and interactive verificat
   from real diagnostics and revalidate the source. Sibling parse results, including
   failures, are shared across diagnostics within one request and discarded before
   the next request to avoid repeated synchronous parsing without stale caches.
+
+## Superseded pull-request CI runs (2026-10-25)
+
+- **Fixed:** Compiler/playground CI allowed superseded PR revisions to keep
+  running; container checks explicitly disabled cancellation. Reviews/rebases
+  accumulated obsolete jobs that consumed runner capacity. PR concurrency
+  groups now cancel older revisions of the same workflow/PR. Non-PR compiler
+  and playground runs keep independent run-ID groups; container release/manual
+  runs retain their existing grouping and do not cancel active runs. The
+  publication job's separate `ghcr-publication` non-cancelling group is retained.

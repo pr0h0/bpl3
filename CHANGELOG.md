@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Cancel superseded pull-request compiler, playground, and container CI runs
+  while retaining non-PR execution and container publication safeguards.
+
 ### Fixed
 
 - Report `BPL_FORMAT_NO_INPUTS` when formatter directory discovery finds no
