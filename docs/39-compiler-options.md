@@ -497,7 +497,7 @@ array containing each failed `path` and `error`, and only successful removals in
 
 Format JSON reports are stable for `bpl format --check --json`. `--json`
 without `--check` uses `BPL_FORMAT_JSON_REQUIRES_CHECK`, missing file lists use
-`BPL_FORMAT_NO_INPUTS`, and conflicting `--write --check` flags use
+`BPL_FORMAT_NO_INPUTS` (also for empty or fully ignored directory inputs), and conflicting `--write --check` flags use
 `BPL_FORMAT_WRITE_CHECK_CONFLICT`. Per-file input validation uses
 `BPL_FORMAT_INPUT_NOT_FOUND` and `BPL_FORMAT_INPUT_NOT_FILE`. Files that parse
 successfully but would be rewritten use `BPL_FORMAT_NOT_FORMATTED`, and parser
