@@ -6,7 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-Changes after the 0.1.1 baseline will be collected for 0.1.2.
+### Prepared for 0.1.2
+
+- Instantiate inherited generic-parent signatures before override validation,
+  retaining transitive inheritance and method generic shadowing.
+- Prepare generic receiver bindings before direct virtual dispatch, including
+  calls through parent pointers passed into free functions.
+- Retain derived virtual dispatch when parent methods are bound to Lambdas;
+  preserve borrowed receiver storage and derived value-receiver adapters.
+
+The 0.1.2 metadata and release artifacts are prepared; no release tag or publication
+is implied. See [candidate release notes](docs/releases/v0.1.2.md).
 
 ## [0.1.1] - 2026-10-25
 
