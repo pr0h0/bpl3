@@ -2,6 +2,15 @@
 
 This file tracks bugs and edge cases found during comprehensive testing.
 
+## Implementation navigation (2026-10-25)
+
+- **Fixed:** Go to Implementation scanned raw text, returning comment/string
+  lookalikes and missing later inheritance entries, generic structs, specs,
+  and enums. It now inspects parsed declaration parent lists in current open
+  documents. Malformed/non-file documents are skipped individually; unsaved
+  edits are used instead of stale disk contents. Matching is still by direct
+  parent name, not a workspace-wide semantic implementation graph.
+
 ## Quick-win review (2026-10-25)
 
 Resolved findings:

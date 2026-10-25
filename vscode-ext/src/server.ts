@@ -37,6 +37,7 @@ import { ASTDefinitionHandler } from "./services/ASTDefinitionHandler";
 import { ASTCompletionHandler } from "./services/ASTCompletionHandler";
 import { ASTRenameHandler } from "./services/ASTRenameHandler";
 import { unusedVariableEdit } from "./services/UnusedVariableCodeAction";
+import { implementationLocations } from "./services/ImplementationLocations";
 import { SelectionRangeProvider } from "./services/SelectionRangeProvider";
 import { DocumentHighlightProvider } from "./services/DocumentHighlightProvider";
 import { FoldingRangeProvider } from "./services/FoldingRangeProvider";
@@ -892,29 +893,7 @@ connection.onImplementation((params) => {
   const word = getWordAtPosition(document, params.position);
   if (!word) return null;
 
-  // Find structs that implement this spec/interface
-  const locations: Location[] = [];
-  documents.all().forEach((doc) => {
-    const text = doc.getText();
-    // Regex for inheritance: struct Name : Parent or struct Name implements Parent
-    const regex = new RegExp(
-      `\\bstruct\\s+([a-zA-Z0-9_]+)\\s*(?::|implements)\\s*${word}\\b`,
-      "g",
-    );
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      locations.push(
-        Location.create(
-          doc.uri,
-          Range.create(
-            doc.positionAt(match.index),
-            doc.positionAt(match.index + match[0].length),
-          ),
-        ),
-      );
-    }
-  });
-  return locations;
+  return implementationLocations(word, documents.all(), astResolver);
 });
 
 connection.onCodeAction((params) => {
