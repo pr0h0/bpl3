@@ -343,6 +343,9 @@ checks emit `schemaVersion: 1`, `check: "format"`, `success: true`,
 contract with `bun test tests/CLI.test.ts -t "format check results and
 validation failures as JSON"`.
 
+Directory discovery reads `.bplignore` patterns one per line; LF, CRLF, CR,
+and mixed line endings are supported. Explicit file arguments override ignores.
+
 ### `bpl lint [files...]`
 
 Lint BPL source files for style and package-quality issues.

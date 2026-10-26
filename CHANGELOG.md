@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Respect standalone CR and mixed newline styles in `.bplignore` files during
+  recursive formatting and lint discovery.
+
 - Preserve cursor/result correspondence in multi-cursor smart-selection
   requests containing comments, blank space, or end-of-file positions.
 
