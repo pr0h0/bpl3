@@ -156,3 +156,7 @@ results and resume when the text can be parsed again.
 
 Smart selection preserves one result per requested cursor, including cursors
 in comments or blank space, so multi-cursor selection stays aligned.
+
+Complexity code lenses count control-flow, short-circuit, and ternary decisions
+throughout each function body, including conditions and initializer/call
+expressions. Nested callable bodies do not increase the enclosing metric.

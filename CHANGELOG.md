@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Count short-circuit and ternary decisions throughout function expressions in
+  editor complexity lenses, excluding nested callable bodies.
+
 - Respect standalone CR and mixed newline styles in `.bplignore` files during
   recursive formatting and lint discovery.
 

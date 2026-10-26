@@ -6,6 +6,7 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { fileURLToPath, pathToFileURL } from "url";
 import * as AST from "../../../compiler/common/AST";
+import { getChildren } from "../../../compiler/common/ASTTraversal";
 import { ASTResolver } from "./ASTResolver";
 
 /**
@@ -420,70 +421,36 @@ export class CodeLensProvider {
   private calculateComplexity(node: AST.Statement | AST.Expression): number {
     let complexity = 1; // Base complexity
 
-    const visit = (n: AST.Statement | AST.Expression) => {
-      switch (n.kind) {
-        case "If":
-          complexity++;
-          const ifStmt = n as AST.IfStmt;
-          if (ifStmt.thenBranch) visit(ifStmt.thenBranch);
-          if (ifStmt.elseBranch) visit(ifStmt.elseBranch);
-          break;
-
-        case "Loop":
-          complexity++;
-          const loop = n as AST.LoopStmt;
-          if (loop.body) visit(loop.body);
-          break;
-
-        case "Switch":
-          const switchStmt = n as AST.SwitchStmt;
-          complexity += switchStmt.cases.length;
-          switchStmt.cases.forEach((c) => {
-            if (c.body) visit(c.body);
-          });
-          break;
-
-        case "Match":
-          const match = n as AST.MatchExpr;
-          complexity += match.arms.length;
-          match.arms.forEach((arm) => {
-            if (arm.body) visit(arm.body);
-          });
-          break;
-
-        case "Binary":
-          const binary = n as AST.BinaryExpr;
-          const op =
-            typeof binary.operator === "string"
-              ? binary.operator
-              : (binary.operator as any).type || "";
-          if (op === "&&" || op === "||") {
-            complexity++;
-          }
-          visit(binary.left);
-          visit(binary.right);
-          break;
-
-        case "Block":
-          (n as AST.BlockStmt).statements.forEach(visit);
-          break;
-
-        case "ExpressionStmt":
-          visit((n as AST.ExpressionStmt).expression);
-          break;
-
-        case "Return":
-          const ret = n as AST.ReturnStmt;
-          if (ret.value) visit(ret.value);
-          break;
-
-        case "Try":
-          const tryStmt = n as AST.TryStmt;
-          complexity += tryStmt.catchClauses.length;
-          if (tryStmt.tryBlock) visit(tryStmt.tryBlock);
-          tryStmt.catchClauses.forEach((c) => visit(c.body));
-          break;
+    const visit = (current: AST.ASTNode): void => {
+      // Nested callable bodies have their own control flow.
+      if (
+        current.kind === "FunctionDecl" ||
+        current.kind === "LambdaExpression"
+      ) {
+        return;
       }
+      switch (current.kind) {
+        case "If":
+        case "Loop":
+        case "Ternary":
+          complexity++;
+          break;
+        case "Switch":
+          complexity += (current as AST.SwitchStmt).cases.length;
+          break;
+        case "Match":
+          complexity += (current as AST.MatchExpr).arms.length;
+          break;
+        case "Try":
+          complexity += (current as AST.TryStmt).catchClauses.length;
+          break;
+        case "Binary": {
+          const operator = (current as AST.BinaryExpr).operator.lexeme;
+          if (operator === "&&" || operator === "||") complexity++;
+          break;
+        }
+      }
+      for (const child of getChildren(current)) visit(child);
     };
 
     visit(node);

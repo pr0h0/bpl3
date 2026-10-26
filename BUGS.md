@@ -8833,3 +8833,12 @@ registration coverage supplements path-candidate tests and interactive verificat
   now recognizes LF, CRLF, CR, and mixed styles. Tests verify formatter writes
   preserve ignored files, lint sees only included sources, explicit inputs still
   override ignores, and unsupported negation remains rejected.
+
+## Editor complexity expression traversal (2026-10-26)
+
+- **Fixed:** Complexity code lenses ignored decisions in conditions, variable
+  initializers, call arguments, and ternary expressions. Boolean operators also
+  compared token type names with operator spellings, so short-circuit decisions
+  were missed even in traversed expressions. Metrics now traverse AST children
+  and inspect operator lexemes, while excluding nested callable bodies from the
+  enclosing function. Existing switch/match/catch counting is preserved.
