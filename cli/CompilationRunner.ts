@@ -135,7 +135,7 @@ function applyOptions(options: CompileOptions): void {
   if (options.json) {
     setLogLevel(LogLevel.SILENT);
   } else if (options.quiet) {
-    setLogLevel(LogLevel.SILENT);
+    setLogLevel(LogLevel.ERROR);
   } else if (options.verbose) {
     setLogLevel(LogLevel.DEBUG);
   }

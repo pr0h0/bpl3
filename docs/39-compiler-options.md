@@ -410,7 +410,8 @@ Flag availability depends on the command; run `bpl <command> --help` for the exa
 
 - `-o <file>`: Output file name on the default compile command and `bpl build`
 - `-v, --verbose`: Verbose compiler output
-- `-q, --quiet`: Suppress non-error output
+- `-q, --quiet`: Suppress non-error output. Build errors and explicitly requested
+  `--emit` output remain visible; JSON retains its existing output contract.
 - `-O <level>`: Optimization level (0, 1, 2, or 3)
 - `-d, --dwarf`: Generate DWARF debug information on the default compile command
 - `--debug`: Generate DWARF debug information on `run`, `dev`, and `build`
