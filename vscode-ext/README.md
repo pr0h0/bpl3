@@ -153,3 +153,6 @@ Run `npm test` in `vscode-ext/` for the current pass count.
 Document features use the current editor text. If an edit cannot be parsed,
 outlines, folding, code lenses, smart selections, and inlay hints omit stale
 results and resume when the text can be parsed again.
+
+Smart selection preserves one result per requested cursor, including cursors
+in comments or blank space, so multi-cursor selection stays aligned.

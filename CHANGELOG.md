@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Preserve cursor/result correspondence in multi-cursor smart-selection
+  requests containing comments, blank space, or end-of-file positions.
+
 - Discard stale outlines, folds, code lenses, selections, and inlay hints when
   the current editor document fails parsing.
 
