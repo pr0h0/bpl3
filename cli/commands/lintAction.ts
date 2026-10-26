@@ -167,6 +167,7 @@ export async function runLintCommand(
   }
 }
 
+/** Map input-path validation failures to the stable lint JSON error codes. */
 function getLintInputErrorCode(inputError: string): string {
   switch (inputError) {
     case "File not found":

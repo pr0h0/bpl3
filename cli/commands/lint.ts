@@ -19,6 +19,7 @@ export const LINT_JSON_ERROR_CODES = [
   LINT_PROCESSING_ERROR_CODE,
 ] as const;
 
+/** Register lint options while loading analysis dependencies only on execution. */
 export function registerLintCommand(program: Command): void {
   program
     .command("lint [files...]")
