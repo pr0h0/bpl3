@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Distinguish lint discovery failures from empty inputs in JSON reports with
+  `BPL_LINT_PROCESSING_ERROR`.
+
 - Keep input errors visible in `check --quiet` while suppressing successful
   check output and retaining clean JSON reports.
 

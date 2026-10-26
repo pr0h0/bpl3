@@ -537,6 +537,8 @@ Check and lint input validation `errorCode` values are stable when `bpl check
 --json` or `bpl lint --json` can classify source input before parsing. Missing
 file lists use top-level JSON failures with `BPL_CHECK_NO_INPUTS` or
 `BPL_LINT_NO_INPUTS`, `totalFiles: 0`, `errorCount: 1`, and `files: []`.
+Lint directory discovery failures (such as unsupported `.bplignore` patterns)
+use `BPL_LINT_PROCESSING_ERROR`; empty discovery uses `BPL_LINT_NO_INPUTS`.
 Per-file check validation uses `BPL_CHECK_INPUT_NOT_FOUND`,
 `BPL_CHECK_INPUT_SYMLINK`, and `BPL_CHECK_INPUT_NOT_FILE`. Per-file lint
 validation uses `BPL_LINT_INPUT_NOT_FOUND`, `BPL_LINT_INPUT_SYMLINK`, and
