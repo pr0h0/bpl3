@@ -5,6 +5,8 @@ import {
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import * as AST from "../../../compiler/common/AST";
+import { lexWithGrammar } from "../../../compiler/frontend/GrammarLexer";
+import { TokenType } from "../../../compiler/frontend/TokenType";
 import { ASTResolver } from "./ASTResolver";
 import { ModuleResolver } from "./ModuleResolver";
 import { fileURLToPath, pathToFileURL } from "url";
@@ -81,24 +83,35 @@ export class DocumentLinkProvider {
   ): Range | null {
     if (!importStmt.location) return null;
 
-    const loc = importStmt.location;
-    const startLine = (loc.startLine ?? 1) - 1;
-    const endLine = (loc.endLine ?? loc.startLine ?? 1) - 1;
-    const statementText = document.getText(
-      Range.create(startLine, 0, endLine + 1, 0),
+    const statementRange = this.nodeToRange(importStmt);
+    if (!statementRange) return null;
+    const statementText = document.getText(statementRange);
+    const tokens = lexWithGrammar(statementText, document.uri);
+    const sourceToken = tokens.find(
+      (token) =>
+        token.type === TokenType.StringLiteral &&
+        token.literal === importStmt.source,
     );
-    const fromIndex = statementText.indexOf("from");
-    const quotedPath = new RegExp(
-      `["']${escapeRegExp(importStmt.source)}["']`,
-    ).exec(statementText.slice(Math.max(0, fromIndex)));
-    if (!quotedPath) return this.nodeToRange(importStmt);
+    if (!sourceToken) return null;
 
-    const quoteStart = Math.max(0, fromIndex) + quotedPath.index + 1;
+    // Lexer columns count UTF-16 units; use document offsets to retain raw
+    // escape sequences and all supported newline spellings inside the range.
+    const statementDocument = TextDocument.create(
+      document.uri,
+      document.languageId,
+      document.version,
+      statementText,
+    );
     const pathOffset =
-      document.offsetAt({ line: startLine, character: 0 }) + quoteStart;
+      document.offsetAt(statementRange.start) +
+      statementDocument.offsetAt({
+        line: sourceToken.line - 1,
+        character: sourceToken.column - 1,
+      }) +
+      1;
     return Range.create(
       document.positionAt(pathOffset),
-      document.positionAt(pathOffset + importStmt.source.length),
+      document.positionAt(pathOffset + sourceToken.lexeme.length - 2),
     );
   }
 
@@ -116,8 +129,4 @@ export class DocumentLinkProvider {
       (loc.endColumn ?? loc.startColumn ?? 1) - 1,
     );
   }
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

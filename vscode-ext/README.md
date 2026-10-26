@@ -23,7 +23,7 @@ This extension provides comprehensive language support for the BPL3 programming 
 
 - **Navigation**:
   - **Go to Definition**: Jump to the definition of symbols (functions, structs, enums, variables) within the current file or across imported files.
-  - **Import Resolution**: Click on import paths to open the referenced file.
+  - **Import Resolution**: Click on import paths to open the referenced file. Links select the source path precisely, including escaped paths and multiple imports on one line.
 
 - **Code Completion**:
   - **Keyword & Type Suggestions**: Autocomplete for keywords (`if`, `loop`, `struct`, `enum`, `match`, etc.) and built-in types (`int`, `bool`, `string`, etc.).
