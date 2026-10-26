@@ -160,3 +160,6 @@ in comments or blank space, so multi-cursor selection stays aligned.
 Complexity code lenses count control-flow, short-circuit, and ternary decisions
 throughout each function body, including conditions and initializer/call
 expressions. Nested callable bodies do not increase the enclosing metric.
+
+Workspace symbol search retains overloads declared on the same source line
+while deduplicating indexed and cached copies of each declaration.

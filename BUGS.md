@@ -8842,3 +8842,11 @@ registration coverage supplements path-candidate tests and interactive verificat
   were missed even in traversed expressions. Metrics now traverse AST children
   and inspect operator lexemes, while excluding nested callable bodies from the
   enclosing function. Existing switch/match/catch counting is preserved.
+
+## Workspace symbol overload deduplication (2026-10-26)
+
+- **Fixed:** Workspace search deduplicated symbols using only name, URI, and
+  line, dropping distinct same-line overloads. Deduplication now retains the
+  start column and keeps range-less locations separate. Tests index and cache
+  real overload declarations, checking case-insensitive and empty queries;
+  duplicate copies still collapse while both overloads remain available.

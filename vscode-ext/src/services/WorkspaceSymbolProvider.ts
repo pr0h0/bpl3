@@ -418,10 +418,16 @@ export class WorkspaceSymbolProvider {
     const deduplicated: WorkspaceSymbol[] = [];
 
     for (const result of results) {
-      // Handle both Location and LocationLink types
-      const line =
-        "range" in result.location ? result.location.range.start.line : 0;
-      const key = `${result.name}:${result.location.uri}:${line}`;
+      // Locations may have a range or only a URI. Distinct declarations on
+      // the same line must retain their own start columns.
+      const start =
+        "range" in result.location ? result.location.range.start : null;
+      const key = JSON.stringify([
+        result.name,
+        result.location.uri,
+        start?.line,
+        start?.character,
+      ]);
       if (!seen.has(key)) {
         seen.add(key);
         deduplicated.push(result);
