@@ -166,3 +166,6 @@ while deduplicating indexed and cached copies of each declaration.
 
 Code folding returns each multiline region once and omits single-line body
 regions, while preserving nested folds and import groups.
+
+Import folds include the full final import statement and support a single
+multiline import, stopping before the next non-import declaration.

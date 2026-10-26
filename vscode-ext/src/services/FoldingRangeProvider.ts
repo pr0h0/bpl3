@@ -271,14 +271,14 @@ export class FoldingRangeProvider {
         if (firstImportLine === null) {
           firstImportLine = line;
         }
-        lastImportLine = line;
+        lastImportLine = stmt.location.endLine - 1;
       } else if (firstImportLine !== null) {
         // Break on first non-import
         break;
       }
     }
 
-    // Create import folding range if there are multiple imports
+    // Fold the complete group, including a single import spanning multiple lines.
     if (
       firstImportLine !== null &&
       lastImportLine !== null &&
