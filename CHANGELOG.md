@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Retain distinct same-line overloads in workspace symbol search while
+  deduplicating indexed and cached copies of each declaration.
+
 - Count short-circuit and ternary decisions throughout function expressions in
   editor complexity lenses, excluding nested callable bodies.
 
