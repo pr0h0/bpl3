@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Keep generic failures visible on stderr when JSON builds emit raw AST,
+  token, or formatted-source artifacts.
+
 - Distinguish lint discovery failures from empty inputs in JSON reports with
   `BPL_LINT_PROCESSING_ERROR`.
 

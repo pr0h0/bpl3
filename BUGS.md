@@ -8780,6 +8780,14 @@ registration coverage supplements path-candidate tests and interactive verificat
   build paths, the root action, inherited/local quiet flags, compiler errors,
   and JSON failure reports.
 
+## JSON artifact build errors (2026-10-26)
+
+- **Fixed:** `--json` silenced generic errors in raw AST, token, and formatted
+  output modes, so missing inputs and invalid formatter configuration exited
+  with no explanation. Both frontend and full build paths now print these
+  failures to stderr, matching their compiler-error behavior. Successful raw
+  output and structured build reports retain their existing formats.
+
 ## Lint discovery error classification (2026-10-26)
 
 - **Fixed:** Lint labelled discovery failures, including unsupported negated

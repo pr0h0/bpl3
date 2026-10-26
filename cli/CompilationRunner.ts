@@ -273,6 +273,9 @@ function handleCompilationError(
 
   if (e instanceof CompilerError) {
     console.error(diagnosticFormatter.formatError(e));
+  } else if (options.json) {
+    // Raw artifact emit modes do not use the JSON build-report envelope.
+    console.error(`${e}`);
   } else {
     log.error(`${e}`);
     if (e instanceof Error && e.stack && options.verbose) {

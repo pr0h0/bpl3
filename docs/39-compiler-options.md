@@ -70,6 +70,10 @@ bpl dev main.bpl --debug-ir-path debug/dev.ll
 
 Explicitly compile a program.
 
+With `--json`, `--emit ast`, `--emit tokens`, and `--emit formatted` retain
+their raw artifact output instead of a build-result report. Failures in these
+modes print diagnostics to stderr and return a nonzero exit status.
+
 **Examples:**
 
 ```bash
