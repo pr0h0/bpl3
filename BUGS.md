@@ -8867,3 +8867,6 @@ registration coverage supplements path-candidate tests and interactive verificat
   had no folding region. Groups now end at the final import's ending line and
   support one multiline import. Tests cover single/grouped multiline imports,
   all newline styles, and the boundary before unrelated code.
+  Since folds cover whole lines, an import group is omitted when the next
+  declaration shares its closing line; regression tests verify that unrelated
+  code cannot be hidden by the import fold.

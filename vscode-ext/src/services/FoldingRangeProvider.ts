@@ -273,6 +273,10 @@ export class FoldingRangeProvider {
         }
         lastImportLine = stmt.location.endLine - 1;
       } else if (firstImportLine !== null) {
+        // Line-only folds would also hide code after the final import.
+        if (stmt.location && stmt.location.startLine - 1 === lastImportLine) {
+          return;
+        }
         // Break on first non-import
         break;
       }

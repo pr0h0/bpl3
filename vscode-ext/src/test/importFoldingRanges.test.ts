@@ -39,3 +39,23 @@ for (const newline of ["\n", "\r\n", "\r"]) {
     });
   }
 }
+
+for (const newline of ["\n", "\r\n", "\r"]) {
+  test(`import folds do not hide a declaration on the closing import line (${JSON.stringify(newline)})`, () => {
+    const uri = pathToFileURL(
+      resolve("tmp/import-folding-shared-line.bpl"),
+    ).toString();
+    const content = [
+      'import [Array] from "std/array.bpl";',
+      "import [",
+      "    String",
+      '] from "std/string.bpl"; frame main() {}',
+    ].join(newline);
+    const doc = TextDocument.create(uri, "bpl", 1, content);
+    const provider = new FoldingRangeProvider(
+      new ASTResolver(new SymbolIndex()),
+    );
+    const ranges = provider.handle({ textDocument: { uri } }, doc) ?? [];
+    expect(ranges.filter((range) => range.kind === "imports")).toEqual([]);
+  });
+}
