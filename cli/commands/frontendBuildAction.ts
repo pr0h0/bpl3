@@ -29,6 +29,10 @@ class BuildValidationError extends Error {
   }
 }
 
+/**
+ * Emit a raw frontend artifact, reporting failures on stderr and exiting with
+ * status 1 even when JSON mode suppresses ordinary logger output.
+ */
 export function processFrontendBuildFile(
   filePath: string,
   options: CompileOptions,
@@ -46,6 +50,10 @@ export function processFrontendBuildFile(
   } catch (error) {
     if (error instanceof CompilerError) {
       console.error(diagnosticFormatter.formatError(error));
+    } else if (options.json) {
+      // Frontend emit modes return raw artifacts rather than build reports.
+      // Keep failures visible even though JSON mode silences the logger.
+      console.error(`${error}`);
     } else {
       log.error(`${error}`);
     }
