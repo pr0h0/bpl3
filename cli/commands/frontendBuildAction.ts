@@ -29,6 +29,10 @@ class BuildValidationError extends Error {
   }
 }
 
+/**
+ * Emit a raw frontend artifact, reporting failures on stderr and exiting with
+ * status 1 even when JSON mode suppresses ordinary logger output.
+ */
 export function processFrontendBuildFile(
   filePath: string,
   options: CompileOptions,
