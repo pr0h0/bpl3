@@ -29,6 +29,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   respecting source-discovery exclusions and `.bplignore`.
 - Recognize actual unused-variable editor diagnostics and prefix only the
   declaration name, preserving type annotations, initializers, and comments.
+- Preserve generic error messages in quiet frontend and full compiler builds,
+  including formatter-configuration failures, while retaining JSON precedence.
 - Use compiler scope-aware hints for typo quick fixes instead of suggesting
   comment/string words and names from unrelated local scopes.
 

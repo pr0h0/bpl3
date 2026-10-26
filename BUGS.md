@@ -8769,3 +8769,13 @@ registration coverage supplements path-candidate tests and interactive verificat
   and playground runs keep independent run-ID groups; container release/manual
   runs retain their existing grouping and do not cancel active runs. The
   publication job's separate `ghcr-publication` non-cancelling group is retained.
+
+## Quiet build errors (2026-10-26)
+
+- **Fixed:** Quiet builds selected the silent logger level in both the frontend
+  fast path and full compilation runner. Generic failures such as malformed
+  `.bplfmt.json` therefore returned status 1 with no error text. Quiet builds
+  now retain error logging; requested emitted output is preserved. JSON keeps
+  precedence and its existing silent logging mode. Tests exercise fast/full
+  build paths, the root action, inherited/local quiet flags, compiler errors,
+  and JSON failure reports.

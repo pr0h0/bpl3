@@ -54,8 +54,10 @@ export function processFrontendBuildFile(
 }
 
 function applyFrontendOptions(options: CompileOptions): void {
-  if (options.json || options.quiet) {
+  if (options.json) {
     setLogLevel(LogLevel.SILENT);
+  } else if (options.quiet) {
+    setLogLevel(LogLevel.ERROR);
   } else if (options.verbose) {
     setLogLevel(LogLevel.DEBUG);
   }
