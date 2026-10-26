@@ -20,10 +20,12 @@ import {
   LINT_INPUT_NOT_FOUND_CODE,
   LINT_INPUT_SYMLINK_CODE,
   LINT_NO_INPUTS_CODE,
+  LINT_PROCESSING_ERROR_CODE,
 } from "./lint";
 
 const log = new Logger("Lint");
 
+/** Expand source inputs, lint each file, and report failures as JSON or text. */
 export async function runLintCommand(
   files: string[],
   rawOptions: LintOptions,
@@ -41,48 +43,25 @@ export async function runLintCommand(
   };
 
   if (!files || files.length === 0) {
-    if (options.json) {
-      console.log(
-        JSON.stringify(
-          createJsonReport(CLI_JSON_CHECKS.lint, false, {
-            totalFiles: 0,
-            errorCount: 1,
-            files: [],
-            error: "No files specified.",
-            errorCode: LINT_NO_INPUTS_CODE,
-          }),
-          null,
-          2,
-        ),
-      );
-    } else {
-      log.error("No files specified.");
-    }
-    process.exit(1);
+    exitLintInputFailure(
+      options.json,
+      "No files specified.",
+      LINT_NO_INPUTS_CODE,
+    );
   }
 
   try {
     files = expandSourceInputs(files);
-    if (!files.length)
-      throw new Error("No BPL sources found in the supplied directories.");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (options.json)
-      console.log(
-        JSON.stringify(
-          createJsonReport(CLI_JSON_CHECKS.lint, false, {
-            totalFiles: 0,
-            errorCount: 1,
-            files: [],
-            error: message,
-            errorCode: LINT_NO_INPUTS_CODE,
-          }),
-          null,
-          2,
-        ),
-      );
-    else log.error(message);
-    process.exit(1);
+    exitLintInputFailure(options.json, message, LINT_PROCESSING_ERROR_CODE);
+  }
+  if (!files.length) {
+    exitLintInputFailure(
+      options.json,
+      "No BPL sources found in the supplied directories.",
+      LINT_NO_INPUTS_CODE,
+    );
   }
   const stdin = files.includes("-") ? fs.readFileSync(0, "utf8") : undefined;
   const { CompilerError, createLintEngine } = await import("./lintEngine");
@@ -188,6 +167,7 @@ export async function runLintCommand(
   }
 }
 
+/** Map input-path validation failures to the stable lint JSON error codes. */
 function getLintInputErrorCode(inputError: string): string {
   switch (inputError) {
     case "File not found":
@@ -199,4 +179,30 @@ function getLintInputErrorCode(inputError: string): string {
     default:
       return "BPL_LINT_INPUT_INVALID";
   }
+}
+
+/** Report a pre-analysis input failure without mixing JSON and stderr output. */
+function exitLintInputFailure(
+  json: boolean | undefined,
+  message: string,
+  errorCode: string,
+): never {
+  if (json) {
+    console.log(
+      JSON.stringify(
+        createJsonReport(CLI_JSON_CHECKS.lint, false, {
+          totalFiles: 0,
+          errorCount: 1,
+          files: [],
+          error: message,
+          errorCode,
+        }),
+        null,
+        2,
+      ),
+    );
+  } else {
+    log.error(message);
+  }
+  process.exit(1);
 }

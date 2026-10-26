@@ -8787,3 +8787,12 @@ registration coverage supplements path-candidate tests and interactive verificat
   with no explanation. Both frontend and full build paths now print these
   failures to stderr, matching their compiler-error behavior. Successful raw
   output and structured build reports retain their existing formats.
+
+## Lint discovery error classification (2026-10-26)
+
+- **Fixed:** Lint labelled discovery failures, including unsupported negated
+  `.bplignore` patterns, as `BPL_LINT_NO_INPUTS`. Discovery failures now use
+  `BPL_LINT_PROCESSING_ERROR`; empty discovery retains `BPL_LINT_NO_INPUTS`.
+  Explicit missing-file errors and human-readable messages remain available.
+  The CI triage helper maps the new code to the discovery regression test;
+  its inventory checks caught the initially missing reproduction mapping.
