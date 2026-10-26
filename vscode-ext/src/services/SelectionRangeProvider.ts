@@ -53,6 +53,8 @@ export class SelectionRangeProvider {
         results.push(selectionRange);
       } else {
         debugLog(`[SelectionRange] No selection range found`);
+        // Preserve the result index for cursors outside parsed statements.
+        results.push(SelectionRange.create(Range.create(position, position)));
       }
     }
 

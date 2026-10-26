@@ -8816,3 +8816,11 @@ registration coverage supplements path-candidate tests and interactive verificat
   parsing. These features now use the current parse result and return no stale
   output on failure. Regressions exercise valid text, an unfinished string,
   and repaired text for each provider.
+
+## Multi-cursor selection response alignment (2026-10-26)
+
+- **Fixed:** Smart-selection responses omitted cursor positions outside parsed
+  statements, shifting later results to the wrong cursor. Positions without an
+  AST selection now retain a zero-width range at that cursor, preserving LSP
+  result order and cardinality. Tests cover mixed code/comment/blank/EOF
+  positions, repeated positions, comment-only documents, and all newline styles.
