@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Fold complete multiline imports, including a single multiline import and
+  the final multiline statement in an import group.
+
 - Remove duplicate and empty editor folding ranges while preserving nested
   regions and grouped imports.
 

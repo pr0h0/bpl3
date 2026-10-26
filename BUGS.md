@@ -8859,3 +8859,14 @@ registration coverage supplements path-candidate tests and interactive verificat
   final response now removes duplicate coordinate/kind entries and empty line
   regions, preserving nested folds and the import group. Regressions cover
   functions, conditionals, loops, try/catch, and LF/CRLF/CR text.
+
+## Multiline import folding extent (2026-10-26)
+
+- **Fixed:** Import-group folds ended at the last import's starting line,
+  leaving the rest of multiline imports unfolded. A single multiline import
+  had no folding region. Groups now end at the final import's ending line and
+  support one multiline import. Tests cover single/grouped multiline imports,
+  all newline styles, and the boundary before unrelated code.
+  Since folds cover whole lines, an import group is omitted when the next
+  declaration shares its closing line; regression tests verify that unrelated
+  code cannot be hidden by the import fold.
