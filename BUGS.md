@@ -8796,3 +8796,15 @@ registration coverage supplements path-candidate tests and interactive verificat
   Explicit missing-file errors and human-readable messages remain available.
   The CI triage helper maps the new code to the discovery regression test;
   its inventory checks caught the initially missing reproduction mapping.
+
+## Editor import link ranges (2026-10-26)
+
+- **Fixed:** Document links searched whole source lines for an import path.
+  Repeated same-line imports could therefore select the first path again;
+  comments and escaped path spellings could select incorrect text. Links now
+  locate the string token inside the parsed import statement and retain its
+  raw source length. Tests cover repeated imports, comment lookalikes, escaped
+  paths, UTF-16 columns, and LF, CRLF, and CR newlines.
+  Link generation also uses the current parse result: malformed edits return
+  no links rather than reusing stale AST ranges that could throw while lexing.
+  A regression covers valid text, an unfinished import, and repaired text.
