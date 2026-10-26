@@ -27,8 +27,7 @@ export class DocumentSymbolProvider {
     const content = document.getText();
 
     // Parse document
-    this.astResolver.parseDocumentContent(filePath, content);
-    const ast = this.astResolver.getCachedAST(filePath);
+    const ast = this.astResolver.parseDocumentContent(filePath, content);
     if (!ast) return null;
 
     const symbols: DocumentSymbol[] = [];
