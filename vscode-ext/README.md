@@ -149,3 +149,7 @@ Run `npm test` in `vscode-ext/` for the current pass count.
 - `syntaxes/bpl.tmLanguage.json`: TextMate grammar for syntax highlighting.
 - `src/extension.ts`: LSP Client entry point.
 - `src/server.ts`: LSP Server implementation (handles hover, definition, completion).
+
+Document features use the current editor text. If an edit cannot be parsed,
+outlines, folding, code lenses, smart selections, and inlay hints omit stale
+results and resume when the text can be parsed again.

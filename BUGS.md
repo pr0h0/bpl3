@@ -8808,3 +8808,11 @@ registration coverage supplements path-candidate tests and interactive verificat
   Link generation also uses the current parse result: malformed edits return
   no links rather than reusing stale AST ranges that could throw while lexing.
   A regression covers valid text, an unfinished import, and repaired text.
+
+## Stale editor document features (2026-10-26)
+
+- **Fixed:** Outline symbols, folding ranges, code lenses, smart selections,
+  and inlay hints reused the previous cached AST after a malformed edit failed
+  parsing. These features now use the current parse result and return no stale
+  output on failure. Regressions exercise valid text, an unfinished string,
+  and repaired text for each provider.

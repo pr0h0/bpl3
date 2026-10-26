@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Discard stale outlines, folds, code lenses, selections, and inlay hints when
+  the current editor document fails parsing.
+
 - Select the correct editor import-link range for same-line imports, comments,
   and escaped source paths.
 
