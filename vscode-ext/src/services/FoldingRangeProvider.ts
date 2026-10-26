@@ -38,7 +38,21 @@ export class FoldingRangeProvider {
     // Add import region folding
     this.addImportRegion(ast, ranges);
 
-    return ranges.length > 0 ? ranges : null;
+    const seen = new Set<string>();
+    const uniqueRanges = ranges.filter((range) => {
+      if (range.endLine <= range.startLine) return false;
+      const key = JSON.stringify([
+        range.startLine,
+        range.startCharacter,
+        range.endLine,
+        range.endCharacter,
+        range.kind,
+      ]);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return uniqueRanges.length > 0 ? uniqueRanges : null;
   }
 
   /**

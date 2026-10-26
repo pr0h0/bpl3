@@ -163,3 +163,6 @@ expressions. Nested callable bodies do not increase the enclosing metric.
 
 Workspace symbol search retains overloads declared on the same source line
 while deduplicating indexed and cached copies of each declaration.
+
+Code folding returns each multiline region once and omits single-line body
+regions, while preserving nested folds and import groups.
