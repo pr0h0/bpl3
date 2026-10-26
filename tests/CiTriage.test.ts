@@ -1790,6 +1790,19 @@ describe("CI triage helper", () => {
     ).toEqual(expectedCommands);
   });
 
+  test("maps lint discovery failures to the discovery regression", () => {
+    const expectedCommands = [
+      "bun test tests/CLILintDiscoveryErrors.test.ts",
+      "bun run check",
+    ];
+    expect(localCommandsForStep("BPL_LINT_PROCESSING_ERROR")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("lint discovery failed")).toEqual(
+      expectedCommands,
+    );
+  });
+
   test("maps check and lint JSON no-input failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "no-input failures"',

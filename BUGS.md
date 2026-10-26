@@ -8786,3 +8786,5 @@ registration coverage supplements path-candidate tests and interactive verificat
   `.bplignore` patterns, as `BPL_LINT_NO_INPUTS`. Discovery failures now use
   `BPL_LINT_PROCESSING_ERROR`; empty discovery retains `BPL_LINT_NO_INPUTS`.
   Explicit missing-file errors and human-readable messages remain available.
+  The CI triage helper maps the new code to the discovery regression test;
+  its inventory checks caught the initially missing reproduction mapping.
