@@ -8805,3 +8805,6 @@ registration coverage supplements path-candidate tests and interactive verificat
   locate the string token inside the parsed import statement and retain its
   raw source length. Tests cover repeated imports, comment lookalikes, escaped
   paths, UTF-16 columns, and LF, CRLF, and CR newlines.
+  Link generation also uses the current parse result: malformed edits return
+  no links rather than reusing stale AST ranges that could throw while lexing.
+  A regression covers valid text, an unfinished import, and repaired text.

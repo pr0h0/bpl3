@@ -44,3 +44,48 @@ for (const newline of ["\n", "\r\n", "\r"]) {
     }
   });
 }
+
+test("import links discard stale AST ranges after malformed edits and recover", () => {
+  const uri = pathToFileURL(join(root, "tmp/link-edits.bpl")).toString();
+  const index = new SymbolIndex(root);
+  const provider = new DocumentLinkProvider(
+    new ASTResolver(index),
+    index.getResolver(),
+  );
+  const params = { textDocument: { uri } };
+  const valid = TextDocument.create(
+    uri,
+    "bpl",
+    1,
+    'import [String] from "std/string.bpl";',
+  );
+  expect(provider.provide(params, valid)).toHaveLength(1);
+
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    const invalid = TextDocument.create(
+      uri,
+      "bpl",
+      2,
+      'import [String] from "std/',
+    );
+    expect(provider.provide(params, invalid)).toEqual([]);
+  } finally {
+    console.error = originalError;
+  }
+
+  const recovered = TextDocument.create(
+    uri,
+    "bpl",
+    3,
+    '\nimport [Array] from "std/array.bpl";',
+  );
+  const links = provider.provide(params, recovered);
+  expect(links).toHaveLength(1);
+  expect(recovered.getText(links[0]!.range)).toBe("std/array.bpl");
+  expect(links[0]!.range.start.line).toBe(1);
+  expect(links[0]!.target).toBe(
+    pathToFileURL(join(root, "lib/array.bpl")).toString(),
+  );
+});
