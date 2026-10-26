@@ -8824,3 +8824,12 @@ registration coverage supplements path-candidate tests and interactive verificat
   AST selection now retain a zero-width range at that cursor, preserving LSP
   result order and cardinality. Tests cover mixed code/comment/blank/EOF
   positions, repeated positions, comment-only documents, and all newline styles.
+
+## Ignore-file CR line endings (2026-10-26)
+
+- **Fixed:** Source discovery split `.bplignore` on LF/CRLF only. Standalone CR
+  separators combined patterns into one line; a leading comment could hide all
+  remaining patterns, causing ignored files to be formatted or linted. Discovery
+  now recognizes LF, CRLF, CR, and mixed styles. Tests verify formatter writes
+  preserve ignored files, lint sees only included sources, explicit inputs still
+  override ignores, and unsupported negation remains rejected.

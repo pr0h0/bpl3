@@ -49,7 +49,7 @@ export function expandSourceInputs(inputs: string[]): string[] {
     const patterns = fs.existsSync(ignoreFile)
       ? fs
           .readFileSync(ignoreFile, "utf8")
-          .split(/\r?\n/)
+          .split(/\r\n|\r|\n/)
           .map((x) => x.trim())
           .filter((x) => x && !x.startsWith("#"))
       : [];
