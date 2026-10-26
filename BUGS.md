@@ -8850,3 +8850,12 @@ registration coverage supplements path-candidate tests and interactive verificat
   start column and keeps range-less locations separate. Tests index and cache
   real overload declarations, checking case-insensitive and empty queries;
   duplicate copies still collapse while both overloads remain available.
+
+## Duplicate and empty editor folding ranges (2026-10-26)
+
+- **Fixed:** Folding emitted function and control-flow body ranges both from
+  parent nodes and again from their blocks. Multiline function signatures could
+  also emit a fold with identical start/end lines for a single-line body. The
+  final response now removes duplicate coordinate/kind entries and empty line
+  regions, preserving nested folds and the import group. Regressions cover
+  functions, conditionals, loops, try/catch, and LF/CRLF/CR text.

@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Remove duplicate and empty editor folding ranges while preserving nested
+  regions and grouped imports.
+
 - Retain distinct same-line overloads in workspace symbol search while
   deduplicating indexed and cached copies of each declaration.
 
