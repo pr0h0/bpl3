@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Keep input errors visible in `check --quiet` while suppressing successful
+  check output and retaining clean JSON reports.
+
 - Report `BPL_FORMAT_NO_INPUTS` when formatter directory discovery finds no
   sources, preserving distinct processing and explicit-file error codes.
 

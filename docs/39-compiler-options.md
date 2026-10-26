@@ -101,7 +101,9 @@ invalidates more modules than expected.
 
 ### `bpl check <files...>`
 
-Type check files without generating code (fast).
+Type check files without generating code (fast). `--quiet` hides successful
+check output while keeping input errors and compiler diagnostics on stderr.
+With `--json`, results remain structured JSON on stdout.
 
 **Examples:**
 
