@@ -122,13 +122,15 @@ assignment-target predicate.
 
 #### BUG-433: Global initializers are validated only in codegen; negative literals rejected
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `CodeGenerator.ts:1624-1671`: `global A: int = -5;`, `= -1.5`, `= !true`,
 `= 1 + 2`, `= [1, 2]` and `= f()` pass `check`, then fail with an uncoded
 "Global variables must be initialized with literals". This contradicts
 docs/05 (signed literals) and docs/36 (array literals). Constant-fold unary
 minus/not and constant aggregates; diagnose the rest in the checker.
+
+**Resolution**: `compiler/common/ConstantInitializer.ts` folds literals, unary `-`/`!`/`~`, integer arithmetic, numeric casts and array literals. The checker reports anything else with `BPL_GLOBAL_INITIALIZER_NOT_CONSTANT` (without cascading undefined-symbol errors) and codegen emits the folded constant. `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-434: "Unreachable code" warning is reported as an error
 

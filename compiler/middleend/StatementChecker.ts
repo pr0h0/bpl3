@@ -13,6 +13,7 @@ import {
 import type { CheckerContext } from "./CheckerContext";
 import type { Symbol, SymbolTable } from "./SymbolTable";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
+import { evaluateConstantInitializer } from "../common/ConstantInitializer";
 import {
   CAPTURED_VALUE_ASSIGNED_CODE,
   BREAK_OUTSIDE_CONTEXT_CODE,
@@ -20,6 +21,7 @@ import {
   CONTINUE_OUTSIDE_LOOP_CODE,
   DEFER_RETURN_VALUE_INVALID_CODE,
   FALLTHROUGH_OUTSIDE_SWITCH_CODE,
+  GLOBAL_INITIALIZER_NOT_CONSTANT_CODE,
   RETURN_TYPE_MISMATCH_CODE,
   RETURN_ARRAY_VIEW_ESCAPES_CODE,
   SWITCH_CASE_TYPE_MISMATCH_CODE,
@@ -1201,6 +1203,24 @@ export function checkVariableDecl(
       decl.typeAnnotation,
       "a global variable type",
       decl.location,
+    );
+  }
+  // Globals are emitted as constants; reject runtime initializers here rather
+  // than failing in code generation (BUG-433).
+  if (
+    decl.isGlobal &&
+    decl.initializer &&
+    !evaluateConstantInitializer(decl.initializer)
+  ) {
+    // Reported without throwing so the global is still declared and its uses
+    // do not cascade into undefined-symbol errors.
+    this.addError(
+      new CompilerError(
+        "Global initializer must be a compile-time constant",
+        "Use literals, unary -, !, ~, integer arithmetic, casts of numeric constants, or array literals of these; assign other values in a function.",
+        decl.initializer.location,
+        GLOBAL_INITIALIZER_NOT_CONSTANT_CODE,
+      ),
     );
   }
   if (Array.isArray(decl.name)) {

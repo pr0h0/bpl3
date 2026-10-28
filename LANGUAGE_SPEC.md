@@ -268,6 +268,10 @@ codegen.
   with `BPL_VARIABLE_TYPE_ANNOTATION_MISSING`; there is no initializer-based
   type inference.
 - **[R-DECL-2]** A global declared without an initializer is zero-initialized.
+  A global initializer must be a compile-time constant: a literal, unary `-`,
+  `!` or `~` of a constant, integer arithmetic (`+ - * / % & | ^ << >>`) of
+  constants, a cast of a numeric constant, or an array literal of constants.
+  Anything else is rejected with `BPL_GLOBAL_INITIALIZER_NOT_CONSTANT`.
   A local declared without an initializer has an unspecified value until it is
   assigned; reading it first is undefined behavior and is not diagnosed.
 - **[R-DECL-3]** A local variable or parameter that is never used is a compile

@@ -141,3 +141,34 @@ frame main() ret int {
     expect(result.status).toBe(0);
   });
 });
+
+describe("BUG-433: constant global initializers", () => {
+  test("folds signed, logical, arithmetic, cast and array initializers", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+global A: int = -5;
+global F: float = -1.5;
+global B: bool = !true;
+global S: int = 1 + 2 * 3;
+global M: u8 = 1 << 7;
+global ARR: int[3] = [1, -2, 3];
+global FS: f32 = cast<f32>(2.5);
+global const K: int = ~0;
+frame main() ret int {
+    printf("%d %.1f %d %d %d %d %d %d %.1f %d\\n", A, F, cast<int>(B), S, cast<int>(M),
+        ARR[0], ARR[1], ARR[2], cast<float>(FS), K);
+    return 0;
+}
+`);
+    expect(output).toBe("-5 -1.5 0 7 128 1 -2 3 2.5 -1\n");
+  });
+
+  test("rejects runtime initializers without cascading errors", () => {
+    const result = check(`frame f() ret int { return 1; }
+global X: int = f();
+frame main() ret int { return X; }
+`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("BPL_GLOBAL_INITIALIZER_NOT_CONSTANT");
+    expect(result.stderr).not.toContain("Undefined symbol");
+  });
+});

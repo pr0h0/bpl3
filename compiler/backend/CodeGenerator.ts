@@ -1,4 +1,7 @@
-import { getCExportFunctions, C_EXPORT_CONFLICT_CODE } from "../common/CExports";
+import {
+  getCExportFunctions,
+  C_EXPORT_CONFLICT_CODE,
+} from "../common/CExports";
 import { irNeedsNativeRuntime } from "../common/NativeRuntime";
 import * as fs from "fs";
 import { isRuntimeHelperName } from "./codegen/TypeGenerator";
@@ -20,7 +23,10 @@ import { DebugInfoGenerator } from "./codegen/DebugInfoGenerator";
 import { getDataLayoutForTarget } from "./codegen/BaseCodeGenerator";
 import { findSymlinkedPathComponent } from "../common/PathSafety";
 import { formatFloatingPointLiteral } from "./codegen/FloatingPointLiteral";
-import { TokenType } from "../frontend/TokenType";
+import {
+  type ConstantValue,
+  evaluateConstantInitializer,
+} from "../common/ConstantInitializer";
 
 export const CODEGEN_DEBUG_IR_PATH_SYMLINK_CODE =
   "BPL_CODEGEN_DEBUG_IR_PATH_SYMLINK";
@@ -302,7 +308,9 @@ export class CodeGenerator extends StatementGenerator {
       this.declaredFunctions.add("exit");
     }
     if (!this.declaredFunctions.has("memcmp")) {
-      this.emitPrunableImplicitCDeclaration("declare i32 @memcmp(i8*, i8*, i64)");
+      this.emitPrunableImplicitCDeclaration(
+        "declare i32 @memcmp(i8*, i8*, i64)",
+      );
       this.declaredFunctions.add("memcmp");
     }
     if (!this.declaredFunctions.has("strcmp")) {
@@ -319,7 +327,9 @@ export class CodeGenerator extends StatementGenerator {
     this.emitDeclaration(
       `%struct.DeferNode = type { i8*, i8*, %struct.DeferNode* }`,
     );
-    this.emitDeclaration(`@defer_top = external ${runtimeStorage} %struct.DeferNode*`);
+    this.emitDeclaration(
+      `@defer_top = external ${runtimeStorage} %struct.DeferNode*`,
+    );
 
     // jmp_buf is platform dependent. [32 x i64] is 256 bytes, sufficient for x64.
     // Added saved_defer_top to restore defer stack on catch
@@ -413,38 +423,38 @@ export class CodeGenerator extends StatementGenerator {
     // and lambdas might trigger new monomorphizations.
     let iterationCount = 0;
     do {
-    while (
-      this.pendingLambdas.length > 0 ||
-      this.pendingGenerations.length > 0
-    ) {
-      if (this.pendingGenerations.length > 0) {
-        iterationCount++;
-      }
+      while (
+        this.pendingLambdas.length > 0 ||
+        this.pendingGenerations.length > 0
+      ) {
+        if (this.pendingGenerations.length > 0) {
+          iterationCount++;
+        }
 
-      if (iterationCount > 50) {
-        throw new CompilerError(
-          "Infinite monomorphization detected (exceeded 50 generation batches)",
-          "Generic recursion depth limit exceeded. Check for infinite recursive generic instantiations.",
-          program.location || {
-            file: "unknown",
-            startLine: 0,
-            startColumn: 0,
-            endLine: 0,
-            endColumn: 0,
-          },
-        );
-      }
-      this.processPendingLambdas();
+        if (iterationCount > 50) {
+          throw new CompilerError(
+            "Infinite monomorphization detected (exceeded 50 generation batches)",
+            "Generic recursion depth limit exceeded. Check for infinite recursive generic instantiations.",
+            program.location || {
+              file: "unknown",
+              startLine: 0,
+              startColumn: 0,
+              endLine: 0,
+              endColumn: 0,
+            },
+          );
+        }
+        this.processPendingLambdas();
 
-      // Process one batch of pending generations
-      // We use a while loop here to process all currently pending generations
-      // before checking lambdas again, but we could also do one by one.
-      const currentGenerations = [...this.pendingGenerations];
-      this.pendingGenerations = [];
-      for (const task of currentGenerations) {
-        task();
+        // Process one batch of pending generations
+        // We use a while loop here to process all currently pending generations
+        // before checking lambdas again, but we could also do one by one.
+        const currentGenerations = [...this.pendingGenerations];
+        this.pendingGenerations = [];
+        for (const task of currentGenerations) {
+          task();
+        }
       }
-    }
     } while (this.emitReferencedDeferredMethods());
 
     if (this.usedLlvmMemIntrinsics.has("memcpy")) {
@@ -612,10 +622,7 @@ export class CodeGenerator extends StatementGenerator {
   ): void {
     this.declarationsOutput = this.declarationsOutput.filter((line) => {
       const name = this.getDeclaredFunctionName(line);
-      if (
-        name === null ||
-        !PRUNABLE_INTERNAL_RUNTIME_DECLARATIONS.has(name)
-      ) {
+      if (name === null || !PRUNABLE_INTERNAL_RUNTIME_DECLARATIONS.has(name)) {
         return true;
       }
       return generatedBodyReferences.symbols.has(name);
@@ -708,8 +715,9 @@ export class CodeGenerator extends StatementGenerator {
 
   private getDeclaredGlobalName(line: string): string | null {
     return (
-      line.match(/^@([A-Za-z0-9_]+) = external(?: dso_local)?(?: thread_local(?:\([^)]*\))?)? global\b/)?.[1] ??
-      null
+      line.match(
+        /^@([A-Za-z0-9_]+) = external(?: dso_local)?(?: thread_local(?:\([^)]*\))?)? global\b/,
+      )?.[1] ?? null
     );
   }
 
@@ -736,8 +744,7 @@ export class CodeGenerator extends StatementGenerator {
       return;
     }
 
-    const rootReferences =
-      this.cloneLlvmReferences(generatedBodyReferences);
+    const rootReferences = this.cloneLlvmReferences(generatedBodyReferences);
     const retained = new Set<string>();
     const declarationReferences = new Map<string, LlvmReferences>();
 
@@ -785,8 +792,7 @@ export class CodeGenerator extends StatementGenerator {
   private pruneUnusedImplicitCStructs(
     generatedBodyReferences: LlvmReferences,
   ): void {
-    const rootReferences =
-      this.cloneLlvmReferences(generatedBodyReferences);
+    const rootReferences = this.cloneLlvmReferences(generatedBodyReferences);
 
     for (const line of this.declarationsOutput) {
       const name = this.getDeclaredStructName(line);
@@ -824,8 +830,7 @@ export class CodeGenerator extends StatementGenerator {
       return;
     }
 
-    const rootReferences =
-      this.cloneLlvmReferences(generatedBodyReferences);
+    const rootReferences = this.cloneLlvmReferences(generatedBodyReferences);
     const retainedReferences = this.createLlvmReferences();
     const retained = new Set<string>();
     const candidateReferences = new Map<string, LlvmReferences>();
@@ -989,9 +994,7 @@ export class CodeGenerator extends StatementGenerator {
     }
   }
 
-  private collectFinalPruningLlvmReferences(
-    llvmBody: string,
-  ): LlvmReferences {
+  private collectFinalPruningLlvmReferences(llvmBody: string): LlvmReferences {
     const references = this.createLlvmReferences();
     const targets = this.createFinalPruningLlvmReferenceTargets();
     this.scanTargetedLlvmReferencesFromText(references, llvmBody, targets);
@@ -1082,9 +1085,7 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     let structIndex = 0;
-    while (
-      (structIndex = llvmBody.indexOf("%struct.", structIndex)) !== -1
-    ) {
+    while ((structIndex = llvmBody.indexOf("%struct.", structIndex)) !== -1) {
       const start = structIndex + "%struct.".length;
       const candidates = targets.structs.get(llvmBody.charCodeAt(start));
       if (candidates === undefined) {
@@ -1150,9 +1151,7 @@ export class CodeGenerator extends StatementGenerator {
     }
 
     let structIndex = 0;
-    while (
-      (structIndex = llvmBody.indexOf("%struct.", structIndex)) !== -1
-    ) {
+    while ((structIndex = llvmBody.indexOf("%struct.", structIndex)) !== -1) {
       const start = structIndex + "%struct.".length;
       const end = this.scanLlvmReferenceNameEnd(llvmBody, start);
       if (end > start) {
@@ -1168,16 +1167,14 @@ export class CodeGenerator extends StatementGenerator {
     let end = start;
     while (end < llvmBody.length) {
       const code = llvmBody.charCodeAt(end);
-      if (
-        !(
-          (code >= 48 && code <= 57) ||
-          (code >= 65 && code <= 90) ||
-          (code >= 97 && code <= 122) ||
-          code === 95 ||
-          code === 46 ||
-          code === 36
-        )
-      ) {
+      if (!(
+        (code >= 48 && code <= 57) ||
+        (code >= 65 && code <= 90) ||
+        (code >= 97 && code <= 122) ||
+        code === 95 ||
+        code === 46 ||
+        code === 36
+      )) {
         break;
       }
       end++;
@@ -1623,6 +1620,49 @@ export class CodeGenerator extends StatementGenerator {
     this.emitDeclaration("");
   }
 
+  /** LLVM constant text for a folded global initializer of the given type. */
+  private formatGlobalConstant(
+    value: ConstantValue,
+    llvmType: string,
+    decl: AST.VariableDecl,
+  ): string {
+    switch (value.kind) {
+      case "int":
+        if (llvmType === "double" || llvmType === "float")
+          return formatFloatingPointLiteral(Number(value.value), llvmType);
+        if (llvmType.endsWith("*") && value.value === 0n) return "null";
+        return value.value.toString();
+      case "float":
+        return formatFloatingPointLiteral(
+          value.value,
+          llvmType === "float" ? "float" : "double",
+        );
+      case "bool":
+        return value.value ? "true" : "false";
+      case "literal":
+        return this.generateLiteral(value.expr);
+      case "array": {
+        const array = /^\[(\d+) x (.+)\]$/.exec(llvmType);
+        if (!array || value.elements.length > Number(array[1])) {
+          throw new CompilerError(
+            "Global array initializer does not match the declared array type",
+            "Declare a fixed-size array with room for every element, e.g. `global T: int[3] = [1, 2, 3];`.",
+            decl.location,
+          );
+        }
+        const elementType = array[2]!;
+        const elements = value.elements.map(
+          (element) =>
+            `${elementType} ${this.formatGlobalConstant(element, elementType, decl)}`,
+        );
+        while (elements.length < Number(array[1])) {
+          elements.push(`${elementType} zeroinitializer`);
+        }
+        return `[${elements.join(", ")}]`;
+      }
+    }
+  }
+
   private generateGlobalVariable(decl: AST.VariableDecl) {
     if (typeof decl.name !== "string") {
       throw new CompilerError(
@@ -1638,37 +1678,18 @@ export class CodeGenerator extends StatementGenerator {
     if (decl.initializer) {
       if (decl.initializer.kind === "Literal") {
         init = this.generateLiteral(decl.initializer as AST.LiteralExpr);
-      } else if (decl.initializer.kind === "Cast" && type === "float") {
-        // A constant f64 literal cast to f32 needs no runtime initialization.
-        // Keep calls and arbitrary expressions out of global initializers.
-        let source = decl.initializer.expression;
-        let sign = 1;
-        if (
-          source.kind === "Unary" &&
-          (source.operator.type === TokenType.Minus || source.operator.type === TokenType.Plus)
-        ) {
-          sign = source.operator.type === TokenType.Minus ? -1 : 1;
-          source = source.operand;
-        }
-        if (
-          source.kind !== "Literal" ||
-          source.type !== "number" ||
-          !source.resolvedType ||
-          !["float", "double"].includes(this.resolveType(source.resolvedType))
-        ) {
+      } else {
+        // Folded constants such as -5, !true, 1 << 4 or [1, 2] (BUG-433);
+        // the checker has already rejected non-constant initializers.
+        const value = evaluateConstantInitializer(decl.initializer);
+        if (!value) {
           throw new CompilerError(
-            "Global variables must be initialized with literals",
-            "Global f32 casts require a floating-point literal.",
+            "Global initializer must be a compile-time constant",
+            "Use literals, unary -, !, ~, integer arithmetic, casts of numeric constants, or array literals of these.",
             decl.location,
           );
         }
-        init = formatFloatingPointLiteral(sign * Number(source.value), "float");
-      } else {
-        throw new CompilerError(
-          "Global variables must be initialized with literals",
-          "Global variables must be initialized with literals",
-          decl.location,
-        );
+        init = this.formatGlobalConstant(value, type, decl);
       }
     } else if (
       type === "i64" ||

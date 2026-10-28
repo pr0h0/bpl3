@@ -39,6 +39,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Global initializers accept constant expressions (`-5`, `!true`, `~0`,
+  `1 << 4`, numeric casts, array literals) and anything else is reported by the
+  checker as `BPL_GLOBAL_INITIALIZER_NOT_CONSTANT`; taking the address of a
+  temporary is rejected with `BPL_ADDRESS_OF_TARGET_INVALID` (BUG-432, BUG-433).
+
 - `JSON.parse` results support method calls (their vtable is installed from
   the new `TypeInfo.vtable` field), and `JSON.parse<Array<string>>` no longer
   depends on which other types or methods the program uses (BUG-454, BUG-457).
