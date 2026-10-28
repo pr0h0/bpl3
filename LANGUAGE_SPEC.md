@@ -718,7 +718,10 @@ try {
 - **[R-EXPR-10]** `sizeof(Type)` and `sizeof(expression)` yield the size in
   bytes of the type.
 - **[R-EXPR-11]** `&lvalue` yields a pointer to the operand, and `*pointer`
-  reads or writes the pointed-to value.
+  reads or writes the pointed-to value. An lvalue is a variable, `*pointer`, or
+  a field or element of an lvalue or of storage reached through a pointer or
+  slice; the address of a call result, literal, arithmetic, cast, conditional,
+  or overloaded `__get__` result is rejected (`BPL_ADDRESS_OF_TARGET_INVALID`).
 - **[R-EXPR-12]** `(value is Type)` yields `bool`. For pointers to structs,
   `pointer is *Child` tests the dynamic type of the pointed-to object.
 - **[R-EXPR-13]** `match<Type>(value)` yields `true` when the value's type is

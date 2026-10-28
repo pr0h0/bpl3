@@ -111,12 +111,14 @@ the call to the declaring type's mangled symbol, or reject it with a diagnostic.
 
 #### BUG-432: Address-of non-lvalues passes `check`
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `ExpressionChecker.ts:973-1027` has no lvalue test: `&(x+1)`, `&one()`, `&5`,
 `&x++`, `&cast<int>(x)` and `&v[0]` with an overloaded `__get__` pass `check` and
 fail in codegen with an uncoded `Expression is not an lvalue`. Reuse the
 assignment-target predicate.
+
+**Resolution**: `checkUnary` requires an addressable operand (variable, `*p`, or a field/element of addressable storage or of a pointer/slice) and rejects temporaries with `BPL_ADDRESS_OF_TARGET_INVALID` instead of failing in codegen. `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-433: Global initializers are validated only in codegen; negative literals rejected
 

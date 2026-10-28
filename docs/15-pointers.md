@@ -65,6 +65,11 @@ printf("Address of x: %p\n", p);
 printf("Value of x: %d\n", x);
 ```
 
+The operand must name storage: a variable, `*ptr`, or a field or element of
+one (`&pt.x`, `&arr[1]`, `&ptr.field`). Temporaries such as `&(x + 1)`,
+`&f()`, `&5`, or `&cast<long>(x)` are rejected; store the value in a local
+first.
+
 ### Dereference Operator (\*)
 
 Access the value at the address:

@@ -93,3 +93,51 @@ frame main() ret int {
     expect(output).toBe("5 5000000000\n");
   });
 });
+
+describe("BUG-432: address-of temporaries", () => {
+  for (const operand of [
+    "&(x + 1)",
+    "&one()",
+    "&5",
+    "&cast<long>(x)",
+    "&(b ? x : x)",
+  ]) {
+    test(`rejects ${operand}`, () => {
+      const result = check(`frame one() ret int { return 1; }
+frame main() ret int {
+    local x: int = 1;
+    local b: bool = true;
+    local _r: *void = cast<*void>(${operand});
+    if (b) { return x; }
+    return 0;
+}
+`);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "Cannot take the address of a temporary value",
+      );
+    });
+  }
+
+  test("accepts variables, fields, elements and dereferences", () => {
+    const result = check(`struct Pt { x: int, y: int, }
+frame get() ret *Pt { return nullptr; }
+frame main() ret int {
+    local arr: int[2] = [1, 2];
+    local sl: int[] = arr;
+    local pt: Pt = Pt { x: 1, y: 2 };
+    local pp: *Pt = &pt;
+    local a: *int = &arr[1];
+    local f: *int = &pt.x;
+    local g: *int = &pp.y;
+    local h: *int = &(*pp).y;
+    local i: *int = &sl[0];
+    local j: *int = &get().x;
+    if (a == f || g == h || i == j) { return 1; }
+    return 0;
+}
+`);
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+  });
+});

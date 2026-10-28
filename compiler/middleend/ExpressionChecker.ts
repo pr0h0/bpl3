@@ -988,6 +988,14 @@ export function checkUnary(
         ADDRESS_OF_TARGET_INVALID_CODE,
       );
     }
+    if (!isAddressableOperand(expr.operand)) {
+      throw new CompilerError(
+        "Cannot take the address of a temporary value",
+        "Address-of requires a variable, field, element, or dereferenced pointer; store the value in a local first.",
+        expr.location,
+        ADDRESS_OF_TARGET_INVALID_CODE,
+      );
+    }
     if (operandType.kind === "BasicType") {
       if (operandType.isConst) {
         throw new CompilerError(
@@ -1485,6 +1493,38 @@ export function checkTernary(
   );
   if (resultType) this.contextualizeArrayLiteral(expr, resultType);
   return resultType;
+}
+
+/**
+ * Whether `&operand` names storage (BUG-432). Fields and elements are
+ * addressable when reached through a pointer, slice or addressable object;
+ * calls, literals, arithmetic, casts and overloaded `__get__` results are
+ * temporaries.
+ */
+function isAddressableOperand(operand: AST.Expression): boolean {
+  switch (operand.kind) {
+    case "Group":
+      return isAddressableOperand(operand.expression);
+    case "Identifier":
+      return true;
+    case "Unary":
+      return operand.operator.type === TokenType.Star;
+    case "Member":
+    case "Index": {
+      if (operand.kind === "Index" && operand.operatorOverload) return false;
+      const objectType = operand.object.resolvedType;
+      if (
+        objectType?.kind === "BasicType" &&
+        (objectType.pointerDepth > 0 ||
+          objectType.arrayDimensions[0] === null)
+      ) {
+        return true;
+      }
+      return isAddressableOperand(operand.object);
+    }
+    default:
+      return false;
+  }
 }
 
 /** String aliases retain the direct spelling's integer conversion restriction. */
