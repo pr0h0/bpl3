@@ -255,16 +255,17 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
     }
 
     # Operator overloading: In-place concatenation with <<
-    # Usage: str << "text" modifies str in place and returns it
-    frame __lshift__(this: *String, other: String) ret String {
+    # Usage: str << "text" modifies str in place and returns a pointer to it,
+    # so chained appends (`s << a << b`) keep modifying the same String.
+    frame __lshift__(this: *String, other: String) ret *String {
         if (other.data == nullptr) {
-            return *this;
+            return this;
         }
         if (this.data == nullptr) {
             local newStr: String = other.clone();
             this.data = newStr.data;
             this.length = newStr.length;
-            return *this;
+            return this;
         }
         local size: long = cast<long>(this.length) + cast<long>(other.length);
         if (size > cast<long>(2147483646)) { throw "String concatenation result too large"; }
@@ -276,16 +277,15 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         free(this.data);
         this.data = newData;
         this.length = newLen;
-        return *this;
+        return this;
     }
 
     # Operator overloading: In-place concatenation with << (string literal overload)
     # Allows: str << "literal" without needing String.new()
-    frame __lshift__(this: *String, other: string) ret String {
+    frame __lshift__(this: *String, other: string) ret *String {
         local otherStr: String = String.new(other);
         defer { otherStr.destroy(); }
-        local result: String = this.__lshift__(otherStr);
-        return result;
+        return this.__lshift__(otherStr);
     }
 
     frame fromInt(val: long) ret String {

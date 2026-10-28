@@ -39,6 +39,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Chained `<<`/`>>` on `StringBuilder`, `String`, `Stack` and `Array` no longer
+  double-free: the operators return a pointer to the receiver (BUG-455, BUG-464).
+
 - Compiler audit fixes (BUG-423, 425-428, 431, 434): scalar return types of
   overrides and spec implementations must match exactly; ternary branches are
   converted to their common type; `p += n`/`p -= n` step pointers by elements;

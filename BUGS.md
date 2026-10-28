@@ -385,13 +385,15 @@ the compiler's object initializer.
 
 #### BUG-455: Chained `<<` on StringBuilder, String, Stack and Array double-frees
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `lib/string_builder.bpl:231`, `lib/string.bpl:259/284`, `lib/stack.bpl:59`,
 `lib/array.bpl:314` return `*this` by value from `__lshift__`; in `x << a << b`
 the second append grows a copy and frees the original's buffer.
 `sb << "ab" << "<long>"`, `s << "cd" << "ef"` and `Stack.new(1) << 1 << 2` abort
 with `double free detected`. Return `*Self` like `Queue`.
+
+**Resolution**: `__lshift__` on StringBuilder, String (both overloads), Stack and Array, and Array `__rshift__`, return `*Self` like Queue, so chains operate on the original. `tests/StdlibShiftChaining.test.ts`.
 
 #### BUG-456: Lock verification ignores nested `bpl_modules`/`node_modules` that are still loaded
 
@@ -472,10 +474,12 @@ document the behavior (suspected).
 
 #### BUG-464: Chaining three operators on a generic method result fails to typecheck
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 Chaining operators on a generic method returning `Array<T>`/`Stack<T>` fails
 with `got Array<T> and int`.
+
+**Resolution**: the operator-overload checker substitutes the receiver's generic arguments into the result type even when the receiver type carries only a name (falls back to scope lookup), so `st << 1 << 2` keeps `*Stack<int>`. `tests/StdlibShiftChaining.test.ts`.
 
 ## Developer experience fixes (2026-10-28)
 

@@ -617,7 +617,13 @@ export function checkBinary(
         targetType.kind === "BasicType" &&
         targetType.genericArgs.length > 0
       ) {
-        const decl = targetType.resolvedDeclaration;
+        // Locals and earlier operator results may carry only the name, so
+        // fall back to scope lookup; otherwise the result keeps unbound
+        // parameters (`*Stack<T>`) and a chained operator fails (BUG-464).
+        const decl =
+          targetType.resolvedDeclaration ??
+          (this.currentScope.resolve(targetType.name)?.declaration as
+            typeof targetType.resolvedDeclaration | undefined);
         if (
           decl &&
           (decl.kind === "StructDecl" ||
