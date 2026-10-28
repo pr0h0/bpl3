@@ -49,13 +49,15 @@ import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
 import { updateConfig } from "../compiler/common/Config";
 import {
   BUILD_CONFLICTING_INPUTS_CODE,
+  BUILD_INPUT_NOT_FOUND_CODE,
   BUILD_NO_INPUTS_CODE,
 } from "./BuildErrorCodes";
 
 export {
   BUILD_CONFLICTING_INPUTS_CODE,
+  BUILD_INPUT_NOT_FOUND_CODE,
   BUILD_NO_INPUTS_CODE,
-} from "./BuildErrorCodes";
+};
 
 const log = new Logger("CompilationRunner");
 
@@ -76,7 +78,6 @@ export const BUILD_INVALID_EMIT_CODE = "BPL_BUILD_INVALID_EMIT";
 export const BUILD_INVALID_WASM_RUNTIME_CODE = "BPL_BUILD_INVALID_WASM_RUNTIME";
 export const BUILD_INVALID_JOBS_CODE = "BPL_BUILD_INVALID_JOBS";
 export const BUILD_UNSUPPORTED_TARGET_CODE = "BPL_BUILD_UNSUPPORTED_TARGET";
-export const BUILD_INPUT_NOT_FOUND_CODE = "BPL_BUILD_INPUT_NOT_FOUND";
 export const BUILD_INPUT_SYMLINK_CODE = "BPL_BUILD_INPUT_SYMLINK";
 export const BUILD_INPUT_NOT_FILE_CODE = "BPL_BUILD_INPUT_NOT_FILE";
 export const BUILD_OUTPUT_SYMLINK_CODE = "BPL_BUILD_OUTPUT_SYMLINK";
@@ -180,7 +181,7 @@ export function processFile(
       if (e instanceof CompilerError) {
         console.error(diagnosticFormatter.formatError(e));
       } else {
-        log.error(`${e}`);
+        log.error(describeError(e));
         if (e instanceof Error && e.stack && options.verbose) {
           log.error(e.stack);
         }
@@ -209,7 +210,7 @@ export async function processFileAsync(
       if (e instanceof CompilerError) {
         console.error(diagnosticFormatter.formatError(e));
       } else {
-        log.error(`${e}`);
+        log.error(describeError(e));
         if (e instanceof Error && e.stack && options.verbose) {
           log.error(e.stack);
         }
@@ -275,9 +276,9 @@ function handleCompilationError(
     console.error(diagnosticFormatter.formatError(e));
   } else if (options.json) {
     // Raw artifact emit modes do not use the JSON build-report envelope.
-    console.error(`${e}`);
+    console.error(describeError(e));
   } else {
-    log.error(`${e}`);
+    log.error(describeError(e));
     if (e instanceof Error && e.stack && options.verbose) {
       log.error(e.stack);
     }
@@ -1117,6 +1118,11 @@ function emitBuildJsonSuccess(
       2,
     ),
   );
+}
+
+/** User-facing text for an error: its message, without the internal class name. */
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function formatCompilationErrorMessage(error: unknown): string {

@@ -227,7 +227,7 @@ export async function runCheckCommand(
         console.log(`\n✓ All ${totalFiles} files type checked successfully`);
       }
     } else {
-      log.error(
+      console.error(
         `\n✗ ${errorCount} of ${totalFiles} files failed type checking`,
       );
     }

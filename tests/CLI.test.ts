@@ -808,9 +808,8 @@ describe("CLI Tests", () => {
     const result = runCLI(["build", missingFile, "--emit", "ast"]);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain(
-      "[CompilationRunner] BuildValidationError: File not found:",
-    );
+    expect(result.stderr).toContain("error: File not found:");
+    expect(result.stderr).not.toContain("BuildValidationError");
     expect(result.stderr).toContain(missingFile);
   });
 

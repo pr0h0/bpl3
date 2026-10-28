@@ -5,76 +5,86 @@
  * to ensure the compiler can locate resources (grammar, lib) from anywhere.
  */
 
-import { existsSync, realpathSync, lstatSync } from "fs";
+import { existsSync, realpathSync } from "fs";
 import { dirname, resolve } from "path";
 import { findSymlinkedParentPath } from "./PathSafety";
 
+export interface BplHomeSearchInputs {
+  bplHome?: string;
+  execPath: string;
+  scriptPath?: string;
+  cwd: string;
+  sourceRoot: string;
+}
+
+function realExecutablePath(executable: string): string | undefined {
+  if (!existsSync(executable)) return undefined;
+  try {
+    return realpathSync(executable);
+  } catch {
+    // Permission problems: fall back to the unresolved path.
+    return executable;
+  }
+}
+
 /**
- * Get the BPL installation root directory
+ * Locate the BPL installation root (the directory containing `grammar/`).
  * Priority:
- * 1. BPL_HOME environment variable (if set and valid)
- * 2. Directory containing the bpl executable (resolving symlinks)
- * 3. Current working directory (development mode)
- * 4. __dirname fallback (for non-compiled mode)
+ * 1. BPL_HOME environment variable (if set and existing)
+ * 2. Directory of the running executable, following symlinks. A compiled
+ *    `bpl` reports its real path through `execPath` (its argv[1] is a virtual
+ *    `/$bunfs/...` path), so `~/.local/bin/bpl -> checkout/bpl` works.
+ * 3. Directory of the entry script, following symlinks (`bun index.ts`)
+ * 4. The TypeScript source tree containing this module
+ * 5. Current working directory (development)
+ * 6. Common system install locations
+ */
+export function findBplHome(inputs: BplHomeSearchInputs): string {
+  if (inputs.bplHome && existsSync(inputs.bplHome)) {
+    assertSafeBplHomePath(inputs.bplHome, "BPL_HOME");
+    return inputs.bplHome;
+  }
+
+  const candidates: Array<[string, string]> = [];
+  const executable = realExecutablePath(inputs.execPath);
+  if (executable) {
+    candidates.push([dirname(executable), "BPL executable directory"]);
+  }
+  const script = inputs.scriptPath && realExecutablePath(inputs.scriptPath);
+  if (script) {
+    candidates.push([dirname(script), "BPL executable directory"]);
+  }
+  candidates.push(
+    [inputs.sourceRoot, "BPL source directory"],
+    [inputs.cwd, "BPL working directory"],
+    ["/usr/local/lib/bpl", "BPL install directory"],
+    ["/usr/lib/bpl", "BPL install directory"],
+    ["/opt/bpl", "BPL install directory"],
+  );
+
+  for (const [candidate, label] of candidates) {
+    if (existsSync(resolve(candidate, "grammar"))) {
+      assertSafeBplHomePath(candidate, label);
+      return candidate;
+    }
+  }
+
+  // Fall back to the executable directory even without a grammar so the
+  // later missing-resource error names a meaningful location.
+  return dirname(executable ?? inputs.execPath);
+}
+
+/**
+ * Get the BPL installation root directory; see findBplHome for the order.
  */
 export function getBplHome(): string {
-  // 1. Check BPL_HOME environment variable
-  const bplHome = process.env.BPL_HOME;
-  if (bplHome && existsSync(bplHome)) {
-    assertSafeBplHomePath(bplHome, "BPL_HOME");
-    return bplHome;
-  }
-
-  // 2. Try to determine from executable location
-  let execPath = process.argv[1] || process.execPath;
-
-  // If the executable is a symlink, resolve it to the real path
-  // This handles cases like /usr/bin/bpl -> /home/user/Projects/bpl3/bpl-wrapper.sh
-  if (existsSync(execPath)) {
-    try {
-      const stats = lstatSync(execPath);
-      if (stats.isSymbolicLink()) {
-        execPath = realpathSync(execPath);
-      }
-    } catch {
-      // If realpath fails, continue with original path - this can happen with permission issues
-    }
-  }
-
-  const execDir = dirname(execPath);
-
-  // Check if grammar exists in execDir (compiled binary case)
-  if (existsSync(resolve(execDir, "grammar"))) {
-    assertSafeBplHomePath(execDir, "BPL executable directory");
-    return execDir;
-  }
-
-  // 3. Try current working directory (development)
-  if (existsSync(resolve(process.cwd(), "grammar"))) {
-    assertSafeBplHomePath(process.cwd(), "BPL working directory");
-    return process.cwd();
-  }
-
-  // 4. Try __dirname/../.. (TypeScript source case)
-  const sourceRoot = resolve(__dirname, "../..");
-  if (existsSync(resolve(sourceRoot, "grammar"))) {
-    assertSafeBplHomePath(sourceRoot, "BPL source directory");
-    return sourceRoot;
-  }
-
-  // 5. Try common install locations
-  const commonPaths = ["/usr/local/lib/bpl", "/usr/lib/bpl", "/opt/bpl"];
-
-  for (const p of commonPaths) {
-    if (existsSync(resolve(p, "grammar"))) {
-      assertSafeBplHomePath(p, "BPL install directory");
-      return p;
-    }
-  }
-
-  // Fallback: return execDir even if grammar not found
-  // This will cause a more specific error message later
-  return execDir;
+  return findBplHome({
+    bplHome: process.env.BPL_HOME,
+    execPath: process.execPath,
+    scriptPath: process.argv[1],
+    cwd: process.cwd(),
+    sourceRoot: resolve(__dirname, "../.."),
+  });
 }
 
 /**

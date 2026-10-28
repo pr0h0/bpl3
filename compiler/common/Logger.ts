@@ -23,6 +23,7 @@ export enum LogLevel {
  */
 const Colors = {
   reset: "\x1b[0m",
+  bold: "\x1b[1m",
   dim: "\x1b[2m",
   red: "\x1b[31m",
   yellow: "\x1b[33m",
@@ -76,6 +77,12 @@ function formatMessage(
   message: string,
   colorize: boolean,
 ): string {
+  // Timestamps and source tags help when debugging the compiler; normal
+  // command output uses compiler-style `error:`/`warning:` prefixes instead.
+  if (getLogLevel() > LogLevel.DEBUG) {
+    return formatPlainMessage(level, message, colorize);
+  }
+
   const timestamp = new Date().toISOString().split("T")[1]?.slice(0, 12) ?? "";
 
   const levelNames: Record<LogLevel, string> = {
@@ -103,6 +110,23 @@ function formatMessage(
   }
 
   return `${timestamp} ${levelName} ${contextStr} ${message}`;
+}
+
+function formatPlainMessage(
+  level: LogLevel,
+  message: string,
+  colorize: boolean,
+): string {
+  const prefixes: Partial<Record<LogLevel, [string, string]>> = {
+    [LogLevel.WARN]: ["warning", Colors.yellow],
+    [LogLevel.ERROR]: ["error", Colors.red],
+  };
+  const prefix = prefixes[level];
+  if (!prefix) return message;
+  const [label, color] = prefix;
+  return colorize
+    ? `${Colors.bold}${color}${label}${Colors.reset}: ${message}`
+    : `${label}: ${message}`;
 }
 
 /**

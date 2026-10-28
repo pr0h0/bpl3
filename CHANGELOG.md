@@ -11,9 +11,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Cancel superseded pull-request compiler, playground, and container CI runs
   while retaining non-PR execution and container publication safeguards.
 
-- `init.sh` links `bpl` into `~/.local/bin` (or `BPL_BIN_DIR`) without `sudo`
-  and no longer edits `~/.bashrc`; it fails fast, uses the frozen lockfile, and
-  accepts `--no-build`.
+- `bun run setup` replaces `init.sh` and `bpl-wrapper.sh`: it installs, builds,
+  links `bpl` into `~/.local/bin` (or `--bin-dir`/`BPL_BIN_DIR`) without `sudo` or
+  shell-configuration edits, and smoke-tests the link. The compiled binary now
+  locates its installation through its real executable path, so `BPL_HOME` is
+  optional.
+
+- `bpl run` builds into a temporary directory removed on exit instead of
+  leaving the executable and `.ll` beside the source; `run -o <file>` keeps them.
+  Without a file inside a project directory, `run` and `build` use the
+  `bpl.json` entry.
+
+- CLI errors print `error:`/`warning:` prefixes; timestamps and source tags are
+  reserved for verbose mode. Mistyped commands get a "did you mean" suggestion.
 
 ### Removed
 
@@ -23,7 +33,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   historical design notes, and `docs/superpowers/` agent plans. The FFI example
   shell check is now `tests/FfiExamples.test.ts`, which CI runs.
 
+- `init.sh` and `bpl-wrapper.sh` (see `bun run setup`), the stale committed
+  `vscode-ext/bpl3-vscode-0.0.1.vsix` (`*.vsix` is now ignored), and the outdated
+  `.github/instructions/copilot.instructions.md` copy of AGENTS.MD.
+
 ### Fixed
+
+- `bpl check` and the language server accept the implicit prelude error types
+  (`NullAccessError` and others) that `bpl build` accepts.
+
+- Diagnostics are uncolored when stderr is not a terminal, and package-command
+  errors honor `NO_COLOR`/`--no-color`.
+
+- Web package tests no longer leave a 0.5 MB `.ll` file in the system temporary
+  directory per test.
 
 - Fold complete multiline imports, including a single multiline import and
   the final multiline statement in an import group.

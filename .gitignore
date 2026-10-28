@@ -79,8 +79,13 @@ lib/*.bc
 .claude
 .vscode/
 
-# Local test output
+# Local test output and temporary test workspaces
 test-baseline.txt
+.web-*-*/
+tests/temp_*
+
+# Packaged editor extensions (attach to releases instead)
+*.vsix
 
 # Local audit reports
 /docs/audits/

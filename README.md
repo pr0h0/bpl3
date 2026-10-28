@@ -67,15 +67,11 @@ frame main() ret int {
 ```bash
 git clone https://github.com/pr0h0/bpl3.git
 cd bpl3
-bun install --frozen-lockfile
-bun run build
-export BPL_HOME="$PWD"
-export PATH="$BPL_HOME:$PATH"
-bpl --version
+bun run setup   # install deps, build, link `bpl` into ~/.local/bin
+bpl doctor
 ```
 
-Or run `./init.sh`, which installs, builds, and links `bpl` into `~/.local/bin`
-without editing shell configuration (set `BPL_BIN_DIR` to choose another directory).
+`bun run setup --bin-dir <dir>` links elsewhere; `--no-build` only refreshes the link.
 
 ### Prerequisites
 

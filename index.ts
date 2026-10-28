@@ -9,16 +9,22 @@
 
 import { Command } from "commander";
 import type { CompileOptions } from "./cli/types";
+import { existsSync } from "fs";
 import {
+  emitBuildValidationErrorAndExit,
   emitNoInputBuildErrorAndExit,
   validateCompileInputSources,
 } from "./cli/BuildInputValidation";
+import { BUILD_INPUT_NOT_FOUND_CODE } from "./cli/BuildErrorCodes";
 import {
   CLI_JSON_CHECKS,
   createJsonReport,
 } from "./compiler/common/JsonContracts";
 import { Logger } from "./compiler/common/Logger";
-import { registerRequestedCliSubcommands } from "./cli/CommandRegistration";
+import {
+  registerRequestedCliSubcommands,
+  suggestCliCommand,
+} from "./cli/CommandRegistration";
 
 const log = new Logger("CLI");
 
@@ -133,6 +139,8 @@ program
     // TypeScript needs this assertion after the exit check
     const fileList = files as [string, ...string[]];
 
+    rejectUnknownCommand(fileList[0], options);
+
     // Handle debug flag as alias for dwarf
     if (options.debug) {
       options.dwarf = true;
@@ -164,6 +172,23 @@ program
 
     await processFileAsync(fileList[0], options);
   });
+
+/**
+ * A bare word that is not an existing file and has no source extension is far
+ * more likely a mistyped command than a program, so say that instead of
+ * reporting a missing file.
+ */
+function rejectUnknownCommand(operand: string, options: CompileOptions): void {
+  if (/[\\/.]/.test(operand) || existsSync(operand)) return;
+  const suggestion = suggestCliCommand(operand);
+  emitBuildValidationErrorAndExit(
+    `Unknown command '${operand}'.` +
+      (suggestion ? ` Did you mean '${suggestion}'?` : "") +
+      " Run 'bpl --help' for the command list.",
+    BUILD_INPUT_NOT_FOUND_CODE,
+    options,
+  );
+}
 
 // ============================================================================
 // Subcommands

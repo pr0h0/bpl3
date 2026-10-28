@@ -14,7 +14,8 @@ export { DiagnosticFormatter } from "../compiler/common/DiagnosticFormatter";
  * Singleton instance for CLI usage with CLI-specific configuration
  */
 export const diagnosticFormatter = new CompilerDiagnosticFormatter({
-  colorize: process.env.NO_COLOR === undefined,
+  // Diagnostics go to stderr; color only a terminal unless --color forces it.
+  colorize: process.env.NO_COLOR === undefined && process.stderr.isTTY === true,
   contextLines: 3,
   showCodeSnippets: true,
 });

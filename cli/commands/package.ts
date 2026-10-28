@@ -827,7 +827,8 @@ export function registerPackageCommands(program: Command): void {
 
 function formatPackageCommandError(error: unknown): string {
   if (error instanceof CompilerError) {
-    return error.toString();
+    // Honors NO_COLOR, --no-color and non-terminal stderr, unlike toString().
+    return diagnosticFormatter.formatError(error);
   }
 
   return error instanceof Error ? error.message : String(error);

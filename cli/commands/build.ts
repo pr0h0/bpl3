@@ -86,7 +86,7 @@ export function registerBuildCommand(program: Command): void {
     .option("--emit <type>", "emit type: llvm, ast, tokens, formatted")
     .option(
       "--project",
-      "use main/entry from bpl.json in the current directory",
+      "use main/entry from ./bpl.json (implied when no file is given)",
     )
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
