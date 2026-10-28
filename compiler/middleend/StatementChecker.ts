@@ -627,11 +627,7 @@ export function checkBlock(
           "This statement follows a return, break, continue, or throw statement and will never be executed.",
           s.location,
         ).setSeverity(DiagnosticSeverity.Warning);
-        if (this.collectAllErrors) {
-          this.errors.push(error);
-        } else {
-          throw error;
-        }
+        this.addWarning(error);
       }
 
       try {

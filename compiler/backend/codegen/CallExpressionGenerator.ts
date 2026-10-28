@@ -1089,6 +1089,38 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             }
 
             ownerDecl = this.findMethodOwner(structName, memberExpr.property);
+            // A static inherited from a parent is emitted only under the
+            // declaring struct's name (BUG-431). The owner may be a generic
+            // parent's specialization, whose arguments come from the
+            // child's inheritance chain.
+            if (ownerDecl && ownerDecl.name !== inner.name) {
+              structName = ownerDecl.name;
+              prefix = structName;
+              let current = this.structMap.get(inner.name);
+              while (current) {
+                const parent = current.inheritanceList[0];
+                if (!parent || parent.kind !== "BasicType") break;
+                const template = this.structMap.get(parent.name);
+                if (!template) break;
+                if (
+                  template.genericParams.length > 0 &&
+                  this.resolveMonomorphizedType(
+                    template,
+                    parent.genericArgs,
+                  ).substring(8) === ownerDecl.name
+                ) {
+                  contextMap ??= new Map();
+                  template.genericParams.forEach((param, index) => {
+                    const arg = parent.genericArgs[index];
+                    if (!arg) return;
+                    contextMap!.set(param.name, arg);
+                    callSubstitutionMap.set(param.name, arg);
+                  });
+                  break;
+                }
+                current = template;
+              }
+            }
             if (!ownerDecl && memberExpr.property.includes("toString")) {
               codeGenLog.debug(
                 `DEBUG: findMethodOwner failed for ${structName}.${memberExpr.property}. Try looking for Type.`,

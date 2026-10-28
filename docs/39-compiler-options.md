@@ -133,6 +133,11 @@ bpl check src/*.bpl
 bpl check main.bpl --json
 ```
 
+Warnings (unreachable code, a local shadowing an outer variable) are printed
+but do not fail the check. With `--json` they appear in each file's
+`diagnostics` with `severity: "warning"`, and the report includes
+`warningCount` next to `errorCount`.
+
 `--json` reports rich diagnostics with `code`, `severity`, source ranges, and a
 source-line preview. Use it in editor integrations and CI tools that need
 machine-readable error locations instead of terminal-formatted snippets.

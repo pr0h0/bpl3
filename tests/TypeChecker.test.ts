@@ -610,10 +610,14 @@ describe("TypeChecker", () => {
   });
 
   it("does not report a missing return after an unconditional return", () => {
-    const errors = collectErrorMessages(
-      `frame value() ret int { return 3; local unused: int = 1; }`,
+    const source = `frame value() ret int { return 3; local unused: int = 1; }`;
+    const errors = collectErrorMessages(source);
+    const typeChecker = new TypeChecker({ collectAllErrors: true });
+    typeChecker.checkProgram(parseProgram(source, "test.bpl"), "test.bpl");
+    expect(typeChecker.getWarnings().map((warning) => warning.message)).toEqual(
+      ["Unreachable code detected."],
     );
-    expect(errors).toContain("Unreachable code detected.");
+    expect(errors).not.toContain("Unreachable code detected.");
     expect(errors.some((message) => message.includes("may not return"))).toBe(
       false,
     );

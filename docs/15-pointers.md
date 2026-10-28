@@ -191,6 +191,19 @@ local q: int* = p + 3;
 printf("%d\n", *q);  # 40
 ```
 
+### Compound Assignment
+
+`p += n` and `p -= n` move a pointer by `n` elements for any integer type of
+`n`. Other compound operators, non-integer offsets, and `*void` pointers are
+rejected.
+
+```bpl
+local arr: int[5] = [10, 20, 30, 40, 50];
+local p: *int = &arr[0];
+p += 3;              # now at arr[3]
+p -= 1;              # now at arr[2]
+```
+
 ### Pointer Difference
 
 ```bpl

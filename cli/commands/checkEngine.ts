@@ -9,11 +9,16 @@ import { TypeChecker } from "../../compiler/middleend/TypeChecker";
 
 export { CompilerError };
 
+export interface CheckSourceResult {
+  errors: CompilerError[];
+  warnings: CompilerError[];
+}
+
 export function checkSource(
   content: string,
   filePath: string,
   skipImportResolution: boolean,
-): CompilerError[] {
+): CheckSourceResult {
   const parser = new Parser(content, filePath);
   // Match `bpl build`: the implicit prelude (built-in error types) is loaded
   // unless import resolution is skipped (--no-prelude).
@@ -24,5 +29,8 @@ export function checkSource(
   });
   typeChecker.setCurrentModulePath(filePath);
   typeChecker.checkProgram(ast);
-  return typeChecker.getErrors();
+  return {
+    errors: typeChecker.getErrors(),
+    warnings: typeChecker.getWarnings(),
+  };
 }

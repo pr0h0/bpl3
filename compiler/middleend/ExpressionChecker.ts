@@ -1443,7 +1443,18 @@ export function checkTernary(
   const thenType = this.checkExpression(expr.trueExpr);
   const elseType = this.checkExpression(expr.falseExpr);
 
-  if (thenType && elseType && !this.areTypesCompatible(thenType, elseType)) {
+  // Like match arms, the branches join in one representation; codegen
+  // converts each branch to it (BUG-425).
+  const resultType =
+    thenType && elseType
+      ? this.unifyMatchResultTypes(
+          thenType,
+          elseType,
+          [expr.trueExpr],
+          [expr.falseExpr],
+        )
+      : thenType;
+  if (thenType && elseType && !resultType) {
     throw new CompilerError(
       `Ternary branches must have compatible types: ${this.formatDiagnosticType(
         thenType,
@@ -1466,7 +1477,8 @@ export function checkTernary(
     "out of a conditional branch",
     expr.falseExpr.location,
   );
-  return thenType;
+  if (resultType) this.contextualizeArrayLiteral(expr, resultType);
+  return resultType;
 }
 
 /** String aliases retain the direct spelling's integer conversion restriction. */

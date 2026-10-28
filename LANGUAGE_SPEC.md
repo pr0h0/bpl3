@@ -442,9 +442,11 @@ frame identity<T>(val: T) ret T {
   use the value's static type.
 - **[R-STRUCT-8]** For type checking, every struct is a subtype of the root
   `Type` struct, so a pointer to any struct converts implicitly to `*Type`.
-- **[R-STRUCT-9]** A struct that contains itself by value, directly or
-  through other structs, is rejected with `BPL_TYPE_RECURSION_CYCLE`.
-  Self-reference through a pointer is allowed.
+- **[R-STRUCT-9]** A struct or enum that contains itself by value is rejected
+  with `BPL_TYPE_RECURSION_CYCLE`. Containment follows fields, the parent
+  struct, enum payloads, fixed-size arrays, tuples, type aliases, and generic
+  arguments stored by value. Self-reference through a pointer, slice, or
+  callable is allowed.
 - **[R-STRUCT-10]** Generic structs are instantiated with explicit type
   arguments, such as `Box<int> { val: 1 }`. Methods can declare their own type
   parameters, which are also supplied explicitly at the call.
@@ -706,7 +708,9 @@ try {
   more tightly than `&`. Binary operators of equal precedence associate left to
   right.
 - **[R-EXPR-8]** `condition ? a : b` evaluates only the selected branch. The
-  branch types must be compatible (`BPL_TERNARY_BRANCH_TYPE_MISMATCH`).
+  branch types must be compatible (`BPL_TERNARY_BRANCH_TYPE_MISMATCH`); the
+  result has their common type, chosen as for `match` arms, and each branch
+  is converted to it (for example `b ? u8value : 300` is an `int`).
 - **[R-EXPR-9]** Unary `+` is not supported (`BPL_UNARY_PLUS_UNSUPPORTED`).
 
 ### Special Expressions

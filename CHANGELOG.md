@@ -39,6 +39,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Compiler audit fixes (BUG-423, 425-428, 431, 434): scalar return types of
+  overrides and spec implementations must match exactly; ternary branches are
+  converted to their common type; `p += n`/`p -= n` step pointers by elements;
+  self-containing types are detected through arrays, tuples, aliases, generic
+  arguments, parents and enums; spec calls widen arguments; inherited statics
+  call the parent; unreachable code is a warning. `bpl check` and the language
+  server now show checker warnings, and `check --json` reports `warningCount`.
+
 - `bpl check` and the language server accept the implicit prelude error types
   (`NullAccessError` and others) that `bpl build` accepts.
 

@@ -458,7 +458,8 @@ local category: string = (score >= 90) ? "A" :
 
 - Condition is evaluated first
 - Only one branch is evaluated (short-circuit)
-- Both branches must have compatible types
+- Both branches must have compatible types; the result has their common
+  type (as for `match` arms) and each branch is converted to it
 
 ## Member Access
 

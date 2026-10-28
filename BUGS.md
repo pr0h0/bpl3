@@ -13,7 +13,7 @@ same change as this list are recorded under "Developer experience fixes" below.
 
 #### BUG-423: Overrides and spec implementations accept non-identical signatures
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `TypeChecker.ts:1304/1328` (spec return/params) and `:1587-1588`/`:1612-1613`
 (overrides) use
@@ -21,6 +21,8 @@ same change as this list are recorded under "Developer experience fixes" below.
 parent `m() ret long` overridden as `ret char`, returns garbage high bits through
 `*Spec`/`*Parent` (observed `95336010894081`, `4294967295`). Require
 `areTypesExactMatch` for parameters and returns (or emit adapter thunks).
+
+**Resolution**: `isSignatureTypeSubstitutable` requires an exact match when either side is a scalar (number, bool, char) for spec returns/parameters and override returns; other types keep the compatibility rule so concrete iterators can implement `Iterable<T>`. Receivers stay compatible. `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-424: Subtyping propagates through pointer depth and array dimensions
 
@@ -34,7 +36,7 @@ pointer level / depth-0 values without array dimensions.
 
 #### BUG-425: Ternary branches are never unified, producing invalid IR or wrong values
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 The checker returns the then-branch type (`ExpressionChecker.ts:1446`) and
 `generateTernary` (`ExpressionGenerator.ts:1383`) emits a `phi` without casts.
@@ -43,17 +45,21 @@ The checker returns the then-branch type (`ExpressionChecker.ts:1446`) and
 `b ? u8var : 300` silently yields 44. `match` handles all of these; share one
 "common branch type + per-branch cast" helper.
 
+**Resolution**: `checkTernary` unifies branches with `unifyMatchResultTypes` and `generateTernary` casts each branch to the result type in its own block before the phi. `tests/TernaryBranchUnification.test.ts`.
+
 #### BUG-426: Pointer compound assignment emits integer arithmetic on pointers
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `p += 1` / `p -= n` pass `check` but `ExpressionGenerator.ts:695-738` emits
 `add i32* ...`, which clang rejects. `p = p + 1` works. Route compound pointer
 assignment through the GEP path or reject it in the checker.
 
+**Resolution**: the checker accepts only `+=`/`-=` with an integer offset on non-void pointers (other operators, float offsets and `*void` are diagnosed) and codegen steps through the existing GEP pointer-arithmetic path. `tests/PointerCompoundAssignment.test.ts`.
+
 #### BUG-427: Struct cycle detection misses arrays, tuples, generics, aliases and enums
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `TypeChecker.ts:1389-1484` skips fields with `arrayDimensions` and only follows
 struct→struct / enum→enum. `struct S { a: S[2] }`, `{ t: (int, S) }`,
@@ -61,14 +67,18 @@ struct→struct / enum→enum. `struct S { a: S[2] }`, `{ t: (int, S) }`,
 type. `struct S { o: Opt }` with `enum Opt { Some(S) }` overflows the compiler
 stack. Walk resolved field types recursively, stopping only at pointers/slices.
 
+**Resolution**: `detectValueCycle` replaces the struct/enum walkers and follows fields, the parent struct, enum payloads, fixed arrays, tuples, aliases and generic arguments stored by value; pointers, slices and callables break cycles. `tests/AuditCompilerFixes.test.ts`.
+
 #### BUG-428: Spec method call through `*Spec` crashes when an argument needs widening
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `calls/SpecMethodCallEmitter.ts:88-96` passes a fake
 `{kind:"BasicType", name:"dummy"}` target to `emitCast`. `s.take(300)` for
 `take(this: *Self, v: long)` throws `TypeError: ... arrayDimensions.length`.
 Pass the substituted spec parameter types.
+
+**Resolution**: spec calls cast arguments to the generic-substituted parameter type nodes. `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-429: `--debug` makes clang crash for generic locals of struct type
 
@@ -91,11 +101,13 @@ and diagnose the unsupported case in the checker.
 
 #### BUG-431: Inherited static `new` called through a child type emits an undefined symbol
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `throw NullAccessError.new("x");` (inherited from `Error.new`) passes `check`, then
 clang fails with `use of undefined value '@NullAccessError_new_i8_ptr'`. Resolve
 the call to the declaring type's mangled symbol, or reject it with a diagnostic.
+
+**Resolution**: static calls through a child use the declaring struct (including a generic parent's specialization, with its arguments from the child's inheritance chain). `Error.new` returns `Error`, so `catch (e: NullAccessError)` correctly does not match `NullAccessError.new(...)`. `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-432: Address-of non-lvalues passes `check`
 
@@ -118,12 +130,14 @@ minus/not and constant aggregates; diagnose the rest in the checker.
 
 #### BUG-434: "Unreachable code" warning is reported as an error
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `StatementChecker.ts:625-634` pushes the diagnostic into `errors` while labeling
 it a warning: `check` exits 1, JSON reports `errorCount: 1` with
 `severity: "warning"`, and `run` refuses to build. Use `addWarning` like the
 shadowing warning at `:1538`.
+
+**Resolution**: the warning goes through `addWarning`. `bpl check` now prints checker warnings (unreachable code, shadowing) without failing, reports `warningCount` and warning diagnostics in JSON, and the language server shows them with warning severity. Previously all checker warnings were collected but never displayed. `tests/CheckWarnings.test.ts`.
 
 #### BUG-435: Methods of generic specs using `this: *Self` cannot be called on constrained `T`
 
