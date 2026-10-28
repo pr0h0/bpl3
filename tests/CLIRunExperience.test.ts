@@ -88,6 +88,32 @@ describe("bpl run developer experience", () => {
     });
   });
 
+  test("project build errors are structured and never overwrite the source", () => {
+    withProject((directory) => {
+      writeFileSync(
+        join(directory, "app"),
+        "frame main() ret int { return 0; }\n",
+      );
+      writeFileSync(
+        join(directory, "bpl.json"),
+        JSON.stringify({ name: "demo", version: "0.1.0", main: "app" }),
+      );
+      const collision = runCli(["build", "--json"], directory);
+      expect(collision.status).toBe(1);
+      expect(JSON.parse(collision.stdout).errorCode).toBe(
+        "BPL_BUILD_OUTPUT_IS_SOURCE",
+      );
+      expect(readdirSync(directory).sort()).toEqual(["app", "bpl.json"]);
+
+      writeFileSync(join(directory, "bpl.json"), "{");
+      const malformed = runCli(["build", "--json"], directory);
+      expect(malformed.status).toBe(1);
+      const report = JSON.parse(malformed.stdout);
+      expect(report.errorCode).toBe("BPL_BUILD_PROJECT_ENTRY_INVALID");
+      expect(report.error).toContain("Invalid bpl.json");
+    });
+  });
+
   test("keeps the executable when -o is given", () => {
     withProject((directory) => {
       writeFileSync(join(directory, "main.bpl"), ARGS_PROGRAM);

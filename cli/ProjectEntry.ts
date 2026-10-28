@@ -21,7 +21,14 @@ export function resolveProjectEntry(
     );
   if (!fs.lstatSync(manifestPath).isFile())
     throw new Error("bpl.json must be a regular file.");
-  const manifest: unknown = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch (error) {
+    throw new Error(
+      `Invalid bpl.json: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
   if (!manifest || typeof manifest !== "object")
     throw new Error("Invalid bpl.json object.");
   const data = manifest as { main?: unknown; entry?: unknown };

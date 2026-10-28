@@ -11,8 +11,10 @@ import { Logger } from "../../compiler/common/Logger";
 import { getExplicitParentCompileOptions } from "./compileOptions";
 import {
   validateCompileInputSources,
+  emitBuildValidationErrorAndExit,
   emitNoInputBuildErrorAndExit,
 } from "../BuildInputValidation";
+import { BUILD_PROJECT_ENTRY_INVALID_CODE } from "../BuildErrorCodes";
 
 const log = new Logger("Build");
 
@@ -143,7 +145,16 @@ export function registerBuildCommand(program: Command): void {
           // one, a file-less build uses the bpl.json entry.
           if (!file && !localOpts.project && !fs.existsSync("bpl.json"))
             emitNoInputBuildErrorAndExit(compileOptions);
-          file = resolveProjectEntry(file, localOpts.project);
+          try {
+            file = resolveProjectEntry(file, localOpts.project);
+          } catch (error) {
+            // Manifest and entry problems use the structured build report.
+            emitBuildValidationErrorAndExit(
+              error instanceof Error ? error.message : String(error),
+              BUILD_PROJECT_ENTRY_INVALID_CODE,
+              compileOptions,
+            );
+          }
           validateCompileInputSources([file], compileOptions);
 
           if (shouldUseFrontendBuildAction(compileOptions)) {

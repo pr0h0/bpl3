@@ -499,8 +499,11 @@ validation uses
 `BPL_BUILD_INPUT_NOT_FILE`. Output artifact validation uses
 `BPL_BUILD_OUTPUT_SYMLINK`, `BPL_BUILD_OUTPUT_DIRECTORY`,
 `BPL_BUILD_OUTPUT_NOT_FILE`, `BPL_BUILD_OUTPUT_PARENT_NOT_FOUND`,
-`BPL_BUILD_OUTPUT_PARENT_SYMLINK`, and
-`BPL_BUILD_OUTPUT_PARENT_NOT_DIRECTORY`. These codes are additive fields on the
+`BPL_BUILD_OUTPUT_PARENT_SYMLINK`,
+`BPL_BUILD_OUTPUT_PARENT_NOT_DIRECTORY`, and `BPL_BUILD_OUTPUT_IS_SOURCE` (the
+IR or executable path equals the source, e.g. an extensionless entry without
+`-o`). A missing, malformed, or invalid `bpl.json` project entry uses
+`BPL_BUILD_PROJECT_ENTRY_INVALID`. These codes are additive fields on the
 stdout JSON failure report, preserving the human-readable `error` text for
 older consumers and logs.
 

@@ -51,12 +51,16 @@ import {
   BUILD_CONFLICTING_INPUTS_CODE,
   BUILD_INPUT_NOT_FOUND_CODE,
   BUILD_NO_INPUTS_CODE,
+  BUILD_OUTPUT_IS_SOURCE_CODE,
+  BUILD_PROJECT_ENTRY_INVALID_CODE,
 } from "./BuildErrorCodes";
 
 export {
   BUILD_CONFLICTING_INPUTS_CODE,
   BUILD_INPUT_NOT_FOUND_CODE,
   BUILD_NO_INPUTS_CODE,
+  BUILD_OUTPUT_IS_SOURCE_CODE,
+  BUILD_PROJECT_ENTRY_INVALID_CODE,
 };
 
 const log = new Logger("CompilationRunner");
@@ -107,6 +111,8 @@ export const BUILD_JSON_ERROR_CODES = [
   BUILD_OUTPUT_PARENT_NOT_FOUND_CODE,
   BUILD_OUTPUT_PARENT_SYMLINK_CODE,
   BUILD_OUTPUT_PARENT_NOT_DIRECTORY_CODE,
+  BUILD_OUTPUT_IS_SOURCE_CODE,
+  BUILD_PROJECT_ENTRY_INVALID_CODE,
 ] as const;
 
 class CompilationDiagnosticsError extends Error {
@@ -913,6 +919,14 @@ function getLlvmOutputPath(filePath: string, options: CompileOptions): string {
     : `${options.output}.ll`;
 }
 
+function assertOutputIsNotSource(outputPath: string, sourcePath: string): void {
+  if (path.resolve(outputPath) !== path.resolve(sourcePath)) return;
+  throw new BuildValidationError(
+    `Output path would overwrite the source file: ${sourcePath}. Pass -o with a different path.`,
+    BUILD_OUTPUT_IS_SOURCE_CODE,
+  );
+}
+
 function assertWritableBuildOutputPath(outputPath: string): void {
   try {
     assertWritableFileOutputPath(outputPath);
@@ -965,9 +979,14 @@ function writeLlvmOutputAndMaybeBuild(
 
   const outputPath = getLlvmOutputPath(filePath, options);
   assertWritableBuildOutputPath(outputPath);
+  assertOutputIsNotSource(outputPath, filePath);
 
   if (shouldCompileExecutable(options)) {
-    assertWritableBuildOutputPath(getExecutableOutputPath(outputPath, options));
+    const executablePath = getExecutableOutputPath(outputPath, options);
+    assertWritableBuildOutputPath(executablePath);
+    // An extensionless source (e.g. a bpl.json entry "app") would otherwise
+    // be replaced by its own executable.
+    assertOutputIsNotSource(executablePath, filePath);
   }
 
   writeFileAtomically(outputPath, ir);
