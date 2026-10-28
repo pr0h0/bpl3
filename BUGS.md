@@ -2,6 +2,499 @@
 
 This file tracks bugs and edge cases found during comprehensive testing.
 
+## Open audit findings (2026-10-28)
+
+Found by a repository-wide audit. Each compiler item was reproduced with a probe
+program unless marked _suspected_. Priority: P1 miscompiles, crashes, or
+security; P2 wrong diagnostics or broken tooling; P3 polish. Items fixed in the
+same change as this list are recorded under "Developer experience fixes" below.
+
+### Compiler
+
+#### BUG-423: Overrides and spec implementations accept non-identical signatures
+
+**Status**: Open · **Priority**: P1
+
+`TypeChecker.ts:1304/1328` (spec return/params) and `:1587-1588`/`:1612-1613`
+(overrides) use
+`areTypesCompatible`. A spec `go() ret long` implemented as `ret bool`, or a
+parent `m() ret long` overridden as `ret char`, returns garbage high bits through
+`*Spec`/`*Parent` (observed `95336010894081`, `4294967295`). Require
+`areTypesExactMatch` for parameters and returns (or emit adapter thunks).
+
+#### BUG-424: Subtyping propagates through pointer depth and array dimensions
+
+**Status**: Open · **Priority**: P1
+
+`TypeCheckerBase.ts:1978-2009` accepts `**Dog`→`**Animal`, `Dog[N]`→`Animal[N]`,
+and `Dog[]`→`Animal[]`. Writing an `*Animal` through a `**Animal` view of a
+`**Dog` corrupts memory; passing `Dog[2]` to `Animal[]` passes `check` and fails
+codegen with `Unsupported cast` at the wrong line. Allow subtyping only for one
+pointer level / depth-0 values without array dimensions.
+
+#### BUG-425: Ternary branches are never unified, producing invalid IR or wrong values
+
+**Status**: Open · **Priority**: P1
+
+The checker returns the then-branch type (`ExpressionChecker.ts:1446`) and
+`generateTernary` (`ExpressionGenerator.ts:1383`) emits a `phi` without casts.
+`b ? u8var : intVar` and `b ? slice : fixedArray` fail LLVM verification,
+`b ? lambda : namedFunc` emits an invalid global reference, and
+`b ? u8var : 300` silently yields 44. `match` handles all of these; share one
+"common branch type + per-branch cast" helper.
+
+#### BUG-426: Pointer compound assignment emits integer arithmetic on pointers
+
+**Status**: Open · **Priority**: P1
+
+`p += 1` / `p -= n` pass `check` but `ExpressionGenerator.ts:695-738` emits
+`add i32* ...`, which clang rejects. `p = p + 1` works. Route compound pointer
+assignment through the GEP path or reject it in the checker.
+
+#### BUG-427: Struct cycle detection misses arrays, tuples, generics, aliases and enums
+
+**Status**: Open · **Priority**: P1
+
+`TypeChecker.ts:1389-1484` skips fields with `arrayDimensions` and only follows
+struct→struct / enum→enum. `struct S { a: S[2] }`, `{ t: (int, S) }`,
+`{ b: Box<S> }` and `type Row = S[2]` pass `check`, then clang reports a recursive
+type. `struct S { o: Opt }` with `enum Opt { Some(S) }` overflows the compiler
+stack. Walk resolved field types recursively, stopping only at pointers/slices.
+
+#### BUG-428: Spec method call through `*Spec` crashes when an argument needs widening
+
+**Status**: Open · **Priority**: P1
+
+`calls/SpecMethodCallEmitter.ts:88-96` passes a fake
+`{kind:"BasicType", name:"dummy"}` target to `emitCast`. `s.take(300)` for
+`take(this: *Self, v: long)` throws `TypeError: ... arrayDimensions.length`.
+Pass the substituted spec parameter types.
+
+#### BUG-429: `--debug` makes clang crash for generic locals of struct type
+
+**Status**: Open · **Priority**: P1
+
+`getDwarfTypeId` (`TypeGenerator.ts:246+`) looks up the unsubstituted `T`, emits
+`DILocalVariable(type: null)`, and clang segfaults in the X86 asm printer. Any
+program using `Array<String>` with `--debug` is affected. Apply the active
+monomorphization map before the lookup.
+
+#### BUG-430: Bound variadic methods get an unlowered signature and segfault
+
+**Status**: Open · **Priority**: P1
+
+`CallChecker.ts:1243-1309` builds bound-method `Lambda` types without the
+variadic `*T, count` lowering applied to free functions (`TypeChecker.ts:621`).
+`local f: Lambda<int>(int,int) = s.add; f(1,1);` segfaults. The value-receiver
+variant passes `check` and fails only in codegen. Share one signature builder
+and diagnose the unsupported case in the checker.
+
+#### BUG-431: Inherited static `new` called through a child type emits an undefined symbol
+
+**Status**: Open · **Priority**: P1
+
+`throw NullAccessError.new("x");` (inherited from `Error.new`) passes `check`, then
+clang fails with `use of undefined value '@NullAccessError_new_i8_ptr'`. Resolve
+the call to the declaring type's mangled symbol, or reject it with a diagnostic.
+
+#### BUG-432: Address-of non-lvalues passes `check`
+
+**Status**: Open · **Priority**: P2
+
+`ExpressionChecker.ts:973-1027` has no lvalue test: `&(x+1)`, `&one()`, `&5`,
+`&x++`, `&cast<int>(x)` and `&v[0]` with an overloaded `__get__` pass `check` and
+fail in codegen with an uncoded `Expression is not an lvalue`. Reuse the
+assignment-target predicate.
+
+#### BUG-433: Global initializers are validated only in codegen; negative literals rejected
+
+**Status**: Open · **Priority**: P2
+
+`CodeGenerator.ts:1624-1671`: `global A: int = -5;`, `= -1.5`, `= !true`,
+`= 1 + 2`, `= [1, 2]` and `= f()` pass `check`, then fail with an uncoded
+"Global variables must be initialized with literals". This contradicts
+docs/05 (signed literals) and docs/36 (array literals). Constant-fold unary
+minus/not and constant aggregates; diagnose the rest in the checker.
+
+#### BUG-434: "Unreachable code" warning is reported as an error
+
+**Status**: Open · **Priority**: P2
+
+`StatementChecker.ts:625-634` pushes the diagnostic into `errors` while labeling
+it a warning: `check` exits 1, JSON reports `errorCount: 1` with
+`severity: "warning"`, and `run` refuses to build. Use `addWarning` like the
+shadowing warning at `:1538`.
+
+#### BUG-435: Methods of generic specs using `this: *Self` cannot be called on constrained `T`
+
+**Status**: Open · **Priority**: P2
+
+With `spec Getter<T> { frame get(this: *Self) ret long; }` and
+`frame use<T: Getter<long>>(x: *T)`, `x.get()` fails with "No compatible
+instance method" and a misleading static-method hint. Non-generic specs work.
+Likely `TypeCheckerBase.ts:2473` binds `Self` to the spec instead of `T`.
+
+#### BUG-436: Smaller compiler diagnostics issues
+
+**Status**: Open · **Priority**: P3
+
+- `switch` on a null `string` segfaults inside `strcmp`.
+- A duplicate enum `case` reports `Duplicate case value '0'` instead of `E.A`.
+- A generic arity error is printed twice, followed by cascading "Unused
+  variable" errors.
+- Codegen `CompilerError`s without codes are still reachable from source
+  (BUG-432/433); add a test that every `check`-passing probe also passes
+  `--emit llvm` plus `opt -passes=verify`.
+
+### CLI and tooling
+
+#### BUG-437: Formatter leaves trailing spaces after brace-less `if`/`else`/`loop`
+
+**Status**: Open · **Priority**: P2
+
+`Formatter.ts:605/610/620` and `formatLoop` emit a space before the newline when
+the body is not a block: `if (x > 0) return 1;` becomes `if (x > 0) ␠\n ...`.
+255 lines in `examples/` and `lib/` carry it. Emit the space only before `{`.
+
+#### BUG-438: Shell completions are out of sync with the commands
+
+**Status**: Open · **Priority**: P2
+
+`completions/bpl-completion.bash` and `_bpl` offer `-v` for
+init/pack/list/uninstall and `--package-version`/`--dry-run` for
+`package-cache list/verify` (none accepted); miss `-g` for
+install/list/uninstall, `-o`/`--json` for pack, `--json` for
+new/init/uninstall; have no case for `dev`, `check`, `bindgen`; and complete
+`run` with build-only options. `QolCompletions.test.ts` covers only
+format/lint/docs. Generate completions from the commander tree, or test every
+command.
+
+#### BUG-439: `lint --json` counts warnings as errors
+
+**Status**: Open · **Priority**: P2
+
+One naming warning yields `"errorCount": 1`, no `warningCount`, and the generic
+hint "Lint check failed" (`Linter.ts:52`). Count by severity and add
+`warningCount`.
+
+#### BUG-440: `bpl docs` ignores `#` comments, loses error locations, and nests headings wrongly
+
+**Status**: Open · **Priority**: P2
+
+Only `/# … #/` blocks become docs (`Parser.ts:124`), but `lib/` documents with
+`#`, so `bpl docs lib/string.bpl` produces headings without descriptions.
+Failures print `{ "error": "Unexpected syntax…" }` without file/line
+(`cli/commands/docs.ts:110`), and methods are `###` under a `#### Methods`
+heading (`DocumentationGenerator.ts:334`). docs/04 says there is no doc-comment
+syntax; decide and document one.
+
+#### BUG-441: `bindgen` emits exponent float literals BPL cannot parse
+
+**Status**: Open · **Priority**: P2
+
+`#define SCI 1e-3` becomes `global const SCI: double = 1e-3;`, which `check`
+rejects (R-LEX-6 has no exponent literals). Emit decimal form or skip, and fix
+the docs/36 example.
+
+#### BUG-442: `bpl format a.bpl b.bpl | head` crashes with an EPIPE stack trace
+
+**Status**: Open · **Priority**: P3
+
+`cli/commands/formatAction.ts:216`. Exit quietly on `EPIPE`.
+
+#### BUG-443: Remaining CLI paper cuts
+
+**Status**: Open · **Priority**: P3
+
+- A missing-`main` error points at `math.bpl:0:0` instead of `1:1`.
+- `format` errors omit line/column; `bpl format missing.bpl` still logs
+  "Formatted 1 files"; `format --check -` names the input `-`.
+- `bpl -e '<code>'` prints LLVM IR instead of running the program; `-e` should
+  behave like `run` (or the help should say "compile").
+- `bpl build -o X` always writes `X.ll` beside `X`, even when only an executable
+  was requested.
+- `bpl check` rejects directories (`BPL_CHECK_INPUT_NOT_FILE`) and stdin, unlike
+  `format`/`lint`.
+- `bpl doctor` prints the installation directory but not whether it came from
+  `BPL_HOME` or the executable location.
+- `run`/`build` help omit `-l`, `-L`, `--object`, `--clang-flag` even though they
+  work; `init`, `install` and `doctor` do not describe their argument.
+- `cli/CompilationRunner.ts` duplicates `compileWithModules` and
+  `compileWithModulesAsync` (~90 lines each).
+
+#### BUG-444: Project scaffolding gaps
+
+**Status**: Open · **Priority**: P3
+
+`bpl init` writes `main: "index.bpl"` without creating it, so `pack` fails;
+`bpl.json` has no trailing newline. `bpl install ./pkg.tgz` records the package
+only in `bpl.lock`, so a later `bpl lock` drops it and `--locked` suggests a
+command that does not fix it. The library template's `.gitignore` misses
+`*.tgz`/`*.bplmeta.json`.
+
+### Language server and VS Code extension
+
+#### BUG-445: Language server ignores import aliases
+
+**Status**: Open · **Priority**: P2
+
+With `import add as plus` or `import * as U`, hover, definition, signature help,
+inlay hints and completion return nothing for the alias, and completion offers
+the out-of-scope original name.
+
+#### BUG-446: Broken language-server features
+
+**Status**: Open · **Priority**: P2
+
+- Find references returns nothing for methods/fields (`ASTRenameHandler.ts:375`)
+  while the code lens counts them.
+- Signature help matches callees by bare name (`b.set(` highlights `this`),
+  counts commas inside strings and `<` comparisons, and reads the file from disk
+  instead of the unsaved buffer.
+- `.` is not a completion trigger (`server.ts:228`); resolving a completion
+  overwrites struct details with "BPL built-in type" (`server.ts:635`).
+- Quick fixes at `server.ts:922/990/1043` can never apply: "Import List from std"
+  produces a rejected import; "Cast to" and "Add semicolon" match messages the
+  compiler never emits.
+- The Run command hard-codes `bpl` and ignores `bplHome` (`extension.ts:92`);
+  `maxNumberOfProblems` defaults to 100 in `package.json` but 1000 in the server,
+  and `getDocumentSettings` (`server.ts:326`) has no callers.
+
+### Infrastructure, tests and CI
+
+#### BUG-447: Tests and the playground leak temporary files
+
+**Status**: Open · **Priority**: P2
+
+- `playground/backend/engine.ts:51,112-160` keeps up to 16 `bpl-playground-*`
+  directories for 10 minutes and has no exit handler;
+  `PlaygroundCompileContract.test.ts:91` kills the server, leaking them each run.
+- 17 web tests create `.web-*-XXXXXX` directories in the repository root via
+  `mkdtempSync(resolve(...))`, and several tests write `tests/temp_*` files
+  (now gitignored, but killed runs still leave them).
+- Six test files copy-paste `compileAndRun` (`Intrinsics`, `Stdlib`,
+  `NullHandling`, `MatchComplex`, `GenericsConstraints`,
+  `OperatorOverloadingUser`) instead of `tests/helpers/compileAndRun.ts`.
+
+#### BUG-448: CI does not check formatting; repository drifted
+
+**Status**: Open · **Priority**: P2
+
+`prettier --check .` flags 303 files; `bpl format --check` fails on 37/65 files in
+`lib/`, 6/39 in `packages/`, 23/612 in `examples/`. Run `--write` once in a
+dedicated commit, then add both checks to the lint job.
+
+#### BUG-449: Toolchain versions and CI configuration are inconsistent
+
+**Status**: Open · **Priority**: P3
+
+- `compiler-correctness.yml`/`compiler-fuzz.yml` use `bun-version: latest`; the
+  playground/container workflows and Dockerfiles use `1.4.2`; `@types/bun` is
+  `latest`. Add `.bun-version` and use `bun-version-file` everywhere.
+- No dependency caching; type check and lint run five times; `test:ci` runs on
+  one matrix entry only; actions are tag-pinned and `GitHubActions.test.ts`
+  asserts on the tag strings, which blocks SHA pinning; no Dependabot.
+- `vscode-ext` uses TypeScript 4.9 and `@types/node` 16, has no `.vscodeignore`,
+  commits both `bun.lock` and `package-lock.json`, and `install.sh` uses an
+  undeclared `@vscode/vsce`. Its JSON schemas duplicate the root copies.
+
+#### BUG-450: npm package contents are too broad
+
+**Status**: Open · **Priority**: P2
+
+`npm pack --dry-run` is 40.7 MB packed / 118 MB unpacked. `files: ["examples"]`
+ships 393 local build outputs (`main.ll`, `.bpl-cache/*.o`, 17 MB) because
+`files` overrides `.gitignore`; `tools/` ships internal CI/fuzz scripts; `bpl`
+is a 97 MB host-only binary. Narrow `examples` to sources, add a prepack check
+that fails on untracked files, and decide whether to ship per-platform binaries.
+
+#### BUG-451: Committed binaries and archives
+
+**Status**: Open · **Priority**: P3
+
+`packages/bpl-templ/src/bpl-templ` is a committed 164 KB x86-64 ELF used as the
+package `bin`; it will not run on macOS/arm64 and is not rebuilt when `lib/`
+changes. `packages/*/*.tgz` and `.bplmeta.json` are committed although `*.tgz`
+is gitignored; add an explicit exception and document why they are kept.
+
+#### BUG-452: Package script and documentation debt
+
+**Status**: Open · **Priority**: P3
+
+- `file-sizes` relies on `**` without globstar and misses files; script names mix
+  `file-sizes`/`format-examples` with colon-style names; `docs:stdlib` runs a
+  file under `tests/helpers`; `test:baseline` runs the whole suite in one
+  process, which runs out of memory on smaller machines.
+- `playground/COMPLETION_REPORT.md` and `UPGRADE_SUMMARY.md` are stale generated
+  reports; `QUICKSTART.md`/`test.sh` bypass the runner check in `start.sh`;
+  `playground/Dockerfile` duplicates `docker/Dockerfile`'s playground stage.
+- Tests that regex-match source text (`PlaygroundCompileContract.test.ts:253`,
+  `LinterTypeSafety.test.ts:170/180`, `CaptureAnalyzer.test.ts:54`) and pick
+  ports as `20000 + pid % 20000` (use `listen(0)`).
+- About 84 unused locals/functions (`tsc --noUnusedLocals`), including
+  `_topologicalSort`, `buildNullAccessError`, `buildDivisionByZeroError`,
+  `generateFatPointerComparison`; the `TypeComparison` class
+  (`TypeUtils.ts:464-857`) is used only by two tests and disagrees with
+  `TypeCheckerBase`. Remove them and enable `noUnusedLocals`.
+- Importing from `"std"` compiles the whole library (1112 functions, 82k IR lines
+  vs 2.9k for `std/array.bpl`); prune unreferenced module functions.
+  `emitReferencedDeferredMethods` (`CodeGenerator.ts:660`) rescans all output
+  each iteration, and `getCurrentLabel` (`ExpressionGenerator.ts:1410`) scans
+  backwards per call.
+
+### Documentation
+
+#### BUG-453: Documentation examples that do not compile
+
+**Status**: Open · **Priority**: P2
+
+`docs/15-pointers.md` switches to C-style `int*` from line 106 (44 of 48 snippets
+fail); `docs/58-intrinsics.md:44` uses nonexistent `Math.sqrtFloat`;
+`docs/26-try-catch.md:534` calls `Config.default()` with a reserved name;
+`docs/46-keyword-index.md` misses `ret`, `static`, `Self`, `asm`, `typeof`,
+`offsetof`, `is`, `Func`, `Lambda`, `null`; AGENTS.MD shows
+`import printf from "libc"`. `docs/type-matching.md` overlaps
+`docs/56-type-matching.md` and should be merged.
+
+### Standard library and bundled packages
+
+#### BUG-454: Objects returned by `JSON.parse` have a null vtable
+
+**Status**: Open · **Priority**: P1
+
+`lib/json.bpl:885/1275/1351` allocate the root, pointees and `Array<T>` buffers
+with `malloc` + `memset`, so structs with methods keep a zero vtable word.
+`JSON.parse<Array<int>>("[3,4]")` reports `length == 2`, then `t.len()` segfaults
+at 0x20. The existing test never calls a method on the result. Initialize the
+vtable (as `alloc_with_vtable` in `arg_parser.bpl` does) or construct through
+the compiler's object initializer.
+
+#### BUG-455: Chained `<<` on StringBuilder, String, Stack and Array double-frees
+
+**Status**: Open · **Priority**: P1
+
+`lib/string_builder.bpl:231`, `lib/string.bpl:259/284`, `lib/stack.bpl:59`,
+`lib/array.bpl:314` return `*this` by value from `__lshift__`; in `x << a << b`
+the second append grows a copy and frees the original's buffer.
+`sb << "ab" << "<long>"`, `s << "cd" << "ef"` and `Stack.new(1) << 1 << 2` abort
+with `double free detected`. Return `*Self` like `Queue`.
+
+#### BUG-456: Lock verification ignores nested `bpl_modules`/`node_modules` that are still loaded
+
+**Status**: Open · **Priority**: P1 (integrity)
+
+`sha256-tree-v2` (`PackageManager.ts:2563`) skips `bpl_modules`, `node_modules`,
+`.git` and `.bpl-cache` inside a package, but extraction installs them and the
+resolver loads a nested `bpl_modules/<dep>` (and `main`/`exports` may point into
+them). Editing such a file after install keeps `verifyLockFile()` at `ok: true`.
+Reject those members at any depth (and manifest paths into them), or hash them.
+
+#### BUG-457: `JSON.parse<Array<string>>` misreads elements when the program uses `Array<string>` methods
+
+**Status**: Open · **Priority**: P1
+
+Adding `s.len()` anywhere makes `["x","y"]` fail with `Expected number`
+(`lib/json.bpl:1301` reads `type_info.element_type`). The reflected element type
+of the generic instantiation is likely wrong in the compiler.
+
+#### BUG-458: JSON strings reserve the rest of the input and skip the null check
+
+**Status**: Open · **Priority**: P2
+
+`lib/json.bpl:144` allocates "remaining input + 1" bytes per string and never
+shrinks it; 100,000 one-character strings in 400 KB reserved about 20 GB. Under
+memory limits `malloc` returns null and the parser writes through it. Size
+exactly (or `realloc` at the end) and check the result.
+
+#### BUG-459: bpl-db saves records it cannot load, and saves non-atomically
+
+**Status**: Open · **Priority**: P2
+
+`packages/bpl-db/src/storage.bpl:156-209/224`: a 600 KB string saves, but `load`
+throws `Database record exceeds 1 MiB`. `save` ignores `write`/`close` failures
+and truncates in place. Enforce one limit on insert/save (or stream lines) and
+write to a temporary file plus rename.
+
+#### BUG-460: `Map.__eq__` (and likely `Array.indexOf`) compare string values by pointer
+
+**Status**: Open · **Priority**: P2
+
+`lib/map.bpl:454`: equal but separately allocated string values compare unequal.
+`Array.indexOf`/`contains` (and `Algorithm.unique`) likely share it for `string`
+elements (not probed). Use the value equaler as keys already do.
+
+#### BUG-461: HTTP server and rate limiter are easy to starve (suspected)
+
+**Status**: Open · **Priority**: P2
+
+- `packages/bpl-express/src/server.bpl:137/314`: at most 8 workers, each held by
+  an idle socket for `request_timeout` (10 s), so 8 idle connections stall the
+  server. Chunked bodies are re-parsed from the start on every read
+  (`server.bpl:413`), which is quadratic for many tiny segments.
+- `packages/bpl-rate-limit/index.bpl:29/55`: `max_keys = 10000` is shared across
+  scopes and new identities get 429 once full. Cap per scope or evict oldest.
+
+#### BUG-462: Package installation hardening
+
+**Status**: Open · **Priority**: P3
+
+- A bare dependency name is first resolved as a path in the current directory
+  (`PackageManager.ts:3216/3713`): a file named `foo` was installed instead of
+  the cached `foo` archive. Treat sources as paths only for `file:`/explicit
+  paths relative to the project root.
+- Legacy lock entries without `hashAlgorithm` pass `--locked` silently, although
+  their hash ignores `.x` and native files (`:1268/3366/2534`).
+- Extraction has no size cap and root installs keep archive modes
+  (`:3279/3281`); sum member sizes first and pass
+  `--no-same-owner --no-same-permissions` (suspected).
+
+#### BUG-463: Router path parameters are not percent-decoded
+
+**Status**: Open · **Priority**: P3
+
+`packages/bpl-express/src/router.bpl:279-303`: `/users/John%20Doe` yields
+`John%20Doe`. Decode with `HttpParser.decode(..., false)` and reject `%00`;
+document the behavior (suspected).
+
+#### BUG-464: Chaining three operators on a generic method result fails to typecheck
+
+**Status**: Open · **Priority**: P3
+
+Chaining operators on a generic method returning `Array<T>`/`Stack<T>` fails
+with `got Array<T> and int`.
+
+## Developer experience fixes (2026-10-28)
+
+- **Fixed:** Installing required `init.sh` (sudo link into `/usr/bin`, edits to
+  `~/.bashrc`) and `bpl-wrapper.sh`, because the compiled binary looked for its
+  installation through `argv[1]`, which Bun reports as a virtual `/$bunfs` path.
+  `PathResolver` now follows `process.execPath` (the real binary, through
+  symlinks) before the entry script, source tree and working directory, so a
+  plain symlink to `bpl` works without `BPL_HOME`. `bun run setup`
+  (`scripts/setup.ts`) installs, builds, links into `~/.local/bin` (or
+  `--bin-dir`/`BPL_BIN_DIR`) and smoke-tests the link from outside the checkout;
+  both root shell scripts are removed.
+- **Fixed:** `bpl run` wrote the executable and `.ll` next to the source. Without
+  `-o` they now go to a temporary directory removed on exit (including
+  SIGINT/SIGTERM); `run -o <file>` keeps them. Help documents `--` for program
+  flags. Without a file inside a project directory, `run`/`build` use the
+  `bpl.json` entry, and `bpl run -- args` passes the args to it.
+- **Fixed:** Diagnostics were colored when stderr was not a terminal, and
+  package-command errors ignored `NO_COLOR`/`--no-color`.
+- **Fixed:** Normal CLI errors were printed as `22:28:04.992 ERROR [Check] ...`
+  and some included internal class names (`BuildValidationError: File not
+  found`). Timestamps and source tags now appear only in verbose mode; otherwise
+  messages use `error:`/`warning:` prefixes. The `check` summary no longer prints
+  an empty `error:` line.
+- **Fixed:** A mistyped command such as `bpl chek` reported a missing file; it
+  now says `Unknown command 'chek'. Did you mean 'check'?`.
+- **Fixed:** `bpl check` and the language server rejected the prelude error
+  types (`catch (e: NullAccessError)`) that `bpl build` accepts, because they
+  parsed without the implicit prelude.
+- **Fixed:** `tests/helpers/webPackages.ts` left a 0.5 MB `.ll` file in the system
+  temp directory per call (389 files, 287 MB observed); the executable is now
+  built inside the per-test directory that is removed.
+
 ## Implementation navigation (2026-10-25)
 
 - **Fixed:** Go to Implementation scanned raw text, returning comment/string

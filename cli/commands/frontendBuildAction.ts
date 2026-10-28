@@ -53,9 +53,9 @@ export function processFrontendBuildFile(
     } else if (options.json) {
       // Frontend emit modes return raw artifacts rather than build reports.
       // Keep failures visible even though JSON mode silences the logger.
-      console.error(`${error}`);
+      console.error(error instanceof Error ? error.message : String(error));
     } else {
-      log.error(`${error}`);
+      log.error(error instanceof Error ? error.message : String(error));
     }
     process.exit(1);
   }

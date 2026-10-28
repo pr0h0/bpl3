@@ -49,13 +49,19 @@ import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
 import { updateConfig } from "../compiler/common/Config";
 import {
   BUILD_CONFLICTING_INPUTS_CODE,
+  BUILD_INPUT_NOT_FOUND_CODE,
   BUILD_NO_INPUTS_CODE,
+  BUILD_OUTPUT_IS_SOURCE_CODE,
+  BUILD_PROJECT_ENTRY_INVALID_CODE,
 } from "./BuildErrorCodes";
 
 export {
   BUILD_CONFLICTING_INPUTS_CODE,
+  BUILD_INPUT_NOT_FOUND_CODE,
   BUILD_NO_INPUTS_CODE,
-} from "./BuildErrorCodes";
+  BUILD_OUTPUT_IS_SOURCE_CODE,
+  BUILD_PROJECT_ENTRY_INVALID_CODE,
+};
 
 const log = new Logger("CompilationRunner");
 
@@ -76,7 +82,6 @@ export const BUILD_INVALID_EMIT_CODE = "BPL_BUILD_INVALID_EMIT";
 export const BUILD_INVALID_WASM_RUNTIME_CODE = "BPL_BUILD_INVALID_WASM_RUNTIME";
 export const BUILD_INVALID_JOBS_CODE = "BPL_BUILD_INVALID_JOBS";
 export const BUILD_UNSUPPORTED_TARGET_CODE = "BPL_BUILD_UNSUPPORTED_TARGET";
-export const BUILD_INPUT_NOT_FOUND_CODE = "BPL_BUILD_INPUT_NOT_FOUND";
 export const BUILD_INPUT_SYMLINK_CODE = "BPL_BUILD_INPUT_SYMLINK";
 export const BUILD_INPUT_NOT_FILE_CODE = "BPL_BUILD_INPUT_NOT_FILE";
 export const BUILD_OUTPUT_SYMLINK_CODE = "BPL_BUILD_OUTPUT_SYMLINK";
@@ -106,6 +111,8 @@ export const BUILD_JSON_ERROR_CODES = [
   BUILD_OUTPUT_PARENT_NOT_FOUND_CODE,
   BUILD_OUTPUT_PARENT_SYMLINK_CODE,
   BUILD_OUTPUT_PARENT_NOT_DIRECTORY_CODE,
+  BUILD_OUTPUT_IS_SOURCE_CODE,
+  BUILD_PROJECT_ENTRY_INVALID_CODE,
 ] as const;
 
 class CompilationDiagnosticsError extends Error {
@@ -180,7 +187,7 @@ export function processFile(
       if (e instanceof CompilerError) {
         console.error(diagnosticFormatter.formatError(e));
       } else {
-        log.error(`${e}`);
+        log.error(describeError(e));
         if (e instanceof Error && e.stack && options.verbose) {
           log.error(e.stack);
         }
@@ -209,7 +216,7 @@ export async function processFileAsync(
       if (e instanceof CompilerError) {
         console.error(diagnosticFormatter.formatError(e));
       } else {
-        log.error(`${e}`);
+        log.error(describeError(e));
         if (e instanceof Error && e.stack && options.verbose) {
           log.error(e.stack);
         }
@@ -275,9 +282,9 @@ function handleCompilationError(
     console.error(diagnosticFormatter.formatError(e));
   } else if (options.json) {
     // Raw artifact emit modes do not use the JSON build-report envelope.
-    console.error(`${e}`);
+    console.error(describeError(e));
   } else {
-    log.error(`${e}`);
+    log.error(describeError(e));
     if (e instanceof Error && e.stack && options.verbose) {
       log.error(e.stack);
     }
@@ -912,6 +919,14 @@ function getLlvmOutputPath(filePath: string, options: CompileOptions): string {
     : `${options.output}.ll`;
 }
 
+function assertOutputIsNotSource(outputPath: string, sourcePath: string): void {
+  if (path.resolve(outputPath) !== path.resolve(sourcePath)) return;
+  throw new BuildValidationError(
+    `Output path would overwrite the source file: ${sourcePath}. Pass -o with a different path.`,
+    BUILD_OUTPUT_IS_SOURCE_CODE,
+  );
+}
+
 function assertWritableBuildOutputPath(outputPath: string): void {
   try {
     assertWritableFileOutputPath(outputPath);
@@ -964,9 +979,14 @@ function writeLlvmOutputAndMaybeBuild(
 
   const outputPath = getLlvmOutputPath(filePath, options);
   assertWritableBuildOutputPath(outputPath);
+  assertOutputIsNotSource(outputPath, filePath);
 
   if (shouldCompileExecutable(options)) {
-    assertWritableBuildOutputPath(getExecutableOutputPath(outputPath, options));
+    const executablePath = getExecutableOutputPath(outputPath, options);
+    assertWritableBuildOutputPath(executablePath);
+    // An extensionless source (e.g. a bpl.json entry "app") would otherwise
+    // be replaced by its own executable.
+    assertOutputIsNotSource(executablePath, filePath);
   }
 
   writeFileAtomically(outputPath, ir);
@@ -1117,6 +1137,11 @@ function emitBuildJsonSuccess(
       2,
     ),
   );
+}
+
+/** User-facing text for an error: its message, without the internal class name. */
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function formatCompilationErrorMessage(error: unknown): string {

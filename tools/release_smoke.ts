@@ -5641,7 +5641,6 @@ function assertPackedFileAllowlist(
 
   const allowedPaths = [
     "bpl",
-    "bpl-wrapper.sh",
     "bpl-package.schema.json",
     "bpl-format.schema.json",
     "cli/index.d.ts",

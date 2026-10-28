@@ -39,7 +39,18 @@ bpl run hello.bpl -O 2
 
 # Run while keeping diagnostic LLVM IR
 bpl run hello.bpl --debug-ir-path debug/run.ll
+
+# Keep the executable (and its .ll) instead of using a temporary directory
+bpl run hello.bpl -o build/hello
+
+# Flags meant for the program go after --
+bpl run hello.bpl input.txt -- --verbose
 ```
+
+Without `-o`, `bpl run` writes the IR and executable to a temporary directory
+that is removed when the command exits, so no artifacts appear next to the
+source. Options after the file are still parsed by `bpl`; separate program
+flags with `--`. The command exits with the program's exit code.
 
 ### `bpl dev <file> [args...]`
 
@@ -488,8 +499,11 @@ validation uses
 `BPL_BUILD_INPUT_NOT_FILE`. Output artifact validation uses
 `BPL_BUILD_OUTPUT_SYMLINK`, `BPL_BUILD_OUTPUT_DIRECTORY`,
 `BPL_BUILD_OUTPUT_NOT_FILE`, `BPL_BUILD_OUTPUT_PARENT_NOT_FOUND`,
-`BPL_BUILD_OUTPUT_PARENT_SYMLINK`, and
-`BPL_BUILD_OUTPUT_PARENT_NOT_DIRECTORY`. These codes are additive fields on the
+`BPL_BUILD_OUTPUT_PARENT_SYMLINK`,
+`BPL_BUILD_OUTPUT_PARENT_NOT_DIRECTORY`, and `BPL_BUILD_OUTPUT_IS_SOURCE` (the
+IR or executable path equals the source, e.g. an extensionless entry without
+`-o`). A missing, malformed, or invalid `bpl.json` project entry uses
+`BPL_BUILD_PROJECT_ENTRY_INVALID`. These codes are additive fields on the
 stdout JSON failure report, preserving the human-readable `error` text for
 older consumers and logs.
 
@@ -1560,11 +1574,13 @@ return a failure with this diagnostic instead of an unlocated host stack error.
 
 ## Build and run the current project
 
-`bpl build --project` and `bpl run --project` read `bpl.json` only from the current
-directory. They use `main`, then `entry`, then `index.bpl`; entries must be
-package-relative files. No parent-directory search or guessed source selection
-occurs. Do not combine `--project` with an explicit file. Program arguments that
-look like options should follow `--`, for example `bpl run --project -- --help`.
+Inside a project directory, `bpl run` and `bpl build` without a file use the
+project entry; `--project` requests this explicitly. Both read `bpl.json` only
+from the current directory. They use `main`, then `entry`, then `index.bpl`;
+entries must be package-relative files. No parent-directory search or guessed
+source selection occurs. Do not combine `--project` with an explicit file.
+Program arguments that look like options should follow `--`, for example
+`bpl run --project -- --help`.
 
 ## Generate documentation safely
 

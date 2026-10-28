@@ -128,6 +128,23 @@ regression work is prioritized in [PLAN.md](PLAN.md).
 - [ ] [4] Extend nested patterns beyond the currently supported forms, including
       recursive struct-variant field patterns; assess qualified-pattern support.
 
+### Developer experience
+
+Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
+
+- [ ] [3] `bpl test`: discover `*_test.bpl` or `test_*` frames, run them with
+      `lib/assert.bpl`, and report per-test results and a JSON summary.
+- [ ] [3] Prebuilt per-platform `bpl` binaries (Linux/macOS, x64/arm64) attached
+      to releases, with a one-line installer, so users need no Bun or checkout.
+- [ ] [3] Make `bpl -e '<code>'` run the program (like `run`) and keep IR output
+      behind `--emit llvm`.
+- [ ] [4] `bpl check` over directories, stdin, and the current project;
+      `bpl run`/`build`/`check` watch an entire project with `dev`.
+- [ ] [4] Generate shell completions from the command definitions instead of
+      maintaining Bash/Zsh scripts by hand.
+- [ ] [5] More linter rules beyond naming (unused imports, shadowing, suspicious
+      casts); make `_private` helpers in `lib/` pass the naming rule.
+
 ### Language and library extensions
 
 - [ ] [4] Automatic resource management, ownership/moves, automatic destructor

@@ -35,11 +35,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # example build artifacts
 examples/**
-!examples/*.sh
 !examples/**/
 !examples/**/*.bpl
 !examples/**/*.bte
-!examples/**/test*.sh
 !examples/**/test_config.json
 !examples/**/bpl.json
 !examples/*.json
@@ -77,8 +75,17 @@ lib/*.a
 lib/*.so
 lib/*.bc
 
-# Agent Files
+# Agent and editor files
 .claude
+.vscode/
+
+# Local test output and temporary test workspaces
+test-baseline.txt
+.web-*-*/
+tests/temp_*
+
+# Packaged editor extensions (attach to releases instead)
+*.vsix
 
 # Local audit reports
 /docs/audits/

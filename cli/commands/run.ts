@@ -3,6 +3,9 @@
  * Compiles and executes a BPL program in one step
  */
 
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { resolveProjectEntry } from "../ProjectEntry";
 import { Command, Option } from "commander";
 import type { CompileOptions } from "../types";
@@ -19,8 +22,13 @@ const log = new Logger("Run");
  * and immediately executes it. It's equivalent to `bpl file.bpl --run`
  * but with cleaner syntax.
  *
+ * Without -o, the LLVM IR and executable go to a temporary directory that is
+ * removed when the command exits, so running a program leaves no artifacts
+ * next to its source. Use -o (or `bpl build`) to keep the executable.
+ *
  * Examples:
  *   bpl run main.bpl
+ *   bpl run main.bpl -o bin/app
  *   bpl run main.bpl arg1 arg2 arg3
  *   bpl run main.bpl -v
  *   bpl run main.bpl -O2
@@ -34,7 +42,11 @@ export function registerRunCommand(program: Command): void {
     .description("Compile and execute a BPL program")
     .option(
       "--project",
-      "use main/entry from bpl.json in the current directory",
+      "use main/entry from ./bpl.json (implied when no file is given)",
+    )
+    .option(
+      "-o, --output <file>",
+      "keep the executable at this path (default: temporary, removed on exit)",
     )
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
@@ -50,6 +62,11 @@ export function registerRunCommand(program: Command): void {
     .option("--no-prelude", "do not load implicit primitives")
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")
+    .addHelpText(
+      "after",
+      "\nOptions after the file are still read by bpl; put program flags after --:\n" +
+        "  bpl run main.bpl input.txt -- --verbose",
+    )
     .action(
       async (
         file: string | undefined,
@@ -72,12 +89,17 @@ export function registerRunCommand(program: Command): void {
               globalOpts.debug ||
               globalOpts.dwarf,
           };
-          if (localOpts.project && file && isProjectProgramArgument(command)) {
+          // `bpl run -- args` in a project passes args to the project entry.
+          const projectMode = localOpts.project || fs.existsSync("bpl.json");
+          if (projectMode && file && isProjectProgramArgument(command)) {
             args = [file, ...args];
             file = undefined;
           }
           file = resolveProjectEntry(file, localOpts.project);
           validateCompileInputSources([file], compileOptions);
+          if (!compileOptions.output) {
+            compileOptions.output = createTemporaryRunOutput(file);
+          }
 
           await processFileAsync(file, compileOptions, args);
         } catch (e) {
@@ -107,4 +129,19 @@ function isProjectProgramArgument(command: Command): boolean {
   }
   const { operands } = parser.parseOptions(process.argv.slice(2, delimiter));
   return operands.length === 1 && operands[0] === command.name();
+}
+
+/** Allocate a per-run output path that is removed however the command exits. */
+function createTemporaryRunOutput(file: string): string {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-run-"));
+  const cleanup = () => fs.rmSync(directory, { recursive: true, force: true });
+  process.on("exit", cleanup);
+  for (const [signal, code] of [
+    ["SIGINT", 130],
+    ["SIGTERM", 143],
+  ] as const) {
+    process.once(signal, () => process.exit(code));
+  }
+  const name = path.basename(file).replace(/\.[^.]+$/, "") || "program";
+  return path.join(directory, name);
 }

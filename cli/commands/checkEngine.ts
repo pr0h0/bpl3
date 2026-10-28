@@ -15,7 +15,9 @@ export function checkSource(
   skipImportResolution: boolean,
 ): CompilerError[] {
   const parser = new Parser(content, filePath);
-  const ast = parser.parse(false);
+  // Match `bpl build`: the implicit prelude (built-in error types) is loaded
+  // unless import resolution is skipped (--no-prelude).
+  const ast = parser.parse(!skipImportResolution);
   const typeChecker = new TypeChecker({
     skipImportResolution,
     collectAllErrors: true,

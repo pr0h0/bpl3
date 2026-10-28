@@ -3,6 +3,7 @@
  * Explicit compilation command for building BPL programs
  */
 
+import * as fs from "fs";
 import { resolveProjectEntry } from "../ProjectEntry";
 import type { Command } from "commander";
 import type { CompileOptions } from "../types";
@@ -10,8 +11,10 @@ import { Logger } from "../../compiler/common/Logger";
 import { getExplicitParentCompileOptions } from "./compileOptions";
 import {
   validateCompileInputSources,
+  emitBuildValidationErrorAndExit,
   emitNoInputBuildErrorAndExit,
 } from "../BuildInputValidation";
+import { BUILD_PROJECT_ENTRY_INVALID_CODE } from "../BuildErrorCodes";
 
 const log = new Logger("Build");
 
@@ -86,7 +89,7 @@ export function registerBuildCommand(program: Command): void {
     .option("--emit <type>", "emit type: llvm, ast, tokens, formatted")
     .option(
       "--project",
-      "use main/entry from bpl.json in the current directory",
+      "use main/entry from ./bpl.json (implied when no file is given)",
     )
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
@@ -138,9 +141,20 @@ export function registerBuildCommand(program: Command): void {
               globalOpts.debug ||
               globalOpts.dwarf,
           };
-          if (!file && !localOpts.project)
+          // Outside a project, keep the structured no-input error; inside
+          // one, a file-less build uses the bpl.json entry.
+          if (!file && !localOpts.project && !fs.existsSync("bpl.json"))
             emitNoInputBuildErrorAndExit(compileOptions);
-          file = resolveProjectEntry(file, localOpts.project);
+          try {
+            file = resolveProjectEntry(file, localOpts.project);
+          } catch (error) {
+            // Manifest and entry problems use the structured build report.
+            emitBuildValidationErrorAndExit(
+              error instanceof Error ? error.message : String(error),
+              BUILD_PROJECT_ENTRY_INVALID_CODE,
+              compileOptions,
+            );
+          }
           validateCompileInputSources([file], compileOptions);
 
           if (shouldUseFrontendBuildAction(compileOptions)) {

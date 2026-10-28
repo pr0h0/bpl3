@@ -1,7 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
 
-/** Project mode reads only the current directory's manifest. */
+/**
+ * Project mode reads only the current directory's manifest. It is used for
+ * --project, and implicitly when no file is given and ./bpl.json exists.
+ */
 export function resolveProjectEntry(
   file: string | undefined,
   project?: boolean,
@@ -9,14 +12,23 @@ export function resolveProjectEntry(
   if (file && project)
     throw new Error("Use either an explicit file or --project, not both.");
   if (file) return file;
-  if (!project)
-    throw new Error(
-      "Specify a BPL file or use --project to build the current bpl.json entry.",
-    );
   const manifestPath = path.resolve("bpl.json");
+  if (!fs.existsSync(manifestPath))
+    throw new Error(
+      project
+        ? "No bpl.json in the current directory; --project needs one."
+        : "Specify a BPL file, or run inside a project directory with a bpl.json.",
+    );
   if (!fs.lstatSync(manifestPath).isFile())
     throw new Error("bpl.json must be a regular file.");
-  const manifest: unknown = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch (error) {
+    throw new Error(
+      `Invalid bpl.json: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
   if (!manifest || typeof manifest !== "object")
     throw new Error("Invalid bpl.json object.");
   const data = manifest as { main?: unknown; entry?: unknown };

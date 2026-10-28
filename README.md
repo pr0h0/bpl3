@@ -67,12 +67,15 @@ frame main() ret int {
 ```bash
 git clone https://github.com/pr0h0/bpl3.git
 cd bpl3
-bun install --frozen-lockfile
-bun run build
-export BPL_HOME="$PWD"
-export PATH="$BPL_HOME:$PATH"
-bpl --version
+bun run setup   # install deps, build, link `bpl` into ~/.local/bin
+bpl doctor      # after applying the PATH line setup prints, if any
 ```
+
+If `~/.local/bin` is not on `PATH`, setup prints the `export PATH=...` line to
+add to your shell configuration; apply it (or open a new shell) before running
+`bpl`. `bun run setup --bin-dir <dir>` links elsewhere; `--no-build` only
+refreshes the link. On Windows, setup builds but does not link: add the checkout
+to `PATH` instead (WSL is the supported native workflow).
 
 ### Prerequisites
 

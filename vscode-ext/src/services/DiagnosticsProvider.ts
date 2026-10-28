@@ -64,7 +64,9 @@ export class DiagnosticsProvider {
 
       try {
         const parser = new Parser(text, filePath);
-        const program: AST.Program = parser.parse();
+        // Load the implicit prelude like the compiler so built-in error types
+        // such as NullAccessError resolve without an import.
+        const program: AST.Program = parser.parse(true);
         const checker = new TypeChecker({
           skipImportResolution: false,
           collectAllErrors: true,

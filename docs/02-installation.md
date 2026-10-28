@@ -33,22 +33,28 @@ From a Linux or macOS shell:
 ```bash
 git clone https://github.com/pr0h0/bpl3.git
 cd bpl3
-bun install --frozen-lockfile
-bun run build
-export BPL_HOME="$PWD"
-export PATH="$BPL_HOME:$PATH"
-bpl --version
+bun run setup
 bpl doctor
 ```
 
-Keep the cloned directory: moving only the executable does not install its
-support files. Persist the two exports in your shell configuration using the
-actual installation path. `BPL_HOME` must identify a real installation directory,
-without symlinked parent components. `bpl doctor` checks the selected environment.
+`bun run setup` installs the locked dependencies, builds the compiler and native
+runtime (`bun run build`), links `bpl` into `~/.local/bin`, and smoke-tests the
+link from outside the checkout. If that directory is not on `PATH`, it prints the
+`export PATH=...` line to add to your shell configuration; apply it (or open a
+new shell) before running `bpl doctor`. On Windows, setup builds but creates no
+link; add the checkout to `PATH` instead. Options (linking applies to Linux and
+macOS):
 
-The legacy `./init.sh` helper builds the compiler, installs a link in `/usr/bin`
-with `sudo`, and edits `~/.bashrc`. It uses Linux/GNU utilities and is not the
-portable installation workflow.
+- `--bin-dir <dir>` (or `BPL_BIN_DIR`) links somewhere else, such as
+  `/usr/local/bin` when run with the needed permissions.
+- `--no-build` only refreshes the link.
+
+Keep the cloned directory: the `bpl` executable finds the grammar, standard
+library, and runtime next to its real location, following symlinks. To set it
+up by hand, run `bun install --frozen-lockfile && bun run build` and put the
+checkout (or a symlink to its `bpl`) on `PATH`. `BPL_HOME` is optional; when
+set, it overrides that lookup and must name a real installation directory
+without symlinked parent components. `bpl doctor` reports the directory in use.
 
 ## Verify compilation
 
@@ -95,19 +101,22 @@ provide equivalent tested integrations for each editor.
 - **Clang cannot be found or rejects LLVM IR:** inspect `clang --version`, run
   `bpl doctor`, and compare your toolchain with the CI matrix above. Capture the
   compiler diagnostic and a minimal input when reporting a failure.
-- **Missing grammar, library, or runtime:** check `BPL_HOME` and rebuild with
-  `bun run build`. Do not point it at a directory containing only a copied binary.
+- **Missing grammar, library, or runtime:** run `bpl doctor` to see which
+  installation directory is in use, unset a stale `BPL_HOME`, and rebuild with
+  `bun run build`. A copied binary without its checkout cannot find these files;
+  symlink it instead.
 - **Foreign-target link failure:** a target triple does not install a linker,
   sysroot, C library, or target runtime. See [cross-compilation](37-cross-compilation.md).
 
 ## Updating and uninstalling
 
-After updating the checkout, rerun `bun install --frozen-lockfile` and
-`bun run build`. Reinstall the extension separately if its sources changed.
+After updating the checkout (`git pull`), rerun `bun run setup`. Reinstall the
+extension separately if its sources changed.
 
-To uninstall the PATH-based installation, remove the exports you added to your
-shell configuration, then remove the checkout when you no longer need its files.
-If you used `init.sh`, also remove its `/usr/bin/bpl` link and `BPL_HOME` shell entry.
+To uninstall, remove the `bpl` link (`~/.local/bin/bpl` by default) or the
+`PATH` entry you added, then remove the checkout. Installations made with the
+former `init.sh` also left a `/usr/bin/bpl` link and a `BPL_HOME` line in
+`~/.bashrc`; remove those too.
 
 ## Release validation
 
