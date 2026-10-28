@@ -39,8 +39,11 @@ bpl doctor
 
 `bun run setup` installs the locked dependencies, builds the compiler and native
 runtime (`bun run build`), links `bpl` into `~/.local/bin`, and smoke-tests the
-link from outside the checkout. It prints the `PATH` line to add if that
-directory is not on `PATH`. Options:
+link from outside the checkout. If that directory is not on `PATH`, it prints the
+`export PATH=...` line to add to your shell configuration; apply it (or open a
+new shell) before running `bpl doctor`. On Windows, setup builds but creates no
+link; add the checkout to `PATH` instead. Options (linking applies to Linux and
+macOS):
 
 - `--bin-dir <dir>` (or `BPL_BIN_DIR`) links somewhere else, such as
   `/usr/local/bin` when run with the needed permissions.

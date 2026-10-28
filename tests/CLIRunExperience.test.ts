@@ -75,6 +75,11 @@ describe("bpl run developer experience", () => {
       expect(result.stdout).toBe("[x]\n");
       expect(result.status).toBe(7);
 
+      const build = runCli(["build", "-o", "out"], directory);
+      expect(build.stderr).toBe("");
+      expect(build.status).toBe(0);
+      expect(readdirSync(directory)).toContain("out");
+
       const outside = runCli(["run"], join(directory, ".."), {
         NO_COLOR: "1",
       });

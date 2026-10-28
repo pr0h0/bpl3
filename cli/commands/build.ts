@@ -3,6 +3,7 @@
  * Explicit compilation command for building BPL programs
  */
 
+import * as fs from "fs";
 import { resolveProjectEntry } from "../ProjectEntry";
 import type { Command } from "commander";
 import type { CompileOptions } from "../types";
@@ -138,7 +139,9 @@ export function registerBuildCommand(program: Command): void {
               globalOpts.debug ||
               globalOpts.dwarf,
           };
-          if (!file && !localOpts.project)
+          // Outside a project, keep the structured no-input error; inside
+          // one, a file-less build uses the bpl.json entry.
+          if (!file && !localOpts.project && !fs.existsSync("bpl.json"))
             emitNoInputBuildErrorAndExit(compileOptions);
           file = resolveProjectEntry(file, localOpts.project);
           validateCompileInputSources([file], compileOptions);

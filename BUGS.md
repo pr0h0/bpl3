@@ -15,7 +15,8 @@ same change as this list are recorded under "Developer experience fixes" below.
 
 **Status**: Open · **Priority**: P1
 
-`TypeChecker.ts:1303/1330` (spec return/params) and `:1612` (overrides) use
+`TypeChecker.ts:1304/1328` (spec return/params) and `:1587-1588`/`:1612-1613`
+(overrides) use
 `areTypesCompatible`. A spec `go() ret long` implemented as `ret bool`, or a
 parent `m() ret long` overridden as `ret char`, returns garbage high bits through
 `*Spec`/`*Parent` (observed `95336010894081`, `4294967295`). Require
