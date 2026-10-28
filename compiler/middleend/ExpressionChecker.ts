@@ -1515,8 +1515,7 @@ function isAddressableOperand(operand: AST.Expression): boolean {
       const objectType = operand.object.resolvedType;
       if (
         objectType?.kind === "BasicType" &&
-        (objectType.pointerDepth > 0 ||
-          objectType.arrayDimensions[0] === null)
+        (objectType.pointerDepth > 0 || objectType.arrayDimensions[0] === null)
       ) {
         return true;
       }
