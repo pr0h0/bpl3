@@ -374,7 +374,7 @@ fail); `docs/58-intrinsics.md:44` uses nonexistent `Math.sqrtFloat`;
 
 #### BUG-454: Objects returned by `JSON.parse` have a null vtable
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `lib/json.bpl:885/1275/1351` allocate the root, pointees and `Array<T>` buffers
 with `malloc` + `memset`, so structs with methods keep a zero vtable word.
@@ -382,6 +382,8 @@ with `malloc` + `memset`, so structs with methods keep a zero vtable word.
 at 0x20. The existing test never calls a method on the result. Initialize the
 vtable (as `alloc_with_vtable` in `arg_parser.bpl` does) or construct through
 the compiler's object initializer.
+
+**Resolution**: `TypeInfo` gained a trailing `vtable` field (compiler-generated for structs with methods, null otherwise; `lib/reflection.bpl` and `ReflectionGenerator` agree on the layout), and `JSON.parseAny` stores it before filling a struct, which covers roots, pointees, `Array<T>` elements and nested fields. `tests/JsonParsedObjects.test.ts`.
 
 #### BUG-455: Chained `<<` on StringBuilder, String, Stack and Array double-frees
 
@@ -407,11 +409,13 @@ Reject those members at any depth (and manifest paths into them), or hash them.
 
 #### BUG-457: `JSON.parse<Array<string>>` misreads elements when the program uses `Array<string>` methods
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 Adding `s.len()` anywhere makes `["x","y"]` fail with `Expected number`
 (`lib/json.bpl:1301` reads `type_info.element_type`). The reflected element type
 of the generic instantiation is likely wrong in the compiler.
+
+**Resolution**: two reflection bugs: a specialization's field types are already lowered (`string` → `*i8`), so struct `TypeInfo` now takes field types from the generic template with the arguments substituted; and `string`/`*char` shared one `TypeInfo` cache entry, so whichever was generated first won. `string` now has its own key. `tests/JsonParsedObjects.test.ts`.
 
 #### BUG-458: JSON strings reserve the rest of the input and skip the null check
 

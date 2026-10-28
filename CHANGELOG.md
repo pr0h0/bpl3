@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `JSON.parse` results support method calls (their vtable is installed from
+  the new `TypeInfo.vtable` field), and `JSON.parse<Array<string>>` no longer
+  depends on which other types or methods the program uses (BUG-454, BUG-457).
+
 - Chained `<<`/`>>` on `StringBuilder`, `String`, `Stack` and `Array` no longer
   double-free: the operators return a pointer to the receiver (BUG-455, BUG-464).
 

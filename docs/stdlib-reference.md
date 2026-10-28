@@ -2393,6 +2393,7 @@ fields: *FieldInfo
 num_methods: int
 methods: *MethodInfo
 element_type: *TypeInfo
+vtable: *void
 ```
 
 ## std/result.bpl

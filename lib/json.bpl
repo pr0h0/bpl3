@@ -1036,6 +1036,11 @@ struct JSON {
         if (p.has_error) {
             return;
         }
+        # Raw allocations are zeroed; install the vtable a constructor would,
+        # so methods on parsed objects dispatch correctly (BUG-454).
+        if ((info.kind == TYPE_KIND_STRUCT) && (info.vtable != nullptr)) {
+            *cast<*ulong>(ptr) = cast<ulong>(info.vtable);
+        }
         # Check for user-defined fromJson
         if (info.kind == TYPE_KIND_STRUCT) {
             local i: int = 0;

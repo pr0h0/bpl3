@@ -87,7 +87,12 @@ export abstract class ReflectionGenerator extends TypeGenerator {
       }
     }
 
-    const typeKey = this.mangleType(type);
+    // `string` lowers like `*char` but reflects as a string primitive, so it
+    // needs its own entry; otherwise whichever is generated first wins.
+    const typeKey =
+      type.kind === "BasicType" && type.name === "string"
+        ? `${this.mangleType(type)}_string`
+        : this.mangleType(type);
     if (this.typeInfoCache.has(typeKey)) {
       return this.typeInfoCache.get(typeKey)!;
     }
@@ -106,9 +111,9 @@ export abstract class ReflectionGenerator extends TypeGenerator {
       );
       // MethodInfo = { name: i8*, func: i8* }
       this.emitDeclaration(`%struct.MethodInfo = type { i8*, i8* }`);
-      // TypeInfo = { name: i8*, size: i64, kind: i8, num_fields: i32, fields: FieldInfo*, num_methods: i32, methods: MethodInfo*, element_type: TypeInfo* }
+      // TypeInfo = { name: i8*, size: i64, kind: i8, num_fields: i32, fields: FieldInfo*, num_methods: i32, methods: MethodInfo*, element_type: TypeInfo*, vtable: i8* }
       this.emitDeclaration(
-        `%struct.TypeInfo = type { i8*, i64, i8, i32, %struct.FieldInfo*, i32, %struct.MethodInfo*, %struct.TypeInfo* }`,
+        `%struct.TypeInfo = type { i8*, i64, i8, i32, %struct.FieldInfo*, i32, %struct.MethodInfo*, %struct.TypeInfo*, i8* }`,
       );
       this.generatedStructs.add("TypeInfo");
     }
@@ -147,12 +152,29 @@ export abstract class ReflectionGenerator extends TypeGenerator {
       }
 
       if (structDecl) {
+        // Field types come from the generic template with the arguments
+        // substituted: a specialization's fields are already lowered (a
+        // `string` element becomes `*i8`), which reflection would report as a
+        // pointer rather than a string (BUG-457).
+        let fieldTypes: AST.TypeNode[] | undefined;
         if (basic.genericArgs.length > 0) {
+          const template = structDecl;
           const llvmType = this.resolveType(basic);
           structDecl =
             this.structMap.get(llvmType.slice("%struct.".length)) ?? structDecl;
+          if (template.genericParams.length === basic.genericArgs.length) {
+            const typeMap = new Map<string, AST.TypeNode>();
+            template.genericParams.forEach((param, index) =>
+              typeMap.set(param.name, basic.genericArgs[index]!),
+            );
+            fieldTypes = template.members
+              .filter((m) => m.kind === "StructField")
+              .map((field) =>
+                this.substituteType((field as AST.StructField).type, typeMap),
+              );
+          }
         }
-        this.generateStructTypeInfo(globalName, basic, structDecl);
+        this.generateStructTypeInfo(globalName, basic, structDecl, fieldTypes);
         return globalName;
       }
 
@@ -218,7 +240,8 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     %struct.FieldInfo* null,
     i32 0,
     %struct.MethodInfo* null,
-    %struct.TypeInfo* null
+    %struct.TypeInfo* null,
+    i8* null
 }`);
   }
 
@@ -264,7 +287,8 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     %struct.FieldInfo* null,
     i32 0,
     %struct.MethodInfo* null,
-    %struct.TypeInfo* ${elementTypeInfo}
+    %struct.TypeInfo* ${elementTypeInfo},
+    i8* null
 }`);
   }
 
@@ -273,6 +297,7 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     globalName: string,
     type: AST.BasicTypeNode,
     decl: AST.StructDecl,
+    fieldTypes?: AST.TypeNode[],
   ) {
     const nameStrVar = this.getOrCreateStringLiteral(
       decl.sourceName ?? decl.name,
@@ -299,7 +324,9 @@ export abstract class ReflectionGenerator extends TypeGenerator {
       numFields = fields.length;
       // Generate Field Infos
       const fieldInfos = fields.map((f, index) => {
-        const fieldTypeInfo = this.getOrCreateTypeInfo(f.type);
+        const fieldType =
+          fieldTypes?.length === fields.length ? fieldTypes[index]! : f.type;
+        const fieldTypeInfo = this.getOrCreateTypeInfo(fieldType);
         const fieldNameStr = this.getOrCreateStringLiteral(f.name);
 
         const llvmType = this.resolveType(type);
@@ -387,6 +414,14 @@ export abstract class ReflectionGenerator extends TypeGenerator {
       methodsPtr = `getelementptr inbounds (${methodArrayType}, ${methodArrayType}* ${methodsArrayName}, i32 0, i32 0)`;
     }
 
+    // Objects built from reflection data (e.g. JSON.parse) need the vtable
+    // that constructors install as the first field (BUG-454).
+    const vtableEntries = this.vtableLayouts.get(decl.name)?.length ?? 0;
+    const vtablePtr =
+      vtableEntries > 0
+        ? `bitcast ([${vtableEntries} x i8*]* @${decl.name}_vtable to i8*)`
+        : "null";
+
     this.declarationsOutput.push(`${globalName} = global %struct.TypeInfo {
     i8* getelementptr inbounds ([${decl.name.length + 1} x i8], [${decl.name.length + 1} x i8]* ${nameStrVar}, i32 0, i32 0),
     i64 ${size},
@@ -395,7 +430,8 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     %struct.FieldInfo* ${fieldsPtr},
     i32 ${numMethods},
     %struct.MethodInfo* ${methodsPtr},
-    %struct.TypeInfo* null
+    %struct.TypeInfo* null,
+    i8* ${vtablePtr}
 }`);
   }
 
@@ -425,7 +461,8 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     %struct.FieldInfo* null,
     i32 0,
     %struct.MethodInfo* null,
-    %struct.TypeInfo* ${elementTypeGlobal}
+    %struct.TypeInfo* ${elementTypeGlobal},
+    i8* null
 }`);
   }
 
@@ -480,7 +517,8 @@ ${fieldInfos.join(",\n")}
     %struct.FieldInfo* ${fieldsPtr},
     i32 0,
     %struct.MethodInfo* null,
-    %struct.TypeInfo* null
+    %struct.TypeInfo* null,
+    i8* null
 }`);
   }
 
