@@ -11,6 +11,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Cancel superseded pull-request compiler, playground, and container CI runs
   while retaining non-PR execution and container publication safeguards.
 
+- `init.sh` links `bpl` into `~/.local/bin` (or `BPL_BIN_DIR`) without `sudo`
+  and no longer edits `~/.bashrc`; it fails fast, uses the frozen lockfile, and
+  accepts `--no-build`.
+
+### Removed
+
+- Repository clutter: `cmp.sh` (use `bpl run`), `tests.sh`, unused example
+  shell demos and helpers, `tests/test_template.sh`, a stray test output file,
+  the committed `test-baseline.txt` log, personal `.vscode` settings, unreferenced
+  historical design notes, and `docs/superpowers/` agent plans. The FFI example
+  shell check is now `tests/FfiExamples.test.ts`, which CI runs.
+
 ### Fixed
 
 - Fold complete multiline imports, including a single multiline import and

@@ -46,9 +46,12 @@ support files. Persist the two exports in your shell configuration using the
 actual installation path. `BPL_HOME` must identify a real installation directory,
 without symlinked parent components. `bpl doctor` checks the selected environment.
 
-The legacy `./init.sh` helper builds the compiler, installs a link in `/usr/bin`
-with `sudo`, and edits `~/.bashrc`. It uses Linux/GNU utilities and is not the
-portable installation workflow.
+Alternatively, `./init.sh` runs the same install and build steps, then links
+`bpl` into `~/.local/bin` (override with `BPL_BIN_DIR`). The link points at
+`bpl-wrapper.sh`, which sets `BPL_HOME` to the checkout when it is unset, so no
+shell configuration is edited and nothing runs with `sudo`. If the bin directory
+is not on `PATH`, the script prints the line to add. Pass `--no-build` to only
+refresh the link.
 
 ## Verify compilation
 
@@ -107,7 +110,7 @@ After updating the checkout, rerun `bun install --frozen-lockfile` and
 
 To uninstall the PATH-based installation, remove the exports you added to your
 shell configuration, then remove the checkout when you no longer need its files.
-If you used `init.sh`, also remove its `/usr/bin/bpl` link and `BPL_HOME` shell entry.
+If you used `init.sh`, also remove its link (`~/.local/bin/bpl` by default).
 
 ## Release validation
 

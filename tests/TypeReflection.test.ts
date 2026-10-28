@@ -3,7 +3,7 @@ import { spawnSync } from "child_process";
 import * as path from "path";
 
 const EXAMPLES_DIR = path.join(process.cwd(), "examples", "type_reflection");
-const CMP_SCRIPT = path.join(process.cwd(), "cmp.sh");
+const CLI_ENTRY = path.join(process.cwd(), "index.ts");
 
 describe("Type Reflection Tests", () => {
   it("should compile and run polymorphism", () => {
@@ -11,7 +11,9 @@ describe("Type Reflection Tests", () => {
       process.cwd(),
       path.join(EXAMPLES_DIR, "polymorphism/main.bpl"),
     );
-    const result = spawnSync(CMP_SCRIPT, [file], { encoding: "utf-8" });
+    const result = spawnSync(process.execPath, [CLI_ENTRY, "run", file], {
+      encoding: "utf-8",
+    });
 
     if (result.status !== 0) {
       console.error("Compilation failed:");
@@ -28,7 +30,9 @@ describe("Type Reflection Tests", () => {
       process.cwd(),
       path.join(EXAMPLES_DIR, "generics_check/main.bpl"),
     );
-    const result = spawnSync(CMP_SCRIPT, [file], { encoding: "utf-8" });
+    const result = spawnSync(process.execPath, [CLI_ENTRY, "run", file], {
+      encoding: "utf-8",
+    });
 
     if (result.status !== 0) {
       console.error("Compilation failed:");
@@ -45,7 +49,9 @@ describe("Type Reflection Tests", () => {
       process.cwd(),
       path.join(EXAMPLES_DIR, "match_type/main.bpl"),
     );
-    const result = spawnSync(CMP_SCRIPT, [file], { encoding: "utf-8" });
+    const result = spawnSync(process.execPath, [CLI_ENTRY, "run", file], {
+      encoding: "utf-8",
+    });
 
     if (result.status !== 0) {
       console.error("Compilation failed:");
@@ -64,7 +70,9 @@ describe("Type Reflection Tests", () => {
       process.cwd(),
       path.join(EXAMPLES_DIR, "inheritance_match/main.bpl"),
     );
-    const result = spawnSync(CMP_SCRIPT, [file], { encoding: "utf-8" });
+    const result = spawnSync(process.execPath, [CLI_ENTRY, "run", file], {
+      encoding: "utf-8",
+    });
 
     if (result.status !== 0) {
       console.error("Compilation failed:");
@@ -81,7 +89,9 @@ describe("Type Reflection Tests", () => {
       process.cwd(),
       path.join(EXAMPLES_DIR, "generic_inheritance/main.bpl"),
     );
-    const result = spawnSync(CMP_SCRIPT, [file], { encoding: "utf-8" });
+    const result = spawnSync(process.execPath, [CLI_ENTRY, "run", file], {
+      encoding: "utf-8",
+    });
 
     if (result.status !== 0) {
       console.error("Compilation failed:");

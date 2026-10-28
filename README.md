@@ -74,6 +74,9 @@ export PATH="$BPL_HOME:$PATH"
 bpl --version
 ```
 
+Or run `./init.sh`, which installs, builds, and links `bpl` into `~/.local/bin`
+without editing shell configuration (set `BPL_BIN_DIR` to choose another directory).
+
 ### Prerequisites
 
 You'll need:

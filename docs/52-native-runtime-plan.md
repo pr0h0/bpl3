@@ -108,7 +108,7 @@ The compiler currently injects C declarations. This must stop.
 1.  **Modify `compiler/backend/CodeGenerator.ts`**:
     - Remove `this.emitDeclaration("declare ... @malloc ...")`.
     - Remove automatic injection of `printf`.
-2.  **Update Build Script (`cmp.sh` / `bpl-wrapper.sh`)**:
+2.  **Update the native link step (`cli/BinaryRunner.ts` / `lib/build_runtime.sh`)**:
     - **Detect Host**: Add logic to detect OS (`uname -s`) and Arch (`uname -m`).
     - **Select Files**: Based on host, include `lib/sys/linux/x86_64/*.s` and `*.bpl`.
     - **Linker Flags**: Add `-nostdlib` to prevent linking `libc`.
@@ -139,5 +139,5 @@ The compiler currently injects C declarations. This must stop.
 - [ ] Implement `string.bpl` (memcpy/strlen).
 - [ ] Implement `io.bpl` (print/write).
 - [ ] Update `CodeGenerator.ts` to remove injected externs.
-- [ ] Update `cmp.sh` to assemble and link native objects.
+- [ ] Update the CLI link step to assemble and link native objects.
 - [ ] Verify `hello-world` example runs without `libc`.
