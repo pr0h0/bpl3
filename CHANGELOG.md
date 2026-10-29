@@ -47,6 +47,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `1 << 4`, numeric casts, array literals) and anything else is reported by the
   checker as `BPL_GLOBAL_INITIALIZER_NOT_CONSTANT`; taking the address of a
   temporary is rejected with `BPL_ADDRESS_OF_TARGET_INVALID` (BUG-432, BUG-433).
+  Folding wraps each operation to its type and applies every cast, matching
+  run-time results.
 
 - `JSON.parse` results support method calls (their vtable is installed from
   the new `TypeInfo.vtable` field), and `JSON.parse<Array<string>>` no longer
@@ -62,6 +64,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   arguments, parents and enums; spec calls widen arguments; inherited statics
   call the parent; unreachable code is a warning. `bpl check` and the language
   server now show checker warnings, and `check --json` reports `warningCount`.
+  `bpl build` and `bpl run` print the entry file's warnings; imported modules'
+  warnings are not repeated per importer, and unreachable code warns once per
+  block.
 
 - `bpl check` and the language server accept the implicit prelude error types
   (`NullAccessError` and others) that `bpl build` accepts.

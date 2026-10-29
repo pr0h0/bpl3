@@ -4911,8 +4911,8 @@ describe("CLI JSON parseability", () => {
         line: 2,
         column: 23,
         preview: "local ptr: *int = &(1, 2)",
-        message: "Cannot take address of",
-        hint: "Address-of requires an lvalue.",
+        message: "Cannot take the address of a temporary value",
+        hint: "store the value in a local first",
         source: [
           "frame main() ret int {",
           "    local ptr: *int = &(1, 2);",

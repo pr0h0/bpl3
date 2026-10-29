@@ -143,7 +143,7 @@ it a warning: `check` exits 1, JSON reports `errorCount: 1` with
 `severity: "warning"`, and `run` refuses to build. Use `addWarning` like the
 shadowing warning at `:1538`.
 
-**Resolution**: the warning goes through `addWarning`. `bpl check` now prints checker warnings (unreachable code, shadowing) without failing, reports `warningCount` and warning diagnostics in JSON, and the language server shows them with warning severity. Previously all checker warnings were collected but never displayed. `tests/CheckWarnings.test.ts`.
+**Resolution**: the warning goes through `addWarning`. `bpl check` now prints checker warnings (unreachable code, shadowing) without failing, reports `warningCount` and warning diagnostics in JSON, and the language server shows them with warning severity. Previously all checker warnings were collected but never displayed. Warnings are attributed to the file they occur in (an imported module's warning is not repeated for each importer), `bpl build`/`bpl run` print the entry file's warnings, and unreachable code is reported once per block. `tests/CheckWarnings.test.ts`, `tests/V01StabilityEdgeCases.test.ts`.
 
 #### BUG-435: Methods of generic specs using `this: *Self` cannot be called on constrained `T`
 
