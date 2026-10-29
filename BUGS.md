@@ -178,7 +178,7 @@ returning `Self` then return `T` as well. `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-436: Smaller compiler diagnostics issues
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 - `switch` on a null `string` segfaults inside `strcmp`.
 - A duplicate enum `case` reports `Duplicate case value '0'` instead of `E.A`.
@@ -193,8 +193,9 @@ returning `Self` then return `T` as well. `tests/AuditCompilerFixes.test.ts`.
 **Progress (2026-10-29)**: a `switch` on a null `string` takes `default` (or
 does nothing) instead of crashing in `strcmp`. A duplicate enum case names the
 variant (`Duplicate case value 'E.A'`). The generic arity error no longer
-reproduces as a duplicate. Still open: the `check` → `--emit llvm` →
-`opt -passes=verify` probe test.
+reproduces as a duplicate. The `check` → LLVM verifier probe is now the
+fuzzer's `generated` lane: every generated program that type-checks must
+produce IR that passes the LLVM verifier (docs/60, "Fuzz Input Lanes").
 
 #### BUG-437: Formatter leaves trailing spaces after brace-less `if`/`else`/`loop`
 
