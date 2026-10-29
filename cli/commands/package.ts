@@ -500,6 +500,7 @@ export function registerPackageCommands(program: Command): void {
                   package: result.manifest.name,
                   version: result.manifest.version,
                   manifestPath: result.manifestPath,
+                  ...(result.entryPath ? { entryPath: result.entryPath } : {}),
                 }),
                 null,
                 2,
@@ -507,7 +508,11 @@ export function registerPackageCommands(program: Command): void {
             );
             return;
           }
-          log.info("Initialized new BPL project");
+          log.info(
+            result.entryPath
+              ? `Initialized new BPL project with ${path.basename(result.entryPath)}; run it with 'bpl run'`
+              : "Initialized new BPL project",
+          );
         } catch (e) {
           if (outputJson) {
             console.log(

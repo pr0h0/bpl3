@@ -1,0 +1,78 @@
+import { expect, test } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "fs";
+import { tmpdir } from "os";
+import { join, resolve } from "path";
+
+// BUG-444: project scaffolding gaps.
+const CLI = resolve("index.ts");
+
+function bpl(args: string[], cwd: string, home: string) {
+  const result = Bun.spawnSync([process.execPath, CLI, ...args], {
+    cwd,
+    env: { ...process.env, NO_COLOR: "1", HOME: home, TMPDIR: home },
+  });
+  return {
+    status: result.exitCode,
+    stdout: result.stdout.toString(),
+    stderr: result.stderr.toString(),
+  };
+}
+
+function withRoot(run: (root: string) => void) {
+  const root = mkdtempSync(join(tmpdir(), "bpl-scaffolding-"));
+  try {
+    run(root);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test("init creates a runnable entry and a newline-terminated bpl.json", () => {
+  withRoot((root) => {
+    const app = join(root, "demo");
+    mkdirSync(app);
+    expect(bpl(["init"], app, root).status).toBe(0);
+    expect(readFileSync(join(app, "bpl.json"), "utf8").endsWith("}\n")).toBe(
+      true,
+    );
+    expect(existsSync(join(app, "index.bpl"))).toBe(true);
+    const run = bpl(["run"], app, root);
+    expect(run.stdout).toBe("Hello from demo\n");
+    expect(bpl(["pack"], app, root).status).toBe(0);
+  });
+});
+
+test("installing an archive records it so lock and --locked keep it", () => {
+  withRoot((root) => {
+    const lib = join(root, "mathx");
+    const app = join(root, "app");
+    mkdirSync(lib);
+    mkdirSync(app);
+    expect(bpl(["init"], lib, root).status).toBe(0);
+    expect(bpl(["pack"], lib, root).status).toBe(0);
+    expect(bpl(["init"], app, root).status).toBe(0);
+    expect(bpl(["install", "../mathx/mathx-1.0.0.tgz"], app, root).status).toBe(
+      0,
+    );
+    const manifest = JSON.parse(readFileSync(join(app, "bpl.json"), "utf8"));
+    expect(manifest.dependencies).toEqual({
+      mathx: "file:../mathx/mathx-1.0.0.tgz",
+    });
+    expect(bpl(["lock"], app, root).status).toBe(0);
+    const lock = JSON.parse(readFileSync(join(app, "bpl.lock"), "utf8"));
+    expect(Object.keys(lock.packages)).toEqual(["mathx"]);
+    expect(bpl(["install", "--locked"], app, root).status).toBe(0);
+  });
+});
+
+test("new projects ignore pack artifacts", () => {
+  withRoot((root) => {
+    expect(
+      bpl(["new", "lib-demo", "--template", "library", "--no-git"], root, root)
+        .status,
+    ).toBe(0);
+    const ignore = readFileSync(join(root, "lib-demo", ".gitignore"), "utf8");
+    expect(ignore).toContain("*.tgz");
+    expect(ignore).toContain("*.bplmeta.json");
+  });
+});

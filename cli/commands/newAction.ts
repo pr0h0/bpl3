@@ -268,6 +268,10 @@ See the [BPL Language Documentation](https://github.com/pr0h0/bpl) for more info
 main
 a.out
 
+# Package archives from \`bpl pack\`
+*.tgz
+*.bplmeta.json
+
 # Dependencies
 bpl_modules/
 

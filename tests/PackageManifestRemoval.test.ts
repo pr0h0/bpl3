@@ -139,6 +139,15 @@ test("legacy root migration preserves separately installed packages without gues
     const archive = new PackageManager(source, options).pack(source);
     const manager = new PackageManager(app, options);
     manager.install(archive);
+    // `install` now records the dependency in bpl.json; a legacy project
+    // installed it without one, which is the state migrated here.
+    expect(
+      JSON.parse(readFileSync(join(app, "bpl.json"), "utf8")).dependencies,
+    ).toEqual({ manual: "file:../source/manual-0.1.0.tgz" });
+    writeFileSync(
+      join(app, "bpl.json"),
+      JSON.stringify({ name: "app", version: "0.1.0", dependencies: {} }),
+    );
     const original = JSON.parse(readFileSync(join(app, "bpl.lock"), "utf8"));
     expect(original.manifestRoots).toBeUndefined();
     // An unreferenced entry absent from bpl.json can be a deliberate direct

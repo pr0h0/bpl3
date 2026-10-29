@@ -39,6 +39,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `bpl init` creates the `index.bpl` entry it declares (so `run` and `pack`
+  work) and ends `bpl.json` with a newline; `bpl install <archive>` adds the
+  package to `bpl.json` so `bpl lock` no longer drops it; new projects ignore
+  pack archives (BUG-444).
+
 - `bpl bindgen` writes exponent `double` constants (`#define SCI 1e-3`) in
   plain decimal (`0.001`), which BPL can parse (BUG-441).
 

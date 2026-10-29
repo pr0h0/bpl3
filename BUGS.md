@@ -310,13 +310,22 @@ duplicated `compileWithModules*`.
 
 #### BUG-444: Project scaffolding gaps
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 `bpl init` writes `main: "index.bpl"` without creating it, so `pack` fails;
 `bpl.json` has no trailing newline. `bpl install ./pkg.tgz` records the package
 only in `bpl.lock`, so a later `bpl lock` drops it and `--locked` suggests a
 command that does not fix it. The library template's `.gitignore` misses
 `*.tgz`/`*.bplmeta.json`.
+
+**Resolution**: `bpl init` writes `bpl.json` with a trailing newline and
+creates a hello-world `index.bpl` when missing. A direct `bpl install
+<archive|name>` adds the package to `bpl.json` (`file:<relative path>` or the
+version), so `bpl lock` keeps it and `--locked` verifies. Before this,
+`bpl lock` left zero entries and `--locked` failed. `bpl new` templates ignore
+`*.tgz` and `*.bplmeta.json`. `tests/ProjectScaffolding.test.ts`;
+`tests/PackageManifestRemoval.test.ts` now sets up its legacy state
+explicitly.
 
 ### Language server and VS Code extension
 
