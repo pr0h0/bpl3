@@ -509,13 +509,15 @@ with `double free detected`. Return `*Self` like `Queue`.
 
 #### BUG-456: Lock verification ignores nested `bpl_modules`/`node_modules` that are still loaded
 
-**Status**: Open · **Priority**: P1 (integrity)
+**Status**: Fixed · **Priority**: P1 (integrity)
 
 `sha256-tree-v2` (`PackageManager.ts:2563`) skips `bpl_modules`, `node_modules`,
 `.git` and `.bpl-cache` inside a package, but extraction installs them and the
 resolver loads a nested `bpl_modules/<dep>` (and `main`/`exports` may point into
 them). Editing such a file after install keeps `verifyLockFile()` at `ok: true`.
 Reject those members at any depth (and manifest paths into them), or hash them.
+
+**Resolution**: the portable tree hash now includes nested `bpl_modules` and `node_modules`; only `.git` and `.bpl-cache`, which are never loaded, are skipped. Editing a nested dependency after install fails `verifyLockFile()`. Lock entries for packages without nested trees keep their hash. `tests/PackageNestedModuleIntegrity.test.ts`.
 
 #### BUG-457: `JSON.parse<Array<string>>` misreads elements when the program uses `Array<string>` methods
 

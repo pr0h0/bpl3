@@ -259,7 +259,9 @@ bpl install --locked
 `bpl_modules/<package>` is a symlink or non-directory, if the installed manifest
 declares a different name or version than the lock entry, if the recorded source
 archive is missing, a symlink, or reachable only through a symlinked parent
-directory, or if its source hash no longer matches the lockfile. Missing
+directory, or if its source hash no longer matches the lockfile. The content
+hash covers every installed file, including a package's nested `bpl_modules`
+and `node_modules`; only `.git` and `.bpl-cache` are skipped. Missing
 `bpl_modules` roots still report package-missing issues for locked entries;
 symlinked roots are rejected before any locked package manifest or file content
 is read through the link. It also checks installed package manifests for missing

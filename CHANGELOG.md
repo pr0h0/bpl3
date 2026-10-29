@@ -49,6 +49,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Package content hashes include a package's nested `bpl_modules` and
+  `node_modules`, so editing a nested dependency after install fails
+  `bpl install --locked` and lock verification (BUG-456).
+
 - Review follow-ups for the third audit batch:
   - `(x = 1) = 2` is rejected; an assignment is not an lvalue (R-EXPR-5).
   - `/# ... #/ x: int,` no longer documents the next declaration.

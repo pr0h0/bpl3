@@ -2565,7 +2565,10 @@ export class PackageManager {
 
   private calculatePortablePackageHash(packageDir: string): string {
     const entries: { relative: string; file: string; kind: string }[] = [];
-    const excluded = new Set([".git", "node_modules", "bpl_modules", ".bpl-cache"]);
+    // Nested bpl_modules/node_modules are hashed: the resolver loads a
+    // package's own bpl_modules/<dep>, so editing one must fail verification
+    // (BUG-456). .git and the compiler cache are never loaded.
+    const excluded = new Set([".git", ".bpl-cache"]);
     const visit = (directory: string, prefix: string): void => {
       for (const name of fs.readdirSync(directory)) {
         if (excluded.has(name)) continue;

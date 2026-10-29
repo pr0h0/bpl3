@@ -51,11 +51,20 @@ test("portable tree hashes include assets and native files in normalized codepoi
       expect(manager["calculatePackageHash"](root, true)).not.toBe(original!);
       writeFileSync(join(root, file), contents);
     }
-    mkdirSync(join(root, "bpl_modules"));
-    writeFileSync(
-      join(root, "bpl_modules", "generated.o"),
-      "ignored dependency storage",
-    );
+    // VCS metadata and the compiler cache are never loaded, so they are
+    // ignored; nested dependency trees are loaded and hashed (BUG-456).
+    for (const ignored of [".git", ".bpl-cache"]) {
+      mkdirSync(join(root, ignored));
+      writeFileSync(join(root, ignored, "state"), "ignored");
+      expect(manager["calculatePackageHash"](root, true)).toBe(original!);
+      rmSync(join(root, ignored), { recursive: true });
+    }
+    for (const nested of ["bpl_modules", "node_modules"]) {
+      mkdirSync(join(root, nested));
+      writeFileSync(join(root, nested, "generated.o"), "dependency storage");
+      expect(manager["calculatePackageHash"](root, true)).not.toBe(original!);
+      rmSync(join(root, nested), { recursive: true });
+    }
     expect(manager["calculatePackageHash"](root, true)).toBe(original!);
     // Hash link identity without following it into an external directory.
     symlinkSync(join(root, "data"), join(root, "linked"), "dir");
