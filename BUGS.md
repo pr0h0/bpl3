@@ -245,7 +245,7 @@ pass a specific hint: the naming rule suggests the renamed identifier
 
 #### BUG-440: `bpl docs` ignores `#` comments, loses error locations, and nests headings wrongly
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 Only `/# … #/` blocks become docs (`Parser.ts:124`), but `lib/` documents with
 `#`, so `bpl docs lib/string.bpl` produces headings without descriptions.
@@ -253,6 +253,13 @@ Failures print `{ "error": "Unexpected syntax…" }` without file/line
 (`cli/commands/docs.ts:110`), and methods are `###` under a `#### Methods`
 heading (`DocumentationGenerator.ts:334`). docs/04 says there is no doc-comment
 syntax; decide and document one.
+
+**Resolution**: a run of own-line `#` comments directly above a declaration is
+its documentation, like a `/# #/` block (trailing comments after code are
+ignored). Errors carry `file:line:column` (the human output uses the
+diagnostic formatter; JSON keeps the error code). Methods are `#####` under
+`#### Methods`, with their sections one level deeper. docs/04 documents the
+syntax. `tests/DocsComments.test.ts`.
 
 #### BUG-441: `bindgen` emits exponent float literals BPL cannot parse
 

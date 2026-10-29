@@ -49,6 +49,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `bpl docs` uses `#` line comments directly above a declaration as its
+  documentation (so `bpl docs lib/string.bpl` has descriptions), reports
+  errors with their location, and nests method headings under `#### Methods`
+  (BUG-440).
+
 - `bpl check` accepts directories (`bpl check src/`), expanding them like
   `format` and `lint`; the `-e` help says it compiles and prints IR (BUG-443).
 
