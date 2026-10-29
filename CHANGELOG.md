@@ -39,6 +39,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `Map` equality and `Array.indexOf`/`contains` compare `string` values by
+  content instead of by pointer (BUG-460).
+
 - `switch` on a null `string` takes the `default` case instead of crashing,
   and a duplicate enum case is reported by name (`E.A`, not `0`) (BUG-436).
 

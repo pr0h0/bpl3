@@ -495,11 +495,18 @@ write to a temporary file plus rename.
 
 #### BUG-460: `Map.__eq__` (and likely `Array.indexOf`) compare string values by pointer
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `lib/map.bpl:454`: equal but separately allocated string values compare unequal.
 `Array.indexOf`/`contains` (and `Algorithm.unique`) likely share it for `string`
 elements (not probed). Use the value equaler as keys already do.
+
+**Resolution**: `Map.__eq__` compares values with `_mapDefaultEq<V>`, as keys
+do. `Array.indexOf` (and therefore `contains`) uses `_arrayElementsEqual<T>`,
+which compares `string` by content and other types with `==`; it cannot reuse
+the map helper because `std/string.bpl` imports `std/array.bpl`.
+`Algorithm.unique` only has integer and float overloads and is unaffected.
+`tests/StdlibStringValueEquality.test.ts`.
 
 #### BUG-461: HTTP server and rate limiter are easy to starve (suspected)
 
