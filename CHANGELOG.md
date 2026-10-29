@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Struct subtyping no longer passes through `**T` or array types: `**Dog` to
+  `**Animal` and `Dog[2]` to `Animal[]` are rejected by the checker instead of
+  corrupting memory or failing in codegen (BUG-424).
+
 - Global initializers accept constant expressions (`-5`, `!true`, `~0`,
   `1 << 4`, numeric casts, array literals) and anything else is reported by the
   checker as `BPL_GLOBAL_INITIALIZER_NOT_CONSTANT`; taking the address of a

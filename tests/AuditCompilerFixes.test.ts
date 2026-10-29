@@ -36,6 +36,41 @@ struct C: P { frame m(this: *C) ret char { return cast<char>(-1); } }${MAIN}`);
   });
 });
 
+describe("BUG-424: subtyping stops at one pointer level", () => {
+  const PRELUDE = `struct Animal { a: int, frame f(this: *Animal) {} }
+struct Dog: Animal { d: int, }
+frame takeSlice(_xs: Animal[]) {}
+`;
+  test("rejects double pointers and arrays of a subtype", () => {
+    const result = check(`${PRELUDE}frame main() ret int {
+    local d: Dog;
+    local pd: *Dog = &d;
+    local ppa: **Animal = &pd;
+    local dogs: Dog[2];
+    local animals: Animal[2] = dogs;
+    takeSlice(dogs);
+    return 0;
+}
+`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("**Animal");
+    expect(result.stderr).toContain("Animal[2]");
+    expect(result.stderr).toMatch(/Animal\[\]/);
+  });
+
+  test("still accepts a value or a single pointer", () => {
+    const result = check(`${PRELUDE}frame main() ret int {
+    local d: Dog;
+    local _pa: *Animal = &d;
+    local _a: Animal = d;
+    return 0;
+}
+`);
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+  });
+});
+
 describe("BUG-427: types that contain themselves by value", () => {
   const cycles: Record<string, string> = {
     "fixed array": "struct S { a: S[2], }",

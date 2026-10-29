@@ -1987,6 +1987,18 @@ export abstract class TypeCheckerBase {
         ) {
           return false;
         }
+        // Subtyping applies to a value or a single pointer level only. Through
+        // `**Child` or `Child[]` an `Animal` could be written where a `Dog` is
+        // stored, so deeper pointers and arrays need identical types (BUG-424).
+        if (
+          !isAlias &&
+          (rt1.pointerDepth !== rt2.pointerDepth ||
+            rt1.pointerDepth > 1 ||
+            rt1.arrayDimensions.length > 0 ||
+            rt2.arrayDimensions.length > 0)
+        ) {
+          return false;
+        }
 
         // If subtype, check against the instantiated super type
         if (!isAlias) {

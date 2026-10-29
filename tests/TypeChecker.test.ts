@@ -2101,7 +2101,7 @@ describe("TypeChecker", () => {
       payloadMark,
     );
     const cycleCheck = methodSource.indexOf(
-      "this.detectEnumCycle(decl.name, decl)",
+      "this.detectValueCycle(decl)",
       cycleGuard,
     );
 

@@ -446,6 +446,10 @@ frame identity<T>(val: T) ret T {
   use the value's static type.
 - **[R-STRUCT-8]** For type checking, every struct is a subtype of the root
   `Type` struct, so a pointer to any struct converts implicitly to `*Type`.
+  Subtyping applies to a struct value or a single pointer (`Dog` → `Animal`,
+  `*Dog` → `*Animal`). Deeper pointers and arrays need identical element types:
+  `**Dog` does not convert to `**Animal`, nor `Dog[2]` to `Animal[2]` or
+  `Animal[]`, because an `Animal` could then be stored where a `Dog` lives.
 - **[R-STRUCT-9]** A struct or enum that contains itself by value is rejected
   with `BPL_TYPE_RECURSION_CYCLE`. Containment follows fields, the parent
   struct, enum payloads, fixed-size arrays, tuples, type aliases, and generic

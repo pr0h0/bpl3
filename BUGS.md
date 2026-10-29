@@ -26,13 +26,15 @@ parent `m() ret long` overridden as `ret char`, returns garbage high bits throug
 
 #### BUG-424: Subtyping propagates through pointer depth and array dimensions
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `TypeCheckerBase.ts:1978-2009` accepts `**Dog`→`**Animal`, `Dog[N]`→`Animal[N]`,
 and `Dog[]`→`Animal[]`. Writing an `*Animal` through a `**Animal` view of a
 `**Dog` corrupts memory; passing `Dog[2]` to `Animal[]` passes `check` and fails
 codegen with `Unsupported cast` at the wrong line. Allow subtyping only for one
 pointer level / depth-0 values without array dimensions.
+
+**Resolution**: `areTypesCompatible` accepts a subtype only when both sides have the same pointer depth (0 or 1) and no array dimensions; otherwise the types must match exactly. `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-425: Ternary branches are never unified, producing invalid IR or wrong values
 
