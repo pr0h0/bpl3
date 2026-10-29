@@ -203,7 +203,16 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         expr.location,
       );
     }
+    // Lambdas at the same line and column of different files must not share
+    // a function or context type name, so later files get a module suffix.
+    const file = expr.location.file ?? "";
+    let fileOrdinal = this.lambdaFileOrdinals.get(file);
+    if (fileOrdinal === undefined) {
+      fileOrdinal = this.lambdaFileOrdinals.size;
+      this.lambdaFileOrdinals.set(file, fileOrdinal);
+    }
     let lambdaName = `lambda_L${expr.location.startLine}_C${expr.location.startColumn}`;
+    if (fileOrdinal > 0) lambdaName += `_M${fileOrdinal}`;
 
     // If we are in a generic context, append generic args to make the name unique
     if (this.currentTypeMap.size > 0) {

@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `--debug` builds no longer crash clang for generic locals (`Array<String>`)
+  or `Any` variadics, and lambdas at the same line and column of two modules no
+  longer produce a duplicate LLVM type (BUG-429).
+
 - Struct subtyping no longer passes through `**T` or array types: `**Dog` to
   `**Animal` and `Dog[2]` to `Animal[]` are rejected by the checker instead of
   corrupting memory or failing in codegen (BUG-424).

@@ -355,6 +355,8 @@ export class BaseCodeGenerator {
     expr: AST.LambdaExpr;
     typeMap: Map<string, AST.TypeNode>;
   }[] = [];
+  /** Per-file ordinal that keeps lambda names unique across modules. */
+  protected lambdaFileOrdinals = new Map<string, number>();
 
   /**
    * Create a CompilerError with proper location information

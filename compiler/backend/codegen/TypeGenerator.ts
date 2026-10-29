@@ -250,6 +250,12 @@ export abstract class TypeGenerator extends StructEnumGenerator {
       return 0; // void
     }
 
+    // Inside a monomorphized body, `T` must describe the concrete type; an
+    // unsubstituted parameter has no DWARF type and crashes clang (BUG-429).
+    if (depth === 0 && this.currentTypeMap.size > 0) {
+      type = this.substituteType(type, this.currentTypeMap);
+    }
+
     const resolvedName = this.resolveType(type);
     const pointerBits = this.getLayoutCalculator().get("i8*").size * 8;
 
@@ -836,7 +842,21 @@ export abstract class TypeGenerator extends StructEnumGenerator {
       }
     }
 
-    return 0; // Unknown
+    // Anything else (e.g. built-in structs such as `Any`) gets an opaque
+    // type of the right size: a variable typed `null` crashes clang.
+    let sizeInBits = 0;
+    try {
+      sizeInBits = this.getTypeSizeInBits(type);
+    } catch {
+      sizeInBits = 0;
+    }
+    return this.debugInfoGenerator.createStructType(
+      resolvedName.replace(/^%struct\./, "").replace(/[^a-zA-Z0-9_]/g, "_"),
+      sizeInBits,
+      this.debugInfoGenerator.getFileNodeId(this.currentFilePath),
+      0,
+      [],
+    );
   }
 
   protected getTypeIdFromNode(type: AST.TypeNode): number {

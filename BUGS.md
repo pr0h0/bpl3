@@ -84,12 +84,21 @@ Pass the substituted spec parameter types.
 
 #### BUG-429: `--debug` makes clang crash for generic locals of struct type
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `getDwarfTypeId` (`TypeGenerator.ts:246+`) looks up the unsubstituted `T`, emits
 `DILocalVariable(type: null)`, and clang segfaults in the X86 asm printer. Any
 program using `Array<String>` with `--debug` is affected. Apply the active
 monomorphization map before the lookup.
+
+**Resolution**: `getDwarfTypeId` substitutes the active type map, and types it
+cannot describe (such as the built-in `Any`) become opaque structs of the right
+size instead of `null`. A `--debug` build of every example then exposed a
+second defect: lambdas were named only by line and column, so lambdas at the same
+position in two modules redefined each other's context type (`todo_app` with
+`bpl-express`). Lambdas in later modules now get an `_M<n>` suffix. All examples
+except the two that need external libraries now build with `--debug`.
+`tests/DebugInfoGenerics.test.ts`.
 
 #### BUG-430: Bound variadic methods get an unlowered signature and segfault
 
