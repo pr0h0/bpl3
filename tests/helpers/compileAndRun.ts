@@ -53,7 +53,10 @@ function createTempSourcePath(prefix = "test"): {
 } {
   const id = Math.random().toString(36).substring(2, 10);
   const timestamp = Date.now();
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-test-run-"));
+  // Canonical path: the CLI refuses outputs below a symlinked directory.
+  const tempDir = fs.mkdtempSync(
+    path.join(fs.realpathSync(os.tmpdir()), "bpl-test-run-"),
+  );
 
   return {
     tempDir,

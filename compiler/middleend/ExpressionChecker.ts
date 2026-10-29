@@ -1633,7 +1633,10 @@ export function checkCast(
     );
   }
 
-  return expr.targetType;
+  // The resolved target: `cast<Byte>(x)` for `type Byte = u8` is a `u8`
+  // operand for arithmetic and constant folding, as aliases are
+  // interchangeable (R-DECL-4).
+  return this.resolveType(expr.targetType) ?? expr.targetType;
 }
 
 /**

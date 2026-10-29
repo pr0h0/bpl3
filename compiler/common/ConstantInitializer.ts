@@ -6,8 +6,9 @@
  * front and the code generator uses the same evaluation to emit the value.
  *
  * Every operation is evaluated at the width of its checked type, so
- * `(2147483647 + 1) / 2` as `int` wraps before dividing, and every cast
- * converts its operand (`cast<int>(1.75)` is 1), as at run time.
+ * `(2147483647 + 1) / 2` as `int` wraps before dividing; the right operand
+ * takes the left operand's type; and every cast converts its operand
+ * (`cast<int>(1.75)` is 1, float-to-integer saturates), as at run time.
  */
 
 import type * as AST from "./AST";
@@ -38,22 +39,34 @@ const INTEGER_OPERATORS: Partial<
     b < 0n || b > 63n ? undefined : a >> b,
 };
 
-/** Evaluate a global initializer, or return undefined if it is not constant. */
+/** Resolves type aliases (e.g. `type Byte = u8`) to the underlying type. */
+export type ConstantTypeResolver = (type: AST.TypeNode) => AST.TypeNode;
+
+/**
+ * Evaluate a global initializer, or return undefined if it is not constant.
+ * Widths come from the checked `resolvedType` of each node; `resolveType`
+ * maps aliases to their primitive.
+ */
 export function evaluateConstantInitializer(
   expr: AST.Expression,
+  resolveType: ConstantTypeResolver = (type) => type,
 ): ConstantValue | undefined {
+  const evaluate = (inner: AST.Expression) =>
+    evaluateConstantInitializer(inner, resolveType);
+  const wrap = (value: bigint, type: AST.TypeNode | undefined) =>
+    wrapInteger(value, numericType(type, resolveType));
   switch (expr.kind) {
     case "Group":
-      return evaluateConstantInitializer(expr.expression);
+      return evaluate(expr.expression);
     case "Literal":
       return evaluateLiteral(expr);
     case "Unary": {
-      const operand = evaluateConstantInitializer(expr.operand);
+      const operand = evaluate(expr.operand);
       if (!operand) return undefined;
       switch (expr.operator.type) {
         case TokenType.Minus:
           if (operand.kind === "int")
-            return wrapInteger(-operand.value, expr.resolvedType);
+            return wrap(-operand.value, expr.resolvedType);
           if (operand.kind === "float")
             return { kind: "float", value: -operand.value };
           return undefined;
@@ -63,7 +76,7 @@ export function evaluateConstantInitializer(
             : undefined;
         case TokenType.Tilde:
           return operand.kind === "int"
-            ? wrapInteger(~operand.value, expr.resolvedType)
+            ? wrap(~operand.value, expr.resolvedType)
             : undefined;
         default:
           return undefined;
@@ -72,24 +85,38 @@ export function evaluateConstantInitializer(
     case "Binary": {
       const operation = INTEGER_OPERATORS[expr.operator.type];
       if (!operation) return undefined;
-      const left = evaluateConstantInitializer(expr.left);
-      const right = evaluateConstantInitializer(expr.right);
+      const left = evaluate(expr.left);
+      const right = evaluate(expr.right);
       if (left?.kind !== "int" || right?.kind !== "int") return undefined;
-      const value = operation(left.value, right.value);
-      return value === undefined
-        ? undefined
-        : wrapInteger(value, expr.resolvedType);
+      // Both operands take the left operand's type, as at run time, so
+      // signedness decides division, remainder and right shifts.
+      const operandType = numericType(expr.left.resolvedType, resolveType);
+      const a = wrapInteger(left.value, operandType).value;
+      const b = wrapInteger(right.value, operandType).value;
+      // MIN / -1 overflows (it traps at run time), so it is not a constant.
+      if (
+        operandType?.kind === "integer" &&
+        operandType.signed &&
+        b === -1n &&
+        a === -(1n << BigInt(operandType.bits - 1)) &&
+        (expr.operator.type === TokenType.Slash ||
+          expr.operator.type === TokenType.Percent)
+      ) {
+        return undefined;
+      }
+      const value = operation(a, b);
+      return value === undefined ? undefined : wrap(value, expr.resolvedType);
     }
     case "Cast": {
-      const operand = evaluateConstantInitializer(expr.expression);
+      const operand = evaluate(expr.expression);
       if (operand?.kind !== "int" && operand?.kind !== "float")
         return undefined;
-      return convertNumeric(operand, expr.targetType);
+      return convertNumeric(operand, numericType(expr.targetType, resolveType));
     }
     case "ArrayLiteral": {
       const elements: ConstantValue[] = [];
       for (const element of expr.elements) {
-        const value = evaluateConstantInitializer(element);
+        const value = evaluate(element);
         if (!value) return undefined;
         elements.push(value);
       }
@@ -100,27 +127,29 @@ export function evaluateConstantInitializer(
   }
 }
 
-/** Numeric scalar described by `type`, if it is one. */
+/** Numeric scalar described by `type` (after alias resolution), if any. */
 function numericType(
   type: AST.TypeNode | undefined,
+  resolveType: ConstantTypeResolver,
 ): PrimitiveTypeInfo | undefined {
+  if (!type) return undefined;
+  const resolved = resolveType(type);
   if (
-    type?.kind !== "BasicType" ||
-    type.pointerDepth > 0 ||
-    type.arrayDimensions.length > 0
+    resolved.kind !== "BasicType" ||
+    resolved.pointerDepth > 0 ||
+    resolved.arrayDimensions.length > 0
   ) {
     return undefined;
   }
-  const info = getPrimitiveType(type.name);
+  const info = getPrimitiveType(resolved.name);
   return info?.kind === "integer" || info?.kind === "float" ? info : undefined;
 }
 
-/** Two's-complement wrap to the integer type (unchanged if not known). */
+/** Two's-complement wrap to the integer type (unchanged if not integer). */
 function wrapInteger(
   value: bigint,
-  type: AST.TypeNode | undefined,
-): ConstantValue {
-  const info = numericType(type);
+  info: PrimitiveTypeInfo | undefined,
+): Extract<ConstantValue, { kind: "int" }> {
   if (info?.kind !== "integer") return { kind: "int", value };
   return {
     kind: "int",
@@ -133,15 +162,24 @@ function wrapInteger(
 /** Convert a numeric constant as `cast<target>` does at run time. */
 function convertNumeric(
   value: Extract<ConstantValue, { kind: "int" | "float" }>,
-  target: AST.TypeNode,
+  info: PrimitiveTypeInfo | undefined,
 ): ConstantValue | undefined {
-  const info = numericType(target);
   // Other targets (e.g. `cast<*T>(0)`) keep the value for the declared type.
   if (!info) return value;
   if (info.kind === "integer") {
-    if (value.kind === "int") return wrapInteger(value.value, target);
-    if (!Number.isFinite(value.value)) return undefined;
-    return wrapInteger(BigInt(Math.trunc(value.value)), target);
+    if (value.kind === "int") return wrapInteger(value.value, info);
+    // Float to integer saturates at the destination range; NaN becomes 0.
+    if (Number.isNaN(value.value)) return { kind: "int", value: 0n };
+    const min = info.signed ? -(1n << BigInt(info.bits - 1)) : 0n;
+    const max = info.signed
+      ? (1n << BigInt(info.bits - 1)) - 1n
+      : (1n << BigInt(info.bits)) - 1n;
+    if (value.value === Infinity) return { kind: "int", value: max };
+    if (value.value === -Infinity) return { kind: "int", value: min };
+    const truncated = BigInt(Math.trunc(value.value));
+    if (truncated < min) return { kind: "int", value: min };
+    if (truncated > max) return { kind: "int", value: max };
+    return { kind: "int", value: truncated };
   }
   const number = value.kind === "int" ? Number(value.value) : value.value;
   return {

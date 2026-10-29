@@ -225,6 +225,28 @@ frame main() ret int {
     expect(output).toBe("-1073741824 1 -2 44 0.1000000015 2147483648\n");
   });
 
+  test("converts the right operand, saturates float casts, resolves aliases", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+type Byte = u8;
+global A: u8 = cast<u8>(200) / -2;
+global B: Byte = cast<Byte>(150) + cast<Byte>(128);
+global C: i8 = cast<i8>(300.0);
+global D: u8 = cast<u8>(-5.0);
+frame main() ret int {
+    printf("%d %d %d %d\\n", cast<int>(A), cast<int>(B), cast<int>(C), cast<int>(D));
+    return 0;
+}
+`);
+    // The same expressions evaluated at run time give the same values.
+    expect(output).toBe("0 22 127 0\n");
+  });
+
+  test("rejects a signed division that overflows", () => {
+    const result = check(`global X: int = (-2147483647 - 1) / -1;${MAIN}`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("BPL_GLOBAL_INITIALIZER_NOT_CONSTANT");
+  });
+
   test("rejects runtime initializers without cascading errors", () => {
     const result = check(`frame f() ret int { return 1; }
 global X: int = f();

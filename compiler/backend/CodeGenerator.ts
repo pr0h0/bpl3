@@ -1620,6 +1620,25 @@ export class CodeGenerator extends StatementGenerator {
     this.emitDeclaration("");
   }
 
+  /** Follow plain aliases (`type Byte = u8`) so folding knows the width. */
+  private resolveConstantAlias(type: AST.TypeNode): AST.TypeNode {
+    let current = type;
+    for (let depth = 0; depth < 32; depth++) {
+      if (
+        current.kind !== "BasicType" ||
+        current.pointerDepth > 0 ||
+        current.arrayDimensions.length > 0 ||
+        current.genericArgs.length > 0
+      ) {
+        return current;
+      }
+      const alias = this.typeAliasMap.get(current.name);
+      if (!alias || (alias.genericParams?.length ?? 0) > 0) return current;
+      current = alias.type;
+    }
+    return current;
+  }
+
   /** LLVM constant text for a folded global initializer of the given type. */
   private formatGlobalConstant(
     value: ConstantValue,
@@ -1681,7 +1700,9 @@ export class CodeGenerator extends StatementGenerator {
       } else {
         // Folded constants such as -5, !true, 1 << 4 or [1, 2] (BUG-433);
         // the checker has already rejected non-constant initializers.
-        const value = evaluateConstantInitializer(decl.initializer);
+        const value = evaluateConstantInitializer(decl.initializer, (t) =>
+          this.resolveConstantAlias(t),
+        );
         if (!value) {
           throw new CompilerError(
             "Global initializer must be a compile-time constant",

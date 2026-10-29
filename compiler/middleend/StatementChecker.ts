@@ -1208,24 +1208,6 @@ export function checkVariableDecl(
       decl.location,
     );
   }
-  // Globals are emitted as constants; reject runtime initializers here rather
-  // than failing in code generation (BUG-433).
-  if (
-    decl.isGlobal &&
-    decl.initializer &&
-    !evaluateConstantInitializer(decl.initializer)
-  ) {
-    // Reported without throwing so the global is still declared and its uses
-    // do not cascade into undefined-symbol errors.
-    this.addError(
-      new CompilerError(
-        "Global initializer must be a compile-time constant",
-        "Use literals, unary -, !, ~, integer arithmetic, casts of numeric constants, or array literals of these; assign other values in a function.",
-        decl.initializer.location,
-        GLOBAL_INITIALIZER_NOT_CONSTANT_CODE,
-      ),
-    );
-  }
   if (Array.isArray(decl.name)) {
     // Destructuring - enforce explicit type annotations
     const flattenTargets = (targets: any[]): AST.DestructuringTarget[] => {
@@ -1428,6 +1410,27 @@ export function checkVariableDecl(
       if (declaredType && this.matchContext) {
         this.matchContext.pop();
       }
+    }
+
+    // Globals are emitted as constants; reject runtime initializers here
+    // rather than failing in code generation (BUG-433). This runs after the
+    // initializer is checked, so folding sees each operand's type.
+    if (
+      decl.isGlobal &&
+      !evaluateConstantInitializer(decl.initializer, (type) =>
+        this.resolveType(type),
+      )
+    ) {
+      // Reported without throwing so the global is still declared and its
+      // uses do not cascade into undefined-symbol errors.
+      this.addError(
+        new CompilerError(
+          "Global initializer must be a compile-time constant",
+          "Use literals, unary -, !, ~, integer arithmetic, casts of numeric constants, or array literals of these; assign other values in a function.",
+          decl.initializer.location,
+          GLOBAL_INITIALIZER_NOT_CONSTANT_CODE,
+        ),
+      );
     }
 
     if (initType) {
