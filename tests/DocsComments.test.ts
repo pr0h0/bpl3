@@ -55,6 +55,24 @@ struct P {
   );
 });
 
+test("a block comment followed by code on its line documents nothing", () => {
+  withSource(
+    `struct Q {
+    /# not for y #/ x: int,
+    y: int,
+    /# The z value. #/
+    z: int,
+}
+`,
+    (file, out) => {
+      expect(docs([file, "-o", out]).status).toBe(0);
+      const markdown = readFileSync(out, "utf8");
+      expect(markdown).not.toContain("not for y");
+      expect(markdown).toContain("The z value.");
+    },
+  );
+});
+
 test("parse errors report their location", () => {
   withSource("frame main( {\n", (file, out) => {
     const human = docs([file, "-o", out]);

@@ -25,6 +25,7 @@ test("route parameters are percent-decoded; invalid escapes do not match", () =>
   native(String.raw`
 import [Router] from "bpl-express";
 import [Map] from "std/map.bpl";
+import [Option] from "std/option.bpl";
 import releaseStrings from "bpl-http-parser";
 extern strcmp(a:string,b:string)ret int;
 frame main()ret int{
@@ -36,6 +37,10 @@ frame main()ret int{
  if(strcmp(params.get("v").unwrap(),"a+b")!=0){return 4;}
  if(router.matchPath("/users/:name","/users/bad%2",&params)){return 5;}
  if(router.matchPath("/users/:name","/users/nul%00",&params)){return 6;}
+ # A failed match adds no parameters, even ones that decoded.
+ local fresh:Map<string,string>=Map<string,string>.new();defer releaseStrings(&fresh);
+ if(router.matchPath("/users/:id/:rest","/users/alice/%2",&fresh)){return 7;}
+ if(fresh.get("id").isSome()){return 8;}
  return 0;
 }`);
 }, 90000);

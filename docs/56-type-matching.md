@@ -2,7 +2,7 @@
 
 ## Overview
 
-BPL provides the `match<Type>(value)` expression for runtime type checking. This feature allows you to check if a value matches a specific type or enum variant at runtime. It is particularly useful for working with algebraic data types (enums) and will be the foundation for future generic type checking capabilities.
+BPL provides the `match<Type>(value)` expression for runtime type checking. This feature allows you to check if a value matches a specific type or enum variant at runtime. It is particularly useful for working with algebraic data types (enums) and for specializing generic functions (see [Generic Type Checking](#generic-type-checking)).
 
 ## Basic Usage
 
@@ -233,10 +233,6 @@ frame handleAnimal(animal: *Animal) {
 - **VTable requirement**: Both the source and target types must have vtables (either by having methods or by being part of an inheritance relationship).
 - **No deep hierarchy checking**: Currently, `is` checks for exact type match against the target, not whether the type is anywhere in the inheritance chain above the target.
 
-### Future: Generic Type Matching
-
-The syntax `match<Type>` is designed to support checking against arbitrary types in the future (e.g., `match<int>(someGenericValue)`). Currently, this is partially implemented but requires a full RTTI system to work reliably for all types.
-
 ## More Patterns
 
 ### Validation
@@ -413,7 +409,10 @@ This allows you to write generic functions that behave differently based on the 
 1. **Enum variants:** Works with enum variant checking
 2. **Primitive type checking:** Supported (e.g., `match<int>`)
 3. **Struct type checking:** Supported (e.g., `match<MyStruct>`)
-4. **Inheritance checking:** `match<BaseType>(derivedValue)` is not yet fully supported (checks for exact type match)
+4. **Inheritance checking:** `match<BaseType>(derivedValue)` is true when the
+   value's static type derives from `BaseType`, directly or through
+   intermediate parents, and likewise for `match<*BaseType>(derivedPointer)`.
+   It checks the static type; use `is` on a struct pointer for the runtime type.
 
 ## Best Practices
 

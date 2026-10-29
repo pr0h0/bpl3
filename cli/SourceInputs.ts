@@ -34,8 +34,13 @@ const excludedDirectories = new Set([
  */
 export function expandSourceInputs(inputs: string[]): string[] {
   const found = new Map<string, string>();
+  // Existing paths are deduplicated by resolved path. A missing input keeps
+  // its own spelling, so `missing/../a.bpl` still reports its error.
   const add = (file: string) =>
-    found.set(file === "-" ? "-" : path.resolve(file), file);
+    found.set(
+      file === "-" || !fs.existsSync(file) ? `\0${file}` : path.resolve(file),
+      file,
+    );
   for (const input of inputs) {
     if (
       input === "-" ||

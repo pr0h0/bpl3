@@ -21,8 +21,10 @@ bun run build
 ```
 
 The committed `src/bpl-templ` (the package's `bin`) is a prebuilt x86-64 Linux
-executable. On other platforms, or after changing `src/cli.bpl` or `lib/`,
-rebuild it with `bun run build`, then `bpl pack` to refresh the archive.
+executable. On other platforms, rebuild it with `bun run build` for local use
+only; do not commit that binary or a refreshed archive. After changing
+`src/cli.bpl` or `lib/`, regenerate both on x86-64 Linux: `bun run build`, then
+`bpl pack`.
 
 ## Usage
 

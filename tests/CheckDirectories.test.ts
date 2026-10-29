@@ -37,6 +37,20 @@ test("check expands directories and honors .bplignore", () => {
 
     const empty = JSON.parse(run([join(root, "empty")]).stdout.toString());
     expect(empty.errorCode).toBe("BPL_CHECK_NO_INPUTS");
+
+    // Discovery failures are not empty inputs.
+    mkdirSync(join(root, "negated"));
+    writeFileSync(join(root, "negated", ".bplignore"), "!keep.bpl\n");
+    const negated = JSON.parse(run([join(root, "negated")]).stdout.toString());
+    expect(negated.errorCode).toBe("BPL_CHECK_PROCESSING_ERROR");
+
+    // A missing input is not deduplicated into an existing one.
+    const main = join(root, "src", "main.bpl");
+    const missing = run([`${root}/missing/../src/main.bpl`, main]);
+    expect(missing.exitCode).toBe(1);
+    const missingReport = JSON.parse(missing.stdout.toString());
+    expect(missingReport.totalFiles).toBe(2);
+    expect(missingReport.files[0].errorCode).toBe("BPL_CHECK_INPUT_NOT_FOUND");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

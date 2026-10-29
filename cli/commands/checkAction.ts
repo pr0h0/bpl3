@@ -20,6 +20,7 @@ import {
   CHECK_INPUT_NOT_FOUND_CODE,
   CHECK_INPUT_SYMLINK_CODE,
   CHECK_NO_INPUTS_CODE,
+  CHECK_PROCESSING_ERROR_CODE,
 } from "./CheckContracts";
 
 const log = new Logger("Check");
@@ -61,7 +62,10 @@ export async function runCheckCommand(
     diagnosticFormatter.setConfig({ colorize: options.color });
   }
 
-  const exitNoInputs = (message: string): never => {
+  const exitNoInputs = (
+    message: string,
+    errorCode = CHECK_NO_INPUTS_CODE,
+  ): never => {
     if (options.json) {
       console.log(
         JSON.stringify(
@@ -71,7 +75,7 @@ export async function runCheckCommand(
             timeMs: 0,
             files: [],
             error: message,
-            errorCode: CHECK_NO_INPUTS_CODE,
+            errorCode,
           }),
           null,
           2,
@@ -89,7 +93,12 @@ export async function runCheckCommand(
   try {
     files = expandSourceInputs(files!);
   } catch (error) {
-    exitNoInputs(error instanceof Error ? error.message : String(error));
+    // Discovery failures (.bplignore, unreadable directories) are not
+    // empty inputs.
+    exitNoInputs(
+      error instanceof Error ? error.message : String(error),
+      CHECK_PROCESSING_ERROR_CODE,
+    );
   }
   if (files.length === 0) {
     exitNoInputs("No BPL sources found in the supplied directories.");

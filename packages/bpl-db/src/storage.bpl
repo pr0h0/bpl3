@@ -168,10 +168,20 @@ struct Database {
             printf("Error: Cannot open file for writing: %s\n", path);
             return;
         }
+        # Until the rename commits, any exit (including an exception from
+        # serialization) closes and removes the temporary file.
+        # 2: close and remove, 1: remove, 0: committed.
+        local cleanup: int = 2;
+        local cleanupPtr: *int = &cleanup;
+        defer {
+            if (*cleanupPtr == 2) { f.close(); }
+            if (*cleanupPtr >= 1) { remove(tmp); }
+        }
         local ok: bool = true;
         local tooLong: bool = false;
         local num: string = malloc(32);
-        if (num == nullptr) { f.close(); remove(tmp); throw "Database allocation failed"; }
+        if (num == nullptr) { throw "Database allocation failed"; }
+        defer free(num);
         # Manual iteration to avoid Generic Iterator bugs
         local i: int = 0;
         local n: int = this.tables.buckets.len();
@@ -217,21 +227,11 @@ struct Database {
             }
             i = i + 1;
         }
-        free(num);
-
+        cleanup = 1;
         if (!f.close()) { ok = false; }
-        if (tooLong) {
-            remove(tmp);
-            throw "Database record exceeds 1 MiB";
-        }
-        if (!ok) {
-            remove(tmp);
-            throw "Database save failed";
-        }
-        if (rename(tmp, path) != 0) {
-            remove(tmp);
-            throw "Database save failed";
-        }
+        if (tooLong) { throw "Database record exceeds 1 MiB"; }
+        if (!ok || rename(tmp, path) != 0) { throw "Database save failed"; }
+        cleanup = 0;
     }
 
     frame load(this: *Database, path: string) {

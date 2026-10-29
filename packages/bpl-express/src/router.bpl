@@ -246,9 +246,17 @@ struct Router {
                     r_idx = r_idx + 1;
                 }
                 # Skip req segment
+                local seg_start: int = q_idx;
                 loop ((q_idx < q_len) && (reqPath[q_idx] != '/')) {
                     q_idx = q_idx + 1;
                 }
+                # Validate the escapes here, so a failed match adds no
+                # parameters to `params` for a later route to see.
+                local checked: string = HttpParser.decode(&reqPath[seg_start], cast<long>(q_idx - seg_start), false);
+                if (checked == nullptr) {
+                    return false;
+                }
+                free(checked);
             } else {
                 if (routePath[r_idx] != reqPath[q_idx]) {
                     return false;
@@ -312,14 +320,10 @@ struct Router {
                 val_str[val_len] = '\0';
 
                 # Path parameters are percent-decoded (`John%20Doe` is
-                # `John Doe`); `+` stays literal in paths. Invalid escapes
-                # and `%00` make the route not match.
+                # `John Doe`); `+` stays literal in paths. Pass 1 rejected
+                # invalid escapes and `%00`.
                 local decoded: string = HttpParser.decode(val_str, cast<long>(val_len), false);
                 free(val_str);
-                if (decoded == nullptr) {
-                    free(key_str);
-                    return false;
-                }
                 HttpParser.put(params, key_str, decoded);
             } else {
                 r_idx = r_idx + 1;

@@ -1803,6 +1803,13 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps check discovery failures to focused reproduction commands", () => {
+    expect(localCommandsForStep("BPL_CHECK_PROCESSING_ERROR")).toEqual([
+      "bun test tests/CheckDirectories.test.ts",
+      "bun run check",
+    ]);
+  });
+
   test("maps check and lint JSON no-input failures to focused reproduction commands", () => {
     const expectedCommands = [
       'bun test tests/CLIJsonParseability.test.ts -t "no-input failures"',

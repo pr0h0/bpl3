@@ -132,10 +132,14 @@ export class Parser {
     for (const token of sourceComments) {
       if (token.type !== TokenType.Comment || !ownLine(token)) continue;
       if (token.lexeme.startsWith("/#")) {
-        comments.push({
-          lexeme: token.lexeme,
-          endLine: token.line + token.lexeme.split(/\r\n|\r|\n/).length - 1,
-        });
+        const blockLines = token.lexeme.split(/\r\n|\r|\n/);
+        const endLine = token.line + blockLines.length - 1;
+        // `/# x #/ x: int,` documents nothing, like a trailing `#` comment.
+        const end =
+          (blockLines.length === 1 ? token.column - 1 : 0) +
+          blockLines[blockLines.length - 1]!.length;
+        if ((lines[endLine - 1] ?? "").slice(end).trim() !== "") continue;
+        comments.push({ lexeme: token.lexeme, endLine });
         continue;
       }
       if (!token.lexeme.startsWith("#")) continue;

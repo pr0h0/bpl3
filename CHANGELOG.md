@@ -49,6 +49,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Review follow-ups for the third audit batch:
+  - `(x = 1) = 2` is rejected; an assignment is not an lvalue (R-EXPR-5).
+  - `/# ... #/ x: int,` no longer documents the next declaration.
+  - `bpl check` reports `.bplignore`/directory discovery failures as
+    `BPL_CHECK_PROCESSING_ERROR`. A missing input such as `missing/../a.bpl`
+    is no longer deduplicated into an existing `a.bpl`, for check, format and lint.
+  - bpl-db `save` closes and removes its temporary file when serialization throws.
+  - bpl-express adds no parameters to `req.params` from a route that failed to
+    match; the committed bpl-db and bpl-express archives are refreshed.
+
 - bpl-db `save` is atomic (temporary file plus rename), checks write errors,
   and rejects rows that `load` could not read back (BUG-459).
 

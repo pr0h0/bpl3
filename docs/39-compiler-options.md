@@ -576,7 +576,9 @@ Lint directory discovery failures (such as unsupported `.bplignore` patterns)
 use `BPL_LINT_PROCESSING_ERROR`; empty discovery uses `BPL_LINT_NO_INPUTS`.
 `bpl check` accepts directories like `format` and `lint`: each is expanded to
 its `.bpl` and `.x` sources, honoring `.bplignore`. A directory with no sources
-reports `BPL_CHECK_NO_INPUTS`. Per-file check validation uses
+reports `BPL_CHECK_NO_INPUTS`; a discovery failure (an unsupported
+`.bplignore` pattern or an unreadable directory) reports
+`BPL_CHECK_PROCESSING_ERROR`. Per-file check validation uses
 `BPL_CHECK_INPUT_NOT_FOUND`, `BPL_CHECK_INPUT_SYMLINK`, and
 `BPL_CHECK_INPUT_NOT_FILE`. Per-file lint
 validation uses `BPL_LINT_INPUT_NOT_FOUND`, `BPL_LINT_INPUT_SYMLINK`, and

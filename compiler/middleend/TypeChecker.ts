@@ -2519,7 +2519,6 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       expr.assignee.kind !== "Member" &&
       expr.assignee.kind !== "Index" &&
       expr.assignee.kind !== "TupleLiteral" &&
-      expr.assignee.kind !== "Assignment" && // Allow assignment chaining
       (expr.assignee.kind !== "Unary" ||
         (expr.assignee as AST.UnaryExpr).operator.type !== TokenType.Star)
     ) {

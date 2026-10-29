@@ -221,6 +221,23 @@ frame main() ret int {
     const result = check(`frame main() ret int { (1 + 2) = 3; return 0; }`);
     expect(result.stderr).toContain("BPL_ASSIGNMENT_TARGET_INVALID");
   });
+
+  test("reject an assignment as a target, but keep chains", () => {
+    const result = check(
+      `frame main() ret int { local x: int = 0; (x = 1) = 2; return x; }`,
+    );
+    expect(result.stderr).toContain("BPL_ASSIGNMENT_TARGET_INVALID");
+    const output = compileAndRun(`import printf from "std/c.bpl";
+frame main() ret int {
+    local x: int = 0;
+    local y: int = 0;
+    x = y = 7;
+    printf("%d %d\\n", x, y);
+    return 0;
+}
+`);
+    expect(output).toBe("7 7\n");
+  });
 });
 
 describe("BUG-427: types that contain themselves by value", () => {
