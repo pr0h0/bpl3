@@ -39,6 +39,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- CLI paper cuts (BUG-443): a missing `main` points at `file:1:1` instead of
+  `file:0:0`; `format` shows parse errors with their location and calls stdin
+  `<stdin>`; `doctor` says where it found the installation; `run --help` lists
+  the linker options; `init`, `install` and `doctor` describe their argument.
+
 - Piping CLI output into a command that exits early (`bpl format ... | head`)
   stops quietly instead of printing an `EPIPE` stack trace (BUG-442).
 

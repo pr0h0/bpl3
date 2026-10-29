@@ -191,8 +191,12 @@ export function registerPackageCommands(program: Command): void {
 
   // Install command
   program
-    .command("install [package]")
+    .command("install")
     .description("Install a BPL package")
+    .argument(
+      "[package]",
+      "package archive (.tgz, path or file:) or a globally installed package name; omit to install bpl.json dependencies",
+    )
     .option("-g, --global", "install package globally")
     .option("-v, --verbose", "verbose output")
     .option("--locked", "verify bpl.lock without changing installed packages")
@@ -470,8 +474,9 @@ export function registerPackageCommands(program: Command): void {
 
   // Init command
   program
-    .command("init [name]")
+    .command("init")
     .description("Initialize a new BPL project")
+    .argument("[name]", "project name (default: the current directory name)")
     .option("--json", "output machine-readable init result")
     .action(
       async (

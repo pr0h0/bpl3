@@ -265,6 +265,16 @@ there is no regression test; the handler guards other runtimes and versions.
 - `cli/CompilationRunner.ts` duplicates `compileWithModules` and
   `compileWithModulesAsync` (~90 lines each).
 
+**Progress (2026-10-29)**: fixed the missing-`main` location (now `file:1:1`,
+skipping the synthesized prelude import), `format` parse errors (full
+diagnostic with location and snippet), the `-` input name (`<stdin>` or
+`--stdin-filepath`), `doctor` naming the source of its installation directory
+(`bplHomeSource`), `run --help` listing `-l`/`-L`/`--object`/`--clang-flag`,
+and argument descriptions for `init`, `install` and `doctor`. "Formatted 1
+files" for a missing input no longer reproduces. Still open: `-e` running the
+program, `build -o X` writing `X.ll`, `check` on directories and stdin, and the
+duplicated `compileWithModules*`.
+
 #### BUG-444: Project scaffolding gaps
 
 **Status**: Open · **Priority**: P3

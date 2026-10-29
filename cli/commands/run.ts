@@ -59,6 +59,13 @@ export function registerRunCommand(program: Command): void {
       "-j, --jobs <count>",
       "parallel module compilation jobs for cached builds",
     )
+    .option("-l, --lib <lib...>", "libraries to link with")
+    .option("-L, --lib-path <path...>", "library search paths")
+    .option("--object <file...>", "object files to link (.o, .ll, etc.)")
+    .option(
+      "--clang-flag <flag...>",
+      "additional flags forwarded directly to clang",
+    )
     .option("--no-prelude", "do not load implicit primitives")
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")

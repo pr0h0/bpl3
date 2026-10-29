@@ -503,10 +503,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     const mainSymbol = this.currentScope.resolve("main");
     if (!mainSymbol) {
       // Find a good location for the error (use program start or first statement)
-      let location = program.statements[0]?.location ?? program.location;
+      // Skip synthesized statements such as the implicit prelude import,
+      // which sit at line 0 and would report `file:0:0`.
+      let location = program.statements.find(
+        (statement) => (statement.location?.startLine ?? 0) > 0,
+      )?.location;
       if (!location) {
         location = {
-          file: "unknown",
+          file:
+            program.location?.file ??
+            program.statements[0]?.location?.file ??
+            "unknown",
           startLine: 1,
           startColumn: 1,
           endLine: 1,

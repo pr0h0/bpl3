@@ -15,6 +15,8 @@ import {
   setLogLevel,
 } from "../../compiler/common/Logger";
 import { assertWritableInputFilePath, writeFileAtomically } from "../utils";
+import { CompilerError } from "../../compiler/common/CompilerError";
+import { diagnosticFormatter } from "../DiagnosticFormatter";
 import {
   CLI_JSON_CHECKS,
   createJsonReport,
@@ -30,6 +32,13 @@ import {
 } from "./format";
 
 const log = new Logger("Format");
+
+let stdinLabel = "<stdin>";
+
+/** How an input is named in human output; `-` reads standard input. */
+function displayName(filePath: string): string {
+  return filePath === "-" ? stdinLabel : filePath;
+}
 
 interface FormatFileReport {
   file: string;
@@ -47,6 +56,7 @@ export async function runFormatCommand(
 ): Promise<void> {
   const globalOpts = command.parent?.opts() || {};
   const outputJson = Boolean(options.json || globalOpts.json);
+  stdinLabel = options.stdinFilepath || "<stdin>";
   if (outputJson) {
     setLogLevel(LogLevel.SILENT);
   }
@@ -189,7 +199,7 @@ export async function runFormatCommand(
                 errorCode: FORMAT_NOT_FORMATTED_CODE,
               });
             } else {
-              log.error(`${filePath} is not formatted`);
+              log.error(`${displayName(filePath)} is not formatted`);
             }
           } else {
             formattedFiles++;
@@ -201,7 +211,7 @@ export async function runFormatCommand(
                 changed: false,
               });
             } else {
-              log.info(`${filePath} is formatted`);
+              log.info(`${displayName(filePath)} is formatted`);
             }
           }
         } else if (options.write) {
@@ -225,8 +235,11 @@ export async function runFormatCommand(
               FORMAT_PROCESSING_ERROR_CODE,
             ),
           );
+        } else if (e instanceof CompilerError) {
+          // Show where the source fails to parse, as `check` does.
+          console.error(diagnosticFormatter.formatError(e));
         } else {
-          log.error(`Error processing ${filePath}: ${message}`);
+          log.error(`Error processing ${displayName(filePath)}: ${message}`);
         }
         hasError = true;
         errorCount++;
