@@ -39,7 +39,7 @@ Address  | Variable | Value
 ### Pointer Declaration
 
 ```bpl
-# Syntax: type*
+# Syntax: *type
 local int_ptr: *int;
 local float_ptr: *float;
 local char_ptr: *char;
@@ -112,7 +112,7 @@ frame main() ret int {
 local x: int = 10;
 local y: int = 20;
 
-local p: int* = &x;  # p points to x
+local p: *int = &x;  # p points to x
 p = &y;              # Now p points to y
 
 *p = 30;             # y is now 30
@@ -122,8 +122,8 @@ p = &y;              # Now p points to y
 
 ```bpl
 local x: int = 42;
-local p1: int* = &x;
-local p2: int* = p1;  # p2 now also points to x
+local p1: *int = &x;
+local p2: *int = p1;  # p2 now also points to x
 
 *p1 = 100;  # x is 100
 *p2 = 200;  # x is now 200
@@ -135,9 +135,9 @@ local p2: int* = p1;  # p2 now also points to x
 local x: int = 10;
 local y: int = 20;
 
-local p1: int* = &x;
-local p2: int* = &x;
-local p3: int* = &y;
+local p1: *int = &x;
+local p2: *int = &x;
+local p3: *int = &y;
 
 if (p1 == p2) {  # true - same address
     printf("p1 and p2 point to same location\n");
@@ -151,7 +151,7 @@ if (p1 != p3) {  # true - different addresses
 ### Nullptr Comparison
 
 ```bpl
-local p: int* = nullptr;
+local p: *int = nullptr;
 
 if (p == nullptr) {
     printf("p is nullptr\n");
@@ -171,7 +171,7 @@ Pointers can be incremented, decremented, and used in arithmetic operations:
 
 ```bpl
 local arr: int[5] = [10, 20, 30, 40, 50];
-local p: int* = &arr[0];
+local p: *int = &arr[0];
 
 printf("%d\n", *p);  # 10
 
@@ -186,13 +186,13 @@ printf("%d\n", *p);  # 10
 
 ```bpl
 local arr: int[5] = [10, 20, 30, 40, 50];
-local p: int* = &arr[0];
+local p: *int = &arr[0];
 
 printf("%d\n", *(p + 0));  # 10
 printf("%d\n", *(p + 1));  # 20
 printf("%d\n", *(p + 2));  # 30
 
-local q: int* = p + 3;
+local q: *int = p + 3;
 printf("%d\n", *q);  # 40
 ```
 
@@ -213,8 +213,8 @@ p -= 1;              # now at arr[2]
 
 ```bpl
 local arr: int[5] = [10, 20, 30, 40, 50];
-local p1: int* = &arr[0];
-local p2: int* = &arr[4];
+local p1: *int = &arr[0];
+local p2: *int = &arr[4];
 
 local diff: int = p2 - p1;  # 4 (elements between them)
 ```
@@ -225,12 +225,12 @@ Pointer arithmetic automatically scales by the size of the pointed-to type:
 
 ```bpl
 local arr: int[3];
-local p: int* = &arr[0];
+local p: *int = &arr[0];
 
 p++;  # Adds sizeof(int) bytes (typically 4)
 
 local chars: char[10];
-local cp: char* = &chars[0];
+local cp: *char = &chars[0];
 
 cp++;  # Adds sizeof(char) bytes (1)
 ```
@@ -245,7 +245,7 @@ Arrays and pointers are closely related in BPL.
 local arr: int[5] = [10, 20, 30, 40, 50];
 
 # arr can be used as a pointer to the first element
-local p: int* = arr;  # Same as: = &arr[0]
+local p: *int = arr;  # Same as: = &arr[0]
 
 printf("%d\n", *p);      # 10
 printf("%d\n", *(p+1));  # 20
@@ -255,7 +255,7 @@ printf("%d\n", *(p+1));  # 20
 
 ```bpl
 local arr: int[5] = [10, 20, 30, 40, 50];
-local p: int* = arr;
+local p: *int = arr;
 
 # These are equivalent:
 printf("%d\n", arr[2]);   # 30
@@ -275,8 +275,8 @@ loop (local i: int = 0; i < 5; i++) {
 }
 
 # Using pointer
-local p: int* = arr;
-local end: int* = arr + 5;
+local p: *int = arr;
+local end: *int = arr + 5;
 loop (p < end) {
     printf("%d\n", *p);
     p++;
@@ -288,14 +288,14 @@ loop (p < end) {
 Arrays decay to pointers when passed to functions:
 
 ```bpl
-frame printArray(arr: int*, size: int) ret void {
+frame printArray(arr: *int, size: int) ret void {
     loop (local i: int = 0; i < size; i++) {
         printf("%d ", arr[i]);
     }
     printf("\n");
 }
 
-frame sumArray(arr: int*, size: int) ret int {
+frame sumArray(arr: *int, size: int) ret int {
     local sum: int = 0;
     loop (local i: int = 0; i < size; i++) {
         sum += arr[i];
@@ -311,7 +311,9 @@ local total: int = sumArray(numbers, 5);
 
 ## Pointers to Structs
 
-### Arrow Operator
+### Member Access Through a Pointer
+
+BPL has no `->` operator: `.` on a pointer to a struct dereferences it.
 
 ```bpl
 struct Point {
@@ -323,11 +325,11 @@ local p: Point;
 p.x = 10;
 p.y = 20;
 
-local ptr: Point* = &p;
+local ptr: *Point = &p;
 
-# Arrow operator for pointer-to-struct
-ptr->x = 30;
-ptr->y = 40;
+# `.` dereferences a pointer to a struct
+ptr.x = 30;
+ptr.y = 40;
 
 # Equivalent to:
 (*ptr).x = 30;
@@ -342,19 +344,19 @@ struct Person {
     age: int,
 }
 
-frame createPerson(name: string, age: int) ret Person* {
-    local p: Person* = cast<Person*>(malloc(sizeof(Person)));
+frame createPerson(name: string, age: int) ret *Person {
+    local p: *Person = cast<*Person>(malloc(sizeof(Person)));
     if (p != nullptr) {
-        p->name = name;
-        p->age = age;
+        p.name = name;
+        p.age = age;
     }
     return p;
 }
 
 # Usage
-local person: Person* = createPerson("Alice", 30);
+local person: *Person = createPerson("Alice", 30);
 if (person != nullptr) {
-    printf("%s is %d years old\n", person->name, person->age);
+    printf("%s is %d years old\n", person.name, person.age);
     free(person);
 }
 ```
@@ -364,29 +366,29 @@ if (person != nullptr) {
 ```bpl
 struct Node {
     data: int,
-    next: Node*,
+    next: *Node,
 }
 
-frame createNode(value: int) ret Node* {
-    local node: Node* = cast<Node*>(malloc(sizeof(Node)));
-    node->data = value;
-    node->next = nullptr;
+frame createNode(value: int) ret *Node {
+    local node: *Node = cast<*Node>(malloc(sizeof(Node)));
+    node.data = value;
+    node.next = nullptr;
     return node;
 }
 
-frame printList(head: Node*) ret void {
-    local current: Node* = head;
+frame printList(head: *Node) ret void {
+    local current: *Node = head;
     loop (current != nullptr) {
-        printf("%d -> ", current->data);
-        current = current->next;
+        printf("%d -> ", current.data);
+        current = current.next;
     }
     printf("nullptr\n");
 }
 
 # Build a list
-local head: Node* = createNode(1);
-head->next = createNode(2);
-head->next->next = createNode(3);
+local head: *Node = createNode(1);
+head.next = createNode(2);
+head.next.next = createNode(3);
 
 printList(head);  # 1 -> 2 -> 3 -> nullptr
 ```
@@ -398,8 +400,8 @@ Function pointers allow you to store and call functions through variables.
 ### Declaration
 
 ```bpl
-# Syntax: ret_type (*name)(param_types)
-local fp: int (*)(int, int);  # Pointer to function taking 2 ints, returning int
+# Syntax: Func<ReturnType>(ParameterTypes)
+local fp: Func<int>(int, int);  # Function taking 2 ints, returning int
 ```
 
 ### Assignment
@@ -413,7 +415,7 @@ frame subtract(a: int, b: int) ret int {
     return a - b;
 }
 
-local operation: int (*)(int, int);
+local operation: Func<int>(int, int);
 
 operation = add;
 local result1: int = operation(5, 3);  # 8
@@ -425,7 +427,7 @@ local result2: int = operation(5, 3);  # 2
 ### Passing Function Pointers
 
 ```bpl
-frame apply(op: int (*)(int, int), a: int, b: int) ret int {
+frame apply(op: Func<int>(int, int), a: int, b: int) ret int {
     return op(a, b);
 }
 
@@ -445,7 +447,7 @@ frame divide(a: int, b: int) ret int {
 }
 
 # Array of function pointers
-local operations: int (*[4])(int, int);
+local operations: Func<int>(int, int)[4];
 operations[0] = add;
 operations[1] = subtract;
 operations[2] = multiply;
@@ -461,7 +463,7 @@ loop (local i: int = 0; i < 4; i++) {
 ### Callback Pattern
 
 ```bpl
-frame forEach(arr: int*, size: int, callback: void (*)(int)) ret void {
+frame forEach(arr: *int, size: int, callback: Func<void>(int)) ret void {
     loop (local i: int = 0; i < size; i++) {
         callback(arr[i]);
     }
@@ -489,8 +491,8 @@ Pointers to pointers are useful for modifying pointers in functions.
 
 ```bpl
 local x: int = 42;
-local p: int* = &x;
-local pp: int** = &p;
+local p: *int = &x;
+local pp: **int = &p;
 
 printf("%d\n", **pp);  # 42 (double dereference)
 
@@ -501,11 +503,11 @@ printf("%d\n", x);  # 100
 ### Modifying Pointers in Functions
 
 ```bpl
-frame allocateArray(arr_ptr: int**, size: int) ret void {
-    *arr_ptr = cast<int*>(malloc(size * sizeof(int)));
+frame allocateArray(arr_ptr: **int, size: int) ret void {
+    *arr_ptr = cast<*int>(malloc(size * sizeof(int)));
 }
 
-local arr: int* = nullptr;
+local arr: *int = nullptr;
 allocateArray(&arr, 10);  # arr is now allocated
 
 if (arr != nullptr) {
@@ -523,9 +525,9 @@ if (arr != nullptr) {
 local rows: int = 3;
 local cols: int = 4;
 
-local matrix: int** = cast<int**>(malloc(rows * sizeof(int*)));
+local matrix: **int = cast<**int>(malloc(rows * sizeof(*int)));
 loop (local i: int = 0; i < rows; i++) {
-    matrix[i] = cast<int*>(malloc(cols * sizeof(int)));
+    matrix[i] = cast<*int>(malloc(cols * sizeof(int)));
 }
 
 # Use matrix
@@ -544,7 +546,7 @@ free(matrix);
 ### The nullptr Constant
 
 ```bpl
-local p: int* = nullptr;
+local p: *int = nullptr;
 
 if (p == nullptr) {
     printf("Pointer is nullptr\n");
@@ -554,7 +556,7 @@ if (p == nullptr) {
 ### Checking Before Dereferencing
 
 ```bpl
-frame safePrint(p: int*) ret void {
+frame safePrint(p: *int) ret void {
     if (p != nullptr) {
         printf("Value: %d\n", *p);
     } else {
@@ -566,7 +568,7 @@ frame safePrint(p: int*) ret void {
 ### Nullptr After Free
 
 ```bpl
-local p: int* = cast<int*>(malloc(sizeof(int)));
+local p: *int = cast<*int>(malloc(sizeof(int)));
 *p = 42;
 
 free(p);
@@ -582,7 +584,7 @@ if (p != nullptr) {
 ### Swap Values
 
 ```bpl
-frame swap(a: int*, b: int*) ret void {
+frame swap(a: *int, b: *int) ret void {
     local temp: int = *a;
     *a = *b;
     *b = temp;
@@ -597,7 +599,7 @@ printf("x=%d, y=%d\n", x, y);  # x=10, y=5
 ### Output Parameters
 
 ```bpl
-frame divmod(dividend: int, divisor: int, quotient: int*, remainder: int*) ret void {
+frame divmod(dividend: int, divisor: int, quotient: *int, remainder: *int) ret void {
     *quotient = dividend / divisor;
     *remainder = dividend % divisor;
 }
@@ -616,13 +618,13 @@ struct Result {
     value: int,
 }
 
-frame safeDivide(a: int, b: int, result: Result*) ret void {
+frame safeDivide(a: int, b: int, result: *Result) ret void {
     if (b == 0) {
-        result->success = false;
-        result->value = 0;
+        result.success = false;
+        result.value = 0;
     } else {
-        result->success = true;
-        result->value = a / b;
+        result.success = true;
+        result.value = a / b;
     }
 }
 
@@ -637,8 +639,8 @@ if (res.success) {
 
 ```bpl
 struct Iterator {
-    current: int*,
-    end: int*,
+    current: *int,
+    end: *int,
 
     frame hasNext() ret bool {
         return this.current < this.end;
@@ -651,7 +653,7 @@ struct Iterator {
     }
 }
 
-frame createIterator(arr: int*, size: int) ret Iterator {
+frame createIterator(arr: *int, size: int) ret Iterator {
     local it: Iterator;
     it.current = arr;
     it.end = arr + size;
@@ -679,11 +681,11 @@ pointer arithmetic.
 
 ```bpl
 # WRONG
-local p: int* = nullptr;
+local p: *int = nullptr;
 printf("%d\n", *p);  # Null-access runtime failure
 
 # CORRECT
-local p: int* = nullptr;
+local p: *int = nullptr;
 if (p != nullptr) {
     printf("%d\n", *p);
 }
@@ -693,14 +695,14 @@ if (p != nullptr) {
 
 ```bpl
 # WRONG
-frame getBadPointer() ret int* {
+frame getBadPointer() ret *int {
     local x: int = 42;
     return &x;  # x is destroyed when function returns!
 }
 
 # CORRECT
-frame getGoodPointer() ret int* {
-    local p: int* = cast<int*>(malloc(sizeof(int)));
+frame getGoodPointer() ret *int {
+    local p: *int = cast<*int>(malloc(sizeof(int)));
     *p = 42;
     return p;  # Heap memory persists
 }
@@ -744,12 +746,12 @@ frame notDetected() ret *int {
 
 ```bpl
 # WRONG
-local p: int* = cast<int*>(malloc(sizeof(int)));
+local p: *int = cast<*int>(malloc(sizeof(int)));
 free(p);
 *p = 42;  # Undefined behavior!
 
 # CORRECT
-local p: int* = cast<int*>(malloc(sizeof(int)));
+local p: *int = cast<*int>(malloc(sizeof(int)));
 *p = 42;
 # ... use p ...
 free(p);
@@ -760,12 +762,12 @@ p = nullptr;  # Prevent accidental use
 
 ```bpl
 # WRONG
-local p: int* = cast<int*>(malloc(sizeof(int)));
+local p: *int = cast<*int>(malloc(sizeof(int)));
 free(p);
 free(p);  # Double free - undefined behavior!
 
 # CORRECT
-local p: int* = cast<int*>(malloc(sizeof(int)));
+local p: *int = cast<*int>(malloc(sizeof(int)));
 free(p);
 p = nullptr;
 if (p != nullptr) {
@@ -778,13 +780,13 @@ if (p != nullptr) {
 ```bpl
 # WRONG
 loop (local i: int = 0; i < 1000; i++) {
-    local p: int* = cast<int*>(malloc(sizeof(int)));
+    local p: *int = cast<*int>(malloc(sizeof(int)));
     # Never freed - leak!
 }
 
 # CORRECT
 loop (local i: int = 0; i < 1000; i++) {
-    local p: int* = cast<int*>(malloc(sizeof(int)));
+    local p: *int = cast<*int>(malloc(sizeof(int)));
     # ... use p ...
     free(p);
 }
@@ -795,13 +797,13 @@ loop (local i: int = 0; i < 1000; i++) {
 1. **Always initialize pointers**
 
    ```bpl
-   local p: int* = nullptr;  # Good
+   local p: *int = nullptr;  # Good
    ```
 
 2. **Check allocation success**
 
    ```bpl
-   local p: int* = cast<int*>(malloc(size));
+   local p: *int = cast<*int>(malloc(size));
    if (p == nullptr) {
        # Handle error
        return;
@@ -826,7 +828,7 @@ loop (local i: int = 0; i < 1000; i++) {
 5. **Match malloc/free**
 
    ```bpl
-   local p: int* = cast<int*>(malloc(sizeof(int)));
+   local p: *int = cast<*int>(malloc(sizeof(int)));
    # ... use p ...
    free(p);  # Every malloc needs a free
    ```
@@ -836,7 +838,7 @@ loop (local i: int = 0; i < 1000; i++) {
    ```bpl
    # BPL doesn't have const, but document intent
    # This function won't modify the array
-   frame sum(arr: int*, size: int) ret int {
+   frame sum(arr: *int, size: int) ret int {
        # Don't modify arr[i]
    }
    ```

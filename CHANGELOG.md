@@ -49,6 +49,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Documentation fixes (BUG-453): the pointers guide uses BPL syntax instead
+  of C (`*int`, `.` through pointers, `Func<R>(...)`); the keyword index lists
+  every reserved word; broken calls in the intrinsics and try/catch guides are
+  corrected; the duplicate type-matching guide is merged into
+  `docs/56-type-matching.md`.
+
 - `bpl docs` uses `#` line comments directly above a declaration as its
   documentation (so `bpl docs lib/string.bpl` has descriptions), reports
   errors with their location, and nests method headings under `#### Methods`

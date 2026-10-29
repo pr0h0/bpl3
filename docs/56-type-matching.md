@@ -237,6 +237,184 @@ frame handleAnimal(animal: *Animal) {
 
 The syntax `match<Type>` is designed to support checking against arbitrary types in the future (e.g., `match<int>(someGenericValue)`). Currently, this is partially implemented but requires a full RTTI system to work reliably for all types.
 
+## More Patterns
+
+### Validation
+
+Validate enum state before processing:
+
+```bpl
+import printf from "std/c.bpl";
+frame handleResponse(resp: Response<Data, Error>) ret bool {
+    if (match<Response.Err>(resp)) {
+        printf("Error occurred\n");
+        return false;
+    }
+
+    # Continue with success case
+    return true;
+}
+```
+
+### Multiple Checks
+
+Check multiple variants in sequence:
+
+```bpl
+import printf from "std/c.bpl";
+frame classifyMessage(msg: Message) ret string {
+    if (match<Message.Info>(msg)) {
+        return "info";
+    }
+    if (match<Message.Warning>(msg)) {
+        return "warning";
+    }
+    if (match<Message.Error>(msg)) {
+        return "error";
+    }
+    return "unknown";
+}
+```
+
+## Integration with Pattern Guards
+
+`match<Type>` works seamlessly with pattern guards in match expressions:
+
+```bpl
+import printf from "std/c.bpl";
+frame processValue(opt: Option<int>) ret int {
+    # Use type matching for early check
+    if (!match<Option.Some>(opt)) {
+        return 0;
+    }
+
+    # Then use pattern guards for detailed matching
+    return match (opt) {
+        Option<int>.Some(x) if x > 0 => x,
+        Option<int>.Some(x) if x < 0 => -x,
+        Option<int>.Some(_) => 0,
+        Option<int>.None => 0,
+    };
+}
+```
+
+## Working with Generic Enums
+
+`match<Type>` fully supports generic enums:
+
+```bpl
+import printf from "std/c.bpl";
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+
+frame isOk<T, E>(result: Result<T, E>) ret bool {
+    return match<Result.Ok>(result);
+}
+
+frame main() ret int {
+    local success: Result<int, string> = Result<int, string>.Ok(42);
+    local failure: Result<int, string> = Result<int, string>.Err("failed");
+
+    if (isOk<int, string>(success)) {
+        printf("Success!\n");
+    }
+
+    if (!isOk<int, string>(failure)) {
+        printf("Failure!\n");
+    }
+
+    return 0;
+}
+```
+
+## Performance
+
+`match<Type>` for enum variants is very efficient:
+
+- Extracts the discriminant tag (single memory load)
+- Compares with the variant index (single comparison)
+- Total: ~2-3 CPU instructions after LLVM optimization
+
+This makes it suitable for hot code paths and performance-critical sections.
+
+## Comparison with Pattern Matching
+
+### When to use `match<Type>`
+
+- Quick boolean check needed
+- Early returns based on variant
+- Conditional logic without extracting data
+- Combining multiple type checks with boolean operators
+- Validation before processing
+
+### When to use pattern matching
+
+- Need to extract variant data
+- Complex branching with multiple cases
+- Pattern guards for value-based conditions
+- Want exhaustiveness checking
+- More idiomatic for variant handling
+
+### Example Comparison
+
+Using `match<Type>`:
+
+```bpl
+import printf from "std/c.bpl";
+if (match<Option.Some>(opt)) {
+    # Still need another match to extract value
+    local value: int = match (opt) {
+        Option<int>.Some(x) => x,
+        Option<int>.None => 0,  # unreachable
+    };
+}
+```
+
+Using pattern matching directly:
+
+```bpl
+import printf from "std/c.bpl";
+match (opt) {
+    Option<int>.Some(x) => {
+        # Have x directly available
+        processValue(x);
+    },
+    Option<int>.None => {},
+}
+```
+
+**Recommendation:** Use pattern matching when you need the data. Use `match<Type>` for quick checks or when combining with other logic.
+
+## Generic Type Checking
+
+`match<Type>` supports checking generic parameters against concrete types. This works because BPL uses monomorphization for generics, meaning the compiler generates specialized versions of the function for each concrete type used.
+
+```bpl
+import printf from "std/c.bpl";
+frame processGeneric<T>(value: T) ret int {
+    if (match<int>(value)) {
+        # value is an int
+        return 1;
+    }
+    if (match<float>(value)) {
+        # value is a float
+        return 2;
+    }
+    return -1;
+}
+```
+
+This allows you to write generic functions that behave differently based on the concrete type of the argument.
+
+## Limitations
+
+1. **Enum variants:** Works with enum variant checking
+2. **Primitive type checking:** Supported (e.g., `match<int>`)
+3. **Struct type checking:** Supported (e.g., `match<MyStruct>`)
+4. **Inheritance checking:** `match<BaseType>(derivedValue)` is not yet fully supported (checks for exact type match)
+
 ## Best Practices
 
 - **Prefer Pattern Matching for Data Extraction**: If you need to access the data inside a variant, use the `match` statement instead. `match<Type>` is best for boolean checks.

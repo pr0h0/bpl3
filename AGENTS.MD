@@ -200,7 +200,7 @@ try {
 ### Modules
 
 ```bpl
-import printf from "libc";
+import printf from "std/c.bpl";
 import [Point] from "./geometry.bpl";
 import exec from "std/process.bpl";
 frame myFunc() { }

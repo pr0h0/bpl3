@@ -455,7 +455,7 @@ is gitignored; add an explicit exception and document why they are kept.
 
 #### BUG-453: Documentation examples that do not compile
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `docs/15-pointers.md` switches to C-style `int*` from line 106 (44 of 48 snippets
 fail); `docs/58-intrinsics.md:44` uses nonexistent `Math.sqrtFloat`;
@@ -464,6 +464,13 @@ fail); `docs/58-intrinsics.md:44` uses nonexistent `Math.sqrtFloat`;
 `offsetof`, `is`, `Func`, `Lambda`, `null`; AGENTS.MD shows
 `import printf from "libc"`. `docs/type-matching.md` overlaps
 `docs/56-type-matching.md` and should be merged.
+
+**Resolution**: docs/15 uses BPL syntax throughout (`*T` pointer types, `.`
+through pointers instead of `->`, `Func<R>(...)` instead of C function-pointer
+types); all 49 of its blocks parse. docs/58 calls `Math.sqrt`, docs/26
+`Config.defaults()`, AGENTS.MD imports `std/c.bpl`, and docs/46 lists every
+reserved word from the grammar. docs/type-matching.md's unique sections moved
+into docs/56, which DocumentationExamples now compiles in its place.
 
 ### Standard library and bundled packages
 

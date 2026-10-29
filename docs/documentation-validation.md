@@ -27,8 +27,9 @@ contracts belong in the prose guides and require source review and behavioral
 tests. Some declarations are stubs; a declaration is not a functionality promise.
 
 `tests/DocumentationExamples.test.ts` discovers BPL code fences containing
-`frame main(...)` in README, LANGUAGE_SPEC.md, all numbered guides, and the
-primitive-extension and companion type-matching guides. Positive programs compile with the real CLI
+`frame main(...)` in README, LANGUAGE_SPEC.md, all numbered guides (type
+matching is `docs/56-type-matching.md`), and the primitive-extension guide.
+Positive programs compile with the real CLI
 and Clang in temporary directories. Seven representative programs also run at
 O0/O3 with exact stdout and LLVM verification, including JSON hooks and assembly
 floating-point examples. Compilation alone does not verify all printed comments,
