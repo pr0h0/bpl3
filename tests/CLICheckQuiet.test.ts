@@ -26,7 +26,8 @@ test("check quiet mode hides success output but preserves input and compiler err
       expect(success.stderr.toString()).toBe("");
       for (const [files, message] of [
         [[missing], "File not found"],
-        [[directory], "Input path is not a file"],
+        // A directory is expanded; it contains the invalid file.
+        [[directory], "Undefined symbol 'unknownValue'"],
         [[], "No files specified"],
         [[invalid], "Undefined symbol 'unknownValue'"],
       ] as const) {

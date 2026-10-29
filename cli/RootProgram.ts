@@ -20,7 +20,10 @@ export function collectOption(
 export function configureRootOptions(program: Command): Command {
   return program
     .argument("[files...]", "source file(s) to compile")
-    .option("-e, --eval <code>", "evaluate BPL code passed as string")
+    .option(
+      "-e, --eval <code>",
+      "compile BPL code given as a string (prints LLVM IR; see --emit)",
+    )
     .option("--stdin", "read BPL code from stdin")
     .option("-o, --output <file>", "output file path")
     .option("--emit <type>", "emit type: llvm, ast, tokens, formatted", "llvm")

@@ -574,8 +574,11 @@ file lists use top-level JSON failures with `BPL_CHECK_NO_INPUTS` or
 `BPL_LINT_NO_INPUTS`, `totalFiles: 0`, `errorCount: 1`, and `files: []`.
 Lint directory discovery failures (such as unsupported `.bplignore` patterns)
 use `BPL_LINT_PROCESSING_ERROR`; empty discovery uses `BPL_LINT_NO_INPUTS`.
-Per-file check validation uses `BPL_CHECK_INPUT_NOT_FOUND`,
-`BPL_CHECK_INPUT_SYMLINK`, and `BPL_CHECK_INPUT_NOT_FILE`. Per-file lint
+`bpl check` accepts directories like `format` and `lint`: each is expanded to
+its `.bpl` and `.x` sources, honoring `.bplignore`. A directory with no sources
+reports `BPL_CHECK_NO_INPUTS`. Per-file check validation uses
+`BPL_CHECK_INPUT_NOT_FOUND`, `BPL_CHECK_INPUT_SYMLINK`, and
+`BPL_CHECK_INPUT_NOT_FILE`. Per-file lint
 validation uses `BPL_LINT_INPUT_NOT_FOUND`, `BPL_LINT_INPUT_SYMLINK`, and
 `BPL_LINT_INPUT_NOT_FILE`. These codes are additive fields on top-level or
 per-file JSON failure entries, preserving the human-readable `error` text while
@@ -1036,7 +1039,9 @@ payload with an incompatible shape.
 
 For quick testing without files:
 
-- `-e, --eval <code>`: Compile code passed directly on the command line
+- `-e, --eval <code>`: Compile code passed directly on the command line. It
+  prints the LLVM IR (or the `--emit` output) rather than running the program;
+  to run a snippet, write it to a file and use `bpl run`
 - `--stdin`: Compile code read from standard input
 
 **Examples:**

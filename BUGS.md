@@ -308,6 +308,13 @@ files" for a missing input no longer reproduces. Still open: `-e` running the
 program, `build -o X` writing `X.ll`, `check` on directories and stdin, and the
 duplicated `compileWithModules*`.
 
+**Progress (2026-10-29, batch 3)**: `bpl check` expands directories like
+`format`/`lint` (empty → `BPL_CHECK_NO_INPUTS`). `-e` is documented as
+compiling (it prints IR; changing it to run would break the playground and 46
+test call sites). `build -o X` writing `X.ll` is by design: `bpl clean` owns it
+and `--json` reports its path. Still open: `check -` (stdin) and the
+duplicated `compileWithModules*`.
+
 #### BUG-444: Project scaffolding gaps
 
 **Status**: Fixed · **Priority**: P3
@@ -592,7 +599,7 @@ by signature or reject overloaded spec declarations. Found while testing the
 bound-spec-method guard in #112.
 
 **Resolution**: overloaded spec declarations are rejected
-(`Spec 'G' declares method 'm' more than once`, BPL_SYMBOL_ALREADY_DEFINED).
+(`Duplicate method 'm' in spec 'G'`, BPL_SYMBOL_ALREADY_DEFINED).
 Supporting them would need overload-aware conformance, thunk names and vtable
 slots (thunks were named by method only and collided in IR). R-SPEC-1 states
 the rule. `tests/AuditCompilerFixes.test.ts`.

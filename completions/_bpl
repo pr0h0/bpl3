@@ -40,7 +40,7 @@ _bpl() {
     )
 
     _arguments -C \
-        '(-e --eval)'{-e,--eval}'[evaluate BPL code passed as string]:value' \
+        '(-e --eval)'{-e,--eval}'[compile BPL code given as a string (prints LLVM IR; see --emit)]:value' \
         '--stdin[read BPL code from stdin]' \
         '(-o --output)'{-o,--output}'[output file path]:value:_files' \
         '--emit[emit type: llvm, ast, tokens, formatted]:value:(llvm ast tokens formatted)' \

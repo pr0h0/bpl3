@@ -49,6 +49,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `bpl check` accepts directories (`bpl check src/`), expanding them like
+  `format` and `lint`; the `-e` help says it compiles and prints IR (BUG-443).
+
 - Parenthesized assignment targets are accepted (`(*p) = 1`, `(v) += 2`),
   consistent with `(*p)++` (BUG-467). A spec declaring the same method twice
   is rejected; overloaded spec methods could not be implemented (BUG-470).

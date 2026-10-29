@@ -193,7 +193,7 @@ frame main() ret int {
     expect(result.status).toBe(1);
     // Spec methods cannot be overloaded at all (BUG-470).
     expect(result.stderr).toContain(
-      "Spec 'G' declares method 'm' more than once",
+      "Duplicate method 'm' in spec 'G'",
     );
   });
 });

@@ -8,6 +8,7 @@ import type { Command } from "commander";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 import type { CompileOptions } from "../types";
 import { getInputFilePathError } from "../utils";
+import { expandSourceInputs } from "../SourceInputs";
 import { Logger, LogLevel, setLogLevel } from "../../compiler/common/Logger";
 import { updateConfig } from "../../compiler/common/Config";
 import {
@@ -60,7 +61,7 @@ export async function runCheckCommand(
     diagnosticFormatter.setConfig({ colorize: options.color });
   }
 
-  if (!files || files.length === 0) {
+  const exitNoInputs = (message: string): never => {
     if (options.json) {
       console.log(
         JSON.stringify(
@@ -69,7 +70,7 @@ export async function runCheckCommand(
             errorCount: 1,
             timeMs: 0,
             files: [],
-            error: "No files specified.",
+            error: message,
             errorCode: CHECK_NO_INPUTS_CODE,
           }),
           null,
@@ -77,9 +78,21 @@ export async function runCheckCommand(
         ),
       );
     } else {
-      log.error("No files specified.");
+      log.error(message);
     }
     process.exit(1);
+  };
+
+  if (!files || files.length === 0) exitNoInputs("No files specified.");
+  // Directories expand to their sources, as for `format` and `lint`
+  // (honoring .bplignore).
+  try {
+    files = expandSourceInputs(files!);
+  } catch (error) {
+    exitNoInputs(error instanceof Error ? error.message : String(error));
+  }
+  if (files.length === 0) {
+    exitNoInputs("No BPL sources found in the supplied directories.");
   }
 
   const { checkSource, CompilerError } = await import("./checkEngine");

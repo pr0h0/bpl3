@@ -2150,7 +2150,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     for (const method of decl.methods) {
       if (seenMethods.has(method.name)) {
         throw new CompilerError(
-          `Spec '${decl.name}' declares method '${method.name}' more than once`,
+          `Duplicate method '${method.name}' in spec '${decl.name}'`,
           "Spec methods cannot be overloaded; give each method a distinct name.",
           method.location,
           SYMBOL_ALREADY_DEFINED_CODE,

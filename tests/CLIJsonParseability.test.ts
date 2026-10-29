@@ -335,13 +335,7 @@ describe("CLI JSON parseability", () => {
         error: "Input path is a symbolic link",
         errorCode: "BPL_CHECK_INPUT_SYMLINK",
       },
-      {
-        args: ["check", "--json", sourceDir],
-        check: "check",
-        file: sourceDir,
-        error: "Input path is not a file",
-        errorCode: "BPL_CHECK_INPUT_NOT_FILE",
-      },
+
       {
         args: ["lint", "--json", missingSource],
         check: "lint",
