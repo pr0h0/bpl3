@@ -20,9 +20,9 @@ frame compare_values(v1: *Value, v2: *Value) ret int {
         Value.Int(i1) => {
             return match (v2[0]) {
                 Value.Int(i2) => {
-                    if (i1 == i2) 
+                    if (i1 == i2)
                         return 0;
-                    if (i1 > i2) 
+                    if (i1 > i2)
                         return 1;
                     return -1;
                 },
@@ -40,9 +40,9 @@ frame compare_values(v1: *Value, v2: *Value) ret int {
         Value.Bool(b1) => {
             return match (v2[0]) {
                 Value.Bool(b2) => {
-                    if (b1 == b2) 
+                    if (b1 == b2)
                         return 0;
-                    if (b1) 
+                    if (b1)
                         return 1;
                     return -1;
                 },
@@ -69,14 +69,14 @@ struct Engine {
     }
 
     frame check_row(this: *Engine, row: *Row, table: *Table, conditions: *Array<Condition>) ret bool {
-        if (conditions == nullptr) 
+        if (conditions == nullptr)
             return true;
-        if (conditions.len() == 0) 
+        if (conditions.len() == 0)
             return true;
         loop (local i: int = 0; i < conditions.len(); i = i + 1) {
             local cond: Condition = conditions.get(i);
             local col_idx: int = table.get_column_index(cond.column);
-            if (col_idx == -1) 
+            if (col_idx == -1)
                 return false;
             # Column not found
 
@@ -137,7 +137,7 @@ struct Engine {
                 loop (local i: int = 0; i < cols.len(); i = i + 1) {
                     t.add_column(cols.get(i), DataType.Int);
                 }
-                if (!this.silent) 
+                if (!this.silent)
                     printf("Table '%s' created.\n", name);
             },
             Command.Insert(name, values) => {
@@ -145,21 +145,21 @@ struct Engine {
                 if (t != nullptr) {
                     local id: int = t.insert(values);
                     if (id != -1) {
-                        if (!this.silent) 
+                        if (!this.silent)
                             printf("Inserted row ID: %d\n", id);
                     } else {
-                        if (!this.silent) 
+                        if (!this.silent)
                             printf("Error: Insert failed (column mismatch)\n");
                     }
                 } else {
-                    if (!this.silent) 
+                    if (!this.silent)
                         printf("Error: Table '%s' not found\n", name);
                 }
             },
             Command.Select(name, conditions) => {
                 local t: *Table = this.db.get_table(name);
                 if (t != nullptr) {
-                    if (!this.silent) 
+                    if (!this.silent)
                         printf("Results from '%s':\n", name);
                     # Iterate rows
                     loop (local i: int = 0; i < t.rows.len(); i = i + 1) {
@@ -183,7 +183,7 @@ struct Engine {
                         }
                     }
                 } else {
-                    if (!this.silent) 
+                    if (!this.silent)
                         printf("Error: Table '%s' not found\n", name);
                 }
             },
@@ -209,14 +209,14 @@ struct Engine {
                             r.values.set(update_col_idx, copy);
                             count = count + 1;
                         }
-                        if (!this.silent) 
+                        if (!this.silent)
                             printf("Updated %d rows in '%s'.\n", count, name);
                     } else {
-                        if (!this.silent) 
+                        if (!this.silent)
                             printf("Error: Column '%s' not found\n", col_name);
                     }
                 } else {
-                    if (!this.silent) 
+                    if (!this.silent)
                         printf("Error: Table '%s' not found\n", name);
                 }
             },
@@ -236,10 +236,10 @@ struct Engine {
                         t.rows.removeAt(index);
                         i = i - 1;
                     }
-                    if (!this.silent) 
+                    if (!this.silent)
                         printf("Deleted %d rows from '%s'.\n", count, name);
                 } else {
-                    if (!this.silent) 
+                    if (!this.silent)
                         printf("Error: Table '%s' not found\n", name);
                 }
             },

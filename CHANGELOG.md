@@ -39,6 +39,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `bpl format` no longer leaves a trailing space after `if (...)`, `else` and
+  `loop (...)` when the body has no braces (BUG-437).
+
 - `--debug` builds no longer crash clang for generic locals (`Array<String>`)
   or `Any` variadics, and lambdas at the same line and column of two modules no
   longer produce a duplicate LLVM type (BUG-429).

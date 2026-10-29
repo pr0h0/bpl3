@@ -134,7 +134,7 @@ frame main() ret int {
                         blocked = true;
                     },
                     TileType.Door(open) => {
-                        if (!open) 
+                        if (!open)
                             blocked = true;
                     },
                     TileType.Floor => {
@@ -154,20 +154,20 @@ frame main() ret int {
                     local mdx: int = 0;
                     local mdy: int = 0;
 
-                    if (player.x > m.x) 
+                    if (player.x > m.x)
                         mdx = 1;
-                    if (player.x < m.x) 
+                    if (player.x < m.x)
                         mdx = -1;
-                    if (player.y > m.y) 
+                    if (player.y > m.y)
                         mdy = 1;
-                    if (player.y < m.y) 
+                    if (player.y < m.y)
                         mdy = -1;
                     # Randomize slightly to avoid getting stuck
                     if (random_range(0, 2) == 0) {
-                        if (mdx != 0) 
+                        if (mdx != 0)
                             mdy = 0;
                     } else {
-                        if (mdy != 0) 
+                        if (mdy != 0)
                             mdx = 0;
                     }
 
@@ -187,7 +187,7 @@ frame main() ret int {
                                 mblocked = true;
                             },
                             TileType.Door(open) => {
-                                if (!open) 
+                                if (!open)
                                     mblocked = true;
                             },
                             TileType.Floor => {

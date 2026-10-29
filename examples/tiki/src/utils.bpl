@@ -21,7 +21,7 @@ struct KeyVal {
 
 frame parse_form(body: string) ret Array<KeyVal> {
     local vec: Array<KeyVal> = Array<KeyVal>.new(16);
-    if (body == nullptr) 
+    if (body == nullptr)
         return vec;
     # Naive split by '&'
     # Then split by '='
@@ -69,7 +69,7 @@ frame parse_form(body: string) ret Array<KeyVal> {
 
         free(cast<*void>(seg));
 
-        if (next_amp == nullptr) 
+        if (next_amp == nullptr)
             break;
         current = next_amp + 1;
     }

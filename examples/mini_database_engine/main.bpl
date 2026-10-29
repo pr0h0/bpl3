@@ -325,16 +325,16 @@ struct Value {
         }
         return match (this.dataType) {
             DataType.TypeInt => {
-                if (this.intVal < other.intVal) 
+                if (this.intVal < other.intVal)
                     return -1;
-                if (this.intVal > other.intVal) 
+                if (this.intVal > other.intVal)
                     return 1;
                 return 0;
             },
             DataType.TypeFloat => {
-                if (this.floatVal < other.floatVal) 
+                if (this.floatVal < other.floatVal)
                     return -1;
-                if (this.floatVal > other.floatVal) 
+                if (this.floatVal > other.floatVal)
                     return 1;
                 return 0;
             },
@@ -342,9 +342,9 @@ struct Value {
                 return strcmp(&this.stringVal[0], &other.stringVal[0]);
             },
             DataType.TypeBool => {
-                if (this.boolVal == other.boolVal) 
+                if (this.boolVal == other.boolVal)
                     return 0;
-                if (this.boolVal) 
+                if (this.boolVal)
                     return 1;
                 return -1;
             },
@@ -414,7 +414,7 @@ struct Value {
                 return h;
             },
             DataType.TypeBool => {
-                if (this.boolVal) 
+                if (this.boolVal)
                     return 1;
                 return 0;
             },
@@ -1635,139 +1635,139 @@ struct Lexer {
     }
 
     frame getKeywordType(this: *Lexer, word: *char) ret TokenType {
-        if (strcmp(word, "SELECT") == 0) 
+        if (strcmp(word, "SELECT") == 0)
             return TokenType.TokSelect;
-        if (strcmp(word, "FROM") == 0) 
+        if (strcmp(word, "FROM") == 0)
             return TokenType.TokFrom;
-        if (strcmp(word, "WHERE") == 0) 
+        if (strcmp(word, "WHERE") == 0)
             return TokenType.TokWhere;
-        if (strcmp(word, "AND") == 0) 
+        if (strcmp(word, "AND") == 0)
             return TokenType.TokAnd;
-        if (strcmp(word, "OR") == 0) 
+        if (strcmp(word, "OR") == 0)
             return TokenType.TokOr;
-        if (strcmp(word, "NOT") == 0) 
+        if (strcmp(word, "NOT") == 0)
             return TokenType.TokNot;
-        if (strcmp(word, "INSERT") == 0) 
+        if (strcmp(word, "INSERT") == 0)
             return TokenType.TokInsert;
-        if (strcmp(word, "INTO") == 0) 
+        if (strcmp(word, "INTO") == 0)
             return TokenType.TokInto;
-        if (strcmp(word, "VALUES") == 0) 
+        if (strcmp(word, "VALUES") == 0)
             return TokenType.TokValues;
-        if (strcmp(word, "UPDATE") == 0) 
+        if (strcmp(word, "UPDATE") == 0)
             return TokenType.TokUpdate;
-        if (strcmp(word, "SET") == 0) 
+        if (strcmp(word, "SET") == 0)
             return TokenType.TokSet;
-        if (strcmp(word, "DELETE") == 0) 
+        if (strcmp(word, "DELETE") == 0)
             return TokenType.TokDelete;
-        if (strcmp(word, "CREATE") == 0) 
+        if (strcmp(word, "CREATE") == 0)
             return TokenType.TokCreate;
-        if (strcmp(word, "TABLE") == 0) 
+        if (strcmp(word, "TABLE") == 0)
             return TokenType.TokTable;
-        if (strcmp(word, "INDEX") == 0) 
+        if (strcmp(word, "INDEX") == 0)
             return TokenType.TokIndex;
-        if (strcmp(word, "DROP") == 0) 
+        if (strcmp(word, "DROP") == 0)
             return TokenType.TokDrop;
-        if (strcmp(word, "ALTER") == 0) 
+        if (strcmp(word, "ALTER") == 0)
             return TokenType.TokAlter;
-        if (strcmp(word, "ADD") == 0) 
+        if (strcmp(word, "ADD") == 0)
             return TokenType.TokAdd;
-        if (strcmp(word, "COLUMN") == 0) 
+        if (strcmp(word, "COLUMN") == 0)
             return TokenType.TokColumn;
-        if (strcmp(word, "PRIMARY") == 0) 
+        if (strcmp(word, "PRIMARY") == 0)
             return TokenType.TokPrimary;
-        if (strcmp(word, "KEY") == 0) 
+        if (strcmp(word, "KEY") == 0)
             return TokenType.TokKey;
-        if (strcmp(word, "FOREIGN") == 0) 
+        if (strcmp(word, "FOREIGN") == 0)
             return TokenType.TokForeign;
-        if (strcmp(word, "REFERENCES") == 0) 
+        if (strcmp(word, "REFERENCES") == 0)
             return TokenType.TokReferences;
-        if (strcmp(word, "UNIQUE") == 0) 
+        if (strcmp(word, "UNIQUE") == 0)
             return TokenType.TokUnique;
-        if (strcmp(word, "NULL") == 0) 
+        if (strcmp(word, "NULL") == 0)
             return TokenType.TokNull;
-        if (strcmp(word, "INT") == 0) 
+        if (strcmp(word, "INT") == 0)
             return TokenType.TokInt;
-        if (strcmp(word, "INTEGER") == 0) 
+        if (strcmp(word, "INTEGER") == 0)
             return TokenType.TokInt;
-        if (strcmp(word, "VARCHAR") == 0) 
+        if (strcmp(word, "VARCHAR") == 0)
             return TokenType.TokVarchar;
-        if (strcmp(word, "BOOLEAN") == 0) 
+        if (strcmp(word, "BOOLEAN") == 0)
             return TokenType.TokBoolean;
-        if (strcmp(word, "BOOL") == 0) 
+        if (strcmp(word, "BOOL") == 0)
             return TokenType.TokBoolean;
-        if (strcmp(word, "FLOAT") == 0) 
+        if (strcmp(word, "FLOAT") == 0)
             return TokenType.TokFloat_;
-        if (strcmp(word, "DOUBLE") == 0) 
+        if (strcmp(word, "DOUBLE") == 0)
             return TokenType.TokFloat_;
-        if (strcmp(word, "DATE") == 0) 
+        if (strcmp(word, "DATE") == 0)
             return TokenType.TokDate;
-        if (strcmp(word, "TIMESTAMP") == 0) 
+        if (strcmp(word, "TIMESTAMP") == 0)
             return TokenType.TokTimestamp;
-        if (strcmp(word, "DEFAULT") == 0) 
+        if (strcmp(word, "DEFAULT") == 0)
             return TokenType.TokDefault;
-        if (strcmp(word, "JOIN") == 0) 
+        if (strcmp(word, "JOIN") == 0)
             return TokenType.TokJoin;
-        if (strcmp(word, "INNER") == 0) 
+        if (strcmp(word, "INNER") == 0)
             return TokenType.TokInner;
-        if (strcmp(word, "LEFT") == 0) 
+        if (strcmp(word, "LEFT") == 0)
             return TokenType.TokLeft;
-        if (strcmp(word, "RIGHT") == 0) 
+        if (strcmp(word, "RIGHT") == 0)
             return TokenType.TokRight;
-        if (strcmp(word, "FULL") == 0) 
+        if (strcmp(word, "FULL") == 0)
             return TokenType.TokFull;
-        if (strcmp(word, "OUTER") == 0) 
+        if (strcmp(word, "OUTER") == 0)
             return TokenType.TokOuter;
-        if (strcmp(word, "ON") == 0) 
+        if (strcmp(word, "ON") == 0)
             return TokenType.TokOn;
-        if (strcmp(word, "AS") == 0) 
+        if (strcmp(word, "AS") == 0)
             return TokenType.TokAs;
-        if (strcmp(word, "ORDER") == 0) 
+        if (strcmp(word, "ORDER") == 0)
             return TokenType.TokOrder;
-        if (strcmp(word, "BY") == 0) 
+        if (strcmp(word, "BY") == 0)
             return TokenType.TokBy;
-        if (strcmp(word, "ASC") == 0) 
+        if (strcmp(word, "ASC") == 0)
             return TokenType.TokAsc;
-        if (strcmp(word, "DESC") == 0) 
+        if (strcmp(word, "DESC") == 0)
             return TokenType.TokDesc;
-        if (strcmp(word, "GROUP") == 0) 
+        if (strcmp(word, "GROUP") == 0)
             return TokenType.TokGroup;
-        if (strcmp(word, "HAVING") == 0) 
+        if (strcmp(word, "HAVING") == 0)
             return TokenType.TokHaving;
-        if (strcmp(word, "LIMIT") == 0) 
+        if (strcmp(word, "LIMIT") == 0)
             return TokenType.TokLimit;
-        if (strcmp(word, "OFFSET") == 0) 
+        if (strcmp(word, "OFFSET") == 0)
             return TokenType.TokOffset;
-        if (strcmp(word, "DISTINCT") == 0) 
+        if (strcmp(word, "DISTINCT") == 0)
             return TokenType.TokDistinct;
-        if (strcmp(word, "COUNT") == 0) 
+        if (strcmp(word, "COUNT") == 0)
             return TokenType.TokCount;
-        if (strcmp(word, "SUM") == 0) 
+        if (strcmp(word, "SUM") == 0)
             return TokenType.TokSum;
-        if (strcmp(word, "AVG") == 0) 
+        if (strcmp(word, "AVG") == 0)
             return TokenType.TokAvg;
-        if (strcmp(word, "MIN") == 0) 
+        if (strcmp(word, "MIN") == 0)
             return TokenType.TokMin;
-        if (strcmp(word, "MAX") == 0) 
+        if (strcmp(word, "MAX") == 0)
             return TokenType.TokMax;
-        if (strcmp(word, "IN") == 0) 
+        if (strcmp(word, "IN") == 0)
             return TokenType.TokIn;
-        if (strcmp(word, "BETWEEN") == 0) 
+        if (strcmp(word, "BETWEEN") == 0)
             return TokenType.TokBetween;
-        if (strcmp(word, "LIKE") == 0) 
+        if (strcmp(word, "LIKE") == 0)
             return TokenType.TokLike;
-        if (strcmp(word, "IS") == 0) 
+        if (strcmp(word, "IS") == 0)
             return TokenType.TokIs;
-        if (strcmp(word, "TRUE") == 0) 
+        if (strcmp(word, "TRUE") == 0)
             return TokenType.TokTrue;
-        if (strcmp(word, "FALSE") == 0) 
+        if (strcmp(word, "FALSE") == 0)
             return TokenType.TokFalse;
-        if (strcmp(word, "BEGIN") == 0) 
+        if (strcmp(word, "BEGIN") == 0)
             return TokenType.TokBegin;
-        if (strcmp(word, "COMMIT") == 0) 
+        if (strcmp(word, "COMMIT") == 0)
             return TokenType.TokCommit;
-        if (strcmp(word, "ROLLBACK") == 0) 
+        if (strcmp(word, "ROLLBACK") == 0)
             return TokenType.TokRollback;
-        if (strcmp(word, "TRANSACTION") == 0) 
+        if (strcmp(word, "TRANSACTION") == 0)
             return TokenType.TokTransaction;
         return TokenType.TokIdentifier;
     }

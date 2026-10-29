@@ -179,11 +179,15 @@ Likely `TypeCheckerBase.ts:2473` binds `Self` to the spec instead of `T`.
 
 #### BUG-437: Formatter leaves trailing spaces after brace-less `if`/`else`/`loop`
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `Formatter.ts:605/610/620` and `formatLoop` emit a space before the newline when
 the body is not a block: `if (x > 0) return 1;` becomes `if (x > 0) ␠\n ...`.
 255 lines in `examples/` and `lib/` carry it. Emit the space only before `{`.
+
+**Resolution**: `formatIf` and `formatLoop` emit the space only before `{`
+(and before `if` in `else if`). The 260 affected lines in `examples/`, `lib/`
+and `packages/` were stripped. `tests/FormatterBracelessBodies.test.ts`.
 
 #### BUG-438: Shell completions are out of sync with the commands
 

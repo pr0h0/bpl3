@@ -389,7 +389,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         # Find first non-whitespace
         loop (start < this.length) {
             local c: char = this.get(start);
-            if ((c != 32) && (c != 9) && (c != 10) && (c != 13)) 
+            if ((c != 32) && (c != 9) && (c != 10) && (c != 13))
                 break;
             start = start + 1;
         }
@@ -397,7 +397,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         # Find last non-whitespace
         loop (end >= start) {
             local c: char = this.get(end);
-            if ((c != 32) && (c != 9) && (c != 10) && (c != 13)) 
+            if ((c != 32) && (c != 9) && (c != 10) && (c != 13))
                 break;
             end = end - 1;
         }
@@ -416,7 +416,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         local start: int = 0;
         loop (start < this.length) {
             local c: char = this.get(start);
-            if ((c != 32) && (c != 9) && (c != 10) && (c != 13)) 
+            if ((c != 32) && (c != 9) && (c != 10) && (c != 13))
                 break;
             start = start + 1;
         }
@@ -432,7 +432,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         local end: int = this.length - 1;
         loop (end >= 0) {
             local c: char = this.get(end);
-            if ((c != 32) && (c != 9) && (c != 10) && (c != 13)) 
+            if ((c != 32) && (c != 9) && (c != 10) && (c != 13))
                 break;
             end = end - 1;
         }
@@ -442,16 +442,16 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Check if string starts with prefix
     frame startsWith(this: *String, prefix: string) ret bool {
-        if ((this.data == nullptr) || (prefix == nullptr)) 
+        if ((this.data == nullptr) || (prefix == nullptr))
             return false;
         local prefixLen: long = strlen(prefix);
-        if (prefixLen > this.length) 
+        if (prefixLen > this.length)
             return false;
-        if (prefixLen == 0) 
+        if (prefixLen == 0)
             return true;
         local i: int = 0;
         loop (i < prefixLen) {
-            if (this.get(i) != prefix[i]) 
+            if (this.get(i) != prefix[i])
                 return false;
             i = i + 1;
         }
@@ -460,17 +460,17 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Check if string ends with suffix
     frame endsWith(this: *String, suffix: string) ret bool {
-        if ((this.data == nullptr) || (suffix == nullptr)) 
+        if ((this.data == nullptr) || (suffix == nullptr))
             return false;
         local suffixLen: long = strlen(suffix);
-        if (suffixLen > this.length) 
+        if (suffixLen > this.length)
             return false;
-        if (suffixLen == 0) 
+        if (suffixLen == 0)
             return true;
         local offset: int = this.length - suffixLen;
         local i: int = 0;
         loop (i < suffixLen) {
-            if (this.get(offset + i) != suffix[i]) 
+            if (this.get(offset + i) != suffix[i])
                 return false;
             i = i + 1;
         }
@@ -648,7 +648,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         local oldLen: int = cast<int>(oldLength);
         # Find first occurrence
         local pos: int = this.indexOf(old);
-        if (pos < 0) 
+        if (pos < 0)
             return this.clone();
         local newLength: long = 0;
         if (newStr != nullptr) { newLength = strlen(newStr); }
@@ -733,12 +733,12 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Find index of substring
     frame indexOf(this: *String, substr: string) ret int {
-        if ((this.data == nullptr) || (substr == nullptr)) 
+        if ((this.data == nullptr) || (substr == nullptr))
             return -1;
         local subLen: long = strlen(substr);
-        if (subLen == 0) 
+        if (subLen == 0)
             return 0;
-        if (subLen > this.length) 
+        if (subLen > this.length)
             return -1;
         local i: int = 0;
         loop (i <= (this.length - subLen)) {
@@ -751,7 +751,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
                 }
                 j = j + 1;
             }
-            if (found) 
+            if (found)
                 return i;
             i = i + 1;
         }
@@ -760,12 +760,12 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Find last index of substring
     frame lastIndexOf(this: *String, substr: string) ret int {
-        if ((this.data == nullptr) || (substr == nullptr)) 
+        if ((this.data == nullptr) || (substr == nullptr))
             return -1;
         local subLen: long = strlen(substr);
-        if (subLen == 0) 
+        if (subLen == 0)
             return this.length;
-        if (subLen > this.length) 
+        if (subLen > this.length)
             return -1;
         local i: int = this.length - subLen;
         loop (i >= 0) {
@@ -778,7 +778,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
                 }
                 j = j + 1;
             }
-            if (found) 
+            if (found)
                 return i;
             i = i - 1;
         }
@@ -787,12 +787,12 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Count occurrences of substring
     frame count(this: *String, substr: string) ret int {
-        if ((this.data == nullptr) || (substr == nullptr)) 
+        if ((this.data == nullptr) || (substr == nullptr))
             return 0;
         local subLen: long = strlen(substr);
-        if (subLen == 0) 
+        if (subLen == 0)
             return 0;
-        if (subLen > this.length) 
+        if (subLen > this.length)
             return 0;
         local cnt: int = 0;
         local i: int = 0;
@@ -818,12 +818,12 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Check if string contains only digits
     frame isDigits(this: *String) ret bool {
-        if ((this.data == nullptr) || (this.length == 0)) 
+        if ((this.data == nullptr) || (this.length == 0))
             return false;
         local i: int = 0;
         loop (i < this.length) {
             local c: char = this.get(i);
-            if ((c < 48) || (c > 57)) 
+            if ((c < 48) || (c > 57))
                 return false;
             i = i + 1;
         }
@@ -832,14 +832,14 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Check if string contains only alphabetic characters
     frame isAlpha(this: *String) ret bool {
-        if ((this.data == nullptr) || (this.length == 0)) 
+        if ((this.data == nullptr) || (this.length == 0))
             return false;
         local i: int = 0;
         loop (i < this.length) {
             local c: char = this.get(i);
             local isLower: bool = (c >= 97) && (c <= 122);
             local isUpper: bool = (c >= 65) && (c <= 90);
-            if (!isLower && !isUpper) 
+            if (!isLower && !isUpper)
                 return false;
             i = i + 1;
         }
@@ -848,7 +848,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Check if string contains only alphanumeric characters
     frame isAlphanumeric(this: *String) ret bool {
-        if ((this.data == nullptr) || (this.length == 0)) 
+        if ((this.data == nullptr) || (this.length == 0))
             return false;
         local i: int = 0;
         loop (i < this.length) {
@@ -856,7 +856,7 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             local isDigit: bool = (c >= 48) && (c <= 57);
             local isLower: bool = (c >= 97) && (c <= 122);
             local isUpper: bool = (c >= 65) && (c <= 90);
-            if (!isDigit && !isLower && !isUpper) 
+            if (!isDigit && !isLower && !isUpper)
                 return false;
             i = i + 1;
         }

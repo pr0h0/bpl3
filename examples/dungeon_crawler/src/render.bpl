@@ -34,9 +34,9 @@ struct Renderer {
                         printf(".");
                     },
                     TileType.Door(open) => {
-                        if (open) 
+                        if (open)
                             printf("'");
-                        else 
+                        else
                             printf("+");
                     },
                 };

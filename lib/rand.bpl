@@ -94,7 +94,7 @@ struct Rand {
     # Pick a random element from an array of integers
     frame choiceInt(this: *Rand, arr: *Array<int>) ret int {
         local n: int = arr.len();
-        if (n == 0) 
+        if (n == 0)
             return 0;
         local idx: int = this.range(0, n);
         return arr.get(idx);
