@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Methods of a generic spec (`spec Getter<V> { frame get(this: *Self) ret V; }`)
+  can be called on a parameter constrained by it (`T: Getter<long>`), and
+  `Self`-returning methods return `T` (BUG-435).
+
 - CLI paper cuts (BUG-443): a missing `main` points at `file:1:1` instead of
   `file:0:0`; `format` shows parse errors with their location and calls stdin
   `<stdin>`; `doctor` says where it found the installation; `run --help` lists

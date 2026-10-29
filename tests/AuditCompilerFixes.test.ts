@@ -71,6 +71,29 @@ frame takeSlice(_xs: Animal[]) {}
   });
 });
 
+describe("BUG-435: generic spec methods on a constrained type parameter", () => {
+  test("binds Self to the parameter, including Self-returning methods", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+spec Getter<T> { frame get(this: *Self) ret T; frame twice(this: *Self) ret Self; }
+struct Box: Getter<long> {
+    v: long,
+    frame get(this: *Box) ret long { return this.v; }
+    frame twice(this: *Box) ret Box { return Box { v: this.v * 2 }; }
+}
+frame use<T: Getter<long>>(x: *T) ret long {
+    local d: T = x.twice();
+    return x.get() + d.get();
+}
+frame main() ret int {
+    local b: Box = Box { v: 7 };
+    printf("%ld\\n", use<Box>(&b));
+    return 0;
+}
+`);
+    expect(output).toBe("21\n");
+  });
+});
+
 describe("BUG-427: types that contain themselves by value", () => {
   const cycles: Record<string, string> = {
     "fixed array": "struct S { a: S[2], }",

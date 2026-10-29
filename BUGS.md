@@ -156,12 +156,16 @@ shadowing warning at `:1538`.
 
 #### BUG-435: Methods of generic specs using `this: *Self` cannot be called on constrained `T`
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 With `spec Getter<T> { frame get(this: *Self) ret long; }` and
 `frame use<T: Getter<long>>(x: *T)`, `x.get()` fails with "No compatible
 instance method" and a misleading static-method hint. Non-generic specs work.
 Likely `TypeCheckerBase.ts:2473` binds `Self` to the spec instead of `T`.
+
+**Resolution**: `resolveMemberWithContext`, when it reaches a spec through a
+generic parameter's constraint, binds `Self` to the parameter. Methods
+returning `Self` then return `T` as well. `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-436: Smaller compiler diagnostics issues
 

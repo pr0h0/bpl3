@@ -2436,10 +2436,16 @@ export abstract class TypeCheckerBase {
           ) {
             const gp = aliasDecl as unknown as AST.GenericParam;
             if (gp.constraint && gp.constraint.kind === "BasicType") {
-              return this.resolveMemberWithContext(
+              const resolved = this.resolveMemberWithContext(
                 gp.constraint as AST.BasicTypeNode,
                 memberName,
               );
+              // Through `T: Spec<...>`, `Self` is `T`, not the spec: the
+              // receiver `*T` must match `this: *Self` (BUG-435).
+              if (resolved?.decl.kind === "SpecDecl") {
+                resolved.genericMap.set("Self", baseType);
+              }
+              return resolved;
             }
           }
         }
