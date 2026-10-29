@@ -49,6 +49,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Tests and the playground no longer leak temporary files (BUG-447): the
+  playground removes its cached binaries on exit and handles SIGINT/SIGTERM;
+  web tests use the gitignored `tests/.tmp/`; duplicated `compileAndRun`
+  copies use the shared helper.
+
 - Package installation hardening (BUG-462): `bpl install foo` no longer
   installs a file named `foo` from the current directory (use `./foo`, now
   recorded as `file:./foo`); legacy lock hashes fail `--locked` until

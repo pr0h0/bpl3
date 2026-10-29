@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { writeFileSync, rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { gunzipSync } from "node:zlib";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 const zlib =
   spawnSync("clang", ["-print-file-name=libz.so.1"], {
@@ -11,7 +12,7 @@ const zlib =
 test.skipIf(process.platform !== "linux" || !zlib.includes("/"))(
   "optional gzip middleware produces browser-compatible bytes and honors HEAD, quality and no-transform",
   () => {
-    const dir = mkdtempSync(resolve(".web-package-test-compression-"));
+    const dir = makeRepoTempDir("web-package-test-compression-");
     try {
       writeFileSync(
         join(dir, "main.bpl"),

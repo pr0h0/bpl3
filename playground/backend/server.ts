@@ -416,6 +416,15 @@ logger.info(`Statistics: http://localhost:${server.port}/stats`);
 logger.info(`Logs: http://localhost:${server.port}/logs`);
 logger.info("=".repeat(60));
 
+// Exit normally on SIGINT/SIGTERM so exit hooks remove temporary build
+// directories (such as the native binary cache).
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.once(signal, () => {
+    void server.stop(true);
+    process.exit(0);
+  });
+}
+
 // Periodic stats logging
 setInterval(() => {
   const uptime = getUptime();

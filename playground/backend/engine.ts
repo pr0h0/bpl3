@@ -152,6 +152,16 @@ function evictNativeBinaryCacheEntries(): void {
   }
 }
 
+/** Remove every cached binary directory (they otherwise outlive the process). */
+export function disposeNativeBinaryCache(): void {
+  for (const entry of nativeBinaryCache.values()) {
+    cleanupNativeBinaryCacheEntry(entry);
+  }
+  nativeBinaryCache.clear();
+}
+
+process.once("exit", disposeNativeBinaryCache);
+
 function cleanupNativeBinaryCacheEntry(entry: NativeBinaryCacheEntry): void {
   try {
     fs.rmSync(entry.tempDir, { recursive: true, force: true });

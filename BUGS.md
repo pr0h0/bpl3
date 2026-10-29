@@ -375,7 +375,7 @@ the out-of-scope original name.
 
 #### BUG-447: Tests and the playground leak temporary files
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 - `playground/backend/engine.ts:51,112-160` keeps up to 16 `bpl-playground-*`
   directories for 10 minutes and has no exit handler;
@@ -386,6 +386,8 @@ the out-of-scope original name.
 - Six test files copy-paste `compileAndRun` (`Intrinsics`, `Stdlib`,
   `NullHandling`, `MatchComplex`, `GenericsConstraints`,
   `OperatorOverloadingUser`) instead of `tests/helpers/compileAndRun.ts`.
+
+**Resolution**: the playground engine removes its native binary cache on exit, and the server exits normally on SIGINT/SIGTERM (a contract-test run left three `bpl-playground-*` directories, now none). Web tests that need workspace packages create their sources under the gitignored `tests/.tmp/` (`tests/helpers/repoTempDir.ts`) instead of the repository root. The five copies of `compileAndRun` use the shared helper, which builds in the system temp directory. `WebHttpClientMethods` counts only its own requests: another local process occasionally sent `GET /` to its ephemeral port.
 
 #### BUG-448: CI does not check formatting; repository drifted
 

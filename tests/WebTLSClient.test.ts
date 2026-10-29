@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createServer } from "node:https";
 import { createServer as tcpServer } from "node:net";
 import { createServer as tlsServer } from "node:tls";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 const openssl = spawnSync("openssl", ["version"], {
   encoding: "utf8",
@@ -23,7 +24,7 @@ test.skipIf(
 )(
   "HTTPS client sends verified requests, reads large/binary/chunked bodies, and never downgrades failures",
   async () => {
-    const dir = mkdtempSync(resolve(".web-tls-client-"));
+    const dir = makeRepoTempDir("web-tls-client-");
     const servers: ReturnType<typeof tcpServer>[] = [];
     const sockets = new Set<import("node:net").Socket>();
     try {

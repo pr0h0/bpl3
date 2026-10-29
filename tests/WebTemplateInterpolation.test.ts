@@ -1,9 +1,10 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { native } from "./helpers/webPackages";
 import { checkBplSanitizerSupport } from "./helpers/compilerCorrectness";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 const flags = checkBplSanitizerSupport().supported
   ? [
@@ -13,7 +14,7 @@ const flags = checkBplSanitizerSupport().supported
   : [];
 
 test("template interpolation closing markers respect quoted strings and expression braces", () => {
-  const dir = mkdtempSync(resolve(".web-template-interpolation-"));
+  const dir = makeRepoTempDir("web-template-interpolation-");
   try {
     const views = join(dir, "views"),
       output = join(dir, "output"),

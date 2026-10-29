@@ -1,14 +1,9 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import {
-  mkdtempSync,
-  writeFileSync,
-  rmSync,
-  mkdirSync,
-  symlinkSync,
-} from "node:fs";
+import { writeFileSync, rmSync, mkdirSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { native } from "./helpers/webPackages";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 test("HTTP parser bounds framing, normalizes headers, decodes query segments and owns memory", () => {
   native(`
@@ -47,7 +42,7 @@ test.skipIf(process.platform !== "linux")(
   "Express serves fragmented requests, short-circuits middleware and emits complete binary-safe responses",
   async () => {
     const { createServer, createConnection } = await import("node:net");
-    const dir = mkdtempSync(resolve(".web-package-test-"));
+    const dir = makeRepoTempDir("web-package-test-");
     const probe = createServer();
     await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
     const address = probe.address();
@@ -338,7 +333,7 @@ test.skipIf(process.platform !== "linux")(
     );
     const address = server.address();
     if (!address || typeof address === "string") throw new Error("No port");
-    const dir = mkdtempSync(resolve(".web-package-test-"));
+    const dir = makeRepoTempDir("web-package-test-");
     try {
       writeFileSync(
         join(dir, "main.bpl"),
@@ -383,7 +378,7 @@ test.skipIf(process.platform !== "linux")(
 );
 
 test("template compiler emits valid zero-argument components and escaped UTF-8 HTML", () => {
-  const dir = mkdtempSync(resolve(".web-package-test-"));
+  const dir = makeRepoTempDir("web-package-test-");
   try {
     mkdirSync(join(dir, "views"));
     mkdirSync(join(dir, "output"));

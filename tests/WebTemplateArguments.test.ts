@@ -2,7 +2,6 @@ import { expect, test } from "bun:test";
 import {
   existsSync,
   readFileSync,
-  mkdtempSync,
   mkdirSync,
   readdirSync,
   rmSync,
@@ -10,9 +9,10 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 test("template generator rejects incomplete options, unknown arguments and unreadable inputs", () => {
-  const dir = mkdtempSync(resolve(".web-template-args-"));
+  const dir = makeRepoTempDir("web-template-args-");
   try {
     const views = join(dir, "views");
     mkdirSync(views);
@@ -59,7 +59,7 @@ test("template generator rejects incomplete options, unknown arguments and unrea
 }, 120000);
 
 test("template generation replaces only the final filename extension", () => {
-  const dir = mkdtempSync(resolve(".web-template-names-"));
+  const dir = makeRepoTempDir("web-template-names-");
   try {
     const views = join(dir, "views");
     mkdirSync(views);

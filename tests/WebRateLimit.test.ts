@@ -1,9 +1,10 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
 import { request } from "node:http";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 const sqlite =
   spawnSync("clang", ["-print-file-name=libsqlite3.so.0"], {
     encoding: "utf8",
@@ -12,7 +13,7 @@ const sqlite =
 test.skipIf(process.platform !== "linux" || !sqlite.includes("/"))(
   "rate limit middleware admits exactly its budget across workers and ignores forwarded identities",
   async () => {
-    const dir = mkdtempSync(resolve(".web-rate-test-"));
+    const dir = makeRepoTempDir("web-rate-test-");
     let child: ReturnType<typeof Bun.spawn> | undefined;
     try {
       const probe = createServer();
