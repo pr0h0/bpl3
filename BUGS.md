@@ -543,12 +543,19 @@ now parse under a 400 MB address-space limit (about 800 MB before).
 
 #### BUG-459: bpl-db saves records it cannot load, and saves non-atomically
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `packages/bpl-db/src/storage.bpl:156-209/224`: a 600 KB string saves, but `load`
 throws `Database record exceeds 1 MiB`. `save` ignores `write`/`close` failures
 and truncates in place. Enforce one limit on insert/save (or stream lines) and
 write to a temporary file plus rename.
+
+**Resolution**: `save` checks each row line against the 1 MiB limit `load`
+enforces and throws before writing it; writes go to `<path>.tmp`, every
+`write`/`close` result is checked, and the file is renamed over `path` only on
+success (a failure removes the temporary file and throws `Database save
+failed`). Table and column names are written directly instead of through a
+fixed 4 KB `sprintf` buffer. `tests/WebDatabaseSnapshots.test.ts`.
 
 #### BUG-460: `Map.__eq__` (and likely `Array.indexOf`) compare string values by pointer
 

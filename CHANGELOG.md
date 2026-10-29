@@ -49,6 +49,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- bpl-db `save` is atomic (temporary file plus rename), checks write errors,
+  and rejects rows that `load` could not read back (BUG-459).
+
 - bpl-express route parameters are percent-decoded (`/users/John%20Doe` →
   `John Doe`); invalid escapes and `%00` do not match (BUG-463).
 
