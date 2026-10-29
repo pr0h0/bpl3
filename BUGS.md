@@ -236,9 +236,14 @@ the docs/36 example.
 
 #### BUG-442: `bpl format a.bpl b.bpl | head` crashes with an EPIPE stack trace
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 `cli/commands/formatAction.ts:216`. Exit quietly on `EPIPE`.
+
+**Resolution**: `index.ts` installs `error` handlers on stdout and stderr that
+exit 0 on `EPIPE` and rethrow anything else, which covers every command. It
+no longer reproduces with Bun 1.3.14 (the write fails silently there), so
+there is no regression test; the handler guards other runtimes and versions.
 
 #### BUG-443: Remaining CLI paper cuts
 

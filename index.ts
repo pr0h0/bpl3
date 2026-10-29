@@ -28,6 +28,15 @@ import {
 
 const log = new Logger("CLI");
 
+// `bpl format a.bpl b.bpl | head` closes stdout early; stop quietly instead
+// of printing an EPIPE stack trace (BUG-442).
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on("error", (error: NodeJS.ErrnoException) => {
+    if (error.code === "EPIPE") process.exit(0);
+    throw error;
+  });
+}
+
 const program = new Command();
 const packageJson = require("./package.json");
 
