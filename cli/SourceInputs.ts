@@ -34,13 +34,15 @@ const excludedDirectories = new Set([
  */
 export function expandSourceInputs(inputs: string[]): string[] {
   const found = new Map<string, string>();
-  // Existing paths are deduplicated by resolved path. A missing input keeps
-  // its own spelling, so `missing/../a.bpl` still reports its error.
-  const add = (file: string) =>
-    found.set(
-      file === "-" || !fs.existsSync(file) ? `\0${file}` : path.resolve(file),
-      file,
-    );
+  // Existing files are deduplicated by device and inode: both `path.resolve`
+  // and Bun's realpath collapse `..` textually, but `link/../a.bpl` may name
+  // another file than `a.bpl`. A missing input keeps its own spelling, so
+  // `missing/../a.bpl` still reports its error.
+  const add = (file: string) => {
+    const stats =
+      file === "-" ? undefined : fs.statSync(file, { throwIfNoEntry: false });
+    found.set(stats ? `${stats.dev}:${stats.ino}` : `\0${file}`, file);
+  };
   for (const input of inputs) {
     if (
       input === "-" ||

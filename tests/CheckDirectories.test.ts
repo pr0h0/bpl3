@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
 
@@ -51,6 +51,19 @@ test("check expands directories and honors .bplignore", () => {
     const missingReport = JSON.parse(missing.stdout.toString());
     expect(missingReport.totalFiles).toBe(2);
     expect(missingReport.files[0].errorCode).toBe("BPL_CHECK_INPUT_NOT_FOUND");
+
+    // `link/../main.bpl` is another file than `src/main.bpl` when `link`
+    // points elsewhere; both are checked.
+    mkdirSync(join(root, "other", "deep"), { recursive: true });
+    writeFileSync(
+      join(root, "other", "main.bpl"),
+      "frame main() ret int { return x; }\n",
+    );
+    symlinkSync(join(root, "other", "deep"), join(root, "src", "link"));
+    const linked = run([main, `${root}/src/link/../main.bpl`]);
+    const linkedReport = JSON.parse(linked.stdout.toString());
+    expect(linkedReport.totalFiles).toBe(2);
+    expect(linkedReport.errorCount).toBe(1);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
