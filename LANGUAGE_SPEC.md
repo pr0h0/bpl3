@@ -417,7 +417,12 @@ frame main() ret int {
   Whitespace and comments inside `<...>` and after its closing `>` are allowed.
 - **[R-FN-9]** A constrained type parameter `<T: Spec>` accepts only types that
   implement `Spec`, whether the spec is listed directly, after a parent struct,
-  or on a parent struct.
+  or on a parent struct. Inside the function, the spec's methods are called on
+  `T` with `Self` bound to `T`, including for generic specs (`T: Getter<long>`).
+- **[R-FN-10]** A native variadic parameter `xs: ...T` must be followed by one
+  `int` count parameter and is allowed on free functions only; a method with
+  one is rejected with `BPL_VARIADIC_METHOD_UNSUPPORTED`. A variadic function
+  is not interchangeable with a `Func`/`Lambda` of its lowered signature.
 
 ```bpl
 frame identity<T>(val: T) ret T {

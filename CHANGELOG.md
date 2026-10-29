@@ -39,6 +39,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Methods with a native variadic parameter (`xs: ...int`), which compiled to a
+  wrong signature and crashed when bound to a lambda, are rejected with
+  `BPL_VARIADIC_METHOD_UNSUPPORTED`; diagnostics now mark variadic function
+  types with `...` (BUG-430).
+
 - Methods of a generic spec (`spec Getter<V> { frame get(this: *Self) ret V; }`)
   can be called on a parameter constrained by it (`T: Getter<long>`), and
   `Self`-returning methods return `T` (BUG-435).

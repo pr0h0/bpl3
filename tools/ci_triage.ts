@@ -620,6 +620,7 @@ const STATEMENT_SEMANTIC_GUARD_STEP_PATTERN = new RegExp(
     "BPL_ASSIGNMENT_TARGET_INVALID",
     "BPL_TUPLE_DESTRUCTURE_TARGET_INVALID",
     "BPL_GLOBAL_INITIALIZER_NOT_CONSTANT",
+    "BPL_VARIADIC_METHOD_UNSUPPORTED",
     "statement semantic guard",
     "Global initializer must be a compile-time constant",
     "Missing type annotation for variable",

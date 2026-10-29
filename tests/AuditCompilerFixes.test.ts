@@ -71,7 +71,37 @@ frame takeSlice(_xs: Animal[]) {}
   });
 });
 
+describe("BUG-430: native variadic methods", () => {
+  // spec: R-FN-10
+  for (const [kind, source] of Object.entries({
+    struct:
+      "struct S { b: int, frame add(this: *S, xs: ...int, n: int) ret int { return n; } }",
+    spec: "spec Sp { frame add(this: *Self, xs: ...int, n: int) ret int; }",
+    enum: "enum E { A, frame add(this: *E, xs: ...int, n: int) {} }",
+  })) {
+    test(`are rejected on ${kind} methods`, () => {
+      const result = check(source + MAIN);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("BPL_VARIADIC_METHOD_UNSUPPORTED");
+    });
+  }
+
+  test("a variadic function value shows it is variadic in mismatches", () => {
+    const result = check(`frame add(xs: ...int, n: int) ret int { return n; }
+frame main() ret int {
+    local f: Func<int>(*int, int) = add;
+    return f(nullptr, 0);
+}
+`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "cannot assign Func<i32>(*i32, i32, ...) to Func<i32>(*i32, i32)",
+    );
+  });
+});
+
 describe("BUG-435: generic spec methods on a constrained type parameter", () => {
+  // spec: R-FN-9
   test("binds Self to the parameter, including Self-returning methods", () => {
     const output = compileAndRun(`import printf from "std/c.bpl";
 spec Getter<T> { frame get(this: *Self) ret T; frame twice(this: *Self) ret Self; }

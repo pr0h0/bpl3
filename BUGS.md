@@ -102,13 +102,22 @@ except the two that need external libraries now build with `--debug`.
 
 #### BUG-430: Bound variadic methods get an unlowered signature and segfault
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `CallChecker.ts:1243-1309` builds bound-method `Lambda` types without the
 variadic `*T, count` lowering applied to free functions (`TypeChecker.ts:621`).
 `local f: Lambda<int>(int,int) = s.add; f(1,1);` segfaults. The value-receiver
 variant passes `check` and fails only in codegen. Share one signature builder
 and diagnose the unsupported case in the checker.
+
+**Resolution**: native variadic methods were never supported. Their IR
+signature took the variadic parameter as a plain `T`, and even direct calls
+such as `s.add(1, 2, 2)` failed with an argument-count error. Methods (struct,
+enum and spec) with a `...T` parameter are now rejected at declaration with
+`BPL_VARIADIC_METHOD_UNSUPPORTED`. Diagnostics mark variadic function types
+(`Func<i32>(*i32, i32, ...)`), so assigning a free variadic function to a
+`Func` no longer reads "cannot assign Func<i32>(*i32, i32) to
+Func<i32>(*i32, i32)". `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-431: Inherited static `new` called through a child type emits an undefined symbol
 

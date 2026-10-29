@@ -63,6 +63,11 @@ To accept multiple arguments of the same type, use the `...Type` syntax.
 
 1.  The variadic parameter must be the **second-to-last** parameter.
 2.  The **last parameter** must be of type `int` (to receive the count).
+3.  Only free functions can be variadic. A struct, enum or spec method with a
+    `...T` parameter is rejected with `BPL_VARIADIC_METHOD_UNSUPPORTED`; take a
+    slice (`xs: T[]`) instead. A variadic function cannot be stored in a
+    `Func`/`Lambda` value (diagnostics show it as `Func<R>(*T, int, ...)`); call
+    it directly.
 
 ```bpl
 # 'nums' receives a pointer to an array of ints

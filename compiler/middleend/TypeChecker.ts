@@ -40,6 +40,7 @@ import {
   TYPE_RECURSION_CYCLE_CODE,
   TypeCheckerBase,
   VOID_TYPE_INVALID_CODE,
+  VARIADIC_METHOD_UNSUPPORTED_CODE,
 } from "./TypeCheckerBase";
 import { KNOWN_TYPES, TypeUtils } from "./TypeUtils";
 import {
@@ -1149,6 +1150,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         );
       }
 
+      if (param.isVariadic && parentStruct) {
+        // Methods are called and bound without argument packing, so a
+        // `...T` parameter would receive raw arguments (BUG-430).
+        throw new CompilerError(
+          `Method '${decl.name}' cannot have a native variadic parameter`,
+          "Native variadics (`...T`) are supported on free functions only. Take a slice (`xs: T[]`) or a pointer and count instead.",
+          param.location,
+          VARIADIC_METHOD_UNSUPPORTED_CODE,
+        );
+      }
+
       if (param.isVariadic) {
         // Enforce variadic structure: (..., variadic, count)
         // The variadic parameter must be the second to last parameter
@@ -2132,6 +2144,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Spec Body Checking ==========
 
   private checkSpecBody(decl: AST.SpecDecl): void {
+    for (const method of decl.methods) {
+      const variadic = method.params.find((param) => param.isVariadic);
+      if (variadic) {
+        throw new CompilerError(
+          `Method '${method.name}' cannot have a native variadic parameter`,
+          "Native variadics (`...T`) are supported on free functions only. Take a slice (`xs: T[]`) or a pointer and count instead.",
+          variadic.location,
+          VARIADIC_METHOD_UNSUPPORTED_CODE,
+        );
+      }
+    }
     // Validate inheritance list
     if (decl.extends) {
       for (const parentType of decl.extends) {
