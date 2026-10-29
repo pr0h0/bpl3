@@ -136,7 +136,11 @@ bpl check main.bpl --json
 Warnings (unreachable code, a local shadowing an outer variable) are printed
 but do not fail the check. With `--json` they appear in each file's
 `diagnostics` with `severity: "warning"`, and the report includes
-`warningCount` next to `errorCount`.
+`warningCount` next to `errorCount`. Only warnings located in a checked file
+are reported for it; an imported module's warnings belong to that module.
+`bpl build` and `bpl run` print the entry file's warnings on stderr too (not in
+`--json` mode), and never fail because of them. Unreachable code is reported
+once per block, at the first statement that cannot run.
 
 `--json` reports rich diagnostics with `code`, `severity`, source ranges, and a
 source-line preview. Use it in editor integrations and CI tools that need

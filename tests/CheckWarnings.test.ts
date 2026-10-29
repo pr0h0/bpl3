@@ -52,6 +52,49 @@ test("check reports warnings without failing", () => {
   }
 });
 
+test("an imported module's warnings are counted once, for that module", () => {
+  const dir = mkdtempSync(join(tmpdir(), "bpl-check-warnings-"));
+  try {
+    writeFileSync(
+      join(dir, "lib.bpl"),
+      `frame helper() ret int {
+    return 1;
+    return 2;
+}
+export helper;
+`,
+    );
+    writeFileSync(
+      join(dir, "main.bpl"),
+      `import helper from "./lib.bpl";
+frame main() ret int { return helper(); }
+`,
+    );
+    const result = Bun.spawnSync(
+      [
+        process.execPath,
+        resolve("index.ts"),
+        "check",
+        "--json",
+        "main.bpl",
+        "lib.bpl",
+      ],
+      { cwd: dir, env: { ...process.env, NO_COLOR: "1" } },
+    );
+    const report = JSON.parse(result.stdout.toString());
+    expect(report.warningCount).toBe(1);
+    const byFile = Object.fromEntries(
+      report.files.map((f: { file: string; diagnostics?: unknown[] }) => [
+        f.file,
+        f.diagnostics?.length ?? 0,
+      ]),
+    );
+    expect(byFile).toEqual({ "main.bpl": 0, "lib.bpl": 1 });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("programs with unreachable code still build and run", () => {
   expect(compileAndRun(SOURCE)).toBe("2\n");
 });

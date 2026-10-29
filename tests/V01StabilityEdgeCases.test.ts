@@ -390,7 +390,7 @@ describe("v0.1 Stability Edge Cases", () => {
       );
     });
 
-    it("rejects unreachable code after return", () => {
+    it("warns once about unreachable code after return", () => {
       const result = compileAndRunFull(`
         frame main() ret int {
           return 1;
@@ -399,10 +399,9 @@ describe("v0.1 Stability Edge Cases", () => {
         }
       `);
 
-      expect(result.exitCode).not.toBe(0);
-      expect((result.stderr + result.stdout).toLowerCase()).toContain(
-        "unreachable code",
-      );
+      // A warning, not an error: the program builds and returns 1.
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr.match(/Unreachable code detected/g)).toHaveLength(1);
     });
   });
 });

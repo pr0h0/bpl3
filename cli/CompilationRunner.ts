@@ -20,7 +20,7 @@ import {
   TokenType,
 } from "../compiler";
 import { loadFormatterConfig } from "../compiler/formatter/FormatterConfig";
-import { diagnosticFormatter } from "./DiagnosticFormatter";
+import { diagnosticFormatter, warningsForFile } from "./DiagnosticFormatter";
 import {
   compileBinaryAndRun,
   compileToBinary,
@@ -620,6 +620,7 @@ function compileWithModules(
     process.exit(1);
   }
 
+  printBuildWarnings(result.warnings ?? [], filePath, options);
   if (result.ast) writeCHeader(result.ast, filePath, options);
 
   // Handle different emit types
@@ -717,6 +718,7 @@ async function compileWithModulesAsync(
     process.exit(1);
   }
 
+  printBuildWarnings(result.warnings ?? [], filePath, options);
   if (result.ast) writeCHeader(result.ast, filePath, options);
 
   // Handle different emit types
@@ -833,6 +835,8 @@ function compileSingleFile(
     process.exit(1);
   }
 
+  printBuildWarnings(typeChecker.getWarnings(), filePath, options);
+
   if (options.verbose) {
     log.info("Semantic analysis completed successfully.");
   }
@@ -852,6 +856,22 @@ function compileSingleFile(
 
   writeCHeader(ast, filePath, options);
   writeLlvmOutputAndMaybeBuild(filePath, options, ir, programArgs);
+}
+
+/**
+ * Warnings never fail a build. Show the entry file's on stderr, as `check`
+ * does; JSON reports keep stdout parseable and stay quiet.
+ */
+function printBuildWarnings(
+  allWarnings: CompilerError[],
+  filePath: string,
+  options: CompileOptions,
+): void {
+  if (shouldEmitBuildJsonReport(options)) return;
+  const warnings = warningsForFile(allWarnings, filePath);
+  if (warnings.length > 0) {
+    console.error(diagnosticFormatter.formatErrors(warnings));
+  }
 }
 
 /**
@@ -924,8 +944,9 @@ function isSameFile(outputPath: string, sourcePath: string): boolean {
   // Hard links and case-insensitive file systems reach the same file through
   // a different path (symlinked outputs are refused separately).
   try {
-    const output = fs.statSync(outputPath);
-    const source = fs.statSync(sourcePath);
+    // BigInt stats: large inode numbers lose precision as JS numbers.
+    const output = fs.statSync(outputPath, { bigint: true });
+    const source = fs.statSync(sourcePath, { bigint: true });
     return output.dev === source.dev && output.ino === source.ino;
   } catch {
     return false;

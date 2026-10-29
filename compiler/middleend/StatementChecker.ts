@@ -622,8 +622,11 @@ export function checkBlock(
     }
 
     let terminated = false;
+    let reportedUnreachable = false;
     for (const s of stmt.statements) {
-      if (terminated) {
+      // One warning per block, at the first statement that cannot run.
+      if (terminated && !reportedUnreachable) {
+        reportedUnreachable = true;
         const error = new CompilerError(
           "Unreachable code detected.",
           "This statement follows a return, break, continue, or throw statement and will never be executed.",

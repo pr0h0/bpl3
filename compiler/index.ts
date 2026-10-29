@@ -113,6 +113,8 @@ export interface CompilationResult {
   output?: string;
   /** Compilation errors if any */
   errors?: CompilerError[];
+  /** Checker warnings (never fail the compilation) */
+  warnings?: CompilerError[];
   /** Parsed AST if available */
   ast?: AST.Program;
   /** Optional structured performance and tooling metadata */
@@ -315,6 +317,7 @@ export class Compiler {
         success: true,
         output: llvmIR,
         ast,
+        warnings: typeChecker.getWarnings(),
       };
     } catch (error) {
       if (error instanceof CompilerError) {
@@ -552,6 +555,7 @@ export class Compiler {
         success: true,
         output: llvmIR,
         ast: combinedAST,
+        warnings: typeChecker.getWarnings(),
       };
     } catch (error) {
       if (error instanceof CompilerError) {

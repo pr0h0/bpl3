@@ -6,6 +6,7 @@
 import { CompilerError } from "../../compiler/common/CompilerError";
 import { Parser } from "../../compiler/frontend/Parser";
 import { TypeChecker } from "../../compiler/middleend/TypeChecker";
+import { warningsForFile } from "../DiagnosticFormatter";
 
 export { CompilerError };
 
@@ -31,6 +32,6 @@ export function checkSource(
   typeChecker.checkProgram(ast);
   return {
     errors: typeChecker.getErrors(),
-    warnings: typeChecker.getWarnings(),
+    warnings: warningsForFile(typeChecker.getWarnings(), filePath),
   };
 }
