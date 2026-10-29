@@ -137,7 +137,7 @@ When debug info is enabled, the BPL compiler (`StatementGenerator.ts`) inserts c
 - **DIBuilder**: The compiler uses a `DIBuilder` helper to construct DWARF metadata nodes.
 - **Scopes**: It tracks lexical scopes (functions, blocks) to ensure variables are reported in the correct context.
 - **Type Mapping**: BPL types are mapped to DWARF type encodings (e.g., `DW_ATE_signed` for `int`). Inside a monomorphized generic body, `T` is described as its concrete type (`ArrayIterator<String>.next` shows `val` as `String`). Built-in structs without a declaration in scope, such as `Any`, appear as opaque structs of the correct size.
-- **Lambda symbols**: A lambda is emitted as `lambda_L<line>_C<column>`; lambdas in modules after the first one gain an `_M<n>` suffix, so lambdas at the same position in two files stay distinct.
+- **Lambda symbols**: A lambda is emitted as `lambda_L<line>_C<column>`, with generic arguments appended for generic instantiations. Lambdas in modules after the first one are `lambda_M<n>_L<line>_C<column>`, so lambdas at the same position in two files stay distinct and a type named `M1` cannot imitate the module ordinal.
 
 ### Recent Fixes
 

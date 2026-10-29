@@ -129,7 +129,11 @@ const CLI_JSON_ERROR_CODE_LISTS = [
   },
   {
     name: "package-init",
-    codes: ["BPL_PACKAGE_INIT_NAME_INVALID", "BPL_PACKAGE_INIT_MANIFEST_EXISTS"],
+    codes: [
+      "BPL_PACKAGE_INIT_NAME_INVALID",
+      "BPL_PACKAGE_INIT_MANIFEST_EXISTS",
+      "BPL_PACKAGE_INIT_ENTRY_INVALID",
+    ],
   },
   {
     name: "package-uninstall",

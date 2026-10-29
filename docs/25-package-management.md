@@ -84,7 +84,9 @@ entry file was created. JSON-mode validation
 failures stay on stdout with `success: false`, `package`, `manifestPath`,
 `error`, and stable `errorCode` values including
 `BPL_PACKAGE_INIT_NAME_INVALID` for invalid explicit names and
-`BPL_PACKAGE_INIT_MANIFEST_EXISTS` when `bpl.json` is already present.
+`BPL_PACKAGE_INIT_MANIFEST_EXISTS` when `bpl.json` is already present, and
+`BPL_PACKAGE_INIT_ENTRY_INVALID` when `index.bpl` exists but is a directory or
+symlink.
 Reproduce the focused JSON contract with
 `bun test tests/PackageManagerCLI.test.ts -t "init success and failures as JSON"`.
 

@@ -5,6 +5,7 @@
 
 import * as fs from "fs";
 import * as os from "os";
+import { collectOption } from "../RootProgram";
 import * as path from "path";
 import { resolveProjectEntry } from "../ProjectEntry";
 import { Command, Option } from "commander";
@@ -59,12 +60,27 @@ export function registerRunCommand(program: Command): void {
       "-j, --jobs <count>",
       "parallel module compilation jobs for cached builds",
     )
-    .option("-l, --lib <lib...>", "libraries to link with")
-    .option("-L, --lib-path <path...>", "library search paths")
-    .option("--object <file...>", "object files to link (.o, .ll, etc.)")
+    // Repeatable single-value options: a variadic `<lib...>` would also
+    // consume the source file in `bpl run --lib m main.bpl`.
     .option(
-      "--clang-flag <flag...>",
-      "additional flags forwarded directly to clang",
+      "-l, --lib <lib>",
+      "library to link with (repeatable)",
+      collectOption,
+    )
+    .option(
+      "-L, --lib-path <path>",
+      "library search path (repeatable)",
+      collectOption,
+    )
+    .option(
+      "--object <file>",
+      "object file to link, .o or .ll (repeatable)",
+      collectOption,
+    )
+    .option(
+      "--clang-flag <flag>",
+      "flag forwarded directly to clang (repeatable)",
+      collectOption,
     )
     .option("--no-prelude", "do not load implicit primitives")
     .option("--color", "force colored output")

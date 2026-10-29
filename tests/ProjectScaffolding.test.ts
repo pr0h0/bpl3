@@ -76,3 +76,33 @@ test("new projects ignore pack artifacts", () => {
     expect(ignore).toContain("*.bplmeta.json");
   });
 });
+
+test("init rejects an entry path that is not a regular file", () => {
+  withRoot((root) => {
+    const app = join(root, "dirapp");
+    mkdirSync(join(app, "index.bpl"), { recursive: true });
+    const result = bpl(["init", "--json"], app, root);
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).errorCode).toBe(
+      "BPL_PACKAGE_INIT_ENTRY_INVALID",
+    );
+    expect(existsSync(join(app, "bpl.json"))).toBe(false);
+  });
+});
+
+test("linker options are repeatable and do not swallow the source file", () => {
+  withRoot((root) => {
+    const file = join(root, "m.bpl");
+    require("fs").writeFileSync(
+      file,
+      'import printf from "std/c.bpl";\nextern cbrt(x: double) ret double;\nframe main() ret int { printf("%.1f\\n", cbrt(27.0)); return 0; }\n',
+    );
+    for (const args of [
+      ["run", "--lib", "m", "m.bpl"],
+      ["run", "-l", "m", "-l", "c", "m.bpl"],
+      ["--lib", "m", "run", "m.bpl"],
+    ]) {
+      expect(bpl(args, root, root).stdout).toBe("3.0\n");
+    }
+  });
+});

@@ -454,6 +454,10 @@ ${zshOptionSpecs(tree, "        ").join(" \\\n")} \\
         args)
             case $line[1] in
 ${arms.join("\n")}
+                *)
+                    # \`bpl a.bpl b.bpl\`: more root source files.
+                    _files -g "*.{bpl,x}"
+                    ;;
             esac
             ;;
     esac

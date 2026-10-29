@@ -39,6 +39,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `-l/--lib`, `-L/--lib-path`, `--object` and `--clang-flag` take one value
+  each and are repeatable (`-l m -l c`); as variadic options they swallowed a
+  following source file (`bpl run --lib m main.bpl`). This replaces the
+  `--lib a b` form. Spec methods can no longer be used as bound values
+  (`x.get` on a spec or constrained receiver), which code generation could not
+  bind. `bpl init` rejects an `index.bpl` that is a directory or symlink
+  (`BPL_PACKAGE_INIT_ENTRY_INVALID`).
+
 - `bpl init` creates the `index.bpl` entry it declares (so `run` and `pack`
   work) and ends `bpl.json` with a newline; `bpl install <archive>` adds the
   package to `bpl.json` so `bpl lock` no longer drops it; new projects ignore

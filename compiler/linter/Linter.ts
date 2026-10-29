@@ -9,6 +9,8 @@ const languageHooks = new Set([
   "__call__",
 ]);
 import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
+import { lexWithGrammar } from "../frontend/GrammarLexer";
+import { TokenType } from "../frontend/TokenType";
 
 export interface LintRule {
   code: string;
@@ -415,6 +417,25 @@ export class Linter {
   }
 }
 
+/** A rename hint, or a general one when the converted name is not usable. */
+function renameHint(name: string, pascal: boolean): string {
+  const suggestion = toCase(name, pascal);
+  let tokens: { type: TokenType }[] = [];
+  try {
+    tokens = lexWithGrammar(suggestion, "lint-suggestion.bpl");
+  } catch {
+    tokens = [];
+  }
+  // Keywords (`_frame` → `frame`) and digits (`_123`) are not identifiers.
+  const valid =
+    tokens.length > 0 &&
+    tokens[0]!.type === TokenType.Identifier &&
+    tokens.filter((token) => token.type !== TokenType.EOF).length === 1;
+  return valid
+    ? `Rename it to '${suggestion}'.`
+    : `Rename it to ${pascal ? "PascalCase, e.g. 'MyStruct'" : "camelCase, e.g. 'doWork'"}.`;
+}
+
 /** `my_struct`/`MY_STRUCT`/`myStruct` → `MyStruct` (pascal) or `myStruct`. */
 function toCase(name: string, pascal: boolean): string {
   const words = name
@@ -443,7 +464,7 @@ class NamingConventionRule implements LintRule {
           node,
           DiagnosticSeverity.Warning,
           this.code,
-          `Rename it to '${toCase(decl.name, true)}'.`,
+          renameHint(decl.name, true),
         );
       }
     } else if (node.kind === "FunctionDecl") {
@@ -457,7 +478,7 @@ class NamingConventionRule implements LintRule {
           node,
           DiagnosticSeverity.Warning,
           this.code,
-          `Rename it to '${toCase(decl.name, false)}'.`,
+          renameHint(decl.name, false),
         );
       }
     }

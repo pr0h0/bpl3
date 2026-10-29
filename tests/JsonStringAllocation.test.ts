@@ -28,12 +28,16 @@ frame main() ret int {
   expect(build.binaryPath).toBeDefined();
   try {
     // About 800 MB before the fix; well under 200 MB after it.
-    const run = Bun.spawnSync([
-      "bash",
-      "-c",
-      `ulimit -v 400000 && "$0"`,
-      build.binaryPath!,
-    ]);
+    // `ulimit -v` is enforced on Linux; elsewhere only the result is checked.
+    const run =
+      process.platform === "linux"
+        ? Bun.spawnSync([
+            "bash",
+            "-c",
+            `ulimit -v 400000 && "$0"`,
+            build.binaryPath!,
+          ])
+        : Bun.spawnSync([build.binaryPath!]);
     expect(run.stdout.toString()).toBe("20000 a\n");
     expect(run.exitCode).toBe(0);
   } finally {

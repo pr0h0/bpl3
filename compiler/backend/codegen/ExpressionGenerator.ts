@@ -211,8 +211,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       fileOrdinal = this.lambdaFileOrdinals.size;
       this.lambdaFileOrdinals.set(file, fileOrdinal);
     }
-    let lambdaName = `lambda_L${expr.location.startLine}_C${expr.location.startColumn}`;
-    if (fileOrdinal > 0) lambdaName += `_M${fileOrdinal}`;
+    // The module ordinal precedes the position, so generic-argument suffixes
+    // (a type named `M1`) cannot imitate it.
+    let lambdaName = `lambda_${fileOrdinal > 0 ? `M${fileOrdinal}_` : ""}L${expr.location.startLine}_C${expr.location.startColumn}`;
 
     // If we are in a generic context, append generic args to make the name unique
     if (this.currentTypeMap.size > 0) {

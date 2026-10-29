@@ -83,9 +83,12 @@ export const PACKAGE_INIT_NAME_INVALID_CODE =
   "BPL_PACKAGE_INIT_NAME_INVALID";
 export const PACKAGE_INIT_MANIFEST_EXISTS_CODE =
   "BPL_PACKAGE_INIT_MANIFEST_EXISTS";
+export const PACKAGE_INIT_ENTRY_INVALID_CODE =
+  "BPL_PACKAGE_INIT_ENTRY_INVALID";
 export const PACKAGE_INIT_JSON_ERROR_CODES = [
   PACKAGE_INIT_NAME_INVALID_CODE,
   PACKAGE_INIT_MANIFEST_EXISTS_CODE,
+  PACKAGE_INIT_ENTRY_INVALID_CODE,
 ] as const;
 
 export const PACKAGE_UNINSTALL_NAME_INVALID_CODE =
@@ -5839,14 +5842,24 @@ export class PackageManager {
       devDependencies: {},
     };
 
+    // `main` must exist for `pack`, `run` and `build` to work. An existing
+    // regular file is kept; anything else there could never be packed, so it
+    // is rejected before bpl.json is written.
+    const entryPath = path.join(dir, manifest.main!);
+    const entryStats = this.tryLstat(entryPath);
+    if (entryStats && !entryStats.isFile()) {
+      throw new CompilerError(
+        `Entry point ${manifest.main} exists but is not a regular file`,
+        "Move the directory or symlink away, or create the project in another directory.",
+        { ...location, file: entryPath },
+        PACKAGE_INIT_ENTRY_INVALID_CODE,
+      );
+    }
     this.writeFileAtomically(
       manifestPath,
       JSON.stringify(manifest, null, 2) + "\n",
     );
-    // `main` must exist for `pack`, `run` and `build` to work; keep any
-    // existing file.
-    const entryPath = path.join(dir, manifest.main!);
-    if (this.tryLstat(entryPath)) return { manifest, manifestPath };
+    if (entryStats) return { manifest, manifestPath };
     this.writeFileAtomically(
       entryPath,
       `# Entry point of ${packageName}. Run it with \`bpl run\`.\nimport printf from "std/c.bpl";\n\nframe main() ret int {\n    printf("Hello from ${packageName}\\n");\n    return 0;\n}\n`,

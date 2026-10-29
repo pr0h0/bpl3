@@ -6,6 +6,17 @@
 
 import type { Command } from "commander";
 
+/**
+ * Accumulate a repeatable option (`-l m -l c`). A variadic option would also
+ * consume a following source file (`bpl run --lib m main.bpl`).
+ */
+export function collectOption(
+  value: string,
+  previous: string[] | undefined,
+): string[] {
+  return [...(previous ?? []), value];
+}
+
 export function configureRootOptions(program: Command): Command {
   return program
     .argument("[files...]", "source file(s) to compile")
@@ -22,14 +33,27 @@ export function configureRootOptions(program: Command): Command {
     .option("--cpu <cpu>", "target CPU for clang (e.g. znver4)")
     .option("--march <arch>", "target architecture for clang (e.g. arm64)")
     .option(
-      "--clang-flag <flag...>",
-      "additional flags forwarded directly to clang",
+      "--clang-flag <flag>",
+      "flag forwarded directly to clang (repeatable)",
+      collectOption,
     )
     .option("--wasm-runtime <mode>", "wasm runtime mode: freestanding or host")
     .option("--debug-ir-path <file>", "write diagnostic LLVM IR to a file")
-    .option("-l, --lib <lib...>", "libraries to link with")
-    .option("-L, --lib-path <path...>", "library search paths")
-    .option("--object <file...>", "object files to link (.o, .ll, etc.)")
+    .option(
+      "-l, --lib <lib>",
+      "library to link with (repeatable)",
+      collectOption,
+    )
+    .option(
+      "-L, --lib-path <path>",
+      "library search path (repeatable)",
+      collectOption,
+    )
+    .option(
+      "--object <file>",
+      "object file to link, .o or .ll (repeatable)",
+      collectOption,
+    )
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
     .option("--cache", "enable incremental compilation with module caching")

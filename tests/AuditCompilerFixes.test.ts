@@ -156,6 +156,22 @@ frame main() ret int {
 `);
     expect(output).toBe("21\n");
   });
+
+  test("rejects a spec method used as a value, which cannot be bound", () => {
+    const result = check(`spec G<V> { frame get(this: *Self) ret V; }
+struct B: G<long> { v: long, frame get(this: *B) ret long { return this.v; } }
+frame use<T: G<long>>(x: *T) ret long {
+    local f: Lambda<long>() = x.get;
+    return f();
+}
+frame main() ret int {
+    local b: B = B { v: 2 };
+    return cast<int>(use<B>(&b));
+}
+`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Cannot use spec method 'get' as a value");
+  });
 });
 
 describe("BUG-427: types that contain themselves by value", () => {

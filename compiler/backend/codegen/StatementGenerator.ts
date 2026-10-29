@@ -3256,7 +3256,7 @@ export abstract class StatementGenerator extends AsmGenerator {
 
         // This check detects if we are generating a lambda body (from expression)
         // vs a distinct named function (frame)
-        const isLambda = !!captureInfo || decl.name.startsWith("lambda_L");
+        const isLambda = !!captureInfo || /^lambda_(M\d+_)?L\d/.test(decl.name);
 
         if (isLambda) {
           ctxParam = "i8* %__closure_ctx";
