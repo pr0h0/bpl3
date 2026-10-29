@@ -429,7 +429,6 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       const methodName = `${implementation.owner}_${implMethod.name}`;
       const implName = this.getMangledName(methodName, funcType, false, []);
 
-      const _args = [thisArg, ...paramNames].join(", ");
       const argTypes = [firstParamType, ...paramTypes];
       const typedArgs = argTypes
         .map((t, i) => `${t} ${i === 0 ? thisArg : paramNames[i - 1]}`)

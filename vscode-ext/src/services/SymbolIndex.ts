@@ -723,7 +723,6 @@ export class SymbolIndex {
     content: string,
   ): SymbolInfo[] {
     const importedSymbols: SymbolInfo[] = [];
-    const _seenFiles = new Set<string>();
     let importStatements: Array<{
       source: string;
       items?: Array<{ name: string }>;
@@ -873,63 +872,4 @@ export class SymbolIndex {
     }
   }
 
-  /**
-   * Get symbols from a file and all its imports recursively
-   */
-  private getFileSymbolsRecursive(
-    filePath: string,
-    seenFiles: Set<string>,
-  ): SymbolInfo[] {
-    if (seenFiles.has(filePath)) {
-      return [];
-    }
-    seenFiles.add(filePath);
-
-    const symbols: SymbolInfo[] = [];
-
-    // Get direct symbols from this file
-    const directSymbols = this.getFileSymbols(filePath);
-    symbols.push(...directSymbols);
-
-    // Get symbols from files that this file imports
-    try {
-      const content = fs.readFileSync(filePath, "utf-8");
-      const parser = new Parser(content, filePath);
-      const program = parser.parse();
-
-      for (const stmt of program.statements) {
-        if (stmt.kind === "Import") {
-          const importStmt = stmt as AST.ImportStmt;
-          const resolved = this.resolver.resolve(importStmt.source, filePath);
-
-          if (resolved) {
-            // Recursively get symbols from imported file
-            const transitiveSymbols = this.getFileSymbolsRecursive(
-              resolved.filePath,
-              seenFiles,
-            );
-
-            // If specific items are imported, filter them
-            if (importStmt.items && importStmt.items.length > 0) {
-              const importedNames = new Set(
-                importStmt.items.map((item) => item.name),
-              );
-              symbols.push(
-                ...transitiveSymbols.filter((sym) =>
-                  importedNames.has(sym.name),
-                ),
-              );
-            } else {
-              // Import all
-              symbols.push(...transitiveSymbols);
-            }
-          }
-        }
-      }
-    } catch (_error) {
-      // Ignore parse errors
-    }
-
-    return symbols;
-  }
 }

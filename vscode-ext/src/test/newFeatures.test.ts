@@ -1055,8 +1055,6 @@ describe("Integration - All Features Together", () => {
   let selectionProvider: SelectionRangeProvider;
   let highlightProvider: DocumentHighlightProvider;
   let foldingProvider: FoldingRangeProvider;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let signatureProvider: SignatureHelpProvider;
   let symbolProvider: DocumentSymbolProvider;
 
   beforeAll(() => {
@@ -1066,7 +1064,6 @@ describe("Integration - All Features Together", () => {
     selectionProvider = new SelectionRangeProvider(astResolver);
     highlightProvider = new DocumentHighlightProvider(astResolver);
     foldingProvider = new FoldingRangeProvider(astResolver);
-    signatureProvider = new SignatureHelpProvider(astResolver, symbolIndex);
     symbolProvider = new DocumentSymbolProvider(astResolver);
 
     // Index the todo app for signature help

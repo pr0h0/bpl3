@@ -455,6 +455,8 @@ the `bin` from `src/cli.bpl` at install time instead of committing it.
   `generateFatPointerComparison`; the `TypeComparison` class
   (`TypeUtils.ts:464-857`) is used only by two tests and disagrees with
   `TypeCheckerBase`. Remove them and enable `noUnusedLocals`.
+  *Done:* dead code removed (compiler, fuzz, tools, playground, tests and the
+  language server) and `noUnusedLocals` enabled. `TypeComparison` remains.
 - Importing from `"std"` compiles the whole library (1112 functions, 82k IR lines
   vs 2.9k for `std/array.bpl`); prune unreferenced module functions.
   `emitReferencedDeferredMethods` (`CodeGenerator.ts:660`) rescans all output

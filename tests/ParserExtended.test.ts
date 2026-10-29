@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 
-import { CompilerError } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 
@@ -208,7 +207,6 @@ describe("Parser - Extended Tests", () => {
 
     it("should parse struct type aliases", () => {
       const source = "type MyPoint = Point; struct Point { x: int, y: int, }";
-      const tokens = lexWithGrammar(source, "test.bpl");
       const parser = new Parser(source, "test.bpl");
       const program = parser.parse();
       expect(program.statements.length).toBe(2);
@@ -216,7 +214,6 @@ describe("Parser - Extended Tests", () => {
 
     it("should parse nested type aliases", () => {
       const source = "type ID = int; type UserID = ID;";
-      const tokens = lexWithGrammar(source, "test.bpl");
       const parser = new Parser(source, "test.bpl");
       const program = parser.parse();
       expect(program.statements.length).toBe(2);

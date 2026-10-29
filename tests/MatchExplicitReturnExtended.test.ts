@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
 import {
-  CompilerError,
   DiagnosticSeverity,
 } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";

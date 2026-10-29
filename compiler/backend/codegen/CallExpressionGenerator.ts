@@ -1208,7 +1208,6 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     let callTarget = "";
     let closureCtx = "null";
     let isClosureCall = false; // Track if we need to pass context argument
-    let _isIndirectCall = false;
 
     // Imports and namespace members can expose a callable global under a
     // different spelling. Load its value through the resolved declaration.
@@ -1222,7 +1221,6 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         (callee.kind === "Identifier" && this.locals.has(callee.name))
       ) {
         // Indirect call
-        _isIndirectCall = true;
         const type = callee.resolvedType!;
 
         if (type.kind === "FunctionType" || type.kind === "LambdaType") {
@@ -1266,7 +1264,6 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         const layout = this.structLayouts.get(structName);
         if (layout && layout.has(memberExpr.property)) {
           // It IS a field! Indirect call.
-          _isIndirectCall = true;
           const type = memberExpr.resolvedType!;
 
           if (type.kind === "FunctionType" || type.kind === "LambdaType") {
@@ -1382,7 +1379,6 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     } else {
       // Other expressions (Index, Call, etc) evaluating to closure struct or func ptr
       // e.g. arr[0]()
-      _isIndirectCall = true;
       const type = callee.resolvedType!;
 
       if (type.kind === "FunctionType" || type.kind === "LambdaType") {

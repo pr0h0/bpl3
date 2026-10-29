@@ -361,12 +361,6 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
           (m) => m.kind === "FunctionDecl" && m.name === methodName,
         ) as AST.FunctionDecl;
         if (fallback) {
-          // Found it!
-          const funcName = fallback.name;
-          const baseName = `${owner.name}_${funcName}`;
-          const funcType = fallback.resolvedType as AST.FunctionTypeNode;
-          const _mangled = this.getMangledName(baseName, funcType);
-
           // If the function is generic, we can't put it in vtable directly unless it's instantiated?
           // But vtable methods shouldn't be generic.
           // If fallback is generic, we skip it.

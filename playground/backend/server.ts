@@ -114,7 +114,6 @@ const server = Bun.serve({
   async fetch(req, server) {
     const peer = server.requestIP(req)?.address ?? "unknown";
     const url = new URL(req.url);
-    const startTime = Date.now();
 
     // Loopback binding alone does not stop websites from accessing local services.
     if (

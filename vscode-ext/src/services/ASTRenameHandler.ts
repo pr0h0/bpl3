@@ -564,28 +564,6 @@ export class ASTRenameHandler {
       findAllDecls(functionNode.body, functionNode);
     }
 
-    // Helper to check if a position is within a node's range
-    const _isInRange = (
-      position: { line: number; character: number },
-      node: AST.ASTNode,
-    ): boolean => {
-      if (!node.location) return false;
-      const loc = node.location;
-      if (position.line < loc.startLine || position.line > loc.endLine) {
-        return false;
-      }
-      if (
-        position.line === loc.startLine &&
-        position.character < loc.startColumn
-      ) {
-        return false;
-      }
-      if (position.line === loc.endLine && position.character > loc.endColumn) {
-        return false;
-      }
-      return true;
-    };
-
     // Find the innermost declaration that contains a reference
     // The key insight: we need to find which Block contains both the declaration and the reference
     const getDeclarationForReference = (
@@ -1045,7 +1023,6 @@ export class ASTRenameHandler {
     const files = [structSymbol.filePath];
     for (const file of files) {
       // Search for .fieldName pattern
-      const _regex = new RegExp(`\\.${fieldName}\\b`, "g");
       try {
         const content = require("fs").readFileSync(file, "utf-8");
         const lines = content.split(/\r\n|\r|\n/);
@@ -1121,7 +1098,6 @@ export class ASTRenameHandler {
     // For simplicity, just search in the file where the struct is defined
     const files = [structSymbol.filePath];
     for (const file of files) {
-      const _regex = new RegExp(`\\.${methodName}\\s*\\(`, "g");
       try {
         const content = require("fs").readFileSync(file, "utf-8");
         const lines = content.split(/\r\n|\r|\n/);
@@ -1623,34 +1599,6 @@ export class ASTRenameHandler {
     }
 
     return null;
-  }
-
-  /**
-   * Check if a name is a local variable in a function
-   */
-  private isLocalVariable(
-    name: string,
-    functionNode: AST.FunctionDecl,
-  ): boolean {
-    let found = false;
-
-    const traverse = (node: AST.ASTNode) => {
-      if (node.kind === "VariableDecl") {
-        const varDecl = node as AST.VariableDecl;
-        if (varDecl.name === name) {
-          found = true;
-        }
-      }
-      if (!found) {
-        this.traverseNode(node, traverse);
-      }
-    };
-
-    if (functionNode.body) {
-      traverse(functionNode.body);
-    }
-
-    return found;
   }
 
   /**

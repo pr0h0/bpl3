@@ -1,7 +1,5 @@
-import * as fs from "fs";
 import { ValidationScheduler } from "./ValidationScheduler";
 import { FormattingFailures } from "./FormattingFailures";
-import * as path from "path";
 import { fileURLToPath } from "url";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import {
@@ -26,7 +24,6 @@ import {
 // Compiler integration
 import * as AST from "../../compiler/common/AST";
 import { formatDocumentText } from "./services/DocumentFormatter";
-import { Parser } from "../../compiler/frontend/Parser";
 import type { TypeChecker } from "../../compiler/middleend/TypeChecker";
 
 // Symbol index and module resolution services
@@ -170,38 +167,10 @@ interface AnalysisResult {
   checker: TypeChecker;
 }
 
-function _typeNodeToString(type: AST.TypeNode | undefined): string {
-  if (!type) return "void";
-  switch (type.kind) {
-    case "BasicType":
-      let name = type.name;
-      if (type.genericArgs && type.genericArgs.length > 0) {
-        name += `<${type.genericArgs.map(_typeNodeToString).join(", ")}>`;
-      }
-      if (type.arrayDimensions) {
-        for (const dim of type.arrayDimensions) {
-          name += `[${dim !== null ? dim : ""}]`;
-        }
-      }
-      if (type.pointerDepth) {
-        name = "*".repeat(type.pointerDepth) + name;
-      }
-      return name;
-    case "FunctionType":
-      const params = type.paramTypes.map(_typeNodeToString).join(", ");
-      const ret = _typeNodeToString(type.returnType);
-      return `Func<${ret}>(${params})`;
-    case "TupleType":
-      return `(${type.types.map(_typeNodeToString).join(", ")})`;
-    default:
-      return "unknown";
-  }
-}
 const documentAnalysis = new Map<string, AnalysisResult>();
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
-let _hasDiagnosticRelatedInformationCapability = false; // reserved for future use
 
 connection.onInitialize((params: InitializeParams) => {
   debugLog("[Server] onInitialize called");
@@ -214,11 +183,6 @@ connection.onInitialize((params: InitializeParams) => {
   );
   hasWorkspaceFolderCapability = !!(
     capabilities.workspace && !!capabilities.workspace.workspaceFolders
-  );
-  _hasDiagnosticRelatedInformationCapability = !!(
-    capabilities.textDocument &&
-    capabilities.textDocument.publishDiagnostics &&
-    capabilities.textDocument.publishDiagnostics.relatedInformation
   );
 
   const result: InitializeResult = {
@@ -353,203 +317,6 @@ documents.onDidClose((e) => {
 documents.onDidChangeContent((change) => {
   validateTextDocument(change.document);
 });
-
-function _getTextForUri(
-  uri: string,
-  openDocuments: TextDocuments<TextDocument>,
-): string | null {
-  const doc = openDocuments.get(uri);
-  if (doc) return doc.getText();
-  try {
-    const fsPath = fileURLToPath(uri);
-    return fs.readFileSync(fsPath, "utf-8");
-  } catch {
-    return null;
-  }
-}
-
-// Resolve workspace lib directory (for std/* imports)
-function findWorkspaceLibDir(startDir: string): string | null {
-  // Check BPL_HOME environment variable first
-  if (process.env.BPL_HOME) {
-    const bplHomeLib = path.join(process.env.BPL_HOME, "lib");
-    if (fs.existsSync(bplHomeLib)) {
-      return bplHomeLib;
-    }
-    // Also check if BPL_HOME itself is the lib dir (some users might set it that way)
-    if (fs.existsSync(path.join(process.env.BPL_HOME, "string.bpl"))) {
-      return process.env.BPL_HOME;
-    }
-  }
-
-  let dir = startDir;
-  const maxUp = 10;
-  for (let i = 0; i < maxUp; i++) {
-    const libDir = path.join(dir, "lib");
-    if (
-      fs.existsSync(libDir) &&
-      fs.existsSync(path.join(libDir, "string.bpl"))
-    ) {
-      return libDir;
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return null;
-}
-
-function resolveImportToFile(
-  importPath: string | undefined,
-  currentDir: string,
-): string | null {
-  if (!importPath) return null;
-
-  if (
-    importPath === "std" ||
-    importPath.startsWith("std/") ||
-    importPath.startsWith("std\\")
-  ) {
-    const libDir =
-      findWorkspaceLibDir(currentDir) || path.join(currentDir, "lib");
-    let candidate =
-      importPath === "std"
-        ? path.join(libDir, "std.bpl")
-        : path.join(libDir, importPath.replace(/^std[\/\\]/, ""));
-    if (!candidate.endsWith(".bpl")) candidate += ".bpl";
-    return fs.existsSync(candidate) ? candidate : null;
-  }
-
-  let resolvedPath = path.resolve(currentDir, importPath || "");
-  if (!fs.existsSync(resolvedPath) && fs.existsSync(resolvedPath + ".bpl")) {
-    resolvedPath += ".bpl";
-  }
-  return fs.existsSync(resolvedPath) ? resolvedPath : null;
-}
-
-// Import cache: stores parsed modules to avoid re-parsing on every validation
-interface CacheEntry {
-  program: AST.Program;
-  timestamp: number;
-  filePath: string;
-}
-
-const importCache = new Map<string, CacheEntry>();
-const fileWatchers = new Map<string, NodeJS.Timeout>();
-
-// Invalidate cache entry when a file changes
-function invalidateCacheEntry(filePath: string): void {
-  importCache.delete(filePath);
-  // Also invalidate any files that imported this module
-  for (const [key] of importCache) {
-    importCache.delete(key);
-  }
-}
-
-// Watch a file for changes and invalidate cache
-function watchFileForChanges(filePath: string): void {
-  if (fileWatchers.has(filePath)) {
-    return; // Already watching
-  }
-
-  try {
-    const watcher = fs.watch(filePath, (eventType) => {
-      if (eventType === "change") {
-        invalidateCacheEntry(filePath);
-      }
-    });
-    fileWatchers.set(filePath, watcher as any);
-  } catch {
-    // File watch might fail on some systems, that's okay
-  }
-}
-
-// Load and parse an imported module with caching
-function _loadImportedModuleWithCache(
-  importPath: string,
-  currentDir: string,
-): { text: string; program: AST.Program } | null {
-  const resolvedPath = resolveImportToFile(importPath, currentDir);
-  if (!resolvedPath) return null;
-
-  // Check cache first
-  const cached = importCache.get(resolvedPath);
-  if (cached) {
-    const stat = fs.statSync(resolvedPath);
-    if (stat.mtimeMs === cached.timestamp) {
-      return { text: "", program: cached.program }; // Timestamp matches, cache is valid
-    }
-  }
-
-  // Parse fresh
-  try {
-    const moduleText = fs.readFileSync(resolvedPath, "utf-8");
-    const parser = new Parser(moduleText, resolvedPath);
-    const program = parser.parse();
-
-    // Store in cache with timestamp
-    const stat = fs.statSync(resolvedPath);
-    importCache.set(resolvedPath, {
-      program,
-      timestamp: stat.mtimeMs,
-      filePath: resolvedPath,
-    });
-
-    // Watch for future changes
-    watchFileForChanges(resolvedPath);
-
-    return { text: moduleText, program };
-  } catch {
-    return null;
-  }
-}
-
-// Check if an import error should be suppressed (only for valid std/* imports)
-function _shouldSuppressImportError(
-  errorMessage: string,
-  documentText: string,
-  documentUri: string,
-): boolean {
-  // Only check import-related errors
-  if (!/module not found|cannot resolve import/i.test(errorMessage)) {
-    return false;
-  }
-
-  const currentDir = path.dirname(fileURLToPath(documentUri));
-  const importRegex = /import\s+.+?\s+from\s+["'](.+?)["']/g;
-  let match;
-
-  while ((match = importRegex.exec(documentText)) !== null) {
-    const importPath = match[1];
-    // Suppress for valid std/* imports
-    if (
-      importPath &&
-      (importPath === "std" ||
-        importPath.startsWith("std/") ||
-        importPath.startsWith("std\\"))
-    ) {
-      const resolvedStd = resolveImportToFile(importPath, currentDir);
-      if (resolvedStd && fs.existsSync(resolvedStd)) {
-        return true;
-      }
-    }
-    // Also suppress for valid relative imports that resolve on disk
-    if (
-      importPath &&
-      (importPath.startsWith("./") ||
-        importPath.startsWith("../") ||
-        importPath.startsWith("/"))
-    ) {
-      const resolvedRel = resolveImportToFile(importPath, currentDir);
-      if (resolvedRel && fs.existsSync(resolvedRel)) {
-        return true;
-      }
-    }
-  }
-
-  // No valid std/* imports found, don't suppress
-  return false;
-}
 
 function validateTextDocument(textDocument: TextDocument): Promise<void> {
   const uri = textDocument.uri;
@@ -818,30 +585,6 @@ function getWordAtPosition(
   return null;
 }
 
-function _findAllReferences(
-  word: string,
-  docs: TextDocuments<TextDocument>,
-): Location[] {
-  const locations: Location[] = [];
-  docs.all().forEach((doc) => {
-    const text = doc.getText();
-    const regex = new RegExp(`\\b${word}\\b`, "g");
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      locations.push(
-        Location.create(
-          doc.uri,
-          Range.create(
-            doc.positionAt(match.index),
-            doc.positionAt(match.index + match[0].length),
-          ),
-        ),
-      );
-    }
-  });
-  return locations;
-}
-
 connection.onPrepareRename((params) => {
   debugLog("[Rename] Prepare rename request");
   const document = documents.get(params.textDocument.uri);
@@ -995,15 +738,6 @@ connection.onCodeAction((params) => {
 
       // Suggest casting
       if (expectedType && gotType) {
-        const _line = document.getText(
-          Range.create(
-            { line: diagnostic.range.start.line, character: 0 },
-            {
-              line: diagnostic.range.start.line,
-              character: Number.MAX_SAFE_INTEGER,
-            },
-          ),
-        );
         const errorText = document.getText(diagnostic.range);
 
         actions.push({

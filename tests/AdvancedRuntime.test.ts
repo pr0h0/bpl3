@@ -1,36 +1,9 @@
 import { describe, it, expect } from "bun:test";
-import { spawnSync } from "child_process";
-import fs from "fs";
-import path from "path";
+import { compileAndRunFull } from "./helpers/compileAndRun";
 
-const BPL_CLI = path.resolve(__dirname, "../index.ts");
-
+/** Compile and run; failures are returned, not thrown. */
 function runBPL(sourceCode: string) {
-  const tempFile = path.join(
-    __dirname,
-    `temp_${Math.random().toString(36).substring(7)}.bpl`,
-  );
-
-  try {
-    fs.writeFileSync(tempFile, sourceCode);
-
-    const result = spawnSync("bun", [BPL_CLI, "run", tempFile], {
-      encoding: "utf-8",
-      cwd: __dirname,
-    });
-    return {
-      stdout: result.stdout,
-      stderr: result.stderr,
-      exitCode: result.status ?? 1,
-    };
-  } finally {
-    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-    // Cleanup generated binary if it exists (assuming it has the same name without extension)
-    const binFile = tempFile.replace(".bpl", "");
-    if (fs.existsSync(binFile)) fs.unlinkSync(binFile);
-    const llFile = tempFile.replace(".bpl", ".ll");
-    if (fs.existsSync(llFile)) fs.unlinkSync(llFile);
-  }
+  return compileAndRunFull(sourceCode, { timeout: 60000 });
 }
 
 describe("Advanced Runtime Values", () => {
@@ -153,6 +126,9 @@ describe("Advanced Runtime Values", () => {
       }
     `;
     const { stdout, stderr, exitCode } = runBPL(source);
+    expect(exitCode).not.toBe(0);
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Division by zero");
   });
 
   it("should handle infinite recursion (stack overflow)", () => {
@@ -166,7 +142,10 @@ describe("Advanced Runtime Values", () => {
         recurse(1);
       }
     `;
-    const { stdout, stderr, exitCode } = runBPL(source);
+    // Unbounded recursion overflows the stack and terminates the process.
+    const { stdout, exitCode } = runBPL(source);
+    expect(exitCode).not.toBe(0);
+    expect(stdout.startsWith("1\n2\n3\n")).toBe(true);
   });
 
   it("should handle float to int casting", () => {

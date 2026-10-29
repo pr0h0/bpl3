@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `noUnusedLocals` is enabled. Removed unused code from the compiler, fuzz,
+  tools, playground, tests and language server; debug `llvm.dbg.declare`
+  calls for locals carry their computed location explicitly. Tests that built
+  a source and never checked it now assert real behavior (division by zero,
+  stack overflow, trailing commas in calls).
+
 - Cancel superseded pull-request compiler, playground, and container CI runs
   while retaining non-PR execution and container publication safeguards.
 

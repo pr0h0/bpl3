@@ -16,7 +16,7 @@ describe("Sizeof Function Types", () => {
         }
       }
     `;
-    const { stdout, stderr, exitCode } = await runBpl(code, "sizeof_func");
+    const { stdout, exitCode } = await runBpl(code, "sizeof_func");
     expect(exitCode).toBe(0);
     expect(stdout).toContain("Size of Func: 8");
   });
@@ -35,7 +35,7 @@ describe("Sizeof Function Types", () => {
         }
       }
     `;
-    const { stdout, stderr, exitCode } = await runBpl(code, "sizeof_lambda");
+    const { stdout, exitCode } = await runBpl(code, "sizeof_lambda");
     expect(exitCode).toBe(0);
     expect(stdout).toContain("Size of Lambda: 16");
   });

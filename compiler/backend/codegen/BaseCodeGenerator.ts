@@ -200,7 +200,6 @@ export class BaseCodeGenerator {
     });
     this.debugInfoGenerator = new DebugInfoGenerator(
       "unknown.bpl",
-      ".",
       this.target,
     );
 

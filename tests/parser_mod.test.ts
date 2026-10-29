@@ -8,7 +8,6 @@ describe("Parser Module", () => {
     const parserPath = path.join(srcDir, "parser.bpl");
     const scannerPath = path.join(srcDir, "scanner.bpl");
     const sourceReaderPath = path.join(srcDir, "source_reader.bpl");
-    const tokenPath = path.join(srcDir, "token.bpl");
     const libDir = path.resolve(process.cwd(), "lib");
     const arenaPath = path.join(libDir, "memory", "arena_allocator.bpl");
 

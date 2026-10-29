@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import { Compiler } from "../compiler/index";
-import { CompilerError } from "../compiler/common/CompilerError";
 
 describe("Parser Error Recovery", () => {
   it("should collect multiple syntax errors", () => {
