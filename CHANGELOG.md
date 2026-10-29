@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `JSON.parse` allocates each string at its own size instead of reserving the
+  rest of the input, and reports an out-of-memory failure instead of writing
+  through a null buffer (BUG-458).
+
 - `Map` equality and `Array.indexOf`/`contains` compare `string` values by
   content instead of by pointer (BUG-460).
 

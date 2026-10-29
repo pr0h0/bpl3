@@ -477,12 +477,19 @@ of the generic instantiation is likely wrong in the compiler.
 
 #### BUG-458: JSON strings reserve the rest of the input and skip the null check
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `lib/json.bpl:144` allocates "remaining input + 1" bytes per string and never
 shrinks it; 100,000 one-character strings in 400 KB reserved about 20 GB. Under
 memory limits `malloc` returns null and the parser writes through it. Size
 exactly (or `realloc` at the end) and check the result.
+
+**Resolution**: `parseString` first scans to the closing quote and allocates
+that many bytes plus one (decoding never lengthens the text), reports
+"Unterminated string" before allocating, and fails with "Out of memory while
+parsing a string" when `malloc` returns null. 20,000 one-character strings
+now parse under a 400 MB address-space limit (about 800 MB before).
+`tests/JsonStringAllocation.test.ts`.
 
 #### BUG-459: bpl-db saves records it cannot load, and saves non-atomically
 

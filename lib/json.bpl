@@ -139,9 +139,29 @@ struct JsonParser {
         # "
         this.next(); # skip "
 
-        # Max length is remaining string length
-        local remaining: int = this.len - this.pos;
-        local res: string = malloc(cast<long>(remaining + 1));
+        # Size the buffer from the raw text up to the closing quote: decoding
+        # never makes it longer (an escape such as \u00e9 shrinks). Reserving
+        # the rest of the input instead made many short strings exhaust memory.
+        local scan: int = this.pos;
+        loop (scan < this.len) {
+            local sc: char = this.src[scan];
+            if (sc == cast<char>(34)) {
+                break;
+            }
+            if (sc == cast<char>(92)) {
+                scan = scan + 1;
+            }
+            scan = scan + 1;
+        }
+        if (scan >= this.len) {
+            this.fail("Unterminated string");
+            return nullptr;
+        }
+        local res: string = malloc(cast<long>(scan - this.pos + 1));
+        if (res == nullptr) {
+            this.fail("Out of memory while parsing a string");
+            return nullptr;
+        }
         local idx: int = 0;
 
         loop (this.pos < this.len) {
