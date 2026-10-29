@@ -112,6 +112,8 @@ function getAliasedArrayElementType(
 
 /** Members checked as the callee of a call (`x.m()`), not as values (`x.m`). */
 const CALLEE_MEMBERS = new WeakSet<AST.Expression>();
+/** `case Enum.Variant:` labels name a data-carrying variant without its data. */
+export const ENUM_VARIANT_LABELS = new WeakSet<AST.Expression>();
 
 export function checkCall(
   this: CheckerContext,
@@ -950,6 +952,26 @@ export function checkMember(
       const variant = enumDecl.variants.find((v) => v.name === expr.property);
 
       if (variant) {
+        // A variant with data is built by calling it; as a plain value it
+        // reached code generation, which failed with a misleading message.
+        if (
+          variant.dataType &&
+          !CALLEE_MEMBERS.has(expr) &&
+          !ENUM_VARIANT_LABELS.has(expr)
+        ) {
+          const usage =
+            variant.dataType.kind === "EnumVariantTuple"
+              ? `${innerType.name}.${variant.name}(${variant.dataType.types
+                  .map((t: AST.TypeNode) => this.formatDiagnosticType(t))
+                  .join(", ")})`
+              : `${innerType.name}.${variant.name} { ... }`;
+          throw new CompilerError(
+            `Enum variant '${innerType.name}.${variant.name}' carries data and must be constructed with it`,
+            `Usage: ${usage}`,
+            expr.location,
+            ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH_CODE,
+          );
+        }
         // Store variant info for code generation
         (expr as any).enumVariantInfo = {
           enumDecl,

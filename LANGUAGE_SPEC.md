@@ -553,7 +553,9 @@ struct Circle : Shape, Drawable, Named {
 - **[R-ENUM-1]** An enum declares unit variants (`A`), tuple variants
   (`B(int, int)`), and struct variants (`C { x: int }`). Values are written
   `E.A`, `E.B(1, 2)`, and `E.C { x: 1 }`. Generic enums take explicit type
-  arguments: `Option<int>.Some(1)`.
+  arguments: `Option<int>.Some(1)`. A tuple or struct variant is a value only
+  with its data: `E.B` alone is rejected with
+  `BPL_ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH`, except as a `switch` case label.
 - **[R-ENUM-2]** Enum values compare with `==` and `!=`. Enums do not convert
   to or from integers, implicitly or with `cast`.
 
@@ -623,9 +625,11 @@ loop (;;) {
 ### Switch
 
 - **[R-CTRL-7]** `switch (value)` accepts integer, string, and enum values;
-  other types are rejected with `BPL_SWITCH_VALUE_TYPE_MISMATCH`. Duplicate
-  case values are rejected. Strings compare by content, and a null string
-  matches no case.
+  other types are rejected with `BPL_SWITCH_VALUE_TYPE_MISMATCH`. Case values
+  must be literals (optionally negated) or enum variants; anything else, such
+  as a variable, is rejected with `BPL_SWITCH_CASE_VALUE_NOT_CONSTANT`.
+  Duplicate case values are rejected. Strings compare by content, and a null
+  string matches no case.
 - **[R-CTRL-8]** A braced `case` or `default` body must end with `break`,
   `continue`, `return`, `throw`, or `fallthrough`. Control never falls into
   the next case implicitly; `fallthrough;` continues with the next case body.
@@ -778,8 +782,11 @@ try {
   `Option.Some(x)`.
 - **[R-MATCH-3]** An enum match must cover every variant or include a
   catch-all arm. Other matches must include an unguarded `_` or identifier arm.
-  Guarded arms do not count toward exhaustiveness. Violations are rejected with
-  `BPL_MATCH_EXHAUSTIVENESS_MISMATCH`.
+  Guarded arms do not count toward exhaustiveness, and neither does an enum
+  arm with a refutable sub-pattern (`E.V(1, y)` covers only part of `E.V`).
+  An arm that can never be selected (after an unguarded `_`, or after an arm
+  that already matches every value of its variant) is rejected. Violations are
+  rejected with `BPL_MATCH_EXHAUSTIVENESS_MISMATCH`.
 - **[R-MATCH-4]** An arm body may be a block. Inside a block arm of a match
   used as an expression, `return expression;` yields the arm's value rather
   than returning from the enclosing function. A match used as a statement has

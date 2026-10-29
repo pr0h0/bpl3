@@ -847,7 +847,8 @@ bun test tests/CLIJsonParseability.test.ts -t "ternary branch type mismatch"
 ```
 
 Switch mismatch failures use `BPL_SWITCH_VALUE_TYPE_MISMATCH` and
-`BPL_SWITCH_CASE_TYPE_MISMATCH`. This covers invalid switch value types and
+`BPL_SWITCH_CASE_TYPE_MISMATCH`; a case value that is not a literal or enum
+variant (such as `case y:`) reports `BPL_SWITCH_CASE_VALUE_NOT_CONSTANT`. This covers invalid switch value types and
 incompatible case pattern types. For example, switching on a `double` reports
 `Switch value must be an integer, string or enum type, got double` with the hint
 `Ensure the switch expression evaluates to an integer, string or enum.`, while

@@ -3144,25 +3144,46 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       return;
     }
 
+    // Sub-patterns that always match: `Move(x, _)` covers Move, but
+    // `Move(1, y)` does not.
+    const irrefutable = (pattern: AST.Pattern): boolean =>
+      pattern.kind === "PatternWildcard" ||
+      pattern.kind === "PatternIdentifier" ||
+      (pattern.kind === "PatternTuple" && pattern.patterns.every(irrefutable));
+
     const coveredVariants = new Set<string>();
     let hasWildcard = false;
 
     for (const arm of expr.arms) {
-      if (arm.pattern.kind === "PatternWildcard") {
-        // Wildcard covers everything, but only if it's unguarded
-        if (!arm.guard) {
-          hasWildcard = true;
-          break;
-        }
+      const pattern = arm.pattern;
+      const variant =
+        pattern.kind === "PatternEnum" ||
+        pattern.kind === "PatternEnumTuple" ||
+        pattern.kind === "PatternEnumStruct"
+          ? pattern.variantName
+          : undefined;
+      // An arm after an unguarded `_`, or after an arm that already matches
+      // every value of its variant, can never be selected.
+      if (hasWildcard || (variant && coveredVariants.has(variant))) {
+        throw new CompilerError(
+          variant && !hasWildcard
+            ? `Unreachable match arm: variant '${variant}' is already matched by an earlier arm`
+            : "Unreachable match arm: an earlier '_' arm matches every value",
+          "Remove the arm, or move it before the arm that already matches its values.",
+          pattern.location ?? arm.location,
+          MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
+        );
+      }
+      // Guarded arms cover nothing.
+      if (arm.guard) continue;
+      if (pattern.kind === "PatternWildcard") {
+        hasWildcard = true;
       } else if (
-        arm.pattern.kind === "PatternEnum" ||
-        arm.pattern.kind === "PatternEnumTuple" ||
-        arm.pattern.kind === "PatternEnumStruct"
+        variant &&
+        (pattern.kind !== "PatternEnumTuple" ||
+          pattern.bindings.every(irrefutable))
       ) {
-        // A variant is only covered if the arm is unguarded
-        if (!arm.guard) {
-          coveredVariants.add(arm.pattern.variantName);
-        }
+        coveredVariants.add(variant);
       }
     }
 

@@ -446,6 +446,8 @@ const SWITCH_MISMATCH_STEP_PATTERN = new RegExp(
   [
     "BPL_SWITCH_VALUE_TYPE_MISMATCH",
     "BPL_SWITCH_CASE_TYPE_MISMATCH",
+    "BPL_SWITCH_CASE_VALUE_NOT_CONSTANT",
+    "Switch case values must be constants",
     "switch type mismatch",
     "switch mismatch",
     "Switch value must be an integer, string or enum type",

@@ -370,9 +370,7 @@ describe("Enum Type Checker - Error Cases", () => {
         };
       }
     `;
-    // Note: This should ideally throw for non-exhaustive match,
-    // but may not be implemented yet
-    // expect(() => check(source)).toThrow(CompilerError);
+    expect(() => check(source)).toThrow(/missing variants: Blue/);
   });
 
   it("should reject wrong enum type in match", () => {
@@ -405,9 +403,7 @@ describe("Enum Type Checker - Error Cases", () => {
         Write,
       }
     `;
-    // Note: This should ideally throw for duplicate variants,
-    // but may not be implemented yet
-    // expect(() => check(source)).toThrow(CompilerError);
+    expect(() => check(source)).toThrow(CompilerError);
   });
 
   it("should reject using enum variant without enum name", () => {
@@ -451,8 +447,9 @@ describe("Enum Type Checker - Error Cases", () => {
         local msg: Message = Message.Move;
       }
     `;
-    // Note: This currently passes but should ideally throw an error
-    // expect(() => check(source)).toThrow(CompilerError);
+    expect(() => check(source)).toThrow(
+      /'Message.Move' carries data and must be constructed with it/,
+    );
   });
 });
 
@@ -957,8 +954,9 @@ describe("Enum Negative Cases", () => {
         };
       }
     `;
-    // Duplicate patterns - may or may not throw depending on implementation
-    // expect(() => check(source)).toThrow(CompilerError);
+    expect(() => check(source)).toThrow(
+      /Unreachable match arm: variant 'Red' is already matched/,
+    );
   });
 
   it("should reject accessing enum variant as value without construction", () => {

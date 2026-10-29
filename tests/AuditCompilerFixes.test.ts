@@ -192,9 +192,7 @@ frame main() ret int {
 `);
     expect(result.status).toBe(1);
     // Spec methods cannot be overloaded at all (BUG-470).
-    expect(result.stderr).toContain(
-      "Duplicate method 'm' in spec 'G'",
-    );
+    expect(result.stderr).toContain("Duplicate method 'm' in spec 'G'");
   });
 });
 
@@ -464,5 +462,107 @@ frame main() ret int { return X; }
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("BPL_GLOBAL_INITIALIZER_NOT_CONSTANT");
     expect(result.stderr).not.toContain("Undefined symbol");
+  });
+});
+
+// `bpl check` accepted these and either failed at build time or produced a
+// program that silently matched nothing.
+// spec: R-CTRL-7
+describe("switch case values are constants", () => {
+  test("a variable case is rejected by the checker", () => {
+    const result = check(`frame main() ret int {
+    local x: int = 1;
+    local y: int = 1;
+    switch (x) { case y: { return 1; } default: { return 0; } }
+}`);
+    expect(result.stderr).toContain("BPL_SWITCH_CASE_VALUE_NOT_CONSTANT");
+  });
+
+  test("character, negative and enum labels still work", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+enum Message { Move(int, int), Quit, }
+frame main() ret int {
+    local c: char = 'b';
+    switch (c) { case 'a': { break; } case 'b': { printf("b "); break; } default: { break; } }
+    local n: int = -1;
+    switch (n) { case -1: { printf("neg "); break; } default: { break; } }
+    local m: Message = Message.Move(1, 2);
+    switch (m) { case Message.Move: { printf("move\\n"); break; } default: { break; } }
+    return 0;
+}
+`);
+    expect(output).toBe("b neg move\n");
+  });
+
+  test("duplicate character labels are reported as written", () => {
+    const result = check(`frame main() ret int {
+    local c: char = 'a';
+    switch (c) { case 'a': { break; } case 'a': { break; } default: { break; } }
+    return 0;
+}`);
+    expect(result.stderr).toContain("Duplicate case value ''a''");
+  });
+});
+
+// spec: R-ENUM-1
+describe("data-carrying enum variants need their data", () => {
+  test("a tuple variant without arguments is rejected", () => {
+    const result = check(`enum Message { Move(int, int), Quit, }
+frame main() ret int {
+    local m: Message = Message.Move;
+    match (m) { Message.Quit => { return 1; }, _ => { return 0; }, }
+}`);
+    expect(result.stderr).toContain("BPL_ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH");
+    expect(result.stderr).toContain("Usage: Message.Move(int, int)");
+  });
+});
+
+// spec: R-MATCH-3
+describe("match coverage and unreachable arms", () => {
+  test("a refutable variant arm does not cover its variant", () => {
+    const result = check(`enum Message { Move(int, int), Quit, }
+frame f(m: Message) ret int {
+    return match (m) { Message.Move(1, y) => y, Message.Quit => 0, };
+}${MAIN}`);
+    expect(result.stderr).toContain("missing variants: Move");
+  });
+
+  test("a refutable arm followed by a covering arm runs", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+enum Message { Move(int, int), Quit, }
+frame f(m: Message) ret int {
+    return match (m) {
+        Message.Move(1, y) => y,
+        Message.Move(x, y) => x + y,
+        Message.Quit => 0,
+    };
+}
+frame main() ret int {
+    printf("%d %d\\n", f(Message.Move(1, 7)), f(Message.Move(5, 9)));
+    return 0;
+}
+`);
+    expect(output).toBe("7 14\n");
+  });
+
+  test("arms after a covering arm or an unguarded _ are rejected", () => {
+    const repeated = check(`enum Color { Red, Green, }
+frame f(c: Color) ret int {
+    return match (c) { Color.Red => 1, Color.Red => 2, Color.Green => 3, };
+}${MAIN}`);
+    expect(repeated.stderr).toContain(
+      "Unreachable match arm: variant 'Red' is already matched",
+    );
+    const afterWildcard = check(`enum Color { Red, Green, }
+frame f(c: Color) ret int {
+    return match (c) { _ => 0, Color.Red => 1, };
+}${MAIN}`);
+    expect(afterWildcard.stderr).toContain("an earlier '_' arm matches");
+    // A guarded arm covers nothing, so the same variant may follow it.
+    const guarded = check(`enum Color { Red, Green, }
+frame f(c: Color, k: int) ret int {
+    return match (c) { Color.Red if k > 0 => 1, Color.Red => 2, Color.Green => 3, };
+}${MAIN}`);
+    expect(guarded.stderr).toBe("");
   });
 });

@@ -49,6 +49,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Enum matches with a refutable variant arm (`E.V(1, y)`) are no longer
+  treated as exhaustive, and unreachable arms are rejected (BUG-471).
+- `bpl check` rejects non-constant `switch` case values
+  (`BPL_SWITCH_CASE_VALUE_NOT_CONSTANT`) and data-carrying enum variants used
+  without their data; both previously failed only at build time (BUG-472).
+
 - Tests and the playground no longer leak temporary files (BUG-447): the
   playground removes its cached binaries on exit and handles SIGINT/SIGTERM;
   web tests use the gitignored `tests/.tmp/`; duplicated `compileAndRun`

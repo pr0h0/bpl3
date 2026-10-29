@@ -644,6 +644,40 @@ Supporting them would need overload-aware conformance, thunk names and vtable
 slots (thunks were named by method only and collided in IR). R-SPEC-1 states
 the rule. `tests/AuditCompilerFixes.test.ts`.
 
+#### BUG-471: Non-exhaustive enum matches accepted when an arm has a literal sub-pattern
+
+**Status**: Fixed · **Priority**: P1 (soundness)
+
+`match (m) { Message.Move(1, y) => y, Message.Quit => 0 }` passed the
+exhaustiveness check, so `Message.Move(5, 9)` matched no arm and the match
+silently produced 0. Any unguarded arm counted as covering its variant.
+Duplicate arms (`Color.Red => 1, Color.Red => 2`) were also accepted.
+
+**Resolution**: an arm covers its variant only when every sub-pattern is a
+binding or `_`. An arm after an unguarded `_`, or after an arm that already
+covers its variant, is rejected as unreachable. R-MATCH-3.
+`tests/AuditCompilerFixes.test.ts`, `tests/Enum.test.ts`.
+
+#### BUG-472: `bpl check` accepts code that only fails to build
+
+**Status**: Fixed · **Priority**: P2
+
+Found through test placeholders whose sources were never checked
+(`tsc --noUnusedLocals`):
+
+- `switch (x) { case y: ... }` with a variable `y` passed `bpl check` and failed
+  in code generation ("Switch case values must be literals").
+- `local m: Message = Message.Move;` for a tuple variant passed `bpl check` and
+  failed in code generation with "Enum variants with associated data are not
+  yet supported".
+
+**Resolution**: the checker rejects non-constant case values
+(`BPL_SWITCH_CASE_VALUE_NOT_CONSTANT`, R-CTRL-7) and data-carrying variants used
+without their data (`BPL_ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH` with a usage
+hint, R-ENUM-1); a variant name stays valid as a `switch` case label. Character
+case labels are now also checked for duplicates. The placeholders in
+`Enum`, `TypeChecker` and `TypeCheckerExtended` tests assert the behavior.
+
 ## Generated-program fuzzer findings (2026-10-29)
 
 Found by the oracle fuzzer (`fuzz/programGenerator.ts`, see
