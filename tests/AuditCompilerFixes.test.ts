@@ -194,6 +194,31 @@ frame main() ret int {
   });
 });
 
+// spec: R-EXPR-5
+describe("BUG-467: parenthesized assignment targets", () => {
+  test("assign like the unparenthesized target", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+frame main() ret int {
+    local v: int = 1;
+    local p: *int = &v;
+    (*p) = 5;
+    (v) += 2;
+    ((*p)) *= 3;
+    local a: int[2] = [1, 2];
+    (a[1]) = 9;
+    printf("%d %d\\n", v, a[1]);
+    return 0;
+}
+`);
+    expect(output).toBe("21 9\n");
+  });
+
+  test("still reject parenthesized non-lvalues", () => {
+    const result = check(`frame main() ret int { (1 + 2) = 3; return 0; }`);
+    expect(result.stderr).toContain("BPL_ASSIGNMENT_TARGET_INVALID");
+  });
+});
+
 describe("BUG-427: types that contain themselves by value", () => {
   const cycles: Record<string, string> = {
     "fixed array": "struct S { a: S[2], }",

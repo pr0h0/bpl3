@@ -642,7 +642,7 @@ naming functions `declare` in TypeScript run by Bun; report upstream.
 
 ### BUG-467: Parenthesized assignment targets are rejected, but `(*p)++` is not
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 `(*p) = 5;`, `(v) = 6;` and `(*p) += 1;` fail with
 `BPL_ASSIGNMENT_TARGET_INVALID`, while `(*p)++` and `--(*p)` are accepted. C
@@ -650,6 +650,11 @@ accepts a parenthesized lvalue everywhere. Either unwrap `Group` in
 `checkAssignment` (and codegen) or reject it consistently for `++`/`--` too, and
 state the rule in R-EXPR-5. The fuzzer currently writes `*p = ...` for
 assignments.
+
+**Resolution**: `checkAssignment` unwraps parentheses around the target, so
+`(*p) = x`, `(v) += 1` and `(a[i]) = x` assign like the unparenthesized forms;
+an invalid target stays invalid (`(1 + 2) = 3`). R-EXPR-5 states the rule, and
+the fuzzer parenthesizes targets at random. `tests/AuditCompilerFixes.test.ts`.
 
 ## Developer experience fixes (2026-10-28)
 

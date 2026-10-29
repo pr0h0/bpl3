@@ -2494,6 +2494,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   /** Validate assignment targets and select the setter invoked by an index store. */
   private checkAssignment(expr: AST.AssignmentExpr): AST.TypeNode | undefined {
+    // A parenthesized target is the same lvalue (`(*p) = 1`, `(v) += 2`), as
+    // for `(*p)++`. Unwrap it here so code generation sees the plain target.
+    while (expr.assignee.kind === "Group") {
+      expr.assignee = (expr.assignee as AST.GroupExpr).expression;
+    }
     // Check if assignee is an l-value
     if (
       expr.assignee.kind !== "Identifier" &&

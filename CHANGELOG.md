@@ -49,6 +49,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Parenthesized assignment targets are accepted (`(*p) = 1`, `(v) += 2`),
+  consistent with `(*p)++` (BUG-467).
+
 - `-l/--lib`, `-L/--lib-path`, `--object` and `--clang-flag` take one value
   each and are repeatable (`-l m -l c`); as variadic options they swallowed a
   following source file (`bpl run --lib m main.bpl`). This replaces the
