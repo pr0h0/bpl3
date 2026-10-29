@@ -57,6 +57,8 @@ const FLOAT_TYPES: FloatType[] = [
   { kind: "float", name: "f32", bits: 32 },
 ];
 const LONG = INT_TYPES[6]!;
+/** How many array subscripts may enclose another array read. */
+const MAX_INDEX_NESTING = 2;
 
 interface Expr {
   type: ScalarType;
@@ -245,6 +247,8 @@ class ProgramBuilder {
   private hierarchy: Hierarchy | undefined;
   /** Output produced while executing (deferred prints). */
   private out: string[] = [];
+  /** Array indices currently being generated, outermost first. */
+  private indexNesting = 0;
   /** Disables calls, e.g. inside deferred expressions. */
   private plainOnly = false;
   /** In a function other than main, main's locals are out of reach. */
@@ -358,11 +362,18 @@ class ProgramBuilder {
   }
 
   private read(type: ScalarType): Expr | undefined {
-    const places = this.scope.filter((place) => place.type.name === type.name);
+    // An index may read the array again (`a[a[i] & 3]`), but only one level
+    // deep: each index restarts the depth budget, so the nesting was
+    // otherwise unbounded and could exceed the parser's depth limit.
+    const places = this.scope.filter(
+      (place) =>
+        place.type.name === type.name &&
+        (!place.array || this.indexNesting < MAX_INDEX_NESTING),
+    );
     if (places.length === 0) return undefined;
     const place = this.pick(places);
     if (place.array) {
-      const index = this.expr(INT, 1, false);
+      const index = this.indexExpr();
       const mask = place.array.length - 1;
       const array = place.array;
       return {
@@ -770,6 +781,16 @@ class ProgramBuilder {
     }
   }
 
+  /** An `int` index expression, with array reads inside it bounded. */
+  private indexExpr(): Expr {
+    this.indexNesting++;
+    try {
+      return this.expr(INT, 1, false);
+    } finally {
+      this.indexNesting--;
+    }
+  }
+
   /** Globals stay shared across calls; locals are not visible in callees. */
   private callEnv(env: Env): Env {
     return new Map([...env].filter(([key]) => key.startsWith("g")));
@@ -952,7 +973,7 @@ class ProgramBuilder {
         : place.code;
       return { code, key: () => place.key, reads: new Set() };
     }
-    const index = this.expr(INT, 1, false);
+    const index = this.indexExpr();
     const mask = place.array.length - 1;
     const array = place.array;
     return {

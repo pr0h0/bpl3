@@ -125,6 +125,21 @@ describe("generated fuzz programs", () => {
     }
   });
 
+  test("bound array-index nesting below the parser's depth limit", () => {
+    // Found by the fuzzer: each index restarted the depth budget, so
+    // `a[a[a[...]]]` grew until BPL_SOURCE_COMPLEXITY_LIMIT (seed 0xa568ed5c).
+    const source = generateOracleSource(0xa568ed5c, 519);
+    expect(runGeneratedPipeline(source, "nested-index.bpl").ok).toBe(true);
+    for (let seed = 0; seed < 1500; seed++) {
+      const longest = Math.max(
+        ...generateOracleSource(seed, 3)
+          .split("\n")
+          .map((line) => line.length),
+      );
+      expect({ seed, short: longest < 4000 }).toEqual({ seed, short: true });
+    }
+  }, 60000);
+
   test("take dedicated campaign lanes, reproducible from seed and pass", () => {
     const plain = generateFuzzInput(0xabc, 3);
     expect(plain.kind).toBe("generated");
