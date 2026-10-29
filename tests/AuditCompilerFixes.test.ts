@@ -79,6 +79,10 @@ describe("BUG-427: types that contain themselves by value", () => {
     alias: "type Row = S[2];\nstruct S { r: Row, }",
     "enum payload": "enum Opt { Some(S), None }\nstruct S { o: Opt, }",
     "parent struct": "struct P { q: C, }\nstruct C: P { x: int, }",
+    "second instantiation of a generic":
+      "struct Box<T> { v: T, }\nstruct S { a: Box<int>, b: Box<S>, }",
+    "nested generic argument":
+      "struct Box<T> { v: T, }\nstruct Pair<A, B> { a: A, b: B, }\nstruct W<T> { p: Box<Pair<T, int>>, }\nstruct S { w: W<S>, }",
   };
   for (const [name, source] of Object.entries(cycles)) {
     test(`reports a cycle through a ${name}`, () => {
@@ -93,6 +97,14 @@ describe("BUG-427: types that contain themselves by value", () => {
 struct S { b: Box<S>, s: S[], n: *S, f: Func<S>(S), }${MAIN}`);
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
+  });
+
+  test("terminates on a generic that grows its own arguments", () => {
+    const result = check(`struct Box<T> { v: T, }
+struct G<T> { n: G<Box<T>>, }
+struct S { g: G<int>, }${MAIN}`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Struct 'G' has infinite size");
   });
 });
 
@@ -195,6 +207,22 @@ frame main() ret int {
 }
 `);
     expect(output).toBe("-5 -1.5 0 7 128 1 -2 3 2.5 -1\n");
+  });
+
+  test("wraps each operation to its type and applies every cast", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+global A: int = (2147483647 + 1) / 2;
+global B: int = cast<int>(1.75);
+global C: int = cast<int>(-2.5);
+global D: u8 = cast<u8>(300);
+global E: double = cast<double>(cast<f32>(0.1));
+global F: long = cast<long>(2147483647) + 1;
+frame main() ret int {
+    printf("%d %d %d %d %.10f %ld\\n", A, B, C, cast<int>(D), E, F);
+    return 0;
+}
+`);
+    expect(output).toBe("-1073741824 1 -2 44 0.1000000015 2147483648\n");
   });
 
   test("rejects runtime initializers without cascading errors", () => {

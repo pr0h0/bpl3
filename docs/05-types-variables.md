@@ -482,6 +482,8 @@ frame main() ret int {
   `global const SCALE: f32 = cast<f32>(1.25);`, and array literals of these
   (`global PRIMES: int[3] = [2, 3, 5];`). Calls and other runtime values are
   rejected with `BPL_GLOBAL_INITIALIZER_NOT_CONSTANT`; assign them in a function.
+  The folded value is the one the expression would have at run time: integer
+  operations wrap to their type and casts truncate or round.
 - Globals are visible to all functions in the module
 - Globals can be exported to other modules
 - Avoid excessive use (can make code harder to reason about)

@@ -272,6 +272,9 @@ codegen.
   `!` or `~` of a constant, integer arithmetic (`+ - * / % & | ^ << >>`) of
   constants, a cast of a numeric constant, or an array literal of constants.
   Anything else is rejected with `BPL_GLOBAL_INITIALIZER_NOT_CONSTANT`.
+  Folding follows run-time semantics: each operation wraps to its type
+  (`global X: int = (2147483647 + 1) / 2;` is `-1073741824`), and each cast
+  converts its operand (`cast<int>(1.75)` is `1`, `cast<f32>` rounds).
   A local declared without an initializer has an unspecified value until it is
   assigned; reading it first is undefined behavior and is not diagnosed.
 - **[R-DECL-3]** A local variable or parameter that is never used is a compile

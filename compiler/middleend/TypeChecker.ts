@@ -1423,8 +1423,28 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
    */
   private detectValueCycle(start: AST.StructDecl | AST.EnumDecl): void {
     const label = start.kind === "StructDecl" ? "Struct" : "Enum";
-    const visiting = new Set<AST.ASTNode>();
+    // Keyed by declaration and generic arguments: `Box<int>` and `Box<S>` are
+    // different expansions of `Box`.
+    const visiting = new Set<string>();
+    const nodeIds = new Map<AST.ASTNode, number>();
+    const visitKey = (
+      node: AST.ASTNode,
+      substitutions: Map<string, AST.TypeNode>,
+    ): string => {
+      let id = nodeIds.get(node);
+      if (id === undefined) {
+        id = nodeIds.size;
+        nodeIds.set(node, id);
+      }
+      const args = [...substitutions]
+        .map(([name, type]) => `${name}=${this.typeToString(type)}`)
+        .join(",");
+      return `${id}<${args}>`;
+    };
     const path: string[] = [];
+    // Each nesting adds a level, so a generic that grows its own arguments
+    // (`G<T> { x: G<Box<T>> }`) cannot expand forever.
+    const MAX_DEPTH = 64;
 
     const visitDecl = (
       decl: AST.StructDecl | AST.EnumDecl,
@@ -1443,8 +1463,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
       // Each declaration is expanded once per walk; other cycles are reported
       // when their own declaration is checked.
-      if (visiting.has(decl)) return;
-      visiting.add(decl);
+      const key = visitKey(decl, substitutions);
+      if (visiting.has(key) || path.length >= MAX_DEPTH) return;
+      visiting.add(key);
       path.push(decl.name);
 
       const contained: AST.TypeNode[] = [];
@@ -1498,10 +1519,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       };
       if (symbol.kind === "TypeAlias" && declaration.kind === "TypeAlias") {
         const alias = declaration as AST.TypeAliasDecl;
-        if (visiting.has(alias)) return;
-        visiting.add(alias);
-        visitType(alias.type, argumentsFor(alias.genericParams));
-        visiting.delete(alias);
+        const aliasArguments = argumentsFor(alias.genericParams);
+        const key = visitKey(alias, aliasArguments);
+        if (visiting.has(key)) return;
+        visiting.add(key);
+        visitType(alias.type, aliasArguments);
+        visiting.delete(key);
       } else if (
         (symbol.kind === "Struct" && declaration.kind === "StructDecl") ||
         (symbol.kind === "Enum" && declaration.kind === "EnumDecl")
@@ -1511,18 +1534,13 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
     };
 
-    // Generic arguments are resolved in the scope that wrote them.
+    // Generic arguments are resolved in the scope that wrote them, including
+    // nested ones such as the `T` in `Box<Pair<T>>`.
     const substituteArgs = (
       type: AST.TypeNode,
       substitutions: Map<string, AST.TypeNode>,
     ): AST.TypeNode =>
-      type.kind === "BasicType" &&
-      type.genericArgs.length === 0 &&
-      type.pointerDepth === 0 &&
-      type.arrayDimensions.length === 0 &&
-      substitutions.has(type.name)
-        ? substitutions.get(type.name)!
-        : type;
+      substitutions.size > 0 ? this.substituteType(type, substitutions) : type;
 
     visitDecl(start, new Map());
   }

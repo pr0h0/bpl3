@@ -4,10 +4,15 @@
  * Globals are emitted as LLVM constants, so their initializers must reduce to
  * a value at compile time. The checker uses this to diagnose anything else up
  * front and the code generator uses the same evaluation to emit the value.
+ *
+ * Every operation is evaluated at the width of its checked type, so
+ * `(2147483647 + 1) / 2` as `int` wraps before dividing, and every cast
+ * converts its operand (`cast<int>(1.75)` is 1), as at run time.
  */
 
 import type * as AST from "./AST";
 import { TokenType } from "../frontend/TokenType";
+import { getPrimitiveType, type PrimitiveTypeInfo } from "./PrimitiveTypes";
 
 export type ConstantValue =
   | { kind: "int"; value: bigint }
@@ -48,7 +53,7 @@ export function evaluateConstantInitializer(
       switch (expr.operator.type) {
         case TokenType.Minus:
           if (operand.kind === "int")
-            return { kind: "int", value: -operand.value };
+            return wrapInteger(-operand.value, expr.resolvedType);
           if (operand.kind === "float")
             return { kind: "float", value: -operand.value };
           return undefined;
@@ -58,7 +63,7 @@ export function evaluateConstantInitializer(
             : undefined;
         case TokenType.Tilde:
           return operand.kind === "int"
-            ? { kind: "int", value: ~operand.value }
+            ? wrapInteger(~operand.value, expr.resolvedType)
             : undefined;
         default:
           return undefined;
@@ -71,14 +76,15 @@ export function evaluateConstantInitializer(
       const right = evaluateConstantInitializer(expr.right);
       if (left?.kind !== "int" || right?.kind !== "int") return undefined;
       const value = operation(left.value, right.value);
-      return value === undefined ? undefined : { kind: "int", value };
+      return value === undefined
+        ? undefined
+        : wrapInteger(value, expr.resolvedType);
     }
     case "Cast": {
-      // A numeric constant converts to the declared numeric type when emitted.
       const operand = evaluateConstantInitializer(expr.expression);
-      return operand?.kind === "int" || operand?.kind === "float"
-        ? operand
-        : undefined;
+      if (operand?.kind !== "int" && operand?.kind !== "float")
+        return undefined;
+      return convertNumeric(operand, expr.targetType);
     }
     case "ArrayLiteral": {
       const elements: ConstantValue[] = [];
@@ -92,6 +98,56 @@ export function evaluateConstantInitializer(
     default:
       return undefined;
   }
+}
+
+/** Numeric scalar described by `type`, if it is one. */
+function numericType(
+  type: AST.TypeNode | undefined,
+): PrimitiveTypeInfo | undefined {
+  if (
+    type?.kind !== "BasicType" ||
+    type.pointerDepth > 0 ||
+    type.arrayDimensions.length > 0
+  ) {
+    return undefined;
+  }
+  const info = getPrimitiveType(type.name);
+  return info?.kind === "integer" || info?.kind === "float" ? info : undefined;
+}
+
+/** Two's-complement wrap to the integer type (unchanged if not known). */
+function wrapInteger(
+  value: bigint,
+  type: AST.TypeNode | undefined,
+): ConstantValue {
+  const info = numericType(type);
+  if (info?.kind !== "integer") return { kind: "int", value };
+  return {
+    kind: "int",
+    value: info.signed
+      ? BigInt.asIntN(info.bits, value)
+      : BigInt.asUintN(info.bits, value),
+  };
+}
+
+/** Convert a numeric constant as `cast<target>` does at run time. */
+function convertNumeric(
+  value: Extract<ConstantValue, { kind: "int" | "float" }>,
+  target: AST.TypeNode,
+): ConstantValue | undefined {
+  const info = numericType(target);
+  // Other targets (e.g. `cast<*T>(0)`) keep the value for the declared type.
+  if (!info) return value;
+  if (info.kind === "integer") {
+    if (value.kind === "int") return wrapInteger(value.value, target);
+    if (!Number.isFinite(value.value)) return undefined;
+    return wrapInteger(BigInt(Math.trunc(value.value)), target);
+  }
+  const number = value.kind === "int" ? Number(value.value) : value.value;
+  return {
+    kind: "float",
+    value: info.bits === 32 ? Math.fround(number) : number,
+  };
 }
 
 function evaluateLiteral(expr: AST.LiteralExpr): ConstantValue | undefined {

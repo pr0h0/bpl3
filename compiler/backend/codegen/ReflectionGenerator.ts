@@ -107,10 +107,13 @@ export abstract class ReflectionGenerator extends TypeGenerator {
     }
 
     // `string` lowers like `*char` but reflects as a string primitive, so it
-    // needs its own entry; otherwise whichever is generated first wins.
+    // needs its own entry; otherwise whichever is generated first wins. The
+    // same holds for generic arguments: `Box<string>` and `Box<*char>` share
+    // an LLVM layout but not a TypeInfo.
+    const stringMarks = this.reflectedStringPositions(type, "");
     const typeKey =
-      type.kind === "BasicType" && type.name === "string"
-        ? `${this.mangleType(type)}_string`
+      stringMarks.length > 0
+        ? `${this.mangleType(type)}_${stringMarks.join("_")}`
         : this.mangleType(type);
     if (this.typeInfoCache.has(typeKey)) {
       return this.typeInfoCache.get(typeKey)!;
@@ -223,6 +226,34 @@ export abstract class ReflectionGenerator extends TypeGenerator {
       location: type.location,
     });
     return globalName;
+  }
+
+  /**
+   * Positions inside `type` that are `string` rather than `*char`: "string"
+   * for the type itself, `g<i>`/`t<i>` paths for generic and tuple arguments.
+   */
+  private reflectedStringPositions(type: AST.TypeNode, path: string): string[] {
+    const positions: string[] = [];
+    if (type.kind === "BasicType") {
+      const isString =
+        (type.name === "string" && type.pointerDepth === 0) ||
+        (type.pointerDepth === 1 && type.aliasDeclaration?.name === "string");
+      if (isString) {
+        positions.push(path === "" ? "string" : `s${path}`);
+      }
+      type.genericArgs.forEach((argument, index) =>
+        positions.push(
+          ...this.reflectedStringPositions(argument, `${path}g${index}`),
+        ),
+      );
+    } else if (type.kind === "TupleType") {
+      type.types.forEach((element, index) =>
+        positions.push(
+          ...this.reflectedStringPositions(element, `${path}t${index}`),
+        ),
+      );
+    }
+    return positions;
   }
 
   protected isPrimitive(name: string): boolean {

@@ -41,3 +41,23 @@ frame main() ret int {
 `);
   expect(output).toBe("1 2 y\n");
 });
+
+// `Box<string>` and `Box<*char>` share an LLVM layout; their TypeInfo must not
+// be shared, whichever is reflected first.
+test.each([
+  ["string first", "string", "*char"],
+  ["*char first", "*char", "string"],
+])("generic string arguments reflect as strings (%s)", (_, first, second) => {
+  const output = compileAndRun(`import printf from "std/c.bpl";
+import [TypeInfo] from "std/reflection.bpl";
+struct Box<T> { v: T, }
+frame kindOf(info: *TypeInfo) ret int { return cast<int>(info.fields[0].type_info.kind); }
+frame main() ret int {
+    local a: *TypeInfo = typeof<Box<${first}>>();
+    local b: *TypeInfo = typeof<Box<${second}>>();
+    printf("%d %d\\n", kindOf(a), kindOf(b));
+    return 0;
+}
+`);
+  expect(output).toBe(first === "string" ? "0 3\n" : "3 0\n");
+});
