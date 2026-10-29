@@ -589,7 +589,7 @@ the map helper because `std/string.bpl` imports `std/array.bpl`.
 
 #### BUG-462: Package installation hardening
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 - A bare dependency name is first resolved as a path in the current directory
   (`PackageManager.ts:3216/3713`): a file named `foo` was installed instead of
@@ -600,6 +600,8 @@ the map helper because `std/string.bpl` imports `std/array.bpl`.
 - Extraction has no size cap and root installs keep archive modes
   (`:3279/3281`); sum member sizes first and pass
   `--no-same-owner --no-same-permissions` (suspected).
+
+**Resolution**: only `file:` and path-like sources are files; a bare name resolves from the package cache, and `./foo` is recorded as `file:./foo` (it was `file:foo`, which then failed manifest validation). Legacy lock entries always fail verification until `bpl install --update`. Archives that decompress past 256 MiB are rejected before `tar` runs, and extraction passes `--no-same-owner --no-same-permissions`. Diagnostics no longer print a binary file as a source snippet. `tests/PackageInstallHardening.test.ts`.
 
 #### BUG-463: Router path parameters are not percent-decoded
 

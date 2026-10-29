@@ -9,6 +9,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import * as zlib from "zlib";
 
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { getPositiveIntegerEnv, TIMEOUT_ENV_DEFAULTS } from "../common/Env";
@@ -78,6 +79,24 @@ export function getPackageArchiveToolTimeoutMs(): number {
 }
 
 export { BPL_PACKAGE_SCHEMA_URI };
+
+/** Decompressed size cap for a package archive (tar stream, headers included). */
+const PACKAGE_ARCHIVE_MAX_UNPACKED_BYTES = 256 * 1024 * 1024;
+
+/** Extraction never applies archive owners or modes, even when run as root. */
+function packageExtractArgs(tarballPath: string, targetDir: string): string[] {
+  return [
+    "-xzf",
+    tarballPath,
+    "--no-same-owner",
+    "--no-same-permissions",
+    "-C",
+    targetDir,
+  ];
+}
+
+const LEGACY_LOCK_HASH_MESSAGE =
+  "bpl.lock entry uses the legacy content hash, which does not cover every package file; run `bpl install --update` to refresh it";
 
 export const PACKAGE_INIT_NAME_INVALID_CODE =
   "BPL_PACKAGE_INIT_NAME_INVALID";
@@ -1270,8 +1289,23 @@ export class PackageManager {
         });
       }
 
-      const actualHash = this.calculatePackageHash(installPath, entry.hashAlgorithm === "sha256-tree-v2");
-      if (actualHash !== entry.hash) {
+      // Legacy entries (no hashAlgorithm) hash only some files and miss
+      // `.x` and native sources, so they cannot verify an install (BUG-462).
+      const actualHash =
+        entry.hashAlgorithm === "sha256-tree-v2"
+          ? this.calculatePackageHash(installPath, true)
+          : undefined;
+      if (actualHash === undefined) {
+        addIssue({
+          packageName,
+          kind: "hash-mismatch",
+          message: `${packageName}: ${LEGACY_LOCK_HASH_MESSAGE}`,
+          packagePath: installPath,
+          source: entry.source,
+          expectedVersion: entry.version,
+          expectedHash: entry.hash,
+        });
+      } else if (actualHash !== entry.hash) {
         addIssue({
           packageName,
           kind: "hash-mismatch",
@@ -1875,7 +1909,10 @@ export class PackageManager {
       .relative(this.projectRoot, filePath)
       .split(path.sep)
       .join("/");
-    return `file:${relativePath || path.basename(filePath)}`;
+    // `file:lib` would read as a package name; keep `./` so the recorded
+    // source stays a path (`file:./lib`).
+    const source = relativePath || path.basename(filePath);
+    return `file:${isPackageFileSource(source) ? source : `./${source}`}`;
   }
 
   private resolveDependencyFileSource(baseDir: string, fileSource: string): string {
@@ -3214,14 +3251,17 @@ export class PackageManager {
     let tarballPath: string;
     let lockSource = sourceContext.lockSource ?? packageSource;
 
-    // Check if source is a file path or package name
+    // Only `file:` sources and path-like sources (`./x`, `a/b`, `x.tgz`,
+    // absolute paths) are files; a bare name such as `foo` always resolves
+    // from the package cache, even if the current directory has a file
+    // named `foo` (BUG-462).
     const directFileSource = this.stripPackageFileSourcePrefix(packageSource);
-    const directPackageSource =
-      packageSource.startsWith("file:") ||
-      isPackageFileSource(directFileSource)
-        ? this.resolveDependencyFileSource(this.projectRoot, directFileSource)
-        : packageSource;
-    if (this.tryLstat(directPackageSource)) {
+    const isFileSource =
+      packageSource.startsWith("file:") || isPackageFileSource(directFileSource);
+    const directPackageSource = isFileSource
+      ? this.resolveDependencyFileSource(this.projectRoot, directFileSource)
+      : packageSource;
+    if (isFileSource && this.tryLstat(directPackageSource)) {
       tarballPath = directPackageSource;
       if (!sourceContext.lockSource && directPackageSource !== packageSource) {
         lockSource = this.formatDirectPackageFileLockSource(packageSource);
@@ -3286,7 +3326,7 @@ export class PackageManager {
       const archiveTool = getPackageArchiveTool();
       const extractResult = spawnSync(
         archiveTool,
-        ["-xzf", tarballPath, "-C", tempDir],
+        packageExtractArgs(tarballPath, tempDir),
         {
           stdio: options.verbose ? "inherit" : "pipe",
           timeout: getPackageArchiveToolTimeoutMs(),
@@ -3371,12 +3411,19 @@ export class PackageManager {
       }
 
       if (expectedEntry) {
-        const actualHash = this.calculatePackageHash(packageDir, expectedEntry.hashAlgorithm === "sha256-tree-v2");
-        if (manifest.version !== expectedEntry.version || actualHash !== expectedEntry.hash) {
+        const legacy = expectedEntry.hashAlgorithm !== "sha256-tree-v2";
+        const actualHash = this.calculatePackageHash(packageDir, true);
+        if (
+          legacy ||
+          manifest.version !== expectedEntry.version ||
+          actualHash !== expectedEntry.hash
+        ) {
           const issue: PackageLockVerificationIssue = {
             packageName: manifest.name,
             kind: manifest.version !== expectedEntry.version ? "version-mismatch" : "hash-mismatch",
-            message: `${manifest.name}: restored package does not match bpl.lock version/content hash`,
+            message: legacy
+              ? `${manifest.name}: ${LEGACY_LOCK_HASH_MESSAGE}`
+              : `${manifest.name}: restored package does not match bpl.lock version/content hash`,
             expectedVersion: expectedEntry.version,
             actualVersion: manifest.version,
             expectedHash: expectedEntry.hash,
@@ -3499,10 +3546,7 @@ export class PackageManager {
       return;
     }
     const spec = archivePath
-      ? `file:${path
-          .relative(this.projectRoot, path.resolve(archivePath))
-          .split(path.sep)
-          .join("/")}`
+      ? this.formatFileLockSource(path.resolve(archivePath))
       : manifest.version;
     projectManifest.dependencies = {
       ...(projectManifest.dependencies ?? {}),
@@ -3757,7 +3801,11 @@ export class PackageManager {
 
   private inferExpectedPackageName(packageSource: string): string | undefined {
     const fileSource = this.stripPackageFileSourcePrefix(packageSource);
-    if (fs.existsSync(fileSource)) return undefined;
+    if (
+      (packageSource.startsWith("file:") || isPackageFileSource(fileSource)) &&
+      fs.existsSync(fileSource)
+    )
+      return undefined;
     if (!packageSource.startsWith("file:")) {
       const installSpec = parsePackageInstallSpec(packageSource);
       if (installSpec) return installSpec.name;
@@ -4111,6 +4159,23 @@ export class PackageManager {
   }
 
   private validatePackageArchiveMembers(tarballPath: string): void {
+    // Reject decompression bombs before tar writes anything (BUG-462).
+    try {
+      zlib.gunzipSync(fs.readFileSync(tarballPath), {
+        maxOutputLength: PACKAGE_ARCHIVE_MAX_UNPACKED_BYTES,
+      });
+    } catch (error) {
+      const tooLarge =
+        error instanceof RangeError ||
+        (error as NodeJS.ErrnoException).code === "ERR_BUFFER_TOO_LARGE";
+      throw new CompilerError(
+        tooLarge
+          ? `Package archive expands to more than ${PACKAGE_ARCHIVE_MAX_UNPACKED_BYTES / (1024 * 1024)} MiB`
+          : `Failed to inspect package archive: ${error instanceof Error ? error.message : String(error)}`,
+        "Package archives must be gzip-compressed tarballs created by 'bpl pack'.",
+        { file: tarballPath, startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+      );
+    }
     const archiveTool = getPackageArchiveTool();
     this.validatePackageArchiveEntryTypes(archiveTool, tarballPath);
 
@@ -4845,7 +4910,7 @@ export class PackageManager {
         const archiveTool = getPackageArchiveTool();
         const extractResult = spawnSync(
           archiveTool,
-          ["-xzf", entry.path, "-C", tempDir],
+          packageExtractArgs(entry.path, tempDir),
           { stdio: "pipe", timeout: getPackageArchiveToolTimeoutMs() },
         );
 
@@ -4965,7 +5030,7 @@ export class PackageManager {
         const archiveTool = getPackageArchiveTool();
         const extractResult = spawnSync(
           archiveTool,
-          ["-xzf", entry.path, "-C", tempDir],
+          packageExtractArgs(entry.path, tempDir),
           { stdio: "pipe", timeout: getPackageArchiveToolTimeoutMs() },
         );
 

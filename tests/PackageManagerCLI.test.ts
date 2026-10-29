@@ -1098,7 +1098,8 @@ describe("Package Manager CLI", () => {
               "locked-duplicate-name": {
                 version: "1.0.0",
                 source: `file:${path.basename(sourceArchive)}`,
-                hash: localPM["calculatePackageHash"](lockedPackageDir),
+                hash: localPM["calculatePackageHash"](lockedPackageDir, true),
+                hashAlgorithm: "sha256-tree-v2",
               },
             },
           },
@@ -1683,7 +1684,8 @@ describe("Package Manager CLI", () => {
               "locked-invalid-parent": {
                 version: "1.0.0",
                 source: `file:${path.basename(sourceArchive)}`,
-                hash: localPM["calculatePackageHash"](parentDir),
+                hash: localPM["calculatePackageHash"](parentDir, true),
+                hashAlgorithm: "sha256-tree-v2",
               },
             },
           },
@@ -3457,7 +3459,8 @@ describe("Package Manager CLI", () => {
               "doctor-locked-duplicate": {
                 version: "1.0.0",
                 source: `file:${path.basename(sourceArchive)}`,
-                hash: localPM["calculatePackageHash"](lockedPackageDir),
+                hash: localPM["calculatePackageHash"](lockedPackageDir, true),
+                hashAlgorithm: "sha256-tree-v2",
               },
             },
           },

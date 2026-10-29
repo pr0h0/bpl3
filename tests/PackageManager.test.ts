@@ -3131,7 +3131,8 @@ describe("PackageManager", () => {
               "duplicate-locked-name": {
                 version: "1.0.0",
                 source: `file:${path.basename(sourceArchive)}`,
-                hash: localPM["calculatePackageHash"](lockedPackageDir),
+                hash: localPM["calculatePackageHash"](lockedPackageDir, true),
+                hashAlgorithm: "sha256-tree-v2",
               },
             },
           },
@@ -3296,7 +3297,7 @@ describe("PackageManager", () => {
       const localPM = new PackageManager(appDir);
       const packages: Record<
         string,
-        { version: string; source: string; hash: string }
+        { version: string; source: string; hash: string; hashAlgorithm: string }
       > = {};
 
       for (const testCase of cases) {
@@ -3324,7 +3325,8 @@ describe("PackageManager", () => {
         packages[testCase.packageName] = {
           version: "1.0.0",
           source: "file:source.tgz",
-          hash: localPM["calculatePackageHash"](packageDir),
+          hash: localPM["calculatePackageHash"](packageDir, true),
+          hashAlgorithm: "sha256-tree-v2",
         };
       }
 
@@ -3386,7 +3388,8 @@ describe("PackageManager", () => {
               "bin-lock-missing": {
                 version: "1.0.0",
                 source: "file:source.tgz",
-                hash: localPM["calculatePackageHash"](packageDir),
+                hash: localPM["calculatePackageHash"](packageDir, true),
+                hashAlgorithm: "sha256-tree-v2",
               },
             },
           },
@@ -3435,7 +3438,7 @@ describe("PackageManager", () => {
       ] as const;
       const packages: Record<
         string,
-        { version: string; source: string; hash: string }
+        { version: string; source: string; hash: string; hashAlgorithm: string }
       > = {};
 
       fs.mkdirSync(appDir, { recursive: true });
@@ -3471,7 +3474,8 @@ describe("PackageManager", () => {
         packages[testCase.packageName] = {
           version: "1.0.0",
           source: "file:source.tgz",
-          hash: localPM["calculatePackageHash"](packageDir),
+          hash: localPM["calculatePackageHash"](packageDir, true),
+          hashAlgorithm: "sha256-tree-v2",
         };
       }
 

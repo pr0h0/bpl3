@@ -49,6 +49,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Package installation hardening (BUG-462): `bpl install foo` no longer
+  installs a file named `foo` from the current directory (use `./foo`, now
+  recorded as `file:./foo`); legacy lock hashes fail `--locked` until
+  `bpl install --update`; archives that decompress past 256 MiB are rejected;
+  extraction ignores archive owners and modes. Diagnostics skip source snippets
+  for binary files.
+
 - Package content hashes include a package's nested `bpl_modules` and
   `node_modules`, so editing a nested dependency after install fails
   `bpl install --locked` and lock verification (BUG-456).
