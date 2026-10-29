@@ -39,6 +39,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `switch` on a null `string` takes the `default` case instead of crashing,
+  and a duplicate enum case is reported by name (`E.A`, not `0`) (BUG-436).
+
 - Methods with a native variadic parameter (`xs: ...int`), which compiled to a
   wrong signature and crashed when bound to a lambda, are rejected with
   `BPL_VARIADIC_METHOD_UNSUPPORTED`; diagnostics now mark variadic function

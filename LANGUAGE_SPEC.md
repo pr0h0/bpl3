@@ -622,7 +622,8 @@ loop (;;) {
 
 - **[R-CTRL-7]** `switch (value)` accepts integer, string, and enum values;
   other types are rejected with `BPL_SWITCH_VALUE_TYPE_MISMATCH`. Duplicate
-  case values are rejected.
+  case values are rejected. Strings compare by content, and a null string
+  matches no case.
 - **[R-CTRL-8]** A braced `case` or `default` body must end with `break`,
   `continue`, `return`, `throw`, or `fallthrough`. Control never falls into
   the next case implicitly; `fallthrough;` continues with the next case body.

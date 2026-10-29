@@ -71,6 +71,40 @@ frame takeSlice(_xs: Animal[]) {}
   });
 });
 
+describe("BUG-436: switch diagnostics and null strings", () => {
+  test("a duplicate enum case names the variant", () => {
+    const result = check(`enum E { A, B }
+frame main() ret int {
+    local e: E = E.A;
+    switch (e) {
+        case E.A: { return 1; }
+        case E.A: { return 2; }
+        default: { return 0; }
+    }
+    return 0;
+}
+`);
+    expect(result.stderr).toContain("Duplicate case value 'E.A'");
+  });
+
+  test("a null string takes the default case", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+frame pick(s: string) {
+    switch (s) {
+        case "a": { printf("a\\n"); break; }
+        default: { printf("default\\n"); break; }
+    }
+}
+frame main() ret int {
+    pick(nullptr);
+    pick("a");
+    return 0;
+}
+`);
+    expect(output).toBe("default\na\n");
+  });
+});
+
 describe("BUG-430: native variadic methods", () => {
   // spec: R-FN-10
   for (const [kind, source] of Object.entries({

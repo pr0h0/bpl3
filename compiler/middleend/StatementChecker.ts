@@ -1060,6 +1060,12 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
     const seenValues = new Set<string>();
 
     for (const caseItem of stmt.cases) {
+      // As written, for messages: `E.A` rather than its index `0`.
+      const written = caseItem.value;
+      const writtenLabel =
+        written.kind === "Member" && written.object.kind === "Identifier"
+          ? `${written.object.name}.${written.property}`
+          : undefined;
       const patternType = this.checkExpression(caseItem.value);
       if (
         patternType &&
@@ -1112,7 +1118,7 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
       if (valStr !== undefined) {
         if (seenValues.has(valStr)) {
           throw new CompilerError(
-            `Duplicate case value '${valStr}'`,
+            `Duplicate case value '${writtenLabel ?? valStr}'`,
             "Switch cases must have unique values.",
             caseItem.value.location,
           );

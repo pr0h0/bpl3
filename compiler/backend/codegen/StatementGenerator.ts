@@ -2941,6 +2941,18 @@ export abstract class StatementGenerator extends AsmGenerator {
     fallthroughLabels.push(endLabel);
     this.switchStack.push({ labels: fallthroughLabels, activeIndex: -1 });
 
+    // A null string matches no case: go to `default` instead of passing null
+    // to strcmp, which crashes.
+    if (caseLabels.length > 0) {
+      const isNull = this.newRegister();
+      const compareLabel = this.newLabel("switch.compare");
+      this.emit(`  ${isNull} = icmp eq i8* ${cond}, null`);
+      this.emit(
+        `  br i1 ${isNull}, label %${defaultLabel}, label %${compareLabel}`,
+      );
+      this.emit(`${compareLabel}:`);
+    }
+
     // Generate if-else chain
     for (let i = 0; i < caseLabels.length; i++) {
       const c = caseLabels[i]!;

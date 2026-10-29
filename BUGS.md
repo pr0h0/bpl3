@@ -190,6 +190,12 @@ returning `Self` then return `T` as well. `tests/AuditCompilerFixes.test.ts`.
 
 ### CLI and tooling
 
+**Progress (2026-10-29)**: a `switch` on a null `string` takes `default` (or
+does nothing) instead of crashing in `strcmp`. A duplicate enum case names the
+variant (`Duplicate case value 'E.A'`). The generic arity error no longer
+reproduces as a duplicate. Still open: the `check` → `--emit llvm` →
+`opt -passes=verify` probe test.
+
 #### BUG-437: Formatter leaves trailing spaces after brace-less `if`/`else`/`loop`
 
 **Status**: Fixed · **Priority**: P2
