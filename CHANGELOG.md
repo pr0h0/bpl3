@@ -49,6 +49,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- bpl-express route parameters are percent-decoded (`/users/John%20Doe` →
+  `John Doe`); invalid escapes and `%00` do not match (BUG-463).
+
 - Documentation fixes (BUG-453): the pointers guide uses BPL syntax instead
   of C (`*int`, `.` through pointers, `Func<R>(...)`); the keyword index lists
   every reserved word; broken calls in the intrinsics and try/catch guides are

@@ -311,7 +311,16 @@ struct Router {
                 }
                 val_str[val_len] = '\0';
 
-                HttpParser.put(params, key_str, val_str);
+                # Path parameters are percent-decoded (`John%20Doe` is
+                # `John Doe`); `+` stays literal in paths. Invalid escapes
+                # and `%00` make the route not match.
+                local decoded: string = HttpParser.decode(val_str, cast<long>(val_len), false);
+                free(val_str);
+                if (decoded == nullptr) {
+                    free(key_str);
+                    return false;
+                }
+                HttpParser.put(params, key_str, decoded);
             } else {
                 r_idx = r_idx + 1;
                 q_idx = q_idx + 1;

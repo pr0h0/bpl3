@@ -19,3 +19,23 @@ frame main()ret int{
  return 0;
 }`);
 }, 90000);
+
+// BUG-463: path parameters were passed through percent-encoded.
+test("route parameters are percent-decoded; invalid escapes do not match", () => {
+  native(String.raw`
+import [Router] from "bpl-express";
+import [Map] from "std/map.bpl";
+import releaseStrings from "bpl-http-parser";
+extern strcmp(a:string,b:string)ret int;
+frame main()ret int{
+ local router:Router=Router.new();local owner:*Router=&router;defer owner.destroy();
+ local params:Map<string,string>=Map<string,string>.new();defer releaseStrings(&params);
+ if(!router.matchPath("/users/:name","/users/John%20Doe",&params)){return 1;}
+ if(strcmp(params.get("name").unwrap(),"John Doe")!=0){return 2;}
+ if(!router.matchPath("/q/:v","/q/a+b",&params)){return 3;}
+ if(strcmp(params.get("v").unwrap(),"a+b")!=0){return 4;}
+ if(router.matchPath("/users/:name","/users/bad%2",&params)){return 5;}
+ if(router.matchPath("/users/:name","/users/nul%00",&params)){return 6;}
+ return 0;
+}`);
+}, 90000);

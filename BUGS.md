@@ -592,11 +592,16 @@ the map helper because `std/string.bpl` imports `std/array.bpl`.
 
 #### BUG-463: Router path parameters are not percent-decoded
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 `packages/bpl-express/src/router.bpl:279-303`: `/users/John%20Doe` yields
 `John%20Doe`. Decode with `HttpParser.decode(..., false)` and reject `%00`;
 document the behavior (suspected).
+
+**Resolution**: confirmed and fixed. `matchPath` decodes each parameter with
+`HttpParser.decode(..., false)`; invalid escapes and `%00` make the route not
+match. Documented in packages/bpl-express/README.md.
+`tests/WebRoutingPatterns.test.ts`.
 
 #### BUG-464: Chaining three operators on a generic method result fails to typecheck
 

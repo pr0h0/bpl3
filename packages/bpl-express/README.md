@@ -35,6 +35,9 @@ Routes support `get`, `post`, `put`, `delete`, `patch`, `options`, `head`, and
 `on(method, path, handler)`. Parameters use `/users/:id`; nonterminal `*`
 characters are literal and do not stop later parameter extraction. A final `*` matches
 remaining path characters. `req.getParam("id")` returns `Option<string>`.
+Parameter values are percent-decoded (`/users/John%20Doe` gives `John Doe`; `+`
+stays literal in paths), and a path with an invalid escape or `%00` in a
+parameter does not match the route.
 `req.state` holds application-owned strings separately from client data.
 `req.setState(key, value)` copies strings for middleware identity/context; the
 request destroys them after handling. Client headers/query parameters cannot
