@@ -4198,7 +4198,7 @@ describe("CLI Tests", () => {
         "global const SCIENTIFIC_SCALE: f32 = cast<f32>(0.0010000000474974513);",
       );
       expect(result.stdout).toContain(
-        "global const SCIENTIFIC_DOUBLE: double = 1e-3;",
+        "global const SCIENTIFIC_DOUBLE: double = 0.001;",
       );
       expect(result.stdout).toContain(
         "global const CONTINUED_COUNT: uint = 64;",

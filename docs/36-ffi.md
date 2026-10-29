@@ -153,7 +153,7 @@ The generated BPL is intentionally conservative:
 
 ```bpl
 global const ANSWER: int = 42;
-global const SCIENTIFIC_DOUBLE: double = 1e-3;
+global const SCIENTIFIC_DOUBLE: double = 0.001;
 global const CONTINUED_COUNT: uint = 64;
 global const FEATURE_BITS: uint = 0b1010;
 global const FILE_MODE: int = 0o755;
@@ -207,7 +207,8 @@ pointers. Multidimensional parameter arrays decay at the outer dimension, so
 arrays. Legacy C octal constants such as `0755` are normalized to BPL `0o755`
 syntax, binary constants keep `0b` syntax, and exponent-only floating constants
 such as `1e-3` are emitted as `double` so generated bindings preserve C numeric
-semantics.
+semantics. Floating constants are written in plain decimal (`1e-3` becomes
+`0.001`), since BPL has no exponent literals.
 
 Review generated pointer, enum-value, and platform-sized integer mappings before
 publishing bindings for a library. Complex macros, inline functions, function

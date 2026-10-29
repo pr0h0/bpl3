@@ -39,6 +39,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `bpl bindgen` writes exponent `double` constants (`#define SCI 1e-3`) in
+  plain decimal (`0.001`), which BPL can parse (BUG-441).
+
 - Shell completions are generated from the CLI's command definitions: every
   command (including `check`, `dev`, `bindgen`, `package-cache` subcommands)
   completes exactly the options it accepts (BUG-438).

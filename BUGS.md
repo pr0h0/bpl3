@@ -256,11 +256,16 @@ syntax; decide and document one.
 
 #### BUG-441: `bindgen` emits exponent float literals BPL cannot parse
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `#define SCI 1e-3` becomes `global const SCI: double = 1e-3;`, which `check`
 rejects (R-LEX-6 has no exponent literals). Emit decimal form or skip, and fix
 the docs/36 example.
+
+**Resolution**: `double` constants go through the same plain-decimal
+conversion as `f32` ones (`1e-3` → `0.001`, `2.5E+4` → `25000.0`). The docs/36
+example and the CLI test that asserted `1e-3` are updated.
+`tests/CBindgenFloat.test.ts` checks that the generated file type-checks.
 
 #### BUG-442: `bpl format a.bpl b.bpl | head` crashes with an EPIPE stack trace
 
