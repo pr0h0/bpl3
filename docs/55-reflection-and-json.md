@@ -4,8 +4,11 @@
 
 `typeof<T>()` returns a borrowed pointer to compiler-generated `TypeInfo`
 metadata. Do not free or modify this metadata. It includes the type's name,
-size, kind, reflected fields and methods, and an element type for arrays and
-pointers. See [the declarations](stdlib-reference.md#stdreflectionbpl) for
+size, kind, reflected fields and methods, an element type for arrays and
+pointers, and, for structs with methods, the `vtable` pointer constructors store
+in an object's first word (null otherwise). Code that builds objects from raw
+memory, as `JSON.parse` does, must install it before calling methods. A
+`string` reflects as a string primitive, distinct from `*char`. See [the declarations](stdlib-reference.md#stdreflectionbpl) for
 `TypeInfo`, `FieldInfo`, `MethodInfo`, and the `TYPE_KIND_*` constants.
 
 ```bpl
@@ -148,7 +151,8 @@ The implementation is experimental; it is not a general, strict JSON validator.
 | Pointers                                                          | Pointee value or `null`               | Allocated pointee; requires supported element type         |
 | Enums                                                             | Variant name only                     | Variant-name lookup; payloads are not a general round trip |
 
-Missing fields are not required-field validation. Cyclic graphs are unsupported:
+Parsed structs (including `Array<T>`) receive their vtable, so methods can be
+called on the result. Missing fields are not required-field validation. Cyclic graphs are unsupported:
 recursive serialization/freeing has no cycle detection. Fixed arrays reject
 excess elements; shorter inputs retain zero-initialized remaining slots.
 Unsupported primitive destinations return a parse error. Container separators,

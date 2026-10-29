@@ -268,6 +268,17 @@ codegen.
   with `BPL_VARIABLE_TYPE_ANNOTATION_MISSING`; there is no initializer-based
   type inference.
 - **[R-DECL-2]** A global declared without an initializer is zero-initialized.
+  A global initializer must be a compile-time constant: a literal, unary `-`,
+  `!` or `~` of a constant, integer arithmetic (`+ - * / % & | ^ << >>`) of
+  constants, a cast of a numeric constant, or an array literal of constants.
+  Anything else is rejected with `BPL_GLOBAL_INITIALIZER_NOT_CONSTANT`.
+  Folding follows run-time semantics: the right operand takes the left
+  operand's type, each operation wraps to its type
+  (`global X: int = (2147483647 + 1) / 2;` is `-1073741824`), and each cast
+  converts its operand (`cast<int>(1.75)` is `1`, `cast<i8>(300.0)` saturates
+  to `127`, `cast<f32>` rounds, `cast<bool>(2)` keeps the low bit). A
+  division that overflows (`MIN / -1`) is not a constant, and the only
+  constant pointer is null (`cast<*T>(0)`).
   A local declared without an initializer has an unspecified value until it is
   assigned; reading it first is undefined behavior and is not diagnosed.
 - **[R-DECL-3]** A local variable or parameter that is never used is a compile
@@ -442,9 +453,15 @@ frame identity<T>(val: T) ret T {
   use the value's static type.
 - **[R-STRUCT-8]** For type checking, every struct is a subtype of the root
   `Type` struct, so a pointer to any struct converts implicitly to `*Type`.
-- **[R-STRUCT-9]** A struct that contains itself by value, directly or
-  through other structs, is rejected with `BPL_TYPE_RECURSION_CYCLE`.
-  Self-reference through a pointer is allowed.
+  Subtyping applies to a struct value or a single pointer (`Dog` → `Animal`,
+  `*Dog` → `*Animal`). Deeper pointers and arrays need identical element types:
+  `**Dog` does not convert to `**Animal`, nor `Dog[2]` to `Animal[2]` or
+  `Animal[]`, because an `Animal` could then be stored where a `Dog` lives.
+- **[R-STRUCT-9]** A struct or enum that contains itself by value is rejected
+  with `BPL_TYPE_RECURSION_CYCLE`. Containment follows fields, the parent
+  struct, enum payloads, fixed-size arrays, tuples, type aliases, and generic
+  arguments stored by value. Self-reference through a pointer, slice, or
+  callable is allowed.
 - **[R-STRUCT-10]** Generic structs are instantiated with explicit type
   arguments, such as `Box<int> { val: 1 }`. Methods can declare their own type
   parameters, which are also supplied explicitly at the call.
@@ -706,7 +723,9 @@ try {
   more tightly than `&`. Binary operators of equal precedence associate left to
   right.
 - **[R-EXPR-8]** `condition ? a : b` evaluates only the selected branch. The
-  branch types must be compatible (`BPL_TERNARY_BRANCH_TYPE_MISMATCH`).
+  branch types must be compatible (`BPL_TERNARY_BRANCH_TYPE_MISMATCH`); the
+  result has their common type, chosen as for `match` arms, and each branch
+  is converted to it (for example `b ? u8value : 300` is an `int`).
 - **[R-EXPR-9]** Unary `+` is not supported (`BPL_UNARY_PLUS_UNSUPPORTED`).
 
 ### Special Expressions
@@ -714,7 +733,10 @@ try {
 - **[R-EXPR-10]** `sizeof(Type)` and `sizeof(expression)` yield the size in
   bytes of the type.
 - **[R-EXPR-11]** `&lvalue` yields a pointer to the operand, and `*pointer`
-  reads or writes the pointed-to value.
+  reads or writes the pointed-to value. An lvalue is a variable, `*pointer`, or
+  a field or element of an lvalue or of storage reached through a pointer or
+  slice; the address of a call result, literal, arithmetic, cast, conditional,
+  or overloaded `__get__` result is rejected (`BPL_ADDRESS_OF_TARGET_INVALID`).
 - **[R-EXPR-12]** `(value is Type)` yields `bool`. For pointers to structs,
   `pointer is *Child` tests the dynamic type of the pointed-to object.
 - **[R-EXPR-13]** `match<Type>(value)` yields `true` when the value's type is

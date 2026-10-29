@@ -23,6 +23,7 @@ import {
   ADDRESS_OF_CONSTANT_CODE,
   ASSIGNMENT_TARGET_CONSTANT_CODE,
   ASSIGNMENT_TARGET_INVALID_CODE,
+  ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
   ASSIGNMENT_TYPE_MISMATCH_CODE,
   BITWISE_OPERAND_TYPE_MISMATCH_CODE,
   CALL_ARGUMENT_TYPE_MISMATCH_CODE,
@@ -32,6 +33,7 @@ import {
   MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
   MATCH_TUPLE_PATTERN_ARITY_MISMATCH_CODE,
   MATCH_TUPLE_PATTERN_TYPE_MISMATCH_CODE,
+  POINTER_ARITHMETIC_VOID_CODE,
   RESERVED_BUILTIN_TYPE_NAMES,
   SYMBOL_ALREADY_DEFINED_CODE,
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
@@ -1189,11 +1191,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       // an explicit count parameter for native variadics.
     }
 
-    this.rejectEscapingSpecPointer(
-      returnType,
-      "a return type",
-      decl.location,
-    );
+    this.rejectEscapingSpecPointer(returnType, "a return type", decl.location);
 
     this.currentFunctionReturnType = returnType;
     const prevReboundParameters = this.reboundParameters;
@@ -1248,6 +1246,26 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   // ========== Struct Body Checking ==========
 
+  /**
+   * Whether an implementation or override type can stand in for the declared
+   * one. Dispatch through a spec or parent uses the declared signature, so a
+   * scalar (number, bool, char) must match exactly: `ret bool` behind
+   * `ret long` leaves garbage in the upper bits (BUG-423). Other types keep
+   * the existing compatibility rule (e.g. a concrete iterator for a spec).
+   */
+  private isSignatureTypeSubstitutable(
+    declared: AST.TypeNode,
+    actual: AST.TypeNode,
+  ): boolean {
+    if (this.areTypesExactMatch(declared, actual)) return true;
+    const isScalar = (type: AST.TypeNode) => {
+      const resolved = this.resolveType(type, false);
+      return TypeUtils.isNumericType(resolved) || TypeUtils.isBoolType(resolved);
+    };
+    if (isScalar(declared) || isScalar(actual)) return false;
+    return this.areTypesCompatible(declared, actual);
+  }
+
   private checkSpecImplementation(
     structDecl: AST.StructDecl,
     specDecl: AST.SpecDecl,
@@ -1301,7 +1319,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       );
 
       if (
-        !this.areTypesCompatible(expectedReturnType, resolvedActualReturnType)
+        !this.isSignatureTypeSubstitutable(
+          expectedReturnType,
+          resolvedActualReturnType,
+        )
       ) {
         throw new CompilerError(
           `Method '${method.name}' in struct '${structDecl.name}' has incorrect return type`,
@@ -1325,7 +1346,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         );
         const actualParamType = this.resolveType(structMethod.params[i]!.type);
 
-        if (!this.areTypesCompatible(expectedParamType, actualParamType)) {
+        // The receiver may be declared as the spec or Self; it only has to
+        // accept the implementing struct.
+        const isReceiver = i === 0 && method.params[i]!.name === "this";
+        if (
+          isReceiver
+            ? !this.areTypesCompatible(expectedParamType, actualParamType)
+            : !this.isSignatureTypeSubstitutable(
+                expectedParamType,
+                actualParamType,
+              )
+        ) {
           throw new CompilerError(
             `Parameter '${method.params[i]!.name}' of method '${method.name}' has incorrect type`,
             `Expected '${this.formatDiagnosticType(expectedParamType)}', got '${this.formatDiagnosticType(actualParamType)}'`,
@@ -1384,106 +1415,134 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   }
 
   /**
-   * Detect cycles in struct field types that would cause infinite size
+   * Detect a struct or enum that contains itself by value, which would need
+   * infinite storage. Containment follows struct fields (and the parent
+   * struct), enum payloads, fixed-size arrays, tuples, type aliases and generic
+   * arguments a declaration stores by value; pointers, slices and callables
+   * break a cycle (BUG-427).
    */
-  private detectStructCycle(
-    startName: string,
-    decl: AST.StructDecl,
-    visited: Set<string> = new Set(),
-    path: string[] = [],
-  ): void {
-    if (visited.has(decl.name)) {
-      // Found a cycle
-      const cyclePath = [...path, decl.name].join(" -> ");
-      throw new CompilerError(
-        `Struct '${startName}' has infinite size due to recursive field types`,
-        `Recursive cycle detected: ${cyclePath}. Use pointers (*${decl.name}) to break the cycle.`,
-        decl.location,
-        TYPE_RECURSION_CYCLE_CODE,
-      );
-    }
+  private detectValueCycle(start: AST.StructDecl | AST.EnumDecl): void {
+    const label = start.kind === "StructDecl" ? "Struct" : "Enum";
+    // Keyed by declaration and generic arguments: `Box<int>` and `Box<S>` are
+    // different expansions of `Box`.
+    const visiting = new Set<string>();
+    const nodeIds = new Map<AST.ASTNode, number>();
+    const visitKey = (
+      node: AST.ASTNode,
+      substitutions: Map<string, AST.TypeNode>,
+    ): string => {
+      let id = nodeIds.get(node);
+      if (id === undefined) {
+        id = nodeIds.size;
+        nodeIds.set(node, id);
+      }
+      const args = [...substitutions]
+        .map(([name, type]) => `${name}=${this.typeToString(type)}`)
+        .join(",");
+      return `${id}<${args}>`;
+    };
+    const path: string[] = [];
+    // Each nesting adds a level, so a generic that grows its own arguments
+    // (`G<T> { x: G<Box<T>> }`) cannot expand forever.
+    const MAX_DEPTH = 64;
 
-    visited.add(decl.name);
-    path.push(decl.name);
+    const visitDecl = (
+      decl: AST.StructDecl | AST.EnumDecl,
+      substitutions: Map<string, AST.TypeNode>,
+    ): void => {
+      if (decl === start && path.length > 0) {
+        const cyclePath = [...path, decl.name].join(" -> ");
+        throw new CompilerError(
+          `${label} '${start.name}' has infinite size due to recursive ${
+            label === "Struct" ? "field" : "variant"
+          } types`,
+          `Recursive cycle detected: ${cyclePath}. Use pointers (*${start.name}) to break the cycle.`,
+          start.location,
+          TYPE_RECURSION_CYCLE_CODE,
+        );
+      }
+      // Each declaration is expanded once per walk; other cycles are reported
+      // when their own declaration is checked.
+      const key = visitKey(decl, substitutions);
+      if (visiting.has(key) || path.length >= MAX_DEPTH) return;
+      visiting.add(key);
+      path.push(decl.name);
 
-    for (const member of decl.members) {
-      if (member.kind === "StructField") {
-        const fieldType = member.type;
-
-        // Only check non-pointer, non-array types
-        if (
-          fieldType.kind === "BasicType" &&
-          fieldType.pointerDepth === 0 &&
-          fieldType.arrayDimensions.length === 0
-        ) {
-          // Try to resolve the field's struct
-          const symbol = this.currentScope.resolve(fieldType.name);
-          if (symbol && symbol.kind === "Struct") {
-            const fieldStructDecl = symbol.declaration as AST.StructDecl;
-            this.detectStructCycle(
-              startName,
-              fieldStructDecl,
-              new Set(visited),
-              [...path],
-            );
-          }
+      const contained: AST.TypeNode[] = [];
+      if (decl.kind === "StructDecl") {
+        const parent = decl.inheritanceList[0];
+        if (parent) contained.push(parent);
+        for (const member of decl.members) {
+          if (member.kind === "StructField") contained.push(member.type);
+        }
+      } else {
+        for (const variant of decl.variants) {
+          const data = variant.dataType;
+          if (data?.kind === "EnumVariantTuple") contained.push(...data.types);
+          else if (data?.kind === "EnumVariantStruct")
+            contained.push(...data.fields.map((field) => field.type));
         }
       }
-    }
-  }
+      for (const type of contained) visitType(type, substitutions);
+      path.pop();
+    };
 
-  /**
-   * Detect cycles in enum variant types that would cause infinite size
-   */
-  private detectEnumCycle(
-    startName: string,
-    decl: AST.EnumDecl,
-    visited: Set<string> = new Set(),
-    path: string[] = [],
-  ): void {
-    if (visited.has(decl.name)) {
-      // Found a cycle
-      const cyclePath = [...path, decl.name].join(" -> ");
-      throw new CompilerError(
-        `Enum '${startName}' has infinite size due to recursive variant types`,
-        `Recursive cycle detected: ${cyclePath}. Use pointers (*${decl.name}) to break the cycle.`,
-        decl.location,
-        TYPE_RECURSION_CYCLE_CODE,
-      );
-    }
-
-    visited.add(decl.name);
-    path.push(decl.name);
-
-    for (const variant of decl.variants) {
-      if (variant.dataType) {
-        let typesToCheck: AST.TypeNode[] = [];
-
-        if (variant.dataType.kind === "EnumVariantTuple") {
-          typesToCheck = variant.dataType.types;
-        } else if (variant.dataType.kind === "EnumVariantStruct") {
-          typesToCheck = variant.dataType.fields.map((f) => f.type);
-        }
-
-        for (const type of typesToCheck) {
-          // Only check non-pointer, non-array types
-          if (
-            type.kind === "BasicType" &&
-            type.pointerDepth === 0 &&
-            type.arrayDimensions.length === 0
-          ) {
-            // Try to resolve the variant's enum
-            const symbol = this.currentScope.resolve(type.name);
-            if (symbol && symbol.kind === "Enum") {
-              const fieldEnumDecl = symbol.declaration as AST.EnumDecl;
-              this.detectEnumCycle(startName, fieldEnumDecl, new Set(visited), [
-                ...path,
-              ]);
-            }
-          }
-        }
+    const visitType = (
+      type: AST.TypeNode,
+      substitutions: Map<string, AST.TypeNode>,
+    ): void => {
+      const dimensions =
+        "arrayDimensions" in type ? (type.arrayDimensions ?? []) : [];
+      // A slice is a pointer and length; fixed arrays store elements inline.
+      if (dimensions.some((dimension) => dimension === null)) return;
+      if (type.kind === "TupleType") {
+        for (const element of type.types) visitType(element, substitutions);
+        return;
       }
-    }
+      if (type.kind !== "BasicType" || type.pointerDepth > 0) return;
+
+      const substituted = substitutions.get(type.name);
+      if (substituted && type.genericArgs.length === 0) {
+        visitType(substituted, new Map());
+        return;
+      }
+      const symbol = this.currentScope.resolve(type.name);
+      if (!symbol) return;
+      const declaration = symbol.declaration;
+      const argumentsFor = (params: AST.GenericParam[] | undefined) => {
+        const map = new Map<string, AST.TypeNode>();
+        (params ?? []).forEach((param, index) => {
+          const arg = type.genericArgs[index];
+          if (arg) map.set(param.name, substituteArgs(arg, substitutions));
+        });
+        return map;
+      };
+      if (symbol.kind === "TypeAlias" && declaration.kind === "TypeAlias") {
+        const alias = declaration as AST.TypeAliasDecl;
+        const aliasArguments = argumentsFor(alias.genericParams);
+        const key = visitKey(alias, aliasArguments);
+        if (visiting.has(key)) return;
+        visiting.add(key);
+        visitType(alias.type, aliasArguments);
+        visiting.delete(key);
+      } else if (
+        (symbol.kind === "Struct" && declaration.kind === "StructDecl") ||
+        (symbol.kind === "Enum" && declaration.kind === "EnumDecl")
+      ) {
+        const decl = declaration as AST.StructDecl | AST.EnumDecl;
+        visitDecl(decl, argumentsFor(decl.genericParams));
+      }
+    };
+
+    // Generic arguments are resolved in the scope that wrote them, including
+    // nested ones such as the `T` in `Box<Pair<T>>`.
+    const substituteArgs = (
+      type: AST.TypeNode,
+      substitutions: Map<string, AST.TypeNode>,
+    ): AST.TypeNode =>
+      substitutions.size > 0 ? this.substituteType(type, substitutions) : type;
+
+    visitDecl(start, new Map());
   }
 
   /** Collect inherited headers with class arguments applied, preserving templates. */
@@ -1609,7 +1668,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
 
       if (
-        !this.areTypesCompatible(parentMethod.returnType, method.returnType) ||
+        !this.isSignatureTypeSubstitutable(
+          parentMethod.returnType,
+          method.returnType,
+        ) ||
         !this.areTypesCompatible(method.returnType, parentMethod.returnType)
       ) {
         this.addError(
@@ -1711,7 +1773,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     // Check for infinite size cycles in struct fields
-    this.detectStructCycle(decl.name, decl);
+    this.detectValueCycle(decl);
 
     // Check for duplicate generic parameter names
     const genericParamNames = new Set<string>();
@@ -1982,7 +2044,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
     // Check for infinite size cycles in enum variants
     if (hasVariantPayload) {
-      this.detectEnumCycle(decl.name, decl);
+      this.detectValueCycle(decl);
       this.checkEnumPayloadOwnership(decl, new Map(), decl.location);
     }
 
@@ -2345,7 +2407,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (
         objType &&
         isSliceTypeNode(objType) &&
-        isTemporaryArrayElement(index.object, (type) => this.resolveType(type)) &&
+        isTemporaryArrayElement(index.object, (type) =>
+          this.resolveType(type),
+        ) &&
         !isConstantArrayStorage(index.object, (type) => this.resolveType(type))
       ) {
         // Modifying borrowed elements reads the temporary slice descriptor;
@@ -2362,6 +2426,39 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       // For assignment chaining, check the final assignee
       const assignment = expr as AST.AssignmentExpr;
       this.checkIsMutable(assignment.assignee);
+    }
+  }
+
+  /** `p += n` and `p -= n` step a pointer by an integer number of elements. */
+  private checkPointerCompoundAssignment(
+    expr: AST.AssignmentExpr,
+    targetType: AST.BasicTypeNode,
+    valueType: AST.TypeNode,
+  ): void {
+    const op = expr.operator.type;
+    if (op !== TokenType.PlusEqual && op !== TokenType.MinusEqual) {
+      throw new CompilerError(
+        `Operator '${expr.operator.lexeme}' is not supported on pointers`,
+        "Only '+=' and '-=' with an integer offset apply to pointers.",
+        expr.location,
+        ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
+      );
+    }
+    if (targetType.name === "void" && targetType.pointerDepth === 1) {
+      throw new CompilerError(
+        "Cannot perform pointer arithmetic on void pointer",
+        "Void pointers have no size, so pointer arithmetic is undefined. Cast to a sized pointer type first (e.g., *u8).",
+        expr.location,
+        POINTER_ARITHMETIC_VOID_CODE,
+      );
+    }
+    if (!TypeUtils.isIntegerType(valueType)) {
+      throw new CompilerError(
+        `Pointer offset must be an integer, got ${this.formatDiagnosticType(valueType)}`,
+        "Use an integer number of elements to step the pointer.",
+        expr.value.location,
+        ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
+      );
     }
   }
 
@@ -2452,23 +2549,32 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           BITWISE_OPERAND_TYPE_MISMATCH_CODE,
         );
       }
-      let compatible = this.areTypesCompatible(targetType, valueType);
-      if (!compatible) {
-        const val = this.getIntegerConstantValue(expr.value);
-        if (val !== undefined) {
-          compatible = this.isIntegerTypeCompatible(val, targetType);
+      if (
+        expr.operator.type !== TokenType.Equal &&
+        targetType.kind === "BasicType" &&
+        targetType.pointerDepth > 0 &&
+        targetType.arrayDimensions.length === 0
+      ) {
+        this.checkPointerCompoundAssignment(expr, targetType, valueType);
+      } else {
+        let compatible = this.areTypesCompatible(targetType, valueType);
+        if (!compatible) {
+          const val = this.getIntegerConstantValue(expr.value);
+          if (val !== undefined) {
+            compatible = this.isIntegerTypeCompatible(val, targetType);
+          }
         }
-      }
 
-      if (!compatible) {
-        throw new CompilerError(
-          `Type mismatch in assignment: cannot assign ${this.formatDiagnosticType(
-            valueType,
-          )} to ${this.formatDiagnosticType(targetType)}`,
-          "The assigned value is not compatible with the target variable's type.",
-          expr.location,
-          ASSIGNMENT_TYPE_MISMATCH_CODE,
-        );
+        if (!compatible) {
+          throw new CompilerError(
+            `Type mismatch in assignment: cannot assign ${this.formatDiagnosticType(
+              valueType,
+            )} to ${this.formatDiagnosticType(targetType)}`,
+            "The assigned value is not compatible with the target variable's type.",
+            expr.location,
+            ASSIGNMENT_TYPE_MISMATCH_CODE,
+          );
+        }
       }
     }
     if (

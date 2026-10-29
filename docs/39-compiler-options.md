@@ -133,6 +133,15 @@ bpl check src/*.bpl
 bpl check main.bpl --json
 ```
 
+Warnings (unreachable code, a local shadowing an outer variable) are printed
+but do not fail the check. With `--json` they appear in each file's
+`diagnostics` with `severity: "warning"`, and the report includes
+`warningCount` next to `errorCount`. Only warnings located in a checked file
+are reported for it; an imported module's warnings belong to that module.
+`bpl build` and `bpl run` print the entry file's warnings on stderr too (not in
+`--json` mode), and never fail because of them. Unreachable code is reported
+once per block, at the first statement that cannot run.
+
 `--json` reports rich diagnostics with `code`, `severity`, source ranges, and a
 source-line preview. Use it in editor integrations and CI tools that need
 machine-readable error locations instead of terminal-formatted snippets.
@@ -501,8 +510,8 @@ validation uses
 `BPL_BUILD_OUTPUT_NOT_FILE`, `BPL_BUILD_OUTPUT_PARENT_NOT_FOUND`,
 `BPL_BUILD_OUTPUT_PARENT_SYMLINK`,
 `BPL_BUILD_OUTPUT_PARENT_NOT_DIRECTORY`, and `BPL_BUILD_OUTPUT_IS_SOURCE` (the
-IR or executable path equals the source, e.g. an extensionless entry without
-`-o`). A missing, malformed, or invalid `bpl.json` project entry uses
+IR or executable path is the source file, including through a hard link,
+e.g. an extensionless entry without `-o`). A missing, malformed, or invalid `bpl.json` project entry uses
 `BPL_BUILD_PROJECT_ENTRY_INVALID`. These codes are additive fields on the
 stdout JSON failure report, preserving the human-readable `error` text for
 older consumers and logs.
@@ -916,7 +925,7 @@ bun test tests/TypeCheckerMemberAccessMisuse.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "member access misuse"
 ```
 
-Expression semantic guard failures use `BPL_DIVISION_BY_ZERO`, `BPL_SHIFT_COUNT_INVALID`, `BPL_ADDRESS_OF_CONSTANT`, `BPL_ADDRESS_OF_TARGET_INVALID`, `BPL_ARRAY_LITERAL_TYPE_MISMATCH`, `BPL_CAST_INTEGER_TO_STRING`, `BPL_CAST_INVALID`, and `BPL_SIZEOF_VOID_INVALID`. This covers compile-time division/modulo by zero, invalid constant shifts, address-of misuse, array literal element mismatches, invalid casts, and `sizeof(void)`. Representative messages include `Division by zero`, `Negative shift count`, `Shift count 8 is out of range`, `Cannot take address of constant expression.`, `Cannot take address of (int, int)`, `Array literal has inconsistent element types`, `Cannot cast integer type 'i32' to 'string'`, `Cannot cast i32 to Box`, and `Cannot take size of void`. The corresponding hints include `Shift counts must be zero or greater.`, `Address-of requires an lvalue.`, `All elements in an array literal must have the same type.`, `This cast is not allowed.`, and `Void type has no size.`. Valid division/modulo, in-range shifts, mutable lvalue address-of, homogeneous array literals, allowed casts, and non-void `sizeof` remain accepted. Reproduce the type-checker and JSON contracts with:
+Expression semantic guard failures use `BPL_DIVISION_BY_ZERO`, `BPL_SHIFT_COUNT_INVALID`, `BPL_ADDRESS_OF_CONSTANT`, `BPL_ADDRESS_OF_TARGET_INVALID`, `BPL_ARRAY_LITERAL_TYPE_MISMATCH`, `BPL_CAST_INTEGER_TO_STRING`, `BPL_CAST_INVALID`, and `BPL_SIZEOF_VOID_INVALID`. This covers compile-time division/modulo by zero, invalid constant shifts, address-of misuse, array literal element mismatches, invalid casts, and `sizeof(void)`. Representative messages include `Division by zero`, `Negative shift count`, `Shift count 8 is out of range`, `Cannot take address of constant expression.`, `Cannot take the address of a temporary value`, `Array literal has inconsistent element types`, `Cannot cast integer type 'i32' to 'string'`, `Cannot cast i32 to Box`, and `Cannot take size of void`. The corresponding hints include `Shift counts must be zero or greater.`, `Address-of requires a variable, field, element, or dereferenced pointer; store the value in a local first.`, `All elements in an array literal must have the same type.`, `This cast is not allowed.`, and `Void type has no size.`. Valid division/modulo, in-range shifts, mutable lvalue address-of, homogeneous array literals, allowed casts, and non-void `sizeof` remain accepted. Reproduce the type-checker and JSON contracts with:
 
 ```bash
 bun test tests/TypeCheckerExpressionSemanticGuards.test.ts

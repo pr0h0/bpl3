@@ -13,7 +13,7 @@ same change as this list are recorded under "Developer experience fixes" below.
 
 #### BUG-423: Overrides and spec implementations accept non-identical signatures
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `TypeChecker.ts:1304/1328` (spec return/params) and `:1587-1588`/`:1612-1613`
 (overrides) use
@@ -22,9 +22,11 @@ parent `m() ret long` overridden as `ret char`, returns garbage high bits throug
 `*Spec`/`*Parent` (observed `95336010894081`, `4294967295`). Require
 `areTypesExactMatch` for parameters and returns (or emit adapter thunks).
 
+**Resolution**: `isSignatureTypeSubstitutable` requires an exact match when either side is a scalar (number, bool, char) for spec returns/parameters and override returns; other types keep the compatibility rule so concrete iterators can implement `Iterable<T>`. Receivers stay compatible. `tests/AuditCompilerFixes.test.ts`.
+
 #### BUG-424: Subtyping propagates through pointer depth and array dimensions
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `TypeCheckerBase.ts:1978-2009` accepts `**Dog`→`**Animal`, `Dog[N]`→`Animal[N]`,
 and `Dog[]`→`Animal[]`. Writing an `*Animal` through a `**Animal` view of a
@@ -32,9 +34,11 @@ and `Dog[]`→`Animal[]`. Writing an `*Animal` through a `**Animal` view of a
 codegen with `Unsupported cast` at the wrong line. Allow subtyping only for one
 pointer level / depth-0 values without array dimensions.
 
+**Resolution**: `areTypesCompatible` accepts a subtype only when both sides have the same pointer depth (0 or 1) and no array dimensions; otherwise the types must match exactly. `tests/AuditCompilerFixes.test.ts`.
+
 #### BUG-425: Ternary branches are never unified, producing invalid IR or wrong values
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 The checker returns the then-branch type (`ExpressionChecker.ts:1446`) and
 `generateTernary` (`ExpressionGenerator.ts:1383`) emits a `phi` without casts.
@@ -43,17 +47,21 @@ The checker returns the then-branch type (`ExpressionChecker.ts:1446`) and
 `b ? u8var : 300` silently yields 44. `match` handles all of these; share one
 "common branch type + per-branch cast" helper.
 
+**Resolution**: `checkTernary` unifies branches with `unifyMatchResultTypes` and `generateTernary` casts each branch to the result type in its own block before the phi. `tests/TernaryBranchUnification.test.ts`.
+
 #### BUG-426: Pointer compound assignment emits integer arithmetic on pointers
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `p += 1` / `p -= n` pass `check` but `ExpressionGenerator.ts:695-738` emits
 `add i32* ...`, which clang rejects. `p = p + 1` works. Route compound pointer
 assignment through the GEP path or reject it in the checker.
 
+**Resolution**: the checker accepts only `+=`/`-=` with an integer offset on non-void pointers (other operators, float offsets and `*void` are diagnosed) and codegen steps through the existing GEP pointer-arithmetic path. `tests/PointerCompoundAssignment.test.ts`.
+
 #### BUG-427: Struct cycle detection misses arrays, tuples, generics, aliases and enums
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `TypeChecker.ts:1389-1484` skips fields with `arrayDimensions` and only follows
 struct→struct / enum→enum. `struct S { a: S[2] }`, `{ t: (int, S) }`,
@@ -61,14 +69,18 @@ struct→struct / enum→enum. `struct S { a: S[2] }`, `{ t: (int, S) }`,
 type. `struct S { o: Opt }` with `enum Opt { Some(S) }` overflows the compiler
 stack. Walk resolved field types recursively, stopping only at pointers/slices.
 
+**Resolution**: `detectValueCycle` replaces the struct/enum walkers and follows fields, the parent struct, enum payloads, fixed arrays, tuples, aliases and generic arguments stored by value; pointers, slices and callables break cycles. `tests/AuditCompilerFixes.test.ts`.
+
 #### BUG-428: Spec method call through `*Spec` crashes when an argument needs widening
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `calls/SpecMethodCallEmitter.ts:88-96` passes a fake
 `{kind:"BasicType", name:"dummy"}` target to `emitCast`. `s.take(300)` for
 `take(this: *Self, v: long)` throws `TypeError: ... arrayDimensions.length`.
 Pass the substituted spec parameter types.
+
+**Resolution**: spec calls cast arguments to the generic-substituted parameter type nodes. `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-429: `--debug` makes clang crash for generic locals of struct type
 
@@ -91,24 +103,28 @@ and diagnose the unsupported case in the checker.
 
 #### BUG-431: Inherited static `new` called through a child type emits an undefined symbol
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `throw NullAccessError.new("x");` (inherited from `Error.new`) passes `check`, then
 clang fails with `use of undefined value '@NullAccessError_new_i8_ptr'`. Resolve
 the call to the declaring type's mangled symbol, or reject it with a diagnostic.
 
+**Resolution**: static calls through a child use the declaring struct (including a generic parent's specialization, with its arguments from the child's inheritance chain). `Error.new` returns `Error`, so `catch (e: NullAccessError)` correctly does not match `NullAccessError.new(...)`. `tests/AuditCompilerFixes.test.ts`.
+
 #### BUG-432: Address-of non-lvalues passes `check`
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `ExpressionChecker.ts:973-1027` has no lvalue test: `&(x+1)`, `&one()`, `&5`,
 `&x++`, `&cast<int>(x)` and `&v[0]` with an overloaded `__get__` pass `check` and
 fail in codegen with an uncoded `Expression is not an lvalue`. Reuse the
 assignment-target predicate.
 
+**Resolution**: `checkUnary` requires an addressable operand (variable, `*p`, or a field/element of addressable storage or of a pointer/slice) and rejects temporaries with `BPL_ADDRESS_OF_TARGET_INVALID` instead of failing in codegen. `tests/AuditCompilerFixes.test.ts`.
+
 #### BUG-433: Global initializers are validated only in codegen; negative literals rejected
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `CodeGenerator.ts:1624-1671`: `global A: int = -5;`, `= -1.5`, `= !true`,
 `= 1 + 2`, `= [1, 2]` and `= f()` pass `check`, then fail with an uncoded
@@ -116,14 +132,18 @@ assignment-target predicate.
 docs/05 (signed literals) and docs/36 (array literals). Constant-fold unary
 minus/not and constant aggregates; diagnose the rest in the checker.
 
+**Resolution**: `compiler/common/ConstantInitializer.ts` folds literals, unary `-`/`!`/`~`, integer arithmetic, numeric casts and array literals. The checker reports anything else with `BPL_GLOBAL_INITIALIZER_NOT_CONSTANT` (without cascading undefined-symbol errors) and codegen emits the folded constant. `tests/AuditCompilerFixes.test.ts`.
+
 #### BUG-434: "Unreachable code" warning is reported as an error
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `StatementChecker.ts:625-634` pushes the diagnostic into `errors` while labeling
 it a warning: `check` exits 1, JSON reports `errorCount: 1` with
 `severity: "warning"`, and `run` refuses to build. Use `addWarning` like the
 shadowing warning at `:1538`.
+
+**Resolution**: the warning goes through `addWarning`. `bpl check` now prints checker warnings (unreachable code, shadowing) without failing, reports `warningCount` and warning diagnostics in JSON, and the language server shows them with warning severity. Previously all checker warnings were collected but never displayed. Warnings are attributed to the file they occur in (an imported module's warning is not repeated for each importer), `bpl build`/`bpl run` print the entry file's warnings, and unreachable code is reported once per block. `tests/CheckWarnings.test.ts`, `tests/V01StabilityEdgeCases.test.ts`.
 
 #### BUG-435: Methods of generic specs using `this: *Self` cannot be called on constrained `T`
 
@@ -360,7 +380,7 @@ fail); `docs/58-intrinsics.md:44` uses nonexistent `Math.sqrtFloat`;
 
 #### BUG-454: Objects returned by `JSON.parse` have a null vtable
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `lib/json.bpl:885/1275/1351` allocate the root, pointees and `Array<T>` buffers
 with `malloc` + `memset`, so structs with methods keep a zero vtable word.
@@ -369,15 +389,19 @@ at 0x20. The existing test never calls a method on the result. Initialize the
 vtable (as `alloc_with_vtable` in `arg_parser.bpl` does) or construct through
 the compiler's object initializer.
 
+**Resolution**: `TypeInfo` gained a trailing `vtable` field (compiler-generated for structs with methods, null otherwise; `lib/reflection.bpl` and `ReflectionGenerator` agree on the layout), and `JSON.parseAny` stores it before filling a struct, which covers roots, pointees, `Array<T>` elements and nested fields. `tests/JsonParsedObjects.test.ts`.
+
 #### BUG-455: Chained `<<` on StringBuilder, String, Stack and Array double-frees
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `lib/string_builder.bpl:231`, `lib/string.bpl:259/284`, `lib/stack.bpl:59`,
 `lib/array.bpl:314` return `*this` by value from `__lshift__`; in `x << a << b`
 the second append grows a copy and frees the original's buffer.
 `sb << "ab" << "<long>"`, `s << "cd" << "ef"` and `Stack.new(1) << 1 << 2` abort
 with `double free detected`. Return `*Self` like `Queue`.
+
+**Resolution**: `__lshift__` on StringBuilder, String (both overloads), Stack and Array, and Array `__rshift__`, return `*Self` like Queue, so chains operate on the original. `tests/StdlibShiftChaining.test.ts`.
 
 #### BUG-456: Lock verification ignores nested `bpl_modules`/`node_modules` that are still loaded
 
@@ -391,11 +415,13 @@ Reject those members at any depth (and manifest paths into them), or hash them.
 
 #### BUG-457: `JSON.parse<Array<string>>` misreads elements when the program uses `Array<string>` methods
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 Adding `s.len()` anywhere makes `["x","y"]` fail with `Expected number`
 (`lib/json.bpl:1301` reads `type_info.element_type`). The reflected element type
 of the generic instantiation is likely wrong in the compiler.
+
+**Resolution**: two reflection bugs: a specialization's field types are already lowered (`string` → `*i8`), so struct `TypeInfo` now takes field types from the generic template with the arguments substituted; and `string`/`*char` shared one `TypeInfo` cache entry, so whichever was generated first won. `string` now has its own key. `tests/JsonParsedObjects.test.ts`.
 
 #### BUG-458: JSON strings reserve the rest of the input and skip the null check
 
@@ -458,10 +484,12 @@ document the behavior (suspected).
 
 #### BUG-464: Chaining three operators on a generic method result fails to typecheck
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 Chaining operators on a generic method returning `Array<T>`/`Stack<T>` fails
 with `got Array<T> and int`.
+
+**Resolution**: the operator-overload checker substitutes the receiver's generic arguments into the result type even when the receiver type carries only a name (falls back to scope lookup), so `st << 1 << 2` keeps `*Stack<int>`. `tests/StdlibShiftChaining.test.ts`.
 
 ## Developer experience fixes (2026-10-28)
 

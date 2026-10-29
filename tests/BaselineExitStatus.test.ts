@@ -22,7 +22,8 @@ test("test:baseline logs output and preserves both passing and failing test stat
       );
       expect(result.exitCode === 0).toBe(passes);
       const log = readFileSync(join(directory, "test-baseline.txt"), "utf8");
-      expect(log).toContain("baseline fixture");
+      // Newer Bun releases list only failing tests by name when piped.
+      expect(log).toContain(passes ? "1 pass" : "baseline fixture");
       expect(result.stdout.toString()).toBe(log);
     }
   } finally {

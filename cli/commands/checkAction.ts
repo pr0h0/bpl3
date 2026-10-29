@@ -86,6 +86,7 @@ export async function runCheckCommand(
   const startTime = Date.now();
   let totalFiles = 0;
   let errorCount = 0;
+  let warningCount = 0;
   const results: CheckFileResult[] = [];
 
   for (const filePath of files) {
@@ -111,63 +112,47 @@ export async function runCheckCommand(
 
       const content = fs.readFileSync(filePath, "utf-8");
 
-      // Type check (with modules if not --no-prelude)
-      if (options.prelude !== false) {
-        const typeErrors = checkSource(content, filePath, false);
+      // --no-prelude checks the file alone, without resolving imports.
+      const { errors: typeErrors, warnings } = checkSource(
+        content,
+        filePath,
+        options.prelude === false,
+      );
+      warningCount += warnings.length;
 
-        if (typeErrors.length > 0) {
-          if (options.json) {
-            results.push({
-              file: filePath,
-              success: false,
-              diagnostics:
-                diagnosticFormatter.formatDiagnosticObjects(typeErrors),
-            });
-          } else {
-            console.error(diagnosticFormatter.formatErrors(typeErrors));
-          }
-          errorCount++;
+      if (typeErrors.length > 0) {
+        const diagnostics = [...typeErrors, ...warnings];
+        if (options.json) {
+          results.push({
+            file: filePath,
+            success: false,
+            diagnostics:
+              diagnosticFormatter.formatDiagnosticObjects(diagnostics),
+          });
         } else {
-          const elapsed = Date.now() - fileStartTime;
-          if (options.json) {
-            results.push({
-              file: filePath,
-              success: true,
-              timeMs: elapsed,
-            });
-          } else if (!options.quiet) {
-            if (options.time) {
-              console.log(`✓ ${filePath} (${elapsed}ms)`);
-            } else {
-              console.log(`✓ ${filePath}`);
-            }
-          }
+          console.error(diagnosticFormatter.formatErrors(diagnostics));
         }
+        errorCount++;
       } else {
-        // Basic type check without modules
-        const typeErrors = checkSource(content, filePath, true);
-
-        if (typeErrors.length > 0) {
-          if (options.json) {
-            results.push({
-              file: filePath,
-              success: false,
-              diagnostics:
-                diagnosticFormatter.formatDiagnosticObjects(typeErrors),
-            });
-          } else {
-            console.error(diagnosticFormatter.formatErrors(typeErrors));
-          }
-          errorCount++;
+        const elapsed = Date.now() - fileStartTime;
+        if (options.json) {
+          results.push({
+            file: filePath,
+            success: true,
+            timeMs: elapsed,
+            ...(warnings.length > 0
+              ? {
+                  diagnostics:
+                    diagnosticFormatter.formatDiagnosticObjects(warnings),
+                }
+              : {}),
+          });
         } else {
-          const elapsed = Date.now() - fileStartTime;
-          if (options.json) {
-            results.push({
-              file: filePath,
-              success: true,
-              timeMs: elapsed,
-            });
-          } else if (!options.quiet) {
+          // Warnings do not fail the check, but are always shown.
+          if (warnings.length > 0) {
+            console.error(diagnosticFormatter.formatErrors(warnings));
+          }
+          if (!options.quiet) {
             if (options.time) {
               console.log(`✓ ${filePath} (${elapsed}ms)`);
             } else {
@@ -210,6 +195,7 @@ export async function runCheckCommand(
         createJsonReport(CLI_JSON_CHECKS.check, errorCount === 0, {
           totalFiles,
           errorCount,
+          warningCount,
           timeMs: totalTime,
           files: results,
         }),

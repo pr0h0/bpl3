@@ -39,6 +39,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Struct subtyping no longer passes through `**T` or array types: `**Dog` to
+  `**Animal` and `Dog[2]` to `Animal[]` are rejected by the checker instead of
+  corrupting memory or failing in codegen (BUG-424).
+
+- Global initializers accept constant expressions (`-5`, `!true`, `~0`,
+  `1 << 4`, numeric casts, array literals) and anything else is reported by the
+  checker as `BPL_GLOBAL_INITIALIZER_NOT_CONSTANT`; taking the address of a
+  temporary is rejected with `BPL_ADDRESS_OF_TARGET_INVALID` (BUG-432, BUG-433).
+  Folding wraps each operation to its type and applies every cast, matching
+  run-time results.
+
+- `JSON.parse` results support method calls (their vtable is installed from
+  the new `TypeInfo.vtable` field), and `JSON.parse<Array<string>>` no longer
+  depends on which other types or methods the program uses (BUG-454, BUG-457).
+
+- Chained `<<`/`>>` on `StringBuilder`, `String`, `Stack` and `Array` no longer
+  double-free: the operators return a pointer to the receiver (BUG-455, BUG-464).
+
+- Compiler audit fixes (BUG-423, 425-428, 431, 434): scalar return types of
+  overrides and spec implementations must match exactly; ternary branches are
+  converted to their common type; `p += n`/`p -= n` step pointers by elements;
+  self-containing types are detected through arrays, tuples, aliases, generic
+  arguments, parents and enums; spec calls widen arguments; inherited statics
+  call the parent; unreachable code is a warning. `bpl check` and the language
+  server now show checker warnings, and `check --json` reports `warningCount`.
+  `bpl build` and `bpl run` print the entry file's warnings; imported modules'
+  warnings are not repeated per importer, and unreachable code warns once per
+  block.
+
 - `bpl check` and the language server accept the implicit prelude error types
   (`NullAccessError` and others) that `bpl build` accepts.
 

@@ -74,7 +74,7 @@ test("global f32 casts keep runtime calls out of static initialization", () => {
   expect(
     result.errors?.some((error) =>
       error.message.includes(
-        "Global variables must be initialized with literals",
+        "Global initializer must be a compile-time constant",
       ),
     ),
   ).toBe(true);

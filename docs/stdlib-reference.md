@@ -288,8 +288,8 @@ frame some(this: *Array<T>, predicate: Lambda<bool>(T)) ret bool
 frame indexOf(this: *Array<T>, value: T) ret int
 frame contains(this: *Array<T>, value: T) ret bool
 frame findIndex(this: *Array<T>, predicate: Lambda<bool>(T)) ret Option<int>
-frame __lshift__(this: *Array<T>, value: T) ret Array<T>
-frame __rshift__(this: *Array<T>, dest: *T) ret Array<T>
+frame __lshift__(this: *Array<T>, value: T) ret *Array<T>
+frame __rshift__(this: *Array<T>, dest: *T) ret *Array<T>
 ```
 
 ## std/assert.bpl
@@ -2393,6 +2393,7 @@ fields: *FieldInfo
 num_methods: int
 methods: *MethodInfo
 element_type: *TypeInfo
+vtable: *void
 ```
 
 ## std/result.bpl
@@ -2512,7 +2513,7 @@ frame size(this: *Stack<T>) ret int
 frame isEmpty(this: *Stack<T>) ret bool
 frame peek(this: *Stack<T>) ret Option<T>
 frame clear(this: *Stack<T>)
-frame __lshift__(this: *Stack<T>, value: T) ret Stack<T>
+frame __lshift__(this: *Stack<T>, value: T) ret *Stack<T>
 ```
 
 ## std/stats.bpl
@@ -2732,8 +2733,8 @@ frame __lt__(this: *String, other: String) ret bool
 frame __le__(this: *String, other: String) ret bool
 frame __gt__(this: *String, other: String) ret bool
 frame __ge__(this: *String, other: String) ret bool
-frame __lshift__(this: *String, other: String) ret String
-frame __lshift__(this: *String, other: string) ret String
+frame __lshift__(this: *String, other: String) ret *String
+frame __lshift__(this: *String, other: string) ret *String
 frame fromInt(val: long) ret String
 frame fromAddress(addr: long) ret String
 frame get(this: *String, index: int) ret char
@@ -2789,7 +2790,7 @@ frame appendInt(this: *StringBuilder, value: int)
 frame clear(this: *StringBuilder)
 frame len(this: *StringBuilder) ret int
 frame toString(this: *StringBuilder) ret string
-frame __lshift__(this: *StringBuilder, str: string) ret StringBuilder
+frame __lshift__(this: *StringBuilder, str: string) ret *StringBuilder
 ```
 
 ## std/string_utils.bpl

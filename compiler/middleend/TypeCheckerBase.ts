@@ -49,6 +49,8 @@ export const AUTO_DESTROY_ENUM_PAYLOAD_CODE =
 export const OWNING_VALUE_COPIED_CODE = "BPL_OWNING_VALUE_COPIED";
 export const SYMBOL_NOT_FOUND_CODE = "BPL_SYMBOL_NOT_FOUND";
 export const VOID_TYPE_INVALID_CODE = "BPL_VOID_TYPE_INVALID";
+export const GLOBAL_INITIALIZER_NOT_CONSTANT_CODE =
+  "BPL_GLOBAL_INITIALIZER_NOT_CONSTANT";
 export const BUILTIN_TYPE_REDEFINITION_CODE =
   "BPL_BUILTIN_TYPE_REDEFINITION";
 export const ARRAY_SIZE_INVALID_CODE = "BPL_ARRAY_SIZE_INVALID";
@@ -185,6 +187,7 @@ export const FUNCTION_ATTRIBUTE_AUTO_DESTROY_RETURN_TYPE_MISMATCH_CODE =
 
 export const TYPE_CHECKER_FAILURE_CODES = [
   TYPE_ALIAS_POINTER_UNSUPPORTED_CODE,
+  GLOBAL_INITIALIZER_NOT_CONSTANT_CODE,
   SYMBOL_ALREADY_DEFINED_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   GENERIC_ARITY_MISMATCH_CODE,
@@ -1981,6 +1984,18 @@ export abstract class TypeCheckerBase {
         if (
           !isAlias &&
           !this.isSubtype(rt2 as AST.BasicTypeNode, rt1 as AST.BasicTypeNode)
+        ) {
+          return false;
+        }
+        // Subtyping applies to a value or a single pointer level only. Through
+        // `**Child` or `Child[]` an `Animal` could be written where a `Dog` is
+        // stored, so deeper pointers and arrays need identical types (BUG-424).
+        if (
+          !isAlias &&
+          (rt1.pointerDepth !== rt2.pointerDepth ||
+            rt1.pointerDepth > 1 ||
+            rt1.arrayDimensions.length > 0 ||
+            rt2.arrayDimensions.length > 0)
         ) {
           return false;
         }

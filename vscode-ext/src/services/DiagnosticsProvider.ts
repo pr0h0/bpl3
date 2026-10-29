@@ -7,7 +7,10 @@ import {
   Range,
 } from "vscode-languageserver/node";
 import * as AST from "../../../compiler/common/AST";
-import { CompilerError } from "../../../compiler/common/CompilerError";
+import {
+  CompilerError,
+  DiagnosticSeverity as CompilerSeverity,
+} from "../../../compiler/common/CompilerError";
 import { Parser } from "../../../compiler/frontend/Parser";
 import { TypeChecker } from "../../../compiler/middleend/TypeChecker";
 import { findWorkspaceLibDir } from "./utils";
@@ -78,6 +81,12 @@ export class DiagnosticsProvider {
         for (const err of checker.getErrors()) {
           diagnostics.push(compilerErrorToDiagnostic(err, textDocument));
         }
+        // Warnings (unreachable code, shadowing) are kept apart from errors
+        // by the checker; show those reported for this document.
+        for (const warning of checker.getWarnings()) {
+          if (warning.location?.file !== filePath) continue;
+          diagnostics.push(compilerErrorToDiagnostic(warning, textDocument));
+        }
       } catch (error: any) {
         if (error instanceof CompilerError) {
           diagnostics.push(compilerErrorToDiagnostic(error, textDocument));
@@ -121,11 +130,24 @@ export function compilerErrorToDiagnostic(
   );
 
   return {
-    severity: DiagnosticSeverity.Error,
+    severity: toLspSeverity(err.toDiagnostic().severity),
     range: Range.create(start, end),
     message: `${err.message}${err.hint ? `\nHint: ${err.hint}` : ""}`,
     source: "bpl-lsp",
   };
+}
+
+function toLspSeverity(severity: CompilerSeverity): DiagnosticSeverity {
+  switch (severity) {
+    case CompilerSeverity.Warning:
+      return DiagnosticSeverity.Warning;
+    case CompilerSeverity.Note:
+      return DiagnosticSeverity.Information;
+    case CompilerSeverity.Help:
+      return DiagnosticSeverity.Hint;
+    default:
+      return DiagnosticSeverity.Error;
+  }
 }
 
 function clampDiagnosticPosition(

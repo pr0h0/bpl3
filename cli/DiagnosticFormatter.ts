@@ -3,6 +3,8 @@
  * Re-exports the DiagnosticFormatter from compiler with CLI-specific defaults
  */
 
+import * as path from "path";
+import type { CompilerError } from "../compiler/common/CompilerError";
 import {
   DiagnosticFormatter as CompilerDiagnosticFormatter,
 } from "../compiler/common/DiagnosticFormatter";
@@ -19,3 +21,23 @@ export const diagnosticFormatter = new CompilerDiagnosticFormatter({
   contextLines: 3,
   showCodeSnippets: true,
 });
+
+/**
+ * Warnings located in `filePath`, each once. Imported modules are checked with
+ * the same checker; their warnings belong to those files, not to this one.
+ */
+export function warningsForFile(
+  warnings: CompilerError[],
+  filePath: string,
+): CompilerError[] {
+  const target = path.resolve(filePath);
+  const seen = new Set<string>();
+  return warnings.filter((warning) => {
+    const file = warning.location?.file;
+    if (file && path.resolve(file) !== target) return false;
+    const key = `${warning.location?.startLine}:${warning.location?.startColumn}:${warning.message}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}

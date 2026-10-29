@@ -1,43 +1,12 @@
 import { describe, test, expect, setDefaultTimeout } from "bun:test";
-import { spawnSync } from "child_process";
 import fs from "fs";
+import os from "os";
 import path from "path";
+import { compileAndRun } from "./helpers/compileAndRun";
 
-const BPL_CLI = path.resolve(__dirname, "../index.ts");
 const STDLIB_COMPILE_RUN_TIMEOUT_MS = 15000;
 
 setDefaultTimeout(STDLIB_COMPILE_RUN_TIMEOUT_MS);
-
-function compileAndRun(sourceCode: string) {
-  const tempFile = path.join(
-    __dirname,
-    `temp_${Math.random().toString(36).substring(7)}.bpl`,
-  );
-
-  try {
-    fs.writeFileSync(tempFile, sourceCode);
-
-    const result = spawnSync("bun", [BPL_CLI, "run", tempFile], {
-      encoding: "utf-8",
-      cwd: __dirname,
-    });
-
-    if (result.status !== 0) {
-      console.error("Compilation/Run failed:");
-      console.error(result.stderr);
-      console.error(result.stdout);
-      throw new Error(`BPL execution failed with code ${result.status}`);
-    }
-
-    return result.stdout;
-  } finally {
-    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-    const binFile = tempFile.replace(".bpl", "");
-    if (fs.existsSync(binFile)) fs.unlinkSync(binFile);
-    const llFile = tempFile.replace(".bpl", ".ll");
-    if (fs.existsSync(llFile)) fs.unlinkSync(llFile);
-  }
-}
 
 describe("Standard Library", () => {
   test("Array<i32> basic operations", async () => {
@@ -306,7 +275,10 @@ describe("Standard Library", () => {
   });
 
   test("FS basic operations", async () => {
-    const output = compileAndRun(`
+    // The program writes test_file.txt into its working directory.
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-stdlib-fs-"));
+    const output = compileAndRun(
+      `
       import [FS] from "std/fs.bpl";
       import [String] from "std/string.bpl";
 
@@ -328,18 +300,15 @@ describe("Standard Library", () => {
         printf("Read: %s\\n", readContent.data);
         readContent.destroy();
 
-        # Cleanup is hard from BPL without remove(), so we rely on test harness cleanup or ignore it
       }
-    `);
+    `,
+      { cwd: workDir },
+    );
+    fs.rmSync(workDir, { recursive: true, force: true });
 
     expect(output).toContain("Write success");
     expect(output).toContain("File exists");
     expect(output).toContain("Read: Hello File!");
-
-    // Cleanup the file created by the test
-    if (fs.existsSync("test_file.txt")) {
-      fs.unlinkSync("test_file.txt");
-    }
   });
 
   test("LinkedList<i32> basic operations", async () => {

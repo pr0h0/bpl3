@@ -13,6 +13,7 @@ import {
 import type { CheckerContext } from "./CheckerContext";
 import type { Symbol, SymbolTable } from "./SymbolTable";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
+import { evaluateConstantInitializer } from "../common/ConstantInitializer";
 import {
   CAPTURED_VALUE_ASSIGNED_CODE,
   BREAK_OUTSIDE_CONTEXT_CODE,
@@ -20,6 +21,7 @@ import {
   CONTINUE_OUTSIDE_LOOP_CODE,
   DEFER_RETURN_VALUE_INVALID_CODE,
   FALLTHROUGH_OUTSIDE_SWITCH_CODE,
+  GLOBAL_INITIALIZER_NOT_CONSTANT_CODE,
   RETURN_TYPE_MISMATCH_CODE,
   RETURN_ARRAY_VIEW_ESCAPES_CODE,
   SWITCH_CASE_TYPE_MISMATCH_CODE,
@@ -620,18 +622,17 @@ export function checkBlock(
     }
 
     let terminated = false;
+    let reportedUnreachable = false;
     for (const s of stmt.statements) {
-      if (terminated) {
+      // One warning per block, at the first statement that cannot run.
+      if (terminated && !reportedUnreachable) {
+        reportedUnreachable = true;
         const error = new CompilerError(
           "Unreachable code detected.",
           "This statement follows a return, break, continue, or throw statement and will never be executed.",
           s.location,
         ).setSeverity(DiagnosticSeverity.Warning);
-        if (this.collectAllErrors) {
-          this.errors.push(error);
-        } else {
-          throw error;
-        }
+        this.addWarning(error);
       }
 
       try {
@@ -1409,6 +1410,27 @@ export function checkVariableDecl(
       if (declaredType && this.matchContext) {
         this.matchContext.pop();
       }
+    }
+
+    // Globals are emitted as constants; reject runtime initializers here
+    // rather than failing in code generation (BUG-433). This runs after the
+    // initializer is checked, so folding sees each operand's type.
+    if (
+      decl.isGlobal &&
+      !evaluateConstantInitializer(decl.initializer, (type) =>
+        this.resolveType(type),
+      )
+    ) {
+      // Reported without throwing so the global is still declared and its
+      // uses do not cascade into undefined-symbol errors.
+      this.addError(
+        new CompilerError(
+          "Global initializer must be a compile-time constant",
+          "Use literals, unary -, !, ~, integer arithmetic, casts of numeric constants, or array literals of these; assign other values in a function.",
+          decl.initializer.location,
+          GLOBAL_INITIALIZER_NOT_CONSTANT_CODE,
+        ),
+      );
     }
 
     if (initType) {

@@ -803,7 +803,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   /**
    * Handle pointer arithmetic
    */
-  private handlePointerArithmetic(
+  protected handlePointerArithmetic(
     expr: AST.BinaryExpr,
     leftRaw: string,
     rightRaw: string,

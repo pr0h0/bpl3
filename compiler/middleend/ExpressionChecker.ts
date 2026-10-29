@@ -617,7 +617,13 @@ export function checkBinary(
         targetType.kind === "BasicType" &&
         targetType.genericArgs.length > 0
       ) {
-        const decl = targetType.resolvedDeclaration;
+        // Locals and earlier operator results may carry only the name, so
+        // fall back to scope lookup; otherwise the result keeps unbound
+        // parameters (`*Stack<T>`) and a chained operator fails (BUG-464).
+        const decl =
+          targetType.resolvedDeclaration ??
+          (this.currentScope.resolve(targetType.name)?.declaration as
+            typeof targetType.resolvedDeclaration | undefined);
         if (
           decl &&
           (decl.kind === "StructDecl" ||
@@ -978,6 +984,14 @@ export function checkUnary(
       throw new CompilerError(
         "Cannot take the address of an element of a temporary array",
         "Store the array in a local variable before taking an element address.",
+        expr.location,
+        ADDRESS_OF_TARGET_INVALID_CODE,
+      );
+    }
+    if (!isAddressableOperand(expr.operand)) {
+      throw new CompilerError(
+        "Cannot take the address of a temporary value",
+        "Address-of requires a variable, field, element, or dereferenced pointer; store the value in a local first.",
         expr.location,
         ADDRESS_OF_TARGET_INVALID_CODE,
       );
@@ -1443,7 +1457,18 @@ export function checkTernary(
   const thenType = this.checkExpression(expr.trueExpr);
   const elseType = this.checkExpression(expr.falseExpr);
 
-  if (thenType && elseType && !this.areTypesCompatible(thenType, elseType)) {
+  // Like match arms, the branches join in one representation; codegen
+  // converts each branch to it (BUG-425).
+  const resultType =
+    thenType && elseType
+      ? this.unifyMatchResultTypes(
+          thenType,
+          elseType,
+          [expr.trueExpr],
+          [expr.falseExpr],
+        )
+      : thenType;
+  if (thenType && elseType && !resultType) {
     throw new CompilerError(
       `Ternary branches must have compatible types: ${this.formatDiagnosticType(
         thenType,
@@ -1466,7 +1491,39 @@ export function checkTernary(
     "out of a conditional branch",
     expr.falseExpr.location,
   );
-  return thenType;
+  if (resultType) this.contextualizeArrayLiteral(expr, resultType);
+  return resultType;
+}
+
+/**
+ * Whether `&operand` names storage (BUG-432). Fields and elements are
+ * addressable when reached through a pointer, slice or addressable object;
+ * calls, literals, arithmetic, casts and overloaded `__get__` results are
+ * temporaries.
+ */
+function isAddressableOperand(operand: AST.Expression): boolean {
+  switch (operand.kind) {
+    case "Group":
+      return isAddressableOperand(operand.expression);
+    case "Identifier":
+      return true;
+    case "Unary":
+      return operand.operator.type === TokenType.Star;
+    case "Member":
+    case "Index": {
+      if (operand.kind === "Index" && operand.operatorOverload) return false;
+      const objectType = operand.object.resolvedType;
+      if (
+        objectType?.kind === "BasicType" &&
+        (objectType.pointerDepth > 0 || objectType.arrayDimensions[0] === null)
+      ) {
+        return true;
+      }
+      return isAddressableOperand(operand.object);
+    }
+    default:
+      return false;
+  }
 }
 
 /** String aliases retain the direct spelling's integer conversion restriction. */
@@ -1576,7 +1633,10 @@ export function checkCast(
     );
   }
 
-  return expr.targetType;
+  // The resolved target: `cast<Byte>(x)` for `type Byte = u8` is a `u8`
+  // operand for arithmetic and constant folding, as aliases are
+  // interchangeable (R-DECL-4).
+  return this.resolveType(expr.targetType) ?? expr.targetType;
 }
 
 /**

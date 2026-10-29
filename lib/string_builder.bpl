@@ -228,8 +228,9 @@ struct StringBuilder {
     }
 
     # Operator overloading: Append with << operator
-    frame __lshift__(this: *StringBuilder, str: string) ret StringBuilder {
+    # Returns the builder itself so `sb << a << b` appends to the same buffer.
+    frame __lshift__(this: *StringBuilder, str: string) ret *StringBuilder {
         this.append(str);
-        return *this;
+        return this;
     }
 }

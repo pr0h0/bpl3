@@ -21,7 +21,7 @@ for (const source of [
   "if(true) {} else missing;",
   "if(false) {} else if(true){missing;}",
   "{local unused:int=0;}",
-  "{return;1;}",
+  "{return;missing;}",
   "try {} catch(secret:int){missing;}",
   "try {} catch(secret:int){local unused:int=0;}",
   "try {} catch {missing;}",
