@@ -2144,6 +2144,20 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Spec Body Checking ==========
 
   private checkSpecBody(decl: AST.SpecDecl): void {
+    // Spec dispatch (vtable slots, thunks, conformance) is keyed by method
+    // name, so overloads would silently share or collide (BUG-470).
+    const seenMethods = new Set<string>();
+    for (const method of decl.methods) {
+      if (seenMethods.has(method.name)) {
+        throw new CompilerError(
+          `Spec '${decl.name}' declares method '${method.name}' more than once`,
+          "Spec methods cannot be overloaded; give each method a distinct name.",
+          method.location,
+          SYMBOL_ALREADY_DEFINED_CODE,
+        );
+      }
+      seenMethods.add(method.name);
+    }
     for (const method of decl.methods) {
       const variadic = method.params.find((param) => param.isVariadic);
       if (variadic) {

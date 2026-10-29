@@ -582,7 +582,7 @@ with `got Array<T> and int`.
 
 #### BUG-470: Overloaded spec methods cannot be implemented
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 `spec G { frame m(this: *Self) ret long; frame m(this: *Self, d: int) ret long; }`
 parses, but a struct implementing both overloads is rejected with "Method 'm'
@@ -590,6 +590,12 @@ in struct 'B' has incorrect parameter count": spec conformance compares each
 implementation against a single requirement per name. Either match overloads
 by signature or reject overloaded spec declarations. Found while testing the
 bound-spec-method guard in #112.
+
+**Resolution**: overloaded spec declarations are rejected
+(`Spec 'G' declares method 'm' more than once`, BPL_SYMBOL_ALREADY_DEFINED).
+Supporting them would need overload-aware conformance, thunk names and vtable
+slots (thunks were named by method only and collided in IR). R-SPEC-1 states
+the rule. `tests/AuditCompilerFixes.test.ts`.
 
 ## Generated-program fuzzer findings (2026-10-29)
 

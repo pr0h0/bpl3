@@ -173,8 +173,9 @@ frame main() ret int {
     expect(result.stderr).toContain("Cannot use spec method 'get' as a value");
   });
 
-  test("rejects an overloaded spec method used as a value", () => {
-    const result = check(`spec G { frame m(this: *Self) ret long; frame m(this: *Self, d: int) ret long; }
+  test("rejects overloaded spec methods (BUG-470)", () => {
+    const result =
+      check(`spec G { frame m(this: *Self) ret long; frame m(this: *Self, d: int) ret long; }
 struct B: G {
     v: long,
     frame m(this: *B) ret long { return this.v; }
@@ -190,7 +191,10 @@ frame main() ret int {
 }
 `);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Cannot use spec method 'm' as a value");
+    // Spec methods cannot be overloaded at all (BUG-470).
+    expect(result.stderr).toContain(
+      "Spec 'G' declares method 'm' more than once",
+    );
   });
 });
 

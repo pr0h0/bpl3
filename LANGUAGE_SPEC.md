@@ -506,7 +506,9 @@ parameters. Parent entries must be named specs, optionally with generic
 arguments; tuple, callable, pointer and array types cannot be spec parents.
 
 - **[R-SPEC-1]** `spec Name { frame method(this: *Self, ...) ret Type; }`
-  declares required methods, where `Self` is the implementing struct.
+  declares required methods, where `Self` is the implementing struct. Each
+  method name appears once: spec methods cannot be overloaded
+  (`BPL_SYMBOL_ALREADY_DEFINED`).
 - **[R-SPEC-2]** A struct implements a spec by listing it in its inheritance
   list. It must declare every required method with the same parameter count;
   a missing method or a different parameter count is rejected.

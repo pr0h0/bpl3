@@ -50,7 +50,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - Parenthesized assignment targets are accepted (`(*p) = 1`, `(v) += 2`),
-  consistent with `(*p)++` (BUG-467).
+  consistent with `(*p)++` (BUG-467). A spec declaring the same method twice
+  is rejected; overloaded spec methods could not be implemented (BUG-470).
 
 - `-l/--lib`, `-L/--lib-path`, `--object` and `--clang-flag` take one value
   each and are repeatable (`-l m -l c`); as variadic options they swallowed a
