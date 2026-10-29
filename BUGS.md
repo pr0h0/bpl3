@@ -426,6 +426,12 @@ package `bin`; it will not run on macOS/arm64 and is not rebuilt when `lib/`
 changes. `packages/*/*.tgz` and `.bplmeta.json` are committed although `*.tgz`
 is gitignored; add an explicit exception and document why they are kept.
 
+**Progress (2026-10-29)**: `.gitignore` has an explicit `!packages/*/*.tgz`
+exception explaining that the Docker image, release smoke and package tests
+install the archives by path. The bpl-templ README documents that its `bin` is
+a prebuilt x86-64 Linux executable and how to rebuild it. Still open: building
+the `bin` from `src/cli.bpl` at install time instead of committing it.
+
 #### BUG-452: Package script and documentation debt
 
 **Status**: Open · **Priority**: P3

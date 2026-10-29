@@ -20,6 +20,10 @@ bun run build
 # The binary is now at src/bpl-templ
 ```
 
+The committed `src/bpl-templ` (the package's `bin`) is a prebuilt x86-64 Linux
+executable. On other platforms, or after changing `src/cli.bpl` or `lib/`,
+rebuild it with `bun run build`, then `bpl pack` to refresh the archive.
+
 ## Usage
 
 ### CLI
