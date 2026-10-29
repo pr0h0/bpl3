@@ -87,6 +87,25 @@ export abstract class ReflectionGenerator extends TypeGenerator {
       }
     }
 
+    // A checked `string` often arrives already lowered to `*i8` with the alias
+    // recorded; reflect it as `string` so boxing and `match` agree.
+    if (
+      type.kind === "BasicType" &&
+      type.name !== "string" &&
+      type.pointerDepth === 1 &&
+      type.arrayDimensions.length === 0 &&
+      type.aliasDeclaration?.name === "string"
+    ) {
+      return this.getOrCreateTypeInfo({
+        kind: "BasicType",
+        name: "string",
+        genericArgs: [],
+        pointerDepth: 0,
+        arrayDimensions: [],
+        location: type.location,
+      });
+    }
+
     // `string` lowers like `*char` but reflects as a string primitive, so it
     // needs its own entry; otherwise whichever is generated first wins.
     const typeKey =

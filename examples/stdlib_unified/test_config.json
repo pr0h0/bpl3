@@ -6,7 +6,7 @@
     "Apple < Banana: true",
     "In-place concat: Builder text",
     "--- StringBuilder (NEW) ---",
-    "Result: Efficient  with 123",
+    "Result: Efficient string building with 123",
     "--- Range (NEW) ---",
     "Range elements: 1",
     " 2",
