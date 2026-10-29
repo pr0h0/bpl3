@@ -105,8 +105,8 @@ frame main() ret int {
   });
 });
 
+// spec: R-FN-10
 describe("BUG-430: native variadic methods", () => {
-  // spec: R-FN-10
   for (const [kind, source] of Object.entries({
     struct:
       "struct S { b: int, frame add(this: *S, xs: ...int, n: int) ret int { return n; } }",
@@ -134,8 +134,8 @@ frame main() ret int {
   });
 });
 
+// spec: R-FN-9
 describe("BUG-435: generic spec methods on a constrained type parameter", () => {
-  // spec: R-FN-9
   test("binds Self to the parameter, including Self-returning methods", () => {
     const output = compileAndRun(`import printf from "std/c.bpl";
 spec Getter<T> { frame get(this: *Self) ret T; frame twice(this: *Self) ret Self; }
