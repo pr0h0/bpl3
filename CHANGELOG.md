@@ -37,6 +37,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `vscode-ext/bpl3-vscode-0.0.1.vsix` (`*.vsix` is now ignored), and the outdated
   `.github/instructions/copilot.instructions.md` copy of AGENTS.MD.
 
+### Added
+
+- The fuzzer generates random well-typed programs (structs with methods,
+  pointers, enums with `match`, generics, lambdas, recursion, loops,
+  `switch`, mixed-width arithmetic). Each is checked, IR-verified and
+  formatter-round-tripped in process, and in `--differential` mode run at
+  `-O0` and `-O3` against output computed by the generator's own evaluator.
+  Structured template inputs are now IR-verified too.
+
 ### Fixed
 
 - `-l/--lib`, `-L/--lib-path`, `--object` and `--clang-flag` take one value
@@ -96,6 +105,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `--debug` builds no longer crash clang for generic locals (`Array<String>`)
   or `Any` variadics, and lambdas at the same line and column of two modules no
   longer produce a duplicate LLVM type (BUG-429).
+
+- `cast<int>(false)` and other casts of `bool` constants are accepted in
+  global initializers (BUG-465). Formatting a `switch` whose subject spans
+  several lines is idempotent (BUG-466).
 
 - Struct subtyping no longer passes through `**T` or array types: `**Dog` to
   `**Animal` and `Dog[2]` to `Animal[]` are rejected by the checker instead of

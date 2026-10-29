@@ -411,6 +411,36 @@ excluded with a reason in the triage helper tests.
 `BPL_RUNTIME_BUILD=debug` compiles `runtime_support.c` with `-O0 -g3`.
 `BPL_RUNTIME_BUILD=release` compiles it with `-O2 -g`.
 
+## Fuzz Input Lanes
+
+Each campaign iteration picks one input lane:
+
+- **tokens**: random token streams, which stress the lexer and parser error paths.
+- **mutated**: token mutations of valid templates.
+- **structured**: valid templates. Their IR must also pass the LLVM verifier.
+- **generated** (`fuzz/programGenerator.ts`): random well-typed programs with
+  globals, structs with methods and copies, by-value struct parameters,
+  pointers and pointer-writing helpers, arrays, enums with payloads and
+  `match`, generic functions and structs, capturing lambdas, recursion, loops
+  with `break`/`continue`, `switch`, and mixed-width integer arithmetic. They
+  are valid by construction, so each one must type-check, produce IR that
+  passes the LLVM verifier, and survive a formatter round trip (same meaning,
+  idempotent output). A rejection or a formatter defect is reported as a crash.
+- **oracle** (with `--differential`): the same generated programs, also run at
+  `-O0` and `-O3`. The generator evaluates each program with the language's
+  integer semantics (wrapping, R-CONV-2 operand conversion, truncating
+  division, low-bit `bool` casts, by-value capture), and records the output in
+  `# fuzz-expect:` comments. Both runs must print exactly that output. This
+  catches miscompiles and wrong constant folds that are identical at both
+  levels, which O0/O3 comparison alone misses. Oracle and generated artifacts
+  are not token-minimized, because minimizing would drop the expectation.
+- **differential**: templates whose O0 and O3 behavior must match.
+
+To find which statement of a failing generated program diverges, regenerate it
+with tracing, which prints every value after each top-level statement. Use the
+artifact's seed and pass:
+`generateOracleSource(seed, pass, { trace: true })` from `fuzz/compilerFuzz.ts`.
+
 ## Fuzz Failure Artifacts
 
 Fuzz campaigns can save both the original failing source and a minimized repro:

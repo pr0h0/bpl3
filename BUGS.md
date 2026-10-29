@@ -591,6 +591,45 @@ implementation against a single requirement per name. Either match overloads
 by signature or reject overloaded spec declarations. Found while testing the
 bound-spec-method guard in #112.
 
+## Generated-program fuzzer findings (2026-10-29)
+
+Found by the oracle fuzzer (`fuzz/programGenerator.ts`, see
+docs/60-compiler-correctness.md).
+
+#### BUG-465: Casts of `bool` constants are not constant in global initializers
+
+**Status**: Fixed · **Priority**: P2
+
+`global g: int = cast<int>(false);` was rejected with
+`BPL_GLOBAL_INITIALIZER_NOT_CONSTANT`, because the folder only accepted
+integer and float cast operands.
+
+**Resolution**: a `bool` constant folds as 0 or 1 before the cast.
+`tests/AuditCompilerFixes.test.ts`.
+
+#### BUG-466: Formatter adds a blank line after a multi-line `switch` subject
+
+**Status**: Fixed · **Priority**: P3
+
+When the switch subject spanned several lines (for example a `match`
+expression), each formatting pass inserted another blank line before the
+first `case`, so `format` was not idempotent. Blank lines before the first case
+were measured from the switch's first line instead of the end of its subject.
+
+**Resolution**: measured from the end of the subject.
+`tests/FormatterSwitchSubject.test.ts`.
+
+#### BUG-467: Parenthesized assignment targets are rejected, but `(*p)++` is not
+
+**Status**: Open · **Priority**: P3
+
+`(*p) = 5;`, `(v) = 6;` and `(*p) += 1;` fail with
+`BPL_ASSIGNMENT_TARGET_INVALID`, while `(*p)++` and `--(*p)` are accepted. C
+accepts a parenthesized lvalue everywhere. Either unwrap `Group` in
+`checkAssignment` (and codegen) or reject it consistently for `++`/`--` too, and
+state the rule in R-EXPR-5. The fuzzer currently writes `*p = ...` for
+assignments.
+
 ## Developer experience fixes (2026-10-28)
 
 - **Fixed:** Installing required `init.sh` (sudo link into `/usr/bin`, edits to
