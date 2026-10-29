@@ -27,6 +27,10 @@ export function registerCheckCommand(program: Command): void {
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
     .option("--json", "output results in JSON format")
+    .option(
+      "--stdin-filepath <path>",
+      "path to use for stdin (-) in diagnostics and relative imports",
+    )
     .option("--time", "show type checking time statistics")
     .option("--no-prelude", "do not load implicit primitives")
     .option("--color", "force colored output")

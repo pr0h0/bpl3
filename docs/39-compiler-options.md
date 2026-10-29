@@ -578,7 +578,9 @@ use `BPL_LINT_PROCESSING_ERROR`; empty discovery uses `BPL_LINT_NO_INPUTS`.
 its `.bpl` and `.x` sources, honoring `.bplignore`. A directory with no sources
 reports `BPL_CHECK_NO_INPUTS`; a discovery failure (an unsupported
 `.bplignore` pattern or an unreadable directory) reports
-`BPL_CHECK_PROCESSING_ERROR`. Per-file check validation uses
+`BPL_CHECK_PROCESSING_ERROR`. `bpl check -` reads the source from standard
+input; `--stdin-filepath <path>` names it in diagnostics and resolves its
+relative imports. Per-file check validation uses
 `BPL_CHECK_INPUT_NOT_FOUND`, `BPL_CHECK_INPUT_SYMLINK`, and
 `BPL_CHECK_INPUT_NOT_FILE`. Per-file lint
 validation uses `BPL_LINT_INPUT_NOT_FOUND`, `BPL_LINT_INPUT_SYMLINK`, and

@@ -77,7 +77,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (BUG-440).
 
 - `bpl check` accepts directories (`bpl check src/`), expanding them like
-  `format` and `lint`; the `-e` help says it compiles and prints IR (BUG-443).
+  `format` and `lint`, and `-` for standard input (`--stdin-filepath` names
+  it); the `-e` help says it compiles and prints IR (BUG-443).
 
 - Parenthesized assignment targets are accepted (`(*p) = 1`, `(v) += 2`),
   consistent with `(*p)++` (BUG-467). A spec declaring the same method twice

@@ -320,7 +320,7 @@ finishModuleCompilation, batch 4).
 `format`/`lint` (empty → `BPL_CHECK_NO_INPUTS`). `-e` is documented as
 compiling (it prints IR; changing it to run would break the playground and 46
 test call sites). `build -o X` writing `X.ll` is by design: `bpl clean` owns it
-and `--json` reports its path. Still open: `check -` (stdin) and the
+and `--json` reports its path. Fixed in batch 4: `check -` (stdin, with --stdin-filepath) and the
 duplicated `compileWithModules*`.
 
 #### BUG-444: Project scaffolding gaps

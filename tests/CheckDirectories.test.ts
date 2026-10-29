@@ -68,3 +68,22 @@ test("check expands directories and honors .bplignore", () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("check reads `-` from standard input", () => {
+  const run = (args: string[], input: string) =>
+    Bun.spawnSync([process.execPath, resolve("index.ts"), "check", ...args], {
+      env: { ...process.env, NO_COLOR: "1" },
+      stdin: new TextEncoder().encode(input),
+    });
+  const ok = run(
+    ["--stdin-filepath", "app.bpl", "-"],
+    "frame main() ret int { return 0; }\n",
+  );
+  expect(ok.exitCode).toBe(0);
+  expect(ok.stdout.toString()).toContain("✓ app.bpl");
+  const bad = run(["-"], "frame main() ret int { return missing; }\n");
+  expect(bad.exitCode).toBe(1);
+  expect(bad.stderr.toString()).toContain(
+    "error[BPL_SYMBOL_NOT_FOUND][stdin.bpl:1:31]",
+  );
+});

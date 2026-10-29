@@ -102,7 +102,7 @@ _bpl_completion() {
             ;;
         check)
             if [[ "$cur" == -* ]]; then
-                COMPREPLY=( $(compgen -W "-v --verbose -q --quiet --json --time --no-prelude --color --no-color -h --help" -- "${cur}") )
+                COMPREPLY=( $(compgen -W "-v --verbose -q --quiet --json --stdin-filepath --time --no-prelude --color --no-color -h --help" -- "${cur}") )
                 return 0
             fi
             while IFS= read -r match; do
