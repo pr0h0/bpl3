@@ -172,6 +172,26 @@ frame main() ret int {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("Cannot use spec method 'get' as a value");
   });
+
+  test("rejects an overloaded spec method used as a value", () => {
+    const result = check(`spec G { frame m(this: *Self) ret long; frame m(this: *Self, d: int) ret long; }
+struct B: G {
+    v: long,
+    frame m(this: *B) ret long { return this.v; }
+    frame m(this: *B, d: int) ret long { return this.v + cast<long>(d); }
+}
+frame use<T: G>(x: *T) ret long {
+    local f: Lambda<long>() = x.m;
+    return f() + x.m() + x.m(1);
+}
+frame main() ret int {
+    local b: B = B { v: 2 };
+    return cast<int>(use<B>(&b));
+}
+`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Cannot use spec method 'm' as a value");
+  });
 });
 
 describe("BUG-427: types that contain themselves by value", () => {

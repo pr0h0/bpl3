@@ -8,7 +8,10 @@ import { resolveProjectEntry } from "../ProjectEntry";
 import type { Command } from "commander";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
-import { getExplicitParentCompileOptions } from "./compileOptions";
+import {
+  getExplicitParentCompileOptions,
+  mergeRepeatableOptions,
+} from "./compileOptions";
 import {
   validateCompileInputSources,
   emitBuildValidationErrorAndExit,
@@ -145,6 +148,7 @@ export function registerBuildCommand(program: Command): void {
           const compileOptions: CompileOptions = {
             ...globalOpts,
             ...localOpts,
+            ...mergeRepeatableOptions(globalOpts, localOpts),
             dwarf:
               localOpts.debug ||
               localOpts.dwarf ||

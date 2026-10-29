@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
+import { mergeRepeatableOptions } from "../cli/commands/compileOptions";
 
 // BUG-444: project scaffolding gaps.
 const CLI = resolve("index.ts");
@@ -105,4 +106,13 @@ test("linker options are repeatable and do not swallow the source file", () => {
       expect(bpl(args, root, root).stdout).toBe("3.0\n");
     }
   });
+});
+
+test("repeatable options before and after the subcommand are combined", () => {
+  expect(
+    mergeRepeatableOptions(
+      { lib: ["a"], clangFlag: "-O1" },
+      { lib: ["b"], object: ["x.o"] },
+    ),
+  ).toEqual({ lib: ["a", "b"], object: ["x.o"], clangFlag: ["-O1"] });
 });

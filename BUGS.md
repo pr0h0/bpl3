@@ -580,6 +580,17 @@ with `got Array<T> and int`.
 
 **Resolution**: the operator-overload checker substitutes the receiver's generic arguments into the result type even when the receiver type carries only a name (falls back to scope lookup), so `st << 1 << 2` keeps `*Stack<int>`. `tests/StdlibShiftChaining.test.ts`.
 
+#### BUG-470: Overloaded spec methods cannot be implemented
+
+**Status**: Open · **Priority**: P3
+
+`spec G { frame m(this: *Self) ret long; frame m(this: *Self, d: int) ret long; }`
+parses, but a struct implementing both overloads is rejected with "Method 'm'
+in struct 'B' has incorrect parameter count": spec conformance compares each
+implementation against a single requirement per name. Either match overloads
+by signature or reject overloaded spec declarations. Found while testing the
+bound-spec-method guard in #112.
+
 ## Developer experience fixes (2026-10-28)
 
 - **Fixed:** Installing required `init.sh` (sudo link into `/usr/bin`, edits to

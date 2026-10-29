@@ -69,3 +69,18 @@ test("bash completes package-cache subcommands and their flags", () => {
     helpFlags(["package-cache", "verify"]),
   );
 });
+
+test("zsh offers repeatable options again after they are used", () => {
+  const zsh = require("fs").readFileSync(
+    resolve(root, "completions/_bpl"),
+    "utf8",
+  );
+  for (const spec of [
+    "'*'{-l,--lib}",
+    "'*'{-L,--lib-path}",
+    "'*--object[",
+    "'*--clang-flag[",
+  ]) {
+    expect(zsh).toContain(spec);
+  }
+});

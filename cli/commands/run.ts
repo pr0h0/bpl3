@@ -11,7 +11,10 @@ import { resolveProjectEntry } from "../ProjectEntry";
 import { Command, Option } from "commander";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
-import { getExplicitParentCompileOptions } from "./compileOptions";
+import {
+  getExplicitParentCompileOptions,
+  mergeRepeatableOptions,
+} from "./compileOptions";
 import { validateCompileInputSources } from "../BuildInputValidation";
 
 const log = new Logger("Run");
@@ -105,6 +108,7 @@ export function registerRunCommand(program: Command): void {
           const compileOptions: CompileOptions = {
             ...globalOpts,
             ...localOpts,
+            ...mergeRepeatableOptions(globalOpts, localOpts),
             run: true,
             dwarf:
               localOpts.debug ||

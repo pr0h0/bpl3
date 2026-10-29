@@ -1233,19 +1233,23 @@ export function checkMember(
           );
         }
 
+        // Code generation binds only methods with a body; a spec method on a
+        // spec or constrained receiver has none, so a value of it (single or
+        // overloaded) would be accepted here and then not bound.
+        const specValue = (compatibleMethods ?? [compatibleMethod]).find(
+          (candidate) => candidate?.kind === "SpecMethod",
+        );
+        if (specValue && !CALLEE_MEMBERS.has(expr)) {
+          throw new CompilerError(
+            `Cannot use spec method '${specValue.name}' as a value`,
+            `Call it directly (${expr.property}(...)), or wrap the call in a lambda.`,
+            expr.location,
+            INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
+          );
+        }
+
         if (!compatibleMethods) {
           const method = compatibleMethod;
-          // Code generation binds only methods with a body; a spec method on a
-          // spec or constrained receiver has none, so a value of it would be
-          // accepted here and then not bound.
-          if (method.kind === "SpecMethod" && !CALLEE_MEMBERS.has(expr)) {
-            throw new CompilerError(
-              `Cannot use spec method '${method.name}' as a value`,
-              `Call it directly (${expr.property}(...)), or wrap the call in a lambda.`,
-              expr.location,
-              INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
-            );
-          }
 
           // Resolve types in module context first
           const { returnType: initReturnType, paramTypes: allParamTypes } =

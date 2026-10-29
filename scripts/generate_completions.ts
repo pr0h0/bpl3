@@ -10,7 +10,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
 import { Command, type Option } from "commander";
-import { configureRootOptions } from "../cli/RootProgram";
+import { collectOption, configureRootOptions } from "../cli/RootProgram";
 import { registerRequestedCliSubcommands } from "../cli/CommandRegistration";
 import { COMMON_TARGET_TRIPLES } from "../cli/completions";
 
@@ -61,6 +61,8 @@ const POSITIONALS: Record<string, Completer> = {
 interface OptionInfo {
   flags: string[];
   takesValue: boolean;
+  /** Can be given several times (`-l m -l c`). */
+  repeatable: boolean;
   description: string;
   completer: Completer;
 }
@@ -82,6 +84,8 @@ function describeOption(option: Option): OptionInfo {
   return {
     flags,
     takesValue,
+    repeatable:
+      (option as Option & { parseArg?: unknown }).parseArg === collectOption,
     description: option.description,
     completer: takesValue
       ? (VALUE_COMPLETERS[option.long ?? ""] ?? { kind: "none" })
@@ -92,6 +96,7 @@ function describeOption(option: Option): OptionInfo {
 const HELP_OPTION: OptionInfo = {
   flags: ["-h", "--help"],
   takesValue: false,
+  repeatable: false,
   description: "display help for command",
   completer: { kind: "none" },
 };
@@ -345,6 +350,12 @@ function zshOptionSpecs(info: CommandInfo, indent: string): string[] {
   return info.options.map((option) => {
     const description = zshExplanation(option.description);
     const value = option.takesValue ? zshValue(option.completer, "value") : "";
+    // `*` lets zsh offer a repeatable option again after it was used.
+    if (option.repeatable) {
+      return option.flags.length > 1
+        ? `${indent}'*'{${option.flags.join(",")}}'[${description}]${value}'`
+        : `${indent}'*${option.flags[0]}[${description}]${value}'`;
+    }
     if (option.flags.length > 1) {
       const exclusive = `(${option.flags.join(" ")})`;
       return `${indent}'${exclusive}'{${option.flags.join(",")}}'[${description}]${value}'`;

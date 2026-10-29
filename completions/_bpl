@@ -49,12 +49,12 @@ _bpl() {
         '--sysroot[sysroot path for cross-compilation]:value:_directories' \
         '--cpu[target CPU for clang (e.g. znver4)]:value' \
         '--march[target architecture for clang (e.g. arm64)]:value' \
-        '--clang-flag[flag forwarded directly to clang (repeatable)]:value' \
+        '*--clang-flag[flag forwarded directly to clang (repeatable)]:value' \
         '--wasm-runtime[wasm runtime mode: freestanding or host]:value:(freestanding host)' \
         '--debug-ir-path[write diagnostic LLVM IR to a file]:value:_files' \
-        '(-l --lib)'{-l,--lib}'[library to link with (repeatable)]:value' \
-        '(-L --lib-path)'{-L,--lib-path}'[library search path (repeatable)]:value:_directories' \
-        '--object[object file to link, .o or .ll (repeatable)]:value:_files -g "*.{o,ll,bc}"' \
+        '*'{-l,--lib}'[library to link with (repeatable)]:value' \
+        '*'{-L,--lib-path}'[library search path (repeatable)]:value:_directories' \
+        '*--object[object file to link, .o or .ll (repeatable)]:value:_files -g "*.{o,ll,bc}"' \
         '(-v --verbose)'{-v,--verbose}'[enable verbose output]' \
         '(-q --quiet)'{-q,--quiet}'[suppress non-error output]' \
         '--cache[enable incremental compilation with module caching]' \
@@ -91,10 +91,10 @@ _bpl() {
                         '--time[show compilation time statistics]' \
                         '--cache[enable incremental compilation with module caching]' \
                         '(-j --jobs)'{-j,--jobs}'[parallel module compilation jobs for cached builds]:value' \
-                        '(-l --lib)'{-l,--lib}'[library to link with (repeatable)]:value' \
-                        '(-L --lib-path)'{-L,--lib-path}'[library search path (repeatable)]:value:_directories' \
-                        '--object[object file to link, .o or .ll (repeatable)]:value:_files -g "*.{o,ll,bc}"' \
-                        '--clang-flag[flag forwarded directly to clang (repeatable)]:value' \
+                        '*'{-l,--lib}'[library to link with (repeatable)]:value' \
+                        '*'{-L,--lib-path}'[library search path (repeatable)]:value:_directories' \
+                        '*--object[object file to link, .o or .ll (repeatable)]:value:_files -g "*.{o,ll,bc}"' \
+                        '*--clang-flag[flag forwarded directly to clang (repeatable)]:value' \
                         '--no-prelude[do not load implicit primitives]' \
                         '--color[force colored output]' \
                         '--no-color[disable colored output]' \
@@ -141,12 +141,12 @@ _bpl() {
                         '--sysroot[sysroot path for cross-compilation]:value:_directories' \
                         '--cpu[target CPU for clang (e.g. znver4)]:value' \
                         '--march[target architecture for clang (e.g. arm64)]:value' \
-                        '--clang-flag[flag forwarded directly to clang (repeatable)]:value' \
+                        '*--clang-flag[flag forwarded directly to clang (repeatable)]:value' \
                         '--wasm-runtime[wasm runtime mode: freestanding or host]:value:(freestanding host)' \
                         '--debug-ir-path[write diagnostic LLVM IR to a file]:value:_files' \
-                        '(-l --lib)'{-l,--lib}'[library to link with (repeatable)]:value' \
-                        '(-L --lib-path)'{-L,--lib-path}'[library search path (repeatable)]:value:_directories' \
-                        '--object[object file to link, .o or .ll (repeatable)]:value:_files -g "*.{o,ll,bc}"' \
+                        '*'{-l,--lib}'[library to link with (repeatable)]:value' \
+                        '*'{-L,--lib-path}'[library search path (repeatable)]:value:_directories' \
+                        '*--object[object file to link, .o or .ll (repeatable)]:value:_files -g "*.{o,ll,bc}"' \
                         '--cache[enable incremental compilation with module caching]' \
                         '--cache-stats[show incremental cache hit/miss statistics]' \
                         '(-j --jobs)'{-j,--jobs}'[parallel module compilation jobs for cached builds]:value' \
