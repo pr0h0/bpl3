@@ -30,9 +30,7 @@ describe("Completion target drift guard", () => {
     const bash = getBashCompletionScript();
     const zsh = getZshCompletionScript();
 
-    expect(bash).toContain(`local targets="${targetList}"`);
-    expect(zsh).toContain(
-      `--target[Target triple for clang]:triple:(${targetList})`,
-    );
+    expect(bash).toContain(`compgen -W "${targetList}"`);
+    expect(zsh).toContain(`:value:(${targetList})`);
   });
 });

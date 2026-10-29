@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Shell completions are generated from the CLI's command definitions: every
+  command (including `check`, `dev`, `bindgen`, `package-cache` subcommands)
+  completes exactly the options it accepts (BUG-438).
+
 - `JSON.parse` allocates each string at its own size instead of reserving the
   rest of the input, and reports an out-of-memory failure instead of writing
   through a null buffer (BUG-458).

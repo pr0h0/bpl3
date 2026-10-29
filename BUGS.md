@@ -210,7 +210,7 @@ and `packages/` were stripped. `tests/FormatterBracelessBodies.test.ts`.
 
 #### BUG-438: Shell completions are out of sync with the commands
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `completions/bpl-completion.bash` and `_bpl` offer `-v` for
 init/pack/list/uninstall and `--package-version`/`--dry-run` for
@@ -220,6 +220,15 @@ new/init/uninstall; have no case for `dev`, `check`, `bindgen`; and complete
 `run` with build-only options. `QolCompletions.test.ts` covers only
 format/lint/docs. Generate completions from the commander tree, or test every
 command.
+
+**Resolution**: `scripts/generate_completions.ts` builds the real command tree
+(root options now live in `cli/RootProgram.ts`, shared with `index.ts`) and
+writes `completions/bpl-completion.bash`, `completions/_bpl` and the embedded
+copy. It completes every command, alias and `package-cache` subcommand with
+exactly its options, and option values from one table (`--emit`, `--target`,
+file and directory options). `--check` fails when the scripts are stale.
+`tests/CompletionGenerator.test.ts` compares each command's bash completions
+with the flags in its `--help`. The zsh script was syntax-checked with zsh 5.9.
 
 #### BUG-439: `lint --json` counts warnings as errors
 

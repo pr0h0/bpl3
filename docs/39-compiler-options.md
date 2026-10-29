@@ -425,6 +425,11 @@ bpl completion zsh
 bpl completion bash --json
 ```
 
+The scripts complete every command, subcommand (`package-cache list`, ...)
+and option the CLI defines, plus values for options such as `--emit`,
+`--target` and `--template`. They are generated from the command definitions
+by `bun scripts/generate_completions.ts`, so they cannot drift from the CLI.
+
 Completion JSON reports are available with `bpl completion [shell] --json`.
 Successful reports emit `schemaVersion: 1`, `check: "completion"`,
 `success: true`, the selected `shell`, and the generated `script` text. JSON

@@ -1018,7 +1018,7 @@ function runPackedCompletionJsonSmoke(
     bashReport.shell !== "bash" ||
     typeof bashReport.script !== "string" ||
     !bashReport.script.includes("complete -o filenames -F _bpl_completion bpl") ||
-    !bashReport.script.includes("completion_opts=\"bash zsh --json\"")
+    !bashReport.script.includes('COMPREPLY=( $(compgen -W "bash zsh"')
   ) {
     throw new Error(
       `Packed npm CLI completion JSON success reported unexpected payload:\n${JSON.stringify(bashReport, null, 2)}`,
