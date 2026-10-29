@@ -18,6 +18,7 @@ import {
   lexWithGrammar,
   SourceManager,
   TokenType,
+  type CompilationResult,
 } from "../compiler";
 import { loadFormatterConfig } from "../compiler/formatter/FormatterConfig";
 import { diagnosticFormatter, warningsForFile } from "./DiagnosticFormatter";
@@ -571,14 +572,13 @@ export function sourceContainsImportDeclaration(
 /**
  * Compile with module resolution (for files with imports)
  */
-function compileWithModules(
-  content: string,
+/** The module compiler for a file, configured from the CLI options. */
+function createModuleCompiler(
   filePath: string,
   options: CompileOptions,
-  programArgs?: string[],
-): void {
+): Compiler {
   const hostDefaults = getHostDefaults();
-  const compiler = new Compiler({
+  return new Compiler({
     filePath,
     outputPath: options.output,
     emitType: options.emit,
@@ -602,11 +602,15 @@ function compileWithModules(
     jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
     requireEntryPoint: !options.shared,
   });
+}
 
-  const endCompilation = startPhaseTimer("Compilation", options);
-  const result = compiler.compile(content);
-  endCompilation();
-
+/** Report a module compilation result and write, build or run its output. */
+function finishModuleCompilation(
+  result: CompilationResult,
+  filePath: string,
+  options: CompileOptions,
+  programArgs?: string[],
+): void {
   if (!result.success) {
     if (result.errors) {
       if (shouldEmitBuildJsonReport(options)) {
@@ -666,6 +670,19 @@ function compileWithModules(
   }
 }
 
+function compileWithModules(
+  content: string,
+  filePath: string,
+  options: CompileOptions,
+  programArgs?: string[],
+): void {
+  const compiler = createModuleCompiler(filePath, options);
+  const endCompilation = startPhaseTimer("Compilation", options);
+  const result = compiler.compile(content);
+  endCompilation();
+  finishModuleCompilation(result, filePath, options, programArgs);
+}
+
 /**
  * Compile imports with module resolution using async backends when available.
  */
@@ -675,93 +692,11 @@ async function compileWithModulesAsync(
   options: CompileOptions,
   programArgs?: string[],
 ): Promise<void> {
-  const hostDefaults = getHostDefaults();
-  const compiler = new Compiler({
-    filePath,
-    outputPath: options.output,
-    emitType: options.emit,
-    formatterOptions:
-      options.emit === "formatted"
-        ? loadFormatterConfig(filePath).options
-        : undefined,
-    verbose: options.verbose,
-    resolveImports: !options.cache,
-    useCache: options.cache,
-    objectFiles: options.object ? normalizeArray(options.object) : undefined,
-    libraries: options.lib ? normalizeArray(options.lib) : undefined,
-    libraryPaths: options.libPath ? normalizeArray(options.libPath) : undefined,
-    target: options.target || hostDefaults.target,
-    sysroot: options.sysroot,
-    clangFlags: getCompilerDriverFlags(options),
-    dwarf: options.dwarf,
-    debugIrPath: options.debugIrPath,
-    optimizationLevel: options.O ? parseInt(options.O) : 0,
-    treeShakeTopLevelFunctions: shouldTreeShakeTopLevelFunctions(options),
-    jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
-    requireEntryPoint: !options.shared,
-  });
-
+  const compiler = createModuleCompiler(filePath, options);
   const endCompilation = startPhaseTimer("Compilation", options);
   const result = await compiler.compileAsync(content);
   endCompilation();
-
-  if (!result.success) {
-    if (result.errors) {
-      if (shouldEmitBuildJsonReport(options)) {
-        throw new CompilationDiagnosticsError(result.errors);
-      }
-      console.error(diagnosticFormatter.formatErrors(result.errors));
-    }
-    if (options.watch) {
-      throw new Error("Compilation failed");
-    }
-    process.exit(1);
-  }
-
-  printBuildWarnings(result.warnings ?? [], filePath, options);
-  if (result.ast) writeCHeader(result.ast, filePath, options);
-
-  // Handle different emit types
-  if (options.emit === "ast" && result.ast) {
-    console.log(JSON.stringify(result.ast, null, 2));
-    return;
-  }
-
-  if (options.emit === "formatted" && result.output) {
-    if (options.write) {
-      assertWritableInputFilePath(filePath);
-      writeFileAtomically(filePath, result.output);
-      if (options.verbose) log.info(`Formatted ${filePath}`);
-    } else {
-      process.stdout.write(result.output);
-    }
-    return;
-  }
-
-  // For cached compilation, the executable is already created
-  if (options.cache) {
-    if (shouldEmitBuildJsonReport(options)) {
-      emitBuildJsonSuccess(filePath, options, {
-        executable: getCachedExecutablePath(filePath, options),
-      });
-      return;
-    }
-
-    if (result.output) {
-      console.log(result.output);
-    }
-    printCacheStatsIfRequested(result, options);
-
-    if (options.run) {
-      runCachedExecutable(filePath, options, programArgs);
-    }
-    return;
-  }
-
-  // Write LLVM IR and optionally compile/run
-  if (result.output) {
-    writeLlvmOutputAndMaybeBuild(filePath, options, result.output, programArgs);
-  }
+  finishModuleCompilation(result, filePath, options, programArgs);
 }
 
 /**

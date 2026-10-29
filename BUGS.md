@@ -313,7 +313,8 @@ diagnostic with location and snippet), the `-` input name (`<stdin>` or
 and argument descriptions for `init`, `install` and `doctor`. "Formatted 1
 files" for a missing input no longer reproduces. Still open: `-e` running the
 program, `build -o X` writing `X.ll`, `check` on directories and stdin, and the
-duplicated `compileWithModules*`.
+duplicated `compileWithModules*` (merged into createModuleCompiler and
+finishModuleCompilation, batch 4).
 
 **Progress (2026-10-29, batch 3)**: `bpl check` expands directories like
 `format`/`lint` (empty → `BPL_CHECK_NO_INPUTS`). `-e` is documented as
