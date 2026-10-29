@@ -22,14 +22,14 @@ struct UTF8 {
 
     # Returns the byte length of a UTF-8 string
     frame byteLength(s: string) ret int {
-        if (s == nullptr) 
+        if (s == nullptr)
             return 0;
         return strlen(s);
     }
 
     # Returns the number of UTF-8 codepoints (characters) in a string
     frame codepointCount(s: string) ret int {
-        if (s == nullptr) 
+        if (s == nullptr)
             return 0;
         local ptr: *u8 = cast<*u8>(s);
         local count: int = 0;
@@ -51,16 +51,16 @@ struct UTF8 {
 
     # Returns the byte length of a single UTF-8 codepoint starting at the given byte
     frame codepointByteLength(leadByte: u8) ret int {
-        if ((leadByte & cast<u8>(0x80)) == cast<u8>(0x00)) 
+        if ((leadByte & cast<u8>(0x80)) == cast<u8>(0x00))
             return 1;
         # 0xxxxxxx - ASCII
-        if ((leadByte & cast<u8>(0xE0)) == cast<u8>(0xC0)) 
+        if ((leadByte & cast<u8>(0xE0)) == cast<u8>(0xC0))
             return 2;
         # 110xxxxx
-        if ((leadByte & cast<u8>(0xF0)) == cast<u8>(0xE0)) 
+        if ((leadByte & cast<u8>(0xF0)) == cast<u8>(0xE0))
             return 3;
         # 1110xxxx
-        if ((leadByte & cast<u8>(0xF8)) == cast<u8>(0xF0)) 
+        if ((leadByte & cast<u8>(0xF8)) == cast<u8>(0xF0))
             return 4;
         # 11110xxx
         return 1; # Invalid, treat as single byte
@@ -77,7 +77,7 @@ struct UTF8 {
         surrogate encoded as ED A0 80, and F4 90 80 80 were all accepted.
     #/
     frame isValid(s: string) ret bool {
-        if (s == nullptr) 
+        if (s == nullptr)
             return true;
         # Empty/null is valid
 
@@ -123,7 +123,7 @@ struct UTF8 {
                 return false;
             }
 
-            if ((i + following) >= len) 
+            if ((i + following) >= len)
                 return false;
 
             local j: int = 1;
@@ -135,7 +135,7 @@ struct UTF8 {
                     low = secondLow;
                     high = secondHigh;
                 }
-                if ((continuation < low) || (continuation > high)) 
+                if ((continuation < low) || (continuation > high))
                     return false;
                 j = j + 1;
             }
@@ -221,14 +221,14 @@ struct UTF8 {
 
     # Checks if a string contains only ASCII characters
     frame isAsciiString(s: string) ret bool {
-        if (s == nullptr) 
+        if (s == nullptr)
             return true;
         local ptr: *u8 = cast<*u8>(s);
         local i: int = 0;
         local len: int = strlen(s);
 
         loop (i < len) {
-            if (ptr[i] >= cast<u8>(128)) 
+            if (ptr[i] >= cast<u8>(128))
                 return false;
             i = i + 1;
         }
@@ -239,7 +239,7 @@ struct UTF8 {
     # Get codepoints as an array of u32
     frame toCodepoints(s: string) ret Array<u32> {
         local result: Array<u32> = Array<u32>.new(16);
-        if (s == nullptr) 
+        if (s == nullptr)
             return result;
         local ptr: *u8 = cast<*u8>(s);
         local i: int = 0;

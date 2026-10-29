@@ -170,6 +170,47 @@ describe("CLI error reporting", () => {
     });
   });
 
+  test("small diagnostics point at real locations and inputs (BUG-443)", () => {
+    withProject((directory) => {
+      const env = { NO_COLOR: "1" };
+      writeFileSync(join(directory, "lib.bpl"), "frame helper() {}\n");
+      const noMain = runCli(["build", "lib.bpl"], directory, env);
+      expect(noMain.stderr).toContain(
+        "error[lib.bpl:1:1]: Missing entry point function 'main'",
+      );
+
+      writeFileSync(join(directory, "bad.bpl"), "frame main( {\n");
+      const badFormat = runCli(["format", "bad.bpl"], directory, env);
+      expect(badFormat.status).toBe(1);
+      expect(badFormat.stderr).toContain("error[bad.bpl:1:1]");
+
+      const stdin = Bun.spawnSync(
+        [process.execPath, CLI, "format", "--check", "-"],
+        {
+          cwd: directory,
+          env: { ...process.env, ...env },
+          stdin: new TextEncoder().encode("frame main() ret int {return 0;}\n"),
+        },
+      );
+      expect(stdin.stderr.toString()).toContain(
+        "error: <stdin> is not formatted",
+      );
+
+      const doctor = JSON.parse(runCli(["doctor", "--json"], directory).stdout);
+      expect(doctor.bplHomeSource).toBeString();
+
+      const help = runCli(["run", "--help"], directory).stdout;
+      for (const option of [
+        "--lib",
+        "--lib-path",
+        "--object",
+        "--clang-flag",
+      ]) {
+        expect(help).toContain(option);
+      }
+    });
+  });
+
   test("check accepts prelude error types and pipes uncolored output", () => {
     withProject((directory) => {
       writeFileSync(

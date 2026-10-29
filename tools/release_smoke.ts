@@ -279,6 +279,7 @@ interface LintReport {
   success: boolean;
   totalFiles: number;
   errorCount: number;
+  warningCount?: number;
   error?: string;
   errorCode?: string;
   files: Array<{
@@ -1017,7 +1018,7 @@ function runPackedCompletionJsonSmoke(
     bashReport.shell !== "bash" ||
     typeof bashReport.script !== "string" ||
     !bashReport.script.includes("complete -o filenames -F _bpl_completion bpl") ||
-    !bashReport.script.includes("completion_opts=\"bash zsh --json\"")
+    !bashReport.script.includes('COMPREPLY=( $(compgen -W "bash zsh"')
   ) {
     throw new Error(
       `Packed npm CLI completion JSON success reported unexpected payload:\n${JSON.stringify(bashReport, null, 2)}`,
@@ -3905,7 +3906,9 @@ function runPackedLintJsonSmoke(installedBpl: string): void {
     if (
       report.success ||
       report.totalFiles !== 1 ||
-      report.errorCount < 1 ||
+      // A naming finding is a warning; it fails the run via --fail-on-warnings.
+      report.errorCount !== 0 ||
+      report.warningCount !== 1 ||
       report.files.length !== 1 ||
       fileReport?.file !== "main.bpl" ||
       fileReport.success ||

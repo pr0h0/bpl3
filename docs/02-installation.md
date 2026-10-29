@@ -54,7 +54,9 @@ library, and runtime next to its real location, following symlinks. To set it
 up by hand, run `bun install --frozen-lockfile && bun run build` and put the
 checkout (or a symlink to its `bpl`) on `PATH`. `BPL_HOME` is optional; when
 set, it overrides that lookup and must name a real installation directory
-without symlinked parent components. `bpl doctor` reports the directory in use.
+without symlinked parent components. `bpl doctor` reports the directory in use
+and where it came from (`BPL_HOME`, the executable or CLI script location, the
+source checkout, or a system install; `bplHomeSource` in `--json`).
 
 ## Verify compilation
 

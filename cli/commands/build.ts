@@ -8,13 +8,17 @@ import { resolveProjectEntry } from "../ProjectEntry";
 import type { Command } from "commander";
 import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
-import { getExplicitParentCompileOptions } from "./compileOptions";
+import {
+  getExplicitParentCompileOptions,
+  mergeRepeatableOptions,
+} from "./compileOptions";
 import {
   validateCompileInputSources,
   emitBuildValidationErrorAndExit,
   emitNoInputBuildErrorAndExit,
 } from "../BuildInputValidation";
 import { BUILD_PROJECT_ENTRY_INVALID_CODE } from "../BuildErrorCodes";
+import { collectOption } from "../RootProgram";
 
 const log = new Logger("Build");
 
@@ -104,14 +108,23 @@ export function registerBuildCommand(program: Command): void {
     .option("--cpu <cpu>", "target CPU for clang (e.g. znver4)")
     .option("--march <arch>", "target architecture for clang (e.g. arm64)")
     .option(
-      "--clang-flag <flag...>",
-      "additional flags forwarded directly to clang",
+      "--clang-flag <flag>",
+      "flag forwarded directly to clang (repeatable)",
+      collectOption,
     )
     .option("--wasm-runtime <mode>", "wasm runtime mode: freestanding or host")
     .option("--debug-ir-path <file>", "write diagnostic LLVM IR to a file")
-    .option("-l, --lib <lib...>", "libraries to link with")
-    .option("-L, --lib-path <path...>", "library search paths")
-    .option("--object <file...>", "object files to link (.o, .ll, etc.)")
+    .option("-l, --lib <lib>", "library to link with (repeatable)", collectOption)
+    .option(
+      "-L, --lib-path <path>",
+      "library search path (repeatable)",
+      collectOption,
+    )
+    .option(
+      "--object <file>",
+      "object file to link, .o or .ll (repeatable)",
+      collectOption,
+    )
     .option("--cache", "enable incremental compilation with module caching")
     .option("--cache-stats", "show incremental cache hit/miss statistics")
     .option(
@@ -135,6 +148,7 @@ export function registerBuildCommand(program: Command): void {
           const compileOptions: CompileOptions = {
             ...globalOpts,
             ...localOpts,
+            ...mergeRepeatableOptions(globalOpts, localOpts),
             dwarf:
               localOpts.debug ||
               localOpts.dwarf ||

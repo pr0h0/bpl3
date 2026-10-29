@@ -39,6 +39,64 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `-l/--lib`, `-L/--lib-path`, `--object` and `--clang-flag` take one value
+  each and are repeatable (`-l m -l c`); as variadic options they swallowed a
+  following source file (`bpl run --lib m main.bpl`). This replaces the
+  `--lib a b` form. Spec methods can no longer be used as bound values
+  (`x.get` on a spec or constrained receiver), which code generation could not
+  bind. `bpl init` rejects an `index.bpl` that is a directory or symlink
+  (`BPL_PACKAGE_INIT_ENTRY_INVALID`).
+
+- `bpl init` creates the `index.bpl` entry it declares (so `run` and `pack`
+  work) and ends `bpl.json` with a newline; `bpl install <archive>` adds the
+  package to `bpl.json` so `bpl lock` no longer drops it; new projects ignore
+  pack archives (BUG-444).
+
+- `bpl bindgen` writes exponent `double` constants (`#define SCI 1e-3`) in
+  plain decimal (`0.001`), which BPL can parse (BUG-441).
+
+- Shell completions are generated from the CLI's command definitions: every
+  command (including `check`, `dev`, `bindgen`, `package-cache` subcommands)
+  completes exactly the options it accepts (BUG-438).
+
+- `JSON.parse` allocates each string at its own size instead of reserving the
+  rest of the input, and reports an out-of-memory failure instead of writing
+  through a null buffer (BUG-458).
+
+- `Map` equality and `Array.indexOf`/`contains` compare `string` values by
+  content instead of by pointer (BUG-460).
+
+- `switch` on a null `string` takes the `default` case instead of crashing,
+  and a duplicate enum case is reported by name (`E.A`, not `0`) (BUG-436).
+
+- Methods with a native variadic parameter (`xs: ...int`), which compiled to a
+  wrong signature and crashed when bound to a lambda, are rejected with
+  `BPL_VARIADIC_METHOD_UNSUPPORTED`; diagnostics now mark variadic function
+  types with `...` (BUG-430).
+
+- Methods of a generic spec (`spec Getter<V> { frame get(this: *Self) ret V; }`)
+  can be called on a parameter constrained by it (`T: Getter<long>`), and
+  `Self`-returning methods return `T` (BUG-435).
+
+- CLI paper cuts (BUG-443): a missing `main` points at `file:1:1` instead of
+  `file:0:0`; `format` shows parse errors with their location and calls stdin
+  `<stdin>`; `doctor` says where it found the installation; `run --help` lists
+  the linker options; `init`, `install` and `doctor` describe their argument.
+
+- Piping CLI output into a command that exits early (`bpl format ... | head`)
+  stops quietly instead of printing an `EPIPE` stack trace (BUG-442).
+
+- `bpl lint --json` reports warnings in a new `warningCount` instead of
+  `errorCount`, and naming findings suggest the corrected name instead of the
+  generic "Lint check failed" hint (BUG-439).
+
+- `bpl format` no longer leaves a trailing space after `if (...)`, `else` and
+  `loop (...)` when the body has no braces (BUG-437).
+
+- `--debug` builds no longer crash clang for generic locals (`Array<String>`)
+  or `Any` variadics, and lambdas at the same line and column of two modules no
+  longer produce a duplicate LLVM type (BUG-429).
+
 - Struct subtyping no longer passes through `**T` or array types: `**Dog` to
   `**Animal` and `Dog[2]` to `Animal[]` are rejected by the checker instead of
   corrupting memory or failing in codegen (BUG-424).

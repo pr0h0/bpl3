@@ -8,7 +8,7 @@ frame printIntArray(arr: *Array<int>, label: string) {
     printf("%s: [", label);
     local i: int = 0;
     loop (i < arr.len()) {
-        if (i > 0) 
+        if (i > 0)
             printf(", ");
         printf("%d", arr.get(i));
         i = i + 1;
@@ -20,7 +20,7 @@ frame printFloatArray(arr: *Array<float>, label: string) {
     printf("%s: [", label);
     local i: int = 0;
     loop (i < arr.len()) {
-        if (i > 0) 
+        if (i > 0)
             printf(", ");
         printf("%.1f", arr.get(i));
         i = i + 1;

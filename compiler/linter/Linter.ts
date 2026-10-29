@@ -9,6 +9,8 @@ const languageHooks = new Set([
   "__call__",
 ]);
 import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
+import { lexWithGrammar } from "../frontend/GrammarLexer";
+import { TokenType } from "../frontend/TokenType";
 
 export interface LintRule {
   code: string;
@@ -22,6 +24,7 @@ export interface LintContext {
     node: AST.ASTNode,
     severity?: DiagnosticSeverity,
     code?: string,
+    hint?: string,
   ): void;
 }
 
@@ -46,10 +49,11 @@ export class Linter {
         node,
         _severity = DiagnosticSeverity.Warning,
         code = "LINT",
+        hint = "Fix the reported issue or disable the rule.",
       ) => {
         const error = new CompilerError(
           message,
-          "Lint check failed",
+          hint,
           node.location,
           code,
         );
@@ -413,6 +417,40 @@ export class Linter {
   }
 }
 
+/** A rename hint, or a general one when the converted name is not usable. */
+function renameHint(name: string, pascal: boolean): string {
+  const suggestion = toCase(name, pascal);
+  let tokens: { type: TokenType }[] = [];
+  try {
+    tokens = lexWithGrammar(suggestion, "lint-suggestion.bpl");
+  } catch {
+    tokens = [];
+  }
+  // Keywords (`_frame` → `frame`) and digits (`_123`) are not identifiers.
+  const valid =
+    tokens.length > 0 &&
+    tokens[0]!.type === TokenType.Identifier &&
+    tokens.filter((token) => token.type !== TokenType.EOF).length === 1;
+  return valid
+    ? `Rename it to '${suggestion}'.`
+    : `Rename it to ${pascal ? "PascalCase, e.g. 'MyStruct'" : "camelCase, e.g. 'doWork'"}.`;
+}
+
+/** `my_struct`/`MY_STRUCT`/`myStruct` → `MyStruct` (pascal) or `myStruct`. */
+function toCase(name: string, pascal: boolean): string {
+  const words = name
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .split(/[^a-zA-Z0-9]+|\s+/)
+    .filter(Boolean)
+    .map((word) => word.toLowerCase());
+  const joined = words
+    .map((word, index) =>
+      index === 0 && !pascal ? word : word[0]!.toUpperCase() + word.slice(1),
+    )
+    .join("");
+  return joined || name;
+}
+
 class NamingConventionRule implements LintRule {
   code = "L001";
   name = "naming-convention";
@@ -426,6 +464,7 @@ class NamingConventionRule implements LintRule {
           node,
           DiagnosticSeverity.Warning,
           this.code,
+          renameHint(decl.name, true),
         );
       }
     } else if (node.kind === "FunctionDecl") {
@@ -439,6 +478,7 @@ class NamingConventionRule implements LintRule {
           node,
           DiagnosticSeverity.Warning,
           this.code,
+          renameHint(decl.name, false),
         );
       }
     }

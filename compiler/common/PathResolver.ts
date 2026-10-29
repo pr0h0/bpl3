@@ -39,46 +39,78 @@ function realExecutablePath(executable: string): string | undefined {
  * 5. Current working directory (development)
  * 6. Common system install locations
  */
+/** Where the installation root was found, for `bpl doctor`. */
+export type BplHomeSource =
+  | "BPL_HOME"
+  | "executable location"
+  | "CLI script location"
+  | "source checkout"
+  | "working directory"
+  | "system install"
+  | "fallback";
+
 export function findBplHome(inputs: BplHomeSearchInputs): string {
+  return findBplHomeWithSource(inputs).path;
+}
+
+export function findBplHomeWithSource(inputs: BplHomeSearchInputs): {
+  path: string;
+  source: BplHomeSource;
+} {
   if (inputs.bplHome && existsSync(inputs.bplHome)) {
     assertSafeBplHomePath(inputs.bplHome, "BPL_HOME");
-    return inputs.bplHome;
+    return { path: inputs.bplHome, source: "BPL_HOME" };
   }
 
-  const candidates: Array<[string, string]> = [];
+  const candidates: Array<[string, string, BplHomeSource]> = [];
   const executable = realExecutablePath(inputs.execPath);
   if (executable) {
-    candidates.push([dirname(executable), "BPL executable directory"]);
+    candidates.push([
+      dirname(executable),
+      "BPL executable directory",
+      "executable location",
+    ]);
   }
   const script = inputs.scriptPath && realExecutablePath(inputs.scriptPath);
   if (script) {
-    candidates.push([dirname(script), "BPL executable directory"]);
+    candidates.push([
+      dirname(script),
+      "BPL executable directory",
+      "CLI script location",
+    ]);
   }
   candidates.push(
-    [inputs.sourceRoot, "BPL source directory"],
-    [inputs.cwd, "BPL working directory"],
-    ["/usr/local/lib/bpl", "BPL install directory"],
-    ["/usr/lib/bpl", "BPL install directory"],
-    ["/opt/bpl", "BPL install directory"],
+    [inputs.sourceRoot, "BPL source directory", "source checkout"],
+    [inputs.cwd, "BPL working directory", "working directory"],
+    ["/usr/local/lib/bpl", "BPL install directory", "system install"],
+    ["/usr/lib/bpl", "BPL install directory", "system install"],
+    ["/opt/bpl", "BPL install directory", "system install"],
   );
 
-  for (const [candidate, label] of candidates) {
+  for (const [candidate, label, source] of candidates) {
     if (existsSync(resolve(candidate, "grammar"))) {
       assertSafeBplHomePath(candidate, label);
-      return candidate;
+      return { path: candidate, source };
     }
   }
 
   // Fall back to the executable directory even without a grammar so the
   // later missing-resource error names a meaningful location.
-  return dirname(executable ?? inputs.execPath);
+  return { path: dirname(executable ?? inputs.execPath), source: "fallback" };
 }
 
 /**
  * Get the BPL installation root directory; see findBplHome for the order.
  */
 export function getBplHome(): string {
-  return findBplHome({
+  return getBplHomeWithSource().path;
+}
+
+export function getBplHomeWithSource(): {
+  path: string;
+  source: BplHomeSource;
+} {
+  return findBplHomeWithSource({
     bplHome: process.env.BPL_HOME,
     execPath: process.execPath,
     scriptPath: process.argv[1],

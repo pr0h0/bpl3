@@ -84,22 +84,40 @@ Pass the substituted spec parameter types.
 
 #### BUG-429: `--debug` makes clang crash for generic locals of struct type
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `getDwarfTypeId` (`TypeGenerator.ts:246+`) looks up the unsubstituted `T`, emits
 `DILocalVariable(type: null)`, and clang segfaults in the X86 asm printer. Any
 program using `Array<String>` with `--debug` is affected. Apply the active
 monomorphization map before the lookup.
 
+**Resolution**: `getDwarfTypeId` substitutes the active type map, and types it
+cannot describe (such as the built-in `Any`) become opaque structs of the right
+size instead of `null`. A `--debug` build of every example then exposed a
+second defect: lambdas were named only by line and column, so lambdas at the same
+position in two modules redefined each other's context type (`todo_app` with
+`bpl-express`). Lambdas in later modules now get an `_M<n>` suffix. All examples
+except the two that need external libraries now build with `--debug`.
+`tests/DebugInfoGenerics.test.ts`.
+
 #### BUG-430: Bound variadic methods get an unlowered signature and segfault
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 `CallChecker.ts:1243-1309` builds bound-method `Lambda` types without the
 variadic `*T, count` lowering applied to free functions (`TypeChecker.ts:621`).
 `local f: Lambda<int>(int,int) = s.add; f(1,1);` segfaults. The value-receiver
 variant passes `check` and fails only in codegen. Share one signature builder
 and diagnose the unsupported case in the checker.
+
+**Resolution**: native variadic methods were never supported. Their IR
+signature took the variadic parameter as a plain `T`, and even direct calls
+such as `s.add(1, 2, 2)` failed with an argument-count error. Methods (struct,
+enum and spec) with a `...T` parameter are now rejected at declaration with
+`BPL_VARIADIC_METHOD_UNSUPPORTED`. Diagnostics mark variadic function types
+(`Func<i32>(*i32, i32, ...)`), so assigning a free variadic function to a
+`Func` no longer reads "cannot assign Func<i32>(*i32, i32) to
+Func<i32>(*i32, i32)". `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-431: Inherited static `new` called through a child type emits an undefined symbol
 
@@ -147,12 +165,16 @@ shadowing warning at `:1538`.
 
 #### BUG-435: Methods of generic specs using `this: *Self` cannot be called on constrained `T`
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 With `spec Getter<T> { frame get(this: *Self) ret long; }` and
 `frame use<T: Getter<long>>(x: *T)`, `x.get()` fails with "No compatible
 instance method" and a misleading static-method hint. Non-generic specs work.
 Likely `TypeCheckerBase.ts:2473` binds `Self` to the spec instead of `T`.
+
+**Resolution**: `resolveMemberWithContext`, when it reaches a spec through a
+generic parameter's constraint, binds `Self` to the parameter. Methods
+returning `Self` then return `T` as well. `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-436: Smaller compiler diagnostics issues
 
@@ -168,17 +190,27 @@ Likely `TypeCheckerBase.ts:2473` binds `Self` to the spec instead of `T`.
 
 ### CLI and tooling
 
+**Progress (2026-10-29)**: a `switch` on a null `string` takes `default` (or
+does nothing) instead of crashing in `strcmp`. A duplicate enum case names the
+variant (`Duplicate case value 'E.A'`). The generic arity error no longer
+reproduces as a duplicate. Still open: the `check` → `--emit llvm` →
+`opt -passes=verify` probe test.
+
 #### BUG-437: Formatter leaves trailing spaces after brace-less `if`/`else`/`loop`
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `Formatter.ts:605/610/620` and `formatLoop` emit a space before the newline when
 the body is not a block: `if (x > 0) return 1;` becomes `if (x > 0) ␠\n ...`.
 255 lines in `examples/` and `lib/` carry it. Emit the space only before `{`.
 
+**Resolution**: `formatIf` and `formatLoop` emit the space only before `{`
+(and before `if` in `else if`). The 260 affected lines in `examples/`, `lib/`
+and `packages/` were stripped. `tests/FormatterBracelessBodies.test.ts`.
+
 #### BUG-438: Shell completions are out of sync with the commands
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `completions/bpl-completion.bash` and `_bpl` offer `-v` for
 init/pack/list/uninstall and `--package-version`/`--dry-run` for
@@ -189,13 +221,27 @@ new/init/uninstall; have no case for `dev`, `check`, `bindgen`; and complete
 format/lint/docs. Generate completions from the commander tree, or test every
 command.
 
+**Resolution**: `scripts/generate_completions.ts` builds the real command tree
+(root options now live in `cli/RootProgram.ts`, shared with `index.ts`) and
+writes `completions/bpl-completion.bash`, `completions/_bpl` and the embedded
+copy. It completes every command, alias and `package-cache` subcommand with
+exactly its options, and option values from one table (`--emit`, `--target`,
+file and directory options). `--check` fails when the scripts are stale.
+`tests/CompletionGenerator.test.ts` compares each command's bash completions
+with the flags in its `--help`. The zsh script was syntax-checked with zsh 5.9.
+
 #### BUG-439: `lint --json` counts warnings as errors
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 One naming warning yields `"errorCount": 1`, no `warningCount`, and the generic
 hint "Lint check failed" (`Linter.ts:52`). Count by severity and add
 `warningCount`.
+
+**Resolution**: the JSON report counts diagnostics by severity (`errorCount`
+for errors and failed inputs, a new `warningCount` for warnings), and rules
+pass a specific hint: the naming rule suggests the renamed identifier
+(`Rename it to 'MyThing'.`). `tests/CLI.test.ts`, `tests/CLIJsonParseability.test.ts`.
 
 #### BUG-440: `bpl docs` ignores `#` comments, loses error locations, and nests headings wrongly
 
@@ -210,17 +256,27 @@ syntax; decide and document one.
 
 #### BUG-441: `bindgen` emits exponent float literals BPL cannot parse
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `#define SCI 1e-3` becomes `global const SCI: double = 1e-3;`, which `check`
 rejects (R-LEX-6 has no exponent literals). Emit decimal form or skip, and fix
 the docs/36 example.
 
+**Resolution**: `double` constants go through the same plain-decimal
+conversion as `f32` ones (`1e-3` → `0.001`, `2.5E+4` → `25000.0`). The docs/36
+example and the CLI test that asserted `1e-3` are updated.
+`tests/CBindgenFloat.test.ts` checks that the generated file type-checks.
+
 #### BUG-442: `bpl format a.bpl b.bpl | head` crashes with an EPIPE stack trace
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 `cli/commands/formatAction.ts:216`. Exit quietly on `EPIPE`.
+
+**Resolution**: `index.ts` installs `error` handlers on stdout and stderr that
+exit 0 on `EPIPE` and rethrow anything else, which covers every command. It
+no longer reproduces with Bun 1.3.14 (the write fails silently there), so
+there is no regression test; the handler guards other runtimes and versions.
 
 #### BUG-443: Remaining CLI paper cuts
 
@@ -242,15 +298,34 @@ the docs/36 example.
 - `cli/CompilationRunner.ts` duplicates `compileWithModules` and
   `compileWithModulesAsync` (~90 lines each).
 
+**Progress (2026-10-29)**: fixed the missing-`main` location (now `file:1:1`,
+skipping the synthesized prelude import), `format` parse errors (full
+diagnostic with location and snippet), the `-` input name (`<stdin>` or
+`--stdin-filepath`), `doctor` naming the source of its installation directory
+(`bplHomeSource`), `run --help` listing `-l`/`-L`/`--object`/`--clang-flag`,
+and argument descriptions for `init`, `install` and `doctor`. "Formatted 1
+files" for a missing input no longer reproduces. Still open: `-e` running the
+program, `build -o X` writing `X.ll`, `check` on directories and stdin, and the
+duplicated `compileWithModules*`.
+
 #### BUG-444: Project scaffolding gaps
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 `bpl init` writes `main: "index.bpl"` without creating it, so `pack` fails;
 `bpl.json` has no trailing newline. `bpl install ./pkg.tgz` records the package
 only in `bpl.lock`, so a later `bpl lock` drops it and `--locked` suggests a
 command that does not fix it. The library template's `.gitignore` misses
 `*.tgz`/`*.bplmeta.json`.
+
+**Resolution**: `bpl init` writes `bpl.json` with a trailing newline and
+creates a hello-world `index.bpl` when missing. A direct `bpl install
+<archive|name>` adds the package to `bpl.json` (`file:<relative path>` or the
+version), so `bpl lock` keeps it and `--locked` verifies. Before this,
+`bpl lock` left zero entries and `--locked` failed. `bpl new` templates ignore
+`*.tgz` and `*.bplmeta.json`. `tests/ProjectScaffolding.test.ts`;
+`tests/PackageManifestRemoval.test.ts` now sets up its legacy state
+explicitly.
 
 ### Language server and VS Code extension
 
@@ -425,12 +500,19 @@ of the generic instantiation is likely wrong in the compiler.
 
 #### BUG-458: JSON strings reserve the rest of the input and skip the null check
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `lib/json.bpl:144` allocates "remaining input + 1" bytes per string and never
 shrinks it; 100,000 one-character strings in 400 KB reserved about 20 GB. Under
 memory limits `malloc` returns null and the parser writes through it. Size
 exactly (or `realloc` at the end) and check the result.
+
+**Resolution**: `parseString` first scans to the closing quote and allocates
+that many bytes plus one (decoding never lengthens the text), reports
+"Unterminated string" before allocating, and fails with "Out of memory while
+parsing a string" when `malloc` returns null. 20,000 one-character strings
+now parse under a 400 MB address-space limit (about 800 MB before).
+`tests/JsonStringAllocation.test.ts`.
 
 #### BUG-459: bpl-db saves records it cannot load, and saves non-atomically
 
@@ -443,11 +525,18 @@ write to a temporary file plus rename.
 
 #### BUG-460: `Map.__eq__` (and likely `Array.indexOf`) compare string values by pointer
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `lib/map.bpl:454`: equal but separately allocated string values compare unequal.
 `Array.indexOf`/`contains` (and `Algorithm.unique`) likely share it for `string`
 elements (not probed). Use the value equaler as keys already do.
+
+**Resolution**: `Map.__eq__` compares values with `_mapDefaultEq<V>`, as keys
+do. `Array.indexOf` (and therefore `contains`) uses `_arrayElementsEqual<T>`,
+which compares `string` by content and other types with `==`; it cannot reuse
+the map helper because `std/string.bpl` imports `std/array.bpl`.
+`Algorithm.unique` only has integer and float overloads and is unaffected.
+`tests/StdlibStringValueEquality.test.ts`.
 
 #### BUG-461: HTTP server and rate limiter are easy to starve (suspected)
 
@@ -490,6 +579,17 @@ Chaining operators on a generic method returning `Array<T>`/`Stack<T>` fails
 with `got Array<T> and int`.
 
 **Resolution**: the operator-overload checker substitutes the receiver's generic arguments into the result type even when the receiver type carries only a name (falls back to scope lookup), so `st << 1 << 2` keeps `*Stack<int>`. `tests/StdlibShiftChaining.test.ts`.
+
+#### BUG-470: Overloaded spec methods cannot be implemented
+
+**Status**: Open · **Priority**: P3
+
+`spec G { frame m(this: *Self) ret long; frame m(this: *Self, d: int) ret long; }`
+parses, but a struct implementing both overloads is rejected with "Method 'm'
+in struct 'B' has incorrect parameter count": spec conformance compares each
+implementation against a single requirement per name. Either match overloads
+by signature or reject overloaded spec declarations. Found while testing the
+bound-spec-method guard in #112.
 
 ## Developer experience fixes (2026-10-28)
 

@@ -229,7 +229,7 @@ struct Database {
                 buf[len - 1] = 0;
             }
             # Strip CR
-            if ((len > 1) && (buf[len - 2] == 13)) 
+            if ((len > 1) && (buf[len - 2] == 13))
                 buf[len - 2] = 0;
             # Re-calculate len after stripping? Or just rely on string functions.
 
@@ -265,9 +265,9 @@ struct Database {
                             local type_int: int = atoi(ptr + space_idx + 1);
                             type_int = type_int; # Suppress unused variable warning
                             local type_kind: DataType = DataType.Int;
-                            if (type_int == 1) 
+                            if (type_int == 1)
                                 type_kind = DataType.Str;
-                            if (type_int == 2) 
+                            if (type_int == 2)
                                 type_kind = DataType.Bool;
                             current_table.add_column(name, type_kind);
                             free(name);

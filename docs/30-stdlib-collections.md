@@ -40,7 +40,11 @@ Other equality-comparable compound keys use their `==` operation with a constant
 which is correct but gives linear lookup. Supply the custom
 `Map<K, V>.new(capacity, hasher, equaler)` overload for efficient compound keys.
 Custom equality must be an equivalence relation, and equal keys must have equal
-hashes. Keys must remain unchanged while stored in the map.
+hashes. Keys must remain unchanged while stored in the map. Map equality
+(`a == b`) compares values with the same default equality, so `string` values
+compare by content. `Array.indexOf` and `contains` also compare `string`
+elements by content (a null element matches only null); other element types
+use `==`.
 
 ```bpl
 import [Map] from "std/map.bpl";

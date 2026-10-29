@@ -451,7 +451,9 @@ struct Map<K, V>: Iterable<Pair<K, V>>, Destructible, Equatable<Map<K, V>> {
             if (v2.isNone()) {
                 return false;
             }
-            if (p.value != v2.unwrap()) {
+            # Values compare like keys: strings by content, not by pointer.
+            local otherValue: V = v2.unwrap();
+            if (!_mapDefaultEq<V>(&p.value, &otherValue)) {
                 return false;
             }
         }

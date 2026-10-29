@@ -51,6 +51,8 @@ export const SYMBOL_NOT_FOUND_CODE = "BPL_SYMBOL_NOT_FOUND";
 export const VOID_TYPE_INVALID_CODE = "BPL_VOID_TYPE_INVALID";
 export const GLOBAL_INITIALIZER_NOT_CONSTANT_CODE =
   "BPL_GLOBAL_INITIALIZER_NOT_CONSTANT";
+export const VARIADIC_METHOD_UNSUPPORTED_CODE =
+  "BPL_VARIADIC_METHOD_UNSUPPORTED";
 export const BUILTIN_TYPE_REDEFINITION_CODE =
   "BPL_BUILTIN_TYPE_REDEFINITION";
 export const ARRAY_SIZE_INVALID_CODE = "BPL_ARRAY_SIZE_INVALID";
@@ -188,6 +190,7 @@ export const FUNCTION_ATTRIBUTE_AUTO_DESTROY_RETURN_TYPE_MISMATCH_CODE =
 export const TYPE_CHECKER_FAILURE_CODES = [
   TYPE_ALIAS_POINTER_UNSUPPORTED_CODE,
   GLOBAL_INITIALIZER_NOT_CONSTANT_CODE,
+  VARIADIC_METHOD_UNSUPPORTED_CODE,
   SYMBOL_ALREADY_DEFINED_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   GENERIC_ARITY_MISMATCH_CODE,
@@ -2436,10 +2439,16 @@ export abstract class TypeCheckerBase {
           ) {
             const gp = aliasDecl as unknown as AST.GenericParam;
             if (gp.constraint && gp.constraint.kind === "BasicType") {
-              return this.resolveMemberWithContext(
+              const resolved = this.resolveMemberWithContext(
                 gp.constraint as AST.BasicTypeNode,
                 memberName,
               );
+              // Through `T: Spec<...>`, `Self` is `T`, not the spec: the
+              // receiver `*T` must match `this: *Self` (BUG-435).
+              if (resolved?.decl.kind === "SpecDecl") {
+                resolved.genericMap.set("Self", baseType);
+              }
+              return resolved;
             }
           }
         }

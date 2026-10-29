@@ -120,9 +120,9 @@ struct StringUtils {
         local lh: long = strlen(haystack);
         local ln: long = strlen(needle);
         if (cast<long>(start) > lh) { return -1; }
-        if (ln == 0) 
+        if (ln == 0)
             return start;
-        if (ln > lh) 
+        if (ln > lh)
             return -1;
         # Keep both offsets wide until returning a representable int index.
         local i: long = cast<long>(start);
@@ -136,7 +136,7 @@ struct StringUtils {
                 }
                 j = j + 1;
             }
-            if (isMatch) 
+            if (isMatch)
                 return cast<int>(i);
             i = i + 1;
         }

@@ -109,6 +109,10 @@ function getAliasedArrayElementType(
 /**
  * Check a call expression
  */
+
+/** Members checked as the callee of a call (`x.m()`), not as values (`x.m`). */
+const CALLEE_MEMBERS = new WeakSet<AST.Expression>();
+
 export function checkCall(
   this: CheckerContext,
   expr: AST.CallExpr,
@@ -271,6 +275,7 @@ export function checkCall(
     }
   }
 
+  if (expr.callee.kind === "Member") CALLEE_MEMBERS.add(expr.callee);
   const calleeType = this.checkExpression(expr.callee);
   const argTypes = expr.args.map((arg) => this.checkExpression(arg));
 
@@ -1223,6 +1228,21 @@ export function checkMember(
               effectiveObjectType,
             )}'`,
             "Static methods must be called on the type, not an instance.",
+            expr.location,
+            INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
+          );
+        }
+
+        // Code generation binds only methods with a body; a spec method on a
+        // spec or constrained receiver has none, so a value of it (single or
+        // overloaded) would be accepted here and then not bound.
+        const specValue = (compatibleMethods ?? [compatibleMethod]).find(
+          (candidate) => candidate?.kind === "SpecMethod",
+        );
+        if (specValue && !CALLEE_MEMBERS.has(expr)) {
+          throw new CompilerError(
+            `Cannot use spec method '${specValue.name}' as a value`,
+            `Call it directly (${expr.property}(...)), or wrap the call in a lambda.`,
             expr.location,
             INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
           );

@@ -211,13 +211,13 @@ struct Algorithm {
     }
 
     frame min(arr: *Array<int>) ret int {
-        if (arr.len() == 0) 
+        if (arr.len() == 0)
             return 0;
         local minVal: int = arr.get(0);
         local i: int = 1;
         loop (i < arr.len()) {
             local v: int = arr.get(i);
-            if (v < minVal) 
+            if (v < minVal)
                 minVal = v;
             i = i + 1;
         }
@@ -225,13 +225,13 @@ struct Algorithm {
     }
 
     frame max(arr: *Array<int>) ret int {
-        if (arr.len() == 0) 
+        if (arr.len() == 0)
             return 0;
         local maxVal: int = arr.get(0);
         local i: int = 1;
         loop (i < arr.len()) {
             local v: int = arr.get(i);
-            if (v > maxVal) 
+            if (v > maxVal)
                 maxVal = v;
             i = i + 1;
         }
@@ -249,7 +249,7 @@ struct Algorithm {
     }
 
     frame average(arr: *Array<int>) ret float {
-        if (arr.len() == 0) 
+        if (arr.len() == 0)
             return 0.0;
         local sum: long = Algorithm.sum(arr);
         return cast<float>(sum) / cast<float>(arr.len());
@@ -267,7 +267,7 @@ struct Algorithm {
         local count: int = 0;
         local i: int = 0;
         loop (i < arr.len()) {
-            if (arr.get(i) == value) 
+            if (arr.get(i) == value)
                 count = count + 1;
             i = i + 1;
         }
@@ -287,11 +287,11 @@ struct Algorithm {
     }
 
     frame isSorted(arr: *Array<int>) ret bool {
-        if (arr.len() <= 1) 
+        if (arr.len() <= 1)
             return true;
         local i: int = 0;
         loop (i < (arr.len() - 1)) {
-            if (arr.get(i) > arr.get(i + 1)) 
+            if (arr.get(i) > arr.get(i + 1))
                 return false;
             i = i + 1;
         }
@@ -314,13 +314,13 @@ struct Algorithm {
     # ============ Float Array Operations ============
 
     frame min(arr: *Array<float>) ret float {
-        if (arr.len() == 0) 
+        if (arr.len() == 0)
             return 0.0;
         local minVal: float = arr.get(0);
         local i: int = 1;
         loop (i < arr.len()) {
             local v: float = arr.get(i);
-            if (v < minVal) 
+            if (v < minVal)
                 minVal = v;
             i = i + 1;
         }
@@ -328,13 +328,13 @@ struct Algorithm {
     }
 
     frame max(arr: *Array<float>) ret float {
-        if (arr.len() == 0) 
+        if (arr.len() == 0)
             return 0.0;
         local maxVal: float = arr.get(0);
         local i: int = 1;
         loop (i < arr.len()) {
             local v: float = arr.get(i);
-            if (v > maxVal) 
+            if (v > maxVal)
                 maxVal = v;
             i = i + 1;
         }
@@ -540,11 +540,11 @@ struct Algorithm {
     # ============ Comparison ============
 
     frame equals(a: *Array<int>, b: *Array<int>) ret bool {
-        if (a.len() != b.len()) 
+        if (a.len() != b.len())
             return false;
         local i: int = 0;
         loop (i < a.len()) {
-            if (a.get(i) != b.get(i)) 
+            if (a.get(i) != b.get(i))
                 return false;
             i = i + 1;
         }

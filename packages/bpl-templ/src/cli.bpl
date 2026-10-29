@@ -211,7 +211,7 @@ struct TemplateCompiler {
             if (StringUtils.startsWith(trimmedStr, "@args")) {
                 local k: int = 5;
                 loop (k < trimmed.length) {
-                    if (trimmedStr[k] != cast<char>(32)) 
+                    if (trimmedStr[k] != cast<char>(32))
                         break;
                     k = k + 1;
                 }
@@ -228,7 +228,7 @@ struct TemplateCompiler {
                 if (StringUtils.startsWith(trimmedStr, "@import")) {
                     local k: int = 7;
                     loop (k < trimmed.length) {
-                        if (trimmedStr[k] != cast<char>(32)) 
+                        if (trimmedStr[k] != cast<char>(32))
                             break;
                         k = k + 1;
                     }
@@ -300,7 +300,7 @@ struct TemplateCompiler {
                         if (StringUtils.startsWith(trimmedStr, "@call")) {
                             local k: int = 5;
                             loop (k < trimmed.length) {
-                                if (trimmedStr[k] != cast<char>(32)) 
+                                if (trimmedStr[k] != cast<char>(32))
                                     break;
                                 k = k + 1;
                             }

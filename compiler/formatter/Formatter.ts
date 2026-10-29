@@ -602,10 +602,12 @@ export class Formatter {
 
   private formatIf(stmt: AST.IfStmt): string {
     const indent = this.getIndent();
-    let output = `${indent}if (${this.formatExpression(this.unwrapGroup(stmt.condition))}) `;
+    // The space separates the condition from `{` only; a brace-less body
+    // starts on the next line without trailing whitespace (BUG-437).
+    let output = `${indent}if (${this.formatExpression(this.unwrapGroup(stmt.condition))})`;
 
     if (stmt.thenBranch.kind === "Block") {
-      output += this.formatBlock(stmt.thenBranch as AST.BlockStmt, false);
+      output += " " + this.formatBlock(stmt.thenBranch as AST.BlockStmt, false);
     } else {
       output += "\n";
       this.indentLevel++;
@@ -615,18 +617,19 @@ export class Formatter {
 
     if (stmt.elseBranch) {
       if (stmt.thenBranch.kind === "Block") {
-        output += " else ";
+        output += " else";
       } else {
-        output += `\n${indent}else `;
+        output += `\n${indent}else`;
       }
 
       if (stmt.elseBranch.kind === "If") {
         // Else if
         // We need to trim the indentation of the nested if
         const elseIf = this.formatIf(stmt.elseBranch as AST.IfStmt).trim();
-        output += elseIf;
+        output += " " + elseIf;
       } else if (stmt.elseBranch.kind === "Block") {
-        output += this.formatBlock(stmt.elseBranch as AST.BlockStmt, false);
+        output +=
+          " " + this.formatBlock(stmt.elseBranch as AST.BlockStmt, false);
       } else {
         // Single statement else
         output += "\n";
@@ -696,10 +699,9 @@ export class Formatter {
     } else if (stmt.condition) {
       output += ` (${this.formatExpression(this.unwrapGroup(stmt.condition))})`;
     }
-    output += " ";
 
     if (stmt.body.kind === "Block") {
-      output += this.formatBlock(stmt.body as AST.BlockStmt, false);
+      output += " " + this.formatBlock(stmt.body as AST.BlockStmt, false);
     } else {
       output += "\n";
       this.indentLevel++;

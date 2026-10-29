@@ -14,7 +14,7 @@
 # 10. Back to step 4 --> INFINITE LOOP
 #
 # The recursion:
-# generateBinary(+) 
+# generateBinary(+)
 #   → resolveType(Box<int>)
 #     → resolveMonomorphizedType()
 #       → generateFunction(__add__)

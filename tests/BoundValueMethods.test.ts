@@ -55,7 +55,7 @@ test("bound value receivers use an adapter for scalar, void and aggregate result
 }, 60000);
 
 
-test("variadic value-receiver bindings fail with an actionable diagnostic", () => {
+test("variadic value-receiver methods are rejected at declaration", () => {
   expectCleanFailureSuite([
     {
       name: "bound-variadic-value-receiver",
@@ -70,7 +70,7 @@ test("variadic value-receiver bindings fail with an actionable diagnostic", () =
         local callback:Lambda<int>(int,int)=value.sum;
         return callback(1,0);
       }`,
-      expectedMessage: "Cannot bind a variadic value-receiver method",
+      expectedMessage: "cannot have a native variadic parameter",
     },
   ]);
 }, 30000);

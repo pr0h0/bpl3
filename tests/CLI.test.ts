@@ -3234,7 +3234,9 @@ describe("CLI Tests", () => {
     expect(report.schemaVersion).toBe(1);
     expect(report.check).toBe("lint");
     expect(report.success).toBe(false);
-    expect(report.errorCount).toBeGreaterThan(0);
+    // Naming findings are warnings; they fail only through --fail-on-warnings.
+    expect(report.errorCount).toBe(0);
+    expect(report.warningCount).toBeGreaterThan(0);
     expect(report.files[0].diagnostics[0]).toMatchObject({
       code: "L001",
       severity: "warning",
@@ -4196,7 +4198,7 @@ describe("CLI Tests", () => {
         "global const SCIENTIFIC_SCALE: f32 = cast<f32>(0.0010000000474974513);",
       );
       expect(result.stdout).toContain(
-        "global const SCIENTIFIC_DOUBLE: double = 1e-3;",
+        "global const SCIENTIFIC_DOUBLE: double = 0.001;",
       );
       expect(result.stdout).toContain(
         "global const CONTINUED_COUNT: uint = 64;",
@@ -4499,53 +4501,35 @@ describe("CLI Tests", () => {
     expect(zsh.stdout).toContain("doctor:Check local BPL toolchain");
     expect(bash.stdout).toContain("run-script");
     expect(zsh.stdout).toContain("run-script:Run a script defined in bpl.json");
-    expect(bash.stdout).toContain('run_script_opts="--list --json"');
-    expect(zsh.stdout).toContain(
-      "--json[Output machine-readable script list]",
-    );
+    // The scripts are generated from the command definitions;
+    // tests/CompletionGenerator.test.ts checks every command's flags.
+    expect(bash.stdout).toContain("run-script|rs)");
+    expect(zsh.stdout).toContain("--list[");
     expect(bash.stdout).toContain("package-cache");
     expect(zsh.stdout).toContain(
       "package-cache:List, verify, repair, and clean cached package archives",
     );
-    expect(bash.stdout).toContain("list verify repair clean");
-    expect(zsh.stdout).toContain("1:subcommand:(list verify repair clean)");
-    expect(bash.stdout).toContain("packages sanitizer --json");
-    expect(zsh.stdout).toContain("1:scope:(packages sanitizer)");
-    expect(bash.stdout).toContain(
-      'install_opts="-v --verbose --locked --update --repair-lock --json"',
-    );
-    expect(zsh.stdout).toContain("--update[Re-resolve bpl.json dependencies");
+    expect(bash.stdout).toContain('sub="$word"');
     expect(zsh.stdout).toContain(
-      "--json[Output machine-readable install result]",
+      "_describe -t subcommands 'package-cache subcommand'",
     );
-    expect(bash.stdout).toContain("install lock list");
+    expect(bash.stdout).toContain('compgen -W "packages sanitizer"');
+    expect(zsh.stdout).toContain("'1:argument:(packages sanitizer)'");
+    expect(bash.stdout).toContain("--repair-lock");
+    expect(zsh.stdout).toContain("--update[");
     expect(zsh.stdout).toContain(
       "lock:Re-resolve bpl.json dependencies and rewrite bpl.lock",
     );
-    expect(bash.stdout).toContain('lock_opts="-v --verbose --json"');
-    expect(zsh.stdout).toContain(
-      "--json[Output machine-readable lock result]",
-    );
-    expect(bash.stdout).toContain('list_opts="-v --verbose --tree --json"');
-    expect(zsh.stdout).toContain(
-      "--json[Output machine-readable installed package data]",
-    );
-    expect(bash.stdout).toContain("--cache-stats");
-    expect(zsh.stdout).toContain("--cache-stats");
-    expect(bash.stdout).toContain("--debug-ir-path");
-    expect(zsh.stdout).toContain("--debug-ir-path");
-    expect(bash.stdout).toContain("--template");
-    expect(zsh.stdout).toContain("--template");
-    expect(bash.stdout).toContain(
-      'clean_opts="-v --verbose --dry-run --json"',
-    );
-    expect(zsh.stdout).toContain(
-      "--json[Output machine-readable cleanup report]",
-    );
-    expect(bash.stdout).toContain('completion_opts="bash zsh --json"');
-    expect(zsh.stdout).toContain(
-      "--json[Output machine-readable completion report]",
-    );
+    for (const flag of [
+      "--tree",
+      "--cache-stats",
+      "--debug-ir-path",
+      "--template",
+      "--dry-run",
+    ]) {
+      expect(bash.stdout).toContain(flag);
+      expect(zsh.stdout).toContain(flag);
+    }
   });
 
   it("should report host toolchain diagnostics from doctor as JSON", () => {

@@ -83,9 +83,12 @@ export const PACKAGE_INIT_NAME_INVALID_CODE =
   "BPL_PACKAGE_INIT_NAME_INVALID";
 export const PACKAGE_INIT_MANIFEST_EXISTS_CODE =
   "BPL_PACKAGE_INIT_MANIFEST_EXISTS";
+export const PACKAGE_INIT_ENTRY_INVALID_CODE =
+  "BPL_PACKAGE_INIT_ENTRY_INVALID";
 export const PACKAGE_INIT_JSON_ERROR_CODES = [
   PACKAGE_INIT_NAME_INVALID_CODE,
   PACKAGE_INIT_MANIFEST_EXISTS_CODE,
+  PACKAGE_INIT_ENTRY_INVALID_CODE,
 ] as const;
 
 export const PACKAGE_UNINSTALL_NAME_INVALID_CODE =
@@ -262,6 +265,8 @@ export interface PackageUninstallResult {
 export interface PackageInitResult {
   manifest: PackageManifest;
   manifestPath: string;
+  /** The entry file created by init, or undefined if one already existed. */
+  entryPath?: string;
 }
 
 export interface PackageArchiveProvenance {
@@ -3442,6 +3447,18 @@ export class PackageManager {
         this.writeArchiveProvenance(cachedArchivePath, packageDir, manifest);
       } else {
         this.recordLocalInstall(manifest, installPath, lockSource, localLock, archiveSha256);
+        // `bpl install <source>` adds a project dependency, so a later
+        // `bpl lock` or `bpl install --locked` keeps the package (BUG-444).
+        // Dependencies installed on the project's behalf are already listed.
+        if (installStack.length === 0 && expectedPackageName === undefined) {
+          this.addProjectDependency(
+            manifest,
+            directPackageSource !== packageSource ||
+              isPackageFileSource(directFileSource)
+              ? tarballPath
+              : undefined,
+          );
+        }
       }
 
       compilerLog.info(`✓ Installed ${manifest.name}@${manifest.version}`);
@@ -3462,6 +3479,37 @@ export class PackageManager {
       // Clean up temp directory
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
+  }
+
+  /** Record a directly installed package in the project's bpl.json. */
+  private addProjectDependency(
+    manifest: PackageManifest,
+    archivePath: string | undefined,
+  ): void {
+    const projectManifestPath = path.join(this.projectRoot, "bpl.json");
+    if (!this.tryLstat(projectManifestPath)) return;
+    const projectManifest = this.loadManifest(this.projectRoot);
+    if (
+      projectManifest.dependencies?.[manifest.name] !== undefined ||
+      projectManifest.devDependencies?.[manifest.name] !== undefined
+    ) {
+      return;
+    }
+    const spec = archivePath
+      ? `file:${path
+          .relative(this.projectRoot, path.resolve(archivePath))
+          .split(path.sep)
+          .join("/")}`
+      : manifest.version;
+    projectManifest.dependencies = {
+      ...(projectManifest.dependencies ?? {}),
+      [manifest.name]: spec,
+    };
+    this.writeFileAtomically(
+      projectManifestPath,
+      JSON.stringify(projectManifest, null, 2) + "\n",
+    );
+    compilerLog.info(`Added ${manifest.name}@${spec} to bpl.json`);
   }
 
   private installPackageDirectory(
@@ -5794,8 +5842,29 @@ export class PackageManager {
       devDependencies: {},
     };
 
-    this.writeFileAtomically(manifestPath, JSON.stringify(manifest, null, 2));
-    return { manifest, manifestPath };
+    // `main` must exist for `pack`, `run` and `build` to work. An existing
+    // regular file is kept; anything else there could never be packed, so it
+    // is rejected before bpl.json is written.
+    const entryPath = path.join(dir, manifest.main!);
+    const entryStats = this.tryLstat(entryPath);
+    if (entryStats && !entryStats.isFile()) {
+      throw new CompilerError(
+        `Entry point ${manifest.main} exists but is not a regular file`,
+        "Move the directory or symlink away, or create the project in another directory.",
+        { ...location, file: entryPath },
+        PACKAGE_INIT_ENTRY_INVALID_CODE,
+      );
+    }
+    this.writeFileAtomically(
+      manifestPath,
+      JSON.stringify(manifest, null, 2) + "\n",
+    );
+    if (entryStats) return { manifest, manifestPath };
+    this.writeFileAtomically(
+      entryPath,
+      `# Entry point of ${packageName}. Run it with \`bpl run\`.\nimport printf from "std/c.bpl";\n\nframe main() ret int {\n    printf("Hello from ${packageName}\\n");\n    return 0;\n}\n`,
+    );
+    return { manifest, manifestPath, entryPath };
   }
 }
 

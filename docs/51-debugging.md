@@ -136,9 +136,11 @@ When debug info is enabled, the BPL compiler (`StatementGenerator.ts`) inserts c
 
 - **DIBuilder**: The compiler uses a `DIBuilder` helper to construct DWARF metadata nodes.
 - **Scopes**: It tracks lexical scopes (functions, blocks) to ensure variables are reported in the correct context.
-- **Type Mapping**: BPL types are mapped to DWARF type encodings (e.g., `DW_ATE_signed` for `int`).
+- **Type Mapping**: BPL types are mapped to DWARF type encodings (e.g., `DW_ATE_signed` for `int`). Inside a monomorphized generic body, `T` is described as its concrete type (`ArrayIterator<String>.next` shows `val` as `String`). Built-in structs without a declaration in scope, such as `Any`, appear as opaque structs of the correct size.
+- **Lambda symbols**: A lambda is emitted as `lambda_L<line>_C<column>`, with generic arguments appended for generic instantiations. Lambdas in modules after the first one are `lambda_M<n>_L<line>_C<column>`, so lambdas at the same position in two files stay distinct and a type named `M1` cannot imitate the module ordinal.
 
 ### Recent Fixes
 
 - **Variable Scoping**: Fixed an issue where stack addresses for debug info were being declared in the wrong scope, causing crashes during compilation.
 - **Variadic Functions**: Improved type descriptions for variadic function parameters in debug metadata.
+- **Generic and `Any` locals** (BUG-429): `--debug` no longer emits `type: null` variables, which made clang crash for programs using `Array<String>` or heterogeneous variadics.

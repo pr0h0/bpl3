@@ -825,10 +825,13 @@ function sectionBreak(enabled: boolean): string[] {
 
 function formatConstant(constant: CConstant): string {
   // BPL decimal literals are double; C float constants need explicit rounding.
-  const value =
-    constant.type === "f32"
-      ? `cast<f32>(${floatingConstantLiteral(constant.value)})`
-      : constant.value;
+  // Both are written in plain decimal: BPL has no exponent literals (`1e-3`).
+  let value = constant.value;
+  if (constant.type === "f32") {
+    value = `cast<f32>(${floatingConstantLiteral(constant.value)})`;
+  } else if (constant.type === "double") {
+    value = floatingConstantLiteral(constant.value);
+  }
   return `global const ${constant.name}: ${constant.type} = ${value};`;
 }
 

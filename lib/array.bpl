@@ -10,6 +10,24 @@ import [Cloneable], [Destructible] from "std/core_specs.bpl";
 
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
+extern strcmp(a: string, b: string) ret int;
+
+# Element equality for search: `string` elements compare by content (two
+# separately allocated "x" are equal), everything else with `==`.
+frame _arrayElementsEqual<T>(a: T, b: T) ret bool {
+    if (typeof<T>() == typeof<string>()) {
+        local left: string = *cast<*string>(&a);
+        local right: string = *cast<*string>(&b);
+        if (left == right) {
+            return true;
+        }
+        if ((left == nullptr) || (right == nullptr)) {
+            return false;
+        }
+        return strcmp(left, right) == 0;
+    }
+    return a == b;
+}
 extern memcpy(dest: *void, src: *void, n: long) ret *void;
 
 struct ArrayIterator<T>: Iterator<T> {
@@ -284,7 +302,7 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
     frame indexOf(this: *Array<T>, value: T) ret int {
         local i: int = 0;
         loop (i < this.length) {
-            if (this.data[i] == value) {
+            if (_arrayElementsEqual<T>(this.data[i], value)) {
                 return i;
             }
             i = i + 1;

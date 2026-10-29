@@ -142,9 +142,9 @@ frame value_to_string(v: *Value) ret string {
             res = s;
         },
         Value.Bool(b) => {
-            if (b) 
+            if (b)
                 res = "true";
-            else 
+            else
                 res = "false";
         },
         Value.Null => {

@@ -128,7 +128,7 @@ struct DiagnosticReporter {
                 lineStart = i;
                 break;
             }
-            if (source[i] == 0) 
+            if (source[i] == 0)
                 break;
             # Null terminator
             if (source[i] == 10) {
@@ -141,9 +141,9 @@ struct DiagnosticReporter {
         # Find end of line
         local lineEnd: int = lineStart;
         loop {
-            if (source[lineEnd] == 0) 
+            if (source[lineEnd] == 0)
                 break;
-            if (source[lineEnd] == 10) 
+            if (source[lineEnd] == 10)
                 break;
             lineEnd = lineEnd + 1;
         }
@@ -172,7 +172,7 @@ struct DiagnosticReporter {
 
         printf("\u001b[31m"); # Red
         local len: int = end - start;
-        if (len < 1) 
+        if (len < 1)
             len = 1;
         local m: int = 0;
         loop (m < len) {

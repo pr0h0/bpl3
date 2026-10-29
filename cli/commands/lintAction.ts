@@ -144,16 +144,26 @@ export async function runLintCommand(
   }
 
   if (options.json) {
-    const errorCount = results.reduce(
-      (count, result) =>
-        count + (result.success ? 0 : (result.diagnostics?.length ?? 1)),
-      0,
-    );
+    // Count by severity: a naming warning is not an error unless
+    // --fail-on-warnings (the default) makes the run fail.
+    let errorCount = 0;
+    let warningCount = 0;
+    for (const result of results) {
+      if (!result.diagnostics) {
+        if (!result.success) errorCount++;
+        continue;
+      }
+      for (const diagnostic of result.diagnostics as { severity?: string }[]) {
+        if (diagnostic.severity === "warning") warningCount++;
+        else errorCount++;
+      }
+    }
     console.log(
       JSON.stringify(
         createJsonReport(CLI_JSON_CHECKS.lint, !hasErrors, {
           totalFiles: files.length,
           errorCount,
+          warningCount,
           files: results,
         }),
         null,

@@ -71,6 +71,129 @@ frame takeSlice(_xs: Animal[]) {}
   });
 });
 
+describe("BUG-436: switch diagnostics and null strings", () => {
+  test("a duplicate enum case names the variant", () => {
+    const result = check(`enum E { A, B }
+frame main() ret int {
+    local e: E = E.A;
+    switch (e) {
+        case E.A: { return 1; }
+        case E.A: { return 2; }
+        default: { return 0; }
+    }
+    return 0;
+}
+`);
+    expect(result.stderr).toContain("Duplicate case value 'E.A'");
+  });
+
+  test("a null string takes the default case", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+frame pick(s: string) {
+    switch (s) {
+        case "a": { printf("a\\n"); break; }
+        default: { printf("default\\n"); break; }
+    }
+}
+frame main() ret int {
+    pick(nullptr);
+    pick("a");
+    return 0;
+}
+`);
+    expect(output).toBe("default\na\n");
+  });
+});
+
+// spec: R-FN-10
+describe("BUG-430: native variadic methods", () => {
+  for (const [kind, source] of Object.entries({
+    struct:
+      "struct S { b: int, frame add(this: *S, xs: ...int, n: int) ret int { return n; } }",
+    spec: "spec Sp { frame add(this: *Self, xs: ...int, n: int) ret int; }",
+    enum: "enum E { A, frame add(this: *E, xs: ...int, n: int) {} }",
+  })) {
+    test(`are rejected on ${kind} methods`, () => {
+      const result = check(source + MAIN);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("BPL_VARIADIC_METHOD_UNSUPPORTED");
+    });
+  }
+
+  test("a variadic function value shows it is variadic in mismatches", () => {
+    const result = check(`frame add(xs: ...int, n: int) ret int { return n; }
+frame main() ret int {
+    local f: Func<int>(*int, int) = add;
+    return f(nullptr, 0);
+}
+`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "cannot assign Func<i32>(*i32, i32, ...) to Func<i32>(*i32, i32)",
+    );
+  });
+});
+
+// spec: R-FN-9
+describe("BUG-435: generic spec methods on a constrained type parameter", () => {
+  test("binds Self to the parameter, including Self-returning methods", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+spec Getter<T> { frame get(this: *Self) ret T; frame twice(this: *Self) ret Self; }
+struct Box: Getter<long> {
+    v: long,
+    frame get(this: *Box) ret long { return this.v; }
+    frame twice(this: *Box) ret Box { return Box { v: this.v * 2 }; }
+}
+frame use<T: Getter<long>>(x: *T) ret long {
+    local d: T = x.twice();
+    return x.get() + d.get();
+}
+frame main() ret int {
+    local b: Box = Box { v: 7 };
+    printf("%ld\\n", use<Box>(&b));
+    return 0;
+}
+`);
+    expect(output).toBe("21\n");
+  });
+
+  test("rejects a spec method used as a value, which cannot be bound", () => {
+    const result = check(`spec G<V> { frame get(this: *Self) ret V; }
+struct B: G<long> { v: long, frame get(this: *B) ret long { return this.v; } }
+frame use<T: G<long>>(x: *T) ret long {
+    local f: Lambda<long>() = x.get;
+    return f();
+}
+frame main() ret int {
+    local b: B = B { v: 2 };
+    return cast<int>(use<B>(&b));
+}
+`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Cannot use spec method 'get' as a value");
+  });
+
+  test("rejects an overloaded spec method used as a value", () => {
+    const result = check(`spec G { frame m(this: *Self) ret long; frame m(this: *Self, d: int) ret long; }
+struct B: G {
+    v: long,
+    frame m(this: *B) ret long { return this.v; }
+    frame m(this: *B, d: int) ret long { return this.v + cast<long>(d); }
+}
+frame use<T: G>(x: *T) ret long {
+    local f: Lambda<long>() = x.m;
+    return f() + x.m() + x.m(1);
+}
+frame main() ret int {
+    local b: B = B { v: 2 };
+    return cast<int>(use<B>(&b));
+}
+`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Cannot use spec method 'm' as a value");
+  });
+});
+
 describe("BUG-427: types that contain themselves by value", () => {
   const cycles: Record<string, string> = {
     "fixed array": "struct S { a: S[2], }",

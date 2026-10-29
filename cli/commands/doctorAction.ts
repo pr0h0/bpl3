@@ -8,7 +8,7 @@ import * as os from "os";
 import * as path from "path";
 import { spawnSync } from "child_process";
 import { getLlvmVerifierCandidates } from "../../compiler/common/LlvmVerifier";
-import { getBplHome } from "../../compiler/common/PathResolver";
+import { getBplHomeWithSource } from "../../compiler/common/PathResolver";
 import { findSymlinkedParentPath } from "../../compiler/common/PathSafety";
 import { Logger } from "../../compiler/common/Logger";
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
@@ -74,6 +74,8 @@ interface DoctorReport {
     bun?: string;
   };
   bplHome: string;
+  /** How bplHome was found: BPL_HOME, the executable location, etc. */
+  bplHomeSource: string;
   checks: DoctorCheck[];
   timeouts: TimeoutEnvDiagnostic[];
 }
@@ -170,7 +172,7 @@ function createDoctorReport(
   version: string,
   packageArchiveTool: string,
 ): DoctorReport {
-  const bplHome = getBplHome();
+  const { path: bplHome, source: bplHomeSource } = getBplHomeWithSource();
   const checks: DoctorCheck[] = [
     checkDirectory(
       "BPL home",
@@ -251,6 +253,7 @@ function createDoctorReport(
         ...(bunVersion ? { bun: bunVersion } : {}),
       },
       bplHome,
+      bplHomeSource,
       checks,
       timeouts: getTimeoutEnvDiagnostics(),
     },
@@ -258,7 +261,7 @@ function createDoctorReport(
 }
 
 function createSanitizerDoctorReport(version: string): DoctorReport {
-  const bplHome = getBplHome();
+  const { path: bplHome, source: bplHomeSource } = getBplHomeWithSource();
   const checks = [checkSanitizerRuntimeSupport()];
   const bunVersion = getCommandVersion("bun", ["--version"]);
 
@@ -274,6 +277,7 @@ function createSanitizerDoctorReport(version: string): DoctorReport {
         ...(bunVersion ? { bun: bunVersion } : {}),
       },
       bplHome,
+      bplHomeSource,
       checks,
       timeouts: getTimeoutEnvDiagnostics(),
     },
@@ -647,7 +651,7 @@ function printDoctorReport(report: DoctorReport): void {
   if (report.platform.bun) {
     console.log(`Bun: ${report.platform.bun}`);
   }
-  console.log(`BPL_HOME: ${report.bplHome}`);
+  console.log(`BPL_HOME: ${report.bplHome} (from ${report.bplHomeSource})`);
   console.log("");
   console.log("Timeouts:");
   for (const timeout of report.timeouts) {

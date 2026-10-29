@@ -417,7 +417,12 @@ frame main() ret int {
   Whitespace and comments inside `<...>` and after its closing `>` are allowed.
 - **[R-FN-9]** A constrained type parameter `<T: Spec>` accepts only types that
   implement `Spec`, whether the spec is listed directly, after a parent struct,
-  or on a parent struct.
+  or on a parent struct. Inside the function, the spec's methods are called on
+  `T` with `Self` bound to `T`, including for generic specs (`T: Getter<long>`).
+- **[R-FN-10]** A native variadic parameter `xs: ...T` must be followed by one
+  `int` count parameter and is allowed on free functions only; a method with
+  one is rejected with `BPL_VARIADIC_METHOD_UNSUPPORTED`. A variadic function
+  is not interchangeable with a `Func`/`Lambda` of its lowered signature.
 
 ```bpl
 frame identity<T>(val: T) ret T {
@@ -617,7 +622,8 @@ loop (;;) {
 
 - **[R-CTRL-7]** `switch (value)` accepts integer, string, and enum values;
   other types are rejected with `BPL_SWITCH_VALUE_TYPE_MISMATCH`. Duplicate
-  case values are rejected.
+  case values are rejected. Strings compare by content, and a null string
+  matches no case.
 - **[R-CTRL-8]** A braced `case` or `default` body must end with `break`,
   `continue`, `return`, `throw`, or `fallthrough`. Control never falls into
   the next case implicitly; `fallthrough;` continues with the next case body.

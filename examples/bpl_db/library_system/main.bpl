@@ -33,7 +33,7 @@ frame insert_book(engine: *Engine, title: string, author: string) {
 frame get_book_availability(engine: *Engine, book_id: int) ret int {
     # Returns 1 if available, 0 if not, -1 if not found
     local t: *Table = engine.db.get_table("books");
-    if (t == nullptr) 
+    if (t == nullptr)
         return -1;
     local result: int = -1;
 
