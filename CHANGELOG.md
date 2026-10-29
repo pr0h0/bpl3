@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `bpl lint --json` reports warnings in a new `warningCount` instead of
+  `errorCount`, and naming findings suggest the corrected name instead of the
+  generic "Lint check failed" hint (BUG-439).
+
 - `bpl format` no longer leaves a trailing space after `if (...)`, `else` and
   `loop (...)` when the body has no braces (BUG-437).
 

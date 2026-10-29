@@ -3234,7 +3234,9 @@ describe("CLI Tests", () => {
     expect(report.schemaVersion).toBe(1);
     expect(report.check).toBe("lint");
     expect(report.success).toBe(false);
-    expect(report.errorCount).toBeGreaterThan(0);
+    // Naming findings are warnings; they fail only through --fail-on-warnings.
+    expect(report.errorCount).toBe(0);
+    expect(report.warningCount).toBeGreaterThan(0);
     expect(report.files[0].diagnostics[0]).toMatchObject({
       code: "L001",
       severity: "warning",

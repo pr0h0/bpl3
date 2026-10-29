@@ -204,11 +204,16 @@ command.
 
 #### BUG-439: `lint --json` counts warnings as errors
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 One naming warning yields `"errorCount": 1`, no `warningCount`, and the generic
 hint "Lint check failed" (`Linter.ts:52`). Count by severity and add
 `warningCount`.
+
+**Resolution**: the JSON report counts diagnostics by severity (`errorCount`
+for errors and failed inputs, a new `warningCount` for warnings), and rules
+pass a specific hint: the naming rule suggests the renamed identifier
+(`Rename it to 'MyThing'.`). `tests/CLI.test.ts`, `tests/CLIJsonParseability.test.ts`.
 
 #### BUG-440: `bpl docs` ignores `#` comments, loses error locations, and nests headings wrongly
 

@@ -22,6 +22,7 @@ export interface LintContext {
     node: AST.ASTNode,
     severity?: DiagnosticSeverity,
     code?: string,
+    hint?: string,
   ): void;
 }
 
@@ -46,10 +47,11 @@ export class Linter {
         node,
         _severity = DiagnosticSeverity.Warning,
         code = "LINT",
+        hint = "Fix the reported issue or disable the rule.",
       ) => {
         const error = new CompilerError(
           message,
-          "Lint check failed",
+          hint,
           node.location,
           code,
         );
@@ -413,6 +415,21 @@ export class Linter {
   }
 }
 
+/** `my_struct`/`MY_STRUCT`/`myStruct` → `MyStruct` (pascal) or `myStruct`. */
+function toCase(name: string, pascal: boolean): string {
+  const words = name
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .split(/[^a-zA-Z0-9]+|\s+/)
+    .filter(Boolean)
+    .map((word) => word.toLowerCase());
+  const joined = words
+    .map((word, index) =>
+      index === 0 && !pascal ? word : word[0]!.toUpperCase() + word.slice(1),
+    )
+    .join("");
+  return joined || name;
+}
+
 class NamingConventionRule implements LintRule {
   code = "L001";
   name = "naming-convention";
@@ -426,6 +443,7 @@ class NamingConventionRule implements LintRule {
           node,
           DiagnosticSeverity.Warning,
           this.code,
+          `Rename it to '${toCase(decl.name, true)}'.`,
         );
       }
     } else if (node.kind === "FunctionDecl") {
@@ -439,6 +457,7 @@ class NamingConventionRule implements LintRule {
           node,
           DiagnosticSeverity.Warning,
           this.code,
+          `Rename it to '${toCase(decl.name, false)}'.`,
         );
       }
     }

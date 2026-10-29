@@ -279,6 +279,7 @@ interface LintReport {
   success: boolean;
   totalFiles: number;
   errorCount: number;
+  warningCount?: number;
   error?: string;
   errorCode?: string;
   files: Array<{
@@ -3905,7 +3906,9 @@ function runPackedLintJsonSmoke(installedBpl: string): void {
     if (
       report.success ||
       report.totalFiles !== 1 ||
-      report.errorCount < 1 ||
+      // A naming finding is a warning; it fails the run via --fail-on-warnings.
+      report.errorCount !== 0 ||
+      report.warningCount !== 1 ||
       report.files.length !== 1 ||
       fileReport?.file !== "main.bpl" ||
       fileReport.success ||

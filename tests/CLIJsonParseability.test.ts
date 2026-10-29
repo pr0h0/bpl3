@@ -230,6 +230,7 @@ describe("CLI JSON parseability", () => {
       success: true,
       totalFiles: 1,
       errorCount: 0,
+      warningCount: 0,
       files: [
         {
           file: buildSource,
