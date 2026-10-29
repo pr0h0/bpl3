@@ -781,7 +781,12 @@ export class Formatter {
     let output = `${indent}switch (${this.formatExpression(this.unwrapGroup(stmt.expression))}) {\n`;
     this.indentLevel++;
 
-    this.lastLineProcessed = stmt.location.startLine;
+    // Blank lines before the first case are measured from the end of the
+    // header: a multi-line subject (e.g. a `match`) is not a blank line.
+    this.lastLineProcessed = Math.max(
+      stmt.location.startLine,
+      stmt.expression.location?.endLine ?? stmt.location.startLine,
+    );
 
     const formatBody = (body: AST.BlockStmt, headerLine: number): string => {
       if (body.synthesized) {
