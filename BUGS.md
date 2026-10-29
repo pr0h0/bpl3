@@ -287,7 +287,7 @@ there is no regression test; the handler guards other runtimes and versions.
 
 #### BUG-443: Remaining CLI paper cuts
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 - A missing-`main` error points at `math.bpl:0:0` instead of `1:1`.
 - `format` errors omit line/column; `bpl format missing.bpl` still logs
