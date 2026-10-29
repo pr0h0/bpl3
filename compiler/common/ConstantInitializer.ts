@@ -111,7 +111,7 @@ export function evaluateConstantInitializer(
       const operand = evaluate(expr.expression);
       if (operand?.kind !== "int" && operand?.kind !== "float")
         return undefined;
-      return convertNumeric(operand, numericType(expr.targetType, resolveType));
+      return convertNumeric(operand, resolveType(expr.targetType));
     }
     case "ArrayLiteral": {
       const elements: ConstantValue[] = [];
@@ -162,10 +162,28 @@ function wrapInteger(
 /** Convert a numeric constant as `cast<target>` does at run time. */
 function convertNumeric(
   value: Extract<ConstantValue, { kind: "int" | "float" }>,
-  info: PrimitiveTypeInfo | undefined,
+  target: AST.TypeNode,
 ): ConstantValue | undefined {
-  // Other targets (e.g. `cast<*T>(0)`) keep the value for the declared type.
-  if (!info) return value;
+  const info = numericType(target, (type) => type);
+  if (!info) {
+    // Integer to `bool` keeps the low bit (`cast<bool>(2)` is false).
+    if (
+      target.kind === "BasicType" &&
+      target.pointerDepth === 0 &&
+      target.arrayDimensions.length === 0 &&
+      getPrimitiveType(target.name)?.kind === "boolean"
+    ) {
+      return value.kind === "int"
+        ? { kind: "bool", value: (value.value & 1n) === 1n }
+        : undefined;
+    }
+    // A pointer constant can only be null; other addresses and targets are
+    // not compile-time constants.
+    const isPointer = target.kind === "BasicType" && target.pointerDepth > 0;
+    return isPointer && value.kind === "int" && value.value === 0n
+      ? value
+      : undefined;
+  }
   if (info.kind === "integer") {
     if (value.kind === "int") return wrapInteger(value.value, info);
     // Float to integer saturates at the destination range; NaN becomes 0.

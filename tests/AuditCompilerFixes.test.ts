@@ -241,6 +241,21 @@ frame main() ret int {
     expect(output).toBe("0 22 127 0\n");
   });
 
+  test("folds bool casts by the low bit and only null pointer casts", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+global A: bool = cast<bool>(2);
+global B: bool = cast<bool>(3);
+global P: *int = cast<*int>(0);
+frame main() ret int {
+    printf("%d %d %d\\n", cast<int>(A), cast<int>(B), cast<int>(P == nullptr));
+    return 0;
+}
+`);
+    expect(output).toBe("0 1 1\n");
+    const address = check(`global P: *int = cast<*int>(16);${MAIN}`);
+    expect(address.stderr).toContain("BPL_GLOBAL_INITIALIZER_NOT_CONSTANT");
+  });
+
   test("rejects a signed division that overflows", () => {
     const result = check(`global X: int = (-2147483647 - 1) / -1;${MAIN}`);
     expect(result.status).toBe(1);
