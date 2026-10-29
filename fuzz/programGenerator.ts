@@ -406,7 +406,8 @@ class ProgramBuilder {
   ): Expr {
     // The constant folder only negates and casts floats.
     const choice = this.int(0, constantOnly ? 1 : 8);
-    if (choice >= 6) {
+    // Deferred expressions (plainOnly) must not contain calls.
+    if (choice >= 6 && !this.plainOnly) {
       const feature = this.featureExpr(this.pick([9, 11, 12, 13]), type, depth);
       if (feature) return feature;
     }

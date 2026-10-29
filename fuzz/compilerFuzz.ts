@@ -512,6 +512,8 @@ export function runCompilerPipeline(
   }
 }
 
+let warnedMissingIrVerifier = false;
+
 /** LLVM verifier message for invalid IR, or undefined when it verifies. */
 function verifyInProcessIr(ir: string, filePath: string): string | undefined {
   const dir = mkdtempSync(join(tmpdir(), "bpl-fuzz-ir-"));
@@ -520,6 +522,16 @@ function verifyInProcessIr(ir: string, filePath: string): string | undefined {
     writeFileSync(irPath, ir);
     const verifier = verifyLlvmFile(irPath, { cwd: dir });
     if (verifier.exitCode === 0) return undefined;
+    // No opt/llvm-as/llc on this host: the check is skipped, not failed.
+    if (verifier.tool === "none") {
+      if (!warnedMissingIrVerifier) {
+        warnedMissingIrVerifier = true;
+        console.warn(
+          "fuzz: no LLVM verifier tool found (opt, llvm-as, llc); IR verification is skipped",
+        );
+      }
+      return undefined;
+    }
     return [
       `LLVM verifier (${verifier.tool}) rejected the IR for ${filePath}`,
       verifier.stderr ? `stderr:\n${verifier.stderr.slice(0, 4000)}` : "",

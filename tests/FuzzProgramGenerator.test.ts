@@ -88,6 +88,43 @@ describe("generated fuzz programs", () => {
     expect(outcome.message).toContain("differs from its oracle");
   }, 60000);
 
+  test("deferred expressions contain no calls", () => {
+    // A deferred call would run at block exit and could observe later
+    // state, while the oracle evaluates the value when `defer` runs.
+    const deferred = Array.from(
+      // Calls reached through a float cast are rare; seed 1209 has one.
+      { length: 1300 },
+      (_, seed) => generateOracleProgram(createSeededRandom(seed)).source,
+    )
+      .flatMap((source) => source.split("\n"))
+      .filter((line) => line.includes("defer printf("));
+    expect(deferred.length).toBeGreaterThan(10);
+    for (const line of deferred) {
+      const argument = line.slice(line.indexOf(", ") + 2);
+      expect({
+        line,
+        call: /\b(?:l|h|rec|byval|callv|m|u)\d+\(|\.vf\(|\.get\(|gid</.test(
+          argument,
+        ),
+      }).toEqual({ line, call: false });
+    }
+  });
+
+  test("skip IR verification when no LLVM verifier is installed", () => {
+    const { source } = generateOracleProgram(createSeededRandom(5));
+    const keys = ["BPL_OPT", "BPL_LLVM_AS", "BPL_LLC", "BPL_CC"] as const;
+    const saved = keys.map((key) => process.env[key]);
+    for (const key of keys) process.env[key] = "/nonexistent/llvm-tool";
+    try {
+      expect(runGeneratedPipeline(source, "no-tools.bpl").ok).toBe(true);
+    } finally {
+      keys.forEach((key, index) => {
+        if (saved[index] === undefined) delete process.env[key];
+        else process.env[key] = saved[index];
+      });
+    }
+  });
+
   test("take dedicated campaign lanes, reproducible from seed and pass", () => {
     const plain = generateFuzzInput(0xabc, 3);
     expect(plain.kind).toBe("generated");
