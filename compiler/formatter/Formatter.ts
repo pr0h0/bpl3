@@ -250,6 +250,27 @@ export class Formatter {
     return start.startLine;
   }
 
+  /**
+   * Line of the first `{` at or after a source position, searching no further
+   * than `limitLine`; undefined without source text or a brace.
+   */
+  private braceLineAfter(
+    file: string,
+    line: number,
+    column: number,
+    limitLine: number,
+  ): number | undefined {
+    if (!this.sourceText) return undefined;
+    const tokens = (this.sourceTokens ??= lexWithGrammar(this.sourceText, file));
+    for (const token of tokens) {
+      if (token.line < line || (token.line === line && token.column < column))
+        continue;
+      if (token.line > limitLine) return undefined;
+      if (token.type === TokenType.LeftBrace) return token.line;
+    }
+    return undefined;
+  }
+
   private formatStructDecl(decl: AST.StructDecl): string {
     const indent = this.getIndent();
     let output = `${indent}struct ${decl.name}`;
@@ -781,7 +802,22 @@ export class Formatter {
     let output = `${indent}switch (${this.formatExpression(this.unwrapGroup(stmt.expression))}) {\n`;
     this.indentLevel++;
 
-    this.lastLineProcessed = stmt.location.startLine;
+    // Blank lines before the first case are measured from the header's `{`:
+    // a multi-line subject (e.g. a `match`) or a `)` on its own line is not a
+    // blank line.
+    const subjectEnd = stmt.expression.location ?? stmt.location;
+    const firstLine =
+      stmt.cases[0]?.location.startLine ?? stmt.location.endLine;
+    this.lastLineProcessed = Math.max(
+      stmt.location.startLine,
+      subjectEnd.endLine,
+      this.braceLineAfter(
+        stmt.location.file,
+        subjectEnd.endLine,
+        subjectEnd.endColumn,
+        firstLine,
+      ) ?? 0,
+    );
 
     const formatBody = (body: AST.BlockStmt, headerLine: number): string => {
       if (body.synthesized) {

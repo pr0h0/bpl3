@@ -108,7 +108,11 @@ export function evaluateConstantInitializer(
       return value === undefined ? undefined : wrap(value, expr.resolvedType);
     }
     case "Cast": {
-      const operand = evaluate(expr.expression);
+      let operand = evaluate(expr.expression);
+      // `bool` converts as 0 or 1 (`cast<int>(true)` is 1).
+      if (operand?.kind === "bool") {
+        operand = { kind: "int", value: operand.value ? 1n : 0n };
+      }
       if (operand?.kind !== "int" && operand?.kind !== "float")
         return undefined;
       return convertNumeric(operand, resolveType(expr.targetType));

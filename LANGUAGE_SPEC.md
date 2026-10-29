@@ -270,7 +270,7 @@ codegen.
 - **[R-DECL-2]** A global declared without an initializer is zero-initialized.
   A global initializer must be a compile-time constant: a literal, unary `-`,
   `!` or `~` of a constant, integer arithmetic (`+ - * / % & | ^ << >>`) of
-  constants, a cast of a numeric constant, or an array literal of constants.
+  constants, a cast of a numeric or `bool` constant, or an array literal of constants.
   Anything else is rejected with `BPL_GLOBAL_INITIALIZER_NOT_CONSTANT`.
   Folding follows run-time semantics: the right operand takes the left
   operand's type, each operation wraps to its type

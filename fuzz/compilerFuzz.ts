@@ -17,6 +17,12 @@ import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { verifyLlvmFile } from "../compiler/common/LlvmVerifier";
+import { Formatter } from "../compiler/formatter/Formatter";
+import { formatterSemantics } from "../compiler/formatter/FormatterSemantics";
+import {
+  generateOracleProgram,
+  readExpectedStdout,
+} from "./programGenerator";
 import {
   findNonDirectoryPathComponent,
   findSymlinkedPathComponent,
@@ -129,7 +135,11 @@ export type FuzzInputKind =
   | "structured"
   | "mutated"
   | "tokens"
-  | "differential";
+  | "differential"
+  /** Random well-typed program: checked, IR-verified and format-round-tripped in process. */
+  | "generated"
+  /** Random well-typed program also run at -O0 and -O3 against its known output. */
+  | "oracle";
 export type FuzzFailureKind = "crash" | "mismatch";
 export type FuzzReplayMode =
   | "artifact"
@@ -150,6 +160,8 @@ export interface DifferentialCommandResult {
 export interface DifferentialMismatch {
   o0: DifferentialCommandResult;
   o3: DifferentialCommandResult;
+  /** For oracle inputs: the stdout the program must print. */
+  expectedStdout?: string;
 }
 
 export interface PipelineOutcome {
@@ -164,6 +176,8 @@ export interface PipelineOutcome {
 export interface CompilerPipelineOptions {
   skipImportResolution?: boolean;
   stopAfter?: FuzzStage;
+  /** Run the LLVM verifier on the generated IR (a failure is a crash). */
+  verifyIr?: boolean;
 }
 
 export interface MutationOptions {
@@ -465,7 +479,18 @@ export function runCompilerPipeline(
 
     stage = "codegen";
     const codeGenerator = new CodeGenerator();
-    codeGenerator.generate(ast, filePath);
+    const ir = codeGenerator.generate(ast, filePath);
+    if (options.verifyIr) {
+      const verifierMessage = verifyInProcessIr(ir, filePath);
+      if (verifierMessage) {
+        return {
+          ok: false,
+          stage,
+          crash: new Error(verifierMessage),
+          message: verifierMessage,
+        };
+      }
+    }
 
     return { ok: true, stage };
   } catch (error) {
@@ -484,6 +509,148 @@ export function runCompilerPipeline(
       crash: error,
       message: formatError(error),
     };
+  }
+}
+
+let warnedMissingIrVerifier = false;
+
+/** LLVM verifier message for invalid IR, or undefined when it verifies. */
+function verifyInProcessIr(ir: string, filePath: string): string | undefined {
+  const dir = mkdtempSync(join(tmpdir(), "bpl-fuzz-ir-"));
+  try {
+    const irPath = join(dir, "main.ll");
+    writeFileSync(irPath, ir);
+    const verifier = verifyLlvmFile(irPath, { cwd: dir });
+    if (verifier.exitCode === 0) return undefined;
+    // No opt/llvm-as/llc on this host: the check is skipped, not failed.
+    if (verifier.tool === "none") {
+      if (!warnedMissingIrVerifier) {
+        warnedMissingIrVerifier = true;
+        console.warn(
+          "fuzz: no LLVM verifier tool found (opt, llvm-as, llc); IR verification is skipped",
+        );
+      }
+      return undefined;
+    }
+    return [
+      `LLVM verifier (${verifier.tool}) rejected the IR for ${filePath}`,
+      verifier.stderr ? `stderr:\n${verifier.stderr.slice(0, 4000)}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * A formatter failure for a program that parses: formatting must keep the
+ * program's meaning and be idempotent. Returns undefined when it does.
+ */
+function checkFormatterRoundTrip(
+  source: string,
+  filePath: string,
+): string | undefined {
+  const original = new Parser(source, filePath).parse();
+  const formatted = new Formatter().format(original, source);
+  let reparsed;
+  try {
+    reparsed = new Parser(formatted, filePath).parse();
+  } catch (error) {
+    return `formatter output does not parse: ${formatError(error)}\n--- formatted ---\n${formatted}`;
+  }
+  if (
+    JSON.stringify(formatterSemantics(reparsed)) !==
+    JSON.stringify(formatterSemantics(original))
+  ) {
+    return `formatter changed the program's meaning\n--- formatted ---\n${formatted}`;
+  }
+  const again = new Formatter().format(reparsed, formatted);
+  if (again !== formatted) {
+    return `formatter is not idempotent\n--- first ---\n${formatted}\n--- second ---\n${again}`;
+  }
+  return undefined;
+}
+
+/**
+ * Generated programs are valid by construction, so a checker rejection, a
+ * codegen error, invalid IR or a formatter defect is a compiler bug.
+ */
+export function runGeneratedPipeline(
+  source: string,
+  filePath: string,
+): PipelineOutcome {
+  const outcome = runCompilerPipeline(source, filePath, {
+    skipImportResolution: true,
+    verifyIr: true,
+  });
+  if (!outcome.ok) {
+    if (outcome.expectedError !== true) return outcome;
+    const message = `valid generated program was rejected at ${outcome.stage}: ${outcome.message ?? ""}`;
+    return {
+      ok: false,
+      stage: outcome.stage,
+      crash: new Error(message),
+      message,
+    };
+  }
+  try {
+    const formatterMessage = checkFormatterRoundTrip(source, filePath);
+    if (formatterMessage) {
+      return {
+        ok: false,
+        stage: "parser",
+        crash: new Error(formatterMessage),
+        message: formatterMessage,
+      };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      stage: "parser",
+      crash: error,
+      message: `formatter crashed: ${formatError(error)}`,
+    };
+  }
+  return outcome;
+}
+
+/**
+ * Run a generated program at -O0 and -O3: both must exit 0 and print the
+ * output the generator computed. Without an expectation (e.g. a hand-edited
+ * artifact) only O0/O3 agreement is checked.
+ */
+export function runBplOraclePipeline(
+  source: string,
+  filePath: string,
+): PipelineOutcome {
+  const inProcess = runGeneratedPipeline(source, filePath);
+  if (!inProcess.ok) return inProcess;
+
+  const expectedStdout = readExpectedStdout(source);
+  const dir = mkdtempSync(join(tmpdir(), "bpl-fuzz-oracle-"));
+  const sourcePath = join(dir, "main.bpl");
+  try {
+    writeFileSync(sourcePath, source);
+    const o0 = runBplCommand(sourcePath, dir, 0);
+    const o3 = runBplCommand(sourcePath, dir, 3);
+    const wrong = (result: DifferentialCommandResult) =>
+      result.exitCode !== 0 ||
+      (expectedStdout !== undefined && result.stdout !== expectedStdout);
+    if (wrong(o0) || wrong(o3) || o0.stdout !== o3.stdout) {
+      return {
+        ok: false,
+        stage: "codegen",
+        message:
+          expectedStdout === undefined
+            ? "O0/O3 behavior mismatch"
+            : `generated program output differs from its oracle (O0 ${wrong(o0) ? "wrong" : "ok"}, O3 ${wrong(o3) ? "wrong" : "ok"})`,
+        mismatch: { o0, o3, expectedStdout },
+      };
+    }
+    return { ok: true, stage: "codegen" };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 }
 
@@ -1091,23 +1258,46 @@ export interface GenerateFuzzInputOptions {
   enableDifferential?: boolean;
 }
 
+/**
+ * The generated program of a campaign iteration. With `trace`, it also prints
+ * every value after each top-level statement, to locate a miscompile.
+ */
+export function generateOracleSource(
+  seed: number,
+  iteration: number,
+  options: { trace?: boolean } = {},
+): string {
+  return generateOracleProgram(
+    createSeededRandom(mixSeed(seed, iteration)),
+    options,
+  ).source;
+}
+
 export function generateFuzzInput(
   seed: number,
   iteration: number,
   options: GenerateFuzzInputOptions = {},
 ): FuzzInput {
   const lane = iteration % (options.enableDifferential ? 8 : 6);
-  const kind: FuzzInputKind =
-    options.enableDifferential && (lane === 0 || lane === 4)
-      ? "differential"
-      : lane === 1 || lane === 5
-        ? "structured"
-        : lane === 2 || lane === 6
-          ? "mutated"
-          : "tokens";
+  let kind: FuzzInputKind;
+  if (options.enableDifferential && (lane === 0 || lane === 4)) {
+    kind = "differential";
+  } else if (lane === 3 || (options.enableDifferential && lane === 7)) {
+    // Generated programs: run against their oracle in differential mode,
+    // where they take two of the eight lanes.
+    kind = options.enableDifferential ? "oracle" : "generated";
+  } else if (lane === 1 || lane === 5) {
+    kind = "structured";
+  } else if (lane === 2 || lane === 6) {
+    kind = "mutated";
+  } else {
+    kind = "tokens";
+  }
   let source: string;
 
-  if (kind === "differential") {
+  if (kind === "generated" || kind === "oracle") {
+    source = generateOracleSource(seed, iteration);
+  } else if (kind === "differential") {
     source = generateDifferentialRuntimeSource(seed, Math.floor(iteration / 4));
   } else if (kind === "structured") {
     source = generateStructuredValidSource(seed, iteration);
@@ -1495,7 +1685,13 @@ function writeFailureArtifact(
   );
 
   writeFileSync(sourcePath, input.source);
-  if (options.minimizeFailures) {
+  // Token minimization drops the `# fuzz-expect:` oracle comments, so a
+  // generated program would "minimize" into an unrelated failure.
+  if (
+    options.minimizeFailures &&
+    input.kind !== "generated" &&
+    input.kind !== "oracle"
+  ) {
     const minimizedSourcePath = join(crashDir, `${baseName}.min.bpl`);
     metadata.minimizedSourcePath = minimizedSourcePath;
 
@@ -1921,6 +2117,19 @@ function defaultFuzzRunner(
 ): PipelineOutcome {
   if (input.kind === "differential") {
     return runBplDifferentialPipeline(source, filePath);
+  }
+  if (input.kind === "oracle") {
+    return runBplOraclePipeline(source, filePath);
+  }
+  if (input.kind === "generated") {
+    return runGeneratedPipeline(source, filePath);
+  }
+  if (input.kind === "structured") {
+    // Structured templates are valid; their IR must verify too.
+    return runCompilerPipeline(source, filePath, {
+      skipImportResolution: true,
+      verifyIr: true,
+    });
   }
 
   return defaultPipelineRunner(source, filePath);

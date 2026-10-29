@@ -379,6 +379,31 @@ frame main() ret int {
     expect(address.stderr).toContain("BPL_GLOBAL_INITIALIZER_NOT_CONSTANT");
   });
 
+  test("keeps the sign of a negative zero double global (found by the oracle fuzzer)", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+global G: double = -(0.0);
+global H: double = -0.0;
+frame main() ret int {
+    printf("%llx %llx\\n", *cast<*ulong>(&G), *cast<*ulong>(&H));
+    return 0;
+}
+`);
+    expect(output).toBe("8000000000000000 8000000000000000\n");
+  });
+
+  test("folds casts of bool constants (found by the oracle fuzzer)", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+global A: int = ~((cast<int>(false) & 7) + 1);
+global B: u8 = cast<u8>(true) + cast<u8>(true);
+global C: bool = cast<bool>(cast<int>(true));
+frame main() ret int {
+    printf("%d %d %d\\n", A, cast<int>(B), cast<int>(C));
+    return 0;
+}
+`);
+    expect(output).toBe("-2 2 1\n");
+  });
+
   test("rejects a signed division that overflows", () => {
     const result = check(`global X: int = (-2147483647 - 1) / -1;${MAIN}`);
     expect(result.status).toBe(1);
