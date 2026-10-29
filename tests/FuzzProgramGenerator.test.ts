@@ -40,6 +40,13 @@ describe("generated fuzz programs", () => {
       /switch \(/,
       /local ptr\d+: \*/,
       /global g\d+:/,
+      /struct C\d+: P\d+/,
+      /\bcallv\d+\(&/,
+      /local sl\d+: P\d+ = c\d+;/,
+      /local \(t\d+: /,
+      /\bdefer printf\(/,
+      /: f32 = /,
+      /%llx/,
     ]) {
       expect(sources).toMatch(feature);
     }

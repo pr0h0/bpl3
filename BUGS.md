@@ -619,6 +619,27 @@ were measured from the switch's first line instead of the end of its subject.
 **Resolution**: measured from the end of the subject.
 `tests/FormatterSwitchSubject.test.ts`.
 
+#### BUG-468: A `double` global initialized to `-0.0` becomes `+0.0`
+
+**Status**: Fixed · **Priority**: P2
+
+`global G: double = -(0.0);` was emitted as `@G = global double 0.0`, because
+`formatFloatingPointLiteral` printed the folded value with `String(-0)`, which
+is `"0"`. `f32` globals already used the exact hex form.
+
+**Resolution**: negative zero is written in hex like `f32` values.
+`tests/AuditCompilerFixes.test.ts`.
+
+#### BUG-469: Bun drops a call statement to a function named `declare` (external)
+
+**Status**: Open (upstream) · **Priority**: P3
+
+With Bun 1.3.14, `const declare = (x: string) => ...; declare("a");` never
+calls the function: the statement is stripped as if it were a TypeScript
+`declare` ambient declaration, while `tsc` accepts it as a call. It hid a
+whole feature of the fuzz generator until the closure was renamed. Avoid
+naming functions `declare` in TypeScript run by Bun; report upstream.
+
 #### BUG-467: Parenthesized assignment targets are rejected, but `(*p)++` is not
 
 **Status**: Open · **Priority**: P3

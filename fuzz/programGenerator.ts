@@ -26,12 +26,18 @@ export interface BoolType {
   name: "bool";
 }
 
-export type ScalarType = IntType | BoolType;
+export interface FloatType {
+  kind: "float";
+  name: "double" | "f32";
+  bits: 64 | 32;
+}
+
+export type ScalarType = IntType | BoolType | FloatType;
 interface EnumValue {
   tag: number;
   payload: Value[];
 }
-type Value = bigint | boolean | EnumValue;
+type Value = bigint | boolean | number | EnumValue;
 type Env = Map<string, Value>;
 
 const INT_TYPES: IntType[] = [
@@ -46,6 +52,11 @@ const INT_TYPES: IntType[] = [
 ];
 const INT = INT_TYPES[4]!;
 const BOOL: BoolType = { kind: "bool", name: "bool" };
+const FLOAT_TYPES: FloatType[] = [
+  { kind: "float", name: "double", bits: 64 },
+  { kind: "float", name: "f32", bits: 32 },
+];
+const LONG = INT_TYPES[6]!;
 
 interface Expr {
   type: ScalarType;
@@ -63,14 +74,24 @@ type Signal = "break" | "continue" | undefined;
 interface Stmt {
   code(indent: string): string;
   exec(env: Env): Signal;
+  /** For `defer`: capture values now, return the code to run at block exit. */
+  defer?(env: Env): () => void;
 }
 
+/** Run a block; deferred statements run last-in, first-out at its exit. */
 function execBlock(statements: Stmt[], env: Env): Signal {
+  const deferred: (() => void)[] = [];
+  let signal: Signal;
   for (const statement of statements) {
-    const signal = statement.exec(env);
-    if (signal) return signal;
+    if (statement.defer) {
+      deferred.push(statement.defer(env));
+      continue;
+    }
+    signal = statement.exec(env);
+    if (signal) break;
   }
-  return undefined;
+  for (const run of deferred.reverse()) run();
+  return signal;
 }
 
 /** A storage location: local, global, struct field or array element. */
@@ -131,6 +152,21 @@ interface LambdaDef {
   snapshot: Env;
 }
 
+/** A parent struct and a child overriding its virtual method `vf`. */
+interface Hierarchy {
+  parent: string;
+  child: string;
+  parentFields: ScalarType[];
+  childFields: ScalarType[];
+  returnType: ScalarType;
+  parentBody: Expr;
+  childBody: Expr;
+  dispatcher: string;
+  /** Locals with their dynamic type; `up` are `*Parent` pointers to a child. */
+  locals: { name: string; dynamic: "parent" | "child" }[];
+  pointers: { name: string; target: string }[];
+}
+
 interface Mutator {
   name: string;
   type: IntType;
@@ -154,11 +190,45 @@ function wrap(value: bigint, type: IntType): bigint {
 /** Convert a value to `to` as an implicit or explicit integer conversion. */
 function convert(value: Value, to: ScalarType): Value {
   if (typeof value === "object") return value;
+  if (to.kind === "float") {
+    const number =
+      typeof value === "number"
+        ? value
+        : typeof value === "boolean"
+          ? Number(value)
+          : Number(value);
+    return to.bits === 32 ? Math.fround(number) : number;
+  }
+  if (typeof value === "number") {
+    // Float to integer truncates and saturates; NaN is 0 (R-CONV-10).
+    if (to.kind === "bool") return false;
+    if (Number.isNaN(value)) return 0n;
+    const min = to.signed ? -(1n << BigInt(to.bits - 1)) : 0n;
+    const max = to.signed
+      ? (1n << BigInt(to.bits - 1)) - 1n
+      : (1n << BigInt(to.bits)) - 1n;
+    if (value === Infinity) return max;
+    if (value === -Infinity) return min;
+    const truncated = BigInt(Math.trunc(value));
+    return truncated < min ? min : truncated > max ? max : truncated;
+  }
   if (to.kind === "bool") {
     return typeof value === "boolean" ? value : (value & 1n) === 1n;
   }
   const integer = typeof value === "boolean" ? (value ? 1n : 0n) : value;
   return wrap(integer, to);
+}
+
+/** IEEE bit pattern as printed by `%llx`/`%x`; every NaN prints as 1. */
+function floatBits(value: number, type: FloatType): string {
+  if (Number.isNaN(value)) return "1";
+  const view = new DataView(new ArrayBuffer(8));
+  if (type.bits === 64) {
+    view.setFloat64(0, value);
+    return view.getBigUint64(0).toString(16);
+  }
+  view.setFloat32(0, value);
+  return view.getUint32(0).toString(16);
 }
 
 class ProgramBuilder {
@@ -172,6 +242,13 @@ class ProgramBuilder {
   private enumLocals: string[] = [];
   private readonly recursives: Recursive[] = [];
   private readonly lambdas: LambdaDef[] = [];
+  private hierarchy: Hierarchy | undefined;
+  /** Output produced while executing (deferred prints). */
+  private out: string[] = [];
+  /** Disables calls, e.g. inside deferred expressions. */
+  private plainOnly = false;
+  /** In a function other than main, main's locals are out of reach. */
+  private inFunctionBody = false;
   private readonly mutators: Mutator[] = [];
   /** `local bK: Box<T>` locals, whose `.v` is also read through `get()`. */
   private readonly boxes: { name: string; type: IntType }[] = [];
@@ -206,12 +283,46 @@ class ProgramBuilder {
   }
 
   private scalarType(): ScalarType {
-    return this.chance(0.15) ? BOOL : this.intType();
+    const roll = this.rng();
+    if (roll < 0.12) return BOOL;
+    if (roll < 0.27) return this.pick(FLOAT_TYPES);
+    return this.intType();
   }
 
   // ------------------------------------------------------------ exprs ----
 
   private literal(type: ScalarType): Expr {
+    if (type.kind === "float") {
+      const magnitude = this.pick([
+        "0.0",
+        "0.5",
+        "1.0",
+        "1.5",
+        "2.25",
+        "3.0",
+        "0.1",
+        "0.3",
+        "100.0",
+        "1000000.0",
+        "123.456",
+        "65536.5",
+        "4294967296.0",
+        "0.0001",
+      ]);
+      const negative = this.chance(0.3);
+      const text = negative ? `(-${magnitude})` : magnitude;
+      const value = convert(
+        negative ? -Number(magnitude) : Number(magnitude),
+        type,
+      );
+      return {
+        type,
+        code: type.bits === 64 ? text : `cast<f32>(${text})`,
+        constant: true,
+        reads: new Set(),
+        eval: () => value,
+      };
+    }
     if (type.kind === "bool") {
       const value = this.chance(0.5);
       return {
@@ -283,13 +394,97 @@ class ProgramBuilder {
       }
       return this.literal(type);
     }
-    return type.kind === "bool"
-      ? this.boolExpr(depth, constantOnly)
-      : this.intExpr(type, depth, constantOnly);
+    if (type.kind === "bool") return this.boolExpr(depth, constantOnly);
+    if (type.kind === "float") return this.floatExpr(type, depth, constantOnly);
+    return this.intExpr(type, depth, constantOnly);
+  }
+
+  private floatExpr(
+    type: FloatType,
+    depth: number,
+    constantOnly: boolean,
+  ): Expr {
+    // The constant folder only negates and casts floats.
+    const choice = this.int(0, constantOnly ? 1 : 8);
+    if (choice >= 6) {
+      const feature = this.featureExpr(this.pick([9, 11, 12, 13]), type, depth);
+      if (feature) return feature;
+    }
+    switch (choice) {
+      case 0: {
+        const operand = this.expr(type, depth - 1, constantOnly);
+        return {
+          type,
+          code: `-(${operand.code})`,
+          constant: operand.constant,
+          reads: operand.reads,
+          eval: (env) => convert(-(operand.eval(env) as number), type),
+        };
+      }
+      case 1: {
+        // Integers up to 32 bits convert exactly to double, so an f32 cast
+        // rounds once, as the hardware conversion does.
+        const sourceType = this.chance(0.5)
+          ? this.pick(
+              INT_TYPES.filter(
+                (candidate) => type.bits === 64 || candidate.bits <= 32,
+              ),
+            )
+          : this.pick(FLOAT_TYPES);
+        const operand = this.expr(sourceType, depth - 1, constantOnly);
+        return {
+          type,
+          code: `cast<${type.name}>(${operand.code})`,
+          constant: operand.constant,
+          reads: operand.reads,
+          eval: (env) => convert(operand.eval(env), type),
+        };
+      }
+      case 2:
+      case 3:
+      case 4: {
+        const left = this.expr(type, depth - 1, false);
+        const right = this.expr(type, depth - 1, false);
+        const op = this.pick(["+", "-", "*", "/"]);
+        return {
+          type,
+          code: `(${left.code}) ${op} (${right.code})`,
+          constant: false,
+          reads: union(left.reads, right.reads),
+          eval: (env) => {
+            const a = left.eval(env) as number;
+            const b = right.eval(env) as number;
+            const result =
+              op === "+"
+                ? a + b
+                : op === "-"
+                  ? a - b
+                  : op === "*"
+                    ? a * b
+                    : a / b;
+            return convert(result, type);
+          },
+        };
+      }
+      case 5: {
+        const condition = this.boolExpr(depth - 1, false);
+        const yes = this.expr(type, depth - 1, false);
+        const no = this.expr(type, depth - 1, false);
+        return {
+          type,
+          code: `((${condition.code}) ? (${yes.code}) : (${no.code}))`,
+          constant: false,
+          reads: union(condition.reads, union(yes.reads, no.reads)),
+          eval: (env) => (condition.eval(env) ? yes.eval(env) : no.eval(env)),
+        };
+      }
+      default:
+        return this.read(type) ?? this.literal(type);
+    }
   }
 
   private intExpr(type: IntType, depth: number, constantOnly: boolean): Expr {
-    const choice = this.int(0, constantOnly ? 5 : 14);
+    const choice = this.int(0, constantOnly ? 5 : this.plainOnly ? 6 : 15);
     if (choice >= 9) {
       const feature = this.featureExpr(choice, type, depth);
       if (feature) return feature;
@@ -415,10 +610,15 @@ class ProgramBuilder {
   /** Calls into structs, recursion, lambdas, generics and enum matches. */
   private featureExpr(
     choice: number,
-    type: IntType,
+    type: ScalarType,
     depth: number,
   ): Expr | undefined {
     const sub = depth - 1;
+    // Struct instances, lambdas, enum locals, boxes and hierarchy locals
+    // belong to main.
+    if (this.inFunctionBody && [9, 11, 13, 14, 15].includes(choice)) {
+      return undefined;
+    }
     switch (choice) {
       case 9: {
         const candidates = this.instances.flatMap((instance) => [
@@ -501,6 +701,52 @@ class ProgramBuilder {
           constant: false,
           reads: operand.reads,
           eval: (env) => operand.eval(env),
+        };
+      }
+      case 15: {
+        const h = this.hierarchy;
+        if (!h || h.returnType.name !== type.name || h.locals.length === 0)
+          return undefined;
+        const arg = guard(this.expr(INT, sub, false));
+        // Through the dispatcher, a local's method, or a `*Parent` pointer.
+        const form = this.int(0, 2);
+        const local = this.pick(h.locals);
+        const pointer =
+          h.pointers.length > 0 ? this.pick(h.pointers) : undefined;
+        const viaPointer = form === 2 && pointer !== undefined;
+        const receiver = viaPointer
+          ? h.locals.find((candidate) => candidate.name === pointer.target)!
+          : local;
+        const code = viaPointer
+          ? `${pointer.name}.vf(${arg.code})`
+          : form === 0
+            ? `${h.dispatcher}(&${local.name}, ${arg.code})`
+            : `${local.name}.vf(${arg.code})`;
+        return {
+          type,
+          code,
+          constant: false,
+          reads: union(
+            arg.reads,
+            new Set([receiver.name, ...(viaPointer ? [pointer.name] : [])]),
+          ),
+          eval: (env) => {
+            const callEnv = this.callEnv(env);
+            const fields =
+              receiver.dynamic === "child"
+                ? [...h.parentFields, ...h.childFields]
+                : h.parentFields;
+            fields.forEach((_, field) =>
+              callEnv.set(
+                `this.f${field}`,
+                env.get(`${receiver.name}.f${field}`)!,
+              ),
+            );
+            callEnv.set("d", convert(arg.eval(env), INT));
+            const body =
+              receiver.dynamic === "child" ? h.childBody : h.parentBody;
+            return convert(body.eval(callEnv), type);
+          },
         };
       }
       case 13: {
@@ -607,6 +853,37 @@ class ProgramBuilder {
       }
       case 2:
       case 3: {
+        if (this.chance(0.25)) {
+          const floatType = this.pick(FLOAT_TYPES);
+          const left = this.expr(floatType, depth - 1, false);
+          const right = this.expr(floatType, depth - 1, false);
+          const op = this.pick(["==", "!=", "<", "<=", ">", ">="]);
+          return {
+            type: BOOL,
+            code: `(${left.code}) ${op} (${right.code})`,
+            constant: false,
+            reads: union(left.reads, right.reads),
+            eval: (env) => {
+              const a = left.eval(env) as number;
+              const b = right.eval(env) as number;
+              // JavaScript comparisons are ordered like R-TYPE-9.
+              switch (op) {
+                case "==":
+                  return a === b;
+                case "!=":
+                  return a !== b;
+                case "<":
+                  return a < b;
+                case "<=":
+                  return a <= b;
+                case ">":
+                  return a > b;
+                default:
+                  return a >= b;
+              }
+            },
+          };
+        }
         const leftType = this.intType();
         const left = this.expr(leftType, depth - 1, false);
         const right = this.expr(this.intType(), depth - 1, false);
@@ -687,6 +964,7 @@ class ProgramBuilder {
 
   private statement(depth: number): Stmt {
     if (this.loopDepth > 0 && this.chance(0.08)) return this.jump();
+    if (this.loopDepth > 0 && this.chance(0.05)) return this.deferStatement();
     if (this.chance(0.15)) {
       const feature = this.featureStatement();
       if (feature) return feature;
@@ -699,6 +977,8 @@ class ProgramBuilder {
     const { code, key } = this.targetOf(target);
     const type = target.type;
 
+    if (type.kind === "float")
+      return this.floatAssignment(target, code, key, type, choice);
     if (choice === 0 || type.kind === "bool") {
       // Integer values convert implicitly between integer types (R-CONV-1).
       const valueType = type.kind === "bool" ? BOOL : this.intType();
@@ -757,6 +1037,51 @@ class ProgramBuilder {
         const current = env.get(slot) as bigint;
         const right = convert(value.eval(env), type) as bigint;
         env.set(slot, applyIntOp(op, current, right, type));
+        return undefined;
+      },
+    };
+  }
+
+  /** Floats: `=`, `++`/`--`, and `+=`/`-=`/`*=`/`/=` of the same type. */
+  private floatAssignment(
+    target: Place,
+    code: string,
+    key: (env: Env) => string,
+    type: FloatType,
+    choice: number,
+  ): Stmt {
+    if (choice === 1) {
+      const op = this.pick(["++", "--"]);
+      const operand = target.array ? code : target.code;
+      return {
+        code: (indent) => `${indent}${operand}${op};`,
+        exec: (env) => {
+          const slot = key(env);
+          const current = env.get(slot) as number;
+          env.set(slot, convert(op === "++" ? current + 1 : current - 1, type));
+          return undefined;
+        },
+      };
+    }
+    const value = this.expr(type, 3, false);
+    const op = choice === 0 ? "" : this.pick(["+", "-", "*", "/"]);
+    return {
+      code: (indent) => `${indent}${code} ${op}= ${value.code};`,
+      exec: (env) => {
+        const slot = key(env);
+        const current = env.get(slot) as number;
+        const right = value.eval(env) as number;
+        const result =
+          op === ""
+            ? right
+            : op === "+"
+              ? current + right
+              : op === "-"
+                ? current - right
+                : op === "*"
+                  ? current * right
+                  : current / right;
+        env.set(slot, convert(result, type));
         return undefined;
       },
     };
@@ -832,6 +1157,40 @@ class ProgramBuilder {
       exec: (env) => {
         env.set(local, variant.eval(env));
         return undefined;
+      },
+    };
+  }
+
+  /**
+   * `defer printf(...)` inside a loop body. Deferred code runs against copies
+   * of the values it uses (R-DEFER-5), so it reads plain locals only: no
+   * globals, pointers or calls, which would observe later state.
+   */
+  private deferStatement(): Stmt {
+    const saved = this.scope;
+    this.scope = saved.filter(
+      (place) =>
+        !place.array &&
+        !place.key.startsWith("g") &&
+        !place.code.startsWith("(*"),
+    );
+    this.plainOnly = true;
+    const type = this.intType();
+    const value = this.expr(type, 2, false);
+    this.plainOnly = false;
+    this.scope = saved;
+    const label = this.fresh("df");
+    return {
+      code: (indent) =>
+        type.signed
+          ? `${indent}defer printf("${label}=%lld\\n", cast<long>(${value.code}));`
+          : `${indent}defer printf("${label}=%llu\\n", cast<ulong>(${value.code}));`,
+      exec: () => {
+        throw new Error("defer statements run through execBlock");
+      },
+      defer: (env) => {
+        const captured = convert(value.eval(env), type);
+        return () => this.out.push(`${label}=${captured}`);
       },
     };
   }
@@ -1011,6 +1370,59 @@ class ProgramBuilder {
     return `struct ${name} {\n${members.join("\n")}\n}${freeFunctions}`;
   }
 
+  /** `struct P { ... frame vf }`, `struct C: P { ... frame vf }`, dispatcher. */
+  private hierarchyDefinition(): string {
+    const parent = `P${this.fresh("")}`;
+    const child = `C${this.fresh("")}`;
+    const parentFields = Array.from({ length: this.int(1, 2) }, () =>
+      this.scalarType(),
+    );
+    const childFields = Array.from({ length: this.int(1, 2) }, () =>
+      this.scalarType(),
+    );
+    const returnType = this.scalarType();
+    const fieldPlaces = (fields: ScalarType[]): Place[] =>
+      fields.map((type, field) => ({
+        type,
+        code: `this.f${field}`,
+        key: `this.f${field}`,
+        readonly: true,
+      }));
+    const d: Place = { type: INT, code: "d", key: "d", readonly: true };
+    this.scope = [...this.globals, ...fieldPlaces(parentFields), d];
+    const parentBody = guard(this.expr(returnType, 2, false));
+    this.scope = [
+      ...this.globals,
+      ...fieldPlaces([...parentFields, ...childFields]),
+      d,
+    ];
+    const childBody = guard(this.expr(returnType, 2, false));
+    this.scope = [];
+    const dispatcher = this.fresh("callv");
+    this.hierarchy = {
+      parent,
+      child,
+      parentFields,
+      childFields,
+      returnType,
+      parentBody,
+      childBody,
+      dispatcher,
+      locals: [],
+      pointers: [],
+    };
+    const param = (body: Expr) => (body.reads.has("d") ? "d" : "_d");
+    const fields = (types: ScalarType[], offset: number) =>
+      types
+        .map((type, field) => `    f${field + offset}: ${type.name},`)
+        .join("\n");
+    return [
+      `struct ${parent} {\n${fields(parentFields, 0)}\n    frame vf(this: *${parent}, ${param(parentBody)}: int) ret ${returnType.name} {\n        return ${parentBody.code};\n    }\n}`,
+      `struct ${child}: ${parent} {\n${fields(childFields, parentFields.length)}\n    frame vf(this: *${child}, ${param(childBody)}: int) ret ${returnType.name} {\n        return ${childBody.code};\n    }\n}`,
+      `frame ${dispatcher}(p: *${parent}, d: int) ret ${returnType.name} {\n    return p.vf(d);\n}`,
+    ].join("\n");
+  }
+
   /** A random variant of the program's enum and its value. */
   private variantValue(): {
     code: string;
@@ -1050,6 +1462,24 @@ class ProgramBuilder {
     if (type.kind === "bool") {
       output.push(`${label}=${value ? 1 : 0}`);
       return `    printf("${label}=%d\\n", cast<int>(${code}));`;
+    }
+    if (type.kind === "float") {
+      // Bit patterns are exact; NaN bits differ by platform, so print 1.
+      output.push(`${label}=${floatBits(value as number, type)}`);
+      if (!/^[A-Za-z_][\w.\[\]]*$|^\(\*\w+\)$/.test(code)) {
+        // Not addressable (a call): compare as an integer instead.
+        output.pop();
+        return this.printValue(
+          label,
+          `cast<long>(${code})`,
+          LONG,
+          convert(value, LONG),
+          output,
+        );
+      }
+      return type.bits === 64
+        ? `    printf("${label}=%llx\\n", ((${code}) != (${code})) ? cast<ulong>(1) : *cast<*ulong>(&${code}));`
+        : `    printf("${label}=%x\\n", ((${code}) != (${code})) ? cast<uint>(1) : *cast<*uint>(&${code}));`;
     }
     output.push(`${label}=${value}`);
     return type.signed
@@ -1104,7 +1534,12 @@ class ProgramBuilder {
     const lines: string[] = ["extern printf(fmt: string, ...);"];
     const env: Env = new Map();
     const output: string[] = [];
+    this.out = output;
     const printedLambdas: LambdaDef[] = [];
+    // Pointer locals that must be used: printed through a call.
+    const printedCalls: string[] = [];
+    // Functions emitted after main (they may be referenced from it).
+    const functionsAfterMain: string[] = [];
 
     for (let index = this.int(0, 3); index > 0; index--) {
       const type = this.scalarType();
@@ -1120,6 +1555,8 @@ class ProgramBuilder {
     for (let index = this.int(0, 2); index > 0; index--) {
       lines.push(this.structDefinition());
     }
+
+    if (this.chance(0.5)) lines.push(this.hierarchyDefinition());
 
     // Generic code paths: an identity function and a generic struct.
     lines.push("frame gid<T>(x: T) ret T {\n    return x;\n}");
@@ -1285,6 +1722,82 @@ class ProgramBuilder {
         array: { base: name, length },
       });
     }
+    if (this.hierarchy) {
+      const h = this.hierarchy;
+      const all = [...h.parentFields, ...h.childFields];
+      const declareLocal = (name: string, dynamic: "parent" | "child") => {
+        const types = dynamic === "child" ? all : h.parentFields;
+        const typeName = dynamic === "child" ? h.child : h.parent;
+        const inits = types.map((type) => guard(this.expr(type, 2, false)));
+        decls.push(
+          `    local ${name}: ${typeName} = ${typeName} { ${inits.map((init, field) => `f${field}: ${init.code}`).join(", ")} };`,
+        );
+        types.forEach((type, field) => {
+          const key = `${name}.f${field}`;
+          env.set(key, convert(inits[field]!.eval(env), type));
+          const place = { type, code: key, key };
+          this.scope.push(place);
+          printed.push(place);
+        });
+        h.locals.push({ name, dynamic });
+      };
+      const childLocal = this.fresh("c");
+      declareLocal(childLocal, "child");
+      if (this.chance(0.7)) declareLocal(this.fresh("pp"), "parent");
+      if (this.chance(0.6)) {
+        // Struct slicing: a parent copy of the child is a parent (R-CONV-7).
+        const sliced = this.fresh("sl");
+        decls.push(`    local ${sliced}: ${h.parent} = ${childLocal};`);
+        h.parentFields.forEach((type, field) => {
+          const key = `${sliced}.f${field}`;
+          env.set(key, env.get(`${childLocal}.f${field}`)!);
+          const place = { type, code: key, key };
+          this.scope.push(place);
+          printed.push(place);
+        });
+        h.locals.push({ name: sliced, dynamic: "parent" });
+      }
+      if (this.chance(0.6)) {
+        const pointer = this.fresh("up");
+        decls.push(`    local ${pointer}: *${h.parent} = &${childLocal};`);
+        h.pointers.push({ name: pointer, target: childLocal });
+        printedCalls.push(pointer);
+      }
+    }
+
+    // Tuples: a function returning two values, destructured into locals.
+    if (this.chance(0.5)) {
+      const name = this.fresh("tup");
+      const param = this.intType();
+      const types = [this.scalarType(), this.scalarType()];
+      const saved = this.scope;
+      this.scope = [
+        ...this.globals,
+        { type: param, code: "x", key: "x", readonly: true },
+      ];
+      this.inFunctionBody = true;
+      const values = types.map((type) => guard(this.expr(type, 2, false)));
+      this.inFunctionBody = false;
+      this.scope = saved;
+      const used = values.some((value) => value.reads.has("x")) ? "x" : "_x";
+      functionsAfterMain.push(
+        `frame ${name}(${used}: ${param.name}) ret (${types.map((type) => type.name).join(", ")}) {\n    return (${values.map((value) => value.code).join(", ")});\n}`,
+      );
+      const arg = guard(this.expr(param, 2, false));
+      const locals = types.map(() => this.fresh("t"));
+      decls.push(
+        `    local (${locals.map((local, slot) => `${local}: ${types[slot]!.name}`).join(", ")}) = ${name}(${arg.code});`,
+      );
+      const callEnv = this.callEnv(env);
+      callEnv.set("x", convert(arg.eval(env), param));
+      locals.forEach((local, slot) => {
+        env.set(local, convert(values[slot]!.eval(callEnv), types[slot]!));
+        const place = { type: types[slot]!, code: local, key: local };
+        this.scope.push(place);
+        printed.push(place);
+      });
+    }
+
     // Lambdas capture by value, so they only read plain locals and fields.
     for (let index = this.int(0, 2); index > 0; index--) {
       const name = this.fresh("l");
@@ -1363,6 +1876,25 @@ class ProgramBuilder {
         ),
       ),
       ...this.enumLocals.flatMap((local) => this.printEnum(local, env, output)),
+      ...printedCalls.map((pointer) => {
+        const h = this.hierarchy!;
+        const target = h.pointers.find(
+          (candidate) => candidate.name === pointer,
+        )!.target;
+        const callEnv = this.callEnv(env);
+        [...h.parentFields, ...h.childFields].forEach((_, field) =>
+          callEnv.set(`this.f${field}`, env.get(`${target}.f${field}`)!),
+        );
+        callEnv.set("d", 1n);
+        const value = convert(h.childBody.eval(callEnv), h.returnType);
+        return this.printValue(
+          `${pointer}_vf`,
+          `${pointer}.vf(1)`,
+          h.returnType,
+          value,
+          output,
+        );
+      }),
     ];
 
     // With `trace`, every top-level statement is followed by a full dump, so
@@ -1388,6 +1920,7 @@ class ProgramBuilder {
         "    return 0;",
         "}",
       ].join("\n"),
+      ...functionsAfterMain,
     );
     const expectedStdout = output.map((line) => `${line}\n`).join("");
     lines.push(...output.map((line) => `${EXPECT_MARKER}${line}`));

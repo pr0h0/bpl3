@@ -40,8 +40,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - The fuzzer generates random well-typed programs (structs with methods,
-  pointers, enums with `match`, generics, lambdas, recursion, loops,
-  `switch`, mixed-width arithmetic). Each is checked, IR-verified and
+  inheritance and virtual dispatch, tuples, pointers, enums with `match`,
+  generics, lambdas, recursion, loops with `defer`, `switch`, mixed-width
+  integer and floating-point arithmetic). Each is checked, IR-verified and
   formatter-round-tripped in process, and in `--differential` mode run at
   `-O0` and `-O3` against output computed by the generator's own evaluator.
   Structured template inputs are now IR-verified too.
@@ -108,7 +109,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - `cast<int>(false)` and other casts of `bool` constants are accepted in
   global initializers (BUG-465). Formatting a `switch` whose subject spans
-  several lines is idempotent (BUG-466).
+  several lines is idempotent (BUG-466). A `double` global initialized to
+  `-0.0` keeps its sign (BUG-468).
 
 - Struct subtyping no longer passes through `**T` or array types: `**Dog` to
   `**Animal` and `Dog[2]` to `Animal[]` are rejected by the checker instead of

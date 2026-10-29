@@ -420,9 +420,12 @@ Each campaign iteration picks one input lane:
 - **structured**: valid templates. Their IR must also pass the LLVM verifier.
 - **generated** (`fuzz/programGenerator.ts`): random well-typed programs with
   globals, structs with methods and copies, by-value struct parameters,
-  pointers and pointer-writing helpers, arrays, enums with payloads and
-  `match`, generic functions and structs, capturing lambdas, recursion, loops
-  with `break`/`continue`, `switch`, and mixed-width integer arithmetic. They
+  inheritance with virtual dispatch (direct, through `*Parent`, and on a sliced
+  copy), tuples returned and destructured, pointers and pointer-writing
+  helpers, arrays, enums with payloads and `match`, generic functions and
+  structs, capturing lambdas, recursion, loops with `break`/`continue` and
+  `defer`, `switch`, mixed-width integer arithmetic, and `double`/`f32`
+  arithmetic, conversions and comparisons (printed as IEEE bit patterns). They
   are valid by construction, so each one must type-check, produce IR that
   passes the LLVM verifier, and survive a formatter round trip (same meaning,
   idempotent output). A rejection or a formatter defect is reported as a crash.
