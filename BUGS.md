@@ -596,7 +596,7 @@ bound-spec-method guard in #112.
 Found by the oracle fuzzer (`fuzz/programGenerator.ts`, see
 docs/60-compiler-correctness.md).
 
-#### BUG-465: Casts of `bool` constants are not constant in global initializers
+### BUG-465: Casts of `bool` constants are not constant in global initializers
 
 **Status**: Fixed · **Priority**: P2
 
@@ -607,7 +607,7 @@ integer and float cast operands.
 **Resolution**: a `bool` constant folds as 0 or 1 before the cast.
 `tests/AuditCompilerFixes.test.ts`.
 
-#### BUG-466: Formatter adds a blank line after a multi-line `switch` subject
+### BUG-466: Formatter adds a blank line after a multi-line `switch` subject
 
 **Status**: Fixed · **Priority**: P3
 
@@ -619,7 +619,7 @@ were measured from the switch's first line instead of the end of its subject.
 **Resolution**: measured from the end of the subject.
 `tests/FormatterSwitchSubject.test.ts`.
 
-#### BUG-468: A `double` global initialized to `-0.0` becomes `+0.0`
+### BUG-468: A `double` global initialized to `-0.0` becomes `+0.0`
 
 **Status**: Fixed · **Priority**: P2
 
@@ -630,7 +630,7 @@ is `"0"`. `f32` globals already used the exact hex form.
 **Resolution**: negative zero is written in hex like `f32` values.
 `tests/AuditCompilerFixes.test.ts`.
 
-#### BUG-469: Bun drops a call statement to a function named `declare` (external)
+### BUG-469: Bun drops a call statement to a function named `declare` (external)
 
 **Status**: Open (upstream) · **Priority**: P3
 
@@ -640,7 +640,7 @@ calls the function: the statement is stripped as if it were a TypeScript
 whole feature of the fuzz generator until the closure was renamed. Avoid
 naming functions `declare` in TypeScript run by Bun; report upstream.
 
-#### BUG-467: Parenthesized assignment targets are rejected, but `(*p)++` is not
+### BUG-467: Parenthesized assignment targets are rejected, but `(*p)++` is not
 
 **Status**: Open · **Priority**: P3
 

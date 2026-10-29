@@ -27,3 +27,29 @@ frame main() ret int {
   expect(twice).toBe(once);
   expect(once).not.toMatch(/\) \{\n\n\s*case/);
 });
+
+test("a closing parenthesis on its own line is not a blank line", () => {
+  const source = `frame main() ret int {
+    local value: int = 0;
+    switch (
+        value
+    ) {
+        case 0: {
+            return 1;
+        }
+        default: {
+            return 2;
+        }
+    }
+    return 0;
+}
+`;
+  const formatted = new Formatter().format(
+    new Parser(source, "s.bpl").parse(),
+    source,
+  );
+  expect(formatted).toContain("    switch (value) {\n        case 0: {");
+  expect(
+    new Formatter().format(new Parser(formatted, "s.bpl").parse(), formatted),
+  ).toBe(formatted);
+});
