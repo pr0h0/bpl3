@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "fs";
+import {
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
 
@@ -111,6 +120,28 @@ describe("bpl run developer experience", () => {
       const report = JSON.parse(malformed.stdout);
       expect(report.errorCode).toBe("BPL_BUILD_PROJECT_ENTRY_INVALID");
       expect(report.error).toContain("Invalid bpl.json");
+    });
+  });
+
+  test("refuses an output that is a link to the source", () => {
+    withProject((directory) => {
+      const source = "frame main() ret int { return 0; }\n";
+      writeFileSync(join(directory, "main.bpl"), source);
+      linkSync(join(directory, "main.bpl"), join(directory, "hard"));
+      symlinkSync("main.bpl", join(directory, "soft"));
+      const cases: [string, string][] = [
+        ["hard", "BPL_BUILD_OUTPUT_IS_SOURCE"],
+        ["soft", "BPL_BUILD_OUTPUT_SYMLINK"],
+      ];
+      for (const [output, code] of cases) {
+        const result = runCli(
+          ["build", "main.bpl", "-o", output, "--json"],
+          directory,
+        );
+        expect(result.status).toBe(1);
+        expect(JSON.parse(result.stdout).errorCode).toBe(code);
+      }
+      expect(readFileSync(join(directory, "main.bpl"), "utf8")).toBe(source);
     });
   });
 

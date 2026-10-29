@@ -506,8 +506,8 @@ validation uses
 `BPL_BUILD_OUTPUT_NOT_FILE`, `BPL_BUILD_OUTPUT_PARENT_NOT_FOUND`,
 `BPL_BUILD_OUTPUT_PARENT_SYMLINK`,
 `BPL_BUILD_OUTPUT_PARENT_NOT_DIRECTORY`, and `BPL_BUILD_OUTPUT_IS_SOURCE` (the
-IR or executable path equals the source, e.g. an extensionless entry without
-`-o`). A missing, malformed, or invalid `bpl.json` project entry uses
+IR or executable path is the source file, including through a hard link,
+e.g. an extensionless entry without `-o`). A missing, malformed, or invalid `bpl.json` project entry uses
 `BPL_BUILD_PROJECT_ENTRY_INVALID`. These codes are additive fields on the
 stdout JSON failure report, preserving the human-readable `error` text for
 older consumers and logs.

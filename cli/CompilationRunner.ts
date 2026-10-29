@@ -919,8 +919,21 @@ function getLlvmOutputPath(filePath: string, options: CompileOptions): string {
     : `${options.output}.ll`;
 }
 
+function isSameFile(outputPath: string, sourcePath: string): boolean {
+  if (path.resolve(outputPath) === path.resolve(sourcePath)) return true;
+  // Hard links and case-insensitive file systems reach the same file through
+  // a different path (symlinked outputs are refused separately).
+  try {
+    const output = fs.statSync(outputPath);
+    const source = fs.statSync(sourcePath);
+    return output.dev === source.dev && output.ino === source.ino;
+  } catch {
+    return false;
+  }
+}
+
 function assertOutputIsNotSource(outputPath: string, sourcePath: string): void {
-  if (path.resolve(outputPath) !== path.resolve(sourcePath)) return;
+  if (!isSameFile(outputPath, sourcePath)) return;
   throw new BuildValidationError(
     `Output path would overwrite the source file: ${sourcePath}. Pass -o with a different path.`,
     BUILD_OUTPUT_IS_SOURCE_CODE,
