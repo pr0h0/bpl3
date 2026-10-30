@@ -317,9 +317,19 @@ test.skipIf(process.platform !== "linux")(
     const { createServer } = await import("node:net");
     let received = "";
     const server = createServer((socket) => {
+      // Buffer per connection and answer only this test's request: other
+      // local processes sometimes probe the port with `GET /`.
+      let request = "";
+      socket.on("error", () => {});
       socket.on("data", async (data) => {
-        received += data.toString();
-        if (!received.includes("\r\n\r\n")) return;
+        if (request.includes("\r\n\r\n")) return;
+        request += data.toString();
+        if (!request.includes("\r\n\r\n")) return;
+        if (!request.startsWith("GET /test ")) {
+          socket.destroy();
+          return;
+        }
+        received = request;
         socket.write(
           "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nX-Result: yes\r\n\r\n",
         );
