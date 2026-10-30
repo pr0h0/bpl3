@@ -7,6 +7,7 @@
  * See cli/ directory for individual command implementations.
  */
 
+import "./cli/EmbeddedResources";
 import { Command } from "commander";
 import type { CompileOptions } from "./cli/types";
 import { existsSync } from "fs";
@@ -81,8 +82,8 @@ program
 // Main Compile Command (default action)
 // ============================================================================
 
-configureRootOptions(program)
-  .action(async (files: string[] | undefined, options: CompileOptions) => {
+configureRootOptions(program).action(
+  async (files: string[] | undefined, options: CompileOptions) => {
     validateCompileInputSources(files, options);
 
     // Handle --eval flag
@@ -143,7 +144,8 @@ configureRootOptions(program)
     }
 
     await processFileAsync(fileList[0], options);
-  });
+  },
+);
 
 /**
  * A bare word that is not an existing file and has no source extension is far

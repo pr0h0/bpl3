@@ -5,10 +5,9 @@
  * consolidating environment variables, defaults, and runtime settings.
  */
 
-import { existsSync } from "fs";
 import { getHostTargetTriple } from "./HostTarget";
-import { resolve } from "path";
-import { getBplHome, getLibPath, getGrammarPath } from "./PathResolver";
+import { getBplCacheDir } from "./EmbeddedHome";
+import { getBplHome, getLibPath } from "./PathResolver";
 
 /**
  * Optimization levels for code generation
@@ -38,8 +37,6 @@ export interface PathConfig {
   bplHome: string;
   /** Standard library directory */
   libDir: string;
-  /** Grammar directory */
-  grammarDir: string;
   /** Cache directory for compiled modules */
   cacheDir: string;
   /** Current working directory */
@@ -97,27 +94,6 @@ export const ENV_VARS = {
 } as const;
 
 /**
- * Get the cache directory path
- */
-function getCacheDir(): string {
-  // Check environment variable first
-  const envCache = process.env[ENV_VARS.BPL_CACHE_DIR];
-  if (envCache && existsSync(envCache)) {
-    return envCache;
-  }
-
-  // Use XDG cache dir on Linux
-  const xdgCache = process.env.XDG_CACHE_HOME;
-  if (xdgCache) {
-    return resolve(xdgCache, "bpl");
-  }
-
-  // Default to ~/.cache/bpl or platform equivalent
-  const homeDir = process.env.HOME || process.env.USERPROFILE || "/tmp";
-  return resolve(homeDir, ".cache", "bpl");
-}
-
-/**
  * Determine if color output should be enabled
  */
 function shouldColorize(): boolean {
@@ -165,8 +141,7 @@ export function getConfig(force: boolean = false): CompilerConfig {
     paths: {
       bplHome,
       libDir: getLibPath(),
-      grammarDir: getGrammarPath(),
-      cacheDir: getCacheDir(),
+      cacheDir: getBplCacheDir(),
       cwd: process.cwd(),
     },
     defaults: {

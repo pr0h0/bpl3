@@ -38,6 +38,7 @@
     "build:runtime": "cd lib && ./build_runtime.sh",
     "build:compiler": "bun build --compile --outfile=bpl ./index.ts",
     "generate:parser": "bun tools/generate_peggy_parser.ts",
+    "generate:embedded": "bun scripts/generate_embedded_resources.ts",
     "docs:stdlib": "bun tests/helpers/stdlibReference.ts",
     "check": "bunx tsc --noEmit --lib ESNext",
     "lint": "eslint cli/ compiler/ vscode-ext/src/ index.ts",
