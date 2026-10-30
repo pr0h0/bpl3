@@ -112,7 +112,11 @@ export function registerDocsCommand(program: Command): void {
               file,
               outputPath,
               error: message,
-              errorCode: getDocsErrorCode(baseMessage),
+              // A compiler error keeps its own code, as in other commands.
+              errorCode:
+                error instanceof CompilerError && error.code
+                  ? error.code
+                  : getDocsErrorCode(baseMessage),
             }),
           );
           process.exit(1);

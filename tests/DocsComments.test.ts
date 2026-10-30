@@ -82,3 +82,28 @@ test("parse errors report their location", () => {
     expect(json.error).toContain("api.bpl:1:1:");
   });
 });
+
+test("globals and type aliases take their comments", () => {
+  withSource(
+    `# Maximum retries.
+global MAX: int = 3;
+# A user id.
+type UserId = int;
+frame main() ret int { return MAX; }
+`,
+    (file, out) => {
+      expect(docs([file, "-o", out]).status).toBe(0);
+      const markdown = readFileSync(out, "utf8");
+      expect(markdown).toContain("global MAX: int\n```\nMaximum retries.");
+      expect(markdown).toContain("type UserId = int\n```\nA user id.");
+    },
+  );
+});
+
+test("compiler errors keep their own JSON error code", () => {
+  const deep = `frame main() ret int { return ${"(".repeat(3000)}1${")".repeat(3000)}; }\n`;
+  withSource(deep, (file, out) => {
+    const json = JSON.parse(docs(["--json", file, "-o", out]).stdout);
+    expect(json.errorCode).toBe("BPL_SOURCE_COMPLEXITY_LIMIT");
+  });
+});
