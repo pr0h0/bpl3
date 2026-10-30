@@ -131,7 +131,10 @@ export class CompilerError extends Error {
 
       if (fs.existsSync(this.location.file)) {
         const content = fs.readFileSync(this.location.file, "utf-8");
-        this.sourceLines = content.split(/\r\n|\r|\n/);
+        // A binary file (such as a package archive) has no source snippet.
+        this.sourceLines = content.includes("\0")
+          ? null
+          : content.split(/\r\n|\r|\n/);
       }
     } catch {
       // Silently fail if we can't read the file

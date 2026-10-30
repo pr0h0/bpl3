@@ -162,6 +162,7 @@ _bpl() {
                         '(-v --verbose)'{-v,--verbose}'[enable verbose output]' \
                         '(-q --quiet)'{-q,--quiet}'[suppress non-error output]' \
                         '--json[output results in JSON format]' \
+                        '--stdin-filepath[path to use for stdin (-) in diagnostics and relative imports]:value:_files' \
                         '--time[show type checking time statistics]' \
                         '--no-prelude[do not load implicit primitives]' \
                         '--color[force colored output]' \

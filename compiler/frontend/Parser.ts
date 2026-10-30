@@ -181,6 +181,8 @@ export class Parser {
           "StructDecl",
           "EnumDecl",
           "SpecDecl",
+          "VariableDecl",
+          "TypeAlias",
           "TypeDecl",
           "GlobalVarDecl",
         ].includes(stmt.kind)

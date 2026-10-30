@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `noUnusedLocals` is enabled. Removed unused code from the compiler, fuzz,
+  tools, playground, tests and language server; debug `llvm.dbg.declare`
+  calls for locals carry their computed location explicitly. Tests that built
+  a source and never checked it now assert real behavior (division by zero,
+  stack overflow, trailing commas in calls).
+
 - Cancel superseded pull-request compiler, playground, and container CI runs
   while retaining non-PR execution and container publication safeguards.
 
@@ -49,6 +55,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `bpl docs` attaches comments to globals and type aliases, and `--json`
+  reports a compiler error's own code (such as `BPL_SOURCE_COMPLEXITY_LIMIT`)
+  as `diagnosticCode`; `errorCode` stays `BPL_DOCS_FAILED`.
+
+- Enum match exhaustiveness checks nested sub-patterns: a refutable arm
+  (`E.V(1, y)`) no longer counts as covering its variant, arms such as
+  `E.V(true)`/`E.V(false)` cover it together, unreachable arms are rejected,
+  and an identifier arm that could never be selected is rejected (BUG-471).
+- `bpl check` rejects non-constant `switch` case values
+  (`BPL_SWITCH_CASE_VALUE_NOT_CONSTANT`) and data-carrying enum variants used
+  without their data; both previously failed only at build time (BUG-472).
+
+- Tests and the playground no longer leak temporary files (BUG-447): the
+  playground removes its cached binaries on exit and handles SIGINT/SIGTERM;
+  web tests use the gitignored `tests/.tmp/`; duplicated `compileAndRun`
+  copies use the shared helper.
+
+- Package installation hardening (BUG-462): `bpl install foo` no longer
+  installs a file named `foo` from the current directory (use `./foo`, now
+  recorded as `file:./foo`); legacy lock hashes fail `--locked` until
+  `bpl install --update`; archives that decompress past 256 MiB are rejected;
+  extraction ignores archive owners and modes. Diagnostics skip source snippets
+  for binary files.
+
+- Package content hashes include a package's nested `bpl_modules` and
+  `node_modules`, so editing a nested dependency after install fails
+  `bpl install --locked` and lock verification (BUG-456).
+
 - Review follow-ups for the third audit batch:
   - `(x = 1) = 2` is rejected; an assignment is not an lvalue (R-EXPR-5).
   - `/# ... #/ x: int,` no longer documents the next declaration.
@@ -77,7 +111,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (BUG-440).
 
 - `bpl check` accepts directories (`bpl check src/`), expanding them like
-  `format` and `lint`; the `-e` help says it compiles and prints IR (BUG-443).
+  `format` and `lint`, and `-` for standard input (`--stdin-filepath` names
+  it); the `-e` help says it compiles and prints IR (BUG-443).
 
 - Parenthesized assignment targets are accepted (`(*p) = 1`, `(v) += 2`),
   consistent with `(*p)++` (BUG-467). A spec declaring the same method twice

@@ -8,6 +8,8 @@
  */
 export interface CompileOptions {
   project?: boolean;
+  /** For `check -`: the path stdin is checked as. */
+  stdinFilepath?: string;
   output?: string;
   shared?: boolean;
   header?: string;

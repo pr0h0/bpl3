@@ -4,6 +4,7 @@
  */
 
 import * as fs from "fs";
+import * as path from "path";
 import type { Command } from "commander";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 import type { CompileOptions } from "../types";
@@ -11,6 +12,7 @@ import { getInputFilePathError } from "../utils";
 import { expandSourceInputs } from "../SourceInputs";
 import { Logger, LogLevel, setLogLevel } from "../../compiler/common/Logger";
 import { updateConfig } from "../../compiler/common/Config";
+import { SourceManager } from "../../compiler/common/SourceManager";
 import {
   CLI_JSON_CHECKS,
   createJsonReport,
@@ -111,10 +113,19 @@ export async function runCheckCommand(
   let warningCount = 0;
   const results: CheckFileResult[] = [];
 
+  // `-` checks standard input, as for format and lint.
+  const stdin = files.includes("-") ? fs.readFileSync(0, "utf8") : undefined;
   for (const filePath of files) {
     totalFiles++;
+    const fromStdin = filePath === "-";
+    const sourcePath = fromStdin
+      ? path.resolve(options.stdinFilepath || "stdin.bpl")
+      : filePath;
+    // Diagnostics read standard input from here, not from the file that
+    // --stdin-filepath names; only for this input.
+    if (fromStdin) SourceManager.setSource(sourcePath, stdin!);
     try {
-      const inputError = getInputFilePathError(filePath);
+      const inputError = fromStdin ? null : getInputFilePathError(filePath);
       if (inputError) {
         if (options.json) {
           results.push({
@@ -132,12 +143,15 @@ export async function runCheckCommand(
 
       const fileStartTime = Date.now();
 
-      const content = fs.readFileSync(filePath, "utf-8");
+      const content = fromStdin ? stdin! : fs.readFileSync(filePath, "utf-8");
+      const displayName = fromStdin
+        ? options.stdinFilepath || "<stdin>"
+        : filePath;
 
       // --no-prelude checks the file alone, without resolving imports.
       const { errors: typeErrors, warnings } = checkSource(
         content,
-        filePath,
+        sourcePath,
         options.prelude === false,
       );
       warningCount += warnings.length;
@@ -176,9 +190,9 @@ export async function runCheckCommand(
           }
           if (!options.quiet) {
             if (options.time) {
-              console.log(`✓ ${filePath} (${elapsed}ms)`);
+              console.log(`✓ ${displayName} (${elapsed}ms)`);
             } else {
-              console.log(`✓ ${filePath}`);
+              console.log(`✓ ${displayName}`);
             }
           }
         }
@@ -206,6 +220,8 @@ export async function runCheckCommand(
         );
       }
       errorCount++;
+    } finally {
+      if (fromStdin) SourceManager.deleteSource(sourcePath);
     }
   }
 

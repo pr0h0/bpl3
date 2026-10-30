@@ -253,6 +253,8 @@ class ProgramBuilder {
   private plainOnly = false;
   /** In a function other than main, main's locals are out of reach. */
   private inFunctionBody = false;
+  /** Lambda bodies capture by value, so they must not read through pointers. */
+  private inLambdaBody = false;
   private readonly mutators: Mutator[] = [];
   /** `local bK: Box<T>` locals, whose `.v` is also read through `get()`. */
   private readonly boxes: { name: string; type: IntType }[] = [];
@@ -725,7 +727,8 @@ class ProgramBuilder {
         const local = this.pick(h.locals);
         const pointer =
           h.pointers.length > 0 ? this.pick(h.pointers) : undefined;
-        const viaPointer = form === 2 && pointer !== undefined;
+        const viaPointer =
+          form === 2 && pointer !== undefined && !this.inLambdaBody;
         const receiver = viaPointer
           ? h.locals.find((candidate) => candidate.name === pointer.target)!
           : local;
@@ -1836,7 +1839,13 @@ class ProgramBuilder {
         ),
         { type: param, code: paramName, key: paramName, readonly: true },
       ];
-      const body = guard(this.expr(returnType, 2, false));
+      this.inLambdaBody = true;
+      let body: Expr;
+      try {
+        body = guard(this.expr(returnType, 2, false));
+      } finally {
+        this.inLambdaBody = false;
+      }
       this.scope = saved;
       const usedName = body.reads.has(paramName) ? paramName : `_${paramName}`;
       decls.push(

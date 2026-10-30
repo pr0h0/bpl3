@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createServer, createConnection } from "node:net";
 import { request } from "node:https";
 import { connect } from "node:tls";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 const openssl = spawnSync("openssl", ["version"], {
   encoding: "utf8",
@@ -23,7 +24,7 @@ test.skipIf(
 )(
   "native HTTPS serves streaming/binary/HEAD responses, survives bad peers and isolates stalled handshakes",
   async () => {
-    const dir = mkdtempSync(resolve(".web-tls-server-"));
+    const dir = makeRepoTempDir("web-tls-server-");
     let child: ReturnType<typeof Bun.spawn> | undefined;
     const sockets: import("node:net").Socket[] = [];
     try {

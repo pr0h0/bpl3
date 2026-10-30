@@ -890,21 +890,6 @@ describe("CLI Tests", () => {
         }
       };
 
-      const expectMissingStdOnlyText = (
-        file: string,
-        absentMessages: string[],
-      ) => {
-        const result = runCLI(["check", file]);
-        expect(result.status).toBe(1);
-        expect(result.stderr).toContain(
-          "Standard library module not found: std/missing.bpl",
-        );
-        expect(result.stderr).toContain("standard library");
-        for (const message of absentMessages) {
-          expect(result.stderr).not.toContain(message);
-        }
-      };
-
       const textResult = runCLI(["check", sourceFile]);
       expect(textResult.status).toBe(1);
       expect(textResult.stderr).toContain(

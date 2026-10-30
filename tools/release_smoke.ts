@@ -4292,7 +4292,6 @@ function runPackedSourceAnalysisValidationJsonSmoke(installedBpl: string): void 
 
     const checkReport = parseCheckReport(checkResult.stdout);
     const lintReport = parseLintReport(lintResult.stdout);
-    const checkFileReport = checkReport.files[0];
     const lintFileReport = lintReport.files[0];
     if (
       // Directories expand to their sources; this one has none.

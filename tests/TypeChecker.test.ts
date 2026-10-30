@@ -1978,15 +1978,6 @@ describe("TypeChecker", () => {
   });
 
   it("should fail if 'this' type mismatch", () => {
-    const source = `
-      struct A {}
-      struct B {
-        frame method(this: A) {} 
-      }
-    `;
-    // If `method(this: A)` is defined inside `struct B`, calling `b.method()` passes `B` as `this`.
-    // If `B` is not compatible with `A`, it should fail.
-
     const source2 = `
         struct A {}
         struct B {

@@ -178,7 +178,7 @@ returning `Self` then return `T` as well. `tests/AuditCompilerFixes.test.ts`.
 
 #### BUG-436: Smaller compiler diagnostics issues
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 - `switch` on a null `string` segfaults inside `strcmp`.
 - A duplicate enum `case` reports `Duplicate case value '0'` instead of `E.A`.
@@ -193,8 +193,9 @@ returning `Self` then return `T` as well. `tests/AuditCompilerFixes.test.ts`.
 **Progress (2026-10-29)**: a `switch` on a null `string` takes `default` (or
 does nothing) instead of crashing in `strcmp`. A duplicate enum case names the
 variant (`Duplicate case value 'E.A'`). The generic arity error no longer
-reproduces as a duplicate. Still open: the `check` → `--emit llvm` →
-`opt -passes=verify` probe test.
+reproduces as a duplicate. The `check` → LLVM verifier probe is now the
+fuzzer's `generated` lane: every generated program that type-checks must
+produce IR that passes the LLVM verifier (docs/60, "Fuzz Input Lanes").
 
 #### BUG-437: Formatter leaves trailing spaces after brace-less `if`/`else`/`loop`
 
@@ -287,7 +288,7 @@ there is no regression test; the handler guards other runtimes and versions.
 
 #### BUG-443: Remaining CLI paper cuts
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 - A missing-`main` error points at `math.bpl:0:0` instead of `1:1`.
 - `format` errors omit line/column; `bpl format missing.bpl` still logs
@@ -313,13 +314,14 @@ diagnostic with location and snippet), the `-` input name (`<stdin>` or
 and argument descriptions for `init`, `install` and `doctor`. "Formatted 1
 files" for a missing input no longer reproduces. Still open: `-e` running the
 program, `build -o X` writing `X.ll`, `check` on directories and stdin, and the
-duplicated `compileWithModules*`.
+duplicated `compileWithModules*` (merged into createModuleCompiler and
+finishModuleCompilation, batch 4).
 
 **Progress (2026-10-29, batch 3)**: `bpl check` expands directories like
 `format`/`lint` (empty → `BPL_CHECK_NO_INPUTS`). `-e` is documented as
 compiling (it prints IR; changing it to run would break the playground and 46
 test call sites). `build -o X` writing `X.ll` is by design: `bpl clean` owns it
-and `--json` reports its path. Still open: `check -` (stdin) and the
+and `--json` reports its path. Fixed in batch 4: `check -` (stdin, with --stdin-filepath) and the
 duplicated `compileWithModules*`.
 
 #### BUG-444: Project scaffolding gaps
@@ -373,7 +375,7 @@ the out-of-scope original name.
 
 #### BUG-447: Tests and the playground leak temporary files
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 - `playground/backend/engine.ts:51,112-160` keeps up to 16 `bpl-playground-*`
   directories for 10 minutes and has no exit handler;
@@ -384,6 +386,8 @@ the out-of-scope original name.
 - Six test files copy-paste `compileAndRun` (`Intrinsics`, `Stdlib`,
   `NullHandling`, `MatchComplex`, `GenericsConstraints`,
   `OperatorOverloadingUser`) instead of `tests/helpers/compileAndRun.ts`.
+
+**Resolution**: the playground engine removes its native binary cache on exit, and the server exits normally on SIGINT/SIGTERM (a contract-test run left three `bpl-playground-*` directories, now none). Web tests that need workspace packages create their sources under the gitignored `tests/.tmp/` (`tests/helpers/repoTempDir.ts`) instead of the repository root. The five copies of `compileAndRun` use the shared helper, which builds in the system temp directory. `WebHttpClientMethods` counts only its own requests: another local process occasionally sent `GET /` to its ephemeral port.
 
 #### BUG-448: CI does not check formatting; repository drifted
 
@@ -451,6 +455,8 @@ the `bin` from `src/cli.bpl` at install time instead of committing it.
   `generateFatPointerComparison`; the `TypeComparison` class
   (`TypeUtils.ts:464-857`) is used only by two tests and disagrees with
   `TypeCheckerBase`. Remove them and enable `noUnusedLocals`.
+  *Done:* dead code removed (compiler, fuzz, tools, playground, tests and the
+  language server) and `noUnusedLocals` enabled. `TypeComparison` remains.
 - Importing from `"std"` compiles the whole library (1112 functions, 82k IR lines
   vs 2.9k for `std/array.bpl`); prune unreferenced module functions.
   `emitReferencedDeferredMethods` (`CodeGenerator.ts:660`) rescans all output
@@ -507,13 +513,15 @@ with `double free detected`. Return `*Self` like `Queue`.
 
 #### BUG-456: Lock verification ignores nested `bpl_modules`/`node_modules` that are still loaded
 
-**Status**: Open · **Priority**: P1 (integrity)
+**Status**: Fixed · **Priority**: P1 (integrity)
 
 `sha256-tree-v2` (`PackageManager.ts:2563`) skips `bpl_modules`, `node_modules`,
 `.git` and `.bpl-cache` inside a package, but extraction installs them and the
 resolver loads a nested `bpl_modules/<dep>` (and `main`/`exports` may point into
 them). Editing such a file after install keeps `verifyLockFile()` at `ok: true`.
 Reject those members at any depth (and manifest paths into them), or hash them.
+
+**Resolution**: the portable tree hash now includes nested `bpl_modules` and `node_modules`; only `.git` and `.bpl-cache`, which are never loaded, are skipped. Editing a nested dependency after install fails `verifyLockFile()`. Lock entries for packages without nested trees keep their hash. `tests/PackageNestedModuleIntegrity.test.ts`.
 
 #### BUG-457: `JSON.parse<Array<string>>` misreads elements when the program uses `Array<string>` methods
 
@@ -585,7 +593,7 @@ the map helper because `std/string.bpl` imports `std/array.bpl`.
 
 #### BUG-462: Package installation hardening
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 - A bare dependency name is first resolved as a path in the current directory
   (`PackageManager.ts:3216/3713`): a file named `foo` was installed instead of
@@ -596,6 +604,8 @@ the map helper because `std/string.bpl` imports `std/array.bpl`.
 - Extraction has no size cap and root installs keep archive modes
   (`:3279/3281`); sum member sizes first and pass
   `--no-same-owner --no-same-permissions` (suspected).
+
+**Resolution**: only `file:` and path-like sources are files; a bare name resolves from the package cache, and `./foo` is recorded as `file:./foo` (it was `file:foo`, which then failed manifest validation). Legacy lock entries always fail verification until `bpl install --update`. Archives that decompress past 256 MiB are rejected before `tar` runs, and extraction passes `--no-same-owner --no-same-permissions`. Diagnostics no longer print a binary file as a source snippet. `tests/PackageInstallHardening.test.ts`.
 
 #### BUG-463: Router path parameters are not percent-decoded
 
@@ -635,6 +645,47 @@ bound-spec-method guard in #112.
 Supporting them would need overload-aware conformance, thunk names and vtable
 slots (thunks were named by method only and collided in IR). R-SPEC-1 states
 the rule. `tests/AuditCompilerFixes.test.ts`.
+
+#### BUG-471: Non-exhaustive enum matches accepted when an arm has a literal sub-pattern
+
+**Status**: Fixed · **Priority**: P1 (soundness)
+
+`match (m) { Message.Move(1, y) => y, Message.Quit => 0 }` passed the
+exhaustiveness check, so `Message.Move(5, 9)` matched no arm and the match
+silently produced 0. Any unguarded arm counted as covering its variant.
+Duplicate arms (`Color.Red => 1, Color.Red => 2`) were also accepted.
+
+A top-level identifier arm in an enum match (`other => 7`) was never
+selected either: codegen dispatches on the variant tag and only `_` became the
+default, so the value fell through to later arms.
+
+**Resolution**: exhaustiveness uses a pattern-matrix check, so arms cover a
+variant together (`Some(Ok(x))` and `Some(Err(e))` cover `Some`; `On(true)` and
+`On(false)` cover `On`) while `Move(1, y)` alone does not. An arm after an
+unguarded `_`, or after an arm whose sub-patterns are all bindings for the same
+variant, is rejected as unreachable. A top-level identifier arm in an enum match
+is rejected; use `_`. R-MATCH-3.
+`tests/AuditCompilerFixes.test.ts`, `tests/Enum.test.ts`.
+
+#### BUG-472: `bpl check` accepts code that only fails to build
+
+**Status**: Fixed · **Priority**: P2
+
+Found through test placeholders whose sources were never checked
+(`tsc --noUnusedLocals`):
+
+- `switch (x) { case y: ... }` with a variable `y` passed `bpl check` and failed
+  in code generation ("Switch case values must be literals").
+- `local m: Message = Message.Move;` for a tuple variant passed `bpl check` and
+  failed in code generation with "Enum variants with associated data are not
+  yet supported".
+
+**Resolution**: the checker rejects non-constant case values
+(`BPL_SWITCH_CASE_VALUE_NOT_CONSTANT`, R-CTRL-7) and data-carrying variants used
+without their data (`BPL_ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH` with a usage
+hint, R-ENUM-1); a variant name stays valid as a `switch` case label. Character
+case labels are now also checked for duplicates. The placeholders in
+`Enum`, `TypeChecker` and `TypeCheckerExtended` tests assert the behavior.
 
 ## Generated-program fuzzer findings (2026-10-29)
 

@@ -179,6 +179,10 @@ JSON-mode validation failures stay on stdout with `success: false`, `file`,
 - `BPL_DOCS_OUTPUT_PARENT_NOT_DIRECTORY`
 - `BPL_DOCS_FAILED`
 
+When `BPL_DOCS_FAILED` comes from a compiler diagnostic that has its own code
+(such as `BPL_SOURCE_COMPLEXITY_LIMIT`), that code is also reported as
+`diagnosticCode`.
+
 Reproduce the focused JSON contract with
 `bun test tests/CLI.test.ts -t "documentation generation success and validation failures as JSON"`.
 
@@ -578,7 +582,9 @@ use `BPL_LINT_PROCESSING_ERROR`; empty discovery uses `BPL_LINT_NO_INPUTS`.
 its `.bpl` and `.x` sources, honoring `.bplignore`. A directory with no sources
 reports `BPL_CHECK_NO_INPUTS`; a discovery failure (an unsupported
 `.bplignore` pattern or an unreadable directory) reports
-`BPL_CHECK_PROCESSING_ERROR`. Per-file check validation uses
+`BPL_CHECK_PROCESSING_ERROR`. `bpl check -` reads the source from standard
+input; `--stdin-filepath <path>` names it in diagnostics and resolves its
+relative imports. Per-file check validation uses
 `BPL_CHECK_INPUT_NOT_FOUND`, `BPL_CHECK_INPUT_SYMLINK`, and
 `BPL_CHECK_INPUT_NOT_FILE`. Per-file lint
 validation uses `BPL_LINT_INPUT_NOT_FOUND`, `BPL_LINT_INPUT_SYMLINK`, and
@@ -845,7 +851,8 @@ bun test tests/CLIJsonParseability.test.ts -t "ternary branch type mismatch"
 ```
 
 Switch mismatch failures use `BPL_SWITCH_VALUE_TYPE_MISMATCH` and
-`BPL_SWITCH_CASE_TYPE_MISMATCH`. This covers invalid switch value types and
+`BPL_SWITCH_CASE_TYPE_MISMATCH`; a case value that is not a literal or enum
+variant (such as `case y:`) reports `BPL_SWITCH_CASE_VALUE_NOT_CONSTANT`. This covers invalid switch value types and
 incompatible case pattern types. For example, switching on a `double` reports
 `Switch value must be an integer, string or enum type, got double` with the hint
 `Ensure the switch expression evaluates to an integer, string or enum.`, while

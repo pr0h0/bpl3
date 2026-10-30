@@ -1,9 +1,10 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createServer as tlsServer } from "node:tls";
 import { createServer as tcpServer } from "node:net";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 const openssl = spawnSync("openssl", ["version"], {
   encoding: "utf8",
@@ -22,7 +23,7 @@ test.skipIf(
 )(
   "native TLS verifies trust, DNS/IP identity and expiry, and bounds stalled handshakes",
   async () => {
-    const dir = mkdtempSync(resolve(".web-tls-test-"));
+    const dir = makeRepoTempDir("web-tls-test-");
     const servers: ReturnType<typeof tcpServer>[] = [];
     try {
       function command(args: string[]) {

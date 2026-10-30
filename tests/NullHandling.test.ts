@@ -1,41 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { spawnSync } from "child_process";
-import fs from "fs";
-import path from "path";
-
-const BPL_CLI = path.resolve(__dirname, "../index.ts");
-
-function compileAndRun(sourceCode: string) {
-  const tempFile = path.join(
-    __dirname,
-    `temp_${Math.random().toString(36).substring(7)}.bpl`,
-  );
-
-  try {
-    fs.writeFileSync(tempFile, sourceCode);
-
-    const result = spawnSync("bun", [BPL_CLI, "run", tempFile], {
-      encoding: "utf-8",
-      cwd: __dirname,
-    });
-
-    if (result.status !== 0) {
-      console.error("Compilation/Run failed:");
-      console.error(result.stderr);
-      console.error(result.stdout);
-      throw new Error(`BPL execution failed with code ${result.status}`);
-    }
-
-    return result.stdout;
-  } finally {
-    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-    const binFile = tempFile.replace(".bpl", "");
-    if (fs.existsSync(binFile)) fs.unlinkSync(binFile);
-    const llFile = tempFile.replace(".bpl", ".ll");
-    if (fs.existsSync(llFile)) fs.unlinkSync(llFile);
-  }
-}
-
+import { compileAndRun, compileAndRunFull } from "./helpers/compileAndRun";
 describe("Nullptr Handling", () => {
   test("Nullptr assignment and check", () => {
     const output = compileAndRun(`
@@ -81,33 +45,8 @@ describe("Nullptr Handling", () => {
       }
     `;
 
-    const tempFile = path.join(
-      __dirname,
-      `temp_${Math.random().toString(36).substring(7)}.bpl`,
-    );
-
-    try {
-      fs.writeFileSync(tempFile, source);
-
-      const result = spawnSync("bun", [BPL_CLI, "run", tempFile], {
-        encoding: "utf-8",
-        cwd: __dirname,
-      });
-
-      // We expect it to fail at runtime (or maybe compile time if smart enough, but likely runtime)
-      // If it returns 0, that's bad (silent failure or garbage data)
-      // If it returns non-zero, that's good (crash)
-
-      if (result.status === 0) {
-        console.log("Output:", result.stdout);
-        throw new Error("Expected crash but got success");
-      }
-    } finally {
-      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-      const binFile = tempFile.replace(".bpl", "");
-      if (fs.existsSync(binFile)) fs.unlinkSync(binFile);
-      const llFile = tempFile.replace(".bpl", ".ll");
-      if (fs.existsSync(llFile)) fs.unlinkSync(llFile);
-    }
+    // It must fail at runtime (or at compile time), never silently succeed.
+    const result = compileAndRunFull(source);
+    expect(result.exitCode, result.stdout).not.toBe(0);
   });
 });

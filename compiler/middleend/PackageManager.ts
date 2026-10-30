@@ -9,6 +9,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import * as zlib from "zlib";
 
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import { getPositiveIntegerEnv, TIMEOUT_ENV_DEFAULTS } from "../common/Env";
@@ -78,6 +79,108 @@ export function getPackageArchiveToolTimeoutMs(): number {
 }
 
 export { BPL_PACKAGE_SCHEMA_URI };
+
+/** Decompressed size cap for a package archive (tar stream, headers included). */
+const PACKAGE_ARCHIVE_MAX_UNPACKED_BYTES = 256 * 1024 * 1024;
+
+/**
+ * Parse PAX extended-header records (`<length> <key>=<value>\n`) by their
+ * declared byte lengths, so a value containing newlines cannot pose as a
+ * record. Returns undefined when the block is malformed.
+ */
+function parsePaxRecords(data: Buffer): string[] | undefined {
+  const keys: string[] = [];
+  let pos = 0;
+  while (pos < data.length) {
+    if (data[pos] === 0) break; // padding
+    const space = data.indexOf(0x20, pos);
+    if (space === -1) return undefined;
+    const lengthText = data.subarray(pos, space).toString("ascii");
+    if (!/^[1-9]\d*$/.test(lengthText)) return undefined;
+    const length = Number(lengthText);
+    const record = data.subarray(pos, pos + length);
+    if (record.length !== length || record[length - 1] !== 0x0a) return undefined;
+    const equals = record.indexOf(0x3d, space - pos + 1);
+    if (equals === -1) return undefined;
+    keys.push(record.subarray(space - pos + 1, equals).toString("utf8"));
+    pos += length;
+  }
+  return keys;
+}
+
+/**
+ * Walk an uncompressed tar stream and describe the first member that is not a
+ * plain file, directory or metadata header, or whose size exceeds `maxBytes`.
+ * Sparse members (GNU `S`, PAX `GNU.sparse.*`, `SCHILY.realsize`,
+ * `SUN.holesdata`) are rejected. PAX `size` records are rejected too: `bpl
+ * pack` never writes them, and tar implementations disagree on how they move
+ * the next header (global records persist in GNU tar, libarchive ignores
+ * them), so only the ustar header sizes are trusted.
+ */
+function findUnsupportedTarMember(
+  tar: Buffer,
+  maxBytes: number,
+): string | undefined {
+  const field = (block: number, start: number, length: number) => {
+    const raw = tar.subarray(block + start, block + start + length);
+    const end = raw.indexOf(0);
+    return raw.subarray(0, end === -1 ? raw.length : end).toString("utf8");
+  };
+  const parseSize = (block: number): number => {
+    const raw = tar.subarray(block + 124, block + 136);
+    if (raw[0]! & 0x80) return Number.POSITIVE_INFINITY; // base-256: huge
+    const text = field(block, 124, 12).trim();
+    if (text === "") return 0;
+    return /^[0-7]+$/.test(text) ? parseInt(text, 8) : NaN;
+  };
+  // `0`/NUL files, `5` directories, `x`/`g` PAX and `L` GNU long names.
+  // Links (`1`, `2`, `K`) are left to validatePackageArchiveEntryTypes, which
+  // reports them with dedicated messages.
+  const allowed = new Set(["0", "\0", "", "5", "x", "g", "L", "1", "2", "K"]);
+  const sparseKey = (key: string) =>
+    key.startsWith("GNU.sparse") ||
+    key === "SCHILY.realsize" ||
+    key === "SUN.holesdata";
+  for (let offset = 0; offset + 512 <= tar.length; ) {
+    if (tar.subarray(offset, offset + 512).every((byte) => byte === 0)) break;
+    const type = String.fromCharCode(tar[offset + 156]!);
+    const name = field(offset, 0, 100) || "member";
+    const size = parseSize(offset);
+    if (!Number.isFinite(size)) return `${name} (invalid size)`;
+    if (type === "S") return `${name} (sparse file)`;
+    if (!allowed.has(type)) return `${name} (entry type '${type}')`;
+    if (size > maxBytes) return `${name} (larger than ${maxBytes} bytes)`;
+    // tar ignores the size of directories and links; a nonzero one would
+    // make this walk skip headers that tar still extracts.
+    if ((type === "5" || type === "1" || type === "2") && size !== 0)
+      return `${name} (nonzero size for entry type '${type}')`;
+    if (type === "x" || type === "g") {
+      const keys = parsePaxRecords(
+        tar.subarray(offset + 512, offset + 512 + size),
+      );
+      if (!keys) return `${name} (malformed extended header)`;
+      if (keys.some(sparseKey)) return `${name} (sparse file)`;
+      if (keys.includes("size")) return `${name} (extended size record)`;
+    }
+    offset += 512 + Math.ceil(size / 512) * 512;
+  }
+  return undefined;
+}
+
+/** Extraction never applies archive owners or modes, even when run as root. */
+function packageExtractArgs(tarballPath: string, targetDir: string): string[] {
+  return [
+    "-xzf",
+    tarballPath,
+    "--no-same-owner",
+    "--no-same-permissions",
+    "-C",
+    targetDir,
+  ];
+}
+
+const LEGACY_LOCK_HASH_MESSAGE =
+  "bpl.lock entry uses the legacy content hash, which does not cover every package file; run `bpl install --update` to refresh it";
 
 export const PACKAGE_INIT_NAME_INVALID_CODE =
   "BPL_PACKAGE_INIT_NAME_INVALID";
@@ -1270,8 +1373,23 @@ export class PackageManager {
         });
       }
 
-      const actualHash = this.calculatePackageHash(installPath, entry.hashAlgorithm === "sha256-tree-v2");
-      if (actualHash !== entry.hash) {
+      // Legacy entries (no hashAlgorithm) hash only some files and miss
+      // `.x` and native sources, so they cannot verify an install (BUG-462).
+      const actualHash =
+        entry.hashAlgorithm === "sha256-tree-v2"
+          ? this.calculatePackageHash(installPath, true)
+          : undefined;
+      if (actualHash === undefined) {
+        addIssue({
+          packageName,
+          kind: "hash-mismatch",
+          message: `${packageName}: ${LEGACY_LOCK_HASH_MESSAGE}`,
+          packagePath: installPath,
+          source: entry.source,
+          expectedVersion: entry.version,
+          expectedHash: entry.hash,
+        });
+      } else if (actualHash !== entry.hash) {
         addIssue({
           packageName,
           kind: "hash-mismatch",
@@ -1875,7 +1993,10 @@ export class PackageManager {
       .relative(this.projectRoot, filePath)
       .split(path.sep)
       .join("/");
-    return `file:${relativePath || path.basename(filePath)}`;
+    // `file:lib` would read as a package name; keep `./` so the recorded
+    // source stays a path (`file:./lib`).
+    const source = relativePath || path.basename(filePath);
+    return `file:${isPackageFileSource(source) ? source : `./${source}`}`;
   }
 
   private resolveDependencyFileSource(baseDir: string, fileSource: string): string {
@@ -2565,7 +2686,10 @@ export class PackageManager {
 
   private calculatePortablePackageHash(packageDir: string): string {
     const entries: { relative: string; file: string; kind: string }[] = [];
-    const excluded = new Set([".git", "node_modules", "bpl_modules", ".bpl-cache"]);
+    // Nested bpl_modules/node_modules are hashed: the resolver loads a
+    // package's own bpl_modules/<dep>, so editing one must fail verification
+    // (BUG-456). .git and the compiler cache are never loaded.
+    const excluded = new Set([".git", ".bpl-cache"]);
     const visit = (directory: string, prefix: string): void => {
       for (const name of fs.readdirSync(directory)) {
         if (excluded.has(name)) continue;
@@ -3211,14 +3335,17 @@ export class PackageManager {
     let tarballPath: string;
     let lockSource = sourceContext.lockSource ?? packageSource;
 
-    // Check if source is a file path or package name
+    // Only `file:` sources and path-like sources (`./x`, `a/b`, `x.tgz`,
+    // absolute paths) are files; a bare name such as `foo` always resolves
+    // from the package cache, even if the current directory has a file
+    // named `foo` (BUG-462).
     const directFileSource = this.stripPackageFileSourcePrefix(packageSource);
-    const directPackageSource =
-      packageSource.startsWith("file:") ||
-      isPackageFileSource(directFileSource)
-        ? this.resolveDependencyFileSource(this.projectRoot, directFileSource)
-        : packageSource;
-    if (this.tryLstat(directPackageSource)) {
+    const isFileSource =
+      packageSource.startsWith("file:") || isPackageFileSource(directFileSource);
+    const directPackageSource = isFileSource
+      ? this.resolveDependencyFileSource(this.projectRoot, directFileSource)
+      : packageSource;
+    if (isFileSource && this.tryLstat(directPackageSource)) {
       tarballPath = directPackageSource;
       if (!sourceContext.lockSource && directPackageSource !== packageSource) {
         lockSource = this.formatDirectPackageFileLockSource(packageSource);
@@ -3283,7 +3410,7 @@ export class PackageManager {
       const archiveTool = getPackageArchiveTool();
       const extractResult = spawnSync(
         archiveTool,
-        ["-xzf", tarballPath, "-C", tempDir],
+        packageExtractArgs(tarballPath, tempDir),
         {
           stdio: options.verbose ? "inherit" : "pipe",
           timeout: getPackageArchiveToolTimeoutMs(),
@@ -3368,12 +3495,19 @@ export class PackageManager {
       }
 
       if (expectedEntry) {
-        const actualHash = this.calculatePackageHash(packageDir, expectedEntry.hashAlgorithm === "sha256-tree-v2");
-        if (manifest.version !== expectedEntry.version || actualHash !== expectedEntry.hash) {
+        const legacy = expectedEntry.hashAlgorithm !== "sha256-tree-v2";
+        const actualHash = this.calculatePackageHash(packageDir, true);
+        if (
+          legacy ||
+          manifest.version !== expectedEntry.version ||
+          actualHash !== expectedEntry.hash
+        ) {
           const issue: PackageLockVerificationIssue = {
             packageName: manifest.name,
             kind: manifest.version !== expectedEntry.version ? "version-mismatch" : "hash-mismatch",
-            message: `${manifest.name}: restored package does not match bpl.lock version/content hash`,
+            message: legacy
+              ? `${manifest.name}: ${LEGACY_LOCK_HASH_MESSAGE}`
+              : `${manifest.name}: restored package does not match bpl.lock version/content hash`,
             expectedVersion: expectedEntry.version,
             actualVersion: manifest.version,
             expectedHash: expectedEntry.hash,
@@ -3496,10 +3630,7 @@ export class PackageManager {
       return;
     }
     const spec = archivePath
-      ? `file:${path
-          .relative(this.projectRoot, path.resolve(archivePath))
-          .split(path.sep)
-          .join("/")}`
+      ? this.formatFileLockSource(path.resolve(archivePath))
       : manifest.version;
     projectManifest.dependencies = {
       ...(projectManifest.dependencies ?? {}),
@@ -3754,7 +3885,11 @@ export class PackageManager {
 
   private inferExpectedPackageName(packageSource: string): string | undefined {
     const fileSource = this.stripPackageFileSourcePrefix(packageSource);
-    if (fs.existsSync(fileSource)) return undefined;
+    if (
+      (packageSource.startsWith("file:") || isPackageFileSource(fileSource)) &&
+      fs.existsSync(fileSource)
+    )
+      return undefined;
     if (!packageSource.startsWith("file:")) {
       const installSpec = parsePackageInstallSpec(packageSource);
       if (installSpec) return installSpec.name;
@@ -4108,6 +4243,37 @@ export class PackageManager {
   }
 
   private validatePackageArchiveMembers(tarballPath: string): void {
+    // Reject decompression bombs before tar writes anything (BUG-462).
+    let tarStream: Buffer;
+    try {
+      tarStream = zlib.gunzipSync(fs.readFileSync(tarballPath), {
+        maxOutputLength: PACKAGE_ARCHIVE_MAX_UNPACKED_BYTES,
+      });
+    } catch (error) {
+      const tooLarge =
+        error instanceof RangeError ||
+        (error as NodeJS.ErrnoException).code === "ERR_BUFFER_TOO_LARGE";
+      throw new CompilerError(
+        tooLarge
+          ? `Package archive expands to more than ${PACKAGE_ARCHIVE_MAX_UNPACKED_BYTES / (1024 * 1024)} MiB`
+          : `Failed to inspect package archive: ${error instanceof Error ? error.message : String(error)}`,
+        "Package archives must be gzip-compressed tarballs created by 'bpl pack'.",
+        { file: tarballPath, startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+      );
+    }
+    // A sparse member stores less than its logical size, so the stream cap
+    // does not bound what tar writes; reject it and unusual member types.
+    const unsupported = findUnsupportedTarMember(
+      tarStream,
+      PACKAGE_ARCHIVE_MAX_UNPACKED_BYTES,
+    );
+    if (unsupported) {
+      throw new CompilerError(
+        `Unsupported package archive member: ${unsupported}`,
+        "Package archives may only contain regular files and directories created by 'bpl pack'.",
+        { file: tarballPath, startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+      );
+    }
     const archiveTool = getPackageArchiveTool();
     this.validatePackageArchiveEntryTypes(archiveTool, tarballPath);
 
@@ -4842,7 +5008,7 @@ export class PackageManager {
         const archiveTool = getPackageArchiveTool();
         const extractResult = spawnSync(
           archiveTool,
-          ["-xzf", entry.path, "-C", tempDir],
+          packageExtractArgs(entry.path, tempDir),
           { stdio: "pipe", timeout: getPackageArchiveToolTimeoutMs() },
         );
 
@@ -4962,7 +5128,7 @@ export class PackageManager {
         const archiveTool = getPackageArchiveTool();
         const extractResult = spawnSync(
           archiveTool,
-          ["-xzf", entry.path, "-C", tempDir],
+          packageExtractArgs(entry.path, tempDir),
           { stdio: "pipe", timeout: getPackageArchiveToolTimeoutMs() },
         );
 

@@ -93,3 +93,6 @@ tests/temp_*
 
 # Local audit reports
 /docs/audits/
+
+# Scratch directories for tests that must resolve workspace packages
+tests/.tmp/

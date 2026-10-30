@@ -1,12 +1,10 @@
 import { spawnSync } from "child_process";
 import {
   existsSync,
-  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
-  type Stats,
   writeFileSync,
 } from "fs";
 import { tmpdir } from "os";
@@ -2158,22 +2156,6 @@ function inputFromCrashMetadata(
 
 function readCrashMetadata(metadataPath: string): CrashMetadata {
   return JSON.parse(readFileSync(metadataPath, "utf8")) as CrashMetadata;
-}
-
-function tryLstat(filePath: string): Stats | null {
-  try {
-    return lstatSync(filePath);
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      (error.code === "ENOENT" || error.code === "ENOTDIR")
-    ) {
-      return null;
-    }
-    throw error;
-  }
 }
 
 function resolveCrashSourcePath(

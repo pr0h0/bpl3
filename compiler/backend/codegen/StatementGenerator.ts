@@ -2181,14 +2181,14 @@ export abstract class StatementGenerator extends AsmGenerator {
 
               // Emit llvm.dbg.declare
               // call void @llvm.dbg.declare(metadata i32* %a.addr, metadata !12, metadata !DIExpression()), !dbg !14
-              const _locId = this.debugInfoGenerator.createLocation(
+              const locId = this.debugInfoGenerator.createLocation(
                 decl.location.startLine,
                 decl.location.startColumn,
                 this.currentSubprogramId,
               );
 
               this.emit(
-                `  call void @llvm.dbg.declare(metadata ${targetType}* ${addr}, metadata !${varId}, metadata !DIExpression())`,
+                `  call void @llvm.dbg.declare(metadata ${targetType}* ${addr}, metadata !${varId}, metadata !DIExpression()), !dbg !${locId}`,
               );
             }
 
@@ -2253,14 +2253,14 @@ export abstract class StatementGenerator extends AsmGenerator {
           this.currentSubprogramId,
         );
 
-        const _locId = this.debugInfoGenerator.createLocation(
+        const locId = this.debugInfoGenerator.createLocation(
           decl.location.startLine,
           decl.location.startColumn,
           this.currentSubprogramId,
         );
 
         this.emit(
-          `  call void @llvm.dbg.declare(metadata ${type}* ${addr}, metadata !${varId}, metadata !DIExpression())`,
+          `  call void @llvm.dbg.declare(metadata ${type}* ${addr}, metadata !${varId}, metadata !DIExpression()), !dbg !${locId}`,
         );
       }
     }

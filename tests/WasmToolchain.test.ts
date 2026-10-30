@@ -4,7 +4,6 @@ import * as os from "os";
 import * as path from "path";
 
 import {
-  DEFAULT_WASM_LINKER_CANDIDATES,
   findWasmLinker,
   formatOptionalWasmRuntimeSkipMessage,
   formatRequiredWasmLinkerError,

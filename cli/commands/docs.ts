@@ -113,6 +113,11 @@ export function registerDocsCommand(program: Command): void {
               outputPath,
               error: message,
               errorCode: getDocsErrorCode(baseMessage),
+              // errorCode stays within the documented BPL_DOCS_* set; a
+              // compiler error's own code is reported alongside it.
+              ...(error instanceof CompilerError && error.code
+                ? { diagnosticCode: error.code }
+                : {}),
             }),
           );
           process.exit(1);

@@ -166,7 +166,6 @@ export class CodeGenerator extends StatementGenerator {
     if (this.generateDwarf) {
       this.debugInfoGenerator = new DebugInfoGenerator(
         filePath || "unknown.bpl",
-        ".",
         this.target,
       );
       this.debugInfoGenerator.createCompileUnit();

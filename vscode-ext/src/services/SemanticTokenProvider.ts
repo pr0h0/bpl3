@@ -712,7 +712,6 @@ export class SemanticTokenProvider {
 
     // Highlight enum name and variant name separately
     // Format: EnumName.VariantName { ... }
-    const _fullText = `${node.enumName}.${node.variantName}`;
     const enumEndCol = node.location.startColumn - 1 + node.enumName.length;
     const variantStartCol = enumEndCol + 1; // +1 for the dot
 

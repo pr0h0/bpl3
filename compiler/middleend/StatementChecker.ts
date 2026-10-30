@@ -4,6 +4,7 @@
  */
 
 import * as AST from "../common/AST";
+import { ENUM_VARIANT_LABELS } from "./CallChecker";
 import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
 import { INTEGER_TYPES, TypeUtils } from "./TypeUtils";
 import {
@@ -25,6 +26,7 @@ import {
   RETURN_TYPE_MISMATCH_CODE,
   RETURN_ARRAY_VIEW_ESCAPES_CODE,
   SWITCH_CASE_TYPE_MISMATCH_CODE,
+  SWITCH_CASE_VALUE_NOT_CONSTANT_CODE,
   SWITCH_VALUE_TYPE_MISMATCH_CODE,
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
   VARIABLE_REDECLARATION_CODE,
@@ -1066,6 +1068,7 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
         written.kind === "Member" && written.object.kind === "Identifier"
           ? `${written.object.name}.${written.property}`
           : undefined;
+      ENUM_VARIANT_LABELS.add(caseItem.value);
       const patternType = this.checkExpression(caseItem.value);
       if (
         patternType &&
@@ -1115,10 +1118,25 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
         valStr = constVal.toString();
       }
 
+      // Other literals (such as characters) are constants too.
+      if (valStr === undefined && caseItem.value.kind === "Literal") {
+        const literal = caseItem.value as AST.LiteralExpr;
+        valStr = `${literal.type}:${literal.raw ?? String(literal.value)}`;
+      }
+      // Code generation needs a constant per case; `case y:` with a
+      // variable passed checking and failed only when building.
+      if (valStr === undefined) {
+        throw new CompilerError(
+          "Switch case values must be constants",
+          "Use a literal (optionally negated) or an enum variant. Compare other values with if/else.",
+          caseItem.value.location,
+          SWITCH_CASE_VALUE_NOT_CONSTANT_CODE,
+        );
+      }
       if (valStr !== undefined) {
         if (seenValues.has(valStr)) {
           throw new CompilerError(
-            `Duplicate case value '${writtenLabel ?? valStr}'`,
+            `Duplicate case value '${writtenLabel ?? valStr.replace(/^char:/, "")}'`,
             "Switch cases must have unique values.",
             caseItem.value.location,
           );

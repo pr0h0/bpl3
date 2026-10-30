@@ -3,10 +3,11 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { makeRepoTempDir } from "./repoTempDir";
 
 export function native(source: string, flags: string[] = []) {
   // Keep the source in the repository so workspace package resolution is exercised.
-  const dir = mkdtempSync(resolve(".web-package-test-"));
+  const dir = makeRepoTempDir("web-package-test-");
   // Build outside the checkout (it may be mounted noexec); the directory also
   // holds the .ll written beside the executable, so removing it cleans both.
   const outDir = mkdtempSync(join(tmpdir(), "bpl-web-"));

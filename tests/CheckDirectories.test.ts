@@ -68,3 +68,41 @@ test("check expands directories and honors .bplignore", () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("check reads `-` from standard input", () => {
+  const run = (args: string[], input: string) =>
+    Bun.spawnSync([process.execPath, resolve("index.ts"), "check", ...args], {
+      env: { ...process.env, NO_COLOR: "1" },
+      stdin: new TextEncoder().encode(input),
+    });
+  const ok = run(
+    ["--stdin-filepath", "app.bpl", "-"],
+    "frame main() ret int { return 0; }\n",
+  );
+  expect(ok.exitCode).toBe(0);
+  expect(ok.stdout.toString()).toContain("✓ app.bpl");
+  const bad = run(["-"], "frame main() ret int { return missing; }\n");
+  expect(bad.exitCode).toBe(1);
+  expect(bad.stderr.toString()).toContain(
+    "error[BPL_SYMBOL_NOT_FOUND][stdin.bpl:1:31]",
+  );
+
+  // Snippets come from standard input, not from the file that
+  // --stdin-filepath names.
+  const dir = mkdtempSync(join(tmpdir(), "bpl-check-stdin-"));
+  try {
+    const named = join(dir, "named.bpl");
+    writeFileSync(named, "frame main() ret int { return 0; }\n");
+    const source = "frame main() ret int {\n    return missing;\n}\n";
+    const human = run(["--stdin-filepath", named, "-"], source);
+    expect(human.stderr.toString()).toContain("2 |     return missing;");
+    const json = JSON.parse(
+      run(["--json", "--stdin-filepath", named, "-"], source).stdout.toString(),
+    );
+    expect(json.files[0].diagnostics[0].source.preview).toBe(
+      "    return missing;",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

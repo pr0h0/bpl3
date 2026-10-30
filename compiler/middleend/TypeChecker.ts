@@ -3144,33 +3144,79 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       return;
     }
 
+    // Sub-patterns that always match: `Move(x, _)` covers Move, but
+    // `Move(1, y)` alone does not.
+    const irrefutable = (pattern: AST.Pattern): boolean =>
+      pattern.kind === "PatternWildcard" ||
+      pattern.kind === "PatternIdentifier" ||
+      (pattern.kind === "PatternTuple" && pattern.patterns.every(irrefutable));
+
     const coveredVariants = new Set<string>();
     let hasWildcard = false;
 
-    for (const arm of expr.arms) {
-      if (arm.pattern.kind === "PatternWildcard") {
-        // Wildcard covers everything, but only if it's unguarded
-        if (!arm.guard) {
-          hasWildcard = true;
-          break;
-        }
-      } else if (
-        arm.pattern.kind === "PatternEnum" ||
-        arm.pattern.kind === "PatternEnumTuple" ||
-        arm.pattern.kind === "PatternEnumStruct"
-      ) {
-        // A variant is only covered if the arm is unguarded
-        if (!arm.guard) {
-          coveredVariants.add(arm.pattern.variantName);
+    for (let armIndex = 0; armIndex < expr.arms.length; armIndex++) {
+      const arm = expr.arms[armIndex]!;
+      const pattern = arm.pattern;
+      const variant =
+        pattern.kind === "PatternEnum" ||
+        pattern.kind === "PatternEnumTuple" ||
+        pattern.kind === "PatternEnumStruct"
+          ? pattern.variantName
+          : undefined;
+      // An arm after an unguarded `_`, or after an arm that already matches
+      // every value of its variant, can never be selected.
+      if (hasWildcard || (variant && coveredVariants.has(variant))) {
+        throw new CompilerError(
+          variant && !hasWildcard
+            ? `Unreachable match arm: variant '${variant}' is already matched by earlier arms`
+            : "Unreachable match arm: an earlier '_' arm matches every value",
+          "Remove the arm, or move it before the arm that already matches its values.",
+          pattern.location ?? arm.location,
+          MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
+        );
+      }
+      // Guarded arms cover nothing.
+      if (arm.guard) continue;
+      if (pattern.kind === "PatternWildcard") {
+        hasWildcard = true;
+      } else if (variant) {
+        // Covered by this arm alone, or together with earlier unguarded
+        // arms (`On(true)` then `On(false)`): later arms for it are dead.
+        const enumVariant = enumDecl.variants.find((v) => v.name === variant);
+        if (
+          pattern.kind !== "PatternEnumTuple" ||
+          pattern.bindings.every(irrefutable) ||
+          (enumVariant !== undefined &&
+            this.patternRowsExhaustive(
+              this.specializeEnumRows(
+                expr.arms
+                  .slice(0, armIndex + 1)
+                  .filter((candidate) => !candidate.guard)
+                  .map((candidate) => [candidate.pattern]),
+                enumVariant,
+              ),
+            ))
+        ) {
+          coveredVariants.add(variant);
         }
       }
     }
 
     if (!hasWildcard) {
-      const allVariants = new Set(enumDecl.variants.map((v) => v.name));
-      const missingVariants = [...allVariants].filter(
-        (v) => !coveredVariants.has(v),
-      );
+      // Arms may cover a variant together: `Some(Ok(x))` and `Some(Err(e))`
+      // cover `Some`, while `Move(1, y)` alone does not cover `Move`.
+      const rows = expr.arms
+        .filter((arm) => !arm.guard)
+        .map((arm) => [arm.pattern]);
+      const missingVariants = enumDecl.variants
+        .filter(
+          (v) =>
+            !coveredVariants.has(v.name) &&
+            !this.patternRowsExhaustive(
+              this.specializeEnumRows(rows, v),
+            ),
+        )
+        .map((v) => v.name);
 
       if (missingVariants.length > 0) {
         throw new CompilerError(
@@ -3181,6 +3227,123 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         );
       }
     }
+  }
+
+  /** Rows whose first pattern can match variant `v`, with its payload expanded. */
+  private specializeEnumRows(
+    rows: AST.Pattern[][],
+    variant: AST.EnumVariant,
+  ): AST.Pattern[][] {
+    const arity =
+      variant.dataType?.kind === "EnumVariantTuple"
+        ? variant.dataType.types.length
+        : 0;
+    const wildcard: AST.Pattern = {
+      kind: "PatternWildcard",
+      location: variant.location,
+    };
+    const specialized: AST.Pattern[][] = [];
+    for (const row of rows) {
+      const head = row[0]!;
+      const rest = row.slice(1);
+      if (head.kind === "PatternWildcard" || head.kind === "PatternIdentifier") {
+        specialized.push([...Array<AST.Pattern>(arity).fill(wildcard), ...rest]);
+      } else if (
+        (head.kind === "PatternEnum" ||
+          head.kind === "PatternEnumTuple" ||
+          head.kind === "PatternEnumStruct") &&
+        head.variantName === variant.name
+      ) {
+        // Struct variant patterns only bind fields, so they match every value.
+        specialized.push([
+          ...(head.kind === "PatternEnumTuple"
+            ? head.bindings
+            : Array<AST.Pattern>(arity).fill(wildcard)),
+          ...rest,
+        ]);
+      }
+    }
+    return specialized;
+  }
+
+  /**
+   * Whether the rows of patterns match every value (standard pattern-matrix
+   * exhaustiveness). Enum and tuple columns are split by constructor and bool
+   * literals by value; other literal columns need a binding or `_`.
+   */
+  private patternRowsExhaustive(rows: AST.Pattern[][]): boolean {
+    if (rows.length === 0) return false;
+    if (rows[0]!.length === 0) return true;
+    const isWildcard = (pattern: AST.Pattern) =>
+      pattern.kind === "PatternWildcard" || pattern.kind === "PatternIdentifier";
+    const irrefutable = (pattern: AST.Pattern): boolean =>
+      isWildcard(pattern) ||
+      (pattern.kind === "PatternTuple" && pattern.patterns.every(irrefutable));
+    // A row that matches everything settles it; without this, splitting on
+    // other rows' literals is exponential in the number of columns.
+    if (rows.some((row) => row.every(irrefutable))) return true;
+    const column = rows.map((row) => row[0]!);
+    const rest = (row: AST.Pattern[]) => row.slice(1);
+
+    const enumPattern = column.find(
+      (pattern) =>
+        (pattern.kind === "PatternEnum" ||
+          pattern.kind === "PatternEnumTuple" ||
+          pattern.kind === "PatternEnumStruct") &&
+        pattern.resolvedEnum,
+    ) as AST.PatternEnum | undefined;
+    if (enumPattern?.resolvedEnum) {
+      return enumPattern.resolvedEnum.variants.every((variant) =>
+        this.patternRowsExhaustive(this.specializeEnumRows(rows, variant)),
+      );
+    }
+
+    const tuplePattern = column.find(
+      (pattern) => pattern.kind === "PatternTuple",
+    ) as AST.PatternTuple | undefined;
+    if (tuplePattern) {
+      const arity = tuplePattern.patterns.length;
+      const wildcard: AST.Pattern = {
+        kind: "PatternWildcard",
+        location: tuplePattern.location,
+      };
+      return this.patternRowsExhaustive(
+        rows.flatMap((row) => {
+          const head = row[0]!;
+          if (head.kind === "PatternTuple")
+            return [[...head.patterns, ...rest(row)]];
+          if (isWildcard(head))
+            return [[...Array<AST.Pattern>(arity).fill(wildcard), ...rest(row)]];
+          return [];
+        }),
+      );
+    }
+
+    const boolValues = new Set(
+      column.flatMap((pattern) =>
+        pattern.kind === "PatternLiteral" &&
+        typeof pattern.value.value === "boolean"
+          ? [pattern.value.value]
+          : [],
+      ),
+    );
+    if (boolValues.size > 0) {
+      return [true, false].every((value) =>
+        this.patternRowsExhaustive(
+          rows.flatMap((row) => {
+            const head = row[0]!;
+            return isWildcard(head) ||
+              (head.kind === "PatternLiteral" && head.value.value === value)
+              ? [rest(row)]
+              : [];
+          }),
+        ),
+      );
+    }
+
+    return this.patternRowsExhaustive(
+      rows.filter((row) => isWildcard(row[0]!)).map(rest),
+    );
   }
 
   private isNonEnumMatchExhaustive(
@@ -3440,6 +3603,26 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         'Use literals (5, "text"), identifiers (x), or Type(variable) patterns.',
         pattern.location,
       );
+    }
+
+    // Enum matches dispatch on the variant tag; a top-level identifier arm
+    // was never selected (the value silently fell through to later arms).
+    if (enumDecl && pattern.kind === "PatternIdentifier") {
+      throw new CompilerError(
+        `An enum match cannot bind the whole value to '${pattern.name}'`,
+        "Use '_' for the remaining variants and refer to the matched value directly.",
+        pattern.location,
+        MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
+      );
+    }
+
+    if (
+      enumDecl &&
+      (pattern.kind === "PatternEnum" ||
+        pattern.kind === "PatternEnumTuple" ||
+        pattern.kind === "PatternEnumStruct")
+    ) {
+      pattern.resolvedEnum = enumDecl;
     }
 
     // Handle enum patterns (enumDecl is defined)

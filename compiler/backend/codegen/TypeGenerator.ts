@@ -2149,20 +2149,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
       for (const method of methods) {
         // If method is not generic, generate it now (monomorphized)
         if (method.genericParams.length === 0) {
-          // Pre-calculate mangled name and mark as defined to prevent redundant declarations
-          const funcType = method.resolvedType as AST.FunctionTypeNode;
-          const substitutedFuncType = this.substituteType(
-            funcType,
-            typeMap,
-          ) as AST.FunctionTypeNode;
           const methodName = `${mangledName}_${method.name}`;
-          const _fullMangledName = this.getMangledName(
-            methodName,
-            substitutedFuncType,
-            false,
-            [],
-          );
-          // this.definedFunctions.add(fullMangledName); // Removed to allow generation
 
           const generate = () => {
             const prevMap = this.currentTypeMap;

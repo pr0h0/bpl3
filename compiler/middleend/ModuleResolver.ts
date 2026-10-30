@@ -633,64 +633,6 @@ export class ModuleResolver {
   }
 
   /**
-   * Topological sort of modules based on dependencies
-   * Returns modules in order they should be type-checked
-   * @internal Reserved for future use
-   */
-  private _topologicalSort(entryPoint: string): string[] {
-    const sorted: string[] = [];
-    const visited = new Set<string>();
-    const visiting = new Set<string>();
-
-    const visit = (modulePath: string, importLocation?: SourceLocation) => {
-      if (visited.has(modulePath)) return;
-
-      if (visiting.has(modulePath)) {
-        throw new CompilerError(
-          `Circular dependency detected involving: ${modulePath}`,
-          "Refactor code to avoid circular imports.",
-          importLocation ?? {
-            file: modulePath,
-            startLine: 1,
-            startColumn: 1,
-            endLine: 1,
-            endColumn: 1,
-          },
-        );
-      }
-
-      visiting.add(modulePath);
-
-      const module = this.modules.get(modulePath);
-      if (!module) {
-        throw new CompilerError(
-          `Module not found in cache: ${modulePath}`,
-          "Internal compiler error: module missing from cache during sort.",
-          {
-            file: modulePath,
-            startLine: 0,
-            startColumn: 0,
-            endLine: 0,
-            endColumn: 0,
-          },
-        );
-      }
-
-      // Visit dependencies first
-      for (const dep of module.dependencies) {
-        visit(dep, module.dependencyLocations?.get(dep));
-      }
-
-      visiting.delete(modulePath);
-      visited.add(modulePath);
-      sorted.push(modulePath);
-    };
-
-    visit(entryPoint);
-    return sorted;
-  }
-
-  /**
    * Resolve all modules starting from entry point
    * Returns modules in dependency order
    */

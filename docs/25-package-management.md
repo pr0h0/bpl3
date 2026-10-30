@@ -159,6 +159,15 @@ version, source archive, and content hash, and adds the package to the
 project's `bpl.json` dependencies (`"my-package": "file:../path/to/my-package-0.1.0.tgz"`,
 or the version for a globally installed package) unless it is already listed,
 so `bpl lock` and `bpl install --locked` keep it.
+A source is a file only when it is path-like: `file:...`, a relative path
+starting with `.`, a path containing `/` or `\`, an absolute path, or a name
+ending in `.tgz`. A bare name such as `bpl install foo` always resolves from the
+package cache, even if the current directory contains a file named `foo`; use
+`./foo` to install that file (recorded as `file:./foo`).
+Before extraction, an archive must decompress to at most 256 MiB, and every
+member must be a regular file, directory or link (sparse files, devices and PAX
+`size` overrides, which `bpl pack` never writes, are rejected). Extraction
+never applies the archive's owners or permission bits beyond your umask.
 Direct `bpl install` archive paths and manifest `file:` sources both accept `/`
 and `\` as path separators. Existing archives are resolved relative to the
 project or declaring package directory and lockfile sources are recorded with
@@ -259,7 +268,9 @@ bpl install --locked
 `bpl_modules/<package>` is a symlink or non-directory, if the installed manifest
 declares a different name or version than the lock entry, if the recorded source
 archive is missing, a symlink, or reachable only through a symlinked parent
-directory, or if its source hash no longer matches the lockfile. Missing
+directory, or if its source hash no longer matches the lockfile. The content
+hash covers every installed file, including a package's nested `bpl_modules`
+and `node_modules`; only `.git` and `.bpl-cache` are skipped. Missing
 `bpl_modules` roots still report package-missing issues for locked entries;
 symlinked roots are rejected before any locked package manifest or file content
 is read through the link. It also checks installed package manifests for missing
@@ -1085,10 +1096,11 @@ metadata alone does not satisfy the package's source-file requirement.
 Listing and provenance `packageHash` values cover the selected entry source even
 when it has no `.bpl` suffix. These legacy hashes continue to omit automatically
 selected documentation; portable `sha256-tree-v2` lock hashes cover all installed
-files. A historical legacy lock whose hash omitted an existing non-`.bpl` entry
-can now report a hash mismatch. Review the package source, then use an explicit
-`bpl install --update` to record a portable v2 hash. Verification does not silently
-rewrite the old lock or accept a hash that omitted the package's entry code.
+files. A lock entry without `hashAlgorithm: "sha256-tree-v2"` uses the legacy hash,
+which does not cover every installed file, so `bpl install --locked` and lock
+verification always report it as a hash mismatch. Review the package source,
+then use an explicit `bpl install --update` to record a portable v2 hash.
+Verification does not silently rewrite the old lock.
 
 Package archives use a stable member order, zero timestamps and numeric owner
 and group IDs of zero. Staged regular files use mode `0644`, or `0755` when the

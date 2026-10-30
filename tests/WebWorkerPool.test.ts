@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { writeFileSync, rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { createServer, createConnection } from "node:net";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 test.skipIf(process.platform !== "linux")(
   "bounded process workers isolate slow clients and enforce total request deadlines",
@@ -13,7 +14,7 @@ test.skipIf(process.platform !== "linux")(
     if (!address || typeof address === "string") throw new Error("No port");
     const port = address.port;
     await new Promise<void>((resolve) => probe.close(() => resolve()));
-    const dir = mkdtempSync(resolve(".web-worker-test-"));
+    const dir = makeRepoTempDir("web-worker-test-");
     let child: ReturnType<typeof Bun.spawn> | undefined;
     try {
       writeFileSync(
