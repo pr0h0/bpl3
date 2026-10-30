@@ -55,8 +55,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- Enum matches with a refutable variant arm (`E.V(1, y)`) are no longer
-  treated as exhaustive, and unreachable arms are rejected (BUG-471).
+- Enum match exhaustiveness checks nested sub-patterns: a refutable arm
+  (`E.V(1, y)`) no longer counts as covering its variant, arms such as
+  `E.V(true)`/`E.V(false)` cover it together, unreachable arms are rejected,
+  and an identifier arm that could never be selected is rejected (BUG-471).
 - `bpl check` rejects non-constant `switch` case values
   (`BPL_SWITCH_CASE_VALUE_NOT_CONSTANT`) and data-carrying enum variants used
   without their data; both previously failed only at build time (BUG-472).

@@ -325,6 +325,8 @@ export interface PatternEnum extends ASTNode {
   kind: "PatternEnum";
   enumName: string;
   variantName: string;
+  /** Set by the type checker; used for exhaustiveness analysis. */
+  resolvedEnum?: EnumDecl;
   genericArgs?: TypeNode[];
 }
 
@@ -332,6 +334,8 @@ export interface PatternEnumTuple extends ASTNode {
   kind: "PatternEnumTuple";
   enumName: string;
   variantName: string;
+  /** Set by the type checker; used for exhaustiveness analysis. */
+  resolvedEnum?: EnumDecl;
   bindings: Pattern[];
   genericArgs?: TypeNode[];
 }
@@ -340,6 +344,8 @@ export interface PatternEnumStruct extends ASTNode {
   kind: "PatternEnumStruct";
   enumName: string;
   variantName: string;
+  /** Set by the type checker; used for exhaustiveness analysis. */
+  resolvedEnum?: EnumDecl;
   fields: {
     fieldName: string;
     binding: string;

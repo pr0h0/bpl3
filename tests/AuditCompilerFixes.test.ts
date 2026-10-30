@@ -545,6 +545,30 @@ frame main() ret int {
     expect(output).toBe("7 14\n");
   });
 
+  test("nested arms cover a variant together", () => {
+    const covered = check(`enum Flag { On(bool), Off, }
+frame f(x: Flag) ret int {
+    return match (x) { Flag.On(true) => 1, Flag.On(false) => 2, Flag.Off => 3, };
+}${MAIN}`);
+    expect(covered.stderr).toBe("");
+    const partial = check(`enum Flag { On(bool), Off, }
+frame f(x: Flag) ret int {
+    return match (x) { Flag.On(true) => 1, Flag.Off => 3, };
+}${MAIN}`);
+    expect(partial.stderr).toContain("missing variants: On");
+  });
+
+  test("an identifier arm cannot stand for the whole enum value", () => {
+    // It was never selected: the value fell through to later arms.
+    const result = check(`enum Message { Move(int, int), Quit, }
+frame f(m: Message) ret int {
+    return match (m) { Message.Quit => 0, other => 7, _ => 9, };
+}${MAIN}`);
+    expect(result.stderr).toContain(
+      "An enum match cannot bind the whole value to 'other'",
+    );
+  });
+
   test("arms after a covering arm or an unguarded _ are rejected", () => {
     const repeated = check(`enum Color { Red, Green, }
 frame f(c: Color) ret int {

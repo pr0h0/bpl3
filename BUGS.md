@@ -655,9 +655,16 @@ exhaustiveness check, so `Message.Move(5, 9)` matched no arm and the match
 silently produced 0. Any unguarded arm counted as covering its variant.
 Duplicate arms (`Color.Red => 1, Color.Red => 2`) were also accepted.
 
-**Resolution**: an arm covers its variant only when every sub-pattern is a
-binding or `_`. An arm after an unguarded `_`, or after an arm that already
-covers its variant, is rejected as unreachable. R-MATCH-3.
+A top-level identifier arm in an enum match (`other => 7`) was never
+selected either: codegen dispatches on the variant tag and only `_` became the
+default, so the value fell through to later arms.
+
+**Resolution**: exhaustiveness uses a pattern-matrix check, so arms cover a
+variant together (`Some(Ok(x))` and `Some(Err(e))` cover `Some`; `On(true)` and
+`On(false)` cover `On`) while `Move(1, y)` alone does not. An arm after an
+unguarded `_`, or after an arm whose sub-patterns are all bindings for the same
+variant, is rejected as unreachable. A top-level identifier arm in an enum match
+is rejected; use `_`. R-MATCH-3.
 `tests/AuditCompilerFixes.test.ts`, `tests/Enum.test.ts`.
 
 #### BUG-472: `bpl check` accepts code that only fails to build

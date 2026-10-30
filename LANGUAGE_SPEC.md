@@ -782,8 +782,10 @@ try {
   `Option.Some(x)`.
 - **[R-MATCH-3]** An enum match must cover every variant or include a
   catch-all arm. Other matches must include an unguarded `_` or identifier arm.
-  Guarded arms do not count toward exhaustiveness, and neither does an enum
-  arm with a refutable sub-pattern (`E.V(1, y)` covers only part of `E.V`).
+  Guarded arms do not count toward exhaustiveness. Arms with sub-patterns
+  cover a variant together: `E.V(true)` and `E.V(false)` cover `E.V`, while
+  `E.V(1, y)` alone does not. The catch-all arm of an enum match is `_`; an
+  identifier cannot bind the whole enum value.
   An arm that can never be selected (after an unguarded `_`, or after an arm
   that already matches every value of its variant) is rejected. Violations are
   rejected with `BPL_MATCH_EXHAUSTIVENESS_MISMATCH`.
