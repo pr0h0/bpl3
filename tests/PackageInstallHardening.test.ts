@@ -212,6 +212,24 @@ test("PAX size records and record lookalikes are handled strictly", () => {
     expect(() => manager.install(lookalike)).toThrow(
       /holes.bin \(sparse file\)/,
     );
+    // A directory's size is ignored by tar, so a nonzero one cannot be
+    // used to skip past the following headers.
+    const sizedDirectory = join(root, "sized-dir-0.1.0.tgz");
+    writeFileSync(
+      sizedDirectory,
+      gzipSync(
+        Buffer.concat([
+          tarHeader("package/bpl.json", manifest.length, "0"),
+          padded(manifest),
+          tarHeader("package/dir/", 512, "5"),
+          tarHeader("package/holes.bin", 0, "S"),
+          Buffer.alloc(1024),
+        ]),
+      ),
+    );
+    expect(() => manager.install(sizedDirectory)).toThrow(
+      /nonzero size for entry type '5'/,
+    );
     // Malformed record lengths are rejected.
     const malformed = build("x", "99 size=1\n", padFile);
     expect(() => manager.install(malformed)).toThrow(

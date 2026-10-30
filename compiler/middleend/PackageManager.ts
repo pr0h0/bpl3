@@ -150,6 +150,10 @@ function findUnsupportedTarMember(
     if (type === "S") return `${name} (sparse file)`;
     if (!allowed.has(type)) return `${name} (entry type '${type}')`;
     if (size > maxBytes) return `${name} (larger than ${maxBytes} bytes)`;
+    // tar ignores the size of directories and links; a nonzero one would
+    // make this walk skip headers that tar still extracts.
+    if ((type === "5" || type === "1" || type === "2") && size !== 0)
+      return `${name} (nonzero size for entry type '${type}')`;
     if (type === "x" || type === "g") {
       const keys = parsePaxRecords(
         tar.subarray(offset + 512, offset + 512 + size),
