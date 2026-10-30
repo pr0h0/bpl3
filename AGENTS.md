@@ -360,6 +360,7 @@ Before marking a task as complete:
 ## 6. Common Pitfalls & Debugging
 
 - **Parser Issues**: The parser is generated ahead of time. After editing `grammar/bpl.peggy`, run `bun run generate:parser` and commit `compiler/frontend/generated/`; a test fails when they differ.
+- **Standard library files**: `cli/EmbeddedResources.generated.ts` bundles `lib/` into the compiled `bpl`. After adding, removing or renaming a library file, run `bun run generate:embedded`; a test fails when it is stale.
 - **Source Depth**: Raw syntax paths deeper than 512 AST nodes are rejected with
   `BPL_SOURCE_COMPLEXITY_LIMIT` before recursive passes. Parser stack exhaustion
   uses the same code at file position 1:1 when no AST location is available.
@@ -419,7 +420,7 @@ If you discover a bug during development:
   - `backend/`: CodeGenerator (LLVM).
   - `formatter/`, `linter/`, `docs/`: Formatter, linter, documentation generator.
   - `common/`: AST, Errors, Utils.
-- `grammar/`: Peggy grammar (`bpl.peggy`) and the token grammar (`grammar.bpl`).
+- `grammar/`: Peggy grammar (`bpl.peggy`) and the token grammar (`grammar.bpl`, bundled into the CLI).
 - `lib/`: Standard library and runtime sources; `packages/`: bundled packages.
 - `schemas/`: JSON schemas for `bpl.json` and `.bplfmt.json`.
 - `examples/`: Integration test cases.

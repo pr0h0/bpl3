@@ -8,6 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- The compiled `bpl` executable is standalone. The lexer's token grammar is
+  bundled into it, so the CLI no longer reads `grammar/` at runtime, and the
+  whole standard library is bundled through the generated
+  `cli/EmbeddedResources.generated.ts` (`bun run generate:embedded`).
+  A `bpl` with no `lib/errors.bpl` beside its real location unpacks the bundled
+  library once to `$XDG_CACHE_HOME/bpl/home/<content hash>` (or under
+  `BPL_CACHE_DIR`) and compiles `runtime_support.o` there with Clang the first
+  time a native build needs runtime checks. The installation lookup now keys on
+  `lib/errors.bpl` instead of a `grammar/` directory; a compiled binary no
+  longer falls back to the checkout it was built from or the working
+  directory (still searched when running from source, for the editor
+  extension), and `/usr/local/lib/bpl`, `/usr/lib/bpl` and `/opt/bpl` are no
+  longer searched. The grammar is bundled by the Bun CLI entry
+  (`cli/EmbeddedResources.ts`); other hosts still read `grammar/grammar.bpl`
+  from the installation. `bpl doctor` reports `embedded` as the source in that case,
+  and does not fail the not-yet-built runtime object there;
+  `CompilerConfig.paths.grammarDir` was removed. `BPL_CACHE_DIR` is now used
+  whenever it is set, even before the directory exists, and
+  `bun run build` regenerates the bundled library list before compiling.
 - Repository root cleanup: the language specification moved to
   `docs/LANGUAGE_SPEC.md` (the `docs/44-language-spec.md` stub is gone), the
   stale `PACKAGE_MANAGER.md` was folded into `docs/25-package-management.md`,

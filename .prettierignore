@@ -25,3 +25,6 @@ logs/
 
 # Exact generated shell literals; regenerate with scripts/generate_completions.ts.
 cli/completions/scripts.generated.ts
+
+# Standard library imports; regenerate with scripts/generate_embedded_resources.ts.
+cli/EmbeddedResources.generated.ts

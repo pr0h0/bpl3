@@ -2,19 +2,32 @@
  * Path Resolution Utilities
  *
  * Provides centralized path resolution using BPL_HOME environment variable
- * to ensure the compiler can locate resources (grammar, lib) from anywhere.
+ * to ensure the compiler can locate the standard library from anywhere.
  */
 
 import { existsSync, realpathSync } from "fs";
 import { dirname, resolve } from "path";
+import { getEmbeddedHome } from "./EmbeddedHome";
 import { findSymlinkedParentPath } from "./PathSafety";
+
+/** Whether this process is a `bun build --compile` executable. */
+export function isCompiledExecutable(): boolean {
+  // The entry of a compiled executable lives in Bun's virtual filesystem:
+  // `/$bunfs/...` on Unix, `B:/~BUN/...` on Windows. Node has no `Bun`.
+  const main = (globalThis as { Bun?: { main?: string } }).Bun?.main ?? "";
+  return main.includes("$bunfs") || main.includes("~BUN");
+}
 
 export interface BplHomeSearchInputs {
   bplHome?: string;
   execPath: string;
   scriptPath?: string;
-  cwd: string;
   sourceRoot: string;
+  cwd: string;
+  /** Running as a `bun build --compile` executable rather than from source. */
+  compiled: boolean;
+  /** Unpacks the bundled standard library and returns its root. */
+  embeddedHome: () => string;
 }
 
 function realExecutablePath(executable: string): string | undefined {
@@ -27,18 +40,6 @@ function realExecutablePath(executable: string): string | undefined {
   }
 }
 
-/**
- * Locate the BPL installation root (the directory containing `grammar/`).
- * Priority:
- * 1. BPL_HOME environment variable (if set and existing)
- * 2. Directory of the running executable, following symlinks. A compiled
- *    `bpl` reports its real path through `execPath` (its argv[1] is a virtual
- *    `/$bunfs/...` path), so `~/.local/bin/bpl -> checkout/bpl` works.
- * 3. Directory of the entry script, following symlinks (`bun index.ts`)
- * 4. The TypeScript source tree containing this module
- * 5. Current working directory (development)
- * 6. Common system install locations
- */
 /** Where the installation root was found, for `bpl doctor`. */
 export type BplHomeSource =
   | "BPL_HOME"
@@ -46,9 +47,20 @@ export type BplHomeSource =
   | "CLI script location"
   | "source checkout"
   | "working directory"
-  | "system install"
-  | "fallback";
+  | "embedded";
 
+/**
+ * Locate the BPL installation root (the directory containing
+ * `lib/errors.bpl`, the implicit prelude). Priority:
+ * 1. BPL_HOME environment variable (if set and existing)
+ * 2. A compiled `bpl`: the directory of the executable, following symlinks.
+ *    It reports its real path through `execPath` (its argv[1] is a virtual
+ *    `/$bunfs/...` path), so `~/.local/bin/bpl -> checkout/bpl` works.
+ * 3. From source: the directory of the entry script, following symlinks
+ *    (`bun index.ts`), the source tree containing this module, then the
+ *    working directory (an editor extension opened on a checkout).
+ * 4. The standard library bundled into the compiler, unpacked into the cache.
+ */
 export function findBplHome(inputs: BplHomeSearchInputs): string {
   return findBplHomeWithSource(inputs).path;
 }
@@ -63,40 +75,38 @@ export function findBplHomeWithSource(inputs: BplHomeSearchInputs): {
   }
 
   const candidates: Array<[string, string, BplHomeSource]> = [];
-  const executable = realExecutablePath(inputs.execPath);
-  if (executable) {
-    candidates.push([
-      dirname(executable),
-      "BPL executable directory",
-      "executable location",
-    ]);
+  if (inputs.compiled) {
+    const executable = realExecutablePath(inputs.execPath);
+    if (executable) {
+      candidates.push([
+        dirname(executable),
+        "BPL executable directory",
+        "executable location",
+      ]);
+    }
+  } else {
+    const script = inputs.scriptPath && realExecutablePath(inputs.scriptPath);
+    if (script) {
+      candidates.push([
+        dirname(script),
+        "BPL executable directory",
+        "CLI script location",
+      ]);
+    }
+    candidates.push(
+      [inputs.sourceRoot, "BPL source directory", "source checkout"],
+      [inputs.cwd, "BPL working directory", "working directory"],
+    );
   }
-  const script = inputs.scriptPath && realExecutablePath(inputs.scriptPath);
-  if (script) {
-    candidates.push([
-      dirname(script),
-      "BPL executable directory",
-      "CLI script location",
-    ]);
-  }
-  candidates.push(
-    [inputs.sourceRoot, "BPL source directory", "source checkout"],
-    [inputs.cwd, "BPL working directory", "working directory"],
-    ["/usr/local/lib/bpl", "BPL install directory", "system install"],
-    ["/usr/lib/bpl", "BPL install directory", "system install"],
-    ["/opt/bpl", "BPL install directory", "system install"],
-  );
 
   for (const [candidate, label, source] of candidates) {
-    if (existsSync(resolve(candidate, "grammar"))) {
+    if (existsSync(resolve(candidate, "lib", "errors.bpl"))) {
       assertSafeBplHomePath(candidate, label);
       return { path: candidate, source };
     }
   }
 
-  // Fall back to the executable directory even without a grammar so the
-  // later missing-resource error names a meaningful location.
-  return { path: dirname(executable ?? inputs.execPath), source: "fallback" };
+  return { path: inputs.embeddedHome(), source: "embedded" };
 }
 
 /**
@@ -114,8 +124,10 @@ export function getBplHomeWithSource(): {
     bplHome: process.env.BPL_HOME,
     execPath: process.execPath,
     scriptPath: process.argv[1],
-    cwd: process.cwd(),
     sourceRoot: resolve(__dirname, "../.."),
+    cwd: process.cwd(),
+    compiled: isCompiledExecutable(),
+    embeddedHome: getEmbeddedHome,
   });
 }
 
@@ -134,13 +146,6 @@ function assertSafeBplHomePath(bplHome: string, label: string): void {
   throw new Error(
     `${label} parent path contains a symbolic link: ${symlinkedParent}`,
   );
-}
-
-/**
- * Get the grammar directory path
- */
-export function getGrammarPath(): string {
-  return resolveBplPath("grammar");
 }
 
 /**

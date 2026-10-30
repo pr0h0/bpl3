@@ -8,7 +8,7 @@ describe("GrammarParser", () => {
     // Assuming the test runs from the project root or we can locate grammar.bpl relative to this file
     // import.meta.dir is the directory of the test file (tests/)
     const grammarPath = join(import.meta.dir, "../grammar/grammar.bpl");
-    const parser = new GrammarParser(grammarPath);
+    const parser = GrammarParser.fromFile(grammarPath);
     const grammar = parser.parse();
 
     expect(grammar.rules.size).toBeGreaterThan(0);
@@ -29,7 +29,7 @@ describe("GrammarParser", () => {
 
   it("should handle complex rules with quotes and comments", () => {
     const grammarPath = join(import.meta.dir, "../grammar/grammar.bpl");
-    const parser = new GrammarParser(grammarPath);
+    const parser = GrammarParser.fromFile(grammarPath);
     const grammar = parser.parse();
 
     const stringLiteral = grammar.rules.get("StringLiteral");

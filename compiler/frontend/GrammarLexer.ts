@@ -1,7 +1,8 @@
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 
-import { resolveBplPath, getBplHome } from "../common/PathResolver";
 import { CompilerError } from "../common/CompilerError";
+import { getEmbeddedResources } from "../common/EmbeddedHome";
+import { getBplHome, resolveBplPath } from "../common/PathResolver";
 import {
   GENERIC_TOKEN_BOOL,
   GENERIC_TOKEN_CHAR,
@@ -21,18 +22,17 @@ import { TokenType } from "./TokenType";
 import type { Grammar } from "../../grammar/types";
 let cachedGrammar: Grammar | null = null;
 
-function loadGrammar(): Grammar {
-  if (cachedGrammar) return cachedGrammar;
+/** The grammar bundled into the CLI, else `grammar/grammar.bpl` on disk. */
+function readGrammarSource(): string {
+  const embedded = getEmbeddedResources()?.grammar;
+  if (embedded !== undefined) return embedded;
 
-  // Use BPL_HOME to locate grammar file
   const grammarPath = resolveBplPath("grammar", "grammar.bpl");
-
   if (!existsSync(grammarPath)) {
-    const bplHome = getBplHome();
     throw new CompilerError(
       `Could not find grammar.bpl file.`,
       `Please ensure BPL_HOME is set correctly or the grammar directory exists.\n` +
-        `BPL_HOME: ${bplHome}\n` +
+        `BPL_HOME: ${getBplHome()}\n` +
         `Looking for: ${grammarPath}\n` +
         `You can set it with: export BPL_HOME=/path/to/bpl`,
       {
@@ -44,9 +44,11 @@ function loadGrammar(): Grammar {
       },
     );
   }
+  return readFileSync(grammarPath, "utf-8");
+}
 
-  const parser = new GrammarParser(grammarPath);
-  cachedGrammar = parser.parse();
+function loadGrammar(): Grammar {
+  cachedGrammar ??= new GrammarParser(readGrammarSource()).parse();
   return cachedGrammar;
 }
 

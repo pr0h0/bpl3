@@ -4,8 +4,9 @@
 
 Building from source requires **Bun**, Git, a Clang-compatible C compiler, and
 Bash for the runtime build script. Node.js alone cannot run this compiler: the CLI
-uses Bun APIs. The compiled `bpl` executable includes the Bun runtime, but still
-needs the installation's grammar, standard library, and runtime files.
+uses Bun APIs. The compiled `bpl` executable is standalone: it includes the Bun
+runtime, the token grammar, and the standard library, so a copy of the single
+file runs anywhere with Clang installed.
 
 Native runtime builds support Linux and macOS. The configured CI matrix tests
 Ubuntu system Clang and Clang 18, and macOS Apple Clang and Homebrew LLVM.
@@ -49,14 +50,22 @@ macOS):
   `/usr/local/bin` when run with the needed permissions.
 - `--no-build` only refreshes the link.
 
-Keep the cloned directory: the `bpl` executable finds the grammar, standard
-library, and runtime next to its real location, following symlinks. To set it
-up by hand, run `bun install --frozen-lockfile && bun run build` and put the
-checkout (or a symlink to its `bpl`) on `PATH`. `BPL_HOME` is optional; when
-set, it overrides that lookup and must name a real installation directory
-without symlinked parent components. `bpl doctor` reports the directory in use
-and where it came from (`BPL_HOME`, the executable or CLI script location, the
-source checkout, or a system install; `bplHomeSource` in `--json`).
+The `bpl` executable uses the standard library next to its real location,
+following symlinks, so a linked checkout compiles against its own `lib/` and
+picks up library edits without a rebuild. A copied `bpl` with no `lib/errors.bpl`
+beside it uses the library bundled at build time instead: the first run unpacks
+it to `$XDG_CACHE_HOME/bpl/home/<hash>` (`~/.cache/bpl/...` by default, or under
+`BPL_CACHE_DIR` when set), and the first native build that needs runtime checks compiles
+`runtime_support.o` there with Clang. Rebuild the executable after changing
+`lib/` if you distribute copies; `bun run build` regenerates the bundled
+file list first. To set it up by hand, run
+`bun install --frozen-lockfile && bun run build` and put the checkout (or a
+symlink to its `bpl`, or a copy) on `PATH`. `BPL_HOME` is optional; when set, it
+overrides that lookup and must name a real installation directory without
+symlinked parent components. `bpl doctor` reports the directory in use and
+where it came from (`BPL_HOME`, the executable or CLI script location, the
+source checkout, the working directory when running from source, or `embedded`;
+`bplHomeSource` in `--json`).
 
 ## Verify compilation
 
@@ -103,10 +112,9 @@ provide equivalent tested integrations for each editor.
 - **Clang cannot be found or rejects LLVM IR:** inspect `clang --version`, run
   `bpl doctor`, and compare your toolchain with the CI matrix above. Capture the
   compiler diagnostic and a minimal input when reporting a failure.
-- **Missing grammar, library, or runtime:** run `bpl doctor` to see which
-  installation directory is in use, unset a stale `BPL_HOME`, and rebuild with
-  `bun run build`. A copied binary without its checkout cannot find these files;
-  symlink it instead.
+- **Missing library or runtime:** run `bpl doctor` to see which installation
+  directory is in use, unset a stale `BPL_HOME`, and rebuild with
+  `bun run build`. A `BPL_HOME` or checkout must contain `lib/errors.bpl`.
 - **Foreign-target link failure:** a target triple does not install a linker,
   sysroot, C library, or target runtime. See [cross-compilation](37-cross-compilation.md).
 
