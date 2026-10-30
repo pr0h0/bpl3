@@ -5,6 +5,7 @@ import * as path from "path";
 
 import "../cli/EmbeddedResources";
 import {
+  getBplCacheDir,
   getEmbeddedHome,
   isEmbeddedHome,
 } from "../compiler/common/EmbeddedHome";
@@ -183,6 +184,20 @@ describe("embedded standard library", () => {
       fs.rmSync(cacheDir, { recursive: true, force: true });
     }
   }, 60_000);
+
+  test("honors BPL_CACHE_DIR before the directory exists", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-embedded-"));
+    try {
+      const cacheDir = path.join(tempDir, "not-yet-created");
+      process.env.BPL_CACHE_DIR = cacheDir;
+      expect(getBplCacheDir()).toBe(cacheDir);
+      expect(getEmbeddedHome().startsWith(path.join(cacheDir, "home"))).toBe(
+        true,
+      );
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 
   test("leaves a missing runtime object alone outside an unpacked install", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-embedded-"));

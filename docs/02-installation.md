@@ -55,9 +55,10 @@ following symlinks, so a linked checkout compiles against its own `lib/` and
 picks up library edits without a rebuild. A copied `bpl` with no `lib/errors.bpl`
 beside it uses the library bundled at build time instead: the first run unpacks
 it to `$XDG_CACHE_HOME/bpl/home/<hash>` (`~/.cache/bpl/...` by default, or under
-`BPL_CACHE_DIR`), and the first native build that needs runtime checks compiles
+`BPL_CACHE_DIR` when set), and the first native build that needs runtime checks compiles
 `runtime_support.o` there with Clang. Rebuild the executable after changing
-`lib/` if you distribute copies. To set it up by hand, run
+`lib/` if you distribute copies; `bun run build` regenerates the bundled
+file list first. To set it up by hand, run
 `bun install --frozen-lockfile && bun run build` and put the checkout (or a
 symlink to its `bpl`, or a copy) on `PATH`. `BPL_HOME` is optional; when set, it
 overrides that lookup and must name a real installation directory without

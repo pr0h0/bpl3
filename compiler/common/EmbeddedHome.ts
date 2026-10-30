@@ -19,11 +19,11 @@ import { dirname, join, resolve } from "path";
 /** Present in an unpacked installation root, written after its files. */
 const EMBEDDED_HOME_MARKER = ".bpl-embedded";
 
-/** `BPL_CACHE_DIR` when it exists, else `$XDG_CACHE_HOME/bpl` or `~/.cache/bpl`. */
+/** `BPL_CACHE_DIR` when set, else `$XDG_CACHE_HOME/bpl` or `~/.cache/bpl`. */
 export function getBplCacheDir(): string {
   const envCache = process.env.BPL_CACHE_DIR;
-  if (envCache && existsSync(envCache)) {
-    return envCache;
+  if (envCache) {
+    return resolve(envCache);
   }
   const xdgCache = process.env.XDG_CACHE_HOME;
   if (xdgCache) {

@@ -23,7 +23,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   longer searched. The grammar is bundled by the Bun CLI entry
   (`cli/EmbeddedResources.ts`); other hosts still read `grammar/grammar.bpl`
   from the installation. `bpl doctor` reports `embedded` as the source in that case,
-  and `CompilerConfig.paths.grammarDir` was removed.
+  and does not fail the not-yet-built runtime object there;
+  `CompilerConfig.paths.grammarDir` was removed. `BPL_CACHE_DIR` is now used
+  whenever it is set, even before the directory exists, and
+  `bun run build` regenerates the bundled library list before compiling.
 - Repository root cleanup: the language specification moved to
   `docs/LANGUAGE_SPEC.md` (the `docs/44-language-spec.md` stub is gone), the
   stale `PACKAGE_MANAGER.md` was folded into `docs/25-package-management.md`,
