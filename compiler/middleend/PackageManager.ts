@@ -83,6 +83,56 @@ export { BPL_PACKAGE_SCHEMA_URI };
 /** Decompressed size cap for a package archive (tar stream, headers included). */
 const PACKAGE_ARCHIVE_MAX_UNPACKED_BYTES = 256 * 1024 * 1024;
 
+/**
+ * Walk an uncompressed tar stream and describe the first member that is not a
+ * plain file, directory or metadata header, or whose logical size exceeds
+ * `maxBytes`. Sparse members (GNU `S`, PAX `GNU.sparse.*`) are rejected.
+ */
+function findUnsupportedTarMember(
+  tar: Buffer,
+  maxBytes: number,
+): string | undefined {
+  const field = (block: number, start: number, length: number) => {
+    const raw = tar.subarray(block + start, block + start + length);
+    const end = raw.indexOf(0);
+    return raw.subarray(0, end === -1 ? raw.length : end).toString("utf8");
+  };
+  const parseSize = (block: number): number => {
+    const raw = tar.subarray(block + 124, block + 136);
+    if (raw[0]! & 0x80) return Number.POSITIVE_INFINITY; // base-256: huge
+    const text = field(block, 124, 12).trim();
+    return text === "" ? 0 : parseInt(text, 8);
+  };
+  // `0`/NUL files, `5` directories, `x`/`g` PAX and `L` GNU long names.
+  // Links (`1`, `2`, `K`) are left to validatePackageArchiveEntryTypes, which
+  // reports them with dedicated messages.
+  const allowed = new Set(["0", "\0", "", "5", "x", "g", "L", "1", "2", "K"]);
+  let paxSize: number | undefined;
+  for (let offset = 0; offset + 512 <= tar.length; ) {
+    if (tar.subarray(offset, offset + 512).every((byte) => byte === 0)) break;
+    const type = String.fromCharCode(tar[offset + 156]!);
+    const name = field(offset, 0, 100) || "member";
+    const size = parseSize(offset);
+    if (!Number.isFinite(size) || size < 0) return `${name} (invalid size)`;
+    const data = tar.subarray(offset + 512, offset + 512 + size);
+    if (type === "S") return `${name} (sparse file)`;
+    if (!allowed.has(type))
+      return `${name} (entry type '${type}')`;
+    if (type === "x" || type === "g") {
+      const text = data.toString("utf8");
+      if (text.includes("GNU.sparse")) return `${name} (sparse file)`;
+      const match = /(?:^|\n)\d+ size=(\d+)\n/.exec(text);
+      paxSize = match ? Number(match[1]) : undefined;
+    } else if (type !== "L") {
+      const logical = paxSize ?? size;
+      paxSize = undefined;
+      if (logical > maxBytes) return `${name} (larger than ${maxBytes} bytes)`;
+    }
+    offset += 512 + Math.ceil(size / 512) * 512;
+  }
+  return undefined;
+}
+
 /** Extraction never applies archive owners or modes, even when run as root. */
 function packageExtractArgs(tarballPath: string, targetDir: string): string[] {
   return [
@@ -4160,8 +4210,9 @@ export class PackageManager {
 
   private validatePackageArchiveMembers(tarballPath: string): void {
     // Reject decompression bombs before tar writes anything (BUG-462).
+    let tarStream: Buffer;
     try {
-      zlib.gunzipSync(fs.readFileSync(tarballPath), {
+      tarStream = zlib.gunzipSync(fs.readFileSync(tarballPath), {
         maxOutputLength: PACKAGE_ARCHIVE_MAX_UNPACKED_BYTES,
       });
     } catch (error) {
@@ -4173,6 +4224,19 @@ export class PackageManager {
           ? `Package archive expands to more than ${PACKAGE_ARCHIVE_MAX_UNPACKED_BYTES / (1024 * 1024)} MiB`
           : `Failed to inspect package archive: ${error instanceof Error ? error.message : String(error)}`,
         "Package archives must be gzip-compressed tarballs created by 'bpl pack'.",
+        { file: tarballPath, startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+      );
+    }
+    // A sparse member stores less than its logical size, so the stream cap
+    // does not bound what tar writes; reject it and unusual member types.
+    const unsupported = findUnsupportedTarMember(
+      tarStream,
+      PACKAGE_ARCHIVE_MAX_UNPACKED_BYTES,
+    );
+    if (unsupported) {
+      throw new CompilerError(
+        `Unsupported package archive member: ${unsupported}`,
+        "Package archives may only contain regular files and directories created by 'bpl pack'.",
         { file: tarballPath, startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
       );
     }

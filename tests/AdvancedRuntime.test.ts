@@ -143,7 +143,8 @@ describe("Advanced Runtime Values", () => {
       }
     `;
     // Unbounded recursion overflows the stack and terminates the process.
-    const { stdout, exitCode } = runBPL(source);
+    const { stdout, exitCode, timedOut } = runBPL(source);
+    expect(timedOut).toBe(false);
     expect(exitCode).not.toBe(0);
     expect(stdout.startsWith("1\n2\n3\n")).toBe(true);
   });

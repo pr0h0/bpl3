@@ -86,4 +86,23 @@ test("check reads `-` from standard input", () => {
   expect(bad.stderr.toString()).toContain(
     "error[BPL_SYMBOL_NOT_FOUND][stdin.bpl:1:31]",
   );
+
+  // Snippets come from standard input, not from the file that
+  // --stdin-filepath names.
+  const dir = mkdtempSync(join(tmpdir(), "bpl-check-stdin-"));
+  try {
+    const named = join(dir, "named.bpl");
+    writeFileSync(named, "frame main() ret int { return 0; }\n");
+    const source = "frame main() ret int {\n    return missing;\n}\n";
+    const human = run(["--stdin-filepath", named, "-"], source);
+    expect(human.stderr.toString()).toContain("2 |     return missing;");
+    const json = JSON.parse(
+      run(["--json", "--stdin-filepath", named, "-"], source).stdout.toString(),
+    );
+    expect(json.files[0].diagnostics[0].source.preview).toBe(
+      "    return missing;",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

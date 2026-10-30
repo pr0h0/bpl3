@@ -95,3 +95,43 @@ test("archives that expand past the size cap are rejected before extraction", ()
     expect(() => manager.install(bomb)).toThrow(/expands to more than 256 MiB/);
   });
 });
+
+const gnuTar = (() => {
+  const version = Bun.spawnSync(["tar", "--version"]);
+  return (
+    version.exitCode === 0 && version.stdout.toString().includes("GNU tar")
+  );
+})();
+
+test.skipIf(!gnuTar)("sparse members are rejected before extraction", () => {
+  withProject(({ root, app }) => {
+    // 300 MiB of holes stored in a few hundred bytes: the stream cap alone
+    // would not bound what tar writes.
+    const source = join(root, "sparse-src");
+    mkdirSync(join(source, "package"), { recursive: true });
+    writeFileSync(
+      join(source, "package", "bpl.json"),
+      JSON.stringify({ name: "sparse", version: "0.1.0", main: "index.bpl" }),
+    );
+    writeFileSync(
+      join(source, "package", "index.bpl"),
+      "frame value(){}export value;",
+    );
+    Bun.spawnSync([
+      "truncate",
+      "-s",
+      "300M",
+      join(source, "package", "big.bin"),
+    ]);
+    for (const format of ["gnu", "posix"]) {
+      const archive = join(root, `sparse-${format}-0.1.0.tgz`);
+      const packed = Bun.spawnSync(
+        ["tar", "--sparse", `--format=${format}`, "-czf", archive, "package"],
+        { cwd: source },
+      );
+      expect(packed.exitCode).toBe(0);
+      const manager = new PackageManager(app, options(root));
+      expect(() => manager.install(archive)).toThrow(/sparse file/);
+    }
+  });
+});

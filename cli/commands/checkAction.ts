@@ -12,6 +12,7 @@ import { getInputFilePathError } from "../utils";
 import { expandSourceInputs } from "../SourceInputs";
 import { Logger, LogLevel, setLogLevel } from "../../compiler/common/Logger";
 import { updateConfig } from "../../compiler/common/Config";
+import { SourceManager } from "../../compiler/common/SourceManager";
 import {
   CLI_JSON_CHECKS,
   createJsonReport,
@@ -116,8 +117,14 @@ export async function runCheckCommand(
   const stdin = files.includes("-") ? fs.readFileSync(0, "utf8") : undefined;
   for (const filePath of files) {
     totalFiles++;
+    const fromStdin = filePath === "-";
+    const sourcePath = fromStdin
+      ? path.resolve(options.stdinFilepath || "stdin.bpl")
+      : filePath;
+    // Diagnostics read standard input from here, not from the file that
+    // --stdin-filepath names; only for this input.
+    if (fromStdin) SourceManager.setSource(sourcePath, stdin!);
     try {
-      const fromStdin = filePath === "-";
       const inputError = fromStdin ? null : getInputFilePathError(filePath);
       if (inputError) {
         if (options.json) {
@@ -137,9 +144,6 @@ export async function runCheckCommand(
       const fileStartTime = Date.now();
 
       const content = fromStdin ? stdin! : fs.readFileSync(filePath, "utf-8");
-      const sourcePath = fromStdin
-        ? path.resolve(options.stdinFilepath || "stdin.bpl")
-        : filePath;
       const displayName = fromStdin
         ? options.stdinFilepath || "<stdin>"
         : filePath;
@@ -216,6 +220,8 @@ export async function runCheckCommand(
         );
       }
       errorCount++;
+    } finally {
+      if (fromStdin) SourceManager.deleteSource(sourcePath);
     }
   }
 
