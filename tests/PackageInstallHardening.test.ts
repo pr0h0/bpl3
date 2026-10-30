@@ -135,3 +135,55 @@ test.skipIf(!gnuTar)("sparse members are rejected before extraction", () => {
     }
   });
 });
+
+/** One ustar header block. */
+function tarHeader(name: string, size: number, type: string): Buffer {
+  const block = Buffer.alloc(512);
+  block.write(name, 0);
+  block.write("0000644\0", 100);
+  block.write("0000000\0", 108);
+  block.write("0000000\0", 116);
+  block.write(size.toString(8).padStart(11, "0") + "\0", 124);
+  block.write("00000000000\0", 136);
+  block.write("        ", 148);
+  block.write(type, 156);
+  block.write("ustar\0", 257);
+  block.write("00", 263);
+  const sum = block.reduce((total, byte) => total + byte, 0);
+  block.write(sum.toString(8).padStart(6, "0") + "\0 ", 148);
+  return block;
+}
+
+const padded = (data: Buffer) =>
+  Buffer.concat([data, Buffer.alloc((512 - (data.length % 512)) % 512)]);
+
+test("a PAX size record is followed to the next member header", () => {
+  withProject(({ root, app }) => {
+    // Header size 0 with PAX `size=1024`: tar skips 1024 bytes of data, so
+    // the scanner must too, or the sparse member after it goes unseen.
+    const manifest = Buffer.from(
+      JSON.stringify({ name: "paxsize", version: "0.1.0", main: "index.bpl" }),
+    );
+    const record = "size=1024\n";
+    const length = `${record.length + 3} ${record}`.length;
+    const pax = Buffer.from(`${length} ${record}`);
+    const archive = join(root, "paxsize-0.1.0.tgz");
+    writeFileSync(
+      archive,
+      gzipSync(
+        Buffer.concat([
+          tarHeader("package/bpl.json", manifest.length, "0"),
+          padded(manifest),
+          tarHeader("package/PaxHeaders/pad.bin", pax.length, "x"),
+          padded(pax),
+          tarHeader("package/pad.bin", 0, "0"),
+          Buffer.alloc(1024),
+          tarHeader("package/holes.bin", 0, "S"),
+          Buffer.alloc(1024),
+        ]),
+      ),
+    );
+    const manager = new PackageManager(app, options(root));
+    expect(() => manager.install(archive)).toThrow(/holes.bin \(sparse file\)/);
+  });
+});

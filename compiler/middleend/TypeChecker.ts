@@ -3274,10 +3274,16 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private patternRowsExhaustive(rows: AST.Pattern[][]): boolean {
     if (rows.length === 0) return false;
     if (rows[0]!.length === 0) return true;
-    const column = rows.map((row) => row[0]!);
-    const rest = (row: AST.Pattern[]) => row.slice(1);
     const isWildcard = (pattern: AST.Pattern) =>
       pattern.kind === "PatternWildcard" || pattern.kind === "PatternIdentifier";
+    const irrefutable = (pattern: AST.Pattern): boolean =>
+      isWildcard(pattern) ||
+      (pattern.kind === "PatternTuple" && pattern.patterns.every(irrefutable));
+    // A row that matches everything settles it; without this, splitting on
+    // other rows' literals is exponential in the number of columns.
+    if (rows.some((row) => row.every(irrefutable))) return true;
+    const column = rows.map((row) => row[0]!);
+    const rest = (row: AST.Pattern[]) => row.slice(1);
 
     const enumPattern = column.find(
       (pattern) =>

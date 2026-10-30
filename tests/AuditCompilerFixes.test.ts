@@ -566,6 +566,24 @@ frame f(x: Flag) ret int {
     );
   });
 
+  test("coverage of many independent literal columns stays fast", () => {
+    // Each arm tests one bool field; splitting on all of them without the
+    // irrefutable-row shortcut is exponential in the number of fields.
+    const n = 26;
+    const wild = Array<string>(n).fill("_");
+    const arms = wild.map((_, i) => {
+      const patterns = [...wild];
+      patterns[i] = "true";
+      return `W.V(${patterns.join(", ")}) => ${i},`;
+    });
+    const result =
+      check(`enum W { V(${Array<string>(n).fill("bool").join(", ")}), Z, }
+frame f(w: W) ret int {
+    return match (w) { ${arms.join(" ")} W.V(${wild.join(", ")}) => 99, W.Z => -1, };
+}${MAIN}`);
+    expect(result.stderr).toBe("");
+  });
+
   test("an identifier arm cannot stand for the whole enum value", () => {
     // It was never selected: the value fell through to later arms.
     const result = check(`enum Message { Move(int, int), Quit, }

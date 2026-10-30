@@ -115,20 +115,24 @@ function findUnsupportedTarMember(
     const size = parseSize(offset);
     if (!Number.isFinite(size) || size < 0) return `${name} (invalid size)`;
     const data = tar.subarray(offset + 512, offset + 512 + size);
+    // A PAX `size` record replaces the header size for the next file's data.
+    let dataSize = size;
     if (type === "S") return `${name} (sparse file)`;
     if (!allowed.has(type))
       return `${name} (entry type '${type}')`;
     if (type === "x" || type === "g") {
       const text = data.toString("utf8");
       if (text.includes("GNU.sparse")) return `${name} (sparse file)`;
-      const match = /(?:^|\n)\d+ size=(\d+)\n/.exec(text);
-      paxSize = match ? Number(match[1]) : undefined;
-    } else if (type !== "L") {
+      // The last record wins when a key repeats.
+      const sizes = [...text.matchAll(/(?:^|\n)\d+ size=(\d+)\n/g)];
+      paxSize = sizes.length > 0 ? Number(sizes.at(-1)![1]) : undefined;
+    } else if (type !== "L" && type !== "K") {
       const logical = paxSize ?? size;
       paxSize = undefined;
       if (logical > maxBytes) return `${name} (larger than ${maxBytes} bytes)`;
+      if (type === "0" || type === "\0" || type === "") dataSize = logical;
     }
-    offset += 512 + Math.ceil(size / 512) * 512;
+    offset += 512 + Math.ceil(dataSize / 512) * 512;
   }
   return undefined;
 }
