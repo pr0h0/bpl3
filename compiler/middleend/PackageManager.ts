@@ -130,7 +130,8 @@ function findUnsupportedTarMember(
     const raw = tar.subarray(block + 124, block + 136);
     if (raw[0]! & 0x80) return Number.POSITIVE_INFINITY; // base-256: huge
     const text = field(block, 124, 12).trim();
-    return /^[0-7]*$/.test(text) ? (text === "" ? 0 : parseInt(text, 8)) : NaN;
+    if (text === "") return 0;
+    return /^[0-7]+$/.test(text) ? parseInt(text, 8) : NaN;
   };
   // `0`/NUL files, `5` directories, `x`/`g` PAX and `L` GNU long names.
   // Links (`1`, `2`, `K`) are left to validatePackageArchiveEntryTypes, which
