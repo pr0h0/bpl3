@@ -1616,6 +1616,17 @@ export function checkCast(
     rejectIntegerToString(this, expr, resolved, target);
     rejectConstantArrayView(this, expr, resolved, target);
 
+    // Code generation cannot drop a lambda's context; reject it here so
+    // `bpl check` agrees with `bpl build` and points at the cast.
+    if (resolved?.kind === "LambdaType" && target?.kind === "FunctionType") {
+      throw new CompilerError(
+        "Cannot cast Lambda to Func",
+        "A lambda carries a context that a raw function pointer cannot hold. Keep the Lambda type, or cast a Func to a Lambda instead.",
+        expr.location,
+        CAST_INVALID_CODE,
+      );
+    }
+
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {
       throw new CompilerError(

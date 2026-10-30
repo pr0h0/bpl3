@@ -8,7 +8,8 @@ or historical results rather than guarantees about the current implementation.
 ## Quick Links
 
 - 🚀 [Quick Start](03-quick-start.md) - Write your first BPL program in 5 minutes
-- 📚 [Language Reference](../AGENTS.MD) - Concise language reference
+- 📚 [Language Specification](LANGUAGE_SPEC.md) - Language rules with test-backed rule IDs
+- 🤖 [Contributor reference](../AGENTS.md) - Condensed language summary and repository workflow
 - 🧪 [Validation commands](development-validation.md) - Choose focused checks and understand CI coverage
 - 🧰 [Standard-library recipes](stdlib-recipes.md) - Find APIs, ownership rules and failure checks
 - 💡 [Examples](../examples/) - Real-world code examples
@@ -79,6 +80,11 @@ or historical results rather than guarantees about the current implementation.
 - [Math and Random](32-stdlib-math.md) - Mathematical functions
 - [Time and Date](33-stdlib-time.md) - Temporal operations
 - [Algorithms](34-stdlib-algorithms.md) - Sorting, searching, and more
+- [Paths](62-stdlib-path.md) - Path joining and normalization
+- [Process Execution](59-process-execution.md) - Running child processes
+- [Reflection and JSON](55-reflection-and-json.md) - Generic JSON encoding through reflection
+- [View Engine](55-view-engine.md) - `bpl-templ` templates
+- [Runtime Library](66-runtime-library.md) - The native runtime the compiler links
 
 ### Advanced Topics
 
@@ -98,7 +104,7 @@ or historical results rather than guarantees about the current implementation.
 
 ### Reference
 
-- [Language Specification](44-language-spec.md) - Formal language definition
+- [Language Specification](LANGUAGE_SPEC.md) - Language rules, with test-backed rule IDs
 - [Grammar Reference](45-grammar-reference.md) - Complete grammar
 - [Keyword Index](46-keyword-index.md) - All reserved words
 - [Operator Precedence](47-operator-precedence.md) - Expression evaluation order
@@ -115,6 +121,11 @@ or historical results rather than guarantees about the current implementation.
 - [Compiler Data Layout](compiler-data-layout.md) - Aggregate storage, enum alignment, and debugger offsets
 - [Compiler Correctness and Fuzz Triage](60-compiler-correctness.md) - Cross-platform correctness CI, fuzz replay, and repro promotion
 - [Native Runtime Plan](52-native-runtime-plan.md) - Future runtime architecture
+- [Compiler Public API](PUBLIC_API.md) - Embedding the compiler from TypeScript
+- [Adding Primitive Types](adding-primitive-types.md) - Compiler walkthrough
+- [Error Messages](error-messages.md) - Diagnostic formatting
+- [Internal-Error Inventory](internal-error-inventory.md) - Where the compiler may still report internal errors
+- [Release Notes](releases/) - Notes for each published release
 
 ## Examples
 
@@ -126,6 +137,11 @@ contains programs with test configurations.
 
 See [documentation validation](documentation-validation.md) for generated API
 checks, compiled examples, runtime output tests, and the limits of this coverage.
+
+## Project tracking
+
+[project/BUGS.md](project/BUGS.md) logs defects, [project/TODO.md](project/TODO.md)
+tracks implementation status, and [project/PLAN.md](project/PLAN.md) sets priorities.
 
 ## Contributing
 

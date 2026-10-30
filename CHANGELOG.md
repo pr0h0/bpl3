@@ -8,6 +8,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Repository root cleanup: the language specification moved to
+  `docs/LANGUAGE_SPEC.md` (the `docs/44-language-spec.md` stub is gone), the
+  stale `PACKAGE_MANAGER.md` was folded into `docs/25-package-management.md`,
+  `BUGS.md`, `TODO.md` and `PLAN.md` moved to `docs/project/`, `AGENTS.MD` is
+  now `AGENTS.md`, and the JSON schemas moved to `schemas/`. The canonical
+  manifest `$schema` URI is now
+  `https://raw.githubusercontent.com/pr0h0/bpl3/master/schemas/bpl-package.schema.json`;
+  the npm package ships `schemas/` and the compiler image installs it under
+  `/opt/bpl/schemas/`. The committed VS Code `.vsix` build is no longer
+  tracked, and the `bpl_db` examples delete their dump files instead of
+  leaving them in the working directory.
+
+- Documentation refresh: `AGENTS.md` now states the enum-match exhaustiveness,
+  constant switch-case, data-variant construction and unused-variable rules,
+  the full reserved-keyword and integer type lists, the current vtable layout
+  rule, the ahead-of-time parser generation step and the fuzzer scripts. The
+  README describes single inheritance plus specs (not multiple inheritance),
+  the current repository layout and work tracking, `bun run playground`, and
+  PRs against `staging`. The docs index lists every guide; R-CTRL-8 covers
+  unbraced switch bodies; the quick start shows the C-style `loop`; the Docker
+  and packages READMEs reflect the published 0.1.1 images and chunked request
+  bodies.
+
 - `noUnusedLocals` is enabled. Removed unused code from the compiler, fuzz,
   tools, playground, tests and language server; debug `llvm.dbg.declare`
   calls for locals carry their computed location explicitly. Tests that built
@@ -54,6 +77,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Structured template inputs are now IR-verified too.
 
 ### Fixed
+
+- `cast<Func<...>>` of a `Lambda` is rejected by the type checker
+  (`BPL_CAST_INVALID`, at the cast) instead of passing `bpl check` and failing in
+  code generation at the lambda's declaration (BUG-473).
 
 - `bpl docs` attaches comments to globals and type aliases, and `--json`
   reports a compiler error's own code (such as `BPL_SOURCE_COMPLEXITY_LIMIT`)
@@ -3608,7 +3635,7 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
 
 ### Known Limitations
 
-- See [BUGS.md](BUGS.md) for the current bug ledger. BUG-104 nested tuple pattern matching has since been fixed.
+- See [BUGS.md](docs/project/BUGS.md) for the current bug ledger. BUG-104 nested tuple pattern matching has since been fixed.
 
 ## [Previous Release]
 

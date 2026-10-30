@@ -125,7 +125,7 @@ Integer literals normally have type int, so `5 * wide` uses int arithmetic.
 Use `cast<long>(5) * wide` for a long operation. These rules also apply to
 integer bitwise operations; shifts retain their separate count validation and
 masking rules. Other limited implicit conversions are documented in
-[LANGUAGE_SPEC.md](../LANGUAGE_SPEC.md#conversion-semantics).
+[LANGUAGE_SPEC.md](LANGUAGE_SPEC.md#conversion-semantics).
 
 ## Comparison Operators
 

@@ -10,12 +10,15 @@ You are working with BPL, a statically-typed, compiled programming language that
 
 ### Keywords
 
-- **Declarations**: `frame` (function), `struct`, `spec` (interface/trait), `enum`, `type` (alias), `local`, `global`, `const`.
-- **Control Flow**: `if`, `else`, `loop`, `break`, `continue`, `switch`, `case`, `default`, `return`, `defer`.
+The reserved list is rule R-LEX-3 in [docs/LANGUAGE_SPEC.md](docs/LANGUAGE_SPEC.md).
+
+- **Declarations**: `frame` (function), `ret`, `static`, `struct`, `spec` (interface/trait), `enum`, `type` (alias), `local`, `global`, `const`, `Self`.
+- **Control Flow**: `if`, `else`, `loop`, `break`, `continue`, `switch`, `case`, `default`, `fallthrough`, `return`. `defer` is a contextual statement keyword, not reserved.
 - **Pattern Matching**: `match`.
 - **Error Handling**: `try`, `catch`, `throw`.
 - **Modules**: `import`, `export`, `from`, `as`.
-- **Types & Values**: `true`, `false`, `nullptr`, `void`, `int`, `float`, `bool`, `char`, `string`, `ushort`, `uint`, `ulong`.
+- **Values**: `true`, `false`, `null`, `nullptr`. Type names such as `int` and `string` are not keywords.
+- **Function types**: `Func`, `Lambda`.
 - **Operators**: `cast`, `sizeof`, `is`, `as`, `offsetof`, `typeof`.
   - `sizeof<T>()` or `sizeof(T)` or `sizeof(expr)`
   - `offsetof(Type, member)`
@@ -26,10 +29,10 @@ You are working with BPL, a statically-typed, compiled programming language that
 
 #### Primitive Types
 
-- `int` (i32), `uint` (u32)
+- `int` (i32), `uint` (u32), `short` (i16), `ushort` (u16), `long` (i64), `ulong` (u64)
 - `u8`, `u16`, `u32`, `u64` (unsigned integers)
 - `i8`, `i16`, `i32`, `i64` (signed integers)
-- `float` (f64), `f32`, `f64`
+- `float` and `double` (f64), `f32`, `f64`
 - `bool` (`true`, `false`)
 - `char` (i8), `uchar` (u8)
 - `void` (empty type)
@@ -58,6 +61,7 @@ semantics. Explicit integer-to-`bool` casts retain the low bit.
 - **Constants**: `local const name: Type = value;`
 - **Destructuring**: `local (x: int, y: int) = tuple;`
 - Local declarations require explicit types. Use explicit generic type arguments in examples.
+- Unused locals and parameters are compile errors unless the name starts with `_`.
 
 ### Functions (`frame`)
 
@@ -91,9 +95,9 @@ struct Point {
 }
 ```
 
-**Layout Note**: Structs defined without methods (and without invalidating inheritance) are "POD" (Plain Old Data) and match C memory layout exactly. Structs with methods (or inheriting from classes with methods) implicitly inherit from `Type` and carry a hidden compilation-generated vtable pointer as their first field.
+**Layout Note**: A struct gets a hidden vtable pointer as its first field when it declares methods, lists a parent struct or spec, or is the parent of another struct (rule R-STRUCT-5). Other structs are plain data and match C layout.
 
-Inheritance uses `struct Dog : Animal { ... }`.
+Inheritance uses `struct Dog : Animal { ... }`. A struct has at most one parent struct and may also list any number of specs.
 
 ### Bound Methods
 
@@ -128,6 +132,9 @@ enum Option<T> {
     Some(T),
     None,
 }
+
+local some: Option<int> = Option<int>.Some(1);
+local none: Option<int> = Option<int>.None;
 
 # Pattern Matching
 match (opt) {
@@ -166,13 +173,22 @@ match (result) {
 }
 ```
 
+A variant that carries data must be constructed with it: `Option.Some` alone
+is an error except as a `switch` case label.
+
 **Pattern Types:**
 
 - **Literals**: `0`, `3.14`, `true`, `"hello"`, `'A'`
 - **Identifiers**: `x`, `n` (binds matched value)
 - **Tuples**: `(a, b)`, `(0, y)`, `(x, y, z)`
+- **Enum variants**: `E.V`, `E.V(a, b)`, `E.V { field: x }`
 - **Wildcards**: `_` (matches anything)
 - **Guards**: `pattern if condition`
+
+**Exhaustiveness:** an enum match must cover every variant (nested patterns
+count) or end with `_`; an identifier cannot be the catch-all arm of an enum
+match. Other matches need an unguarded `_` or identifier arm. Guarded arms
+never count toward coverage, and an arm that can never run is an error.
 
 ### Control Flow
 
@@ -181,7 +197,7 @@ match (result) {
   - `loop (cond) { ... }` (while loop)
   - `loop { ... }` (infinite)
   - `loop (init; cond; step) { ... }` (C-style for loop)
-- **Switch**: `switch (val) { case 1: ... break; default: ... break; }` (Strict termination required)
+- **Switch**: `switch (val) { case 1: ... break; default: ... break; }` on integer, string or enum values. Case labels must be literals (optionally negated) or enum variants. Every `case`/`default` body must end with `break`, `continue`, `return`, `throw` or `fallthrough`.
 - **Match**: `match (val) { Pattern => ... }`
 - **Defer**: `defer { ... }` (executes on scope exit or throw)
 
@@ -215,8 +231,7 @@ asm("intel") {
     mov eax, (a)              # Input (default "r")
     add eax, (b: "r")         # Input with explicit constraint
     mov (=result), eax        # Output (default "=r")
-    mov (=out: "=a"), ebx     # Output with explicit constraint
-    [ "ebx" ]                 # Clobbers
+    [ "eax" ]                 # Clobbers
 }
 
 # AT&T Syntax
@@ -236,7 +251,7 @@ asm("llvm") {
 ### Prerequisites
 
 - **Bun**: The project uses `bun` for runtime, testing, and building.
-- **LLVM**: `llc` and `clang` must be available for compilation.
+- **LLVM**: `clang` (or `BPL_CC`) is required; WebAssembly builds also need `wasm-ld`. `opt` or `llvm-as` are optional and only used to verify IR.
 
 ### Scripts (`package.json`)
 
@@ -245,7 +260,7 @@ asm("llvm") {
 - **Type Check**: `bun run check` -> Runs `tsc` to verify TypeScript code. **MUST RUN before finishing a task.**
 - **Run Tests**: `bun test` -> Runs all tests.
 - **Format Code**: `bun run format` -> Uses pinned Prettier for supported repository files; dependencies/generated output are excluded by `.prettierignore`.
-- **Check Formatting**: `bun run format:check` -> Read-only style check. Existing repository-wide formatting debt is tracked in `BUGS.md`.
+- **Check Formatting**: `bun run format:check` -> Read-only style check. Existing repository-wide formatting debt is tracked in `docs/project/BUGS.md`.
 - **Baseline Tests**: `bun run test:baseline [test arguments]` -> Saves combined output while preserving failures; requires Bash.
 - **Format Examples**: `bun run format-examples` -> Recursively formats `.bpl`/`.x` files in `examples/`, respecting `.bplignore` and discovery exclusions.
 
@@ -256,7 +271,7 @@ asm("llvm") {
 3.  **Unit Test**: Create/Update `tests/*.test.ts` and run `bun test tests/MyTest.test.ts`.
 4.  **Integration Test**: Create an example in `examples/` and run `bun test tests/Integration.test.ts`.
 5.  **Verify All**: Run `bun test` to ensure no regressions.
-6.  **Documentation**: Update `docs/` and `AGENTS.MD` if the feature changes syntax or behavior.
+6.  **Documentation**: Update `docs/` and `AGENTS.md` if the feature changes syntax or behavior.
 
 ### Release policy
 
@@ -284,8 +299,8 @@ asm("llvm") {
 
   describe("Lexer", () => {
     it("should lex integers", () => {
-      const tokens = lexWithGrammar("123");
-      expect(tokens[0].type).toBe("Number");
+      const tokens = lexWithGrammar("123", "test.bpl");
+      expect(tokens[0].type).toBe("NumberLiteral");
     });
   });
   ```
@@ -294,7 +309,9 @@ asm("llvm") {
 
 - Runs full compilation and execution of BPL programs.
 - Uses `examples/` directory.
-- **Configuration**: Each example folder needs `test_config.json`.
+- **Configuration**: An example folder with `main.bpl` and `test_config.json`
+  is run by the integration suite. Optional fields are `args`, `env`, `input`,
+  `exitCode`, `timeout`, `skip` and `skipCompilation`.
   ```json
   {
     "expectedOutput": ["Hello World"],
@@ -304,10 +321,12 @@ asm("llvm") {
   }
   ```
 
-### Fuzzing (`tests/fuzz.test.ts`)
+### Fuzzing (`fuzz/`)
 
-- Generates random token streams to test compiler stability.
-- Run with `bun test tests/fuzz.test.ts`.
+- `bun run fuzz` generates well-typed programs with an exact output oracle and
+  mutated sources; `bun run fuzz:differential` compares optimization levels.
+- Promote failures with `bun run fuzz:promote`; replay with `bun run fuzz:replay`.
+  See [docs/60-compiler-correctness.md](docs/60-compiler-correctness.md).
 
 ## 4. Coding Conventions
 
@@ -335,12 +354,12 @@ Before marking a task as complete:
 4.  [ ] **Formatting**: Code is formatted (`bun run format`).
 5.  [ ] **Tests Passed**: `bun test` passes (green).
 6.  [ ] **Docs Updated**: `docs/` reflects changes.
-7.  [ ] **AGENTS.MD Updated**: If syntax/rules changed, update this file.
-8.  [ ] **Bugs Logged**: If a bug is found, it MUST be logged in `BUGS.md`. Do not hide or ignore it. Create a workaround if necessary, but document the issue.
+7.  [ ] **AGENTS.md Updated**: If syntax/rules changed, update this file.
+8.  [ ] **Bugs Logged**: If a bug is found, it MUST be logged in `docs/project/BUGS.md`. Do not hide or ignore it. Create a workaround if necessary, but document the issue.
 
 ## 6. Common Pitfalls & Debugging
 
-- **Parser Issues**: If `grammar/bpl.peggy` is modified, the parser is auto-generated at runtime (or cached). Ensure grammar logic is correct.
+- **Parser Issues**: The parser is generated ahead of time. After editing `grammar/bpl.peggy`, run `bun run generate:parser` and commit `compiler/frontend/generated/`; a test fails when they differ.
 - **Source Depth**: Raw syntax paths deeper than 512 AST nodes are rejected with
   `BPL_SOURCE_COMPLEXITY_LIMIT` before recursive passes. Parser stack exhaustion
   uses the same code at file position 1:1 when no AST location is available.
@@ -387,30 +406,36 @@ formatting consistent when a project configuration exists.
 If you discover a bug during development:
 
 1.  **Do not ignore it.**
-2.  **Log it in `BUGS.md`** immediately.
+2.  **Log it in `docs/project/BUGS.md`** immediately.
 3.  If you cannot fix it right away, create a workaround if necessary, but **you must document the bug**.
 4.  Never hide a bug or leave it undocumented.
 
 ## 8. Directory Structure
 
+- `index.ts`: CLI entry point; `cli/` holds the commands.
 - `compiler/`: Source code for the compiler.
-  - `frontend/`: Lexer, Parser (Peggy).
-  - `middleend/`: TypeChecker, PackageManager.
+  - `frontend/`: Lexer, Peggy parser (`generated/`).
+  - `middleend/`: TypeChecker, module resolution, PackageManager.
   - `backend/`: CodeGenerator (LLVM).
-  - `formatter/`: Source formatting and comment placement.
+  - `formatter/`, `linter/`, `docs/`: Formatter, linter, documentation generator.
   - `common/`: AST, Errors, Utils.
-- `grammar/`: Peggy grammar file (`bpl.peggy`).
+- `grammar/`: Peggy grammar (`bpl.peggy`) and the token grammar (`grammar.bpl`).
+- `lib/`: Standard library and runtime sources; `packages/`: bundled packages.
+- `schemas/`: JSON schemas for `bpl.json` and `.bplfmt.json`.
 - `examples/`: Integration test cases.
-- `tests/`: Unit and integration test runners.
-- `docs/`: Documentation files.
-- `lib/`: Standard library (`std`).
+- `tests/`: Unit and integration test runners; `fuzz/`: compiler fuzzer.
+- `tools/`, `scripts/`: Release, CI and generation helpers.
+- `docs/`: Documentation; `docs/LANGUAGE_SPEC.md` is the specification and
+  `docs/project/` holds BUGS.md, TODO.md and PLAN.md.
+- `playground/`, `vscode-ext/`, `docker/`: Web playground, editor extension, images.
 
-Use `TODO.md` as the canonical implementation-status inventory and backlog;
-`PLAN.md` prioritizes work without duplicating that inventory. Describe supported
-behavior and remaining limits rather than treating a working MVP as exhaustive
-support. Watch mode monitors the entry tree and resolved transitive imports,
-including new `.bpl`/`.x` modules and atomic saves; unrelated dependency and
-hidden directories are excluded from recursive entry-tree discovery.
+Use `docs/project/TODO.md` as the canonical implementation-status inventory and
+backlog; `docs/project/PLAN.md` prioritizes work without duplicating that
+inventory. Describe supported behavior and remaining limits rather than treating
+a working MVP as exhaustive support. Watch mode monitors the entry tree and
+resolved transitive imports, including new `.bpl`/`.x` modules and atomic saves;
+unrelated dependency and hidden directories are excluded from recursive
+entry-tree discovery.
 
 ---
 

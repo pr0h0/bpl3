@@ -29,7 +29,7 @@ type JsonSchemaObject = {
 
 const packageManifestSchema = JSON.parse(
   readFileSync(
-    join(import.meta.dir, "..", "..", "bpl-package.schema.json"),
+    join(import.meta.dir, "..", "..", "schemas", "bpl-package.schema.json"),
     "utf8",
   ),
 ) as JsonSchemaObject;

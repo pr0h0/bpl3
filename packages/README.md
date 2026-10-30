@@ -53,8 +53,9 @@ provides bounded process concurrency with private worker memory. The optional
 bpl-auth package supplies password/session/CSRF handling; application queries
 still enforce ownership. It does not include email verification, reset/MFA,
 roles, a connection pool, or an ORM. The SQLite package offers versioned callback migrations and online
-backups; the college example uses a migration for anonymous-task ownership. Transfer-encoded
-request bodies are rejected explicitly. Public deployment still needs configured certificates and HTTPS,
+backups; the college example uses a migration for anonymous-task ownership. Chunked
+request bodies are decoded with validated trailers; other transfer codings are
+rejected with 501. Public deployment still needs configured certificates and HTTPS,
 traffic management, backups, monitoring, and workload testing. These modules do
 not establish parity with mature frameworks or guarantee a bug-free deployment.
 

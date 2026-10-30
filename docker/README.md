@@ -9,7 +9,8 @@ Two targets share the compiler/toolchain layers:
   controller and worker entrypoint. Each job runs in a separate disposable
   container with the existing resource/filesystem/network restrictions.
 
-These images are prepared locally; adding this workflow does not publish them.
+The commands below build the images locally. Tagged releases are also published
+to GHCR by the container workflow (see below).
 The initial tested platform is Linux amd64. No multi-platform manifest is promised.
 
 ## Build locally
@@ -113,7 +114,7 @@ runs verification, but publishing a different commit requires a new patch versio
 A retry at the same commit can finish a partially completed two-image publication.
 Annotated and lightweight tags identify the checked-out commit in image metadata.
 
-For the prepared 0.1.1 release, these names become available only after publication:
+The 0.1.1 release images are published as:
 
 - ghcr.io/pr0h0/bpl3-compiler:0.1.1
 - ghcr.io/pr0h0/bpl3-playground:0.1.1

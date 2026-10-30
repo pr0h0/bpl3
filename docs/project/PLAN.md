@@ -28,21 +28,6 @@ feature inventory here or leaving implemented features in a pending section.
    retain executable documentation/example validation. Avoid fixed test-count
    claims and unsupported statements of completeness.
 
-## Current quick-win changes
-
-- Existing staging watch mode handles new sources/subdirectories, atomic saves,
-  external transitive imports, missing-import recovery, and asynchronous program
-  restart. Preserve that implementation rather than adding a second watcher.
-- The editor no longer offers a bare `return;` for missing-return diagnostics;
-  the programmer chooses the required value and placement.
-- Baseline test logging preserves the test process's failure status.
-- Prettier is a pinned development dependency; `format` and `format:check` use
-  the same scope and ignore generated output/dependencies. Existing formatting
-  drift should be handled separately from functional changes.
-- Feature status is consolidated in TODO.md, including already implemented parser
-  recovery, nested enum/tuple patterns, reflection, manual arenas, codecs, basic
-  logging, argument parsing, dates, collections, web packages, and binding tools.
-
 ## Larger follow-ups
 
 True frontend per-module IR generation is needed to use the bounded backend
@@ -61,4 +46,4 @@ other new syntax remain in the TODO.md backlog.
 - `bun run release:check` before a maintainer-authorized release.
 
 These commands describe validation, not authorization to publish. Versions remain
-in the maintainer-controlled `0.1.x` series under [AGENTS.MD](AGENTS.MD).
+in the maintainer-controlled `0.1.x` series under [AGENTS.md](../../AGENTS.md).

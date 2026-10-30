@@ -138,6 +138,8 @@ test("bundled manifest schema matches runtime schema", () => {
       readFileSync(join(root, "vscode-ext/bpl-package.schema.json"), "utf8"),
     ),
   ).toEqual(
-    JSON.parse(readFileSync(join(root, "bpl-package.schema.json"), "utf8")),
+    JSON.parse(
+      readFileSync(join(root, "schemas/bpl-package.schema.json"), "utf8"),
+    ),
   );
 });

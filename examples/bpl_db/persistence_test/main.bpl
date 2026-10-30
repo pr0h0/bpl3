@@ -6,6 +6,9 @@ import [Array] from "std/array.bpl";
 
 import [printf] from "std/c.bpl";
 
+# The dump is temporary; remove it so runs leave no files behind.
+extern remove(path: string) ret int;
+
 frame main() ret int {
     printf("=== BPL DB Persistence Test ===\n");
 
@@ -45,6 +48,7 @@ frame main() ret int {
     local engine2: Engine = Engine.new();
     engine2.silent = false;
     engine2.db.load("db.dump");
+    remove("db.dump");
 
     # 4. Verify Data
     printf("\n--- Verifying Loaded Data ---\n");

@@ -40,7 +40,7 @@ all related enhancements or platform support are complete.
 - [x] Homogeneous `...T` variadics packed as `T*` plus count, and heterogeneous
       `...Any` arguments.
 - [x] Backtick string interpolation with `${expression}`, lowered to `String`
-      operations; see [the interpolation guide](docs/54-string-interpolation.md).
+      operations; see [the interpolation guide](../54-string-interpolation.md).
 - [x] Inline assembly flavors `intel`, `att`, `llvm`, and `raw`, including operand
       interpolation, explicit LLVM constraints, clobbers, and flavor-specific emission.
       LLVM/Clang validate assembly content; BPL does not provide a full assembler.
@@ -103,14 +103,14 @@ all related enhancements or platform support are complete.
       compiler-enforced regions and ownership are not implemented.
 - [x] Bundled web packages: HTTP parser/server framework, synchronous HTTP/HTTPS
       client, optional TLS, middleware, validation, rate limiting, authentication,
-      database/SQLite, templates, and CSV; see [packages/README.md](packages/README.md).
+      database/SQLite, templates, and CSV; see [packages/README.md](../../packages/README.md).
       The socket stack targets Linux IPv4. Broader networking and portability
       remain open; see each package's limits before deployment.
 - [x] Local package init/pack/install/list, manifest validation, cache checks,
       binary links, `bpl.lock`, exact restore, and `install --locked` verification.
       Cache-based version constraints are supported; full dependency graph
       planning/rollback and a remote package registry remain open. See
-      [PACKAGE_MANAGER.md](PACKAGE_MANAGER.md).
+      [the package management guide](../25-package-management.md).
 
 ## Remaining work
 
@@ -138,8 +138,9 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
       to releases, with a one-line installer, so users need no Bun or checkout.
 - [ ] [3] Make `bpl -e '<code>'` run the program (like `run`) and keep IR output
       behind `--emit llvm`.
-- [ ] [4] `bpl check` over directories, stdin, and the current project;
-      `bpl run`/`build`/`check` watch an entire project with `dev`.
+- [ ] [4] `bpl check` with no arguments checks the current project (directories
+      and stdin already work); `bpl run`/`build`/`check` watch an entire
+      project with `dev`.
 - [ ] [4] Generate shell completions from the command definitions instead of
       maintaining Bash/Zsh scripts by hand.
 - [ ] [5] More linter rules beyond naming (unused imports, shadowing, suspicious
@@ -164,6 +165,6 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
       operator syntax.
 - [ ] [9] Complete the self-hosting compiler. Reader/scanner and supporting types
       exist in `src/`; the parser is a scaffold whose `parse()` returns `nullptr`.
-      See [the self-hosting plan](src/SELF_HOSTING_ROADMAP.md) for that project's
+      See [the self-hosting plan](../../src/SELF_HOSTING_ROADMAP.md) for that project's
       phase breakdown. Other IDE integrations and broader C++ interop also remain
       extensions beyond the current VS Code tooling and C binding generator.

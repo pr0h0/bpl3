@@ -4,7 +4,7 @@ import { Glob } from "bun";
 import { join, resolve } from "path";
 
 const REPO_ROOT = resolve(import.meta.dir, "..");
-const SPEC_PATH = join(REPO_ROOT, "LANGUAGE_SPEC.md");
+const SPEC_PATH = join(REPO_ROOT, "docs", "LANGUAGE_SPEC.md");
 const RULE_MARKER_PATTERN = /\*\*\[(R-[A-Z]+-\d+)\]\*\*/g;
 const RULE_ID_PATTERN = /^R-[A-Z]+-\d+$/;
 const ANNOTATION_PATTERN = /^\s*\/\/\s*spec:\s*(.*)$/;

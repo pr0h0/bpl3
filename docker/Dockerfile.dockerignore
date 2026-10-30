@@ -1,6 +1,6 @@
 **
 !package.json
-!bpl-format.schema.json
+!schemas/**
 !bun.lock
 !index.ts
 !compiler/**

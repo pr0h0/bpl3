@@ -20,7 +20,7 @@ The configuration file defines the package metadata.
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/pr0h0/bpl3/master/bpl-package.schema.json",
+  "$schema": "https://raw.githubusercontent.com/pr0h0/bpl3/master/schemas/bpl-package.schema.json",
   "name": "my-package",
   "version": "0.1.0",
   "description": "A useful library",
@@ -38,7 +38,7 @@ not start with `0`; for example, `1.2.3` is valid and `01.2.3` is rejected.
 inside the package root, and optional metadata such as `$schema`, `keywords`,
 and `repository` is validated before packing or installing. Invalid manifests
 fail while loading `bpl.json` instead of later during path handling or archive
-creation. The checked-in `bpl-package.schema.json` mirrors these runtime rules
+creation. The checked-in `schemas/bpl-package.schema.json` mirrors these runtime rules
 so editors and CI schema validation catch the same invalid shapes early.
 `bpl init` and `bpl new` include the canonical `$schema` URI in generated
 manifests so editors can find the package manifest contract immediately.
@@ -295,6 +295,11 @@ If those pins conflict with the new requirements, installation fails rather than
 silently upgrading an unchanged package's dependency. Obsolete packages belonging
 only to the old subtree are removed. Lock updates are saved after reconciliation
 succeeds; installed package directories are still updated incrementally.
+`install --update` and `bpl lock` write their replacement lock only after all
+requested installations succeed, so a failed update retains the previous
+lockfile, but package directories replaced earlier in the same operation are
+not rolled back. Lock package names are sorted independently of locale, and
+generated lockfiles end with a newline.
 
 Successful project installs also record `manifestRoots` in the lockfile. Removing
 a previously declared root then makes `--locked` fail until a normal install
@@ -384,8 +389,7 @@ Local version selection considers root and installed dependents' requirements.
 An incompatible shared dependency reports
 `BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT` before replacing that package.
 Resolution is incremental: earlier package installations are not rolled back
-when a later dependency fails. See [the package manager reference](../PACKAGE_MANAGER.md)
-for the current version-selection and lockfile limits.
+when a later dependency fails.
 
 PackageManager manifest-loading failures also carry stable
 `BPL_PACKAGE_MANIFEST_*` codes: `BPL_PACKAGE_MANIFEST_MISSING`,
@@ -424,6 +428,8 @@ To inspect why packages are installed and which dependencies are missing, use:
 bpl list --json
 bpl list --tree
 bpl list --tree --json
+bpl list --global
+bpl list --global --tree
 bpl doctor packages
 bpl doctor packages --json
 ```
@@ -900,6 +906,10 @@ treated as missing packages.
 Broken symlink dependency archives are rejected as package archive symlinks
 instead of falling back to a package-name lookup.
 
+Uninstall with `bpl uninstall <package>` (alias `bpl remove`), adding
+`--global` for a global package. Local uninstall removes the package from both
+dependency maps in `bpl.json`, its installation and its lock entry.
+
 `bpl uninstall <package>` only removes real installed package directories. If
 `bpl_modules/<package>` is a symlink, uninstall rejects it and leaves both the
 symlink and its target untouched. Package manifests are validated with the same
@@ -986,6 +996,18 @@ bpl rs build -- --release
   ```
 
 - **Names**: Use unique, lowercase names for packages (kebab-case recommended).
+
+## Troubleshooting
+
+- **Module not found**: check `bpl list` (or `bpl list --global`), that the
+  import name matches the package name exactly, and `bpl doctor packages`.
+  Local packages take precedence over the workspace `packages/` directory and
+  global packages with the same name.
+- **Lock verification fails**: `bpl install --locked` reports the drifted entry;
+  review the change and run `bpl install --update` to accept it.
+- **Permission errors on global installs**: global packages live under
+  `~/.bpl/packages/`; install locally instead if that
+  directory is not writable.
 
 ## Release Checks
 

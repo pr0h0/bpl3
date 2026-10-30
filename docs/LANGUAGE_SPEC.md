@@ -2,7 +2,7 @@
 
 This document defines the syntax and semantics that the BPL3 compiler
 implements. It is not yet a complete specification of every construct; the
-numbered guides in [docs/](docs/) cover features not described here.
+[numbered guides](README.md) cover features not described here.
 
 ## Conventions
 
@@ -14,7 +14,7 @@ numbered guides in [docs/](docs/) cover features not described here.
   _Informative_ explain or illustrate the rules. They do not add requirements.
 - Rule IDs are stable. A changed rule keeps its ID; a removed rule's ID is
   retired and never reused. See
-  [documentation validation](docs/documentation-validation.md#specification-rule-ids).
+  [documentation validation](documentation-validation.md#specification-rule-ids).
 - Sizes, layouts, and ABI facts assume the 64-bit Linux and macOS targets that
   the test suite runs on. Diagnostic codes such as `BPL_SYMBOL_NOT_FOUND` are
   the codes reported by `bpl check --json`.
@@ -187,8 +187,9 @@ Implicit conversions are intentionally narrow:
   Pointers with other different pointee types do not convert, and pointers do
   not convert to or from integers.
 - **[R-CONV-9]** `Lambda` values, including non-capturing lambda literals, are
-  not implicitly assignable to `Func` values or parameters. A named `frame`
-  function converts to both a matching `Func` and a matching `Lambda`.
+  not implicitly assignable to `Func` values or parameters, and an explicit
+  `cast<Func<...>>` of a `Lambda` is rejected with `BPL_CAST_INVALID`. A named
+  `frame` function converts to both a matching `Func` and a matching `Lambda`.
 - **[R-CONV-10]** `cast<T>(value)` and `(value as T)` are equivalent explicit
   conversions. Integer casts keep the low bits or extend according to the
   source signedness. Explicit integer-to-`bool` casts retain the low bit, so
@@ -630,7 +631,7 @@ loop (;;) {
   as a variable, is rejected with `BPL_SWITCH_CASE_VALUE_NOT_CONSTANT`.
   Duplicate case values are rejected. Strings compare by content, and a null
   string matches no case.
-- **[R-CTRL-8]** A braced `case` or `default` body must end with `break`,
+- **[R-CTRL-8]** Every `case` or `default` body, braced or not, must end with `break`,
   `continue`, `return`, `throw`, or `fallthrough`. Control never falls into
   the next case implicitly; `fallthrough;` continues with the next case body.
   When no case matches and there is no `default`, the switch does nothing.
@@ -938,7 +939,7 @@ frame main() ret int {
 ## 12. Standard Library Overview
 
 _Informative._ The BPL standard library (`std`) provides core functionality.
-[docs/stdlib-reference.md](docs/stdlib-reference.md) lists every exported
+[docs/stdlib-reference.md](stdlib-reference.md) lists every exported
 declaration.
 
 - **std/io.bpl**: Input/Output.

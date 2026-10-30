@@ -15,8 +15,6 @@
   },
   "files": [
     "bpl",
-    "bpl-package.schema.json",
-    "bpl-format.schema.json",
     "cli/index.d.ts",
     "cli/index.js",
     "completions",
@@ -30,6 +28,7 @@
     "packages",
     "tools",
     "README.md",
+    "schemas",
     "LICENSE"
   ],
   "scripts": {

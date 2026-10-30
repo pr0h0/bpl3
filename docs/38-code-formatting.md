@@ -39,7 +39,7 @@ configured line endings (LF by default), preserving literal payloads.
 ## Project configuration
 
 Place a `.bplfmt.json` file beside your sources or in a parent directory. The
-repository and compiler distribution include `bpl-format.schema.json`; a
+repository and compiler distribution include `schemas/bpl-format.schema.json`; a
 `$schema` entry can reference your installed copy for JSON editor validation.
 The VS Code extension associates the schema with `.bplfmt.json` automatically:
 

@@ -170,7 +170,7 @@ describe("Release metadata", () => {
     expect(packageJson.files).toEqual(
       expect.arrayContaining([
         "bpl",
-        "bpl-package.schema.json",
+        "schemas",
         "cli/index.d.ts",
         "cli/index.js",
         "completions",
