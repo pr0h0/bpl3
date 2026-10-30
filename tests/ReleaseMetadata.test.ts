@@ -766,7 +766,7 @@ describe("Release metadata", () => {
     expectReleaseSmokeSourceContains([
       "check packed npm CLI check/lint validation JSON",
       "runPackedSourceAnalysisValidationJsonSmoke",
-      "BPL_CHECK_INPUT_NOT_FILE",
+      "BPL_CHECK_NO_INPUTS",
       "BPL_LINT_INPUT_SYMLINK",
       "parseCheckReport",
       "parseLintReport",

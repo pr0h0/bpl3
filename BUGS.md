@@ -245,7 +245,7 @@ pass a specific hint: the naming rule suggests the renamed identifier
 
 #### BUG-440: `bpl docs` ignores `#` comments, loses error locations, and nests headings wrongly
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 Only `/# … #/` blocks become docs (`Parser.ts:124`), but `lib/` documents with
 `#`, so `bpl docs lib/string.bpl` produces headings without descriptions.
@@ -253,6 +253,13 @@ Failures print `{ "error": "Unexpected syntax…" }` without file/line
 (`cli/commands/docs.ts:110`), and methods are `###` under a `#### Methods`
 heading (`DocumentationGenerator.ts:334`). docs/04 says there is no doc-comment
 syntax; decide and document one.
+
+**Resolution**: a run of own-line `#` comments directly above a declaration is
+its documentation, like a `/# #/` block (trailing comments after code are
+ignored). Errors carry `file:line:column` (the human output uses the
+diagnostic formatter; JSON keeps the error code). Methods are `#####` under
+`#### Methods`, with their sections one level deeper. docs/04 documents the
+syntax. `tests/DocsComments.test.ts`.
 
 #### BUG-441: `bindgen` emits exponent float literals BPL cannot parse
 
@@ -306,6 +313,13 @@ diagnostic with location and snippet), the `-` input name (`<stdin>` or
 and argument descriptions for `init`, `install` and `doctor`. "Formatted 1
 files" for a missing input no longer reproduces. Still open: `-e` running the
 program, `build -o X` writing `X.ll`, `check` on directories and stdin, and the
+duplicated `compileWithModules*`.
+
+**Progress (2026-10-29, batch 3)**: `bpl check` expands directories like
+`format`/`lint` (empty → `BPL_CHECK_NO_INPUTS`). `-e` is documented as
+compiling (it prints IR; changing it to run would break the playground and 46
+test call sites). `build -o X` writing `X.ll` is by design: `bpl clean` owns it
+and `--json` reports its path. Still open: `check -` (stdin) and the
 duplicated `compileWithModules*`.
 
 #### BUG-444: Project scaffolding gaps
@@ -412,6 +426,12 @@ package `bin`; it will not run on macOS/arm64 and is not rebuilt when `lib/`
 changes. `packages/*/*.tgz` and `.bplmeta.json` are committed although `*.tgz`
 is gitignored; add an explicit exception and document why they are kept.
 
+**Progress (2026-10-29)**: `.gitignore` has an explicit `!packages/*/*.tgz`
+exception explaining that the Docker image, release smoke and package tests
+install the archives by path. The bpl-templ README documents that its `bin` is
+a prebuilt x86-64 Linux executable and how to rebuild it. Still open: building
+the `bin` from `src/cli.bpl` at install time instead of committing it.
+
 #### BUG-452: Package script and documentation debt
 
 **Status**: Open · **Priority**: P3
@@ -441,7 +461,7 @@ is gitignored; add an explicit exception and document why they are kept.
 
 #### BUG-453: Documentation examples that do not compile
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `docs/15-pointers.md` switches to C-style `int*` from line 106 (44 of 48 snippets
 fail); `docs/58-intrinsics.md:44` uses nonexistent `Math.sqrtFloat`;
@@ -450,6 +470,13 @@ fail); `docs/58-intrinsics.md:44` uses nonexistent `Math.sqrtFloat`;
 `offsetof`, `is`, `Func`, `Lambda`, `null`; AGENTS.MD shows
 `import printf from "libc"`. `docs/type-matching.md` overlaps
 `docs/56-type-matching.md` and should be merged.
+
+**Resolution**: docs/15 uses BPL syntax throughout (`*T` pointer types, `.`
+through pointers instead of `->`, `Func<R>(...)` instead of C function-pointer
+types); all 49 of its blocks parse. docs/58 calls `Math.sqrt`, docs/26
+`Config.defaults()`, AGENTS.MD imports `std/c.bpl`, and docs/46 lists every
+reserved word from the grammar. docs/type-matching.md's unique sections moved
+into docs/56, which DocumentationExamples now compiles in its place.
 
 ### Standard library and bundled packages
 
@@ -516,12 +543,19 @@ now parse under a 400 MB address-space limit (about 800 MB before).
 
 #### BUG-459: bpl-db saves records it cannot load, and saves non-atomically
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `packages/bpl-db/src/storage.bpl:156-209/224`: a 600 KB string saves, but `load`
 throws `Database record exceeds 1 MiB`. `save` ignores `write`/`close` failures
 and truncates in place. Enforce one limit on insert/save (or stream lines) and
 write to a temporary file plus rename.
+
+**Resolution**: `save` checks each row line against the 1 MiB limit `load`
+enforces and throws before writing it; writes go to `<path>.tmp`, every
+`write`/`close` result is checked, and the file is renamed over `path` only on
+success (a failure removes the temporary file and throws `Database save
+failed`). Table and column names are written directly instead of through a
+fixed 4 KB `sprintf` buffer. `tests/WebDatabaseSnapshots.test.ts`.
 
 #### BUG-460: `Map.__eq__` (and likely `Array.indexOf`) compare string values by pointer
 
@@ -565,11 +599,16 @@ the map helper because `std/string.bpl` imports `std/array.bpl`.
 
 #### BUG-463: Router path parameters are not percent-decoded
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 `packages/bpl-express/src/router.bpl:279-303`: `/users/John%20Doe` yields
 `John%20Doe`. Decode with `HttpParser.decode(..., false)` and reject `%00`;
 document the behavior (suspected).
+
+**Resolution**: confirmed and fixed. `matchPath` decodes each parameter with
+`HttpParser.decode(..., false)`; invalid escapes and `%00` make the route not
+match. Documented in packages/bpl-express/README.md.
+`tests/WebRoutingPatterns.test.ts`.
 
 #### BUG-464: Chaining three operators on a generic method result fails to typecheck
 
@@ -582,7 +621,7 @@ with `got Array<T> and int`.
 
 #### BUG-470: Overloaded spec methods cannot be implemented
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 `spec G { frame m(this: *Self) ret long; frame m(this: *Self, d: int) ret long; }`
 parses, but a struct implementing both overloads is rejected with "Method 'm'
@@ -590,6 +629,12 @@ in struct 'B' has incorrect parameter count": spec conformance compares each
 implementation against a single requirement per name. Either match overloads
 by signature or reject overloaded spec declarations. Found while testing the
 bound-spec-method guard in #112.
+
+**Resolution**: overloaded spec declarations are rejected
+(`Duplicate method 'm' in spec 'G'`, BPL_SYMBOL_ALREADY_DEFINED).
+Supporting them would need overload-aware conformance, thunk names and vtable
+slots (thunks were named by method only and collided in IR). R-SPEC-1 states
+the rule. `tests/AuditCompilerFixes.test.ts`.
 
 ## Generated-program fuzzer findings (2026-10-29)
 
@@ -642,7 +687,7 @@ naming functions `declare` in TypeScript run by Bun; report upstream.
 
 ### BUG-467: Parenthesized assignment targets are rejected, but `(*p)++` is not
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 `(*p) = 5;`, `(v) = 6;` and `(*p) += 1;` fail with
 `BPL_ASSIGNMENT_TARGET_INVALID`, while `(*p)++` and `--(*p)` are accepted. C
@@ -650,6 +695,11 @@ accepts a parenthesized lvalue everywhere. Either unwrap `Group` in
 `checkAssignment` (and codegen) or reject it consistently for `++`/`--` too, and
 state the rule in R-EXPR-5. The fuzzer currently writes `*p = ...` for
 assignments.
+
+**Resolution**: `checkAssignment` unwraps parentheses around the target, so
+`(*p) = x`, `(v) += 1` and `(a[i]) = x` assign like the unparenthesized forms;
+an invalid target stays invalid (`(1 + 2) = 3`). R-EXPR-5 states the rule, and
+the fuzzer parenthesizes targets at random. `tests/AuditCompilerFixes.test.ts`.
 
 ## Developer experience fixes (2026-10-28)
 

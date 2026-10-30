@@ -56,7 +56,8 @@ test("bash completes exactly the long flags each command accepts", () => {
       flags: helpFlags([command]),
     });
   }
-});
+  // Spawns bash and the CLI once per command; slow on a loaded machine.
+}, 60000);
 
 test("bash completes package-cache subcommands and their flags", () => {
   expect(bashComplete(["bpl", "package-cache", ""]).sort()).toEqual([

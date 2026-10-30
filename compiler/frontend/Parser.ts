@@ -122,14 +122,36 @@ export class Parser {
   }
 
   private attachComments(ast: AST.Program, sourceComments: AST.Token[]) {
-    // Only consider multi-line comments starting with /#
-    const comments = sourceComments
-      .filter((t) => t.type === TokenType.Comment && t.lexeme.startsWith("/#"))
-      .map((t) => ({
-        token: t,
-        // Calculate end line based on newlines in lexeme
-        endLine: t.line + t.lexeme.split(/\r\n|\r|\n/).length - 1,
-      }));
+    // Doc comments are `/# ... #/` blocks or runs of `#` line comments, each
+    // on its own line, directly above a declaration (no blank line between).
+    // A trailing `x: int, # note` comment documents nothing.
+    const lines = this.source.split(/\r\n|\r|\n/);
+    const ownLine = (token: AST.Token) =>
+      (lines[token.line - 1] ?? "").slice(0, token.column - 1).trim() === "";
+    const comments: { lexeme: string; endLine: number }[] = [];
+    for (const token of sourceComments) {
+      if (token.type !== TokenType.Comment || !ownLine(token)) continue;
+      if (token.lexeme.startsWith("/#")) {
+        const blockLines = token.lexeme.split(/\r\n|\r|\n/);
+        const endLine = token.line + blockLines.length - 1;
+        // `/# x #/ x: int,` documents nothing, like a trailing `#` comment.
+        const end =
+          (blockLines.length === 1 ? token.column - 1 : 0) +
+          blockLines[blockLines.length - 1]!.length;
+        if ((lines[endLine - 1] ?? "").slice(end).trim() !== "") continue;
+        comments.push({ lexeme: token.lexeme, endLine });
+        continue;
+      }
+      if (!token.lexeme.startsWith("#")) continue;
+      const text = token.lexeme.replace(/^#\s?/, "");
+      const previous = comments[comments.length - 1];
+      if (previous && !previous.lexeme.startsWith("/#") && previous.endLine === token.line - 1) {
+        previous.lexeme += `\n${text}`;
+        previous.endLine = token.line;
+      } else {
+        comments.push({ lexeme: text, endLine: token.line });
+      }
+    }
 
     if (comments.length === 0) return;
 
@@ -139,7 +161,7 @@ export class Parser {
       // We could allow a gap, but strict adjacency is safer for now
       const comment = comments.find((c) => c.endLine === startLine - 1);
       if (comment) {
-        let cleanDoc = comment.token.lexeme;
+        let cleanDoc = comment.lexeme;
         // Remove /# and #/ markers
         if (cleanDoc.startsWith("/#")) {
           cleanDoc = cleanDoc.substring(2);

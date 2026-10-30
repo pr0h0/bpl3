@@ -967,10 +967,13 @@ class ProgramBuilder {
     reads: Set<string>;
   } {
     if (!place.array) {
-      // Assignment targets cannot be parenthesized: write `*p`, not `(*p)`.
-      const code = place.code.startsWith("(*")
-        ? place.code.slice(1, -1)
-        : place.code;
+      // Parenthesized targets are lvalues too (`(*p) = x`, `(v) += 1`).
+      const code =
+        place.code.startsWith("(*") || this.chance(0.15)
+          ? place.code.startsWith("(")
+            ? place.code
+            : `(${place.code})`
+          : place.code;
       return { code, key: () => place.key, reads: new Set() };
     }
     const index = this.indexExpr();

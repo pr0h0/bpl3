@@ -18,6 +18,8 @@ extern free(ptr: string) ret void;
 extern atoi(s: string) ret int;
 extern strlen(s: string) ret long;
 extern strcmp(s1: string, s2: string) ret int;
+extern rename(source: string, target: string) ret int;
+extern remove(path: string) ret int;
 
 struct Column {
     name: string,
@@ -153,59 +155,83 @@ struct Database {
         return nullptr;
     }
 
+    # Writes to `<path>.tmp` and renames it over `path` only when every write
+    # and the close succeeded, so a failed save leaves the old file intact.
+    # A row line longer than `load` accepts (1 MiB) is rejected up front.
     frame save(this: *Database, path: string) {
-        local f: File = File.open(path, "w");
+        local tmp: string = malloc(strlen(path) + 5);
+        if (tmp == nullptr) { throw "Database allocation failed"; }
+        defer free(tmp);
+        sprintf(tmp, "%s.tmp", path);
+        local f: File = File.open(tmp, "w");
         if (f.handle == nullptr) {
             printf("Error: Cannot open file for writing: %s\n", path);
             return;
         }
+        # Until the rename commits, any exit (including an exception from
+        # serialization) closes and removes the temporary file.
+        # 2: close and remove, 1: remove, 0: committed.
+        local cleanup: int = 2;
+        local cleanupPtr: *int = &cleanup;
+        defer {
+            if (*cleanupPtr == 2) { f.close(); }
+            if (*cleanupPtr >= 1) { remove(tmp); }
+        }
+        local ok: bool = true;
+        local tooLong: bool = false;
+        local num: string = malloc(32);
+        if (num == nullptr) { throw "Database allocation failed"; }
+        defer free(num);
         # Manual iteration to avoid Generic Iterator bugs
         local i: int = 0;
         local n: int = this.tables.buckets.len();
-        loop (i < n) {
+        loop (i < n && ok && !tooLong) {
             local curr: *MapNode<string, *Table> = this.tables.buckets.get(i);
-            loop (curr != nullptr) {
+            loop (curr != nullptr && ok && !tooLong) {
                 local t: *Table = curr.value;
-                # local name: string = curr.key;
-
-                # Check t validity (sanity check, should persist)
                 if (t != nullptr) {
-                    local buf: string = malloc(4096);
-                    sprintf(buf, "TABLE %s\n", t.name);
-                    f.write(buf);
-
-                    # Columns
-                    loop (local j: int = 0; j < t.columns.len(); j = j + 1) {
+                    ok = ok && f.write("TABLE ") && f.write(t.name) && f.write("\n");
+                    loop (local j: int = 0; ok && j < t.columns.len(); j = j + 1) {
                         local c: Column = t.columns.get(j);
-                        sprintf(buf, "COL %s %d\n", c.name, data_kind(c.kind));
-                        f.write(buf);
+                        sprintf(num, " %d\n", data_kind(c.kind));
+                        ok = ok && f.write("COL ") && f.write(c.name) && f.write(num);
                     }
-
-                    # Rows
-                    loop (local k: int = 0; k < t.rows.len(); k = k + 1) {
+                    loop (local k: int = 0; ok && !tooLong && k < t.rows.len(); k = k + 1) {
                         local r: Row = t.rows.get(k);
-                        sprintf(buf, "ROW %d", r.id);
-                        f.write(buf);
-
+                        sprintf(num, "ROW %d", r.id);
+                        local lineLength: long = strlen(num) + 1;
+                        local serialized: Array<string> = Array<string>.new(r.values.len());
                         loop (local l: int = 0; l < r.values.len(); l = l + 1) {
                             local v: Value = r.values.get(l);
-                            local s: string = serialize_value(&v);
-                            f.write(" ");
-                            f.write(s);
-                            free(s);
+                            local text: string = serialize_value(&v);
+                            serialized.push(text);
+                            lineLength = lineLength + 1 + strlen(text);
                         }
-                        f.write("\n");
+                        if (lineLength >= 1048576) {
+                            tooLong = true;
+                        } else {
+                            ok = ok && f.write(num);
+                            loop (local l: int = 0; ok && l < serialized.len(); l = l + 1) {
+                                ok = ok && f.write(" ") && f.write(serialized.get(l));
+                            }
+                            ok = ok && f.write("\n");
+                        }
+                        loop (local l: int = 0; l < serialized.len(); l = l + 1) {
+                            free(serialized.get(l));
+                        }
+                        serialized.destroy();
                     }
-
-                    f.write("END_TABLE\n");
-                    free(buf);
+                    ok = ok && f.write("END_TABLE\n");
                 }
                 curr = curr.next;
             }
             i = i + 1;
         }
-
-        f.close();
+        cleanup = 1;
+        if (!f.close()) { ok = false; }
+        if (tooLong) { throw "Database record exceeds 1 MiB"; }
+        if (!ok || rename(tmp, path) != 0) { throw "Database save failed"; }
+        cleanup = 0;
     }
 
     frame load(this: *Database, path: string) {

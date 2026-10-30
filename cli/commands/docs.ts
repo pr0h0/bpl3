@@ -6,6 +6,8 @@
 import * as fs from "fs";
 import { Command } from "commander";
 import { Logger } from "../../compiler/common/Logger";
+import { CompilerError } from "../../compiler/common/CompilerError";
+import { diagnosticFormatter } from "../DiagnosticFormatter";
 import { assertWritableFileOutputPath, writeFileAtomically } from "../utils";
 import {
   CLI_JSON_CHECKS,
@@ -95,19 +97,31 @@ export function registerDocsCommand(program: Command): void {
         }
         log.info(`Documentation generated at ${outputPath}`);
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
+        // Source errors carry a location; keep it in both outputs.
+        const location =
+          error instanceof CompilerError ? error.location : undefined;
+        const baseMessage =
+          error instanceof Error ? error.message : String(error);
+        const message =
+          location && location.startLine > 0
+            ? `${location.file}:${location.startLine}:${location.startColumn}: ${baseMessage}`
+            : baseMessage;
         if (outputJson) {
           emitDocsJsonReport(
             createDocsJsonReport(false, {
               file,
               outputPath,
               error: message,
-              errorCode: getDocsErrorCode(message),
+              errorCode: getDocsErrorCode(baseMessage),
             }),
           );
           process.exit(1);
         }
-        log.error("Error generating documentation:", { error: message });
+        if (error instanceof CompilerError) {
+          console.error(diagnosticFormatter.formatError(error));
+        } else {
+          log.error(`Error generating documentation: ${message}`);
+        }
         process.exit(1);
       }
     });

@@ -25,7 +25,6 @@ export function documentationFiles(): string[] {
       .sort()
       .map((file) => `docs/${file}`),
     "docs/adding-primitive-types.md",
-    "docs/type-matching.md",
   ];
 }
 

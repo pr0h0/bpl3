@@ -173,8 +173,9 @@ frame main() ret int {
     expect(result.stderr).toContain("Cannot use spec method 'get' as a value");
   });
 
-  test("rejects an overloaded spec method used as a value", () => {
-    const result = check(`spec G { frame m(this: *Self) ret long; frame m(this: *Self, d: int) ret long; }
+  test("rejects overloaded spec methods (BUG-470)", () => {
+    const result =
+      check(`spec G { frame m(this: *Self) ret long; frame m(this: *Self, d: int) ret long; }
 struct B: G {
     v: long,
     frame m(this: *B) ret long { return this.v; }
@@ -190,7 +191,52 @@ frame main() ret int {
 }
 `);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Cannot use spec method 'm' as a value");
+    // Spec methods cannot be overloaded at all (BUG-470).
+    expect(result.stderr).toContain(
+      "Duplicate method 'm' in spec 'G'",
+    );
+  });
+});
+
+// spec: R-EXPR-5
+describe("BUG-467: parenthesized assignment targets", () => {
+  test("assign like the unparenthesized target", () => {
+    const output = compileAndRun(`import printf from "std/c.bpl";
+frame main() ret int {
+    local v: int = 1;
+    local p: *int = &v;
+    (*p) = 5;
+    (v) += 2;
+    ((*p)) *= 3;
+    local a: int[2] = [1, 2];
+    (a[1]) = 9;
+    printf("%d %d\\n", v, a[1]);
+    return 0;
+}
+`);
+    expect(output).toBe("21 9\n");
+  });
+
+  test("still reject parenthesized non-lvalues", () => {
+    const result = check(`frame main() ret int { (1 + 2) = 3; return 0; }`);
+    expect(result.stderr).toContain("BPL_ASSIGNMENT_TARGET_INVALID");
+  });
+
+  test("reject an assignment as a target, but keep chains", () => {
+    const result = check(
+      `frame main() ret int { local x: int = 0; (x = 1) = 2; return x; }`,
+    );
+    expect(result.stderr).toContain("BPL_ASSIGNMENT_TARGET_INVALID");
+    const output = compileAndRun(`import printf from "std/c.bpl";
+frame main() ret int {
+    local x: int = 0;
+    local y: int = 0;
+    x = y = 7;
+    printf("%d %d\\n", x, y);
+    return 0;
+}
+`);
+    expect(output).toBe("7 7\n");
   });
 });
 

@@ -4295,14 +4295,12 @@ function runPackedSourceAnalysisValidationJsonSmoke(installedBpl: string): void 
     const checkFileReport = checkReport.files[0];
     const lintFileReport = lintReport.files[0];
     if (
+      // Directories expand to their sources; this one has none.
       checkReport.success ||
-      checkReport.totalFiles !== 1 ||
+      checkReport.totalFiles !== 0 ||
       checkReport.errorCount !== 1 ||
-      checkReport.files.length !== 1 ||
-      checkFileReport?.file !== sourceDir ||
-      checkFileReport.success ||
-      checkFileReport.error !== "Input path is not a file" ||
-      checkFileReport.errorCode !== "BPL_CHECK_INPUT_NOT_FILE" ||
+      checkReport.files.length !== 0 ||
+      checkReport.errorCode !== "BPL_CHECK_NO_INPUTS" ||
       lintReport.success ||
       lintReport.totalFiles !== 1 ||
       lintReport.errorCount !== 1 ||

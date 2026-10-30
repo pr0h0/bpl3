@@ -2144,6 +2144,20 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Spec Body Checking ==========
 
   private checkSpecBody(decl: AST.SpecDecl): void {
+    // Spec dispatch (vtable slots, thunks, conformance) is keyed by method
+    // name, so overloads would silently share or collide (BUG-470).
+    const seenMethods = new Set<string>();
+    for (const method of decl.methods) {
+      if (seenMethods.has(method.name)) {
+        throw new CompilerError(
+          `Duplicate method '${method.name}' in spec '${decl.name}'`,
+          "Spec methods cannot be overloaded; give each method a distinct name.",
+          method.location,
+          SYMBOL_ALREADY_DEFINED_CODE,
+        );
+      }
+      seenMethods.add(method.name);
+    }
     for (const method of decl.methods) {
       const variadic = method.params.find((param) => param.isVariadic);
       if (variadic) {
@@ -2494,13 +2508,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   /** Validate assignment targets and select the setter invoked by an index store. */
   private checkAssignment(expr: AST.AssignmentExpr): AST.TypeNode | undefined {
+    // A parenthesized target is the same lvalue (`(*p) = 1`, `(v) += 2`), as
+    // for `(*p)++`. Unwrap it here so code generation sees the plain target.
+    while (expr.assignee.kind === "Group") {
+      expr.assignee = (expr.assignee as AST.GroupExpr).expression;
+    }
     // Check if assignee is an l-value
     if (
       expr.assignee.kind !== "Identifier" &&
       expr.assignee.kind !== "Member" &&
       expr.assignee.kind !== "Index" &&
       expr.assignee.kind !== "TupleLiteral" &&
-      expr.assignee.kind !== "Assignment" && // Allow assignment chaining
       (expr.assignee.kind !== "Unary" ||
         (expr.assignee as AST.UnaryExpr).operator.type !== TokenType.Star)
     ) {

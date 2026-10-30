@@ -5,6 +5,10 @@ node_modules
 out
 dist
 *.tgz
+# The bundled packages' archives are committed on purpose: the Docker image,
+# the release smoke and the package tests install them by path. Rebuild one
+# with `bpl pack` in its package directory after changing its sources.
+!packages/*/*.tgz
 
 # code coverage
 coverage

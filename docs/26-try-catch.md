@@ -538,7 +538,7 @@ frame loadConfig() ret Config {
         return parseConfigFile("config.json");
     } catch (e: FileNotFoundError) {
         # Can recover: use defaults
-        return Config.default();
+        return Config.defaults();
     }
     # Let other errors propagate
 }

@@ -8,6 +8,7 @@ import type { Command } from "commander";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 import type { CompileOptions } from "../types";
 import { getInputFilePathError } from "../utils";
+import { expandSourceInputs } from "../SourceInputs";
 import { Logger, LogLevel, setLogLevel } from "../../compiler/common/Logger";
 import { updateConfig } from "../../compiler/common/Config";
 import {
@@ -19,6 +20,7 @@ import {
   CHECK_INPUT_NOT_FOUND_CODE,
   CHECK_INPUT_SYMLINK_CODE,
   CHECK_NO_INPUTS_CODE,
+  CHECK_PROCESSING_ERROR_CODE,
 } from "./CheckContracts";
 
 const log = new Logger("Check");
@@ -60,7 +62,10 @@ export async function runCheckCommand(
     diagnosticFormatter.setConfig({ colorize: options.color });
   }
 
-  if (!files || files.length === 0) {
+  const exitNoInputs = (
+    message: string,
+    errorCode = CHECK_NO_INPUTS_CODE,
+  ): never => {
     if (options.json) {
       console.log(
         JSON.stringify(
@@ -69,17 +74,34 @@ export async function runCheckCommand(
             errorCount: 1,
             timeMs: 0,
             files: [],
-            error: "No files specified.",
-            errorCode: CHECK_NO_INPUTS_CODE,
+            error: message,
+            errorCode,
           }),
           null,
           2,
         ),
       );
     } else {
-      log.error("No files specified.");
+      log.error(message);
     }
     process.exit(1);
+  };
+
+  if (!files || files.length === 0) exitNoInputs("No files specified.");
+  // Directories expand to their sources, as for `format` and `lint`
+  // (honoring .bplignore).
+  try {
+    files = expandSourceInputs(files!);
+  } catch (error) {
+    // Discovery failures (.bplignore, unreadable directories) are not
+    // empty inputs.
+    exitNoInputs(
+      error instanceof Error ? error.message : String(error),
+      CHECK_PROCESSING_ERROR_CODE,
+    );
+  }
+  if (files.length === 0) {
+    exitNoInputs("No BPL sources found in the supplied directories.");
   }
 
   const { checkSource, CompilerError } = await import("./checkEngine");

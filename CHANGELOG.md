@@ -49,6 +49,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Review follow-ups for the third audit batch:
+  - `(x = 1) = 2` is rejected; an assignment is not an lvalue (R-EXPR-5).
+  - `/# ... #/ x: int,` no longer documents the next declaration.
+  - `bpl check` reports `.bplignore`/directory discovery failures as
+    `BPL_CHECK_PROCESSING_ERROR`. A missing input such as `missing/../a.bpl`
+    is no longer deduplicated into an existing `a.bpl`, for check, format and lint.
+  - bpl-db `save` closes and removes its temporary file when serialization throws.
+  - bpl-express adds no parameters to `req.params` from a route that failed to
+    match; the committed bpl-db and bpl-express archives are refreshed.
+
+- bpl-db `save` is atomic (temporary file plus rename), checks write errors,
+  and rejects rows that `load` could not read back (BUG-459).
+
+- bpl-express route parameters are percent-decoded (`/users/John%20Doe` →
+  `John Doe`); invalid escapes and `%00` do not match (BUG-463).
+
+- Documentation fixes (BUG-453): the pointers guide uses BPL syntax instead
+  of C (`*int`, `.` through pointers, `Func<R>(...)`); the keyword index lists
+  every reserved word; broken calls in the intrinsics and try/catch guides are
+  corrected; the duplicate type-matching guide is merged into
+  `docs/56-type-matching.md`.
+
+- `bpl docs` uses `#` line comments directly above a declaration as its
+  documentation (so `bpl docs lib/string.bpl` has descriptions), reports
+  errors with their location, and nests method headings under `#### Methods`
+  (BUG-440).
+
+- `bpl check` accepts directories (`bpl check src/`), expanding them like
+  `format` and `lint`; the `-e` help says it compiles and prints IR (BUG-443).
+
+- Parenthesized assignment targets are accepted (`(*p) = 1`, `(v) += 2`),
+  consistent with `(*p)++` (BUG-467). A spec declaring the same method twice
+  is rejected; overloaded spec methods could not be implemented (BUG-470).
+
 - `-l/--lib`, `-L/--lib-path`, `--object` and `--clang-flag` take one value
   each and are repeatable (`-l m -l c`); as variadic options they swallowed a
   following source file (`bpl run --lib m main.bpl`). This replaces the

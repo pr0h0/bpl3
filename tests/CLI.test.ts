@@ -1792,22 +1792,10 @@ describe("CLI Tests", () => {
 
     try {
       const check = runCLI(["check", "--json", sourceDir]);
+      // Directories expand to their sources, like lint; this one has none.
       expect(check.status).toBe(1);
-      expect(
-        parseJsonObjectStdout<{
-          files: Array<{
-            file: string;
-            success: boolean;
-            error: string;
-            errorCode: string;
-          }>;
-        }>(check).files[0],
-      ).toEqual({
-        file: sourceDir,
-        success: false,
-        error: "Input path is not a file",
-        errorCode: "BPL_CHECK_INPUT_NOT_FILE",
-      });
+      expect(JSON.parse(check.stdout).errorCode).toBe("BPL_CHECK_NO_INPUTS");
+      expect(JSON.parse(check.stdout).error).toContain("No BPL sources");
 
       const lint = runCLI(["lint", "--json", sourceDir]);
       expect(lint.status).toBe(1);
