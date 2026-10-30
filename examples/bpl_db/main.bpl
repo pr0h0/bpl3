@@ -7,6 +7,9 @@ import [String] from "std/string.bpl";
 
 import [printf] from "std/c.bpl";
 
+# The dump is temporary; remove it so runs leave no files behind.
+extern remove(path: string) ret int;
+
 frame main() ret int {
     printf("=== BPL DB Example ===\n");
 
@@ -111,6 +114,7 @@ frame main() ret int {
     printf("Loading into new engine...\n");
     local engine2: Engine = Engine.new();
     engine2.db.load("db_main.dump");
+    remove("db_main.dump");
 
     printf("Verifying loaded data:\n");
     engine2.execute(&q_select_all);

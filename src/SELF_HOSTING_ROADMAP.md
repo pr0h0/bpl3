@@ -1,6 +1,6 @@
 # Self-Hosting Compiler Roadmap
 
-This document outlines the requirements, feature gaps, and implementation plan to transition the BPL compiler from a TypeScript application to a self-hosted BPL application. General language/library implementation status is maintained in [TODO.md](../TODO.md).
+This document outlines the requirements, feature gaps, and implementation plan to transition the BPL compiler from a TypeScript application to a self-hosted BPL application. General language/library implementation status is maintained in [TODO.md](../docs/project/TODO.md).
 
 ## 1. Core Goal
 

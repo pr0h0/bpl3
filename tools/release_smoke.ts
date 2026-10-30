@@ -553,8 +553,8 @@ function runPackedPackageSmoke(): void {
     assertPackedMetadata(packEntry);
     assertPackedFiles(packEntry, [
       "bpl",
-      "bpl-package.schema.json",
-      "bpl-format.schema.json",
+      "schemas/bpl-package.schema.json",
+      "schemas/bpl-format.schema.json",
       "package.json",
       "README.md",
       "LICENSE",
@@ -5641,8 +5641,8 @@ function assertPackedFileAllowlist(
 
   const allowedPaths = [
     "bpl",
-    "bpl-package.schema.json",
-    "bpl-format.schema.json",
+    "schemas/bpl-package.schema.json",
+    "schemas/bpl-format.schema.json",
     "cli/index.d.ts",
     "cli/index.js",
     "package.json",

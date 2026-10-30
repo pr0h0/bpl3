@@ -663,7 +663,7 @@ describe("Markdown documentation", () => {
       "cannot contain empty, `.`, or `..` path segments",
       "`src//index.bpl`, `src/./index.bpl`, and `../secret.bpl` are rejected",
       "`bin/tool.bpl`",
-      "The checked-in `bpl-package.schema.json` mirrors these runtime rules",
+      "The checked-in `schemas/bpl-package.schema.json` mirrors these runtime rules",
     ];
 
     expectDocsContainSnippets(text, requiredSnippets);
@@ -672,13 +672,11 @@ describe("Markdown documentation", () => {
   test("package docs document generated manifest schema URI", () => {
     const docs = normalizedMarkdownText([
       "docs/25-package-management.md",
-      "PACKAGE_MANAGER.md",
       "CHANGELOG.md",
     ]);
     const requiredSnippets = [
-      "https://raw.githubusercontent.com/pr0h0/bpl3/master/bpl-package.schema.json",
+      "https://raw.githubusercontent.com/pr0h0/bpl3/master/schemas/bpl-package.schema.json",
       "`bpl init` and `bpl new` include the canonical `$schema` URI",
-      "`bpl init` and `bpl new` generated manifests include the canonical `$schema` URI",
       "Schema tests now validate tracked package manifests and generated init/new manifests",
     ];
 

@@ -4,7 +4,7 @@ import { tmpdir } from "os";
 import { join, resolve } from "path";
 import { compileAndRun } from "./helpers/compileAndRun";
 
-// Regressions for compiler defects found by the 2026-10-28 audit (BUGS.md).
+// Regressions for compiler defects found by the 2026-10-28 audit (docs/project/BUGS.md).
 function check(source: string) {
   const dir = mkdtempSync(join(tmpdir(), "bpl-audit-fixes-"));
   try {
@@ -614,5 +614,33 @@ frame f(c: Color, k: int) ret int {
     return match (c) { Color.Red if k > 0 => 1, Color.Red => 2, Color.Green => 3, };
 }${MAIN}`);
     expect(guarded.stderr).toBe("");
+  });
+});
+
+describe("BUG-473: Lambda to Func casts", () => {
+  test("bpl check rejects the cast at its own location", () => {
+    const result = check(`frame main() ret int {
+    local l: Lambda<int>(int) = |x: int| ret int { return x; };
+    local f: Func<int>(int) = cast<Func<int>(int)>(l);
+    return f(0);
+}
+`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "error[BPL_CAST_INVALID][main.bpl:3:31]: Cannot cast Lambda to Func",
+    );
+  });
+
+  test("the equivalent 'as' conversion is rejected too", () => {
+    const result = check(`frame main() ret int {
+    local l: Lambda<int>(int) = |x: int| ret int { return x; };
+    local f: Func<int>(int) = (l as Func<int>(int));
+    return f(0);
+}
+`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "error[BPL_CAST_INVALID][main.bpl:3:32]: Cannot cast Lambda to Func",
+    );
   });
 });

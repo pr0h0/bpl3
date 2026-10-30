@@ -19,7 +19,7 @@ type JsonSchemaObject = {
 };
 
 const schema = JSON.parse(
-  readFileSync(join(import.meta.dir, "..", "bpl-package.schema.json"), "utf8"),
+  readFileSync(join(import.meta.dir, "..", "schemas", "bpl-package.schema.json"), "utf8"),
 ) as JsonSchemaObject;
 
 function trackedPackageManifestPaths(): string[] {

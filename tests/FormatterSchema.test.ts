@@ -9,7 +9,7 @@ import {
 const root = path.resolve(import.meta.dir, "..");
 test("formatter schema ships with the compiler and editor and matches API defaults", () => {
   const source = fs.readFileSync(
-    path.join(root, "bpl-format.schema.json"),
+    path.join(root, "schemas/bpl-format.schema.json"),
     "utf8",
   );
   expect(
@@ -27,7 +27,7 @@ test("formatter schema ships with the compiler and editor and matches API defaul
   expect(validateFormatterOptions(defaults)).toEqual(DEFAULT_FORMATTER_OPTIONS);
   expect(
     JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).files,
-  ).toContain("bpl-format.schema.json");
+  ).toContain("schemas");
   const extension = JSON.parse(
     fs.readFileSync(path.join(root, "vscode-ext/package.json"), "utf8"),
   );

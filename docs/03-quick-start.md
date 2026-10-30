@@ -465,16 +465,14 @@ if (x > 5) {
 ### 4. Wrong loop syntax
 
 ```bpl
-# ❌ Wrong (C-style for loop doesn't exist)
+# ❌ Wrong (there is no `for` keyword, and only prefix `++` exists)
 for (i = 0; i < 10; i++) {
     # ...
 }
 
 # ✅ Correct
-local i: int = 0;
-loop (i < 10) {
+loop (local i: int = 0; i < 10; i = i + 1) {
     # ...
-    i = i + 1;
 }
 ```
 

@@ -70,7 +70,7 @@ Only choose programs whose effects are appropriate for automated local tests.
 
 ## Specification rule IDs
 
-Normative statements in [LANGUAGE_SPEC.md](../LANGUAGE_SPEC.md) start with a
+Normative statements in [LANGUAGE_SPEC.md](LANGUAGE_SPEC.md) start with a
 bold rule marker such as `**[R-TYPE-1]**`. The prefix names the area (`R-LEX`,
 `R-TYPE`, `R-ARR`, `R-CONV`, `R-ABI`, `R-EXTERN`, `R-SLICE`, `R-DECL`, `R-FN`,
 `R-STRUCT`, `R-SPEC`, `R-ENUM`, `R-CTRL`, `R-DEFER`, `R-EXC`, `R-EXPR`,

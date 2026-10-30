@@ -3,7 +3,7 @@
 BPL (Best Programming Language) is a statically typed language whose compiler
 emits LLVM IR and uses Clang to produce native code. The compiler is written in
 TypeScript and runs on Bun. BPL is under active development; see the
-[bug log](../BUGS.md) for known limitations.
+[bug log](project/BUGS.md) for known limitations.
 
 ## Language features
 

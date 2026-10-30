@@ -24,7 +24,7 @@
     {
       "type": "text",
       "title": "📚 Continue Learning",
-      "content": "**Official Documentation:**\n- [Language Specification](docs/44-language-spec.md) - Complete language reference\n- [Grammar Reference](docs/45-grammar-reference.md) - Formal syntax\n- [Standard Library API](docs/48-stdlib-api.md) - All stdlib functions\n\n**Deep Dives:**\n- [Memory Management](docs/20-memory-basics.md) - Manual memory control\n- [Generics](docs/10-generics-functions.md) - Advanced generics\n- [Cross Compilation](docs/37-cross-compilation.md) - Build for other platforms\n\n**Explore the examples/**\n- 60+ working examples in the examples/ directory\n- Each demonstrates specific features\n- Study, modify, and learn!"
+      "content": "**Official Documentation:**\n- [Language Specification](docs/LANGUAGE_SPEC.md) - Complete language reference\n- [Grammar Reference](docs/45-grammar-reference.md) - Formal syntax\n- [Standard Library API](docs/48-stdlib-api.md) - All stdlib functions\n\n**Deep Dives:**\n- [Memory Management](docs/20-memory-basics.md) - Manual memory control\n- [Generics](docs/10-generics-functions.md) - Advanced generics\n- [Cross Compilation](docs/37-cross-compilation.md) - Build for other platforms\n\n**Explore the examples/**\n- Hundreds of working examples in the examples/ directory\n- Each demonstrates specific features\n- Study, modify, and learn!"
     },
     {
       "type": "text",
