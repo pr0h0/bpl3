@@ -164,7 +164,9 @@ starting with `.`, a path containing `/` or `\`, an absolute path, or a name
 ending in `.tgz`. A bare name such as `bpl install foo` always resolves from the
 package cache, even if the current directory contains a file named `foo`; use
 `./foo` to install that file (recorded as `file:./foo`).
-Before extraction, an archive must decompress to at most 256 MiB. Extraction
+Before extraction, an archive must decompress to at most 256 MiB, and every
+member must be a regular file, directory or link (sparse files, devices and PAX
+`size` overrides, which `bpl pack` never writes, are rejected). Extraction
 never applies the archive's owners or permission bits beyond your umask.
 Direct `bpl install` archive paths and manifest `file:` sources both accept `/`
 and `\` as path separators. Existing archives are resolved relative to the

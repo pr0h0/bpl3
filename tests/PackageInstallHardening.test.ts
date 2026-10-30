@@ -157,32 +157,65 @@ function tarHeader(name: string, size: number, type: string): Buffer {
 const padded = (data: Buffer) =>
   Buffer.concat([data, Buffer.alloc((512 - (data.length % 512)) % 512)]);
 
-test("a PAX size record is followed to the next member header", () => {
+/** A PAX record whose length prefix counts itself. */
+function paxRecord(key: string, value: string): string {
+  const body = ` ${key}=${value}\n`;
+  let length = body.length + 1;
+  while (`${length}${body}`.length !== length) length++;
+  return `${length}${body}`;
+}
+
+test("PAX size records and record lookalikes are handled strictly", () => {
   withProject(({ root, app }) => {
-    // Header size 0 with PAX `size=1024`: tar skips 1024 bytes of data, so
-    // the scanner must too, or the sparse member after it goes unseen.
     const manifest = Buffer.from(
       JSON.stringify({ name: "paxsize", version: "0.1.0", main: "index.bpl" }),
     );
-    // Adjacent duplicate records: the last one wins.
-    const pax = Buffer.from("10 size=0\n13 size=1024\n");
-    const archive = join(root, "paxsize-0.1.0.tgz");
-    writeFileSync(
-      archive,
-      gzipSync(
-        Buffer.concat([
-          tarHeader("package/bpl.json", manifest.length, "0"),
-          padded(manifest),
-          tarHeader("package/PaxHeaders/pad.bin", pax.length, "x"),
-          padded(pax),
-          tarHeader("package/pad.bin", 0, "0"),
-          Buffer.alloc(1024),
-          tarHeader("package/holes.bin", 0, "S"),
-          Buffer.alloc(1024),
-        ]),
-      ),
-    );
+    const build = (paxType: string, pax: string, tail: Buffer[]) => {
+      const archive = join(
+        root,
+        `pax-${Math.random().toString(36).slice(2)}-0.1.0.tgz`,
+      );
+      const header = Buffer.from(pax);
+      writeFileSync(
+        archive,
+        gzipSync(
+          Buffer.concat([
+            tarHeader("package/bpl.json", manifest.length, "0"),
+            padded(manifest),
+            tarHeader("package/PaxHeaders/pad.bin", header.length, paxType),
+            padded(header),
+            ...tail,
+            Buffer.alloc(1024),
+          ]),
+        ),
+      );
+      return archive;
+    };
     const manager = new PackageManager(app, options(root));
-    expect(() => manager.install(archive)).toThrow(/holes.bin \(sparse file\)/);
+    const padFile = [tarHeader("package/pad.bin", 0, "0")];
+    // tar would skip 1024 bytes for a size override (and GNU tar keeps a
+    // global one); bpl pack never writes them, so they are rejected.
+    for (const type of ["x", "g"]) {
+      const archive = build(
+        type,
+        paxRecord("size", "0") + paxRecord("size", "1024"),
+        padFile,
+      );
+      expect(() => manager.install(archive)).toThrow(/extended size record/);
+    }
+    // A value with a newline is one record: `size=` inside it is not a key,
+    // and the sparse member after it is still found.
+    const lookalike = build("x", paxRecord("comment", "x\n13 size=1024"), [
+      tarHeader("package/pad.bin", 0, "0"),
+      tarHeader("package/holes.bin", 0, "S"),
+    ]);
+    expect(() => manager.install(lookalike)).toThrow(
+      /holes.bin \(sparse file\)/,
+    );
+    // Malformed record lengths are rejected.
+    const malformed = build("x", "99 size=1\n", padFile);
+    expect(() => manager.install(malformed)).toThrow(
+      /malformed extended header/,
+    );
   });
 });

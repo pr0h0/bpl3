@@ -84,9 +84,38 @@ export { BPL_PACKAGE_SCHEMA_URI };
 const PACKAGE_ARCHIVE_MAX_UNPACKED_BYTES = 256 * 1024 * 1024;
 
 /**
+ * Parse PAX extended-header records (`<length> <key>=<value>\n`) by their
+ * declared byte lengths, so a value containing newlines cannot pose as a
+ * record. Returns undefined when the block is malformed.
+ */
+function parsePaxRecords(data: Buffer): string[] | undefined {
+  const keys: string[] = [];
+  let pos = 0;
+  while (pos < data.length) {
+    if (data[pos] === 0) break; // padding
+    const space = data.indexOf(0x20, pos);
+    if (space === -1) return undefined;
+    const lengthText = data.subarray(pos, space).toString("ascii");
+    if (!/^[1-9]\d*$/.test(lengthText)) return undefined;
+    const length = Number(lengthText);
+    const record = data.subarray(pos, pos + length);
+    if (record.length !== length || record[length - 1] !== 0x0a) return undefined;
+    const equals = record.indexOf(0x3d, space - pos + 1);
+    if (equals === -1) return undefined;
+    keys.push(record.subarray(space - pos + 1, equals).toString("utf8"));
+    pos += length;
+  }
+  return keys;
+}
+
+/**
  * Walk an uncompressed tar stream and describe the first member that is not a
- * plain file, directory or metadata header, or whose logical size exceeds
- * `maxBytes`. Sparse members (GNU `S`, PAX `GNU.sparse.*`) are rejected.
+ * plain file, directory or metadata header, or whose size exceeds `maxBytes`.
+ * Sparse members (GNU `S`, PAX `GNU.sparse.*`, `SCHILY.realsize`,
+ * `SUN.holesdata`) are rejected. PAX `size` records are rejected too: `bpl
+ * pack` never writes them, and tar implementations disagree on how they move
+ * the next header (global records persist in GNU tar, libarchive ignores
+ * them), so only the ustar header sizes are trusted.
  */
 function findUnsupportedTarMember(
   tar: Buffer,
@@ -101,38 +130,34 @@ function findUnsupportedTarMember(
     const raw = tar.subarray(block + 124, block + 136);
     if (raw[0]! & 0x80) return Number.POSITIVE_INFINITY; // base-256: huge
     const text = field(block, 124, 12).trim();
-    return text === "" ? 0 : parseInt(text, 8);
+    return /^[0-7]*$/.test(text) ? (text === "" ? 0 : parseInt(text, 8)) : NaN;
   };
   // `0`/NUL files, `5` directories, `x`/`g` PAX and `L` GNU long names.
   // Links (`1`, `2`, `K`) are left to validatePackageArchiveEntryTypes, which
   // reports them with dedicated messages.
   const allowed = new Set(["0", "\0", "", "5", "x", "g", "L", "1", "2", "K"]);
-  let paxSize: number | undefined;
+  const sparseKey = (key: string) =>
+    key.startsWith("GNU.sparse") ||
+    key === "SCHILY.realsize" ||
+    key === "SUN.holesdata";
   for (let offset = 0; offset + 512 <= tar.length; ) {
     if (tar.subarray(offset, offset + 512).every((byte) => byte === 0)) break;
     const type = String.fromCharCode(tar[offset + 156]!);
     const name = field(offset, 0, 100) || "member";
     const size = parseSize(offset);
-    if (!Number.isFinite(size) || size < 0) return `${name} (invalid size)`;
-    const data = tar.subarray(offset + 512, offset + 512 + size);
-    // A PAX `size` record replaces the header size for the next file's data.
-    let dataSize = size;
+    if (!Number.isFinite(size)) return `${name} (invalid size)`;
     if (type === "S") return `${name} (sparse file)`;
-    if (!allowed.has(type))
-      return `${name} (entry type '${type}')`;
+    if (!allowed.has(type)) return `${name} (entry type '${type}')`;
+    if (size > maxBytes) return `${name} (larger than ${maxBytes} bytes)`;
     if (type === "x" || type === "g") {
-      const text = data.toString("utf8");
-      if (text.includes("GNU.sparse")) return `${name} (sparse file)`;
-      // The last record wins when a key repeats.
-      const sizes = [...text.matchAll(/(?:^|\n)\d+ size=(\d+)(?=\n)/g)];
-      paxSize = sizes.length > 0 ? Number(sizes.at(-1)![1]) : undefined;
-    } else if (type !== "L" && type !== "K") {
-      const logical = paxSize ?? size;
-      paxSize = undefined;
-      if (logical > maxBytes) return `${name} (larger than ${maxBytes} bytes)`;
-      if (type === "0" || type === "\0" || type === "") dataSize = logical;
+      const keys = parsePaxRecords(
+        tar.subarray(offset + 512, offset + 512 + size),
+      );
+      if (!keys) return `${name} (malformed extended header)`;
+      if (keys.some(sparseKey)) return `${name} (sparse file)`;
+      if (keys.includes("size")) return `${name} (extended size record)`;
     }
-    offset += 512 + Math.ceil(dataSize / 512) * 512;
+    offset += 512 + Math.ceil(size / 512) * 512;
   }
   return undefined;
 }
