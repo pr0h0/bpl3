@@ -1603,6 +1603,26 @@ function rejectConstantArrayView(
 /**
  * Check a cast expression
  */
+/**
+ * Code generation cannot drop a lambda's context, so `cast` and `as` from a
+ * Lambda to a Func are rejected here, where `bpl check` sees them, at the
+ * conversion's own location.
+ */
+function rejectLambdaToFunc(
+  expr: AST.CastExpr | AST.AsExpr,
+  resolved: AST.TypeNode | undefined,
+  target: AST.TypeNode | undefined,
+): void {
+  if (resolved?.kind === "LambdaType" && target?.kind === "FunctionType") {
+    throw new CompilerError(
+      "Cannot cast Lambda to Func",
+      "A lambda carries a context that a raw function pointer cannot hold. Keep the Lambda type, or cast a Func to a Lambda instead.",
+      expr.location,
+      CAST_INVALID_CODE,
+    );
+  }
+}
+
 export function checkCast(
   this: CheckerContext,
   expr: AST.CastExpr,
@@ -1615,17 +1635,7 @@ export function checkCast(
 
     rejectIntegerToString(this, expr, resolved, target);
     rejectConstantArrayView(this, expr, resolved, target);
-
-    // Code generation cannot drop a lambda's context; reject it here so
-    // `bpl check` agrees with `bpl build` and points at the cast.
-    if (resolved?.kind === "LambdaType" && target?.kind === "FunctionType") {
-      throw new CompilerError(
-        "Cannot cast Lambda to Func",
-        "A lambda carries a context that a raw function pointer cannot hold. Keep the Lambda type, or cast a Func to a Lambda instead.",
-        expr.location,
-        CAST_INVALID_CODE,
-      );
-    }
+    rejectLambdaToFunc(expr, resolved, target);
 
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {
@@ -2125,6 +2135,7 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
 
     rejectIntegerToString(this, expr, resolved, target);
     rejectConstantArrayView(this, expr, resolved, target);
+    rejectLambdaToFunc(expr, resolved, target);
 
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {

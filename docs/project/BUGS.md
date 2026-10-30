@@ -695,8 +695,8 @@ Found by the 2026-10-30 documentation audit. Casting a `Lambda` value to a
 `Func` type type-checked; code generation then rejected it ("Cannot cast Lambda
 to Func") and pointed at the lambda's declaration instead of the cast.
 
-**Resolution**: the type checker rejects the cast with `BPL_CAST_INVALID` at the
-cast expression. `tests/AuditCompilerFixes.test.ts`.
+**Resolution**: the type checker rejects the cast, and the equivalent `as`
+conversion, with `BPL_CAST_INVALID` at the conversion. `tests/AuditCompilerFixes.test.ts`.
 
 ## Generated-program fuzzer findings (2026-10-29)
 

@@ -188,7 +188,7 @@ Implicit conversions are intentionally narrow:
   not convert to or from integers.
 - **[R-CONV-9]** `Lambda` values, including non-capturing lambda literals, are
   not implicitly assignable to `Func` values or parameters, and an explicit
-  `cast<Func<...>>` of a `Lambda` is rejected with `BPL_CAST_INVALID`. A named
+  `cast<Func<...>>` or `as Func<...>` of a `Lambda` is rejected with `BPL_CAST_INVALID`. A named
   `frame` function converts to both a matching `Func` and a matching `Lambda`.
 - **[R-CONV-10]** `cast<T>(value)` and `(value as T)` are equivalent explicit
   conversions. Integer casts keep the low bits or extend according to the

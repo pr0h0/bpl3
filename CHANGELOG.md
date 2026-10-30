@@ -78,7 +78,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- `cast<Func<...>>` of a `Lambda` is rejected by the type checker
+- `cast<Func<...>>` and `as Func<...>` of a `Lambda` are rejected by the type checker
   (`BPL_CAST_INVALID`, at the cast) instead of passing `bpl check` and failing in
   code generation at the lambda's declaration (BUG-473).
 

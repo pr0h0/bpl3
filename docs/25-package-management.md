@@ -1003,8 +1003,12 @@ bpl rs build -- --release
   import name matches the package name exactly, and `bpl doctor packages`.
   Local packages take precedence over the workspace `packages/` directory and
   global packages with the same name.
-- **Lock verification fails**: `bpl install --locked` reports the drifted entry;
-  review the change and run `bpl install --update` to accept it.
+- **Lock verification fails**: `bpl install --locked` reports the drifted entry.
+  To accept a changed dependency archive, review it and run
+  `bpl install --update`; this reinstalls packages from their archives, so it
+  replaces any edits made inside `bpl_modules/`. To record intentionally
+  edited installed packages instead, preserve the changes and run
+  `bpl install --repair-lock`.
 - **Permission errors on global installs**: global packages live under
   `~/.bpl/packages/`; install locally instead if that
   directory is not writable.

@@ -630,4 +630,17 @@ describe("BUG-473: Lambda to Func casts", () => {
       "error[BPL_CAST_INVALID][main.bpl:3:31]: Cannot cast Lambda to Func",
     );
   });
+
+  test("the equivalent 'as' conversion is rejected too", () => {
+    const result = check(`frame main() ret int {
+    local l: Lambda<int>(int) = |x: int| ret int { return x; };
+    local f: Func<int>(int) = (l as Func<int>(int));
+    return f(0);
+}
+`);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "error[BPL_CAST_INVALID][main.bpl:3:32]: Cannot cast Lambda to Func",
+    );
+  });
 });
