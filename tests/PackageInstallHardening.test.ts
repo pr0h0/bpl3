@@ -164,9 +164,8 @@ test("a PAX size record is followed to the next member header", () => {
     const manifest = Buffer.from(
       JSON.stringify({ name: "paxsize", version: "0.1.0", main: "index.bpl" }),
     );
-    const record = "size=1024\n";
-    const length = `${record.length + 3} ${record}`.length;
-    const pax = Buffer.from(`${length} ${record}`);
+    // Adjacent duplicate records: the last one wins.
+    const pax = Buffer.from("10 size=0\n13 size=1024\n");
     const archive = join(root, "paxsize-0.1.0.tgz");
     writeFileSync(
       archive,

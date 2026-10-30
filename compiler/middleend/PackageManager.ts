@@ -124,7 +124,7 @@ function findUnsupportedTarMember(
       const text = data.toString("utf8");
       if (text.includes("GNU.sparse")) return `${name} (sparse file)`;
       // The last record wins when a key repeats.
-      const sizes = [...text.matchAll(/(?:^|\n)\d+ size=(\d+)\n/g)];
+      const sizes = [...text.matchAll(/(?:^|\n)\d+ size=(\d+)(?=\n)/g)];
       paxSize = sizes.length > 0 ? Number(sizes.at(-1)![1]) : undefined;
     } else if (type !== "L" && type !== "K") {
       const logical = paxSize ?? size;
