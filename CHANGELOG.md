@@ -57,7 +57,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - `bpl docs` attaches comments to globals and type aliases, and `--json`
   reports a compiler error's own code (such as `BPL_SOURCE_COMPLEXITY_LIMIT`)
-  instead of `BPL_DOCS_FAILED`.
+  as `diagnosticCode`; `errorCode` stays `BPL_DOCS_FAILED`.
 
 - Enum match exhaustiveness checks nested sub-patterns: a refutable arm
   (`E.V(1, y)`) no longer counts as covering its variant, arms such as

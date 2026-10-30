@@ -3154,7 +3154,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     const coveredVariants = new Set<string>();
     let hasWildcard = false;
 
-    for (const arm of expr.arms) {
+    for (let armIndex = 0; armIndex < expr.arms.length; armIndex++) {
+      const arm = expr.arms[armIndex]!;
       const pattern = arm.pattern;
       const variant =
         pattern.kind === "PatternEnum" ||
@@ -3167,7 +3168,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (hasWildcard || (variant && coveredVariants.has(variant))) {
         throw new CompilerError(
           variant && !hasWildcard
-            ? `Unreachable match arm: variant '${variant}' is already matched by an earlier arm`
+            ? `Unreachable match arm: variant '${variant}' is already matched by earlier arms`
             : "Unreachable match arm: an earlier '_' arm matches every value",
           "Remove the arm, or move it before the arm that already matches its values.",
           pattern.location ?? arm.location,
@@ -3178,12 +3179,26 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (arm.guard) continue;
       if (pattern.kind === "PatternWildcard") {
         hasWildcard = true;
-      } else if (
-        variant &&
-        (pattern.kind !== "PatternEnumTuple" ||
-          pattern.bindings.every(irrefutable))
-      ) {
-        coveredVariants.add(variant);
+      } else if (variant) {
+        // Covered by this arm alone, or together with earlier unguarded
+        // arms (`On(true)` then `On(false)`): later arms for it are dead.
+        const enumVariant = enumDecl.variants.find((v) => v.name === variant);
+        if (
+          pattern.kind !== "PatternEnumTuple" ||
+          pattern.bindings.every(irrefutable) ||
+          (enumVariant !== undefined &&
+            this.patternRowsExhaustive(
+              this.specializeEnumRows(
+                expr.arms
+                  .slice(0, armIndex + 1)
+                  .filter((candidate) => !candidate.guard)
+                  .map((candidate) => [candidate.pattern]),
+                enumVariant,
+              ),
+            ))
+        ) {
+          coveredVariants.add(variant);
+        }
       }
     }
 

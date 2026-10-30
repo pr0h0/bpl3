@@ -179,6 +179,10 @@ JSON-mode validation failures stay on stdout with `success: false`, `file`,
 - `BPL_DOCS_OUTPUT_PARENT_NOT_DIRECTORY`
 - `BPL_DOCS_FAILED`
 
+When `BPL_DOCS_FAILED` comes from a compiler diagnostic that has its own code
+(such as `BPL_SOURCE_COMPLEXITY_LIMIT`), that code is also reported as
+`diagnosticCode`.
+
 Reproduce the focused JSON contract with
 `bun test tests/CLI.test.ts -t "documentation generation success and validation failures as JSON"`.
 

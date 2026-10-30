@@ -112,11 +112,12 @@ export function registerDocsCommand(program: Command): void {
               file,
               outputPath,
               error: message,
-              // A compiler error keeps its own code, as in other commands.
-              errorCode:
-                error instanceof CompilerError && error.code
-                  ? error.code
-                  : getDocsErrorCode(baseMessage),
+              errorCode: getDocsErrorCode(baseMessage),
+              // errorCode stays within the documented BPL_DOCS_* set; a
+              // compiler error's own code is reported alongside it.
+              ...(error instanceof CompilerError && error.code
+                ? { diagnosticCode: error.code }
+                : {}),
             }),
           );
           process.exit(1);

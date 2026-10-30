@@ -556,6 +556,14 @@ frame f(x: Flag) ret int {
     return match (x) { Flag.On(true) => 1, Flag.Off => 3, };
 }${MAIN}`);
     expect(partial.stderr).toContain("missing variants: On");
+    // Once the arms cover On together, a further On arm is dead.
+    const dead = check(`enum Flag { On(bool), Off, }
+frame f(x: Flag) ret int {
+    return match (x) { Flag.On(true) => 1, Flag.On(false) => 2, Flag.On(b) => 4, Flag.Off => 3, };
+}${MAIN}`);
+    expect(dead.stderr).toContain(
+      "Unreachable match arm: variant 'On' is already matched by earlier arms",
+    );
   });
 
   test("an identifier arm cannot stand for the whole enum value", () => {

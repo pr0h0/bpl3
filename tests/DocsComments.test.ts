@@ -100,10 +100,11 @@ frame main() ret int { return MAX; }
   );
 });
 
-test("compiler errors keep their own JSON error code", () => {
+test("compiler errors report their own code as diagnosticCode", () => {
   const deep = `frame main() ret int { return ${"(".repeat(3000)}1${")".repeat(3000)}; }\n`;
   withSource(deep, (file, out) => {
     const json = JSON.parse(docs(["--json", file, "-o", out]).stdout);
-    expect(json.errorCode).toBe("BPL_SOURCE_COMPLEXITY_LIMIT");
+    expect(json.errorCode).toBe("BPL_DOCS_FAILED");
+    expect(json.diagnosticCode).toBe("BPL_SOURCE_COMPLEXITY_LIMIT");
   });
 });
