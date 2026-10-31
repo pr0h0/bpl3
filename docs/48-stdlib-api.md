@@ -393,6 +393,36 @@ Stable non-cryptographic hashing helpers.
 - `Hash.checksum32(input: string) ret uint`
 - `Hash.combine32(left: uint, right: uint) ret uint`
 
+### Sha256 (`std/sha256.bpl`)
+
+SHA-256 digests (FIPS 180-4), implemented in BPL with no external library.
+Create a streaming context with `Sha256.new()`, feed it with `update`, and call
+`finish` to write the 32-byte digest; `init` resets a context for reuse. The
+static helpers hash a whole buffer at once. `hexBytes` and `hex` return a
+caller-owned 64-character lowercase string (release it with
+`free(cast<*void>(result))`), or `nullptr` if allocation fails. Null or empty
+input hashes the empty message.
+
+- `Sha256.new() ret Sha256`
+- `context.init()`
+- `context.update(data: *u8, length: long)`
+- `context.finish(digest: *u8)` — writes 32 bytes
+- `Sha256.digest(data: *u8, length: long, digest: *u8)`
+- `Sha256.hexBytes(data: *u8, length: long) ret string`
+- `Sha256.hex(text: string) ret string`
+
+```bpl
+import printf, free from "std/c.bpl";
+import [Sha256] from "std/sha256.bpl";
+
+frame main() ret int {
+    local digest: string = Sha256.hex("abc");
+    printf("%s\n", digest);
+    free(cast<*void>(digest));
+    return 0;
+}
+```
+
 ---
 
 ## Data Structures

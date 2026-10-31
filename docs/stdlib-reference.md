@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 65 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 66 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -67,6 +67,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/result.bpl](../lib/result.bpl)
 - [std/scope_stack.bpl](../lib/scope_stack.bpl)
 - [std/set.bpl](../lib/set.bpl)
+- [std/sha256.bpl](../lib/sha256.bpl)
 - [std/stack.bpl](../lib/stack.bpl)
 - [std/stats.bpl](../lib/stats.bpl)
 - [std/std.bpl](../lib/std.bpl)
@@ -2490,6 +2491,35 @@ frame __eq__(this: *Set<T>, other: Set<T>) ret bool
 frame __ne__(this: *Set<T>, other: Set<T>) ret bool
 ```
 
+## std/sha256.bpl
+
+[Source](../lib/sha256.bpl)
+
+Exports:
+
+```bpl
+export [Sha256];
+```
+
+### Sha256
+
+```bpl
+struct Sha256
+state: u32[8]
+block: u8[64]
+blockLength: int
+totalLength: ulong
+frame new() ret Sha256
+frame init(this: *Sha256)
+frame update(this: *Sha256, data: *u8, length: long)
+frame finish(this: *Sha256, digest: *u8)
+frame compress(this: *Sha256)
+frame rotr(value: u32, bits: int) ret u32
+frame digest(data: *u8, length: long, digest: *u8)
+frame hexBytes(data: *u8, length: long) ret string
+frame hex(text: string) ret string
+```
+
 ## std/stack.bpl
 
 [Source](../lib/stack.bpl)
@@ -2684,6 +2714,7 @@ export [Hex];
 export [ByteReader];
 export [ByteWriter];
 export [Hash];
+export [Sha256];
 export [UUID];
 export [Stats];
 export [Complex];
