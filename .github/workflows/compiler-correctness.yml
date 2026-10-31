@@ -18,6 +18,39 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  static-checks:
+    name: Type check and lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.bun/install/cache
+            ~/.npm
+          key: deps-${{ runner.os }}-${{ hashFiles('.bun-version', 'bun.lock', 'vscode-ext/package-lock.json') }}
+          restore-keys: deps-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          bun install --frozen-lockfile
+          npm ci --prefix vscode-ext
+
+      - name: Type check
+        run: bun run check
+
+      - name: Lint
+        run: bun run lint
+
   windows-codegen:
     name: Windows parser/typecheck/codegen smoke
     runs-on: windows-latest
@@ -31,16 +64,19 @@ jobs:
         with:
           bun-version-file: .bun-version
 
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.bun/install/cache
+            ~/AppData/Local/npm-cache
+          key: deps-${{ runner.os }}-${{ hashFiles('.bun-version', 'bun.lock', 'vscode-ext/package-lock.json') }}
+          restore-keys: deps-${{ runner.os }}-
+
       - name: Install dependencies
         run: |
           bun install --frozen-lockfile
           npm ci --prefix vscode-ext
-
-      - name: Type check
-        run: bun run check
-
-      - name: Lint
-        run: bun run lint
 
       - name: Run Windows-safe codegen tests
         run: bun run test:codegen-cross-platform
@@ -143,16 +179,19 @@ jobs:
           "${BPL_WASM_CC:-clang}" --version
           "$WASM_LD" --version
 
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.bun/install/cache
+            ~/.npm
+          key: deps-${{ runner.os }}-${{ hashFiles('.bun-version', 'bun.lock', 'vscode-ext/package-lock.json') }}
+          restore-keys: deps-${{ runner.os }}-
+
       - name: Install dependencies
         run: |
           bun install --frozen-lockfile
           npm ci --prefix vscode-ext
-
-      - name: Type check
-        run: bun run check
-
-      - name: Lint
-        run: bun run lint
 
       - name: Run WebAssembly runtime tests
         env:
