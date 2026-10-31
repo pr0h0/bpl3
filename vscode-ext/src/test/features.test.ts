@@ -256,9 +256,12 @@ describe("BPL High Priority Features Tests", () => {
         pathToFileURL(filePath).toString(),
         "bpl",
         1,
-        ["frame main() ret int {", "    local count = 1;", "    return count;", "}"].join(
-          "\n",
-        ),
+        [
+          "frame main() ret int {",
+          "    local count = 1;",
+          "    return count;",
+          "}",
+        ].join("\n"),
       );
 
       const hints = provider.handle(
@@ -285,9 +288,12 @@ describe("BPL High Priority Features Tests", () => {
         pathToFileURL(filePath).toString(),
         "bpl",
         1,
-        ["frame main() ret int {", "    local count = 1;", "    return count;", "}"].join(
-          "\n",
-        ),
+        [
+          "frame main() ret int {",
+          "    local count = 1;",
+          "    return count;",
+          "}",
+        ].join("\n"),
       );
 
       const hints = provider.handle(

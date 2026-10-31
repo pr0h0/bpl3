@@ -98,8 +98,7 @@ function isScalarOrPointer(type: AST.TypeNode): boolean {
   }
   return (
     type.arrayDimensions.length === 0 &&
-    (getPrimitiveType(type.name) !== undefined ||
-      type.name === "string")
+    (getPrimitiveType(type.name) !== undefined || type.name === "string")
   );
 }
 

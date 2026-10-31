@@ -1,4 +1,6 @@
-export function getProcessErrorCode(error: Error | undefined): string | undefined {
+export function getProcessErrorCode(
+  error: Error | undefined,
+): string | undefined {
   if (!error || typeof error !== "object" || !("code" in error)) {
     return undefined;
   }

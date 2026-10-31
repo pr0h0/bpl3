@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "15 min",
   "description": "Master BPL's powerful enum system and pattern matching. Create algebraic data types and handle all cases elegantly.",
-  "prerequisites": [
-    "pointers-basics"
-  ],
+  "prerequisites": ["pointers-basics"],
   "objectives": [
     "Define enums with and without associated data",
     "Use pattern matching with match expressions",

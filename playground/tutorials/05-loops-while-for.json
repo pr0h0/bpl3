@@ -6,9 +6,7 @@
   "difficulty": "beginner",
   "duration": "12 min",
   "description": "Learn how to repeat code with loops. Master while loops, for loops, and control statements like break and continue.",
-  "prerequisites": [
-    "control-flow-if-else"
-  ],
+  "prerequisites": ["control-flow-if-else"],
   "objectives": [
     "Write while loops for condition-based repetition",
     "Use for loops for counting iterations",
@@ -125,12 +123,7 @@
       "questions": [
         {
           "question": "How many times does this loop run? loop (local i: int = 0; i < 5; i = i + 1) { }",
-          "options": [
-            "4 times",
-            "5 times",
-            "6 times",
-            "Infinite"
-          ],
+          "options": ["4 times", "5 times", "6 times", "Infinite"],
           "correct": 1,
           "explanation": "i goes through values 0, 1, 2, 3, 4 (5 iterations). When i becomes 5, the condition i < 5 is false."
         },

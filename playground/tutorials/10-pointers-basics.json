@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "15 min",
   "description": "Understand memory addresses and pointers. Learn how to reference and dereference values, and why pointers are essential for systems programming.",
-  "prerequisites": [
-    "struct-methods"
-  ],
+  "prerequisites": ["struct-methods"],
   "objectives": [
     "Understand what pointers are and why they're useful",
     "Create pointers with the & operator",

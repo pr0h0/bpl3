@@ -36,8 +36,6 @@ describe("LSP utility type formatting", () => {
     };
 
     expect(typeNodeToString(lambdaType)).toBe("Lambda<int>(int, string)");
-    expect(typeNodeToString(metaType)).toBe(
-      "typeof<Lambda<int>(int, string)>",
-    );
+    expect(typeNodeToString(metaType)).toBe("typeof<Lambda<int>(int, string)>");
   });
 });

@@ -261,7 +261,10 @@ export class Formatter {
     limitLine: number,
   ): number | undefined {
     if (!this.sourceText) return undefined;
-    const tokens = (this.sourceTokens ??= lexWithGrammar(this.sourceText, file));
+    const tokens = (this.sourceTokens ??= lexWithGrammar(
+      this.sourceText,
+      file,
+    ));
     for (const token of tokens) {
       if (token.line < line || (token.line === line && token.column < column))
         continue;

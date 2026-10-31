@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "15 min",
   "description": "Learn common BPL programming patterns. Write cleaner, more maintainable code using proven idioms.",
-  "prerequisites": [
-    "standard-library-overview"
-  ],
+  "prerequisites": ["standard-library-overview"],
   "objectives": [
     "Apply the Builder pattern",
     "Use Option and Result effectively",

@@ -51,12 +51,7 @@ export class Linter {
         code = "LINT",
         hint = "Fix the reported issue or disable the rule.",
       ) => {
-        const error = new CompilerError(
-          message,
-          hint,
-          node.location,
-          code,
-        );
+        const error = new CompilerError(message, hint, node.location, code);
         error.setSeverity(_severity);
         this.errors.push(error);
       },

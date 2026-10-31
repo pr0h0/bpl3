@@ -6,8 +6,7 @@ import {
 } from "../../cli/WasmToolchain";
 
 export type PlaygroundWasmLinkerResult =
-  | { ok: true; linker: string }
-  | { ok: false; error: string };
+  { ok: true; linker: string } | { ok: false; error: string };
 
 interface ResolvePlaygroundWasmLinkerOptions {
   env?: NodeJS.ProcessEnv;

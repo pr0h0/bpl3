@@ -20,9 +20,9 @@ describe("BPL import tooling", () => {
   it("resolves std root and std submodule imports from BPL_HOME", () => {
     const resolver = new ModuleResolver(repoRoot);
 
-    expect(resolver.resolve("std", path.join(repoRoot, "main.bpl"))?.filePath).toBe(
-      path.join(repoRoot, "lib", "std.bpl"),
-    );
+    expect(
+      resolver.resolve("std", path.join(repoRoot, "main.bpl"))?.filePath,
+    ).toBe(path.join(repoRoot, "lib", "std.bpl"));
     expect(
       resolver.resolve("std/string", path.join(repoRoot, "main.bpl"))?.filePath,
     ).toBe(path.join(repoRoot, "lib", "string.bpl"));
@@ -52,7 +52,9 @@ describe("BPL import tooling", () => {
         position: { line: 0, character: content.length },
       };
 
-      const labels = completionHandler.handle(params, document).map((item) => item.label);
+      const labels = completionHandler
+        .handle(params, document)
+        .map((item) => item.label);
       expect(labels).toContain("std/string.bpl");
       expect(labels).toContain("std/array.bpl");
     } finally {
@@ -97,7 +99,11 @@ describe("BPL import tooling", () => {
     const sourceDir = path.join(appDir, "src", "features");
     const localPackageDir = path.join(appDir, "bpl_modules", "package-math");
     const localSubpathDir = path.join(localPackageDir, "features", "math");
-    const workspacePackageDir = path.join(appDir, "packages", "workspace-tools");
+    const workspacePackageDir = path.join(
+      appDir,
+      "packages",
+      "workspace-tools",
+    );
     const unrelatedDir = path.join(tmpDir, "unrelated");
     const shadowPackageDir = path.join(
       unrelatedDir,
@@ -373,11 +379,7 @@ describe("BPL import tooling", () => {
   });
 });
 
-function writePackage(
-  packageDir: string,
-  name: string,
-  main: string,
-): void {
+function writePackage(packageDir: string, name: string, main: string): void {
   fs.mkdirSync(packageDir, { recursive: true });
   fs.writeFileSync(
     path.join(packageDir, "bpl.json"),

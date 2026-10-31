@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "15 min",
   "description": "Tour BPL's standard library. Learn about IO, strings, collections, math, and more built-in modules.",
-  "prerequisites": [
-    "building-and-debugging"
-  ],
+  "prerequisites": ["building-and-debugging"],
   "objectives": [
     "Navigate the standard library",
     "Use common modules effectively",

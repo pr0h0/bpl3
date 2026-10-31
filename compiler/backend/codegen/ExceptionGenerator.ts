@@ -161,8 +161,7 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     for (let i = 0; i < stmt.catchClauses.length; i++) {
       const clause = stmt.catchClauses[i]!;
       let caughtStorage:
-        | { name: string; address: string; type: AST.TypeNode }[]
-        | undefined;
+        { name: string; address: string; type: AST.TypeNode }[] | undefined;
       const labels = clauseLabels[i]!;
       const isCatchAll = clause.type === null;
 
@@ -530,7 +529,9 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
       `  store %struct.DeferNode* ${nextPtr}, %struct.DeferNode** @defer_top`,
     );
     const currentVoid = this.newRegister();
-    this.emit(`  ${currentVoid} = bitcast %struct.DeferNode* ${currentDefer} to i8*`);
+    this.emit(
+      `  ${currentVoid} = bitcast %struct.DeferNode* ${currentDefer} to i8*`,
+    );
     this.emit(`  call void @free(i8* ${currentVoid})`);
     this.emit(`  call void ${funcPtr}(i8* ${ctxPtr})`);
 
@@ -918,7 +919,12 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     const nodeSize = 24; // 8 ptr + 8 ptr + 8 ptr
     const nodeVoidPtr = this.newRegister();
     this.emit(`  ${nodeVoidPtr} = call i8* @malloc(i64 ${nodeSize})`);
-    this.guardAllocation(nodeVoidPtr, stmt, "Cannot allocate defer node", ctxVal);
+    this.guardAllocation(
+      nodeVoidPtr,
+      stmt,
+      "Cannot allocate defer node",
+      ctxVal,
+    );
     const nodePtr = this.newRegister();
     this.emit(
       `  ${nodePtr} = bitcast i8* ${nodeVoidPtr} to %struct.DeferNode*`,

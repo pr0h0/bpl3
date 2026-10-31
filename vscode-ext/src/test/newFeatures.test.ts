@@ -139,11 +139,7 @@ describe("Selection Range Provider", () => {
       pathToFileURL(filePath).toString(),
       "bpl",
       1,
-      [
-        "spec Reader {",
-        "    frame read(this: *Self) ret int;",
-        "}",
-      ].join("\n"),
+      ["spec Reader {", "    frame read(this: *Self) ret int;", "}"].join("\n"),
     );
 
     const result = provider.handle(
@@ -661,9 +657,7 @@ frame main() {}`;
     );
 
     expect(
-      result?.some(
-        (range) => range.startLine === 2 && range.endLine === 4,
-      ),
+      result?.some((range) => range.startLine === 2 && range.endLine === 4),
     ).toBe(true);
   });
 
@@ -672,11 +666,7 @@ frame main() {}`;
       `file://${path.resolve(__dirname, "../../../tmp/test-spec-folding.bpl")}`,
       "bpl",
       1,
-      [
-        "spec Reader {",
-        "    frame read(this: *Self) ret int;",
-        "}",
-      ].join("\n"),
+      ["spec Reader {", "    frame read(this: *Self) ret int;", "}"].join("\n"),
     );
 
     const result = provider.handle(
@@ -687,9 +677,7 @@ frame main() {}`;
     );
 
     expect(
-      result?.some(
-        (range) => range.startLine === 0 && range.endLine === 2,
-      ),
+      result?.some((range) => range.startLine === 0 && range.endLine === 2),
     ).toBe(true);
   });
 });
@@ -1041,8 +1029,9 @@ describe("Symbol Index Type Rendering", () => {
       symbolIndex.indexFile(filePath, false);
 
       const runner = symbolIndex.findSymbol("Runner")[0];
-      expect(runner?.fields?.find((field) => field.name === "callback")?.type)
-        .toBe("Lambda<int>(int)");
+      expect(
+        runner?.fields?.find((field) => field.name === "callback")?.type,
+      ).toBe("Lambda<int>(int)");
     } finally {
       fs.rmSync(filePath, { force: true });
     }

@@ -368,11 +368,9 @@ describe("BPL Language Server Tests", () => {
         pathToFileURL(filePath).toString(),
         "bpl",
         1,
-        [
-          "spec Reader {",
-          "    frame read(this: *Self) ret int;",
-          "}",
-        ].join("\n"),
+        ["spec Reader {", "    frame read(this: *Self) ret int;", "}"].join(
+          "\n",
+        ),
       );
       const hover = hoverHandler.handle(
         {
@@ -597,11 +595,9 @@ describe("BPL Language Server Tests", () => {
         pathToFileURL(filePath).toString(),
         "bpl",
         1,
-        [
-          "spec Reader {",
-          "    frame read(this: *Self) ret int;",
-          "}",
-        ].join("\n"),
+        ["spec Reader {", "    frame read(this: *Self) ret int;", "}"].join(
+          "\n",
+        ),
       );
 
       const location = definitionHandler.handle(
@@ -699,7 +695,9 @@ frame test() {
         textDocument: { uri: loopDoc.uri },
         position: { line: 3, character: 8 },
       };
-      const labels = completionHandler.handle(params, loopDoc).map((c) => c.label);
+      const labels = completionHandler
+        .handle(params, loopDoc)
+        .map((c) => c.label);
 
       expect(labels).toContain("i");
       expect(labels).toContain("total");
