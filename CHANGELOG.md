@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- The npm package ships example sources only (BUG-450): `files` lists them by
+  type and excludes `.bpl-cache/` and `lib/*.a`, so local build outputs no
+  longer leak into the tarball (examples: 18.8 MB to 1.3 MB). The release smoke
+  test fails when a packed `examples/` file is not tracked by git.
 - The compiled `bpl` executable is standalone. The lexer's token grammar is
   bundled into it, so the CLI no longer reads `grammar/` at runtime, and the
   whole standard library is bundled through the generated
