@@ -228,6 +228,7 @@ export class ASTRenameHandler {
         node,
         document,
         (expr) => this.astResolver.resolveType(expr, filePath),
+        offset,
       );
       if (memberRanges) {
         const onReference = memberRanges.some(

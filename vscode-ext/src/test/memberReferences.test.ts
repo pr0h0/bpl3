@@ -102,4 +102,24 @@ frame main() ret int {
     // On the object, not the member: not a member reference.
     expect(references("child.value", 2, source)).not.toContain("15:value");
   });
+
+  it("matches literal keys only, and resolves a key under the cursor", () => {
+    const source = `struct Counter {
+    count: int,
+    other: int,
+}
+
+frame main() ret int {
+    local count: int = 3;
+    local flag: bool = true;
+    local c: Counter = Counter { other: flag ? count : 0, count: 1 };
+    return c.count + c.other;
+}
+`;
+    // The ternary's \`count :\` reads the local; it is not a field key.
+    const expected = ["1:count", "8:count", "9:count"];
+    expect(references("c.count", 3, source)).toEqual(expected);
+    // From the key itself, which has no AST location of its own.
+    expect(references("count: 1", 1, source)).toEqual(expected);
+  });
 });

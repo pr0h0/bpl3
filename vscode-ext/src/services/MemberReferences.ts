@@ -22,13 +22,15 @@ interface MemberTarget {
  * `node`: its declaration name, `value.member` accesses whose object is that
  * struct or a struct inheriting it, and keys in struct literals. Returns null
  * when `node` is not a field, a method, or a member access that resolves to
- * one declared in this file.
+ * one declared in this file. `cursorOffset` selects the key when `node` is a
+ * struct literal, whose field keys have no AST locations.
  */
 export function findMemberReferences(
   program: AST.Program,
   node: AST.ASTNode,
   document: TextDocument,
   typeOf: ExpressionTypeResolver,
+  cursorOffset?: number,
 ): Range[] | null {
   const structs = new Map<string, AST.StructDecl>();
   for (const statement of program.statements) {
@@ -39,7 +41,7 @@ export function findMemberReferences(
       );
     }
   }
-  const target = memberTarget(node, structs, typeOf);
+  const target = memberTarget(node, structs, typeOf, document, cursorOffset);
   if (!target) return null;
 
   const ranges: Range[] = [];
@@ -79,7 +81,26 @@ function memberTarget(
   node: AST.ASTNode,
   structs: Map<string, AST.StructDecl>,
   typeOf: ExpressionTypeResolver,
+  document: TextDocument,
+  cursorOffset: number | undefined,
 ): MemberTarget | null {
+  if (node.kind === "StructLiteral") {
+    if (cursorOffset === undefined) return null;
+    const literal = node as AST.StructLiteralExpr;
+    const key = literal.fields.find((field) =>
+      literalKeyRanges(literal, field.name, document).some(
+        (range) =>
+          cursorOffset >= document.offsetAt(range.start) &&
+          cursorOffset <= document.offsetAt(range.end),
+      ),
+    );
+    if (!key) return null;
+    return declaringMember(
+      structs.get(baseName(literal.structName)) ?? null,
+      key.name,
+      structs,
+    );
+  }
   if (node.kind === "StructField" || node.kind === "FunctionDecl") {
     for (const struct of structs.values()) {
       if ((struct.members as AST.ASTNode[]).includes(node)) {
@@ -94,18 +115,24 @@ function memberTarget(
   }
   if (node.kind !== "Member") return null;
   const member = node as AST.MemberExpr;
-  // Walk up the inheritance chain to the struct declaring the member.
-  for (
-    let struct = structOf(member.object, structs, typeOf);
-    struct;
-    struct = parentOf(struct, structs)
-  ) {
+  return declaringMember(
+    structOf(member.object, structs, typeOf),
+    member.property,
+    structs,
+  );
+}
+
+/** Walks up the inheritance chain to the struct declaring `name`. */
+function declaringMember(
+  start: AST.StructDecl | null,
+  name: string,
+  structs: Map<string, AST.StructDecl>,
+): MemberTarget | null {
+  for (let struct = start; struct; struct = parentOf(struct, structs)) {
     const declaration = struct.members.find(
-      (candidate) => candidate.name === member.property,
+      (candidate) => candidate.name === name,
     );
-    if (declaration) {
-      return { owner: struct, declaration, name: member.property };
-    }
+    if (declaration) return { owner: struct, declaration, name };
   }
   return null;
 }
@@ -240,15 +267,32 @@ function literalKeyRanges(
   const lexed = nodeTokens(literal, document);
   if (!lexed) return [];
   const ranges: Range[] = [];
+  // A key directly follows the literal's `{` or a `,` at its top level, so a
+  // `name:` inside a value (`flag ? name : 0`, `|name: int|`) is not one.
+  const tokens = lexed.tokens.filter(
+    (token) => token.type !== TokenType.Comment,
+  );
   let depth = 0;
-  lexed.tokens.forEach((token, index) => {
-    if (token.type === TokenType.LeftBrace) depth++;
-    else if (token.type === TokenType.RightBrace) depth--;
-    else if (
+  tokens.forEach((token, index) => {
+    switch (token.type) {
+      case TokenType.LeftBrace:
+      case TokenType.LeftParen:
+      case TokenType.LeftBracket:
+        depth++;
+        return;
+      case TokenType.RightBrace:
+      case TokenType.RightParen:
+      case TokenType.RightBracket:
+        depth--;
+        return;
+    }
+    const previous = tokens[index - 1]?.type;
+    if (
       depth === 1 &&
       token.type === TokenType.Identifier &&
       token.lexeme === name &&
-      lexed.tokens[index + 1]?.type === TokenType.Colon
+      (previous === TokenType.LeftBrace || previous === TokenType.Comma) &&
+      tokens[index + 1]?.type === TokenType.Colon
     ) {
       ranges.push(tokenRange(token, lexed.location, name));
     }
