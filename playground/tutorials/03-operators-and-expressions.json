@@ -6,9 +6,7 @@
   "difficulty": "beginner",
   "duration": "10 min",
   "description": "Learn how to perform calculations and comparisons using BPL's operators. Build complex expressions combining multiple operations.",
-  "prerequisites": [
-    "variables-and-types"
-  ],
+  "prerequisites": ["variables-and-types"],
   "objectives": [
     "Use arithmetic operators (+, -, *, /, %)",
     "Understand comparison operators (==, !=, <, >, <=, >=)",
@@ -107,12 +105,7 @@
       "questions": [
         {
           "question": "What is the result of 7 / 2 when both are integers?",
-          "options": [
-            "3.5",
-            "3",
-            "4",
-            "Error"
-          ],
+          "options": ["3.5", "3", "4", "Error"],
           "correct": 1,
           "explanation": "Integer division truncates the decimal part. 7 / 2 = 3."
         },
@@ -129,12 +122,7 @@
         },
         {
           "question": "What is true && false?",
-          "options": [
-            "true",
-            "false",
-            "Error",
-            "undefined"
-          ],
+          "options": ["true", "false", "Error", "undefined"],
           "correct": 1,
           "explanation": "AND (&&) requires BOTH sides to be true. One false makes it false."
         }

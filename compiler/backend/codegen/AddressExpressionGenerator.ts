@@ -47,7 +47,11 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       );
     }
     if (expr.kind === "Index") {
-      if (isTemporaryArrayElement(expr, (type) => this.resolveInstantiatedValueType(type))) {
+      if (
+        isTemporaryArrayElement(expr, (type) =>
+          this.resolveInstantiatedValueType(type),
+        )
+      ) {
         throw new CompilerError(
           "Cannot address an element of a temporary array",
           "Store the array in a local variable before writing or borrowing an element.",
@@ -114,7 +118,6 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     if (this.globals.has(name)) {
       return `@${name}`;
     }
-
 
     const ptr = this.localPointers.get(name);
     if (ptr) return ptr;
@@ -193,7 +196,8 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       const tupleType = this.resolveType(objType);
       const value = this.generateExpression(memberExpr.object);
       objectAddr = this.allocateStack(
-        `tuple_member_base_${this.labelCount++}`, tupleType,
+        `tuple_member_base_${this.labelCount++}`,
+        tupleType,
       );
       this.emit(`  store ${tupleType} ${value}, ${tupleType}* ${objectAddr}`);
     } else {
@@ -202,7 +206,11 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
 
     if (objType?.kind === "TupleType" && !objType.arrayDimensions?.length) {
       const index = Number(memberExpr.property);
-      if (!Number.isInteger(index) || index < 0 || index >= objType.types.length) {
+      if (
+        !Number.isInteger(index) ||
+        index < 0 ||
+        index >= objType.types.length
+      ) {
         throw new CompilerError(
           `Invalid tuple index '${memberExpr.property}'`,
           `Valid indices are 0-${objType.types.length - 1}`,

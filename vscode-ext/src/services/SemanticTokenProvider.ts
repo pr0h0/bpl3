@@ -685,9 +685,7 @@ export class SemanticTokenProvider {
     builder: SemanticTokensBuilder,
   ): void {
     if (!node.location) {
-      debugLog(
-        `[SemanticTokens] LambdaParameter ${node.name} has no location`,
-      );
+      debugLog(`[SemanticTokens] LambdaParameter ${node.name} has no location`);
       return;
     }
 

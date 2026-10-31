@@ -1,4 +1,7 @@
-const OMITTED_AST_ARTIFACT_KEYS = new Set(["resolvedDeclaration", "resolvedType"]);
+const OMITTED_AST_ARTIFACT_KEYS = new Set([
+  "resolvedDeclaration",
+  "resolvedType",
+]);
 
 export interface PlaygroundAstArtifactStringifyOptions {
   sourceFile?: string;
@@ -34,7 +37,10 @@ export function stringifyPlaygroundAstArtifact(
   );
 }
 
-function focusProgramOnSourceFile(value: unknown, sourceFile: string | undefined) {
+function focusProgramOnSourceFile(
+  value: unknown,
+  sourceFile: string | undefined,
+) {
   if (sourceFile === undefined || !isRecord(value)) {
     return value;
   }
@@ -51,7 +57,10 @@ function focusProgramOnSourceFile(value: unknown, sourceFile: string | undefined
   };
 }
 
-function isPrimarySourceStatement(statement: unknown, sourceFile: string): boolean {
+function isPrimarySourceStatement(
+  statement: unknown,
+  sourceFile: string,
+): boolean {
   if (!isRecord(statement)) return true;
   const location = statement.location;
   if (!isRecord(location) || typeof location.file !== "string") return true;

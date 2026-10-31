@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "12 min",
   "description": "Learn BPL's exception handling system. Throw errors, catch them by type, and build robust error recovery.",
-  "prerequisites": [
-    "generics"
-  ],
+  "prerequisites": ["generics"],
   "objectives": [
     "Throw exceptions of any type",
     "Catch exceptions by type",

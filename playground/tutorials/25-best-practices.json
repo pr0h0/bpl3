@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "12 min",
   "description": "Write professional-quality BPL code. Learn coding standards, documentation, testing approaches, and performance tips.",
-  "prerequisites": [
-    "patterns-and-idioms"
-  ],
+  "prerequisites": ["patterns-and-idioms"],
   "objectives": [
     "Follow BPL coding conventions",
     "Write self-documenting code",

@@ -46,9 +46,7 @@ export class CaptureAnalyzer {
     this.visit(this.lambdaExpr.body);
     // Return as VariableDecl[] (casting needed as we store ASTNode)
     return Array.from(this.capturedVariables) as (
-      | AST.VariableDecl
-      | AST.Parameter
-      | AST.LambdaParameter
+      AST.VariableDecl | AST.Parameter | AST.LambdaParameter
     )[];
   }
 
@@ -68,9 +66,9 @@ export class CaptureAnalyzer {
           this.visit((node as AST.VariableDecl).initializer!);
         }
         // Then add to locals
-        this.collectVariableDeclarationLocals(
-          node as AST.VariableDecl,
-        ).forEach((declaration) => this.localDeclarations.add(declaration));
+        this.collectVariableDeclarationLocals(node as AST.VariableDecl).forEach(
+          (declaration) => this.localDeclarations.add(declaration),
+        );
         break;
       case "Return":
         if ((node as AST.ReturnStmt).value) {
@@ -232,8 +230,7 @@ export class CaptureAnalyzer {
     this.visit(node.tryBlock);
 
     for (const clause of node.catchClauses) {
-      const catchBindings =
-        clause.variable && clause.type ? [clause] : [];
+      const catchBindings = clause.variable && clause.type ? [clause] : [];
       this.withLocalDeclarations(catchBindings, () => {
         this.visit(clause.body);
       });
@@ -361,7 +358,10 @@ export class CaptureAnalyzer {
           const identifier = current as AST.IdentifierExpr;
           const decl = identifier.resolvedDeclaration;
           if (!decl || this.localDeclarations.has(decl)) return;
-          if (decl.kind === "VariableDecl" && (decl as AST.VariableDecl).isGlobal) {
+          if (
+            decl.kind === "VariableDecl" &&
+            (decl as AST.VariableDecl).isGlobal
+          ) {
             return;
           }
           if (decl.kind === "Extern") return;

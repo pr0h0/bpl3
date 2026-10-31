@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "15 min",
   "description": "Learn how to write flexible, reusable code with generics. Create functions and structs that work with any type while maintaining type safety.",
-  "prerequisites": [
-    "enums-and-pattern-matching"
-  ],
+  "prerequisites": ["enums-and-pattern-matching"],
   "objectives": [
     "Understand what generics are and why they're useful",
     "Write generic functions with type parameters",

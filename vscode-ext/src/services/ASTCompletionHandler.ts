@@ -832,11 +832,17 @@ export class ASTCompletionHandler {
           visited.add(pattern.name);
           locals.push({
             name: pattern.name,
-            type: pattern.type ? this.typeNodeToString(pattern.type) : undefined,
+            type: pattern.type
+              ? this.typeNodeToString(pattern.type)
+              : undefined,
           });
         }
         if (pattern.bindingDeclaration) {
-          this.addVariableDeclToScope(pattern.bindingDeclaration, locals, visited);
+          this.addVariableDeclToScope(
+            pattern.bindingDeclaration,
+            locals,
+            visited,
+          );
         }
         break;
       case "PatternTuple":
@@ -852,7 +858,11 @@ export class ASTCompletionHandler {
       case "PatternEnumStruct":
         for (const field of pattern.fields) {
           if (field.bindingDeclaration) {
-            this.addVariableDeclToScope(field.bindingDeclaration, locals, visited);
+            this.addVariableDeclToScope(
+              field.bindingDeclaration,
+              locals,
+              visited,
+            );
           } else if (!visited.has(field.binding)) {
             visited.add(field.binding);
             locals.push({ name: field.binding });
@@ -924,7 +934,8 @@ export class ASTCompletionHandler {
       case "Literal":
         switch ((expr as AST.LiteralExpr).type) {
           case "number":
-            return typeof expr.value === "number" && !Number.isInteger(expr.value)
+            return typeof expr.value === "number" &&
+              !Number.isInteger(expr.value)
               ? "float"
               : "int";
           case "string":
@@ -962,7 +973,9 @@ export class ASTCompletionHandler {
         }
         return undefined;
       case "Cast":
-        return expr.targetType ? this.typeNodeToString(expr.targetType) : undefined;
+        return expr.targetType
+          ? this.typeNodeToString(expr.targetType)
+          : undefined;
       case "Group":
       case "Grouped":
         return this.inferTypeFromExpression(expr.expression);

@@ -645,7 +645,11 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
     let dataEqual = "true";
 
-    for (let variantIndex = 0; variantIndex < enumDecl.variants.length; variantIndex++) {
+    for (
+      let variantIndex = 0;
+      variantIndex < enumDecl.variants.length;
+      variantIndex++
+    ) {
       const variant = enumDecl.variants[variantIndex]!;
       const fieldTypes = this.getEnumVariantPayloadFieldTypes(variant);
       if (fieldTypes.length === 0) {
@@ -684,9 +688,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       }
 
       const isVariant = this.newRegister();
-      this.emit(
-        `  ${isVariant} = icmp eq i32 ${leftTag}, ${variantIndex}`,
-      );
+      this.emit(`  ${isVariant} = icmp eq i32 ${leftTag}, ${variantIndex}`);
 
       const isInactiveVariant = this.newRegister();
       this.emit(`  ${isInactiveVariant} = xor i1 ${isVariant}, true`);
@@ -978,48 +980,33 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         if (isFloat) {
           op = "fcmp olt";
         } else {
-          op = this.isSigned(expr.left.resolvedType!)
-            ? "icmp slt"
-            : "icmp ult";
+          op = this.isSigned(expr.left.resolvedType!) ? "icmp slt" : "icmp ult";
         }
         break;
       case TokenType.LessEqual:
         if (isFloat) {
           op = "fcmp ole";
         } else {
-          op = this.isSigned(expr.left.resolvedType!)
-            ? "icmp sle"
-            : "icmp ule";
+          op = this.isSigned(expr.left.resolvedType!) ? "icmp sle" : "icmp ule";
         }
         break;
       case TokenType.Greater:
         if (isFloat) {
           op = "fcmp ogt";
         } else {
-          op = this.isSigned(expr.left.resolvedType!)
-            ? "icmp sgt"
-            : "icmp ugt";
+          op = this.isSigned(expr.left.resolvedType!) ? "icmp sgt" : "icmp ugt";
         }
         break;
       case TokenType.GreaterEqual:
         if (isFloat) {
           op = "fcmp oge";
         } else {
-          op = this.isSigned(expr.left.resolvedType!)
-            ? "icmp sge"
-            : "icmp uge";
+          op = this.isSigned(expr.left.resolvedType!) ? "icmp sge" : "icmp uge";
         }
         break;
       case TokenType.Percent: {
         const isUnsigned = !isFloat && !this.isSigned(expr.left.resolvedType!);
-        op = this.getModuloOp(
-          expr,
-          isFloat,
-          isUnsigned,
-          left,
-          right,
-          leftType,
-        );
+        op = this.getModuloOp(expr, isFloat, isUnsigned, left, right, leftType);
         break;
       }
       case TokenType.Ampersand:
@@ -1033,19 +1020,11 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         break;
       case TokenType.LessLess:
         op = "shl";
-        finalRight = this.maskShiftAmount(
-          right,
-          leftType,
-          leftType,
-        );
+        finalRight = this.maskShiftAmount(right, leftType, leftType);
         break;
       case TokenType.GreaterGreater:
         op = this.isSigned(expr.left.resolvedType!) ? "ashr" : "lshr";
-        finalRight = this.maskShiftAmount(
-          right,
-          leftType,
-          leftType,
-        );
+        finalRight = this.maskShiftAmount(right, leftType, leftType);
         break;
     }
 
@@ -1259,8 +1238,15 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         const leftElement = this.newRegister();
         const rightElement = this.newRegister();
         this.emit(`  ${leftElement} = extractvalue ${llvmType} ${left}, ${i}`);
-        this.emit(`  ${rightElement} = extractvalue ${llvmType} ${right}, ${i}`);
-        const equal = this.generateValueEquality(leftElement, rightElement, typeNode, array[2]!);
+        this.emit(
+          `  ${rightElement} = extractvalue ${llvmType} ${right}, ${i}`,
+        );
+        const equal = this.generateValueEquality(
+          leftElement,
+          rightElement,
+          typeNode,
+          array[2]!,
+        );
         const next = this.newRegister();
         this.emit(`  ${next} = and i1 ${result}, ${equal}`);
         result = next;
@@ -1518,7 +1504,10 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
     const expressionKey =
       constantDivisor === undefined
-        ? this.getBasicBlockNonZeroIntegerExpressionKey(divisorExpr, divisorType)
+        ? this.getBasicBlockNonZeroIntegerExpressionKey(
+            divisorExpr,
+            divisorType,
+          )
         : undefined;
     if (
       expressionKey !== undefined &&

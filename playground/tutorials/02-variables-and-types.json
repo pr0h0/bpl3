@@ -6,9 +6,7 @@
   "difficulty": "beginner",
   "duration": "10 min",
   "description": "Learn how to store and work with data in BPL. Understand the different data types and how to declare variables.",
-  "prerequisites": [
-    "welcome"
-  ],
+  "prerequisites": ["welcome"],
   "objectives": [
     "Declare variables with the 'local' keyword",
     "Understand primitive data types (int, float, bool, char, string)",
@@ -82,23 +80,13 @@
       "questions": [
         {
           "question": "Which type would you use for someone's age?",
-          "options": [
-            "float",
-            "string",
-            "int",
-            "bool"
-          ],
+          "options": ["float", "string", "int", "bool"],
           "correct": 2,
           "explanation": "Age is a whole number, so 'int' is the best choice."
         },
         {
           "question": "What keyword makes a variable unchangeable?",
-          "options": [
-            "final",
-            "const",
-            "immutable",
-            "fixed"
-          ],
+          "options": ["final", "const", "immutable", "fixed"],
           "correct": 1,
           "explanation": "Use 'local const' to create a constant that cannot be reassigned."
         },

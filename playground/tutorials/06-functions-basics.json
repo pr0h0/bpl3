@@ -6,9 +6,7 @@
   "difficulty": "beginner",
   "duration": "15 min",
   "description": "Learn how to organize code into reusable functions (frames). Understand parameters, return values, and function calls.",
-  "prerequisites": [
-    "loops-while-for"
-  ],
+  "prerequisites": ["loops-while-for"],
   "objectives": [
     "Define functions using the 'frame' keyword",
     "Pass parameters to functions",
@@ -130,12 +128,7 @@
       "questions": [
         {
           "question": "What keyword defines a function in BPL?",
-          "options": [
-            "func",
-            "function",
-            "frame",
-            "def"
-          ],
+          "options": ["func", "function", "frame", "def"],
           "correct": 2,
           "explanation": "BPL uses 'frame' to define functions."
         },

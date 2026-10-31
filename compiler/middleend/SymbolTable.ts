@@ -231,8 +231,10 @@ export class SymbolTable {
   }
 
   private registerMissDependent(name: string, dependent: SymbolTable): void {
-    const dependentsByName =
-      this.missDependentsByName ??= new Map<string, Set<SymbolTable>>();
+    const dependentsByName = (this.missDependentsByName ??= new Map<
+      string,
+      Set<SymbolTable>
+    >());
     const dependents = dependentsByName.get(name);
     if (dependents) {
       dependents.add(dependent);

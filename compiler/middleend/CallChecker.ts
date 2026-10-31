@@ -215,8 +215,7 @@ export function checkCall(
       );
 
       expr.resolvedDeclaration = match.declaration as
-        | AST.FunctionDecl
-        | AST.ExternDecl;
+        AST.FunctionDecl | AST.ExternDecl;
       expr.callee.resolvedType = match.type;
 
       // Passing a value by value copies it into the callee's own storage.
@@ -232,7 +231,8 @@ export function checkCall(
         const parameterType = match.type.paramTypes[index];
         if (parameterType && index < fixedParamCount) {
           argTypes[index] =
-            this.contextualizeArrayLiteral(argument, parameterType) ?? argTypes[index];
+            this.contextualizeArrayLiteral(argument, parameterType) ??
+            argTypes[index];
           this.checkIntegerConstantRange(argument, parameterType);
         }
         this.rejectOwningCopy(
@@ -410,9 +410,15 @@ export function checkCall(
               const isAny =
                 checkType.kind === "BasicType" && checkType.name === "Any";
               if (
-                !isAny && !this.areTypesCompatible(checkType, argType) &&
-                (!allowContextual || variadicElementType !== undefined ||
-                  !this.contextualizeArrayLiteral(expr.args[i]!, checkType, false))
+                !isAny &&
+                !this.areTypesCompatible(checkType, argType) &&
+                (!allowContextual ||
+                  variadicElementType !== undefined ||
+                  !this.contextualizeArrayLiteral(
+                    expr.args[i]!,
+                    checkType,
+                    false,
+                  ))
               ) {
                 match = false;
                 break;
@@ -436,7 +442,9 @@ export function checkCall(
                 j++
               ) {
                 // Check against variadic element type
-                if (!this.areTypesCompatible(variadicElementType, argTypes[j]!)) {
+                if (
+                  !this.areTypesCompatible(variadicElementType, argTypes[j]!)
+                ) {
                   match = false;
                   break;
                 }
@@ -466,7 +474,9 @@ export function checkCall(
 
     // Handle generic method inference
     if (
-      decl && decl.genericParams && decl.genericParams.length > 0 &&
+      decl &&
+      decl.genericParams &&
+      decl.genericParams.length > 0 &&
       expr.callee.kind !== "GenericInstantiation"
     ) {
       // GenericInstantiation already substituted the signature. Inferring
@@ -682,9 +692,11 @@ function handleEnumVariantCall(
         }
         expectedType = this.resolveType(expectedType);
         const actualType =
-          this.contextualizeArrayLiteral(expr.args[i]!, expectedType) ?? argTypes[i];
+          this.contextualizeArrayLiteral(expr.args[i]!, expectedType) ??
+          argTypes[i];
         argTypes[i] = actualType;
-        if (actualType) this.checkIntegerConstantRange(expr.args[i]!, expectedType);
+        if (actualType)
+          this.checkIntegerConstantRange(expr.args[i]!, expectedType);
         if (actualType && !this.areTypesCompatible(expectedType, actualType)) {
           throw new CompilerError(
             `Type mismatch for argument ${i + 1} of '${variant.name}': expected ${this.formatDiagnosticType(
@@ -744,10 +756,7 @@ function validateFunctionCall(
       funcType.paramTypes.length,
     );
   }
-  if (
-    funcType.paramTypes.length !== expr.args.length &&
-    !funcType.isVariadic
-  ) {
+  if (funcType.paramTypes.length !== expr.args.length && !funcType.isVariadic) {
     throw new CompilerError(
       `Expected ${funcType.paramTypes.length} arguments, got ${expr.args.length}`,
       "Argument count mismatch.",
@@ -1004,10 +1013,7 @@ export function checkMember(
       );
       if (memberContext) {
         const { members, genericMap } = memberContext;
-        if (
-          members.length === 1 &&
-          members[0]?.kind === "FunctionDecl"
-        ) {
+        if (members.length === 1 && members[0]?.kind === "FunctionDecl") {
           const singleMethod = members[0];
           let { returnType, paramTypes } = resolveMethodTypesInModuleContext(
             this,
@@ -1121,7 +1127,9 @@ export function checkMember(
       const member = members[0];
 
       if (member && member.kind === "StructField") {
-        const fieldType = this.resolveType(member.resolvedType ?? (member as AST.StructField).type);
+        const fieldType = this.resolveType(
+          member.resolvedType ?? (member as AST.StructField).type,
+        );
         let resultType = fieldType;
 
         if (genericMap && genericMap.size > 0) {
@@ -1149,8 +1157,7 @@ export function checkMember(
         let rejectedConstantReceiver = false;
         let compatibleMethod: AST.FunctionDecl | AST.SpecMethod | undefined;
         let compatibleMethods:
-          | (AST.FunctionDecl | AST.SpecMethod)[]
-          | undefined;
+          (AST.FunctionDecl | AST.SpecMethod)[] | undefined;
         for (const candidate of members) {
           if (
             candidate.kind !== "FunctionDecl" &&
@@ -1178,7 +1185,9 @@ export function checkMember(
               thisParamType = this.substituteType(thisParamType, genericMap);
             }
 
-            if (implicitlyAddressesConstant(thisParamType, effectiveObjectType)) {
+            if (
+              implicitlyAddressesConstant(thisParamType, effectiveObjectType)
+            ) {
               rejectedConstantReceiver = true;
               continue;
             }

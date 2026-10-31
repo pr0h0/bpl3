@@ -50,10 +50,12 @@ describe("Workspace Symbol Provider", () => {
     const specResults = await provider.search({ query: "ReadWriter" });
     const methodResults = await provider.search({ query: "write" });
 
-    expect(specResults.some((symbol) => symbol.kind === SymbolKind.Interface))
-      .toBe(true);
-    expect(methodResults.some((symbol) => symbol.name === "ReadWriter.write"))
-      .toBe(true);
+    expect(
+      specResults.some((symbol) => symbol.kind === SymbolKind.Interface),
+    ).toBe(true);
+    expect(
+      methodResults.some((symbol) => symbol.name === "ReadWriter.write"),
+    ).toBe(true);
   });
 
   it("searches cached extern symbols", async () => {

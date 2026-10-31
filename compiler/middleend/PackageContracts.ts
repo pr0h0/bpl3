@@ -182,11 +182,7 @@ export interface PackageLockRepairResult {
 }
 
 export type PackageProjectInstallAction =
-  | "verified"
-  | "repaired"
-  | "restored"
-  | "installed"
-  | "noop";
+  "verified" | "repaired" | "restored" | "installed" | "noop";
 
 export type PackageProjectInstallResult =
   | { action: "verified"; packagesChecked: number }

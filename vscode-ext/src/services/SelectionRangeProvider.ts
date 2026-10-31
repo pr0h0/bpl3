@@ -71,18 +71,14 @@ export class SelectionRangeProvider {
     const line = position.line + 1; // AST uses 1-based
     const char = position.character + 1;
 
-    debugLog(
-      `[SelectionRange] Looking for nodes at ${line}:${char} (1-based)`,
-    );
+    debugLog(`[SelectionRange] Looking for nodes at ${line}:${char} (1-based)`);
 
     // Collect all nodes that contain this position
     const allContainingNodes: AST.ASTNode[] = [];
 
     for (const stmt of ast.statements) {
       if (this.nodeContainsPosition(stmt, line, char)) {
-        debugLog(
-          `[SelectionRange] Found containing statement: ${stmt.kind}`,
-        );
+        debugLog(`[SelectionRange] Found containing statement: ${stmt.kind}`);
         const nodes = this.findContainingNodes(stmt, line, char);
         debugLog(
           `[SelectionRange] Collected ${nodes.length} containing nodes:`,

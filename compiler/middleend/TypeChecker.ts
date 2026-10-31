@@ -1279,7 +1279,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     if (this.areTypesExactMatch(declared, actual)) return true;
     const isScalar = (type: AST.TypeNode) => {
       const resolved = this.resolveType(type, false);
-      return TypeUtils.isNumericType(resolved) || TypeUtils.isBoolType(resolved);
+      return (
+        TypeUtils.isNumericType(resolved) || TypeUtils.isBoolType(resolved)
+      );
     };
     if (isScalar(declared) || isScalar(actual)) return false;
     return this.areTypesCompatible(declared, actual);
@@ -3212,9 +3214,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         .filter(
           (v) =>
             !coveredVariants.has(v.name) &&
-            !this.patternRowsExhaustive(
-              this.specializeEnumRows(rows, v),
-            ),
+            !this.patternRowsExhaustive(this.specializeEnumRows(rows, v)),
         )
         .map((v) => v.name);
 
@@ -3246,8 +3246,14 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     for (const row of rows) {
       const head = row[0]!;
       const rest = row.slice(1);
-      if (head.kind === "PatternWildcard" || head.kind === "PatternIdentifier") {
-        specialized.push([...Array<AST.Pattern>(arity).fill(wildcard), ...rest]);
+      if (
+        head.kind === "PatternWildcard" ||
+        head.kind === "PatternIdentifier"
+      ) {
+        specialized.push([
+          ...Array<AST.Pattern>(arity).fill(wildcard),
+          ...rest,
+        ]);
       } else if (
         (head.kind === "PatternEnum" ||
           head.kind === "PatternEnumTuple" ||
@@ -3275,7 +3281,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     if (rows.length === 0) return false;
     if (rows[0]!.length === 0) return true;
     const isWildcard = (pattern: AST.Pattern) =>
-      pattern.kind === "PatternWildcard" || pattern.kind === "PatternIdentifier";
+      pattern.kind === "PatternWildcard" ||
+      pattern.kind === "PatternIdentifier";
     const irrefutable = (pattern: AST.Pattern): boolean =>
       isWildcard(pattern) ||
       (pattern.kind === "PatternTuple" && pattern.patterns.every(irrefutable));
@@ -3313,7 +3320,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           if (head.kind === "PatternTuple")
             return [[...head.patterns, ...rest(row)]];
           if (isWildcard(head))
-            return [[...Array<AST.Pattern>(arity).fill(wildcard), ...rest(row)]];
+            return [
+              [...Array<AST.Pattern>(arity).fill(wildcard), ...rest(row)],
+            ];
           return [];
         }),
       );

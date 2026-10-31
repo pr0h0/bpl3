@@ -4,8 +4,7 @@ import { DebugInfoGenerator } from "./DebugInfoGenerator";
 import { getHostTargetTriple } from "../../common/HostTarget";
 
 import { FunctionAttributeGroups } from "./attributes/FunctionAttributeGroups";
-import {
-} from "../../middleend/BuiltinTypes";
+import {} from "../../middleend/BuiltinTypes";
 import {
   parseTargetTriple,
   targetHasAnyComponent,

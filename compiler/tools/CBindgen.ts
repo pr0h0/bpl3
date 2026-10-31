@@ -390,9 +390,9 @@ function normalizeConstantExpression(value: string): {
   return { value: expression, castType: cast.type };
 }
 
-function stripLeadingScalarCast(value: string):
-  | { expression: string; type: string }
-  | null {
+function stripLeadingScalarCast(
+  value: string,
+): { expression: string; type: string } | null {
   const match = /^\(\s*([A-Za-z_][\w\s]*?)\s*\)\s*(.+)$/.exec(value);
   if (!match) return null;
 
@@ -479,9 +479,7 @@ function extractStructs(source: string): CStruct[] {
     const closeBrace = findMatchingBrace(cleaned, openBrace);
     if (openBrace < 0 || closeBrace < 0) continue;
 
-    const tail = /^\s*([A-Za-z_]\w*)\s*;/.exec(
-      cleaned.slice(closeBrace + 1),
-    );
+    const tail = /^\s*([A-Za-z_]\w*)\s*;/.exec(cleaned.slice(closeBrace + 1));
     if (!tail) continue;
 
     structs.push({
@@ -528,8 +526,7 @@ function extractEnums(source: string): CEnum[] {
   const enums: CEnum[] = [];
   const typedefPattern =
     /typedef\s+enum(?:\s+[A-Za-z_]\w*)?\s*\{([\s\S]*?)\}\s*([A-Za-z_]\w*)\s*;/g;
-  const plainPattern =
-    /(?:^|;)\s*enum\s+([A-Za-z_]\w*)\s*\{([\s\S]*?)\}\s*;/g;
+  const plainPattern = /(?:^|;)\s*enum\s+([A-Za-z_]\w*)\s*\{([\s\S]*?)\}\s*;/g;
 
   for (const match of cleaned.matchAll(typedefPattern)) {
     enums.push({
@@ -571,7 +568,10 @@ function extractTypedefs(
 
   for (const match of cleaned.matchAll(pattern)) {
     for (const rawDeclaration of expandCDeclaration(match[1]!.trim())) {
-      const declaration = parseNamedDeclaration(rawDeclaration, typedefs.length);
+      const declaration = parseNamedDeclaration(
+        rawDeclaration,
+        typedefs.length,
+      );
       const name = declaration.name;
       if (!name || name === `arg${typedefs.length}`) continue;
       if (aggregateNames.has(name)) continue;
@@ -686,8 +686,9 @@ function expandCDeclaration(declaration: string): string[] {
 }
 
 function extractDeclarationBaseType(declaration: string): string | null {
-  const match =
-    /^(.*?)([A-Za-z_]\w*)(?:\s*(?:\[[^\]]*\])*)\s*$/.exec(declaration);
+  const match = /^(.*?)([A-Za-z_]\w*)(?:\s*(?:\[[^\]]*\])*)\s*$/.exec(
+    declaration,
+  );
   if (!match) return null;
 
   const beforeName = match[1]!.trim();
@@ -765,7 +766,10 @@ function parseNamedDeclaration(
 
     return {
       name: arrayDeclarator.name,
-      type: formatArrayType(arrayDeclarator.baseType, arrayDeclarator.dimensions),
+      type: formatArrayType(
+        arrayDeclarator.baseType,
+        arrayDeclarator.dimensions,
+      ),
     };
   }
 
@@ -789,8 +793,9 @@ function parseNamedDeclaration(
 function parseArrayDeclarator(
   declaration: string,
 ): { baseType: string; name: string; dimensions: Array<string | null> } | null {
-  const match =
-    /^(.*?)([A-Za-z_]\w*)((?:\s*\[[^\]]*\])+)\s*$/.exec(declaration);
+  const match = /^(.*?)([A-Za-z_]\w*)((?:\s*\[[^\]]*\])+)\s*$/.exec(
+    declaration,
+  );
   if (!match) return null;
 
   const dimensions = [...match[3]!.matchAll(/\[\s*([^\]]*)\s*\]/g)].map(
@@ -865,7 +870,10 @@ function formatTypedef(typedef: CTypedef): string {
   return `type ${typedef.name} = ${typedef.mappedType};`;
 }
 
-function formatStruct(struct: CStruct, aliases: Record<string, string>): string {
+function formatStruct(
+  struct: CStruct,
+  aliases: Record<string, string>,
+): string {
   const lines = [`struct ${struct.name} {`];
   for (const field of struct.fields) {
     lines.push(`    ${field.name}: ${mapCType(field.type, aliases)},`);
@@ -918,7 +926,7 @@ function mapCType(
   const normalizedBase = normalizeCBaseType(base);
   const mappedBase = aliases[base]
     ? base
-    : TYPE_MAP[normalizedBase] ?? sanitizeUnknownType(base);
+    : (TYPE_MAP[normalizedBase] ?? sanitizeUnknownType(base));
 
   if (pointerDepth === 0) {
     return mappedBase;

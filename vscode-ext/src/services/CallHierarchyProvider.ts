@@ -585,7 +585,9 @@ export class CallHierarchyProvider {
     return {
       name: funcDecl.name,
       kind:
-        funcDecl.kind === "SpecMethod" ? SymbolKind.Method : SymbolKind.Function,
+        funcDecl.kind === "SpecMethod"
+          ? SymbolKind.Method
+          : SymbolKind.Function,
       uri: filePathToUri(filePath),
       range: selectionRange,
       selectionRange: selectionRange,
