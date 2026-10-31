@@ -9,9 +9,11 @@
    bun run playground:host   # trusted local host mode on 127.0.0.1
    ```
 
-   Build or refresh the Docker worker image first with
-   `bun run playground:build`. Both commands go through `playground/start.sh`,
-   which checks the selected runner and its tools before starting the server.
+   Docker mode (`bun run playground`) needs the worker image: build or refresh
+   it with `bun run playground:build`. Host mode (`bun run playground:host`)
+   does not use it, but needs Clang. Both commands go through
+   `playground/start.sh`, which checks the selected runner and its tools before
+   starting the server.
 
 2. **Open your browser:**
    Navigate to `http://localhost:3001`
