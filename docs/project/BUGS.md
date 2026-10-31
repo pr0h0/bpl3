@@ -509,8 +509,9 @@ the `bin` from `src/cli.bpl` at install time instead of committing it.
 **Progress (2026-10-31)**: `file-sizes` lists tracked files through
 `git ls-files` instead of a `**` glob that needs globstar; the stale generated
 `playground/COMPLETION_REPORT.md` and `UPGRADE_SUMMARY.md` are removed; the
-playground contract and Docker tests take an OS-assigned port
-(`tests/helpers/freePort.ts`) instead of one derived from the PID.
+playground contract and Docker tests start the server with `PORT=0` and read
+the port it bound from its log (`tests/helpers/listeningPort.ts`) instead of
+deriving one from the PID.
 `emitReferencedDeferredMethods` scans only new output since #119.
 `getCurrentLabel` stops at the nearest label, so a call walks back only through
 the current basic block; it did not appear in the compile profile and is left

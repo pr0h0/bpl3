@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawn, type ChildProcess } from "child_process";
 import { DockerPlaygroundRunner } from "../playground/backend/runner";
 import { runProcessFile } from "../playground/backend/processRunner";
-import { freePort } from "./helpers/freePort";
+import { listeningPort } from "./helpers/listeningPort";
 
 const dockerTests =
   process.env.BPL_TEST_DOCKER === "1" ? describe : describe.skip;
@@ -266,16 +266,16 @@ dockerTests("Docker playground HTTP routing", () => {
   let port = 0;
   let base = "";
   beforeAll(async () => {
-    port = await freePort();
-    base = `http://127.0.0.1:${port}`;
     server = spawn("bun", ["playground/backend/server.ts"], {
       env: {
         ...process.env,
-        PORT: String(port),
+        PORT: "0",
         BPL_PLAYGROUND_RUNNER: "docker",
       },
-      stdio: "ignore",
+      stdio: ["ignore", "ignore", "pipe"],
     });
+    port = await listeningPort(server);
+    base = `http://127.0.0.1:${port}`;
     const deadline = Date.now() + 20000;
     while (Date.now() < deadline) {
       try {
