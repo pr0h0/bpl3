@@ -10,6 +10,9 @@
     "] stderr=[]",
     "timeout: exit=137 timedOut=1 stdout=[started",
     "] stderr=[]",
+    "grandchild: timedOut=1 pid>0=1 gone=1",
+    "closed-outputs: exit=137 timedOut=1 stdout=[] stderr=[]",
+    "late-stdin: exit=5",
     "missing: exit=-1 timedOut=0 stdout=[] stderr=[No such file or directory]"
   ]
 }

@@ -45,8 +45,9 @@ running have closed stdout and stderr.
 
 When the program cannot be started, `exitCode` is `-1` and `stderr` holds the
 reason, such as `No such file or directory`. Destroy both strings when done.
-Output size is not limited. `run` uses `posix_spawn` from the native runtime and
-is not available on WebAssembly targets.
+Output size is not limited. `run` and `runWith` use `posix_spawn` from the
+native runtime and are available on Linux and macOS only, not on Windows or
+WebAssembly targets.
 
 ```bpl
 import printf from "std/c.bpl";

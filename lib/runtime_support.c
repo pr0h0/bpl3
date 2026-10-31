@@ -887,6 +887,8 @@ static int bpl_process_pipe(int fds[2]) {
             int error = errno;
             close(fds[0]);
             close(fds[1]);
+            /* The caller's cleanup closes any descriptor that is not -1. */
+            fds[0] = fds[1] = -1;
             return error;
         }
     }
@@ -1002,7 +1004,8 @@ int32_t __bpl_process_run(char *const *argv, const char *input,
     int64_t deadline = timeout_ms > 0 ? bpl_process_now_ms() + timeout_ms : 0;
     int64_t input_offset = 0;
     char chunk[16384];
-    while (out_pipe[0] >= 0 || err_pipe[0] >= 0) {
+    /* Keep feeding stdin even after the child closes both outputs. */
+    while (out_pipe[0] >= 0 || err_pipe[0] >= 0 || in_pipe[1] >= 0) {
         struct pollfd fds[3];
         int count = 0, out_index = -1, err_index = -1, in_index = -1;
         if (out_pipe[0] >= 0) {
@@ -1073,10 +1076,25 @@ wait_child:
     in_pipe[1] = out_pipe[0] = err_pipe[0] = -1;
     {
         int status = 0;
-        pid_t waited;
-        do {
+        pid_t waited = 0;
+        /* A child can close its outputs and keep running, so the deadline
+         * still applies while waiting for it to exit. */
+        while (deadline && !*timed_out) {
+            waited = waitpid(pid, &status, WNOHANG);
+            if (waited != 0 && !(waited < 0 && errno == EINTR)) break;
+            int64_t remaining = deadline - bpl_process_now_ms();
+            if (remaining <= 0) {
+                kill(-pid, SIGKILL);
+                *timed_out = 1;
+                waited = 0;
+                break;
+            }
+            struct timespec pause = {0, (remaining < 10 ? remaining : 10) * 1000000L};
+            nanosleep(&pause, NULL);
+        }
+        while (waited == 0 || (waited < 0 && errno == EINTR)) {
             waited = waitpid(pid, &status, 0);
-        } while (waited < 0 && errno == EINTR);
+        }
         if (waited == pid) *exit_code = bpl_process_exit_code(status);
     }
     if (result != 0) {
