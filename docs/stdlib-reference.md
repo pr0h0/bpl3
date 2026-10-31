@@ -2116,6 +2116,9 @@ export [ProcessResult];
 export execShell;
 export execSilent;
 export sleep;
+export run;
+export runWith;
+export [RunResult];
 ```
 
 ### ProcessResult
@@ -2124,6 +2127,16 @@ export sleep;
 struct ProcessResult
 exitCode: int
 output: String
+```
+
+### RunResult
+
+```bpl
+struct RunResult
+exitCode: int
+timedOut: bool
+stdout: String
+stderr: String
 ```
 
 ```bpl
@@ -2148,6 +2161,14 @@ frame execStatus(args: ...string, count: int) ret int
 
 ```bpl
 frame execOutput(args: ...string, count: int) ret ProcessResult
+```
+
+```bpl
+frame run(args: ...string, count: int) ret RunResult
+```
+
+```bpl
+frame runWith(input: string, timeoutMs: int, args: ...string, count: int) ret RunResult
 ```
 
 ## std/queue.bpl

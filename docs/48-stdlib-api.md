@@ -719,7 +719,7 @@ omitted areas:
 | `thread.bpl`, `sync.bpl`                                                                                        | No public API; native threading/synchronization requires an FFI library                               |
 | `type.bpl`, `primitives.bpl`, `reflection.bpl`, `intrinsics.bpl`                                                | Compiler/runtime support; platform and representation details matter                 |
 | `c.bpl`                                                                                                         | Native C declarations, not a portable or memory-safe wrapper                         |
-| `process.bpl`                                                                                                   | Shell-backed execution; see the [process guide](59-process-execution.md)             |
+| `process.bpl`                                                                                                   | Shell-free `run`/`runWith` and shell helpers; see the [process guide](59-process-execution.md) |
 | `assert.bpl`, `debug.bpl`, `diagnostics.bpl`, `scope_stack.bpl`                                                 | Assertions, diagnostics, and compiler-oriented utilities                             |
 
 `Log.debug/info/warn/error` currently share the same output path; they do not

@@ -99,6 +99,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- `run` and `runWith` in `std/process.bpl` start a program without a shell
+  (`posix_spawnp` in the native runtime): arguments reach it unchanged, stdout
+  and stderr are captured separately as exact bytes, `runWith` writes stdin and
+  kills the whole process group when its timeout expires, and a missing program
+  reports exit code -1 with the reason in `stderr`. `examples/process_run`.
+
 - `std/sha256.bpl`: SHA-256 digests in pure BPL, with a streaming context
   (`Sha256.new`, `update`, `finish`, `init`) and one-shot `digest`, `hexBytes`
   and `hex` helpers. `examples/stdlib_sha256` checks the FIPS 180-4 vectors,

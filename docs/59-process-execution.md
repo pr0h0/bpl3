@@ -1,8 +1,8 @@
 # Process Execution
 
-The `std/process.bpl` module provides utilities for executing shell commands and interacting with subprocesses. It allows you to run commands, check their exit status, and capture their output. `exec`, `execSilent`, `execStatus`, and `execOutput` accept command arguments separately. `execShell` accepts one raw shell command, and `sleep` accepts milliseconds.
+The `std/process.bpl` module runs other programs. `run` and `runWith` start a program directly, without a shell, and capture its stdout and stderr separately; `runWith` also feeds stdin and enforces a timeout. Prefer them for new code. The older helpers go through `/bin/sh`: `exec`, `execSilent`, `execStatus`, and `execOutput` accept command arguments separately, and `execShell` accepts one raw shell command. `sleep` accepts milliseconds.
 
-**Argument handling:** The argument-based execution functions quote each argument for a POSIX shell. This protects argument boundaries and shell metacharacters; it does not validate the executable, reject options such as `--delete`, or restrict what the child process can access. `execShell` performs no such quoting. These helpers do not provide process isolation, timeouts, or output limits.
+**Argument handling (shell helpers):** The argument-based shell helpers quote each argument for a POSIX shell. This protects argument boundaries and shell metacharacters; it does not validate the executable, reject options such as `--delete`, or restrict what the child process can access. `execShell` performs no such quoting. These helpers do not provide timeouts, separate stderr, or stdin; use `runWith` for those. No helper provides process isolation or output limits.
 
 The status-returning functions and `ProcessResult.exitCode` report the application
 exit code (0–255), `128 + signal` when the waited-for shell is terminated by a
@@ -12,7 +12,59 @@ wait status. A shell may itself translate a child signal into a normal exit code
 ## Import
 
 ```bpl
+import run, runWith, [RunResult] from "std/process.bpl";
 import exec, execStatus, execOutput, [ProcessResult] from "std/process.bpl";
+```
+
+## Running programs without a shell
+
+```bpl
+frame run(args: ...string, count: int) ret RunResult
+frame runWith(input: string, timeoutMs: int, args: ...string, count: int) ret RunResult
+
+struct RunResult {
+    exitCode: int,      # 0-255, 128 + signal, or -1 when it could not start
+    timedOut: bool,
+    stdout: String,     # exact bytes; `length` counts them
+    stderr: String,
+}
+```
+
+`args[0]` is looked up on `PATH` and every argument reaches the program
+unchanged, so there is nothing to quote and no shell injection. Stdin is
+`/dev/null` for `run`; `runWith` writes `input` (unless it is `nullptr`) and then
+closes stdin. Output is read while input is written, so large inputs and outputs
+cannot deadlock, and a program that stops reading its input early does not kill
+the caller with `SIGPIPE`.
+
+With `timeoutMs > 0`, the program runs in its own process group. When the
+timeout expires the whole group, grandchildren included, is killed with
+`SIGKILL`; `timedOut` is then true, `exitCode` is 137, and the output read so far
+is kept. Without a timeout, `run` waits until the program and anything it left
+running have closed stdout and stderr.
+
+When the program cannot be started, `exitCode` is `-1` and `stderr` holds the
+reason, such as `No such file or directory`. Destroy both strings when done.
+Output size is not limited. `run` and `runWith` use `posix_spawn` from the
+native runtime and are available on Linux and macOS only, not on Windows or
+WebAssembly targets.
+
+```bpl
+import printf from "std/c.bpl";
+import run, runWith, [RunResult] from "std/process.bpl";
+
+frame main() ret int {
+    local listing: RunResult = run("ls", "-1", "/");
+    printf("exit %d\n%s", listing.exitCode, listing.stdout.data);
+    listing.stdout.destroy();
+    listing.stderr.destroy();
+
+    local sorted: RunResult = runWith("b\na\n", 1000, "sort");
+    printf("%s", sorted.stdout.data);
+    sorted.stdout.destroy();
+    sorted.stderr.destroy();
+    return 0;
+}
 ```
 
 ## API Reference
