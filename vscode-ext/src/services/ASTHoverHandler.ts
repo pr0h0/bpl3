@@ -1129,8 +1129,12 @@ export class ASTHoverHandler {
       return this.handleTypeAliasDecl(currentFileTypeAlias);
     }
 
-    // Look up in symbol index
-    const symbols = this.symbolIndex.findSymbol(typeName);
+    // Look up in symbol index, following an `import x as y` alias
+    const symbols = this.symbolIndex.findSymbolInFile(
+      typeName,
+      filePath,
+      this.astResolver.getCachedAST(filePath),
+    );
     if (symbols.length > 0) {
       const symbol = symbols[0];
       if (

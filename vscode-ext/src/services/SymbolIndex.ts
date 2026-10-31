@@ -687,22 +687,92 @@ export class SymbolIndex {
       if (!hasAlias && !importStmt.namespace) continue;
       const resolved = this.resolver.resolve(importStmt.source, filePath);
       if (!resolved) continue;
-      this.indexFile(resolved.filePath, true);
-      const moduleSymbols = this.getFileSymbols(resolved.filePath);
+      // Only exported names are reachable, including re-exports; private
+      // declarations of the module are not.
+      const exported = this.getExportedSymbols(resolved.filePath);
       if (importStmt.namespace) {
-        bindings.namespaces.set(importStmt.namespace, moduleSymbols);
+        bindings.namespaces.set(
+          importStmt.namespace,
+          [...exported].flatMap(([name, symbols]) =>
+            symbols.map((sym) => (sym.name === name ? sym : { ...sym, name })),
+          ),
+        );
       }
       for (const item of importStmt.items) {
         if (!item.alias) continue;
-        let targets = moduleSymbols.filter((sym) => sym.name === item.name);
-        if (targets.length === 0) {
-          // Re-exported from another module.
-          targets = this.symbols.get(item.name) ?? [];
-        }
-        bindings.aliases.set(item.alias, targets);
+        bindings.aliases.set(item.alias, exported.get(item.name) ?? []);
       }
     }
     return bindings;
+  }
+
+  private modulePrograms = new Map<
+    string,
+    { modified: number; program: AST.Program }
+  >();
+
+  /** A module's parsed source, cached until the file changes on disk. */
+  private getModuleProgram(filePath: string): AST.Program | null {
+    try {
+      const modified = fs.statSync(filePath).mtimeMs;
+      const cached = this.modulePrograms.get(filePath);
+      if (cached?.modified === modified) return cached.program;
+      const program = new Parser(
+        fs.readFileSync(filePath, "utf-8"),
+        filePath,
+      ).parse();
+      this.modulePrograms.set(filePath, { modified, program });
+      return program;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * The declarations a module exports, by exported name. A name the module
+   * re-exports from its own imports is followed to the declaring module.
+   */
+  getExportedSymbols(
+    filePath: string,
+    visiting: Set<string> = new Set(),
+  ): Map<string, SymbolInfo[]> {
+    const exported = new Map<string, SymbolInfo[]>();
+    if (visiting.has(filePath)) return exported;
+    visiting.add(filePath);
+    const program = this.getModuleProgram(filePath);
+    if (!program) return exported;
+    this.indexFile(filePath, false);
+    const local = this.getFileSymbols(filePath);
+    const imports = program.statements.filter(
+      (stmt): stmt is AST.ImportStmt => stmt.kind === "Import",
+    );
+    for (const statement of program.statements) {
+      if (statement.kind !== "Export") continue;
+      for (const item of (statement as AST.ExportStmt).items) {
+        const declared = local.filter((sym) => sym.name === item.name);
+        if (declared.length > 0) {
+          exported.set(item.name, declared);
+          continue;
+        }
+        for (const importStmt of imports) {
+          const source = importStmt.items.find(
+            (imported) => (imported.alias ?? imported.name) === item.name,
+          );
+          if (!source) continue;
+          const resolved = this.resolver.resolve(importStmt.source, filePath);
+          if (!resolved) continue;
+          const targets = this.getExportedSymbols(
+            resolved.filePath,
+            visiting,
+          ).get(source.name);
+          if (targets && targets.length > 0) {
+            exported.set(item.name, targets);
+            break;
+          }
+        }
+      }
+    }
+    return exported;
   }
 
   /**

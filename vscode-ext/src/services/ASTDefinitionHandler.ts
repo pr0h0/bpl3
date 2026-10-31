@@ -284,8 +284,12 @@ export class ASTDefinitionHandler {
       return this.createLocation(currentFileType.location, filePath);
     }
 
-    // Fall back to symbol index
-    const symbols = this.symbolIndex.findSymbol(typeName);
+    // Fall back to symbol index, following an `import x as y` alias
+    const symbols = this.symbolIndex.findSymbolInFile(
+      typeName,
+      filePath,
+      this.astResolver.getCachedAST(filePath),
+    );
     if (symbols.length > 0) {
       const symbol = symbols[0];
       if (!symbol) return null;

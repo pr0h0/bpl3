@@ -14,16 +14,30 @@ import { SymbolIndex } from "../services/SymbolIndex";
 
 const repoRoot = path.resolve(__dirname, "../../..");
 
-const UTIL = `frame add(a: int, b: int) ret int {
+const UTIL = `struct Point {
+    x: int,
+}
+
+frame add(a: int, b: int) ret int {
     return a + b;
 }
 
+frame secret() ret int {
+    return 1;
+}
+
+export [Point];
+export add;
+`;
+
+const REEXPORT = `import add from "./util.bpl";
 export add;
 `;
 
 function setup(main: string) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-lsp-alias-"));
   fs.writeFileSync(path.join(dir, "util.bpl"), UTIL);
+  fs.writeFileSync(path.join(dir, "reexport.bpl"), REEXPORT);
   const mainPath = path.join(dir, "main.bpl");
   fs.writeFileSync(mainPath, main);
   const symbolIndex = new SymbolIndex(repoRoot);
@@ -125,6 +139,8 @@ frame main() ret int {
         .handle(at("U.add", 2), document)
         .map((item) => item.label);
       expect(labels).toContain("add");
+      // Only exported names are reachable through the namespace.
+      expect(labels).not.toContain("secret");
 
       const hints = new InlayHintProvider(astResolver, symbolIndex).handle(
         {
@@ -137,6 +153,34 @@ frame main() ret int {
         document,
       );
       expect(hints.map((hint) => hint.label)).toEqual(["a:", "b:"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("follows re-exports and aliased types in type positions", () => {
+    const main = `import Point as P from "./util.bpl";
+import add as plus from "./reexport.bpl";
+
+frame main() ret int {
+    local p: P = P { x: 1 };
+    return plus(p.x, 1);
+}
+`;
+    const { dir, symbolIndex, astResolver, document, at } = setup(main);
+    try {
+      const definition = new ASTDefinitionHandler(astResolver, symbolIndex);
+      // `plus` reaches `add` in util.bpl through reexport.bpl.
+      const call = definition.handle(at("plus(p", 1), document);
+      expect(JSON.stringify(call)).toContain("util.bpl");
+      // The aliased struct in a type position.
+      const type = definition.handle(at("p: P", 3), document);
+      expect(JSON.stringify(type)).toContain("util.bpl");
+      const hover = new ASTHoverHandler(astResolver, symbolIndex).handle(
+        at("p: P", 3),
+        document,
+      );
+      expect(JSON.stringify(hover?.contents ?? "")).toContain("Point");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
