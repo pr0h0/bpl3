@@ -610,7 +610,7 @@ the map helper because `std/string.bpl` imports `std/array.bpl`.
 
 #### BUG-461: HTTP server and rate limiter are easy to starve (suspected)
 
-**Status**: Open · **Priority**: P2
+**Status**: Partly fixed · **Priority**: P2
 
 - `packages/bpl-express/src/server.bpl:137/314`: at most 8 workers, each held by
   an idle socket for `request_timeout` (10 s), so 8 idle connections stall the
@@ -618,6 +618,19 @@ the map helper because `std/string.bpl` imports `std/array.bpl`.
   (`server.bpl:413`), which is quadratic for many tiny segments.
 - `packages/bpl-rate-limit/index.bpl:29/55`: `max_keys = 10000` is shared across
   scopes and new identities get 429 once full. Cap per scope or evict oldest.
+
+**Progress (2026-10-31)**: accepted connections wait in a pending set (up to 64
+per process) and are served only when their first bytes arrive; silent ones are
+closed after `request_timeout_seconds`. Four idle sockets used to delay a
+request by 8 s on a single worker and no longer do
+(`tests/WebIdleConnections.test.ts`). The rate limiter caps `max_keys` per scope,
+so one scope cannot lock new identities out of another; a full scope still
+refuses new identities instead of evicting tracked ones, which would let a
+client reset another's counter. The chunked re-parse is bounded: it skips
+payloads by length and chunk-size lines are capped at 64 KiB of overhead, all
+within the request deadline. Still open: a client that sends a partial request
+and stalls occupies its worker until the deadline; fixing that needs
+non-blocking per-connection request assembly.
 
 #### BUG-462: Package installation hardening
 

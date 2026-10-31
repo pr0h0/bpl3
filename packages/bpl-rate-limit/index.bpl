@@ -52,8 +52,11 @@ struct RateLimiter {
         result.allowed = false;
         result.remaining = 0;
         result.retry_after = 1;
-        q = this.db.prepare("INSERT INTO bpl_rate_limits(scope,identity,count,reset_at) SELECT ?,?,1,? WHERE (SELECT count(*) FROM bpl_rate_limits)<? OR EXISTS(SELECT 1 FROM bpl_rate_limits WHERE scope=? AND identity=?) ON CONFLICT(scope,identity) DO UPDATE SET count=count+1 WHERE count<? RETURNING count,reset_at");
-        q.bindText(1, scope).bindText(2, identity).bindInt(3, now + cast<long>(seconds)).bindInt(4, cast<long>(this.max_keys)).bindText(5, scope).bindText(6, identity).bindInt(7, cast<long>(maximum));
+        # Capacity is per scope, so identities flooding one scope cannot lock
+        # new clients out of another. A full scope still refuses new
+        # identities rather than evicting a tracked one.
+        q = this.db.prepare("INSERT INTO bpl_rate_limits(scope,identity,count,reset_at) SELECT ?,?,1,? WHERE (SELECT count(*) FROM bpl_rate_limits WHERE scope=?)<? OR EXISTS(SELECT 1 FROM bpl_rate_limits WHERE scope=? AND identity=?) ON CONFLICT(scope,identity) DO UPDATE SET count=count+1 WHERE count<? RETURNING count,reset_at");
+        q.bindText(1, scope).bindText(2, identity).bindInt(3, now + cast<long>(seconds)).bindText(4, scope).bindInt(5, cast<long>(this.max_keys)).bindText(6, scope).bindText(7, identity).bindInt(8, cast<long>(maximum));
         if (q.step()) {
             result.allowed = true;
             result.remaining = maximum - cast<int>(q.integer(0));

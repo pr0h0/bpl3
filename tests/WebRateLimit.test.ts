@@ -36,6 +36,7 @@ frame gate(req:*Request,res:*Response){if(strcmp(req.path,"/limited")==0){limite
 frame main(){local db:SQLite=SQLite.open(${JSON.stringify(join(dir, "app.sqlite"))});db.setWAL(true);local limits:RateLimiter=RateLimiter.new(&db);limits.max_keys=1;
  local first:RateDecision=limits.check("capacity","first",2,60);if(!first.allowed){throw "Missing first admission";}
  local denied:RateDecision=limits.check("capacity","second",2,60);if(denied.allowed){throw "Key capacity was exceeded";}
+ if(!limits.check("other-scope","second",2,60).allowed){throw "A full scope blocked another scope";}
  if(!limits.check("capacity","first",2,60).allowed||limits.check("capacity","first",2,60).allowed){throw "Invalid admission budget";}
  db.exec("UPDATE bpl_rate_limits SET reset_at=0");if(!limits.check("capacity","second",2,60).allowed){throw "Expired key did not release capacity";}
  db.begin();local caught:bool=false;try{limits.check("capacity","tx",1,60);}catch{caught=true;}db.rollback();if(!caught){throw "Rate counter admitted an application transaction";}

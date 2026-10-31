@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl-express` no longer lets idle connections block the server (BUG-461):
+  accepted connections wait in a pending set and are served when their first
+  bytes arrive, and silent ones are closed after `request_timeout_seconds`.
+  `bpl-rate-limit` applies `max_keys` per scope, so a flood in one scope no
+  longer refuses new identities in another. Both archives are repacked.
 - The language server follows import aliases (BUG-445): for `import add as
   plus` and `import * as U`, hover, go to definition, signature help, inlay
   hints and completion resolve `plus(...)` and `U.add(...)` to `add` in the
