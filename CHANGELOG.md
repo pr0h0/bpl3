@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Tests (BUG-452): the capture analyzer, linter traversal and playground engine
+  tests check behavior instead of matching `case` labels and calls in the
+  compiler and playground sources, using new fixtures under `tests/fixtures/`
+  and an in-process `tests/PlaygroundEngine.test.ts`.
 - Virtual method calls on a struct value take its address instead of first
   loading the whole struct and discarding it (BUG-474), and a receiver that
   cannot be addressed in place is evaluated exactly once (BUG-475: a receiver

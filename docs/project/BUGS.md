@@ -526,7 +526,15 @@ deriving one from the PID.
 the current basic block; it did not appear in the compile profile and is left
 as is. Still open: script naming, `docs:stdlib` living under `tests/helpers`,
 `test:baseline` memory use, `QUICKSTART.md`/`test.sh` bypassing the runner
-check, the duplicated playground Dockerfile stage, and source-matching tests.
+check, and the duplicated playground Dockerfile stage. The source-matching
+tests are replaced by behavior tests: `CaptureAnalyzer.test.ts` type-checks
+`tests/fixtures/capture-analysis/every_construct.bpl` and checks that a lambda
+captures a variable read through each construct; `LinterTypeSafety.test.ts`
+lints `tests/fixtures/linter-traversal/every_node.bpl` and checks that rules
+see every node kind the parser produces; and `PlaygroundEngine.test.ts` runs
+the playground engine in-process to check per-request temp directories, the
+cached-binary path and prelude linking. The browser-side check of
+`playground/frontend/app.js` remains a source check.
 `TypeComparison` is removed (#131), and plain `bpl file.bpl` builds no longer
 compile all of `std` for `import ... from "std"` (#128).
 
