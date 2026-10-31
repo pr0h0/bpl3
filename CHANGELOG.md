@@ -9,7 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 - Virtual method calls on a struct value take its address instead of first
-  loading the whole struct and discarding it (BUG-474). The 10,400-line
+  loading the whole struct and discarding it (BUG-474), and a receiver that
+  cannot be addressed in place is evaluated exactly once (BUG-475: a receiver
+  such as `((a, b) = nextPair()).0` called `nextPair()` twice). The 10,400-line
   `mini_database_engine` example has 381 fewer aggregate loads and Clang
   compiles it about 9% faster at `-O0`.
 - The playground's documented and backend start commands go through

@@ -31,15 +31,23 @@ frame holder() ret Holder {
     return Holder { inner: Counter { value: 9 } };
 }
 
+frame nextPair() ret (Counter, Counter) {
+    calls = calls + 1;
+    return (Counter { value: 3 }, Counter { value: 8 });
+}
+
 frame main() ret int {
     local first: int = make().get();
     local second: int = holder().inner.get();
+    local a: Counter = Counter { value: 0 };
+    local b: Counter = Counter { value: 0 };
+    local third: int = ((a, b) = nextPair()).0.get();
     local stored: Holder = Holder { inner: Counter { value: 4 } };
     local items: Counter[2] = [Counter { value: 5 }, Counter { value: 6 }];
-    printf("%d %d %d %d %d\\n", first, second, stored.inner.get(), items[1].get(), calls);
+    printf("%d %d %d %d %d %d %d\\n", first, second, third, a.value, stored.inner.get(), items[1].get(), calls);
     return 0;
 }
 `);
-    expect(output.trim()).toBe("7 9 4 6 2");
+    expect(output.trim()).toBe("7 9 3 3 4 6 3");
   });
 });

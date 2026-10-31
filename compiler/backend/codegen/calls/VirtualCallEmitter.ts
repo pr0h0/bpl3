@@ -166,44 +166,19 @@ function prepareVirtualCallObject(
   }
 
   if (!objType.endsWith("*")) {
-    try {
-      if (!isAddressableVirtualReceiver(memberExpr.object)) {
-        throw new Error("receiver is not addressable");
-      }
-      objPtr = host.generateAddress(memberExpr.object);
-      structType = objType + "*";
-    } catch {
-      const spillAddr = host.allocateStack(
-        `vcall_spill_${host.labelCount++}`,
-        objType,
-      );
-      host.emit(`  store ${objType} ${objRaw}, ${objType}* ${spillAddr}`);
-      objPtr = spillAddr;
-      structType = objType + "*";
-    }
+    // The receiver was already evaluated into objRaw and is not addressable
+    // in place (addressVirtualReceiver handled those), so spill that value;
+    // taking its address now would evaluate it a second time.
+    const spillAddr = host.allocateStack(
+      `vcall_spill_${host.labelCount++}`,
+      objType,
+    );
+    host.emit(`  store ${objType} ${objRaw}, ${objType}* ${spillAddr}`);
+    objPtr = spillAddr;
+    structType = objType + "*";
   }
 
   return { objPtr, structType };
-}
-
-function isAddressableVirtualReceiver(expr: AST.Expression): boolean {
-  if (
-    expr.kind === "Identifier" ||
-    expr.kind === "Member" ||
-    expr.kind === "Index"
-  ) {
-    return true;
-  }
-
-  if (expr.kind === "Group") {
-    return isAddressableVirtualReceiver((expr as AST.GroupExpr).expression);
-  }
-
-  if (expr.kind === "Unary") {
-    return (expr as AST.UnaryExpr).operator.type === "Star";
-  }
-
-  return false;
 }
 
 function boxPrimitiveForVirtualCall(
