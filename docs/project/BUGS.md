@@ -364,7 +364,7 @@ lists a namespace import's names unqualified.
 
 #### BUG-446: Broken language-server features
 
-**Status**: Open · **Priority**: P2
+**Status**: Open (partly fixed) · **Priority**: P2
 
 - Find references returns nothing for methods/fields (`ASTRenameHandler.ts:375`)
   while the code lens counts them.
@@ -379,6 +379,17 @@ lists a namespace import's names unqualified.
 - The Run command hard-codes `bpl` and ignores `bplHome` (`extension.ts:92`);
   `maxNumberOfProblems` defaults to 100 in `package.json` but 1000 in the server,
   and `getDocumentSettings` (`server.ts:326`) has no callers.
+
+**Progress (2026-10-31)**: `.` triggers completion; resolving a completion keeps
+an item's own detail and adds generic text only to built-in keyword/type items;
+the std quick import offers `Array` instead of the unexported `List`
+(`STD_QUICK_IMPORT_TYPES` is checked against `lib/std.bpl`); the "Cast to" and
+"Add semicolon" quick fixes, which matched messages the compiler never emits,
+are removed; Run uses `<bplHome>/bpl` when that setting names an installation;
+the server's `maxNumberOfProblems` default is 100 like `package.json`; and
+`getDocumentSettings` is used by diagnostics. Still open: find references for
+methods/fields, and the signature-help matching items.
+`vscode-ext/src/test/serverProtocol.test.ts` drives the server over stdio.
 
 ### Infrastructure, tests and CI
 

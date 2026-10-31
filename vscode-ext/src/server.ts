@@ -41,6 +41,7 @@ import {
   importableTypeName,
   type NearbyImportCache,
 } from "./services/NearbyImportCodeActions";
+import { STD_QUICK_IMPORT_TYPES } from "./services/stdQuickImports";
 import { SelectionRangeProvider } from "./services/SelectionRangeProvider";
 import { DocumentHighlightProvider } from "./services/DocumentHighlightProvider";
 import { FoldingRangeProvider } from "./services/FoldingRangeProvider";
@@ -191,6 +192,8 @@ connection.onInitialize((params: InitializeParams) => {
       // Tell the client that this server supports code completion.
       completionProvider: {
         resolveProvider: true,
+        // Member completion (`value.`, `Module.`) starts without Ctrl+Space.
+        triggerCharacters: ["."],
       },
       definitionProvider: true,
       hoverProvider: true,
@@ -263,7 +266,8 @@ interface ExampleSettings {
 // The global settings, used when the `workspace/configuration` request is not supported by the client.
 // Please note that this is not the case when using this server with the client provided in this example
 // but could happen with other clients.
-const defaultSettings: ExampleSettings = { maxNumberOfProblems: 1000 };
+// Matches the `bplLanguageServer.maxNumberOfProblems` default in package.json.
+const defaultSettings: ExampleSettings = { maxNumberOfProblems: 100 };
 let globalSettings: ExampleSettings = defaultSettings;
 
 // Cache the settings of all open documents
@@ -400,6 +404,9 @@ connection.onCompletion(
 // This handler resolves additional information for the item selected in
 // the completion list.
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
+  // Items from the symbol index carry their own details; only built-in
+  // keyword and type items, which have none, get the generic text.
+  if (item.detail !== undefined) return item;
   if (item.kind === CompletionItemKind.Keyword) {
     item.detail = "Keyword";
     item.documentation = `BPL keyword: ${item.label}`;
@@ -658,19 +665,7 @@ connection.onCodeAction((params) => {
     const typeName = importableTypeName(diagnostic);
     if (typeName) {
       // Standard Library types
-      if (
-        [
-          "Result",
-          "Option",
-          "List",
-          "Map",
-          "Set",
-          "Vec2",
-          "Vec3",
-          "Stack",
-          "Queue",
-        ].includes(typeName)
-      ) {
+      if (STD_QUICK_IMPORT_TYPES.includes(typeName)) {
         actions.push({
           title: `Import ${typeName} from std`,
           kind: CodeActionKind.QuickFix,
@@ -729,35 +724,6 @@ connection.onCodeAction((params) => {
       );
     }
 
-    // 3. Type mismatch suggestions
-    const typeMismatchMatch =
-      /Type mismatch.*expected '(\w+)'.*got '(\w+)'/.exec(diagnostic.message);
-    if (typeMismatchMatch) {
-      const expectedType = typeMismatchMatch[1];
-      const gotType = typeMismatchMatch[2];
-
-      // Suggest casting
-      if (expectedType && gotType) {
-        const errorText = document.getText(diagnostic.range);
-
-        actions.push({
-          title: `Cast to ${expectedType}`,
-          kind: CodeActionKind.QuickFix,
-          diagnostics: [diagnostic],
-          edit: {
-            changes: {
-              [params.textDocument.uri]: [
-                TextEdit.replace(
-                  diagnostic.range,
-                  `cast<${expectedType}>(${errorText})`,
-                ),
-              ],
-            },
-          },
-        });
-      }
-    }
-
     // Missing-return diagnostics need a user-chosen value and insertion point.
     // Do not offer a bare return, which is invalid in a value-returning frame.
 
@@ -769,25 +735,6 @@ connection.onCodeAction((params) => {
         kind: CodeActionKind.QuickFix,
         diagnostics: [diagnostic],
         edit: { changes: { [params.textDocument.uri]: [unusedEdit] } },
-      });
-    }
-
-    // 6. Missing semicolon
-    if (
-      diagnostic.message.includes("Expected ';'") ||
-      diagnostic.message.includes("Missing semicolon")
-    ) {
-      actions.push({
-        title: "Add semicolon",
-        kind: CodeActionKind.QuickFix,
-        diagnostics: [diagnostic],
-        edit: {
-          changes: {
-            [params.textDocument.uri]: [
-              TextEdit.insert(diagnostic.range.end, ";"),
-            ],
-          },
-        },
       });
     }
 

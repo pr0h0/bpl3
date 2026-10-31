@@ -67,7 +67,22 @@ test("language server suppresses invalid missing-return and null-guard edits whi
           );
           expect(actions).toEqual([]);
         }
+        // Other quick fixes are still offered. (The former "Add semicolon"
+        // fix matched `Expected ';'`, which the compiler never reports.)
         const actions = await connection.sendRequest<CodeAction[]>(
+          "textDocument/codeAction",
+          {
+            textDocument: { uri },
+            range,
+            context: {
+              diagnostics: [{ range, message: "Unknown type 'Option'" }],
+            },
+          },
+        );
+        expect(actions.map((action) => action.title)).toContain(
+          "Import Option from std",
+        );
+        const semicolon = await connection.sendRequest<CodeAction[]>(
           "textDocument/codeAction",
           {
             textDocument: { uri },
@@ -75,9 +90,7 @@ test("language server suppresses invalid missing-return and null-guard edits whi
             context: { diagnostics: [{ range, message: "Expected ';'" }] },
           },
         );
-        expect(actions.map((action) => action.title)).toContain(
-          "Add semicolon",
-        );
+        expect(semicolon).toEqual([]);
       })(),
       new Promise<never>((_, reject) => {
         timeout = setTimeout(
