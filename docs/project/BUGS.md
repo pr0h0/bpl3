@@ -709,6 +709,27 @@ to Func") and pointed at the lambda's declaration instead of the cast.
 **Resolution**: the type checker rejects the cast, and the equivalent `as`
 conversion, with `BPL_CAST_INVALID` at the conversion. `tests/AuditCompilerFixes.test.ts`.
 
+#### BUG-474: Native builds spend most of their time in Clang's slow instruction selector
+
+**Status**: Open · **Priority**: P3
+
+Found while profiling compile speed (2026-10-31). Building
+`examples/mini_database_engine` (10,400 lines) takes about 4.7s, of which Clang
+at `-O0` takes 3.4s, almost all in SelectionDAG instruction selection. At
+`-O0` LLVM normally uses FastISel, but 238 of the 682 functions fall back to
+SelectionDAG (`llc -O0 -fast-isel-report-on-fallback`). The misses are
+first-class aggregate loads/stores (`load %struct.X`, `store %enum.Y`), struct
+and enum values returned by value, thread-local runtime globals
+(`@defer_top`, `@exception_top`), and some calls. 374 aggregate loads are never
+used (a struct literal is built in place, then loaded whole as the expression
+value) and 432 load a whole enum only to `extractvalue` its tag. Removing
+those in the IR file saves only about 10%: the remaining aggregate stores and
+returns keep the fallbacks. `-mllvm -global-isel -mllvm -global-isel-abort=0`
+cuts Clang time by 38% (2.07s), but x86 GlobalISel is experimental and is not
+enabled by default. A real fix is code generation that copies aggregates with
+`llvm.memcpy`, reads fields through GEPs, and returns large values through a
+pointer.
+
 ## Generated-program fuzzer findings (2026-10-29)
 
 Found by the oracle fuzzer (`fuzz/programGenerator.ts`, see

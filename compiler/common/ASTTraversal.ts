@@ -74,6 +74,10 @@ export function walkAST(
   const maxDepth = options.maxDepth ?? Infinity;
   const traverseArrays = options.traverseArrays ?? true;
   const activeObjects = new WeakSet<object>();
+  // Copying the ancestor path at every node dominates large walks; visitors
+  // that declare no `path` parameter never see it, so skip building it.
+  const tracksPath = visitor.length >= 2;
+  const noPath: AST.ASTNode[] = [];
 
   function walkValue(
     value: unknown,
@@ -134,7 +138,7 @@ export function walkAST(
       if (result === false) return false;
 
       // Traverse children
-      const newPath = [...path, current];
+      const newPath = tracksPath ? [...path, current] : noPath;
       for (const key of Object.keys(current)) {
         if (skipProps.has(key)) continue;
 

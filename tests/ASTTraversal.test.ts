@@ -110,6 +110,38 @@ describe("AST traversal", () => {
     expect(visitedKinds).toContain("Literal");
   });
 
+  it("passes ancestors only to visitors that declare a path parameter", () => {
+    const literal = {
+      kind: "Literal",
+      value: 1,
+      raw: "1",
+      type: "number",
+      location,
+    };
+    const unary = {
+      kind: "Unary",
+      operator: { type: "Minus", lexeme: "-", location },
+      operand: literal,
+      location,
+    };
+    const ancestorsByKind = new Map<string, string[]>();
+
+    walkAST(unary as never, (node, path) => {
+      ancestorsByKind.set(
+        node.kind,
+        path.map((ancestor) => ancestor.kind),
+      );
+    });
+    expect(ancestorsByKind.get("Unary")).toEqual([]);
+    expect(ancestorsByKind.get("Literal")).toEqual(["Unary"]);
+
+    const visited: string[] = [];
+    walkAST(unary as never, (node) => {
+      visited.push(node.kind);
+    });
+    expect(visited).toEqual(["Unary", "Literal"]);
+  });
+
   it("does not recurse through semantic overload metadata wrappers", () => {
     const binaryExpression = {
       kind: "Binary",
