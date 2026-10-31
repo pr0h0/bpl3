@@ -1,0 +1,15 @@
+{
+  "expectedOutput": [
+    "args: exit=0 timedOut=0 stdout=[a b|$HOME|x;y|] stderr=[]",
+    "streams: exit=3 timedOut=0 stdout=[out",
+    "] stderr=[err",
+    "]",
+    "stdin: exit=0 timedOut=0 stdout=[apple",
+    "fig",
+    "pear",
+    "] stderr=[]",
+    "timeout: exit=137 timedOut=1 stdout=[started",
+    "] stderr=[]",
+    "missing: exit=-1 timedOut=0 stdout=[] stderr=[No such file or directory]"
+  ]
+}

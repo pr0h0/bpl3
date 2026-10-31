@@ -93,9 +93,11 @@ all related enhancements or platform support are complete.
       stacks, priority queues, and collection iteration specs.
 - [x] Base64 and Hex codecs in `lib/base64.bpl`/`lib/hex.bpl`, UTF-8 helpers,
       and CSV parsing/writing in the bundled `bpl-csv` package.
-- [x] Environment access through `Env`; process status/output, quoted command
-      execution, trusted-text shell execution, and sleep through `lib/process.bpl`.
-      This does not amount to a general portable signals/process-control API.
+- [x] Environment access through `Env`; shell-free `run`/`runWith` (argv,
+      separate stdout/stderr, stdin, process-group timeouts), quoted shell
+      execution, trusted-text shell execution, and sleep through
+      `lib/process.bpl`. There is no streaming/interactive child I/O, signal
+      API or Windows support.
 - [x] Basic `Log.debug/info/warn/error` methods through standard IO.
       Configurable filtering, structured formatters, and output targets remain open.
 - [x] Explicit arena/page/pool/stack allocators in `lib/memory/`, including arena

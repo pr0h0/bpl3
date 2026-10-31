@@ -837,3 +837,271 @@ void __bpl_exit_stack_frame(void) {
         __bpl_frame_lines = NULL;
     }
 }
+
+/* ------------------------------------------------------------------------
+ * Process execution without a shell (std/process.bpl `run`).
+ * ------------------------------------------------------------------------ */
+#if defined(__linux__) || defined(__APPLE__)
+#include <fcntl.h>
+#include <poll.h>
+#include <spawn.h>
+#include <sys/wait.h>
+
+extern char **environ;
+
+typedef struct {
+    char *data;
+    int64_t length;
+    int64_t capacity;
+} BplProcessBuffer;
+
+static int bpl_process_append(BplProcessBuffer *buffer, const char *bytes,
+                              size_t count) {
+    if ((int64_t)count > INT64_MAX - buffer->length - 1) return ENOMEM;
+    int64_t needed = buffer->length + (int64_t)count + 1;
+    if (needed > buffer->capacity) {
+        int64_t capacity = buffer->capacity ? buffer->capacity : 4096;
+        while (capacity < needed) {
+            if (capacity > INT64_MAX / 2) {
+                capacity = needed;
+                break;
+            }
+            capacity *= 2;
+        }
+        if ((uint64_t)capacity > SIZE_MAX) return ENOMEM;
+        char *grown = realloc(buffer->data, (size_t)capacity);
+        if (!grown) return ENOMEM;
+        buffer->data = grown;
+        buffer->capacity = capacity;
+    }
+    memcpy(buffer->data + buffer->length, bytes, count);
+    buffer->length += (int64_t)count;
+    buffer->data[buffer->length] = '\0';
+    return 0;
+}
+
+static int bpl_process_pipe(int fds[2]) {
+    if (pipe(fds) != 0) return errno;
+    for (int i = 0; i < 2; i++) {
+        if (fcntl(fds[i], F_SETFD, FD_CLOEXEC) != 0) {
+            int error = errno;
+            close(fds[0]);
+            close(fds[1]);
+            return error;
+        }
+    }
+    return 0;
+}
+
+static int64_t bpl_process_now_ms(void) {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+}
+
+/* Write to the child's stdin with SIGPIPE blocked for this thread, so a child
+ * that exits without reading cannot kill the caller. Returns bytes written,
+ * or -1 with errno set. */
+static ssize_t bpl_process_write(int fd, const char *bytes, size_t count) {
+    sigset_t block, previous;
+    sigemptyset(&block);
+    sigaddset(&block, SIGPIPE);
+    pthread_sigmask(SIG_BLOCK, &block, &previous);
+    ssize_t written = write(fd, bytes, count);
+    int error = errno;
+    if (written < 0 && error == EPIPE) {
+        /* Discard the SIGPIPE raised by this write before unblocking. */
+        sigset_t pending;
+        sigpending(&pending);
+        if (sigismember(&pending, SIGPIPE) && !sigismember(&previous, SIGPIPE)) {
+            int signal_number;
+            sigwait(&block, &signal_number);
+        }
+    }
+    pthread_sigmask(SIG_SETMASK, &previous, NULL);
+    errno = error;
+    return written;
+}
+
+static int32_t bpl_process_exit_code(int status) {
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    if (WIFSIGNALED(status)) return 128 + WTERMSIG(status);
+    return -1;
+}
+
+/* Run argv (NULL-terminated) without a shell, feeding `input` to stdin
+ * (`/dev/null` when input is NULL) and capturing stdout and stderr. With a
+ * positive timeout the child runs in its own process group, which is killed
+ * when the timeout expires. Returns 0 once the child has been waited for,
+ * or an errno value when it could not be started. The output buffers are
+ * malloc'd and NUL-terminated, even when empty. */
+int32_t __bpl_process_run(char *const *argv, const char *input,
+                          int64_t input_length, int64_t timeout_ms,
+                          int32_t *exit_code, int32_t *timed_out,
+                          char **out_data, int64_t *out_length,
+                          char **err_data, int64_t *err_length) {
+    BplProcessBuffer out = {0}, err = {0};
+    int in_pipe[2] = {-1, -1}, out_pipe[2] = {-1, -1}, err_pipe[2] = {-1, -1};
+    int result = 0;
+    *exit_code = -1;
+    *timed_out = 0;
+
+    if (!argv || !argv[0]) return EINVAL;
+    if ((result = bpl_process_append(&out, "", 0)) != 0 ||
+        (result = bpl_process_append(&err, "", 0)) != 0) {
+        goto fail;
+    }
+    if ((result = bpl_process_pipe(out_pipe)) != 0) goto fail;
+    if ((result = bpl_process_pipe(err_pipe)) != 0) goto fail;
+    if (input && (result = bpl_process_pipe(in_pipe)) != 0) goto fail;
+
+    posix_spawn_file_actions_t actions;
+    posix_spawnattr_t attributes;
+    posix_spawn_file_actions_init(&actions);
+    posix_spawnattr_init(&attributes);
+    if (input) {
+        posix_spawn_file_actions_adddup2(&actions, in_pipe[0], 0);
+    } else {
+        posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0);
+    }
+    posix_spawn_file_actions_adddup2(&actions, out_pipe[1], 1);
+    posix_spawn_file_actions_adddup2(&actions, err_pipe[1], 2);
+
+    sigset_t empty_mask, default_signals;
+    sigemptyset(&empty_mask);
+    sigemptyset(&default_signals);
+    sigaddset(&default_signals, SIGPIPE);
+    short flags = POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF;
+    if (timeout_ms > 0) {
+        flags |= POSIX_SPAWN_SETPGROUP;
+        posix_spawnattr_setpgroup(&attributes, 0);
+    }
+    posix_spawnattr_setflags(&attributes, flags);
+    posix_spawnattr_setsigmask(&attributes, &empty_mask);
+    posix_spawnattr_setsigdefault(&attributes, &default_signals);
+
+    pid_t pid;
+    result = posix_spawnp(&pid, argv[0], &actions, &attributes, argv, environ);
+    posix_spawn_file_actions_destroy(&actions);
+    posix_spawnattr_destroy(&attributes);
+    if (result != 0) goto fail;
+
+    close(out_pipe[1]);
+    close(err_pipe[1]);
+    out_pipe[1] = err_pipe[1] = -1;
+    if (input) {
+        close(in_pipe[0]);
+        in_pipe[0] = -1;
+        fcntl(in_pipe[1], F_SETFL, fcntl(in_pipe[1], F_GETFL) | O_NONBLOCK);
+        if (input_length <= 0) {
+            close(in_pipe[1]);
+            in_pipe[1] = -1;
+        }
+    }
+
+    int64_t deadline = timeout_ms > 0 ? bpl_process_now_ms() + timeout_ms : 0;
+    int64_t input_offset = 0;
+    char chunk[16384];
+    while (out_pipe[0] >= 0 || err_pipe[0] >= 0) {
+        struct pollfd fds[3];
+        int count = 0, out_index = -1, err_index = -1, in_index = -1;
+        if (out_pipe[0] >= 0) {
+            out_index = count;
+            fds[count++] = (struct pollfd){out_pipe[0], POLLIN, 0};
+        }
+        if (err_pipe[0] >= 0) {
+            err_index = count;
+            fds[count++] = (struct pollfd){err_pipe[0], POLLIN, 0};
+        }
+        if (in_pipe[1] >= 0) {
+            in_index = count;
+            fds[count++] = (struct pollfd){in_pipe[1], POLLOUT, 0};
+        }
+        int wait_ms = -1;
+        if (deadline) {
+            int64_t remaining = deadline - bpl_process_now_ms();
+            if (remaining <= 0) {
+                kill(-pid, SIGKILL);
+                *timed_out = 1;
+                break;
+            }
+            wait_ms = remaining > INT32_MAX ? INT32_MAX : (int)remaining;
+        }
+        int ready = poll(fds, (nfds_t)count, wait_ms);
+        if (ready < 0) {
+            if (errno == EINTR) continue;
+            result = errno;
+            kill(timeout_ms > 0 ? -pid : pid, SIGKILL);
+            break;
+        }
+        if (ready == 0) continue;
+
+        int *read_fds[2] = {&out_pipe[0], &err_pipe[0]};
+        int indices[2] = {out_index, err_index};
+        BplProcessBuffer *buffers[2] = {&out, &err};
+        for (int i = 0; i < 2; i++) {
+            if (indices[i] < 0 || !fds[indices[i]].revents) continue;
+            ssize_t got = read(*read_fds[i], chunk, sizeof chunk);
+            if (got > 0) {
+                if (bpl_process_append(buffers[i], chunk, (size_t)got) != 0) {
+                    result = ENOMEM;
+                    kill(timeout_ms > 0 ? -pid : pid, SIGKILL);
+                    goto wait_child;
+                }
+            } else if (got == 0 || (errno != EINTR && errno != EAGAIN)) {
+                close(*read_fds[i]);
+                *read_fds[i] = -1;
+            }
+        }
+        if (in_index >= 0 && fds[in_index].revents) {
+            ssize_t written = bpl_process_write(
+                in_pipe[1], input + input_offset,
+                (size_t)(input_length - input_offset));
+            if (written > 0) input_offset += written;
+            if ((written < 0 && errno != EINTR && errno != EAGAIN) ||
+                input_offset >= input_length) {
+                close(in_pipe[1]);
+                in_pipe[1] = -1;
+            }
+        }
+    }
+
+wait_child:
+    if (in_pipe[1] >= 0) close(in_pipe[1]);
+    if (out_pipe[0] >= 0) close(out_pipe[0]);
+    if (err_pipe[0] >= 0) close(err_pipe[0]);
+    in_pipe[1] = out_pipe[0] = err_pipe[0] = -1;
+    {
+        int status = 0;
+        pid_t waited;
+        do {
+            waited = waitpid(pid, &status, 0);
+        } while (waited < 0 && errno == EINTR);
+        if (waited == pid) *exit_code = bpl_process_exit_code(status);
+    }
+    if (result != 0) {
+        /* poll failed or output did not fit in memory: the child was
+         * killed and waited for, and the partial output is discarded. */
+        goto fail;
+    }
+    *out_data = out.data;
+    *out_length = out.length;
+    *err_data = err.data;
+    *err_length = err.length;
+    return 0;
+
+fail:
+    for (int i = 0; i < 2; i++) {
+        if (in_pipe[i] >= 0) close(in_pipe[i]);
+        if (out_pipe[i] >= 0) close(out_pipe[i]);
+        if (err_pipe[i] >= 0) close(err_pipe[i]);
+    }
+    free(out.data);
+    free(err.data);
+    *out_data = NULL;
+    *err_data = NULL;
+    *out_length = 0;
+    *err_length = 0;
+    return result ? result : EIO;
+}
+#endif
