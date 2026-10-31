@@ -366,10 +366,21 @@ dockerTests("Docker playground HTTP routing", () => {
       if (remaining) await new Promise((resolve) => setTimeout(resolve, 50));
     }
     expect(remaining).toBe("");
-    const next = await fetch(`${base}/compile`, {
-      method: "POST",
-      body: JSON.stringify({ code: hello }),
-    });
-    expect(await next.json()).toMatchObject({ success: true });
+    // The server releases the client's slot after the container is gone, so
+    // the follow-up request may briefly still see the cancelled job.
+    let next: { success?: boolean; error?: string } = {};
+    const released = Date.now() + 5000;
+    do {
+      next = (await (
+        await fetch(`${base}/compile`, {
+          method: "POST",
+          body: JSON.stringify({ code: hello }),
+        })
+      ).json()) as typeof next;
+      if (next.success || !next.error?.includes("already have a running job"))
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    } while (Date.now() < released);
+    expect(next).toMatchObject({ success: true });
   }, 30000);
 });
