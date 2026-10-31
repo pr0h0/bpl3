@@ -87,7 +87,12 @@ export function emitVirtualCall(
   return resultReg;
 }
 
-/** The receiver's address when it is a non-primitive addressable value. */
+/**
+ * The receiver's address when it is a non-primitive value that can be
+ * addressed in place. Addressability is decided from the expression's shape
+ * before any code is emitted, so a receiver that cannot be addressed is
+ * evaluated exactly once, by the value path in prepareVirtualCallObject.
+ */
 function addressVirtualReceiver(
   host: VirtualCallHost,
   memberExpr: AST.MemberExpr,
@@ -99,18 +104,47 @@ function addressVirtualReceiver(
     objType.endsWith("*") ||
     (resolvedType.kind === "BasicType" &&
       PRIMITIVE_STRUCT_MAP[resolvedType.name] === structName) ||
-    !isAddressableVirtualReceiver(memberExpr.object)
+    !isAddressableInPlace(memberExpr.object)
   ) {
     return null;
   }
-  try {
-    return {
-      objPtr: host.generateAddress(memberExpr.object),
-      structType: objType + "*",
-    };
-  } catch {
-    return null;
+  return {
+    objPtr: host.generateAddress(memberExpr.object),
+    structType: objType + "*",
+  };
+}
+
+/**
+ * Whether generateAddress reaches `expr`'s storage without evaluating it as
+ * a temporary: a variable, a dereference, or a field or element of something
+ * that is itself addressable or reached through a pointer or slice.
+ */
+function isAddressableInPlace(expr: AST.Expression): boolean {
+  switch (expr.kind) {
+    case "Identifier":
+      return true;
+    case "Group":
+      return isAddressableInPlace((expr as AST.GroupExpr).expression);
+    case "Unary":
+      return (expr as AST.UnaryExpr).operator.type === "Star";
+    case "Member":
+    case "Index": {
+      const object = (expr as AST.MemberExpr | AST.IndexExpr).object;
+      return (
+        isPointerOrSlice(object.resolvedType) || isAddressableInPlace(object)
+      );
+    }
+    default:
+      return false;
   }
+}
+
+function isPointerOrSlice(type: AST.TypeNode | undefined): boolean {
+  if (type?.kind !== "BasicType") return false;
+  const last = type.arrayDimensions[type.arrayDimensions.length - 1];
+  return (
+    type.pointerDepth > 0 || (last === null && type.arrayDimensions.length > 0)
+  );
 }
 
 function prepareVirtualCallObject(
