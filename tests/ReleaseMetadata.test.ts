@@ -178,7 +178,9 @@ describe("Release metadata", () => {
         "compiler/common/PathSafety.ts",
         "compiler/common/ProcessErrors.ts",
         "docs",
-        "examples",
+        "examples/**/*.bpl",
+        "examples/**/test_config.json",
+        "!examples/**/.bpl-cache",
         "grammar",
         "lib",
         "packages",
@@ -186,6 +188,9 @@ describe("Release metadata", () => {
         "LICENSE",
       ]),
     );
+    // BUG-450: `files` overrides .gitignore, so the whole examples directory
+    // would ship local build outputs.
+    expect(packageJson.files).not.toContain("examples");
     expect(packageJson.scripts["release:check"]).toContain("bun run check");
     expect(packageJson.scripts["release:check"]).toContain(
       "bun run release:cli-registry",

@@ -413,13 +413,24 @@ dedicated commit, then add both checks to the lint job.
 
 #### BUG-450: npm package contents are too broad
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `npm pack --dry-run` is 40.7 MB packed / 118 MB unpacked. `files: ["examples"]`
 ships 393 local build outputs (`main.ll`, `.bpl-cache/*.o`, 17 MB) because
 `files` overrides `.gitignore`; `tools/` ships internal CI/fuzz scripts; `bpl`
 is a 97 MB host-only binary. Narrow `examples` to sources, add a prepack check
 that fails on untracked files, and decide whether to ship per-platform binaries.
+
+**Resolution**: `files` lists example sources by type (`*.bpl`, `*.bte`,
+`bpl.json`, `test_config.json`, `*.md`, the `public/` assets and one data file)
+instead of the whole directory, and excludes `.bpl-cache/` and `lib/*.a`. The
+example payload went from 1,683 files / 18.8 MB to 1.3 MB, and the tarball from
+1,958 to 1,414 entries. `bun run release:smoke` now fails when a packed
+`examples/` file is not tracked by git. `tools/` stays: the packaged scripts
+(`test:ci`, CI triage, the fuzz wrapper) run those files. The `bpl` binary is
+still the host build; per-platform binaries are a release decision. Since the
+binary is standalone it no longer needs `grammar/`, but `lib/` stays readable
+beside it.
 
 #### BUG-451: Committed binaries and archives
 
@@ -5432,7 +5443,7 @@ A wrapped size is either negative, so the allocation fails and the copy loops wr
 
 ### BUG-367: By-value automatic-destructor parameters duplicate heap ownership
 
-**Status**: Open — confirmed during review of `c5911822`
+**Status**: Fixed — by-value parameter cleanup withheld; see the later BUG-367 and BUG-372 entries
 
 **Priority**: P1
 
@@ -5456,7 +5467,7 @@ review coverage are in docs/audits/2026-09-17-last-15-review.md.
 
 ### BUG-368: Owning enum rejection misses aliases and generic payloads
 
-**Status**: Open — confirmed during review of `bffa7fe1`
+**Status**: Fixed — see the later BUG-368 entries
 
 **Priority**: P1
 
@@ -5472,7 +5483,7 @@ incomplete. Until fixed, avoid owned enum payloads, including indirect ones.
 
 ### BUG-369: Stack-address validation rejects borrowed slice elements
 
-**Status**: Open — confirmed during review of `93a113d4`
+**Status**: Fixed — see the later BUG-369 entry
 
 **Priority**: P2
 
@@ -5485,7 +5496,7 @@ storage; returning an address into a local fixed array must remain rejected.
 
 ### BUG-370: Inherited spec dispatch leaves ancestor generic types unresolved
 
-**Status**: Open — confirmed during review of `72d7ab70`
+**Status**: Fixed — see the later BUG-370 entry
 
 **Priority**: P1
 
@@ -5501,7 +5512,7 @@ incomplete.
 
 ### BUG-371: Deferred slice element writes are rejected as discarded captures
 
-**Status**: Open — confirmed during review of `315ff3d8`
+**Status**: Fixed — see the later BUG-371 entry
 
 **Priority**: P2
 
@@ -5543,7 +5554,7 @@ The change turned a leak into memory corruption, which is strictly worse. It was
 
 ### BUG-372: Copying a value that owns a destructor duplicates ownership
 
-**Status**: Open
+**Status**: Fixed — see the later BUG-372 entry
 
 **Priority**: P0
 
@@ -5630,7 +5641,7 @@ Checking succeeded and code generation emitted a thunk casting to `%struct.Base_
 
 ### BUG-368 revalidation: generic enum ownership guard remains incomplete
 
-**Status**: Reopened after validating `305d0375`
+**Status**: Fixed — by BUG-373; a `Resource[]` slice payload is accepted (re-checked 2026-10-30)
 
 **Priority**: P1
 
@@ -5720,7 +5731,7 @@ local deep: Box<Box<Box<Resource>>>;   # nothing destroyed
 
 ### BUG-376: Reassigned slice parameters bypass the returned-stack-address check
 
-**Status**: Open
+**Status**: Fixed — see the later BUG-376 entries
 
 **Priority**: P1
 

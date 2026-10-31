@@ -5687,6 +5687,30 @@ function assertPackedFileAllowlist(
     );
   }
 
+  // `files` overrides .gitignore, so local build outputs next to example
+  // sources (binaries, IR, scratch files) would otherwise ship.
+  const tracked = new Set(
+    spawnSync("git", ["ls-files", "examples"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    })
+      .stdout.split("\n")
+      .filter(Boolean),
+  );
+  if (tracked.size > 0) {
+    const untrackedExamples = packedPaths.filter(
+      (filePath) => filePath.startsWith("examples/") && !tracked.has(filePath),
+    );
+    if (untrackedExamples.length > 0) {
+      throw new Error(
+        [
+          "npm tarball includes untracked example files (build outputs?):",
+          ...untrackedExamples.map((filePath) => `- ${filePath}`),
+        ].join("\n"),
+      );
+    }
+  }
+
   const unexpected = packedPaths.filter(
     (filePath) =>
       !allowedPaths.includes(filePath) &&
