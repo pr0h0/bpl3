@@ -328,7 +328,9 @@ function assertWritableMinimizedOutputPath(outPath: string): void {
     throw new Error(`Fuzz replay output path is a directory: ${outPath}`);
   }
   if (existingStats && !existingStats.isFile()) {
-    throw new Error(`Fuzz replay output path is not a regular file: ${outPath}`);
+    throw new Error(
+      `Fuzz replay output path is not a regular file: ${outPath}`,
+    );
   }
 
   const symlinkedParent = findSymlinkedParentPath(outPath);
@@ -348,7 +350,9 @@ function assertWritableMinimizedOutputPath(outPath: string): void {
 
   const parentStats = tryLstat(parentPath);
   if (!parentStats) {
-    throw new Error(`Fuzz replay output directory does not exist: ${parentPath}`);
+    throw new Error(
+      `Fuzz replay output directory does not exist: ${parentPath}`,
+    );
   }
   if (!parentStats.isDirectory()) {
     throw new Error(

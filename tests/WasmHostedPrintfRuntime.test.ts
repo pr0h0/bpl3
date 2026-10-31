@@ -41,13 +41,7 @@ describe("Hosted wasm printf runtime IR", () => {
     try {
       const result = spawnSync(
         getCompilerDriver(WASM_TARGET),
-        [
-          `--target=${WASM_TARGET}`,
-          "-c",
-          RUNTIME_WASM_HOST,
-          "-o",
-          objectPath,
-        ],
+        [`--target=${WASM_TARGET}`, "-c", RUNTIME_WASM_HOST, "-o", objectPath],
         {
           encoding: "utf8",
           maxBuffer: 1024 * 1024 * 8,

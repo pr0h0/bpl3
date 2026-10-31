@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("StringUtils replacement terminates for empty patterns and keeps owned results", () => {
-  expectCorrectnessSuite([{
-    name: "string-utils-replacement",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "string-utils-replacement",
+      validateLlvm: true,
+      source: `
       import [StringUtils] from "std/string_utils.bpl";
       import [String] from "std/string.bpl";
       extern strcmp(a: string, b: string) ret int;
@@ -32,6 +33,7 @@ test("StringUtils replacement terminates for empty patterns and keeps owned resu
         blank.destroy();
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

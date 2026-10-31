@@ -732,15 +732,19 @@ function assertReleaseManifest(
   ]) {
     const artifact = artifactsByPath.get(artifactPath);
     if (!artifact?.sha256 || artifact.sha256.length !== 64) {
-      throw new Error(`Release manifest is missing checksum for ${artifactPath}`);
+      throw new Error(
+        `Release manifest is missing checksum for ${artifactPath}`,
+      );
     }
     if (artifact.bytes <= 0) {
-      throw new Error(`Release manifest recorded empty artifact ${artifactPath}`);
+      throw new Error(
+        `Release manifest recorded empty artifact ${artifactPath}`,
+      );
     }
   }
 
-  const npmArtifact = manifest.artifacts.find(
-    (artifact) => artifact.path.endsWith(".tgz"),
+  const npmArtifact = manifest.artifacts.find((artifact) =>
+    artifact.path.endsWith(".tgz"),
   );
   if (!npmArtifact?.npmIntegrity || !npmArtifact.npmShasum) {
     throw new Error("Release manifest is missing npm package integrity data.");
@@ -830,7 +834,7 @@ export function runPackedCliRegistrySmoke(installDir: string): void {
       '  throw new Error("CLI_JSON_ERROR_CODES is not an array");',
       "}",
       "",
-      'const listNames = CLI_JSON_ERROR_CODE_LISTS.map((list) => list.name);',
+      "const listNames = CLI_JSON_ERROR_CODE_LISTS.map((list) => list.name);",
       'if (!listNames.includes("package-resolver")) {',
       '  throw new Error("package-resolver registry list is missing");',
       "}",
@@ -840,11 +844,11 @@ export function runPackedCliRegistrySmoke(installDir: string): void {
       "",
       "for (const { name, codes } of CLI_JSON_ERROR_CODE_LISTS) {",
       "  if (!Array.isArray(codes) || codes.length === 0) {",
-      '    throw new Error(`${name} has no exported codes`);',
+      "    throw new Error(`${name} has no exported codes`);",
       "  }",
       "  for (const code of codes) {",
       "    if (!/^BPL_[A-Z0-9_]+$/.test(code)) {",
-      '      throw new Error(`${name} has invalid registry code ${code}`);',
+      "      throw new Error(`${name} has invalid registry code ${code}`);",
       "    }",
       "  }",
       "}",
@@ -875,13 +879,13 @@ export function runPackedCliRegistryTypesSmoke(installDir: string): void {
       "for (const list of lists) {",
       "  const name: string = list.name;",
       "  const codes: readonly string[] = collectCodes(list);",
-      "  if (name === \"package-resolver\") {",
-      "    const hasPackageNotFound: boolean = codes.includes(\"BPL_PACKAGE_NOT_FOUND\");",
+      '  if (name === "package-resolver") {',
+      '    const hasPackageNotFound: boolean = codes.includes("BPL_PACKAGE_NOT_FOUND");',
       "    void hasPackageNotFound;",
       "  }",
       "}",
       "",
-      "const packageNotFoundIsKnown: boolean = flattenedCodes.includes(\"BPL_PACKAGE_NOT_FOUND\");",
+      'const packageNotFoundIsKnown: boolean = flattenedCodes.includes("BPL_PACKAGE_NOT_FOUND");',
       "void packageNotFoundIsKnown;",
       "",
     ].join("\n"),
@@ -923,10 +927,15 @@ export function runPackedCliRegistryTypesSmoke(installDir: string): void {
         smokePath,
       ];
 
-  runStep("check packed npm CLI registry TypeScript declarations", command, args, {
-    cwd: installDir,
-    bplHome: null,
-  });
+  runStep(
+    "check packed npm CLI registry TypeScript declarations",
+    command,
+    args,
+    {
+      cwd: installDir,
+      bplHome: null,
+    },
+  );
 }
 
 function runPackedVersionJsonSmoke(
@@ -1017,7 +1026,9 @@ function runPackedCompletionJsonSmoke(
     !bashReport.success ||
     bashReport.shell !== "bash" ||
     typeof bashReport.script !== "string" ||
-    !bashReport.script.includes("complete -o filenames -F _bpl_completion bpl") ||
+    !bashReport.script.includes(
+      "complete -o filenames -F _bpl_completion bpl",
+    ) ||
     !bashReport.script.includes('COMPREPLY=( $(compgen -W "bash zsh"')
   ) {
     throw new Error(
@@ -1322,16 +1333,12 @@ function runPackedRunScriptFailureJsonSmoke(installedBpl: string): void {
       BPL_HOME: undefined,
       NO_COLOR: "1",
     };
-    const result = spawnSync(
-      installedBpl,
-      ["run-script", "--list", "--json"],
-      {
-        cwd: tempDir,
-        encoding: "utf-8",
-        env,
-        timeout: smokeTimeoutMs,
-      },
-    );
+    const result = spawnSync(installedBpl, ["run-script", "--list", "--json"], {
+      cwd: tempDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    });
 
     if (result.error) {
       throw result.error;
@@ -1447,16 +1454,16 @@ function runPackedPackageDoctorSmoke(
       2,
     ) + "\n",
   );
-  writeFileSync(join(driftPackageDir, "index.bpl"), "frame original() {} export original;\n");
+  writeFileSync(
+    join(driftPackageDir, "index.bpl"),
+    "frame original() {} export original;\n",
+  );
 
   runStep("pack package doctor lock drift fixture", installedBpl, ["pack"], {
     cwd: driftPackageDir,
     bplHome: null,
   });
-  const driftArchivePath = join(
-    driftPackageDir,
-    "doctor-lock-drift-1.0.0.tgz",
-  );
+  const driftArchivePath = join(driftPackageDir, "doctor-lock-drift-1.0.0.tgz");
   runStep(
     "install package doctor lock drift fixture",
     installedBpl,
@@ -1599,7 +1606,10 @@ function runPackedPackageInstallJsonSmoke(installedBpl: string): void {
         2,
       ) + "\n",
     );
-    writeFileSync(join(packageDir, "index.bpl"), "frame value() {} export value;\n");
+    writeFileSync(
+      join(packageDir, "index.bpl"),
+      "frame value() {} export value;\n",
+    );
 
     runStep("pack package install JSON fixture", installedBpl, ["pack"], {
       cwd: packageDir,
@@ -1694,9 +1704,7 @@ function runPackedPackageInstallJsonSmoke(installedBpl: string): void {
         expectedStatus: 1,
       },
     );
-    const lockedFailureReport = parsePackageInstallReport(
-      lockedFailure.stdout,
-    );
+    const lockedFailureReport = parsePackageInstallReport(lockedFailure.stdout);
     const expectedFailureMetadata = {
       action: "verification-failed",
       errorCode: "BPL_PACKAGE_LOCK_VERIFY_FAILED",
@@ -1726,7 +1734,8 @@ function runPackedPackageInstallJsonSmoke(installedBpl: string): void {
         JSON.stringify(expectedFailureMetadata.issueKinds) ||
       lockedFailureReport.issues?.[0]?.packageName !==
         expectedFailureMetadata.issue.packageName ||
-      lockedFailureReport.issues?.[0]?.kind !== expectedFailureMetadata.issue.kind
+      lockedFailureReport.issues?.[0]?.kind !==
+        expectedFailureMetadata.issue.kind
     ) {
       throw new Error(
         `Packed npm CLI locked package verification failure JSON reported unexpected payload:\n${JSON.stringify(lockedFailureReport, null, 2)}`,
@@ -1758,7 +1767,10 @@ function runPackedPackagePackJsonSmoke(installedBpl: string): void {
         2,
       ) + "\n",
     );
-    writeFileSync(join(packageDir, "index.bpl"), "frame value() {} export value;\n");
+    writeFileSync(
+      join(packageDir, "index.bpl"),
+      "frame value() {} export value;\n",
+    );
 
     const pack = runStep(
       "check packed npm CLI package pack JSON",
@@ -1785,12 +1797,16 @@ function runPackedPackagePackJsonSmoke(installedBpl: string): void {
       );
     }
 
-    const missing = spawnSync(installedBpl, ["pack", missingManifestDir, "--json"], {
-      cwd: workspaceDir,
-      encoding: "utf-8",
-      env: buildStepEnv({ bplHome: null }),
-      timeout: smokeTimeoutMs,
-    });
+    const missing = spawnSync(
+      installedBpl,
+      ["pack", missingManifestDir, "--json"],
+      {
+        cwd: workspaceDir,
+        encoding: "utf-8",
+        env: buildStepEnv({ bplHome: null }),
+        timeout: smokeTimeoutMs,
+      },
+    );
     if (missing.error) throw missing.error;
     if (missing.status !== 1) {
       throw new Error(
@@ -2008,7 +2024,8 @@ function runPackedProjectNewJsonSmoke(installedBpl: string): void {
       badTemplateReport.success ||
       badTemplateReport.name !== "bad-new-template" ||
       badTemplateReport.template !== "bad" ||
-      badTemplateReport.projectPath !== join(workspaceDir, "bad-new-template") ||
+      badTemplateReport.projectPath !==
+        join(workspaceDir, "bad-new-template") ||
       badTemplateReport.errorCode !== "BPL_NEW_TEMPLATE_INVALID" ||
       typeof badTemplateReport.error !== "string"
     ) {
@@ -2017,12 +2034,16 @@ function runPackedProjectNewJsonSmoke(installedBpl: string): void {
       );
     }
 
-    const existing = spawnSync(installedBpl, ["new", "taken-new-json", "--json"], {
-      cwd: workspaceDir,
-      encoding: "utf-8",
-      env: buildStepEnv({ bplHome: null }),
-      timeout: smokeTimeoutMs,
-    });
+    const existing = spawnSync(
+      installedBpl,
+      ["new", "taken-new-json", "--json"],
+      {
+        cwd: workspaceDir,
+        encoding: "utf-8",
+        env: buildStepEnv({ bplHome: null }),
+        timeout: smokeTimeoutMs,
+      },
+    );
     if (existing.error) throw existing.error;
     if (existing.status !== 1) {
       throw new Error(
@@ -2082,7 +2103,10 @@ function runPackedPackageUninstallJsonSmoke(installedBpl: string): void {
         2,
       ) + "\n",
     );
-    writeFileSync(join(packageDir, "index.bpl"), "frame value() {} export value;\n");
+    writeFileSync(
+      join(packageDir, "index.bpl"),
+      "frame value() {} export value;\n",
+    );
 
     runStep("pack package uninstall JSON fixture", installedBpl, ["pack"], {
       cwd: packageDir,
@@ -2222,7 +2246,8 @@ function runPackedPackageManifestValidationJsonSmoke(
       },
       {
         name: "array-manifest",
-        setup: (packageDir) => writeFileSync(join(packageDir, "bpl.json"), "[]"),
+        setup: (packageDir) =>
+          writeFileSync(join(packageDir, "bpl.json"), "[]"),
         expectedCode: "BPL_PACKAGE_MANIFEST_NOT_OBJECT",
       },
       {
@@ -2325,7 +2350,7 @@ function runPackedPackageManifestValidationJsonSmoke(
           writeManifest(packageDir, {
             name: "invalid-dependencies",
             version: "1.0.0",
-            dependencies: { "Bad_Name": "1.0.0" },
+            dependencies: { Bad_Name: "1.0.0" },
           }),
         expectedCode: "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
       },
@@ -2572,7 +2597,10 @@ function runPackedPackageListDuplicateJsonSmoke(
         2,
       ) + "\n",
     );
-    writeFileSync(join(packageDir, "index.bpl"), "frame value() {} export value;\n");
+    writeFileSync(
+      join(packageDir, "index.bpl"),
+      "frame value() {} export value;\n",
+    );
   }
 
   const duplicateList = runJsonFailureStep(
@@ -2726,7 +2754,9 @@ function runPackedPackageCacheMaintenanceJsonSmoke(
   const homeDir = join(installDir, "package-cache-maintenance-home");
   mkdirSync(homeDir, { recursive: true });
 
-  console.log("release smoke: check packed npm CLI package-cache maintenance JSON");
+  console.log(
+    "release smoke: check packed npm CLI package-cache maintenance JSON",
+  );
   const clean = runStep(
     "check packed npm CLI package-cache clean JSON",
     installedBpl,
@@ -2782,20 +2812,46 @@ function runPackedPackageCacheValidationJsonSmoke(
   const homeDir = join(installDir, "package-cache-validation-home");
   mkdirSync(homeDir, { recursive: true });
 
-  console.log("release smoke: check packed npm CLI package-cache validation JSON");
+  console.log(
+    "release smoke: check packed npm CLI package-cache validation JSON",
+  );
   const env = buildStepEnv({ bplHome: null, env: { HOME: homeDir } });
-  const cleanResult = spawnSync(installedBpl, ["package-cache", "clean", "pkg", "--package-version", "^1.0.0", "--dry-run", "--json"], {
-    cwd: installDir,
-    encoding: "utf-8",
-    env,
-    timeout: smokeTimeoutMs,
-  });
-  const repairResult = spawnSync(installedBpl, ["package-cache", "repair", "pkg", "--package-version", "latest", "--dry-run", "--json"], {
-    cwd: installDir,
-    encoding: "utf-8",
-    env,
-    timeout: smokeTimeoutMs,
-  });
+  const cleanResult = spawnSync(
+    installedBpl,
+    [
+      "package-cache",
+      "clean",
+      "pkg",
+      "--package-version",
+      "^1.0.0",
+      "--dry-run",
+      "--json",
+    ],
+    {
+      cwd: installDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    },
+  );
+  const repairResult = spawnSync(
+    installedBpl,
+    [
+      "package-cache",
+      "repair",
+      "pkg",
+      "--package-version",
+      "latest",
+      "--dry-run",
+      "--json",
+    ],
+    {
+      cwd: installDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    },
+  );
 
   if (cleanResult.error) throw cleanResult.error;
   if (repairResult.error) throw repairResult.error;
@@ -2859,30 +2915,46 @@ function runPackedPackageCacheNameValidationJsonSmoke(
     "release smoke: check packed npm CLI package-cache package filter JSON",
   );
   const env = buildStepEnv({ bplHome: null, env: { HOME: homeDir } });
-  const listResult = spawnSync(installedBpl, ["package-cache", "list", "Bad_Name", "--json"], {
-    cwd: installDir,
-    encoding: "utf-8",
-    env,
-    timeout: smokeTimeoutMs,
-  });
-  const verifyResult = spawnSync(installedBpl, ["package-cache", "verify", "Bad_Name", "--json"], {
-    cwd: installDir,
-    encoding: "utf-8",
-    env,
-    timeout: smokeTimeoutMs,
-  });
-  const cleanResult = spawnSync(installedBpl, ["package-cache", "clean", "Bad_Name", "--dry-run", "--json"], {
-    cwd: installDir,
-    encoding: "utf-8",
-    env,
-    timeout: smokeTimeoutMs,
-  });
-  const repairResult = spawnSync(installedBpl, ["package-cache", "repair", "Bad_Name", "--dry-run", "--json"], {
-    cwd: installDir,
-    encoding: "utf-8",
-    env,
-    timeout: smokeTimeoutMs,
-  });
+  const listResult = spawnSync(
+    installedBpl,
+    ["package-cache", "list", "Bad_Name", "--json"],
+    {
+      cwd: installDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    },
+  );
+  const verifyResult = spawnSync(
+    installedBpl,
+    ["package-cache", "verify", "Bad_Name", "--json"],
+    {
+      cwd: installDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    },
+  );
+  const cleanResult = spawnSync(
+    installedBpl,
+    ["package-cache", "clean", "Bad_Name", "--dry-run", "--json"],
+    {
+      cwd: installDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    },
+  );
+  const repairResult = spawnSync(
+    installedBpl,
+    ["package-cache", "repair", "Bad_Name", "--dry-run", "--json"],
+    {
+      cwd: installDir,
+      encoding: "utf-8",
+      env,
+      timeout: smokeTimeoutMs,
+    },
+  );
 
   if (listResult.error) throw listResult.error;
   if (verifyResult.error) throw verifyResult.error;
@@ -2999,7 +3071,10 @@ function runPackedPackageCacheBinInvalidArchiveJsonSmoke(
       join(packageRoot, "bpl.json"),
       JSON.stringify(manifest, null, 2),
     );
-    writeFileSync(join(packageRoot, "index.bpl"), "frame root() {} export root;\n");
+    writeFileSync(
+      join(packageRoot, "index.bpl"),
+      "frame root() {} export root;\n",
+    );
 
     const tarResult = spawnSync(
       "tar",
@@ -3076,17 +3151,18 @@ function runPackedPackageCacheBinInvalidArchiveJsonSmoke(
   console.log(
     "release smoke: check packed npm CLI package-cache bin invalid archive JSON",
   );
-  const verifyArgs = ["package-cache", "verify", "release-smoke-cache-bin-invalid-verify", "--json"];
-  const verifyResult = spawnSync(
-    installedBpl,
-    verifyArgs,
-    {
-      cwd: installDir,
-      encoding: "utf-8",
-      env,
-      timeout: smokeTimeoutMs,
-    },
-  );
+  const verifyArgs = [
+    "package-cache",
+    "verify",
+    "release-smoke-cache-bin-invalid-verify",
+    "--json",
+  ];
+  const verifyResult = spawnSync(installedBpl, verifyArgs, {
+    cwd: installDir,
+    encoding: "utf-8",
+    env,
+    timeout: smokeTimeoutMs,
+  });
   const repairResult = spawnSync(
     installedBpl,
     ["package-cache", "repair", "release-smoke-cache-bin-invalid", "--json"],
@@ -3167,7 +3243,8 @@ function runPackedPackageCacheBinInvalidArchiveJsonSmoke(
     repairIssue.version !== "1.0.0" ||
     repairIssue.kind !== "invalid-archive" ||
     repairIssue.path !== repairArchive.archivePath ||
-    repairIssue.provenancePath !== `${repairArchive.archivePath}.bplmeta.json` ||
+    repairIssue.provenancePath !==
+      `${repairArchive.archivePath}.bplmeta.json` ||
     typeof repairIssue.message !== "string" ||
     !repairIssue.message.includes(
       "Missing package bin entry: bin/missing.bpl",
@@ -3203,7 +3280,10 @@ function runPackedLockedInstallSafetySmoke(installedBpl: string): void {
         2,
       ) + "\n",
     );
-    writeFileSync(join(packageDir, "index.bpl"), "frame stable() {} export stable;\n");
+    writeFileSync(
+      join(packageDir, "index.bpl"),
+      "frame stable() {} export stable;\n",
+    );
 
     runStep("pack locked install safety fixture", installedBpl, ["pack"], {
       cwd: packageDir,
@@ -3373,12 +3453,9 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
           env: { HOME: homeDir, USERPROFILE: homeDir },
         },
       );
-      const globalSymlinkReport = parseCheckReport(
-        globalSymlinkResult.stdout,
-      );
+      const globalSymlinkReport = parseCheckReport(globalSymlinkResult.stdout);
       const globalSymlinkFileReport = globalSymlinkReport.files[0];
-      const globalSymlinkDiagnostic =
-        globalSymlinkFileReport?.diagnostics?.[0];
+      const globalSymlinkDiagnostic = globalSymlinkFileReport?.diagnostics?.[0];
       if (
         globalSymlinkReport.success ||
         globalSymlinkReport.totalFiles !== 1 ||
@@ -3386,8 +3463,7 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
         globalSymlinkReport.files.length !== 1 ||
         globalSymlinkFileReport?.file !== "main.bpl" ||
         globalSymlinkFileReport.success ||
-        globalSymlinkDiagnostic?.code !==
-          "BPL_PACKAGE_SEARCH_DIR_SYMLINK" ||
+        globalSymlinkDiagnostic?.code !== "BPL_PACKAGE_SEARCH_DIR_SYMLINK" ||
         typeof globalSymlinkDiagnostic.message !== "string" ||
         !globalSymlinkDiagnostic.message.includes(
           "Global package directory path is a symbolic link",
@@ -3424,10 +3500,7 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
         join(localSearchAppDir, "packages", "pkg-math"),
         "1.0.0",
       );
-      writePackedPackageRoot(
-        join(globalPackageDir, "pkg-math-9.0.0"),
-        "9.0.0",
-      );
+      writePackedPackageRoot(join(globalPackageDir, "pkg-math-9.0.0"), "9.0.0");
       const localSearchResult = runJsonFailureStep(
         "check packed npm CLI package local search non-directory JSON",
         installedBpl,
@@ -3472,10 +3545,7 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
         workspaceSearchDir,
       );
 
-      const globalSearchAppDir = join(
-        searchNotDirectoryTempDir,
-        "global-app",
-      );
+      const globalSearchAppDir = join(searchNotDirectoryTempDir, "global-app");
       const globalSearchHomeDir = join(
         searchNotDirectoryTempDir,
         "global-home",
@@ -3552,7 +3622,10 @@ function runPackedPackageImportDiagnosticCodeSmoke(installedBpl: string): void {
         2,
       ) + "\n",
     );
-    writeFileSync(join(packageDir, "index.bpl"), "frame root() {} export root;\n");
+    writeFileSync(
+      join(packageDir, "index.bpl"),
+      "frame root() {} export root;\n",
+    );
     mkdirSync(join(packageDir, "features", "increment"), {
       recursive: true,
     });
@@ -3786,7 +3859,10 @@ function writePackedPackageRoot(packageDir: string, version: string): void {
       2,
     ) + "\n",
   );
-  writeFileSync(join(packageDir, "index.bpl"), "frame value() {} export value;\n");
+  writeFileSync(
+    join(packageDir, "index.bpl"),
+    "frame value() {} export value;\n",
+  );
 }
 
 function assertPackageSearchDirectoryNotDirectoryReport(
@@ -4132,12 +4208,7 @@ function runPackedDocsJsonSmoke(installedBpl: string): void {
   try {
     writeFileSync(
       sourcePath,
-      [
-        "frame main() ret int {",
-        "    return 0;",
-        "}",
-        "",
-      ].join("\n"),
+      ["frame main() ret int {", "    return 0;", "}", ""].join("\n"),
     );
 
     console.log("release smoke: check packed npm CLI docs JSON");
@@ -4223,10 +4294,10 @@ function runPackedDocsJsonSmoke(installedBpl: string): void {
   }
 }
 
-function runPackedSourceAnalysisValidationJsonSmoke(installedBpl: string): void {
-  const tempDir = mkdtempSync(
-    join(tmpdir(), "bpl-release-source-validation-"),
-  );
+function runPackedSourceAnalysisValidationJsonSmoke(
+  installedBpl: string,
+): void {
+  const tempDir = mkdtempSync(join(tmpdir(), "bpl-release-source-validation-"));
   const sourceDir = join(tempDir, "src");
   const sourcePath = join(tempDir, "main.bpl");
   const linkedSourcePath = join(tempDir, "linked.bpl");
@@ -4484,7 +4555,11 @@ function runPackedBuildJsonSmoke(installedBpl: string): void {
       );
     }
     const output = report.output;
-    if (!output || output.llvm !== llvmPath || output.executable !== outputPath) {
+    if (
+      !output ||
+      output.llvm !== llvmPath ||
+      output.executable !== outputPath
+    ) {
       throw new Error(
         `Packed npm CLI build JSON reported unexpected artifacts:\n${JSON.stringify(output, null, 2)}`,
       );
@@ -4827,14 +4902,7 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
   runExpectedFailureStep(
     "check packed npm CLI fuzz artifact repro conflicting input usage errors",
     "npm",
-    [
-      "run",
-      "fuzz:repro",
-      "--",
-      "--input",
-      "fuzz/crashes",
-      "other-artifacts",
-    ],
+    ["run", "fuzz:repro", "--", "--input", "fuzz/crashes", "other-artifacts"],
     {
       cwd: packageDir,
       bplHome: null,
@@ -5042,9 +5110,7 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
             conclusion: "failure",
             html_url:
               "https://github.com/pr0h0/bpl3/actions/runs/26695335269/job/42",
-            steps: [
-              { name: "Run CI-safe test suite", conclusion: "failure" },
-            ],
+            steps: [{ name: "Run CI-safe test suite", conclusion: "failure" }],
           },
           {
             id: 43,
@@ -5183,8 +5249,7 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
     "bun run test:ci",
   ];
   if (
-    ciTriageReport.run.headSha !==
-      "1234567890abcdef1234567890abcdef12345678" ||
+    ciTriageReport.run.headSha !== "1234567890abcdef1234567890abcdef12345678" ||
     ciTriageReport.checkout.status !== "unknown" ||
     ciTriageReport.checkout.reason !== "local checkout SHA unavailable" ||
     ciTriageReport.summary.missingJobIds.length !== 0 ||
@@ -5256,8 +5321,7 @@ export function runPackedHelperScriptSmoke(installDir: string): void {
     );
   }
 
-  const ciTriageTimeoutLabel =
-    "check packed npm CLI CI triage timeout JSON";
+  const ciTriageTimeoutLabel = "check packed npm CLI CI triage timeout JSON";
   const packageTimeoutCommands =
     ciTriageReport.summary.failedJobs.find(
       (job) => job.name === "Package timeout metadata",
@@ -5469,7 +5533,9 @@ export function assertStandaloneCompilerArtifact(binaryPath: string): void {
   }
 }
 
-export function discoverDedicatedWasmExampleFiles(sourceRoot: string): string[] {
+export function discoverDedicatedWasmExampleFiles(
+  sourceRoot: string,
+): string[] {
   const examplesDir = join(sourceRoot, "examples");
   const exampleNames = readdirSync(examplesDir).sort();
   const files: string[] = [];
@@ -5796,7 +5862,9 @@ export function assertWasmDoctorUnavailableContract(report: unknown): void {
   }
 
   if (wasmLinkerCheck.code !== "BPL_WASM_LINKER_UNAVAILABLE") {
-    throw new Error("wasm linker check missing BPL_WASM_LINKER_UNAVAILABLE code");
+    throw new Error(
+      "wasm linker check missing BPL_WASM_LINKER_UNAVAILABLE code",
+    );
   }
   if (
     !Array.isArray(wasmLinkerCheck.candidates) ||
@@ -5994,11 +6062,7 @@ function parseProjectNewReport(stdout: string): ProjectNewReport {
 function parsePackageUninstallReport(stdout: string): PackageUninstallReport {
   try {
     const report = JSON.parse(stdout) as PackageUninstallReport;
-    assertJsonReportContract(
-      report,
-      "package-uninstall",
-      "package uninstall",
-    );
+    assertJsonReportContract(report, "package-uninstall", "package uninstall");
     return report;
   } catch (error) {
     throw new Error(
@@ -6033,11 +6097,7 @@ function parsePackageListReport(stdout: string): PackageListReport {
 function parsePackageListTreeReport(stdout: string): PackageListTreeReport {
   try {
     const report = JSON.parse(stdout) as PackageListTreeReport;
-    assertJsonReportContract(
-      report,
-      "package-list-tree",
-      "package list tree",
-    );
+    assertJsonReportContract(report, "package-list-tree", "package list tree");
     if (!Array.isArray(report.tree)) {
       throw new Error("package list tree is not an array");
     }
@@ -6076,7 +6136,9 @@ function parsePackageCacheListReport(stdout: string): PackageCacheListReport {
   }
 }
 
-function parsePackageCacheVerifyReport(stdout: string): PackageCacheVerifyReport {
+function parsePackageCacheVerifyReport(
+  stdout: string,
+): PackageCacheVerifyReport {
   try {
     const report = JSON.parse(stdout) as PackageCacheVerifyReport;
     assertJsonReportContract(
@@ -6122,7 +6184,9 @@ function parsePackageCacheCleanReport(stdout: string): PackageCacheCleanReport {
   }
 }
 
-function parsePackageCacheRepairReport(stdout: string): PackageCacheRepairReport {
+function parsePackageCacheRepairReport(
+  stdout: string,
+): PackageCacheRepairReport {
   try {
     const report = JSON.parse(stdout) as PackageCacheRepairReport;
     assertJsonReportContract(
@@ -6610,7 +6674,10 @@ function runExpectedFailureStep(
   }
 
   for (const forbidden of options.forbiddenOutputIncludes ?? []) {
-    if (result.stdout.includes(forbidden) || result.stderr.includes(forbidden)) {
+    if (
+      result.stdout.includes(forbidden) ||
+      result.stderr.includes(forbidden)
+    ) {
       throw new Error(
         [
           `Release smoke expected-failure step emitted forbidden marker: ${label}`,

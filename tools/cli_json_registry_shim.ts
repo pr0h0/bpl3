@@ -73,7 +73,10 @@ export function checkCliJsonRegistryShim(
 
 export function writeCliJsonRegistryShim(repoRoot = process.cwd()): void {
   for (const [relativePath, contents] of expectedCliJsonRegistryFiles()) {
-    writeFileSync(assertSafeCliJsonRegistryPath(repoRoot, relativePath), contents);
+    writeFileSync(
+      assertSafeCliJsonRegistryPath(repoRoot, relativePath),
+      contents,
+    );
   }
 }
 
@@ -107,10 +110,14 @@ function assertSafeCliJsonRegistryPath(
     throw new Error(`CLI registry shim parent does not exist: ${parentPath}`);
   }
   if (parent.isSymbolicLink()) {
-    throw new Error(`CLI registry shim parent is a symbolic link: ${parentPath}`);
+    throw new Error(
+      `CLI registry shim parent is a symbolic link: ${parentPath}`,
+    );
   }
   if (!parent.isDirectory()) {
-    throw new Error(`CLI registry shim parent is not a directory: ${parentPath}`);
+    throw new Error(
+      `CLI registry shim parent is not a directory: ${parentPath}`,
+    );
   }
 
   const symlinkedParent = findSymlinkedParentPath(filePath);

@@ -66,9 +66,7 @@ function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
     }
 
     if (!CLI_OPTIONS_WITH_VALUES.has(key)) {
-      throw new CliUsageError(
-        `Unknown option --${key}. Use --help for usage.`,
-      );
+      throw new CliUsageError(`Unknown option --${key}. Use --help for usage.`);
     }
 
     const nextArg = argv[index + 1];

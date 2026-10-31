@@ -5,13 +5,7 @@ import {
   readFileSync,
   type Stats,
 } from "fs";
-import {
-  basename,
-  isAbsolute,
-  join,
-  relative,
-  resolve,
-} from "path";
+import { basename, isAbsolute, join, relative, resolve } from "path";
 import {
   findNonDirectoryPathComponent,
   findSymlinkedPathComponent,
@@ -135,13 +129,15 @@ export function discoverFuzzArtifactMetadataPaths(inputPath: string): string[] {
   );
 }
 
-export function readFuzzArtifactMetadata(
-  metadataPath: string,
-): CrashMetadata {
+export function readFuzzArtifactMetadata(metadataPath: string): CrashMetadata {
   try {
     assertFuzzArtifactMetadataPath(metadataPath);
     const parsed = JSON.parse(readFileSync(metadataPath, "utf8")) as unknown;
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
       throw new Error("metadata JSON must be an object");
     }
     return parsed as CrashMetadata;
@@ -220,7 +216,9 @@ function buildReproEntry(
   return {
     metadataPath: metadataDisplayPath,
     sourcePath:
-      sourcePath === undefined ? undefined : toDisplayPath(sourcePath, repoRoot),
+      sourcePath === undefined
+        ? undefined
+        : toDisplayPath(sourcePath, repoRoot),
     minimizedSourcePath:
       minimizedSourcePath === undefined
         ? undefined
@@ -352,10 +350,7 @@ function assertFuzzArtifactMetadataPath(metadataPath: string): void {
 
   const nonDirectoryComponent =
     findNonDirectoryPathComponent(absoluteMetadataPath);
-  if (
-    nonDirectoryComponent &&
-    nonDirectoryComponent !== absoluteMetadataPath
-  ) {
+  if (nonDirectoryComponent && nonDirectoryComponent !== absoluteMetadataPath) {
     throw new Error(
       `Fuzz artifact metadata parent is not a directory: ${nonDirectoryComponent}`,
     );

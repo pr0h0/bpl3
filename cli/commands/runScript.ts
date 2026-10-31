@@ -36,8 +36,7 @@ export const RUN_SCRIPT_SCRIPTS_NOT_OBJECT_CODE =
 export const RUN_SCRIPT_NAME_EMPTY_CODE = "BPL_RUN_SCRIPT_NAME_EMPTY";
 export const RUN_SCRIPT_COMMAND_NOT_STRING_CODE =
   "BPL_RUN_SCRIPT_COMMAND_NOT_STRING";
-export const RUN_SCRIPT_COMMAND_EMPTY_CODE =
-  "BPL_RUN_SCRIPT_COMMAND_EMPTY";
+export const RUN_SCRIPT_COMMAND_EMPTY_CODE = "BPL_RUN_SCRIPT_COMMAND_EMPTY";
 export const RUN_SCRIPT_NOT_FOUND_CODE = "BPL_RUN_SCRIPT_NOT_FOUND";
 export const RUN_SCRIPT_JSON_ERROR_CODES = [
   RUN_SCRIPT_MANIFEST_NOT_FOUND_CODE,
@@ -114,14 +113,10 @@ export function registerRunScriptCommand(program: Command): void {
             RUN_SCRIPT_MANIFEST_SYMLINK_CODE,
           );
         } else if (!manifestStat.isFile()) {
-          fail(
-            "bpl.json is not a file.",
-            RUN_SCRIPT_MANIFEST_NOT_FILE_CODE,
-          );
+          fail("bpl.json is not a file.", RUN_SCRIPT_MANIFEST_NOT_FILE_CODE);
         }
 
-        const symlinkedManifestParent =
-          findSymlinkedParentPath(manifestPath);
+        const symlinkedManifestParent = findSymlinkedParentPath(manifestPath);
         if (symlinkedManifestParent) {
           fail(
             `bpl.json parent path contains a symbolic link: ${symlinkedManifestParent}.`,

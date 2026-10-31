@@ -46,8 +46,7 @@ export function parseIntegrationExampleConfig(
     env: (config.env as Record<string, string> | undefined) ?? {},
     input: (config.input as string | undefined) ?? "",
     timeout: config.timeout as number | undefined,
-    skipCompilation:
-      config.skip_compilation === true || config.skip === true,
+    skipCompilation: config.skip_compilation === true || config.skip === true,
   };
 }
 
@@ -119,7 +118,9 @@ function readIntegrationExampleConfigJson(
     return JSON.parse(source);
   } catch (error) {
     const detail = error instanceof Error ? `: ${error.message}` : "";
-    throw new Error(`${displayPath}: invalid JSON in test_config.json${detail}`);
+    throw new Error(
+      `${displayPath}: invalid JSON in test_config.json${detail}`,
+    );
   }
 }
 
