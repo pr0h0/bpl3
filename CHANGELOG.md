@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- VS Code extension toolchain (BUG-449): TypeScript 5.9 and `@types/node` 20,
+  `@vscode/vsce` as a declared dev dependency behind `npm run package`, a
+  `.vscodeignore`, one lockfile (`package-lock.json`), and the JSON schemas and
+  grammar copied into `out/` when compiling instead of committed duplicates.
 - Virtual method calls on a struct value take its address instead of first
   loading the whole struct and discarding it (BUG-474), and a receiver that
   cannot be addressed in place is evaluated exactly once (BUG-475: a receiver

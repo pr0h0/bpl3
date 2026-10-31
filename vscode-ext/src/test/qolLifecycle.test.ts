@@ -11,7 +11,7 @@ import {
   readFileSync,
 } from "fs";
 import { tmpdir } from "os";
-import { join, resolve } from "path";
+import { basename, join, resolve } from "path";
 const pause = () => new Promise((r) => setTimeout(r, 15));
 test("validation coalesces edits and invalidates work awaiting settings on close", async () => {
   const scheduler = new ValidationScheduler(1);
@@ -131,15 +131,23 @@ test("clearing filesystem caches exposes created and deleted imports", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
-test("bundled manifest schema matches runtime schema", () => {
-  const root = resolve(import.meta.dir, "../../..");
-  expect(
-    JSON.parse(
-      readFileSync(join(root, "vscode-ext/bpl-package.schema.json"), "utf8"),
-    ),
-  ).toEqual(
-    JSON.parse(
-      readFileSync(join(root, "schemas/bpl-package.schema.json"), "utf8"),
-    ),
+test("packaged JSON schemas are copied from schemas/ and registered", () => {
+  // `npm test` compiles first, and compiling copies the schemas into out/.
+  const extensionRoot = resolve(import.meta.dir, "../..");
+  const root = resolve(extensionRoot, "..");
+  const manifest = JSON.parse(
+    readFileSync(join(extensionRoot, "package.json"), "utf8"),
   );
+  const urls = manifest.contributes.jsonValidation.map(
+    (entry: { url: string }) => entry.url,
+  );
+  expect(urls).toEqual([
+    "./out/schemas/bpl-format.schema.json",
+    "./out/schemas/bpl-package.schema.json",
+  ]);
+  for (const url of urls) {
+    expect(readFileSync(join(extensionRoot, url), "utf8")).toBe(
+      readFileSync(join(root, "schemas", basename(url)), "utf8"),
+    );
+  }
 });

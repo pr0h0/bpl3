@@ -95,9 +95,8 @@ From the repository root, build and package the extension:
 
 ```bash
 cd vscode-ext
-npm install
-npm run compile
-npx @vscode/vsce package
+npm ci
+npm run package
 code --install-extension bpl3-vscode-*.vsix
 ```
 

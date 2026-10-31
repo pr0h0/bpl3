@@ -4,21 +4,15 @@
 set -e
 
 echo "Installing dependencies..."
-npm install
-
-echo "Compiling extension..."
-npm run compile
-
-echo "Copying grammar files..."
-mkdir -p out/grammar
-cp ../grammar/bpl.peggy out/grammar/bpl.peggy
-cp ../grammar/grammar.bpl out/grammar/grammar.bpl
+npm ci
 
 echo "Deleting old .vsix files, if any..."
 rm -f *.vsix
 
+# `vsce package` runs vscode:prepublish, which compiles the extension and
+# copies the grammar and JSON schemas into out/ (scripts/copy-assets.js).
 echo "Packaging extension..."
-npx @vscode/vsce package
+npm run package
 
 # Find the generated .vsix file
 VSIX_FILE=$(ls *.vsix | head -n 1)
