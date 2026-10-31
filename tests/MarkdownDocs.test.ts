@@ -1,4 +1,4 @@
-import { compact } from "./helpers/sourceText";
+import { normalizeSpacing } from "./helpers/sourceText";
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, statSync } from "fs";
 import { dirname, join, normalize } from "path";
@@ -143,9 +143,9 @@ function expectDocsContainSnippets(
   docs: string,
   snippets: readonly string[],
 ): void {
-  const compactDocs = compact(docs);
+  const normalizedDocs = normalizeSpacing(docs);
   const missingSnippets = snippets.filter(
-    (snippet) => !compactDocs.includes(compact(snippet)),
+    (snippet) => !normalizedDocs.includes(normalizeSpacing(snippet)),
   );
 
   if (missingSnippets.length > 0) {
