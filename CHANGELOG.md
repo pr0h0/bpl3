@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl file.bpl` tree-shakes like `bpl build`: the root command's `--emit`
+  defaults to `llvm`, and an `emit` of `llvm` disabled pruning unreachable
+  functions, so a plain build that imported `std` compiled all 1,134 library
+  functions (2.3 s) instead of the 55 it uses (1.1 s). Only an explicit
+  `--emit llvm` keeps every function now.
 - Repository upkeep (BUG-452): `bun run file-sizes` lists tracked files with
   `git ls-files` (its `**` glob needed globstar and missed files), the stale
   generated playground reports `COMPLETION_REPORT.md` and `UPGRADE_SUMMARY.md`

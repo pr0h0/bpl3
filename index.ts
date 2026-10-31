@@ -111,6 +111,9 @@ configureRootOptions(program).action(
 
     // TypeScript needs this assertion after the exit check
     const fileList = files as [string, ...string[]];
+    // A plain `bpl file.bpl` writes IR beside the executable by default; only
+    // an explicit `--emit llvm` asks for the IR of every function.
+    options.emitDefaulted = program.getOptionValueSource("emit") === "default";
 
     rejectUnknownCommand(fileList[0], options);
 
