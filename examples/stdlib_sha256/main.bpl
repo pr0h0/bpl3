@@ -17,6 +17,16 @@ frame showRepeated(length: int) {
     free(cast<*void>(data));
 }
 
+frame printDigest(label: string, raw: *u8) {
+    printf("%s ", label);
+    local i: int = 0;
+    loop (i < 32) {
+        printf("%02x", cast<int>(*(raw + i)));
+        i = i + 1;
+    }
+    printf("\n");
+}
+
 frame main() ret int {
     show("empty", "");
     show("abc", "abc");
@@ -34,7 +44,7 @@ frame main() ret int {
     context.update(cast<*u8>(text) + 10, 33);
     local raw: u8[32];
     context.finish(&raw[0]);
-    printf("streamed %02x%02x%02x%02x\n", cast<int>(raw[0]), cast<int>(raw[1]), cast<int>(raw[2]), cast<int>(raw[3]));
+    printDigest("streamed", &raw[0]);
     show("fox", text);
 
     # One million 'a' characters, fed 1000 bytes at a time.
@@ -47,6 +57,6 @@ frame main() ret int {
         i = i + 1;
     }
     context.finish(&raw[0]);
-    printf("million %02x%02x%02x%02x...%02x\n", cast<int>(raw[0]), cast<int>(raw[1]), cast<int>(raw[2]), cast<int>(raw[3]), cast<int>(raw[31]));
+    printDigest("million", &raw[0]);
     return 0;
 }
