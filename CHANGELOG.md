@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- CI (BUG-449): type check and lint run once in a dedicated job instead of
+  in all five toolchain jobs, dependency installs restore a cache keyed on the
+  lockfiles and `.bun-version`, and Dependabot opens weekly grouped update PRs
+  against `staging` for GitHub Actions and the root and extension dependencies.
 - `bpl lint` reports unused imports (`L002`), and the naming rule (`L001`)
   accepts a leading underscore on private helpers such as `_siftDown`.
 - `bpl dev` without a file watches and runs the `main`/`entry` of `./bpl.json`,

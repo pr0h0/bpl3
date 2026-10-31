@@ -43,6 +43,15 @@ jobs:
         with:
           bun-version-file: .bun-version
 
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.bun/install/cache
+            ~/.npm
+          key: deps-${{ runner.os }}-${{ hashFiles('.bun-version', 'bun.lock', 'vscode-ext/package-lock.json') }}
+          restore-keys: deps-${{ runner.os }}-
+
       - name: Install dependencies
         run: |
           bun install --frozen-lockfile
