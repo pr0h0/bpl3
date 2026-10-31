@@ -102,16 +102,11 @@ export class SignatureHelpProvider {
     for (let i = 0; i < text.length; i++) {
       const ch = text[i]!;
       if (ch === "/" && text[i + 1] === "#") {
-        // Block comments end at the first `#/`; they do not nest.
-        const end = text.indexOf("#/", i + 2);
-        i = end < 0 ? text.length : end + 1;
+        i = skipBlockComment(text, i) - 1;
       } else if (ch === "#") {
         while (i < text.length && text[i] !== "\n") i++;
       } else if (ch === "`") {
-        // Interpolated strings stay on one line.
-        for (i++; i < text.length && text[i] !== "`" && text[i] !== "\n"; i++) {
-          if (text[i] === "\\") i++;
-        }
+        i = skipInterpolatedString(text, i) - 1;
       } else if (ch === '"' || ch === "'") {
         for (i++; i < text.length && text[i] !== ch; i++) {
           if (text[i] === "\\") i++;
@@ -387,4 +382,71 @@ function signatureFromDecl(
     undefined,
     ...labels.map((label) => ParameterInformation.create(label)),
   );
+}
+
+/** The index after a `/# ... #/` comment starting at `start`; they nest. */
+function skipBlockComment(text: string, start: number): number {
+  let depth = 0;
+  let i = start;
+  while (i < text.length) {
+    if (text[i] === "/" && text[i + 1] === "#") {
+      depth++;
+      i += 2;
+    } else if (text[i] === "#" && text[i + 1] === "/") {
+      i += 2;
+      if (--depth === 0) return i;
+    } else {
+      i++;
+    }
+  }
+  return text.length;
+}
+
+/**
+ * The index after a backtick string starting at `start`. `${...}` holds an
+ * expression, which can contain strings and further backtick strings.
+ */
+function skipInterpolatedString(text: string, start: number): number {
+  let i = start + 1;
+  while (i < text.length && text[i] !== "\n") {
+    const ch = text[i]!;
+    if (ch === "\\") {
+      i += 2;
+    } else if (ch === "`") {
+      return i + 1;
+    } else if (ch === "$" && text[i + 1] === "{") {
+      i = skipInterpolation(text, i + 2);
+    } else {
+      i++;
+    }
+  }
+  return i;
+}
+
+/** The index after the `}` closing an interpolation whose body starts at `start`. */
+function skipInterpolation(text: string, start: number): number {
+  let depth = 1;
+  let i = start;
+  while (i < text.length) {
+    const ch = text[i]!;
+    if (ch === "`") {
+      i = skipInterpolatedString(text, i);
+    } else if (ch === '"' || ch === "'") {
+      for (i++; i < text.length && text[i] !== ch; i++) {
+        if (text[i] === "\\") i++;
+      }
+      i++;
+    } else if (ch === "/" && text[i + 1] === "#") {
+      i = skipBlockComment(text, i);
+    } else if (ch === "{") {
+      depth++;
+      i++;
+    } else if (ch === "}") {
+      i++;
+      if (--depth === 0) return i;
+    } else {
+      i++;
+    }
+  }
+  return text.length;
 }

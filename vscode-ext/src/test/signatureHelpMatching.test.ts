@@ -38,6 +38,8 @@ frame main() ret int {
     add("a,b(", CURSOR_STRING);
     add(x < y, CURSOR_COMPARE);
     add(/# a, ( #/ 1, CURSOR_BLOCK);
+    add(/# outer /# inner #/ ,( #/ 1, CURSOR_NESTED_BLOCK);
+    add(\`x\${ \`,(\` }y\`, CURSOR_NESTED_TEMPLATE);
     add(\`x,(\${y}\`, CURSOR_TEMPLATE);
     b.missing(CURSOR_MISSING);
     puts2("a", CURSOR_EXTERN);
@@ -116,6 +118,8 @@ describe("signature help matching", () => {
   it("skips block comments and interpolated strings", () => {
     expect(help("CURSOR_BLOCK")?.active).toBe(1);
     expect(help("CURSOR_TEMPLATE")?.active).toBe(1);
+    expect(help("CURSOR_NESTED_BLOCK")?.active).toBe(1);
+    expect(help("CURSOR_NESTED_TEMPLATE")?.active).toBe(1);
   });
 
   it("shows nothing for a known receiver without that method", () => {
