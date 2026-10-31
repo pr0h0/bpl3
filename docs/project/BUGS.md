@@ -444,8 +444,12 @@ Every workflow reads it through `bun-version-file`, the compiler and
 playground Dockerfiles use the same `oven/bun` tag, and `@types/bun` is pinned
 to the locked 1.3.3. `tests/GitHubActions.test.ts` fails when a workflow sets
 `bun-version` directly or an image tag differs. Still open: dependency caching,
-repeated type check/lint jobs, SHA pinning, Dependabot, and the `vscode-ext`
-toolchain items.
+repeated type check/lint jobs, SHA pinning, Dependabot.
+The `vscode-ext` items are done: TypeScript 5.9 (the root's version) and
+`@types/node` 20, `@vscode/vsce` declared with an `npm run package` script that
+`install.sh` uses, a `.vscodeignore`, `package-lock.json` as the only lockfile
+(`bun.lock` removed), and the grammar and JSON schemas copied from `grammar/`
+and `schemas/` into `out/` at compile time instead of committed duplicates.
 
 #### BUG-450: npm package contents are too broad
 

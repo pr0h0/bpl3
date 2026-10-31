@@ -1,0 +1,13 @@
+# Sources, tests and build configuration are not needed in the packaged
+# extension; out/ holds the compiled code and the copied grammar and schemas.
+.vscode/**
+src/**
+scripts/**
+out/**/test/**
+out/**/*.map
+out/**/*.tsbuildinfo
+**/*.ts
+tsconfig*.json
+install.sh
+package-lock.json
+*.vsix
