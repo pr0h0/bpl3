@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "15 min",
   "description": "Understand stack vs heap, manual memory allocation, and safe memory patterns. Learn when and how to use malloc/free.",
-  "prerequisites": [
-    "modules-and-imports"
-  ],
+  "prerequisites": ["modules-and-imports"],
   "objectives": [
     "Understand stack vs heap allocation",
     "Use malloc and free for dynamic memory",

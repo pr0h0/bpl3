@@ -848,7 +848,8 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     const resolvedExpected = this.resolveType(this.currentFunctionReturnType);
     if (stmt.value) {
       returnType =
-        this.contextualizeArrayLiteral(stmt.value, resolvedExpected) ?? returnType;
+        this.contextualizeArrayLiteral(stmt.value, resolvedExpected) ??
+        returnType;
     }
     const resolvedActual = returnType
       ? this.resolveType(returnType)
@@ -885,7 +886,10 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
 
     // Return lowering spills a fixed-array value before creating its view.
     // That spill belongs to this frame even if the value came from a global.
-    const conversion = lowerImplicitConversion(resolvedExpected, resolvedActual);
+    const conversion = lowerImplicitConversion(
+      resolvedExpected,
+      resolvedActual,
+    );
     const returnedCast = findReturnedArrayViewCast(
       this,
       stmt.value,
@@ -1333,7 +1337,9 @@ export function checkVariableDecl(
 
           if (Array.isArray(target)) {
             if (inferredType) {
-              destinationTypes.push(validateAndAssignTypes(target, inferredType));
+              destinationTypes.push(
+                validateAndAssignTypes(target, inferredType),
+              );
             }
             continue;
           }
@@ -1422,7 +1428,8 @@ export function checkVariableDecl(
       initType = this.checkExpression(decl.initializer);
       if (declaredType) {
         initType =
-          this.contextualizeArrayLiteral(decl.initializer, declaredType) ?? initType;
+          this.contextualizeArrayLiteral(decl.initializer, declaredType) ??
+          initType;
       }
       this.rejectOwningCopy(
         decl.initializer,

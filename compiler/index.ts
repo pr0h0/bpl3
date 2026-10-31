@@ -396,7 +396,8 @@ export class Compiler {
     const codegenContent = withCompilerCacheKey(content, {
       compilerFingerprint: getCompilerFingerprint(),
       dwarf: this.options.dwarf ?? false,
-      treeShakeTopLevelFunctions: this.options.treeShakeTopLevelFunctions ?? false,
+      treeShakeTopLevelFunctions:
+        this.options.treeShakeTopLevelFunctions ?? false,
     });
     return this.moduleSymbolRenameKey
       ? `${codegenContent}\n#renames\n${this.moduleSymbolRenameKey}`
@@ -411,7 +412,10 @@ export class Compiler {
 
       // 1. Resolve all modules
       const resolver = new ModuleResolver();
-      const modules = resolver.resolveModules(this.options.filePath, sourceCode);
+      const modules = resolver.resolveModules(
+        this.options.filePath,
+        sourceCode,
+      );
 
       if (this.options.verbose) {
         compilerLog.info(`Found ${modules.length} modules`);
@@ -582,7 +586,10 @@ export class Compiler {
 
       // 1. Resolve all modules
       const resolver = new ModuleResolver();
-      const modules = resolver.resolveModules(this.options.filePath, sourceCode);
+      const modules = resolver.resolveModules(
+        this.options.filePath,
+        sourceCode,
+      );
 
       if (this.options.verbose) {
         compilerLog.info(`Found ${modules.length} modules`);
@@ -727,7 +734,10 @@ export class Compiler {
       }
 
       const resolver = new ModuleResolver();
-      const modules = resolver.resolveModules(this.options.filePath, sourceCode);
+      const modules = resolver.resolveModules(
+        this.options.filePath,
+        sourceCode,
+      );
 
       if (this.options.verbose) {
         compilerLog.info(`Found ${modules.length} modules`);

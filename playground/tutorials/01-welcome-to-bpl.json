@@ -60,12 +60,7 @@
       "questions": [
         {
           "question": "What keyword is used to define a function in BPL?",
-          "options": [
-            "func",
-            "function",
-            "frame",
-            "def"
-          ],
+          "options": ["func", "function", "frame", "def"],
           "correct": 2,
           "explanation": "BPL uses 'frame' to define functions, which is unique to BPL."
         },

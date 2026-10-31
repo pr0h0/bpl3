@@ -21,11 +21,7 @@ export interface GenericParam {
 // --- Types ---
 
 export type TypeNode =
-  | BasicTypeNode
-  | TupleTypeNode
-  | FunctionTypeNode
-  | LambdaTypeNode
-  | MetaType;
+  BasicTypeNode | TupleTypeNode | FunctionTypeNode | LambdaTypeNode | MetaType;
 
 export interface BasicTypeNode extends ASTNode {
   kind: "BasicType";
@@ -34,12 +30,7 @@ export interface BasicTypeNode extends ASTNode {
   pointerDepth: number;
   arrayDimensions: (number | null)[];
   resolvedDeclaration?:
-    | StructDecl
-    | EnumDecl
-    | SpecDecl
-    | TypeAliasDecl
-    | VariableDecl
-    | Parameter;
+    StructDecl | EnumDecl | SpecDecl | TypeAliasDecl | VariableDecl | Parameter;
   aliasDeclaration?: TypeAliasDecl;
   // Instantiated alias target, before modifiers added at the use site.
   aliasTarget?: TypeNode;
@@ -516,9 +507,7 @@ export interface EnumVariant extends ASTNode {
 }
 
 export type EnumVariantData =
-  | EnumVariantUnit
-  | EnumVariantTuple
-  | EnumVariantStruct;
+  EnumVariantUnit | EnumVariantTuple | EnumVariantStruct;
 
 export interface EnumVariantUnit extends ASTNode {
   kind: "EnumVariantUnit";

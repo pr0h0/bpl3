@@ -514,9 +514,7 @@ export class ASTResolver {
       const symbols = this.symbolIndex.findSymbol(funcName);
       if (symbols.length > 0 && symbols[0] && symbols[0].kind === "function") {
         const returnType = symbols[0].signature?.returnType || "void";
-        debugLog(
-          `[ASTResolver] Function ${funcName} returns: ${returnType}`,
-        );
+        debugLog(`[ASTResolver] Function ${funcName} returns: ${returnType}`);
         return returnType;
       }
     }
@@ -581,7 +579,10 @@ export class ASTResolver {
         }
       } else if (stmt.kind === "StructDecl") {
         for (const member of (stmt as AST.StructDecl).members) {
-          if (member.kind === "FunctionDecl" && this.containsNode(member, node)) {
+          if (
+            member.kind === "FunctionDecl" &&
+            this.containsNode(member, node)
+          ) {
             return member;
           }
         }

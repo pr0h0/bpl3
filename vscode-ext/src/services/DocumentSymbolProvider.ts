@@ -105,9 +105,7 @@ export class DocumentSymbolProvider {
     return symbol;
   }
 
-  private specMethodToSymbol(
-    method: AST.SpecMethod,
-  ): DocumentSymbol | null {
+  private specMethodToSymbol(method: AST.SpecMethod): DocumentSymbol | null {
     if (!method.location) return null;
 
     const paramTypes = method.params

@@ -6,9 +6,7 @@
   "difficulty": "beginner",
   "duration": "12 min",
   "description": "Create your own data types by grouping related data together. Learn to define, initialize, and use structs effectively.",
-  "prerequisites": [
-    "arrays"
-  ],
+  "prerequisites": ["arrays"],
   "objectives": [
     "Define structs with multiple fields",
     "Create and initialize struct instances",
@@ -116,12 +114,7 @@
       "questions": [
         {
           "question": "What keyword defines a struct in BPL?",
-          "options": [
-            "class",
-            "type",
-            "struct",
-            "record"
-          ],
+          "options": ["class", "type", "struct", "record"],
           "correct": 2,
           "explanation": "BPL uses 'struct' to define custom data structures."
         },

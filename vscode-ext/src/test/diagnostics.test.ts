@@ -175,7 +175,9 @@ function withTempDocument(
   content: string,
   callback: (document: TextDocument, filePath: string) => void,
 ): void {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-lsp-diagnostics-"));
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "bpl-lsp-diagnostics-"),
+  );
   const filePath = path.join(tempDir, "main.bpl");
 
   try {

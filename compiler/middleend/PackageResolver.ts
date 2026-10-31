@@ -223,7 +223,9 @@ export function formatPackageResolutionHint(
       lines.push("Use the exact filesystem casing shown in the diagnostic.");
     }
   } else {
-    lines.push("Check if the module is installed or the import path is correct.");
+    lines.push(
+      "Check if the module is installed or the import path is correct.",
+    );
   }
 
   const nearestPackageRoot = traces.find(
@@ -497,7 +499,9 @@ function resolvePackageFromBaseDir(
       return null;
     }
     const manifest = manifestRead.manifest;
-    if (!validatePackageManifestMatchesImport(packageRootPath, manifest, trace)) {
+    if (
+      !validatePackageManifestMatchesImport(packageRootPath, manifest, trace)
+    ) {
       return null;
     }
 
@@ -594,7 +598,10 @@ function parseVersionedPackageDirectoryCandidate(
   directoryName: string,
 ): { directoryName: string; version: SemanticVersion } | null {
   const prefix = `${packageName}-`;
-  const exactVersion = parseVersionedPackageDirectory(packageName, directoryName);
+  const exactVersion = parseVersionedPackageDirectory(
+    packageName,
+    directoryName,
+  );
   if (exactVersion) {
     return { directoryName, version: exactVersion };
   }
@@ -742,10 +749,7 @@ function validatePackageManifestMatchesImport(
   const manifestPath = path.join(packageRoot, "bpl.json");
   const packageName = trace.packageName!;
 
-  if (
-    typeof manifest.name !== "string" ||
-    !isValidPackageName(manifest.name)
-  ) {
+  if (typeof manifest.name !== "string" || !isValidPackageName(manifest.name)) {
     trace.failureReason = "manifest-invalid";
     trace.failureCode = "BPL_PACKAGE_MANIFEST_INVALID";
     trace.failureMessage = `Package '${packageName}' has an invalid bpl.json at ${manifestPath}: manifest name must use lowercase letters, digits, and hyphens only.`;
@@ -862,12 +866,14 @@ function validatePackageManifestMatchesImport(
   }
 
   for (const field of ["dependencies", "devDependencies"] as const) {
-    const error = validatePackageManifestDependencyMap(
-      manifest[field],
-      field,
-    );
+    const error = validatePackageManifestDependencyMap(manifest[field], field);
     if (error) {
-      return failPackageManifestInvalid(packageName, manifestPath, trace, error);
+      return failPackageManifestInvalid(
+        packageName,
+        manifestPath,
+        trace,
+        error,
+      );
     }
   }
 
@@ -1249,7 +1255,10 @@ function resolvePackageSourcePath(
       packageRoot,
       allowedRelativePaths,
     );
-  const symlinkedParent = findSymlinkedPackageSourceParent(filePath, packageRoot);
+  const symlinkedParent = findSymlinkedPackageSourceParent(
+    filePath,
+    packageRoot,
+  );
   if (symlinkedParent) {
     addEntryCandidate(trace, filePath);
     failOnSymlinkedSourceCandidate(symlinkedParent, trace);

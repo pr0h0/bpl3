@@ -130,9 +130,7 @@ export class ASTDefinitionHandler {
       }
 
       // Try to find pattern variable
-      debugLog(
-        `[ASTDefinition] Searching AST for pattern variable: ${name}`,
-      );
+      debugLog(`[ASTDefinition] Searching AST for pattern variable: ${name}`);
       const patternVar = this.findPatternVariable(ast, name, node);
       if (patternVar && patternVar.location) {
         debugLog(`[ASTDefinition] Found pattern variable declaration`);

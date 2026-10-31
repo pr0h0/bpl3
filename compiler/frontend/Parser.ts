@@ -145,7 +145,11 @@ export class Parser {
       if (!token.lexeme.startsWith("#")) continue;
       const text = token.lexeme.replace(/^#\s?/, "");
       const previous = comments[comments.length - 1];
-      if (previous && !previous.lexeme.startsWith("/#") && previous.endLine === token.line - 1) {
+      if (
+        previous &&
+        !previous.lexeme.startsWith("/#") &&
+        previous.endLine === token.line - 1
+      ) {
         previous.lexeme += `\n${text}`;
         previous.endLine = token.line;
       } else {
