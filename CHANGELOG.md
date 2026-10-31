@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- The language server follows import aliases (BUG-445): for `import add as
+  plus` and `import * as U`, hover, go to definition, signature help, inlay
+  hints and completion resolve `plus(...)` and `U.add(...)` to `add` in the
+  imported module. Completion offers `plus` instead of `add`, lists `U.`'s
+  members, and no longer suggests a namespace import's names unqualified.
 - CI uses one Bun version (BUG-449): `.bun-version` (1.4.2) feeds every
   `setup-bun` step through `bun-version-file`, matching the `oven/bun` image tag
   in both Dockerfiles; the compiler workflows previously used `latest`.

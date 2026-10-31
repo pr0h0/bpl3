@@ -114,9 +114,24 @@ export class InlayHintProvider {
     const funcName = this.getFunctionName(node.callee);
     if (!funcName) return;
 
-    // Look up function signature (regular functions)
+    // Look up function signature (regular functions), following an
+    // `import x as y` alias or an `import * as Ns` namespace member.
     let params: any[] | undefined;
-    const symbols = this.symbolIndex.findSymbol(funcName);
+    const filePath = fileURLToPath(document.uri);
+    const ast = this.astResolver.getCachedAST(filePath);
+    const namespaceMember =
+      node.callee.kind === "Member" &&
+      (node.callee as AST.MemberExpr).object.kind === "Identifier"
+        ? this.symbolIndex.findNamespaceMember(
+            ((node.callee as AST.MemberExpr).object as AST.IdentifierExpr).name,
+            funcName,
+            filePath,
+            ast,
+          )
+        : undefined;
+    const symbols = namespaceMember
+      ? [namespaceMember]
+      : this.symbolIndex.findSymbolInFile(funcName, filePath, ast);
 
     if (symbols && symbols.length > 0) {
       const symbol = symbols.find((s) => s.kind === "function");

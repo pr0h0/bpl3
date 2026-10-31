@@ -140,8 +140,8 @@ export class ASTDefinitionHandler {
       }
     }
 
-    // Fall back to symbol index
-    const symbols = this.symbolIndex.findSymbol(name);
+    // Fall back to symbol index, following an `import x as y` alias
+    const symbols = this.symbolIndex.findSymbolInFile(name, filePath, ast);
     if (symbols.length > 0) {
       const symbol = symbols[0];
       if (!symbol) return null;
@@ -162,6 +162,19 @@ export class ASTDefinitionHandler {
   ): Location | null {
     const memberName = node.property;
     debugLog(`[ASTDefinition] Member: ${memberName}`);
+
+    // `Ns.member` where `import * as Ns` binds a module.
+    if (node.object.kind === "Identifier") {
+      const member = this.symbolIndex.findNamespaceMember(
+        (node.object as AST.IdentifierExpr).name,
+        memberName,
+        filePath,
+        this.astResolver.getCachedAST(filePath),
+      );
+      if (member) {
+        return this.createLocation(member.location, member.filePath);
+      }
+    }
 
     // Resolve the type of the object
     const objectType = this.astResolver.resolveType(node.object, filePath);
@@ -271,8 +284,12 @@ export class ASTDefinitionHandler {
       return this.createLocation(currentFileType.location, filePath);
     }
 
-    // Fall back to symbol index
-    const symbols = this.symbolIndex.findSymbol(typeName);
+    // Fall back to symbol index, following an `import x as y` alias
+    const symbols = this.symbolIndex.findSymbolInFile(
+      typeName,
+      filePath,
+      this.astResolver.getCachedAST(filePath),
+    );
     if (symbols.length > 0) {
       const symbol = symbols[0];
       if (!symbol) return null;
