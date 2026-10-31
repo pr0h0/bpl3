@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawn, type ChildProcess } from "child_process";
 import { DockerPlaygroundRunner } from "../playground/backend/runner";
 import { runProcessFile } from "../playground/backend/processRunner";
+import { freePort } from "./helpers/freePort";
 
 const dockerTests =
   process.env.BPL_TEST_DOCKER === "1" ? describe : describe.skip;
@@ -262,9 +263,11 @@ dockerTests("real Docker playground workers", () => {
 
 dockerTests("Docker playground HTTP routing", () => {
   let server: ChildProcess;
-  const port = 40000 + (process.pid % 10000);
-  const base = `http://127.0.0.1:${port}`;
+  let port = 0;
+  let base = "";
   beforeAll(async () => {
+    port = await freePort();
+    base = `http://127.0.0.1:${port}`;
     server = spawn("bun", ["playground/backend/server.ts"], {
       env: {
         ...process.env,

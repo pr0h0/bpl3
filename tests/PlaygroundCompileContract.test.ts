@@ -8,10 +8,11 @@ import {
 } from "bun:test";
 import { spawn, type ChildProcess } from "child_process";
 import { readFileSync } from "fs";
+import { freePort } from "./helpers/freePort";
 
 setDefaultTimeout(20_000);
 
-const PORT = 20_000 + (process.pid % 20_000);
+const PORT = await freePort();
 const API_BASE = `http://127.0.0.1:${PORT}`;
 const HELLO_WORLD_SOURCE = JSON.parse(
   readFileSync("playground/examples/01-hello-world.json", "utf8"),

@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Repository upkeep (BUG-452): `bun run file-sizes` lists tracked files with
+  `git ls-files` (its `**` glob needed globstar and missed files), the stale
+  generated playground reports `COMPLETION_REPORT.md` and `UPGRADE_SUMMARY.md`
+  are removed, and the playground server tests bind an OS-assigned port instead
+  of one derived from the process ID.
 - Find references works for struct fields and methods in the language server
   (BUG-446): from a declaration, `value.member` or a struct-literal key it lists
   the declaration, every access through that struct or a struct inheriting it,
