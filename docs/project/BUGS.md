@@ -800,6 +800,13 @@ enabled by default. A real fix is code generation that copies aggregates with
 `llvm.memcpy`, reads fields through GEPs, and returns large values through a
 pointer.
 
+**Progress (2026-10-31)**: virtual method calls on an addressable struct value
+(a local, field, element or dereference) now take its address directly instead
+of loading the whole struct first and discarding the load. That removes 381 of
+the 1,146 aggregate loads in the example and cuts Clang's `-O0` time by about
+9% (3.35 s to 3.06 s). The same 238 functions still fall back to SelectionDAG
+because of aggregate stores and returns.
+
 ## Generated-program fuzzer findings (2026-10-29)
 
 Found by the oracle fuzzer (`fuzz/programGenerator.ts`, see

@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Virtual method calls on a struct value take its address instead of first
+  loading the whole struct and discarding it (BUG-474). The 10,400-line
+  `mini_database_engine` example has 381 fewer aggregate loads and Clang
+  compiles it about 9% faster at `-O0`.
 - The playground's documented and backend start commands go through
   `playground/start.sh` (BUG-452), so the runner check (Docker by default, or
   trusted host mode with Clang) always applies: `QUICKSTART.md` and `test.sh`

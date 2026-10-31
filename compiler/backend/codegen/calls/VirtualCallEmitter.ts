@@ -39,16 +39,21 @@ export function emitVirtualCall(
   methodIndex: number,
   argsToGenerate: AST.Expression[],
 ): string {
-  const objRaw = host.generateExpression(memberExpr.object);
   const objType = host.resolveType(memberExpr.object.resolvedType!);
 
-  const { objPtr, structType } = prepareVirtualCallObject(
-    host,
-    memberExpr,
-    objRaw,
-    objType,
-    structName,
-  );
+  // An addressable struct receiver is dispatched through its address, so its
+  // value is not loaded first (the load was unused and, being a first-class
+  // aggregate, pushed Clang's -O0 instruction selector off its fast path).
+  const direct = addressVirtualReceiver(host, memberExpr, objType, structName);
+  const { objPtr, structType } =
+    direct ??
+    prepareVirtualCallObject(
+      host,
+      memberExpr,
+      host.generateExpression(memberExpr.object),
+      objType,
+      structName,
+    );
 
   const methodVoidPtr = loadVTableMethod(host, objPtr, structType, methodIndex);
 
@@ -80,6 +85,32 @@ export function emitVirtualCall(
     `  ${resultReg} = call ${retType} ${funcPtr}(${callArgs.join(", ")})`,
   );
   return resultReg;
+}
+
+/** The receiver's address when it is a non-primitive addressable value. */
+function addressVirtualReceiver(
+  host: VirtualCallHost,
+  memberExpr: AST.MemberExpr,
+  objType: string,
+  structName: string,
+): { objPtr: string; structType: string } | null {
+  const resolvedType = memberExpr.object.resolvedType!;
+  if (
+    objType.endsWith("*") ||
+    (resolvedType.kind === "BasicType" &&
+      PRIMITIVE_STRUCT_MAP[resolvedType.name] === structName) ||
+    !isAddressableVirtualReceiver(memberExpr.object)
+  ) {
+    return null;
+  }
+  try {
+    return {
+      objPtr: host.generateAddress(memberExpr.object),
+      structType: objType + "*",
+    };
+  } catch {
+    return null;
+  }
 }
 
 function prepareVirtualCallObject(
