@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "bun run server.ts",
-    "start": "bun run server.ts"
+    "dev": "bash ../start.sh",
+    "start": "bash ../start.sh"
   },
   "dependencies": {},
   "devDependencies": {

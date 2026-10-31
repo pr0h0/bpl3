@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- The playground's documented and backend start commands go through
+  `playground/start.sh` (BUG-452), so the runner check (Docker by default, or
+  trusted host mode with Clang) always applies: `QUICKSTART.md` and `test.sh`
+  point at `bun run playground`, and `playground/backend`'s `dev`/`start`
+  scripts run `start.sh` instead of the server directly.
 - Removed the unused `TypeComparison` class (BUG-452) from
   `compiler/middleend/TypeUtils.ts`. Only two tests constructed it, to compare
   its cast rule with the type checker's, which they already check directly.
