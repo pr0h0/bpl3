@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Removed the unused `TypeComparison` class (BUG-452) from
+  `compiler/middleend/TypeUtils.ts`. Only two tests constructed it, to compare
+  its cast rule with the type checker's, which they already check directly.
 - Signature help in the language server (BUG-446): `value.method(` shows only
   the receiver type's method, without `this` (it listed every same-named method
   and highlighted `this`); commas and parentheses inside strings and spaced

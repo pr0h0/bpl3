@@ -2,8 +2,6 @@ import { expect, test } from "bun:test";
 import type * as AST from "../compiler/common/AST";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
-import { SymbolTable } from "../compiler/middleend/SymbolTable";
-import { TypeComparison } from "../compiler/middleend/TypeUtils";
 import { lowerImplicitConversion } from "../compiler/middleend/lowering/ImplicitConversions";
 
 function nominal(source: string, file: string): AST.BasicTypeNode {
@@ -101,22 +99,14 @@ for (const declaration of [
         );
         const same = wrap(nominal(declaration, "module-a.bpl"), dimensions);
         const checker = new TypeChecker();
-        const comparison = new TypeComparison(
-          new SymbolTable(),
-          (type) => checker.resolveType(type),
-          () => false,
-          () => false,
-        );
         expect(lowerImplicitConversion(different, source).kind).toBe(
           "unsupported",
         );
         expect(checker.isCastAllowed(source, different)).toBe(false);
-        expect(comparison.isCastAllowed(source, different)).toBe(false);
         expect(lowerImplicitConversion(same, source).kind).toBe(
           dimensions[0] === null ? "array-to-slice" : "identity",
         );
         expect(checker.isCastAllowed(source, same)).toBe(true);
-        expect(comparison.isCastAllowed(source, same)).toBe(true);
       });
     }
   }

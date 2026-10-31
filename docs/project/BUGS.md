@@ -503,7 +503,8 @@ the `bin` from `src/cli.bpl` at install time instead of committing it.
   (`TypeUtils.ts:464-857`) is used only by two tests and disagrees with
   `TypeCheckerBase`. Remove them and enable `noUnusedLocals`.
   *Done:* dead code removed (compiler, fuzz, tools, playground, tests and the
-  language server) and `noUnusedLocals` enabled. `TypeComparison` remains.
+  language server) and `noUnusedLocals` enabled. *Done (2026-10-31):*
+  `TypeComparison` is removed; its two tests check `TypeChecker.isCastAllowed`.
 - Importing from `"std"` compiles the whole library (1112 functions, 82k IR lines
   vs 2.9k for `std/array.bpl`); prune unreferenced module functions.
   `emitReferencedDeferredMethods` (`CodeGenerator.ts:660`) rescans all output
@@ -521,8 +522,9 @@ deriving one from the PID.
 the current basic block; it did not appear in the compile profile and is left
 as is. Still open: script naming, `docs:stdlib` living under `tests/helpers`,
 `test:baseline` memory use, `QUICKSTART.md`/`test.sh` bypassing the runner
-check, the duplicated playground Dockerfile stage, source-matching tests,
-`TypeComparison`, and compiling all of `std` for `import ... from "std"`.
+check, the duplicated playground Dockerfile stage, and source-matching tests.
+`TypeComparison` is removed (#131), and plain `bpl file.bpl` builds no longer
+compile all of `std` for `import ... from "std"` (#128).
 
 ### Documentation
 
