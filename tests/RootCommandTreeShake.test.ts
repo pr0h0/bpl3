@@ -36,6 +36,7 @@ test("the root command tree-shakes unless --emit llvm is explicit", () => {
       expect(result.status, result.stdout + result.stderr).toBe(0);
       const run = spawnSync(join(dir, output), { encoding: "utf8" });
       expect(run.stdout).toBe("1\n");
+      expect(run.status).toBe(0);
       return defines(readFileSync(join(dir, `${output}.ll`), "utf8"));
     };
 
