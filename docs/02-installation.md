@@ -25,6 +25,7 @@ sudo apt-get install git clang llvm lld
 On macOS, install Xcode Command Line Tools (`xcode-select --install`) or a
 Clang toolchain through Homebrew (`brew install llvm lld`). Ensure the intended
 compiler is on `PATH`. Install Bun using its [installation instructions](https://bun.sh).
+CI and the container images use the Bun version in `.bun-version`.
 `wasm-ld` is needed for WebAssembly linking; native-only builds do not need it.
 
 ## Build from source

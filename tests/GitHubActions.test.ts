@@ -38,6 +38,39 @@ function extractActionUses(workflow: string): Array<{
 }
 
 describe("GitHub Actions workflows", () => {
+  // BUG-449: one Bun version for CI and the container images.
+  test("every Bun setup and image uses the version in .bun-version", () => {
+    const root = join(import.meta.dir, "..");
+    const version = readFileSync(join(root, ".bun-version"), "utf8").trim();
+    expect(version).toMatch(/^\d+\.\d+\.\d+$/);
+
+    for (const name of listWorkflowNames()) {
+      const workflow = readWorkflow(name);
+      const setups = workflow.match(/oven-sh\/setup-bun@/g)?.length ?? 0;
+      const fromFile =
+        workflow.match(/^\s*bun-version-file: \.bun-version$/gm)?.length ?? 0;
+      expect({ name, fromFile }).toEqual({ name, fromFile: setups });
+      expect(workflow).not.toMatch(/^\s*bun-version:/m);
+    }
+
+    for (const dockerfile of ["docker/Dockerfile", "playground/Dockerfile"]) {
+      const images = [
+        ...readFileSync(join(root, dockerfile), "utf8").matchAll(
+          /^FROM oven\/bun:(\S+)/gm,
+        ),
+      ].map((match) => match[1]);
+      expect(images.length).toBeGreaterThan(0);
+      for (const image of images) {
+        expect({ dockerfile, image }).toEqual({ dockerfile, image: version });
+      }
+    }
+
+    const packageJson = JSON.parse(
+      readFileSync(join(root, "package.json"), "utf8"),
+    );
+    expect(packageJson.devDependencies["@types/bun"]).toMatch(/^\d/);
+  });
+
   test("container publication accepts release tags and explicit manual requests on patch-only versions", () => {
     const workflow = readWorkflow("container-images.yml");
     expect(workflow).toContain("default: false");

@@ -399,7 +399,7 @@ dedicated commit, then add both checks to the lint job.
 
 #### BUG-449: Toolchain versions and CI configuration are inconsistent
 
-**Status**: Open · **Priority**: P3
+**Status**: Open (Bun version fixed) · **Priority**: P3
 
 - `compiler-correctness.yml`/`compiler-fuzz.yml` use `bun-version: latest`; the
   playground/container workflows and Dockerfiles use `1.4.2`; `@types/bun` is
@@ -410,6 +410,14 @@ dedicated commit, then add both checks to the lint job.
 - `vscode-ext` uses TypeScript 4.9 and `@types/node` 16, has no `.vscodeignore`,
   commits both `bun.lock` and `package-lock.json`, and `install.sh` uses an
   undeclared `@vscode/vsce`. Its JSON schemas duplicate the root copies.
+
+**Progress (2026-10-31)**: `.bun-version` (1.4.2) is the single Bun version.
+Every workflow reads it through `bun-version-file`, the compiler and
+playground Dockerfiles use the same `oven/bun` tag, and `@types/bun` is pinned
+to the locked 1.3.3. `tests/GitHubActions.test.ts` fails when a workflow sets
+`bun-version` directly or an image tag differs. Still open: dependency caching,
+repeated type check/lint jobs, SHA pinning, Dependabot, and the `vscode-ext`
+toolchain items.
 
 #### BUG-450: npm package contents are too broad
 
