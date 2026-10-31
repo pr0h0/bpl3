@@ -59,28 +59,24 @@ describe("Compiler correctness seeded differential corpus", () => {
     ).toBe(true);
   });
 
-  it(
-    "runs generated programs equivalently at O0 and O3 and validates LLVM",
-    () => {
-      const results = expectSeededDifferentialCorpus({
-        seeds: DIFFERENTIAL_SEEDS,
-        validateLlvm: true,
-      });
+  it("runs generated programs equivalently at O0 and O3 and validates LLVM", () => {
+    const results = expectSeededDifferentialCorpus({
+      seeds: DIFFERENTIAL_SEEDS,
+      validateLlvm: true,
+    });
 
-      expect(
-        results.map((result) => ({
-          seed: result.seed,
-          family: result.family,
-          stdout: result.stdout,
-        })),
-      ).toEqual(
-        results.map((result) => ({
-          seed: result.seed,
-          family: result.family,
-          stdout: result.expectedStdout,
-        })),
-      );
-    },
-    120000,
-  );
+    expect(
+      results.map((result) => ({
+        seed: result.seed,
+        family: result.family,
+        stdout: result.stdout,
+      })),
+    ).toEqual(
+      results.map((result) => ({
+        seed: result.seed,
+        family: result.family,
+        stdout: result.expectedStdout,
+      })),
+    );
+  }, 120000);
 });

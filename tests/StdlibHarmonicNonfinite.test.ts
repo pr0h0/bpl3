@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("harmonic mean handles positive infinity without producing spurious NaNs", () => {
-  expectCorrectnessSuite([{
-    name: "harmonic-nonfinite-values",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "harmonic-nonfinite-values",
+      validateLlvm: true,
+      source: `
       import [Stats] from "std/stats.bpl";
       import [Math] from "std/math.bpl";
       extern atof(text: string) ret float;
@@ -27,6 +28,7 @@ test("harmonic mean handles positive infinity without producing spurious NaNs", 
         if (Stats.harmonicMean(&values[0], 2) != 0.0) { return 7; }
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

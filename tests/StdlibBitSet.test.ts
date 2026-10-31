@@ -118,10 +118,11 @@ test("a bit set at the extremes of its size range is not miscounted", () => {
 }, 120000);
 
 test("destroyed bit sets retain the empty-set invariants", () => {
-  expectCorrectnessSuite([{
-    name: "bitset-destroyed-state",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "bitset-destroyed-state",
+      validateLlvm: true,
+      source: `
       import [BitSet] from "std/bitset.bpl";
       frame main() ret int {
         local bits: BitSet = BitSet.new(65);
@@ -140,6 +141,7 @@ test("destroyed bit sets retain the empty-set invariants", () => {
         copy.destroy(); bits.destroy();
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

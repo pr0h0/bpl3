@@ -7,17 +7,19 @@ for (let n = 0; n <= 20; n++) {
   if (n > 0) product *= BigInt(n);
   expected.push(`factorial ${n} ${product}`);
 }
-let a = 0n, b = 1n;
+let a = 0n,
+  b = 1n;
 for (let n = 0; n <= 92; n++) {
   expected.push(`fibonacci ${n} ${a}`);
   [a, b] = [b, a + b];
 }
 
 test("integer sequences match exact arithmetic and reject overflowing results", () => {
-  expectCorrectnessSuite([{
-    name: "integer-sequence-limits",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "integer-sequence-limits",
+      validateLlvm: true,
+      source: `
       import [Math] from "std/math.bpl";
       extern printf(fmt: string, ...);
       extern strcmp(a: string, b: string) ret int;
@@ -43,6 +45,7 @@ test("integer sequences match exact arithmetic and reject overflowing results", 
         if ((Math.factorial(-1) != cast<long>(1)) || (Math.fibonacci(-1) != cast<long>(0))) { return 5; }
         return 0;
       }`,
-    expectedStdout: expected.join("\n") + "\n",
-  }]);
+      expectedStdout: expected.join("\n") + "\n",
+    },
+  ]);
 }, 60000);

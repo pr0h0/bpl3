@@ -120,7 +120,10 @@ function writePackageFixture(
   const relativeEntryPath = options.entryPath ?? main;
   const entryPath = path.join(packageDir, ...relativeEntryPath.split(/[\\/]/));
   fs.mkdirSync(path.dirname(entryPath), { recursive: true });
-  fs.writeFileSync(entryPath, options.entrySource ?? "frame value() {} export value;");
+  fs.writeFileSync(
+    entryPath,
+    options.entrySource ?? "frame value() {} export value;",
+  );
 }
 
 function writeDuplicateInstalledPackageFixture(
@@ -141,9 +144,16 @@ function writeDuplicateInstalledPackageFixture(
     fs.mkdirSync(packageDir, { recursive: true });
     fs.writeFileSync(
       path.join(packageDir, "bpl.json"),
-      JSON.stringify({ name: packageName, version: "1.0.0", main: "index.bpl" }),
+      JSON.stringify({
+        name: packageName,
+        version: "1.0.0",
+        main: "index.bpl",
+      }),
     );
-    fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+    fs.writeFileSync(
+      path.join(packageDir, "index.bpl"),
+      "frame value() {} export value;",
+    );
   }
 
   return duplicatePaths;
@@ -300,9 +310,7 @@ describe("CLI JSON parseability", () => {
     );
 
     expect(diagnostic.code).toBe(invalidImport.expectedDiagnosticCode);
-    expect(diagnostic.message).toContain(
-      invalidImport.expectedMessageSnippet,
-    );
+    expect(diagnostic.message).toContain(invalidImport.expectedMessageSnippet);
   });
 
   test("keeps check and lint JSON input validation failures parseable with error codes", () => {
@@ -352,11 +360,18 @@ describe("CLI JSON parseability", () => {
       },
     ];
 
-    const emptyDirectory = expectJsonStdoutReport(runCli(["lint", "--json", sourceDir]), {
-      status: 1, check: "lint", success: false,
-    });
+    const emptyDirectory = expectJsonStdoutReport(
+      runCli(["lint", "--json", sourceDir]),
+      {
+        status: 1,
+        check: "lint",
+        success: false,
+      },
+    );
     expect(emptyDirectory).toMatchObject({
-      totalFiles: 0, errorCount: 1, files: [],
+      totalFiles: 0,
+      errorCount: 1,
+      files: [],
       error: "No BPL sources found in the supplied directories.",
       errorCode: "BPL_LINT_NO_INPUTS",
     });
@@ -1575,13 +1590,15 @@ describe("CLI JSON parseability", () => {
   test("keeps completion JSON stdout parseable", () => {
     const bash = runCli(["completion", "bash", "--json"]);
     expect(bash.status).toBe(0);
-    expect(parseJsonObjectStdout<{
-      schemaVersion: 1;
-      check: "completion";
-      success: true;
-      shell: "bash";
-      script: string;
-    }>(bash)).toMatchObject({
+    expect(
+      parseJsonObjectStdout<{
+        schemaVersion: 1;
+        check: "completion";
+        success: true;
+        shell: "bash";
+        script: string;
+      }>(bash),
+    ).toMatchObject({
       schemaVersion: 1,
       check: "completion",
       success: true,
@@ -1701,116 +1718,146 @@ describe("CLI JSON parseability", () => {
       });
     };
 
-    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
-      cwd: tempDir,
-    }), {
-      check: "run-script-list",
-      error: "No bpl.json found",
-      errorCode: "BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND",
-    });
+    assertRunScriptFailure(
+      runCli(["run-script", "--list", "--json"], {
+        cwd: tempDir,
+      }),
+      {
+        check: "run-script-list",
+        error: "No bpl.json found",
+        errorCode: "BPL_RUN_SCRIPT_MANIFEST_NOT_FOUND",
+      },
+    );
 
     fs.mkdirSync(path.join(tempDir, "bpl.json"));
-    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
-      cwd: tempDir,
-    }), {
-      check: "run-script-list",
-      error: "bpl.json is not a file",
-      errorCode: "BPL_RUN_SCRIPT_MANIFEST_NOT_FILE",
-    });
+    assertRunScriptFailure(
+      runCli(["run-script", "--list", "--json"], {
+        cwd: tempDir,
+      }),
+      {
+        check: "run-script-list",
+        error: "bpl.json is not a file",
+        errorCode: "BPL_RUN_SCRIPT_MANIFEST_NOT_FILE",
+      },
+    );
 
     fs.rmSync(path.join(tempDir, "bpl.json"), {
       recursive: true,
       force: true,
     });
     fs.writeFileSync(path.join(tempDir, "bpl.json"), "{not-json");
-    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
-      cwd: tempDir,
-    }), {
-      check: "run-script-list",
-      error: "Failed to parse bpl.json",
-      errorCode: "BPL_RUN_SCRIPT_MANIFEST_INVALID_JSON",
-    });
+    assertRunScriptFailure(
+      runCli(["run-script", "--list", "--json"], {
+        cwd: tempDir,
+      }),
+      {
+        check: "run-script-list",
+        error: "Failed to parse bpl.json",
+        errorCode: "BPL_RUN_SCRIPT_MANIFEST_INVALID_JSON",
+      },
+    );
 
     fs.writeFileSync(path.join(tempDir, "bpl.json"), "[]");
-    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
-      cwd: tempDir,
-    }), {
-      check: "run-script-list",
-      error: "bpl.json must contain a JSON object",
-      errorCode: "BPL_RUN_SCRIPT_MANIFEST_NOT_OBJECT",
-    });
+    assertRunScriptFailure(
+      runCli(["run-script", "--list", "--json"], {
+        cwd: tempDir,
+      }),
+      {
+        check: "run-script-list",
+        error: "bpl.json must contain a JSON object",
+        errorCode: "BPL_RUN_SCRIPT_MANIFEST_NOT_OBJECT",
+      },
+    );
 
     fs.writeFileSync(
       path.join(tempDir, "bpl.json"),
       JSON.stringify({ scripts: [] }),
     );
-    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
-      cwd: tempDir,
-    }), {
-      check: "run-script-list",
-      error: "'scripts' in bpl.json must be an object",
-      errorCode: "BPL_RUN_SCRIPT_SCRIPTS_NOT_OBJECT",
-    });
+    assertRunScriptFailure(
+      runCli(["run-script", "--list", "--json"], {
+        cwd: tempDir,
+      }),
+      {
+        check: "run-script-list",
+        error: "'scripts' in bpl.json must be an object",
+        errorCode: "BPL_RUN_SCRIPT_SCRIPTS_NOT_OBJECT",
+      },
+    );
 
     fs.writeFileSync(
       path.join(tempDir, "bpl.json"),
       JSON.stringify({ scripts: { "": "echo bad" } }),
     );
-    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
-      cwd: tempDir,
-    }), {
-      check: "run-script-list",
-      error: "'scripts' entries must use non-empty script names",
-      errorCode: "BPL_RUN_SCRIPT_NAME_EMPTY",
-    });
+    assertRunScriptFailure(
+      runCli(["run-script", "--list", "--json"], {
+        cwd: tempDir,
+      }),
+      {
+        check: "run-script-list",
+        error: "'scripts' entries must use non-empty script names",
+        errorCode: "BPL_RUN_SCRIPT_NAME_EMPTY",
+      },
+    );
 
     fs.writeFileSync(
       path.join(tempDir, "bpl.json"),
       JSON.stringify({ scripts: { bad: ["echo", "bad"] } }),
     );
-    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
-      cwd: tempDir,
-    }), {
-      check: "run-script-list",
-      error: "Script 'bad' in bpl.json must be a non-empty string",
-      errorCode: "BPL_RUN_SCRIPT_COMMAND_NOT_STRING",
-    });
+    assertRunScriptFailure(
+      runCli(["run-script", "--list", "--json"], {
+        cwd: tempDir,
+      }),
+      {
+        check: "run-script-list",
+        error: "Script 'bad' in bpl.json must be a non-empty string",
+        errorCode: "BPL_RUN_SCRIPT_COMMAND_NOT_STRING",
+      },
+    );
 
     fs.writeFileSync(
       path.join(tempDir, "bpl.json"),
       JSON.stringify({ scripts: { empty: "   " } }),
     );
-    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
-      cwd: tempDir,
-    }), {
-      check: "run-script-list",
-      error: "Script 'empty' in bpl.json must be a non-empty string",
-      errorCode: "BPL_RUN_SCRIPT_COMMAND_EMPTY",
-    });
+    assertRunScriptFailure(
+      runCli(["run-script", "--list", "--json"], {
+        cwd: tempDir,
+      }),
+      {
+        check: "run-script-list",
+        error: "Script 'empty' in bpl.json must be a non-empty string",
+        errorCode: "BPL_RUN_SCRIPT_COMMAND_EMPTY",
+      },
+    );
 
     fs.writeFileSync(
       path.join(tempDir, "bpl.json"),
       JSON.stringify({ scripts: { build: "echo build" } }),
     );
-    assertRunScriptFailure(runCli(["run-script", "missing", "--json"], {
-      cwd: tempDir,
-    }), {
-      check: "run-script",
-      error: "Script 'missing' not found in bpl.json",
-      errorCode: "BPL_RUN_SCRIPT_NOT_FOUND",
-    });
+    assertRunScriptFailure(
+      runCli(["run-script", "missing", "--json"], {
+        cwd: tempDir,
+      }),
+      {
+        check: "run-script",
+        error: "Script 'missing' not found in bpl.json",
+        errorCode: "BPL_RUN_SCRIPT_NOT_FOUND",
+      },
+    );
 
     fs.unlinkSync(path.join(tempDir, "bpl.json"));
     const targetManifest = path.join(tempDir, "linked-manifest.json");
     fs.writeFileSync(targetManifest, JSON.stringify({ scripts: {} }));
     fs.symlinkSync(targetManifest, path.join(tempDir, "bpl.json"), "file");
-    assertRunScriptFailure(runCli(["run-script", "--list", "--json"], {
-      cwd: tempDir,
-    }), {
-      check: "run-script-list",
-      error: "bpl.json is a symbolic link",
-      errorCode: "BPL_RUN_SCRIPT_MANIFEST_SYMLINK",
-    });
+    assertRunScriptFailure(
+      runCli(["run-script", "--list", "--json"], {
+        cwd: tempDir,
+      }),
+      {
+        check: "run-script-list",
+        error: "bpl.json is a symbolic link",
+        errorCode: "BPL_RUN_SCRIPT_MANIFEST_SYMLINK",
+      },
+    );
   });
 
   test("keeps JSON-mode build failures parseable on stdout", () => {
@@ -2264,7 +2311,10 @@ describe("CLI JSON parseability", () => {
         "}",
       ].join("\n"),
     );
-    fs.symlinkSync(path.join(symlinkDir, "missing-linked.bpl"), brokenCandidate);
+    fs.symlinkSync(
+      path.join(symlinkDir, "missing-linked.bpl"),
+      brokenCandidate,
+    );
     fs.writeFileSync(fallbackCandidate, "frame value() {} export value;\n");
 
     const symlinkCheck = runCli(["check", "--json", symlinkFile]);
@@ -3284,9 +3334,7 @@ describe("CLI JSON parseability", () => {
     const checkDiagnostic = checkReport.files[0]?.diagnostics[0];
     expect(checkDiagnostic?.code).toBe("BPL_TYPE_NOT_FOUND");
     expect(checkDiagnostic?.source?.preview).toContain("MissingThing");
-    expect(checkDiagnostic?.message).toContain(
-      "Undefined type 'MissingThing'",
-    );
+    expect(checkDiagnostic?.message).toContain("Undefined type 'MissingThing'");
     expect(checkDiagnostic?.hint).toContain("The type is not defined.");
     expect(check.stderr).toBe("");
 
@@ -3342,9 +3390,7 @@ describe("CLI JSON parseability", () => {
     const checkDiagnostic = checkReport.files[0]?.diagnostics[0];
     expect(checkDiagnostic?.code).toBe("BPL_TYPE_NOT_FOUND");
     expect(checkDiagnostic?.source?.preview).toContain("MissingThing");
-    expect(checkDiagnostic?.message).toContain(
-      "Undefined type 'MissingThing'",
-    );
+    expect(checkDiagnostic?.message).toContain("Undefined type 'MissingThing'");
     expect(checkDiagnostic?.hint).toContain("The type is not defined.");
     expect(check.stderr).toBe("");
 
@@ -3479,9 +3525,7 @@ describe("CLI JSON parseability", () => {
     expect(checkDiagnostic.message).toContain(
       "Variable '_value' cannot be void",
     );
-    expect(checkDiagnostic.hint).toContain(
-      "Use '*void' for void pointers.",
-    );
+    expect(checkDiagnostic.hint).toContain("Use '*void' for void pointers.");
     expect(check.stderr).toBe("");
 
     const build = runCli(["build", sourceFile, "--json", "-o", outputFile]);
@@ -3638,11 +3682,7 @@ describe("CLI JSON parseability", () => {
     const outputFile = path.join(tempDir, "return-type-mismatch-app");
     fs.writeFileSync(
       sourceFile,
-      [
-        "frame main() ret int {",
-        '    return "wrong";',
-        "}",
-      ].join("\n"),
+      ["frame main() ret int {", '    return "wrong";', "}"].join("\n"),
     );
 
     const check = runCli(["check", "--json", sourceFile]);
@@ -3826,11 +3866,7 @@ describe("CLI JSON parseability", () => {
     );
     fs.writeFileSync(
       sourceFile,
-      [
-        "frame main() ret int {",
-        "    return 1 ? 1 : 0;",
-        "}",
-      ].join("\n"),
+      ["frame main() ret int {", "    return 1 ? 1 : 0;", "}"].join("\n"),
     );
 
     const check = runCli(["check", "--json", sourceFile]);
@@ -3885,11 +3921,9 @@ describe("CLI JSON parseability", () => {
     const outputFile = path.join(tempDir, "ternary-branch-type-mismatch-app");
     fs.writeFileSync(
       sourceFile,
-      [
-        "frame main() ret int {",
-        "    return true ? 1 : \"wrong\";",
-        "}",
-      ].join("\n"),
+      ["frame main() ret int {", '    return true ? 1 : "wrong";', "}"].join(
+        "\n",
+      ),
     );
 
     const check = runCli(["check", "--json", sourceFile]);
@@ -3951,8 +3985,7 @@ describe("CLI JSON parseability", () => {
         preview: "switch (value)",
         message:
           "Switch value must be an integer, string or enum type, got double",
-        hint:
-          "Ensure the switch expression evaluates to an integer, string or enum.",
+        hint: "Ensure the switch expression evaluates to an integer, string or enum.",
         source: [
           "frame main() ret int {",
           "    local value: float = 1.5;",
@@ -3978,7 +4011,7 @@ describe("CLI JSON parseability", () => {
           "frame main() ret int {",
           "    local value: int = 1;",
           "    switch (value) {",
-          "        case \"one\": {",
+          '        case "one": {',
           "            return 1;",
           "        }",
           "        default: {",
@@ -4348,11 +4381,9 @@ describe("CLI JSON parseability", () => {
         preview: "return 1 & 1.5",
         message: "Bitwise operators require integer operands",
         hint: "Ensure both operands are integers.",
-        source: [
-          "frame main() ret int {",
-          "    return 1 & 1.5;",
-          "}",
-        ].join("\n"),
+        source: ["frame main() ret int {", "    return 1 & 1.5;", "}"].join(
+          "\n",
+        ),
       },
       {
         name: "modulo_operand_type_mismatch",
@@ -4362,11 +4393,9 @@ describe("CLI JSON parseability", () => {
         preview: "return 1 % 1.5",
         message: "Modulo operator requires integer operands",
         hint: "Ensure both operands are integers.",
-        source: [
-          "frame main() ret int {",
-          "    return 1 % 1.5;",
-          "}",
-        ].join("\n"),
+        source: ["frame main() ret int {", "    return 1 % 1.5;", "}"].join(
+          "\n",
+        ),
       },
       {
         name: "binary_operand_type_mismatch",
@@ -4376,11 +4405,9 @@ describe("CLI JSON parseability", () => {
         preview: 'return 1 + "wrong"',
         message: "Type mismatch: int and string",
         hint: "Ensure operands have compatible types.",
-        source: [
-          "frame main() ret int {",
-          '    return 1 + "wrong";',
-          "}",
-        ].join("\n"),
+        source: ["frame main() ret int {", '    return 1 + "wrong";', "}"].join(
+          "\n",
+        ),
       },
       {
         name: "arithmetic_operand_type_mismatch",
@@ -4491,11 +4518,7 @@ describe("CLI JSON parseability", () => {
         preview: "return *1",
         message: "Cannot dereference non-pointer type int",
         hint: "Dereference requires a pointer type.",
-        source: [
-          "frame main() ret int {",
-          "    return *1;",
-          "}",
-        ].join("\n"),
+        source: ["frame main() ret int {", "    return *1;", "}"].join("\n"),
       },
       {
         name: "logical_not_operand_type_mismatch",
@@ -4520,11 +4543,7 @@ describe("CLI JSON parseability", () => {
         preview: "return ~1.5",
         message: "Bitwise not requires integer operand",
         hint: "Ensure the operand is an integer.",
-        source: [
-          "frame main() ret int {",
-          "    return ~1.5;",
-          "}",
-        ].join("\n"),
+        source: ["frame main() ret int {", "    return ~1.5;", "}"].join("\n"),
       },
       {
         name: "unary_negation_operand_type_mismatch",
@@ -4534,11 +4553,9 @@ describe("CLI JSON parseability", () => {
         preview: 'return -"wrong"',
         message: "Unary operator '-' cannot be applied to type 'string'",
         hint: "Negation requires a numeric type.",
-        source: [
-          "frame main() ret int {",
-          '    return -"wrong";',
-          "}",
-        ].join("\n"),
+        source: ["frame main() ret int {", '    return -"wrong";', "}"].join(
+          "\n",
+        ),
       },
       {
         name: "unary_plus_unsupported",
@@ -4548,11 +4565,7 @@ describe("CLI JSON parseability", () => {
         preview: "return +1",
         message: "Unary plus operator '+' is not supported",
         hint: "Simply remove the '+' prefix.",
-        source: [
-          "frame main() ret int {",
-          "    return +1;",
-          "}",
-        ].join("\n"),
+        source: ["frame main() ret int {", "    return +1;", "}"].join("\n"),
       },
     ];
 
@@ -4835,11 +4848,7 @@ describe("CLI JSON parseability", () => {
         preview: "return 1 / 0",
         message: "Division by zero",
         hint: "divisor in a division operation cannot be zero",
-        source: [
-          "frame main() ret int {",
-          "    return 1 / 0;",
-          "}",
-        ].join("\n"),
+        source: ["frame main() ret int {", "    return 1 / 0;", "}"].join("\n"),
       },
       {
         name: "modulo_by_zero",
@@ -4849,11 +4858,7 @@ describe("CLI JSON parseability", () => {
         preview: "return 1 % 0",
         message: "Division by zero",
         hint: "divisor in a modulo operation cannot be zero",
-        source: [
-          "frame main() ret int {",
-          "    return 1 % 0;",
-          "}",
-        ].join("\n"),
+        source: ["frame main() ret int {", "    return 1 % 0;", "}"].join("\n"),
       },
       {
         name: "shift_count_negative",
@@ -4863,11 +4868,9 @@ describe("CLI JSON parseability", () => {
         preview: "return 1 << -1",
         message: "Negative shift count",
         hint: "Shift counts must be zero or greater.",
-        source: [
-          "frame main() ret int {",
-          "    return 1 << -1;",
-          "}",
-        ].join("\n"),
+        source: ["frame main() ret int {", "    return 1 << -1;", "}"].join(
+          "\n",
+        ),
       },
       {
         name: "shift_count_out_of_range",
@@ -5761,8 +5764,7 @@ describe("CLI JSON parseability", () => {
         code: "BPL_TYPE_QUERY_ENUM_NOT_FOUND",
         preview: "local _ok: bool = match<Missing.Some>(value)",
         message: "Cannot find enum 'Missing'",
-        hint:
-          "The type 'Missing' in match<Missing.Some> is not a defined enum.",
+        hint: "The type 'Missing' in match<Missing.Some> is not a defined enum.",
         source: [
           "frame main() {",
           "    local value: int = 1;",
@@ -5897,10 +5899,9 @@ describe("CLI JSON parseability", () => {
         preview: "@[always_inline, noinline]",
         message: "Conflicting function attributes: always_inline, noinline",
         hint: "Remove one of the conflicting attributes.",
-        source: [
-          "@[always_inline, noinline]",
-          "frame conflicted() {}",
-        ].join("\n"),
+        source: ["@[always_inline, noinline]", "frame conflicted() {}"].join(
+          "\n",
+        ),
       },
       {
         name: "function_attribute_noreturn_return_type",
@@ -6229,8 +6230,13 @@ describe("CLI JSON parseability", () => {
     );
     fs.mkdirSync(sourceDir, { recursive: true });
     fs.mkdirSync(outsideFeatureDir);
-    writePackageFixture(packageDir, { entrySource: "frame root() {} export root;" });
-    fs.writeFileSync(path.join(outsideFeatureDir, "add.bpl"), "frame value() {} export value;");
+    writePackageFixture(packageDir, {
+      entrySource: "frame root() {} export root;",
+    });
+    fs.writeFileSync(
+      path.join(outsideFeatureDir, "add.bpl"),
+      "frame value() {} export value;",
+    );
     fs.symlinkSync(outsideFeatureDir, linkedFeatureDir, "dir");
     fs.writeFileSync(
       sourceFile,
@@ -6280,9 +6286,18 @@ describe("CLI JSON parseability", () => {
         2,
       ),
     );
-    fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
-    fs.writeFileSync(path.join(featureDir, "public.bpl"), "frame value() {} export value;");
-    fs.writeFileSync(path.join(featureDir, "private.bpl"), "frame value() {} export value;");
+    fs.writeFileSync(
+      path.join(packageDir, "index.bpl"),
+      "frame root() {} export root;",
+    );
+    fs.writeFileSync(
+      path.join(featureDir, "public.bpl"),
+      "frame value() {} export value;",
+    );
+    fs.writeFileSync(
+      path.join(featureDir, "private.bpl"),
+      "frame value() {} export value;",
+    );
     fs.writeFileSync(
       sourceFile,
       [
@@ -6348,10 +6363,7 @@ describe("CLI JSON parseability", () => {
     const sourceDir = path.join(appDir, "src");
     const packageDir = path.join(appDir, "bpl_modules", "pkg-math");
     const outsideEntrypoint = path.join(appDir, "bpl_modules", "outside.bpl");
-    const sourceFile = path.join(
-      sourceDir,
-      "unsafe_legacy_entry_import.bpl",
-    );
+    const sourceFile = path.join(sourceDir, "unsafe_legacy_entry_import.bpl");
     fs.mkdirSync(sourceDir, { recursive: true });
     fs.mkdirSync(packageDir, { recursive: true });
     fs.writeFileSync(
@@ -6367,7 +6379,10 @@ describe("CLI JSON parseability", () => {
         2,
       ),
     );
-    fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+    fs.writeFileSync(
+      path.join(packageDir, "index.bpl"),
+      "frame value() {} export value;",
+    );
     fs.writeFileSync(outsideEntrypoint, "frame value() {} export value;");
     fs.writeFileSync(
       sourceFile,
@@ -6402,7 +6417,9 @@ describe("CLI JSON parseability", () => {
     const requestedSubpath = path.join(packageDir, "features", "add.bpl");
     fs.mkdirSync(path.dirname(realSubpath), { recursive: true });
     fs.mkdirSync(sourceDir, { recursive: true });
-    writePackageFixture(packageDir, { entrySource: "frame root() {} export root;" });
+    writePackageFixture(packageDir, {
+      entrySource: "frame root() {} export root;",
+    });
     fs.writeFileSync(realSubpath, "frame value() {} export value;");
     fs.writeFileSync(
       sourceFile,
@@ -6441,7 +6458,9 @@ describe("CLI JSON parseability", () => {
       "shadow.bpl",
     );
     fs.mkdirSync(sourceDir, { recursive: true });
-    writePackageFixture(packageDir, { entrySource: "frame root() {} export root;" });
+    writePackageFixture(packageDir, {
+      entrySource: "frame root() {} export root;",
+    });
     fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
     fs.writeFileSync(
       path.join(packageDir, "features", "add.bpl"),
@@ -6526,7 +6545,10 @@ describe("CLI JSON parseability", () => {
       }),
     );
     fs.symlinkSync(outsideManifest, linkedManifest, "file");
-    fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+    fs.writeFileSync(
+      path.join(packageDir, "index.bpl"),
+      "frame value() {} export value;",
+    );
     fs.writeFileSync(
       sourceFile,
       [
@@ -6564,7 +6586,10 @@ describe("CLI JSON parseability", () => {
     fs.mkdirSync(sourceDir, { recursive: true });
     fs.mkdirSync(packageDir, { recursive: true });
     fs.writeFileSync(manifestPath, "{not-json");
-    fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+    fs.writeFileSync(
+      path.join(packageDir, "index.bpl"),
+      "frame value() {} export value;",
+    );
     fs.writeFileSync(
       sourceFile,
       [
@@ -6636,7 +6661,10 @@ describe("CLI JSON parseability", () => {
     const sourceFile = path.join(sourceDir, "missing_manifest_import.bpl");
     fs.mkdirSync(sourceDir, { recursive: true });
     fs.mkdirSync(localPackageDir, { recursive: true });
-    fs.writeFileSync(path.join(localPackageDir, "index.bpl"), "frame value() {} export value;");
+    fs.writeFileSync(
+      path.join(localPackageDir, "index.bpl"),
+      "frame value() {} export value;",
+    );
     writePackageFixture(workspacePackageDir, { version: "2.0.0" });
     writePackageFixture(globalPackageRoot, { version: "9.0.0" });
     fs.writeFileSync(
@@ -6676,7 +6704,9 @@ describe("CLI JSON parseability", () => {
     const outsideFeature = path.join(tempDir, "outside-add.bpl");
     const sourceFile = path.join(sourceDir, "subpath_file_symlink_import.bpl");
     fs.mkdirSync(sourceDir, { recursive: true });
-    writePackageFixture(packageDir, { entrySource: "frame root() {} export root;" });
+    writePackageFixture(packageDir, {
+      entrySource: "frame root() {} export root;",
+    });
     fs.mkdirSync(featureDir);
     fs.writeFileSync(outsideFeature, "frame value() {} export value;");
     fs.symlinkSync(outsideFeature, linkedFeature, "file");

@@ -69,33 +69,27 @@ describe("Compiler fuzz runner", () => {
     expect(differentialSources).toContain("diff pointer-array");
   });
 
-  test(
-    "treats equivalent checked runtime failures as stable differential behavior",
-    () => {
-      const outcome = runBplDifferentialPipeline(
-        `
+  test("treats equivalent checked runtime failures as stable differential behavior", () => {
+    const outcome = runBplDifferentialPipeline(
+      `
           frame main() ret int {
             local zero: int = 0;
             return 10 / zero;
           }
         `,
-        "differential_division_by_zero.bpl",
-      );
+      "differential_division_by_zero.bpl",
+    );
 
-      expect(outcome).toMatchObject({
-        ok: true,
-        stage: "codegen",
-      });
-      expect(outcome.mismatch).toBeUndefined();
-    },
-    60000,
-  );
+    expect(outcome).toMatchObject({
+      ok: true,
+      stage: "codegen",
+    });
+    expect(outcome.mismatch).toBeUndefined();
+  }, 60000);
 
-  test(
-    "verifies generated LLVM IR for differential fuzz inputs",
-    () => {
-      const outcome = runBplLlvmVerifierPipeline(
-        `
+  test("verifies generated LLVM IR for differential fuzz inputs", () => {
+    const outcome = runBplLlvmVerifierPipeline(
+      `
           extern printf(fmt: string, ...);
 
           frame main() ret int {
@@ -104,17 +98,15 @@ describe("Compiler fuzz runner", () => {
             return 0;
           }
         `,
-        "differential_verifier.bpl",
-      );
+      "differential_verifier.bpl",
+    );
 
-      expect(outcome).toMatchObject({
-        ok: true,
-        stage: "codegen",
-      });
-      expect(outcome.message).toBeUndefined();
-    },
-    60000,
-  );
+    expect(outcome).toMatchObject({
+      ok: true,
+      stage: "codegen",
+    });
+    expect(outcome.message).toBeUndefined();
+  }, 60000);
 
   test("rejects invalid fuzz campaign options before running inputs", () => {
     const baseOptions: FuzzCampaignOptions = {
@@ -300,7 +292,9 @@ describe("Compiler fuzz runner", () => {
             source: "trigger internal crash",
           }),
         }),
-      ).toThrow(/Fuzz crash artifact directory parent contains a symbolic link/);
+      ).toThrow(
+        /Fuzz crash artifact directory parent contains a symbolic link/,
+      );
       expect(readdirSync(realCrashDir)).toEqual([]);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
@@ -726,13 +720,7 @@ describe("Compiler fuzz runner", () => {
 
       const replayWithOutput = (minimizedOutPath: string) => () =>
         runFuzzReplayCli(
-          [
-            "--metadata",
-            metadataPath,
-            "--minimize",
-            "--out",
-            minimizedOutPath,
-          ],
+          ["--metadata", metadataPath, "--minimize", "--out", minimizedOutPath],
           {
             runner,
             stdout: () => {},
@@ -827,80 +815,76 @@ describe("Compiler fuzz runner", () => {
     }
   });
 
-  test(
-    "promotes minimized differential mismatch artifacts into a correctness corpus",
-    () => {
-      const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-diff-promote-"));
-      const corpusDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-diff-corpus-"));
-      const sourcePath = join(
-        crashDir,
-        "mismatch_seed-abcd_iter-7_differential.bpl",
-      );
-      const minPath = join(
-        crashDir,
-        "mismatch_seed-abcd_iter-7_differential.min.bpl",
-      );
-      const metadataPath = join(
-        crashDir,
-        "mismatch_seed-abcd_iter-7_differential.json",
-      );
+  test("promotes minimized differential mismatch artifacts into a correctness corpus", () => {
+    const crashDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-diff-promote-"));
+    const corpusDir = mkdtempSync(join(tmpdir(), "bpl-fuzz-diff-corpus-"));
+    const sourcePath = join(
+      crashDir,
+      "mismatch_seed-abcd_iter-7_differential.bpl",
+    );
+    const minPath = join(
+      crashDir,
+      "mismatch_seed-abcd_iter-7_differential.min.bpl",
+    );
+    const metadataPath = join(
+      crashDir,
+      "mismatch_seed-abcd_iter-7_differential.json",
+    );
 
-      try {
-        writeFileSync(sourcePath, "frame main() ret int { return 1; }\n");
-        writeFileSync(minPath, "frame main() ret int { return 0; }\n");
-        writeFileSync(
-          metadataPath,
-          JSON.stringify(
-            {
-              seed: 0xabcd,
-              iteration: 7,
-              kind: "differential",
-              failureKind: "mismatch",
-              sourcePath,
-              stage: "codegen",
-            },
-            null,
-            2,
-          ),
-        );
-
-        const result = spawnSync(
-          "bun",
-          [
-            "run",
-            "fuzz:promote",
-            "--",
-            "--metadata",
-            metadataPath,
-            "--name",
-            "Bug 456: O3 Wrong Code",
-            "--corpus-dir",
-            corpusDir,
-            "--differential",
-          ],
+    try {
+      writeFileSync(sourcePath, "frame main() ret int { return 1; }\n");
+      writeFileSync(minPath, "frame main() ret int { return 0; }\n");
+      writeFileSync(
+        metadataPath,
+        JSON.stringify(
           {
-            cwd: join(import.meta.dir, ".."),
-            encoding: "utf8",
+            seed: 0xabcd,
+            iteration: 7,
+            kind: "differential",
+            failureKind: "mismatch",
+            sourcePath,
+            stage: "codegen",
           },
-        );
+          null,
+          2,
+        ),
+      );
 
-        const promotedPath = join(corpusDir, "bug-456-o3-wrong-code.bpl");
+      const result = spawnSync(
+        "bun",
+        [
+          "run",
+          "fuzz:promote",
+          "--",
+          "--metadata",
+          metadataPath,
+          "--name",
+          "Bug 456: O3 Wrong Code",
+          "--corpus-dir",
+          corpusDir,
+          "--differential",
+        ],
+        {
+          cwd: join(import.meta.dir, ".."),
+          encoding: "utf8",
+        },
+      );
 
-        expect(result.status).toBe(0);
-        expect(result.stdout).toContain("Outcome: differential");
-        expect(readFileSync(promotedPath, "utf8")).toBe(
-          "frame main() ret int { return 0; }\n",
-        );
-        expect(JSON.parse(readFileSync(metadataPath, "utf8"))).toMatchObject({
-          promotedTo: promotedPath,
-        });
-      } finally {
-        rmSync(crashDir, { recursive: true, force: true });
-        rmSync(corpusDir, { recursive: true, force: true });
-      }
-    },
-    60000,
-  );
+      const promotedPath = join(corpusDir, "bug-456-o3-wrong-code.bpl");
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("Outcome: differential");
+      expect(readFileSync(promotedPath, "utf8")).toBe(
+        "frame main() ret int { return 0; }\n",
+      );
+      expect(JSON.parse(readFileSync(metadataPath, "utf8"))).toMatchObject({
+        promotedTo: promotedPath,
+      });
+    } finally {
+      rmSync(crashDir, { recursive: true, force: true });
+      rmSync(corpusDir, { recursive: true, force: true });
+    }
+  }, 60000);
 
   test("promote CLI refuses corpus directories through symlinked ancestors", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "bpl-fuzz-promote-link-"));
@@ -1068,7 +1052,9 @@ describe("Compiler fuzz runner", () => {
   });
 
   test("promote CLI rejects symlinked source paths before reading source", () => {
-    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-fuzz-promote-source-link-"));
+    const tempRoot = mkdtempSync(
+      join(tmpdir(), "bpl-fuzz-promote-source-link-"),
+    );
 
     try {
       const targetSourcePath = join(tempRoot, "outside-source.bpl");
@@ -1328,10 +1314,7 @@ describe("Compiler fuzz runner", () => {
         "seeds must be unsigned 32-bit integers",
       ],
       [["--differential=maybe"], "differential must be a boolean value"],
-      [
-        ["--minimize="],
-        "--minimize requires a non-empty boolean value",
-      ],
+      [["--minimize="], "--minimize requires a non-empty boolean value"],
       [["--=value"], "Missing option name"],
       [["input.bpl"], "Unexpected argument: input.bpl"],
     ];
@@ -1502,10 +1485,7 @@ describe("Compiler fuzz runner", () => {
     const packedToolsDir = join(packedRoot, "tools");
     const wrapperPath = join(packedToolsDir, "fuzz_script_wrapper.ts");
     const cases: Array<[string[], string]> = [
-      [
-        ["run", "--seeds", "0x1,,0x2"],
-        "seeds must not contain empty entries",
-      ],
+      [["run", "--seeds", "0x1,,0x2"], "seeds must not contain empty entries"],
       [
         ["run", "--seeds", "0x100000000"],
         "seeds must be unsigned 32-bit integers",

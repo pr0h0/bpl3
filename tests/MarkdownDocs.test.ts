@@ -1,3 +1,4 @@
+import { normalizeSpacing } from "./helpers/sourceText";
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, statSync } from "fs";
 import { dirname, join, normalize } from "path";
@@ -45,9 +46,7 @@ import { CLEAN_JSON_ERROR_CODES } from "../cli/commands/clean";
 import { SANITIZER_RUNTIME_UNAVAILABLE_CODE } from "../compiler/common/SanitizerSupport";
 import { CHECK_JSON_ERROR_CODES } from "../cli/commands/check";
 import { LINT_JSON_ERROR_CODES } from "../cli/commands/lint";
-import {
-  RUN_SCRIPT_JSON_ERROR_CODES,
-} from "../cli/commands/runScript";
+import { RUN_SCRIPT_JSON_ERROR_CODES } from "../cli/commands/runScript";
 import { PACKAGE_DOCS_SMOKE_DOCUMENTATION_SNIPPETS } from "./helpers/packageDocsSmokeExamples";
 
 function trackedMarkdownFiles(): string[] {
@@ -144,8 +143,9 @@ function expectDocsContainSnippets(
   docs: string,
   snippets: readonly string[],
 ): void {
+  const normalizedDocs = normalizeSpacing(docs);
   const missingSnippets = snippets.filter(
-    (snippet) => !docs.includes(snippet.replace(/\s+/g, " ")),
+    (snippet) => !normalizedDocs.includes(normalizeSpacing(snippet)),
   );
 
   if (missingSnippets.length > 0) {
@@ -158,10 +158,7 @@ function expectDocsContainSnippets(
   }
 }
 
-function expectDocsContainCodes(
-  docs: string,
-  codes: readonly string[],
-): void {
+function expectDocsContainCodes(docs: string, codes: readonly string[]): void {
   const missingCodes = codes.filter((code) => !docs.includes(code));
 
   if (missingCodes.length > 0) {
@@ -239,7 +236,9 @@ describe("Markdown documentation", () => {
     }
 
     const message = String(thrown);
-    expect(message).toContain("Missing Markdown documentation code-list entries");
+    expect(message).toContain(
+      "Missing Markdown documentation code-list entries",
+    );
     expect(message).toContain("ExampleList:BPL_EXAMPLE_MISSING");
     expect(message).not.toContain("SECRET_FULL_CORPUS_SENTINEL");
   });
@@ -264,8 +263,7 @@ describe("Markdown documentation", () => {
     }
 
     const failures: string[] = [];
-    const linkPattern =
-      /!?(?:\[[^\]\n]+\])\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+    const linkPattern = /!?(?:\[[^\]\n]+\])\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 
     for (const file of files) {
       const text = readFileSync(file, "utf8");
@@ -383,8 +381,8 @@ describe("Markdown documentation", () => {
       "bpl list --json",
       "package-list-tree",
       "unsafe package-root validation failures",
-      "duplicate installed package names return `errorCode: \"BPL_PACKAGE_DUPLICATE_INSTALLED\"`",
-      "List and tree duplicate failures also include `issuesFound`, `issueKinds`, and compact `issues` entries with `kind: \"duplicate-installed-package\"`",
+      'duplicate installed package names return `errorCode: "BPL_PACKAGE_DUPLICATE_INSTALLED"`',
+      'List and tree duplicate failures also include `issuesFound`, `issueKinds`, and compact `issues` entries with `kind: "duplicate-installed-package"`',
       "`paths` array with every conflicting installed directory",
       "`packages: []`",
       "`tree: []`",
@@ -444,11 +442,14 @@ describe("Markdown documentation", () => {
   test("docs document doctor scope JSON error code", () => {
     const compilerOptions = readFileSync("docs/39-compiler-options.md", "utf8");
     const changelog = readFileSync("CHANGELOG.md", "utf8");
-    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(/\s+/g, " ");
+    const combinedDocs = `${compilerOptions}\n${changelog}`.replace(
+      /\s+/g,
+      " ",
+    );
     const requiredSnippets = [
       "Unknown doctor scopes",
       "BPL_DOCTOR_SCOPE_UNKNOWN",
-      "bun test tests/CLIJsonParseability.test.ts -t \"doctor scope failures\"",
+      'bun test tests/CLIJsonParseability.test.ts -t "doctor scope failures"',
     ];
 
     expectDocsContainSnippets(combinedDocs, requiredSnippets);
@@ -471,14 +472,14 @@ describe("Markdown documentation", () => {
       "Explicit package source-file imports such as `math-extra/features/increment.bpl` require a file at that exact path",
       "explicit package source-file imports ending in `.bpl` or `.x` do not fall back to directory indexes",
       "broken symlink candidates are reported as symlinks before extension fallback can import a lower-priority `.x` file",
-      "`bpl_modules/my-package/bpl.json` must declare `\"name\": \"my-package\"`",
+      '`bpl_modules/my-package/bpl.json` must declare `"name": "my-package"`',
       "Global versioned package directories must match their manifest `version`",
       "package metadata instead of silently importing a different package",
       "Manifest string metadata such as `$schema`, `description`, `author`, and `license` must be strings when present",
       "`keywords` must be an array of strings",
-      "`repository` must contain `type: \"git\"` and a string `url`",
+      '`repository` must contain `type: "git"` and a string `url`',
       "The package import resolver also rejects malformed string metadata",
-      "It also validates `keywords` as an array of strings and `repository` as an object with `type: \"git\"` and a string `url`",
+      'It also validates `keywords` as an array of strings and `repository` as an object with `type: "git"` and a string `url`',
       "Dependency, script, and `bin` maps are checked for the same object shape, key, and non-empty string rules during import resolution",
       "Dependency, script, and `bin` maps are also checked for object shape, key, and non-empty string rules during import resolution",
       "`exports` entries are also validated as safe package-relative paths",
@@ -601,10 +602,8 @@ describe("Markdown documentation", () => {
       "docs/60-compiler-correctness.md",
       "utf8",
     );
-    const combinedDocs = `${readme}\n${packageDocs}\n${correctnessDocs}`.replace(
-      /\s+/g,
-      " ",
-    );
+    const combinedDocs =
+      `${readme}\n${packageDocs}\n${correctnessDocs}`.replace(/\s+/g, " ");
     const requiredSnippets = [
       "Helper CLI inline value forms",
       "bun run ci:triage -- --json --jobs-json=jobs.json --run=<run-id> --repo=owner/repo",
@@ -691,7 +690,7 @@ describe("Markdown documentation", () => {
     ]);
     const requiredSnippets = [
       "PackageManager manifest-loading failures",
-      "bun test tests/PackageJsonFailureContracts.test.ts -t \"package manifest error codes\"",
+      'bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -707,7 +706,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Package-cache validation failures",
       "clean and repair validation failures",
-      "bun test tests/PackageJsonFailureContracts.test.ts -t \"package-cache version filter\"",
+      'bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache version filter"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -722,7 +721,7 @@ describe("Markdown documentation", () => {
     ]);
     const requiredSnippets = [
       "package-cache package filters",
-      "bun test tests/PackageJsonFailureContracts.test.ts -t \"package-cache package filter\"",
+      'bun test tests/PackageJsonFailureContracts.test.ts -t "package-cache package filter"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -737,7 +736,7 @@ describe("Markdown documentation", () => {
     ]);
     const requiredSnippets = [
       "Package list JSON failure codes",
-      "bun test tests/PackageJsonFailureContracts.test.ts -t \"error-code lists\"",
+      'bun test tests/PackageJsonFailureContracts.test.ts -t "error-code lists"',
       "`paths` array with every conflicting installed directory",
     ];
 
@@ -757,7 +756,7 @@ describe("Markdown documentation", () => {
       "`bpl list --tree`",
       "Package doctor validates the current project package's declared `exports` and `bin` entries",
       "Fix package bin files",
-      "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t \"invalid .* bin files\"",
+      'bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "invalid .* bin files"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -775,7 +774,7 @@ describe("Markdown documentation", () => {
       "package-cache repair refuses to regenerate provenance",
       "Directory `bin` targets are reported by package-cache `bin` validation",
       "Symlinked binary archive members are rejected by the archive safety layer during package-cache verify",
-      "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t \"cached package.*bin files|symlinked cached package bin|package cache repair.*bin files|cached package bin files in verify\"",
+      'bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "cached package.*bin files|symlinked cached package bin|package cache repair.*bin files|cached package bin files in verify"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -793,7 +792,7 @@ describe("Markdown documentation", () => {
       "installed package `bin` targets that are directories or symlinks",
       "`bpl install --locked --json`",
       "`bpl install --repair-lock --json`",
-      "bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t \"installed package bin files during locked verification|installed package bin files when repairing lockfiles|installed package bin files during lockfile repair\"",
+      'bun test tests/PackageManager.test.ts tests/PackageManagerCLI.test.ts -t "installed package bin files during locked verification|installed package bin files when repairing lockfiles|installed package bin files during lockfile repair"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -807,7 +806,7 @@ describe("Markdown documentation", () => {
     ]);
     const requiredSnippets = [
       "Package uninstall JSON reports",
-      "bun test tests/PackageManagerCLI.test.ts -t \"uninstall success and failures as JSON\"",
+      'bun test tests/PackageManagerCLI.test.ts -t "uninstall success and failures as JSON"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -824,7 +823,7 @@ describe("Markdown documentation", () => {
       "Package pack JSON reports",
       'check: "package-pack"',
       "BPL_PACKAGE_MANIFEST_MISSING",
-      "bun test tests/PackageManagerCLI.test.ts -t \"pack success and failures as JSON\"",
+      'bun test tests/PackageManagerCLI.test.ts -t "pack success and failures as JSON"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -839,7 +838,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Package init JSON reports",
       'check: "package-init"',
-      "bun test tests/PackageManagerCLI.test.ts -t \"init success and failures as JSON\"",
+      'bun test tests/PackageManagerCLI.test.ts -t "init success and failures as JSON"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -874,9 +873,9 @@ describe("Markdown documentation", () => {
       "project-mode option conflicts",
       "direct archive paths",
       "bpl install --locked --json",
-      "bun test tests/PackageManagerCLI.test.ts -t \"should enforce --locked package verification\"",
-      "bun test tests/PackageManagerCLI.test.ts -t \"lock verification drift\"",
-      "bun test tests/PackageJsonFailureContracts.test.ts -t \"package install option conflict|direct archive path\"",
+      'bun test tests/PackageManagerCLI.test.ts -t "should enforce --locked package verification"',
+      'bun test tests/PackageManagerCLI.test.ts -t "lock verification drift"',
+      'bun test tests/PackageJsonFailureContracts.test.ts -t "package install option conflict|direct archive path"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -907,7 +906,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Project creation JSON reports",
       'check: "project-new"',
-      "bun test tests/CLI.test.ts -t \"new project success and failures as JSON\"",
+      'bun test tests/CLI.test.ts -t "new project success and failures as JSON"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -922,7 +921,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Format JSON reports",
       'check: "format"',
-      "bun test tests/CLI.test.ts -t \"format check results and validation failures as JSON\"",
+      'bun test tests/CLI.test.ts -t "format check results and validation failures as JSON"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -937,7 +936,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Bindgen JSON reports",
       'check: "bindgen"',
-      "bun test tests/CLI.test.ts -t \"bindgen success and validation failures as JSON\"",
+      'bun test tests/CLI.test.ts -t "bindgen success and validation failures as JSON"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -952,7 +951,7 @@ describe("Markdown documentation", () => {
     const requiredSnippets = [
       "Documentation JSON reports",
       'check: "docs"',
-      "bun test tests/CLI.test.ts -t \"documentation generation success and validation failures as JSON\"",
+      'bun test tests/CLI.test.ts -t "documentation generation success and validation failures as JSON"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -968,7 +967,7 @@ describe("Markdown documentation", () => {
       "Completion JSON reports",
       'check: "completion"',
       "BPL_COMPLETION_SHELL_UNSUPPORTED",
-      "bun test tests/CLIJsonParseability.test.ts -t \"completion JSON\"",
+      'bun test tests/CLIJsonParseability.test.ts -t "completion JSON"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -1028,7 +1027,7 @@ describe("Markdown documentation", () => {
       "bpl --version --json",
       "bpl --json --version",
       'check: "version"',
-      "bun test tests/CLIJsonParseability.test.ts -t \"version JSON\"",
+      'bun test tests/CLIJsonParseability.test.ts -t "version JSON"',
     ];
 
     expectDocsContainSnippets(docs, requiredSnippets);
@@ -1074,7 +1073,7 @@ describe("Markdown documentation", () => {
     ]);
     const requiredSnippets = [
       "Bare imports that match standard-library module basenames resolve to the standard library before package lookup",
-      "A package named `math` is shadowed by the built-in `math` module when imported as `\"math\"`",
+      'A package named `math` is shadowed by the built-in `math` module when imported as `"math"`',
       "Use a non-stdlib package name such as `math-extra`",
       "package names that collide with standard-library module basenames are not reachable through bare imports",
     ];
@@ -1200,10 +1199,7 @@ describe("Markdown documentation", () => {
         packageTrace("manifest-invalid", "manifest is not valid JSON"),
       ),
       getPackageResolutionFailureCode(
-        packageTrace(
-          "manifest-invalid",
-          "manifest must contain a JSON object",
-        ),
+        packageTrace("manifest-invalid", "manifest must contain a JSON object"),
       ),
       getPackageResolutionFailureCode(
         packageTrace("manifest-invalid", "unsafe entrypoint '../outside.bpl'"),
@@ -1285,9 +1281,7 @@ describe("Markdown documentation", () => {
     expect(docs).toContain(
       "unsafe explicit standard-library paths use `BPL_IMPORT_STD_PATH_UNSAFE`",
     );
-    expect(docs).toContain(
-      "Use the exact filesystem casing in imports",
-    );
+    expect(docs).toContain("Use the exact filesystem casing in imports");
     expectDocsContainSnippets(compilerOptionsDocs, [
       "Missing normalized explicit `std/...` modules use `BPL_MODULE_NOT_FOUND`",
       "`Standard library module not found`",
@@ -1335,7 +1329,7 @@ describe("Markdown documentation", () => {
       "Duplicate struct fields and duplicate enum variants also use `BPL_SYMBOL_ALREADY_DEFINED`",
       "`Duplicate field 'x' in struct 'Point'`",
       "`Duplicate enum variant 'Red' in enum 'Color'`",
-      'bun test tests/TypeCheckerDuplicateSymbols.test.ts',
+      "bun test tests/TypeCheckerDuplicateSymbols.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "duplicate top-level symbols"',
       'bun test tests/CLIJsonParseability.test.ts -t "duplicate function signatures"',
       'bun test tests/CLIJsonParseability.test.ts -t "duplicate function parameters|duplicate generic parameters"',
@@ -1357,7 +1351,7 @@ describe("Markdown documentation", () => {
       "`Circular inheritance detected`",
       "`Recursive cycle detected: Node -> Node`",
       "`Inheritance cycle: A -> B -> A`",
-      'bun test tests/TypeCheckerRecursiveTypes.test.ts',
+      "bun test tests/TypeCheckerRecursiveTypes.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "recursive struct field cycles|recursive enum variant cycles"',
     ]);
   });
@@ -1373,7 +1367,7 @@ describe("Markdown documentation", () => {
       "`Generic type 'Box' expects 1 type arguments, but got 2.`",
       "`Generic type 'Alias' expects 1 type arguments, but got 2.`",
       "`Check generic argument count.`",
-      'bun test tests/TypeCheckerGenericArity.test.ts',
+      "bun test tests/TypeCheckerGenericArity.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "generic type arity|generic alias arity"',
     ]);
   });
@@ -1389,7 +1383,7 @@ describe("Markdown documentation", () => {
       "`Undefined type 'MissingThing'`",
       "`The type is not defined.`",
       "variable declarations and struct fields",
-      'bun test tests/TypeCheckerUndefinedTypes.test.ts',
+      "bun test tests/TypeCheckerUndefinedTypes.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "undefined-type"',
     ]);
   });
@@ -1407,7 +1401,7 @@ describe("Markdown documentation", () => {
       "`Ensure the variable or function is declared before use.`",
       "`Did you mean 'totalCount'?`",
       "value identifiers and missing callee identifiers",
-      'bun test tests/TypeCheckerUndefinedSymbolDiagnostics.test.ts',
+      "bun test tests/TypeCheckerUndefinedSymbolDiagnostics.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "undefined symbol"',
     ]);
   });
@@ -1425,7 +1419,7 @@ describe("Markdown documentation", () => {
       "`Use '*void' for void pointers.`",
       "bare `void` in variable declarations, parameters, struct fields, and generic type arguments",
       "`ret void` and `*void` remain valid",
-      'bun test tests/TypeCheckerVoidTypes.test.ts',
+      "bun test tests/TypeCheckerVoidTypes.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "invalid void type"',
     ]);
   });
@@ -1442,7 +1436,7 @@ describe("Markdown documentation", () => {
       "`Builtin type names are reserved.`",
       "type aliases, structs, enums, and specs named after reserved primitive types",
       "standard-library wrapper structs such as `Long` remain valid",
-      'bun test tests/TypeCheckerBuiltinRedefinition.test.ts',
+      "bun test tests/TypeCheckerBuiltinRedefinition.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "builtin type redefinition"',
     ]);
   });
@@ -1459,7 +1453,7 @@ describe("Markdown documentation", () => {
       "`Arrays cannot have zero or negative size.`",
       "fixed array dimensions such as `int[0]`",
       "dynamic slices such as `int[]` remain valid",
-      'bun test tests/TypeCheckerInvalidArraySizes.test.ts',
+      "bun test tests/TypeCheckerInvalidArraySizes.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "invalid array size"',
     ]);
   });
@@ -1476,7 +1470,7 @@ describe("Markdown documentation", () => {
       "`Ensure the returned value matches the function's return type.`",
       "mismatched return expressions and `return;` in non-void functions",
       "integer literal returns that fit the declared type remain valid",
-      'bun test tests/TypeCheckerReturnTypeMismatch.test.ts',
+      "bun test tests/TypeCheckerReturnTypeMismatch.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "return type mismatch"',
     ]);
   });
@@ -1491,9 +1485,9 @@ describe("Markdown documentation", () => {
       "Assignment type mismatch failures use `BPL_ASSIGNMENT_TYPE_MISMATCH`",
       "`Type mismatch in assignment: cannot assign string to i32`",
       "`The assigned value is not compatible with the target variable's type.`",
-      "direct assignment statements such as `value = \"wrong\";`",
+      'direct assignment statements such as `value = "wrong";`',
       "variable initializer mismatches keep the legacy `E001` code",
-      'bun test tests/TypeCheckerAssignmentMismatch.test.ts',
+      "bun test tests/TypeCheckerAssignmentMismatch.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "assignment type mismatch"',
     ]);
   });
@@ -1511,7 +1505,7 @@ describe("Markdown documentation", () => {
       "`Ternary condition must be boolean, got int`",
       "`Ensure the condition evaluates to a boolean.`",
       "non-boolean `if`, `loop`, and ternary conditions",
-      'bun test tests/TypeCheckerConditionMismatch.test.ts',
+      "bun test tests/TypeCheckerConditionMismatch.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "condition type mismatch"',
     ]);
   });
@@ -1527,7 +1521,7 @@ describe("Markdown documentation", () => {
       "`Ternary branches must have compatible types: int vs string`",
       "`Both branches must return the same type.`",
       "incompatible ternary branch types",
-      'bun test tests/TypeCheckerTernaryBranchMismatch.test.ts',
+      "bun test tests/TypeCheckerTernaryBranchMismatch.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "ternary branch type mismatch"',
     ]);
   });
@@ -1545,7 +1539,7 @@ describe("Markdown documentation", () => {
       "`Ensure the switch expression evaluates to an integer, string or enum.`",
       "`Ensure case patterns match the switch value type.`",
       "invalid switch value types and incompatible case pattern types",
-      'bun test tests/TypeCheckerSwitchMismatch.test.ts',
+      "bun test tests/TypeCheckerSwitchMismatch.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "switch type mismatch"',
     ]);
   });
@@ -1568,7 +1562,7 @@ describe("Markdown documentation", () => {
       "`Usage: Message.Move(`",
       "`Check the variant definition and argument types.`",
       "non-callable targets, function argument count and type mismatches, and enum variant argument count and type mismatches",
-      'bun test tests/TypeCheckerCallSiteMismatch.test.ts',
+      "bun test tests/TypeCheckerCallSiteMismatch.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "call-site mismatch"',
     ]);
   });
@@ -1590,7 +1584,7 @@ describe("Markdown documentation", () => {
       "`Fallthrough statements can only be used inside switch statements.`",
       "`Defer blocks must return void.`",
       "break outside loop/switch, continue outside loop, fallthrough outside switch, and return-with-value inside defer",
-      'bun test tests/TypeCheckerControlFlowMisuse.test.ts',
+      "bun test tests/TypeCheckerControlFlowMisuse.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "control-flow misuse"',
     ]);
   });
@@ -1621,7 +1615,7 @@ describe("Markdown documentation", () => {
       "`Ensure operands have compatible types.`",
       "`Arithmetic operators require numeric types.`",
       "unsupported string concatenation, invalid logical/comparison/bitwise/modulo operands, incompatible binary/arithmetic operands, void pointer arithmetic, and incompatible pointer subtraction",
-      'bun test tests/TypeCheckerBinaryOperatorMisuse.test.ts',
+      "bun test tests/TypeCheckerBinaryOperatorMisuse.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "binary operator misuse"',
     ]);
   });
@@ -1645,7 +1639,7 @@ describe("Markdown documentation", () => {
       "`Negation requires a numeric type.`",
       "`Simply remove the '+' prefix.`",
       "invalid dereference targets, non-boolean logical-not operands, non-integer bitwise-not operands, non-numeric negation operands, and unsupported primitive unary plus",
-      'bun test tests/TypeCheckerUnaryOperatorMisuse.test.ts',
+      "bun test tests/TypeCheckerUnaryOperatorMisuse.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "unary operator misuse"',
     ]);
   });
@@ -1664,7 +1658,7 @@ describe("Markdown documentation", () => {
       "`Ensure the index expression evaluates to an integer.`",
       "`Only arrays, pointers, or types with __get__ operator can be indexed.`",
       "array index type mismatches, pointer index type mismatches, and indexing non-indexable targets",
-      'bun test tests/TypeCheckerIndexExpressionMisuse.test.ts',
+      "bun test tests/TypeCheckerIndexExpressionMisuse.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "index expression misuse"',
     ]);
   });
@@ -1686,7 +1680,7 @@ describe("Markdown documentation", () => {
       "`Valid indices are 0-1`",
       "`Check the type definition for available members.`",
       "missing static members, incompatible instance method access, invalid tuple indices, and missing concrete-type members",
-      'bun test tests/TypeCheckerMemberAccessMisuse.test.ts',
+      "bun test tests/TypeCheckerMemberAccessMisuse.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "member access misuse"',
     ]);
   });
@@ -1714,7 +1708,7 @@ describe("Markdown documentation", () => {
       "`This cast is not allowed.`",
       "`Void type has no size.`",
       "compile-time division/modulo by zero, invalid constant shifts, address-of misuse, array literal element mismatches, invalid casts, and `sizeof(void)`",
-      'bun test tests/TypeCheckerExpressionSemanticGuards.test.ts',
+      "bun test tests/TypeCheckerExpressionSemanticGuards.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "expression semantic guard"',
     ]);
   });
@@ -1740,7 +1734,7 @@ describe("Markdown documentation", () => {
       "`Left-hand side of assignment must be a variable",
       "`Tuple elements in assignment must be valid l-values",
       "missing local type annotations, duplicate local declarations, integer literal overflow, const assignment, invalid assignment targets, and invalid tuple destructuring targets",
-      'bun test tests/TypeCheckerStatementSemanticGuards.test.ts',
+      "bun test tests/TypeCheckerStatementSemanticGuards.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "statement semantic guard"',
     ]);
   });
@@ -1764,7 +1758,7 @@ describe("Markdown documentation", () => {
       "`Check the struct definition for valid fields.`",
       "`Field value must match the declared type.`",
       "unknown struct names, generic arity mismatches, missing fields, unknown fields, and field type mismatches",
-      'bun test tests/TypeCheckerStructLiteralDiagnostics.test.ts',
+      "bun test tests/TypeCheckerStructLiteralDiagnostics.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "struct literal diagnostics"',
     ]);
   });
@@ -1782,7 +1776,7 @@ describe("Markdown documentation", () => {
       "`Check the variant definition.`",
       "`Field value must match the declared type.`",
       "unknown enum struct variant construction fields, unknown enum struct pattern fields, and enum struct variant field type mismatches",
-      'bun test tests/TypeCheckerEnumVariantFieldDiagnostics.test.ts',
+      "bun test tests/TypeCheckerEnumVariantFieldDiagnostics.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "enum variant field diagnostics"',
     ]);
   });
@@ -1800,7 +1794,7 @@ describe("Markdown documentation", () => {
       "`Use __type_id<T>() with exactly one type argument.`",
       "`Call __type_info<T>() without value arguments.`",
       "missing or extra `__type_id`/`__type_info` generic type arguments and forbidden value arguments",
-      'bun test tests/TypeCheckerIntrinsicCallDiagnostics.test.ts',
+      "bun test tests/TypeCheckerIntrinsicCallDiagnostics.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "intrinsic call diagnostics"',
     ]);
   });
@@ -1818,7 +1812,7 @@ describe("Markdown documentation", () => {
       "`Match expressions must handle all enum variants or include a wildcard (_) pattern.`",
       "`Type matching requires a default case.`",
       "missing enum variants and missing default cases for non-enum matches",
-      'bun test tests/TypeCheckerMatchExhaustivenessDiagnostics.test.ts',
+      "bun test tests/TypeCheckerMatchExhaustivenessDiagnostics.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "match exhaustiveness diagnostics"',
     ]);
   });
@@ -1836,7 +1830,7 @@ describe("Markdown documentation", () => {
       "`Expected tuple type, got BasicType`",
       "`Pattern and type must have the same number of elements`",
       "tuple patterns used on non-tuple values and tuple pattern element-count mismatches",
-      'bun test tests/TypeCheckerTuplePatternDiagnostics.test.ts',
+      "bun test tests/TypeCheckerTuplePatternDiagnostics.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "tuple pattern diagnostics"',
     ]);
   });
@@ -1856,7 +1850,7 @@ describe("Markdown documentation", () => {
       "`The type 'MissingType' in match<MissingType> is not defined.`",
       "`Ensure the type is defined.`",
       "unresolved `match<T>(value)` enum paths, unresolved `match<T>(value)` plain types, and unresolved `expr is T` targets",
-      'bun test tests/TypeCheckerTypeQueryDiagnostics.test.ts',
+      "bun test tests/TypeCheckerTypeQueryDiagnostics.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "type-query diagnostics"',
     ]);
   });
@@ -1881,7 +1875,7 @@ describe("Markdown documentation", () => {
       "`Remove one of the conflicting attributes.`",
       "`Change the first parameter to 'this: *Resource'.`",
       "unknown attributes, duplicate attributes, conflicting attributes, invalid `noreturn` return types, and invalid `auto_destroy` method shapes",
-      'bun test tests/TypeCheckerFunctionAttributeDiagnostics.test.ts',
+      "bun test tests/TypeCheckerFunctionAttributeDiagnostics.test.ts",
       'bun test tests/CLIJsonParseability.test.ts -t "function-attribute diagnostics"',
     ]);
   });
@@ -1926,7 +1920,9 @@ describe("Markdown documentation", () => {
       ...CHECK_JSON_ERROR_CODES,
       ...LINT_JSON_ERROR_CODES,
     ]);
-    expect(docs).toContain("Check and lint input validation `errorCode` values");
+    expect(docs).toContain(
+      "Check and lint input validation `errorCode` values",
+    );
     expect(docs).toContain("per-file JSON failure entries");
   });
 
@@ -1968,10 +1964,7 @@ describe("Markdown documentation", () => {
       "docs/23-imports-exports.md",
       "utf8",
     ).replace(/\s+/g, " ");
-    const changelog = readFileSync("CHANGELOG.md", "utf8").replace(
-      /\s+/g,
-      " ",
-    );
+    const changelog = readFileSync("CHANGELOG.md", "utf8").replace(/\s+/g, " ");
 
     expectDocsContainSnippets(importDocs, [
       "Repeated imports of the same exported declaration are idempotent",
@@ -2349,9 +2342,7 @@ describe("Markdown documentation", () => {
       expect(text).toContain("bun run test:sanitizers");
     }
 
-    expect(correctnessDocs).toContain(
-      `the ${defaultMs}ms default is used`,
-    );
+    expect(correctnessDocs).toContain(`the ${defaultMs}ms default is used`);
     expect(compilerOptionsDocs).toContain(
       `SANITIZER_RUNTIME_TEST_TIMEOUT_MS\` invalid values fall back to ${defaultMs} milliseconds`,
     );

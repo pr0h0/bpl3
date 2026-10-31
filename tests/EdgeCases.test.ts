@@ -217,7 +217,9 @@ describe("Edge Cases and Error Handling", () => {
           local arr: int[0];
         }
       `;
-      expect(() => compile(source)).toThrowError("Array size must be greater than zero");
+      expect(() => compile(source)).toThrowError(
+        "Array size must be greater than zero",
+      );
     });
 
     it("should handle very large arrays", () => {

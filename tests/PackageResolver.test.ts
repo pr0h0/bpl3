@@ -1,11 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  spyOn,
-  test,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -40,16 +33,14 @@ describe("PackageResolver", () => {
 
     const reads = new Map<string, number>();
     const originalReaddirSync = fs.readdirSync;
-    const readdirSpy = spyOn(fs, "readdirSync").mockImplementation(
-      ((
-        directoryPath: fs.PathLike,
-        options?: Parameters<typeof fs.readdirSync>[1],
-      ) => {
-        const resolvedPath = path.resolve(String(directoryPath));
-        reads.set(resolvedPath, (reads.get(resolvedPath) ?? 0) + 1);
-        return originalReaddirSync(directoryPath, options as never) as never;
-      }) as unknown as typeof fs.readdirSync,
-    );
+    const readdirSpy = spyOn(fs, "readdirSync").mockImplementation(((
+      directoryPath: fs.PathLike,
+      options?: Parameters<typeof fs.readdirSync>[1],
+    ) => {
+      const resolvedPath = path.resolve(String(directoryPath));
+      reads.set(resolvedPath, (reads.get(resolvedPath) ?? 0) + 1);
+      return originalReaddirSync(directoryPath, options as never) as never;
+    }) as unknown as typeof fs.readdirSync);
 
     try {
       expect(
@@ -81,7 +72,10 @@ describe("PackageResolver", () => {
         path.join(packageDir, "bpl.json"),
         JSON.stringify({ name: "math", version, main: "index.bpl" }, null, 2),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), `export v${version};`);
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        `export v${version};`,
+      );
     }
 
     const details = resolvePackageImport("math", appDir, {
@@ -434,9 +428,7 @@ describe("PackageResolver", () => {
     fs.mkdirSync(modulesDir, { recursive: true });
 
     const invalidImport = resolvePackageImport("math/../secret", appDir);
-    expect(invalidImport.trace.failureCode).toBe(
-      "BPL_PACKAGE_IMPORT_INVALID",
-    );
+    expect(invalidImport.trace.failureCode).toBe("BPL_PACKAGE_IMPORT_INVALID");
     expect(getPackageResolutionFailureCode(invalidImport.trace)).toBe(
       invalidImport.trace.failureCode,
     );
@@ -476,9 +468,7 @@ describe("PackageResolver", () => {
       }),
     );
     const unsafeMain = resolvePackageImport("unsafe-main", appDir);
-    expect(unsafeMain.trace.failureCode).toBe(
-      "BPL_PACKAGE_ENTRYPOINT_UNSAFE",
-    );
+    expect(unsafeMain.trace.failureCode).toBe("BPL_PACKAGE_ENTRYPOINT_UNSAFE");
     expect(getPackageResolutionFailureCode(unsafeMain.trace)).toBe(
       unsafeMain.trace.failureCode,
     );
@@ -493,7 +483,10 @@ describe("PackageResolver", () => {
     fs.writeFileSync(path.join(mathDir, "index.bpl"), "export root;");
     fs.writeFileSync(path.join(featureDir, "Add.bpl"), "export add;");
 
-    const missingSubpath = resolvePackageImport("math/features/missing", appDir);
+    const missingSubpath = resolvePackageImport(
+      "math/features/missing",
+      appDir,
+    );
     expect(missingSubpath.trace.failureCode).toBe(
       "BPL_PACKAGE_SUBPATH_NOT_FOUND",
     );
@@ -530,9 +523,7 @@ describe("PackageResolver", () => {
       }),
     );
     const badManifest = resolvePackageImport("bad-manifest", appDir);
-    expect(badManifest.trace.failureCode).toBe(
-      "BPL_PACKAGE_MANIFEST_INVALID",
-    );
+    expect(badManifest.trace.failureCode).toBe("BPL_PACKAGE_MANIFEST_INVALID");
     expect(getPackageResolutionFailureCode(badManifest.trace)).toBe(
       badManifest.trace.failureCode,
     );
@@ -626,11 +617,7 @@ describe("PackageResolver", () => {
     );
 
     const explicitEntryPoint = path.join(packageDir, "missing.bpl");
-    const explicitBplSubpath = path.join(
-      packageDir,
-      "features",
-      "missing.bpl",
-    );
+    const explicitBplSubpath = path.join(packageDir, "features", "missing.bpl");
     const explicitXSubpath = path.join(packageDir, "features", "missing.x");
 
     const cases = [
@@ -830,7 +817,9 @@ describe("PackageResolver", () => {
     expect(details.result).toBeNull();
     expect(details.trace.failureReason).toBe("manifest-invalid");
     expect(details.trace.failureMessage).toContain("symbolic link");
-    expect(details.trace.failureMessage).toContain(path.join(modulesDir, "math"));
+    expect(details.trace.failureMessage).toContain(
+      path.join(modulesDir, "math"),
+    );
   });
 
   test("does not fall back to workspace or global packages after symlinked local package roots", () => {
@@ -865,7 +854,9 @@ describe("PackageResolver", () => {
     expect(details.result).toBeNull();
     expect(details.trace.failureReason).toBe("manifest-invalid");
     expect(details.trace.failureMessage).toContain("symbolic link");
-    expect(details.trace.failureMessage).toContain(path.join(modulesDir, "math"));
+    expect(details.trace.failureMessage).toContain(
+      path.join(modulesDir, "math"),
+    );
   });
 
   test("does not fall back to workspace or global packages after non-directory local package roots", () => {
@@ -930,7 +921,9 @@ describe("PackageResolver", () => {
     expect(details.result).toBeNull();
     expect(details.trace.failureReason).toBe("manifest-invalid");
     expect(details.trace.failureMessage).toContain("missing bpl.json");
-    expect(details.trace.failureMessage).toContain(path.join(packageRoot, "bpl.json"));
+    expect(details.trace.failureMessage).toContain(
+      path.join(packageRoot, "bpl.json"),
+    );
   });
 
   test("does not fall back to workspace or global packages after non-directory local package search directories", () => {
@@ -970,7 +963,9 @@ describe("PackageResolver", () => {
     );
     expect(details.trace.failureMessage).toContain(modulesPath);
     expect(details.trace.searchedPaths).not.toContain(workspacePackageDir);
-    expect(details.trace.searchedPaths).not.toContain(globalVersionedPackageDir);
+    expect(details.trace.searchedPaths).not.toContain(
+      globalVersionedPackageDir,
+    );
   });
 
   test("does not fall back to global packages after non-directory workspace package search directories", () => {
@@ -1004,7 +999,9 @@ describe("PackageResolver", () => {
       "package search directory is not a directory",
     );
     expect(details.trace.failureMessage).toContain(workspaceSearchPath);
-    expect(details.trace.searchedPaths).not.toContain(globalVersionedPackageDir);
+    expect(details.trace.searchedPaths).not.toContain(
+      globalVersionedPackageDir,
+    );
   });
 
   test("does not follow symlinked local package search directories", () => {
@@ -1046,7 +1043,9 @@ describe("PackageResolver", () => {
       path.join(appDir, "bpl_modules"),
     );
     expect(details.trace.searchedPaths).not.toContain(workspacePackageDir);
-    expect(details.trace.searchedPaths).not.toContain(globalVersionedPackageDir);
+    expect(details.trace.searchedPaths).not.toContain(
+      globalVersionedPackageDir,
+    );
   });
 
   test("does not follow symlinked workspace package search directories", () => {
@@ -1081,8 +1080,12 @@ describe("PackageResolver", () => {
     expect(details.trace.failureMessage).toContain(
       "package search directory is a symbolic link",
     );
-    expect(details.trace.failureMessage).toContain(path.join(appDir, "packages"));
-    expect(details.trace.searchedPaths).not.toContain(globalVersionedPackageDir);
+    expect(details.trace.failureMessage).toContain(
+      path.join(appDir, "packages"),
+    );
+    expect(details.trace.searchedPaths).not.toContain(
+      globalVersionedPackageDir,
+    );
   });
 
   test("does not follow symlinked global package search directories", () => {
@@ -1277,9 +1280,7 @@ describe("PackageResolver", () => {
       expect(details.trace.failureReason).toBe("manifest-invalid");
       expect(details.trace.failureMessage).toContain(expectedMessage);
       expect(details.trace.failureMessage).toContain(manifestPath);
-      expect(getPackageResolutionFailureCode(details.trace)).toBe(
-        expectedCode,
-      );
+      expect(getPackageResolutionFailureCode(details.trace)).toBe(expectedCode);
     }
   });
 
@@ -1379,7 +1380,10 @@ describe("PackageResolver", () => {
       JSON.stringify({ name: "math", version: "1.0.0", main: "index.bpl" }),
     );
     fs.writeFileSync(path.join(packageDir, "index.bpl"), "export root;");
-    fs.symlinkSync(path.join(tempDir, "missing-feature-index.bpl"), linkedIndex);
+    fs.symlinkSync(
+      path.join(tempDir, "missing-feature-index.bpl"),
+      linkedIndex,
+    );
     fs.writeFileSync(path.join(featureDir, "index.x"), "export legacy;");
 
     const details = resolvePackageImport("math/features", appDir);
@@ -1397,7 +1401,11 @@ describe("PackageResolver", () => {
     fs.mkdirSync(packageDir, { recursive: true });
     fs.writeFileSync(
       path.join(packageDir, "bpl.json"),
-      JSON.stringify({ name: "math", version: "1.0.0", main: "../outside.bpl" }),
+      JSON.stringify({
+        name: "math",
+        version: "1.0.0",
+        main: "../outside.bpl",
+      }),
     );
     fs.writeFileSync(outsideEntrypoint, "export add;");
 
@@ -1552,9 +1560,7 @@ describe("PackageResolver", () => {
     const increment = resolvePackageImport("math/features/increment", appDir);
 
     expect(legacy.result?.filePath).toBe(path.join(packageDir, "legacy.x"));
-    expect(increment.result?.filePath).toBe(
-      path.join(featureDir, "index.x"),
-    );
+    expect(increment.result?.filePath).toBe(path.join(featureDir, "index.x"));
   });
 
   test("keeps package subpath imports permissive when manifest exports is absent", () => {
@@ -1596,7 +1602,10 @@ describe("PackageResolver", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "src", "index.bpl"), "export add;");
+      fs.writeFileSync(
+        path.join(packageDir, "src", "index.bpl"),
+        "export add;",
+      );
 
       const details = resolvePackageImport(path.basename(packageDir), appDir);
 
@@ -1677,9 +1686,10 @@ describe("PackageResolver", () => {
       expect(details.trace.failureMessage, testCase.name).toContain(
         testCase.field,
       );
-      expect(getPackageResolutionFailureCode(details.trace), testCase.name).toBe(
-        "BPL_PACKAGE_MANIFEST_INVALID",
-      );
+      expect(
+        getPackageResolutionFailureCode(details.trace),
+        testCase.name,
+      ).toBe("BPL_PACKAGE_MANIFEST_INVALID");
     }
   });
 
@@ -1835,9 +1845,10 @@ describe("PackageResolver", () => {
       expect(details.trace.failureMessage, testCase.name).toContain(
         testCase.field,
       );
-      expect(getPackageResolutionFailureCode(details.trace), testCase.name).toBe(
-        "BPL_PACKAGE_MANIFEST_INVALID",
-      );
+      expect(
+        getPackageResolutionFailureCode(details.trace),
+        testCase.name,
+      ).toBe("BPL_PACKAGE_MANIFEST_INVALID");
     }
   });
 
@@ -1966,9 +1977,10 @@ describe("PackageResolver", () => {
       expect(details.trace.failureMessage, testCase.name).toContain(
         testCase.field,
       );
-      expect(getPackageResolutionFailureCode(details.trace), testCase.name).toBe(
-        "BPL_PACKAGE_MANIFEST_INVALID",
-      );
+      expect(
+        getPackageResolutionFailureCode(details.trace),
+        testCase.name,
+      ).toBe("BPL_PACKAGE_MANIFEST_INVALID");
     }
   });
 
@@ -2061,9 +2073,10 @@ describe("PackageResolver", () => {
       expect(details.trace.failureMessage, testCase.name).toContain(
         "manifest exports must be an array of package-relative paths without empty, '.' or '..' segments when present",
       );
-      expect(getPackageResolutionFailureCode(details.trace), testCase.name).toBe(
-        "BPL_PACKAGE_MANIFEST_INVALID",
-      );
+      expect(
+        getPackageResolutionFailureCode(details.trace),
+        testCase.name,
+      ).toBe("BPL_PACKAGE_MANIFEST_INVALID");
     }
   });
 
@@ -2108,7 +2121,10 @@ describe("PackageResolver", () => {
           path.join(packageDir, "bpl.json"),
           JSON.stringify({ name: "math", version, main: "index.bpl" }, null, 2),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "export fallback;");
+        fs.writeFileSync(
+          path.join(packageDir, "index.bpl"),
+          "export fallback;",
+        );
       }
 
       const details = resolvePackageImport("math", sourceDir, {
@@ -2231,10 +2247,22 @@ describe("PackageResolver", () => {
     for (const [manifest, message] of [
       [{ name: 123, version: "1.0.0", main: "index.bpl" }, "manifest name"],
       [{ name: "math", version: 1, main: "index.bpl" }, "manifest version"],
-      [{ name: "math", version: "latest", main: "index.bpl" }, "manifest version"],
-      [{ name: "math", version: "01.0.0", main: "index.bpl" }, "manifest version"],
-      [{ name: "math", version: "1.02.0", main: "index.bpl" }, "manifest version"],
-      [{ name: "math", version: "1.0.03", main: "index.bpl" }, "manifest version"],
+      [
+        { name: "math", version: "latest", main: "index.bpl" },
+        "manifest version",
+      ],
+      [
+        { name: "math", version: "01.0.0", main: "index.bpl" },
+        "manifest version",
+      ],
+      [
+        { name: "math", version: "1.02.0", main: "index.bpl" },
+        "manifest version",
+      ],
+      [
+        { name: "math", version: "1.0.03", main: "index.bpl" },
+        "manifest version",
+      ],
     ] as const) {
       fs.writeFileSync(
         path.join(packageDir, "bpl.json"),
@@ -2292,7 +2320,9 @@ describe("PackageResolver", () => {
     expect(details.trace.failureReason).toBe("manifest-invalid");
     expect(details.trace.failureMessage).toContain("manifest name 'not-math'");
     expect(details.trace.searchedPaths).not.toContain(workspacePackageDir);
-    expect(details.trace.searchedPaths).not.toContain(globalVersionedPackageDir);
+    expect(details.trace.searchedPaths).not.toContain(
+      globalVersionedPackageDir,
+    );
   });
 
   test("does not resolve versioned global directories whose manifest version does not match the directory", () => {

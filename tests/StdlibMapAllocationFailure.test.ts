@@ -9,7 +9,9 @@ test("Map reports node allocation failure and preserves existing entries", () =>
   try {
     const source = readFileSync(resolve("lib/map.bpl"), "utf8")
       .replace(/\bmalloc\b/g, "mapTestAllocate")
-      .replace("extern mapTestAllocate(size: long) ret *void;", `
+      .replace(
+        "extern mapTestAllocate(size: long) ret *void;",
+        `
         extern malloc(size: long) ret *void;
         global mapTestShouldFail: bool = false;
         export mapTestFail;
@@ -17,13 +19,15 @@ test("Map reports node allocation failure and preserves existing entries", () =>
         frame mapTestAllocate(size: long) ret *void {
           if (mapTestShouldFail) { return nullptr; }
           return malloc(size);
-        }`);
+        }`,
+      );
     const module = join(dir, "map.bpl");
     writeFileSync(module, source);
-    expectCorrectnessSuite([{
-      name: "map-node-allocation-failure",
-      validateLlvm: true,
-      source: `
+    expectCorrectnessSuite([
+      {
+        name: "map-node-allocation-failure",
+        validateLlvm: true,
+        source: `
         import [Map], mapTestFail from "${module}";
         extern strcmp(a: string, b: string) ret int;
         frame main() ret int {
@@ -46,8 +50,9 @@ test("Map reports node allocation failure and preserves existing entries", () =>
           values.destroy();
           return 0;
         }`,
-      expectedStdout: "",
-    }]);
+        expectedStdout: "",
+      },
+    ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

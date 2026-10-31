@@ -59,12 +59,14 @@ describe("Playground hosted wasm response cache", () => {
       linker: "/usr/bin/wasm-ld",
     });
 
-    expect(cache.remember(key, { success: false, error: "compile failed" })).toBe(
-      false,
-    );
+    expect(
+      cache.remember(key, { success: false, error: "compile failed" }),
+    ).toBe(false);
     expect(cache.get(key)).toBeUndefined();
 
-    expect(cache.remember(key, { success: true, wasmBase64: "AA==" })).toBe(true);
+    expect(cache.remember(key, { success: true, wasmBase64: "AA==" })).toBe(
+      true,
+    );
     expect(cache.get(key)?.success).toBe(true);
     now = 151;
     expect(cache.get(key)).toBeUndefined();
