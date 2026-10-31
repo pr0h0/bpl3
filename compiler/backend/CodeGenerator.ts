@@ -136,6 +136,19 @@ type LlvmReferenceTargets = {
  * - → ExceptionGenerator → AsmGenerator → StatementGenerator → **CodeGenerator**
  */
 
+/** `@name` references in emitted IR. Shared, so callers reset lastIndex. */
+const GLOBAL_REFERENCE_PATTERN = /@([A-Za-z0-9_.]+)/g;
+
+/** Progress of the incremental scan for references to deferred methods. */
+function createDeferredReferenceScan() {
+  return {
+    outputIndex: 0,
+    declarationIndex: 0,
+    referenced: new Set<string>(),
+    checked: new WeakSet<object>(),
+  };
+}
+
 export class CodeGenerator extends StatementGenerator {
   private prunableImplicitCDeclarations: Set<string> = new Set();
   private generatedBodyUsesArgcRuntimeHelper = false;
@@ -233,6 +246,7 @@ export class CodeGenerator extends StatementGenerator {
     this.layoutOnlyTypes = new Set();
     this.emittedMethodNames = undefined;
     this.deferredMethods = [];
+    this.deferredReferenceScan = createDeferredReferenceScan();
     const reachableTopLevelFunctions =
       this.collectReachableTopLevelFunctions(program);
 
@@ -665,22 +679,44 @@ export class CodeGenerator extends StatementGenerator {
    */
   private emitReferencedDeferredMethods(): boolean {
     if (this.deferredMethods.length === 0) return false;
-    const referenced = new Set<string>();
-    for (const line of [...this.output, ...this.declarationsOutput]) {
+    // Lines are only appended while generation runs (pruning comes after),
+    // so each pass scans just the lines added since the previous one.
+    const scan = this.deferredReferenceScan;
+    const added: string[] = [];
+    const collect = (line: string): void => {
       // A declaration is not a use; vtables and other globals are. A global's
       // own name on its definition line is not a use of itself either.
-      if (line.startsWith("declare ")) continue;
+      if (line.startsWith("declare ")) return;
       const defined = this.getDefinedGlobalName(line);
-      for (const match of line.matchAll(/@([A-Za-z0-9_.]+)/g)) {
-        if (match[1] === defined && match.index === 0) continue;
-        referenced.add(match[1]!);
+      GLOBAL_REFERENCE_PATTERN.lastIndex = 0;
+      let match: RegExpExecArray | null;
+      while ((match = GLOBAL_REFERENCE_PATTERN.exec(line)) !== null) {
+        const symbol = match[1]!;
+        if (symbol === defined && match.index === 0) continue;
+        if (!scan.referenced.has(symbol)) {
+          scan.referenced.add(symbol);
+          added.push(symbol);
+        }
       }
+    };
+    for (; scan.outputIndex < this.output.length; scan.outputIndex++) {
+      collect(this.output[scan.outputIndex]!);
+    }
+    for (
+      ;
+      scan.declarationIndex < this.declarationsOutput.length;
+      scan.declarationIndex++
+    ) {
+      collect(this.declarationsOutput[scan.declarationIndex]!);
     }
     const generated: string[] = [];
     const pending: { prefix: string; generate: () => void }[] = [];
     for (const entry of this.deferredMethods) {
+      // An entry seen by an earlier pass already missed the older symbols.
+      const candidates = scan.checked.has(entry) ? added : scan.referenced;
+      scan.checked.add(entry);
       let hit = false;
-      for (const symbol of referenced) {
+      for (const symbol of candidates) {
         if (symbol.startsWith(entry.prefix)) {
           hit = true;
           break;
@@ -695,13 +731,17 @@ export class CodeGenerator extends StatementGenerator {
     }
     this.deferredMethods = pending;
     if (generated.length === 0) return false;
-    // Calls to a not-yet-generated method may have declared it.
+    // Calls to a not-yet-generated method may have declared it. Every line
+    // was scanned above, so the cursor moves to the filtered end.
     this.declarationsOutput = this.declarationsOutput.filter((line) => {
       const name = this.getDeclaredFunctionName(line);
       return !name || !generated.some((prefix) => name.startsWith(prefix));
     });
+    scan.declarationIndex = this.declarationsOutput.length;
     return true;
   }
+
+  private deferredReferenceScan = createDeferredReferenceScan();
 
   private emitPrunableImplicitCDeclaration(line: string): void {
     this.prunableImplicitCDeclarations.add(line);

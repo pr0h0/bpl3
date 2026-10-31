@@ -34,8 +34,7 @@ export const MODULE_NOT_FOUND_CODE = "BPL_MODULE_NOT_FOUND";
 export const MODULE_FILE_NOT_FOUND_CODE = "BPL_MODULE_FILE_NOT_FOUND";
 export const MODULE_PATH_NOT_FILE_CODE = "BPL_MODULE_PATH_NOT_FILE";
 export const MODULE_PATH_SYMLINK_CODE = "BPL_MODULE_PATH_SYMLINK";
-export const MODULE_PATH_CASE_MISMATCH_CODE =
-  "BPL_MODULE_PATH_CASE_MISMATCH";
+export const MODULE_PATH_CASE_MISMATCH_CODE = "BPL_MODULE_PATH_CASE_MISMATCH";
 export const IMPORT_STD_PATH_UNSAFE_CODE = "BPL_IMPORT_STD_PATH_UNSAFE";
 export const IMPORT_STD_PATH_UNSAFE_HINT =
   "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.";
@@ -168,10 +167,7 @@ export class ModuleResolver {
       directoryEntries: this.caseMismatchDirectoryEntries,
     });
     if (caseMismatchPath) {
-      throw this.createModuleCaseMismatchError(
-        candidatePath,
-        caseMismatchPath,
-      );
+      throw this.createModuleCaseMismatchError(candidatePath, caseMismatchPath);
     }
 
     const stat = this.tryLstat(candidatePath);
@@ -761,100 +757,117 @@ export class ModuleResolver {
   }
 }
 
+/** The primitive scans read only each node, so skip building ancestor paths. */
+const SCAN_WITHOUT_PATH = { trackPath: false };
+
 function moduleMentionsPrimitiveWrapper(program: AST.Program): boolean {
-  const primitiveValueNames = collectPrimitiveValueNames(program);
-  const primitiveReturningFunctions = collectPrimitiveReturningFunctions(program);
+  const primitiveReturningFunctions =
+    collectPrimitiveReturningFunctions(program);
+  const primitiveValueNames = collectPrimitiveValueNames(
+    program,
+    primitiveReturningFunctions,
+  );
 
   let found = false;
-  walkAST(program, (node) => {
-    if (
-      node.kind === "BasicType" &&
-      PRIMITIVE_WRAPPER_TYPE_NAMES.has((node as AST.BasicTypeNode).name)
-    ) {
-      found = true;
-      return false;
-    }
-
-    if (
-      node.kind === "Identifier" &&
-      PRIMITIVE_WRAPPER_TYPE_NAMES.has((node as AST.IdentifierExpr).name)
-    ) {
-      found = true;
-      return false;
-    }
-
-    if (node.kind === "Member") {
-      const member = node as AST.MemberExpr;
+  walkAST(
+    program,
+    (node) => {
       if (
-        PRIMITIVE_WRAPPER_METHOD_NAMES.has(member.property) &&
-        expressionMayBePrimitiveValue(
-          member.object,
-          primitiveValueNames,
-          primitiveReturningFunctions,
-        )
+        node.kind === "BasicType" &&
+        PRIMITIVE_WRAPPER_TYPE_NAMES.has((node as AST.BasicTypeNode).name)
       ) {
         found = true;
         return false;
       }
-    }
 
-    if (node.kind === "InterpolatedString") {
-      const interpolated = node as AST.InterpolatedStringExpr;
       if (
-        interpolated.parts.some((part) =>
+        node.kind === "Identifier" &&
+        PRIMITIVE_WRAPPER_TYPE_NAMES.has((node as AST.IdentifierExpr).name)
+      ) {
+        found = true;
+        return false;
+      }
+
+      if (node.kind === "Member") {
+        const member = node as AST.MemberExpr;
+        if (
+          PRIMITIVE_WRAPPER_METHOD_NAMES.has(member.property) &&
           expressionMayBePrimitiveValue(
-            part,
+            member.object,
             primitiveValueNames,
             primitiveReturningFunctions,
-          ),
-        )
-      ) {
-        found = true;
-        return false;
+          )
+        ) {
+          found = true;
+          return false;
+        }
       }
-    }
-  });
+
+      if (node.kind === "InterpolatedString") {
+        const interpolated = node as AST.InterpolatedStringExpr;
+        if (
+          interpolated.parts.some((part) =>
+            expressionMayBePrimitiveValue(
+              part,
+              primitiveValueNames,
+              primitiveReturningFunctions,
+            ),
+          )
+        ) {
+          found = true;
+          return false;
+        }
+      }
+    },
+    SCAN_WITHOUT_PATH,
+  );
 
   return found;
 }
 
-function collectPrimitiveValueNames(program: AST.Program): Set<string> {
+function collectPrimitiveValueNames(
+  program: AST.Program,
+  primitiveReturningFunctions: Set<string>,
+): Set<string> {
   const names = new Set<string>();
-  const primitiveReturningFunctions = collectPrimitiveReturningFunctions(program);
 
-  walkAST(program, (node) => {
-    if (node.kind === "FunctionDecl") {
-      const decl = node as AST.FunctionDecl;
-      for (const param of decl.params) {
-        if (isPrimitiveValueType(param.type)) {
-          names.add(param.name);
+  walkAST(
+    program,
+    (node) => {
+      if (node.kind === "FunctionDecl") {
+        const decl = node as AST.FunctionDecl;
+        for (const param of decl.params) {
+          if (isPrimitiveValueType(param.type)) {
+            names.add(param.name);
+          }
         }
+        return;
       }
-      return;
-    }
 
-    if (node.kind !== "VariableDecl") {
-      return;
-    }
+      if (node.kind !== "VariableDecl") {
+        return;
+      }
 
-    const decl = node as AST.VariableDecl;
-    if (typeof decl.name !== "string") {
-      return;
-    }
+      const decl = node as AST.VariableDecl;
+      if (typeof decl.name !== "string") {
+        return;
+      }
 
-    if (
-      (decl.typeAnnotation && isPrimitiveValueType(decl.typeAnnotation)) ||
-      (!decl.typeAnnotation &&
-        decl.initializer &&
-        expressionMayBePrimitiveValue(
-          decl.initializer,
-          names,
-          primitiveReturningFunctions,
-        ))
-    ) {
-      names.add(decl.name);
-    }
-  });
+      if (
+        (decl.typeAnnotation && isPrimitiveValueType(decl.typeAnnotation)) ||
+        (!decl.typeAnnotation &&
+          decl.initializer &&
+          expressionMayBePrimitiveValue(
+            decl.initializer,
+            names,
+            primitiveReturningFunctions,
+          ))
+      ) {
+        names.add(decl.name);
+      }
+    },
+    SCAN_WITHOUT_PATH,
+  );
 
   return names;
 }
@@ -862,16 +875,20 @@ function collectPrimitiveValueNames(program: AST.Program): Set<string> {
 function collectPrimitiveReturningFunctions(program: AST.Program): Set<string> {
   const names = new Set<string>();
 
-  walkAST(program, (node) => {
-    if (node.kind !== "FunctionDecl") {
-      return;
-    }
+  walkAST(
+    program,
+    (node) => {
+      if (node.kind !== "FunctionDecl") {
+        return;
+      }
 
-    const decl = node as AST.FunctionDecl;
-    if (isPrimitiveValueType(decl.returnType)) {
-      names.add(decl.name);
-    }
-  });
+      const decl = node as AST.FunctionDecl;
+      if (isPrimitiveValueType(decl.returnType)) {
+        names.add(decl.name);
+      }
+    },
+    SCAN_WITHOUT_PATH,
+  );
 
   return names;
 }

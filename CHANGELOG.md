@@ -12,6 +12,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   type and excludes `.bpl-cache/` and `lib/*.a`, so local build outputs no
   longer leak into the tarball (examples: 18.8 MB to 1.3 MB). The release smoke
   test fails when a packed `examples/` file is not tracked by git.
+- Faster compilation: the code generator's search for references to deferred
+  methods scans only IR lines added since its previous pass, with one compiled
+  regular expression, instead of rescanning all output; `walkAST` no longer
+  copies the ancestor path for visitors that do not take one; and the
+  primitive-wrapper scan collects primitive-returning functions once per
+  module. Compiling to IR is 23–40% faster on the large examples
+  (mini_database_engine 903 to 545 ms). Output is byte-identical on all 480
+  examples that produce IR. Clang's share of native builds is tracked as BUG-474.
 - The compiled `bpl` executable is standalone. The lexer's token grammar is
   bundled into it, so the CLI no longer reads `grammar/` at runtime, and the
   whole standard library is bundled through the generated

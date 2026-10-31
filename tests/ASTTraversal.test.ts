@@ -110,6 +110,58 @@ describe("AST traversal", () => {
     expect(visitedKinds).toContain("Literal");
   });
 
+  it("passes ancestors unless path tracking is turned off", () => {
+    const literal = {
+      kind: "Literal",
+      value: 1,
+      raw: "1",
+      type: "number",
+      location,
+    };
+    const unary = {
+      kind: "Unary",
+      operator: { type: "Minus", lexeme: "-", location },
+      operand: literal,
+      location,
+    };
+    const ancestorsByKind = new Map<string, string[]>();
+
+    walkAST(unary as never, (node, path) => {
+      ancestorsByKind.set(
+        node.kind,
+        path.map((ancestor) => ancestor.kind),
+      );
+    });
+    expect(ancestorsByKind.get("Unary")).toEqual([]);
+    expect(ancestorsByKind.get("Literal")).toEqual(["Unary"]);
+
+    // Default and rest parameters do not count toward a function's length;
+    // such visitors still receive the ancestors.
+    const withDefault: string[][] = [];
+    walkAST(unary as never, (_node, path = []) => {
+      withDefault.push(path.map((ancestor) => ancestor.kind));
+    });
+    expect(withDefault).toEqual([[], ["Unary"]]);
+    const withRest: number[] = [];
+    walkAST(unary as never, (...args) => {
+      withRest.push(args[1].length);
+    });
+    expect(withRest).toEqual([0, 1]);
+
+    const visited: { kind: string; ancestors: number }[] = [];
+    walkAST(
+      unary as never,
+      (node, path) => {
+        visited.push({ kind: node.kind, ancestors: path.length });
+      },
+      { trackPath: false },
+    );
+    expect(visited).toEqual([
+      { kind: "Unary", ancestors: 0 },
+      { kind: "Literal", ancestors: 0 },
+    ]);
+  });
+
   it("does not recurse through semantic overload metadata wrappers", () => {
     const binaryExpression = {
       kind: "Binary",
