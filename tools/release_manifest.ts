@@ -77,7 +77,11 @@ export interface PackageHelperDependency {
 
 export const PACKAGE_HELPER_DEPENDENCIES = [
   {
-    importedBy: ["tools/release_manifest.ts", "tools/test_ci.ts"],
+    importedBy: [
+      "tools/release_manifest.ts",
+      "tools/test_baseline.ts",
+      "tools/test_ci.ts",
+    ],
     path: "compiler/common/Env.ts",
     reason:
       "Packed helper scripts share environment parsing without shipping broad compiler sources.",

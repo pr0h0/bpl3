@@ -941,12 +941,16 @@ sets priorities. A change that alters user-visible behavior updates
 for a read-only style check. Dependencies and generated output are excluded by
 `.prettierignore`. Existing formatting drift may need a separate cleanup before
 using the repository-wide check as a required CI gate. Use `bpl format` for BPL
-source files. `bun run format-examples` formats only the `examples/` tree,
+source files. `bun run format:examples` formats only the `examples/` tree,
 including `.bpl` and `.x` sources, and respects `.bplignore` and discovery exclusions.
 
 `bun run test:baseline` saves combined test output to `test-baseline.txt` and
-returns a nonzero status when tests fail. It requires Bash and accepts test
-arguments, for example `bun run test:baseline tests/ParserRecovery.test.ts`.
+returns a nonzero status when tests fail. Without arguments it runs the test
+files in batches of `BPL_BASELINE_BATCH_SIZE` (default 40), each in its own
+`bun test` process, so a full run fits on smaller machines. Arguments are passed
+to a single `bun test` run, for example
+`bun run test:baseline tests/ParserRecovery.test.ts`. `bun run report:file-sizes`
+lists the largest tracked compiler, CLI and extension sources.
 
 ### Running Tests
 

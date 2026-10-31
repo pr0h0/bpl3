@@ -261,8 +261,8 @@ asm("llvm") {
 - **Run Tests**: `bun test` -> Runs all tests.
 - **Format Code**: `bun run format` -> Uses pinned Prettier for supported repository files; dependencies/generated output are excluded by `.prettierignore`.
 - **Check Formatting**: `bun run format:check` -> Read-only style check. Existing repository-wide formatting debt is tracked in `docs/project/BUGS.md`.
-- **Baseline Tests**: `bun run test:baseline [test arguments]` -> Saves combined output while preserving failures; requires Bash.
-- **Format Examples**: `bun run format-examples` -> Recursively formats `.bpl`/`.x` files in `examples/`, respecting `.bplignore` and discovery exclusions.
+- **Baseline Tests**: `bun run test:baseline [test arguments]` -> Saves combined output to `test-baseline.txt` while preserving failures; without arguments it runs the test files in batches of `BPL_BASELINE_BATCH_SIZE` (default 40), one process each.
+- **Format Examples**: `bun run format:examples` -> Recursively formats `.bpl`/`.x` files in `examples/`, respecting `.bplignore` and discovery exclusions.
 
 ### Development Cycle
 

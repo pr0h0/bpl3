@@ -240,6 +240,7 @@ describe("Release metadata", () => {
       ["fuzz:replay", "tools/fuzz_script_wrapper.ts"],
       ["fuzz:repro", "tools/fuzz_artifact_repro.ts"],
       ["release:cli-registry", "tools/cli_json_registry_shim.ts"],
+      ["test:baseline", "tools/test_baseline.ts"],
       ["test:ci", "tools/test_ci.ts"],
     ]);
 
@@ -284,6 +285,7 @@ describe("Release metadata", () => {
       ["release:cli-registry", "tools/cli_json_registry_shim.ts"],
       ["release:manifest", "tools/release_manifest.ts"],
       ["release:smoke", "tools/release_smoke.ts"],
+      ["test:baseline", "tools/test_baseline.ts"],
       ["test:ci", "tools/test_ci.ts"],
     ]);
 
@@ -295,6 +297,7 @@ describe("Release metadata", () => {
       "tools/generate_peggy_parser.ts",
       "tools/release_manifest.ts",
       "tools/release_smoke.ts",
+      "tools/test_baseline.ts",
       "tools/test_ci.ts",
     ]);
 
@@ -316,6 +319,7 @@ describe("Release metadata", () => {
       "tools/generate_peggy_parser.ts",
       "tools/release_manifest.ts",
       "tools/release_smoke.ts",
+      "tools/test_baseline.ts",
       "tools/test_ci.ts",
     ]);
 
@@ -352,7 +356,11 @@ describe("Release metadata", () => {
 
     expect(PACKAGE_HELPER_DEPENDENCIES).toEqual([
       {
-        importedBy: ["tools/release_manifest.ts", "tools/test_ci.ts"],
+        importedBy: [
+          "tools/release_manifest.ts",
+          "tools/test_baseline.ts",
+          "tools/test_ci.ts",
+        ],
         path: "compiler/common/Env.ts",
         reason:
           "Packed helper scripts share environment parsing without shipping broad compiler sources.",
@@ -1322,6 +1330,7 @@ describe("Release metadata", () => {
         ["fuzz:repro", "tools/fuzz_artifact_repro.ts"],
         ["release:manifest", "tools/release_manifest.ts"],
         ["release:smoke", "tools/release_smoke.ts"],
+        ["test:baseline", "tools/test_baseline.ts"],
         ["test:ci", "tools/test_ci.ts"],
       ]);
     } finally {
@@ -1730,6 +1739,7 @@ function writeReleaseFixture(tempRoot: string): void {
           "fuzz:promote": "bun tools/fuzz_script_wrapper.ts promote",
           "fuzz:replay": "bun tools/fuzz_script_wrapper.ts replay",
           "fuzz:repro": "bun tools/fuzz_artifact_repro.ts",
+          "test:baseline": "bun tools/test_baseline.ts",
           "test:ci": "bun tools/test_ci.ts",
         },
       },
@@ -1758,6 +1768,10 @@ function writeReleaseFixture(tempRoot: string): void {
       "release manifest helper",
       "",
     ].join("\n"),
+  );
+  writeFileSync(
+    join(tempRoot, "tools", "test_baseline.ts"),
+    ['import "../compiler/common/Env";', "test baseline helper", ""].join("\n"),
   );
   writeFileSync(
     join(tempRoot, "tools", "test_ci.ts"),
