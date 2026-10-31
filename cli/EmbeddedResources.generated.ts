@@ -53,20 +53,21 @@ import lib50 from "../lib/runtime_wasm.ll" with { type: "text" };
 import lib51 from "../lib/runtime_wasm_host.ll" with { type: "text" };
 import lib52 from "../lib/scope_stack.bpl" with { type: "text" };
 import lib53 from "../lib/set.bpl" with { type: "text" };
-import lib54 from "../lib/stack.bpl" with { type: "text" };
-import lib55 from "../lib/stats.bpl" with { type: "text" };
-import lib56 from "../lib/std.bpl" with { type: "text" };
-import lib57 from "../lib/string.bpl" with { type: "text" };
-import lib58 from "../lib/string_builder.bpl" with { type: "text" };
-import lib59 from "../lib/string_utils.bpl" with { type: "text" };
-import lib60 from "../lib/sync.bpl" with { type: "text" };
-import lib61 from "../lib/thread.bpl" with { type: "text" };
-import lib62 from "../lib/time.bpl" with { type: "text" };
-import lib63 from "../lib/type.bpl" with { type: "text" };
-import lib64 from "../lib/utf8.bpl" with { type: "text" };
-import lib65 from "../lib/uuid.bpl" with { type: "text" };
-import lib66 from "../lib/vec2.bpl" with { type: "text" };
-import lib67 from "../lib/vec3.bpl" with { type: "text" };
+import lib54 from "../lib/sha256.bpl" with { type: "text" };
+import lib55 from "../lib/stack.bpl" with { type: "text" };
+import lib56 from "../lib/stats.bpl" with { type: "text" };
+import lib57 from "../lib/std.bpl" with { type: "text" };
+import lib58 from "../lib/string.bpl" with { type: "text" };
+import lib59 from "../lib/string_builder.bpl" with { type: "text" };
+import lib60 from "../lib/string_utils.bpl" with { type: "text" };
+import lib61 from "../lib/sync.bpl" with { type: "text" };
+import lib62 from "../lib/thread.bpl" with { type: "text" };
+import lib63 from "../lib/time.bpl" with { type: "text" };
+import lib64 from "../lib/type.bpl" with { type: "text" };
+import lib65 from "../lib/utf8.bpl" with { type: "text" };
+import lib66 from "../lib/uuid.bpl" with { type: "text" };
+import lib67 from "../lib/vec2.bpl" with { type: "text" };
+import lib68 from "../lib/vec3.bpl" with { type: "text" };
 
 /** Standard library files by path relative to `lib/`. */
 export const EMBEDDED_LIB_FILES: ReadonlyArray<
@@ -126,18 +127,19 @@ export const EMBEDDED_LIB_FILES: ReadonlyArray<
   ["runtime_wasm_host.ll", lib51],
   ["scope_stack.bpl", lib52],
   ["set.bpl", lib53],
-  ["stack.bpl", lib54],
-  ["stats.bpl", lib55],
-  ["std.bpl", lib56],
-  ["string.bpl", lib57],
-  ["string_builder.bpl", lib58],
-  ["string_utils.bpl", lib59],
-  ["sync.bpl", lib60],
-  ["thread.bpl", lib61],
-  ["time.bpl", lib62],
-  ["type.bpl", lib63],
-  ["utf8.bpl", lib64],
-  ["uuid.bpl", lib65],
-  ["vec2.bpl", lib66],
-  ["vec3.bpl", lib67],
+  ["sha256.bpl", lib54],
+  ["stack.bpl", lib55],
+  ["stats.bpl", lib56],
+  ["std.bpl", lib57],
+  ["string.bpl", lib58],
+  ["string_builder.bpl", lib59],
+  ["string_utils.bpl", lib60],
+  ["sync.bpl", lib61],
+  ["thread.bpl", lib62],
+  ["time.bpl", lib63],
+  ["type.bpl", lib64],
+  ["utf8.bpl", lib65],
+  ["uuid.bpl", lib66],
+  ["vec2.bpl", lib67],
+  ["vec3.bpl", lib68],
 ];

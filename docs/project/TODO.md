@@ -88,7 +88,7 @@ all related enhancements or platform support are complete.
 - [x] `Option<T>`/`Result<T,E>` and typed runtime error structs.
 - [x] Strings/builders, formatting, filesystem/path helpers, argument parsing,
       date/time/duration, JSON parsing/serialization, random/numeric helpers, and
-      stable FNV-1a/checksum hashing. Cryptographic hashes are a separate backlog item.
+      stable FNV-1a/checksum hashing, and SHA-256 (`lib/sha256.bpl`).
 - [x] Collections including arrays, maps, sets, linked lists, deques, queues,
       stacks, priority queues, and collection iteration specs.
 - [x] Base64 and Hex codecs in `lib/base64.bpl`/`lib/hex.bpl`, UTF-8 helpers,
@@ -154,7 +154,7 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
       beyond the existing module import/export mechanism.
 - [ ] [7] Remote package registry/publishing and richer dependency resolution.
 - [ ] [7] Configurable/structured logging, broader portable networking and OS
-      APIs, cryptographic hashes/entropy, regex, arbitrary-precision arithmetic,
+      APIs, cryptographic hashes beyond SHA-256, secure entropy, regex, arbitrary-precision arithmetic,
       and compression/archiving.
 - [ ] [8] Async/await and native threading/synchronization. `lib/thread.bpl` and
       `lib/sync.bpl` explicitly export no implementation; FFI interop is separate.

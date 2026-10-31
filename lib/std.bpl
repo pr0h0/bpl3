@@ -208,6 +208,9 @@ export [ByteWriter];
 import [Hash] from "std/hash.bpl";
 export [Hash];
 
+import [Sha256] from "std/sha256.bpl";
+export [Sha256];
+
 import [UUID] from "std/uuid.bpl";
 export [UUID];
 

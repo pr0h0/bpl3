@@ -99,6 +99,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- `std/sha256.bpl`: SHA-256 digests in pure BPL, with a streaming context
+  (`Sha256.new`, `update`, `finish`, `init`) and one-shot `digest`, `hexBytes`
+  and `hex` helpers. `examples/stdlib_sha256` checks the FIPS 180-4 vectors,
+  the 55/56/63/64/65-byte padding boundaries, streaming and one million `a`s.
+
 - The fuzzer generates random well-typed programs (structs with methods,
   inheritance and virtual dispatch, tuples, pointers, enums with `match`,
   generics, lambdas, recursion, loops with `defer`, `switch`, mixed-width
