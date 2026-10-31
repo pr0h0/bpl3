@@ -1025,5 +1025,4 @@ export class SymbolIndex {
       return [];
     }
   }
-
 }

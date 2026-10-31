@@ -10,8 +10,7 @@ export interface JsonDirectoryCacheReadOptions {
   onFileError?: (filePath: string, error: unknown) => void;
 }
 
-export interface JsonDirectoryCacheOptions
-  extends JsonDirectoryCacheReadOptions {
+export interface JsonDirectoryCacheOptions extends JsonDirectoryCacheReadOptions {
   existsDirectory?: (directoryPath: string) => boolean;
   readDirectory?: (directoryPath: string) => string[];
   statJsonFile?: (filePath: string) => JsonFileMetadata;
@@ -62,8 +61,7 @@ export class JsonDirectoryCache {
         };
       });
     this.readJsonFile =
-      options.readJsonFile ??
-      ((filePath) => readFileSync(filePath, "utf-8"));
+      options.readJsonFile ?? ((filePath) => readFileSync(filePath, "utf-8"));
     this.onFileError = options.onFileError;
   }
 

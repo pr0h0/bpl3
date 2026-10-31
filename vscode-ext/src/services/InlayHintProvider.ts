@@ -85,11 +85,7 @@ export class InlayHintProvider {
     const type = this.inferType(node.initializer);
     if (!type || type === "unknown") return;
 
-    const position = this.getVariableNameEndPosition(
-      node,
-      varName,
-      document,
-    );
+    const position = this.getVariableNameEndPosition(node, varName, document);
 
     hints.push({
       position,

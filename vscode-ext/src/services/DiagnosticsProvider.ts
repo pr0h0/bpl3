@@ -158,10 +158,7 @@ function clampDiagnosticPosition(
   const lines = doc.getText().split(/\r\n|\r|\n/);
   const clampedLine = Math.max(0, Math.min(lines.length - 1, (line ?? 1) - 1));
   const maxChar = lines[clampedLine]?.length ?? 0;
-  const clampedCharacter = Math.max(
-    0,
-    Math.min(maxChar, (character ?? 1) - 1),
-  );
+  const clampedCharacter = Math.max(0, Math.min(maxChar, (character ?? 1) - 1));
 
   return { line: clampedLine, character: clampedCharacter };
 }

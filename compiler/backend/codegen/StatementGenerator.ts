@@ -38,10 +38,8 @@ export abstract class StatementGenerator extends AsmGenerator {
   private currentFunctionIsCExport = false;
   private structDefaultInitializationRequiredCache: Map<string, boolean> =
     new Map();
-  private autoDestroyMethodCache: Map<
-    AST.StructDecl,
-    AST.FunctionDecl | null
-  > = new Map();
+  private autoDestroyMethodCache: Map<AST.StructDecl, AST.FunctionDecl | null> =
+    new Map();
 
   protected clearDefaultValueCaches(): void {
     this.structDefaultInitializationRequiredCache.clear();
@@ -79,21 +77,23 @@ export abstract class StatementGenerator extends AsmGenerator {
     const cached = this.autoDestroyMethodCache.get(structDecl);
     if (cached !== undefined) return cached ?? undefined;
 
-    const method = structDecl.members.find((member): member is AST.FunctionDecl => {
-      if (member.kind !== "FunctionDecl" || member.name !== "destroy") {
-        return false;
-      }
-      if (!member.attributes.some((attr) => attr.name === "auto_destroy")) {
-        return false;
-      }
-      const thisParam = member.params[0];
-      if (!thisParam || thisParam.name !== "this") return false;
-      if (thisParam.type.kind !== "BasicType") return false;
-      return (
-        thisParam.type.name === structDecl.name &&
-        thisParam.type.pointerDepth === 1
-      );
-    });
+    const method = structDecl.members.find(
+      (member): member is AST.FunctionDecl => {
+        if (member.kind !== "FunctionDecl" || member.name !== "destroy") {
+          return false;
+        }
+        if (!member.attributes.some((attr) => attr.name === "auto_destroy")) {
+          return false;
+        }
+        const thisParam = member.params[0];
+        if (!thisParam || thisParam.name !== "this") return false;
+        if (thisParam.type.kind !== "BasicType") return false;
+        return (
+          thisParam.type.name === structDecl.name &&
+          thisParam.type.pointerDepth === 1
+        );
+      },
+    );
     this.autoDestroyMethodCache.set(structDecl, method ?? null);
     return method;
   }
@@ -471,9 +471,7 @@ export abstract class StatementGenerator extends AsmGenerator {
   }
 
   private shouldUseStackLimitProbe(): boolean {
-    return (
-      this.shouldInlineStackFrameChecks() && this.optimizationLevel >= 3
-    );
+    return this.shouldInlineStackFrameChecks() && this.optimizationLevel >= 3;
   }
 
   private emitStackFrameEnter(): void {
@@ -811,7 +809,9 @@ export abstract class StatementGenerator extends AsmGenerator {
 
   private variableDeclMayEmitAutoDestroy(decl: AST.VariableDecl): boolean {
     const typeNode =
-      decl.resolvedType || decl.typeAnnotation || decl.initializer?.resolvedType;
+      decl.resolvedType ||
+      decl.typeAnnotation ||
+      decl.initializer?.resolvedType;
     return this.ownsAutoDestroy(typeNode);
   }
 
@@ -1471,9 +1471,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.emit(
         `  ${isNull} = icmp eq ${checkInfo.llvmType} ${objectPtr}, null`,
       );
-      this.emit(
-        `  br i1 ${isNull}, label %${okLabel}, label %${checkLabel}`,
-      );
+      this.emit(`  br i1 ${isNull}, label %${okLabel}, label %${checkLabel}`);
       this.emit(`${checkLabel}:`);
     }
 
@@ -1582,9 +1580,7 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     let declaredInBlock: Set<string> | undefined;
 
-    const collectDestructuringNames = (
-      pattern: AST.DestructuringPattern[],
-    ) => {
+    const collectDestructuringNames = (pattern: AST.DestructuringPattern[]) => {
       for (const item of pattern) {
         if (Array.isArray(item)) {
           collectDestructuringNames(item);
@@ -1664,7 +1660,8 @@ export abstract class StatementGenerator extends AsmGenerator {
     const scope = this.scopeStack.pop()!;
     // Skip empty cleanup, but restore try frames even when there are no defers.
     if (
-      (scope.deferred.length > 0 || scope.previousExceptionFrame !== undefined) &&
+      (scope.deferred.length > 0 ||
+        scope.previousExceptionFrame !== undefined) &&
       (this.output.length === 0 ||
         !this.isTerminator(this.output[this.output.length - 1] || ""))
     ) {
@@ -1956,7 +1953,8 @@ export abstract class StatementGenerator extends AsmGenerator {
     structName: string,
     seen: Set<string> = new Set(),
   ): boolean {
-    const cached = this.structDefaultInitializationRequiredCache.get(structName);
+    const cached =
+      this.structDefaultInitializationRequiredCache.get(structName);
     if (cached !== undefined) return cached;
 
     const layout = this.structLayouts.get(structName);
@@ -2069,8 +2067,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     if (typeof decl.name !== "string") {
       // Tuple destructuring: local (a, b, c) = expr;
       const targets = decl.name as
-        | { name: string; type?: AST.TypeNode }[]
-        | any[];
+        { name: string; type?: AST.TypeNode }[] | any[];
 
       if (!decl.initializer) {
         throw this.createError(
@@ -2482,7 +2479,10 @@ export abstract class StatementGenerator extends AsmGenerator {
       isMatchYield = true;
     }
 
-    const movedAddress = this.getMovedAutoDestroyAddress(stmt.value, destTypeNode);
+    const movedAddress = this.getMovedAutoDestroyAddress(
+      stmt.value,
+      destTypeNode,
+    );
 
     let retVal: string | undefined;
 
@@ -2546,8 +2546,9 @@ export abstract class StatementGenerator extends AsmGenerator {
     const tracksPointerExpressionProofs =
       incomingPointerExpressionProofs.length > 0;
     const fallthroughPointerExpressionProofs:
-      | (readonly string[])[]
-      | undefined = tracksPointerExpressionProofs ? [] : undefined;
+      (readonly string[])[] | undefined = tracksPointerExpressionProofs
+      ? []
+      : undefined;
 
     const hasElse = !!stmt.elseBranch;
     const targetElse = hasElse ? elseLabel : mergeLabel;
@@ -2900,7 +2901,10 @@ export abstract class StatementGenerator extends AsmGenerator {
     if (target) {
       const caseDepth = this.findEnclosingScopeDepth("isSwitch");
       if (caseDepth < 0) {
-        throw this.createError("Internal error: Switch without case scope", stmt);
+        throw this.createError(
+          "Internal error: Switch without case scope",
+          stmt,
+        );
       }
       this.emitScopeExitCleanup(caseDepth);
       this.emit(`  br label %${target}`);
@@ -3108,82 +3112,82 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.currentFunctionStackAllocations = [];
       this.currentFunctionHasExceptionHandler = false;
       this.currentFunctionDebugLocation = decl.location;
-    this.registerCount = 0;
-    this.labelCount = 0;
-    this.stackAllocCount = 0;
-    this.currentFunctionReturnType = decl.returnType;
-    this.currentFunctionName = decl.name;
-    this.currentFunctionIsCExport = Boolean(decl.cExportName);
-    this.locals = new Set();
-    this.localPointers = new Map();
-    this.localTypes = new Map();
-    this.basicBlockNonNullPointers = new Map();
-    this.basicBlockNonNullPointerExpressions = new Map();
-    this.basicBlockCallStableNonNullPointerExpressions = new Map();
-    this.basicBlockNonZeroIntegerExpressions = undefined;
-    this.currentFunctionAddressEscapedLocals = new Set();
-    this.generatingFunctionBody = true;
+      this.registerCount = 0;
+      this.labelCount = 0;
+      this.stackAllocCount = 0;
+      this.currentFunctionReturnType = decl.returnType;
+      this.currentFunctionName = decl.name;
+      this.currentFunctionIsCExport = Boolean(decl.cExportName);
+      this.locals = new Set();
+      this.localPointers = new Map();
+      this.localTypes = new Map();
+      this.basicBlockNonNullPointers = new Map();
+      this.basicBlockNonNullPointerExpressions = new Map();
+      this.basicBlockCallStableNonNullPointerExpressions = new Map();
+      this.basicBlockNonZeroIntegerExpressions = undefined;
+      this.currentFunctionAddressEscapedLocals = new Set();
+      this.generatingFunctionBody = true;
 
-    let name = decl.name;
-    const funcType = decl.resolvedType as AST.FunctionTypeNode;
-    let effectiveFuncType = funcType;
+      let name = decl.name;
+      const funcType = decl.resolvedType as AST.FunctionTypeNode;
+      let effectiveFuncType = funcType;
 
-    if (
-      decl.resolvedType &&
-      (decl.resolvedType.kind === "FunctionType" ||
-        decl.resolvedType.kind === "LambdaType")
-    ) {
-      let genericArgs: AST.TypeNode[] = [];
-      if (decl.genericParams.length > 0) {
-        genericArgs = decl.genericParams.map(
-          (p) => this.currentTypeMap.get(p.name)!,
+      if (
+        decl.resolvedType &&
+        (decl.resolvedType.kind === "FunctionType" ||
+          decl.resolvedType.kind === "LambdaType")
+      ) {
+        let genericArgs: AST.TypeNode[] = [];
+        if (decl.genericParams.length > 0) {
+          genericArgs = decl.genericParams.map((p) =>
+            this.currentTypeMap.get(p.name)!,
+          );
+        }
+        // Substitute generic types in function signature before mangling
+        const substitutedFuncType =
+          decl.genericParams.length === 0 && this.currentTypeMap.size === 0
+            ? funcType
+            : (this.substituteType(
+                funcType,
+                this.currentTypeMap,
+              ) as AST.FunctionTypeNode);
+        effectiveFuncType = substitutedFuncType;
+
+        name = this.getMangledName(
+          decl.name,
+          substitutedFuncType,
+          false,
+          genericArgs,
         );
       }
-      // Substitute generic types in function signature before mangling
-      const substitutedFuncType =
-        decl.genericParams.length === 0 && this.currentTypeMap.size === 0
-          ? funcType
-          : (this.substituteType(
-              funcType,
-              this.currentTypeMap,
-            ) as AST.FunctionTypeNode);
-      effectiveFuncType = substitutedFuncType;
 
-      name = this.getMangledName(
-        decl.name,
-        substitutedFuncType,
-        false,
-        genericArgs,
-      );
-    }
+      // Update currentFunctionReturnType to use the resolved/substituted return type
+      this.currentFunctionReturnType = effectiveFuncType.returnType;
 
-    // Update currentFunctionReturnType to use the resolved/substituted return type
-    this.currentFunctionReturnType = effectiveFuncType.returnType;
+      if (this.definedFunctions.has(name)) {
+        return;
+      }
+      this.definedFunctions.add(name);
 
-    if (this.definedFunctions.has(name)) {
-      return;
-    }
-    this.definedFunctions.add(name);
+      // DWARF: Create subprogram
+      if (this.generateDwarf) {
+        const file = decl.location.file || this.currentFilePath;
+        const returnTypeId = this.getDwarfTypeId(effectiveFuncType.returnType);
+        const paramTypeIds = effectiveFuncType.paramTypes.map((t) =>
+          this.getDwarfTypeId(t),
+        );
+        const subroutineTypeId = this.debugInfoGenerator.createSubroutineType(
+          returnTypeId,
+          paramTypeIds,
+        );
 
-    // DWARF: Create subprogram
-    if (this.generateDwarf) {
-      const file = decl.location.file || this.currentFilePath;
-      const returnTypeId = this.getDwarfTypeId(effectiveFuncType.returnType);
-      const paramTypeIds = effectiveFuncType.paramTypes.map((t) =>
-        this.getDwarfTypeId(t),
-      );
-      const subroutineTypeId = this.debugInfoGenerator.createSubroutineType(
-        returnTypeId,
-        paramTypeIds,
-      );
-
-      this.currentSubprogramId = this.debugInfoGenerator.createSubprogram(
-        decl.name,
-        decl.location.startLine,
-        file,
-        subroutineTypeId,
-      );
-    }
+        this.currentSubprogramId = this.debugInfoGenerator.createSubprogram(
+          decl.name,
+          decl.location.startLine,
+          file,
+          subroutineTypeId,
+        );
+      }
 
       // Setup destructor chaining
       let parentStructType: AST.TypeNode | undefined;
@@ -3229,7 +3233,8 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.currentFunctionEmitsStackFrameHooks =
         this.shouldEmitStackFrameHooksForFunction(decl, name) ||
         // A returned callback may later enter BPL without another public call.
-        (this.currentFunctionIsCExport && effectiveFuncType.returnType.kind === "FunctionType");
+        (this.currentFunctionIsCExport &&
+          effectiveFuncType.returnType.kind === "FunctionType");
       this.currentFunctionUsesAllocaStackLimitProbe = false;
       if (
         this.currentFunctionEmitsStackFrameHooks &&
@@ -3479,8 +3484,8 @@ export abstract class StatementGenerator extends AsmGenerator {
           parentStruct.genericParams.length > 0 &&
           this.currentTypeMap.size > 0
         ) {
-          const genericArgs = parentStruct.genericParams.map(
-            (p) => this.currentTypeMap.get(p.name)!,
+          const genericArgs = parentStruct.genericParams.map((p) =>
+            this.currentTypeMap.get(p.name)!,
           );
           const mangledType = this.resolveMonomorphizedType(
             parentStruct,
@@ -3531,9 +3536,7 @@ export abstract class StatementGenerator extends AsmGenerator {
         const nonNullPointerExpressions =
           this.getValidBasicBlockPointerExpressionProofKeys();
         this.emitStackFrameEnter();
-        this.markBasicBlockPointerExpressionsNonNull(
-          nonNullPointerExpressions,
-        );
+        this.markBasicBlockPointerExpressionsNonNull(nonNullPointerExpressions);
         this.generateBlock(
           {
             ...decl.body,
@@ -3607,7 +3610,8 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.emit("");
     } finally {
       // Restore state
-      this.currentFunctionStackAllocations = prevCurrentFunctionStackAllocations;
+      this.currentFunctionStackAllocations =
+        prevCurrentFunctionStackAllocations;
       this.currentFunctionHasExceptionHandler =
         prevCurrentFunctionHasExceptionHandler;
       this.registerCount = prevRegisterCount;

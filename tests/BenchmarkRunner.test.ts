@@ -1,3 +1,4 @@
+import { compact } from "./helpers/sourceText";
 import { describe, expect, it } from "bun:test";
 import { spawnSync } from "child_process";
 import {
@@ -34,11 +35,7 @@ import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 
 describe("Benchmark runner helpers", () => {
   it("keeps binary comparison tooling import-safe", () => {
-    const filePath = join(
-      process.cwd(),
-      "benchmark",
-      "compare_binaries.ts",
-    );
+    const filePath = join(process.cwd(), "benchmark", "compare_binaries.ts");
 
     expect(existsSync(filePath)).toBe(true);
     if (!existsSync(filePath)) return;
@@ -55,9 +52,8 @@ describe("Benchmark runner helpers", () => {
   });
 
   it("parses binary comparison paths and timing options", async () => {
-    const { parseBinaryComparisonArgs } = await import(
-      "../benchmark/compare_binaries"
-    );
+    const { parseBinaryComparisonArgs } =
+      await import("../benchmark/compare_binaries");
 
     expect(
       parseBinaryComparisonArgs([
@@ -81,9 +77,8 @@ describe("Benchmark runner helpers", () => {
   });
 
   it("rejects invalid binary comparison arguments", async () => {
-    const { parseBinaryComparisonArgs } = await import(
-      "../benchmark/compare_binaries"
-    );
+    const { parseBinaryComparisonArgs } =
+      await import("../benchmark/compare_binaries");
 
     expect(() => parseBinaryComparisonArgs(["/tmp/baseline"])).toThrow(
       "expects exactly two executable paths",
@@ -114,9 +109,8 @@ describe("Benchmark runner helpers", () => {
   });
 
   it("reports positive binary timing improvements when the candidate is faster", async () => {
-    const { compareBinaryTimingStats } = await import(
-      "../benchmark/compare_binaries"
-    );
+    const { compareBinaryTimingStats } =
+      await import("../benchmark/compare_binaries");
 
     expect(
       compareBinaryTimingStats(
@@ -146,9 +140,8 @@ describe("Benchmark runner helpers", () => {
   });
 
   it("validates and times matching prebuilt binaries", async () => {
-    const { runBinaryComparison } = await import(
-      "../benchmark/compare_binaries"
-    );
+    const { runBinaryComparison } =
+      await import("../benchmark/compare_binaries");
     const dir = mkdtempSync(join(tmpdir(), "bpl-binary-comparison-"));
     try {
       const baselinePath = writeBenchmarkExecutable(dir, "baseline", "same");
@@ -178,9 +171,8 @@ describe("Benchmark runner helpers", () => {
   });
 
   it("rejects mismatched prebuilt binary output before timing", async () => {
-    const { runBinaryComparison } = await import(
-      "../benchmark/compare_binaries"
-    );
+    const { runBinaryComparison } =
+      await import("../benchmark/compare_binaries");
     const dir = mkdtempSync(join(tmpdir(), "bpl-binary-comparison-"));
     try {
       const baselinePath = writeBenchmarkExecutable(dir, "baseline", "before");
@@ -202,9 +194,8 @@ describe("Benchmark runner helpers", () => {
   });
 
   it("formats deterministic binary comparison text", async () => {
-    const { formatBinaryComparisonResult } = await import(
-      "../benchmark/compare_binaries"
-    );
+    const { formatBinaryComparisonResult } =
+      await import("../benchmark/compare_binaries");
 
     expect(
       formatBinaryComparisonResult({
@@ -313,10 +304,7 @@ Candidate improvement: median +10.00% (-10.00 ms)  average +10.00% (-11.00 ms)`)
       "utf8",
     );
     const phaseBranch = source.indexOf('if (options.mode === "phases")');
-    const comparisonBranch = source.indexOf(
-      "const comparison =",
-      phaseBranch,
-    );
+    const comparisonBranch = source.indexOf("const comparison =", phaseBranch);
 
     expect(phaseBranch).toBeGreaterThanOrEqual(0);
     expect(comparisonBranch).toBeGreaterThan(phaseBranch);
@@ -507,13 +495,14 @@ Candidate improvement: median +10.00% (-10.00 ms)  average +10.00% (-11.00 ms)`)
 
     expect(comparison.ok).toBe(false);
     expect(comparison.signaturesMatch).toBe(true);
-    expect(comparison.phaseDeltas.find((delta) => delta.phase === "codegen"))
-      .toMatchObject({
-        baselineMedianMs: 40,
-        candidateMedianMs: 41.4,
-        deltaMs: 1.4,
-        deltaPercent: 3.5,
-      });
+    expect(
+      comparison.phaseDeltas.find((delta) => delta.phase === "codegen"),
+    ).toMatchObject({
+      baselineMedianMs: 40,
+      candidateMedianMs: 41.4,
+      deltaMs: 1.4,
+      deltaPercent: 3.5,
+    });
     expect(comparison.failures).toEqual([
       "codegen median regressed by 3.50% (limit 2.00%)",
     ]);
@@ -582,17 +571,19 @@ Candidate improvement: median +10.00% (-10.00 ms)  average +10.00% (-11.00 ms)`)
     expect(comparison.ok).toBe(true);
     expect(comparison.signaturesMatch).toBe(true);
     expect(comparison.timingBaselineMatches).toBe(true);
-    expect(comparison.phaseDeltas.find((delta) => delta.phase === "codegen"))
-      .toMatchObject({
-        baselineMedianMs: 70,
-        candidateMedianMs: 70.7,
-        deltaPercent: 1,
-      });
-    expect(comparison.phaseDeltas.find((delta) => delta.phase === "full"))
-      .toMatchObject({
-        baselineMedianMs: 140,
-        candidateMedianMs: 141,
-      });
+    expect(
+      comparison.phaseDeltas.find((delta) => delta.phase === "codegen"),
+    ).toMatchObject({
+      baselineMedianMs: 70,
+      candidateMedianMs: 70.7,
+      deltaPercent: 1,
+    });
+    expect(
+      comparison.phaseDeltas.find((delta) => delta.phase === "full"),
+    ).toMatchObject({
+      baselineMedianMs: 140,
+      candidateMedianMs: 141,
+    });
   });
 
   it("fails compile phase benchmark comparisons when timing baseline signatures drift", () => {
@@ -648,21 +639,23 @@ Candidate improvement: median +10.00% (-10.00 ms)  average +10.00% (-11.00 ms)`)
     expect(comparison.ok).toBe(true);
     expect(comparison.noiseControlMatches).toBe(true);
     expect(comparison.failures).toEqual([]);
-    expect(comparison.phaseDeltas.find((delta) => delta.phase === "full"))
-      .toMatchObject({
-        baselineMedianMs: 100,
-        candidateMedianMs: 106.5,
-        noiseControlMedianMs: 106,
-        deltaPercent: 6.5,
-        noiseControlDeltaPercent: 6,
-        normalizedDeltaPercent: 0.5,
-      });
-    expect(comparison.phaseDeltas.find((delta) => delta.phase === "codegen"))
-      .toMatchObject({
-        deltaPercent: 3.5,
-        noiseControlDeltaPercent: 2.5,
-        normalizedDeltaPercent: 1,
-      });
+    expect(
+      comparison.phaseDeltas.find((delta) => delta.phase === "full"),
+    ).toMatchObject({
+      baselineMedianMs: 100,
+      candidateMedianMs: 106.5,
+      noiseControlMedianMs: 106,
+      deltaPercent: 6.5,
+      noiseControlDeltaPercent: 6,
+      normalizedDeltaPercent: 0.5,
+    });
+    expect(
+      comparison.phaseDeltas.find((delta) => delta.phase === "codegen"),
+    ).toMatchObject({
+      deltaPercent: 3.5,
+      noiseControlDeltaPercent: 2.5,
+      normalizedDeltaPercent: 1,
+    });
   });
 
   it("fails compile phase benchmark comparisons when clean-control drift exceeds the explicit noise threshold", () => {
@@ -847,9 +840,7 @@ Candidate improvement: median +10.00% (-10.00 ms)  average +10.00% (-11.00 ms)`)
 
     expect(treeShakenResult.treeShakeTopLevelFunctions).toBe(true);
     expect(defaultResult.treeShakeTopLevelFunctions).toBe(false);
-    expect(treeShakenResult.tokenSignature).toBe(
-      defaultResult.tokenSignature,
-    );
+    expect(treeShakenResult.tokenSignature).toBe(defaultResult.tokenSignature);
     expect(treeShakenResult.irHash).not.toBe(defaultResult.irHash);
   });
 
@@ -892,7 +883,7 @@ Candidate improvement: median +10.00% (-10.00 ms)  average +10.00% (-11.00 ms)`)
     expect(end).toBeGreaterThan(start);
 
     const helperSource = source.slice(start, end);
-    expect(helperSource).toContain('token.type + "\\0"');
+    expect(compact(helperSource)).toContain(compact('token.type + "\\0"'));
     expect(helperSource).not.toContain("String(token.type)");
     expect(helperSource).not.toContain("String(token.line)");
     expect(helperSource).not.toContain("String(token.column)");
@@ -1062,9 +1053,9 @@ Candidate improvement: median +10.00% (-10.00 ms)  average +10.00% (-11.00 ms)`)
       },
     ]);
 
-    expect(findBplVsCRegressions(comparisons, 5).map((row) => row.benchmark)).toEqual([
-      "bad_gap",
-    ]);
+    expect(
+      findBplVsCRegressions(comparisons, 5).map((row) => row.benchmark),
+    ).toEqual(["bad_gap"]);
     expect(formatBplVsCSummary(comparisons, 5)).toContain(
       "bad_gap         BPL 107.00 ms  C 100.00 ms  1.07x  +7.0%  REGRESSION",
     );
@@ -1077,7 +1068,10 @@ function writeBenchmarkExecutable(
   output: string,
 ): string {
   const filePath = join(dir, name);
-  writeFileSync(filePath, `#!/usr/bin/env bun\nconsole.log(${JSON.stringify(output)});\n`);
+  writeFileSync(
+    filePath,
+    `#!/usr/bin/env bun\nconsole.log(${JSON.stringify(output)});\n`,
+  );
   chmodSync(filePath, 0o755);
   return filePath;
 }

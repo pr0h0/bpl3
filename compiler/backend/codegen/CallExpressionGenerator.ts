@@ -369,9 +369,10 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
       // Only resolved extern declarations name intrinsics. User frames and
       // local callable values must retain normal call semantics.
-      const intrinsicName = expr.resolvedDeclaration?.kind === "Extern"
-        ? expr.resolvedDeclaration.name
-        : "";
+      const intrinsicName =
+        expr.resolvedDeclaration?.kind === "Extern"
+          ? expr.resolvedDeclaration.name
+          : "";
       // Native base-log accuracy must not add new Wasm host imports. Only
       // these private stdlib calls retain the previous natural-log provider;
       // an ordinary user extern keeps its explicitly requested symbol.
@@ -447,7 +448,9 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           `  ${reg} = call double @llvm.${intrinsicName}.f64(double ${arg})`,
         );
         return reg;
-      } else if (["pow", "minnum", "maxnum", "copysign"].includes(intrinsicName)) {
+      } else if (
+        ["pow", "minnum", "maxnum", "copysign"].includes(intrinsicName)
+      ) {
         const arg1 = this.generateExpression(expr.args[0]!);
         const arg2 = this.generateExpression(expr.args[1]!);
         const reg = this.newRegister();
@@ -464,7 +467,10 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           `  ${reg} = call double @llvm.fma.f64(double ${arg1}, double ${arg2}, double ${arg3})`,
         );
         return reg;
-      } else if (intrinsicName === "frameaddress" || intrinsicName === "returnaddress") {
+      } else if (
+        intrinsicName === "frameaddress" ||
+        intrinsicName === "returnaddress"
+      ) {
         const level = this.generateExpression(expr.args[0]!);
         const reg = this.newRegister();
         this.emit(`  ${reg} = call i8* @llvm.${intrinsicName}(i32 ${level})`);
@@ -494,7 +500,9 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             `  ${reg} = call i32 @llvm.${intrinsicName}.i32(i32 ${arg}, i1 0)`,
           );
         } else {
-          this.emit(`  ${reg} = call i32 @llvm.${intrinsicName}.i32(i32 ${arg})`);
+          this.emit(
+            `  ${reg} = call i32 @llvm.${intrinsicName}.i32(i32 ${arg})`,
+          );
         }
         return reg;
       } else if (
@@ -701,9 +709,8 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             const val = this.generateExpression(memberExpr.object);
             const width = this.getBitWidth(resolvedType);
             const reg = this.newRegister();
-            const zeroFlag = intrinsic === "ctlz" || intrinsic === "cttz"
-              ? ", i1 false"
-              : "";
+            const zeroFlag =
+              intrinsic === "ctlz" || intrinsic === "cttz" ? ", i1 false" : "";
             this.emit(
               `  ${reg} = call ${resolvedType} @llvm.${intrinsic}.i${width}(${resolvedType} ${val}${zeroFlag})`,
             );
@@ -713,8 +720,11 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             // wrappers. Their intrinsic result is an unsigned bit pattern,
             // even when the receiver is signed (e.g. short.reverseBits()).
             const result = this.newRegister();
-            const cast = this.getBitWidth(resultType) > width ? "zext" : "trunc";
-            this.emit(`  ${result} = ${cast} ${resolvedType} ${reg} to ${resultType}`);
+            const cast =
+              this.getBitWidth(resultType) > width ? "zext" : "trunc";
+            this.emit(
+              `  ${result} = ${cast} ${resolvedType} ${reg} to ${resultType}`,
+            );
             return result;
           }
         }
@@ -800,7 +810,8 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
           // Materialize generic receivers before selecting inherited or virtual calls.
           const structDecl =
-            this.structMap.get(objType.name) ?? this.enumDeclMap.get(objType.name);
+            this.structMap.get(objType.name) ??
+            this.enumDeclMap.get(objType.name);
 
           if (
             structDecl &&
@@ -955,11 +966,15 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
             let targetDecl =
               (decl as AST.FunctionDecl) ||
               (expr.resolvedDeclaration as AST.FunctionDecl);
-            const selectedDecl = expr.resolvedDeclaration as AST.FunctionDecl | undefined;
+            const selectedDecl = expr.resolvedDeclaration as
+              AST.FunctionDecl | undefined;
             const selectedReceiver = selectedDecl?.params?.[0]?.type;
             const guessedReceiver = targetDecl?.params?.[0]?.type;
-            if (selectedReceiver?.kind === "BasicType" && guessedReceiver?.kind === "BasicType" &&
-                selectedReceiver.pointerDepth !== guessedReceiver.pointerDepth) {
+            if (
+              selectedReceiver?.kind === "BasicType" &&
+              guessedReceiver?.kind === "BasicType" &&
+              selectedReceiver.pointerDepth !== guessedReceiver.pointerDepth
+            ) {
               targetDecl = selectedDecl!;
             }
 
@@ -985,7 +1000,9 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
                   .map((t) => this.mangleType(t))
                   .join("_");
                 const receiver = typeToMangle.paramTypes[0];
-                const valueReceiver = targetDecl.params[0]?.name === "this" && receiver &&
+                const valueReceiver =
+                  targetDecl.params[0]?.name === "this" &&
+                  receiver &&
                   !this.resolveType(receiver).endsWith("*");
                 lookupName = `${targetDecl.name}_${mangledParams}${valueReceiver ? "#value" : ""}`;
               }
@@ -1521,7 +1538,10 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           return `${destType} ${adapted}`;
         }
 
-        const conversion = lowerImplicitConversion(targetTypeNode, resolvedArgType);
+        const conversion = lowerImplicitConversion(
+          targetTypeNode,
+          resolvedArgType,
+        );
 
         if (
           conversion.kind === "array-to-slice" &&
@@ -1855,8 +1875,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       }
 
       const isExternVariadic =
-        funcType.isVariadic &&
-        expr.resolvedDeclaration?.kind === "Extern";
+        funcType.isVariadic && expr.resolvedDeclaration?.kind === "Extern";
       const resolvedArgType = isExternVariadic
         ? this.resolveInstantiatedValueType(arg.resolvedType!)
         : arg.resolvedType!;
@@ -2312,7 +2331,6 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     }
     return reg;
   }
-
 
   private readonly cAbiWrappers = new Map<string, string | undefined>();
 

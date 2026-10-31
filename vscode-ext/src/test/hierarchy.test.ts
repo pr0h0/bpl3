@@ -183,11 +183,7 @@ describe("Hierarchy Providers", () => {
       pathToFileURL(filePath).toString(),
       "bpl",
       1,
-      [
-        "spec Reader {",
-        "    frame read(this: *Self) ret int;",
-        "}",
-      ].join("\n"),
+      ["spec Reader {", "    frame read(this: *Self) ret int;", "}"].join("\n"),
     );
 
     const result = provider.prepare(
@@ -414,9 +410,10 @@ describe("Hierarchy Providers", () => {
       pathToFileURL(filePath).toString(),
       "bpl",
       1,
-      ["struct Base { id: int, }", "struct Child : Base { name: string, }"].join(
-        "\n",
-      ),
+      [
+        "struct Base { id: int, }",
+        "struct Child : Base { name: string, }",
+      ].join("\n"),
     );
 
     const result = provider.prepare(
@@ -442,9 +439,10 @@ describe("Hierarchy Providers", () => {
       pathToFileURL(filePath).toString(),
       "bpl",
       1,
-      ["struct Base { id: int, }", "struct Child : Base { name: string, }"].join(
-        "\n",
-      ),
+      [
+        "struct Base { id: int, }",
+        "struct Child : Base { name: string, }",
+      ].join("\n"),
     );
 
     const child = provider.prepare(

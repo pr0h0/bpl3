@@ -1,3 +1,4 @@
+import { compact } from "./helpers/sourceText";
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "child_process";
 import { createHash } from "crypto";
@@ -71,8 +72,9 @@ function expectSourceContainsSnippets(
   source: string,
   snippets: readonly string[],
 ): void {
+  const compactSource = compact(source);
   const missingSnippets = snippets.filter(
-    (snippet) => !source.includes(snippet),
+    (snippet) => !compactSource.includes(compact(snippet)),
   );
 
   if (missingSnippets.length > 0) {

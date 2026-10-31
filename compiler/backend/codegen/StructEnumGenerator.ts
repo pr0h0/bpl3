@@ -128,7 +128,9 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     const paramTypes = type.paramTypes.slice(1);
     const mangledParams = paramTypes.map((t) => this.mangleType(t)).join("_");
     const receiver = type.paramTypes[0];
-    const valueReceiver = decl.params[0]?.name === "this" && receiver &&
+    const valueReceiver =
+      decl.params[0]?.name === "this" &&
+      receiver &&
       !this.resolveType(receiver).endsWith("*");
     // Receiver names vary across overrides; value and pointer receiver
     // overloads still need distinct slots.

@@ -338,9 +338,8 @@ export class HoverProvider {
     debugLog(
       `[HoverProvider.createMethodHover] Creating hover for ${parentTypeName}.${methodName}`,
     );
-    debugLog(
-      `[HoverProvider.createMethodHover] Method signature:`,
-      () => JSON.stringify(method.signature),
+    debugLog(`[HoverProvider.createMethodHover] Method signature:`, () =>
+      JSON.stringify(method.signature),
     );
 
     let md = `**${method.isStatic ? "Static " : ""}Method** \`${methodName}\`\n\n`;
