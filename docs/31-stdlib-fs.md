@@ -9,16 +9,16 @@ import [FS], [File] from "std/fs.bpl";
 
 ## Available filesystem helpers
 
-| Method                                              | Current behavior                                                            |
-| --------------------------------------------------- | --------------------------------------------------------------------------- |
-| `FS.exists(path: string) ret bool`                  | Checks native metadata without opening the file; follows symlinks          |
-| `FS.stat(path: string) ret FileInfo`                | Checked metadata for the resolved target; follows symlinks                   |
-| `FS.lstat(path: string) ret FileInfo`               | Checked metadata using native `lstat`; can inspect a symlink itself          |
-| `FS.writeFile(path: string, data: string) ret bool` | Opens with `"wb"`, writes NUL-terminated text, then closes                  |
-| `FS.readFile(path: string) ret String`              | Reads a stream into an owned String; native failures throw `IOError`   |
-| `FS.mkdir(path: string) ret bool`                   | Calls POSIX `mkdir(path, 511)`; false includes already-existing directories |
-| `FS.mkdirp(path: string) ret bool`                  | Creates missing directories; checks errors and existing directory types     |
-| `FS.listDir(path: string) ret Array<String>`        | Owned entry names excluding `.` and `..`; empty array on failure            |
+| Method                                              | Current behavior                                                               |
+| --------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `FS.exists(path: string) ret bool`                  | Checks native metadata without opening the file; follows symlinks              |
+| `FS.stat(path: string) ret FileInfo`                | Checked metadata for the resolved target; follows symlinks                     |
+| `FS.lstat(path: string) ret FileInfo`               | Checked metadata using native `lstat`; can inspect a symlink itself            |
+| `FS.writeFile(path: string, data: string) ret bool` | Opens with `"wb"`, writes NUL-terminated text, then closes                     |
+| `FS.readFile(path: string) ret String`              | Reads a stream into an owned String; native failures throw `IOError`           |
+| `FS.mkdir(path: string) ret bool`                   | Calls POSIX `mkdir(path, 511)`; false includes already-existing directories    |
+| `FS.mkdirp(path: string) ret bool`                  | Creates missing directories; checks errors and existing directory types        |
+| `FS.listDir(path: string) ret Array<String>`        | Owned entry names excluding `.` and `..`; empty array on failure               |
 | `FS.listDirChecked(path: string) ret Array<String>` | Same names; throws `IOError` on open, read, close, size, or allocation failure |
 
 There are no `FS.appendFile`, `deleteFile`, `copyFile`, `isDir`, or `fileSize`
@@ -39,12 +39,12 @@ allocating an owned resource. No `destroy` or `close` is needed for the result.
 Native errors, null/empty paths, and sizes outside the supported nonnegative
 signed 64-bit range throw `IOError` with a nonzero native error code.
 
-| Field | Meaning |
-| --- | --- |
-| `size: long` | Native `st_size`; regular-file logical length in bytes, including sparse regions |
-| `isFile: bool` | True for a regular file |
-| `isDir: bool` | True for a directory |
-| `isSymlink: bool` | True for a symbolic link returned by `lstat` |
+| Field             | Meaning                                                                          |
+| ----------------- | -------------------------------------------------------------------------------- |
+| `size: long`      | Native `st_size`; regular-file logical length in bytes, including sparse regions |
+| `isFile: bool`    | True for a regular file                                                          |
+| `isDir: bool`     | True for a directory                                                             |
+| `isSymlink: bool` | True for a symbolic link returned by `lstat`                                     |
 
 Other kinds, such as FIFOs, sockets, and devices, have all three flags false.
 Their size and directory sizes are platform metadata, not a count of bytes that

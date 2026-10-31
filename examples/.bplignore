@@ -1,0 +1,9 @@
+# Intentionally invalid sources (parser and module-resolution bug reproductions).
+# Formatting cannot parse them, so directory discovery skips them.
+bug_hunt_session/test_double_comma.bpl
+bug_hunt_session/test_enum_edge.bpl
+bug_hunt_session/test_lambda.bpl
+bug_hunt_session/test_parser_edge.bpl
+module_resolution/test_invalid_export.bpl
+module_resolution/test_invalid_type_export.bpl
+module_resolution/test_invalid_type_import.bpl

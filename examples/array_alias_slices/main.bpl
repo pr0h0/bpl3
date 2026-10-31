@@ -10,6 +10,7 @@ frame main() ret int {
     grid[2][1] = 42;
     local view: Row[] = grid;
     view[0][0] = 7;
-    if (grid[0][0] != 7) return 1;
+    if (grid[0][0] != 7)
+        return 1;
     return cell(view, 2, 1) - 42;
 }

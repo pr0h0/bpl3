@@ -33,14 +33,14 @@ falls outside the signed `int` range.
 | Method                                             | Description                      |
 | -------------------------------------------------- | -------------------------------- |
 | `Time.now() ret int`                               | Current Unix timestamp (seconds) |
-| `Time.nowSeconds() ret long` | Unix timestamp in seconds |
-| `Time.monotonicMs() ret long` | Monotonic milliseconds |
-| `Time.monotonicUs() ret long` | Monotonic microseconds |
+| `Time.nowSeconds() ret long`                       | Unix timestamp in seconds        |
+| `Time.monotonicMs() ret long`                      | Monotonic milliseconds           |
+| `Time.monotonicUs() ret long`                      | Monotonic microseconds           |
 | `Time.nowMs() ret long`                            | Current time in milliseconds     |
 | `Time.nowUs() ret long`                            | Current time in microseconds     |
-| `Time.sleep(ms: long)`                              | Sleep for milliseconds           |
-| `Time.sleepUs(usec: long)`                          | Sleep for microseconds           |
-| `Time.sleepSeconds(sec: long)`                      | Sleep for seconds                |
+| `Time.sleep(ms: long)`                             | Sleep for milliseconds           |
+| `Time.sleepUs(usec: long)`                         | Sleep for microseconds           |
+| `Time.sleepSeconds(sec: long)`                     | Sleep for seconds                |
 | `Time.formatTimestamp(timestamp: long) ret string` | Format as "YYYY-MM-DD HH:MM:SS"  |
 | `Time.measure(action: Lambda<void>()) ret long`    | Measure execution time in ms     |
 

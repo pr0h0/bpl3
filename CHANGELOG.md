@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- The repository is formatted (BUG-448): Prettier over the TypeScript,
+  Markdown and JSON files and `bpl format` over `lib/`, `packages/` (archives
+  repacked) and `examples/`, landed in several PRs of at most 100 files.
+  Generated package metadata and the stdlib reference are excluded from
+  Prettier, source-snippet tests ignore whitespace and trailing commas, and
+  `examples/.bplignore` lists the intentionally unparsable bug reproductions.
 - Virtual method calls on a struct value take its address instead of first
   loading the whole struct and discarding it (BUG-474), and a receiver that
   cannot be addressed in place is evaluated exactly once (BUG-475: a receiver

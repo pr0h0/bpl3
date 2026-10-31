@@ -11,31 +11,44 @@ import [printf] from "std/c.bpl";
 frame compare_values(v1: *Value, v2: *Value) ret int {
     # Integer ordering: -1, 0, 1. Other values support equality;
     # incompatible types and unequal non-integers return -2.
-    if (v1 == nullptr || v2 == nullptr) { return -2; }
+    if ((v1 == nullptr) || (v2 == nullptr)) {
+        return -2;
+    }
     return match (*v1) {
         Value.Int(left) => match (*v2) {
             Value.Int(right) => {
-                if (left < right) { return -1; }
-                if (left > right) { return 1; }
+                if (left < right) {
+                    return -1;
+                }
+                if (left > right) {
+                    return 1;
+                }
                 return 0;
             },
             _ => -2,
         },
         Value.Str(left) => match (*v2) {
             Value.Str(right) => {
-                if (left == right) { return 0; }
+                if (left == right) {
+                    return 0;
+                }
                 return -2;
             },
             _ => -2,
         },
         Value.Bool(left) => match (*v2) {
             Value.Bool(right) => {
-                if (left == right) { return 0; }
+                if (left == right) {
+                    return 0;
+                }
                 return -2;
             },
             _ => -2,
         },
-        Value.Null => match (*v2) { Value.Null => 0, _ => -2, },
+        Value.Null => match (*v2) {
+            Value.Null => 0,
+            _ => -2,
+        },
     };
 }
 

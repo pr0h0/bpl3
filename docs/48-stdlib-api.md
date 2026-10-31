@@ -705,22 +705,22 @@ retain their deterministic selection sequence; zero-weight entries are not selec
 The declaration reference includes every module, including these previously
 omitted areas:
 
-| Modules                                                                                                         | Scope and limits                                                                     |
-| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `option.bpl`, `result.bpl`, `errors.bpl`                                                                        | Optional values, results, and error types; unwrap failures throw                     |
-| `char_utils.bpl`, `string_utils.bpl`, `string_builder.bpl`, `fmt.bpl`                                           | Character/string helpers and formatting; inspect ownership per API                   |
-| `utf8.bpl`                                                                                                      | Byte/codepoint helpers; `encode` borrows its input and `decode` copies into a String |
-| `vec2.bpl`, `vec3.bpl`, `range.bpl`                                                                             | Vector and range utilities                                                           |
-| `path.bpl`, `args.bpl`, `arg_parser.bpl`                                                                        | [Path helpers](62-stdlib-path.md) and command-line helpers                             |
+| Modules                                                                                                         | Scope and limits                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `option.bpl`, `result.bpl`, `errors.bpl`                                                                        | Optional values, results, and error types; unwrap failures throw                                                   |
+| `char_utils.bpl`, `string_utils.bpl`, `string_builder.bpl`, `fmt.bpl`                                           | Character/string helpers and formatting; inspect ownership per API                                                 |
+| `utf8.bpl`                                                                                                      | Byte/codepoint helpers; `encode` borrows its input and `decode` copies into a String                               |
+| `vec2.bpl`, `vec3.bpl`, `range.bpl`                                                                             | Vector and range utilities                                                                                         |
+| `path.bpl`, `args.bpl`, `arg_parser.bpl`                                                                        | [Path helpers](62-stdlib-path.md) and command-line helpers                                                         |
 | `memory/allocator.bpl`, `memory/arena_allocator.bpl`, `memory/pool_allocator.bpl`, `memory/stack_allocator.bpl` | [Manual allocator contracts](22-manual-memory.md#manual-allocator-contracts); explicit lifetimes and checked sizes |
-| `memory/page_allocator.bpl`, `memory/syscalls.bpl`                                                              | PageAllocator uses native page alignment; raw syscalls declarations remain low-level                                 |
-| `iter_specs.bpl`, `core_specs.bpl`                                                                              | Interfaces used by implemented collections                                           |
-| `iter.bpl`                                                                                                      | No public API; use implemented collection iterators in `iter_specs.bpl`                          |
-| `thread.bpl`, `sync.bpl`                                                                                        | No public API; native threading/synchronization requires an FFI library                               |
-| `type.bpl`, `primitives.bpl`, `reflection.bpl`, `intrinsics.bpl`                                                | Compiler/runtime support; platform and representation details matter                 |
-| `c.bpl`                                                                                                         | Native C declarations, not a portable or memory-safe wrapper                         |
-| `process.bpl`                                                                                                   | Shell-free `run`/`runWith` and shell helpers; see the [process guide](59-process-execution.md) |
-| `assert.bpl`, `debug.bpl`, `diagnostics.bpl`, `scope_stack.bpl`                                                 | Assertions, diagnostics, and compiler-oriented utilities                             |
+| `memory/page_allocator.bpl`, `memory/syscalls.bpl`                                                              | PageAllocator uses native page alignment; raw syscalls declarations remain low-level                               |
+| `iter_specs.bpl`, `core_specs.bpl`                                                                              | Interfaces used by implemented collections                                                                         |
+| `iter.bpl`                                                                                                      | No public API; use implemented collection iterators in `iter_specs.bpl`                                            |
+| `thread.bpl`, `sync.bpl`                                                                                        | No public API; native threading/synchronization requires an FFI library                                            |
+| `type.bpl`, `primitives.bpl`, `reflection.bpl`, `intrinsics.bpl`                                                | Compiler/runtime support; platform and representation details matter                                               |
+| `c.bpl`                                                                                                         | Native C declarations, not a portable or memory-safe wrapper                                                       |
+| `process.bpl`                                                                                                   | Shell-free `run`/`runWith` and shell helpers; see the [process guide](59-process-execution.md)                     |
+| `assert.bpl`, `debug.bpl`, `diagnostics.bpl`, `scope_stack.bpl`                                                 | Assertions, diagnostics, and compiler-oriented utilities                                                           |
 
 `Log.debug/info/warn/error` currently share the same output path; they do not
 provide independent level filtering or destinations. See the linked module

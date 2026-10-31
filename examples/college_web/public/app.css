@@ -1,29 +1,147 @@
-:root { font-family: system-ui, sans-serif; color: #152333; background: #f3f5f8; }
-* { box-sizing: border-box; }
-body { margin: 0; }
-main { max-width: 760px; margin: 4rem auto; padding: 2rem; background: white; border-radius: 18px; box-shadow: 0 12px 60px #15233312; }
-h1 { margin: .4rem 0; font-size: 2.6rem; }
-.eyebrow { color: #2862c5; font-weight: 700; letter-spacing: .15em; font-size: .75rem; }
-header > p:last-child, footer { color: #64748b; }
-form { margin: 2rem 0 0; }
-label { display: block; margin-bottom: .6rem; font-weight: 600; }
-.input-row { display: flex; gap: .6rem; }
-input { flex: 1; min-width: 0; padding: .8rem; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
-button { border: 0; border-radius: 8px; padding: .7rem 1rem; background: #2862c5; color: white; font: inherit; cursor: pointer; }
-button.secondary { background: #edf1f6; color: #334155; }
-button:disabled { opacity: .5; cursor: default; }
-button:focus-visible, input:focus-visible { outline: 3px solid #93b7ef; outline-offset: 2px; }
-ul { list-style: none; padding: 0; }
-li { display: flex; align-items: center; gap: .5rem; padding: 1rem 0; border-bottom: 1px solid #edf1f6; }
-li span { flex: 1; overflow-wrap: anywhere; }
-.done { text-decoration: line-through; color: #64748b; }
-#status { min-height: 1.3rem; color: #ad3030; overflow-wrap: anywhere; }
-nav { display: flex; align-items: center; justify-content: space-between; margin: 1.5rem 0; }
-footer { font-size: .8rem; }
-@media (max-width: 600px) { main { margin: 1rem; padding: 1.25rem; } li { flex-wrap: wrap; } li span { flex-basis: 100%; } h1 { font-size: 2rem; } }
-[hidden] { display: none !important; }
-#sign-in input { width: 100%; }
-#sign-in label:not(:first-child) { margin-top: 1rem; }
-small { display: block; color: #64748b; margin: .5rem 0; }
-.auth-actions, .account-row { display: flex; align-items: center; gap: .7rem; margin-top: 1rem; }
-.account-row { justify-content: space-between; }
+:root {
+  font-family: system-ui, sans-serif;
+  color: #152333;
+  background: #f3f5f8;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 760px;
+  margin: 4rem auto;
+  padding: 2rem;
+  background: white;
+  border-radius: 18px;
+  box-shadow: 0 12px 60px #15233312;
+}
+h1 {
+  margin: 0.4rem 0;
+  font-size: 2.6rem;
+}
+.eyebrow {
+  color: #2862c5;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  font-size: 0.75rem;
+}
+header > p:last-child,
+footer {
+  color: #64748b;
+}
+form {
+  margin: 2rem 0 0;
+}
+label {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-weight: 600;
+}
+.input-row {
+  display: flex;
+  gap: 0.6rem;
+}
+input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.8rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+}
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  background: #2862c5;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+button.secondary {
+  background: #edf1f6;
+  color: #334155;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid #93b7ef;
+  outline-offset: 2px;
+}
+ul {
+  list-style: none;
+  padding: 0;
+}
+li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #edf1f6;
+}
+li span {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.done {
+  text-decoration: line-through;
+  color: #64748b;
+}
+#status {
+  min-height: 1.3rem;
+  color: #ad3030;
+  overflow-wrap: anywhere;
+}
+nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 1.5rem 0;
+}
+footer {
+  font-size: 0.8rem;
+}
+@media (max-width: 600px) {
+  main {
+    margin: 1rem;
+    padding: 1.25rem;
+  }
+  li {
+    flex-wrap: wrap;
+  }
+  li span {
+    flex-basis: 100%;
+  }
+  h1 {
+    font-size: 2rem;
+  }
+}
+[hidden] {
+  display: none !important;
+}
+#sign-in input {
+  width: 100%;
+}
+#sign-in label:not(:first-child) {
+  margin-top: 1rem;
+}
+small {
+  display: block;
+  color: #64748b;
+  margin: 0.5rem 0;
+}
+.auth-actions,
+.account-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+.account-row {
+  justify-content: space-between;
+}
