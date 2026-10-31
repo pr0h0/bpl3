@@ -45,12 +45,29 @@ describe("GitHub Actions workflows", () => {
     expect(version).toMatch(/^\d+\.\d+\.\d+$/);
 
     for (const name of listWorkflowNames()) {
-      const workflow = readWorkflow(name);
-      const setups = workflow.match(/oven-sh\/setup-bun@/g)?.length ?? 0;
-      const fromFile =
-        workflow.match(/^\s*bun-version-file: \.bun-version$/gm)?.length ?? 0;
-      expect({ name, fromFile }).toEqual({ name, fromFile: setups });
-      expect(workflow).not.toMatch(/^\s*bun-version:/m);
+      const lines = readWorkflow(name).split("\n");
+      lines.forEach((line, index) => {
+        if (!/^\s*(-\s+)?uses:\s*oven-sh\/setup-bun@/.test(line)) return;
+        // The step ends at the next list item at or above its indentation.
+        const stepIndent = line.search(/\S/);
+        const step: string[] = [];
+        for (let next = index + 1; next < lines.length; next++) {
+          const text = lines[next]!;
+          const indent = text.search(/\S/);
+          if (indent >= 0 && indent <= stepIndent && /^\s*-/.test(text)) break;
+          if (indent >= 0 && indent < stepIndent) break;
+          step.push(text);
+        }
+        const stepText = step.join("\n");
+        expect({ name, line: index + 1, stepText }).toEqual({
+          name,
+          line: index + 1,
+          stepText: expect.stringMatching(
+            /^\s*bun-version-file: \.bun-version$/m,
+          ),
+        });
+        expect(stepText).not.toMatch(/^\s*bun-version:/m);
+      });
     }
 
     for (const dockerfile of ["docker/Dockerfile", "playground/Dockerfile"]) {
@@ -68,7 +85,10 @@ describe("GitHub Actions workflows", () => {
     const packageJson = JSON.parse(
       readFileSync(join(root, "package.json"), "utf8"),
     );
-    expect(packageJson.devDependencies["@types/bun"]).toMatch(/^\d/);
+    // An exact version, not a range such as `1.3.x` or `^1.3.3`.
+    expect(packageJson.devDependencies["@types/bun"]).toMatch(
+      /^\d+\.\d+\.\d+$/,
+    );
   });
 
   test("container publication accepts release tags and explicit manual requests on patch-only versions", () => {
