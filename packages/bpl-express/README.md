@@ -32,12 +32,14 @@ to 16 KiB headers and 1 MiB bodies. Fragmented fixed-length and chunked requests
 request transfer codings return 501. Every response closes the connection.
 
 `listen`, `listenOn` and each worker keep up to 64 accepted connections in a
-pending set and serve one only once its first bytes arrive, so idle sockets
-such as browser preconnects do not hold the server. A pending connection that
-sends nothing within `request_timeout_seconds` is closed without a response.
-Once a request starts arriving it is read to completion before the next one,
-so a client that sends a few bytes and stalls still occupies its worker until
-the request deadline.
+pending set, so idle sockets such as browser preconnects and clients that
+stall partway through a request do not hold the server. A plain HTTP request
+is assembled from whatever bytes each connection has sent and served only
+once it is complete; one still incomplete at `request_timeout_seconds` gets
+408, and a connection that sends nothing in that time is closed without a
+response. TLS connections are served from their first bytes, because the
+handshake reads in blocking steps, so a TLS client that stalls mid-request
+still occupies its worker until the request deadline.
 
 Routes support `get`, `post`, `put`, `delete`, `patch`, `options`, `head`, and
 `on(method, path, handler)`. Parameters use `/users/:id`; nonterminal `*`

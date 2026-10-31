@@ -695,9 +695,14 @@ so one scope cannot lock new identities out of another; a full scope still
 refuses new identities instead of evicting tracked ones, which would let a
 client reset another's counter. The chunked re-parse is bounded: it skips
 payloads by length and chunk-size lines are capped at 64 KiB of overhead, all
-within the request deadline. Still open: a client that sends a partial request
-and stalls occupies its worker until the deadline; fixing that needs
-non-blocking per-connection request assembly.
+within the request deadline. A plain HTTP client that sends part of a request
+and stalls no longer occupies its worker: the accept loop assembles each
+pending connection's request from the bytes available and serves it only once
+it is complete, invalid or too large, answering 408 when the request deadline
+passes first (`tests/WebIdleConnections.test.ts`; four stalled clients used to
+delay a request by 8 s on one worker). Still open: TLS connections are served
+from their first bytes because the handshake reads in blocking steps, so a TLS
+client that stalls mid-request still holds its worker until the deadline.
 
 #### BUG-462: Package installation hardening
 
