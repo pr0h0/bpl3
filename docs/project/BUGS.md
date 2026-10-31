@@ -374,7 +374,11 @@ lists a namespace import's names unqualified.
   other structs are excluded. Rename of members stays disabled.
 - Signature help matches callees by bare name (`b.set(` highlights `this`),
   counts commas inside strings and `<` comparisons, and reads the file from disk
-  instead of the unsaved buffer.
+  instead of the unsaved buffer. *Fixed (2026-10-31):* the call context comes
+  from a forward scan that skips strings, character literals and comments and
+  treats `<` as a generic bracket only when it touches a name; `value.method(`
+  shows only the receiver type's method without `this`; free functions come
+  from the open buffer before the index.
 - `.` is not a completion trigger (`server.ts:228`); resolving a completion
   overwrites struct details with "BPL built-in type" (`server.ts:635`).
 - Quick fixes at `server.ts:922/990/1043` can never apply: "Import List from std"

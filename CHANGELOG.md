@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Signature help in the language server (BUG-446): `value.method(` shows only
+  the receiver type's method, without `this` (it listed every same-named method
+  and highlighted `this`); commas and parentheses inside strings and spaced
+  `<` comparisons no longer shift the active argument; and functions declared in
+  the open buffer show their unsaved signature instead of the saved one.
 - `bpl file.bpl` tree-shakes like `bpl build`: the root command's `--emit`
   defaults to `llvm`, and an `emit` of `llvm` disabled pruning unreachable
   functions, so a plain build that imported `std` compiled all 1,134 library

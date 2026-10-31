@@ -9,6 +9,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { fileURLToPath } from "url";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
+import { typeNodeToString } from "./utils";
 import type * as AST from "../../../compiler/common/AST";
 
 /**
@@ -55,9 +56,19 @@ export class SignatureHelpProvider {
         : null;
 
     // Get signature information
-    const signatures = memberSignature
-      ? [memberSignature]
-      : this.getSignatures(callContext.functionName, filePath, ast);
+    let signatures: SignatureInformation[];
+    if (memberSignature) {
+      signatures = [memberSignature];
+    } else if (callContext.qualifier) {
+      signatures = this.getMethodSignatures(
+        callContext,
+        document,
+        filePath,
+        ast,
+      );
+    } else {
+      signatures = this.getSignatures(callContext.functionName, filePath, ast);
+    }
     if (signatures.length === 0) return null;
 
     return {
@@ -68,7 +79,10 @@ export class SignatureHelpProvider {
   }
 
   /**
-   * Find function call context at cursor position
+   * The call the cursor is inside: the innermost unclosed `(` before it, the
+   * callee name (and `qualifier.` before it), and the argument index. Strings,
+   * character literals and `#` comments are skipped, and `<` counts as a
+   * generic bracket only when it touches the name before it, as in BPL.
    */
   private findFunctionCallContext(
     document: TextDocument,
@@ -76,41 +90,57 @@ export class SignatureHelpProvider {
   ): {
     functionName: string;
     qualifier?: string;
+    qualifierOffset?: number;
     currentParam: number;
   } | null {
-    const beforeCursor = document.getText({
+    const text = document.getText({
       start: { line: 0, character: 0 },
       end: position,
     });
 
-    // Find the last unclosed '('
-    let parenDepth = 0;
-    let lastOpenParen = -1;
-    let _commaCount = 0;
-
-    for (let i = beforeCursor.length - 1; i >= 0; i--) {
-      const ch = beforeCursor[i];
-      if (ch === ")") {
-        parenDepth++;
-      } else if (ch === "(") {
-        if (parenDepth === 0) {
-          lastOpenParen = i;
-          break;
+    const stack: { kind: string; offset: number; commas: number }[] = [];
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]!;
+      if (ch === "/" && text[i + 1] === "#") {
+        i = skipBlockComment(text, i) - 1;
+      } else if (ch === "#") {
+        while (i < text.length && text[i] !== "\n") i++;
+      } else if (ch === "`") {
+        i = skipInterpolatedString(text, i) - 1;
+      } else if (ch === '"' || ch === "'") {
+        for (i++; i < text.length && text[i] !== ch; i++) {
+          if (text[i] === "\\") i++;
         }
-        parenDepth--;
-      } else if (ch === "," && parenDepth === 0) {
-        _commaCount++;
+      } else if (ch === "(" || ch === "[" || ch === "{") {
+        stack.push({ kind: ch, offset: i, commas: 0 });
+      } else if (ch === "<" && i > 0 && /[A-Za-z0-9_]/.test(text[i - 1]!)) {
+        stack.push({ kind: "<", offset: i, commas: 0 });
+      } else if (ch === ">" && stack[stack.length - 1]?.kind === "<") {
+        stack.pop();
+      } else if (ch === ")" || ch === "]" || ch === "}") {
+        const open = OPENING_BRACKET[ch]!;
+        // Unbalanced generic brackets inside the group close with it.
+        while (stack.length > 0 && stack[stack.length - 1]!.kind === "<") {
+          stack.pop();
+        }
+        if (stack[stack.length - 1]?.kind === open) stack.pop();
+      } else if (ch === "," && stack.length > 0) {
+        stack[stack.length - 1]!.commas++;
       }
     }
 
-    if (lastOpenParen === -1) return null;
+    let call: { offset: number; commas: number } | undefined;
+    for (let i = stack.length - 1; i >= 0; i--) {
+      if (stack[i]!.kind === "(") {
+        call = stack[i];
+        break;
+      }
+      // Inside a block or index rather than a call's arguments.
+      if (stack[i]!.kind === "{") return null;
+    }
+    if (!call) return null;
 
-    // Count commas between open paren and cursor to determine current parameter
-    const withinParens = beforeCursor.substring(lastOpenParen + 1);
-    const currentParam = this.countCommas(withinParens);
-
-    // Extract function name before the '('
-    const beforeParen = beforeCursor.substring(0, lastOpenParen).trim();
+    const beforeParen = text.substring(0, call.offset).trimEnd();
     const functionNameMatch = beforeParen.match(
       /(?:([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*)?([a-zA-Z_][a-zA-Z0-9_]*)$/,
     );
@@ -120,70 +150,133 @@ export class SignatureHelpProvider {
     return {
       functionName: functionNameMatch[2],
       qualifier: functionNameMatch[1],
-      currentParam,
+      qualifierOffset: functionNameMatch[1]
+        ? beforeParen.length - functionNameMatch[0].length
+        : undefined,
+      currentParam: call.commas,
     };
   }
 
   /**
-   * Count commas at depth 0 (not inside nested calls or generics)
+   * Signatures for `qualifier.name(`. When the qualifier is a value of a known
+   * struct type only that struct's method is shown, and an instance method's
+   * `this` is omitted because the receiver is not an argument.
    */
-  private countCommas(text: string): number {
-    let count = 0;
-    let parenDepth = 0;
-    let angleDepth = 0;
-
-    for (const ch of text) {
-      if (ch === "(") parenDepth++;
-      else if (ch === ")") parenDepth--;
-      else if (ch === "<") angleDepth++;
-      else if (ch === ">") angleDepth--;
-      else if (ch === "," && parenDepth === 0 && angleDepth === 0) {
-        count++;
-      }
+  private getMethodSignatures(
+    context: {
+      functionName: string;
+      qualifier?: string;
+      qualifierOffset?: number;
+    },
+    document: TextDocument,
+    filePath: string,
+    ast: AST.Program | null | undefined,
+  ): SignatureInformation[] {
+    const qualifier = context.qualifier!;
+    let ownerName: string | null = null;
+    const typeNamed = this.findStruct(qualifier, filePath, ast);
+    if (typeNamed) {
+      ownerName = qualifier;
+    } else if (context.qualifierOffset !== undefined) {
+      const at = document.positionAt(context.qualifierOffset);
+      const node = this.astResolver.findNodeAtPosition(
+        filePath,
+        at.line,
+        at.character,
+      );
+      const type =
+        node?.kind === "Identifier"
+          ? this.astResolver.resolveType(node, filePath)
+          : null;
+      ownerName = type ? baseTypeName(type) : null;
     }
 
-    return count;
+    const signatures: SignatureInformation[] = [];
+    const owner = ownerName ? this.findStruct(ownerName, filePath, ast) : null;
+    if (owner) {
+      for (const member of owner.members) {
+        if (
+          member.kind === "FunctionDecl" &&
+          member.name === context.functionName
+        ) {
+          signatures.push(signatureFromDecl(member, true));
+        }
+      }
+      // A known receiver without that method has no signature to show.
+      return signatures;
+    }
+    if (ownerName) {
+      // The index's copy of this file is stale next to the open buffer.
+      const indexed = this.symbolIndex
+        .findSymbolInFile(ownerName, filePath, ast)
+        .filter((symbol) => symbol.filePath !== filePath);
+      for (const symbol of indexed) {
+        for (const method of symbol.methods ?? []) {
+          if (method.name !== context.functionName) continue;
+          const sig = this.createSignatureFromMethod(method, true);
+          if (sig) signatures.push(sig);
+        }
+      }
+      if (indexed.length > 0) return signatures;
+    }
+    // Unknown receiver: any method of that name, still without `this`.
+    for (const sym of this.symbolIndex.getAllSymbols()) {
+      for (const method of sym.methods ?? []) {
+        if (method.name !== context.functionName) continue;
+        const sig = this.createSignatureFromMethod(method, true);
+        if (sig) signatures.push(sig);
+      }
+    }
+    return signatures;
+  }
+
+  /** A struct declared in the open buffer, or else known to the index. */
+  private findStruct(
+    name: string,
+    filePath: string,
+    ast: AST.Program | null | undefined,
+  ): AST.StructDecl | null {
+    const local = ast?.statements.find(
+      (statement): statement is AST.StructDecl =>
+        statement.kind === "StructDecl" && statement.name === name,
+    );
+    if (local) return local;
+    const indexed = this.symbolIndex
+      .findSymbolInFile(name, filePath, ast)
+      .find((symbol) => symbol.declaration.kind === "StructDecl");
+    return indexed ? (indexed.declaration as AST.StructDecl) : null;
   }
 
   /**
-   * Get signatures for a function
+   * Signatures for a free function. Declarations in the open buffer come
+   * first, so unsaved edits show; the index covers imported modules.
    */
   private getSignatures(
     functionName: string,
     filePath: string,
     ast: AST.Program | null | undefined,
   ): SignatureInformation[] {
-    const signatures: SignatureInformation[] = [];
+    const local = (ast?.statements ?? []).filter(
+      (statement): statement is AST.FunctionDecl | AST.ExternDecl =>
+        (statement.kind === "FunctionDecl" || statement.kind === "Extern") &&
+        statement.name === functionName,
+    );
+    if (local.length > 0) {
+      return local.map((decl) => signatureFromDecl(decl, false));
+    }
 
-    // Look up function in symbol index, following an `import x as y` alias
-    const symbols = this.symbolIndex.findSymbolInFile(
+    const signatures: SignatureInformation[] = [];
+    // Follow an `import x as y` alias. The saved copy of this file is stale
+    // next to the buffer, so its index entries are skipped.
+    for (const symbol of this.symbolIndex.findSymbolInFile(
       functionName,
       filePath,
       ast,
-    );
-
-    if (Array.isArray(symbols)) {
-      for (const symbol of symbols) {
-        if (symbol && symbol.kind === "function") {
-          const sig = this.createSignatureFromSymbol(symbol);
-          if (sig) signatures.push(sig);
-        }
-      }
+    )) {
+      if (symbol.kind !== "function" || symbol.filePath === filePath) continue;
+      const sig = this.createSignatureFromSymbol(symbol);
+      if (sig) signatures.push(sig);
     }
-
-    // Also check for methods (could be called via explicit self)
-    const symbolsWithMethods = this.symbolIndex.getAllSymbols();
-    for (const sym of symbolsWithMethods) {
-      if (sym.methods) {
-        for (const method of sym.methods) {
-          if (method.name === functionName) {
-            const sig = this.createSignatureFromMethod(method);
-            if (sig) signatures.push(sig);
-          }
-        }
-      }
-    }
-
     return signatures;
   }
 
@@ -221,10 +314,14 @@ export class SignatureHelpProvider {
   /**
    * Create signature information from method
    */
-  private createSignatureFromMethod(method: any): SignatureInformation | null {
+  private createSignatureFromMethod(
+    method: any,
+    dropThis = false,
+  ): SignatureInformation | null {
     // Methods store parameters directly in signature
-    const params = method.signature?.parameters || method.params;
+    let params = method.signature?.parameters || method.params;
     if (!params || !Array.isArray(params)) return null;
+    if (dropThis && params[0]?.name === "this") params = params.slice(1);
 
     const paramInfos: ParameterInformation[] = params.map(
       (p: { name: string; type: string }) => {
@@ -248,4 +345,108 @@ export class SignatureHelpProvider {
       ...paramInfos,
     );
   }
+}
+
+const OPENING_BRACKET: Record<string, string> = {
+  ")": "(",
+  "]": "[",
+  "}": "{",
+};
+
+/** `*Box`, `Box<int>` or `Box[]` to `Box`. */
+function baseTypeName(type: string): string {
+  return type
+    .replace(/^\*+/, "")
+    .replace(/<.*$/, "")
+    .replace(/\[.*$/, "")
+    .trim();
+}
+
+/** A signature from a declaration, without `this` for a method call. */
+function signatureFromDecl(
+  decl: AST.FunctionDecl | AST.ExternDecl,
+  dropThis: boolean,
+): SignatureInformation {
+  const params = decl.params.filter(
+    (param, index) => !(dropThis && index === 0 && param.name === "this"),
+  );
+  const labels = params.map(
+    (param) => `${param.name}: ${typeNodeToString(param.type)}`,
+  );
+  if (decl.kind === "Extern" && decl.isVariadic) labels.push("...");
+  const returnType = decl.returnType
+    ? typeNodeToString(decl.returnType)
+    : "void";
+  return SignatureInformation.create(
+    `${decl.name}(${labels.join(", ")}) ret ${returnType}`,
+    undefined,
+    ...labels.map((label) => ParameterInformation.create(label)),
+  );
+}
+
+/** The index after a `/# ... #/` comment starting at `start`; they nest. */
+function skipBlockComment(text: string, start: number): number {
+  let depth = 0;
+  let i = start;
+  while (i < text.length) {
+    if (text[i] === "/" && text[i + 1] === "#") {
+      depth++;
+      i += 2;
+    } else if (text[i] === "#" && text[i + 1] === "/") {
+      i += 2;
+      if (--depth === 0) return i;
+    } else {
+      i++;
+    }
+  }
+  return text.length;
+}
+
+/**
+ * The index after a backtick string starting at `start`. `${...}` holds an
+ * expression, which can contain strings and further backtick strings.
+ */
+function skipInterpolatedString(text: string, start: number): number {
+  let i = start + 1;
+  while (i < text.length && text[i] !== "\n") {
+    const ch = text[i]!;
+    if (ch === "\\") {
+      i += 2;
+    } else if (ch === "`") {
+      return i + 1;
+    } else if (ch === "$" && text[i + 1] === "{") {
+      i = skipInterpolation(text, i + 2);
+    } else {
+      i++;
+    }
+  }
+  return i;
+}
+
+/** The index after the `}` closing an interpolation whose body starts at `start`. */
+function skipInterpolation(text: string, start: number): number {
+  let depth = 1;
+  let i = start;
+  while (i < text.length) {
+    const ch = text[i]!;
+    if (ch === "`") {
+      i = skipInterpolatedString(text, i);
+    } else if (ch === '"' || ch === "'") {
+      for (i++; i < text.length && text[i] !== ch; i++) {
+        if (text[i] === "\\") i++;
+      }
+      i++;
+    } else if (ch === "/" && text[i + 1] === "#") {
+      i = skipBlockComment(text, i);
+    } else if (ch === "{") {
+      depth++;
+      i++;
+    } else if (ch === "}") {
+      i++;
+      if (--depth === 0) return i;
+    } else {
+      i++;
+    }
+  }
+  return text.length;
 }
