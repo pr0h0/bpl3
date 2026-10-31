@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("Map reserve preserves collision chains when a custom hasher throws", () => {
-  expectCorrectnessSuite([{
-    name: "map-rehash-callback-failure",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "map-rehash-callback-failure",
+      validateLlvm: true,
+      source: `
       import [Map] from "std/map.bpl";
       import [Option] from "std/option.bpl";
       global hashCalls: int = 0;
@@ -47,6 +48,7 @@ test("Map reserve preserves collision chains when a custom hasher throws", () =>
         map.destroy();
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

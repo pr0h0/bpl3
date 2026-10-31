@@ -11,7 +11,9 @@ function compileBpl(sourcePath: string) {
 describe("Operator Overloading Tests", () => {
   describe("Positive Tests - Should Compile and Run", () => {
     it("should handle basic arithmetic operators (+, -, *, /, %)", () => {
-      const result = compileBpl("examples/operator_overloading_arithmetic/main.bpl");
+      const result = compileBpl(
+        "examples/operator_overloading_arithmetic/main.bpl",
+      );
 
       expect(result.status).toBe(0);
       expect(result.stderr).not.toContain("error");
@@ -32,7 +34,9 @@ describe("Operator Overloading Tests", () => {
     });
 
     it("should handle bitwise operators (&, |, ^, ~, <<, >>)", () => {
-      const result = compileBpl("examples/operator_overloading_bitwise/main.bpl");
+      const result = compileBpl(
+        "examples/operator_overloading_bitwise/main.bpl",
+      );
 
       expect(result.status).toBe(0);
       expect(result.stderr).not.toContain("error");
@@ -54,7 +58,9 @@ describe("Operator Overloading Tests", () => {
     });
 
     it("should handle comparison operators (<, <=, >, >=, ==, !=)", () => {
-      const result = compileBpl("examples/operator_overloading_bitwise/main.bpl");
+      const result = compileBpl(
+        "examples/operator_overloading_bitwise/main.bpl",
+      );
 
       expect(result.status).toBe(0);
 
@@ -170,7 +176,9 @@ describe("Operator Overloading Tests", () => {
 
   describe("Edge Cases", () => {
     it("should handle operator overload with complex types", () => {
-      const result = compileBpl("examples/operator_overloading_arithmetic/main.bpl");
+      const result = compileBpl(
+        "examples/operator_overloading_arithmetic/main.bpl",
+      );
 
       expect(result.status).toBe(0);
 
@@ -195,7 +203,9 @@ describe("Operator Overloading Tests", () => {
     it("should handle operator precedence correctly", () => {
       // Operator precedence should be maintained
       // This is handled by the parser, not operator overloading
-      const result = compileBpl("examples/operator_overloading_arithmetic/main.bpl");
+      const result = compileBpl(
+        "examples/operator_overloading_arithmetic/main.bpl",
+      );
 
       expect(result.status).toBe(0);
     });

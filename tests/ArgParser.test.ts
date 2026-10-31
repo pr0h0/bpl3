@@ -111,7 +111,9 @@ describe("ArgParser", () => {
     const result = runArgParser(["--verbose=true"]);
 
     expect(result.exitCode).toBe(0);
-    expect(result.stderr).toContain("Error: Flag --verbose does not take a value.");
+    expect(result.stderr).toContain(
+      "Error: Flag --verbose does not take a value.",
+    );
     expect(result.stdout).not.toContain("verbose:true\n");
   });
 });

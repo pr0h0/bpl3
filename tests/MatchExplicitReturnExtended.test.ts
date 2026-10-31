@@ -1,8 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import {
-  DiagnosticSeverity,
-} from "../compiler/common/CompilerError";
+import { DiagnosticSeverity } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";

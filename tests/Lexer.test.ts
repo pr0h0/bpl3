@@ -82,9 +82,7 @@ describe("Lexer - Extended Tests", () => {
         expect(tokens[0]!.lexeme).toBe(keyword);
       }
       expect(genericParserSource).toContain("function classifyIdentifierLike");
-      expect(grammarLexerSource).toContain(
-        "typeCode <= GENERIC_TOKEN_KEYWORD",
-      );
+      expect(grammarLexerSource).toContain("typeCode <= GENERIC_TOKEN_KEYWORD");
     });
 
     it("checks identifier keyword candidates only for possible keyword starts", () => {
@@ -786,7 +784,7 @@ describe("Lexer - Extended Tests", () => {
       const createTokenSource = source.slice(start, end);
       expect(createTokenSource).toContain("canContainNewline = false");
       expect(createTokenSource).toContain(
-        'if (!canContainNewline || !/[\\r\\n]/.test(value))',
+        "if (!canContainNewline || !/[\\r\\n]/.test(value))",
       );
       expect(createTokenSource).toContain("this.position += value.length;");
       expect(createTokenSource).toContain("this.column += value.length;");
@@ -893,7 +891,9 @@ describe("Lexer - Extended Tests", () => {
         "function parseNumber",
         converterStart,
       );
-      const convertNodeStart = source.indexOf("function convertTokenNodeToToken");
+      const convertNodeStart = source.indexOf(
+        "function convertTokenNodeToToken",
+      );
       const convertNodeEnd = source.indexOf(
         "function createFrontendTokenFromParts",
         convertNodeStart,
@@ -1184,7 +1184,9 @@ describe("Lexer - Extended Tests", () => {
       expect(tokenize("3.14")[0]!.literal).toBe(3.14);
       expect(tokenize("0xFF")[0]!.literal).toBe(255);
       expect(tokenize("1_2_3")[0]!.literal).toBe(123);
-      expect(parseNumberSource).toContain("const secondCode = raw.charCodeAt(1)");
+      expect(parseNumberSource).toContain(
+        "const secondCode = raw.charCodeAt(1)",
+      );
       expect(parseNumberSource).toContain(
         "return (firstCode - 48) * 10 + secondCode - 48",
       );

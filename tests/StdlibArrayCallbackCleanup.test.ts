@@ -11,7 +11,9 @@ test("Array map and filter release result buffers when callbacks throw", () => {
       .replace('"./option.bpl"', '"std/option.bpl"')
       .replace(/\bmalloc\b/g, "arrayTestAllocate")
       .replace(/\bfree\b/g, "arrayTestFree")
-      .replace("extern arrayTestAllocate(size: long) ret *void;", `
+      .replace(
+        "extern arrayTestAllocate(size: long) ret *void;",
+        `
         extern malloc(size: long) ret *void;
         global arrayTestLive: int = 0;
         export arrayTestBalance;
@@ -20,19 +22,24 @@ test("Array map and filter release result buffers when callbacks throw", () => {
           local buffer: *void = malloc(size);
           if (buffer != nullptr) { arrayTestLive = arrayTestLive + 1; }
           return buffer;
-        }`)
-      .replace("extern arrayTestFree(ptr: *void) ret void;", `
+        }`,
+      )
+      .replace(
+        "extern arrayTestFree(ptr: *void) ret void;",
+        `
         extern free(ptr: *void) ret void;
         frame arrayTestFree(ptr: *void) {
           if (ptr != nullptr) { arrayTestLive = arrayTestLive - 1; }
           free(ptr);
-        }`);
+        }`,
+      );
     const module = join(dir, "array.bpl");
     writeFileSync(module, source);
-    expectCorrectnessSuite([{
-      name: "array-callback-result-cleanup",
-      validateLlvm: true,
-      source: `
+    expectCorrectnessSuite([
+      {
+        name: "array-callback-result-cleanup",
+        validateLlvm: true,
+        source: `
         import [Array], arrayTestBalance from "${module}";
         frame main() ret int {
           local values: Array<int> = Array<int>.new(4);
@@ -64,8 +71,9 @@ test("Array map and filter release result buffers when callbacks throw", () => {
           if (arrayTestBalance() != 0) { return 6; }
           return 0;
         }`,
-      expectedStdout: "",
-    }]);
+        expectedStdout: "",
+      },
+    ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

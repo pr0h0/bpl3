@@ -1,10 +1,14 @@
 /**
- * Source text with whitespace and trailing commas before a closing bracket
- * removed, so assertions about code shape do not depend on how Prettier
- * wraps a line.
+ * Source text with whitespace removed next to punctuation and trailing commas
+ * before a closing bracket dropped, so assertions about code shape do not
+ * depend on how Prettier wraps a line. Whitespace between two word
+ * characters stays as one space, so `bun run x` does not match `bunrun x`.
  */
 export function compact(text: string): string {
-  return text.replace(/\s+/g, "").replace(/,([)\]}])/g, "$1");
+  return text
+    .replace(/\s+/g, " ")
+    .replace(/(?<![\w$]) | (?![\w$])/g, "")
+    .replace(/,([)\]}])/g, "$1");
 }
 
 /**

@@ -10,7 +10,9 @@ test("LinkedList rejects growth failures before changing nodes or length", () =>
     const source = readFileSync(resolve("lib/linked_list.bpl"), "utf8")
       .replace(/\bmalloc\b/g, "listTestAllocate")
       .replace(/\bfree\b/g, "listTestFree")
-      .replace("extern listTestAllocate(size: long) ret *void;", `
+      .replace(
+        "extern listTestAllocate(size: long) ret *void;",
+        `
         extern malloc(size: long) ret *void;
         global listTestShouldFail: bool = false;
         global listTestLive: int = 0;
@@ -23,19 +25,24 @@ test("LinkedList rejects growth failures before changing nodes or length", () =>
           local buffer: *void = malloc(size);
           if (buffer != nullptr) { listTestLive = listTestLive + 1; }
           return buffer;
-        }`)
-      .replace("extern listTestFree(ptr: *void) ret void;", `
+        }`,
+      )
+      .replace(
+        "extern listTestFree(ptr: *void) ret void;",
+        `
         extern free(ptr: *void) ret void;
         frame listTestFree(ptr: *void) {
           if (ptr != nullptr) { listTestLive = listTestLive - 1; }
           free(ptr);
-        }`);
+        }`,
+      );
     const module = join(dir, "linked_list.bpl");
     writeFileSync(module, source);
-    expectCorrectnessSuite([{
-      name: "linked-list-growth-failures",
-      validateLlvm: true,
-      source: `
+    expectCorrectnessSuite([
+      {
+        name: "linked-list-growth-failures",
+        validateLlvm: true,
+        source: `
         import [LinkedList], [ListNode], listTestFail, listTestBalance from "${module}";
         import [Option] from "std/option.bpl";
         extern strcmp(a: string, b: string) ret int;
@@ -46,21 +53,29 @@ test("LinkedList rejects growth failures before changing nodes or length", () =>
           local head: *ListNode<int> = list.head;
           local tail: *ListNode<int> = list.tail;
           listTestFail(true);
-          ${["pushFront", "pushBack"].map((method, i) => `
+          ${["pushFront", "pushBack"]
+            .map(
+              (method, i) => `
             local caught${i}: bool = false;
             try { list.${method}(3); }
             catch (error: string) { caught${i} = strcmp(error, "LinkedList allocation failed") == 0; }
             if (!caught${i} || list.length != 2 || list.head != head || list.tail != tail) { return 1; }
-          `).join("\n")}
+          `,
+            )
+            .join("\n")}
           listTestFail(false);
           # Synthetic count verifies rejection without allocating huge lists.
           list.length = 2147483647;
-          ${["pushFront", "pushBack"].map((method, i) => `
+          ${["pushFront", "pushBack"]
+            .map(
+              (method, i) => `
             local full${i}: bool = false;
             try { list.${method}(3); }
             catch (error: string) { full${i} = strcmp(error, "LinkedList capacity exceeded") == 0; }
             if (!full${i} || list.length != 2147483647 || listTestBalance() != 2) { return 2; }
-          `).join("\n")}
+          `,
+            )
+            .join("\n")}
           list.length = 2;
           list.pushFront(0);
           list.pushBack(3);
@@ -72,8 +87,9 @@ test("LinkedList rejects growth failures before changing nodes or length", () =>
           if (listTestBalance() != 0) { return 5; }
           return 0;
         }`,
-      expectedStdout: "",
-    }]);
+        expectedStdout: "",
+      },
+    ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

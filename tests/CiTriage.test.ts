@@ -291,9 +291,9 @@ describe("CI triage helper", () => {
     expect(
       localCommandsForStep("npm tarball includes source-only files"),
     ).toEqual(expectedCommands);
-    expect(
-      localCommandsForStep("Unaccounted packed tools payload"),
-    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("Unaccounted packed tools payload")).toEqual(
+      expectedCommands,
+    );
   });
 
   test("maps release cli-registry failures to the focused sync check", () => {
@@ -346,9 +346,9 @@ describe("CI triage helper", () => {
         "check packed npm CLI package global search symlink JSON",
       ),
     ).toEqual(globalSearchDirectoryCommands.slice(0, 2));
-    expect(localCommandsForStep("BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY")).toEqual(
-      searchNotDirectoryCommands,
-    );
+    expect(
+      localCommandsForStep("BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY"),
+    ).toEqual(searchNotDirectoryCommands);
     expect(
       localCommandsForStep("package search directory is not a directory"),
     ).toEqual(searchNotDirectoryCommands);
@@ -1613,18 +1613,16 @@ describe("CI triage helper", () => {
       "bun run check",
     ];
 
-    expect(
-      localCommandsForStep("Debug IR path is a symbolic link"),
-    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("Debug IR path is a symbolic link")).toEqual(
+      expectedCommands,
+    );
     expect(
       localCommandsForStep(
         "CodeGenerator reports missing debug IR parent directories",
       ),
     ).toEqual(expectedCommands);
     expect(
-      localCommandsForStep(
-        "Debug IR parent path contains a symbolic link",
-      ),
+      localCommandsForStep("Debug IR parent path contains a symbolic link"),
     ).toEqual(expectedCommands);
   });
 
@@ -1701,7 +1699,7 @@ describe("CI triage helper", () => {
     expect(localCommandsForStep("bpl --version --json parse failure")).toEqual(
       expectedCommands,
     );
-    expect(localCommandsForStep("check: \"version\" mismatch")).toEqual(
+    expect(localCommandsForStep('check: "version" mismatch')).toEqual(
       expectedCommands,
     );
   });
@@ -1823,9 +1821,9 @@ describe("CI triage helper", () => {
     expect(localCommandsForStep("BPL_LINT_NO_INPUTS")).toEqual(
       expectedCommands,
     );
-    expect(
-      localCommandsForStep("check --json No files specified."),
-    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("check --json No files specified.")).toEqual(
+      expectedCommands,
+    );
   });
 
   test("maps package source-safety JSON failures to focused reproduction commands", () => {
@@ -1884,9 +1882,9 @@ describe("CI triage helper", () => {
         "reports malformed package manifests in JSON-mode check and build diagnostics",
       ),
     ).toEqual(expectedCommands);
-    expect(
-      localCommandsForStep("manifest path is a symbolic link"),
-    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("manifest path is a symbolic link")).toEqual(
+      expectedCommands,
+    );
     expect(localCommandsForStep("missing package manifests")).toEqual(
       expectedCommands,
     );
@@ -1948,9 +1946,9 @@ describe("CI triage helper", () => {
       "bun index.ts doctor packages --json",
     ];
 
-    expect(
-      localCommandsForStep("doctor lock verification drift"),
-    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("doctor lock verification drift")).toEqual(
+      expectedCommands,
+    );
     expect(
       localCommandsForStep(
         "bpl doctor packages --json reported BPL_PACKAGE_LOCK_VERIFY_FAILED hash-mismatch",
@@ -1965,9 +1963,7 @@ describe("CI triage helper", () => {
       "bun index.ts doctor packages --json",
     ];
 
-    expect(localCommandsForStep("stale-lock-entry")).toEqual(
-      expectedCommands,
-    );
+    expect(localCommandsForStep("stale-lock-entry")).toEqual(expectedCommands);
     expect(
       localCommandsForStep("lockVerificationKind missing-package"),
     ).toEqual(expectedCommands);
@@ -2079,12 +2075,12 @@ describe("CI triage helper", () => {
       "bun run check",
     ];
 
-    expect(
-      localCommandsForStep("BPL_PACKAGE_UNINSTALL_NOT_INSTALLED"),
-    ).toEqual(expectedCommands);
-    expect(
-      localCommandsForStep("BPL_PACKAGE_UNINSTALL_NAME_INVALID"),
-    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("BPL_PACKAGE_UNINSTALL_NOT_INSTALLED")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("BPL_PACKAGE_UNINSTALL_NAME_INVALID")).toEqual(
+      expectedCommands,
+    );
     expect(
       localCommandsForStep("package-uninstall JSON contract failure"),
     ).toEqual(expectedCommands);
@@ -2121,9 +2117,9 @@ describe("CI triage helper", () => {
     expect(localCommandsForStep("BPL_PACKAGE_INIT_MANIFEST_EXISTS")).toEqual(
       expectedCommands,
     );
-    expect(
-      localCommandsForStep("package-init JSON contract failure"),
-    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("package-init JSON contract failure")).toEqual(
+      expectedCommands,
+    );
   });
 
   test("maps project creation JSON failures to focused reproduction commands", () => {
@@ -2255,9 +2251,9 @@ describe("CI triage helper", () => {
     expect(localCommandsForStep("PlaygroundExampleContracts.test")).toEqual(
       expectedCommands,
     );
-    expect(
-      localCommandsForStep("playground example contract parser"),
-    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("playground example contract parser")).toEqual(
+      expectedCommands,
+    );
     expect(
       localCommandsForStep(
         "playground/examples/70-browser-wasm-showcase.json: expectedOutput[1] must be a string",
@@ -2354,9 +2350,7 @@ describe("CI triage helper", () => {
       expectedCommands,
     );
     expect(
-      localCommandsForStep(
-        "fuzz/crashes/crash_seed-cafe_iter-1_tokens.json",
-      ),
+      localCommandsForStep("fuzz/crashes/crash_seed-cafe_iter-1_tokens.json"),
     ).toEqual(expectedCommands);
     expect(localCommandsForStep("Upload fuzz crash artifacts")).toEqual(
       expectedCommands,
@@ -2470,9 +2464,9 @@ describe("CI triage helper", () => {
         "examples/generics_map/test_config.json: unsupported key expected_output",
       ),
     ).toEqual(expectedCommands);
-    expect(
-      localCommandsForStep("invalid JSON in test_config.json"),
-    ).toEqual(expectedCommands);
+    expect(localCommandsForStep("invalid JSON in test_config.json")).toEqual(
+      expectedCommands,
+    );
     expect(
       localCommandsForStep(
         "keeps example test configs valid for the integration harness",
@@ -2567,19 +2561,13 @@ describe("CI triage helper", () => {
     };
 
     expect(
-      compareCheckoutToRun(
-        run,
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      ),
+      compareCheckoutToRun(run, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
     ).toEqual({
       status: "current",
       headSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     });
     expect(
-      compareCheckoutToRun(
-        run,
-        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      ),
+      compareCheckoutToRun(run, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
     ).toEqual({
       status: "stale",
       headSha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -2626,10 +2614,7 @@ describe("CI triage helper", () => {
       { owner: "pr0h0", repo: "bpl3", runId: 1 },
       summary,
       run,
-      compareCheckoutToRun(
-        run,
-        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      ),
+      compareCheckoutToRun(run, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
     );
 
     expect(formatted).toContain(
@@ -3205,9 +3190,7 @@ describe("CI triage helper", () => {
   });
 
   test("prints CI-safe example phase repro commands from an offline jobs fixture", () => {
-    const tempDir = mkdtempSync(
-      join(tmpdir(), "bpl-ci-triage-example-phase-"),
-    );
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-example-phase-"));
     const jobsPath = join(tempDir, "jobs.json");
 
     try {
@@ -3353,14 +3336,7 @@ describe("CI triage helper", () => {
 
       const textResult = spawnSync(
         "bun",
-        [
-          "run",
-          "ci:triage",
-          "--",
-          "--jobs-json",
-          jobsPath,
-          "26695335269",
-        ],
+        ["run", "ci:triage", "--", "--jobs-json", jobsPath, "26695335269"],
         {
           cwd: join(import.meta.dir, ".."),
           encoding: "utf8",
@@ -3509,9 +3485,7 @@ describe("CI triage helper", () => {
   });
 
   test("prints explicit std import repro commands from an offline jobs fixture", () => {
-    const tempDir = mkdtempSync(
-      join(tmpdir(), "bpl-ci-triage-explicit-std-"),
-    );
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-explicit-std-"));
     const jobsPath = join(tempDir, "jobs.json");
 
     try {
@@ -3625,14 +3599,7 @@ describe("CI triage helper", () => {
 
       const result = spawnSync(
         "bun",
-        [
-          "run",
-          "ci:triage",
-          "--",
-          "--jobs-json",
-          jobsPath,
-          "26695335269",
-        ],
+        ["run", "ci:triage", "--", "--jobs-json", jobsPath, "26695335269"],
         {
           cwd: join(import.meta.dir, ".."),
           encoding: "utf8",
@@ -4395,8 +4362,7 @@ describe("CI triage helper", () => {
               id: 184,
               name: "Ubuntu system clang release",
               conclusion: "failure",
-              html_url:
-                "https://github.com/pr0h0/bpl3/actions/runs/1/job/184",
+              html_url: "https://github.com/pr0h0/bpl3/actions/runs/1/job/184",
               steps: [
                 {
                   name: "error[BPL_SYMBOL_ALREADY_DEFINED][errors.bpl:22:1]: Symbol 'Error' is already defined in this scope",
@@ -5175,9 +5141,7 @@ describe("CI triage helper", () => {
   });
 
   test("prints invalid void repro commands from an offline jobs fixture", () => {
-    const tempDir = mkdtempSync(
-      join(tmpdir(), "bpl-ci-triage-invalid-void-"),
-    );
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-invalid-void-"));
     const jobsPath = join(tempDir, "jobs.json");
 
     try {
@@ -6897,9 +6861,11 @@ describe("CI triage helper", () => {
       expect(commandsByJobName.get("Package import docs JSON smoke")).toEqual([
         'bun test tests/CLIJsonParseability.test.ts -t "package/import docs examples"',
       ]);
-      expect(commandsByJobName.get("Package docs smoke documentation")).toEqual([
-        'bun test tests/MarkdownDocs.test.ts -t "package docs document package/import docs smoke fixtures"',
-      ]);
+      expect(commandsByJobName.get("Package docs smoke documentation")).toEqual(
+        [
+          'bun test tests/MarkdownDocs.test.ts -t "package docs document package/import docs smoke fixtures"',
+        ],
+      );
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -6969,7 +6935,9 @@ describe("CI triage helper", () => {
   });
 
   test("prints root build no-input repro commands from an offline jobs fixture", () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-build-no-input-"));
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-ci-triage-build-no-input-"),
+    );
     const jobsPath = join(tempDir, "jobs.json");
 
     try {
@@ -7792,9 +7760,7 @@ describe("CI triage helper", () => {
   });
 
   test("prints version JSON repro commands from an offline jobs fixture", () => {
-    const tempDir = mkdtempSync(
-      join(tmpdir(), "bpl-ci-triage-version-json-"),
-    );
+    const tempDir = mkdtempSync(join(tmpdir(), "bpl-ci-triage-version-json-"));
     const jobsPath = join(tempDir, "jobs.json");
 
     try {
@@ -8225,8 +8191,9 @@ describe("CI triage helper", () => {
         "BPL_COMPILE_DRIVER_TIMEOUT_MS=600000 bun run test:ci",
       ]);
       expect(
-        report.summary.failedJobs.find((job) => job.name === "Sanitizer timeout")
-          ?.localCommands,
+        report.summary.failedJobs.find(
+          (job) => job.name === "Sanitizer timeout",
+        )?.localCommands,
       ).toEqual([
         "bun run test:sanitizers",
         "bun test tests/CompilerSanitizerRuntime.test.ts",
@@ -8497,8 +8464,7 @@ describe("CI triage helper", () => {
         JSON.stringify({
           run: {
             id: 26695335269,
-            html_url:
-              "https://github.com/pr0h0/bpl3/actions/runs/26695335269",
+            html_url: "https://github.com/pr0h0/bpl3/actions/runs/26695335269",
             head_branch: "master",
             head_sha: "1234567890abcdef1234567890abcdef12345678",
             status: "completed",
@@ -8561,10 +8527,7 @@ describe("CI triage helper", () => {
   test("rejects missing option values before GitHub API calls", () => {
     const cases: Array<[string[], string]> = [
       [["--repo", "--run", "26695335269"], "Missing value for --repo"],
-      [
-        ["--run", "--repo", "pr0h0/bpl3"],
-        "Missing value for --run",
-      ],
+      [["--run", "--repo", "pr0h0/bpl3"], "Missing value for --run"],
     ];
 
     for (const [args, expectedError] of cases) {

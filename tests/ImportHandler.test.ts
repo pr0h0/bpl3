@@ -60,7 +60,9 @@ function makeHandlerWithFallbackResolver(): ImportHandlerInternals {
     checkStatement: () => {},
     defineSymbol: () => {},
   };
-  const handler = new ImportHandler(context) as unknown as ImportHandlerInternals;
+  const handler = new ImportHandler(
+    context,
+  ) as unknown as ImportHandlerInternals;
   handler.moduleResolver = {
     resolveModulePath: () => {
       throw new Error("synthetic resolver failure");
@@ -225,9 +227,7 @@ describe("ImportHandler", () => {
     expect(compilerError.hint).toContain(
       "Ensure the symbol is exported (or defined) in the module.",
     );
-    expect(compilerError.hint).toContain(
-      "Available exports: available, zeta.",
-    );
+    expect(compilerError.hint).toContain("Available exports: available, zeta.");
     expect(compilerError.code).toBe("BPL_IMPORT_EXPORT_NOT_FOUND");
   });
 

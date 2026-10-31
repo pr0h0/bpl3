@@ -42,7 +42,8 @@ describe("Language Exploration 2026-05-26", () => {
     });
 
     it("rejects duplicate string switch cases", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         frame main() ret int {
           local value: string = "x";
           switch (value) {
@@ -52,7 +53,9 @@ describe("Language Exploration 2026-05-26", () => {
           }
           return 0;
         }
-      `, "duplicate");
+      `,
+        "duplicate",
+      );
     });
 
     it("BUG-142: evaluates string interpolation expressions left-to-right exactly once", () => {
@@ -80,7 +83,8 @@ describe("Language Exploration 2026-05-26", () => {
 
   describe("pointer safety and compatibility", () => {
     it("BUG-143: rejects returning a stack address hidden inside a struct literal", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         struct Holder {
           ptr: *int,
         }
@@ -94,11 +98,14 @@ describe("Language Exploration 2026-05-26", () => {
           local holder: Holder = leak();
           return *holder.ptr;
         }
-      `, "local");
+      `,
+        "local",
+      );
     });
 
     it("BUG-143: rejects returning a stack address hidden inside a tuple literal", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         frame leak() ret (*int, int) {
           local value: int = 7;
           return (&value, 1);
@@ -108,11 +115,14 @@ describe("Language Exploration 2026-05-26", () => {
           local (ptr: *int, _tag: int) = leak();
           return *ptr;
         }
-      `, "local");
+      `,
+        "local",
+      );
     });
 
     it("BUG-363: rejects returning the address of a local's field or element", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         struct Holder {
           field: int,
         }
@@ -126,9 +136,12 @@ describe("Language Exploration 2026-05-26", () => {
         frame main() ret int {
           return *leakField();
         }
-      `, "local");
+      `,
+        "local",
+      );
 
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         frame leakElement() ret *int {
           local values: int[2];
           values[0] = 1;
@@ -138,7 +151,9 @@ describe("Language Exploration 2026-05-26", () => {
         frame main() ret int {
           return *leakElement();
         }
-      `, "local");
+      `,
+        "local",
+      );
     });
 
     it("BUG-363: allows returning an address that is not this frame's storage", () => {
@@ -203,7 +218,8 @@ describe("Language Exploration 2026-05-26", () => {
     });
 
     it("BUG-373: rejects an address into a slice that views this frame", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         frame descriptor() ret *int {
           local items: int[3];
           items[0] = 1;
@@ -216,11 +232,14 @@ describe("Language Exploration 2026-05-26", () => {
         frame main() ret int {
           return *descriptor();
         }
-      `, "local");
+      `,
+        "local",
+      );
     });
 
     it("BUG-376: rejects an address into a slice parameter the frame rebound", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         frame first(xs: int[]) ret *int {
           local items: int[3];
           items[0] = 7;
@@ -234,7 +253,9 @@ describe("Language Exploration 2026-05-26", () => {
           local caller: int[2] = [1, 2];
           return *first(caller);
         }
-      `, "xs");
+      `,
+        "xs",
+      );
     });
 
     it("BUG-376: keeps the exemption when a slice parameter is only written through", () => {
@@ -281,7 +302,8 @@ describe("Language Exploration 2026-05-26", () => {
     });
 
     it("C08: rebinding the parameter is still rejected from an inner block", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         frame first(xs: int[]) ret *int {
           local items: int[3];
           items[0] = 1;
@@ -293,22 +315,28 @@ describe("Language Exploration 2026-05-26", () => {
           local values: int[1] = [0];
           return *first(values);
         }
-      `, "xs");
+      `,
+        "xs",
+      );
     });
 
     it("BUG-144: rejects pointer subtraction across incompatible pointee types", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         frame main() ret int {
           local int_ptr: *int = nullptr;
           local float_ptr: *float = nullptr;
           local _diff: long = int_ptr - float_ptr;
           return 0;
         }
-      `, "compare");
+      `,
+        "compare",
+      );
     });
 
     it("rejects pointer equality across incompatible pointee types", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         frame main() ret int {
           local int_ptr: *int = nullptr;
           local float_ptr: *float = nullptr;
@@ -317,13 +345,16 @@ describe("Language Exploration 2026-05-26", () => {
           }
           return 0;
         }
-      `, "compare");
+      `,
+        "compare",
+      );
     });
   });
 
   describe("const mutation", () => {
     it("rejects writes through const struct variables", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         struct Point {
           x: int,
           y: int,
@@ -334,23 +365,29 @@ describe("Language Exploration 2026-05-26", () => {
           p.x = 3;
           return p.x;
         }
-      `, "const");
+      `,
+        "const",
+      );
     });
 
     it("rejects writes through const array variables", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         frame main() ret int {
           local const values: int[3] = [1, 2, 3];
           values[1] = 9;
           return values[1];
         }
-      `, "const");
+      `,
+        "const",
+      );
     });
   });
 
   describe("functions and callable values", () => {
     it("rejects too many arguments when calling a function pointer", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         type Unary = Func<int>(int);
 
         frame inc(value: int) ret int {
@@ -361,11 +398,14 @@ describe("Language Exploration 2026-05-26", () => {
           local fn: Unary = inc;
           return fn(1, 2);
         }
-      `, "argument");
+      `,
+        "argument",
+      );
     });
 
     it("rejects assigning incompatible function signatures", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         type Unary = Func<int>(int);
 
         frame takes_float(value: float) ret int {
@@ -376,7 +416,9 @@ describe("Language Exploration 2026-05-26", () => {
           local fn: Unary = takes_float;
           return fn(1);
         }
-      `, "type");
+      `,
+        "type",
+      );
     });
   });
 
@@ -446,7 +488,8 @@ describe("Language Exploration 2026-05-26", () => {
     });
 
     it("BUG-145: rejects method overrides with incompatible return types", () => {
-      expectCompilationFailure(`
+      expectCompilationFailure(
+        `
         struct Base {
           frame value(this: *Base) ret int {
             return 1;
@@ -467,7 +510,9 @@ describe("Language Exploration 2026-05-26", () => {
           local child: Child;
           return read(&child);
         }
-      `, "override");
+      `,
+        "override",
+      );
     });
   });
 });

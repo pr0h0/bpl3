@@ -44,9 +44,13 @@ describe("Package Manager CLI", () => {
       const manifest = JSON.parse(fs.readFileSync("bpl.json", "utf-8"));
       expect(manifest.name).toBeTruthy();
       expect(manifest.version).toBe("1.0.0");
-      expectPackageManifestConformsToSchema(manifest as JsonObject, "bpl init", {
-        requireSchemaUri: true,
-      });
+      expectPackageManifestConformsToSchema(
+        manifest as JsonObject,
+        "bpl init",
+        {
+          requireSchemaUri: true,
+        },
+      );
     });
 
     test("should report init success and failures as JSON", () => {
@@ -118,15 +122,11 @@ describe("Package Manager CLI", () => {
         errorCode: "BPL_PACKAGE_INIT_NAME_INVALID",
       });
 
-      const existingResult = spawnSync(
-        "bun",
-        [bplPath, "init", "--json"],
-        {
-          cwd: existingDir,
-          encoding: "utf-8",
-          env: { ...process.env, NO_COLOR: "1" },
-        },
-      );
+      const existingResult = spawnSync("bun", [bplPath, "init", "--json"], {
+        cwd: existingDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
       const existingReport = expectJsonStdoutReport<{
         check: "package-init";
         success: boolean;
@@ -271,7 +271,10 @@ describe("Package Manager CLI", () => {
         path.join(packageDir, "bpl.json"),
         JSON.stringify(manifest, null, 2),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame value() {} export value;",
+      );
 
       const packResult = spawnSync(
         "bun",
@@ -515,12 +518,18 @@ describe("Package Manager CLI", () => {
           path.join(projectDir, "bpl.json"),
           JSON.stringify(testCase.manifest, null, 2),
         );
-        fs.writeFileSync(path.join(projectDir, "index.bpl"), "frame root() {} export root;");
+        fs.writeFileSync(
+          path.join(projectDir, "index.bpl"),
+          "frame root() {} export root;",
+        );
         fs.writeFileSync(
           path.join(projectDir, "src", "index.bpl"),
           "frame nested() {} export nested;",
         );
-        fs.writeFileSync(path.join(projectDir, "bin", "tool.bpl"), "frame tool() {} export tool;");
+        fs.writeFileSync(
+          path.join(projectDir, "bin", "tool.bpl"),
+          "frame tool() {} export tool;",
+        );
 
         const result = spawnSync("bun", [bplPath, "pack"], {
           cwd: projectDir,
@@ -558,7 +567,10 @@ describe("Package Manager CLI", () => {
         path.join(packageDir, "bpl.json"),
         JSON.stringify(manifest, null, 2),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame test() {} export test;",
+      );
 
       // Pack it
       const packResult = spawnSync("bun", [bplPath, "pack"], {
@@ -618,7 +630,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame test() {} export test;",
+      );
 
       const packResult = spawnSync("bun", [bplPath, "pack"], {
         cwd: packageDir,
@@ -689,7 +704,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame test() {} export test;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame test() {} export test;",
+      );
 
       const packResult = spawnSync("bun", [bplPath, "pack"], {
         cwd: packageDir,
@@ -706,10 +724,7 @@ describe("Package Manager CLI", () => {
       );
       fs.chmodSync(lockPath, 0o640);
 
-      const tarballPath = path.join(
-        packageDir,
-        "cli-lock-mode-test-1.0.0.tgz",
-      );
+      const tarballPath = path.join(packageDir, "cli-lock-mode-test-1.0.0.tgz");
       const installResult = spawnSync(
         "bun",
         [bplPath, "install", tarballPath],
@@ -727,7 +742,9 @@ describe("Package Manager CLI", () => {
         source: tarballPath,
       });
       expect(
-        fs.existsSync(path.join(projectDir, "bpl_modules", "cli-lock-mode-test")),
+        fs.existsSync(
+          path.join(projectDir, "bpl_modules", "cli-lock-mode-test"),
+        ),
       ).toBe(true);
     });
 
@@ -753,7 +770,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame old() {} export old;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame old() {} export old;",
+      );
 
       const firstPack = spawnSync("bun", [bplPath, "pack"], {
         cwd: packageDir,
@@ -782,7 +802,10 @@ describe("Package Manager CLI", () => {
       );
       fs.chmodSync(cachedArchivePath, 0o640);
 
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame new() {} export new;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame new() {} export new;",
+      );
       const secondPack = spawnSync("bun", [bplPath, "pack"], {
         cwd: packageDir,
         encoding: "utf-8",
@@ -825,7 +848,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame original() {} export original;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame original() {} export original;",
+      );
 
       const packResult = spawnSync("bun", [bplPath, "pack"], {
         cwd: packageDir,
@@ -981,7 +1007,10 @@ describe("Package Manager CLI", () => {
       fs.mkdirSync(packageDir, { recursive: true });
       fs.writeFileSync(
         path.join(projectDir, "bpl.json"),
-        JSON.stringify({ name: "locked-untracked-count-app", version: "1.0.0" }),
+        JSON.stringify({
+          name: "locked-untracked-count-app",
+          version: "1.0.0",
+        }),
       );
       fs.writeFileSync(
         path.join(projectDir, "bpl.lock"),
@@ -999,7 +1028,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame value() {} export value;",
+      );
 
       const result = spawnSync(
         "bun",
@@ -1085,7 +1117,10 @@ describe("Package Manager CLI", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+        fs.writeFileSync(
+          path.join(packageDir, "index.bpl"),
+          "frame value() {} export value;",
+        );
       }
 
       const localPM = new PackageManager(projectDir);
@@ -1151,7 +1186,10 @@ describe("Package Manager CLI", () => {
     });
 
     test("should collapse duplicate untracked package names in locked verification JSON", () => {
-      const projectDir = path.join(tempDir, "locked-untracked-duplicate-project");
+      const projectDir = path.join(
+        tempDir,
+        "locked-untracked-duplicate-project",
+      );
       const firstPackageDir = path.join(
         projectDir,
         "bpl_modules",
@@ -1189,7 +1227,10 @@ describe("Package Manager CLI", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+        fs.writeFileSync(
+          path.join(packageDir, "index.bpl"),
+          "frame value() {} export value;",
+        );
       }
 
       const result = spawnSync(
@@ -1257,7 +1298,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame root() {} export root;",
+      );
       fs.writeFileSync(
         path.join(appDir, "bpl.lock"),
         JSON.stringify(
@@ -1367,7 +1411,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame root() {} export root;",
+      );
       fs.writeFileSync(
         path.join(appDir, "bpl.lock"),
         JSON.stringify(
@@ -1476,7 +1523,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame root() {} export root;",
+      );
       fs.writeFileSync(
         path.join(appDir, "bpl.lock"),
         JSON.stringify(
@@ -1567,7 +1617,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(parentDir, "index.bpl"), "frame parent() {} export parent;");
+      fs.writeFileSync(
+        path.join(parentDir, "index.bpl"),
+        "frame parent() {} export parent;",
+      );
       fs.writeFileSync(
         path.join(childDir, "bpl.json"),
         JSON.stringify(
@@ -1580,7 +1633,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(childDir, "index.bpl"), "frame child() {} export child;");
+      fs.writeFileSync(
+        path.join(childDir, "index.bpl"),
+        "frame child() {} export child;",
+      );
       fs.writeFileSync(
         path.join(appDir, "bpl.lock"),
         JSON.stringify(
@@ -1646,7 +1702,10 @@ describe("Package Manager CLI", () => {
         "bpl_modules",
         "locked-invalid-child",
       );
-      const sourceArchive = path.join(appDir, "locked-invalid-parent-1.0.0.tgz");
+      const sourceArchive = path.join(
+        appDir,
+        "locked-invalid-parent-1.0.0.tgz",
+      );
       fs.mkdirSync(parentDir, { recursive: true });
       fs.writeFileSync(
         path.join(appDir, "bpl.json"),
@@ -1671,7 +1730,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(parentDir, "index.bpl"), "frame parent() {} export parent;");
+      fs.writeFileSync(
+        path.join(parentDir, "index.bpl"),
+        "frame parent() {} export parent;",
+      );
       fs.writeFileSync(childPath, "not a package directory");
 
       const localPM = new PackageManager(appDir);
@@ -1871,10 +1933,14 @@ describe("Package Manager CLI", () => {
         ].join("\n"),
       );
 
-      const installBForPack = spawnSync("bun", [bplPath, "install", depBSource], {
-        cwd: depADir,
-        encoding: "utf-8",
-      });
+      const installBForPack = spawnSync(
+        "bun",
+        [bplPath, "install", depBSource],
+        {
+          cwd: depADir,
+          encoding: "utf-8",
+        },
+      );
       expect(installBForPack.status).toBe(0);
 
       const packA = spawnSync("bun", [bplPath, "pack"], {
@@ -1980,14 +2046,10 @@ describe("Package Manager CLI", () => {
         recursive: true,
         force: true,
       });
-      const lockedMissing = spawnSync(
-        "bun",
-        [bplPath, "install", "--locked"],
-        {
-          cwd: appDir,
-          encoding: "utf-8",
-        },
-      );
+      const lockedMissing = spawnSync("bun", [bplPath, "install", "--locked"], {
+        cwd: appDir,
+        encoding: "utf-8",
+      });
       expect(lockedMissing.status).toBe(1);
       expect(lockedMissing.stderr).toContain(
         "cli-graph-a: dependency 'cli-graph-b' is missing",
@@ -2013,7 +2075,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame repaired() {} export repaired;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame repaired() {} export repaired;",
+      );
       fs.writeFileSync(
         lockPath,
         JSON.stringify(
@@ -2044,9 +2109,7 @@ describe("Package Manager CLI", () => {
 
       expect(result.status).toBe(0);
       expect(result.stdout).toContain("Repaired bpl.lock");
-      const lock = JSON.parse(
-        fs.readFileSync(lockPath, "utf8"),
-      );
+      const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
       expect(lock.packages["cli-repair"].hash).not.toBe("wrong");
       expect(lock.packages["cli-stale"]).toBeUndefined();
 
@@ -2135,7 +2198,10 @@ describe("Package Manager CLI", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+        fs.writeFileSync(
+          path.join(packageDir, "index.bpl"),
+          "frame value() {} export value;",
+        );
       }
 
       const result = spawnSync(
@@ -2189,11 +2255,7 @@ describe("Package Manager CLI", () => {
 
     test("should report invalid installed package exports during lockfile repair JSON", () => {
       const appDir = path.join(tempDir, "cli-repair-export-app");
-      const packageDir = path.join(
-        appDir,
-        "bpl_modules",
-        "cli-repair-export",
-      );
+      const packageDir = path.join(appDir, "bpl_modules", "cli-repair-export");
       fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
       fs.writeFileSync(
         path.join(appDir, "bpl.json"),
@@ -2212,7 +2274,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame root() {} export root;",
+      );
 
       const humanResult = spawnSync(
         "bun",
@@ -2309,7 +2374,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame root() {} export root;",
+      );
 
       const humanResult = spawnSync(
         "bun",
@@ -2484,7 +2552,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame root() {} export root;",
+      );
 
       const textResult = spawnSync("bun", [bplPath, "list"], {
         cwd: appDir,
@@ -2533,15 +2604,15 @@ describe("Package Manager CLI", () => {
 
     test("should report invalid installed package bin files in list output", () => {
       const appDir = path.join(tempDir, "cli-list-bin-app");
-      const packageDir = path.join(appDir, "bpl_modules", "cli-list-bin-broken");
+      const packageDir = path.join(
+        appDir,
+        "bpl_modules",
+        "cli-list-bin-broken",
+      );
       fs.mkdirSync(path.join(packageDir, "bin"), { recursive: true });
       fs.writeFileSync(
         path.join(appDir, "bpl.json"),
-        JSON.stringify(
-          { name: "cli-list-bin-app", version: "1.0.0" },
-          null,
-          2,
-        ),
+        JSON.stringify({ name: "cli-list-bin-app", version: "1.0.0" }, null, 2),
       );
       fs.writeFileSync(
         path.join(packageDir, "bpl.json"),
@@ -2556,7 +2627,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame root() {} export root;",
+      );
 
       const textResult = spawnSync("bun", [bplPath, "list"], {
         cwd: appDir,
@@ -2639,7 +2713,10 @@ describe("Package Manager CLI", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+        fs.writeFileSync(
+          path.join(packageDir, "index.bpl"),
+          "frame value() {} export value;",
+        );
       }
 
       const result = spawnSync("bun", [bplPath, "list", "--json"], {
@@ -2722,18 +2799,17 @@ describe("Package Manager CLI", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+        fs.writeFileSync(
+          path.join(packageDir, "index.bpl"),
+          "frame value() {} export value;",
+        );
       }
 
-      const result = spawnSync(
-        "bun",
-        [bplPath, "list", "--tree", "--json"],
-        {
-          cwd: appDir,
-          encoding: "utf-8",
-          env: { ...process.env, NO_COLOR: "1" },
-        },
-      );
+      const result = spawnSync("bun", [bplPath, "list", "--tree", "--json"], {
+        cwd: appDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
 
       const report = expectJsonStdoutReport<{
         scope: string;
@@ -2810,7 +2886,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(parentDir, "index.bpl"), "frame parent() {} export parent;");
+      fs.writeFileSync(
+        path.join(parentDir, "index.bpl"),
+        "frame parent() {} export parent;",
+      );
       fs.writeFileSync(
         path.join(childDir, "bpl.json"),
         JSON.stringify(
@@ -2823,7 +2902,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(childDir, "index.bpl"), "frame child() {} export child;");
+      fs.writeFileSync(
+        path.join(childDir, "index.bpl"),
+        "frame child() {} export child;",
+      );
 
       const textResult = spawnSync("bun", [bplPath, "list", "--tree"], {
         cwd: appDir,
@@ -2915,7 +2997,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(parentDir, "index.bpl"), "frame parent() {} export parent;");
+      fs.writeFileSync(
+        path.join(parentDir, "index.bpl"),
+        "frame parent() {} export parent;",
+      );
       fs.writeFileSync(
         path.join(childDir, "bpl.json"),
         JSON.stringify(
@@ -2928,7 +3013,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(childDir, "index.bpl"), "frame child() {} export child;");
+      fs.writeFileSync(
+        path.join(childDir, "index.bpl"),
+        "frame child() {} export child;",
+      );
 
       const textResult = spawnSync("bun", [bplPath, "list", "--tree"], {
         cwd: appDir,
@@ -3115,7 +3203,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(appDir, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(appDir, "index.bpl"),
+        "frame root() {} export root;",
+      );
 
       const result = spawnSync(
         "bun",
@@ -3180,7 +3271,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(appDir, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(appDir, "index.bpl"),
+        "frame root() {} export root;",
+      );
 
       const result = spawnSync(
         "bun",
@@ -3303,10 +3397,14 @@ describe("Package Manager CLI", () => {
           kind: "package-cache-missing-provenance",
           packageName: "doctor-cache-cli",
           version: "1.0.0",
-          message: expect.stringContaining("missing package provenance sidecar"),
+          message: expect.stringContaining(
+            "missing package provenance sidecar",
+          ),
           path: cachePath,
           provenancePath: `${cachePath}.bplmeta.json`,
-          hint: expect.stringContaining("bpl package-cache verify doctor-cache-cli"),
+          hint: expect.stringContaining(
+            "bpl package-cache verify doctor-cache-cli",
+          ),
         }),
       );
     });
@@ -3332,7 +3430,10 @@ describe("Package Manager CLI", () => {
             main: "index.bpl",
           }),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+        fs.writeFileSync(
+          path.join(packageDir, "index.bpl"),
+          "frame value() {} export value;",
+        );
       }
 
       const result = spawnSync(
@@ -3369,14 +3470,16 @@ describe("Package Manager CLI", () => {
       });
 
       expect(report.ok).toBe(false);
-      expect(report.installedPackages.map((pkg) => pkg.manifest.name)).toEqual(
-        ["doctor-shared", "doctor-shared"],
-      );
+      expect(report.installedPackages.map((pkg) => pkg.manifest.name)).toEqual([
+        "doctor-shared",
+        "doctor-shared",
+      ]);
       expect(report.issues).toContainEqual(
         expect.objectContaining({
           severity: "error",
           kind: "package-name-mismatch",
-          message: "Installed directory 'doctor-one' contains package 'doctor-shared'.",
+          message:
+            "Installed directory 'doctor-one' contains package 'doctor-shared'.",
           path: path.join(firstPackageDir, "bpl.json"),
           hint: expect.stringContaining("Reinstall the package"),
         }),
@@ -3385,7 +3488,8 @@ describe("Package Manager CLI", () => {
         expect.objectContaining({
           severity: "error",
           kind: "package-name-mismatch",
-          message: "Installed directory 'doctor-two' contains package 'doctor-shared'.",
+          message:
+            "Installed directory 'doctor-two' contains package 'doctor-shared'.",
           path: path.join(secondPackageDir, "bpl.json"),
           hint: expect.stringContaining("Reinstall the package"),
         }),
@@ -3396,7 +3500,8 @@ describe("Package Manager CLI", () => {
       expect(duplicateIssue).toMatchObject({
         severity: "error",
         kind: "duplicate-installed-package",
-        message: "Multiple installed directories declare package 'doctor-shared'.",
+        message:
+          "Multiple installed directories declare package 'doctor-shared'.",
         path: [firstPackageDir, secondPackageDir].join(", "),
         paths: [firstPackageDir, secondPackageDir],
         hint: "Keep only one installed directory for each package name.",
@@ -3446,7 +3551,10 @@ describe("Package Manager CLI", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+        fs.writeFileSync(
+          path.join(packageDir, "index.bpl"),
+          "frame value() {} export value;",
+        );
       }
 
       const localPM = new PackageManager(appDir);
@@ -3522,11 +3630,7 @@ describe("Package Manager CLI", () => {
     test("should report invalid installed package exports as stable JSON issues", () => {
       const appDir = path.join(tempDir, "doctor-export-cli-app");
       const homeDir = path.join(tempDir, "doctor-export-cli-home");
-      const packageDir = path.join(
-        appDir,
-        "bpl_modules",
-        "doctor-export-cli",
-      );
+      const packageDir = path.join(appDir, "bpl_modules", "doctor-export-cli");
       fs.mkdirSync(path.join(packageDir, "features"), { recursive: true });
       fs.writeFileSync(
         path.join(appDir, "bpl.json"),
@@ -3545,7 +3649,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame root() {} export root;",
+      );
 
       const result = spawnSync(
         "bun",
@@ -3616,7 +3723,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame root() {} export root;",
+      );
 
       const result = spawnSync(
         "bun",
@@ -3829,7 +3939,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame original() {} export original;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame original() {} export original;",
+      );
 
       const packResult = spawnSync("bun", [bplPath, "pack"], {
         cwd: packageDir,
@@ -3843,10 +3956,14 @@ describe("Package Manager CLI", () => {
         packageDir,
         "doctor-locked-drift-1.0.0.tgz",
       );
-      const installResult = spawnSync("bun", [bplPath, "install", tarballPath], {
-        cwd: appDir,
-        encoding: "utf-8",
-      });
+      const installResult = spawnSync(
+        "bun",
+        [bplPath, "install", tarballPath],
+        {
+          cwd: appDir,
+          encoding: "utf-8",
+        },
+      );
       expect(installResult.status).toBe(0);
 
       const installedSource = path.join(
@@ -4029,7 +4146,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame value() {} export value;",
+      );
 
       const result = spawnSync(
         "bun",
@@ -4080,7 +4200,10 @@ describe("Package Manager CLI", () => {
     });
 
     test("should report invalid untracked installed packages as lock verification JSON issues", () => {
-      const appDir = path.join(tempDir, "doctor-invalid-untracked-lock-cli-app");
+      const appDir = path.join(
+        tempDir,
+        "doctor-invalid-untracked-lock-cli-app",
+      );
       const packageDir = path.join(
         appDir,
         "bpl_modules",
@@ -4100,7 +4223,10 @@ describe("Package Manager CLI", () => {
         JSON.stringify({ lockfileVersion: 1, packages: {} }, null, 2),
       );
       fs.writeFileSync(path.join(packageDir, "bpl.json"), "{ invalid");
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame value() {} export value;",
+      );
 
       const result = spawnSync(
         "bun",
@@ -4310,10 +4436,9 @@ describe("Package Manager CLI", () => {
         success: true,
       });
       const { entries } = listReport;
-      expect(entries.map((entry: { version: string }) => entry.version)).toEqual([
-        "2.0.0",
-        "1.0.0",
-      ]);
+      expect(
+        entries.map((entry: { version: string }) => entry.version),
+      ).toEqual(["2.0.0", "1.0.0"]);
       expect(
         entries.every(
           (entry: { provenanceStatus: string }) =>
@@ -4358,10 +4483,7 @@ describe("Package Manager CLI", () => {
         kind: "missing-provenance",
         message: expect.stringContaining("missing package provenance sidecar"),
         path: path.join(cacheDir, "cache-cli-1.0.0.tgz"),
-        provenancePath: path.join(
-          cacheDir,
-          "cache-cli-1.0.0.tgz.bplmeta.json",
-        ),
+        provenancePath: path.join(cacheDir, "cache-cli-1.0.0.tgz.bplmeta.json"),
       });
 
       const dryRunCleanJson = spawnSync(
@@ -4585,7 +4707,10 @@ describe("Package Manager CLI", () => {
             2,
           ),
         );
-        fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame root() {} export root;");
+        fs.writeFileSync(
+          path.join(packageRoot, "index.bpl"),
+          "frame root() {} export root;",
+        );
 
         const packResult = spawnSync(
           "tar",
@@ -4655,13 +4780,7 @@ describe("Package Manager CLI", () => {
 
       const repairResult = spawnSync(
         "bun",
-        [
-          bplPath,
-          "package-cache",
-          "repair",
-          "cache-repair-bin-json",
-          "--json",
-        ],
+        [bplPath, "package-cache", "repair", "cache-repair-bin-json", "--json"],
         {
           cwd: appDir,
           env,
@@ -4724,7 +4843,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(packageRoot, "index.bpl"),
+        "frame root() {} export root;",
+      );
 
       const packResult = spawnSync(
         "tar",
@@ -4735,18 +4857,14 @@ describe("Package Manager CLI", () => {
       new PackageManager(tempDir)["writeArchiveProvenance"](
         cachePath,
         packageRoot,
-        JSON.parse(fs.readFileSync(path.join(packageRoot, "bpl.json"), "utf-8")),
+        JSON.parse(
+          fs.readFileSync(path.join(packageRoot, "bpl.json"), "utf-8"),
+        ),
       );
 
       const result = spawnSync(
         "bun",
-        [
-          bplPath,
-          "package-cache",
-          "repair",
-          "cache-deps-json",
-          "--json",
-        ],
+        [bplPath, "package-cache", "repair", "cache-deps-json", "--json"],
         {
           cwd: appDir,
           env: {
@@ -4819,7 +4937,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageRoot, "index.bpl"), "frame root() {} export root;");
+      fs.writeFileSync(
+        path.join(packageRoot, "index.bpl"),
+        "frame root() {} export root;",
+      );
       fs.writeFileSync(
         path.join(packageRoot, "bin", "actual.sh"),
         "#!/usr/bin/env sh\necho tool\n",
@@ -4835,7 +4956,9 @@ describe("Package Manager CLI", () => {
       new PackageManager(tempDir)["writeArchiveProvenance"](
         cachePath,
         packageRoot,
-        JSON.parse(fs.readFileSync(path.join(packageRoot, "bpl.json"), "utf-8")),
+        JSON.parse(
+          fs.readFileSync(path.join(packageRoot, "bpl.json"), "utf-8"),
+        ),
       );
 
       const result = spawnSync(
@@ -4902,7 +5025,10 @@ describe("Package Manager CLI", () => {
           2,
         ),
       );
-      fs.writeFileSync(path.join(packageDir, "index.bpl"), "frame value() {} export value;");
+      fs.writeFileSync(
+        path.join(packageDir, "index.bpl"),
+        "frame value() {} export value;",
+      );
 
       const packResult = spawnSync("bun", [bplPath, "pack"], {
         cwd: packageDir,
@@ -4911,7 +5037,10 @@ describe("Package Manager CLI", () => {
       expect(packResult.status).toBe(0);
 
       const tarballPath = path.join(packageDir, "cache-repair-cli-1.0.0.tgz");
-      fs.copyFileSync(tarballPath, path.join(cacheDir, path.basename(tarballPath)));
+      fs.copyFileSync(
+        tarballPath,
+        path.join(cacheDir, path.basename(tarballPath)),
+      );
 
       const env = {
         ...process.env,

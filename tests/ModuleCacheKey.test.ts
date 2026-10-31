@@ -61,13 +61,9 @@ describe("Module cache key", () => {
     try {
       writeFileSync(
         typesPath,
-        [
-          "export [Token];",
-          "",
-          "struct Token {",
-          "  value: int,",
-          "}",
-        ].join("\n"),
+        ["export [Token];", "", "struct Token {", "  value: int,", "}"].join(
+          "\n",
+        ),
       );
       writeFileSync(
         apiPath,
