@@ -800,6 +800,28 @@ enabled by default. A real fix is code generation that copies aggregates with
 `llvm.memcpy`, reads fields through GEPs, and returns large values through a
 pointer.
 
+**Progress (2026-10-31)**: virtual method calls on an addressable struct value
+(a local, field, element or dereference) now take its address directly instead
+of loading the whole struct first and discarding the load. That removes 381 of
+the 1,146 aggregate loads in the example and cuts Clang's `-O0` time by about
+9% (3.35 s to 3.06 s). The same 238 functions still fall back to SelectionDAG
+because of aggregate stores and returns.
+
+#### BUG-475: A virtual call can evaluate its receiver twice
+
+**Status**: Fixed · **Priority**: P2
+
+Found during review of #133 (2026-10-31). For a virtual method call on a
+struct value, `emitVirtualCall` generated the receiver's value and then, when
+the expression looked addressable, also generated its address. For a receiver
+such as `((a, b) = nextPair()).0.get()` the address path re-evaluated the
+assignment, so `nextPair()` ran twice.
+
+**Resolution**: addressability is decided from the expression's shape before
+any code is emitted (`isAddressableInPlace`). Receivers that can be addressed
+in place use only their address; any other receiver is evaluated once and
+spilled. `tests/VirtualCallReceiver.test.ts`.
+
 ## Generated-program fuzzer findings (2026-10-29)
 
 Found by the oracle fuzzer (`fuzz/programGenerator.ts`, see

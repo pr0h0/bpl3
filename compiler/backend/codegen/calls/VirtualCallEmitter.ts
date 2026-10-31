@@ -39,16 +39,21 @@ export function emitVirtualCall(
   methodIndex: number,
   argsToGenerate: AST.Expression[],
 ): string {
-  const objRaw = host.generateExpression(memberExpr.object);
   const objType = host.resolveType(memberExpr.object.resolvedType!);
 
-  const { objPtr, structType } = prepareVirtualCallObject(
-    host,
-    memberExpr,
-    objRaw,
-    objType,
-    structName,
-  );
+  // An addressable struct receiver is dispatched through its address, so its
+  // value is not loaded first (the load was unused and, being a first-class
+  // aggregate, pushed Clang's -O0 instruction selector off its fast path).
+  const direct = addressVirtualReceiver(host, memberExpr, objType, structName);
+  const { objPtr, structType } =
+    direct ??
+    prepareVirtualCallObject(
+      host,
+      memberExpr,
+      host.generateExpression(memberExpr.object),
+      objType,
+      structName,
+    );
 
   const methodVoidPtr = loadVTableMethod(host, objPtr, structType, methodIndex);
 
@@ -82,6 +87,66 @@ export function emitVirtualCall(
   return resultReg;
 }
 
+/**
+ * The receiver's address when it is a non-primitive value that can be
+ * addressed in place. Addressability is decided from the expression's shape
+ * before any code is emitted, so a receiver that cannot be addressed is
+ * evaluated exactly once, by the value path in prepareVirtualCallObject.
+ */
+function addressVirtualReceiver(
+  host: VirtualCallHost,
+  memberExpr: AST.MemberExpr,
+  objType: string,
+  structName: string,
+): { objPtr: string; structType: string } | null {
+  const resolvedType = memberExpr.object.resolvedType!;
+  if (
+    objType.endsWith("*") ||
+    (resolvedType.kind === "BasicType" &&
+      PRIMITIVE_STRUCT_MAP[resolvedType.name] === structName) ||
+    !isAddressableInPlace(memberExpr.object)
+  ) {
+    return null;
+  }
+  return {
+    objPtr: host.generateAddress(memberExpr.object),
+    structType: objType + "*",
+  };
+}
+
+/**
+ * Whether generateAddress reaches `expr`'s storage without evaluating it as
+ * a temporary: a variable, a dereference, or a field or element of something
+ * that is itself addressable or reached through a pointer or slice.
+ */
+function isAddressableInPlace(expr: AST.Expression): boolean {
+  switch (expr.kind) {
+    case "Identifier":
+      return true;
+    case "Group":
+      return isAddressableInPlace((expr as AST.GroupExpr).expression);
+    case "Unary":
+      return (expr as AST.UnaryExpr).operator.type === "Star";
+    case "Member":
+    case "Index": {
+      const object = (expr as AST.MemberExpr | AST.IndexExpr).object;
+      return (
+        isPointerOrSlice(object.resolvedType) || isAddressableInPlace(object)
+      );
+    }
+    default:
+      return false;
+  }
+}
+
+function isPointerOrSlice(type: AST.TypeNode | undefined): boolean {
+  if (type?.kind !== "BasicType") return false;
+  const last = type.arrayDimensions[type.arrayDimensions.length - 1];
+  return (
+    type.pointerDepth > 0 || (last === null && type.arrayDimensions.length > 0)
+  );
+}
+
 function prepareVirtualCallObject(
   host: VirtualCallHost,
   memberExpr: AST.MemberExpr,
@@ -101,44 +166,19 @@ function prepareVirtualCallObject(
   }
 
   if (!objType.endsWith("*")) {
-    try {
-      if (!isAddressableVirtualReceiver(memberExpr.object)) {
-        throw new Error("receiver is not addressable");
-      }
-      objPtr = host.generateAddress(memberExpr.object);
-      structType = objType + "*";
-    } catch {
-      const spillAddr = host.allocateStack(
-        `vcall_spill_${host.labelCount++}`,
-        objType,
-      );
-      host.emit(`  store ${objType} ${objRaw}, ${objType}* ${spillAddr}`);
-      objPtr = spillAddr;
-      structType = objType + "*";
-    }
+    // The receiver was already evaluated into objRaw and is not addressable
+    // in place (addressVirtualReceiver handled those), so spill that value;
+    // taking its address now would evaluate it a second time.
+    const spillAddr = host.allocateStack(
+      `vcall_spill_${host.labelCount++}`,
+      objType,
+    );
+    host.emit(`  store ${objType} ${objRaw}, ${objType}* ${spillAddr}`);
+    objPtr = spillAddr;
+    structType = objType + "*";
   }
 
   return { objPtr, structType };
-}
-
-function isAddressableVirtualReceiver(expr: AST.Expression): boolean {
-  if (
-    expr.kind === "Identifier" ||
-    expr.kind === "Member" ||
-    expr.kind === "Index"
-  ) {
-    return true;
-  }
-
-  if (expr.kind === "Group") {
-    return isAddressableVirtualReceiver((expr as AST.GroupExpr).expression);
-  }
-
-  if (expr.kind === "Unary") {
-    return (expr as AST.UnaryExpr).operator.type === "Star";
-  }
-
-  return false;
 }
 
 function boxPrimitiveForVirtualCall(
