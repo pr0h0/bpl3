@@ -506,6 +506,20 @@ the `bin` from `src/cli.bpl` at install time instead of committing it.
   each iteration, and `getCurrentLabel` (`ExpressionGenerator.ts:1410`) scans
   backwards per call.
 
+**Progress (2026-10-31)**: `file-sizes` lists tracked files through
+`git ls-files` instead of a `**` glob that needs globstar; the stale generated
+`playground/COMPLETION_REPORT.md` and `UPGRADE_SUMMARY.md` are removed; the
+playground contract and Docker tests start the server with `PORT=0` and read
+the port it bound from its log (`tests/helpers/listeningPort.ts`) instead of
+deriving one from the PID.
+`emitReferencedDeferredMethods` scans only new output since #119.
+`getCurrentLabel` stops at the nearest label, so a call walks back only through
+the current basic block; it did not appear in the compile profile and is left
+as is. Still open: script naming, `docs:stdlib` living under `tests/helpers`,
+`test:baseline` memory use, `QUICKSTART.md`/`test.sh` bypassing the runner
+check, the duplicated playground Dockerfile stage, source-matching tests,
+`TypeComparison`, and compiling all of `std` for `import ... from "std"`.
+
 ### Documentation
 
 #### BUG-453: Documentation examples that do not compile

@@ -8,11 +8,13 @@ import {
 } from "bun:test";
 import { spawn, type ChildProcess } from "child_process";
 import { readFileSync } from "fs";
+import { listeningPort } from "./helpers/listeningPort";
 
 setDefaultTimeout(20_000);
 
-const PORT = 20_000 + (process.pid % 20_000);
-const API_BASE = `http://127.0.0.1:${PORT}`;
+// Set once the server reports the port it bound with PORT=0.
+let PORT = 0;
+let API_BASE = "";
 const HELLO_WORLD_SOURCE = JSON.parse(
   readFileSync("playground/examples/01-hello-world.json", "utf8"),
 ).code.join("\n");
@@ -79,11 +81,13 @@ describe("Playground compile API contract", () => {
       cwd: process.cwd(),
       env: {
         ...process.env,
-        PORT: String(PORT),
+        PORT: "0",
         BPL_PLAYGROUND_RUNNER: "host",
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
+    PORT = await listeningPort(server);
+    API_BASE = `http://127.0.0.1:${PORT}`;
 
     await waitForServer();
   });
