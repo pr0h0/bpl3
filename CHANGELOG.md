@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Find references works for struct fields and methods in the language server
+  (BUG-446): from a declaration, `value.member` or a struct-literal key it lists
+  the declaration, every access through that struct or a struct inheriting it,
+  and literal keys, excluding same-named members of unrelated structs.
 - Language server fixes (BUG-446, partial): typing `.` opens member completion;
   resolving a completion no longer replaces a struct's details with "BPL
   built-in type"; the std quick import offers `Array` (std exports no `List`);

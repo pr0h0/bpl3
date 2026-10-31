@@ -16,6 +16,7 @@ import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { lexWithGrammar } from "../../../compiler/frontend/GrammarLexer";
 import { TokenType } from "../../../compiler/frontend/TokenType";
+import { findMemberReferences } from "./MemberReferences";
 import { ASTResolver } from "./ASTResolver";
 import {
   collectGlobalValueReferences,
@@ -219,8 +220,30 @@ export class ASTRenameHandler {
       // Find the node at the cursor position
       const node = this.findNodeAtPosition(filePath, line, character);
       if (!node) return null;
-      const range = this.getNodeRange(node, document);
       const offset = document.offsetAt(position);
+
+      // Struct fields and methods: declaration, accesses and literal keys.
+      const memberRanges = findMemberReferences(
+        ast,
+        node,
+        document,
+        (expr) => this.astResolver.resolveType(expr, filePath),
+        offset,
+      );
+      if (memberRanges) {
+        const onReference = memberRanges.some(
+          (memberRange) =>
+            offset >= document.offsetAt(memberRange.start) &&
+            offset <= document.offsetAt(memberRange.end),
+        );
+        return onReference
+          ? memberRanges.map((memberRange) =>
+              Location.create(document.uri, memberRange),
+            )
+          : null;
+      }
+
+      const range = this.getNodeRange(node, document);
       if (
         !range ||
         offset < document.offsetAt(range.start) ||

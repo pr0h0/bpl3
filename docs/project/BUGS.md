@@ -367,7 +367,11 @@ lists a namespace import's names unqualified.
 **Status**: Open (partly fixed) · **Priority**: P2
 
 - Find references returns nothing for methods/fields (`ASTRenameHandler.ts:375`)
-  while the code lens counts them.
+  while the code lens counts them. *Fixed (2026-10-31):* `MemberReferences.ts`
+  resolves a field, method or `value.member` to its declaring struct (following
+  inheritance) and returns the declaration name, every access whose object is
+  that struct or a descendant, and struct-literal keys; same-named members of
+  other structs are excluded. Rename of members stays disabled.
 - Signature help matches callees by bare name (`b.set(` highlights `this`),
   counts commas inside strings and `<` comparisons, and reads the file from disk
   instead of the unsaved buffer.

@@ -33,7 +33,13 @@ for (const newline of ["\n", "\r\n", "\r"]) {
           doc,
         ),
       ).toBeNull();
-      expect(handler.findAllReferences(position, doc)).toEqual([]);
+      // A struct method's references are its own declaration (nothing calls
+      // it here), never the same-named global or that global's call.
+      expect(
+        (handler.findAllReferences(position, doc) ?? []).map(
+          (location) => location.range.start.line,
+        ),
+      ).toEqual(owner.startsWith("struct") ? [1] : []);
       const globalPosition = doc.positionAt(source.indexOf("target") + 1);
       const globalEdits = handler.rename(
         {
