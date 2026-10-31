@@ -123,23 +123,7 @@ struct App {
         local signals: ShutdownSignals = ShutdownSignals.new();
         local scope: *ShutdownSignals = &signals;
         defer scope.destroy();
-        loop {
-            local ready: int = signals.wait(fd, -1);
-            if (ready < 0) {
-                break;
-            }
-            if (ready == 0) {
-                continue;
-            }
-            local client: int = accept(fd, nullptr, nullptr);
-            if (client >= 0) {
-                try {
-                    this.serveConnection(client);
-                } catch {
-                }
-                close(client);
-            }
-        }
+        this.acceptLoop(fd, scope);
     }
     # Native HTTPS. Certificate chain and private key are PEM files.
     frame listenTLS(this: *App, port: int, host: string, certificateFile: string, keyFile: string) {
@@ -300,29 +284,98 @@ struct App {
         try {
             local signals: ShutdownSignals = ShutdownSignals.new();
             initialize();
-            loop {
-                local ready: int = signals.wait(fd, -1);
-                if (ready < 0) {
-                    break;
-                }
-                if (ready == 0) {
-                    continue;
-                }
-                local client: int = accept(fd, nullptr, nullptr);
-                if (client >= 0) {
-                    try {
-                        this.serveConnection(client);
-                    } catch {
-                    }
-                    close(client);
-                }
-            }
+            this.acceptLoop(fd, &signals);
             this.worker_shutdown();
         } catch {
             _exit(1);
         }
         _exit(0);
         return 0;
+    }
+    # Accepted connections wait in a pending set until their first bytes
+    # arrive, so idle sockets (browser preconnects, clients that never send)
+    # do not occupy the worker. A pending connection that stays silent for
+    # the request timeout is closed. Returns when shutdown is requested.
+    frame acceptLoop(this: *App, fd: int, signals: *ShutdownSignals) {
+        # [0] shutdown signals, [1] listener, [2..] pending connections.
+        local fds: pollfd[66];
+        local accepted_at: long[64];
+        local pending: int = 0;
+        local idle_limit: long = this.request_timeout_seconds * 1000;
+        loop {
+            if (signals.requested()) {
+                break;
+            }
+            fds[0].fd = signals.fd;
+            fds[0].events = 1;
+            fds[0].revents = 0;
+            # A full pending set stops accepting until a connection frees up.
+            fds[1].fd = fd;
+            if (pending >= 64) {
+                fds[1].fd = -1;
+            }
+            fds[1].events = 1;
+            fds[1].revents = 0;
+            local wait: int = -1;
+            local now: long = App.monotonicMilliseconds();
+            loop (local i: int = 0; i < pending; i = i + 1) {
+                fds[2 + i].events = 1;
+                fds[2 + i].revents = 0;
+                local left: long = (accepted_at[i] + idle_limit) - now;
+                if (left < 0) {
+                    left = 0;
+                }
+                if ((wait < 0) || (left < cast<long>(wait))) {
+                    wait = cast<int>(left);
+                }
+            }
+            local result: int = poll(&fds[0], cast<ulong>(2 + pending), wait);
+            if (signals.requested()) {
+                break;
+            }
+            if (result < 0) {
+                local error: *int = __errno_location();
+                if (error[0] == 4) {
+                    continue;
+                }
+                break;
+            }
+            now = App.monotonicMilliseconds();
+            # Serve readable connections; drop ones idle past the limit.
+            local kept: int = 0;
+            loop (local i: int = 0; i < pending; i = i + 1) {
+                local client: int = fds[2 + i].fd;
+                if (fds[2 + i].revents != 0) {
+                    try {
+                        this.serveConnection(client);
+                    } catch {
+                    }
+                    close(client);
+                } else if ((now - accepted_at[i]) >= idle_limit) {
+                    close(client);
+                } else {
+                    fds[2 + kept].fd = client;
+                    accepted_at[kept] = accepted_at[i];
+                    kept = kept + 1;
+                }
+            }
+            pending = kept;
+            if ((fds[1].fd >= 0) && (fds[1].revents != 0)) {
+                # Drain the backlog; another worker may win the race.
+                loop (pending < 64) {
+                    local client: int = accept(fd, nullptr, nullptr);
+                    if (client < 0) {
+                        break;
+                    }
+                    fds[2 + pending].fd = client;
+                    accepted_at[pending] = App.monotonicMilliseconds();
+                    pending = pending + 1;
+                }
+            }
+        }
+        loop (local i: int = 0; i < pending; i = i + 1) {
+            close(fds[2 + i].fd);
+        }
     }
     frame monotonicMilliseconds() ret long {
         local now: timespec;

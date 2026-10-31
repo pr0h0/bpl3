@@ -31,6 +31,14 @@ caller closes both descriptors. Accepted connections have five-second read/write
 to 16 KiB headers and 1 MiB bodies. Fragmented fixed-length and chunked requests are assembled; unsupported
 request transfer codings return 501. Every response closes the connection.
 
+`listen`, `listenOn` and each worker keep up to 64 accepted connections in a
+pending set and serve one only once its first bytes arrive, so idle sockets
+such as browser preconnects do not hold the server. A pending connection that
+sends nothing within `request_timeout_seconds` is closed without a response.
+Once a request starts arriving it is read to completion before the next one,
+so a client that sends a few bytes and stalls still occupies its worker until
+the request deadline.
+
 Routes support `get`, `post`, `put`, `delete`, `patch`, `options`, `head`, and
 `on(method, path, handler)`. Parameters use `/users/:id`; nonterminal `*`
 characters are literal and do not stop later parameter extraction. A final `*` matches
