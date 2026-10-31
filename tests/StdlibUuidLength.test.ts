@@ -11,17 +11,21 @@ test("UUID validation does not truncate large string lengths", () => {
     // set. The old int conversion incorrectly accepted the valid UUID prefix.
     const source = readFileSync(resolve("lib/uuid.bpl"), "utf8")
       .replace(/\bstrlen\b/g, "uuidTestLength")
-      .replace("extern uuidTestLength(str: string) ret long;", `
+      .replace(
+        "extern uuidTestLength(str: string) ret long;",
+        `
         extern strlen(str: string) ret long;
         frame uuidTestLength(str: string) ret long {
           return strlen(str) + cast<long>(4294967296);
-        }`);
+        }`,
+      );
     const module = join(dir, "uuid.bpl");
     writeFileSync(module, source);
-    expectCorrectnessSuite([{
-      name: "uuid-large-input-length",
-      validateLlvm: true,
-      source: `
+    expectCorrectnessSuite([
+      {
+        name: "uuid-large-input-length",
+        validateLlvm: true,
+        source: `
         import [UUID] from "${module}";
         frame main() ret int {
           local inputs: string[2] = ["12345678-1234-4abc-9def-123456789abc", "1234567812344abc9def123456789abc"];
@@ -37,8 +41,9 @@ test("UUID validation does not truncate large string lengths", () => {
           }
           return 0;
         }`,
-      expectedStdout: "",
-    }]);
+        expectedStdout: "",
+      },
+    ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

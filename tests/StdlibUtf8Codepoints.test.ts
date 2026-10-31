@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("UTF8 encodes scalar boundaries and replaces invalid codepoints", () => {
-  expectCorrectnessSuite([{
-    name: "utf8-scalar-encoding",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "utf8-scalar-encoding",
+      validateLlvm: true,
+      source: `
       import [UTF8] from "std/utf8.bpl";
       import [Array] from "std/array.bpl";
       extern printf(fmt: string, ...);
@@ -20,15 +21,18 @@ test("UTF8 encodes scalar boundaries and replaces invalid codepoints", () => {
         }
         return 0;
       }`,
-    expectedStdout: "1 0\n1 127\n2 194 128\n2 223 191\n3 224 160 128\n3 237 159 191\n3 239 191 189\n3 239 191 189\n3 238 128 128\n4 244 143 191 191\n3 239 191 189\n3 239 191 189\n",
-  }]);
+      expectedStdout:
+        "1 0\n1 127\n2 194 128\n2 223 191\n3 224 160 128\n3 237 159 191\n3 239 191 189\n3 239 191 189\n3 238 128 128\n4 244 143 191 191\n3 239 191 189\n3 239 191 189\n",
+    },
+  ]);
 }, 60000);
 
 test("UTF8 decoding rejects malformed sequences and invalid positions", () => {
-  expectCorrectnessSuite([{
-    name: "utf8-codepoint-decoding",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "utf8-codepoint-decoding",
+      validateLlvm: true,
+      source: `
       import [UTF8] from "std/utf8.bpl";
       import [Array] from "std/array.bpl";
       extern printf(fmt: string, ...);
@@ -58,6 +62,8 @@ test("UTF8 decoding rejects malformed sequences and invalid positions", () => {
         points.destroy();
         return 0;
       }`,
-    expectedStdout: "65533 65533 65533 65533 65533\n65533 65533 65533 65533\n65 233 8364 128512\n",
-  }]);
+      expectedStdout:
+        "65533 65533 65533 65533 65533\n65533 65533 65533 65533\n65 233 8364 128512\n",
+    },
+  ]);
 }, 60000);

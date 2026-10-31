@@ -6,12 +6,7 @@ import { BPL_PACKAGE_SCHEMA_URI } from "../../compiler/common/PackageManifestSch
 export { BPL_PACKAGE_SCHEMA_URI };
 
 type JsonValue =
-  | null
-  | boolean
-  | number
-  | string
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+  null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
 export type JsonObject = { [key: string]: JsonValue };
 
@@ -67,9 +62,10 @@ function validateJsonSchema(
 
   if (contract.minLength !== undefined) {
     expect(typeof value, `${path} is a string with minLength`).toBe("string");
-    expect((value as string).length, `${path} minLength`).toBeGreaterThanOrEqual(
-      contract.minLength,
-    );
+    expect(
+      (value as string).length,
+      `${path} minLength`,
+    ).toBeGreaterThanOrEqual(contract.minLength);
   }
 
   if (contract.pattern !== undefined) {

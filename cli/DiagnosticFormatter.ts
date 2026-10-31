@@ -5,9 +5,7 @@
 
 import * as path from "path";
 import type { CompilerError } from "../compiler/common/CompilerError";
-import {
-  DiagnosticFormatter as CompilerDiagnosticFormatter,
-} from "../compiler/common/DiagnosticFormatter";
+import { DiagnosticFormatter as CompilerDiagnosticFormatter } from "../compiler/common/DiagnosticFormatter";
 
 // Re-export the class
 export { DiagnosticFormatter } from "../compiler/common/DiagnosticFormatter";

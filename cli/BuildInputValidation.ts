@@ -33,9 +33,7 @@ export function emitBuildValidationErrorAndExit(
   process.exit(1);
 }
 
-export function emitNoInputBuildErrorAndExit(
-  options: CompileOptions,
-): never {
+export function emitNoInputBuildErrorAndExit(options: CompileOptions): never {
   emitBuildValidationErrorAndExit(
     "No input files specified.",
     BUILD_NO_INPUTS_CODE,

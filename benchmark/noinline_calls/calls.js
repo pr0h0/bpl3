@@ -1,5 +1,5 @@
 function mix(value, i) {
-  return ((value * 17) + (i % 1009) + 23) % 1000003;
+  return (value * 17 + (i % 1009) + 23) % 1000003;
 }
 
 function main() {

@@ -9,7 +9,8 @@ const shapes: Record<string, (n: number) => number[]> = {
   reversed: (n) => Array.from({ length: n }, (_, i) => n - i),
   equal: (n) => Array.from({ length: n }, () => 7),
   duplicates: (n) => Array.from({ length: n }, (_, i) => ((i * 7) % 5) - 2),
-  wide: (n) => Array.from({ length: n }, (_, i) => ((i * 2654435761) % 2000003) - 1000000),
+  wide: (n) =>
+    Array.from({ length: n }, (_, i) => ((i * 2654435761) % 2000003) - 1000000),
   organPipe: (n) => [
     ...Array.from({ length: Math.floor(n / 2) }, (_, i) => i),
     ...Array.from({ length: Math.ceil(n / 2) }, (_, i) => Math.ceil(n / 2) - i),
