@@ -347,11 +347,20 @@ explicitly.
 
 #### BUG-445: Language server ignores import aliases
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 With `import add as plus` or `import * as U`, hover, definition, signature help,
 inlay hints and completion return nothing for the alias, and completion offers
 the out-of-scope original name.
+
+**Resolution**: `SymbolIndex.getImportBindings` maps a file's `as` aliases to
+the imported declarations and its namespaces to the module's symbols.
+Identifier lookups in hover, definition, signature help and inlay hints go
+through `findSymbolInFile`, which follows an alias, and `Ns.member` resolves
+through `findNamespaceMember`. Completion lists an alias under its new name
+without the original, offers a namespace's members after `Ns.`, and no longer
+lists a namespace import's names unqualified.
+`vscode-ext/src/test/importAliases.test.ts`.
 
 #### BUG-446: Broken language-server features
 

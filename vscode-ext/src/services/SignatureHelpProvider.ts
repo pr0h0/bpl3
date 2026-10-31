@@ -9,6 +9,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { fileURLToPath } from "url";
 import { ASTResolver } from "./ASTResolver";
 import { SymbolIndex } from "./SymbolIndex";
+import type * as AST from "../../../compiler/common/AST";
 
 /**
  * Provides signature help - shows parameter info while typing function calls.
@@ -39,8 +40,24 @@ export class SignatureHelpProvider {
     const callContext = this.findFunctionCallContext(document, position);
     if (!callContext) return null;
 
+    // `Ns.fn(` where `import * as Ns` binds a module.
+    const member = callContext.qualifier
+      ? this.symbolIndex.findNamespaceMember(
+          callContext.qualifier,
+          callContext.functionName,
+          filePath,
+          ast,
+        )
+      : undefined;
+    const memberSignature =
+      member?.kind === "function"
+        ? this.createSignatureFromSymbol(member)
+        : null;
+
     // Get signature information
-    const signatures = this.getSignatures(callContext.functionName, filePath);
+    const signatures = memberSignature
+      ? [memberSignature]
+      : this.getSignatures(callContext.functionName, filePath, ast);
     if (signatures.length === 0) return null;
 
     return {
@@ -56,7 +73,11 @@ export class SignatureHelpProvider {
   private findFunctionCallContext(
     document: TextDocument,
     position: Position,
-  ): { functionName: string; currentParam: number } | null {
+  ): {
+    functionName: string;
+    qualifier?: string;
+    currentParam: number;
+  } | null {
     const beforeCursor = document.getText({
       start: { line: 0, character: 0 },
       end: position,
@@ -90,12 +111,15 @@ export class SignatureHelpProvider {
 
     // Extract function name before the '('
     const beforeParen = beforeCursor.substring(0, lastOpenParen).trim();
-    const functionNameMatch = beforeParen.match(/([a-zA-Z_][a-zA-Z0-9_]*)$/);
+    const functionNameMatch = beforeParen.match(
+      /(?:([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*)?([a-zA-Z_][a-zA-Z0-9_]*)$/,
+    );
 
-    if (!functionNameMatch || !functionNameMatch[1]) return null;
+    if (!functionNameMatch || !functionNameMatch[2]) return null;
 
     return {
-      functionName: functionNameMatch[1],
+      functionName: functionNameMatch[2],
+      qualifier: functionNameMatch[1],
       currentParam,
     };
   }
@@ -126,12 +150,17 @@ export class SignatureHelpProvider {
    */
   private getSignatures(
     functionName: string,
-    _filePath: string,
+    filePath: string,
+    ast: AST.Program | null | undefined,
   ): SignatureInformation[] {
     const signatures: SignatureInformation[] = [];
 
-    // Look up function in symbol index
-    const symbols = this.symbolIndex.findSymbol(functionName);
+    // Look up function in symbol index, following an `import x as y` alias
+    const symbols = this.symbolIndex.findSymbolInFile(
+      functionName,
+      filePath,
+      ast,
+    );
 
     if (Array.isArray(symbols)) {
       for (const symbol of symbols) {

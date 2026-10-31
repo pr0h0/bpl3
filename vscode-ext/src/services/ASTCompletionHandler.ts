@@ -72,6 +72,15 @@ export class ASTCompletionHandler {
         this.symbolIndex.getImportedSymbolsFromContent(filePath, content);
         const objectPath = memberMatch[1];
         const partialMember = memberMatch[2] || "";
+        // `Ns.` where `import * as Ns` binds a module: offer its symbols.
+        const namespaceMembers = this.symbolIndex
+          .getImportBindings(filePath, this.astResolver.getCachedAST(filePath))
+          .namespaces.get(objectPath);
+        if (namespaceMembers) {
+          return namespaceMembers
+            .filter((sym) => sym.name.startsWith(partialMember))
+            .map((sym) => this.symbolToCompletionItem(sym));
+        }
         debugLog(
           `[ASTCompletion] Member access on: ${objectPath}, partial: "${partialMember}"`,
         );

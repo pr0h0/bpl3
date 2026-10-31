@@ -45,6 +45,11 @@ export interface SymbolInfo {
   packageName?: string;
 }
 
+export interface ImportBindings {
+  aliases: Map<string, SymbolInfo[]>;
+  namespaces: Map<string, SymbolInfo[]>;
+}
+
 export interface MethodInfo {
   name: string;
   isStatic: boolean;
@@ -662,6 +667,70 @@ export class SymbolIndex {
   }
 
   /**
+   * The names a file's `import x as y` and `import * as Ns` statements bind.
+   * `aliases` maps each alias to the imported declarations; `namespaces`
+   * maps each namespace to the module's symbols.
+   */
+  getImportBindings(
+    filePath: string,
+    program: AST.Program | null | undefined,
+  ): ImportBindings {
+    const bindings: ImportBindings = {
+      aliases: new Map(),
+      namespaces: new Map(),
+    };
+    if (!program) return bindings;
+    for (const statement of program.statements) {
+      if (statement.kind !== "Import") continue;
+      const importStmt = statement as AST.ImportStmt;
+      const hasAlias = importStmt.items.some((item) => item.alias);
+      if (!hasAlias && !importStmt.namespace) continue;
+      const resolved = this.resolver.resolve(importStmt.source, filePath);
+      if (!resolved) continue;
+      this.indexFile(resolved.filePath, true);
+      const moduleSymbols = this.getFileSymbols(resolved.filePath);
+      if (importStmt.namespace) {
+        bindings.namespaces.set(importStmt.namespace, moduleSymbols);
+      }
+      for (const item of importStmt.items) {
+        if (!item.alias) continue;
+        let targets = moduleSymbols.filter((sym) => sym.name === item.name);
+        if (targets.length === 0) {
+          // Re-exported from another module.
+          targets = this.symbols.get(item.name) ?? [];
+        }
+        bindings.aliases.set(item.alias, targets);
+      }
+    }
+    return bindings;
+  }
+
+  /**
+   * Symbols a name refers to in `filePath`: the targets of an import alias
+   * when the file declares one, otherwise every indexed symbol of that name.
+   */
+  findSymbolInFile(
+    name: string,
+    filePath: string,
+    program: AST.Program | null | undefined,
+  ): SymbolInfo[] {
+    const aliased = this.getImportBindings(filePath, program).aliases.get(name);
+    return aliased ?? this.findSymbol(name);
+  }
+
+  /** A member of an `import * as Ns` namespace, or undefined. */
+  findNamespaceMember(
+    namespace: string,
+    member: string,
+    filePath: string,
+    program: AST.Program | null | undefined,
+  ): SymbolInfo | undefined {
+    return this.getImportBindings(filePath, program)
+      .namespaces.get(namespace)
+      ?.find((sym) => sym.name === member);
+  }
+
+  /**
    * Get all symbols in a file
    */
   getFileSymbols(filePath: string): SymbolInfo[] {
@@ -725,7 +794,8 @@ export class SymbolIndex {
     const importedSymbols: SymbolInfo[] = [];
     let importStatements: Array<{
       source: string;
-      items?: Array<{ name: string }>;
+      items?: Array<{ name: string; alias?: string }>;
+      namespace?: string;
     }> = [];
 
     try {
@@ -748,6 +818,9 @@ export class SymbolIndex {
         debugLog(
           `[SymbolIndex] Found import: ${importStmt.source}, items: ${importStmt.items?.length || 0}`,
         );
+
+        // `import * as Ns`: the module's names are reachable only as `Ns.x`.
+        if (importStmt.namespace) continue;
 
         const resolved = this.resolver.resolve(importStmt.source, filePath);
 
@@ -800,7 +873,18 @@ export class SymbolIndex {
               }
             }
 
-            importedSymbols.push(...filtered);
+            // `import x as y` binds only `y`, still pointing at `x`'s declaration.
+            const aliases = new Map(
+              importStmt.items
+                .filter((item) => item.alias)
+                .map((item) => [item.name, item.alias!]),
+            );
+            importedSymbols.push(
+              ...filtered.map((sym) => {
+                const alias = aliases.get(sym.name);
+                return alias ? { ...sym, name: alias } : sym;
+              }),
+            );
           } else {
             // Import all: import * from "module"
             debugLog(`[SymbolIndex] Import all (*)`);
