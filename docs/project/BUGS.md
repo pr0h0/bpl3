@@ -522,8 +522,9 @@ deriving one from the PID.
 the current basic block; it did not appear in the compile profile and is left
 as is. Still open: script naming, `docs:stdlib` living under `tests/helpers`,
 `test:baseline` memory use, `QUICKSTART.md`/`test.sh` bypassing the runner
-check, the duplicated playground Dockerfile stage, source-matching tests,
-`TypeComparison`, and compiling all of `std` for `import ... from "std"`.
+check, the duplicated playground Dockerfile stage, and source-matching tests.
+`TypeComparison` is removed (#131), and plain `bpl file.bpl` builds no longer
+compile all of `std` for `import ... from "std"` (#128).
 
 ### Documentation
 
