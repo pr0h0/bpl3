@@ -78,7 +78,11 @@ struct Set<T>: Iterable<T>, Destructible {
         local resultPtr: *Set<T> = &result;
         local completed: bool = false;
         local completedPtr: *bool = &completed;
-        defer { if (!*completedPtr) { resultPtr.destroy(); } }
+        defer {
+            if (!*completedPtr) {
+                resultPtr.destroy();
+            }
+        }
 
         # Add all elements from this set
         local it: SetIterator<T> = this.iterator();
@@ -110,7 +114,11 @@ struct Set<T>: Iterable<T>, Destructible {
         local resultPtr: *Set<T> = &result;
         local completed: bool = false;
         local completedPtr: *bool = &completed;
-        defer { if (!*completedPtr) { resultPtr.destroy(); } }
+        defer {
+            if (!*completedPtr) {
+                resultPtr.destroy();
+            }
+        }
 
         local it: SetIterator<T> = this.iterator();
         loop {
@@ -134,7 +142,11 @@ struct Set<T>: Iterable<T>, Destructible {
         local resultPtr: *Set<T> = &result;
         local completed: bool = false;
         local completedPtr: *bool = &completed;
-        defer { if (!*completedPtr) { resultPtr.destroy(); } }
+        defer {
+            if (!*completedPtr) {
+                resultPtr.destroy();
+            }
+        }
 
         local it: SetIterator<T> = this.iterator();
         loop {

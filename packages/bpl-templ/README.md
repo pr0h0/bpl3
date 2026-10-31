@@ -60,8 +60,7 @@ Without an `@args` directive, the component has no arguments.
 - **`@import <module>`**: Imports external BPL modules (e.g., structs used in args).
 
 ```html
-@import [User] from "../models.bpl"
-@args user: *User, title: string
+@import [User] from "../models.bpl" @args user: *User, title: string
 ```
 
 #### 2. Interpolation

@@ -138,10 +138,18 @@ struct IO {
     frame readLine(buf: string, capacity: int) ret LineReadResult {
         local length: int = 0;
         local status: int = __bpl_read_line(buf, capacity, &length);
-        if (status == 0) { return LineReadResult.Line(length); }
-        if (status == 1) { return LineReadResult.EndOfFile; }
-        if (status == 2) { return LineReadResult.Truncated(length); }
-        if (status == 4) { return LineReadResult.InvalidBuffer; }
+        if (status == 0) {
+            return LineReadResult.Line(length);
+        }
+        if (status == 1) {
+            return LineReadResult.EndOfFile;
+        }
+        if (status == 2) {
+            return LineReadResult.Truncated(length);
+        }
+        if (status == 4) {
+            return LineReadResult.InvalidBuffer;
+        }
         return LineReadResult.Error;
     }
 
