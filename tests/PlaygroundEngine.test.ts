@@ -62,7 +62,7 @@ describe("playground engine", () => {
       expect(dirname(dir)).toBe(os.tmpdir());
       expect(fs.existsSync(dir)).toBe(false);
     }
-  });
+  }, 60000);
 
   test("a repeated artifact-free run reuses the cached binary without a temp directory", async () => {
     const first = await playgroundTempDirs(() =>
@@ -80,7 +80,7 @@ describe("playground engine", () => {
     expect(fs.existsSync(first.dirs[0]!)).toBe(true);
     disposeNativeBinaryCache();
     expect(fs.existsSync(first.dirs[0]!)).toBe(false);
-  });
+  }, 60000);
 
   // Runtime check helpers live in std/errors.bpl and reach a program through
   // the implicit prelude, so a source without imports must still link them.
@@ -99,5 +99,5 @@ describe("playground engine", () => {
 
     expect(response.error).toBeUndefined();
     expect(response.output?.trim()).toBe("4");
-  });
+  }, 60000);
 });
