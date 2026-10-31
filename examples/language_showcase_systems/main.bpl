@@ -63,7 +63,6 @@ frame main() ret int {
     } catch (error: DivideError) {
         printf("caught error: %s\n", error.message);
     }
-
     runDeferCleanup();
     printf("defer cleanup: %d\n", cleanupTotal);
 

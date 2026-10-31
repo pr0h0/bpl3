@@ -14,4 +14,3 @@ frame main(argc: int, argv: **char) ret int {
     encoded.destroy();
     return 0;
 }
-

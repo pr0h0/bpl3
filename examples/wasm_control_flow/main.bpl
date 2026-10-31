@@ -44,6 +44,5 @@ frame main() ret int {
     if (acc.score(Visit.Pair { left: fib(5), right: 7 }) != 43) {
         return 3;
     }
-
     return 0;
 }

@@ -47,13 +47,13 @@ Shuffle inherits the current bias and edge cases of `Rand.range`.
 
 ## Float Array Operations
 
-| Function                                          | Description         |
-| ------------------------------------------------- | ------------------- |
+| Function                                          | Description               |
+| ------------------------------------------------- | ------------------------- |
 | `Algorithm.sortAsc(arr: *Array<float>)`           | Sort ascending (heapsort) |
-| `Algorithm.min(arr: *Array<float>) ret float`     | Find minimum value  |
-| `Algorithm.max(arr: *Array<float>) ret float`     | Find maximum value  |
-| `Algorithm.sum(arr: *Array<float>) ret float`     | Sum of all elements |
-| `Algorithm.average(arr: *Array<float>) ret float` | Average of elements |
+| `Algorithm.min(arr: *Array<float>) ret float`     | Find minimum value        |
+| `Algorithm.max(arr: *Array<float>) ret float`     | Find maximum value        |
+| `Algorithm.sum(arr: *Array<float>) ret float`     | Sum of all elements       |
+| `Algorithm.average(arr: *Array<float>) ret float` | Average of elements       |
 
 Floating `Algorithm.average` uses the same compensated and scaled calculation
 as `Stats.mean`, retaining representable means when a direct sum overflows or
@@ -114,7 +114,6 @@ frame main() {
     range.destroy();
 }
 ```
-
 
 ## Range length limits
 

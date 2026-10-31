@@ -23,7 +23,6 @@ frame main() ret void {
 - Avoid double-freeing.
 - Initialize pointers to `nullptr` after freeing if they might be accessed again.
 
-
 ## Manual allocator contracts
 
 ArenaAllocator, StackAllocator, and PoolAllocator use native Linux/macOS mapping
@@ -45,7 +44,6 @@ use a marker obtained from get_marker in the current allocation lifetime.
 The public bookkeeping fields remain low-level implementation state. Manually
 corrupting them, using expired pointers, or writing past an allocation is outside
 these contracts and is not made memory-safe by the allocation size checks.
-
 
 PageAllocator returns storage aligned to the native OS page size on Linux/macOS.
 It rounds payload storage to pages and reserves an additional leading metadata
