@@ -8,7 +8,6 @@ struct Hash {
         if (input == nullptr) {
             return 0;
         }
-
         local hash: uint = 2166136261;
         local ptr: *u8 = cast<*u8>(input);
 
@@ -26,7 +25,6 @@ struct Hash {
         if (input == nullptr) {
             return 0;
         }
-
         local sum: uint = 0;
         local ptr: *u8 = cast<*u8>(input);
 

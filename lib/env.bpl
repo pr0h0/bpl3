@@ -163,15 +163,21 @@ struct Env {
             ptr = ptr + 1;
         }
         # Require at least one digit and bound each step before narrowing.
-        if (*ptr == cast<u8>(0)) { return defaultValue; }
+        if (*ptr == cast<u8>(0)) {
+            return defaultValue;
+        }
         local limit: long = 2147483647;
-        if (negative) { limit = 2147483648; }
+        if (negative) {
+            limit = 2147483648;
+        }
         # Parse digits
         loop (*ptr != cast<u8>(0)) {
             local c: u8 = *ptr;
             if ((c >= cast<u8>(48)) && (c <= cast<u8>(57))) {
                 result = (result * 10) + cast<long>(c - cast<u8>(48));
-                if (result > limit) { return defaultValue; }
+                if (result > limit) {
+                    return defaultValue;
+                }
             } else {
                 # Non-digit encountered
                 return defaultValue;

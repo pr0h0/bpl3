@@ -125,7 +125,6 @@ struct UTF8 {
 
             if ((i + following) >= len)
                 return false;
-
             local j: int = 1;
             loop (j <= following) {
                 local continuation: u8 = ptr[i + j];
@@ -148,7 +147,9 @@ struct UTF8 {
 
     # Decode at a byte offset; malformed text or an invalid offset returns U+FFFD.
     frame decodeCodepoint(s: string, pos: int) ret u32 {
-        if ((s == nullptr) || (pos < 0)) { return cast<u32>(0xFFFD); }
+        if ((s == nullptr) || (pos < 0)) {
+            return cast<u32>(0xFFFD);
+        }
         return UTF8._decodeCodepoint(s, pos, strlen(s));
     }
 
@@ -159,25 +160,38 @@ struct UTF8 {
         }
         local ptr: *u8 = cast<*u8>(s);
         local first: u8 = ptr[pos];
-        if (first < cast<u8>(0x80)) { return cast<u32>(first); }
+        if (first < cast<u8>(0x80)) {
+            return cast<u32>(first);
+        }
         local size: int = 0;
         local cp: u32 = cast<u32>(0);
         local minimum: u32 = cast<u32>(0);
         if ((first >= cast<u8>(0xC2)) && (first <= cast<u8>(0xDF))) {
-            size = 2; cp = cast<u32>(first & cast<u8>(0x1F)); minimum = cast<u32>(0x80);
+            size = 2;
+            cp = cast<u32>(first & cast<u8>(0x1F));
+            minimum = cast<u32>(0x80);
         } else if ((first >= cast<u8>(0xE0)) && (first <= cast<u8>(0xEF))) {
-            size = 3; cp = cast<u32>(first & cast<u8>(0x0F)); minimum = cast<u32>(0x800);
+            size = 3;
+            cp = cast<u32>(first & cast<u8>(0x0F));
+            minimum = cast<u32>(0x800);
         } else if ((first >= cast<u8>(0xF0)) && (first <= cast<u8>(0xF4))) {
-            size = 4; cp = cast<u32>(first & cast<u8>(0x07)); minimum = cast<u32>(0x10000);
-        } else { return cast<u32>(0xFFFD); }
-        if ((length - cast<long>(pos)) < cast<long>(size)) { return cast<u32>(0xFFFD); }
+            size = 4;
+            cp = cast<u32>(first & cast<u8>(0x07));
+            minimum = cast<u32>(0x10000);
+        } else {
+            return cast<u32>(0xFFFD);
+        }
+        if ((length - cast<long>(pos)) < cast<long>(size)) {
+            return cast<u32>(0xFFFD);
+        }
         loop (local j: int = 1; j < size; j = j + 1) {
             local byte: u8 = ptr[cast<long>(pos) + cast<long>(j)];
-            if ((byte & cast<u8>(0xC0)) != cast<u8>(0x80)) { return cast<u32>(0xFFFD); }
+            if ((byte & cast<u8>(0xC0)) != cast<u8>(0x80)) {
+                return cast<u32>(0xFFFD);
+            }
             cp = (cp << 6) | cast<u32>(byte & cast<u8>(0x3F));
         }
-        if ((cp < minimum) || (cp > cast<u32>(0x10FFFF))
-            || ((cp >= cast<u32>(0xD800)) && (cp <= cast<u32>(0xDFFF)))) {
+        if ((cp < minimum) || (cp > cast<u32>(0x10FFFF)) || ((cp >= cast<u32>(0xD800)) && (cp <= cast<u32>(0xDFFF)))) {
             return cast<u32>(0xFFFD);
         }
         return cp;
@@ -188,8 +202,7 @@ struct UTF8 {
     frame encodeCodepoint(codepoint: u32, dest: *u8) ret int {
         # Surrogates and values outside the Unicode scalar range have no
         # UTF-8 encoding. Emit the replacement character instead.
-        if ((codepoint > cast<u32>(0x10FFFF))
-            || ((codepoint >= cast<u32>(0xD800)) && (codepoint <= cast<u32>(0xDFFF)))) {
+        if ((codepoint > cast<u32>(0x10FFFF)) || ((codepoint >= cast<u32>(0xD800)) && (codepoint <= cast<u32>(0xDFFF)))) {
             codepoint = cast<u32>(0xFFFD);
         }
         if (codepoint < cast<u32>(0x80)) {
@@ -252,8 +265,7 @@ struct UTF8 {
             # Invalid sequences consume one byte, preserving any following text.
             # A valid encoded U+FFFD still consumes its complete three bytes.
             if (cp == cast<u32>(0xFFFD)) {
-                if (((len - i) < 3) || (ptr[i] != cast<u8>(0xEF))
-                    || (ptr[i + 1] != cast<u8>(0xBF)) || (ptr[i + 2] != cast<u8>(0xBD))) {
+                if (((len - i) < 3) || (ptr[i] != cast<u8>(0xEF)) || (ptr[i + 1] != cast<u8>(0xBF)) || (ptr[i + 2] != cast<u8>(0xBD))) {
                     cpLen = 1;
                 }
             }

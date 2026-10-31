@@ -54,15 +54,15 @@ frame statsScaledVariance(data: *float, length: int, divisor: int) ret (float, f
         if (Math.isInfinite(difference)) {
             # Opposite extremes can overflow subtraction; normalized operands
             # remain bounded even when their unscaled difference does not.
-            sample = sample / scale - origin / scale;
+            sample = (sample / scale) - (origin / scale);
         } else {
             # Close inputs have an accurately represented difference. Dividing
             # them first would lose that small gap near a large common offset.
             sample = difference / scale;
         }
         local delta: float = sample - running;
-        running = running + delta / cast<float>(i + 1);
-        squares = squares + delta * (sample - running);
+        running = running + (delta / cast<float>(i + 1));
+        squares = squares + (delta * (sample - running));
     }
     return (squares / cast<float>(divisor), scale);
 }
@@ -76,11 +76,11 @@ frame statsFloatVariance(data: *float, length: int, divisor: int) ret float {
     loop (local i: int = 0; i < length; i = i + 1) {
         local sample: float = *(data + i) - origin;
         local delta: float = sample - running;
-        running = running + delta / cast<float>(i + 1);
-        squares = squares + delta * (sample - running);
+        running = running + (delta / cast<float>(i + 1));
+        squares = squares + (delta * (sample - running));
     }
     local result: float = squares / cast<float>(divisor);
-    if (Math.isNan(result) || Math.isInfinite(result) || result == 0.0) {
+    if (Math.isNan(result) || Math.isInfinite(result) || (result == 0.0)) {
         local (normalized: float, scale: float) = statsScaledVariance(data, length, divisor);
         return (normalized * scale) * scale;
     }
@@ -91,8 +91,12 @@ frame statsFloatVariance(data: *float, length: int, divisor: int) ret float {
 # Keep the deviation and standard deviation in matching normalized units.
 frame statsStandardizedMoment(data: *float, length: int, power: int) ret (float, bool) {
     local (variance: float, scale: float) = statsScaledVariance(data, length, length);
-    if (variance == 0.0) { return (0.0, false); }
-    if (Math.isNan(variance)) { return (variance, true); }
+    if (variance == 0.0) {
+        return (0.0, false);
+    }
+    if (Math.isNan(variance)) {
+        return (variance, true);
+    }
     local origin: float = *data;
     local sum: float = 0.0;
     local error: float = 0.0;
@@ -101,7 +105,7 @@ frame statsStandardizedMoment(data: *float, length: int, power: int) ret (float,
         local difference: float = sample - origin;
         local normalized: float = difference / scale;
         if (Math.isInfinite(difference)) {
-            normalized = sample / scale - origin / scale;
+            normalized = (sample / scale) - (origin / scale);
         }
         local next: float = sum + normalized;
         if (Math.abs(sum) >= Math.abs(normalized)) {
@@ -121,12 +125,14 @@ frame statsStandardizedMoment(data: *float, length: int, power: int) ret (float,
         local difference: float = sample - origin;
         local normalized: float = difference / scale;
         if (Math.isInfinite(difference)) {
-            normalized = sample / scale - origin / scale;
+            normalized = (sample / scale) - (origin / scale);
         }
         local standardized: float = (normalized - mean) / stddev;
         local square: float = standardized * standardized;
         local moment: float = square * standardized;
-        if (power == 4) { moment = square * square; }
+        if (power == 4) {
+            moment = square * square;
+        }
         local next: float = sum + moment;
         if (Math.abs(sum) >= Math.abs(moment)) {
             error = error + ((sum - next) + moment);
@@ -153,10 +159,10 @@ frame statsProductError(a: float, b: float, product: float) ret float {
     local highB: float = splitB - (splitB - b);
     local lowA: float = a - highA;
     local lowB: float = b - highB;
-    local error1: float = product - highA * highB;
-    local error2: float = error1 - lowA * highB;
-    local error3: float = error2 - highA * lowB;
-    return lowA * lowB - error3;
+    local error1: float = product - (highA * highB);
+    local error2: float = error1 - (lowA * highB);
+    local error3: float = error2 - (highA * lowB);
+    return (lowA * lowB) - error3;
 }
 
 # Retain small raw terms when a large origin or mean would erase them.
@@ -173,12 +179,12 @@ frame statsRawCovariance(dataX: *float, dataY: *float, length: int, originX: flo
         local differenceX: float = x - originX;
         local differenceY: float = y - originY;
         if (Math.isInfinite(differenceX)) {
-            x = x / scaleX - originX / scaleX;
+            x = (x / scaleX) - (originX / scaleX);
         } else {
             x = differenceX / scaleX;
         }
         if (Math.isInfinite(differenceY)) {
-            y = y / scaleY - originY / scaleY;
+            y = (y / scaleY) - (originY / scaleY);
         } else {
             y = differenceY / scaleY;
         }
@@ -208,15 +214,12 @@ frame statsRawCovariance(dataX: *float, dataY: *float, length: int, originX: flo
     }
     local count: float = cast<float>(length);
     local meanProduct: float = sumX * sumY;
-    local meanError: float = statsProductError(sumX, sumY, meanProduct)
-        + sumX * errorY + errorX * sumY + errorX * errorY;
+    local meanError: float = statsProductError(sumX, sumY, meanProduct) + (sumX * errorY) + (errorX * sumY) + (errorX * errorY);
     local quotient: float = meanProduct / count;
     local rounded: float = quotient * count;
-    local quotientError: float = ((meanProduct - rounded)
-        - statsProductError(quotient, count, rounded) + meanError) / count;
+    local quotientError: float = (((meanProduct - rounded) - statsProductError(quotient, count, rounded)) + meanError) / count;
     local difference: float = sumProducts - quotient;
-    local correction: float = statsDifferenceError(sumProducts, quotient, difference)
-        + errorProducts - quotientError;
+    local correction: float = (statsDifferenceError(sumProducts, quotient, difference) + errorProducts) - quotientError;
     return (difference + correction) / count;
 }
 
@@ -250,13 +253,13 @@ frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, 
         local varianceY: float = invalid;
         if (!invalidX) {
             local (normalized: float, scale: float) = statsScaledVariance(dataX, length, length);
-            if (Math.sqrt(normalized) * scale == 0.0) {
+            if ((Math.sqrt(normalized) * scale) == 0.0) {
                 varianceX = 0.0;
             }
         }
         if (!invalidY) {
             local (normalized: float, scale: float) = statsScaledVariance(dataY, length, length);
-            if (Math.sqrt(normalized) * scale == 0.0) {
+            if ((Math.sqrt(normalized) * scale) == 0.0) {
                 varianceY = 0.0;
             }
         }
@@ -284,7 +287,7 @@ frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, 
         local differenceX: float = x - originX;
         local differenceY: float = y - originY;
         if (Math.isInfinite(differenceX)) {
-            x = x / scaleX - originX / scaleX;
+            x = (x / scaleX) - (originX / scaleX);
         } else {
             if (statsDifferenceError(x, originX, differenceX) != 0.0) {
                 lostOriginX = true;
@@ -292,7 +295,7 @@ frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, 
             x = differenceX / scaleX;
         }
         if (Math.isInfinite(differenceY)) {
-            y = y / scaleY - originY / scaleY;
+            y = (y / scaleY) - (originY / scaleY);
         } else {
             if (statsDifferenceError(y, originY, differenceY) != 0.0) {
                 lostOriginY = true;
@@ -302,10 +305,10 @@ frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, 
         local deltaX: float = x - meanX;
         local deltaY: float = y - meanY;
         local count: float = cast<float>(i + 1);
-        meanX = meanX + deltaX / count;
-        meanY = meanY + deltaY / count;
-        squaresX = squaresX + deltaX * (x - meanX);
-        squaresY = squaresY + deltaY * (y - meanY);
+        meanX = meanX + (deltaX / count);
+        meanY = meanY + (deltaY / count);
+        squaresX = squaresX + (deltaX * (x - meanX));
+        squaresY = squaresY + (deltaY * (y - meanY));
     }
     local count: float = cast<float>(length);
     # Recompute the cross moment around the final means. Online updates can
@@ -321,19 +324,18 @@ frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, 
         local differenceX: float = x - originX;
         local differenceY: float = y - originY;
         if (Math.isInfinite(differenceX)) {
-            x = x / scaleX - originX / scaleX;
+            x = (x / scaleX) - (originX / scaleX);
         } else {
             x = differenceX / scaleX;
         }
         if (Math.isInfinite(differenceY)) {
-            y = y / scaleY - originY / scaleY;
+            y = (y / scaleY) - (originY / scaleY);
         } else {
             y = differenceY / scaleY;
         }
         local centeredX: float = x - meanX;
         local centeredY: float = y - meanY;
-        if (statsDifferenceError(x, meanX, centeredX) != 0.0
-            || statsDifferenceError(y, meanY, centeredY) != 0.0) {
+        if ((statsDifferenceError(x, meanX, centeredX) != 0.0) || (statsDifferenceError(y, meanY, centeredY) != 0.0)) {
             lostCentered = true;
         }
         local product: float = centeredX * centeredY;
@@ -360,8 +362,7 @@ frame statsScaledMoments(dataX: *float, dataY: *float, length: int) ret (float, 
         residualY = nextY;
     }
     # Correct for the rounded means using compensated centered residual sums.
-    local covariance: float = ((products + productError)
-        - (residualX + residualErrorX) * ((residualY + residualErrorY) / count)) / count;
+    local covariance: float = ((products + productError) - ((residualX + residualErrorX) * ((residualY + residualErrorY) / count))) / count;
     if (lostOriginX || lostOriginY || lostCentered) {
         local rawOriginX: float = originX;
         local rawOriginY: float = originY;
@@ -429,14 +430,15 @@ struct Stats {
             }
             return sum / count;
         }
-
         local divisor: float = 1.0;
         if (Math.isInfinite(largest * count)) {
             divisor = count;
         }
         local total: float = statsCompensatedSum(data, length, divisor);
         if (!Math.isInfinite(total)) {
-            if (divisor == 1.0) { return total / count; }
+            if (divisor == 1.0) {
+                return total / count;
+            }
             return total;
         }
 
@@ -546,8 +548,7 @@ struct Stats {
 
     # Calculate the range (max - min) of an integer array
     frame range(data: *int, length: int) ret int {
-        local span: long = cast<long>(Stats.max(data, length))
-                        - cast<long>(Stats.min(data, length));
+        local span: long = cast<long>(Stats.max(data, length)) - cast<long>(Stats.min(data, length));
         if (span > cast<long>(2147483647)) {
             throw "Stats.range result exceeds int";
         }
@@ -620,7 +621,7 @@ struct Stats {
         local variance: float = Stats.variance(data, length);
         # A finite root may survive an overflowing or underflowing variance.
         # Subnormal variance rounding can also distort a representable root.
-        if (Math.isInfinite(variance) || variance < Math.pow(2.0, -1022.0)) {
+        if (Math.isInfinite(variance) || (variance < Math.pow(2.0, -1022.0))) {
             local (normalized: float, scale: float) = statsScaledVariance(data, length, length);
             return Math.sqrt(normalized) * scale;
         }
@@ -640,7 +641,7 @@ struct Stats {
         local variance: float = Stats.sampleVariance(data, length);
         # A finite root may survive an overflowing or underflowing variance.
         # Subnormal variance rounding can also distort a representable root.
-        if (Math.isInfinite(variance) || variance < Math.pow(2.0, -1022.0)) {
+        if (Math.isInfinite(variance) || (variance < Math.pow(2.0, -1022.0))) {
             local (normalized: float, scale: float) = statsScaledVariance(data, length, length - 1);
             return Math.sqrt(normalized) * scale;
         }
@@ -681,7 +682,9 @@ struct Stats {
         loop (true) {
             # Leaf nodes have no children. Stop before doubling a leaf index,
             # which can otherwise overflow and turn into a negative offset.
-            if (root >= (count / 2)) { return; }
+            if (root >= (count / 2)) {
+                return;
+            }
             local largest: int = root;
             local left: int = (2 * root) + 1;
             local right: int = left + 1;
@@ -695,7 +698,6 @@ struct Stats {
             if (largest == root) {
                 return;
             }
-
             local swap: int = *(data + root);
             *(data + root) = *(data + largest);
             *(data + largest) = swap;
@@ -708,7 +710,6 @@ struct Stats {
         if ((data == nullptr) || (length <= 1)) {
             return;
         }
-
         local start: int = (length / 2) - 1;
         loop (start >= 0) {
             Stats.siftDownFloat(data, start, length);
@@ -729,7 +730,9 @@ struct Stats {
         loop (true) {
             # Leaf nodes have no children. Stop before doubling a leaf index,
             # which can otherwise overflow and turn into a negative offset.
-            if (root >= (count / 2)) { return; }
+            if (root >= (count / 2)) {
+                return;
+            }
             local largest: int = root;
             local left: int = (2 * root) + 1;
             local right: int = left + 1;
@@ -743,7 +746,6 @@ struct Stats {
             if (largest == root) {
                 return;
             }
-
             local swap: float = *(data + root);
             *(data + root) = *(data + largest);
             *(data + largest) = swap;
@@ -831,7 +833,9 @@ struct Stats {
             return 0.0;
         }
         # A NaN percentile has no meaningful rank, even for a singleton.
-        if (p != p) { return p; }
+        if (p != p) {
+            return p;
+        }
         if (p < 0.0) {
             p = 0.0;
         }
@@ -907,8 +911,12 @@ struct Stats {
             if (Math.isNan(val)) {
                 invalid = val;
             } else {
-                if (val > largest) { largest = val; }
-                if (smallest == 0.0 || val < smallest) { smallest = val; }
+                if (val > largest) {
+                    largest = val;
+                }
+                if ((smallest == 0.0) || (val < smallest)) {
+                    smallest = val;
+                }
                 # Keep nonfinite classification separate from compensation:
                 # an infinite logarithm would form inf - inf in the residual.
                 if (!Math.isInfinite(val)) {
@@ -926,14 +934,24 @@ struct Stats {
         }
         # Preserve the existing priority of nonpositive inputs over NaNs,
         # and NaNs over positive infinity, after examining every sample.
-        if (Math.isNan(invalid)) { return invalid; }
-        if (Math.isInfinite(largest)) { return largest; }
-        if (smallest == largest) { return smallest; }
+        if (Math.isNan(invalid)) {
+            return invalid;
+        }
+        if (Math.isInfinite(largest)) {
+            return largest;
+        }
+        if (smallest == largest) {
+            return smallest;
+        }
         local result: float = Math.exp((logSum + error) / cast<float>(length));
         # A finite positive geometric mean lies between its input extremes.
         # Rounding logarithms must not produce infinity or erase a subnormal.
-        if (result > largest) { return largest; }
-        if (result < smallest) { return smallest; }
+        if (result > largest) {
+            return largest;
+        }
+        if (result < smallest) {
+            return smallest;
+        }
         return result;
     }
 
@@ -954,21 +972,26 @@ struct Stats {
         local scan: int = 0;
         loop (scan < length) {
             local sample: float = *(data + scan);
-            if (Math.isNan(sample)) { return sample; }
+            if (Math.isNan(sample)) {
+                return sample;
+            }
             if (sample <= 0.0) {
                 return 0.0; # Harmonic mean undefined for non-positive values
             }
             if ((smallest == 0.0) || (sample < smallest)) {
                 smallest = sample;
             }
-            if (sample > largest) { largest = sample; }
+            if (sample > largest) {
+                largest = sample;
+            }
             scan = scan + 1;
         }
 
         # All positive samples are infinite: their reciprocals are zero,
         # so the harmonic mean is positive infinity. Avoid inf/inf below.
-        if (Math.isInfinite(smallest)) { return smallest; }
-
+        if (Math.isInfinite(smallest)) {
+            return smallest;
+        }
         local scaledSum: float = 0.0;
         local i: int = 0;
         loop (i < length) {
@@ -982,8 +1005,12 @@ struct Stats {
         local result: float = (cast<float>(length) / scaledSum) * smallest;
         # Rounded ratios may push this product past the finite limit, even
         # when every sample is finite. Positive means stay within the inputs.
-        if (result > largest) { return largest; }
-        if (result < smallest) { return smallest; }
+        if (result > largest) {
+            return largest;
+        }
+        if (result < smallest) {
+            return smallest;
+        }
         return result;
     }
 
@@ -1002,7 +1029,9 @@ struct Stats {
             return 0.0;
         }
         local (moment: float, spread: bool) = statsStandardizedMoment(data, length, 4);
-        if (!spread) { return 0.0; }
+        if (!spread) {
+            return 0.0;
+        }
         return moment - 3.0; # Excess kurtosis
     }
 }

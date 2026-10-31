@@ -222,7 +222,9 @@ struct Short {
     }
     frame trailingZeros(this: *Short) ret uint {
         local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
-        if (bits == cast<uint>(0)) { return cast<uint>(16); }
+        if (bits == cast<uint>(0)) {
+            return cast<uint>(16);
+        }
         return bits.trailingZeros();
     }
     frame byteSwap(this: *Short) ret uint {
@@ -258,7 +260,9 @@ struct UShort {
     }
     frame trailingZeros(this: *UShort) ret uint {
         local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
-        if (bits == cast<uint>(0)) { return cast<uint>(16); }
+        if (bits == cast<uint>(0)) {
+            return cast<uint>(16);
+        }
         return bits.trailingZeros();
     }
     frame byteSwap(this: *UShort) ret uint {

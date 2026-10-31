@@ -25,10 +25,14 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         }
         local len: long = strlen(text);
         # Keep the terminator representable alongside the signed-int length.
-        if (len > cast<long>(2147483646)) { throw "String.new input too large"; }
+        if (len > cast<long>(2147483646)) {
+            throw "String.new input too large";
+        }
         s.length = cast<int>(len);
         s.data = malloc(len + 1);
-        if (s.data == nullptr) { throw "String.new allocation failed"; }
+        if (s.data == nullptr) {
+            throw "String.new allocation failed";
+        }
         strcpy(s.data, text);
         return s;
     }
@@ -171,10 +175,14 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             return this.clone();
         }
         local size: long = cast<long>(this.length) + cast<long>(other.length);
-        if (size > cast<long>(2147483646)) { throw "String concatenation result too large"; }
+        if (size > cast<long>(2147483646)) {
+            throw "String concatenation result too large";
+        }
         local newLen: int = cast<int>(size);
         local newData: string = malloc(size + 1);
-        if (newData == nullptr) { throw "String concatenation allocation failed"; }
+        if (newData == nullptr) {
+            throw "String concatenation allocation failed";
+        }
         strcpy(newData, this.data);
         strcat(newData, other.data);
         local result: String;
@@ -187,7 +195,9 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
     # Allows: str + "literal" without needing String.new()
     frame __add__(this: *String, other: string) ret String {
         local otherStr: String = String.new(other);
-        defer { otherStr.destroy(); }
+        defer {
+            otherStr.destroy();
+        }
         local result: String = this.__add__(otherStr);
         return result;
     }
@@ -268,10 +278,14 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             return this;
         }
         local size: long = cast<long>(this.length) + cast<long>(other.length);
-        if (size > cast<long>(2147483646)) { throw "String concatenation result too large"; }
+        if (size > cast<long>(2147483646)) {
+            throw "String concatenation result too large";
+        }
         local newLen: int = cast<int>(size);
         local newData: string = malloc(size + 1);
-        if (newData == nullptr) { throw "String concatenation allocation failed"; }
+        if (newData == nullptr) {
+            throw "String concatenation allocation failed";
+        }
         strcpy(newData, this.data);
         strcat(newData, other.data);
         free(this.data);
@@ -284,13 +298,17 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
     # Allows: str << "literal" without needing String.new()
     frame __lshift__(this: *String, other: string) ret *String {
         local otherStr: String = String.new(other);
-        defer { otherStr.destroy(); }
+        defer {
+            otherStr.destroy();
+        }
         return this.__lshift__(otherStr);
     }
 
     frame fromInt(val: long) ret String {
         local buf: string = malloc(32); # Enough for 64-bit int
-        if (buf == nullptr) { throw "String.fromInt allocation failed"; }
+        if (buf == nullptr) {
+            throw "String.fromInt allocation failed";
+        }
         sprintf(buf, "%ld", val);
         local s: String;
         s.data = buf;
@@ -300,7 +318,9 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     frame fromAddress(addr: long) ret String {
         local buf: string = malloc(32); # Enough for 64-bit hex
-        if (buf == nullptr) { throw "String.fromAddress allocation failed"; }
+        if (buf == nullptr) {
+            throw "String.fromAddress allocation failed";
+        }
         sprintf(buf, "%#lx", addr);
         local s: String;
         s.data = buf;
@@ -332,7 +352,9 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             realLen = remaining;
         }
         local buf: string = malloc(cast<long>(realLen + 1));
-        if (buf == nullptr) { throw "String.substring allocation failed"; }
+        if (buf == nullptr) {
+            throw "String.substring allocation failed";
+        }
         local ptr: *u8 = cast<*u8>(this.data);
         local dest: *u8 = cast<*u8>(buf);
         local i: int = 0;
@@ -483,7 +505,9 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             return String.new("");
         }
         local buf: string = malloc(cast<long>(this.length + 1));
-        if (buf == nullptr) { throw "String.toUpper allocation failed"; }
+        if (buf == nullptr) {
+            throw "String.toUpper allocation failed";
+        }
         local i: int = 0;
         loop (i < this.length) {
             local c: char = this.get(i);
@@ -509,7 +533,9 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             return String.new("");
         }
         local buf: string = malloc(cast<long>(this.length + 1));
-        if (buf == nullptr) { throw "String.toLower allocation failed"; }
+        if (buf == nullptr) {
+            throw "String.toLower allocation failed";
+        }
         local i: int = 0;
         loop (i < this.length) {
             local c: char = this.get(i);
@@ -538,11 +564,14 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         # wrapped result allocates a small buffer that the loops below overrun.
         local size: long = cast<long>(this.length) * cast<long>(count);
         # String lengths are signed int; leave room for the terminator.
-        if (size > 2147483646) { throw "String.repeat result too large"; }
+        if (size > 2147483646) {
+            throw "String.repeat result too large";
+        }
         local newLen: int = cast<int>(size);
         local buf: string = malloc(size + 1);
-        if (buf == nullptr) { throw "String.repeat allocation failed"; }
-
+        if (buf == nullptr) {
+            throw "String.repeat allocation failed";
+        }
         local i: int = 0;
         loop (i < count) {
             local j: int = 0;
@@ -562,14 +591,17 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Pad string on the left to reach target length
     frame padLeft(this: *String, targetLen: int, padChar: char) ret String {
-        if (targetLen > 2147483646) { throw "String.padLeft result too large"; }
+        if (targetLen > 2147483646) {
+            throw "String.padLeft result too large";
+        }
         if (this.length >= targetLen) {
             return this.clone();
         }
         local padCount: int = targetLen - this.length;
         local buf: string = malloc(cast<long>(targetLen) + 1);
-        if (buf == nullptr) { throw "String.padLeft allocation failed"; }
-
+        if (buf == nullptr) {
+            throw "String.padLeft allocation failed";
+        }
         local i: int = 0;
         loop (i < padCount) {
             buf[i] = padChar;
@@ -591,13 +623,16 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Pad string on the right to reach target length
     frame padRight(this: *String, targetLen: int, padChar: char) ret String {
-        if (targetLen > 2147483646) { throw "String.padRight result too large"; }
+        if (targetLen > 2147483646) {
+            throw "String.padRight result too large";
+        }
         if (this.length >= targetLen) {
             return this.clone();
         }
         local buf: string = malloc(cast<long>(targetLen) + 1);
-        if (buf == nullptr) { throw "String.padRight allocation failed"; }
-
+        if (buf == nullptr) {
+            throw "String.padRight allocation failed";
+        }
         local i: int = 0;
         loop (i < this.length) {
             buf[i] = this.get(i);
@@ -622,7 +657,9 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
             return String.new("");
         }
         local buf: string = malloc(cast<long>(this.length + 1));
-        if (buf == nullptr) { throw "String.reverse allocation failed"; }
+        if (buf == nullptr) {
+            throw "String.reverse allocation failed";
+        }
         local i: int = 0;
         loop (i < this.length) {
             buf[i] = this.get(this.length - 1 - i);
@@ -651,14 +688,22 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
         if (pos < 0)
             return this.clone();
         local newLength: long = 0;
-        if (newStr != nullptr) { newLength = strlen(newStr); }
-        if (newLength > cast<long>(2147483646)) { throw "String.replace result too large"; }
+        if (newStr != nullptr) {
+            newLength = strlen(newStr);
+        }
+        if (newLength > cast<long>(2147483646)) {
+            throw "String.replace result too large";
+        }
         local size: long = cast<long>(this.length - oldLen) + newLength;
-        if (size > cast<long>(2147483646)) { throw "String.replace result too large"; }
+        if (size > cast<long>(2147483646)) {
+            throw "String.replace result too large";
+        }
         local newLen: int = cast<int>(newLength);
         local resultLen: int = cast<int>(size);
         local buf: string = malloc(size + 1);
-        if (buf == nullptr) { throw "String.replace allocation failed"; }
+        if (buf == nullptr) {
+            throw "String.replace allocation failed";
+        }
 
         # Copy before match
         local i: int = 0;
@@ -690,39 +735,68 @@ struct String: Comparable<String>, Cloneable<String>, Destructible, Hashable<Str
 
     # Replace non-overlapping matches in the original input; never rescan replacements.
     frame replaceAll(this: *String, old: string, newStr: string) ret String {
-        if ((this.data == nullptr) || (old == nullptr)) { return this.clone(); }
+        if ((this.data == nullptr) || (old == nullptr)) {
+            return this.clone();
+        }
         local oldLength: long = strlen(old);
-        if ((oldLength == 0) || (oldLength > cast<long>(this.length))) { return this.clone(); }
+        if ((oldLength == 0) || (oldLength > cast<long>(this.length))) {
+            return this.clone();
+        }
         local oldLen: int = cast<int>(oldLength);
         local count: int = 0;
         local i: int = 0;
-        loop (i <= this.length - oldLen) {
+        loop (i <= (this.length - oldLen)) {
             local j: int = 0;
-            loop ((j < oldLen) && (this.data[i + j] == old[j])) { j = j + 1; }
-            if (j == oldLen) { count = count + 1; i = i + oldLen; }
-            else { i = i + 1; }
+            loop ((j < oldLen) && (this.data[i + j] == old[j])) {
+                j = j + 1;
+            }
+            if (j == oldLen) {
+                count = count + 1;
+                i = i + oldLen;
+            } else {
+                i = i + 1;
+            }
         }
-        if (count == 0) { return this.clone(); }
+        if (count == 0) {
+            return this.clone();
+        }
         local newLength: long = 0;
-        if (newStr != nullptr) { newLength = strlen(newStr); }
-        if (newLength > cast<long>(2147483646)) { throw "String.replaceAll result too large"; }
+        if (newStr != nullptr) {
+            newLength = strlen(newStr);
+        }
+        if (newLength > cast<long>(2147483646)) {
+            throw "String.replaceAll result too large";
+        }
         local newLen: int = cast<int>(newLength);
-        local size: long = cast<long>(this.length) + cast<long>(count) * (cast<long>(newLen) - cast<long>(oldLen));
+        local size: long = cast<long>(this.length) + (cast<long>(count) * (cast<long>(newLen) - cast<long>(oldLen)));
         # String lengths are signed int; leave room for the terminator.
-        if (size > 2147483646) { throw "String.replaceAll result too large"; }
+        if (size > 2147483646) {
+            throw "String.replaceAll result too large";
+        }
         local buf: string = malloc(size + 1);
-        if (buf == nullptr) { throw "String.replaceAll allocation failed"; }
+        if (buf == nullptr) {
+            throw "String.replaceAll allocation failed";
+        }
         local out: int = 0;
         i = 0;
         loop (i < this.length) {
             local j: int = 0;
-            if (i <= this.length - oldLen) {
-                loop ((j < oldLen) && (this.data[i + j] == old[j])) { j = j + 1; }
+            if (i <= (this.length - oldLen)) {
+                loop ((j < oldLen) && (this.data[i + j] == old[j])) {
+                    j = j + 1;
+                }
             }
             if (j == oldLen) {
-                loop (local k: int = 0; k < newLen; k = k + 1) { buf[out] = newStr[k]; out = out + 1; }
+                loop (local k: int = 0; k < newLen; k = k + 1) {
+                    buf[out] = newStr[k];
+                    out = out + 1;
+                }
                 i = i + oldLen;
-            } else { buf[out] = this.data[i]; out = out + 1; i = i + 1; }
+            } else {
+                buf[out] = this.data[i];
+                out = out + 1;
+                i = i + 1;
+            }
         }
         buf[out] = cast<char>(0);
         local result: String;

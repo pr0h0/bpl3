@@ -55,8 +55,7 @@ struct Duration {
     frame __add__(this: *Duration, other: Duration) ret Duration {
         local maximum: long = cast<long>(0x7fffffffffffffff);
         local minimum: long = cast<long>(0x8000000000000000);
-        if ((other.milliseconds > 0 && this.milliseconds > maximum - other.milliseconds) ||
-            (other.milliseconds < 0 && this.milliseconds < minimum - other.milliseconds)) {
+        if (((other.milliseconds > 0) && (this.milliseconds > (maximum - other.milliseconds))) || ((other.milliseconds < 0) && (this.milliseconds < (minimum - other.milliseconds)))) {
             throw "Duration overflow";
         }
         return Duration.fromMs(this.milliseconds + other.milliseconds);
@@ -65,8 +64,7 @@ struct Duration {
     frame __sub__(this: *Duration, other: Duration) ret Duration {
         local maximum: long = cast<long>(0x7fffffffffffffff);
         local minimum: long = cast<long>(0x8000000000000000);
-        if ((other.milliseconds < 0 && this.milliseconds > maximum + other.milliseconds) ||
-            (other.milliseconds > 0 && this.milliseconds < minimum + other.milliseconds)) {
+        if (((other.milliseconds < 0) && (this.milliseconds > (maximum + other.milliseconds))) || ((other.milliseconds > 0) && (this.milliseconds < (minimum + other.milliseconds)))) {
             throw "Duration overflow";
         }
         return Duration.fromMs(this.milliseconds - other.milliseconds);
@@ -148,27 +146,43 @@ struct Time {
     # Legacy int timestamp. Throws rather than wrapping outside the int range.
     frame now() ret int {
         local seconds: long = Time.nowSeconds();
-        if (seconds < cast<long>(-2147483648) || seconds > cast<long>(2147483647)) {
+        if ((seconds < cast<long>(-2147483648)) || (seconds > cast<long>(2147483647))) {
             throw "Time.now exceeds int range; use Time.nowSeconds";
         }
         return cast<int>(seconds);
     }
 
-    frame nowSeconds() ret long { return readClock(0, 1); }
-    frame nowMs() ret long { return readClock(0, 1000); }
-    frame nowUs() ret long { return readClock(0, 1000000); }
-
-    # Unspecified epoch, suitable only for differences within this system.
-    frame monotonicMs() ret long { return readClock(1, 1000); }
-    frame monotonicUs() ret long { return readClock(1, 1000000); }
-
-    frame sleep(ms: long) { Time.sleepUs(checkedTimeScale(ms, 1000)); }
-
-    frame sleepUs(usec: long) {
-        if (__bpl_sleep_us(usec) != 0) { throw "Cannot sleep for requested duration"; }
+    frame nowSeconds() ret long {
+        return readClock(0, 1);
+    }
+    frame nowMs() ret long {
+        return readClock(0, 1000);
+    }
+    frame nowUs() ret long {
+        return readClock(0, 1000000);
     }
 
-    frame sleepSeconds(sec: long) { Time.sleepUs(checkedTimeScale(sec, 1000000)); }
+    # Unspecified epoch, suitable only for differences within this system.
+    frame monotonicMs() ret long {
+        return readClock(1, 1000);
+    }
+    frame monotonicUs() ret long {
+        return readClock(1, 1000000);
+    }
+
+    frame sleep(ms: long) {
+        Time.sleepUs(checkedTimeScale(ms, 1000));
+    }
+
+    frame sleepUs(usec: long) {
+        if (__bpl_sleep_us(usec) != 0) {
+            throw "Cannot sleep for requested duration";
+        }
+    }
+
+    frame sleepSeconds(sec: long) {
+        Time.sleepUs(checkedTimeScale(sec, 1000000));
+    }
 
     # Format UTC Unix seconds using the proleptic Gregorian calendar.
     # The caller owns the returned string; out-of-range years throw a string.
@@ -188,12 +202,16 @@ struct Time {
 frame checkedTimeScale(value: long, scale: long) ret long {
     local maximum: long = cast<long>(0x7fffffffffffffff);
     local minimum: long = cast<long>(0x8000000000000000);
-    if (value > maximum / scale || value < minimum / scale) { throw "Duration overflow"; }
+    if ((value > (maximum / scale)) || (value < (minimum / scale))) {
+        throw "Duration overflow";
+    }
     return value * scale;
 }
 
 frame readClock(monotonic: int, units: int) ret long {
     local result: long = 0;
-    if (__bpl_clock(monotonic, units, &result) != 0) { throw "Cannot read clock"; }
+    if (__bpl_clock(monotonic, units, &result) != 0) {
+        throw "Cannot read clock";
+    }
     return result;
 }

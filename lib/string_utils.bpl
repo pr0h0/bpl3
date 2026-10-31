@@ -53,7 +53,9 @@ struct StringUtils {
 
     frame trim(s: string) ret String {
         local length: long = strlen(s);
-        if (length > cast<long>(2147483646)) { throw "StringUtils.trim input too large"; }
+        if (length > cast<long>(2147483646)) {
+            throw "StringUtils.trim input too large";
+        }
         local len: int = cast<int>(length);
         local start: int = 0;
         local end: int = len - 1;
@@ -76,7 +78,9 @@ struct StringUtils {
             return String.new("");
         }
         local buf: string = cast<string>(malloc(cast<long>(newlen + 1)));
-        if (buf == nullptr) { throw "StringUtils.trim allocation failed"; }
+        if (buf == nullptr) {
+            throw "StringUtils.trim allocation failed";
+        }
         local i: int = 0;
         loop (i < newlen) {
             buf[i] = s[start + i];
@@ -91,10 +95,14 @@ struct StringUtils {
 
     frame replaceChar(s: string, target: char, repl: char) ret String {
         local length: long = strlen(s);
-        if (length > cast<long>(2147483646)) { throw "StringUtils.replaceChar input too large"; }
+        if (length > cast<long>(2147483646)) {
+            throw "StringUtils.replaceChar input too large";
+        }
         local len: int = cast<int>(length);
         local buf: string = cast<string>(malloc(cast<long>(len + 1)));
-        if (buf == nullptr) { throw "StringUtils.replaceChar allocation failed"; }
+        if (buf == nullptr) {
+            throw "StringUtils.replaceChar allocation failed";
+        }
         local i: int = 0;
         loop (i < len) {
             local c: char = s[i];
@@ -102,7 +110,9 @@ struct StringUtils {
                 c = repl;
             }
             # Preserve C-string semantics when replacement introduces NUL.
-            if (c == 0) { break; }
+            if (c == 0) {
+                break;
+            }
             buf[i] = c;
             i = i + 1;
         }
@@ -119,7 +129,9 @@ struct StringUtils {
         }
         local lh: long = strlen(haystack);
         local ln: long = strlen(needle);
-        if (cast<long>(start) > lh) { return -1; }
+        if (cast<long>(start) > lh) {
+            return -1;
+        }
         if (ln == 0)
             return start;
         if (ln > lh)
@@ -146,7 +158,9 @@ struct StringUtils {
     # Share the String implementation's non-overlapping replacement rules.
     frame replace(s: string, oldStr: string, newStr: string) ret String {
         local original: String = String.new(s);
-        defer { original.destroy(); }
+        defer {
+            original.destroy();
+        }
         return original.replaceAll(oldStr, newStr);
     }
 }
