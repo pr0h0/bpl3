@@ -1,3 +1,4 @@
+import { compact } from "./helpers/sourceText";
 import { describe, expect, it, spyOn } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -146,10 +147,7 @@ describe("TypeChecker", () => {
     const start = source.indexOf(
       "protected isStandardLibraryRuntimeTypeDeclaration",
     );
-    const end = source.indexOf(
-      "protected initializeBuiltins",
-      start,
-    );
+    const end = source.indexOf("protected initializeBuiltins", start);
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
@@ -589,7 +587,9 @@ describe("TypeChecker", () => {
       join(process.cwd(), "compiler/middleend/StatementChecker.ts"),
       "utf8",
     );
-    const checkVariableDecl = source.indexOf("export function checkVariableDecl");
+    const checkVariableDecl = source.indexOf(
+      "export function checkVariableDecl",
+    );
     // The constant check now skips implicit integer-to-bool initializers.
     const constValueCheck = source.indexOf(
       "const constVal = isImplicitIntegerToBool(resolvedDecl, resolvedInit)",
@@ -599,14 +599,15 @@ describe("TypeChecker", () => {
     expect(checkVariableDecl).toBeGreaterThanOrEqual(0);
     expect(constValueCheck).toBeGreaterThan(checkVariableDecl);
 
-    const compatibilityPrefix = source.slice(checkVariableDecl, constValueCheck);
+    const compatibilityPrefix = source.slice(
+      checkVariableDecl,
+      constValueCheck,
+    );
     expect(compatibilityPrefix).toContain(
       "const resolvedInit =\n          decl.initializer.resolvedType ?? this.resolveType(initType);",
     );
     expect(compatibilityPrefix).toContain("const resolvedDecl = declaredType;");
-    expect(compatibilityPrefix).not.toContain(
-      "this.resolveType(declaredType)",
-    );
+    expect(compatibilityPrefix).not.toContain("this.resolveType(declaredType)");
   });
 
   it("does not report a missing return after an unconditional return", () => {
@@ -718,7 +719,9 @@ describe("TypeChecker", () => {
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
     expect(source).toContain("STRUCT_LITERAL_FIELD_SET_THRESHOLD");
-    expect(methodSource).toContain("let providedFields: Set<string> | undefined;");
+    expect(methodSource).toContain(
+      "let providedFields: Set<string> | undefined;",
+    );
     expect(methodSource).toContain(
       "expr.fields.length > STRUCT_LITERAL_FIELD_SET_THRESHOLD",
     );
@@ -768,12 +771,15 @@ describe("TypeChecker", () => {
 
     expect(aliasHelper).toBeGreaterThanOrEqual(0);
     expect(resolveType).toBeGreaterThan(aliasHelper);
-    expect(source.indexOf("resolveSimpleBuiltinBasicType(type)", resolveType))
-      .toBeLessThan(firstScopeLookup);
-    expect(source.indexOf("isCanonicalBuiltinBasicType(type)", resolveType))
-      .toBe(-1);
-    expect(source.indexOf("createCanonicalBuiltinAliasType(type)", resolveType))
-      .toBe(-1);
+    expect(
+      source.indexOf("resolveSimpleBuiltinBasicType(type)", resolveType),
+    ).toBeLessThan(firstScopeLookup);
+    expect(
+      source.indexOf("isCanonicalBuiltinBasicType(type)", resolveType),
+    ).toBe(-1);
+    expect(
+      source.indexOf("createCanonicalBuiltinAliasType(type)", resolveType),
+    ).toBe(-1);
   });
 
   it("keeps simple builtin resolver on a single direct dispatch", () => {
@@ -936,7 +942,9 @@ describe("TypeChecker", () => {
     );
     expect(hotIntFastPath).toBeGreaterThanOrEqual(0);
     expect(dispatchCall).toBeGreaterThan(hotIntFastPath);
-    expect(resolverSource).toContain('cloneSimpleBuiltinAliasType(type, "i32")');
+    expect(resolverSource).toContain(
+      'cloneSimpleBuiltinAliasType(type, "i32")',
+    );
   });
 
   it("returns canonical i32 before alias and generic builtin dispatch", () => {
@@ -1149,9 +1157,7 @@ describe("TypeChecker", () => {
 
     const resolveTypeSource = source.slice(resolveType, nextMethod);
     expect(source).not.toContain("function cacheNonGenericNominalBasicType");
-    expect(resolveTypeSource).not.toContain(
-      "cacheNonGenericNominalBasicType(",
-    );
+    expect(resolveTypeSource).not.toContain("cacheNonGenericNominalBasicType(");
     expect(resolveTypeSource).toContain(
       "declaration.genericParams.length === 0",
     );
@@ -1238,17 +1244,15 @@ describe("TypeChecker", () => {
     const resolveTypeSource = source.slice(resolveType, nextMethod);
     expect(resolveTypeSource).toContain("const name = type.name;");
     expect(resolveTypeSource).toContain("this.currentScope.resolve(name)");
-    expect(resolveTypeSource).toContain(
-      "let isQualifiedTypeName = false;",
-    );
+    expect(resolveTypeSource).toContain("let isQualifiedTypeName = false;");
     expect(resolveTypeSource).toContain(
       'isQualifiedTypeName = name.includes(".");',
     );
     expect(resolveTypeSource).toContain(
       "this.ensureImplicitPrimitiveWrappersLoaded(name)",
     );
-    expect(resolveTypeSource).toMatch(
-      /resolveQualifiedTypeSymbol\(\s*this\.currentScope,\s*name,\s*\)/,
+    expect(compact(resolveTypeSource)).toContain(
+      "resolveQualifiedTypeSymbol(this.currentScope,name)",
     );
   });
 
@@ -1264,14 +1268,12 @@ describe("TypeChecker", () => {
     expect(resolveType).toBeGreaterThanOrEqual(0);
     expect(nextMethod).toBeGreaterThan(resolveType);
     expect(resolveTypeSource).not.toContain("const resolveQualifiedSymbol =");
-    expect(resolveTypeSource).toContain(
-      "let isQualifiedTypeName = false;",
-    );
+    expect(resolveTypeSource).toContain("let isQualifiedTypeName = false;");
     expect(resolveTypeSource).toContain(
       'isQualifiedTypeName = name.includes(".");',
     );
-    expect(resolveTypeSource).toMatch(
-      /resolveQualifiedTypeSymbol\(\s*this\.currentScope,\s*name,\s*\)/,
+    expect(compact(resolveTypeSource)).toContain(
+      "resolveQualifiedTypeSymbol(this.currentScope,name)",
     );
   });
 
@@ -1304,9 +1306,9 @@ describe("TypeChecker", () => {
     expect(initialMissBranch).toBeGreaterThan(initialLookup);
     expect(qualifiedClassification).toBeGreaterThan(initialMissBranch);
     expect(qualifiedClassification).toBeLessThan(firstQualifiedLookup);
-    expect(resolveTypeSource.slice(initialLookup, initialMissBranch)).not.toContain(
-      'includes(".")',
-    );
+    expect(
+      resolveTypeSource.slice(initialLookup, initialMissBranch),
+    ).not.toContain('includes(".")');
   });
 
   it("keeps function declaration hoisting on a single parameter scan", () => {
@@ -1368,7 +1370,9 @@ describe("TypeChecker", () => {
       ),
       "utf8",
     );
-    const validator = source.indexOf("export function validateFunctionAttributes");
+    const validator = source.indexOf(
+      "export function validateFunctionAttributes",
+    );
     const validatorEnd = source.indexOf("\nfunction isVoidType", validator);
 
     expect(validator).toBeGreaterThanOrEqual(0);
@@ -1470,7 +1474,9 @@ describe("TypeChecker", () => {
     const directFieldHelper = source.indexOf("private getDirectStructField");
     const directMemberHelper = source.indexOf("private getDirectStructMembers");
     const resolveFieldStart = source.indexOf("public resolveStructField");
-    const resolveMemberStart = source.indexOf("public resolveMemberWithContext");
+    const resolveMemberStart = source.indexOf(
+      "public resolveMemberWithContext",
+    );
     const resolveFieldSource = source.slice(
       resolveFieldStart,
       resolveMemberStart,
@@ -1539,7 +1545,9 @@ describe("TypeChecker", () => {
     const knownStructGuard = methodPrefix.indexOf(
       'objectType.resolvedDeclaration?.kind !== "StructDecl"',
     );
-    const primitiveSwitch = methodPrefix.indexOf("PRIMITIVE_STRUCT_MAP[objectType.name]");
+    const primitiveSwitch = methodPrefix.indexOf(
+      "PRIMITIVE_STRUCT_MAP[objectType.name]",
+    );
 
     expect(methodStart).toBeGreaterThanOrEqual(0);
     expect(moduleBranch).toBeGreaterThan(methodStart);
@@ -1674,8 +1682,10 @@ describe("TypeChecker", () => {
 
     expect(helperStart).toBeGreaterThanOrEqual(0);
     expect(helperEnd).toBeGreaterThan(helperStart);
-    expect(helperSource).toContain(
-      "funcType.paramTypes.length !== expr.args.length &&\n    !funcType.isVariadic",
+    expect(compact(helperSource)).toContain(
+      compact(
+        "funcType.paramTypes.length !== expr.args.length && !funcType.isVariadic",
+      ),
     );
   });
 
@@ -1685,7 +1695,10 @@ describe("TypeChecker", () => {
       "utf8",
     );
     const methodStart = source.indexOf("public resolveStructField");
-    const methodEnd = source.indexOf("public resolveMemberWithContext", methodStart);
+    const methodEnd = source.indexOf(
+      "public resolveMemberWithContext",
+      methodStart,
+    );
     const methodSource = source.slice(methodStart, methodEnd);
 
     expect(methodStart).toBeGreaterThanOrEqual(0);
@@ -1697,17 +1710,24 @@ describe("TypeChecker", () => {
     expect(methodSource).toContain(
       "currentSubstitutionMap && currentSubstitutionMap.size > 0",
     );
-    const program = parseProgram("type Count=int; struct Packet {value:Count,}");
+    const program = parseProgram(
+      "type Count=int; struct Packet {value:Count,}",
+    );
     const checker = new TypeChecker();
     checker.checkProgram(program);
-    const decl = program.statements.find((statement) => statement.kind === "StructDecl");
+    const decl = program.statements.find(
+      (statement) => statement.kind === "StructDecl",
+    );
     if (!decl || decl.kind !== "StructDecl") throw new Error("Missing Packet");
     const field = decl.members.find((member) => member.kind === "StructField");
-    if (!field || field.kind !== "StructField") throw new Error("Missing value");
+    if (!field || field.kind !== "StructField")
+      throw new Error("Missing value");
     expect(field.resolvedType).toBeDefined();
     const substitution = spyOn(checker, "substituteType");
     try {
-      expect(checker.resolveStructField(decl, "value", new Map())?.type).toBe(field.resolvedType);
+      expect(checker.resolveStructField(decl, "value", new Map())?.type).toBe(
+        field.resolvedType,
+      );
       expect(substitution).not.toHaveBeenCalled();
     } finally {
       substitution.mockRestore();
@@ -1893,7 +1913,9 @@ describe("TypeChecker", () => {
       );
       expect(
         messages.some((message) =>
-          message.includes("Standard library module not found: std/missing.bpl"),
+          message.includes(
+            "Standard library module not found: std/missing.bpl",
+          ),
         ),
       ).toBe(true);
       expect(messages).not.toContain("Undefined symbol 'shadow'");

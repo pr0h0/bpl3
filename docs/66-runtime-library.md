@@ -6,11 +6,11 @@ The BPL runtime library provides essential runtime support for BPL programs, inc
 
 The runtime has three parts:
 
-| Component               | Language | Purpose                                                                          |
-| ----------------------- | -------- | -------------------------------------------------------------------------------- |
+| Component               | Language | Purpose                                                                                 |
+| ----------------------- | -------- | --------------------------------------------------------------------------------------- |
 | `lib/errors.bpl`        | BPL      | Error types and the check helpers that throw them (`__bpl_check_null`, `__bpl_throw_*`) |
-| `lib/runtime_support.c` | C        | Runtime state, panics, signal handlers, stack traces, filesystem and time helpers |
-| `lib/runtime_wasm.ll`   | LLVM IR  | Freestanding wasm substitutes for the C runtime and libc                          |
+| `lib/runtime_support.c` | C        | Runtime state, panics, signal handlers, stack traces, filesystem and time helpers       |
+| `lib/runtime_wasm.ll`   | LLVM IR  | Freestanding wasm substitutes for the C runtime and libc                                |
 
 Writing the check helpers in BPL keeps one definition of each error type, its
 fields, its vtable, and its type id, so a thrown `NullAccessError` is the same

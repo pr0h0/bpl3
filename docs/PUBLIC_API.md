@@ -38,7 +38,10 @@ import { CLI_JSON_ERROR_CODE_LISTS } from "bpl-v3/cli";
 CommonJS consumers can require the same subpath:
 
 ```javascript
-const { CLI_JSON_ERROR_CODE_LISTS, CLI_JSON_ERROR_CODES } = require("bpl-v3/cli");
+const {
+  CLI_JSON_ERROR_CODE_LISTS,
+  CLI_JSON_ERROR_CODES,
+} = require("bpl-v3/cli");
 ```
 
 ---

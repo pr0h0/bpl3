@@ -9,7 +9,6 @@ frame main() ret int {
         dprintf(2, "bad argc\n");
         return 10;
     }
-
     local first: String = String.new(__bpl_argv_get(1));
     local second: String = String.new(__bpl_argv_get(2));
     if (first.length != 5) {
@@ -22,7 +21,6 @@ frame main() ret int {
         second.destroy();
         return 30;
     }
-
     printf("host:");
     puts(first.toString());
     dprintf(2, "host stderr\n");
