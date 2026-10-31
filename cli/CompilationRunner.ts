@@ -1135,7 +1135,7 @@ function shouldTreeShakeTopLevelFunctions(options: CompileOptions): boolean {
   return (
     !options.shared &&
     shouldCompileExecutable(options) &&
-    options.emit !== "llvm" &&
+    (options.emit !== "llvm" || options.emitDefaulted === true) &&
     !options.cache &&
     !options.debug &&
     !options.dwarf

@@ -1188,6 +1188,13 @@ Control what the compiler outputs:
 - `tokens`: Output lexical tokens
 - `formatted`: Format the source code (same as `bpl format`)
 
+Executable builds emit only the functions and methods reachable from `main`
+(and exported or C-exported functions), so importing a whole module such as
+`std` does not compile everything it re-exports. `bpl file.bpl` and `bpl build`
+both do this; the IR file written next to the executable is the reduced IR.
+An explicit `--emit llvm` keeps every function in the IR, as do `--shared`,
+`--cache`, `--debug`/`--dwarf`, and `--eval`/`--stdin`, which print IR.
+
 **Examples:**
 
 ```bash

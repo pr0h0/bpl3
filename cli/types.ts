@@ -14,6 +14,11 @@ export interface CompileOptions {
   shared?: boolean;
   header?: string;
   emit?: "llvm" | "ast" | "tokens" | "formatted";
+  /**
+   * True when `emit` is the root command's default `llvm` rather than an
+   * explicit `--emit llvm`. Such builds tree-shake like `bpl build`.
+   */
+  emitDefaulted?: boolean;
   target?: string;
   sysroot?: string;
   cpu?: string;
