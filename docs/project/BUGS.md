@@ -721,8 +721,9 @@ SelectionDAG (`llc -O0 -fast-isel-report-on-fallback`). The misses are
 first-class aggregate loads/stores (`load %struct.X`, `store %enum.Y`), struct
 and enum values returned by value, thread-local runtime globals
 (`@defer_top`, `@exception_top`), and some calls. 374 aggregate loads are never
-used (a struct literal is built in place, then loaded whole as the expression
-value) and 432 load a whole enum only to `extractvalue` its tag. Removing
+used (for example, a local struct is loaded whole right before a method call
+that uses its address instead) and 432 load a whole enum only to
+`extractvalue` its tag. Removing
 those in the IR file saves only about 10%: the remaining aggregate stores and
 returns keep the fallbacks. `-mllvm -global-isel -mllvm -global-isel-abort=0`
 cuts Clang time by 38% (2.07s), but x86 GlobalISel is experimental and is not

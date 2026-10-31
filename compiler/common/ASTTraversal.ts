@@ -18,6 +18,12 @@ export interface TraversalOptions {
   maxDepth?: number;
   /** Whether to traverse into arrays (default: true) */
   traverseArrays?: boolean;
+  /**
+   * Whether to build the ancestor `path` passed to the visitor (default:
+   * true). Copying it at every node dominates large walks, so visitors that
+   * ignore it should pass `false`; they then receive an empty array.
+   */
+  trackPath?: boolean;
 }
 
 /** Default properties to skip during traversal */
@@ -74,9 +80,7 @@ export function walkAST(
   const maxDepth = options.maxDepth ?? Infinity;
   const traverseArrays = options.traverseArrays ?? true;
   const activeObjects = new WeakSet<object>();
-  // Copying the ancestor path at every node dominates large walks; visitors
-  // that declare no `path` parameter never see it, so skip building it.
-  const tracksPath = visitor.length >= 2;
+  const tracksPath = options.trackPath ?? true;
   const noPath: AST.ASTNode[] = [];
 
   function walkValue(
@@ -175,7 +179,7 @@ export function findNodes(
     (n) => {
       if (predicate(n)) results.push(n);
     },
-    options,
+    { trackPath: false, ...options },
   );
   return results;
 }
@@ -197,7 +201,7 @@ export function findNode(
         return false; // Stop traversal
       }
     },
-    options,
+    { trackPath: false, ...options },
   );
   return found;
 }

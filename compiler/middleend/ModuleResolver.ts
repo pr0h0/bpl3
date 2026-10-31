@@ -757,6 +757,9 @@ export class ModuleResolver {
   }
 }
 
+/** The primitive scans read only each node, so skip building ancestor paths. */
+const SCAN_WITHOUT_PATH = { trackPath: false };
+
 function moduleMentionsPrimitiveWrapper(program: AST.Program): boolean {
   const primitiveReturningFunctions =
     collectPrimitiveReturningFunctions(program);
@@ -766,54 +769,58 @@ function moduleMentionsPrimitiveWrapper(program: AST.Program): boolean {
   );
 
   let found = false;
-  walkAST(program, (node) => {
-    if (
-      node.kind === "BasicType" &&
-      PRIMITIVE_WRAPPER_TYPE_NAMES.has((node as AST.BasicTypeNode).name)
-    ) {
-      found = true;
-      return false;
-    }
-
-    if (
-      node.kind === "Identifier" &&
-      PRIMITIVE_WRAPPER_TYPE_NAMES.has((node as AST.IdentifierExpr).name)
-    ) {
-      found = true;
-      return false;
-    }
-
-    if (node.kind === "Member") {
-      const member = node as AST.MemberExpr;
+  walkAST(
+    program,
+    (node) => {
       if (
-        PRIMITIVE_WRAPPER_METHOD_NAMES.has(member.property) &&
-        expressionMayBePrimitiveValue(
-          member.object,
-          primitiveValueNames,
-          primitiveReturningFunctions,
-        )
+        node.kind === "BasicType" &&
+        PRIMITIVE_WRAPPER_TYPE_NAMES.has((node as AST.BasicTypeNode).name)
       ) {
         found = true;
         return false;
       }
-    }
 
-    if (node.kind === "InterpolatedString") {
-      const interpolated = node as AST.InterpolatedStringExpr;
       if (
-        interpolated.parts.some((part) =>
+        node.kind === "Identifier" &&
+        PRIMITIVE_WRAPPER_TYPE_NAMES.has((node as AST.IdentifierExpr).name)
+      ) {
+        found = true;
+        return false;
+      }
+
+      if (node.kind === "Member") {
+        const member = node as AST.MemberExpr;
+        if (
+          PRIMITIVE_WRAPPER_METHOD_NAMES.has(member.property) &&
           expressionMayBePrimitiveValue(
-            part,
+            member.object,
             primitiveValueNames,
             primitiveReturningFunctions,
-          ),
-        )
-      ) {
-        found = true;
-        return false;
+          )
+        ) {
+          found = true;
+          return false;
+        }
       }
-    }
-  });
+
+      if (node.kind === "InterpolatedString") {
+        const interpolated = node as AST.InterpolatedStringExpr;
+        if (
+          interpolated.parts.some((part) =>
+            expressionMayBePrimitiveValue(
+              part,
+              primitiveValueNames,
+              primitiveReturningFunctions,
+            ),
+          )
+        ) {
+          found = true;
+          return false;
+        }
+      }
+    },
+    SCAN_WITHOUT_PATH,
+  );
 
   return found;
 }
@@ -824,39 +831,43 @@ function collectPrimitiveValueNames(
 ): Set<string> {
   const names = new Set<string>();
 
-  walkAST(program, (node) => {
-    if (node.kind === "FunctionDecl") {
-      const decl = node as AST.FunctionDecl;
-      for (const param of decl.params) {
-        if (isPrimitiveValueType(param.type)) {
-          names.add(param.name);
+  walkAST(
+    program,
+    (node) => {
+      if (node.kind === "FunctionDecl") {
+        const decl = node as AST.FunctionDecl;
+        for (const param of decl.params) {
+          if (isPrimitiveValueType(param.type)) {
+            names.add(param.name);
+          }
         }
+        return;
       }
-      return;
-    }
 
-    if (node.kind !== "VariableDecl") {
-      return;
-    }
+      if (node.kind !== "VariableDecl") {
+        return;
+      }
 
-    const decl = node as AST.VariableDecl;
-    if (typeof decl.name !== "string") {
-      return;
-    }
+      const decl = node as AST.VariableDecl;
+      if (typeof decl.name !== "string") {
+        return;
+      }
 
-    if (
-      (decl.typeAnnotation && isPrimitiveValueType(decl.typeAnnotation)) ||
-      (!decl.typeAnnotation &&
-        decl.initializer &&
-        expressionMayBePrimitiveValue(
-          decl.initializer,
-          names,
-          primitiveReturningFunctions,
-        ))
-    ) {
-      names.add(decl.name);
-    }
-  });
+      if (
+        (decl.typeAnnotation && isPrimitiveValueType(decl.typeAnnotation)) ||
+        (!decl.typeAnnotation &&
+          decl.initializer &&
+          expressionMayBePrimitiveValue(
+            decl.initializer,
+            names,
+            primitiveReturningFunctions,
+          ))
+      ) {
+        names.add(decl.name);
+      }
+    },
+    SCAN_WITHOUT_PATH,
+  );
 
   return names;
 }
@@ -864,16 +875,20 @@ function collectPrimitiveValueNames(
 function collectPrimitiveReturningFunctions(program: AST.Program): Set<string> {
   const names = new Set<string>();
 
-  walkAST(program, (node) => {
-    if (node.kind !== "FunctionDecl") {
-      return;
-    }
+  walkAST(
+    program,
+    (node) => {
+      if (node.kind !== "FunctionDecl") {
+        return;
+      }
 
-    const decl = node as AST.FunctionDecl;
-    if (isPrimitiveValueType(decl.returnType)) {
-      names.add(decl.name);
-    }
-  });
+      const decl = node as AST.FunctionDecl;
+      if (isPrimitiveValueType(decl.returnType)) {
+        names.add(decl.name);
+      }
+    },
+    SCAN_WITHOUT_PATH,
+  );
 
   return names;
 }
