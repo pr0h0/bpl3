@@ -114,7 +114,11 @@ export function registerBuildCommand(program: Command): void {
     )
     .option("--wasm-runtime <mode>", "wasm runtime mode: freestanding or host")
     .option("--debug-ir-path <file>", "write diagnostic LLVM IR to a file")
-    .option("-l, --lib <lib>", "library to link with (repeatable)", collectOption)
+    .option(
+      "-l, --lib <lib>",
+      "library to link with (repeatable)",
+      collectOption,
+    )
     .option(
       "-L, --lib-path <path>",
       "library search path (repeatable)",

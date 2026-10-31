@@ -419,11 +419,21 @@ methods/fields, and the signature-help matching items.
 
 #### BUG-448: CI does not check formatting; repository drifted
 
-**Status**: Open · **Priority**: P2
+**Status**: Open (mostly fixed) · **Priority**: P2
 
 `prettier --check .` flags 303 files; `bpl format --check` fails on 37/65 files in
 `lib/`, 6/39 in `packages/`, 23/612 in `examples/`. Run `--write` once in a
 dedicated commit, then add both checks to the lint job.
+
+**Progress (2026-10-31)**: Prettier was applied to 301 files and `bpl format`
+to `lib/`, `packages/` (archives repacked) and `examples/`; CI runs
+`bun run format:bpl:check`, with the seven intentionally unparsable bug
+reproductions listed in `examples/.bplignore`. Generated `*.tgz.bplmeta.json` files and
+`docs/stdlib-reference.md` are in `.prettierignore`, and source-snippet tests
+compare through `tests/helpers/sourceText.ts` so line wrapping does not break
+them. Still open: `CHANGELOG.md`, `docs/project/BUGS.md` and files then under
+review stay unformatted until those PRs merge; after that, add
+`bun run format:check` to CI.
 
 #### BUG-449: Toolchain versions and CI configuration are inconsistent
 

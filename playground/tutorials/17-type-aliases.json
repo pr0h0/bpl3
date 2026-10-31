@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "8 min",
   "description": "Create meaningful names for complex types. Make code more readable and maintainable with type aliases.",
-  "prerequisites": [
-    "memory-management"
-  ],
+  "prerequisites": ["memory-management"],
   "objectives": [
     "Create type aliases with the type keyword",
     "Simplify complex type signatures",

@@ -25,9 +25,7 @@ function expectConditionMismatch(
   expect(error).toBeDefined();
   expect(error).toBeInstanceOf(CompilerError);
   expect(error?.code).toBe("BPL_CONDITION_TYPE_MISMATCH");
-  expect(error?.hint).toContain(
-    "Ensure the condition evaluates to a boolean.",
-  );
+  expect(error?.hint).toContain("Ensure the condition evaluates to a boolean.");
   return error!;
 }
 

@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- The repository is formatted (BUG-448): Prettier over 301 TypeScript,
+  Markdown and JSON files and `bpl format` over `lib/`, `packages/` (archives
+  repacked) and `examples/`. CI checks BPL formatting with
+  `bun run format:bpl:check`. Generated package metadata and the stdlib
+  reference are excluded from Prettier, and source-snippet tests ignore
+  whitespace and trailing commas.
 - The playground's documented and backend start commands go through
   `playground/start.sh` (BUG-452), so the runner check (Docker by default, or
   trusted host mode with Clang) always applies: `QUICKSTART.md` and `test.sh`

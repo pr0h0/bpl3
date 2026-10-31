@@ -214,7 +214,11 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
         local resultPtr: *Array<U> = &result;
         local completed: bool = false;
         local completedPtr: *bool = &completed;
-        defer { if (!*completedPtr) { resultPtr.destroy(); } }
+        defer {
+            if (!*completedPtr) {
+                resultPtr.destroy();
+            }
+        }
         local i: int = 0;
         loop (i < this.length) {
             result.push(transform(this.data[i], i));
@@ -230,7 +234,11 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
         local resultPtr: *Array<T> = &result;
         local completed: bool = false;
         local completedPtr: *bool = &completed;
-        defer { if (!*completedPtr) { resultPtr.destroy(); } }
+        defer {
+            if (!*completedPtr) {
+                resultPtr.destroy();
+            }
+        }
         local i: int = 0;
         loop (i < this.length) {
             if (predicate(this.data[i], i)) {

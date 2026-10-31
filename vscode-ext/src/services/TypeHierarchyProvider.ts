@@ -138,8 +138,7 @@ export class TypeHierarchyProvider {
             structDecl.inheritanceList.length > 0
           ) {
             const inheritsTarget = structDecl.inheritanceList.some(
-              (inheritedType) =>
-                this.getTypeName(inheritedType) === targetName,
+              (inheritedType) => this.getTypeName(inheritedType) === targetName,
             );
             if (inheritsTarget) {
               subtypes.push(this.createTypeHierarchyItem(structDecl, filePath));
@@ -149,8 +148,7 @@ export class TypeHierarchyProvider {
           const specDecl = stmt as AST.SpecDecl;
           if (specDecl.extends && specDecl.extends.length > 0) {
             const inheritsTarget = specDecl.extends.some(
-              (inheritedType) =>
-                this.getTypeName(inheritedType) === targetName,
+              (inheritedType) => this.getTypeName(inheritedType) === targetName,
             );
             if (inheritsTarget) {
               subtypes.push(this.createTypeHierarchyItem(specDecl, filePath));

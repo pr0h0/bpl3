@@ -6,9 +6,7 @@
   "difficulty": "beginner",
   "duration": "5 min",
   "description": "Congratulations on completing the BPL tutorial! Discover resources, community, and projects to continue learning.",
-  "prerequisites": [
-    "best-practices"
-  ],
+  "prerequisites": ["best-practices"],
   "objectives": [
     "Find additional learning resources",
     "Discover project ideas",

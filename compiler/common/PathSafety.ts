@@ -43,7 +43,9 @@ export function findSymlinkedPathComponent(
   return null;
 }
 
-export function findNonDirectoryPathComponent(targetPath: string): string | null {
+export function findNonDirectoryPathComponent(
+  targetPath: string,
+): string | null {
   const absolutePath = path.resolve(targetPath);
 
   for (const currentPath of pathComponents(absolutePath).slice(1)) {
@@ -75,10 +77,7 @@ export function findCaseMismatchPath(
   let currentPath = rootPath;
 
   for (const component of components) {
-    const entries = readDirectoryEntries(
-      currentPath,
-      options.directoryEntries,
-    );
+    const entries = readDirectoryEntries(currentPath, options.directoryEntries);
     if (!entries) return null;
 
     if (entries.includes(component)) {

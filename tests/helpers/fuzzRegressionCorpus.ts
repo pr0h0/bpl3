@@ -1,10 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { join, relative } from "path";
 
-import {
-  runCompilerPipeline,
-  type FuzzStage,
-} from "../../fuzz/compilerFuzz";
+import { runCompilerPipeline, type FuzzStage } from "../../fuzz/compilerFuzz";
 
 export interface FuzzRegressionCase {
   name: string;

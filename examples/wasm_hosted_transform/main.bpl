@@ -27,7 +27,6 @@ frame main() ret int {
         dprintf(2, "bad argc\n");
         return 10;
     }
-
     local first: String = String.new(__bpl_argv_get(1));
     local second: String = String.new(__bpl_argv_get(2));
 
@@ -46,16 +45,13 @@ frame main() ret int {
         second.destroy();
         return 40;
     }
-
     local bonus: int = first.length;
     local bump: Lambda<int>(int) = |value: int| ret int {
         return value + bonus;
     };
 
     local base: int = first.length + second.length;
-    local boxed: Box<int> = Box<int> {
-        value: applyTransform(Transform.Add(second.length), bump(base)),
-    };
+    local boxed: Box<int> = Box<int> { value: applyTransform(Transform.Add(second.length), bump(base)) };
     local score: int = applyTransform(Transform.Keep, boxed.value);
     score = applyTransform(Transform.Mul(1), score);
 
@@ -64,7 +60,6 @@ frame main() ret int {
         second.destroy();
         return score;
     }
-
     printf(first.toString());
     printf(":");
     puts("7");

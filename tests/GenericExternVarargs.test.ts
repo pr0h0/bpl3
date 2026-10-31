@@ -7,13 +7,20 @@ import { join, resolve } from "node:path";
 test("generic C varargs preserve unsigned narrow values and default promotions", () => {
   const dir = mkdtempSync(join(tmpdir(), "bpl-generic-c-varargs-"));
   function run(command: string, args: string[]) {
-    const result = spawnSync(command, args, { encoding: "utf8", timeout: 30000 });
+    const result = spawnSync(command, args, {
+      encoding: "utf8",
+      timeout: 30000,
+    });
     if (result.status !== 0)
-      throw new Error(`${command}: ${result.status}/${result.signal}\n${result.stdout}\n${result.stderr}`);
+      throw new Error(
+        `${command}: ${result.status}/${result.signal}\n${result.stdout}\n${result.stderr}`,
+      );
     return result;
   }
   try {
-    writeFileSync(join(dir, "main.bpl"), `
+    writeFileSync(
+      join(dir, "main.bpl"),
+      `
       extern printf(format:string,...) ret int;
       extern native_integer(count:int,...) ret long;
       extern native_float(count:int,...) ret double;
@@ -38,8 +45,11 @@ test("generic C varargs preserve unsigned narrow values and default promotions",
         if(callback<Callback<int>>(inc)!=42) {return 8;}
         return 0;
       }
-    `);
-    writeFileSync(join(dir, "provider.c"), `
+    `,
+    );
+    writeFileSync(
+      join(dir, "provider.c"),
+      `
       #include <stdarg.h>
       #include <stdint.h>
       #ifdef __cplusplus
@@ -61,11 +71,33 @@ test("generic C varargs preserve unsigned narrow values and default promotions",
       #ifdef __cplusplus
       }
       #endif
-    `);
-    for (const [compiler, language] of [["clang", "c"], ["clang++", "c++"]] as const) {
-      run(compiler, ["-x", language, "-O3", "-c", join(dir, "provider.c"), "-o", join(dir, "provider.o")]);
+    `,
+    );
+    for (const [compiler, language] of [
+      ["clang", "c"],
+      ["clang++", "c++"],
+    ] as const) {
+      run(compiler, [
+        "-x",
+        language,
+        "-O3",
+        "-c",
+        join(dir, "provider.c"),
+        "-o",
+        join(dir, "provider.o"),
+      ]);
       for (const opt of [0, 3]) {
-        run("bun", [resolve("index.ts"), "build", join(dir, "main.bpl"), "--object", join(dir, "provider.o"), "-O", String(opt), "-o", join(dir, "out")]);
+        run("bun", [
+          resolve("index.ts"),
+          "build",
+          join(dir, "main.bpl"),
+          "--object",
+          join(dir, "provider.o"),
+          "-O",
+          String(opt),
+          "-o",
+          join(dir, "out"),
+        ]);
         expect(run(join(dir, "out"), []).stdout).toBe("255\n65535\n");
       }
     }

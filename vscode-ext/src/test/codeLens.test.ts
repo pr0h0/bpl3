@@ -16,15 +16,14 @@ describe("CodeLens Provider", () => {
       pathToFileURL(filePath).toString(),
       "bpl",
       1,
-      ["struct Base { x: int, }", "struct Child : Base { y: int, }"].join(
-        "\n",
-      ),
+      ["struct Base { x: int, }", "struct Child : Base { y: int, }"].join("\n"),
     );
 
     const lenses = provider.provide({ textDocument: { uri: doc.uri } }, doc);
 
-    expect(lenses.some((lens) => lens.command?.title === "1 implementation"))
-      .toBe(true);
+    expect(
+      lenses.some((lens) => lens.command?.title === "1 implementation"),
+    ).toBe(true);
   });
 
   it("provides code lenses for enum methods", () => {
@@ -54,8 +53,7 @@ describe("CodeLens Provider", () => {
     expect(
       lenses.some(
         (lens) =>
-          lens.range.start.line === 2 &&
-          lens.command?.title === "0 references",
+          lens.range.start.line === 2 && lens.command?.title === "0 references",
       ),
     ).toBe(true);
   });
@@ -64,10 +62,7 @@ describe("CodeLens Provider", () => {
     const symbolIndex = new SymbolIndex();
     const astResolver = new ASTResolver(symbolIndex);
     const provider = new CodeLensProvider(astResolver);
-    const filePath = path.resolve(
-      __dirname,
-      "../../../tmp/code-lens-spec.bpl",
-    );
+    const filePath = path.resolve(__dirname, "../../../tmp/code-lens-spec.bpl");
     const doc = TextDocument.create(
       pathToFileURL(filePath).toString(),
       "bpl",
@@ -87,8 +82,9 @@ describe("CodeLens Provider", () => {
 
     const lenses = provider.provide({ textDocument: { uri: doc.uri } }, doc);
 
-    expect(lenses.some((lens) => lens.command?.title === "2 implementations"))
-      .toBe(true);
+    expect(
+      lenses.some((lens) => lens.command?.title === "2 implementations"),
+    ).toBe(true);
   });
 
   it("provides code lenses for spec methods", () => {
@@ -120,8 +116,7 @@ describe("CodeLens Provider", () => {
     expect(
       lenses.some(
         (lens) =>
-          lens.range.start.line === 1 &&
-          lens.command?.title === "1 reference",
+          lens.range.start.line === 1 && lens.command?.title === "1 reference",
       ),
     ).toBe(true);
   });

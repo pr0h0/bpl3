@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "12 min",
   "description": "Organize your code into modules. Learn to import, export, and structure larger BPL projects.",
-  "prerequisites": [
-    "lambdas-and-closures"
-  ],
+  "prerequisites": ["lambdas-and-closures"],
   "objectives": [
     "Import functions and types from modules",
     "Export your own functions and types",

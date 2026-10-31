@@ -135,7 +135,9 @@ describe("TypeChecker duplicate symbols", () => {
       }
     `;
 
-    expect(() => check(source)).toThrow("Duplicate method 'map' in spec 'Mapper'");
+    expect(() => check(source)).toThrow(
+      "Duplicate method 'map' in spec 'Mapper'",
+    );
   });
 
   test("preserves valid function overloads", () => {

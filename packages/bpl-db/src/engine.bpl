@@ -82,7 +82,12 @@ struct Engine {
 
             local val: *Value = row.values.getRef(col_idx);
             local same: bool = value_kind(val) == value_kind(&cond.value);
-            if(!same) {if(cond.op == Operator.Neq) {continue;} return false;}
+            if (!same) {
+                if (cond.op == Operator.Neq) {
+                    continue;
+                }
+                return false;
+            }
             local cmp: int = compare_values(val, &cond.value);
             local matched: bool = false;
 
@@ -203,7 +208,9 @@ struct Engine {
                         loop (local i: int = 0; i < selected.len(); i = i + 1) {
                             local r: *Row = t.rows.getRef(selected.get(i));
                             local c: Column = t.columns.get(update_col_idx);
-                            if(value_kind(&replacement) != 3 && value_kind(&replacement) != data_kind(c.kind)) {continue;}
+                            if ((value_kind(&replacement) != 3) && (value_kind(&replacement) != data_kind(c.kind))) {
+                                continue;
+                            }
                             local copy: Value = clone_value(&replacement);
                             destroy_value(r.values.getRef(update_col_idx));
                             r.values.set(update_col_idx, copy);
@@ -245,5 +252,7 @@ struct Engine {
             },
         };
     }
-    frame destroy(this: *Engine) {this.db.destroy();}
+    frame destroy(this: *Engine) {
+        this.db.destroy();
+    }
 }

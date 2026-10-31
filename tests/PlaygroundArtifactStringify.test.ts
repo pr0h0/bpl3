@@ -61,6 +61,6 @@ describe("Playground artifact stringification", () => {
     expect(text).toContain('"kind": "Import"');
     expect(text).toContain('"name": "main"');
     expect(text).not.toContain('"printf"');
-    expect(text).not.toContain('/repo/lib/c.bpl');
+    expect(text).not.toContain("/repo/lib/c.bpl");
   });
 });

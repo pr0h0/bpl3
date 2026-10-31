@@ -22,19 +22,19 @@ bytes. The UI uses an HttpOnly cookie for the session and keeps CSRF in memory.
 Each account sees and modifies only its own tasks. Signing in again revokes the
 previous session for that account; signing out revokes the current session.
 
-| Configuration | Default / behavior |
-| --- | --- |
-| PORT | 3000, integer 1–65535 |
-| BPL_WEB_DB | college.sqlite in the working directory |
-| BPL_WEB_WORKERS | 2, integer 1–8 |
-| BPL_WEB_WAL | 0 leaves journal mode unchanged; 1 enables WAL before migrations |
-| BPL_WEB_COMPRESSION | 0; 1 enables optional gzip for public assets using libz.so.1 |
-| BPL_WEB_ACCESS_LOG | 0; 1 enables JSON completion logs; request IDs are always generated |
-| BPL_WEB_API_LIMIT | 240 API requests per socket peer per minute, health excluded |
-| BPL_WEB_ORIGIN | http://127.0.0.1:PORT, or https with native TLS; must exactly match the browser origin |
-| BPL_WEB_TLS_CERT | Unset; PEM certificate chain path enables native HTTPS with the key |
-| BPL_WEB_TLS_KEY | Unset; matching unencrypted PEM private key path |
-| BPL_WEB_SECURE_COOKIES | 0 for local HTTP; 1 forces Secure; HTTPS origins also enable it |
+| Configuration          | Default / behavior                                                                     |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| PORT                   | 3000, integer 1–65535                                                                  |
+| BPL_WEB_DB             | college.sqlite in the working directory                                                |
+| BPL_WEB_WORKERS        | 2, integer 1–8                                                                         |
+| BPL_WEB_WAL            | 0 leaves journal mode unchanged; 1 enables WAL before migrations                       |
+| BPL_WEB_COMPRESSION    | 0; 1 enables optional gzip for public assets using libz.so.1                           |
+| BPL_WEB_ACCESS_LOG     | 0; 1 enables JSON completion logs; request IDs are always generated                    |
+| BPL_WEB_API_LIMIT      | 240 API requests per socket peer per minute, health excluded                           |
+| BPL_WEB_ORIGIN         | http://127.0.0.1:PORT, or https with native TLS; must exactly match the browser origin |
+| BPL_WEB_TLS_CERT       | Unset; PEM certificate chain path enables native HTTPS with the key                    |
+| BPL_WEB_TLS_KEY        | Unset; matching unencrypted PEM private key path                                       |
+| BPL_WEB_SECURE_COOKIES | 0 for local HTTP; 1 forces Secure; HTTPS origins also enable it                        |
 
 Run from this directory so public assets resolve. If you use `localhost` instead
 of `127.0.0.1`, explicitly set BPL_WEB_ORIGIN to that origin. Native HTTPS is
@@ -56,18 +56,18 @@ loopback; edit the listen host when exposing the app directly. A reverse proxy
 remains an alternative deployment option. Forwarded-origin/IP headers are not
 trusted automatically.
 
-| Endpoint | Behavior |
-| --- | --- |
-| POST /auth/register | Public registration; JSON username/password; returns 201 |
-| POST /auth/login | Fresh cookie session; JSON username/password |
-| GET /auth/me | Current user and CSRF token, or 401 |
-| POST /auth/logout | CSRF-protected revocation; returns 204 |
-| GET /api/health | Public health JSON |
-| GET /api/tasks?page=1&limit=20 | Current user's tasks, newest first |
-| GET /api/tasks/:id | Owned task or 404 |
-| POST /api/tasks | Create owned task; 201 with Location |
-| PUT /api/tasks/:id | Replace owned title/done or 404 |
-| DELETE /api/tasks/:id | Delete owned task; empty 204 or 404 |
+| Endpoint                       | Behavior                                                 |
+| ------------------------------ | -------------------------------------------------------- |
+| POST /auth/register            | Public registration; JSON username/password; returns 201 |
+| POST /auth/login               | Fresh cookie session; JSON username/password             |
+| GET /auth/me                   | Current user and CSRF token, or 401                      |
+| POST /auth/logout              | CSRF-protected revocation; returns 204                   |
+| GET /api/health                | Public health JSON                                       |
+| GET /api/tasks?page=1&limit=20 | Current user's tasks, newest first                       |
+| GET /api/tasks/:id             | Owned task or 404                                        |
+| POST /api/tasks                | Create owned task; 201 with Location                     |
+| PUT /api/tasks/:id             | Replace owned title/done or 404                          |
+| DELETE /api/tasks/:id          | Delete owned task; empty 204 or 404                      |
 
 Task POST/PUT use application/json with `{"title":"Homework","done":false}`.
 Titles contain 1–120 UTF-8 bytes, page is 1–10000, and limit is 1–100.

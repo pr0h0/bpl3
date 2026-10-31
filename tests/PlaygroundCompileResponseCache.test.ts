@@ -54,9 +54,9 @@ describe("Playground compile-only response cache", () => {
       includeArtifacts: false,
     });
 
-    expect(cache.remember(key, { success: false, error: "compile failed" })).toBe(
-      false,
-    );
+    expect(
+      cache.remember(key, { success: false, error: "compile failed" }),
+    ).toBe(false);
     expect(cache.get(key)).toBeUndefined();
 
     expect(cache.remember(key, { success: true, warnings: ["ok"] })).toBe(true);

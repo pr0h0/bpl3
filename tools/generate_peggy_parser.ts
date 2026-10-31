@@ -818,7 +818,7 @@ function optimizeGeneratedBasicTypeParsing(parserSource: string): string {
     "s5 = peg$parseArraySuffix();",
     "s4.push(s5);",
   ];
-  if (!expectedFragments.every(fragment => match[1]!.includes(fragment))) {
+  if (!expectedFragments.every((fragment) => match[1]!.includes(fragment))) {
     throw new Error(
       "Generated Peggy parser BasicType suffix shape changed; update the BPL parser basic-type optimizer.",
     );
@@ -999,18 +999,16 @@ function buildReservedKeywordRangeHelper(reservedKeywords: string[]): string[] {
     for (const [firstCode, keywords] of [...byFirstCode.entries()].sort(
       (a, b) => a[0] - b[0],
     )) {
-      const checks = keywords
-        .sort()
-        .map((keyword) =>
-          keyword
-            .split("")
-            .slice(1)
-            .map(
-              (char, index) =>
-                `input.charCodeAt(startPos + ${index + 1}) === ${char.charCodeAt(0)}`,
-            )
-            .join(" && "),
-        );
+      const checks = keywords.sort().map((keyword) =>
+        keyword
+          .split("")
+          .slice(1)
+          .map(
+            (char, index) =>
+              `input.charCodeAt(startPos + ${index + 1}) === ${char.charCodeAt(0)}`,
+          )
+          .join(" && "),
+      );
       lines.push(`          case ${firstCode}:`);
       lines.push(`            return ${checks.join(" || ")};`);
     }
@@ -2038,12 +2036,8 @@ function optimizeGeneratedVariableScopeKeywordScanning(
   const keywordPattern =
     /  function peg\$parseK_global\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseK_local\(\) \{([\s\S]*?)\n  \}\n\n(?=  function peg\$parseK_const\(\))/;
   const match = parserSource.match(keywordPattern);
-  const globalExpectation = match?.[1]?.match(
-    /peg\$fail\((peg\$e\d+)\)/,
-  )?.[1];
-  const localExpectation = match?.[2]?.match(
-    /peg\$fail\((peg\$e\d+)\)/,
-  )?.[1];
+  const globalExpectation = match?.[1]?.match(/peg\$fail\((peg\$e\d+)\)/)?.[1];
+  const localExpectation = match?.[2]?.match(/peg\$fail\((peg\$e\d+)\)/)?.[1];
   const globalCallCount =
     parserSource.match(/peg\$parseK_global\(\);/g)?.length ?? 0;
   const localCallCount =
@@ -2142,9 +2136,9 @@ function optimizeGeneratedAssignmentOperatorScanning(
   }
 
   const helperBody = match[1]!;
-  const expectedNames = [...helperBody.matchAll(/peg\$fail\((peg\$e\d+)\)/g)].map(
-    ([, expectedName]) => expectedName,
-  );
+  const expectedNames = [
+    ...helperBody.matchAll(/peg\$fail\((peg\$e\d+)\)/g),
+  ].map(([, expectedName]) => expectedName);
 
   if (expectedNames.length !== 9) {
     throw new Error(
@@ -2153,7 +2147,7 @@ function optimizeGeneratedAssignmentOperatorScanning(
   }
 
   const failExpectationLines = expectedNames.map(
-    expectedName => `    peg$fail(${expectedName});`,
+    (expectedName) => `    peg$fail(${expectedName});`,
   );
   const assignmentOperatorReplacement = [
     "  function peg$failBplAssignmentOperatorExpectation() {",
@@ -2232,7 +2226,7 @@ function optimizeGeneratedAssignmentParsing(parserSource: string): string {
     "s2.push(s3);",
     "s4 = [s4, s5, s6, s7];",
   ];
-  if (!expectedFragments.every(fragment => match[1]!.includes(fragment))) {
+  if (!expectedFragments.every((fragment) => match[1]!.includes(fragment))) {
     throw new Error(
       "Generated Peggy parser Assignment tail shape changed; update the BPL parser assignment optimizer.",
     );
@@ -2292,9 +2286,7 @@ function optimizeGeneratedTernaryParsing(parserSource: string): string {
   const ternaryPattern =
     /  function peg\$parseTernary\(\) \{([\s\S]*?)\n  \}\n\n  function peg\$parseLogicalOr\(\)/;
   const match = parserSource.match(ternaryPattern);
-  const actionName = match?.[1]?.match(
-    /s0 = (peg\$f\d+)\(s1, s5, s9\);/,
-  )?.[1];
+  const actionName = match?.[1]?.match(/s0 = (peg\$f\d+)\(s1, s5, s9\);/)?.[1];
   const expectedNames = match
     ? [...match[1]!.matchAll(/peg\$fail\((peg\$e\d+)\)/g)].map(
         ([, expectedName]) => expectedName,
@@ -2604,11 +2596,11 @@ function optimizeGeneratedExpressionOperatorScanningForConfig(
   }
 
   const failExpectationLines = expectedNames.map(
-    expectedName => `    peg$fail(${expectedName});`,
+    (expectedName) => `    peg$fail(${expectedName});`,
   );
   const scannerLines = config.cases.flatMap(({ code, branches }) => [
     `      case ${code}:`,
-    ...branches.map(branch =>
+    ...branches.map((branch) =>
       buildGeneratedOperatorScannerBranchLine(branch),
     ),
     "        break;",
@@ -2710,7 +2702,7 @@ function optimizeGeneratedBinaryExpressionTailParsingForConfig(
   }
 
   const operatorConfig = EXPRESSION_OPERATOR_SCAN_CONFIGS.find(
-    operator => operator.name === config.operatorName,
+    (operator) => operator.name === config.operatorName,
   );
   if (operatorConfig === undefined) {
     throw new Error(
@@ -2722,7 +2714,7 @@ function optimizeGeneratedBinaryExpressionTailParsingForConfig(
     9,
     10,
     13,
-    ...operatorConfig.cases.map(operatorCase => operatorCase.code),
+    ...operatorConfig.cases.map((operatorCase) => operatorCase.code),
   ];
   const impossibleTailChecks = possibleTailCodes.map(
     (code, index) =>
@@ -2906,9 +2898,7 @@ function optimizeGeneratedMultiplicativePostTriviaGuard(
   return parserSource.replace(original, replacement);
 }
 
-function optimizeGeneratedAdditiveOperatorTokens(
-  parserSource: string,
-): string {
+function optimizeGeneratedAdditiveOperatorTokens(parserSource: string): string {
   const scannerPattern =
     /  function peg\$scanBplAdditiveOperator\(\) \{[\s\S]*?\n  \}\n\n(?=  function peg\$parseAdditiveOperator\(\))/;
   const scanner = parserSource.match(scannerPattern)?.[0];

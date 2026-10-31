@@ -92,7 +92,9 @@ export function writeFileAtomically(filePath: string, content: string): void {
   assertWritableFileOutputPath(filePath);
   const existingFile = tryLstat(filePath);
   const mode =
-    existingFile && existingFile.isFile() ? existingFile.mode & 0o777 : undefined;
+    existingFile && existingFile.isFile()
+      ? existingFile.mode & 0o777
+      : undefined;
 
   for (let attempt = 0; attempt < 10; attempt++) {
     const tempPath = getAtomicWriteTempPath(filePath, attempt);
@@ -173,10 +175,7 @@ function tryLstat(filePath: string): fs.Stats | null {
   try {
     return fs.lstatSync(filePath);
   } catch (error) {
-    if (
-      isNodeErrorCode(error, "ENOENT") ||
-      isNodeErrorCode(error, "ENOTDIR")
-    ) {
+    if (isNodeErrorCode(error, "ENOENT") || isNodeErrorCode(error, "ENOTDIR")) {
       return null;
     }
 

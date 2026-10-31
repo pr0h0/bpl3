@@ -25,8 +25,7 @@ export interface IntegrationCommandContext {
   stderr: string;
 }
 
-export interface IntegrationExitCodeMismatch
-  extends IntegrationCommandContext {
+export interface IntegrationExitCodeMismatch extends IntegrationCommandContext {
   expectedStatus: number;
   actualStatus: number | null;
   signal: NodeJS.Signals | null;
@@ -80,9 +79,7 @@ export function formatIntegrationExitCodeMismatch(
   ].join("\n");
 }
 
-export function formatIntegrationTimeout(
-  options: IntegrationTimeout,
-): string {
+export function formatIntegrationTimeout(options: IntegrationTimeout): string {
   return [
     `Example "${options.example}" timed out after ${options.timeoutMs}ms.`,
     `Command: ${formatCommand(options.command, options.args)}`,
@@ -95,7 +92,10 @@ function formatProcessStatus(status: number | null): string {
   return status === null ? "null" : String(status);
 }
 
-function formatStreamSection(label: "stdout" | "stderr", value: string): string {
+function formatStreamSection(
+  label: "stdout" | "stderr",
+  value: string,
+): string {
   const trimmed = value.trimEnd();
   return `${label}:\n${trimmed.length > 0 ? trimmed : "(empty)"}`;
 }

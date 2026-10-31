@@ -17,10 +17,7 @@ import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { verifyLlvmFile } from "../compiler/common/LlvmVerifier";
 import { Formatter } from "../compiler/formatter/Formatter";
 import { formatterSemantics } from "../compiler/formatter/FormatterSemantics";
-import {
-  generateOracleProgram,
-  readExpectedStdout,
-} from "./programGenerator";
+import { generateOracleProgram, readExpectedStdout } from "./programGenerator";
 import {
   findNonDirectoryPathComponent,
   findSymlinkedPathComponent,
@@ -1441,8 +1438,7 @@ function validateFuzzCampaignSeeds(seeds: number[]): void {
 
   if (
     seeds.some(
-      (seed) =>
-        !Number.isSafeInteger(seed) || seed < 0 || seed > 0xffffffff,
+      (seed) => !Number.isSafeInteger(seed) || seed < 0 || seed > 0xffffffff,
     )
   ) {
     throw new Error(
@@ -1585,7 +1581,7 @@ export function minimizeFuzzFailure(
     passes++;
     let changedThisPass = false;
 
-    for (let index = 0; index < tokens.length; ) {
+    for (let index = 0; index < tokens.length;) {
       const candidate = [
         ...tokens.slice(0, index),
         ...tokens.slice(index + chunkSize),

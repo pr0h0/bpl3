@@ -34,7 +34,8 @@ import {
 } from "./NewContracts";
 
 const log = new Logger("New");
-const NEW_PROJECT_GIT_TIMEOUT_MS = TIMEOUT_ENV_DEFAULTS.BPL_CLEAN_GIT_TIMEOUT_MS;
+const NEW_PROJECT_GIT_TIMEOUT_MS =
+  TIMEOUT_ENV_DEFAULTS.BPL_CLEAN_GIT_TIMEOUT_MS;
 
 type NewTemplate = "app" | "library";
 

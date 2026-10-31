@@ -1,5 +1,8 @@
 import { test } from "bun:test";
-import { expectCleanFailureSuite, expectCorrectnessSuite } from "./helpers/compilerCorrectness";
+import {
+  expectCleanFailureSuite,
+  expectCorrectnessSuite,
+} from "./helpers/compilerCorrectness";
 
 test("bound value receivers use an adapter for scalar, void and aggregate results", () => {
   expectCorrectnessSuite([
@@ -53,7 +56,6 @@ test("bound value receivers use an adapter for scalar, void and aggregate result
     },
   ]);
 }, 60000);
-
 
 test("variadic value-receiver methods are rejected at declaration", () => {
   expectCleanFailureSuite([

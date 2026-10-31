@@ -101,9 +101,7 @@ export class ASTHoverHandler {
         case "PatternEnumStruct":
           return this.handlePatternEnum(
             node as
-              | AST.PatternEnum
-              | AST.PatternEnumTuple
-              | AST.PatternEnumStruct,
+              AST.PatternEnum | AST.PatternEnumTuple | AST.PatternEnumStruct,
             filePath,
             params.position.line,
             params.position.character,
@@ -1247,9 +1245,7 @@ export class ASTHoverHandler {
     line: number,
     character: number,
   ): Hover | null {
-    debugLog(
-      `[ASTHover] Pattern enum: ${node.enumName}.${node.variantName}`,
-    );
+    debugLog(`[ASTHover] Pattern enum: ${node.enumName}.${node.variantName}`);
 
     if (!node.location) {
       return null;
@@ -1414,14 +1410,10 @@ export class ASTHoverHandler {
         debugLog(`[ASTHover] Checking function: ${topNode.name}`);
         // Check if the reference is inside this function
         if (this.isNodeContainedIn(refNode, topNode)) {
-          debugLog(
-            `[ASTHover] Reference is inside function ${topNode.name}`,
-          );
+          debugLog(`[ASTHover] Reference is inside function ${topNode.name}`);
           const varDecl = this.findVariableInFunction(topNode, name, refNode);
           if (varDecl) {
-            debugLog(
-              `[ASTHover] Found variable in function ${topNode.name}`,
-            );
+            debugLog(`[ASTHover] Found variable in function ${topNode.name}`);
             return varDecl;
           }
         }

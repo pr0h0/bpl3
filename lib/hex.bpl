@@ -22,7 +22,9 @@ struct Hex {
         }
         local outLen: int = length * 2;
         local output: *u8 = cast<*u8>(malloc(cast<long>(outLen) + cast<long>(1)));
-        if (output == nullptr) { return cast<string>(nullptr); }
+        if (output == nullptr) {
+            return cast<string>(nullptr);
+        }
         local hexChars: string = "0123456789abcdef";
         local hexPtr: *u8 = cast<*u8>(hexChars);
 
@@ -50,7 +52,9 @@ struct Hex {
         }
         local outLen: int = length * 2;
         local output: *u8 = cast<*u8>(malloc(cast<long>(outLen) + cast<long>(1)));
-        if (output == nullptr) { return cast<string>(nullptr); }
+        if (output == nullptr) {
+            return cast<string>(nullptr);
+        }
         local hexChars: string = "0123456789ABCDEF";
         local hexPtr: *u8 = cast<*u8>(hexChars);
 
@@ -186,7 +190,6 @@ struct Hex {
         if (output == nullptr) {
             return cast<string>(nullptr);
         }
-
         Hex.scan(input, output, true);
         *(output + needed) = cast<u8>(0);
 
@@ -196,7 +199,9 @@ struct Hex {
     # Convert a single byte to 2-char hex string (lowercase)
     frame byteToHex(b: u8) ret string {
         local output: *u8 = cast<*u8>(malloc(cast<long>(3)));
-        if (output == nullptr) { return cast<string>(nullptr); }
+        if (output == nullptr) {
+            return cast<string>(nullptr);
+        }
         local hexChars: string = "0123456789abcdef";
         local hexPtr: *u8 = cast<*u8>(hexChars);
 
@@ -212,7 +217,9 @@ struct Hex {
     # Convert a u32 to hex string (lowercase, no prefix)
     frame u32ToHex(val: u32) ret string {
         local output: *u8 = cast<*u8>(malloc(cast<long>(9)));
-        if (output == nullptr) { return cast<string>(nullptr); }
+        if (output == nullptr) {
+            return cast<string>(nullptr);
+        }
         local hexChars: string = "0123456789abcdef";
         local hexPtr: *u8 = cast<*u8>(hexChars);
 
@@ -231,7 +238,9 @@ struct Hex {
     # Convert a u64 to hex string (lowercase, no prefix)
     frame u64ToHex(val: u64) ret string {
         local output: *u8 = cast<*u8>(malloc(cast<long>(17)));
-        if (output == nullptr) { return cast<string>(nullptr); }
+        if (output == nullptr) {
+            return cast<string>(nullptr);
+        }
         local hexChars: string = "0123456789abcdef";
         local hexPtr: *u8 = cast<*u8>(hexChars);
 

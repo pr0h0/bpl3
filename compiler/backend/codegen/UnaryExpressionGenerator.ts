@@ -135,7 +135,10 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     specTypeNode: AST.BasicTypeNode,
     specDecl: AST.SpecDecl,
   ): string {
-    const vtableName = this.getOrGenerateSpecVTable(structTypeNode, specTypeNode);
+    const vtableName = this.getOrGenerateSpecVTable(
+      structTypeNode,
+      specTypeNode,
+    );
     const fatPtr = this.allocateStack(
       `fat_ptr_${this.labelCount++}`,
       "{ i8*, i8* }",
@@ -177,11 +180,13 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     structMangledName: string,
     methodName: string,
     bindings: Map<string, AST.TypeNode> = new Map(),
-  ): {
-    method: AST.FunctionDecl;
-    owner: string;
-    bindings: Map<string, AST.TypeNode>;
-  } | undefined {
+  ):
+    | {
+        method: AST.FunctionDecl;
+        owner: string;
+        bindings: Map<string, AST.TypeNode>;
+      }
+    | undefined {
     const declared = structDecl.members.find(
       (member) =>
         member.kind === "FunctionDecl" &&
@@ -651,7 +656,11 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       const thunkName = `__bpl_thunk_${sigHash}`;
 
       this.requestThunk(
-        thunkName, retType, paramTypes, rawFuncPtrType, paramExtensions,
+        thunkName,
+        retType,
+        paramTypes,
+        rawFuncPtrType,
+        paramExtensions,
       );
       const thunkRef = `@${thunkName}`;
 
@@ -718,9 +727,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
         const sourceElemType = this.resolveType(sourceElemTypeNode);
         const destElemType = this.resolveType(destElemTypeNode);
         const sourceElemVal = this.newRegister();
-        this.emit(
-          `  ${sourceElemVal} = extractvalue ${srcType} ${val}, ${i}`,
-        );
+        this.emit(`  ${sourceElemVal} = extractvalue ${srcType} ${val}, ${i}`);
         const castElemVal = this.emitCast(
           sourceElemVal,
           sourceElemType,
@@ -1010,7 +1017,9 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
         this.declarationsOutput.push(decl);
       }
 
-      this.emit(`  ${reg} = call ${destType} @${intrinsicName}(${srcType} ${val})`);
+      this.emit(
+        `  ${reg} = call ${destType} @${intrinsicName}(${srcType} ${val})`,
+      );
       return reg;
     }
     if (
@@ -1165,7 +1174,10 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
           this.emit(`  ${srcData} = extractvalue ${srcType} ${val}, 1`);
 
           // Bitcast data arrays to match types if sizes differ
-          if (this.getEnumDataType(srcEnumName) === this.getEnumDataType(destEnumName)) {
+          if (
+            this.getEnumDataType(srcEnumName) ===
+            this.getEnumDataType(destEnumName)
+          ) {
             // Same size, insert directly
             const destWithData = this.newRegister();
             this.emit(

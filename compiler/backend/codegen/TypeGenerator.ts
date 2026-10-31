@@ -1917,7 +1917,9 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     if (this.thunks.has(thunkName)) return thunkName;
     this.thunks.add(thunkName);
     const retType = this.resolveType(functionType.returnType);
-    const returnExtension = this.getCAbiReturnExtension(functionType.returnType);
+    const returnExtension = this.getCAbiReturnExtension(
+      functionType.returnType,
+    );
     const receiverType = this.resolveType(functionType.paramTypes[0]!);
     const params = functionType.paramTypes
       .slice(1)

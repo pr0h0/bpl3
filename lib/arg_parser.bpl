@@ -380,7 +380,9 @@ struct ArgParser {
             local flag: *Flag = command.flags.get(i);
             if ((flag.defaultValue.data != nullptr) && !parsed.hasFlag(flag.name.data)) {
                 parsed.setFlag(flag.name, flag.defaultValue);
-                if (!flag.alias.isEmpty()) { parsed.setFlag(flag.alias, flag.defaultValue); }
+                if (!flag.alias.isEmpty()) {
+                    parsed.setFlag(flag.alias, flag.defaultValue);
+                }
             }
         }
     }
@@ -446,7 +448,9 @@ struct ArgParser {
 
     # A leading minus on a decimal operand is not an option prefix.
     frame isNegativeNumber(text: string) ret bool {
-        if (text[0] != '-') { return false; }
+        if (text[0] != '-') {
+            return false;
+        }
         local i: int = 1;
         local digits: int = 0;
         local dot: bool = false;
@@ -517,8 +521,7 @@ struct ArgParser {
                 continue;
             }
             # 2. Check if it is a flag
-            if (!optionsEnded && (strcmp(argStr, "-") != 0)
-                && StringUtils.startsWith(argStr, "-") && !ArgParser.isNegativeNumber(argStr)) {
+            if (!optionsEnded && (strcmp(argStr, "-") != 0) && StringUtils.startsWith(argStr, "-") && !ArgParser.isNegativeNumber(argStr)) {
                 local flagOpt: Option<*Flag> = this.matchFlag(currentCmd, argStr);
                 match (flagOpt) {
                     Option.Some(flag) => {
@@ -533,10 +536,7 @@ struct ArgParser {
                             if (flag.hasValue) {
                                 val = rawArg.substring(eqIdx + 1, rawArg.length - eqIdx - 1);
                             } else {
-                                ArgParser.reportError(
-                                    "Error: Flag %s does not take a value.\n",
-                                    flag.name.data,
-                                );
+                                ArgParser.reportError("Error: Flag %s does not take a value.\n", flag.name.data);
                                 val = String.new("");
                                 shouldSet = false;
                                 parsed.errorCount = parsed.errorCount + 1;
@@ -547,9 +547,7 @@ struct ArgParser {
                                     local next: String = args.get(i + 1);
                                     local nextOwner: *String = &next;
                                     defer nextOwner.destroy();
-                                    if (StringUtils.startsWith(next.data, "-")
-                                        && (strcmp(next.data, "-") != 0)
-                                        && !ArgParser.isNegativeNumber(next.data)) {
+                                    if (StringUtils.startsWith(next.data, "-") && (strcmp(next.data, "-") != 0) && !ArgParser.isNegativeNumber(next.data)) {
                                         ArgParser.reportError("Error: Flag %s requires a value.\n", flag.name.data);
                                         shouldSet = false;
                                         parsed.errorCount = parsed.errorCount + 1;
@@ -558,10 +556,7 @@ struct ArgParser {
                                         i = i + 1;
                                     }
                                 } else {
-                                    ArgParser.reportError(
-                                        "Error: Flag %s requires a value.\n",
-                                        flag.name.data,
-                                    );
+                                    ArgParser.reportError("Error: Flag %s requires a value.\n", flag.name.data);
                                     shouldSet = false;
                                     parsed.errorCount = parsed.errorCount + 1;
                                 }

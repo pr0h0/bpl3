@@ -119,11 +119,7 @@ function getVerifierErrorOutput(
     : (formatSpawnFailureReason(error) ?? error?.message ?? "");
 }
 
-function isToolAvailable(
-  tool: string,
-  cwd: string,
-  timeout: number,
-): boolean {
+function isToolAvailable(tool: string, cwd: string, timeout: number): boolean {
   const result = spawnSync(tool, ["--version"], {
     cwd,
     encoding: "utf8",

@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("percentile propagates NaN before computing an array index", () => {
-  expectCorrectnessSuite([{
-    name: "stats-percentile-nonfinite",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "stats-percentile-nonfinite",
+      validateLlvm: true,
+      source: `
       import [Stats] from "std/stats.bpl";
       frame main() ret int {
         local data: float[3] = [3.0, 1.0, 2.0];
@@ -23,6 +24,7 @@ test("percentile propagates NaN before computing an array index", () => {
         if (Stats.percentile(cast<*float>(nullptr), 0, nan) != 0.0) { return 8; }
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

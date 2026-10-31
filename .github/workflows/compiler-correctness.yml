@@ -154,6 +154,9 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Check BPL formatting
+        run: bun run format:bpl:check
+
       - name: Run WebAssembly runtime tests
         env:
           BPL_REQUIRE_WASM_LD: "1"

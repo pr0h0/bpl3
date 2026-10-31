@@ -79,7 +79,8 @@
     "test:playground-docker": "BPL_TEST_DOCKER=1 bun test tests/PlaygroundDocker.test.ts",
     "file-sizes": "git ls-files -z 'compiler/*.ts' 'cli/*.ts' 'vscode-ext/src/*.ts' index.ts | xargs -0 wc -l | sort -n | tail -20",
     "docs:examples": "bun test tests/DocumentationExamples.test.ts",
-    "format:check": "prettier --check --ignore-unknown ."
+    "format:check": "prettier --check --ignore-unknown .",
+    "format:bpl:check": "bun index.ts format --check lib packages examples"
   },
   "repository": {
     "type": "git",
