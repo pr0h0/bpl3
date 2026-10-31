@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- CI uses one Bun version (BUG-449): `.bun-version` (1.4.2) feeds every
+  `setup-bun` step through `bun-version-file`, matching the `oven/bun` image tag
+  in both Dockerfiles; the compiler workflows previously used `latest`.
+  `@types/bun` is pinned to 1.3.3 instead of `latest`.
+  `tests/GitHubActions.test.ts` checks that they stay in sync.
 - The npm package ships example sources only (BUG-450): `files` lists them by
   type and excludes `.bpl-cache/` and `lib/*.a`, so local build outputs no
   longer leak into the tarball (examples: 18.8 MB to 1.3 MB). The release smoke

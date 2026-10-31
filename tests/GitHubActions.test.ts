@@ -38,6 +38,59 @@ function extractActionUses(workflow: string): Array<{
 }
 
 describe("GitHub Actions workflows", () => {
+  // BUG-449: one Bun version for CI and the container images.
+  test("every Bun setup and image uses the version in .bun-version", () => {
+    const root = join(import.meta.dir, "..");
+    const version = readFileSync(join(root, ".bun-version"), "utf8").trim();
+    expect(version).toMatch(/^\d+\.\d+\.\d+$/);
+
+    for (const name of listWorkflowNames()) {
+      const lines = readWorkflow(name).split("\n");
+      lines.forEach((line, index) => {
+        if (!/^\s*(-\s+)?uses:\s*oven-sh\/setup-bun@/.test(line)) return;
+        // The step ends at the next list item at or above its indentation.
+        const stepIndent = line.search(/\S/);
+        const step: string[] = [];
+        for (let next = index + 1; next < lines.length; next++) {
+          const text = lines[next]!;
+          const indent = text.search(/\S/);
+          if (indent >= 0 && indent <= stepIndent && /^\s*-/.test(text)) break;
+          if (indent >= 0 && indent < stepIndent) break;
+          step.push(text);
+        }
+        const stepText = step.join("\n");
+        expect({ name, line: index + 1, stepText }).toEqual({
+          name,
+          line: index + 1,
+          stepText: expect.stringMatching(
+            /^\s*bun-version-file: \.bun-version$/m,
+          ),
+        });
+        expect(stepText).not.toMatch(/^\s*bun-version:/m);
+      });
+    }
+
+    for (const dockerfile of ["docker/Dockerfile", "playground/Dockerfile"]) {
+      const images = [
+        ...readFileSync(join(root, dockerfile), "utf8").matchAll(
+          /^FROM oven\/bun:(\S+)/gm,
+        ),
+      ].map((match) => match[1]);
+      expect(images.length).toBeGreaterThan(0);
+      for (const image of images) {
+        expect({ dockerfile, image }).toEqual({ dockerfile, image: version });
+      }
+    }
+
+    const packageJson = JSON.parse(
+      readFileSync(join(root, "package.json"), "utf8"),
+    );
+    // An exact version, not a range such as `1.3.x` or `^1.3.3`.
+    expect(packageJson.devDependencies["@types/bun"]).toMatch(
+      /^\d+\.\d+\.\d+$/,
+    );
+  });
+
   test("container publication accepts release tags and explicit manual requests on patch-only versions", () => {
     const workflow = readWorkflow("container-images.yml");
     expect(workflow).toContain("default: false");

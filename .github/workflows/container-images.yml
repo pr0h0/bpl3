@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.2"
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - name: Validate patch-only release version
         id: version
