@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Tests (BUG-452): the capture analyzer, linter traversal and playground engine
+  tests check behavior instead of matching `case` labels and calls in the
+  compiler and playground sources, using new fixtures under `tests/fixtures/`
+  and an in-process `tests/PlaygroundEngine.test.ts`.
 - VS Code extension toolchain (BUG-449): TypeScript 5.9 and `@types/node` 20,
   `@vscode/vsce` as a declared dev dependency behind `npm run package`, a
   `.vscodeignore`, one lockfile (`package-lock.json`), and the JSON schemas and
