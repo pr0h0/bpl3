@@ -140,9 +140,8 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
       to releases, with a one-line installer, so users need no Bun or checkout.
 - [ ] [3] Make `bpl -e '<code>'` run the program (like `run`) and keep IR output
       behind `--emit llvm`.
-- [ ] [4] `bpl check` with no arguments checks the current project (directories
-      and stdin already work); `bpl run`/`build`/`check` watch an entire
-      project with `dev`.
+- [ ] [4] `bpl run`/`build`/`check` watch an entire project with `dev`
+      (`bpl check` with no arguments already checks the current project).
 - [ ] [4] Generate shell completions from the command definitions instead of
       maintaining Bash/Zsh scripts by hand.
 - [ ] [5] More linter rules beyond naming (unused imports, shadowing, suspicious

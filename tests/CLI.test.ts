@@ -1842,6 +1842,58 @@ describe("CLI Tests", () => {
     }
   });
 
+  it("should check the whole project when run without inputs in a project", () => {
+    const project = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-check-project-"),
+    );
+    try {
+      fs.writeFileSync(
+        path.join(project, "bpl.json"),
+        JSON.stringify({ name: "demo", version: "0.1.0", main: "main.bpl" }),
+      );
+      fs.writeFileSync(
+        path.join(project, "main.bpl"),
+        "frame main() ret int { return 0; }\n",
+      );
+      fs.mkdirSync(path.join(project, "src"));
+      fs.writeFileSync(
+        path.join(project, "src", "broken.bpl"),
+        'frame broken() ret int { return "no"; }\n',
+      );
+      // Dependencies are not part of the project's sources.
+      fs.mkdirSync(path.join(project, "bpl_modules", "dep"), {
+        recursive: true,
+      });
+      fs.writeFileSync(
+        path.join(project, "bpl_modules", "dep", "index.bpl"),
+        "this does not parse\n",
+      );
+
+      const result = spawnSync("bun", [BPL_CLI, "check", "--json"], {
+        cwd: project,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+      const report = JSON.parse(result.stdout);
+
+      expect(result.status).toBe(1);
+      expect(report.totalFiles).toBe(2);
+      expect(
+        report.files
+          .map((file: { file: string; success: boolean }) => [
+            path.basename(file.file),
+            file.success,
+          ])
+          .sort(),
+      ).toEqual([
+        ["broken.bpl", false],
+        ["main.bpl", true],
+      ]);
+    } finally {
+      fs.rmSync(project, { recursive: true, force: true });
+    }
+  });
+
   it("should keep no-input source analysis failures human-readable without json", () => {
     const check = runCLI(["check"]);
     expect(check.status).toBe(1);

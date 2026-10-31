@@ -89,6 +89,10 @@ export async function runCheckCommand(
     process.exit(1);
   };
 
+  // With no inputs inside a project, check the whole project directory.
+  if ((!files || files.length === 0) && fs.existsSync("bpl.json")) {
+    files = ["."];
+  }
   if (!files || files.length === 0) exitNoInputs("No files specified.");
   // Directories expand to their sources, as for `format` and `lint`
   // (honoring .bplignore).

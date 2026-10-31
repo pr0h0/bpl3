@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl check` with no arguments inside a project (a directory with `bpl.json`)
+  checks the whole project, like `bpl check .`, instead of failing with
+  "No files specified."; outside a project the error is unchanged.
 - Tests (BUG-452): the capture analyzer, linter traversal and playground engine
   tests check behavior instead of matching `case` labels and calls in the
   compiler and playground sources, using new fixtures under `tests/fixtures/`
