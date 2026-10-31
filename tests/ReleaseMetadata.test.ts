@@ -167,30 +167,37 @@ describe("Release metadata", () => {
       require: "./cli/index.js",
       default: "./cli/index.js",
     });
-    expect(packageJson.files).toEqual(
-      expect.arrayContaining([
-        "bpl",
-        "schemas",
-        "cli/index.d.ts",
-        "cli/index.js",
-        "completions",
-        "compiler/common/Env.ts",
-        "compiler/common/PathSafety.ts",
-        "compiler/common/ProcessErrors.ts",
-        "docs",
-        "examples/**/*.bpl",
-        "examples/**/test_config.json",
-        "!examples/**/.bpl-cache",
-        "grammar",
-        "lib",
-        "packages",
-        "README.md",
-        "LICENSE",
-      ]),
-    );
-    // BUG-450: `files` overrides .gitignore, so the whole examples directory
-    // would ship local build outputs.
-    expect(packageJson.files).not.toContain("examples");
+    // BUG-450: `files` overrides .gitignore, so a broad examples entry would
+    // ship local build outputs; only source patterns are listed.
+    expect(packageJson.files).toEqual([
+      "bpl",
+      "cli/index.d.ts",
+      "cli/index.js",
+      "completions",
+      "compiler/common/Env.ts",
+      "compiler/common/PathSafety.ts",
+      "compiler/common/ProcessErrors.ts",
+      "docs",
+      "examples/**/*.bpl",
+      "examples/**/*.bte",
+      "examples/**/bpl.json",
+      "examples/**/test_config.json",
+      "examples/**/*.md",
+      "examples/http_server/test1.txt",
+      "examples/*/public/*",
+      "!examples/**/.bpl-cache",
+      "grammar",
+      "lib",
+      "!lib/*.a",
+      "packages",
+      "tools",
+      "README.md",
+      "schemas",
+      "LICENSE",
+    ]);
+    for (const entry of packageJson.files as string[]) {
+      expect(entry).not.toMatch(/^examples(?:\/\*\*)?\/?$/);
+    }
     expect(packageJson.scripts["release:check"]).toContain("bun run check");
     expect(packageJson.scripts["release:check"]).toContain(
       "bun run release:cli-registry",
