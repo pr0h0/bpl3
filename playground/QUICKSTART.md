@@ -2,19 +2,18 @@
 
 ## 🎯 Getting Started
 
-1. **Start the server:**
+1. **Start the server** from the repository root:
 
    ```bash
-   cd playground
-   ./start.sh
+   bun run playground        # disposable Docker workers (default)
+   bun run playground:host   # trusted local host mode on 127.0.0.1
    ```
 
-   Or manually:
-
-   ```bash
-   cd playground/backend
-   bun run dev
-   ```
+   Docker mode (`bun run playground`) needs the worker image: build or refresh
+   it with `bun run playground:build`. Host mode (`bun run playground:host`)
+   does not use it, but needs Clang. Both commands go through
+   `playground/start.sh`, which checks the selected runner and its tools before
+   starting the server.
 
 2. **Open your browser:**
    Navigate to `http://localhost:3001`

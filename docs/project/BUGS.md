@@ -494,6 +494,10 @@ the `bin` from `src/cli.bpl` at install time instead of committing it.
 - `playground/COMPLETION_REPORT.md` and `UPGRADE_SUMMARY.md` are stale generated
   reports; `QUICKSTART.md`/`test.sh` bypass the runner check in `start.sh`;
   `playground/Dockerfile` duplicates `docker/Dockerfile`'s playground stage.
+  *Fixed (2026-10-31):* `QUICKSTART.md` documents `bun run playground` and
+  `bun run playground:host`, `test.sh` recommends `bun run playground`, and the
+  backend's `dev`/`start` scripts run `start.sh`. The two Dockerfiles build different images (the per-run worker
+  and the web server), so they stay separate.
 - Tests that regex-match source text (`PlaygroundCompileContract.test.ts:253`,
   `LinterTypeSafety.test.ts:170/180`, `CaptureAnalyzer.test.ts:54`) and pick
   ports as `20000 + pid % 20000` (use `listen(0)`).
