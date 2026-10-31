@@ -443,9 +443,15 @@ dedicated commit, then add both checks to the lint job.
 Every workflow reads it through `bun-version-file`, the compiler and
 playground Dockerfiles use the same `oven/bun` tag, and `@types/bun` is pinned
 to the locked 1.3.3. `tests/GitHubActions.test.ts` fails when a workflow sets
-`bun-version` directly or an image tag differs. Still open: dependency caching,
-repeated type check/lint jobs, SHA pinning, Dependabot, and the `vscode-ext`
-toolchain items.
+`bun-version` directly or an image tag differs. Type check and lint run once,
+in the `Type check and lint` job of `compiler-correctness.yml`, instead of in
+each of the five toolchain jobs; every job that installs dependencies first
+restores an `actions/cache` keyed on `.bun-version`, `bun.lock` and (when it
+runs `npm ci`) `vscode-ext/package-lock.json`; and `.github/dependabot.yml`
+opens weekly grouped update PRs against `staging` for GitHub Actions, the root
+Bun dependencies (except `@types/bun`, which follows `.bun-version`) and the
+extension's npm dependencies. Dependabot keeps the tag-pinned actions current,
+so SHA pinning is not planned. Still open: the `vscode-ext` toolchain items.
 
 #### BUG-450: npm package contents are too broad
 

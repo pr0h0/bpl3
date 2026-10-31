@@ -37,6 +37,12 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: deps-bun-${{ runner.os }}-${{ hashFiles('.bun-version', 'bun.lock') }}
+          restore-keys: deps-bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - name: Validate patch-only release version
         id: version

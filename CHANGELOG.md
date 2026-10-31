@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- CI (BUG-449): type check and lint run once in a dedicated job instead of
+  in all five toolchain jobs, dependency installs restore a cache keyed on the
+  lockfiles and `.bun-version`, and Dependabot opens weekly grouped update PRs
+  against `staging` for GitHub Actions and the root and extension dependencies.
 - Virtual method calls on a struct value take its address instead of first
   loading the whole struct and discarding it (BUG-474), and a receiver that
   cannot be addressed in place is evaluated exactly once (BUG-475: a receiver

@@ -9,6 +9,7 @@ import {
 
 const WORKFLOW_DIR = join(import.meta.dir, "../.github/workflows");
 const MAINTAINED_ACTION_MAJOR_VERSIONS: Record<string, number> = {
+  "actions/cache": 5,
   "actions/checkout": 6,
   "actions/upload-artifact": 4,
   "actions/download-artifact": 4,
@@ -23,6 +24,23 @@ function listWorkflowNames(): string[] {
   return readdirSync(WORKFLOW_DIR)
     .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
     .sort();
+}
+
+interface WorkflowStep {
+  name?: string;
+  uses?: string;
+  run?: string;
+  with?: Record<string, string>;
+}
+
+function readWorkflowJobs(
+  name: string,
+): Record<string, { steps: WorkflowStep[] }> {
+  return (
+    Bun.YAML.parse(readWorkflow(name)) as {
+      jobs: Record<string, { steps: WorkflowStep[] }>;
+    }
+  ).jobs;
 }
 
 function extractActionUses(workflow: string): Array<{
@@ -463,5 +481,70 @@ describe("GitHub Actions workflows", () => {
     expect(sanitizerTest).toContain("sanitizerTest(");
     expect(sanitizerTest).toContain("SANITIZER_RUNTIME_TEST_TIMEOUT_MS,\n  );");
     expect(timeoutEnv).toContain("SANITIZER_RUNTIME_TEST_TIMEOUT_MS: 30000");
+  });
+
+  // BUG-449: type check and lint are platform independent, so they run once.
+  test("compiler correctness workflow type-checks and lints in one job", () => {
+    const jobs = readWorkflowJobs("compiler-correctness.yml");
+    const runs = (job: string) =>
+      jobs[job]!.steps.map((step) => step.run ?? "").join("\n");
+
+    expect(runs("static-checks")).toContain("bun run check");
+    expect(runs("static-checks")).toContain("bun run lint");
+    for (const job of Object.keys(jobs).filter((j) => j !== "static-checks")) {
+      expect({ job, runs: runs(job) }).toEqual({
+        job,
+        runs: expect.not.stringMatching(/bun run (check|lint)\b/),
+      });
+    }
+  });
+
+  // BUG-449: dependency downloads are cached, keyed on the lockfiles.
+  test("every dependency install restores a lockfile-keyed cache first", () => {
+    for (const name of listWorkflowNames()) {
+      for (const [job, { steps }] of Object.entries(readWorkflowJobs(name))) {
+        const install = steps.findIndex((step) =>
+          /\b(bun install|npm ci)\b/.test(step.run ?? ""),
+        );
+        if (install < 0) continue;
+        const cache = steps.findIndex((step) =>
+          step.uses?.startsWith("actions/cache@"),
+        );
+        expect({
+          name,
+          job,
+          cacheBeforeInstall: cache >= 0 && cache < install,
+        }).toEqual({ name, job, cacheBeforeInstall: true });
+        const key = steps[cache]!.with!.key!;
+        expect(key).toContain("'.bun-version'");
+        expect(key).toContain("'bun.lock'");
+        if (/\bnpm ci\b/.test(steps[install]!.run!)) {
+          expect(key).toContain("'vscode-ext/package-lock.json'");
+        }
+      }
+    }
+  });
+
+  test("Dependabot opens update PRs against staging and leaves Bun to .bun-version", () => {
+    const config = Bun.YAML.parse(
+      readFileSync(join(import.meta.dir, "../.github/dependabot.yml"), "utf8"),
+    ) as {
+      updates: Array<{
+        "package-ecosystem": string;
+        "target-branch"?: string;
+        ignore?: Array<{ "dependency-name": string }>;
+      }>;
+    };
+    const ecosystems = config.updates.map((u) => u["package-ecosystem"]);
+
+    expect(ecosystems).toEqual(["github-actions", "bun", "npm"]);
+    for (const update of config.updates) {
+      expect(update["target-branch"]).toBe("staging");
+    }
+    expect(
+      config.updates
+        .find((u) => u["package-ecosystem"] === "bun")!
+        .ignore!.map((rule) => rule["dependency-name"]),
+    ).toContain("@types/bun");
   });
 });
