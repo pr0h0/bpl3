@@ -101,8 +101,17 @@ export class SignatureHelpProvider {
     const stack: { kind: string; offset: number; commas: number }[] = [];
     for (let i = 0; i < text.length; i++) {
       const ch = text[i]!;
-      if (ch === "#") {
+      if (ch === "/" && text[i + 1] === "#") {
+        // Block comments end at the first `#/`; they do not nest.
+        const end = text.indexOf("#/", i + 2);
+        i = end < 0 ? text.length : end + 1;
+      } else if (ch === "#") {
         while (i < text.length && text[i] !== "\n") i++;
+      } else if (ch === "`") {
+        // Interpolated strings stay on one line.
+        for (i++; i < text.length && text[i] !== "`" && text[i] !== "\n"; i++) {
+          if (text[i] === "\\") i++;
+        }
       } else if (ch === '"' || ch === "'") {
         for (i++; i < text.length && text[i] !== ch; i++) {
           if (text[i] === "\\") i++;
@@ -198,21 +207,22 @@ export class SignatureHelpProvider {
           signatures.push(signatureFromDecl(member, true));
         }
       }
-      if (signatures.length > 0) return signatures;
+      // A known receiver without that method has no signature to show.
+      return signatures;
     }
     if (ownerName) {
-      for (const symbol of this.symbolIndex.findSymbolInFile(
-        ownerName,
-        filePath,
-        ast,
-      )) {
+      // The index's copy of this file is stale next to the open buffer.
+      const indexed = this.symbolIndex
+        .findSymbolInFile(ownerName, filePath, ast)
+        .filter((symbol) => symbol.filePath !== filePath);
+      for (const symbol of indexed) {
         for (const method of symbol.methods ?? []) {
           if (method.name !== context.functionName) continue;
           const sig = this.createSignatureFromMethod(method, true);
           if (sig) signatures.push(sig);
         }
       }
-      if (signatures.length > 0) return signatures;
+      if (indexed.length > 0) return signatures;
     }
     // Unknown receiver: any method of that name, still without `this`.
     for (const sym of this.symbolIndex.getAllSymbols()) {
@@ -252,8 +262,9 @@ export class SignatureHelpProvider {
     ast: AST.Program | null | undefined,
   ): SignatureInformation[] {
     const local = (ast?.statements ?? []).filter(
-      (statement): statement is AST.FunctionDecl =>
-        statement.kind === "FunctionDecl" && statement.name === functionName,
+      (statement): statement is AST.FunctionDecl | AST.ExternDecl =>
+        (statement.kind === "FunctionDecl" || statement.kind === "Extern") &&
+        statement.name === functionName,
     );
     if (local.length > 0) {
       return local.map((decl) => signatureFromDecl(decl, false));
@@ -358,7 +369,7 @@ function baseTypeName(type: string): string {
 
 /** A signature from a declaration, without `this` for a method call. */
 function signatureFromDecl(
-  decl: AST.FunctionDecl,
+  decl: AST.FunctionDecl | AST.ExternDecl,
   dropThis: boolean,
 ): SignatureInformation {
   const params = decl.params.filter(
@@ -367,6 +378,7 @@ function signatureFromDecl(
   const labels = params.map(
     (param) => `${param.name}: ${typeNodeToString(param.type)}`,
   );
+  if (decl.kind === "Extern" && decl.isVariadic) labels.push("...");
   const returnType = decl.returnType
     ? typeNodeToString(decl.returnType)
     : "void";

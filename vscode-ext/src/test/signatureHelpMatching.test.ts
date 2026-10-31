@@ -28,6 +28,8 @@ frame add(a: int, b: int) ret int {
     return a + b;
 }
 
+extern puts2(text: string, count: int) ret int;
+
 frame main() ret int {
     local b: Box = Box { value: 0 };
     local x: int = 1;
@@ -35,6 +37,10 @@ frame main() ret int {
     b.set(CURSOR_SET);
     add("a,b(", CURSOR_STRING);
     add(x < y, CURSOR_COMPARE);
+    add(/# a, ( #/ 1, CURSOR_BLOCK);
+    add(\`x,(\${y}\`, CURSOR_TEMPLATE);
+    b.missing(CURSOR_MISSING);
+    puts2("a", CURSOR_EXTERN);
     return 0;
 }
 `;
@@ -105,5 +111,25 @@ describe("signature help matching", () => {
     expect(help("CURSOR_COMPARE", saved)?.labels).toEqual([
       "add(a: int, b: int) ret int",
     ]);
+  });
+
+  it("skips block comments and interpolated strings", () => {
+    expect(help("CURSOR_BLOCK")?.active).toBe(1);
+    expect(help("CURSOR_TEMPLATE")?.active).toBe(1);
+  });
+
+  it("shows nothing for a known receiver without that method", () => {
+    expect(help("CURSOR_MISSING")).toBeNull();
+  });
+
+  it("uses extern declarations from the open buffer", () => {
+    const saved = SOURCE.replace(
+      "extern puts2(text: string, count: int) ret int;",
+      "extern puts2(text: string) ret int;",
+    );
+    expect(help("CURSOR_EXTERN", saved)).toEqual({
+      labels: ["puts2(text: string, count: int) ret int"],
+      active: 1,
+    });
   });
 });
