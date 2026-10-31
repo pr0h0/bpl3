@@ -56,9 +56,15 @@ struct Vec2: Equatable<Vec2>, Cloneable<Vec2> {
     #/
     frame length(this: *Vec2) ret float {
         # Classify non-finite components before normalization can form inf/inf.
-        if (Math.isInfinite(this.x)) { return Math.abs(this.x); }
-        if (Math.isInfinite(this.y)) { return Math.abs(this.y); }
-        if (Math.isNan(this.x) || Math.isNan(this.y)) { return this.x + this.y; }
+        if (Math.isInfinite(this.x)) {
+            return Math.abs(this.x);
+        }
+        if (Math.isInfinite(this.y)) {
+            return Math.abs(this.y);
+        }
+        if (Math.isNan(this.x) || Math.isNan(this.y)) {
+            return this.x + this.y;
+        }
         local larger: float = Math.abs(this.x);
         local smaller: float = Math.abs(this.y);
         if (larger < smaller) {
@@ -94,14 +100,12 @@ struct Vec2: Equatable<Vec2>, Cloneable<Vec2> {
         if (largest == 0.0) {
             return Vec2.new(0.0, 0.0);
         }
-
         local sx: float = this.x / largest;
         local sy: float = this.y / largest;
         local len: float = Math.sqrt((sx * sx) + (sy * sy));
         if (len == 0.0) {
             return Vec2.new(0.0, 0.0);
         }
-
         local r: Vec2;
         r.x = sx / len;
         r.y = sy / len;

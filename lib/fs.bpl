@@ -38,12 +38,7 @@ frame readFileInfo(path: string, followLinks: int) ret FileInfo {
     if (error != 0) {
         throw IOError { code: error, message: "Cannot read file metadata" };
     }
-    return FileInfo {
-        size: size,
-        isFile: kind == 1,
-        isDir: kind == 2,
-        isSymlink: kind == 3
-    };
+    return FileInfo { size: size, isFile: kind == 1, isDir: kind == 2, isSymlink: kind == 3 };
 }
 
 struct File {
@@ -51,21 +46,27 @@ struct File {
     frame open(path: string, mode: string) ret File {
         local f: File;
         f.handle = nullptr;
-        if (path == nullptr || mode == nullptr) { return f; }
+        if ((path == nullptr) || (mode == nullptr)) {
+            return f;
+        }
         f.handle = fopen(path, mode);
         return f;
     }
 
     # Closing consumes the handle even when buffered writes fail.
     frame close(this: *File) ret bool {
-        if (this.handle == nullptr) { return true; }
+        if (this.handle == nullptr) {
+            return true;
+        }
         local result: int = fclose(this.handle);
         this.handle = nullptr;
         return result == 0;
     }
 
     frame write(this: *File, data: string) ret bool {
-        if (data == nullptr) { return false; }
+        if (data == nullptr) {
+            return false;
+        }
         return __bpl_file_write(this.handle, cast<*void>(data), cast<long>(strlen(data))) == 0;
     }
 
@@ -85,7 +86,7 @@ struct File {
     }
 
     frame readLine(this: *File, buf: string, max_len: int) ret bool {
-        if (this.handle == nullptr || buf == nullptr || max_len <= 1)
+        if ((this.handle == nullptr) || (buf == nullptr) || (max_len <= 1))
             return false;
         local res: string = fgets(buf, max_len, this.handle);
         return res != nullptr;
@@ -108,7 +109,9 @@ struct FS {
     }
 
     frame writeFile(path: string, data: string) ret bool {
-        if (data == nullptr) { return false; }
+        if (data == nullptr) {
+            return false;
+        }
         return __bpl_write_file(path, cast<*void>(data), cast<long>(strlen(data))) == 0;
     }
 
@@ -147,7 +150,9 @@ struct FS {
     }
 
     frame mkdir(path: string) ret bool {
-        if (path == nullptr) { return false; }
+        if (path == nullptr) {
+            return false;
+        }
         # 0777 octal = 511 decimal
         return mkdir(path, 511) == 0;
     }
@@ -178,7 +183,9 @@ struct FS {
         if (error != 0) {
             throw IOError { code: error, message: "Cannot list directory" };
         }
-        defer { __bpl_free_dir_names(names, count); }
+        defer {
+            __bpl_free_dir_names(names, count);
+        }
         local storage: *void = nullptr;
         error = __bpl_fs_allocate_entries(count, cast<long>(sizeof<String>()), &storage);
         if (error != 0) {

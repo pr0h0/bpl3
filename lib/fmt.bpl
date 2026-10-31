@@ -27,7 +27,9 @@ struct Fmt {
         # Width is the minimum total byte width, matching printPaddedLeft.
         # Clamp negative widths to avoid accidental enormous padding at INT_MIN.
         local columns: int = width;
-        if (columns < 0) { columns = 0; }
+        if (columns < 0) {
+            columns = 0;
+        }
         printf("%-*s", columns, text);
     }
 }

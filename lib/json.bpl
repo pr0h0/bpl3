@@ -157,7 +157,7 @@ struct JsonParser {
             this.fail("Unterminated string");
             return nullptr;
         }
-        local res: string = malloc(cast<long>(scan - this.pos + 1));
+        local res: string = malloc(cast<long>((scan - this.pos) + 1));
         if (res == nullptr) {
             this.fail("Out of memory while parsing a string");
             return nullptr;
@@ -290,7 +290,9 @@ struct JsonParser {
         this.skipWs();
         local start: int = this.pos;
         this.skipNumber();
-        if (this.has_error) { return 0; }
+        if (this.has_error) {
+            return 0;
+        }
         local threshold: ulong = maximum / 10;
         local lastDigit: ulong = maximum % 10;
         local value: ulong = 0;
@@ -305,7 +307,7 @@ struct JsonParser {
                 this.fail("Unsigned integer out of range");
                 return 0;
             }
-            value = value * 10 + digit;
+            value = (value * 10) + digit;
             start = start + 1;
         }
         return value;
@@ -513,7 +515,9 @@ frame appendJsonUnsigned(sb: *StringBuilder, value: ulong) {
         pos = pos - 1;
         bytes[pos] = cast<char>(48 + cast<int>(remaining % 10));
         remaining = remaining / 10;
-        if (remaining == 0) { break; }
+        if (remaining == 0) {
+            break;
+        }
     }
     sb.append(cast<string>(&bytes[pos]));
 }
@@ -880,21 +884,37 @@ struct JSON {
         loop (local i: long = 0; i < len; i = i + 1) {
             local c: char = s[i];
             if (quoted) {
-                if (escaped) { escaped = false; }
-                else if (c == '\\') { escaped = true; }
-                else if (c == '"') { quoted = false; }
+                if (escaped) {
+                    escaped = false;
+                } else if (c == '\\') {
+                    escaped = true;
+                } else if (c == '"') {
+                    quoted = false;
+                }
             } else {
-                if (c == '"') { quoted = true; }
-                else if (c == '{' || c == '[') { depth = depth + 1; if (depth > 64) { return false; } }
-                else if (c == '}' || c == ']') { depth = depth - 1; if (depth < 0) { return false; } }
+                if (c == '"') {
+                    quoted = true;
+                } else if ((c == '{') || (c == '[')) {
+                    depth = depth + 1;
+                    if (depth > 64) {
+                        return false;
+                    }
+                } else if ((c == '}') || (c == ']')) {
+                    depth = depth - 1;
+                    if (depth < 0) {
+                        return false;
+                    }
+                }
             }
         }
         return true;
     }
     frame parse<T>(s: string) ret *T {
-        if (s == nullptr) { return nullptr; }
+        if (s == nullptr) {
+            return nullptr;
+        }
         local bytes: long = strlen(s);
-        if (bytes > 2147483646 || !JSON.withinDepthLimit(s, bytes)) {
+        if ((bytes > 2147483646) || !JSON.withinDepthLimit(s, bytes)) {
             __bpl_write_stderr("JSON input exceeds parser limits\n");
             return nullptr;
         }
@@ -903,7 +923,9 @@ struct JSON {
 
         # Safe allocation (zeroed)
         local ptr: ulong = cast<ulong>(malloc(info.size));
-        if (ptr == 0) { return nullptr; }
+        if (ptr == 0) {
+            return nullptr;
+        }
         memset(cast<string>(cast<*char>(ptr)), 0, info.size);
 
         JSON.parseAny(&p, ptr, info);
@@ -933,9 +955,7 @@ struct JSON {
 
             local report: string = malloc(cast<long>(512));
             if (report != nullptr) {
-                snprintf(report, cast<long>(512),
-                    "JSON Parse Error: %s at line %d, column %d\n",
-                    p.error_msg, line, col);
+                snprintf(report, cast<long>(512), "JSON Parse Error: %s at line %d, column %d\n", p.error_msg, line, col);
                 __bpl_write_stderr(report);
                 free(report);
             }

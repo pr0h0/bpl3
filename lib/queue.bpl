@@ -76,8 +76,12 @@ struct Queue<T>: Iterable<T>, Destructible {
         # Compute growth before narrowing, and reject an exhausted capacity
         # before allocating or changing the current queue.
         local grown: long = cast<long>(this.inner.capacity) * cast<long>(2);
-        if (grown == cast<long>(0)) { grown = cast<long>(4); }
-        if (grown > cast<long>(2147483647)) { grown = cast<long>(2147483647); }
+        if (grown == cast<long>(0)) {
+            grown = cast<long>(4);
+        }
+        if (grown > cast<long>(2147483647)) {
+            grown = cast<long>(2147483647);
+        }
         if (grown <= cast<long>(this.inner.capacity)) {
             throw "Queue capacity exceeded";
         }

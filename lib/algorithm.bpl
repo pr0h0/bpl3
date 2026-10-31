@@ -48,9 +48,13 @@ struct Algorithm {
             local child: int = cast<int>(childIndex);
             if ((child + 1) <= high) {
                 if (ascending) {
-                    if (arr.get(child + 1) > arr.get(child)) { child = child + 1; }
+                    if (arr.get(child + 1) > arr.get(child)) {
+                        child = child + 1;
+                    }
                 } else {
-                    if (arr.get(child + 1) < arr.get(child)) { child = child + 1; }
+                    if (arr.get(child + 1) < arr.get(child)) {
+                        child = child + 1;
+                    }
                 }
             }
             local rootValue: int = arr.get(root);
@@ -377,7 +381,6 @@ struct Algorithm {
             }
             return sum / count;
         }
-
         local divisor: float = 1.0;
         if (Math.isInfinite(largest * count)) {
             divisor = count;
@@ -405,12 +408,18 @@ struct Algorithm {
             local total: float = running + correction;
             if (normalizedPass) {
                 local normalized: float = total / count;
-                if (normalized > 1.0) { normalized = 1.0; }
-                if (normalized < -1.0) { normalized = -1.0; }
+                if (normalized > 1.0) {
+                    normalized = 1.0;
+                }
+                if (normalized < -1.0) {
+                    normalized = -1.0;
+                }
                 return normalized * largest;
             }
             if (!Math.isInfinite(total)) {
-                if (divisor == 1.0) { return total / count; }
+                if (divisor == 1.0) {
+                    return total / count;
+                }
                 return total;
             }
             # Rounded scaled partial sums can still overflow at the limit.
@@ -448,7 +457,9 @@ struct Algorithm {
             }
             local child: int = cast<int>(childIndex);
             if ((child + 1) <= high) {
-                if (arr.get(child + 1) > arr.get(child)) { child = child + 1; }
+                if (arr.get(child + 1) > arr.get(child)) {
+                    child = child + 1;
+                }
             }
             local rootValue: float = arr.get(root);
             local childValue: float = arr.get(child);
@@ -484,8 +495,12 @@ struct Algorithm {
         # only ever a bound on the capacity, so it is worked out in long.
         local span: long = cast<long>(end) - cast<long>(start);
         local size: long = (span / cast<long>(step)) + cast<long>(1);
-        if (size < cast<long>(0)) { size = cast<long>(0); }
-        if (size > cast<long>(2147483646)) { size = cast<long>(2147483646); }
+        if (size < cast<long>(0)) {
+            size = cast<long>(0);
+        }
+        if (size > cast<long>(2147483646)) {
+            size = cast<long>(2147483646);
+        }
         local result: Array<int> = Array<int>.new(cast<int>(size));
         # Widen the cursor as well: the final step may cross an int boundary
         # even though every element emitted before the endpoint fits in int.

@@ -43,7 +43,7 @@ struct ArenaAllocator: Allocator {
     # @param size: Number of bytes to allocate.
     # @returns Pointer to aligned memory, or nullptr if allocation fails.
     frame alloc(this: *ArenaAllocator, size: ulong) ret *void {
-        if ((size == 0) || (size > MAX_ALLOCATION - 7))
+        if ((size == 0) || (size > (MAX_ALLOCATION - 7)))
             return nullptr;
         # Align to 8 bytes
         if ((size % 8) != 0)
@@ -51,7 +51,9 @@ struct ArenaAllocator: Allocator {
         # Reuse the retained chain after reset before mapping another block.
         # During ordinary bump allocation this normally visits only current.
         local candidate: *ArenaBlock = this.current;
-        if (candidate == nullptr) { candidate = this.head; }
+        if (candidate == nullptr) {
+            candidate = this.head;
+        }
         loop (candidate != nullptr) {
             local available: ulong = candidate.capacity - candidate.used;
             if (available >= size) {
@@ -71,9 +73,11 @@ struct ArenaAllocator: Allocator {
     # Internal: Allocate a dedicated large block.
     # Does NOT update `this.current`, but prepends to `this.head` for cleanup.
     frame alloc_large(this: *ArenaAllocator, size: ulong) ret *void {
-        if ((size == 0) || (size > MAX_ALLOCATION - 7)) return nullptr;
+        if ((size == 0) || (size > (MAX_ALLOCATION - 7)))
+            return nullptr;
         size = ((size + 7) / 8) * 8;
-        if (size > MAX_ALLOCATION - sizeof(ArenaBlock) - 4095) return nullptr;
+        if (size > (MAX_ALLOCATION - sizeof(ArenaBlock) - 4095))
+            return nullptr;
         local total_req: ulong = size + sizeof(ArenaBlock);
         local pages_needed: ulong = ((total_req + 4096) - 1) / 4096;
         local real_size: ulong = pages_needed * 4096;
@@ -95,11 +99,14 @@ struct ArenaAllocator: Allocator {
 
     # Internal: Allocate a new standard block from OS and allocate from it.
     frame grow_and_alloc(this: *ArenaAllocator, size: ulong) ret *void {
-        if ((size == 0) || (size > MAX_ALLOCATION - 7)) return nullptr;
+        if ((size == 0) || (size > (MAX_ALLOCATION - 7)))
+            return nullptr;
         size = ((size + 7) / 8) * 8;
         local alloc_size: ulong = this.default_block_size;
-        if (size > alloc_size) alloc_size = size;
-        if (alloc_size > MAX_ALLOCATION - sizeof(ArenaBlock) - 4095) return nullptr;
+        if (size > alloc_size)
+            alloc_size = size;
+        if (alloc_size > (MAX_ALLOCATION - sizeof(ArenaBlock) - 4095))
+            return nullptr;
         local total_req: ulong = alloc_size + sizeof(ArenaBlock);
         local pages_needed: ulong = ((total_req + 4096) - 1) / 4096;
         local real_size: ulong = pages_needed * 4096;

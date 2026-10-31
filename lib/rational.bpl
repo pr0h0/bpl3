@@ -16,10 +16,7 @@ struct RationalWide {
         local left: u64 = al * bh;
         local right: u64 = ah * bl;
         local middle: u64 = (low >> 32) + (left & mask) + (right & mask);
-        return RationalWide {
-            hi: (ah * bh) + (left >> 32) + (right >> 32) + (middle >> 32),
-            lo: (middle << 32) | (low & mask)
-        };
+        return RationalWide { hi: (ah * bh) + (left >> 32) + (right >> 32) + (middle >> 32), lo: (middle << 32) | (low & mask) };
     }
     frame divide(this: *RationalWide, divisor: u64) ret RationalWide {
         local result: RationalWide = RationalWide { hi: 0, lo: 0 };
@@ -27,13 +24,19 @@ struct RationalWide {
         # Divisors are at most 2^63, so doubling a remainder fits u64.
         loop (local bit: int = 127; bit >= 0; bit = bit - 1) {
             local digit: u64 = 0;
-            if (bit >= 64) { digit = (this.hi >> (bit - 64)) & cast<u64>(1); }
-            else { digit = (this.lo >> bit) & cast<u64>(1); }
+            if (bit >= 64) {
+                digit = (this.hi >> (bit - 64)) & cast<u64>(1);
+            } else {
+                digit = (this.lo >> bit) & cast<u64>(1);
+            }
             remainder = (remainder << 1) | digit;
             if (remainder >= divisor) {
                 remainder = remainder - divisor;
-                if (bit >= 64) { result.hi = result.hi | (cast<u64>(1) << (bit - 64)); }
-                else { result.lo = result.lo | (cast<u64>(1) << bit); }
+                if (bit >= 64) {
+                    result.hi = result.hi | (cast<u64>(1) << (bit - 64));
+                } else {
+                    result.lo = result.lo | (cast<u64>(1) << bit);
+                }
             }
         }
         return result;
@@ -66,8 +69,7 @@ struct Rational {
         # A reduced denominator of LONG_MIN cannot be made positive. Likewise,
         # negating a reduced LONG_MIN numerator with negative denominator would
         # exceed long. Use the existing invalid sentinel for these values.
-        if ((r.den == cast<long>(-9223372036854775808))
-            || ((r.num == cast<long>(-9223372036854775808)) && (r.den < cast<long>(0)))) {
+        if ((r.den == cast<long>(-9223372036854775808)) || ((r.num == cast<long>(-9223372036854775808)) && (r.den < cast<long>(0)))) {
             r.num = cast<long>(0);
             r.den = cast<long>(0);
             return r;
@@ -111,7 +113,9 @@ struct Rational {
         loop (b != cast<long>(0)) {
             # Every integer is divisible by -1. Avoid LONG_MIN % -1,
             # whose quotient is outside long even though its remainder is zero.
-            if (b == cast<long>(-1)) { return cast<long>(1); }
+            if (b == cast<long>(-1)) {
+                return cast<long>(1);
+            }
             local temp: long = b;
             b = a % b;
             a = temp;
@@ -155,7 +159,9 @@ struct Rational {
     }
 
     frame magnitude(value: long) ret u64 {
-        if (value < cast<long>(0)) { return cast<u64>(0) - cast<u64>(value); }
+        if (value < cast<long>(0)) {
+            return cast<u64>(0) - cast<u64>(value);
+        }
         return cast<u64>(value);
     }
 
@@ -166,7 +172,9 @@ struct Rational {
     # Add/subtract with exact wide cross-products, then reduce before testing
     # representability. This also handles subtraction of LONG_MIN directly.
     frame combine(an: long, ad: long, bn: long, bd: long, subtract: bool) ret Rational {
-        if ((ad <= cast<long>(0)) || (bd <= cast<long>(0))) { return Rational.new(0, 0); }
+        if ((ad <= cast<long>(0)) || (bd <= cast<long>(0))) {
+            return Rational.new(0, 0);
+        }
         local common: u64 = Rational.gcdWide(cast<u64>(ad), cast<u64>(bd));
         local aScale: u64 = cast<u64>(ad) / common;
         local bScale: u64 = cast<u64>(bd) / common;
@@ -178,7 +186,9 @@ struct Rational {
         if (negative == rightNegative) {
             total.lo = left.lo + right.lo;
             local carry: u64 = 0;
-            if (total.lo < left.lo) { carry = 1; }
+            if (total.lo < left.lo) {
+                carry = 1;
+            }
             total.hi = left.hi + right.hi + carry;
         } else {
             if ((left.hi < right.hi) || ((left.hi == right.hi) && (left.lo < right.lo))) {
@@ -188,7 +198,9 @@ struct Rational {
                 negative = rightNegative;
             }
             local borrow: u64 = 0;
-            if (left.lo < right.lo) { borrow = 1; }
+            if (left.lo < right.lo) {
+                borrow = 1;
+            }
             total.lo = left.lo - right.lo;
             total.hi = left.hi - right.hi - borrow;
         }
@@ -199,11 +211,16 @@ struct Rational {
         local denominatorPart: u64 = cast<u64>(bd) / factor;
         local maximum: u64 = 9223372036854775807;
         local limit: u64 = maximum;
-        if (negative) { limit = limit + cast<u64>(1); }
-        if ((total.hi != cast<u64>(0)) || (total.lo > limit)
-            || (denominatorPart > (maximum / aScale))) { return Rational.new(0, 0); }
+        if (negative) {
+            limit = limit + cast<u64>(1);
+        }
+        if ((total.hi != cast<u64>(0)) || (total.lo > limit) || (denominatorPart > (maximum / aScale))) {
+            return Rational.new(0, 0);
+        }
         local numerator: long = cast<long>(total.lo);
-        if (negative) { numerator = cast<long>(cast<u64>(0) - total.lo); }
+        if (negative) {
+            numerator = cast<long>(cast<u64>(0) - total.lo);
+        }
         return Rational.new(numerator, cast<long>(aScale * denominatorPart));
     }
 
@@ -225,7 +242,11 @@ struct Rational {
         local b: u64 = cast<u64>(ad);
         local c: u64 = Rational.magnitude(bn);
         local d: u64 = cast<u64>(bd);
-        if (divide) { local swap: u64 = c; c = d; d = swap; }
+        if (divide) {
+            local swap: u64 = c;
+            c = d;
+            d = swap;
+        }
         local factor: u64 = Rational.gcdWide(a, d);
         a = a / factor;
         d = d / factor;
@@ -235,12 +256,16 @@ struct Rational {
         local negative: bool = (an < cast<long>(0)) != (bn < cast<long>(0));
         local maximum: u64 = 9223372036854775807;
         local limit: u64 = maximum;
-        if (negative) { limit = limit + cast<u64>(1); }
+        if (negative) {
+            limit = limit + cast<u64>(1);
+        }
         if (((a != cast<u64>(0)) && (c > (limit / a))) || (d > (maximum / b))) {
             return Rational.new(0, 0);
         }
         local numerator: u64 = a * c;
-        if (negative) { numerator = cast<u64>(0) - numerator; }
+        if (negative) {
+            numerator = cast<u64>(0) - numerator;
+        }
         return Rational.new(cast<long>(numerator), cast<long>(b * d));
     }
 
@@ -254,7 +279,9 @@ struct Rational {
 
     # Negate the rational
     frame negate(this: *Rational) ret Rational {
-        if (this.num == cast<long>(-9223372036854775808)) { return Rational.new(0, 0); }
+        if (this.num == cast<long>(-9223372036854775808)) {
+            return Rational.new(0, 0);
+        }
         return Rational.new(-this.num, this.den);
     }
 
@@ -265,7 +292,9 @@ struct Rational {
 
     # Calculate absolute value
     frame abs(this: *Rational) ret Rational {
-        if (this.num == cast<long>(-9223372036854775808)) { return Rational.new(0, 0); }
+        if (this.num == cast<long>(-9223372036854775808)) {
+            return Rational.new(0, 0);
+        }
         local n: long = this.num;
         if (n < cast<long>(0)) {
             n = -n;
@@ -425,7 +454,6 @@ struct Rational {
         if (other.den == cast<long>(0)) {
             return 1;
         }
-
         local an: long = this.num;
         local ad: long = this.den;
         local bn: long = other.num;
@@ -441,7 +469,6 @@ struct Rational {
                 }
                 return flip;
             }
-
             local ar: long = an - (aq * ad);
             local br: long = bn - (bq * bd);
             if ((ar == cast<long>(0)) && (br == cast<long>(0))) {

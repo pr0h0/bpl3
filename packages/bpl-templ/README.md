@@ -59,7 +59,7 @@ Without an `@args` directive, the component has no arguments.
 - **`@args <signature>`**: Defines the arguments for the generated `render` function.
 - **`@import <module>`**: Imports external BPL modules (e.g., structs used in args).
 
-```html
+```text
 @import [User] from "../models.bpl"
 @args user: *User, title: string
 ```

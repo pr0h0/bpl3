@@ -13,15 +13,21 @@ struct UUID {
     # Generate using native OS entropy; throw rather than return a weak fallback.
     frame v4() ret UUID {
         local uuid: UUID;
-        if (UUID.tryV4(&uuid) == false) { throw "UUID entropy unavailable"; }
+        if (UUID.tryV4(&uuid) == false) {
+            throw "UUID entropy unavailable";
+        }
         return uuid;
     }
 
     # On failure, leave the destination unchanged.
     frame tryV4(output: *UUID) ret bool {
-        if (output == nullptr) { return false; }
+        if (output == nullptr) {
+            return false;
+        }
         local uuid: UUID;
-        if (getentropy(cast<*void>(&uuid.bytes[0]), 16) != 0) { return false; }
+        if (getentropy(cast<*void>(&uuid.bytes[0]), 16) != 0) {
+            return false;
+        }
 
         # Set version to 4 (random)
         # Version is in bits 12-15 of time_hi_and_version (byte 6)
@@ -60,7 +66,9 @@ struct UUID {
     # Returns a newly allocated string (caller must free)
     frame toString(this: *UUID) ret string {
         local output: *u8 = cast<*u8>(malloc(cast<long>(37)));
-        if (output == nullptr) { return cast<string>(nullptr); }
+        if (output == nullptr) {
+            return cast<string>(nullptr);
+        }
         local hexChars: string = "0123456789abcdef";
         local hexPtr: *u8 = cast<*u8>(hexChars);
 
@@ -98,13 +106,17 @@ struct UUID {
 
     # Accept exactly the dashed or compact format. Failure leaves output unchanged.
     frame tryFromString(str: string, output: *UUID) ret bool {
-        if ((output == nullptr) || (UUID.isValid(str) == false)) { return false; }
+        if ((output == nullptr) || (UUID.isValid(str) == false)) {
+            return false;
+        }
         local uuid: UUID = UUID.nil();
         local ptr: *u8 = cast<*u8>(str);
         local byteIdx: int = 0;
         local i: int = 0;
         loop (byteIdx < 16) {
-            if (ptr[i] == cast<u8>(45)) { i = i + 1; }
+            if (ptr[i] == cast<u8>(45)) {
+                i = i + 1;
+            }
             local hi: int = UUID.hexCharToValue(ptr[i]);
             local lo: int = UUID.hexCharToValue(ptr[i + 1]);
             uuid.bytes[byteIdx] = cast<u8>((hi << 4) | lo);

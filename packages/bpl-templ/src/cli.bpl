@@ -91,7 +91,9 @@ struct TemplateCompiler {
             if (quote != 0) {
                 if (c == 92) {
                     pos = pos + 1;
-                    if (pos >= length) { return -1; }
+                    if (pos >= length) {
+                        return -1;
+                    }
                 } else if ((quote == 96) && (c == '$') && ((pos + 1) < length) && (text[pos + 1] == '{')) {
                     braces = braces + 1;
                     interpolationDepths.push(braces);
@@ -142,9 +144,13 @@ struct TemplateCompiler {
                 }
             } else {
                 # Skipping type look for comma
-                if (c == '<' || c == '(' || c == '[') { depth = depth + 1; }
-                if (c == '>' || c == ')' || c == ']') { depth = depth - 1; }
-                if (c == ',' && depth == 0) {
+                if ((c == '<') || (c == '(') || (c == '[')) {
+                    depth = depth + 1;
+                }
+                if ((c == '>') || (c == ')') || (c == ']')) {
+                    depth = depth - 1;
+                }
+                if ((c == ',') && (depth == 0)) {
                     sb.append(", ");
                     state = 0; # Back to name
                 }
@@ -169,11 +175,17 @@ struct TemplateCompiler {
         local structName: String = TemplateCompiler.toPascalCase(componentName);
         local cleanup_structName: *String = &structName;
         defer cleanup_structName.destroy();
-        if(structName.length == 0 || (structName.data[0] >= '0' && structName.data[0] <= '9')) {throw "Template filename must produce a valid identifier";}
-
-
+        if ((structName.length == 0) || ((structName.data[0] >= '0') && (structName.data[0] <= '9'))) {
+            throw "Template filename must produce a valid identifier";
+        }
         local lines: Array<String> = source.split(cast<char>(10));
-        defer {loop(local cleanup:int=0;cleanup<lines.len();cleanup=cleanup+1){local item:String=lines.get(cleanup);item.destroy();}lines.destroy();}
+        defer {
+            loop (local cleanup: int = 0; cleanup < lines.len(); cleanup = cleanup + 1) {
+                local item: String = lines.get(cleanup);
+                item.destroy();
+            }
+            lines.destroy();
+        }
 
         local args: String = String.new("");
 
@@ -198,9 +210,7 @@ struct TemplateCompiler {
             local line: String = lines.get(i);
 
             if (line.data == nullptr) {
-
             } else {
-
             }
             local trimmed: String = line.trim();
             local cleanup_trimmed: *String = &trimmed;
@@ -222,7 +232,8 @@ struct TemplateCompiler {
                     sbArgs.appendChar(trimmedStr[k]);
                     k = k + 1;
                 }
-                args.destroy(); args = String.new(sbArgs.toString());
+                args.destroy();
+                args = String.new(sbArgs.toString());
                 i = i + 1;
             } else {
                 if (StringUtils.startsWith(trimmedStr, "@import")) {
@@ -252,7 +263,6 @@ struct TemplateCompiler {
 
         # Buffer passed from parent
 
-
         loop (i < lines.length) {
             local line: String = lines.get(i);
 
@@ -279,10 +289,18 @@ struct TemplateCompiler {
                 if (StringUtils.startsWith(trimmedStr, "@else") || StringUtils.startsWith(trimmedStr, "} @else")) {
                     bodyLines.append("    } ");
                     local k: int = 1;
-                    if (StringUtils.startsWith(trimmedStr, "} @else")) { k = 3; }
-                    loop (k < trimmed.length) {bodyLines.appendChar(trimmedStr[k]);k = k + 1;}
-                    if (trimmedStr[trimmed.length - 1] != '{') {bodyLines.append(" {\n");}
-                    else {bodyLines.append("\n");}
+                    if (StringUtils.startsWith(trimmedStr, "} @else")) {
+                        k = 3;
+                    }
+                    loop (k < trimmed.length) {
+                        bodyLines.appendChar(trimmedStr[k]);
+                        k = k + 1;
+                    }
+                    if (trimmedStr[trimmed.length - 1] != '{') {
+                        bodyLines.append(" {\n");
+                    } else {
+                        bodyLines.append("\n");
+                    }
                 } else {
                     if (StringUtils.startsWith(trimmedStr, "@loop")) {
                         bodyLines.append("    ");
@@ -362,7 +380,9 @@ struct TemplateCompiler {
                                         bodyLines.append("\");\n");
                                     }
                                     local closePos: int = TemplateCompiler.interpolationEnd(lineStr, nextTag + 2, len);
-                                    if (closePos == -1) { throw "Unclosed template interpolation"; }
+                                    if (closePos == -1) {
+                                        throw "Unclosed template interpolation";
+                                    }
                                     local exprSb: StringBuilder = StringBuilder.new(closePos - (nextTag + 2));
                                     local cleanup_exprSb: *StringBuilder = &exprSb;
                                     defer cleanup_exprSb.destroy();
@@ -375,8 +395,9 @@ struct TemplateCompiler {
                                     local cleanup_expr: *String = &expr;
                                     defer cleanup_expr.destroy();
                                     local exprStr: string = expr.data;
-                                    if(expr.length == 0) {throw "Empty template interpolation";}
-
+                                    if (expr.length == 0) {
+                                        throw "Empty template interpolation";
+                                    }
                                     if (StringUtils.startsWith(exprStr, "!")) {
                                         local rawExprSb: StringBuilder = StringBuilder.new(expr.length);
                                         local cleanup_rawExprSb: *StringBuilder = &rawExprSb;
@@ -390,7 +411,9 @@ struct TemplateCompiler {
                                         local cleanup_rawExpr: *String = &rawExpr;
                                         defer cleanup_rawExpr.destroy();
 
-                                        if(rawExpr.length == 0) {throw "Empty raw template interpolation";}
+                                        if (rawExpr.length == 0) {
+                                            throw "Empty raw template interpolation";
+                                        }
                                         bodyLines.append("    _sb.append(");
                                         bodyLines.append(rawExpr.data);
                                         bodyLines.append(");\n");
@@ -431,7 +454,10 @@ struct TemplateCompiler {
 
         # Write method (Buffer passing style)
         finalSb.append("  frame write(_sb: *StringBuilder");
-        if(args.length > 0) {finalSb.append(", "); finalSb.append(args.data);}
+        if (args.length > 0) {
+            finalSb.append(", ");
+            finalSb.append(args.data);
+        }
         finalSb.append(") {\n");
         finalSb.append(bodyLines.toString());
         finalSb.append("\n  }\n");
@@ -444,7 +470,10 @@ struct TemplateCompiler {
         finalSb.append("      ");
         finalSb.append(structName.data);
         finalSb.append(".write(&sb");
-        if(argsOnly.length > 0) {finalSb.append(", "); finalSb.append(argsOnly.data);}
+        if (argsOnly.length > 0) {
+            finalSb.append(", ");
+            finalSb.append(argsOnly.data);
+        }
         finalSb.append(");\n");
         finalSb.append("      return sb.toString();");
         finalSb.append("\n  }\n");
@@ -465,7 +494,13 @@ struct TemplateCompiler {
     frame processDirectory(baseDir: String, currentDir: String, outputBase: String, ext: String) {
 
         local entries: Array<String> = FS.listDirChecked(currentDir.data);
-        defer {loop(local cleanup:int=0;cleanup<entries.len();cleanup=cleanup+1){local item:String=entries.get(cleanup);item.destroy();}entries.destroy();}
+        defer {
+            loop (local cleanup: int = 0; cleanup < entries.len(); cleanup = cleanup + 1) {
+                local item: String = entries.get(cleanup);
+                item.destroy();
+            }
+            entries.destroy();
+        }
 
         local i: int = 0;
         loop (i < entries.length) {
@@ -496,12 +531,9 @@ struct TemplateCompiler {
 
                     defer cleanup_generated.destroy();
 
-
                     local relDir: String = Path.relative(baseDir.data, currentDir.data);
 
-
                     local cleanup_relDir: *String = &relDir;
-
 
                     defer cleanup_relDir.destroy();
                     local outDir: String = Path.join(outputBase.data, relDir.data);
@@ -511,7 +543,6 @@ struct TemplateCompiler {
                     if (!FS.mkdirp(outDir.data)) {
                         throw "Cannot create template output directory";
                     }
-
                     local stem: String = entry.substring(0, entry.length - 4);
                     local stemOwner: *String = &stem;
                     defer stemOwner.destroy();
@@ -524,11 +555,9 @@ struct TemplateCompiler {
                     local cleanup_outPath: *String = &outPath;
                     defer cleanup_outPath.destroy();
 
-
                     if (!FS.writeFile(outPath.data, generated.data)) {
                         throw "Cannot write generated template";
                     }
-
                     printf("  Processed %s -> %s\n", fullPath.data, outPath.data);
                 }
             }
