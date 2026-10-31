@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as path from "path";
 import {
   window,
@@ -29,6 +30,22 @@ import { shouldUseBplSaveFormatting } from "./FormatOnSave";
 
 let client: LanguageClient;
 const formattingFailures = new FormattingFailures();
+
+/**
+ * The `bpl` to run: `<bplHome>/bpl` when the `bplLanguageServer.bplHome`
+ * setting names an installation that has one, otherwise `bpl` on PATH.
+ */
+function bplExecutable(resource: Uri): string {
+  const home = workspace
+    .getConfiguration("bplLanguageServer", resource)
+    .get<string>("bplHome")
+    ?.trim();
+  if (home) {
+    const candidate = path.join(home, "bpl");
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return "bpl";
+}
 
 export async function activate(context: ExtensionContext) {
   // The server is implemented in node
@@ -89,7 +106,7 @@ export async function activate(context: ExtensionContext) {
               "Run BPL file",
               "BPL",
               new ShellExecution(
-                "bpl",
+                bplExecutable(fileUri),
                 [
                   "run",
                   { value: fileUri.fsPath, quoting: ShellQuoting.Strong },
