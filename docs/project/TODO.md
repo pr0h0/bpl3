@@ -138,8 +138,6 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
       `lib/assert.bpl`, and report per-test results and a JSON summary.
 - [ ] [3] Prebuilt per-platform `bpl` binaries (Linux/macOS, x64/arm64) attached
       to releases, with a one-line installer, so users need no Bun or checkout.
-- [ ] [3] Make `bpl -e '<code>'` run the program (like `run`) and keep IR output
-      behind `--emit llvm`.
 - [ ] [4] `bpl run`/`build`/`check` watch an entire project with `dev`
       (`bpl check` with no arguments already checks the current project).
 - [ ] [4] Generate shell completions from the command definitions instead of

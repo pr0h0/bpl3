@@ -996,37 +996,44 @@ function writeVirtualLlvmOutputAndMaybeBuild(
     filePath === "<stdin>" ? "stdin.ll" : "eval.ll",
   );
 
+  // `bpl -e` and `bpl --stdin` run the program like `bpl run`; an explicit
+  // `--emit llvm` (or a JSON report) prints the IR instead.
+  const runProgram =
+    options.run === true ||
+    (options.emitDefaulted === true && !shouldEmitBuildJsonReport(options));
+  let exitCode = 0;
   try {
     writeFileAtomically(outputPath, ir);
 
-    if (shouldCompileExecutable(options)) {
+    if (shouldCompileExecutable(options) || runProgram) {
       const compileResult = compileToBinary(outputPath, options);
       if (!compileResult.success) {
         throw new Error(compileResult.error || "Compilation failed");
       }
 
-      if (options.run && compileResult.executablePath) {
+      if (runProgram && compileResult.executablePath) {
         const runResult = runExecutable(
           compileResult.executablePath,
           programArgs || [],
           options.verbose,
         );
-        if (!runResult.success) {
-          throw new Error(
-            runResult.error || `Program exited with code ${runResult.exitCode}`,
-          );
+        if (runResult.error) {
+          throw new Error(runResult.error);
         }
+        exitCode = runResult.exitCode;
       }
     }
 
     if (shouldEmitBuildJsonReport(options)) {
       emitBuildJsonSuccess(filePath, options, { inlineLlvm: ir });
-    } else {
+    } else if (!runProgram) {
       console.log(ir);
     }
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
+  // The program's own status, as `bpl run` reports it.
+  if (exitCode !== 0) process.exit(exitCode);
 }
 
 function runCachedExecutable(

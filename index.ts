@@ -85,6 +85,10 @@ program
 configureRootOptions(program).action(
   async (files: string[] | undefined, options: CompileOptions) => {
     validateCompileInputSources(files, options);
+    // A plain `bpl file.bpl` writes IR beside the executable and `bpl -e`
+    // runs the snippet by default; only an explicit `--emit llvm` asks for
+    // the IR of every function (and, for -e/--stdin, prints it).
+    options.emitDefaulted = program.getOptionValueSource("emit") === "default";
 
     // Handle --eval flag
     if (options.eval !== undefined) {
@@ -111,10 +115,6 @@ configureRootOptions(program).action(
 
     // TypeScript needs this assertion after the exit check
     const fileList = files as [string, ...string[]];
-    // A plain `bpl file.bpl` writes IR beside the executable by default; only
-    // an explicit `--emit llvm` asks for the IR of every function.
-    options.emitDefaulted = program.getOptionValueSource("emit") === "default";
-
     rejectUnknownCommand(fileList[0], options);
 
     // Handle debug flag as alias for dwarf
