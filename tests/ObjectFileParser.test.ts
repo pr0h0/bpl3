@@ -179,7 +179,9 @@ describe("ObjectFileParser", () => {
   });
 
   test("rejects missing and directory object parser inputs", () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-object-parser-"));
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-object-parser-"),
+    );
     const missingObject = path.join(tempDir, "missing.ll");
     const objectDir = path.join(tempDir, "objects");
     const targetObject = path.join(tempDir, "target.ll");

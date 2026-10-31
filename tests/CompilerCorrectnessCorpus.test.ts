@@ -6,15 +6,13 @@ import {
 } from "./helpers/compilerCorrectness";
 
 describe("Compiler correctness corpus", () => {
-  it(
-    "keeps representative runtime behavior stable across O0 and O3",
-    () => {
-      const results = expectCorrectnessSuite([
-        {
-          name: "recursive integer control flow",
-          expectedStdout: "fact=120\n",
-          validateLlvm: true,
-          source: `
+  it("keeps representative runtime behavior stable across O0 and O3", () => {
+    const results = expectCorrectnessSuite([
+      {
+        name: "recursive integer control flow",
+        expectedStdout: "fact=120\n",
+        validateLlvm: true,
+        source: `
           extern printf(fmt: string, ...);
 
           frame fact(n: int) ret int {
@@ -30,12 +28,12 @@ describe("Compiler correctness corpus", () => {
             return 0;
           }
         `,
-        },
-        {
-          name: "enum match expression",
-          expectedStdout: "color=3\n",
-          validateLlvm: true,
-          source: `
+      },
+      {
+        name: "enum match expression",
+        expectedStdout: "color=3\n",
+        validateLlvm: true,
+        source: `
           extern printf(fmt: string, ...);
 
           enum Color { Red, Green, Blue }
@@ -53,11 +51,11 @@ describe("Compiler correctness corpus", () => {
             return 0;
           }
         `,
-        },
-        {
-          name: "lambda capture",
-          expectedStdout: "lambda=17\n",
-          source: `
+      },
+      {
+        name: "lambda capture",
+        expectedStdout: "lambda=17\n",
+        source: `
           extern printf(fmt: string, ...);
 
           frame main() ret int {
@@ -70,11 +68,11 @@ describe("Compiler correctness corpus", () => {
             return 0;
           }
         `,
-        },
-        {
-          name: "short-circuit and ternary",
-          expectedStdout: "start ok choice=7\n",
-          source: `
+      },
+      {
+        name: "short-circuit and ternary",
+        expectedStdout: "start ok choice=7\n",
+        source: `
           extern printf(fmt: string, ...);
 
           frame marker(label: string) ret bool {
@@ -98,11 +96,11 @@ describe("Compiler correctness corpus", () => {
             return 0;
           }
         `,
-        },
-        {
-          name: "explicit generic function",
-          expectedStdout: "generic=42\n",
-          source: `
+      },
+      {
+        name: "explicit generic function",
+        expectedStdout: "generic=42\n",
+        source: `
           extern printf(fmt: string, ...);
 
           frame id<T>(x: T) ret T {
@@ -115,12 +113,12 @@ describe("Compiler correctness corpus", () => {
             return 0;
           }
         `,
-        },
-        {
-          name: "pointer-to-array row arithmetic",
-          expectedStdout: "cell=42\n",
-          validateLlvm: true,
-          source: `
+      },
+      {
+        name: "pointer-to-array row arithmetic",
+        expectedStdout: "cell=42\n",
+        validateLlvm: true,
+        source: `
           extern printf(fmt: string, ...);
 
           type IntArray = int[3];
@@ -138,12 +136,12 @@ describe("Compiler correctness corpus", () => {
             return 0;
           }
         `,
-        },
-        {
-          name: "tuple overload mangling",
-          expectedStdout: "tuple-overloads=7\n",
-          validateLlvm: true,
-          source: `
+      },
+      {
+        name: "tuple overload mangling",
+        expectedStdout: "tuple-overloads=7\n",
+        validateLlvm: true,
+        source: `
           extern printf(fmt: string, ...);
 
           frame pick(pair: (int, int)) ret int {
@@ -160,30 +158,26 @@ describe("Compiler correctness corpus", () => {
             return 0;
           }
         `,
-        },
-      ]);
+      },
+    ]);
 
-      expect(results.map((result) => result.name)).toEqual([
-        "recursive integer control flow",
-        "enum match expression",
-        "lambda capture",
-        "short-circuit and ternary",
-        "explicit generic function",
-        "pointer-to-array row arithmetic",
-        "tuple overload mangling",
-      ]);
-    },
-    60000,
-  );
+    expect(results.map((result) => result.name)).toEqual([
+      "recursive integer control flow",
+      "enum match expression",
+      "lambda capture",
+      "short-circuit and ternary",
+      "explicit generic function",
+      "pointer-to-array row arithmetic",
+      "tuple overload mangling",
+    ]);
+  }, 60000);
 
-  it(
-    "rejects representative invalid programs cleanly",
-    () => {
-      const failures = expectCleanFailureSuite([
-        {
-          name: "non-boolean if condition",
-          expectedMessage: /boolean/i,
-          source: `
+  it("rejects representative invalid programs cleanly", () => {
+    const failures = expectCleanFailureSuite([
+      {
+        name: "non-boolean if condition",
+        expectedMessage: /boolean/i,
+        source: `
           frame main() ret int {
             if (1) {
               return 1;
@@ -192,11 +186,11 @@ describe("Compiler correctness corpus", () => {
             return 0;
           }
         `,
-        },
-        {
-          name: "wrong function argument type",
-          expectedMessage: "No matching function",
-          source: `
+      },
+      {
+        name: "wrong function argument type",
+        expectedMessage: "No matching function",
+        source: `
           frame takesInt(value: int) ret int {
             return value;
           }
@@ -205,22 +199,20 @@ describe("Compiler correctness corpus", () => {
             return takesInt("not an int");
           }
         `,
-        },
-        {
-          name: "same-scope redeclaration",
-          expectedMessage: "already declared in this scope",
-          source: `
+      },
+      {
+        name: "same-scope redeclaration",
+        expectedMessage: "already declared in this scope",
+        source: `
           frame main() ret int {
             local value: int = 1;
             local value: int = 2;
             return value;
           }
         `,
-        },
-      ]);
+      },
+    ]);
 
-      expect(failures).toHaveLength(3);
-    },
-    30000,
-  );
+    expect(failures).toHaveLength(3);
+  }, 30000);
 });

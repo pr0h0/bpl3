@@ -99,10 +99,7 @@ describe("JSON contract constants", () => {
       packages: "packages",
     });
 
-    const source = readFileSync(
-      "compiler/middleend/PackageManager.ts",
-      "utf8",
-    );
+    const source = readFileSync("compiler/middleend/PackageManager.ts", "utf8");
     for (const check of [
       "package-cache-clean",
       "package-install",

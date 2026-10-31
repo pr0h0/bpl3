@@ -136,84 +136,113 @@ frame main() ret int {
 // Taking an extern's address and reusing a cached C ABI wrapper must validate
 // the source declaration too, before the wrapper cache hides a disagreement.
 test("extern address uses cannot hide a conflicting return width", () => {
-  const result = build({
-    ...widthConflict,
-    "narrow.bpl": widthConflict["narrow.bpl"].replace(
-      'return strlen(text);',
-      'local measure: Func<int>(string) = strlen; return measure(text);',
-    ),
-    "wide.bpl": widthConflict["wide.bpl"].replace(
-      'return strlen(text);',
-      'local measure: Func<long>(string) = strlen; return measure(text);',
-    ),
-  }, "main.bpl");
-  expect(`${result.stdout}${result.stderr}`).toContain("BPL_EXTERN_SIGNATURE_CONFLICT");
+  const result = build(
+    {
+      ...widthConflict,
+      "narrow.bpl": widthConflict["narrow.bpl"].replace(
+        "return strlen(text);",
+        "local measure: Func<int>(string) = strlen; return measure(text);",
+      ),
+      "wide.bpl": widthConflict["wide.bpl"].replace(
+        "return strlen(text);",
+        "local measure: Func<long>(string) = strlen; return measure(text);",
+      ),
+    },
+    "main.bpl",
+  );
+  expect(`${result.stdout}${result.stderr}`).toContain(
+    "BPL_EXTERN_SIGNATURE_CONFLICT",
+  );
 });
 
 test("cached aggregate wrappers cannot hide a scalar declaration", () => {
-  const result = build({
-    "a.bpl": `export [A];
+  const result = build(
+    {
+      "a.bpl": `export [A];
 struct Pair { x: int, y: int }
 extern abs(value: Pair) ret int;
 struct A { frame run() ret int { return abs(Pair {x: 1, y: 2}); } }`,
-    "b.bpl": `export [B];
+      "b.bpl": `export [B];
 extern abs(value: int) ret int;
 struct B { frame run() ret int { return abs(-3); } }`,
-    "main.bpl": `import [A] from "./a.bpl";
+      "main.bpl": `import [A] from "./a.bpl";
 import [B] from "./b.bpl";
 frame main() ret int { return A.run() + B.run(); }`,
-  }, "main.bpl");
-  expect(`${result.stdout}${result.stderr}`).toContain("BPL_EXTERN_SIGNATURE_CONFLICT");
+    },
+    "main.bpl",
+  );
+  expect(`${result.stdout}${result.stderr}`).toContain(
+    "BPL_EXTERN_SIGNATURE_CONFLICT",
+  );
 });
 
 test("void is not compatible with a hidden aggregate return parameter", () => {
-  const result = build({
-    "a.bpl": `export [A];
+  const result = build(
+    {
+      "a.bpl": `export [A];
 extern getpid();
 struct A { frame run() { getpid(); } }`,
-    "b.bpl": `export [B];
+      "b.bpl": `export [B];
 struct Large { x: long, y: long, z: long }
 extern getpid() ret Large;
 struct B { frame run() ret long { local value: Large = getpid(); return value.x; } }`,
-    "main.bpl": `import [A] from "./a.bpl";
+      "main.bpl": `import [A] from "./a.bpl";
 import [B] from "./b.bpl";
 frame main() ret int { A.run(); return cast<int>(B.run()); }`,
-  }, "main.bpl");
-  expect(`${result.stdout}${result.stderr}`).toContain("BPL_EXTERN_SIGNATURE_CONFLICT");
+    },
+    "main.bpl",
+  );
+  expect(`${result.stdout}${result.stderr}`).toContain(
+    "BPL_EXTERN_SIGNATURE_CONFLICT",
+  );
 });
 
-for (const [signed, unsigned] of [["i8", "u8"], ["short", "ushort"]]) {
+for (const [signed, unsigned] of [
+  ["i8", "u8"],
+  ["short", "ushort"],
+]) {
   for (const address of [false, true]) {
     test(`extern ${address ? "address" : "call"} rejects ${signed}/${unsigned} ABI disagreement`, () => {
-      const method = (type: string) => address
-        ? `local f: Func<int>(${type}) = abs; return f(1 as ${type});`
-        : `return abs(1 as ${type});`;
-      const result = build({
-        "a.bpl": `export [A]; extern abs(x:${signed}) ret int;
+      const method = (type: string) =>
+        address
+          ? `local f: Func<int>(${type}) = abs; return f(1 as ${type});`
+          : `return abs(1 as ${type});`;
+      const result = build(
+        {
+          "a.bpl": `export [A]; extern abs(x:${signed}) ret int;
 struct A { frame run() ret int { ${method(signed!)} } }`,
-        "b.bpl": `export [B]; extern abs(x:${unsigned}) ret int;
+          "b.bpl": `export [B]; extern abs(x:${unsigned}) ret int;
 struct B { frame run() ret int { ${method(unsigned!)} } }`,
-        "main.bpl": `import [A] from "./a.bpl"; import [B] from "./b.bpl";
+          "main.bpl": `import [A] from "./a.bpl"; import [B] from "./b.bpl";
 frame main() ret int { return A.run() + B.run(); }`,
-      }, "main.bpl");
-      expect(`${result.stdout}${result.stderr}`).toContain("BPL_EXTERN_SIGNATURE_CONFLICT");
+        },
+        "main.bpl",
+      );
+      expect(`${result.stdout}${result.stderr}`).toContain(
+        "BPL_EXTERN_SIGNATURE_CONFLICT",
+      );
       expect(result.status).not.toBe(0);
     });
   }
 }
 
 test("cached aggregate wrappers reject different scalar extension attributes", () => {
-  const result = build({
-    "pair.bpl": `export [Pair]; struct Pair {x:int,y:int}`,
-    "a.bpl": `export [A]; import [Pair] from "./pair.bpl";
+  const result = build(
+    {
+      "pair.bpl": `export [Pair]; struct Pair {x:int,y:int}`,
+      "a.bpl": `export [A]; import [Pair] from "./pair.bpl";
 extern abs(x:i8,p:Pair) ret int;
 struct A { frame run() ret int {return abs(-128 as i8,Pair {x:1,y:2});} }`,
-    "b.bpl": `export [B]; import [Pair] from "./pair.bpl";
+      "b.bpl": `export [B]; import [Pair] from "./pair.bpl";
 extern abs(x:u8,p:Pair) ret int;
 struct B { frame run() ret int {return abs(255 as u8,Pair {x:1,y:2});} }`,
-    "main.bpl": `import [A] from "./a.bpl"; import [B] from "./b.bpl";
+      "main.bpl": `import [A] from "./a.bpl"; import [B] from "./b.bpl";
 frame main() ret int {return A.run()+B.run();}`,
-  }, "main.bpl");
-  expect(`${result.stdout}${result.stderr}`).toContain("BPL_EXTERN_SIGNATURE_CONFLICT");
+    },
+    "main.bpl",
+  );
+  expect(`${result.stdout}${result.stderr}`).toContain(
+    "BPL_EXTERN_SIGNATURE_CONFLICT",
+  );
   expect(result.status).not.toBe(0);
 });

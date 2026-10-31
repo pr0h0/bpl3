@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("Env queries consistently treat null names as missing", () => {
-  expectCorrectnessSuite([{
-    name: "env-null-names",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "env-null-names",
+      validateLlvm: true,
+      source: `
       import [Env] from "std/env.bpl";
       extern strcmp(a: string, b: string) ret int;
       frame main() ret int {
@@ -18,6 +19,7 @@ test("Env queries consistently treat null names as missing", () => {
         if (Env.set(nullptr, "value") || Env.setIfAbsent(nullptr, "value") || Env.unset(nullptr)) { return 7; }
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

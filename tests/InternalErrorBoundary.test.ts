@@ -52,7 +52,9 @@ describe("Internal compiler error boundaries", () => {
     );
 
     const ifErrors = compileInvalid("if (true) {}");
-    expect(ifErrors).toContain("Statement 'If' is not allowed at the top level");
+    expect(ifErrors).toContain(
+      "Statement 'If' is not allowed at the top level",
+    );
   });
 
   test("rejects aggregate binary arithmetic before LLVM code generation", () => {
