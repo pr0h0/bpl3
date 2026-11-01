@@ -425,11 +425,20 @@ Encoded input longer than 2,147,483,647 bytes is rejected before scanning:
 
 ### Hash (`std/hash.bpl`)
 
-Stable non-cryptographic hashing helpers.
+Stable non-cryptographic hashing helpers and checksums. `crc32` is the
+IEEE 802.3 CRC used by zlib, gzip, ZIP and PNG (`crc32String("123456789")` is
+`0xcbf43926`); `crc32Update(crc, data, length)` continues a CRC over more
+data, starting from 0. `adler32` is the zlib stream checksum (RFC 1950). Null
+data counts as empty.
 
 - `Hash.fnv1a32(input: string) ret uint`
+- `Hash.fnv1a64(input: string) ret ulong`
 - `Hash.checksum32(input: string) ret uint`
 - `Hash.combine32(left: uint, right: uint) ret uint`
+- `Hash.crc32(data: *u8, length: long) ret uint`
+- `Hash.crc32Update(crc: uint, data: *u8, length: long) ret uint`
+- `Hash.crc32String(input: string) ret uint`
+- `Hash.adler32(data: *u8, length: long) ret uint`
 
 ### Assert (`std/assert.bpl`)
 

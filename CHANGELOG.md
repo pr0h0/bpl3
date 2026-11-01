@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `Hash` (`std/hash.bpl`) adds `crc32`, `crc32Update` and `crc32String`
+  (IEEE 802.3, as in zlib, gzip, ZIP and PNG), `adler32` (RFC 1950) and
+  `fnv1a64`.
 - `Entropy.hexToken(byteCount)` returns that many secure random bytes as hex,
   for session ids, CSRF tokens and nonces.
 - `std/sha512.bpl` adds SHA-512 digests (`Sha512`, also exported by `std`)
