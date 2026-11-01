@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- The type checker warns about `cast<bool>(n)` and `n as bool` on an integer:
+  the conversion keeps only the lowest bit (`cast<bool>(2)` is `false`), which
+  is rarely what a nonzero test means. The literals `0` and `1` are exempt.
 - CI checks formatting (BUG-448): the type-check and lint job runs
   `bun run format:check` (Prettier) and the new `bun run format:bpl:check`
   (`bpl format --check lib packages examples`). `CHANGELOG.md` and

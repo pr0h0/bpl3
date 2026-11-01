@@ -1527,6 +1527,42 @@ function isAddressableOperand(operand: AST.Expression): boolean {
 }
 
 /** String aliases retain the direct spelling's integer conversion restriction. */
+/**
+ * `cast<bool>(n)` of an integer keeps only its low bit (R-CONV-10), so
+ * `cast<bool>(2)` is false; that is rarely what a nonzero test means. Warn,
+ * except for the literals 0 and 1, whose low bit is their value.
+ */
+function warnIntegerToBool(
+  context: CheckerContext,
+  expr: AST.CastExpr | AST.AsExpr,
+  source: AST.TypeNode,
+  target: AST.TypeNode,
+): void {
+  if (
+    source.kind !== "BasicType" ||
+    source.pointerDepth !== 0 ||
+    source.arrayDimensions.length !== 0 ||
+    !TypeUtils.isIntegerType(source) ||
+    TypeUtils.isBoolType(source) ||
+    !TypeUtils.isBoolType(target)
+  )
+    return;
+  const value = expr.expression;
+  if (
+    value.kind === "Literal" &&
+    (value as AST.LiteralExpr).type === "number" &&
+    ["0", "1"].includes(String((value as AST.LiteralExpr).value))
+  )
+    return;
+  context.addWarning(
+    new CompilerError(
+      `Converting ${context.formatDiagnosticType(source)} to bool keeps only its lowest bit`,
+      "Compare with != 0 to test for a nonzero value, or with (value & 1) != 0 if the low bit is intended.",
+      expr.location,
+    ).setSeverity(DiagnosticSeverity.Warning),
+  );
+}
+
 function rejectIntegerToString(
   context: CheckerContext,
   expr: AST.CastExpr | AST.AsExpr,
@@ -1636,6 +1672,7 @@ export function checkCast(
     rejectIntegerToString(this, expr, resolved, target);
     rejectConstantArrayView(this, expr, resolved, target);
     rejectLambdaToFunc(expr, resolved, target);
+    warnIntegerToBool(this, expr, resolved, target);
 
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {
@@ -2136,6 +2173,7 @@ export function checkAs(this: CheckerContext, expr: AST.AsExpr): AST.TypeNode {
     rejectIntegerToString(this, expr, resolved, target);
     rejectConstantArrayView(this, expr, resolved, target);
     rejectLambdaToFunc(expr, resolved, target);
+    warnIntegerToBool(this, expr, resolved, target);
 
     // Check if cast is allowed
     if (!this.isCastAllowed(resolved, target)) {

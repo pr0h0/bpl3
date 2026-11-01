@@ -193,7 +193,9 @@ Implicit conversions are intentionally narrow:
 - **[R-CONV-10]** `cast<T>(value)` and `(value as T)` are equivalent explicit
   conversions. Integer casts keep the low bits or extend according to the
   source signedness. Explicit integer-to-`bool` casts retain the low bit, so
-  `cast<bool>(2)` is `false`. Floating-point to integer casts truncate toward zero and
+  `cast<bool>(2)` is `false`; the checker warns about such a conversion unless
+  the operand is the literal `0` or `1`, since a nonzero test is written
+  `value != 0`. Floating-point to integer casts truncate toward zero and
   saturate at the destination range; NaN converts to `0`. Casting an integer to
   `string` is rejected with `BPL_CAST_INTEGER_TO_STRING`.
 
