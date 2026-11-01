@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Lint rule `L007` reports an `else if` whose condition repeats an earlier
+  condition of the same chain, so its branch never runs.
+
 - `std/regex.bpl` supports counted repetition: `{m}`, `{m,}`, `{m,n}` and
   `{,n}`.
 - An enum reached through a namespace import works everywhere a local one

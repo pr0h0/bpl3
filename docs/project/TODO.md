@@ -144,7 +144,8 @@ regression work is prioritized in [PLAN.md](PLAN.md).
 Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
 
 - [ ] [5] More lint rules beyond naming, unused imports, unused private
-      functions and constant conditions.
+      functions, constant conditions, self-assignment and duplicate
+      conditions.
 
 ### Language and library extensions
 
