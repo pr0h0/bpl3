@@ -56,6 +56,29 @@ frame main() ret int {
 
 Output: `{"id": 1, "name": "Alice", "active": true}`.
 
+## Pretty-printing and minifying
+
+`JSON.pretty(text, indent)` re-indents JSON text with `indent` spaces (1 to 16)
+per level: one member or element per line, `": "` after keys, and `{}` or `[]`
+for empty containers, as Python's `json.dumps(value, indent=n)` lays it out.
+`JSON.minify(text)` removes all whitespace outside strings. Both copy string
+contents, escapes included, unchanged and return a new string the caller
+frees. They return `nullptr` for another indent, unbalanced or mismatched
+brackets, an unterminated string, or failed allocation; they do not otherwise
+validate values.
+
+```bpl
+import printf, free from "std/c.bpl";
+import [JSON] from "std/json.bpl";
+
+frame main() ret int {
+    local pretty: string = JSON.pretty("{\"id\": 7, \"tags\": [\"a\", \"b\"]}", 2);
+    printf("%s\n", pretty);
+    free(cast<*void>(pretty));
+    return 0;
+}
+```
+
 ## Parsing and cleanup
 
 `JSON.parse<T>(text: string)` allocates a result. Null input, a failed root

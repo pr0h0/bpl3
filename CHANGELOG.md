@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `JSON.pretty(text, indent)` re-indents JSON text and `JSON.minify(text)`
+  removes whitespace outside strings.
 - A reserved word used as a parameter name in a struct's later method is
   reported at the name instead of as unexpected syntax at the struct
   (BUG-477).

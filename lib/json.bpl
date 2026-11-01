@@ -523,6 +523,144 @@ frame appendJsonUnsigned(sb: *StringBuilder, value: ulong) {
 }
 
 struct JSON {
+    # `text` re-indented with `indent` spaces (1 to 16) per level: one member
+    # or element per line, `": "` after keys, and `{}`/`[]` for empty
+    # containers. String contents are copied unchanged. Returns a new string
+    # (caller frees), or nullptr for another indent, unbalanced or mismatched
+    # brackets, an unterminated string, or failed allocation. Values are not
+    # otherwise validated.
+    frame pretty(text: string, indent: int) ret string {
+        if ((indent < 1) || (indent > 16)) {
+            return cast<string>(nullptr);
+        }
+        return JSON.reformat(text, indent);
+    }
+
+    # `text` with all whitespace outside strings removed, under the same
+    # rules and failures as `pretty`.
+    frame minify(text: string) ret string {
+        return JSON.reformat(text, 0);
+    }
+
+    frame reformat(text: string, indent: int) ret string {
+        if (text == nullptr) {
+            return cast<string>(nullptr);
+        }
+        local needed: long = JSON.layout(text, indent, cast<string>(nullptr));
+        if (needed < 0) {
+            return cast<string>(nullptr);
+        }
+        local output: string = malloc(needed + 1);
+        if (output == nullptr) {
+            return cast<string>(nullptr);
+        }
+        JSON.layout(text, indent, output);
+        output[needed] = cast<char>(0);
+        return output;
+    }
+
+    # Writes the reformatted text to `output` when it is not null and returns
+    # its length, or -1 if the brackets or strings do not balance. An indent
+    # of 0 minifies.
+    frame layout(text: string, indent: int, output: string) ret long {
+        local length: long = strlen(text);
+        # The open brackets, innermost last; nesting cannot exceed the length.
+        local stack: string = malloc(length + 1);
+        if (stack == nullptr) {
+            return -1;
+        }
+        local depth: long = 0;
+        local used: long = 0;
+        local inString: bool = false;
+        local escaped: bool = false;
+        local i: long = 0;
+        loop (i < length) {
+            local c: char = text[i];
+            if (inString) {
+                used = JSON.put(output, used, c);
+                if (escaped) {
+                    escaped = false;
+                } else if (c == '\\') {
+                    escaped = true;
+                } else if (c == '"') {
+                    inString = false;
+                }
+                i = i + 1;
+                continue;
+            }
+            if ((c == ' ') || (c == '\t') || (c == '\n') || (c == '\r')) {
+                i = i + 1;
+                continue;
+            }
+            if ((c == '{') || (c == '[')) {
+                used = JSON.put(output, used, c);
+                local next: long = i + 1;
+                loop ((next < length) && ((text[next] == ' ') || (text[next] == '\t') || (text[next] == '\n') || (text[next] == '\r'))) {
+                    next = next + 1;
+                }
+                local close: char = '}';
+                if (c == '[') {
+                    close = ']';
+                }
+                if ((next < length) && (text[next] == close)) {
+                    used = JSON.put(output, used, close);
+                    i = next + 1;
+                    continue;
+                }
+                stack[depth] = close;
+                depth = depth + 1;
+                used = JSON.newline(output, used, indent, depth);
+            } else if ((c == '}') || (c == ']')) {
+                if ((depth == 0) || (stack[depth - 1] != c)) {
+                    free(stack);
+                    return -1;
+                }
+                depth = depth - 1;
+                used = JSON.newline(output, used, indent, depth);
+                used = JSON.put(output, used, c);
+            } else if (c == ',') {
+                used = JSON.put(output, used, c);
+                used = JSON.newline(output, used, indent, depth);
+            } else if (c == ':') {
+                used = JSON.put(output, used, c);
+                if (indent > 0) {
+                    used = JSON.put(output, used, ' ');
+                }
+            } else {
+                if (c == '"') {
+                    inString = true;
+                }
+                used = JSON.put(output, used, c);
+            }
+            i = i + 1;
+        }
+        free(stack);
+        if (inString || (depth != 0)) {
+            return -1;
+        }
+        return used;
+    }
+
+    frame put(output: string, used: long, c: char) ret long {
+        if (output != nullptr) {
+            output[used] = c;
+        }
+        return used + 1;
+    }
+
+    # A newline and `depth` levels of indentation; nothing when minifying.
+    frame newline(output: string, used: long, indent: int, depth: long) ret long {
+        if (indent == 0) {
+            return used;
+        }
+        local at: long = JSON.put(output, used, '\n');
+        local spaces: long = depth * cast<long>(indent);
+        loop (local k: long = 0; k < spaces; k = k + 1) {
+            at = JSON.put(output, at, ' ');
+        }
+        return at;
+    }
+
     # Generic entry point for serializing any object to JSON
     frame stringify<T>(obj: *T) ret String {
         local sb: StringBuilder = StringBuilder.newDefault();
