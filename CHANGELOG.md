@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `std/otp.bpl` adds HOTP (RFC 4226) and TOTP (RFC 6238) one-time passwords
+  (`Otp`), and `std/hmac.bpl` adds `HmacSha1`; `std` re-exports both.
 - Lint rule `L009` reports a value overwritten by the next statement before
   it is read.
 - `Env.loadFile(path, overrideExisting)` loads a dotenv (`.env`) file into

@@ -1,11 +1,13 @@
-# HMAC-SHA256 and HMAC-SHA512 message authentication codes (RFC 2104,
-# FIPS 198-1)
+# HMAC-SHA256, HMAC-SHA512 and HMAC-SHA1 message authentication codes
+# (RFC 2104, FIPS 198-1)
 
 import [Sha256] from "std/sha256.bpl";
 import [Sha512] from "std/sha512.bpl";
+import [Sha1] from "std/sha1.bpl";
 
 export [Hmac];
 export [HmacSha512];
+export [HmacSha1];
 
 extern malloc(size: long) ret *void;
 extern strlen(str: string) ret long;
@@ -200,5 +202,67 @@ struct HmacSha512 {
         }
         *(output + 128) = cast<u8>(0);
         return cast<string>(output);
+    }
+}
+
+# Streaming HMAC-SHA1, like `Hmac` but over SHA-1, for protocols that require
+# it such as HOTP and TOTP (std/otp.bpl): create a keyed context with
+# `HmacSha1.new(key, n)`, call `update`, then `finish` to write the 20-byte
+# MAC. Compare MACs with `Hmac.equal`.
+struct HmacSha1 {
+    inner: Sha1,
+    outerKey: u8[64],
+
+    # A context keyed with `keyLength` bytes at `key`. Keys longer than the
+    # 64-byte SHA-1 block are hashed first, as RFC 2104 requires.
+    frame new(key: *u8, keyLength: long) ret HmacSha1 {
+        local block: u8[64];
+        local i: int = 0;
+        loop (i < 64) {
+            block[i] = cast<u8>(0);
+            i = i + 1;
+        }
+        if (keyLength > 64) {
+            Sha1.digest(key, keyLength, &block[0]);
+        } else if ((key != nullptr) && (keyLength > 0)) {
+            local k: long = 0;
+            loop (k < keyLength) {
+                block[k] = *(key + k);
+                k = k + 1;
+            }
+        }
+        local mac: HmacSha1;
+        mac.inner = Sha1.new();
+        local innerKey: u8[64];
+        i = 0;
+        loop (i < 64) {
+            innerKey[i] = block[i] ^ cast<u8>(0x36);
+            mac.outerKey[i] = block[i] ^ cast<u8>(0x5c);
+            i = i + 1;
+        }
+        mac.inner.update(&innerKey[0], 64);
+        return mac;
+    }
+
+    # Add `length` bytes from `data` to the message.
+    frame update(this: *HmacSha1, data: *u8, length: long) {
+        this.inner.update(data, length);
+    }
+
+    # Write the 20-byte MAC to `mac`. The context cannot be reused afterwards.
+    frame finish(this: *HmacSha1, mac: *u8) {
+        local innerDigest: u8[20];
+        this.inner.finish(&innerDigest[0]);
+        local outer: Sha1 = Sha1.new();
+        outer.update(&this.outerKey[0], 64);
+        outer.update(&innerDigest[0], 20);
+        outer.finish(mac);
+    }
+
+    # Write the 20-byte HMAC-SHA1 of `length` bytes at `data` to `mac`.
+    frame digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8) {
+        local context: HmacSha1 = HmacSha1.new(key, keyLength);
+        context.update(data, length);
+        context.finish(mac);
     }
 }
