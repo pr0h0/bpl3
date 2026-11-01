@@ -868,6 +868,26 @@ any code is emitted (`isAddressableInPlace`). Receivers that can be addressed
 in place use only their address; any other receiver is evaluated once and
 spilled. `tests/VirtualCallReceiver.test.ts`.
 
+#### BUG-476: A reserved word used as a name gives an unlocated syntax error
+
+**Status**: Fixed · **Priority**: P3
+
+Found while writing `lib/regex.bpl` (2026-11-01). A reserved word such as
+`from` used as a parameter or variable name failed with
+`Unexpected syntax: '<declaration>'`, reported at the start of the enclosing
+declaration. For a method that was the first line of the whole struct, so the
+offending parameter was hard to find.
+
+**Resolution**: when an "Unexpected syntax" recovery error covers a
+declaration whose parameter (after `(` or `,`) or variable (after `local` or
+`global`, optionally `const`) is a reserved word, the error now names the word
+and points at it: `'from' is a reserved word and cannot be used as a name`.
+`compiler/frontend/ReservedWords.ts` lists the reserved words;
+`tests/ReservedNameDiagnostics.test.ts` keeps it equal to the grammar's
+`KeywordReserved` rule. The grammar is unchanged: its generator post-processes
+the parser by exact constant numbers, so the refinement is made where
+recovery errors become compiler errors.
+
 ## Generated-program fuzzer findings (2026-10-29)
 
 Found by the oracle fuzzer (`fuzz/programGenerator.ts`, see

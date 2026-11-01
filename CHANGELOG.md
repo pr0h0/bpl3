@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- A reserved word used as a parameter or variable name is reported at the word
+  (`'from' is a reserved word and cannot be used as a name`) instead of as
+  "Unexpected syntax" over the whole declaration (BUG-476).
 - `bpl lint` reports constant conditions (`L004`): an `if` or ternary on `true`
   or `false`, and a `loop (false)` whose body never runs.
 - `BigInt.divide(divisor, remainder)` divides by another `BigInt`
