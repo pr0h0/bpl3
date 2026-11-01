@@ -43,7 +43,7 @@ export class Linter {
 
   /**
    * Lints a parsed program. With its `source` text, imports the module
-   * never uses are also reported (L002).
+   * never uses (L002) and unused private functions (L003) are also reported.
    */
   public lint(program: AST.Program, source?: string): CompilerError[] {
     this.errors = [];
@@ -62,7 +62,10 @@ export class Linter {
     };
 
     this.visit(program, context);
-    if (source !== undefined) reportUnusedImports(program, source, context);
+    if (source !== undefined) {
+      reportUnusedImports(program, source, context);
+      reportUnusedPrivateFunctions(program, source, context);
+    }
     return this.errors;
   }
 
@@ -515,6 +518,66 @@ function reportUnusedImports(
         `Remove '${name}' from the import.`,
       );
     }
+  }
+}
+
+/**
+ * L003: a top-level frame named `_something` (a private helper, by the naming
+ * convention) that is not exported and whose name appears nowhere in the
+ * module but its own declaration. Like L002 this matches tokens, so a call
+ * inside the function's own body counts as a use.
+ */
+function reportUnusedPrivateFunctions(
+  program: AST.Program,
+  source: string,
+  context: LintContext,
+): void {
+  const exported = new Set(
+    program.statements
+      .filter((statement) => statement.kind === "Export")
+      .flatMap((statement) =>
+        (statement as AST.ExportStmt).items.map((item) => item.name),
+      ),
+  );
+  const candidates = program.statements.filter(
+    (statement): statement is AST.FunctionDecl =>
+      statement.kind === "FunctionDecl" &&
+      /^_[a-zA-Z]/.test((statement as AST.FunctionDecl).name) &&
+      !exported.has((statement as AST.FunctionDecl).name),
+  );
+  if (candidates.length === 0) return;
+
+  let tokens;
+  try {
+    tokens = lexWithGrammar(source, program.location?.file ?? "lint.bpl");
+  } catch {
+    return;
+  }
+  const occurrences = new Map<string, number>();
+  const count = (name: string) =>
+    occurrences.set(name, (occurrences.get(name) ?? 0) + 1);
+  for (const token of tokens) {
+    if (token.type === TokenType.Identifier) {
+      count(token.lexeme);
+    } else if (token.type === TokenType.InterpolatedStringLiteral) {
+      for (const [, expression] of token.lexeme.matchAll(/\$\{([^}]*)\}/g)) {
+        for (const [name] of expression!.matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)) {
+          count(name);
+        }
+      }
+    }
+  }
+
+  for (const frame of candidates) {
+    // The declaration itself spells the name once.
+    if ((occurrences.get(frame.name) ?? 0) > 1) continue;
+    context.report(
+      `Private function '${frame.name}' is never used`,
+      frame,
+      DiagnosticSeverity.Warning,
+      "L003",
+      `Remove '${frame.name}', or export it if other modules need it.`,
+    );
   }
 }
 
