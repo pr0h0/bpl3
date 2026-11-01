@@ -287,6 +287,9 @@ frame getRef(this: *Array<T>, index: int) ret *T
 frame set(this: *Array<T>, index: int, value: T)
 frame push(this: *Array<T>, value: T)
 frame pop(this: *Array<T>) ret T
+frame insert(this: *Array<T>, index: int, value: T)
+frame clear(this: *Array<T>)
+frame isEmpty(this: *Array<T>) ret bool
 frame removeAt(this: *Array<T>, index: int)
 frame map<U>(this: *Array<T>, transform: Lambda<U>(T, int)) ret Array<U>
 frame filter(this: *Array<T>, predicate: Lambda<bool>(T, int)) ret Array<T>
@@ -1781,6 +1784,9 @@ frame reserve(this: *Map<K, V>, entry_count: int)
 frame bucketCount(this: *Map<K, V>) ret int
 frame set(this: *Map<K, V>, key: K, value: V)
 frame get(this: *Map<K, V>, key: K) ret Option<V>
+frame getOr(this: *Map<K, V>, key: K, fallback: V) ret V
+frame keys(this: *Map<K, V>) ret Array<K>
+frame values(this: *Map<K, V>) ret Array<V>
 frame has(this: *Map<K, V>, key: K) ret bool
 frame remove(this: *Map<K, V>, key: K) ret bool
 frame iterator(this: *Map<K, V>) ret MapIterator<K, V>

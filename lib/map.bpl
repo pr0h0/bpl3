@@ -371,6 +371,49 @@ struct Map<K, V>: Iterable<Pair<K, V>>, Destructible, Equatable<Map<K, V>> {
         return Option<V>.None;
     }
 
+    # The value for `key`, or `fallback` when the key is absent.
+    frame getOr(this: *Map<K, V>, key: K, fallback: V) ret V {
+        local idx: int = this._getBucketIndex(key);
+        local current: *MapNode<K, V> = this.buckets.get(idx);
+        local eqFunc: Func<bool>(*K, *K) = this.equaler;
+
+        loop (current != nullptr) {
+            if (eqFunc(&current.key, &key)) {
+                return current.value;
+            }
+            current = current.next;
+        }
+        return fallback;
+    }
+
+    # A new array of the keys, in the map's iteration order; the caller
+    # destroys it. The keys are copied shallowly, as stored.
+    frame keys(this: *Map<K, V>) ret Array<K> {
+        local result: Array<K> = Array<K>.new(this.count);
+        loop (local i: int = 0; i < this.buckets.len(); i = i + 1) {
+            local current: *MapNode<K, V> = this.buckets.get(i);
+            loop (current != nullptr) {
+                result.push(current.key);
+                current = current.next;
+            }
+        }
+        return result;
+    }
+
+    # A new array of the values, in the map's iteration order; the caller
+    # destroys it. The values are copied shallowly, as stored.
+    frame values(this: *Map<K, V>) ret Array<V> {
+        local result: Array<V> = Array<V>.new(this.count);
+        loop (local i: int = 0; i < this.buckets.len(); i = i + 1) {
+            local current: *MapNode<K, V> = this.buckets.get(i);
+            loop (current != nullptr) {
+                result.push(current.value);
+                current = current.next;
+            }
+        }
+        return result;
+    }
+
     frame has(this: *Map<K, V>, key: K) ret bool {
         local idx: int = this._getBucketIndex(key);
         local current: *MapNode<K, V> = this.buckets.get(idx);
