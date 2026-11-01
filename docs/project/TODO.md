@@ -51,8 +51,13 @@ all related enhancements or platform support are complete.
 
 ## Implemented tools and runtime
 
-- [x] CLI build/run/check, AST/LLVM output, eval/stdin, formatter, linter,
-      documentation generation, shell completions, and toolchain doctor.
+- [x] CLI build/run/check/test, AST/LLVM output, eval/stdin (which run the
+      program), formatter, linter, documentation generation, shell completions
+      generated from the command definitions, and toolchain doctor. `bpl new`
+      scaffolds tests for `bpl test`.
+- [x] Lint rules for naming (`L001`, `_private` helpers allowed) and unused
+      imports (`L002`); checker warnings for shadowing and integer-to-`bool`
+      conversions.
 - [x] Source-span diagnostics and in-memory source previews for eval/stdin;
       JSON diagnostics for supported analysis and tooling commands.
 - [x] `bpl dev`/watch mode with debounce and compilation-error recovery.
@@ -80,8 +85,9 @@ all related enhancements or platform support are complete.
 - [x] Fuzz generation, saved artifacts/replay/promotion, differential O0/O3 checks,
       correctness corpora, sanitizer checks, LLVM verification, and benchmarks.
 - [x] Release smoke/manifest checks, packed CLI coverage, CI suite planning,
-      pinned local Prettier with `format`/`format:check`, and baseline test logging
-      that preserves failure status. The baseline script requires Bash.
+      pinned Prettier and `bpl format` checks in CI (`format:check`,
+      `format:bpl:check`), and batched baseline test logging that preserves
+      failure status.
 
 ## Implemented libraries and packages
 
@@ -136,10 +142,8 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
 
 - [ ] [3] Prebuilt per-platform `bpl` binaries (Linux/macOS, x64/arm64) attached
       to releases, with a one-line installer, so users need no Bun or checkout.
-- [ ] [4] Generate shell completions from the command definitions instead of
-      maintaining Bash/Zsh scripts by hand.
-- [ ] [5] More linter rules (shadowing, suspicious casts); naming (`L001`,
-      with `_private` helpers allowed) and unused imports (`L002`) exist.
+- [ ] [5] More lint rules beyond naming, unused imports and unused private
+      functions, for example constant conditions.
 
 ### Language and library extensions
 
