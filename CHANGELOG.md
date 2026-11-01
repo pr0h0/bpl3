@@ -106,8 +106,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   bytes arrive, and silent ones are closed after `request_timeout_seconds`.
   `bpl-rate-limit` applies `max_keys` per scope, so a flood in one scope no
   longer refuses new identities in another. Both archives are repacked.
-- The language server follows import aliases (BUG-445): for `import add as
-  plus` and `import * as U`, hover, go to definition, signature help, inlay
+- The language server follows import aliases (BUG-445): for `import add as plus` and `import * as U`, hover, go to definition, signature help, inlay
   hints and completion resolve `plus(...)` and `U.add(...)` to `add` in the
   imported module. Completion offers `plus` instead of `add`, lists `U.`'s
   members, and no longer suggests a namespace import's names unqualified.
@@ -1965,8 +1964,7 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
   stays a direct BPL `SourceLocation` pass-through. On the 5k synthetic
   fixture, parse-only samples moved from ~1.66-1.90s to ~1.04-1.29s, and
   normal `--time --emit llvm` parsing sampled at ~1.22-1.38s versus the
-  earlier ~1.65s baseline. Reproduce with `bun test tests/Parser.test.ts -t
-  "generated parser"` and `bpl --time --emit llvm` on the 5k synthetic
+  earlier ~1.65s baseline. Reproduce with `bun test tests/Parser.test.ts -t "generated parser"` and `bpl --time --emit llvm` on the 5k synthetic
   benchmark.
 - **Generated Parser Trivia Scanner** - The generated `_` rule now uses a
   manual whitespace/comment scanner instead of building arrays through Peggy's
@@ -2205,8 +2203,7 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
   focused ReleaseSmoke, release metadata, and package-cache bin regression
   commands instead of only the broad release-smoke helper list.
 - **Package Lock Bin Validation** - lockfile verification validates installed
-  package `bin` entries before trusting a lock entry, and `bpl install
-  --repair-lock` now refuses to record an invalid installed package bin target.
+  package `bin` entries before trusting a lock entry, and `bpl install --repair-lock` now refuses to record an invalid installed package bin target.
   `bpl install --locked --json` and `bpl install --repair-lock --json` surface
   the invalid installed package bin as an `invalid-manifest` issue with stable
   lock verification metadata. Directory and symlinked installed package bin
@@ -2973,8 +2970,7 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing
   compiler-rt/libclang_rt support.
 - **Sanitizer Timeout Diagnostics** - `SANITIZER_RUNTIME_TEST_TIMEOUT_MS` now
-  uses the shared positive-integer timeout diagnostics and appears in `bpl
-  doctor --json` timeout reports.
+  uses the shared positive-integer timeout diagnostics and appears in `bpl doctor --json` timeout reports.
 - **Release Smoke Fuzz Repro Coverage** - Release smoke now checks the packed
   npm CLI's `fuzz:repro` usage-error path before artifact discovery.
 - **Release Smoke Fuzz Helper Coverage** - Release smoke now checks the packed
@@ -3215,8 +3211,7 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
   `bpl clean --dry-run --json` now include stable `schemaVersion: 1`,
   `check: "clean"`, and `success` fields alongside existing `dryRun`, `count`,
   and `entries` fields.
-- **Package Cache Maintenance JSON Stability** - `bpl package-cache clean
-  --json` and `bpl package-cache repair --json` now include stable
+- **Package Cache Maintenance JSON Stability** - `bpl package-cache clean --json` and `bpl package-cache repair --json` now include stable
   `schemaVersion: 1`, `check`, and `success` fields alongside existing
   removed/repaired/unchanged/issues payloads.
 - **Package Cache List JSON Stability** - `bpl package-cache list --json` now
