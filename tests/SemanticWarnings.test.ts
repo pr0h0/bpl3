@@ -19,6 +19,34 @@ function check(source: string) {
 }
 
 describe("Semantic warnings", () => {
+  it("warns that converting an integer to bool keeps only its low bit", () => {
+    const result = check(`
+      frame main() ret int {
+        local n: int = 2;
+        local flags: u8 = cast<u8>(6);
+        local a: bool = cast<bool>(n);
+        local b: bool = (flags as bool);
+        local one: bool = cast<bool>(1);
+        local zero: bool = (0 as bool);
+        local same: bool = cast<bool>(a);
+        if (a || b || one || zero || same) {
+          return 1;
+        }
+        return 0;
+      }
+    `);
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.warnings.map((warning) => warning.message)).toEqual([
+      "Converting i32 to bool keeps only its lowest bit",
+      "Converting u8 to bool keeps only its lowest bit",
+    ]);
+    expect(result.warnings[0]!.toDiagnostic().severity).toBe(
+      DiagnosticSeverity.Warning,
+    );
+    expect(result.warnings[0]!.hint).toContain("!= 0");
+  });
+
   it("warns when a block local shadows an outer local", () => {
     const result = check(`
       frame main() ret int {
