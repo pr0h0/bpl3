@@ -139,6 +139,69 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     return values;
   }
 
+  /**
+   * The fields of a struct variant pattern that carry a nested pattern, each
+   * with its loaded value, in the order the pattern lists them.
+   */
+  private getEnumStructNestedValues(
+    pattern: AST.PatternEnumStruct,
+    matchPtr: string,
+    enumType: string,
+    variantInfo: Map<string, { index: number; dataType?: AST.EnumVariantData }>,
+  ): {
+    pattern: AST.Pattern;
+    value: string;
+    llvmType: string;
+    typeNode: AST.TypeNode;
+  }[] {
+    const variant = variantInfo.get(pattern.variantName);
+    if (variant?.dataType?.kind !== "EnumVariantStruct") return [];
+    const nestedFields = pattern.fields.filter((field) => field.pattern);
+    if (nestedFields.length === 0) return [];
+    const fields = variant.dataType.fields;
+
+    const dataPtr = this.newRegister();
+    this.emit(
+      `  ${dataPtr} = getelementptr inbounds ${enumType}, ${enumType}* ${matchPtr}, i32 0, i32 1`,
+    );
+    const bytePtr = this.newRegister();
+    this.emit(
+      `  ${bytePtr} = bitcast ${this.getEnumDataType(enumType.substring(6))}* ${dataPtr} to i8*`,
+    );
+
+    const values: {
+      pattern: AST.Pattern;
+      value: string;
+      llvmType: string;
+      typeNode: AST.TypeNode;
+    }[] = [];
+    for (const field of nestedFields) {
+      const fieldIndex = fields.findIndex((f) => f.name === field.fieldName);
+      if (fieldIndex === -1) continue;
+      const typeNode = fields[fieldIndex]!.type;
+      const llvmType = this.resolveType(typeNode);
+      const byteOffset = this.getEnumDataFieldByteOffset(
+        fields.map((f) => f.type),
+        fieldIndex,
+      );
+      let fieldBytePtr = bytePtr;
+      if (byteOffset > 0) {
+        fieldBytePtr = this.newRegister();
+        this.emit(
+          `  ${fieldBytePtr} = getelementptr i8, i8* ${bytePtr}, i32 ${byteOffset}`,
+        );
+      }
+      const fieldPtr = this.newRegister();
+      this.emit(`  ${fieldPtr} = bitcast i8* ${fieldBytePtr} to ${llvmType}*`);
+      const value = this.newRegister();
+      this.emit(
+        `  ${value} = load ${llvmType}, ${llvmType}* ${fieldPtr}, align 1`,
+      );
+      values.push({ pattern: field.pattern!, value, llvmType, typeNode });
+    }
+    return values;
+  }
+
   private emitLiteralPatternCheck(
     pattern: AST.PatternLiteral,
     value: string,
@@ -223,7 +286,11 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
       );
     }
 
-    if (pattern.kind === "PatternEnum" || pattern.kind === "PatternEnumTuple") {
+    if (
+      pattern.kind === "PatternEnum" ||
+      pattern.kind === "PatternEnumTuple" ||
+      pattern.kind === "PatternEnumStruct"
+    ) {
       if (typeNode.kind !== "BasicType") return "never";
       const enumName = this.getRuntimeEnumName(typeNode);
       if (!enumName) return "never";
@@ -254,11 +321,36 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         return "checked";
       }
 
+      if (
+        pattern.kind === "PatternEnumStruct" &&
+        !pattern.fields.some((field) => field.pattern)
+      ) {
+        this.emit(
+          `  br i1 ${tagMatches}, label %${successLabel}, label %${failLabel}`,
+        );
+        return "checked";
+      }
+
       const payloadCheckLabel = this.newLabel("nested_enum_payload");
       this.emit(
         `  br i1 ${tagMatches}, label %${payloadCheckLabel}, label %${failLabel}`,
       );
       this.emit(`${payloadCheckLabel}:`);
+
+      if (pattern.kind === "PatternEnumStruct") {
+        const nested = this.getEnumStructNestedValues(
+          pattern,
+          tempPtr,
+          runtimeEnumType,
+          variantInfo,
+        );
+        return this.generateSequentialPatternChecks(
+          nested.map((entry) => entry.pattern),
+          nested,
+          successLabel,
+          failLabel,
+        );
+      }
 
       const payloads = this.getEnumTuplePayloadValues(
         pattern,
@@ -398,6 +490,54 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
           payload.typeNode,
         );
       }
+    }
+
+    if (pattern.kind === "PatternEnumStruct") {
+      if (typeNode.kind !== "BasicType") return;
+      const enumName = this.getRuntimeEnumName(typeNode);
+      if (!enumName) return;
+      const variantInfo = this.enumVariants.get(enumName);
+      if (!variantInfo) return;
+
+      const runtimeEnumType = `%enum.${enumName}`;
+      const tempPtr = this.allocateStackSlot(runtimeEnumType);
+      this.emit(
+        `  store ${runtimeEnumType} ${value}, ${runtimeEnumType}* ${tempPtr}`,
+      );
+      this.bindEnumStructPattern(
+        pattern,
+        tempPtr,
+        runtimeEnumType,
+        variantInfo,
+      );
+    }
+  }
+
+  /** Bind a struct variant pattern's field names and nested patterns. */
+  private bindEnumStructPattern(
+    pattern: AST.PatternEnumStruct,
+    matchPtr: string,
+    enumType: string,
+    variantInfo: Map<string, { index: number; dataType?: AST.EnumVariantData }>,
+  ): void {
+    this.generatePatternStructBindings(
+      pattern,
+      matchPtr,
+      enumType,
+      variantInfo,
+    );
+    for (const nested of this.getEnumStructNestedValues(
+      pattern,
+      matchPtr,
+      enumType,
+      variantInfo,
+    )) {
+      this.bindPatternValue(
+        nested.pattern,
+        nested.value,
+        nested.llvmType,
+        nested.typeNode,
+      );
     }
   }
 
@@ -592,6 +732,35 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         } else if (patternCheck === "checked") {
           shouldEmitBodyLabel = true;
         }
+      } else if (
+        arm.pattern.kind === "PatternEnumStruct" &&
+        arm.pattern.fields.some((field) => field.pattern)
+      ) {
+        const failLabel = this.getNextEnumArmLabel(
+          expr.arms,
+          armLabels,
+          i,
+          arm.pattern.variantName,
+          defaultLabel,
+        );
+        const nested = this.getEnumStructNestedValues(
+          arm.pattern,
+          matchPtr,
+          enumType,
+          variantInfo,
+        );
+        const patternCheck = this.generateSequentialPatternChecks(
+          nested.map((entry) => entry.pattern),
+          nested,
+          bodyLabel,
+          failLabel,
+        );
+        if (patternCheck === "never") {
+          this.emit(`  br label %${failLabel}`);
+          shouldEmitBodyLabel = true;
+        } else if (patternCheck === "checked") {
+          shouldEmitBodyLabel = true;
+        }
       }
 
       if (shouldEmitBodyLabel) {
@@ -621,7 +790,7 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
           );
         }
       } else if (arm.pattern.kind === "PatternEnumStruct") {
-        this.generatePatternStructBindings(
+        this.bindEnumStructPattern(
           arm.pattern as AST.PatternEnumStruct,
           matchPtr,
           enumType,

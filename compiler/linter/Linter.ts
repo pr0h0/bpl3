@@ -371,6 +371,7 @@ export class Linter {
           if (field.bindingDeclaration) {
             this.visit(field.bindingDeclaration, context);
           }
+          if (field.pattern) this.visit(field.pattern, context);
         }
         break;
       case "Assignment":

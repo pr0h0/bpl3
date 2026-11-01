@@ -201,9 +201,10 @@ function collectReboundParameters(decl: AST.FunctionDecl): Set<string> {
           patternNames(binding),
         );
       case "PatternEnumStruct":
-        return (pattern as AST.PatternEnumStruct).fields.flatMap((field) =>
-          field.binding ? [field.binding] : [],
-        );
+        return (pattern as AST.PatternEnumStruct).fields.flatMap((field) => {
+          if (field.pattern) return patternNames(field.pattern);
+          return field.binding ? [field.binding] : [];
+        });
       case "PatternTuple":
         return (pattern as AST.PatternTuple).patterns.flatMap((subPattern) =>
           patternNames(subPattern),
@@ -3185,9 +3186,15 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         // Covered by this arm alone, or together with earlier unguarded
         // arms (`On(true)` then `On(false)`): later arms for it are dead.
         const enumVariant = enumDecl.variants.find((v) => v.name === variant);
+        let payload: AST.Pattern[] = [];
+        if (pattern.kind === "PatternEnumTuple") payload = pattern.bindings;
+        else if (pattern.kind === "PatternEnumStruct") {
+          payload = pattern.fields.flatMap((field) =>
+            field.pattern ? [field.pattern] : [],
+          );
+        }
         if (
-          pattern.kind !== "PatternEnumTuple" ||
-          pattern.bindings.every(irrefutable) ||
+          payload.every(irrefutable) ||
           (enumVariant !== undefined &&
             this.patternRowsExhaustive(
               this.specializeEnumRows(
@@ -3234,10 +3241,13 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     rows: AST.Pattern[][],
     variant: AST.EnumVariant,
   ): AST.Pattern[][] {
-    const arity =
-      variant.dataType?.kind === "EnumVariantTuple"
-        ? variant.dataType.types.length
-        : 0;
+    // Struct variants get one column per field, in declaration order.
+    let arity = 0;
+    if (variant.dataType?.kind === "EnumVariantTuple") {
+      arity = variant.dataType.types.length;
+    } else if (variant.dataType?.kind === "EnumVariantStruct") {
+      arity = variant.dataType.fields.length;
+    }
     const wildcard: AST.Pattern = {
       kind: "PatternWildcard",
       location: variant.location,
@@ -3260,13 +3270,22 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           head.kind === "PatternEnumStruct") &&
         head.variantName === variant.name
       ) {
-        // Struct variant patterns only bind fields, so they match every value.
-        specialized.push([
-          ...(head.kind === "PatternEnumTuple"
-            ? head.bindings
-            : Array<AST.Pattern>(arity).fill(wildcard)),
-          ...rest,
-        ]);
+        // A struct variant field matches its nested pattern, if it has one,
+        // and otherwise every value.
+        let payload: AST.Pattern[] = Array<AST.Pattern>(arity).fill(wildcard);
+        if (head.kind === "PatternEnumTuple") {
+          payload = head.bindings;
+        } else if (
+          head.kind === "PatternEnumStruct" &&
+          variant.dataType?.kind === "EnumVariantStruct"
+        ) {
+          payload = variant.dataType.fields.map(
+            (variantField) =>
+              head.fields.find((field) => field.fieldName === variantField.name)
+                ?.pattern ?? wildcard,
+          );
+        }
+        specialized.push([...payload, ...rest]);
       }
     }
     return specialized;
@@ -3740,7 +3759,15 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       const variant = enumDecl!.variants.find(
         (v) => v.name === pattern.variantName,
       );
-      if (!variant || variant.dataType?.kind !== "EnumVariantStruct") {
+      if (!variant) {
+        // Usually a nested pattern for another enum than the field's type.
+        throw new CompilerError(
+          `Enum '${enumDecl!.name}' has no variant '${pattern.variantName}'`,
+          `The value matched here is a ${enumDecl!.name}; use one of its variants.`,
+          pattern.location,
+        );
+      }
+      if (variant.dataType?.kind !== "EnumVariantStruct") {
         throw new CompilerError(
           `Variant '${pattern.variantName}' is not a struct variant`,
           "Use the correct pattern syntax.",
@@ -3773,13 +3800,27 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           );
         }
 
-        const bindingName = field.binding;
-        if (bindingName === "_") continue;
-
         let bindingType = expectedFields.get(field.fieldName)!;
         if (typeMap.size > 0) {
           bindingType = this.substituteType(bindingType, typeMap);
         }
+
+        // A nested pattern is checked against the field's type, like the
+        // payload patterns of a tuple variant.
+        if (field.pattern) {
+          let nestedEnumDecl: AST.EnumDecl | undefined;
+          if (bindingType.kind === "BasicType") {
+            const typeSymbol = this.currentScope.resolve(bindingType.name);
+            if (typeSymbol && typeSymbol.kind === "Enum") {
+              nestedEnumDecl = typeSymbol.declaration as AST.EnumDecl;
+            }
+          }
+          this.checkPattern(field.pattern, bindingType, nestedEnumDecl);
+          continue;
+        }
+
+        const bindingName = field.binding;
+        if (bindingName === "_") continue;
 
         // Create a synthetic VariableDecl for the binding so it can be captured correctly
         const bindingDecl: AST.VariableDecl = {

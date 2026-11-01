@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Struct-variant fields in patterns take nested patterns, like tuple-variant
+  payloads: `Scene.Single { shape: Shape.Circle { radius: r, shade: Shade.Dark(d) }, label: l }`.
+  They are type checked, count toward exhaustiveness and reachability, and
+  bind their names. A pattern of the wrong enum is reported as
+  `Enum 'Shade' has no variant 'Rect'`.
 - Standard library: `std/regex.bpl` adds regular expressions (classes,
   shorthands, groups, alternation, `* + ?`, anchors) compiled to an NFA that
   matches without backtracking, exported from `std`.

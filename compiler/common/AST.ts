@@ -339,8 +339,11 @@ export interface PatternEnumStruct extends ASTNode {
   resolvedEnum?: EnumDecl;
   fields: {
     fieldName: string;
+    /** The name the field binds, or `_` when it binds none. */
     binding: string;
     bindingDeclaration?: VariableDecl;
+    /** A nested pattern the field must match (its `binding` is then `_`). */
+    pattern?: Pattern;
   }[];
   genericArgs?: TypeNode[];
 }

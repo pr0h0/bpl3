@@ -1518,8 +1518,11 @@ PatternFieldList
     }
 
 PatternField
-  = fieldName:Identifier _ ":" _ binding:Identifier {
-      return { fieldName, binding };
+  = fieldName:Identifier _ ":" _ pattern:Pattern {
+      // A name binds the field; `_` ignores it; any other pattern must match it.
+      if (pattern.kind === "PatternIdentifier") return { fieldName, binding: pattern.name };
+      if (pattern.kind === "PatternWildcard") return { fieldName, binding: "_" };
+      return { fieldName, binding: "_", pattern };
     }
 
 ArrayLiteral
