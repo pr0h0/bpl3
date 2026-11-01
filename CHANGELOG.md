@@ -9,8 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 - Unused imports are removed from `lib/` (13), `packages/` (27, seven archives
-  repacked without version changes) and `examples/` (62), as reported by the
+  repacked without version changes) and `examples/` (59), as reported by the
   lint rule for unused imports. The intentional-error examples in
+  `examples/errors/` keep theirs, since their expected output names lines, and
+  so does `examples/todo_app`, which the editor's completion tests read.
   `examples/errors/` keep theirs, since their expected output names lines.
 - CI (BUG-449): type check and lint run once in a dedicated job instead of
   in all five toolchain jobs, dependency installs restore a cache keyed on the
