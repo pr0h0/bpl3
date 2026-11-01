@@ -926,8 +926,11 @@ function peg$parse(input, options) {
   function peg$f154(head, tail) {
     return [head, ...tail.map(t => t[3])];
   }
-  function peg$f155(fieldName, binding) {
-    return { fieldName, binding };
+  function peg$f155(fieldName, pattern) {
+    // A name binds the field; `_` ignores it; any other pattern must match it.
+    if (pattern.kind === "PatternIdentifier") return { fieldName, binding: pattern.name };
+    if (pattern.kind === "PatternWildcard") return { fieldName, binding: "_" };
+    return { fieldName, binding: "_", pattern };
   }
   function peg$f156(elems) {
     return arrayLiteral(elems || [], location());
@@ -9393,7 +9396,7 @@ function peg$parse(input, options) {
       }
       if (s3 !== peg$FAILED) {
         s4 = peg$parse_();
-        s5 = peg$parseIdentifier();
+        s5 = peg$parsePattern();
         if (s5 !== peg$FAILED) {
           peg$savedPos = s0;
           s0 = peg$f155(s1, s5);

@@ -781,13 +781,15 @@ try {
 - **[R-MATCH-2]** Patterns are literals (`0`, `3.14`, `true`, `"hello"`,
   `'A'`), identifiers that bind the matched value, `_`, tuple patterns such as
   `(0, y)`, and enum patterns `E.V`, `E.V(a, b)`, and `E.V { field: name }`.
+  Sub-patterns nest: a tuple-variant payload or a struct-variant field may be
+  any pattern, as in `Scene.Single { shape: Shape.Circle { radius: 0, shade: _ }, label: l }`.
   Generic enum patterns may be written `Option<int>.Some(x)` or
   `Option.Some(x)`.
 - **[R-MATCH-3]** An enum match must cover every variant or include a
   catch-all arm. Other matches must include an unguarded `_` or identifier arm.
   Guarded arms do not count toward exhaustiveness. Arms with sub-patterns
   cover a variant together: `E.V(true)` and `E.V(false)` cover `E.V`, while
-  `E.V(1, y)` alone does not. The catch-all arm of an enum match is `_`; an
+  `E.V(1, y)` alone does not; struct-variant fields count the same way. The catch-all arm of an enum match is `_`; an
   identifier cannot bind the whole enum value.
   An arm that can never be selected (after an unguarded `_`, or after an arm
   that already matches every value of its variant) is rejected. Violations are

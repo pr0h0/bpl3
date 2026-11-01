@@ -181,7 +181,8 @@ is an error except as a `switch` case label.
 - **Literals**: `0`, `3.14`, `true`, `"hello"`, `'A'`
 - **Identifiers**: `x`, `n` (binds matched value)
 - **Tuples**: `(a, b)`, `(0, y)`, `(x, y, z)`
-- **Enum variants**: `E.V`, `E.V(a, b)`, `E.V { field: x }`
+- **Enum variants**: `E.V`, `E.V(a, b)`, `E.V { field: x }`; payloads and
+  fields may hold nested patterns (`E.V { field: F.W(y) }`)
 - **Wildcards**: `_` (matches anything)
 - **Guards**: `pattern if condition`
 

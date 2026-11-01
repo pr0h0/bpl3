@@ -1243,7 +1243,10 @@ export class Formatter {
           enumName += `<${p.genericArgs.map((t) => this.formatType(t)).join(", ")}>`;
         }
         const fields = p.fields
-          .map((f) => `${f.fieldName}: ${f.binding}`)
+          .map(
+            (f) =>
+              `${f.fieldName}: ${f.pattern ? this.formatPattern(f.pattern) : f.binding}`,
+          )
           .join(", ");
         if (enumName.length > 0) {
           return `${enumName}.${p.variantName} { ${fields} }`;

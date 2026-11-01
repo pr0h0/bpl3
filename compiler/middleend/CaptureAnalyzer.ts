@@ -260,9 +260,10 @@ export class CaptureAnalyzer {
           this.collectPatternBindings(binding),
         );
       case "PatternEnumStruct":
-        return pattern.fields.flatMap((field) =>
-          field.bindingDeclaration ? [field.bindingDeclaration] : [],
-        );
+        return pattern.fields.flatMap((field) => {
+          if (field.pattern) return this.collectPatternBindings(field.pattern);
+          return field.bindingDeclaration ? [field.bindingDeclaration] : [];
+        });
       case "PatternTuple":
         return pattern.patterns.flatMap((subPattern) =>
           this.collectPatternBindings(subPattern),

@@ -629,9 +629,10 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
             collectPatternBindingNames(binding),
           );
         case "PatternEnumStruct":
-          return pattern.fields
-            .map((field) => field.binding)
-            .filter((binding) => binding !== "_");
+          return pattern.fields.flatMap((field) => {
+            if (field.pattern) return collectPatternBindingNames(field.pattern);
+            return field.binding === "_" ? [] : [field.binding];
+          });
         case "PatternTuple":
           return pattern.patterns.flatMap((subPattern) =>
             collectPatternBindingNames(subPattern),
