@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- TODO.md lists the work merged recently as implemented (`bpl test`, lint
+  rules and checker warnings, generated shell completions, CI format checks)
+  and drops the finished items from the remaining work.
 - `bpl new` projects come with tests that `bpl test` runs: the app template
   adds `lib/math.bpl` with `lib/math_test.bpl`, and the library template adds
   `src/index_test.bpl`. The READMEs list `bpl test`.
