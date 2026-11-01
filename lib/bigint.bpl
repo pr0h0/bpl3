@@ -331,6 +331,89 @@ struct BigInt {
         return result;
     }
 
+    # |value| * factor for 0 <= factor < 10^9, as a non-negative BigInt.
+    frame multiplyMagnitudeSmall(value: *BigInt, factor: ulong) ret BigInt {
+        local result: BigInt = BigInt.withCapacity(value.length + 1);
+        local carry: ulong = 0;
+        loop (local i: int = 0; i < value.length; i = i + 1) {
+            local current: ulong = (cast<ulong>(*(value.limbs + i)) * factor) + carry;
+            *(result.limbs + i) = cast<uint>(current % BIGINT_BASE);
+            carry = current / BIGINT_BASE;
+        }
+        result.length = value.length;
+        if (carry > cast<ulong>(0)) {
+            *(result.limbs + value.length) = cast<uint>(carry);
+            result.length = value.length + 1;
+        }
+        result.sign = 1;
+        result.normalize();
+        return result;
+    }
+
+    # This value divided by `divisor`, truncated toward zero. When `remainder`
+    # is not null it receives the remainder (with this value's sign), which
+    # the caller must destroy. Throws if `divisor` is zero.
+    frame divide(this: *BigInt, divisor: *BigInt, remainder: *BigInt) ret BigInt {
+        if (divisor.sign == 0) {
+            throw "BigInt.divide: division by zero";
+        }
+        local quotient: BigInt = BigInt.withCapacity(this.length);
+        local rest: BigInt = BigInt.withCapacity(this.length + 1);
+        # Schoolbook long division over base-10^9 limbs, most significant
+        # first: bring down a limb, then find the largest digit q with
+        # |divisor| * q <= rest by binary search.
+        local i: int = this.length - 1;
+        loop (i >= 0) {
+            loop (local k: int = rest.length; k > 0; k = k - 1) {
+                *(rest.limbs + k) = *(rest.limbs + (k - 1));
+            }
+            *rest.limbs = *(this.limbs + i);
+            rest.length = rest.length + 1;
+            rest.sign = 1;
+            rest.normalize();
+
+            local low: ulong = 0;
+            local high: ulong = BIGINT_BASE - cast<ulong>(1);
+            loop (low < high) {
+                local middle: ulong = (low + high + cast<ulong>(1)) / cast<ulong>(2);
+                local product: BigInt = BigInt.multiplyMagnitudeSmall(divisor, middle);
+                local fits: bool = BigInt.compareMagnitude(&product, &rest) <= 0;
+                product.destroy();
+                if (fits) {
+                    low = middle;
+                } else {
+                    high = middle - cast<ulong>(1);
+                }
+            }
+            *(quotient.limbs + i) = cast<uint>(low);
+            if (low > cast<ulong>(0)) {
+                local taken: BigInt = BigInt.multiplyMagnitudeSmall(divisor, low);
+                local smaller: BigInt = BigInt.subtractMagnitudes(&rest, &taken, 1);
+                taken.destroy();
+                # Keep the buffer large enough for the next limb.
+                loop (local k: int = 0; k < smaller.length; k = k + 1) {
+                    *(rest.limbs + k) = *(smaller.limbs + k);
+                }
+                rest.length = smaller.length;
+                rest.sign = smaller.sign;
+                smaller.destroy();
+            }
+            i = i - 1;
+        }
+        quotient.length = this.length;
+        quotient.sign = this.sign * divisor.sign;
+        quotient.normalize();
+        if (rest.sign != 0) {
+            rest.sign = this.sign;
+        }
+        if (remainder != nullptr) {
+            *remainder = rest;
+        } else {
+            rest.destroy();
+        }
+        return quotient;
+    }
+
     # Decimal text of the value. Returns a newly allocated string the caller
     # must free, or nullptr if allocation fails.
     frame toString(this: *BigInt) ret string {

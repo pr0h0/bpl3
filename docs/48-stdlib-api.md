@@ -405,8 +405,11 @@ Copying a `BigInt` with `=` shares its limbs, so destroy only one copy, or use
 - `BigInt.parse(text: string) ret BigInt` — optional `+`/`-`, decimal digits;
   throws otherwise
 - `value.add(other: *BigInt) ret BigInt`, `subtract`, `multiply`, `negate()`
-- `value.divideSmall(divisor: int, remainder: *int) ret BigInt` — truncates
-  toward zero; the remainder takes the dividend's sign; throws for 0
+- `value.divide(divisor: *BigInt, remainder: *BigInt) ret BigInt` — truncates
+  toward zero; when `remainder` is not null it receives the remainder (with the
+  dividend's sign), which the caller destroys; throws for a zero divisor
+- `value.divideSmall(divisor: int, remainder: *int) ret BigInt` — the same for
+  an `int` divisor, without allocating a remainder
 - `value.compare(other: *BigInt) ret int` (-1, 0, 1), `equals`, `isZero()`,
   `isNegative()`
 - `value.clone() ret BigInt`, `value.toString() ret string`, `value.destroy()`
