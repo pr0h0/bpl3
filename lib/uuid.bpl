@@ -1,12 +1,18 @@
-# UUID generation and parsing (v4 random UUIDs)
+# UUID generation and parsing (v4 random and v7 time-ordered UUIDs)
 
 export [UUID];
 
 import [Entropy] from "std/entropy.bpl";
+import [Time] from "std/time.bpl";
 
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
 extern strlen(str: string) ret long;
+
+# The millisecond and 12-bit counter of the last v7 UUID, so later ones sort
+# after it even within one millisecond or if the clock steps back.
+global UUID_V7_LAST_MS: long = -1;
+global UUID_V7_COUNTER: int = 0;
 
 struct UUID {
     bytes: u8[16],
@@ -38,6 +44,74 @@ struct UUID {
 
         *output = uuid;
         return true;
+    }
+
+    # Generate a time-ordered v7 UUID (RFC 9562); throws if entropy is
+    # unavailable.
+    frame v7() ret UUID {
+        local uuid: UUID;
+        if (UUID.tryV7(&uuid) == false) {
+            throw "UUID entropy unavailable";
+        }
+        return uuid;
+    }
+
+    # A v7 UUID: a 48-bit big-endian Unix time in milliseconds, the version,
+    # a 12-bit counter and 62 random bits. Within this process each UUID
+    # sorts after the previous one: in the same millisecond, or when the
+    # clock steps back, the counter is incremented (moving to the next
+    # millisecond when it overflows). On failure, leave the destination
+    # unchanged.
+    frame tryV7(output: *UUID) ret bool {
+        if (output == nullptr) {
+            return false;
+        }
+        local uuid: UUID;
+        if (!Entropy.fill(&uuid.bytes[0], 16)) {
+            return false;
+        }
+        local ms: long = Time.nowMs();
+        local counter: int = 0;
+        if (ms <= UUID_V7_LAST_MS) {
+            ms = UUID_V7_LAST_MS;
+            counter = UUID_V7_COUNTER + 1;
+            if (counter > 0xFFF) {
+                ms = ms + 1;
+                counter = 0;
+            }
+        } else {
+            # A random start below 0x800 leaves room to count up.
+            counter = (cast<int>(uuid.bytes[6] & cast<u8>(0x07)) * 256) + cast<int>(uuid.bytes[7]);
+        }
+        UUID_V7_LAST_MS = ms;
+        UUID_V7_COUNTER = counter;
+
+        local i: int = 0;
+        loop (i < 6) {
+            uuid.bytes[i] = cast<u8>((ms >> cast<long>(40 - (i * 8))) & cast<long>(0xff));
+            i = i + 1;
+        }
+        uuid.bytes[6] = cast<u8>(0x70 | (counter >> 8));
+        uuid.bytes[7] = cast<u8>(counter & 0xff);
+        uuid.bytes[8] = (uuid.bytes[8] & cast<u8>(0x3F)) | cast<u8>(0x80);
+
+        *output = uuid;
+        return true;
+    }
+
+    # The Unix time in milliseconds stored in a v7 UUID, or -1 for other
+    # versions.
+    frame timestampMs(this: *UUID) ret long {
+        if (this.version() != 7) {
+            return -1;
+        }
+        local ms: long = 0;
+        local i: int = 0;
+        loop (i < 6) {
+            ms = (ms << cast<long>(8)) | cast<long>(this.bytes[i]);
+            i = i + 1;
+        }
+        return ms;
     }
 
     # Create a UUID from raw bytes
