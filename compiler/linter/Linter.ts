@@ -11,6 +11,7 @@ const languageHooks = new Set([
 import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
 import { lexWithGrammar } from "../frontend/GrammarLexer";
 import { TokenType } from "../frontend/TokenType";
+import { getPrimitiveType } from "../common/PrimitiveTypes";
 
 export interface LintRule {
   code: string;
@@ -41,6 +42,7 @@ export class Linter {
     this.rules.push(new NamingConventionRule());
     this.rules.push(new ConstantConditionRule());
     this.rules.push(new SelfAssignmentRule());
+    this.rules.push(new SelfComparisonRule());
     this.rules.push(new DuplicateConditionRule());
   }
 
@@ -684,6 +686,113 @@ class SelfAssignmentRule implements LintRule {
       "Remove the assignment, or assign the value that was meant.",
     );
   }
+}
+
+type ComparedKind = "float" | "exact" | "unknown";
+
+const ALWAYS_FALSE_COMPARISONS = new Set(["<", ">"]);
+const SELF_COMPARISONS = new Set(["==", "!=", "<", "<=", ">", ">="]);
+
+/**
+ * How a declared type compares with itself: `float` for floating point (NaN
+ * is unequal to itself), `exact` for integers, `bool`, `string` and pointers,
+ * and `unknown` for anything else, such as a struct that may overload the
+ * operator.
+ */
+function comparedKind(type: AST.TypeNode | null | undefined): ComparedKind {
+  if (!type || type.kind !== "BasicType") return "unknown";
+  const basic = type as AST.BasicTypeNode;
+  if (basic.arrayDimensions.length > 0) return "unknown";
+  if (basic.pointerDepth > 0 || basic.name === "string") return "exact";
+  const primitive = getPrimitiveType(basic.name);
+  if (!primitive) return "unknown";
+  return primitive.kind === "float" ? "float" : "exact";
+}
+
+/**
+ * L006: a variable compared with itself, such as `n == n` or `i < i`, whose
+ * result is fixed. Only names whose declared type is a primitive, `string` or
+ * a pointer are checked. For floating-point values `==`, `!=`, `<=` and `>=`
+ * are skipped, since `x != x` is how NaN is detected; `<` and `>` are always
+ * false.
+ */
+class SelfComparisonRule implements LintRule {
+  code = "L006";
+  name = "self-comparison";
+  private kinds = new Map<string, ComparedKind>();
+
+  check(node: AST.ASTNode, context: LintContext) {
+    switch (node.kind) {
+      case "FunctionDecl":
+        // Declarations are visited before the expressions that use them.
+        this.kinds = new Map();
+        return;
+      case "Parameter": {
+        const param = node as AST.Parameter;
+        this.declare(param.name, param.type);
+        return;
+      }
+      case "LambdaExpression":
+        // Lambda parameters are not visited as nodes of their own.
+        for (const param of (node as AST.LambdaExpr).params) {
+          this.declare(param.name, param.type);
+        }
+        return;
+      case "VariableDecl": {
+        const decl = node as AST.VariableDecl;
+        if (typeof decl.name === "string") {
+          this.declare(decl.name, decl.typeAnnotation);
+        } else {
+          for (const target of decl.name) this.declare(target.name, undefined);
+        }
+        return;
+      }
+      case "Binary":
+        break;
+      default:
+        return;
+    }
+
+    const binary = node as AST.BinaryExpr;
+    const operator = binary.operator.lexeme;
+    if (!SELF_COMPARISONS.has(operator)) return;
+    const left = unwrapGroups(binary.left);
+    const right = unwrapGroups(binary.right);
+    if (left.kind !== "Identifier" || right.kind !== "Identifier") return;
+    const name = (left as AST.IdentifierExpr).name;
+    if (name !== (right as AST.IdentifierExpr).name) return;
+
+    const kind = this.kinds.get(name) ?? "unknown";
+    if (kind === "unknown") return;
+    if (kind === "float" && !ALWAYS_FALSE_COMPARISONS.has(operator)) return;
+
+    const result = ["==", "<=", ">="].includes(operator) ? "true" : "false";
+    context.report(
+      `'${name} ${operator} ${name}' compares '${name}' with itself and is always ${result}`,
+      node,
+      DiagnosticSeverity.Warning,
+      this.code,
+      "Compare with the value that was meant.",
+    );
+  }
+
+  /** A name declared twice with different kinds is treated as unknown. */
+  private declare(name: string, type: AST.TypeNode | null | undefined) {
+    const kind = comparedKind(type);
+    const previous = this.kinds.get(name);
+    this.kinds.set(
+      name,
+      previous === undefined || previous === kind ? kind : "unknown",
+    );
+  }
+}
+
+function unwrapGroups(expression: AST.Expression): AST.Expression {
+  let current = expression;
+  while (current.kind === "Group") {
+    current = (current as AST.GroupExpr).expression;
+  }
+  return current;
 }
 
 /**

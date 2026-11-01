@@ -402,6 +402,10 @@ Lint BPL source files for style and package-quality issues. Rules:
 - `L005` self-assignment: `x = x`, `box.n = box.n` or `a.items[0] = a.items[0]`,
   which store a value where it already is. Computed indexes and compound
   assignments such as `x += x` are not reported.
+- `L006` self-comparison: a variable compared with itself, such as `n == n`
+  or `i < i`, whose result is fixed. Only names declared with a primitive,
+  `string` or pointer type are checked. For `float`, `double` and `f32` values
+  only `<` and `>` are reported, because `x != x` is the NaN test.
 - `L007` duplicate condition: an `else if` whose condition repeats an earlier
   condition of the same chain (`if (x == 1) ... else if (x == 1)`), so its
   branch never runs. Conditions containing calls, casts or increments are not
