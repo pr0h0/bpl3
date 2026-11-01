@@ -412,6 +412,9 @@ Copying a `BigInt` with `=` shares its limbs, so destroy only one copy, or use
   an `int` divisor, without allocating a remainder
 - `value.compare(other: *BigInt) ret int` (-1, 0, 1), `equals`, `isZero()`,
   `isNegative()`
+- `value.abs()`, `value.pow(exponent: int)` (throws for a negative exponent;
+  `0^0` is 1), `value.gcd(other: *BigInt)` (of the magnitudes; `gcd(0, 0)` is 0)
+- `value.toLong(out: *long) ret bool` — false when the value does not fit
 - `value.clone() ret BigInt`, `value.toString() ret string`, `value.destroy()`
 
 ```bpl

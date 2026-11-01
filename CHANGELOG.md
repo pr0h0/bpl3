@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `BigInt` gains `abs`, `pow` (by repeated squaring), `gcd` (Euclid) and
+  `toLong`, which reports whether the value fits in a `long`.
 - Struct-variant fields in patterns take nested patterns, like tuple-variant
   payloads: `Scene.Single { shape: Shape.Circle { radius: r, shade: Shade.Dark(d) }, label: l }`.
   They are type checked, count toward exhaustiveness and reachability, and
