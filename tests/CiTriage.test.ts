@@ -1801,6 +1801,19 @@ describe("CI triage helper", () => {
     );
   });
 
+  test("maps lint rule selection failures to the --disable regression", () => {
+    const expectedCommands = [
+      "bun test tests/CLILintDisable.test.ts",
+      "bun run check",
+    ];
+    expect(localCommandsForStep("BPL_LINT_UNKNOWN_RULE")).toEqual(
+      expectedCommands,
+    );
+    expect(localCommandsForStep("lint --disable failed")).toEqual(
+      expectedCommands,
+    );
+  });
+
   test("maps check discovery failures to focused reproduction commands", () => {
     expect(localCommandsForStep("BPL_CHECK_PROCESSING_ERROR")).toEqual([
       "bun test tests/CheckDirectories.test.ts",
