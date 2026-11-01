@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- bpl-express (BUG-461): a plain HTTP client that sends part of a request and
+  stalls no longer holds a worker until the request deadline. The accept loop
+  assembles each pending connection's request and serves it once complete,
+  answering 408 when the deadline passes first; TLS connections are unchanged.
 - Package scripts (BUG-452): `format-examples` and `file-sizes` are renamed to
   `format:examples` and `report:file-sizes`; the stdlib reference generator
   moves from `tests/helpers/` to `scripts/generate_stdlib_reference.ts`; and

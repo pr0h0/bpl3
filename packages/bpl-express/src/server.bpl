@@ -292,14 +292,22 @@ struct App {
         _exit(0);
         return 0;
     }
-    # Accepted connections wait in a pending set until their first bytes
-    # arrive, so idle sockets (browser preconnects, clients that never send)
-    # do not occupy the worker. A pending connection that stays silent for
-    # the request timeout is closed. Returns when shutdown is requested.
+    # Accepted connections wait in a pending set until they are ready to
+    # serve, so idle sockets (browser preconnects, clients that never send)
+    # and clients that stall partway through a request do not occupy the
+    # worker. Plain HTTP requests are assembled here from whatever bytes are
+    # available and handed to serveRequest once complete, invalid, too
+    # large or past the request deadline (which answers 408). TLS connections
+    # are handed over on their first bytes, since the handshake reads in
+    # blocking steps. A connection that stays silent for the request timeout
+    # is closed. Returns when shutdown is requested.
     frame acceptLoop(this: *App, fd: int, signals: *ShutdownSignals) {
         # [0] shutdown signals, [1] listener, [2..] pending connections.
         local fds: pollfd[66];
         local accepted_at: long[64];
+        # Bytes read so far for each pending plain connection.
+        local buffers: string[64];
+        local used: long[64];
         local pending: int = 0;
         local idle_limit: long = this.request_timeout_seconds * 1000;
         loop {
@@ -341,21 +349,39 @@ struct App {
                 break;
             }
             now = App.monotonicMilliseconds();
-            # Serve readable connections; drop ones idle past the limit.
+            # Serve ready connections; drop ones idle past the limit.
             local kept: int = 0;
             loop (local i: int = 0; i < pending; i = i + 1) {
                 local client: int = fds[2 + i].fd;
+                local serve: bool = false;
+                local drop: bool = false;
                 if (fds[2 + i].revents != 0) {
+                    if (this.tls != nullptr) {
+                        serve = true;
+                    } else {
+                        local state: int = this.assembleRequest(client, &buffers[i], &used[i]);
+                        serve = state == 1;
+                        drop = state == 2;
+                    }
+                } else if ((now - accepted_at[i]) >= idle_limit) {
+                    # A partial request gets its 408; a silent one is closed.
+                    serve = used[i] > 0;
+                    drop = !serve;
+                }
+                if (serve) {
                     try {
-                        this.serveConnection(client);
+                        this.serveRequest(client, buffers[i], used[i], accepted_at[i]);
                     } catch {
                     }
                     close(client);
-                } else if ((now - accepted_at[i]) >= idle_limit) {
+                } else if (drop) {
+                    free(buffers[i]);
                     close(client);
                 } else {
                     fds[2 + kept].fd = client;
                     accepted_at[kept] = accepted_at[i];
+                    buffers[kept] = buffers[i];
+                    used[kept] = used[i];
                     kept = kept + 1;
                 }
             }
@@ -369,13 +395,48 @@ struct App {
                     }
                     fds[2 + pending].fd = client;
                     accepted_at[pending] = App.monotonicMilliseconds();
+                    buffers[pending] = nullptr;
+                    used[pending] = 0;
                     pending = pending + 1;
                 }
             }
         }
         loop (local i: int = 0; i < pending; i = i + 1) {
+            free(buffers[i]);
             close(fds[2 + i].fd);
         }
+    }
+    # Reads the bytes available on a readable plain connection into its
+    # buffer (allocated on first use). Returns 0 while the request is still
+    # incomplete, 1 when serveRequest should answer it (complete, invalid,
+    # too large, or the client closed partway through), and 2 when the
+    # connection closed or failed before sending anything.
+    frame assembleRequest(this: *App, client: int, buffer: *string, used: *long) ret int {
+        if (buffer[0] == nullptr) {
+            buffer[0] = malloc(1130497);
+            if (buffer[0] == nullptr) {
+                return 2;
+            }
+        }
+        local count: long = read(client, buffer[0] + used[0], cast<ulong>(1130496 - used[0]));
+        if (count <= 0) {
+            if (used[0] > 0) {
+                return 1;
+            }
+            return 2;
+        }
+        used[0] = used[0] + count;
+        buffer[0][used[0]] = 0;
+        if (used[0] >= 1130496) {
+            return 1;
+        }
+        local parsed: ParsedRequest = HttpParser.parseBytes(buffer[0], used[0]);
+        local ready: bool = parsed.valid || (parsed.error_code != 0);
+        parsed.destroy();
+        if (ready) {
+            return 1;
+        }
+        return 0;
     }
     frame monotonicMilliseconds() ret long {
         local now: timespec;
@@ -386,10 +447,23 @@ struct App {
     }
     # One bounded request per connection, with Connection: close.
     frame serveConnection(this: *App, fd: int) {
+        this.serveRequest(fd, nullptr, 0, App.monotonicMilliseconds());
+    }
+    # Serves `fd` like serveConnection. `initial` holds `initial_used` bytes
+    # already read by acceptLoop (or is null) and is freed here; the request
+    # deadline counts from `started`, the time the connection was accepted.
+    frame serveRequest(this: *App, fd: int, initial: string, initial_used: long, started: long) {
+        local buffer: string = initial;
+        if (buffer == nullptr) {
+            buffer = malloc(1130497);
+            if (buffer == nullptr) {
+                return;
+            }
+        }
+        defer free(buffer);
         if ((this.timeout_seconds < 1) || (this.timeout_seconds > 300) || (this.request_timeout_seconds < 1) || (this.request_timeout_seconds > 300)) {
             throw "HTTP deadlines must be 1 to 300 seconds";
         }
-        local started: long = App.monotonicMilliseconds();
         local deadline: long = started + (this.request_timeout_seconds * 1000);
         local timeout: timeval;
         timeout.tv_sec = this.timeout_seconds;
@@ -405,12 +479,9 @@ struct App {
             }
         }
         defer tls.shutdown(TlsConnection.deadline(this.timeout_seconds));
-        local buffer: string = malloc(1130497);
-        if (buffer == nullptr) {
-            return;
-        }
-        defer free(buffer);
-        local used: long = 0;
+        local used: long = initial_used;
+        # Bytes handed over by acceptLoop are parsed before reading more.
+        local read_more: bool = used == 0;
         local res: Response = Response.new(fd);
         res.write_timeout_seconds = this.timeout_seconds;
         if (this.tls != nullptr) {
@@ -424,45 +495,49 @@ struct App {
                 res.status(408).text("Request deadline exceeded");
                 return;
             }
-            if (remaining > (this.timeout_seconds * 1000)) {
-                remaining = this.timeout_seconds * 1000;
-            }
-            local count: long = 0;
-            if (this.tls != nullptr) {
-                local read_deadline: long = App.monotonicMilliseconds() + remaining;
-                if (read_deadline > deadline) {
-                    read_deadline = deadline;
-                }
-                count = tls.read(buffer + used, 1130496 - used, read_deadline);
+            if (!read_more) {
+                read_more = true;
             } else {
-                local ready: pollfd;
-                ready.fd = fd;
-                ready.events = 1;
-                ready.revents = 0;
-                local available: int = poll(&ready, 1, cast<int>(remaining));
-                if (available == 0) {
-                    res.status(408).text("Request timed out");
-                    return;
+                if (remaining > (this.timeout_seconds * 1000)) {
+                    remaining = this.timeout_seconds * 1000;
                 }
-                if (available < 0) {
-                    local error: *int = __errno_location();
-                    if (error[0] == 4) {
-                        continue;
+                local count: long = 0;
+                if (this.tls != nullptr) {
+                    local read_deadline: long = App.monotonicMilliseconds() + remaining;
+                    if (read_deadline > deadline) {
+                        read_deadline = deadline;
+                    }
+                    count = tls.read(buffer + used, 1130496 - used, read_deadline);
+                } else {
+                    local ready: pollfd;
+                    ready.fd = fd;
+                    ready.events = 1;
+                    ready.revents = 0;
+                    local available: int = poll(&ready, 1, cast<int>(remaining));
+                    if (available == 0) {
+                        res.status(408).text("Request timed out");
+                        return;
+                    }
+                    if (available < 0) {
+                        local error: *int = __errno_location();
+                        if (error[0] == 4) {
+                            continue;
+                        }
+                        return;
+                    }
+                    count = read(fd, buffer + used, cast<ulong>(1130496 - used));
+                }
+                if (count <= 0) {
+                    if (count < 0) {
+                        res.status(408).text("Request read failed or timed out");
+                    } else {
+                        res.status(400).text("Incomplete request");
                     }
                     return;
                 }
-                count = read(fd, buffer + used, cast<ulong>(1130496 - used));
+                used = used + count;
+                buffer[used] = 0;
             }
-            if (count <= 0) {
-                if (count < 0) {
-                    res.status(408).text("Request read failed or timed out");
-                } else {
-                    res.status(400).text("Incomplete request");
-                }
-                return;
-            }
-            used = used + count;
-            buffer[used] = 0;
             local parsed: ParsedRequest = HttpParser.parseBytes(buffer, used);
             if (!parsed.valid) {
                 local code: int = parsed.error_code;
