@@ -380,7 +380,18 @@ and mixed line endings are supported. Explicit file arguments override ignores.
 
 ### `bpl lint [files...]`
 
-Lint BPL source files for style and package-quality issues.
+Lint BPL source files for style and package-quality issues. Rules:
+
+- `L001` naming: structs are `PascalCase` and functions `camelCase`; a leading
+  underscore marks a private helper (`_siftDown`). `main` and operator and
+  lifecycle hooks such as `__add__` are exempt.
+- `L002` unused import: an imported name (or `import * as` namespace) that
+  nothing outside the import statements refers to. Calls, type annotations,
+  generic arguments, `Enum.Variant`, namespace members, `export` lists and the
+  `${...}` parts of interpolated strings count as uses, and an interpolated
+  string counts as a use of `String`.
+
+Warnings fail the run unless `--no-fail-on-warnings` is given.
 
 **Options:**
 

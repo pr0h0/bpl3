@@ -14,6 +14,6 @@ export function createLintEngine() {
 
   return (content: string, filePath: string): CompilerError[] => {
     const parser = new Parser(content, filePath);
-    return linter.lint(parser.parse(true));
+    return linter.lint(parser.parse(true), content);
   };
 }
