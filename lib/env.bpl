@@ -11,8 +11,6 @@ extern strlen(str: string) ret long;
 extern strcpy(dest: string, src: string) ret string;
 extern atoi(str: string) ret int;
 
-import [Array] from "std/array.bpl";
-
 struct EnvVar {
     name: string,
     value: string,

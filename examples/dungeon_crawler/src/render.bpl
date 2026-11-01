@@ -2,8 +2,7 @@ export [Renderable];
 export [Renderer];
 
 import [Grid], [Tile], [TileType] from "./world.bpl";
-import [Entity], [Player], [Monster] from "./entities.bpl";
-import [Array] from "std/array.bpl";
+import [Entity], [Player] from "./entities.bpl";
 
 import [printf] from "std/c.bpl";
 

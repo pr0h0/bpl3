@@ -2,7 +2,6 @@
 # This test verifies that a user-defined struct implicitly inherits from Type
 # and can call its methods.
 
-import [Type] from "std/type.bpl";
 import [IO] from "std/io.bpl";
 
 struct MyStruct {

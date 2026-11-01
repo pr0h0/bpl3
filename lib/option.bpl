@@ -1,7 +1,6 @@
 # Option<T> standard library
 
 import [OptionUnwrapError] from "std/errors.bpl";
-import [Equatable], [Cloneable] from "std/core_specs.bpl";
 
 export [Option];
 

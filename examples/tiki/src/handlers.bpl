@@ -4,7 +4,6 @@ import find_user, create_user, create_note, get_all_notes, get_user_notes, updat
 import parse_form, find_form_val, [KeyVal] from "./utils.bpl";
 import [Array] from "std/array.bpl";
 import [Option] from "std/option.bpl";
-import [Map] from "std/map.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
 
 import atoi from "bpl-express";
@@ -17,7 +16,6 @@ import [Register] from "./views/register.bpl";
 import [Login] from "./views/login.bpl";
 import [Profile] from "./views/profile.bpl";
 import [CreateNote] from "./views/create_note.bpl";
-import [String] from "std/string.bpl";
 import [EditNote] from "./views/edit_note.bpl";
 
 # import render_edit_note from "./views/edit_note.bpl"; # Will add this file later, but import it now?

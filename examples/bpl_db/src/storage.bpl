@@ -5,8 +5,7 @@ export [Database];
 
 import [Value], [DataType], serialize_value, deserialize_value from "./types.bpl";
 import [Array] from "std/array.bpl";
-import [String] from "std/string.bpl";
-import [Map], [Pair], [MapIterator], [MapNode] from "std/map.bpl";
+import [Map], [MapNode] from "std/map.bpl";
 import [Option] from "std/option.bpl";
 import [File] from "std/fs.bpl";
 import [StringUtils] from "std/string_utils.bpl";
@@ -15,7 +14,6 @@ import [free], [printf], [sprintf] from "std/c.bpl";
 extern malloc(size: long) ret string;
 import [atoi] from "std/c.bpl";
 import [strlen] from "std/c.bpl";
-import [strcmp] from "std/c.bpl";
 
 frame alloc<T>() ret *T {
     return cast<*T>(malloc(sizeof<T>()));

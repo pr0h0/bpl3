@@ -1,6 +1,5 @@
-import [Engine], [Query], [Command], [Value], [Condition], [Operator] from "bpl-db";
+import [Engine], [Query], [Command], [Value], [Condition] from "bpl-db";
 import [Array] from "std/array.bpl";
-import [String] from "std/string.bpl";
 
 import [printf] from "std/c.bpl";
 

@@ -4,7 +4,6 @@ export [Condition];
 export [Operator];
 
 import [Value] from "./types.bpl";
-import [String] from "std/string.bpl";
 import [Array] from "std/array.bpl";
 
 enum Operator {

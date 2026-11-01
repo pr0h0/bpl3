@@ -3,8 +3,6 @@ export [Value];
 export serialize_value;
 export deserialize_value;
 
-import [String] from "std/string.bpl";
-
 import [malloc], [sprintf] from "std/c.bpl";
 
 enum DataType {

@@ -7,8 +7,6 @@ export data_kind;
 export serialize_value;
 export deserialize_value;
 
-import [String] from "std/string.bpl";
-
 extern sprintf(str: string, format: string, ...) ret int;
 extern malloc(size: long) ret *void;
 

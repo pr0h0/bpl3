@@ -1,6 +1,5 @@
 import [IO] from "std/io.bpl";
 import [Any] from "std/type.bpl";
-import [TypeInfo] from "std/reflection.bpl";
 
 struct Point {
     x: int,

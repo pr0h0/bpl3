@@ -1,6 +1,6 @@
 # Long struct is implicitly available, but must be explicitly imported to use its methods
 # because long primitive doesn't auto-box to Long struct
-import [IO], [Long] from "std";
+import [IO] from "std";
 
 frame main() {
     local x: long = 1234567890123;
