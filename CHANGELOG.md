@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `std/log.bpl` is a leveled logger: `LogLevel`, `Log.setLevel`,
+  `Log.enabled`, `Log.write`, `Log.levelFromEnv` (`BPL_LOG_LEVEL`),
+  `Log.setPrefix` for `[LEVEL] ` prefixes and `Log.useStderr`. By default
+  every level is still written to standard output without a prefix.
 - docs/67-testing.md is a guide to writing and running tests with `bpl test`
   and `std/assert.bpl`.
 - `std/assert.bpl` adds `isTrue`, `isFalse`, `fail`, `equalInt`, `equalLong`,

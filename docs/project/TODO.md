@@ -104,8 +104,9 @@ all related enhancements or platform support are complete.
       execution, trusted-text shell execution, and sleep through
       `lib/process.bpl`. There is no streaming/interactive child I/O, signal
       API or Windows support.
-- [x] Basic `Log.debug/info/warn/error` methods through standard IO.
-      Configurable filtering, structured formatters, and output targets remain open.
+- [x] Leveled logging in `lib/log.bpl`: a minimum level (also from
+      `BPL_LOG_LEVEL`), level prefixes, and standard output or standard error.
+      Structured formatters and other output targets remain open.
 - [x] Explicit arena/page/pool/stack allocators in `lib/memory/`, including arena
       reset/reuse (`tests/StdlibArenaReset.test.ts`). Allocation remains manual;
       compiler-enforced regions and ownership are not implemented.
@@ -150,7 +151,7 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
 - [ ] [6] Default/named function arguments and explicit member visibility rules
       beyond the existing module import/export mechanism.
 - [ ] [7] Remote package registry/publishing and richer dependency resolution.
-- [ ] [7] Configurable/structured logging, broader portable networking and OS
+- [ ] [7] Structured logging, broader portable networking and OS
       APIs, cryptographic hashes beyond SHA-256 and HMAC-SHA256, regex features
       beyond `std/regex.bpl` (captures, counted repetition),
       and compression/archiving.
