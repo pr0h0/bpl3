@@ -13,11 +13,11 @@ _bpl_completion() {
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-    local commands="run run-script rs dev build check format lint pack install lock list init uninstall remove package-cache completion docs new clean bindgen doctor help"
+    local commands="run run-script rs dev build check format lint test pack install lock list init uninstall remove package-cache completion docs new clean bindgen doctor help"
 
     # Values of options that take one
     case "${prev}" in
-        -e|--eval|--cpu|--march|--clang-flag|-l|--lib|-j|--jobs|-O|--indent-width|--package-version)
+        -e|--eval|--cpu|--march|--clang-flag|-l|--lib|-j|--jobs|-O|--indent-width|-f|--filter|--package-version)
             return 0
             ;;
         -o|--output|--debug-ir-path|--header|--stdin-filepath|--config)
@@ -134,6 +134,13 @@ _bpl_completion() {
                     COMPREPLY+=("$match")
                 fi
             done < <(compgen -f -- "${cur}")
+            return 0
+            ;;
+        test)
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-f --filter -v --verbose --json --color --no-color -h --help" -- "${cur}") )
+                return 0
+            fi
             return 0
             ;;
         pack)

@@ -8,6 +8,7 @@ export type CliSubcommandGroup =
   | "check"
   | "format"
   | "lint"
+  | "test"
   | "package"
   | "completion"
   | "docs"
@@ -29,6 +30,7 @@ const GROUP_BY_COMMAND: Readonly<Record<string, CliSubcommandGroup>> = {
   check: "check",
   format: "format",
   lint: "lint",
+  test: "test",
   pack: "package",
   install: "package",
   lock: "package",
@@ -108,6 +110,10 @@ const REGISTRAR_LOADERS: Readonly<Record<CliSubcommandGroup, RegistrarLoader>> =
       const { registerLintCommand } = await import("./commands/lint");
       return (program) => registerLintCommand(program);
     },
+    test: async () => {
+      const { registerTestCommand } = await import("./commands/test");
+      return (program) => registerTestCommand(program);
+    },
     package: async () => {
       const { registerPackageCommands } = await import("./commands/package");
       return (program) => registerPackageCommands(program);
@@ -147,6 +153,7 @@ const ROOT_HELP_GROUPS: readonly CliSubcommandGroup[] = [
   "check",
   "format",
   "lint",
+  "test",
   "package",
   "completion",
   "docs",

@@ -118,6 +118,10 @@ const CLI_JSON_ERROR_CODE_LISTS = [
     ],
   },
   {
+    name: "test",
+    codes: ["BPL_TEST_NO_INPUTS", "BPL_TEST_PROCESSING_ERROR"],
+  },
+  {
     name: "project-new",
     codes: [
       "BPL_NEW_NAME_PATH",
