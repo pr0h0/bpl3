@@ -1054,16 +1054,19 @@ payload with an incompatible shape.
 
 For quick testing without files:
 
-- `-e, --eval <code>`: Compile code passed directly on the command line. It
-  prints the LLVM IR (or the `--emit` output) rather than running the program;
-  to run a snippet, write it to a file and use `bpl run`
-- `--stdin`: Compile code read from standard input
+- `-e, --eval <code>`: Compile and run code passed directly on the command
+  line, like `bpl run`; the command exits with the program's status. Add
+  `--emit llvm` to print the LLVM IR instead, or another `--emit` type.
+- `--stdin`: Compile and run code read from standard input, the same way
 
 **Examples:**
 
 ```bash
-# Evaluate code directly
+# Run code directly
 bpl -e 'frame main() ret int { return 0; }'
+
+# Print its LLVM IR instead
+bpl -e 'frame main() ret int { return 0; }' --emit llvm
 
 # Read from stdin
 cat hello.bpl | bpl --stdin
@@ -1072,9 +1075,10 @@ cat hello.bpl | bpl --stdin
 bpl -e 'frame main() { }' --emit ast
 ```
 
-Virtual-source LLVM is printed to stdout when `-o` is omitted. The compiler
-still validates the generated IR through the configured backend, but removes
-its temporary LLVM and executable files before returning. Pass `-o <path>` to
+With `--emit llvm` and no `-o`, virtual-source LLVM is printed to stdout. The
+compiler still validates the generated IR through the configured backend, and
+whether it runs or prints, it removes its temporary LLVM and executable files
+before returning. Pass `-o <path>` to
 retain artifacts. With `--json`, inline IR is available at
 `output.inlineLlvm`.
 
@@ -1199,7 +1203,7 @@ Executable builds emit only the functions and methods reachable from `main`
 `std` does not compile everything it re-exports. `bpl file.bpl` and `bpl build`
 both do this; the IR file written next to the executable is the reduced IR.
 An explicit `--emit llvm` keeps every function in the IR, as do `--shared`,
-`--cache`, `--debug`/`--dwarf`, and `--eval`/`--stdin`, which print IR.
+`--cache` and `--debug`/`--dwarf`; `--eval`/`--stdin` follow the same rule.
 
 **Examples:**
 

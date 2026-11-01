@@ -326,10 +326,10 @@ bpl -e 'frame main() ret int { return 0; }'
 cat examples/hello-world/main.bpl | bpl --stdin
 ```
 
-`--emit tokens|ast|formatted|llvm` works with both `-e` and `--stdin`;
-diagnostics label source locations as `<eval>` or `<stdin>`. Without `-o`,
-LLVM is printed to stdout after backend validation and the compiler removes its
-temporary artifacts. Use `-o <path>` to retain generated files. JSON mode
+Both run the program like `bpl run` and exit with its status. Add
+`--emit llvm` to print the LLVM IR instead; `--emit tokens|ast|formatted` also
+work. Diagnostics label source locations as `<eval>` or `<stdin>`. Without
+`-o`, the compiler removes its temporary artifacts. Use `-o <path>` to retain generated files. JSON mode
 places virtual-source IR in `output.inlineLlvm`.
 
 ## Project Structure

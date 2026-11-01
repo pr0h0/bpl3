@@ -505,12 +505,43 @@ describe("CLI Tests", () => {
     expect(result.stderr).not.toContain("No input files specified");
   });
 
-  it("should emit virtual-source LLVM without leaving cwd artifacts", () => {
-    const source = "frame main() ret int { return 0; }";
+  it("should run virtual-source programs without leaving cwd artifacts", () => {
+    const source =
+      'extern printf(fmt: string, ...) ret int; frame main() ret int { printf("snippet ran\\n"); return 7; }';
 
     for (const input of [
       { args: ["--eval", source], stdin: undefined },
       { args: ["--stdin"], stdin: source },
+    ]) {
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "bpl-virtual-run-output-"),
+      );
+
+      try {
+        const result = spawnSync("bun", [BPL_CLI, ...input.args], {
+          cwd: tempDir,
+          input: input.stdin,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        });
+
+        // The program's output and exit status, not its IR.
+        expect(result.status).toBe(7);
+        expect(result.stderr).toBe("");
+        expect(result.stdout).toBe("snippet ran\n");
+        expect(fs.readdirSync(tempDir)).toEqual([]);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it("should emit virtual-source LLVM for an explicit --emit llvm without leaving cwd artifacts", () => {
+    const source = "frame main() ret int { return 0; }";
+
+    for (const input of [
+      { args: ["--eval", source, "--emit", "llvm"], stdin: undefined },
+      { args: ["--stdin", "--emit", "llvm"], stdin: source },
     ]) {
       const tempDir = fs.mkdtempSync(
         path.join(os.tmpdir(), "bpl-virtual-llvm-output-"),

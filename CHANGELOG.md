@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl -e '<code>'` and `bpl --stdin` compile and run the program like
+  `bpl run` and exit with its status, instead of printing its LLVM IR;
+  `--emit llvm` prints the IR as before, and `-o`, `--json` and the other
+  `--emit` types are unchanged.
 - bpl-express (BUG-461): a plain HTTP client that sends part of a request and
   stalls no longer holds a worker until the request deadline. The accept loop
   assembles each pending connection's request and serves it once complete,

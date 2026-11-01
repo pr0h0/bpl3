@@ -22,9 +22,12 @@ export function configureRootOptions(program: Command): Command {
     .argument("[files...]", "source file(s) to compile")
     .option(
       "-e, --eval <code>",
-      "compile BPL code given as a string (prints LLVM IR; see --emit)",
+      "compile and run BPL code given as a string (--emit llvm prints its IR)",
     )
-    .option("--stdin", "read BPL code from stdin")
+    .option(
+      "--stdin",
+      "compile and run BPL code read from stdin (--emit llvm prints its IR)",
+    )
     .option("-o, --output <file>", "output file path")
     .option("--emit <type>", "emit type: llvm, ast, tokens, formatted", "llvm")
     .option("-d, --dwarf", "generate DWARF debug information")
