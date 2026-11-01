@@ -8,12 +8,6 @@ import [Array] from "std/array.bpl";
 extern printf(fmt: string, ...);
 extern strcmp(s1: string, s2: string) ret int;
 
-frame use_value(v: Value) {
-    local p: *Value = &v;
-    if (p == nullptr) {
-    }
-}
-
 frame compare_values(v1: *Value, v2: *Value) ret int {
     return match (v1[0]) {
         Value.Int(i1) => {

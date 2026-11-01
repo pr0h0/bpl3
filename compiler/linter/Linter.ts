@@ -20,6 +20,8 @@ export interface LintRule {
 }
 
 export interface LintContext {
+  /** The linted file's text, when the caller provided it. */
+  source?: string;
   report(
     message: string,
     node: AST.ASTNode,
@@ -44,6 +46,7 @@ export class Linter {
     this.rules.push(new SelfAssignmentRule());
     this.rules.push(new SelfComparisonRule());
     this.rules.push(new DuplicateConditionRule());
+    this.rules.push(new EmptyBranchRule());
   }
 
   /**
@@ -53,6 +56,7 @@ export class Linter {
   public lint(program: AST.Program, source?: string): CompilerError[] {
     this.errors = [];
     const context: LintContext = {
+      source,
       report: (
         message,
         node,
@@ -870,6 +874,74 @@ function conditionKey(expression: AST.Expression): string | undefined {
     default:
       return undefined;
   }
+}
+
+/**
+ * L008: an `if` or `else` whose block is empty, so the branch does nothing.
+ * A block holding only a comment is deliberate and is not reported; without
+ * the source text comments cannot be seen, so nothing is reported.
+ */
+class EmptyBranchRule implements LintRule {
+  code = "L008";
+  name = "empty-branch";
+
+  check(node: AST.ASTNode, context: LintContext) {
+    if (node.kind !== "If" || context.source === undefined) return;
+    const statement = node as AST.IfStmt;
+    if (isEmptyBlock(statement.thenBranch, context.source)) {
+      context.report(
+        "This if has an empty body",
+        statement.thenBranch,
+        DiagnosticSeverity.Warning,
+        this.code,
+        statement.elseBranch
+          ? "Invert the condition and keep only the else branch, or add a comment saying why nothing is done."
+          : "Remove the if, or add a comment saying why nothing is done.",
+      );
+    }
+    if (
+      statement.elseBranch &&
+      isEmptyBlock(statement.elseBranch, context.source)
+    ) {
+      context.report(
+        "This else has an empty body",
+        statement.elseBranch,
+        DiagnosticSeverity.Warning,
+        this.code,
+        "Remove the else, or add a comment saying why nothing is done.",
+      );
+    }
+  }
+}
+
+/** A written `{ }` block with no statements and no comment inside. */
+function isEmptyBlock(statement: AST.Statement, source: string): boolean {
+  if (statement.kind !== "Block") return false;
+  const block = statement as AST.BlockStmt;
+  if (block.synthesized || block.statements.length > 0) return false;
+  const text = sourceText(source, block.location);
+  return text !== undefined && !text.includes("#");
+}
+
+/** The text a location covers, or undefined if it lies outside `source`. */
+function sourceText(
+  source: string,
+  location: AST.ASTNode["location"],
+): string | undefined {
+  if (!location) return undefined;
+  const lineStarts = [0];
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i];
+    if (c === "\r" && source[i + 1] === "\n") continue;
+    if (c === "\n" || c === "\r") lineStarts.push(i + 1);
+  }
+  const start = lineStarts[location.startLine - 1];
+  const end = lineStarts[location.endLine - 1];
+  if (start === undefined || end === undefined) return undefined;
+  return source.slice(
+    start + location.startColumn - 1,
+    end + location.endColumn - 1,
+  );
 }
 
 class NamingConventionRule implements LintRule {

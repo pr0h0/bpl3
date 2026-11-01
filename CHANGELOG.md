@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Lint rule `L008` reports an `if` or `else` with an empty block; a block
+  holding only a comment is not reported. Dead empty branches in `bpl-db`
+  and `bpl-templ` are removed.
 - `UUID.v7()` and `UUID.tryV7()` generate time-ordered v7 UUIDs (RFC 9562),
   increasing within a process even in one millisecond, and
   `uuid.timestampMs()` reads their time.
