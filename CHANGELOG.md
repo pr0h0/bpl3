@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `std/hmac.bpl` adds `HmacSha512` (also exported by `std`), HMAC over
+  SHA-512 with the same streaming and one-call interface as `Hmac`.
 - `Regex` adds `countMatches`, `replaceAll` and `replaceFirst`, which count or
   replace non-overlapping matches with the same empty-match rules as Perl and
   Python.

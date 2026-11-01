@@ -617,6 +617,16 @@ frame main() ret int {
 }
 ```
 
+`HmacSha512` is the same construction over `Sha512`: keys longer than its
+128-byte block are hashed first, MACs are 64 bytes, and `hex` returns a
+128-character string. Compare its MACs with `Hmac.equal(a, b, 64)`.
+
+- `HmacSha512.new(key: *u8, keyLength: long) ret HmacSha512`
+- `context.update(data: *u8, length: long)`
+- `context.finish(mac: *u8)` — writes 64 bytes
+- `HmacSha512.digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)`
+- `HmacSha512.hex(key: string, message: string) ret string`
+
 ### Entropy (`std/entropy.bpl`)
 
 Cryptographically secure random bytes from the operating system

@@ -1254,6 +1254,7 @@ Exports:
 
 ```bpl
 export [Hmac];
+export [HmacSha512];
 ```
 
 ### Hmac
@@ -1268,6 +1269,19 @@ frame finish(this: *Hmac, mac: *u8)
 frame digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)
 frame hex(key: string, message: string) ret string
 frame equal(a: *u8, b: *u8, length: long) ret bool
+```
+
+### HmacSha512
+
+```bpl
+struct HmacSha512
+inner: Sha512
+outerKey: u8[128]
+frame new(key: *u8, keyLength: long) ret HmacSha512
+frame update(this: *HmacSha512, data: *u8, length: long)
+frame finish(this: *HmacSha512, mac: *u8)
+frame digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)
+frame hex(key: string, message: string) ret string
 ```
 
 ## std/intrinsics.bpl
@@ -2957,6 +2971,7 @@ export [Sha512];
 export [Regex];
 export [BigInt];
 export [Hmac];
+export [HmacSha512];
 export [Entropy];
 export [UUID];
 export [Stats];
