@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- docs/67-testing.md is a guide to writing and running tests with `bpl test`
+  and `std/assert.bpl`.
 - `std/assert.bpl` adds `isTrue`, `isFalse`, `fail`, `equalInt`, `equalLong`,
   `equalString` and `near`; the comparison helpers print the expected and
   actual values when they fail.
