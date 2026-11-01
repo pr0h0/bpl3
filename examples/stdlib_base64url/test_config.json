@@ -1,0 +1,14 @@
+{
+  "expectedOutput": [
+    "[] -> [] -> []",
+    "[f] -> [Zg] -> [f]",
+    "[fo] -> [Zm8] -> [fo]",
+    "[foo] -> [Zm9v] -> [foo]",
+    "[foob] -> [Zm9vYg] -> [foob]",
+    "[hello?world/>] -> [aGVsbG8_d29ybGQvPg] -> [hello?world/>]",
+    "bytes -_-_",
+    "decoded 3 251 255 191",
+    "padded fo",
+    "invalid -1 -1"
+  ]
+}
