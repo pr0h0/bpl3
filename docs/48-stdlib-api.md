@@ -611,6 +611,9 @@ falling back to weaker randomness. `below` draws without modulo bias.
 - `Entropy.bytes(buffer: *u8, length: long)`
 - `Entropy.nextULong() ret ulong`
 - `Entropy.below(bound: ulong) ret ulong` — in `[0, bound)`; throws for 0
+- `Entropy.hexToken(byteCount: int) ret string` — `byteCount` random bytes as
+  lowercase hex, for session ids, CSRF tokens and nonces (16 bytes give 128
+  bits); caller frees
 
 ---
 

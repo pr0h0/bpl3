@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `Entropy.hexToken(byteCount)` returns that many secure random bytes as hex,
+  for session ids, CSRF tokens and nonces.
 - `std/sha512.bpl` adds SHA-512 digests (`Sha512`, also exported by `std`)
   with the same streaming and one-call interface as `Sha256`.
 - Lint rule `L007` reports an `else if` whose condition repeats an earlier
