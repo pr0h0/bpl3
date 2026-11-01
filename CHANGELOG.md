@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `std/base64.bpl` encodes and decodes URL-safe Base64 without padding
+  (`encodeUrl`, `encodeStringUrl`, `decodeUrl`, `decodeUrlToString`).
 - `BigInt` gains `abs`, `pow` (by repeated squaring), `gcd` (Euclid) and
   `toLong`, which reports whether the value fits in a `long`.
 - Struct-variant fields in patterns take nested patterns, like tuple-variant

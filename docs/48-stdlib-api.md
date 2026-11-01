@@ -349,6 +349,17 @@ Base64 encoding uses the same checked length calculation before allocating its
 output. `encodeString` checks the byte length before converting it to `int`.
 An allocation failure returns `nullptr`.
 
+URL-safe Base64 (RFC 4648 section 5) uses `-` and `_` and leaves out the `=`
+padding, as in JWTs and URLs. `encodeUrl` and `encodeStringUrl` produce it;
+`decodeUrl` and `decodeUrlToString` accept it with or without padding and
+return `-1` or `nullptr` for input of a length of 1 mod 4 or with characters
+outside the alphabets.
+
+- `Base64.encodeUrl(data: *u8, length: int) ret string`
+- `Base64.encodeStringUrl(str: string) ret string`
+- `Base64.decodeUrl(input: string, output: *u8) ret int`
+- `Base64.decodeUrlToString(input: string) ret string`
+
 ### Hex (`std/hex.bpl`)
 
 Hexadecimal encoding and decoding.

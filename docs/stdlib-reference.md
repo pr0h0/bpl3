@@ -336,6 +336,11 @@ frame scan(input: string, output: *u8, write: bool) ret int
 frame decode(input: string, output: *u8) ret int
 frame decodeToString(input: string) ret string
 frame decodedLength(input: string) ret int
+frame encodeUrl(data: *u8, length: int) ret string
+frame encodeStringUrl(str: string) ret string
+frame padded(input: string) ret string
+frame decodeUrl(input: string, output: *u8) ret int
+frame decodeUrlToString(input: string) ret string
 frame encodedLength(inputLen: int) ret int
 frame isValid(input: string) ret bool
 ```
