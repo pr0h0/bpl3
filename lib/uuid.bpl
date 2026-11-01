@@ -2,7 +2,7 @@
 
 export [UUID];
 
-extern getentropy(buffer: *void, length: ulong) ret int;
+import [Entropy] from "std/entropy.bpl";
 
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
@@ -25,7 +25,7 @@ struct UUID {
             return false;
         }
         local uuid: UUID;
-        if (getentropy(cast<*void>(&uuid.bytes[0]), 16) != 0) {
+        if (!Entropy.fill(&uuid.bytes[0], 16)) {
             return false;
         }
 

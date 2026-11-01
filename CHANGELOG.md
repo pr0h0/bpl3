@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `UUID.v4` draws its random bytes through `std/entropy.bpl` instead of its own
+  `getentropy` declaration; behaviour is unchanged.
 - `std/base64.bpl` encodes and decodes URL-safe Base64 without padding
   (`encodeUrl`, `encodeStringUrl`, `decodeUrl`, `decodeUrlToString`).
 - `BigInt` gains `abs`, `pow` (by repeated squaring), `gcd` (Euclid) and
