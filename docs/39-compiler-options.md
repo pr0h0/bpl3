@@ -420,12 +420,17 @@ Warnings fail the run unless `--no-fail-on-warnings` is given.
 
 - `--json`: Output lint diagnostics in JSON format
 - `-v, --verbose`: Verbose output
+- `--no-fail-on-warnings`: Report warnings without failing
+- `--disable <codes>`: Skip the listed rules, comma-separated and
+  case-insensitive (`--disable L003,L008`); repeatable. An unknown code fails
+  the run with `BPL_LINT_UNKNOWN_RULE` before any file is linted.
 
 **Examples:**
 
 ```bash
 bpl lint src/*.bpl
 bpl lint --json src/*.bpl
+bpl lint --disable L001,L008 src/
 ```
 
 ### `bpl test [paths...]`

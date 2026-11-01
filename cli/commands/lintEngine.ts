@@ -5,12 +5,13 @@
 
 import { CompilerError } from "../../compiler/common/CompilerError";
 import { Parser } from "../../compiler/frontend/Parser";
-import { Linter } from "../../compiler/linter/Linter";
+import { LINT_RULE_CODES, Linter } from "../../compiler/linter/Linter";
 
-export { CompilerError };
+export { CompilerError, LINT_RULE_CODES };
 
-export function createLintEngine() {
-  const linter = new Linter();
+/** A lint function that leaves out the diagnostic codes in `disabledCodes`. */
+export function createLintEngine(disabledCodes: readonly string[] = []) {
+  const linter = new Linter([], new Set(disabledCodes));
 
   return (content: string, filePath: string): CompilerError[] => {
     const parser = new Parser(content, filePath);

@@ -31,11 +31,30 @@ export interface LintContext {
   ): void;
 }
 
+/** Codes of the built-in lint diagnostics, which `disabledCodes` may name. */
+export const LINT_RULE_CODES: readonly string[] = [
+  "L001",
+  "L002",
+  "L003",
+  "L004",
+  "L005",
+  "L006",
+  "L007",
+  "L008",
+];
+
 export class Linter {
   private rules: LintRule[] = [];
   private errors: CompilerError[] = [];
 
-  constructor(extraRules: LintRule[] = []) {
+  /**
+   * `disabledCodes` lists diagnostic codes (such as `"L003"`) to leave out of
+   * the results.
+   */
+  constructor(
+    extraRules: LintRule[] = [],
+    private readonly disabledCodes: ReadonlySet<string> = new Set(),
+  ) {
     this.registerRules();
     this.rules.push(...extraRules);
   }
@@ -75,7 +94,10 @@ export class Linter {
       reportUnusedImports(program, source, context);
       reportUnusedPrivateFunctions(program, source, context);
     }
-    return this.errors;
+    if (this.disabledCodes.size === 0) return this.errors;
+    return this.errors.filter(
+      (error) => !this.disabledCodes.has(error.code ?? ""),
+    );
   }
 
   private visit(node: AST.ASTNode, context: LintContext) {

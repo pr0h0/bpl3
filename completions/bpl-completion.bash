@@ -17,7 +17,7 @@ _bpl_completion() {
 
     # Values of options that take one
     case "${prev}" in
-        -e|--eval|--cpu|--march|--clang-flag|-l|--lib|-j|--jobs|-O|--indent-width|-f|--filter|--package-version)
+        -e|--eval|--cpu|--march|--clang-flag|-l|--lib|-j|--jobs|-O|--indent-width|--disable|-f|--filter|--package-version)
             return 0
             ;;
         -o|--output|--debug-ir-path|--header|--stdin-filepath|--config)
@@ -126,7 +126,7 @@ _bpl_completion() {
             ;;
         lint)
             if [[ "$cur" == -* ]]; then
-                COMPREPLY=( $(compgen -W "--stdin-filepath -v --verbose --no-fail-on-warnings --json -h --help" -- "${cur}") )
+                COMPREPLY=( $(compgen -W "--stdin-filepath -v --verbose --no-fail-on-warnings --json --disable -h --help" -- "${cur}") )
                 return 0
             fi
             while IFS= read -r match; do

@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl lint --disable <codes>` skips the listed rules (comma-separated,
+  case-insensitive, repeatable); an unknown code fails with
+  `BPL_LINT_UNKNOWN_RULE`.
+
 - `std/url.bpl` adds URL percent-encoding (`Url.encodeComponent`,
   `Url.decode`) and HTML form encoding (`Url.encodeForm`, `Url.decodeForm`);
   `std` re-exports `Url`.

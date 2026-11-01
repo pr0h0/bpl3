@@ -21,6 +21,7 @@ import {
   LINT_INPUT_SYMLINK_CODE,
   LINT_NO_INPUTS_CODE,
   LINT_PROCESSING_ERROR_CODE,
+  LINT_UNKNOWN_RULE_CODE,
 } from "./lint";
 
 const log = new Logger("Lint");
@@ -63,9 +64,19 @@ export async function runLintCommand(
       LINT_NO_INPUTS_CODE,
     );
   }
+  const { CompilerError, createLintEngine, LINT_RULE_CODES } =
+    await import("./lintEngine");
+  const disabled = parseDisabledRules(options.disable ?? []);
+  const unknown = disabled.filter((code) => !LINT_RULE_CODES.includes(code));
+  if (unknown.length > 0) {
+    exitLintInputFailure(
+      options.json,
+      `Unknown lint rule ${unknown.join(", ")}; known rules are ${LINT_RULE_CODES.join(", ")}.`,
+      LINT_UNKNOWN_RULE_CODE,
+    );
+  }
   const stdin = files.includes("-") ? fs.readFileSync(0, "utf8") : undefined;
-  const { CompilerError, createLintEngine } = await import("./lintEngine");
-  const lintSource = createLintEngine();
+  const lintSource = createLintEngine(disabled);
   let hasErrors = false;
   const results: Array<{
     file: string;
@@ -215,4 +226,12 @@ function exitLintInputFailure(
     log.error(message);
   }
   process.exit(1);
+}
+
+/** `--disable` values, split on commas, trimmed and upper-cased. */
+function parseDisabledRules(values: readonly string[]): string[] {
+  return values
+    .flatMap((value) => value.split(","))
+    .map((code) => code.trim().toUpperCase())
+    .filter((code) => code.length > 0);
 }
