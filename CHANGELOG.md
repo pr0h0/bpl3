@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- VS Code extension toolchain (BUG-449): TypeScript 5.9 and `@types/node` 20,
+  `@vscode/vsce` as a declared dev dependency behind `npm run package`, a
+  `.vscodeignore`, one lockfile (`package-lock.json`), and the JSON schemas and
+  grammar copied into `out/` when compiling instead of committed duplicates.
 - The repository is formatted (BUG-448): Prettier over the TypeScript,
   Markdown and JSON files and `bpl format` over `lib/`, `packages/` (archives
   repacked) and `examples/`, landed in several PRs of at most 100 files.

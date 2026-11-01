@@ -68,7 +68,7 @@ If you prefer to build and install manually:
 
    ```bash
    cd vscode-ext
-   npm install
+   npm ci
    ```
 
 2. **Compile**:
@@ -77,11 +77,17 @@ If you prefer to build and install manually:
    npm run compile
    ```
 
+   Compiling also copies the grammar and the JSON schemas from the repository's
+   `grammar/` and `schemas/` directories into `out/`
+   (`scripts/copy-assets.js`); those directories hold the only checked-in
+   copies.
+
 3. **Package**:
-   Generate the `.vsix` file:
+   Generate the `.vsix` file with the declared `@vscode/vsce` dependency
+   (`.vscodeignore` leaves sources, tests and source maps out):
 
    ```bash
-   npx @vscode/vsce package
+   npm run package
    ```
 
 4. **Install**:
@@ -96,7 +102,7 @@ If you prefer to build and install manually:
 To contribute or debug the extension:
 
 1. Open the `vscode-ext` folder in VS Code.
-2. Run `npm install`.
+2. Run `npm ci` and `npm run compile`.
 3. Press `F5` to launch a new **Extension Development Host** window with the extension loaded.
 4. Open a `.bpl` file in the new window to test features.
 

@@ -12,12 +12,13 @@ test("formatter schema ships with the compiler and editor and matches API defaul
     path.join(root, "schemas/bpl-format.schema.json"),
     "utf8",
   );
+  // The extension copies this file into out/schemas/ when it compiles.
   expect(
     fs.readFileSync(
-      path.join(root, "vscode-ext/bpl-format.schema.json"),
+      path.join(root, "vscode-ext/scripts/copy-assets.js"),
       "utf8",
     ),
-  ).toBe(source);
+  ).toContain('"schemas/bpl-format.schema.json"');
   const schema = JSON.parse(source);
   const defaults = Object.fromEntries(
     Object.entries(schema.properties)
