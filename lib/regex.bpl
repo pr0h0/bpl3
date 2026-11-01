@@ -584,4 +584,112 @@ struct Regex {
         local end: long = 0;
         return this.find(text, 0, &start, &end);
     }
+
+    # The search position after a match from `start` to `end`. An empty
+    # match moves one byte on so the scan always advances; after a non-empty
+    # match an empty match at its end is still found, as in Perl and Python.
+    frame nextSearch(start: long, end: long) ret long {
+        if (end == start) {
+            return end + 1;
+        }
+        return end;
+    }
+
+    # The number of non-overlapping matches in `text`.
+    frame countMatches(this: *Regex, text: string) ret long {
+        local length: long = strlen(text);
+        local found: long = 0;
+        local at: long = 0;
+        local start: long = 0;
+        local end: long = 0;
+        loop ((at <= length) && this.find(text, at, &start, &end)) {
+            found = found + 1;
+            at = Regex.nextSearch(start, end);
+        }
+        return found;
+    }
+
+    # `text` with each non-overlapping match replaced by `replacement`, which
+    # is copied literally. Returns a newly allocated string (caller must
+    # free), or nullptr if allocation fails.
+    frame replaceAll(this: *Regex, text: string, replacement: string) ret string {
+        return this.replace(text, replacement, -1);
+    }
+
+    # `text` with its first match replaced by `replacement` (caller must
+    # free), or nullptr if allocation fails.
+    frame replaceFirst(this: *Regex, text: string, replacement: string) ret string {
+        return this.replace(text, replacement, 1);
+    }
+
+    # Replaces up to `limit` matches, or all of them when `limit` is negative.
+    frame replace(this: *Regex, text: string, replacement: string, limit: long) ret string {
+        local length: long = strlen(text);
+        local replacementLength: long = strlen(replacement);
+        local capacity: long = length + 1;
+        local output: *u8 = cast<*u8>(malloc(capacity));
+        if (output == nullptr) {
+            return cast<string>(nullptr);
+        }
+        local used: long = 0;
+        local copied: long = 0;
+        local at: long = 0;
+        local replaced: long = 0;
+        local start: long = 0;
+        local end: long = 0;
+        loop ((at <= length) && ((limit < 0) || (replaced < limit)) && this.find(text, at, &start, &end)) {
+            # Text before the match, the replacement, and for an empty match
+            # the byte it stands before.
+            local keepEnd: long = start;
+            if ((end == start) && (start < length)) {
+                keepEnd = start + 1;
+            }
+            local needed: long = used + (start - copied) + replacementLength + (keepEnd - start) + 1;
+            if (needed > capacity) {
+                loop (capacity < needed) {
+                    capacity = capacity * 2;
+                }
+                local grown: *u8 = cast<*u8>(realloc(cast<*void>(output), capacity));
+                if (grown == nullptr) {
+                    free(cast<*void>(output));
+                    return cast<string>(nullptr);
+                }
+                output = grown;
+            }
+            loop (local i: long = copied; i < start; i = i + 1) {
+                *(output + used) = cast<u8>(text[i]);
+                used = used + 1;
+            }
+            loop (local r: long = 0; r < replacementLength; r = r + 1) {
+                *(output + used) = cast<u8>(replacement[r]);
+                used = used + 1;
+            }
+            loop (local k: long = start; k < keepEnd; k = k + 1) {
+                *(output + used) = cast<u8>(text[k]);
+                used = used + 1;
+            }
+            copied = end;
+            if (keepEnd > end) {
+                copied = keepEnd;
+            }
+            replaced = replaced + 1;
+            at = Regex.nextSearch(start, end);
+        }
+        local rest: long = length - copied;
+        if ((used + rest + 1) > capacity) {
+            capacity = used + rest + 1;
+            local grown: *u8 = cast<*u8>(realloc(cast<*void>(output), capacity));
+            if (grown == nullptr) {
+                free(cast<*void>(output));
+                return cast<string>(nullptr);
+            }
+            output = grown;
+        }
+        loop (local i: long = copied; i < length; i = i + 1) {
+            *(output + used) = cast<u8>(text[i]);
+            used = used + 1;
+        }
+        *(output + used) = cast<u8>(0);
+        return cast<string>(output);
+    }
 }

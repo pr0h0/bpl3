@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `Regex` adds `countMatches`, `replaceAll` and `replaceFirst`, which count or
+  replace non-overlapping matches with the same empty-match rules as Perl and
+  Python.
 - Lint rule `L008` reports an `if` or `else` with an empty block; a block
   holding only a comment is not reported. Dead empty branches in `bpl-db`
   and `bpl-templ` are removed.
