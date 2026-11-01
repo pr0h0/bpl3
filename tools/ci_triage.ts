@@ -123,6 +123,7 @@ const MAPPED_JSON_CODE_GROUP_NAMES = [
   "type-checker",
   "run-script",
   "sanitizer-runtime",
+  "test",
   "wasm-linker",
 ] as const;
 
@@ -973,6 +974,7 @@ const RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   "i",
 );
 const LINT_DISCOVERY_STEP_PATTERN = /BPL_LINT_PROCESSING_ERROR|lint discovery/i;
+const TEST_COMMAND_STEP_PATTERN = /BPL_TEST_[A-Z_]+|bpl test/i;
 const CHECK_DISCOVERY_STEP_PATTERN =
   /BPL_CHECK_PROCESSING_ERROR|check discovery/i;
 const SOURCE_ANALYSIS_NO_INPUT_STEP_PATTERN = new RegExp(
@@ -2271,6 +2273,8 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     "bun test tests/CLILintDiscoveryErrors.test.ts",
   ],
   [LINT_DISCOVERY_STEP_PATTERN, "bun run check"],
+  [TEST_COMMAND_STEP_PATTERN, "bun test tests/TestCommand.test.ts"],
+  [TEST_COMMAND_STEP_PATTERN, "bun run check"],
   [CHECK_DISCOVERY_STEP_PATTERN, "bun test tests/CheckDirectories.test.ts"],
   [CHECK_DISCOVERY_STEP_PATTERN, "bun run check"],
   [
