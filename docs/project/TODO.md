@@ -108,7 +108,8 @@ all related enhancements or platform support are complete.
       `lib/process.bpl`. There is no streaming/interactive child I/O, signal
       API or Windows support.
 - [x] Leveled logging in `lib/log.bpl`: a minimum level (also from
-      `BPL_LOG_LEVEL`), level prefixes, and standard output or standard error.
+      `BPL_LOG_LEVEL`), level prefixes, UTC timestamps, and standard output or
+      standard error.
       Structured formatters and other output targets remain open.
 - [x] Explicit arena/page/pool/stack allocators in `lib/memory/`, including arena
       reset/reuse (`tests/StdlibArenaReset.test.ts`). Allocation remains manual;
