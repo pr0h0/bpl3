@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 67 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 69 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -34,12 +34,14 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/debug.bpl](../lib/debug.bpl)
 - [std/deque.bpl](../lib/deque.bpl)
 - [std/diagnostics.bpl](../lib/diagnostics.bpl)
+- [std/entropy.bpl](../lib/entropy.bpl)
 - [std/env.bpl](../lib/env.bpl)
 - [std/errors.bpl](../lib/errors.bpl)
 - [std/fmt.bpl](../lib/fmt.bpl)
 - [std/fs.bpl](../lib/fs.bpl)
 - [std/hash.bpl](../lib/hash.bpl)
 - [std/hex.bpl](../lib/hex.bpl)
+- [std/hmac.bpl](../lib/hmac.bpl)
 - [std/intrinsics.bpl](../lib/intrinsics.bpl)
 - [std/io.bpl](../lib/io.bpl)
 - [std/iter.bpl](../lib/iter.bpl)
@@ -944,6 +946,26 @@ frame _printSnippet(this: *DiagnosticReporter, line: int, col: int, start: int, 
 frame destroy(this: *DiagnosticReporter)
 ```
 
+## std/entropy.bpl
+
+[Source](../lib/entropy.bpl)
+
+Exports:
+
+```bpl
+export [Entropy];
+```
+
+### Entropy
+
+```bpl
+struct Entropy
+frame fill(buffer: *u8, length: long) ret bool
+frame bytes(buffer: *u8, length: long)
+frame nextULong() ret ulong
+frame below(bound: ulong) ret ulong
+```
+
 ## std/env.bpl
 
 [Source](../lib/env.bpl)
@@ -1196,6 +1218,30 @@ frame u32ToHex(val: u32) ret string
 frame u64ToHex(val: u64) ret string
 frame isValid(input: string) ret bool
 frame decodedLength(input: string) ret int
+```
+
+## std/hmac.bpl
+
+[Source](../lib/hmac.bpl)
+
+Exports:
+
+```bpl
+export [Hmac];
+```
+
+### Hmac
+
+```bpl
+struct Hmac
+inner: Sha256
+outerKey: u8[64]
+frame sha256(key: *u8, keyLength: long) ret Hmac
+frame update(this: *Hmac, data: *u8, length: long)
+frame finish(this: *Hmac, mac: *u8)
+frame digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)
+frame hex(key: string, message: string) ret string
+frame equal(a: *u8, b: *u8, length: long) ret bool
 ```
 
 ## std/intrinsics.bpl
@@ -2777,6 +2823,8 @@ export [ByteWriter];
 export [Hash];
 export [Sha256];
 export [BigInt];
+export [Hmac];
+export [Entropy];
 export [UUID];
 export [Stats];
 export [Complex];

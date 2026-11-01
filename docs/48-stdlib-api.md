@@ -457,6 +457,48 @@ frame main() ret int {
 }
 ```
 
+### Hmac (`std/hmac.bpl`)
+
+HMAC-SHA256 message authentication codes (RFC 2104), built on `Sha256`. Keys
+longer than the 64-byte block are hashed first. Create a keyed context with
+`Hmac.sha256(key, keyLength)`, feed it with `update`, and call `finish` to
+write the 32-byte MAC; a context cannot be reused after `finish`. `hex` returns
+a caller-owned 64-character lowercase string, or `nullptr` if allocation
+fails. Compare MACs with `Hmac.equal`, which looks at every byte so its timing
+does not reveal where two MACs differ.
+
+- `Hmac.sha256(key: *u8, keyLength: long) ret Hmac`
+- `context.update(data: *u8, length: long)`
+- `context.finish(mac: *u8)` — writes 32 bytes
+- `Hmac.digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)`
+- `Hmac.hex(key: string, message: string) ret string`
+- `Hmac.equal(a: *u8, b: *u8, length: long) ret bool`
+
+```bpl
+import printf, free from "std/c.bpl";
+import [Hmac] from "std/hmac.bpl";
+
+frame main() ret int {
+    local mac: string = Hmac.hex("Jefe", "what do ya want for nothing?");
+    printf("%s\n", mac);
+    free(cast<*void>(mac));
+    return 0;
+}
+```
+
+### Entropy (`std/entropy.bpl`)
+
+Cryptographically secure random bytes from the operating system
+(`getentropy`), for keys, tokens and nonces. `std/rand.bpl` remains the fast,
+seedable generator for simulations. `fill` returns false when the system
+cannot supply entropy; `bytes`, `nextULong` and `below` throw instead of
+falling back to weaker randomness. `below` draws without modulo bias.
+
+- `Entropy.fill(buffer: *u8, length: long) ret bool`
+- `Entropy.bytes(buffer: *u8, length: long)`
+- `Entropy.nextULong() ret ulong`
+- `Entropy.below(bound: ulong) ret ulong` — in `[0, bound)`; throws for 0
+
 ---
 
 ## Data Structures
