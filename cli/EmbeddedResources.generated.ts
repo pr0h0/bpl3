@@ -70,10 +70,11 @@ import lib67 from "../lib/sync.bpl" with { type: "text" };
 import lib68 from "../lib/thread.bpl" with { type: "text" };
 import lib69 from "../lib/time.bpl" with { type: "text" };
 import lib70 from "../lib/type.bpl" with { type: "text" };
-import lib71 from "../lib/utf8.bpl" with { type: "text" };
-import lib72 from "../lib/uuid.bpl" with { type: "text" };
-import lib73 from "../lib/vec2.bpl" with { type: "text" };
-import lib74 from "../lib/vec3.bpl" with { type: "text" };
+import lib71 from "../lib/url.bpl" with { type: "text" };
+import lib72 from "../lib/utf8.bpl" with { type: "text" };
+import lib73 from "../lib/uuid.bpl" with { type: "text" };
+import lib74 from "../lib/vec2.bpl" with { type: "text" };
+import lib75 from "../lib/vec3.bpl" with { type: "text" };
 
 /** Standard library files by path relative to `lib/`. */
 export const EMBEDDED_LIB_FILES: ReadonlyArray<
@@ -150,8 +151,9 @@ export const EMBEDDED_LIB_FILES: ReadonlyArray<
   ["thread.bpl", lib68],
   ["time.bpl", lib69],
   ["type.bpl", lib70],
-  ["utf8.bpl", lib71],
-  ["uuid.bpl", lib72],
-  ["vec2.bpl", lib73],
-  ["vec3.bpl", lib74],
+  ["url.bpl", lib71],
+  ["utf8.bpl", lib72],
+  ["uuid.bpl", lib73],
+  ["vec2.bpl", lib74],
+  ["vec3.bpl", lib75],
 ];

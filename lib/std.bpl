@@ -199,6 +199,9 @@ export [BitSet];
 import [Base64] from "std/base64.bpl";
 export [Base64];
 
+import [Url] from "std/url.bpl";
+export [Url];
+
 import [Hex] from "std/hex.bpl";
 export [Hex];
 

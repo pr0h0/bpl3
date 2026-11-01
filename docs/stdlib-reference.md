@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 72 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 73 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -84,6 +84,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/thread.bpl](../lib/thread.bpl)
 - [std/time.bpl](../lib/time.bpl)
 - [std/type.bpl](../lib/type.bpl)
+- [std/url.bpl](../lib/url.bpl)
 - [std/utf8.bpl](../lib/utf8.bpl)
 - [std/uuid.bpl](../lib/uuid.bpl)
 - [std/vec2.bpl](../lib/vec2.bpl)
@@ -2987,6 +2988,7 @@ export sleep;
 export [ProcessResult];
 export [BitSet];
 export [Base64];
+export [Url];
 export [Hex];
 export [ByteReader];
 export [ByteWriter];
@@ -3242,6 +3244,30 @@ frame destroy(this: *Type)
 struct Any
 type_info: *TypeInfo
 data: u64
+```
+
+## std/url.bpl
+
+[Source](../lib/url.bpl)
+
+Exports:
+
+```bpl
+export [Url];
+```
+
+### Url
+
+```bpl
+struct Url
+frame encodeComponent(text: string) ret string
+frame encodeForm(text: string) ret string
+frame decode(text: string) ret string
+frame decodeForm(text: string) ret string
+frame isUnreserved(c: int) ret bool
+frame hexValue(c: int) ret int
+frame encode(text: string, spaceAsPlus: bool) ret string
+frame decodeWith(text: string, plusAsSpace: bool) ret string
 ```
 
 ## std/utf8.bpl

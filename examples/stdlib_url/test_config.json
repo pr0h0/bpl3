@@ -1,0 +1,14 @@
+{
+  "expectedOutput": [
+    "component: [Hello%20World%2F%C3%A4%3Fx%3D1%26y%3D~2]",
+    "form: [Hello+World%2F%C3%A4%3Fx%3D1%26y%3D~2]",
+    "unreserved: [AZaz09-_.~]",
+    "empty: []",
+    "decode: [Hello World/ä?x=1+y]",
+    "decode form: [Hello World/ä?x=1+y]",
+    "round trip: [a b+c&d=é]",
+    "truncated: null",
+    "bad hex: null",
+    "nul: null"
+  ]
+}
