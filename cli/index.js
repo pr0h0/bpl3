@@ -115,6 +115,7 @@ const CLI_JSON_ERROR_CODE_LISTS = [
       "BPL_LINT_INPUT_NOT_FILE",
       "BPL_LINT_NO_INPUTS",
       "BPL_LINT_PROCESSING_ERROR",
+      "BPL_LINT_UNKNOWN_RULE",
     ],
   },
   {

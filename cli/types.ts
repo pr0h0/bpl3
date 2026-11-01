@@ -72,6 +72,8 @@ export interface FormatOptions {
  */
 export interface LintOptions {
   stdinFilepath?: string;
+  /** Lint codes to skip; each entry may hold several, comma-separated. */
+  disable?: string[];
   failOnWarnings?: boolean;
   verbose?: boolean;
   json?: boolean;
