@@ -179,8 +179,9 @@ export [JsonToResult];
 export [JsonParseResult];
 export [Jsonable];
 
-import [Log] from "std/log.bpl";
+import [Log], [LogLevel] from "std/log.bpl";
 export [Log];
+export [LogLevel];
 
 import exec, execStatus, execOutput, execShell, execSilent, sleep, [ProcessResult] from "std/process.bpl";
 export exec;

@@ -1643,6 +1643,18 @@ Exports:
 
 ```bpl
 export [Log];
+export [LogLevel];
+```
+
+### LogLevel
+
+```bpl
+enum LogLevel
+Debug
+Info
+Warn
+Error
+Off
 ```
 
 ### Log
@@ -1653,6 +1665,12 @@ frame debug(msg: string)
 frame info(msg: string)
 frame warn(msg: string)
 frame error(msg: string)
+frame write(level: LogLevel, msg: string)
+frame setLevel(level: LogLevel)
+frame enabled(level: LogLevel) ret bool
+frame setPrefix(enabled: bool)
+frame useStderr(enabled: bool)
+frame levelFromEnv() ret bool
 ```
 
 ## std/map.bpl
@@ -2875,6 +2893,7 @@ export [JsonToResult];
 export [JsonParseResult];
 export [Jsonable];
 export [Log];
+export [LogLevel];
 export exec;
 export execStatus;
 export execOutput;

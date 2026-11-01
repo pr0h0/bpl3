@@ -88,8 +88,35 @@ ownership, hooks, supported types, and known failures.
 
 ### Logging (`std/log.bpl`)
 
-`Log.debug`, `Log.info`, `Log.warn`, and `Log.error` are available through
-`std` and currently write through the standard IO log path.
+`Log.debug`, `Log.info`, `Log.warn`, and `Log.error` write one line each;
+`Log.write(level, msg)` takes the level as a `LogLevel` (`Debug`, `Info`,
+`Warn`, `Error`, `Off`). Both types are also exported by `std`.
+
+- `Log.setLevel(LogLevel.Warn)` drops less severe messages, and
+  `LogLevel.Off` drops all of them. `Log.enabled(level)` tells whether a
+  message at `level` would be written, so expensive messages can be skipped.
+- `Log.levelFromEnv()` sets the level from `BPL_LOG_LEVEL` (`debug`, `info`,
+  `warn`, `error` or `off`, lower or upper case) and returns false, leaving
+  the level unchanged, when the variable is unset or unrecognized.
+- `Log.setPrefix(true)` starts each line with `[DEBUG] `, `[INFO] `,
+  `[WARN] ` or `[ERROR] `.
+- `Log.useStderr(true)` writes to standard error instead of standard output.
+
+By default every level is written to standard output without a prefix. The
+settings are process-wide.
+
+```bpl
+import [Log], [LogLevel] from "std/log.bpl";
+
+frame main() ret int {
+    Log.setPrefix(true);
+    Log.setLevel(LogLevel.Info);
+    Log.levelFromEnv();
+    Log.debug("hidden unless BPL_LOG_LEVEL=debug");
+    Log.info("started");
+    return 0;
+}
+```
 
 ---
 
