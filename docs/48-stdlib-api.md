@@ -597,6 +597,24 @@ frame main() ret int {
 }
 ```
 
+### Sha1 (`std/sha1.bpl`)
+
+SHA-1 digests (FIPS 180-4), with the same interface as `Sha256` and 20-byte
+digests; `hexBytes` and `hex` return a caller-owned 40-character string. SHA-1
+is broken for collision resistance, so do not use it for signatures or new
+designs; it is here for protocols that require it, such as the WebSocket
+handshake (`Sec-WebSocket-Accept` is the Base64 of the SHA-1 of the client key
+followed by `258EAFA5-E914-47DA-95CA-C5AB0DC85B11`), TOTP's default HMAC and
+git object ids.
+
+- `Sha1.new() ret Sha1`
+- `context.init()`
+- `context.update(data: *u8, length: long)`
+- `context.finish(digest: *u8)` — writes 20 bytes
+- `Sha1.digest(data: *u8, length: long, digest: *u8)`
+- `Sha1.hexBytes(data: *u8, length: long) ret string`
+- `Sha1.hex(text: string) ret string`
+
 ### Sha256 (`std/sha256.bpl`)
 
 SHA-256 digests (FIPS 180-4), implemented in BPL with no external library.
