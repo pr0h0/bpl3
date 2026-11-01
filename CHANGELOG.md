@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Prebuilt executables: the `Release binaries` workflow builds the standalone
+  `bpl` for Linux x64/arm64 and macOS arm64/x64, smoke-tests the native ones
+  with only the embedded standard library, and on a `v0.1.x` tag attaches them
+  and `SHA256SUMS` to a draft release. `scripts/install.sh` installs the right
+  one after checking its SHA-256.
 - Standard library: `std/bigint.bpl` adds arbitrary-precision signed integers
   (`BigInt`) with parsing, decimal output, addition, subtraction,
   multiplication, division by an `int`, and comparison, exported from `std`.

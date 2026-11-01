@@ -140,8 +140,6 @@ regression work is prioritized in [PLAN.md](PLAN.md).
 
 Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
 
-- [ ] [3] Prebuilt per-platform `bpl` binaries (Linux/macOS, x64/arm64) attached
-      to releases, with a one-line installer, so users need no Bun or checkout.
 - [ ] [5] More lint rules beyond naming, unused imports and unused private
       functions, for example constant conditions.
 
