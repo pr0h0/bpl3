@@ -515,7 +515,16 @@ Captures and backreferences are not supported. `find` returns the leftmost match
 - `regex.find(text: string, begin: long, matchStart: *long, matchEnd: *long)
 ret bool` — byte offsets of the match, end exclusive
 - `regex.contains(text: string) ret bool`
+- `regex.countMatches(text: string) ret long` — non-overlapping matches
+- `regex.replaceAll(text: string, replacement: string) ret string`
+- `regex.replaceFirst(text: string, replacement: string) ret string`
 - `regex.destroy()`
+
+`replaceAll` and `replaceFirst` copy `replacement` literally and return a
+caller-owned string, or `nullptr` if allocation fails. Matches do not overlap.
+After an empty match the search moves on one byte, and an empty match right
+after a non-empty one still counts, as in Perl and Python: replacing `a*`
+with `-` in `baaac` gives `-b--c-`.
 
 ```bpl
 import printf from "std/c.bpl";

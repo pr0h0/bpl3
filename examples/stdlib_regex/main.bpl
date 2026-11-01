@@ -1,4 +1,4 @@
-import printf from "std/c.bpl";
+import printf, free, malloc, memset from "std/c.bpl";
 import [Regex] from "std/regex.bpl";
 
 frame full(pattern: string, text: string) {
@@ -34,6 +34,16 @@ frame rejects(pattern: string) {
         failed = true;
     }
     printf("rejects %s %d\n", pattern, cast<int>(failed));
+}
+
+frame replaced(pattern: string, text: string, replacement: string) {
+    local regex: Regex = Regex.compile(pattern);
+    local all: string = regex.replaceAll(text, replacement);
+    local first: string = regex.replaceFirst(text, replacement);
+    printf("replace %s [%s] -> [%s] first [%s] count %ld\n", pattern, text, all, first, regex.countMatches(text));
+    free(cast<*void>(all));
+    free(cast<*void>(first));
+    regex.destroy();
 }
 
 frame main() ret int {
@@ -99,5 +109,29 @@ frame main() ret int {
     rejects("a\\");
     rejects("a{3,1}");
     rejects("a{1001}");
+
+    replaced("a*", "baaac", "-");
+    replaced("\\d+", "order 66 and 7", "#");
+    replaced("o", "foo boo", "0");
+    replaced("x", "abc", "!");
+    replaced("", "ab", ".");
+    replaced("^b", "bob", "B");
+    replaced("b$", "bob", "B");
+    replaced("[aeiou]", "education", "");
+
+    # The output grows past the input's size.
+    local many: *u8 = cast<*u8>(malloc(101));
+    memset(cast<*void>(many), 97, 100);
+    *(many + 100) = cast<u8>(0);
+    local letter: Regex = Regex.compile("a");
+    local grown: string = letter.replaceAll(cast<string>(many), "xyz");
+    local grownLength: long = 0;
+    loop (*(cast<*u8>(grown) + grownLength) != cast<u8>(0)) {
+        grownLength = grownLength + 1;
+    }
+    printf("replace grows to %ld\n", grownLength);
+    free(cast<*void>(grown));
+    free(cast<*void>(many));
+    letter.destroy();
     return 0;
 }

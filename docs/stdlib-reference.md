@@ -2597,6 +2597,11 @@ frame longestMatchFrom(this: *Regex, text: string, length: long, begin: long) re
 frame matches(this: *Regex, text: string) ret bool
 frame find(this: *Regex, text: string, begin: long, matchStart: *long, matchEnd: *long) ret bool
 frame contains(this: *Regex, text: string) ret bool
+frame nextSearch(start: long, end: long) ret long
+frame countMatches(this: *Regex, text: string) ret long
+frame replaceAll(this: *Regex, text: string, replacement: string) ret string
+frame replaceFirst(this: *Regex, text: string, replacement: string) ret string
+frame replace(this: *Regex, text: string, replacement: string, limit: long) ret string
 ```
 
 ## std/result.bpl

@@ -52,6 +52,15 @@
     "rejects [z-a] 1",
     "rejects a\\ 1",
     "rejects a{3,1} 1",
-    "rejects a{1001} 1"
+    "rejects a{1001} 1",
+    "replace a* [baaac] -> [-b--c-] first [-baaac] count 4",
+    "replace \\d+ [order 66 and 7] -> [order # and #] first [order # and 7] count 2",
+    "replace o [foo boo] -> [f00 b00] first [f0o boo] count 4",
+    "replace x [abc] -> [abc] first [abc] count 0",
+    "replace  [ab] -> [.a.b.] first [.ab] count 3",
+    "replace ^b [bob] -> [Bob] first [Bob] count 1",
+    "replace b$ [bob] -> [boB] first [boB] count 1",
+    "replace [aeiou] [education] -> [dctn] first [ducation] count 5",
+    "replace grows to 300"
   ]
 }
