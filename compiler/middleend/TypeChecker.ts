@@ -39,6 +39,7 @@ import {
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   TypeCheckerBase,
+  resolveQualifiedTypeSymbol,
   VOID_TYPE_INVALID_CODE,
   VARIADIC_METHOD_UNSUPPORTED_CODE,
 } from "./TypeCheckerBase";
@@ -2727,7 +2728,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private checkEnumStructVariant(
     expr: AST.EnumStructVariantExpr,
   ): AST.TypeNode | undefined {
-    const symbol = this.currentScope.resolve(expr.enumName);
+    // A module-qualified name such as shapes.Shape resolves through the
+    // module's scope.
+    const symbol = expr.enumName.includes(".")
+      ? resolveQualifiedTypeSymbol(this.currentScope, expr.enumName)
+      : this.currentScope.resolve(expr.enumName);
 
     // Handle namespace.Struct { ... } pattern (e.g., Lib.Point { x: 10, y: 20 })
     if (symbol && symbol.kind === "Module" && symbol.moduleScope) {
@@ -3450,6 +3455,24 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   }
 
   /**
+   * The enum declaration a nested pattern is checked against. A payload or
+   * field type may name an enum declared in another module, so the type's
+   * resolved declaration is preferred over a lookup in the current scope.
+   */
+  private patternEnumDecl(type: AST.TypeNode): AST.EnumDecl | undefined {
+    if (type.kind !== "BasicType") return undefined;
+    if (type.resolvedDeclaration?.kind === "EnumDecl") {
+      return type.resolvedDeclaration;
+    }
+    const symbol = type.name.includes(".")
+      ? resolveQualifiedTypeSymbol(this.currentScope, type.name)
+      : this.currentScope.resolve(type.name);
+    return symbol?.kind === "Enum"
+      ? (symbol.declaration as AST.EnumDecl)
+      : undefined;
+  }
+
+  /**
    * Recursively extract all PatternIdentifier bindings from a pattern
    */
   private extractPatternBindings(
@@ -3726,13 +3749,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         if (binding.kind !== "PatternIdentifier") {
           // Nested pattern - recursively check it
           // Find the enum declaration for the binding type
-          let nestedEnumDecl: AST.EnumDecl | undefined;
-          if (bindingType.kind === "BasicType") {
-            const typeSymbol = this.currentScope.resolve(bindingType.name);
-            if (typeSymbol && typeSymbol.kind === "Enum") {
-              nestedEnumDecl = typeSymbol.declaration as AST.EnumDecl;
-            }
-          }
+          const nestedEnumDecl = this.patternEnumDecl(bindingType);
           this.checkPattern(binding, bindingType, nestedEnumDecl);
         } else {
           // Simple identifier binding
@@ -3808,13 +3825,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         // A nested pattern is checked against the field's type, like the
         // payload patterns of a tuple variant.
         if (field.pattern) {
-          let nestedEnumDecl: AST.EnumDecl | undefined;
-          if (bindingType.kind === "BasicType") {
-            const typeSymbol = this.currentScope.resolve(bindingType.name);
-            if (typeSymbol && typeSymbol.kind === "Enum") {
-              nestedEnumDecl = typeSymbol.declaration as AST.EnumDecl;
-            }
-          }
+          const nestedEnumDecl = this.patternEnumDecl(bindingType);
           this.checkPattern(field.pattern, bindingType, nestedEnumDecl);
           continue;
         }

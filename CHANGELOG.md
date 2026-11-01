@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- An enum reached through a namespace import works everywhere a local one
+  does: `ns.Shape.Circle { radius: 1 }` constructs a struct variant (it was a
+  parse error), a nested pattern may name `ns.Shade.Dark(n)` (it reported an
+  unknown type), and `switch` accepts a namespaced enum value and
+  `case ns.Shade.Light:` labels (both were rejected).
 - `std/log.bpl` is a leveled logger: `LogLevel`, `Log.setLevel`,
   `Log.enabled`, `Log.write`, `Log.levelFromEnv` (`BPL_LOG_LEVEL`),
   `Log.setPrefix` for `[LEVEL] ` prefixes and `Log.useStderr`. By default

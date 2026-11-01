@@ -588,7 +588,7 @@ function canReuseResolvedBasicType(type: AST.BasicTypeNode): boolean {
   return type.name === decl.name && decl.genericParams.length === 0;
 }
 
-function resolveQualifiedTypeSymbol(
+export function resolveQualifiedTypeSymbol(
   scope: SymbolTable,
   name: string,
 ): Symbol | undefined {
@@ -612,6 +612,19 @@ function resolveQualifiedTypeSymbol(
   }
 
   return currentSymbol;
+}
+
+/** The dotted name of an identifier or a chain of member accesses on one. */
+function qualifiedExpressionName(expr: AST.Expression): string | undefined {
+  if (expr.kind === "Identifier") return (expr as AST.IdentifierExpr).name;
+  if (expr.kind === "Member") {
+    const member = expr as AST.MemberExpr;
+    const objectName = qualifiedExpressionName(member.object);
+    return objectName === undefined
+      ? undefined
+      : `${objectName}.${member.property}`;
+  }
+  return undefined;
 }
 
 const EMPTY_DIRECT_STRUCT_MEMBERS: (AST.StructField | AST.FunctionDecl)[] = [];
@@ -1338,10 +1351,11 @@ export abstract class TypeCheckerBase {
   public getEnumVariantIndex(expr: AST.Expression): number | undefined {
     if (expr.kind === "Member") {
       const memberExpr = expr as AST.MemberExpr;
-      if (memberExpr.object.kind === "Identifier") {
-        const symbol = this.currentScope.resolve(
-          (memberExpr.object as AST.IdentifierExpr).name,
-        );
+      // The enum is named directly (Shade.Light) or through module
+      // namespaces (shapes.Shade.Light).
+      const enumName = qualifiedExpressionName(memberExpr.object);
+      if (enumName !== undefined) {
+        const symbol = resolveQualifiedTypeSymbol(this.currentScope, enumName);
         if (symbol && symbol.kind === "Enum") {
           const enumDecl = symbol.declaration as AST.EnumDecl;
           const variantName = memberExpr.property;
