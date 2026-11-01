@@ -3243,6 +3243,9 @@ struct UUID
 bytes: u8[16]
 frame v4() ret UUID
 frame tryV4(output: *UUID) ret bool
+frame v7() ret UUID
+frame tryV7(output: *UUID) ret bool
+frame timestampMs(this: *UUID) ret long
 frame fromBytes(data: *u8) ret UUID
 frame nil() ret UUID
 frame toString(this: *UUID) ret string

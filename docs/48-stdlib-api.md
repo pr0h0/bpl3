@@ -674,7 +674,8 @@ Fixed-size bit array for efficient flag/set operations.
 
 ### UUID (`std/uuid.bpl`)
 
-UUID formatting, parsing, and v4 generation using native OS entropy. `v4()` throws
+UUID formatting, parsing, and v4 (random) and v7 (time-ordered) generation
+using native OS entropy. `v4()` throws
 a string error if entropy is unavailable; `tryV4(output)` returns false and leaves
 the destination unchanged. There is no time-seeded fallback. Generation requires
 native `getentropy` support (Linux glibc 2.25+ or macOS 10.12+); see the
@@ -682,6 +683,11 @@ native `getentropy` support (Linux glibc 2.25+ or macOS 10.12+); see the
 and [entropy API contract](https://www.gnu.org/software/libc/manual/2.26/html_node/Unpredictable-Bytes.html).
 Random UUIDs do not provide a mathematical uniqueness guarantee or replace a
 purpose-built authentication-token protocol.
+A v7 UUID (RFC 9562) starts with the Unix time in milliseconds, so v7 UUIDs
+sort by creation time, which suits database keys. Within one process each v7
+UUID sorts after the previous one: in the same millisecond, or if the clock
+steps back, its 12-bit counter is incremented. `timestampMs()` returns that
+time for a v7 UUID and `-1` for other versions.
 `fromString` accepts exactly 32 hexadecimal digits or the standard 36-character
 hyphenated form; hexadecimal letters may be upper- or lowercase. Invalid input
 returns nil. `tryFromString(text, output)` distinguishes invalid input from a valid
@@ -693,6 +699,8 @@ or `nullptr` if allocation fails.
 
 - `UUID.v4() ret UUID` - Generate random v4 UUID; throws on entropy failure
 - `UUID.tryV4(output: *UUID) ret bool` - Checked generation; null output returns false
+- `UUID.v7() ret UUID` - Generate time-ordered v7 UUID; throws on entropy failure
+- `UUID.tryV7(output: *UUID) ret bool` - Checked v7 generation
 - `UUID.fromBytes(data: *u8) ret UUID`
 - `UUID.fromString(str: string) ret UUID`
 - `UUID.tryFromString(str: string, output: *UUID) ret bool`
@@ -701,6 +709,7 @@ or `nullptr` if allocation fails.
 **Conversion:**
 
 - `uuid.toString() ret string` - Format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+- `uuid.timestampMs() ret long` - Unix milliseconds of a v7 UUID, or `-1`
 
 **Properties:**
 

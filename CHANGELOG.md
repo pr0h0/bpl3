@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `UUID.v7()` and `UUID.tryV7()` generate time-ordered v7 UUIDs (RFC 9562),
+  increasing within a process even in one millisecond, and
+  `uuid.timestampMs()` reads their time.
+
 - Lint rule `L006` reports a variable compared with itself (`n == n`,
   `i < i`), whose result is fixed. It checks names declared with a primitive,
   `string` or pointer type, and allows `x != x` on floating-point values, the
