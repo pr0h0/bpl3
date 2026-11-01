@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
+import { join } from "path";
 
 import * as AST from "../compiler/common/AST";
+import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
+import { Parser } from "../compiler/frontend/Parser";
 import { Token } from "../compiler/frontend/Token";
 import { TokenType } from "../compiler/frontend/TokenType";
 import { Linter, type LintRule } from "../compiler/linter/Linter";
@@ -168,23 +171,33 @@ function collectVisitedNamesInStatements(
     .map((error) => error.message);
 }
 
-function extractLinterSwitchCases(): Set<string> {
-  const source = readFileSync("compiler/linter/Linter.ts", "utf8");
-  const cases: string[] = [];
-  for (const match of source.matchAll(/case "([^"]+)":/g)) {
-    if (match[1]) cases.push(match[1]);
-  }
-  return new Set(cases);
+// Lints the fixture with a rule that records the kind of every node it is
+// shown.
+function lintFixtureNodeKinds(): Set<string> {
+  const file = join(
+    import.meta.dir,
+    "fixtures/linter-traversal/every_node.bpl",
+  );
+  const source = readFileSync(file, "utf8");
+  const program = new Parser(
+    source,
+    file,
+    lexWithGrammar(source, file),
+  ).parse();
+  expect(program.errors ?? []).toEqual([]);
+  const kinds = new Set<string>();
+  const rule: LintRule = {
+    code: "TKIND",
+    name: "node-kind-recorder",
+    check(node) {
+      kinds.add(node.kind);
+    },
+  };
+  new Linter([rule]).lint(program);
+  return kinds;
 }
 
 describe("linter type-safety guards", () => {
-  test("visits function parameters without synthesizing dynamic AST nodes", () => {
-    const source = readFileSync("compiler/linter/Linter.ts", "utf8");
-
-    expect(source).not.toContain("(param as any)");
-    expect(source).toContain("this.visit(param, context)");
-  });
-
   test("lets typed lint rules observe function parameters through normal traversal", () => {
     const rule: LintRule = {
       code: "T001",
@@ -337,105 +350,83 @@ describe("linter type-safety guards", () => {
     expect(messages).toContain("saw identifier loopStep");
   });
 
-  test("keeps child-bearing linter visitor switch cases explicit", () => {
-    const cases = extractLinterSwitchCases();
-    const expectedKinds = [
-      "Program",
-      "FunctionDecl",
-      "StructDecl",
-      "StructField",
-      "SpecDecl",
-      "SpecMethod",
-      "EnumDecl",
-      "EnumVariant",
-      "EnumVariantTuple",
-      "EnumVariantStruct",
-      "FunctionAttribute",
-      "TypeAlias",
-      "BasicType",
-      "TupleType",
-      "FunctionType",
-      "LambdaType",
-      "MetaType",
-      "Block",
-      "If",
-      "Loop",
-      "Return",
-      "Throw",
-      "Try",
-      "CatchClause",
-      "Switch",
-      "Case",
-      "Defer",
-      "ExpressionStmt",
-      "Parameter",
-      "VariableDecl",
-      "Extern",
-      "InterpolatedString",
-      "Binary",
-      "Unary",
-      "Call",
-      "Member",
-      "Index",
+  // Every node kind the parser produces reaches lint rules. (`MetaType` is
+  // created only by the type checker, and lambda parameters are parsed as
+  // `Parameter`, so neither appears in a parsed program.)
+  test("shows lint rules every node kind in a parsed program", () => {
+    const kinds = lintFixtureNodeKinds();
+    for (const kind of [
       "ArrayLiteral",
-      "StructLiteral",
-      "TupleLiteral",
-      "EnumStructVariant",
+      "As",
+      "Assignment",
+      "BasicType",
+      "Binary",
+      "Block",
+      "Break",
+      "Call",
+      "Case",
       "Cast",
-      "Sizeof",
-      "TypeOf",
-      "OffsetOf",
-      "TypeMatch",
+      "CatchClause",
+      "Defer",
+      "EnumDecl",
+      "EnumStructVariant",
+      "EnumVariant",
+      "EnumVariantStruct",
+      "EnumVariantTuple",
+      "ExpressionStmt",
+      "Extern",
+      "FunctionAttribute",
+      "FunctionDecl",
+      "FunctionType",
+      "GenericInstantiation",
+      "Group",
+      "Identifier",
+      "If",
+      "Import",
+      "Index",
+      "InterpolatedString",
+      "Is",
+      "LambdaExpression",
+      "LambdaType",
+      "Literal",
+      "Loop",
       "Match",
       "MatchArm",
-      "PatternLiteral",
-      "PatternIdentifier",
-      "PatternTuple",
+      "Member",
+      "OffsetOf",
+      "Parameter",
       "PatternEnum",
-      "PatternEnumTuple",
       "PatternEnumStruct",
-      "Assignment",
+      "PatternEnumTuple",
+      "PatternIdentifier",
+      "PatternLiteral",
+      "PatternTuple",
+      "PatternWildcard",
+      "Program",
+      "Return",
+      "Sizeof",
+      "SpecDecl",
+      "SpecMethod",
+      "StructDecl",
+      "StructField",
+      "StructLiteral",
+      "Switch",
       "Ternary",
-      "GenericInstantiation",
-      "LambdaExpression",
-      "LambdaParameter",
-      "Is",
-      "As",
-      "Group",
-    ];
-
-    for (const kind of expectedKinds) {
-      expect(cases).toContain(kind);
+      "Throw",
+      "Try",
+      "TupleLiteral",
+      "TupleType",
+      "TypeAlias",
+      "TypeMatch",
+      "TypeOf",
+      "Unary",
+      "VariableDecl",
+    ]) {
+      expect({ kind, visited: kinds.has(kind) }).toEqual({
+        kind,
+        visited: true,
+      });
     }
-    expect(cases).not.toContain("BlockStmt");
-  });
-
-  test("documents intentionally non-recursive linter AST leaves", () => {
-    expect([
-      "Asm",
-      "AutoDestroy",
-      "Break",
-      "Continue",
-      "Export",
-      "Fallthrough",
-      "Identifier",
-      "Import",
-      "Literal",
-      "PatternWildcard",
-      "RuntimeDeferCleanup",
-    ]).toEqual([
-      "Asm",
-      "AutoDestroy",
-      "Break",
-      "Continue",
-      "Export",
-      "Fallthrough",
-      "Identifier",
-      "Import",
-      "Literal",
-      "PatternWildcard",
-      "RuntimeDeferCleanup",
-    ]);
   });
 
   test("visits throw, try, catch, switch, and case children", () => {
