@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl lint` reports self-assignments (`L005`), such as `x = x`. bpl-db's two
+  `len = len`/`type_int = type_int` "unused variable" workarounds are removed
+  (the archive is repacked; its version is unchanged).
 - `UUID.v4` draws its random bytes through `std/entropy.bpl` instead of its own
   `getentropy` declaration; behaviour is unchanged.
 - `std/base64.bpl` encodes and decodes URL-safe Base64 without padding

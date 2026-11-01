@@ -399,6 +399,9 @@ Lint BPL source files for style and package-quality issues. Rules:
 - `L004` constant condition: an `if` or ternary whose condition is `true` or
   `false`, or a `loop (false)` whose body never runs. `loop (true)` is an
   ordinary infinite loop and is not reported.
+- `L005` self-assignment: `x = x`, `box.n = box.n` or `a.items[0] = a.items[0]`,
+  which store a value where it already is. Computed indexes and compound
+  assignments such as `x += x` are not reported.
 
 Warnings fail the run unless `--no-fail-on-warnings` is given.
 
