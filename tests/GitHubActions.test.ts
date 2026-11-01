@@ -550,4 +550,43 @@ describe("GitHub Actions workflows", () => {
         .ignore!.map((rule) => rule["dependency-name"]),
     ).toContain("@types/bun");
   });
+
+  test("release binaries are built per platform, smoke-tested and only attached to draft v0.1.x releases", () => {
+    const workflow = Bun.YAML.parse(readWorkflow("release-binaries.yml")) as {
+      on: { push: { tags: string[] } };
+      permissions: { contents: string };
+      jobs: Record<
+        string,
+        {
+          if?: string;
+          permissions?: { contents: string };
+          strategy?: {
+            matrix: { include: Array<{ asset: string; target: string }> };
+          };
+          steps: WorkflowStep[];
+        }
+      >;
+    };
+    expect(workflow.permissions.contents).toBe("read");
+    expect(
+      workflow.jobs.build!.strategy!.matrix.include.map((entry) => entry.asset),
+    ).toEqual(["linux-x64", "linux-arm64", "darwin-arm64", "darwin-x64"]);
+    const buildRuns = workflow.jobs
+      .build!.steps.map((step) => step.run ?? "")
+      .join("\n");
+    expect(buildRuns).toContain("bun run generate:embedded");
+    expect(buildRuns).toContain("--target=${{ matrix.target }}");
+    // The smoke test runs outside the checkout without BPL_HOME, so only the
+    // embedded standard library is available.
+    expect(buildRuns).toContain('cd "$RUNNER_TEMP"');
+    expect(buildRuns).toContain("env -u BPL_HOME");
+
+    const publish = workflow.jobs.publish!;
+    expect(publish.permissions?.contents).toBe("write");
+    expect(publish.if).toContain("startsWith(github.ref, 'refs/tags/v')");
+    const publishRuns = publish.steps.map((step) => step.run ?? "").join("\n");
+    expect(publishRuns).toContain("^v0\\.1\\.(0|[1-9][0-9]*)$");
+    expect(publishRuns).toContain("--draft");
+    expect(publishRuns).toContain("SHA256SUMS");
+  });
 });

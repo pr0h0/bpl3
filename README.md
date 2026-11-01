@@ -62,6 +62,15 @@ frame main() ret int {
 
 ## 📦 Installation
 
+### Prebuilt executable
+
+Install the standalone `bpl` for Linux or macOS (needs Clang to compile
+programs, but no Bun or checkout):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pr0h0/bpl3/master/scripts/install.sh | sh
+```
+
 ### Build from Source
 
 ```bash

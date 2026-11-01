@@ -28,6 +28,25 @@ compiler is on `PATH`. Install Bun using its [installation instructions](https:/
 CI and the container images use the Bun version in `.bun-version`.
 `wasm-ld` is needed for WebAssembly linking; native-only builds do not need it.
 
+## Prebuilt executable
+
+Releases attach a standalone `bpl` for Linux (x64, arm64) and macOS (arm64,
+x64), with a `SHA256SUMS` file. Install the one for your machine into
+`~/.local/bin`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pr0h0/bpl3/master/scripts/install.sh | sh
+```
+
+The script picks the asset from `uname`, checks it against `SHA256SUMS`, and
+refuses a mismatch. `BPL_VERSION=0.1.5` installs a specific release and
+`BPL_INSTALL_DIR` another directory. The executable needs no Bun or checkout;
+compiling programs still needs Clang. The `Release binaries` workflow builds the
+four executables, runs each native one on a program using only its embedded
+standard library, and on a `v0.1.x` tag attaches them to a draft release for
+the maintainer to publish. The macOS x64 build is cross-compiled and not run
+in CI.
+
 ## Build from source
 
 From a Linux or macOS shell:
