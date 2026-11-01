@@ -208,9 +208,6 @@ struct TemplateCompiler {
         loop (i < lines.length) {
             local line: String = lines.get(i);
 
-            if (line.data == nullptr) {
-            } else {
-            }
             local trimmed: String = line.trim();
             local cleanup_trimmed: *String = &trimmed;
             defer cleanup_trimmed.destroy();

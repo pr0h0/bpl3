@@ -410,6 +410,9 @@ Lint BPL source files for style and package-quality issues. Rules:
   condition of the same chain (`if (x == 1) ... else if (x == 1)`), so its
   branch never runs. Conditions containing calls, casts or increments are not
   compared.
+- `L008` empty branch: an `if` or `else` whose block is empty, so the branch
+  does nothing. A block holding only a comment is deliberate and is not
+  reported.
 
 Warnings fail the run unless `--no-fail-on-warnings` is given.
 
