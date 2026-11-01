@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `BigInt.divide(divisor, remainder)` divides by another `BigInt`
+  (truncating toward zero, with an optional remainder).
 - Standard library: `std/hmac.bpl` (HMAC-SHA256, streaming and one-shot, with
   a constant-time `Hmac.equal`) and `std/entropy.bpl` (operating-system random
   bytes, `nextULong` and unbiased `below`), both exported from `std`.

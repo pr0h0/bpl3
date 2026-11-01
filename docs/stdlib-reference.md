@@ -375,6 +375,8 @@ frame subtract(this: *BigInt, other: *BigInt) ret BigInt
 frame negate(this: *BigInt) ret BigInt
 frame multiply(this: *BigInt, other: *BigInt) ret BigInt
 frame divideSmall(this: *BigInt, divisor: int, remainder: *int) ret BigInt
+frame multiplyMagnitudeSmall(value: *BigInt, factor: ulong) ret BigInt
+frame divide(this: *BigInt, divisor: *BigInt, remainder: *BigInt) ret BigInt
 frame toString(this: *BigInt) ret string
 ```
 
