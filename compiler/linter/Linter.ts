@@ -40,6 +40,7 @@ export class Linter {
   private registerRules() {
     this.rules.push(new NamingConventionRule());
     this.rules.push(new ConstantConditionRule());
+    this.rules.push(new SelfAssignmentRule());
   }
 
   /**
@@ -631,6 +632,56 @@ class ConstantConditionRule implements LintRule {
         "Remove the loop, or fix its condition.",
       );
     }
+  }
+}
+
+/**
+ * A name, or a chain of member and constant-index accesses on one (`a.b[0]`),
+ * as text; undefined for anything else, so calls and computed indexes, which
+ * may differ between evaluations, never compare equal.
+ */
+function storagePath(expression: AST.Expression): string | undefined {
+  if (expression.kind === "Identifier") {
+    return (expression as AST.IdentifierExpr).name;
+  }
+  if (expression.kind === "Group") {
+    return storagePath((expression as AST.GroupExpr).expression);
+  }
+  if (expression.kind === "Member") {
+    const member = expression as AST.MemberExpr;
+    const object = storagePath(member.object);
+    return object === undefined ? undefined : `${object}.${member.property}`;
+  }
+  if (expression.kind === "Index") {
+    const index = expression as AST.IndexExpr;
+    const object = storagePath(index.object);
+    if (object === undefined || index.index.kind !== "Literal")
+      return undefined;
+    return `${object}[${(index.index as AST.LiteralExpr).raw}]`;
+  }
+  return undefined;
+}
+
+/** L005: `x = x` and `this.n = this.n`, which store a value where it already is. */
+class SelfAssignmentRule implements LintRule {
+  code = "L005";
+  name = "self-assignment";
+
+  check(node: AST.ASTNode, context: LintContext) {
+    if (node.kind !== "Assignment") return;
+    const assignment = node as AST.AssignmentExpr;
+    if (assignment.operator.lexeme !== "=") return;
+    const target = storagePath(assignment.assignee);
+    if (target === undefined || target !== storagePath(assignment.value)) {
+      return;
+    }
+    context.report(
+      `'${target}' is assigned to itself`,
+      node,
+      DiagnosticSeverity.Warning,
+      this.code,
+      "Remove the assignment, or assign the value that was meant.",
+    );
   }
 }
 

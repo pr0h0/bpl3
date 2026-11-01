@@ -283,7 +283,6 @@ struct Database {
             if ((len == 1048576) && (buf[len - 1] != 10)) {
                 throw "Database record exceeds 1 MiB";
             }
-            len = len; # Suppress unused variable warning
             # printf("Line len: %d, last: %d\n", len, buf[len-1]);
             if ((len > 0) && (buf[len - 1] == 10)) {
                 # printf("Stripping newline at %d\n", len-1);
@@ -324,7 +323,6 @@ struct Database {
                             }
 
                             local type_int: int = atoi(ptr + space_idx + 1);
-                            type_int = type_int; # Suppress unused variable warning
                             local type_kind: DataType = DataType.Int;
                             if (type_int == 1)
                                 type_kind = DataType.Str;

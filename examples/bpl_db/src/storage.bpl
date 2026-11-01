@@ -206,7 +206,6 @@ struct Database {
 
         loop (f.readLine(buf, 4096)) {
             local len: int = strlen(buf);
-            len = len; # Suppress unused variable warning
             # printf("Line len: %d, last: %d\n", len, buf[len-1]);
             if ((len > 0) && (buf[len - 1] == 10)) {
                 # printf("Stripping newline at %d\n", len-1);
@@ -246,7 +245,6 @@ struct Database {
                             }
 
                             local type_int: int = atoi(ptr + space_idx + 1);
-                            type_int = type_int; # Suppress unused variable warning
                             local type_kind: DataType = DataType.Int;
                             if (type_int == 1)
                                 type_kind = DataType.Str;
