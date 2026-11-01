@@ -3,6 +3,7 @@ import type * as peggy from "peggy";
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import * as generatedParser from "./generated/BplParser.js";
+import { findReservedName } from "./ReservedWords";
 import {
   isParserStackOverflow,
   syntaxDepthError,
@@ -67,6 +68,7 @@ export function parseWithPeggy(
     if (errors.length > 0) {
       program.errors = errors.map(
         (e: { message: string; location: SourceLocation }) =>
+          reservedNameError(source, e.location) ??
           new CompilerError(e.message, "Fix the syntax error.", e.location),
       );
     }
@@ -85,6 +87,61 @@ export function parseWithPeggy(
     }
     throw toCompilerError(filePath, error);
   }
+}
+
+/** Offset in `source` of a 1-based line and UTF-16 column. */
+function offsetOf(source: string, line: number, column: number): number {
+  let offset = 0;
+  for (let current = 1; current < line; current++) {
+    const next = source.slice(offset).search(/\r\n|\r|\n/);
+    if (next < 0) return source.length;
+    offset += next + (source.startsWith("\r\n", offset + next) ? 2 : 1);
+  }
+  return offset + column - 1;
+}
+
+/** The 1-based line and column of `offset` in `source`. */
+function positionOf(
+  source: string,
+  offset: number,
+): { line: number; column: number } {
+  let line = 1;
+  let lineStart = 0;
+  for (let i = 0; i < offset; i++) {
+    const c = source[i];
+    if (c === "\n" || (c === "\r" && source[i + 1] !== "\n")) {
+      line++;
+      lineStart = i + 1;
+    }
+  }
+  return { line, column: offset - lineStart + 1 };
+}
+
+/**
+ * An "Unexpected syntax" recovery error covers a whole declaration. When the
+ * cause is a reserved word used as a parameter or variable name, report that
+ * word where it is instead (BUG-476).
+ */
+function reservedNameError(
+  source: string,
+  location: SourceLocation,
+): CompilerError | undefined {
+  const start = offsetOf(source, location.startLine, location.startColumn);
+  const end = offsetOf(source, location.endLine, location.endColumn);
+  const found = findReservedName(source.slice(start, end));
+  if (!found) return undefined;
+  const from = positionOf(source, start + found.offset);
+  return new CompilerError(
+    `'${found.word}' is a reserved word and cannot be used as a name`,
+    "Rename it; the reserved words are listed in R-LEX-3 of the language specification.",
+    {
+      file: location.file,
+      startLine: from.line,
+      startColumn: from.column,
+      endLine: from.line,
+      endColumn: from.column + found.word.length,
+    },
+  );
 }
 
 function toCompilerError(filePath: string, error: unknown): CompilerError {
