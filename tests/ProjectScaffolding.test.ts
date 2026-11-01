@@ -78,6 +78,28 @@ test("new projects ignore pack artifacts", () => {
   });
 });
 
+test("new projects of both templates come with tests that bpl test passes", () => {
+  withRoot((root) => {
+    for (const [template, testFile] of [
+      ["app", "lib/math_test.bpl"],
+      ["library", "src/index_test.bpl"],
+    ] as const) {
+      const name = `${template}-tested`;
+      expect(
+        bpl(["new", name, "--template", template, "--no-git"], root, root)
+          .status,
+      ).toBe(0);
+      expect(existsSync(join(root, name, testFile))).toBe(true);
+      const run = bpl(["test"], join(root, name), root);
+      expect({ template, status: run.status, stdout: run.stdout }).toEqual({
+        template,
+        status: 0,
+        stdout: expect.stringContaining("1 passed, 0 failed"),
+      });
+    }
+  });
+}, 120000);
+
 test("init rejects an entry path that is not a regular file", () => {
   withRoot((root) => {
     const app = join(root, "dirapp");

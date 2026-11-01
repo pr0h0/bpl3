@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl new` projects come with tests that `bpl test` runs: the app template
+  adds `lib/math.bpl` with `lib/math_test.bpl`, and the library template adds
+  `src/index_test.bpl`. The READMEs list `bpl test`.
 - The type checker warns about `cast<bool>(n)` and `n as bool` on an integer:
   the conversion keeps only the lowest bit (`cast<bool>(2)` is `false`), which
   is rarely what a nonzero test means. The literals `0` and `1` are exempt.

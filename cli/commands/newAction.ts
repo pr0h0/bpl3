@@ -169,6 +169,25 @@ frame main() ret int {
         if (options.verbose) {
           log.info("Created examples/usage.bpl");
         }
+
+        const libraryTestContent = `# Tests for src/index.bpl; run them with \`bpl test\`.
+
+import [Assert] from "std/assert.bpl";
+import add from "./index.bpl";
+
+frame testAdd() {
+    Assert.that(add(20, 22) == 42, "add(20, 22) should be 42");
+    Assert.that(add(-1, 1) == 0, "add(-1, 1) should be 0");
+}
+`;
+
+        writeFileAtomically(
+          path.join(stagingPath, "src", "index_test.bpl"),
+          libraryTestContent,
+        );
+        if (options.verbose) {
+          log.info("Created src/index_test.bpl");
+        }
       } else {
         // Create main.bpl
         const mainContent = `# ${name}
@@ -187,10 +206,43 @@ frame main() ret int {
           log.info("Created main.bpl");
         }
 
-        // Create lib directory
+        // Create lib directory with a module and its tests
         fs.mkdirSync(path.join(stagingPath, "lib"), { recursive: true });
+        const moduleContent = `# A project module; lib/math_test.bpl tests it with \`bpl test\`.
+
+export clamp;
+
+frame clamp(value: int, low: int, high: int) ret int {
+    if (value < low) {
+        return low;
+    }
+    if (value > high) {
+        return high;
+    }
+    return value;
+}
+`;
+        writeFileAtomically(
+          path.join(stagingPath, "lib", "math.bpl"),
+          moduleContent,
+        );
+        const moduleTestContent = `# Tests for lib/math.bpl; run them with \`bpl test\`.
+
+import [Assert] from "std/assert.bpl";
+import clamp from "./math.bpl";
+
+frame testClampKeepsValuesInRange() {
+    Assert.that(clamp(5, 0, 10) == 5, "a value in range is unchanged");
+    Assert.that(clamp(-1, 0, 10) == 0, "a low value becomes the minimum");
+    Assert.that(clamp(11, 0, 10) == 10, "a high value becomes the maximum");
+}
+`;
+        writeFileAtomically(
+          path.join(stagingPath, "lib", "math_test.bpl"),
+          moduleTestContent,
+        );
         if (options.verbose) {
-          log.info("Created lib/");
+          log.info("Created lib/math.bpl and lib/math_test.bpl");
         }
       }
 
@@ -210,6 +262,9 @@ bpl check src/index.bpl
 # Run the usage example
 bpl run examples/usage.bpl
 
+# Run the tests in *_test.bpl files
+bpl test
+
 # Package the library
 bpl pack
 \`\`\`
@@ -217,6 +272,7 @@ bpl pack
 ## Project Structure
 
 - \`src/index.bpl\` - Public package entry point
+- \`src/index_test.bpl\` - Tests, run with \`bpl test\`
 - \`examples/usage.bpl\` - Small executable example
 - \`bpl.json\` - Project manifest
 
@@ -242,12 +298,15 @@ bpl build main.bpl -o ${name}
 
 # Type check
 bpl check main.bpl
+
+# Run the tests in *_test.bpl files
+bpl test
 \`\`\`
 
 ## Project Structure
 
 - \`main.bpl\` - Main entry point
-- \`lib/\` - Library modules
+- \`lib/\` - Library modules; \`lib/math_test.bpl\` tests \`lib/math.bpl\`
 - \`bpl.json\` - Project manifest
 
 ## Documentation

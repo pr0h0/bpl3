@@ -211,9 +211,12 @@ bpl new my-library --template library
 
 Templates:
 
-- `app` (default): executable project with `main.bpl` and `lib/`
+- `app` (default): executable project with `main.bpl` and `lib/`, holding an
+  example module `lib/math.bpl` and its tests in `lib/math_test.bpl`
 - `library`: package-oriented project with `src/index.bpl`, an exported public
-  API, and `examples/usage.bpl`
+  API, its tests in `src/index_test.bpl`, and `examples/usage.bpl`
+
+Both templates' tests pass with `bpl test`.
 
 Use `--no-git` to skip git initialization.
 Project creation JSON reports are available with `bpl new <name> --json`.
