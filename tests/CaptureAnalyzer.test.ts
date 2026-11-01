@@ -90,8 +90,8 @@ function capturesByLambda(): Map<string, string[]> {
       continue;
     captures.set(
       name.slice(1),
-      ((lambda as AST.LambdaExpr).capturedVariables ?? []).map(
-        (variable) => String(variable.name),
+      ((lambda as AST.LambdaExpr).capturedVariables ?? []).map((variable) =>
+        String(variable.name),
       ),
     );
   }

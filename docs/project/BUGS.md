@@ -367,14 +367,14 @@ lists a namespace import's names unqualified.
 **Status**: Fixed · **Priority**: P2
 
 - Find references returns nothing for methods/fields (`ASTRenameHandler.ts:375`)
-  while the code lens counts them. *Fixed (2026-10-31):* `MemberReferences.ts`
+  while the code lens counts them. _Fixed (2026-10-31):_ `MemberReferences.ts`
   resolves a field, method or `value.member` to its declaring struct (following
   inheritance) and returns the declaration name, every access whose object is
   that struct or a descendant, and struct-literal keys; same-named members of
   other structs are excluded. Rename of members stays disabled.
 - Signature help matches callees by bare name (`b.set(` highlights `this`),
   counts commas inside strings and `<` comparisons, and reads the file from disk
-  instead of the unsaved buffer. *Fixed (2026-10-31):* the call context comes
+  instead of the unsaved buffer. _Fixed (2026-10-31):_ the call context comes
   from a forward scan that skips strings, character literals and comments and
   treats `<` as a generic bracket only when it touches a name; `value.method(`
   shows only the receiver type's method without `this`; free functions come
@@ -421,7 +421,7 @@ every item above is resolved; renaming members remains deliberately disabled.
 
 #### BUG-448: CI does not check formatting; repository drifted
 
-**Status**: Open (mostly fixed) · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `prettier --check .` flags 303 files; `bpl format --check` fails on 37/65 files in
 `lib/`, 6/39 in `packages/`, 23/612 in `examples/`. Run `--write` once in a
@@ -437,6 +437,12 @@ lists the seven intentionally unparsable bug reproductions. Still open: format
 `CHANGELOG.md` and this file once no PR is editing them, then add
 `bun run format:check` and a `bpl format --check lib packages examples` step
 to CI.
+
+**Fixed (2026-11-01)**: `CHANGELOG.md` and this file are formatted too, so
+`bun run format:check` passes for the whole repository. The `Type check and
+lint` job of `compiler-correctness.yml` now runs `bun run format:check`
+(Prettier) and `bun run format:bpl:check` (`bpl format --check` over `lib/`,
+`packages/` and `examples/`), so new drift fails CI.
 
 #### BUG-449: Toolchain versions and CI configuration are inconsistent
 
@@ -518,7 +524,7 @@ the `bin` from `src/cli.bpl` at install time instead of committing it.
 - `playground/COMPLETION_REPORT.md` and `UPGRADE_SUMMARY.md` are stale generated
   reports; `QUICKSTART.md`/`test.sh` bypass the runner check in `start.sh`;
   `playground/Dockerfile` duplicates `docker/Dockerfile`'s playground stage.
-  *Fixed (2026-10-31):* `QUICKSTART.md` documents `bun run playground` and
+  _Fixed (2026-10-31):_ `QUICKSTART.md` documents `bun run playground` and
   `bun run playground:host`, `test.sh` recommends `bun run playground`, and the
   backend's `dev`/`start` scripts run `start.sh`. The two Dockerfiles build different images (the per-run worker
   and the web server), so they stay separate.
@@ -530,8 +536,8 @@ the `bin` from `src/cli.bpl` at install time instead of committing it.
   `generateFatPointerComparison`; the `TypeComparison` class
   (`TypeUtils.ts:464-857`) is used only by two tests and disagrees with
   `TypeCheckerBase`. Remove them and enable `noUnusedLocals`.
-  *Done:* dead code removed (compiler, fuzz, tools, playground, tests and the
-  language server) and `noUnusedLocals` enabled. *Done (2026-10-31):*
+  _Done:_ dead code removed (compiler, fuzz, tools, playground, tests and the
+  language server) and `noUnusedLocals` enabled. _Done (2026-10-31):_
   `TypeComparison` is removed; its two tests check `TypeChecker.isCastAllowed`.
 - Importing from `"std"` compiles the whole library (1112 functions, 82k IR lines
   vs 2.9k for `std/array.bpl`); prune unreferenced module functions.
@@ -946,8 +952,7 @@ the fuzzer parenthesizes targets at random. `tests/AuditCompilerFixes.test.ts`.
 - **Fixed:** Diagnostics were colored when stderr was not a terminal, and
   package-command errors ignored `NO_COLOR`/`--no-color`.
 - **Fixed:** Normal CLI errors were printed as `22:28:04.992 ERROR [Check] ...`
-  and some included internal class names (`BuildValidationError: File not
-  found`). Timestamps and source tags now appear only in verbose mode; otherwise
+  and some included internal class names (`BuildValidationError: File not found`). Timestamps and source tags now appear only in verbose mode; otherwise
   messages use `error:`/`warning:` prefixes. The `check` summary no longer prints
   an empty `error:` line.
 - **Fixed:** A mistyped command such as `bpl chek` reported a missing file; it
@@ -1042,221 +1047,221 @@ Resolved findings:
 
 ## Summary
 
-| ID      | Category            | Description                                                                                                                | Status   | Notes                                                                                                                                                                                                                                                                                    |
-| ------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| BUG-001 | Primitive Types     | Integer literal overflow is not detected (e.g., `i8 = 128`).                                                               | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-002 | Arithmetic          | Division by zero in constant expressions is not detected (e.g., `1 / 0`).                                                  | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-003 | Structs             | Recursive structs without pointers are accepted (infinite size).                                                           | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-004 | Functions           | Duplicate parameter names are accepted in function declarations.                                                           | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-005 | Arrays              | Zero-sized arrays are accepted (`Type[0]`).                                                                                | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-006 | Arrays              | Negative array sizes cause parser error instead of semantic error.                                                         | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-007 | Control Flow        | Duplicate cases in switch statements are accepted.                                                                         | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-008 | Scoping             | Variable shadowing in the same scope is accepted.                                                                          | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-009 | Control Flow        | Unreachable code after return is accepted.                                                                                 | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-010 | Analysis            | Unused variables are accepted without warning or error.                                                                    | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-011 | Type System         | Invalid type casts (e.g., `i32` to `string`) are accepted.                                                                 | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-012 | Structs             | Struct literals with missing fields are accepted (uninitialized memory).                                                   | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-013 | Control Flow        | Switch statements accept floating point values.                                                                            | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-014 | Analysis            | `sizeof<void>` is accepted.                                                                                                | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-015 | Arithmetic          | Modulo operator `%` is accepted for floating point types.                                                                  | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-016 | Arrays              | Array indexing with floating point values is accepted.                                                                     | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-017 | Operators           | Unary negation `-` is accepted for strings.                                                                                | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-018 | Operators           | String subtraction `"a" - "b"` is accepted.                                                                                | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-019 | Assignment          | Assignment to r-values (literals, expressions) is accepted.                                                                | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-020 | Runtime             | Array out of bounds access returns garbage instead of crashing or erroring.                                                | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-021 | Runtime             | Division by zero causes silent crash (exit code 1) without error message.                                                  | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-022 | Runtime             | Stack overflow causes silent crash (exit code 1) without error message.                                                    | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-023 | Syntax              | Struct definitions require a trailing comma for the last field.                                                            | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-024 | Syntax              | Generic struct literals `Box<i32> { ... }` are not supported.                                                              | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-025 | Syntax              | Trailing commas in function calls `foo(1, 2,)` are not supported.                                                          | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-026 | Runtime             | Structs have hidden overhead (null bit) increasing `sizeof` unexpectedly.                                                  | Ignored  | This is not the case anymore, its fixed now                                                                                                                                                                                                                                              |
-| BUG-027 | Codegen             | Match statements with data variants cause LLVM IR generation failure.                                                      | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-028 | Analysis            | Generic Enum type inference fails for constructors (e.g., `Option.Some(42)`).                                              | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-029 | Parser              | Calling a function pointer field directly `obj.ptr()` fails.                                                               | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-030 | No Dynamic Dispatch | BPL does not support dynamic dispatch (virtual methods). Method calls are statically resolved based on the pointer type.   | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-031 | Codegen             | Comparison operators `!=` on structs generate invalid LLVM IR (`icmp` requires integer operands).                          | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-032 | Pattern Matching    | Nested enum pattern matching with qualified names doesn't extract variant data correctly                                   | Fixed    | Fixed by adding generic type substitution in enum variant tuple construction and namespace-aware type lookup in resolveType.                                                                                                                                                             |
-| BUG-033 | Initialization      | Implicit constructors are not called for array elements.                                                                   | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-034 | Generics            | Using generic type parameter directly in `is` operator causes LLVM error.                                                  | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-035 | Lexer               | Lexer emits `Comment` tokens instead of skipping them (Design choice, not a bug).                                          | Closed   | They are parsed but ignored later, used for formatting and docs primarly                                                                                                                                                                                                                 |
-| BUG-036 | Runtime             | Integer shift overflow (e.g., `1 << 65`) results in undefined behavior.                                                    | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-037 | Runtime             | Float to Int cast overflow (e.g., `1e20` to `int`) results in INT_MIN instead of error or clamp.                           | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-038 | Semantics           | `void` variable declaration is accepted but unused.                                                                        | Fixed    | make it type checker error where no variable or argument can be "void" but allow "\*void" for pointers                                                                                                                                                                                   |
-| BUG-039 | Lexer               | Multi-character literals (e.g., `'ab'`) cause "Unrecognized token" error instead of specific error.                        | Fixed    | single ' should allow only one character or sequence of characters that resolves to single character like \u00000010 in JS or whatever, but should throw that char can hold only one character                                                                                           |
-| BUG-040 | Semantics           | Switch case values must be literals, preventing use of Enum variants (e.g., `case Color.Red`).                             | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-041 | Runtime             | Struct alignment/padding seems excessive or incorrect. `u8` + `u64` results in size 24 (expected 16).                      | Fixed    | there is vtable pointer too so probably that makes extra space in structs with methods, maybe add vtable only on structs that are inherited,or keep them on every struct with method since some other struct can inherit from it and the we may get incorrect behavior for parent struct |
-| BUG-042 | Semantics           | Struct field and method can share the same name, potentially causing ambiguity or shadowing issues.                        | Fixed    | should be disallowed                                                                                                                                                                                                                                                                     |
-| BUG-043 | Formatter           | Formatter crashes or produces invalid output when processing ASTs with syntax errors.                                      | Fixed    | Formatter now checks for `ast.errors` and throws a `CompilerError` before attempting to format.                                                                                                                                                                                          |
-| BUG-043 | Syntax              | Lambda expressions require explicit return type annotation (e.g., \|x: int\| ret int { ... }`) or fail to parse.           | Fixed    | Fixed by hiding matchContext during lambda body check, allowing return statements to be checked against lambda return type.                                                                                                                                                              |
-| BUG-044 | Generics            | Infinite generic recursion (e.g., `struct Node<T> { next: *Node<Box<T>> }`) hits recursion limit instead of clean error.   | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-045 | Pointers            | Pointer subtraction generates invalid LLVM IR (`sub i32* ...`).                                                            | Fixed    | Implemented pointer subtraction using ptrtoint to convert pointers to i64, subtract, then divide by element size using getelementptr null trick in BinaryExpressionGenerator.                                                                                                            |
-| BUG-046 | Arrays              | Multidimensional array syntax `T[N][M]` is accepted but size is incorrect (likely flattened or ignored).                   | Invalid  | Allow instantiation of multidimensional arrays without limit on number of dimensions                                                                                                                                                                                                     |
-| BUG-047 | Arrays              | `sizeof` reports incorrect size for multidimensional arrays (related to BUG-046).                                          | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-048 | Types               | `int` is 32-bit (4 bytes), contradicting documentation which states 64-bit.                                                | Fixed    | Updated AGENTS.MD to reflect that int is 32-bit.                                                                                                                                                                                                                                         |
-| BUG-049 | Pointers            | `cast<int>(ptr)` truncates pointers on 64-bit systems because `int` is 32-bit.                                             | Fixed    | pointers should be casted to long                                                                                                                                                                                                                                                        |
-| BUG-050 | Pointers            | `cast<int>(ptr)` dereferences the pointer instead of casting the address.                                                  | Fixed    | this tries to dereference pointer and cast it's value instead of raw pointer addrress, should we leave it like that?                                                                                                                                                                     |
-| BUG-051 | Pointers            | `cast<*T>(int)` creates a new temporary variable and returns its address, instead of casting the integer to a pointer.     | Fixed    | UnaryExpressionGenerator.ts now uses `inttoptr` instruction for integer-to-pointer casts.                                                                                                                                                                                                |
-| BUG-052 | Strings             | String literals containing `\0` cause a JSON Parse error in the compiler.                                                  | Fixed    | Replaced JSON.parse with custom decodeString function that properly handles \0 and other escape sequences.                                                                                                                                                                               |
-| BUG-053 | Strings             | Hex escape sequences (e.g., `\x41`) in string literals cause a JSON Parse error.                                           | Fixed    | Added hex escape parsing (\xHH format) to decodeString function in grammar.                                                                                                                                                                                                              |
-| BUG-054 | Structs             | Struct fields shadow methods with the same name, making methods uncallable.                                                | Fixed    | forbid duplicate keys no matter if its attribute or method                                                                                                                                                                                                                               |
-| BUG-055 | Enums               | Nested pattern matching (e.g., `Option.Some(Option.Some(x))`) is not supported by the parser.                              | Fixed    | Grammar now supports nested patterns. Code generation needs work but parsing/type-checking complete.                                                                                                                                                                                     |
-| BUG-056 | Enums               | Duplicate enum variants (e.g., `enum E { A, A }`) are accepted silently, creating ambiguity.                               | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-057 | Control Flow        | `if` statements require braces `{}`. Single-statement bodies are not supported.                                            | Fixed    | require braces for "if" and "loop"                                                                                                                                                                                                                                                       |
-| BUG-058 | Control Flow        | `switch` cases require braces `{}`. Single-statement cases are not supported.                                              | Fixed    | Formatter now respects optional braces (brace-less single statements). Parser supports them.                                                                                                                                                                                             |
-| BUG-059 | Types               | Compiler allows `void` as a named function argument type (e.g., `frame foo(v: void)`).                                     | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-060 | Types               | Compiler allows arrays of `void` (e.g., `local arr: void[10]`), which is invalid as `void` has no size.                    | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-061 | Lexer               | Nested multi-line comments (`/# ... /# ... #/ ... #/`) are not supported. The first `#/` closes the comment.               | Fixed    | The grammar now uses a recursive rule for `MultiLineComment` which correctly handles nesting.                                                                                                                                                                                            |
-| BUG-062 | Operators           | Assignment chaining (e.g., `a = b = c`) is not supported. Assignment is a statement, not an expression.                    | Ignored  | By design - assignment is a statement, not an expression in BPL.                                                                                                                                                                                                                         |
-| BUG-063 | Operators           | Boolean values are implicitly promoted to integers in comparisons, allowing confusing expressions like `3 > 2 > 1`.        | Closed   | Works as designed - bool promotion is intentional. This is a logical error, not a compiler bug. Linter may add warning in the future.                                                                                                                                                    |
-| BUG-064 | FFI                 | Functions are represented as fat pointers (16 bytes) and cannot be cast to `*void`, breaking FFI compatibility with C.     | Fixed    | Func<T> is now a raw function pointer (thin), and Lambda<T> is a closure (fat). Func is C-compatible.                                                                                                                                                                                    |
-| BUG-065 | Generics            | Generic type inference for constructors is not supported (e.g., `Box.new(10)` fails). Must use `Box<int>.new(10)`.         | Closed   | By design for v0.1: generic constructor/static method calls require explicit type arguments. Confirmed `Box.new(10)` fails with `expected T, got int`; `Box<int>.new(10)` compiles and runs.                                                                                            |
-| BUG-066 | Parser              | The parser does not support empty tuples `()` in type declarations or expressions.                                         | Ignored  | By design - empty tuples are not supported in BPL.                                                                                                                                                                                                                                       |
-| BUG-067 | Parser              | The parser does not allow accessing tuple elements using dot notation with numbers (e.g., `tuple.0`).                      | Fixed    | Added grammar support for numeric member access (.0, .1, etc.) and implemented tuple element extraction using extractvalue in ExpressionGenerator and AddressExpressionGenerator.                                                                                                        |
-| BUG-068 | Type System         | Array types (fixed `T[N]` and dynamic `T[]`) do not expose a `.len` or `.length` property.                                 | Closed   | no since this is raw memory, use Array<T> if you need size                                                                                                                                                                                                                               |
-| BUG-069 | Type System         | Fixed-size arrays cannot be assigned to dynamic array (slice) types.                                                       | Fixed    | Fixed-size arrays and array literals now lower to `{ ptr, len }` slice views for `T[]` assignments and parameters.                                                                                                                                                                        |
-| BUG-070 | Parser              | The parser does not support default values for function parameters.                                                        | Ignored  | this is in roadmap and not yet supported, leave it like that, we'll implement that later                                                                                                                                                                                                 |
-| BUG-071 | Parser              | BPL function definitions (`frame`) do not support defining variadic functions.                                             | Fixed    | it does,sytnax is frame name (args:...type, count: int){}, this is minimal syntax, it support fixed args before variadic args, and count is implicit and passed by compiler                                                                                                              |
-| BUG-072 | Compiler Crash      | The compiler crashes with a stack overflow (RangeError) when processing a recursive type alias.                            | Fixed    | Added typeAliasResolutionStack to TypeCheckerBase.ts to detect cycles in type alias resolution before infinite recursion occurs.                                                                                                                                                         |
-| BUG-073 | Code Generation     | Assigning a child struct to a parent struct variable (slicing) generates invalid LLVM IR.                                  | Fixed    | Implemented struct slicing in emitCast() that extracts parent fields and replaces vtable with parent's vtable.                                                                                                                                                                           |
-| BUG-074 | Code Generation     | Switch statements on string types generate invalid LLVM IR.                                                                | Fixed    | Implemented string switch as if-else chain with strcmp calls in StatementGenerator, added strcmp declaration to CodeGenerator standard library functions.                                                                                                                                |
-| BUG-075 | Parser              | The parser does not support assigning explicit integer values to enum variants.                                            | Ignored  | Feature deferred - may be added in future version.                                                                                                                                                                                                                                       |
-| BUG-076 | Parser              | The compiler does not support inline `export` declarations.                                                                | Closed   | nope, you have to declare something and then export                                                                                                                                                                                                                                      |
-| BUG-077 | Code Generation     | Namespace import (`import * as`) fails to generate LLVM declarations, causing link errors.                                 | Fixed    | Added module-function detection/mangling and emits extern/module declarations when called via namespace imports.                                                                                                                                                                         |
-| BUG-078 | Type Inference      | Lambda return type inference fails when passed as function argument.                                                       | Fixed    | it should be explicit, keep it like that                                                                                                                                                                                                                                                 |
-| BUG-079 | Code Generation     | Dereferencing a `*void` pointer generates invalid `load void` instruction.                                                 | Fixed    | Compiler now properly validates and rejects void variables, preventing dereference of void pointers into void variables. Error: "Variable cannot be of type 'void'"                                                                                                                      |
-| BUG-080 | Code Generation     | Destructor with value receiver (`this: D`) generates invalid LLVM IR.                                                      | Fixed    | Added validation in TypeChecker to reject value receivers for destroy methods, requiring pointer receivers (\*D).                                                                                                                                                                        |
-| BUG-081 | Equality            | Array equality uses invalid LLVM IR (`icmp eq`) instead of `memcmp`.                                                       | Fixed    | Implemented array comparison using memcmp for byte-wise comparison in BinaryExpressionGenerator.                                                                                                                                                                                         |
-| BUG-082 | Equality            | Tuple equality uses invalid LLVM IR (`icmp eq`) instead of member-wise comparison.                                         | Fixed    | Implemented member-wise tuple comparison with short-circuit evaluation using extractvalue in BinaryExpressionGenerator.                                                                                                                                                                  |
-| BUG-083 | Strings             | String concatenation (`+`) generates invalid LLVM IR (`add i8*`) instead of runtime call.                                  | Deferred | Deferred due to memory leak concerns. String concatenation requires runtime allocation and deallocation which needs proper lifetime management. Will be revisited when memory management improvements are implemented.                                                                   |
-| BUG-084 | Primitive Types     | `uint` and `int` are 32-bit (4 bytes) instead of 64-bit as documented.                                                     | Fixed    | Fix documentation to match int-4byte, long 8bytes                                                                                                                                                                                                                                        |
-| BUG-085 | Parser              | `sizeof(int[10])` fails parsing (interpreted as indexing expression).                                                      | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-086 | Type Aliases        | Type alias substitution ignores precedence (e.g., `*Arr` where `Arr=int[10]` becomes array of pointers).                   | Fixed    | Pointer-to-array indexing now loads the pointee array and uses correct GEP, preserving alias precedence for `*Arr` -> pointer-to-array.                                                                                                                                                  |
-| BUG-087 | Equality            | Function pointer equality uses invalid LLVM IR (`icmp eq` on closure struct).                                              | Fixed    | Already works correctly - generates valid `icmp eq` instruction for direct pointer comparison.                                                                                                                                                                                           |
-| BUG-088 | Methods             | Bound methods (e.g., `obj.method`) are not supported (parser error).                                                       | Fixed    | in obj.method() this should work, in `frame obj.method()` this should not work since we have struct methods                                                                                                                                                                              |
-| BUG-089 | Structs             | Recursive structs (infinite size) cause LLVM IR generation errors instead of semantic error.                               | Fixed    | Added detectStructCycle() method to TypeChecker.ts to detect cyclic struct field references before LLVM generation.                                                                                                                                                                      |
-| BUG-090 | Enums               | Recursive enums cause stack buffer overflow in generated code (incorrect size calculation).                                | Fixed    | Added detectEnumCycle() method to TypeChecker.ts to detect cyclic enum variant references before LLVM generation.                                                                                                                                                                        |
-| BUG-091 | Enums               | Enum constructor corrupts fields for small types (writes `i32` for `u8`, overwriting adjacent fields).                     | Fixed    | Added type truncation when storing enum tuple variant arguments to handle small integer types (u8, i8, u16, i16).                                                                                                                                                                        |
-| BUG-092 | Enums               | Enum constructor overflows buffer for struct fields (incorrect size calculation).                                          | Fixed    | Added type checking and truncation in struct literal field assignments to handle small integer types.                                                                                                                                                                                    |
-| BUG-093 | Primitive Types     | Method calls on aliased primitive types (e.g., `type MyInt = int; local x: MyInt; x.toString()`) failed to resolve.        | Fixed    | Fixed by allowing wrapping of aliased primitives in CallChecker.                                                                                                                                                                                                                         |
-| BUG-094 | Runtime             | Runtime type matching for `Any` type failed due to incorrect struct layout assumption in codegen.                          | Fixed    | Fixed by updating ExpressionGenerator to access `type_id` at index 0.                                                                                                                                                                                                                    |
-| BUG-095 | Tests               | `sizeof` tests expected incorrect padding (16 bytes for 2 ints instead of 8).                                              | Fixed    | Updated test expectations to match correct packed size.                                                                                                                                                                                                                                  |
-| BUG-096 | Examples            | `htons` function in HTTP server example used invalid shift operands (i32 instead of u16).                                  | Fixed    | Added explicit casts to shift operands.                                                                                                                                                                                                                                                  |
-| BUG-093 | Structs             | Struct fields of type `void` cause LLVM IR generation errors.                                                              | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-094 | Generics            | Generic instantiation with `void` (e.g., `Box<void>`) causes LLVM IR generation errors.                                    | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-095 | Generics            | Generic array of `void` (e.g., `Arr<void>`) causes LLVM IR generation errors.                                              | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-096 | Parser              | Parentheses in type declarations (e.g., `(*int)[10]`) are not supported.                                                   | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-097 | Arrays              | Array of function types (e.g., `F[10]`) allocates single element instead of array.                                         | Fixed    | Fixed by propagating array dimensions in TypeCheckerBase.resolveType for non-BasicType aliases.                                                                                                                                                                                          |
-| BUG-098 | Parser              | Array of tuples (e.g., `(int, int)[10]`) is a syntax error.                                                                | Fixed    |                                                                                                                                                                                                                                                                                          |
-| BUG-099 | Generics            | Generic function type aliases fail substitution (generates invalid LLVM IR with `%struct.T`).                              | Fixed    | Fixed by correctly substituting generic parameters in function type aliases in TypeCheckerBase.                                                                                                                                                                                          |
-| BUG-100 | Generics            | Generic struct type aliases fail argument count check (e.g., `B<int>` where `B<T>=Box<T>` claims 2 args).                  | Fixed    | Fixed by correctly populating typeAliasMap in CodeGenerator.                                                                                                                                                                                                                             |
-| BUG-101 | Tuples              | Nested tuple destructuring generated invalid LLVM IR (used outer tuple type instead of inner).                             | Fixed    | Fixed by using correct nestedTupleType/nestedTupleVal parameters in extractvalue instruction in StatementGenerator.                                                                                                                                                                      |
-| BUG-102 | Enums               | Qualified name resolution in type lookups fails for nested generic enums with namespaces.                                  | Fixed    | Fixed by adding namespace-aware fallback in TypeGenerator.resolveType() to strip namespace prefix when direct lookup fails.                                                                                                                                                              |
-| BUG-103 | Enums               | Enum-to-enum casting only copies discriminant tag, losing data payload.                                                    | Fixed    | Fixed by enhancing emitCast() in UnaryExpressionGenerator to copy both tag and data fields using extractvalue/insertvalue for same-size data, memcpy for different sizes.                                                                                                                |
-| BUG-104 | Pattern Matching    | Nested tuple patterns in match expressions are not supported (e.g., `((a, b), c) => ...`).                                 | Fixed    | Fixed by adding recursive handling for nested PatternTuple in MatchExpressionGenerator.ts.                                                                                                                                                                                               |
-| BUG-105 | Generics            | Infinite recursion in generic function calls (monomorphization) causes compiler hang/crash (timeout).                      | Fixed    | Added generation batch limit (50) in CodeGenerator to detect and error on infinite recursion.                                                                                                                                                                                            |
-| BUG-106 | Safety              | Escape analysis is missing; functions can return pointers to local stack variables (use-after-free).                       | Fixed    | Added check in StatementChecker to error when returning the address of a local variable or parameter.                                                                                                                                                                                    |
-| BUG-107 | Code Generation     | Code generator fails to emit function definitions (e.g. `main`) when using `extern` or `try-catch`, causing linker errors. | Fixed    | Fixed by clearing `definedFunctions` set in `CodeGenerator.ts` to prevent stated leakage between compilations.                                                                                                                                                                           |
-| BUG-108 | Parser/Analysis     | Duplicate fields in `struct` definitions cause an internal compiler crash.                                                 | Fixed    | TypeChecker.ts now explicitly checks for duplicate fields/methods and throws a proper CompilerError.                                                                                                                                                                                     |
-| BUG-109 | Safety              | `const` variables can be modified by taking their address (`local ptr: *int = &const_var`).                                | Fixed    | ExpressionChecker.ts now throws a CompilerError when attempting to take the address of a constant variable.                                                                                                                                                                              |
-| BUG-110 | Codegen             | String concatenation (`"a" + "b"`) generates invalid LLVM IR (`add i8* ...` or `add %String ...`).                         | Fixed    | The backend generates integer/float instructions for non-numeric types when operator overloads are missing or not resolved.                                                                                                                                                              |
-| BUG-111 | Inline Asm          | Variable names with underscores (e.g., `asm_res`) fail in inline assembly blocks.                                          | Fixed    | Fixed regex in `AsmGenerator.ts` to support variable names containing underscores by using non-greedy match `(.+?)` instead of `([^_]+)`.                                                                                                                                                |
-| BUG-112 | Codegen             | Nested tuple pattern matching doesn't bind variables in nested patterns.                                                   | Fixed    | Fixed MatchExpressionGenerator.ts to recursively handle PatternTuple for nested tuple patterns.                                                                                                                                                                                          |
-| BUG-113 | Standard Library    | arg_parser ParsedArgs.destroy() crashes when freeing FlagEntry strings.                                                    | Fixed    | Root cause was BUG-114 (nullptr comparison bug). Removed unnecessary null checks from destroy code.                                                                                                                                                                                      |
-| BUG-114 | Codegen             | Comparing pointer to vtable-struct with nullptr crashes at runtime.                                                        | Fixed    | Pointer comparisons now always do pointer identity, not operator overloads. Use dereference for value equality: `*a == *b`.                                                                                                                                                              |
-| BUG-115 | Inheritance         | Self-inheriting struct (`struct A : A`) causes compiler stack overflow instead of semantic error.                          | Fixed    | TypeChecker now detects self-inheritance early before type resolution and throws a proper error.                                                                                                                                                                                         |
-| BUG-116 | Inheritance         | Circular inheritance (`struct A : B`, `struct B : A`) causes compiler stack overflow instead of semantic error.            | Fixed    | TypeChecker now detects circular inheritance chains before type resolution and throws a proper error with cycle path.                                                                                                                                                                    |
-| BUG-117 | Generics            | Duplicate generic type parameters (e.g., `struct T<T, T>`) are silently accepted.                                          | Fixed    | TypeChecker now validates that all generic type parameter names are unique for functions, structs, and enums.                                                                                                                                                                            |
-| BUG-118 | Strings             | Unicode characters in string literals cause LLVM IR generation error (string length mismatch).                             | Fixed    | escapeString and getUtf8ByteLength now correctly handle multi-byte UTF-8 characters using TextEncoder.                                                                                                                                                                                   |
-| BUG-119 | Type System         | `is` operator returns false for `*Derived` when checked against base type through `*Base` pointer.                         | Fixed    | Runtime vtable comparison now used for `is` operator on struct pointers and values. Structs in inheritance hierarchies get vtables.                                                                                                                                                      |
-| BUG-120 | Type System         | `as` operator returns non-null for invalid downcasts (e.g., `*Animal as *Cat` when object is Dog).                         | Fixed    | Runtime vtable comparison now used for `as` operator. Returns nullptr if vtable doesn't match target type.                                                                                                                                                                               |
-| BUG-121 | Codegen             | `sizeof<float>()` and `sizeof<f64>()` cause LLVM IR generation error (getelementptr on unsized type).                      | Fixed    | TypeGenerator.resolveType now correctly maps `float`, `f32`, `f64`, `double` to proper LLVM types (`float` or `double`).                                                                                                                                                                 |
-| BUG-122 | Enums               | Empty enum (`enum E {}`) is accepted but has no valid values or constructors.                                              | Fixed    | TypeChecker now validates that enums have at least one variant and throws a proper error for empty enums.                                                                                                                                                                                |
-| BUG-123 | Specs               | Spec extending itself (`spec S : S`) is silently accepted.                                                                 | Fixed    | TypeChecker now detects self-extension in specs and throws a proper error.                                                                                                                                                                                                               |
-| BUG-124 | Parser              | Unary plus operator (`+5`) causes syntax error instead of being accepted or giving clear error message.                    | Fixed    | Grammar now parses unary plus, and TypeChecker throws a clear error explaining it's a no-op and should be removed.                                                                                                                                                                       |
-| BUG-125 | Type System         | Undefined types in variable declarations/struct fields are not caught at type-check time, causing LLVM errors.             | Fixed    | Added undefined type detection in StatementChecker.checkVariableDecl() to catch undefined types at declaration time.                                                                                                                                                                     |
-| BUG-126 | Type System         | Type aliases can shadow builtin types (`type int = string;`), causing confusing behavior.                                  | Fixed    | Added BUILTIN_TYPE_NAMES check in TypeChecker.checkTypeAlias() to prevent shadowing primitives.                                                                                                                                                                                          |
-| BUG-127 | Pointers            | Pointer arithmetic on `*void` is accepted, but void has no size so offset calculation is undefined.                        | Fixed    | Added void pointer check in ExpressionChecker.checkBinaryExpression() before pointer arithmetic.                                                                                                                                                                                         |
-| BUG-128 | Linker              | Missing `main` function only detected at link time, not during type-checking.                                              | Fixed    | Added checkEntryPoint() method in TypeChecker that validates main function existence and signature.                                                                                                                                                                                      |
-| BUG-129 | Specs               | Duplicate method signatures in specs (`spec S { frame f(); frame f(); }`) are silently accepted.                           | Fixed    | Added duplicate method signature detection with Set-based tracking in TypeChecker.checkSpecBody().                                                                                                                                                                                       |
-| BUG-130 | Analysis            | Variables used in string interpolation (`${var}`) are reported as "unused".                                                | Fixed    | Was already fixed - checkInterpolatedString calls checkExpression on each part which calls resolve() marking variables as used.                                                                                                                                                          |
-| BUG-131 | Generics            | Generic enum types (Option<T>, Result<T,E>) cause LLVM error "Cannot allocate unsized type".                               | Fixed    | Was already fixed - generic enum types work correctly now.                                                                                                                                                                                                                               |
-| BUG-132 | Control Flow        | Match expression exhaustiveness not recognized for return paths - requires explicit return after match.                    | Fixed    | Added ExpressionStmt case in checkAllPathsReturn() to detect Match expressions where all arms have return statements.                                                                                                                                                                    |
-| BUG-133 | Inline Assembly     | Variables used in inline assembly blocks are reported as unused by the linter.                                             | Fixed    | `StatementChecker.checkAsm()` now recognizes constrained input/output operands like `(a: "r")` and `(=out: "={eax}")`, and reports undefined constrained operands. Regression: `tests/BugFixes_Batch5.test.ts`.                                                                          |
-| BUG-134 | Inline Assembly     | LLVM IR inline assembly generates incorrect type references for pointer parameters.                                        | Fixed    | Raw LLVM `(ptr_param)` now resolves pointer locals to the pointer value; `(&ptr_param)` remains available when raw LLVM needs the variable's stack slot. Regression: `tests/V01BugRepros.test.ts`.                                                                                       |
-| BUG-135 | IO Library          | `IO.printInt`, `IO.printFloat`, and `IO.printBool` add implicit newlines unlike typical print functions.                   | Fixed    | Primitive `IO.print*` helpers now print without implicit newlines; explicit `IO.printIntLn`, `IO.printFloatLn`, and `IO.printBoolLn` helpers provide line output. Regression: `tests/V01BugRepros.test.ts`.                                                                              |
-| BUG-136 | Codegen             | Method calls on array-element-derived pointers can crash when vtables are not initialized.                                | Fixed    | Vtables are initialized for stack arrays, `init` methods use direct dispatch on uninitialized memory, and `init` bodies inject vtable initialization. Regression coverage remains in integration examples.                                                                                |
-| BUG-137 | Runtime/Vtable      | `mini_database_engine` crashes during INSERT/SELECT due to uninitialized vtables in heap-allocated struct arrays/clones.  | Fixed    | Example now uses direct `.init()` calls on heap-array elements and clone destinations before virtual method use. Regression: `examples/mini_database_engine`.                                                                                                                            |
-| BUG-138 | TypeChecker         | Invalid constant shift counts compile to target-dependent or undefined LLVM behavior.                                     | Fixed    | Type checking now rejects negative constant shift counts and constant counts greater than or equal to the shifted integer width. Regression: `tests/V01BugRepros.test.ts`.                                                                                                                |
-| BUG-139 | Codegen/Optimization | Trivial wrapper functions are not zero-cost after LLVM optimization because stack-frame instrumentation survives in callers. | Fixed    | Codegen omits stack-frame hooks for trivial leaf return wrappers while keeping hooks for `main` and call-bearing functions, allowing LLVM `-O2` to erase the wrapper. Regression: `tests/V01BugRepros.test.ts`.                                                                          |
-| BUG-140 | Codegen             | Fixed array to raw pointer implicit decay is accepted by lowering/type checking but rejected by codegen.                   | Fixed    | Local variable initialization now lowers `array-to-pointer` with an address-based first-element GEP, preserving the original array storage. Regression: `tests/BugFixes_Batch6.test.ts`.                                                                                                 |
-| BUG-141 | Lowering            | `integer-compatible` implicit conversion classification is unreachable for different integer aliases.                      | Fixed    | Scalar integer compatibility is now classified before same-name element matching, while pointer/array integer types remain unsupported. Regression: `tests/Lowering.test.ts`.                                                                                                             |
-| BUG-142 | Strings/Codegen     | String interpolation evaluates side-effecting expressions twice when converting non-string values.                         | Fixed    | Integer primitive intrinsic dispatch no longer eagerly generates receiver expressions for unrelated methods, and virtual receiver preparation spills rvalues without regenerating them. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                      |
-| BUG-143 | Safety              | Escape analysis misses stack addresses hidden inside aggregate return values.                                              | Fixed    | Return checking now recursively rejects stack addresses hidden in struct, tuple, array, enum-struct, cast, group, and ternary return expressions. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                                                                |
-| BUG-144 | Pointers            | Pointer subtraction across incompatible pointee types is accepted.                                                         | Fixed    | Pointer subtraction now requires compatible pointer operands before lowering to an integer difference. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                                                                                                        |
-| BUG-145 | Inheritance/VTable  | Method overrides with incompatible return types are accepted and can dispatch through the wrong signature.                 | Fixed    | Struct body checking now validates inherited method overrides with matching non-`this` parameters and rejects incompatible return types before vtable dispatch can use mismatched signatures. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                  |
-| BUG-148 | TypeChecker/Codegen | Aggregate `+` expressions on structs or tuples compile to invalid LLVM `add` instructions.                                | Fixed    | Arithmetic validation now includes `+`, so aggregate addition without an overload is rejected before code generation. Regression: `tests/InternalErrorBoundary.test.ts`.                                                                                                                   |
-| BUG-151 | Package Manager     | Package installs can replace regular files or symlinks at `bpl_modules/<package>`.                                        | Fixed    | Package install targets are now preflighted before staging replacement; only absent paths or real directories are replaceable. Regression: `tests/PackageManager.test.ts`.                                                                                                                  |
-| BUG-152 | Package Manager     | Package uninstall treats symlinked package roots as installed packages.                                                    | Fixed    | Uninstall now rejects symlinked package roots before reading manifests, unlinking binaries, or removing the package path. Regression: `tests/PackageManager.test.ts`.                                                                                                                       |
-| BUG-153 | Package Manager     | Lock verification treats symlinked installed package roots as valid packages.                                              | Fixed    | `bpl install --locked` and lock verification now reject symlinked or non-directory package roots before loading manifests or hashing package contents. Regression: `tests/PackageManager.test.ts`.                                                                                          |
-| BUG-154 | Package Manager     | Lock verification treats symlinked recorded package sources as reachable.                                                  | Fixed    | Lock source reachability now requires a real regular file, so `bpl install --locked` reports symlinked recorded sources as unreachable instead of accepting sources that restore/install would reject. Regression: `tests/PackageManager.test.ts`.                                          |
-| BUG-155 | Package Manager     | Lock verification accepts installed transitive dependencies that are missing from `bpl.lock`.                              | Fixed    | `verifyLockFile()` now reports `missing-transitive-lock-entry` when an installed package manifest depends on another installed package that is not recorded in the lockfile. Regression: `tests/PackageManager.test.ts`.                                                                    |
-| BUG-156 | Package Manager     | Broken symlink `bpl.lock` paths are reported as missing lockfiles during locked verification.                              | Fixed    | `verifyLockFile()` now uses `lstat` to distinguish absent lockfiles from symlinked lockfile paths before loading the lockfile, so broken and valid-target symlinks are both rejected. Regression: `tests/PackageManager.test.ts`.                                                            |
-| BUG-157 | Package Manager     | Plain project install ignores broken symlink `bpl.lock` paths when no dependencies need installing.                        | Fixed    | `installProject()` now uses `lstat` to distinguish absent lockfiles from symlinked lockfile paths before restore or no-op install decisions. Regression: `tests/PackageManager.test.ts`.                                                                                                  |
-| BUG-158 | Package Manager     | Local uninstall removes package files before rejecting a broken symlink `bpl.lock`.                                        | Fixed    | `uninstall()` now preloads and validates an existing local lockfile before unlinking binaries or removing package directories. Regression: `tests/PackageManager.test.ts`.                                                                                                                  |
-| BUG-159 | Package Manager     | Dependency-tree generation ignores broken symlink `bpl.lock` paths and reports packages as unlocked.                       | Fixed    | `getDependencyTree()` now uses `lstat` to detect existing local lockfile paths before loading them, so symlinked and broken symlink lockfiles are rejected consistently. Regression: `tests/PackageManager.test.ts`.                                                                        |
-| BUG-160 | Package Manager     | Dependency-tree generation follows symlinked package roots in `bpl_modules`.                                               | Fixed    | Dependency-tree node construction now classifies package roots with `lstat` and reports symlinked or non-directory roots as problems without loading manifests through them. Regression: `tests/PackageManager.test.ts`.                                                                    |
-| BUG-161 | Package Manager     | Package-cache clean leaves broken symlink provenance sidecars behind.                                                      | Fixed    | `cleanPackageCache()` now uses `lstat` to remove provenance sidecars, including broken symlinks, before deleting cached archives. Regression: `tests/PackageManager.test.ts`.                                                                                                               |
-| BUG-162 | Package Manager     | Broken symlink package `bin` entries are reported as missing files during pack.                                             | Fixed    | `validatePackageBinFile()` now uses `lstat` before missing-file classification so broken symlink bin entries are rejected as unsupported symlinks. Regression: `tests/PackageManager.test.ts`.                                                                                              |
-| BUG-163 | Module Resolver     | Broken symlink entry modules are reported as missing files.                                                                | Fixed    | `assertReadableModuleFile()` now uses `lstat` before missing-file classification, so broken entry symlinks get symbolic-link diagnostics while valid symlink entries still normalize to their real paths. Regression: `tests/ModuleResolver.test.ts`.                                      |
-| BUG-164 | Module Resolver     | Broken symlink import candidates are skipped during extension fallback.                                                     | Fixed    | `tryResolveWithExtensions()` now classifies candidates with `lstat`, rejects broken symlinks before lower-priority extension fallback, and still normalizes valid import symlinks to their real paths. Regression: `tests/ModuleResolver.test.ts`.                                           |
-| BUG-217 | macOS Runtime Build | Runtime support builds only for the shell architecture under Rosetta.                                                       | Fixed    | macOS runtime builds now compile x86_64 and arm64 objects and combine them into a universal object before archiving. Linux keeps its native single-architecture build. Regression: `tests/RuntimeBuildScript.test.ts`.                                                                         |
-| BUG-218 | macOS Tests         | Temporary paths compare `/var` aliases with canonical `/private/var` paths.                                                  | Fixed    | Bun tests now canonicalize macOS temporary-directory environment variables before loading test files. Linux test environments are unchanged.                                                                                                                                                |
-| BUG-219 | macOS Runtime Cache | Cached module builds can mix Bun's arm64 host target with Rosetta's default x86_64 compiler target.                          | Fixed    | Module compilation now resolves the same explicit host target used by runtime-object injection. Linux keeps its existing native target behavior.                                                                                                                                              |
-| BUG-220 | Test Infrastructure | Command shims require `node` to be available through `PATH` even when tests run with Bun.                                    | Fixed    | Non-Windows command shims now use the active runtime executable in their shebang, remaining portable across Bun-based Linux and macOS test environments.                                                                                                                                       |
-| BUG-221 | WebAssembly Tooling | Bare wasm linker candidates can fail probing when the runtime does not resolve modified `PATH` entries for `spawnSync`.     | Fixed    | Wasm linker probes now resolve executable candidates explicitly before spawning them, preserving bare-name and absolute-path behavior on Linux and macOS.                                                                                                                                       |
-| BUG-222 | Playground Runtime  | Playground native builds can mix runtime-object and final-link architectures under Rosetta.                                | Fixed    | Playground codegen, runtime-object caching, and final native links now share one explicit host target. Linux keeps its explicit native host target.                                                                                                                                               |
-| BUG-223 | Release Smoke       | Release smoke inherits a polluted user npm cache and requires an optional wasm backend.                                    | Fixed    | Packed npm smoke uses an isolated temporary npm cache and skips an unavailable wasm compiler target unless CI explicitly requires wasm.                                                                                                                                                           |
-| BUG-224 | Cross-Platform Tests| macOS runs Linux/x86/GNU-tar-specific integration contracts as universal tests.                                            | Fixed    | Platform-specific examples and GNU-tar security fixtures are capability-gated, while portable pointer and temporary-directory expectations remain active everywhere. Linux retains the full Linux/x86/GNU coverage.                                                                           |
-| BUG-225 | Runtime Diagnostics | Generated runtime diagnostics reference glibc's `stderr` global directly.                                                   | Fixed    | Generated IR now calls a runtime-support stderr helper instead of depending on a host libc's private `stderr` ABI. Regression: `tests/CodeGenerator.test.ts`.                                                                                                                                      |
-| BUG-165 | Package Manager     | Broken symlink package manifests are reported as missing during uninstall.                                                  | Fixed    | `uninstall()` now uses `lstat` before its missing-manifest branch, so broken symlink `bpl.json` paths are rejected by `loadManifest()` as manifest symlinks. Regression: `tests/PackageManager.test.ts`.                                                                                     |
-| BUG-167 | Package Manager     | Exact cached `.tgz` archive names skip broken symlink archive validation.                                                   | Fixed    | Exact global cache archive lookup now uses `lstat`, so broken symlink cache entries are passed to `ensurePackageArchiveFile()` and rejected as archive symlinks. Regression: `tests/PackageManager.test.ts`.                                                                                 |
-| BUG-168 | Package Manager     | Broken symlink `file:` dependency archives fall back to package-name lookup.                                                | Fixed    | Dependency source resolution now uses `lstat` for file/path archive specs, so broken symlink dependency archives are passed to archive validation and rejected as archive symlinks. Regression: `tests/PackageManager.test.ts`.                                                               |
-| BUG-169 | Module Cache        | Broken symlink `.bpl-cache` directories are reported as generic non-writable cache directories.                             | Fixed    | Cache object and manifest write preflights now classify parent directories with `lstat`, so symlinked cache directories produce symbolic-link diagnostics. Regression: `tests/ModuleCache.test.ts`.                                                                                          |
-| BUG-171 | Package Manager     | Symlinked package cache archives can shadow real cache entries during package-name resolution.                              | Fixed    | `findGlobalPackageTarballs()` now filters candidates with `lstat`, so package-name and semver cache resolution only selects real archive files. Exact cached `.tgz` names still route to archive validation. Regression: `tests/PackageManager.test.ts`.                                    |
-| BUG-172 | Package Resolver    | Symlinked preferred `.bpl` package entrypoint or subpath candidates can fall through to lower-priority `.x` files.          | Fixed    | Package source candidate resolution now treats symlinked candidates as terminal package-resolution failures, so package imports do not silently resolve legacy `.x` fallbacks after a blocked `.bpl` candidate. Regression: `tests/PackageResolver.test.ts`.                                |
-| BUG-174 | Package Resolver    | Symlinked preferred `index.bpl` package directory candidates can fall through to lower-priority `index.x` files.            | Fixed    | Package directory index resolution now treats symlinked index candidates as terminal package-resolution failures, so package imports do not silently resolve `index.x` fallbacks after a blocked `index.bpl`. Regression: `tests/PackageResolver.test.ts`.                                   |
-| BUG-175 | Package Resolver    | Symlinked local package roots are skipped, allowing workspace or global packages with the same import name to load.         | Fixed    | Package root candidate resolution now treats symlinked package roots as terminal metadata failures, so local package-root symlinks block same-name workspace/global fallback without following the link. Regression: `tests/PackageResolver.test.ts`.                                      |
-| BUG-176 | Package Resolver    | Existing malformed local package roots can be skipped, allowing workspace or global packages with the same name to load.    | Fixed    | Package root candidate resolution now treats existing non-directory package roots and directories missing `bpl.json` as terminal metadata failures, blocking same-name workspace/global fallback. Regression: `tests/PackageResolver.test.ts`.                                             |
-| BUG-180 | Package Resolver    | Symlinked package search directories can be followed before child package candidates are classified.                        | Fixed    | Package search directory resolution now rejects symlinked `bpl_modules`, workspace `packages`, and configured global package directories before probing package roots or falling back to lower-priority package sources. Regression: `tests/PackageResolver.test.ts`.                         |
-| BUG-181 | Package Resolver    | Nested package source paths can follow symlinked parent directories inside a package root.                                  | Fixed    | Package source candidate resolution now checks parent path segments with `lstat`, so nested entrypoints and subpaths reject symlinked parents before reading child files or trying lower-priority extension fallbacks. Regression: `tests/PackageResolver.test.ts`.                           |
-| BUG-182 | Package Manager     | Package listing and doctor checks can follow package directory symlinks swapped in after manager construction.              | Fixed    | Package listing, package-cache listing, dependency-tree roots, and package doctor checks now revalidate package directories with `lstat` before scanning. Doctor reports `unsafe-package-directory` instead of following the symlink. Regression: `tests/PackageManager.test.ts`.              |
-| BUG-183 | Package Manager     | Package-name install lookup can follow a symlinked global package cache root.                                               | Fixed    | Global package cache lookup now validates the cache root with `lstat` before package-name, version selector, or exact cached archive probes. Missing cache roots report ordinary package misses instead of raw filesystem errors. Regression: `tests/PackageManager.test.ts`.                  |
-| BUG-184 | Package Manager     | Direct archive installs can follow package install root symlinks swapped in after manager construction.                     | Fixed    | Direct archive installs now revalidate the selected local or global package install root with `lstat` immediately before package/cache writes. Missing real roots are still recreated safely. Regression: `tests/PackageManager.test.ts`.                                                     |
-| BUG-185 | Package Manager     | Package uninstalls can follow package root symlinks swapped in after manager construction.                                  | Fixed    | Local and global uninstalls now revalidate the selected package root with `lstat` before probing or removing package directories, so swapped roots cannot redirect removals outside the configured package root. Regression: `tests/PackageManager.test.ts`.                                   |
-| BUG-186 | Package Manager     | Package uninstalls can follow symlinked binary directories swapped in after install.                                        | Fixed    | Uninstall now revalidates local `.bin` and global binary directories with `lstat` before unlinking package commands, rejecting symlinked bin-directory roots while still tolerating missing bin directories. Regression: `tests/PackageManager.test.ts`.                                        |
-| BUG-187 | Package Manager     | Lock verification can follow a symlinked local package directory swapped in after manager construction.                     | Fixed    | Lock verification now revalidates `bpl_modules` with `lstat` before scanning locked package entries, so `bpl install --locked` cannot verify external package contents through a swapped package root. Missing package roots still report ordinary missing-package issues. Regression: `tests/PackageManager.test.ts`. |
-| BUG-188 | Package Manager     | Package archive source paths can follow symlinked parent directories.                                                       | Fixed    | Archive install validation now rejects symlinked parent directories before extraction, `file:` dependencies inherit the same guard, and lock verification treats recorded sources through symlinked parents as unreachable. Regression: `tests/PackageManager.test.ts`.                            |
-| BUG-189 | Package Manager     | Package cache maintenance and global installs can follow symlinked parent directories of the global package cache.          | Fixed    | Package-manager directory validation now rejects symlinked parent directories before reading, repairing, cleaning, creating, or writing package/cache roots, so cache archives and provenance sidecars cannot be redirected through a symlinked cache parent. Regression: `tests/PackageManager.test.ts`. |
-| BUG-190 | Module Cache        | Module cache operations can follow symlinked parent directories after project-root swaps.                                  | Fixed    | Module cache construction, object writes, manifest writes, and cache cleaning now reject symlinked parent directories, while cached-object lookup and stats ignore object files reached through symlinked parents. Regression: `tests/ModuleCache.test.ts`. |
-| BUG-191 | CLI Clean           | `bpl clean` can scan and remove artifacts through symlinked working-directory path components when the runtime preserves the symlink spelling. | Fixed    | Clean now rejects working directory paths containing symlink components before git probing, artifact scanning, or deletion. JSON mode returns a parseable `success: false` clean report. Regression: `tests/CLI.test.ts`. |
-| BUG-192 | CLI Output          | Shared CLI output writes can follow symlinked ancestor directories even when the immediate parent is real.                  | Fixed    | Shared output-path validation now rejects symlinked parent path components before atomic temp creation, chmod, rename, or cleanup, covering format, docs, bindgen, and compile outputs that use `writeFileAtomically`. Regression: `tests/CLIUtils.test.ts`. |
-| BUG-193 | Linker              | Native linker executable outputs can be redirected through symlinked ancestor directories.                                | Fixed    | Linker output validation now rejects symlinked parent path components before selecting temporary outputs, revalidates temp output paths before final rename, and avoids best-effort cleanup through symlinked parents. Regression: `tests/Linker.test.ts`. |
-| BUG-194 | Codegen             | Debug IR output can be redirected through symlinked ancestor directories.                                                  | Fixed    | CodeGenerator debug IR emission now rejects symlinked parent path components before writing diagnostic `.ll` files, preserving final-path and immediate-parent symlink protections. Regression: `tests/CodeGenerator.test.ts`. |
-| BUG-195 | Module Cache        | Cached module linked executable outputs can be redirected through symlinked ancestor directories.                          | Fixed    | `ModuleCache.linkModules` now rejects symlinked parent path components before compiler-driver invocation and before final rename, while temporary cleanup continues to avoid paths through symlinked parents. Regression: `tests/ModuleCache.test.ts`. |
-| BUG-196 | Release             | Release manifest outputs can be redirected through symlinked ancestor directories.                                        | Fixed    | Release manifest output validation now rejects symlinked parent path components before writing manifest JSON, preserving final-output and immediate-parent symlink diagnostics. Regression: `tests/ReleaseMetadata.test.ts`. |
-| BUG-197 | Fuzzing             | Compiler fuzz crash artifacts can be redirected through symlinked crash-directory ancestors.                              | Fixed    | Fuzz crash artifact directory validation now rejects symlinked parent path components before creating or writing repro source, minimized source, or metadata artifacts. Regression: `tests/CompilerFuzzRunner.test.ts`. |
-| BUG-198 | Fuzzing             | Fuzz regression promotion can write promoted corpus files through symlinked corpus-directory ancestors.                    | Fixed    | `fuzz:promote` now rejects symlinked corpus-directory parent path components before duplicate-name checks, directory creation, or promoted repro writes. Regression: `tests/CompilerFuzzRunner.test.ts`. |
-| BUG-199 | Fuzzing             | Fuzz promotion metadata updates can follow symlinked metadata paths or symlinked metadata parents.                        | Fixed    | `fuzz:promote` now rejects symlinked crash metadata paths and symlinked metadata parent path components before reading metadata or writing `promotedTo` updates. Regression: `tests/CompilerFuzzRunner.test.ts`. |
-| BUG-200 | Fuzzing             | Fuzz promotion can read promoted source content through symlinked source paths or symlinked source parents.                | Fixed    | `fuzz:promote` now rejects symlinked source paths and symlinked source parent path components before reading repro source content for corpus promotion. Regression: `tests/CompilerFuzzRunner.test.ts`. |
-| BUG-201 | Fuzzing             | Fuzz artifact repro planning can follow symlinked metadata files or symlinked metadata parents.                           | Fixed    | `fuzz:repro` metadata discovery now rejects symlinked metadata files and symlinked metadata parent path components before generating replay or promotion commands. Regression: `tests/FuzzArtifactRepro.test.ts`. |
-| BUG-202 | Documentation       | Documentation generation can read input files through symlinked parent directories.                                      | Fixed    | Documentation input resolution now rejects symlinked parent path components before reading source files, while preserving final symlink, non-file, and missing-input diagnostics. Regression: `tests/DocumentationGenerator.test.ts`. |
-| BUG-203 | Bindgen             | C bindgen can read header inputs through symlinked parent directories.                                                    | Fixed    | Bindgen header validation now rejects symlinked parent path components before reading input headers, preserving final symlink, broken-symlink, directory, and output path protections. Regression: `tests/CLI.test.ts`. |
-| BUG-204 | Object Parser       | Object and LLVM IR symbol parsing can read inputs through symlinked parent directories.                                  | Fixed    | ObjectFileParser input validation now rejects symlinked parent path components before parsing LLVM IR or binary object/archive inputs. Regression: `tests/ObjectFileParser.test.ts`. |
-| BUG-205 | Runtime Resources   | `BPL_HOME` and bundled runtime resource lookup can resolve through symlinked parent directories.                          | Fixed    | PathResolver rejects BPL roots reached through symlinked parent components; BinaryRunner, CompilationRunner, and `bpl doctor` reject bundled runtime files reached through symlinked resource parents before linking or reporting success. Regressions: `tests/PathResolver.test.ts`, `tests/BinaryRunner.test.ts`, `tests/CLI.test.ts`. |
-| BUG-206 | CLI Scripts         | `bpl run-script` can read `bpl.json` through symlinked working-directory parent components.                               | Fixed    | Run-script manifest validation now rejects symlinked parent components before parsing `bpl.json`, listing scripts, or executing script commands. Regression: `tests/CLI.test.ts`. |
-| BUG-207 | Fuzzing             | `fuzz:replay --minimize --out` can write minimized repro files through symlinked output ancestors.                       | Fixed    | Fuzz replay output validation now rejects final output symlinks, non-directory output parents, and symlinked output parent components before writing minimized repro files. Regression: `tests/CompilerFuzzRunner.test.ts`. |
-| BUG-210 | Cross Platform      | macOS compiler-correctness CI rejects wasm output paths below the trusted `/var` system symlink used by `os.tmpdir()`.    | Fixed    | Shared path-safety validation now allows trusted macOS root temp symlinks such as `/var -> /private/var` and `/tmp -> /private/tmp` while still rejecting user-controlled nested symlink ancestors. Regression: `tests/PathSafety.test.ts`. |
-| BUG-216 | Package Resolver    | Unsafe global versioned package roots can be ignored, allowing fallback to lower package versions.                       | Fixed    | Versioned global package root candidates are now collected by name before `lstat` validation, so symlinks and non-directories block fallback consistently. Regression: `tests/PackageResolver.test.ts`. |
+| ID      | Category             | Description                                                                                                                                    | Status   | Notes                                                                                                                                                                                                                                                                                                                                    |
+| ------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BUG-001 | Primitive Types      | Integer literal overflow is not detected (e.g., `i8 = 128`).                                                                                   | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-002 | Arithmetic           | Division by zero in constant expressions is not detected (e.g., `1 / 0`).                                                                      | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-003 | Structs              | Recursive structs without pointers are accepted (infinite size).                                                                               | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-004 | Functions            | Duplicate parameter names are accepted in function declarations.                                                                               | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-005 | Arrays               | Zero-sized arrays are accepted (`Type[0]`).                                                                                                    | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-006 | Arrays               | Negative array sizes cause parser error instead of semantic error.                                                                             | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-007 | Control Flow         | Duplicate cases in switch statements are accepted.                                                                                             | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-008 | Scoping              | Variable shadowing in the same scope is accepted.                                                                                              | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-009 | Control Flow         | Unreachable code after return is accepted.                                                                                                     | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-010 | Analysis             | Unused variables are accepted without warning or error.                                                                                        | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-011 | Type System          | Invalid type casts (e.g., `i32` to `string`) are accepted.                                                                                     | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-012 | Structs              | Struct literals with missing fields are accepted (uninitialized memory).                                                                       | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-013 | Control Flow         | Switch statements accept floating point values.                                                                                                | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-014 | Analysis             | `sizeof<void>` is accepted.                                                                                                                    | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-015 | Arithmetic           | Modulo operator `%` is accepted for floating point types.                                                                                      | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-016 | Arrays               | Array indexing with floating point values is accepted.                                                                                         | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-017 | Operators            | Unary negation `-` is accepted for strings.                                                                                                    | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-018 | Operators            | String subtraction `"a" - "b"` is accepted.                                                                                                    | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-019 | Assignment           | Assignment to r-values (literals, expressions) is accepted.                                                                                    | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-020 | Runtime              | Array out of bounds access returns garbage instead of crashing or erroring.                                                                    | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-021 | Runtime              | Division by zero causes silent crash (exit code 1) without error message.                                                                      | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-022 | Runtime              | Stack overflow causes silent crash (exit code 1) without error message.                                                                        | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-023 | Syntax               | Struct definitions require a trailing comma for the last field.                                                                                | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-024 | Syntax               | Generic struct literals `Box<i32> { ... }` are not supported.                                                                                  | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-025 | Syntax               | Trailing commas in function calls `foo(1, 2,)` are not supported.                                                                              | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-026 | Runtime              | Structs have hidden overhead (null bit) increasing `sizeof` unexpectedly.                                                                      | Ignored  | This is not the case anymore, its fixed now                                                                                                                                                                                                                                                                                              |
+| BUG-027 | Codegen              | Match statements with data variants cause LLVM IR generation failure.                                                                          | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-028 | Analysis             | Generic Enum type inference fails for constructors (e.g., `Option.Some(42)`).                                                                  | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-029 | Parser               | Calling a function pointer field directly `obj.ptr()` fails.                                                                                   | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-030 | No Dynamic Dispatch  | BPL does not support dynamic dispatch (virtual methods). Method calls are statically resolved based on the pointer type.                       | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-031 | Codegen              | Comparison operators `!=` on structs generate invalid LLVM IR (`icmp` requires integer operands).                                              | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-032 | Pattern Matching     | Nested enum pattern matching with qualified names doesn't extract variant data correctly                                                       | Fixed    | Fixed by adding generic type substitution in enum variant tuple construction and namespace-aware type lookup in resolveType.                                                                                                                                                                                                             |
+| BUG-033 | Initialization       | Implicit constructors are not called for array elements.                                                                                       | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-034 | Generics             | Using generic type parameter directly in `is` operator causes LLVM error.                                                                      | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-035 | Lexer                | Lexer emits `Comment` tokens instead of skipping them (Design choice, not a bug).                                                              | Closed   | They are parsed but ignored later, used for formatting and docs primarly                                                                                                                                                                                                                                                                 |
+| BUG-036 | Runtime              | Integer shift overflow (e.g., `1 << 65`) results in undefined behavior.                                                                        | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-037 | Runtime              | Float to Int cast overflow (e.g., `1e20` to `int`) results in INT_MIN instead of error or clamp.                                               | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-038 | Semantics            | `void` variable declaration is accepted but unused.                                                                                            | Fixed    | make it type checker error where no variable or argument can be "void" but allow "\*void" for pointers                                                                                                                                                                                                                                   |
+| BUG-039 | Lexer                | Multi-character literals (e.g., `'ab'`) cause "Unrecognized token" error instead of specific error.                                            | Fixed    | single ' should allow only one character or sequence of characters that resolves to single character like \u00000010 in JS or whatever, but should throw that char can hold only one character                                                                                                                                           |
+| BUG-040 | Semantics            | Switch case values must be literals, preventing use of Enum variants (e.g., `case Color.Red`).                                                 | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-041 | Runtime              | Struct alignment/padding seems excessive or incorrect. `u8` + `u64` results in size 24 (expected 16).                                          | Fixed    | there is vtable pointer too so probably that makes extra space in structs with methods, maybe add vtable only on structs that are inherited,or keep them on every struct with method since some other struct can inherit from it and the we may get incorrect behavior for parent struct                                                 |
+| BUG-042 | Semantics            | Struct field and method can share the same name, potentially causing ambiguity or shadowing issues.                                            | Fixed    | should be disallowed                                                                                                                                                                                                                                                                                                                     |
+| BUG-043 | Formatter            | Formatter crashes or produces invalid output when processing ASTs with syntax errors.                                                          | Fixed    | Formatter now checks for `ast.errors` and throws a `CompilerError` before attempting to format.                                                                                                                                                                                                                                          |
+| BUG-043 | Syntax               | Lambda expressions require explicit return type annotation (e.g., \|x: int\| ret int { ... }`) or fail to parse.                               | Fixed    | Fixed by hiding matchContext during lambda body check, allowing return statements to be checked against lambda return type.                                                                                                                                                                                                              |
+| BUG-044 | Generics             | Infinite generic recursion (e.g., `struct Node<T> { next: *Node<Box<T>> }`) hits recursion limit instead of clean error.                       | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-045 | Pointers             | Pointer subtraction generates invalid LLVM IR (`sub i32* ...`).                                                                                | Fixed    | Implemented pointer subtraction using ptrtoint to convert pointers to i64, subtract, then divide by element size using getelementptr null trick in BinaryExpressionGenerator.                                                                                                                                                            |
+| BUG-046 | Arrays               | Multidimensional array syntax `T[N][M]` is accepted but size is incorrect (likely flattened or ignored).                                       | Invalid  | Allow instantiation of multidimensional arrays without limit on number of dimensions                                                                                                                                                                                                                                                     |
+| BUG-047 | Arrays               | `sizeof` reports incorrect size for multidimensional arrays (related to BUG-046).                                                              | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-048 | Types                | `int` is 32-bit (4 bytes), contradicting documentation which states 64-bit.                                                                    | Fixed    | Updated AGENTS.MD to reflect that int is 32-bit.                                                                                                                                                                                                                                                                                         |
+| BUG-049 | Pointers             | `cast<int>(ptr)` truncates pointers on 64-bit systems because `int` is 32-bit.                                                                 | Fixed    | pointers should be casted to long                                                                                                                                                                                                                                                                                                        |
+| BUG-050 | Pointers             | `cast<int>(ptr)` dereferences the pointer instead of casting the address.                                                                      | Fixed    | this tries to dereference pointer and cast it's value instead of raw pointer addrress, should we leave it like that?                                                                                                                                                                                                                     |
+| BUG-051 | Pointers             | `cast<*T>(int)` creates a new temporary variable and returns its address, instead of casting the integer to a pointer.                         | Fixed    | UnaryExpressionGenerator.ts now uses `inttoptr` instruction for integer-to-pointer casts.                                                                                                                                                                                                                                                |
+| BUG-052 | Strings              | String literals containing `\0` cause a JSON Parse error in the compiler.                                                                      | Fixed    | Replaced JSON.parse with custom decodeString function that properly handles \0 and other escape sequences.                                                                                                                                                                                                                               |
+| BUG-053 | Strings              | Hex escape sequences (e.g., `\x41`) in string literals cause a JSON Parse error.                                                               | Fixed    | Added hex escape parsing (\xHH format) to decodeString function in grammar.                                                                                                                                                                                                                                                              |
+| BUG-054 | Structs              | Struct fields shadow methods with the same name, making methods uncallable.                                                                    | Fixed    | forbid duplicate keys no matter if its attribute or method                                                                                                                                                                                                                                                                               |
+| BUG-055 | Enums                | Nested pattern matching (e.g., `Option.Some(Option.Some(x))`) is not supported by the parser.                                                  | Fixed    | Grammar now supports nested patterns. Code generation needs work but parsing/type-checking complete.                                                                                                                                                                                                                                     |
+| BUG-056 | Enums                | Duplicate enum variants (e.g., `enum E { A, A }`) are accepted silently, creating ambiguity.                                                   | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-057 | Control Flow         | `if` statements require braces `{}`. Single-statement bodies are not supported.                                                                | Fixed    | require braces for "if" and "loop"                                                                                                                                                                                                                                                                                                       |
+| BUG-058 | Control Flow         | `switch` cases require braces `{}`. Single-statement cases are not supported.                                                                  | Fixed    | Formatter now respects optional braces (brace-less single statements). Parser supports them.                                                                                                                                                                                                                                             |
+| BUG-059 | Types                | Compiler allows `void` as a named function argument type (e.g., `frame foo(v: void)`).                                                         | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-060 | Types                | Compiler allows arrays of `void` (e.g., `local arr: void[10]`), which is invalid as `void` has no size.                                        | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-061 | Lexer                | Nested multi-line comments (`/# ... /# ... #/ ... #/`) are not supported. The first `#/` closes the comment.                                   | Fixed    | The grammar now uses a recursive rule for `MultiLineComment` which correctly handles nesting.                                                                                                                                                                                                                                            |
+| BUG-062 | Operators            | Assignment chaining (e.g., `a = b = c`) is not supported. Assignment is a statement, not an expression.                                        | Ignored  | By design - assignment is a statement, not an expression in BPL.                                                                                                                                                                                                                                                                         |
+| BUG-063 | Operators            | Boolean values are implicitly promoted to integers in comparisons, allowing confusing expressions like `3 > 2 > 1`.                            | Closed   | Works as designed - bool promotion is intentional. This is a logical error, not a compiler bug. Linter may add warning in the future.                                                                                                                                                                                                    |
+| BUG-064 | FFI                  | Functions are represented as fat pointers (16 bytes) and cannot be cast to `*void`, breaking FFI compatibility with C.                         | Fixed    | Func<T> is now a raw function pointer (thin), and Lambda<T> is a closure (fat). Func is C-compatible.                                                                                                                                                                                                                                    |
+| BUG-065 | Generics             | Generic type inference for constructors is not supported (e.g., `Box.new(10)` fails). Must use `Box<int>.new(10)`.                             | Closed   | By design for v0.1: generic constructor/static method calls require explicit type arguments. Confirmed `Box.new(10)` fails with `expected T, got int`; `Box<int>.new(10)` compiles and runs.                                                                                                                                             |
+| BUG-066 | Parser               | The parser does not support empty tuples `()` in type declarations or expressions.                                                             | Ignored  | By design - empty tuples are not supported in BPL.                                                                                                                                                                                                                                                                                       |
+| BUG-067 | Parser               | The parser does not allow accessing tuple elements using dot notation with numbers (e.g., `tuple.0`).                                          | Fixed    | Added grammar support for numeric member access (.0, .1, etc.) and implemented tuple element extraction using extractvalue in ExpressionGenerator and AddressExpressionGenerator.                                                                                                                                                        |
+| BUG-068 | Type System          | Array types (fixed `T[N]` and dynamic `T[]`) do not expose a `.len` or `.length` property.                                                     | Closed   | no since this is raw memory, use Array<T> if you need size                                                                                                                                                                                                                                                                               |
+| BUG-069 | Type System          | Fixed-size arrays cannot be assigned to dynamic array (slice) types.                                                                           | Fixed    | Fixed-size arrays and array literals now lower to `{ ptr, len }` slice views for `T[]` assignments and parameters.                                                                                                                                                                                                                       |
+| BUG-070 | Parser               | The parser does not support default values for function parameters.                                                                            | Ignored  | this is in roadmap and not yet supported, leave it like that, we'll implement that later                                                                                                                                                                                                                                                 |
+| BUG-071 | Parser               | BPL function definitions (`frame`) do not support defining variadic functions.                                                                 | Fixed    | it does,sytnax is frame name (args:...type, count: int){}, this is minimal syntax, it support fixed args before variadic args, and count is implicit and passed by compiler                                                                                                                                                              |
+| BUG-072 | Compiler Crash       | The compiler crashes with a stack overflow (RangeError) when processing a recursive type alias.                                                | Fixed    | Added typeAliasResolutionStack to TypeCheckerBase.ts to detect cycles in type alias resolution before infinite recursion occurs.                                                                                                                                                                                                         |
+| BUG-073 | Code Generation      | Assigning a child struct to a parent struct variable (slicing) generates invalid LLVM IR.                                                      | Fixed    | Implemented struct slicing in emitCast() that extracts parent fields and replaces vtable with parent's vtable.                                                                                                                                                                                                                           |
+| BUG-074 | Code Generation      | Switch statements on string types generate invalid LLVM IR.                                                                                    | Fixed    | Implemented string switch as if-else chain with strcmp calls in StatementGenerator, added strcmp declaration to CodeGenerator standard library functions.                                                                                                                                                                                |
+| BUG-075 | Parser               | The parser does not support assigning explicit integer values to enum variants.                                                                | Ignored  | Feature deferred - may be added in future version.                                                                                                                                                                                                                                                                                       |
+| BUG-076 | Parser               | The compiler does not support inline `export` declarations.                                                                                    | Closed   | nope, you have to declare something and then export                                                                                                                                                                                                                                                                                      |
+| BUG-077 | Code Generation      | Namespace import (`import * as`) fails to generate LLVM declarations, causing link errors.                                                     | Fixed    | Added module-function detection/mangling and emits extern/module declarations when called via namespace imports.                                                                                                                                                                                                                         |
+| BUG-078 | Type Inference       | Lambda return type inference fails when passed as function argument.                                                                           | Fixed    | it should be explicit, keep it like that                                                                                                                                                                                                                                                                                                 |
+| BUG-079 | Code Generation      | Dereferencing a `*void` pointer generates invalid `load void` instruction.                                                                     | Fixed    | Compiler now properly validates and rejects void variables, preventing dereference of void pointers into void variables. Error: "Variable cannot be of type 'void'"                                                                                                                                                                      |
+| BUG-080 | Code Generation      | Destructor with value receiver (`this: D`) generates invalid LLVM IR.                                                                          | Fixed    | Added validation in TypeChecker to reject value receivers for destroy methods, requiring pointer receivers (\*D).                                                                                                                                                                                                                        |
+| BUG-081 | Equality             | Array equality uses invalid LLVM IR (`icmp eq`) instead of `memcmp`.                                                                           | Fixed    | Implemented array comparison using memcmp for byte-wise comparison in BinaryExpressionGenerator.                                                                                                                                                                                                                                         |
+| BUG-082 | Equality             | Tuple equality uses invalid LLVM IR (`icmp eq`) instead of member-wise comparison.                                                             | Fixed    | Implemented member-wise tuple comparison with short-circuit evaluation using extractvalue in BinaryExpressionGenerator.                                                                                                                                                                                                                  |
+| BUG-083 | Strings              | String concatenation (`+`) generates invalid LLVM IR (`add i8*`) instead of runtime call.                                                      | Deferred | Deferred due to memory leak concerns. String concatenation requires runtime allocation and deallocation which needs proper lifetime management. Will be revisited when memory management improvements are implemented.                                                                                                                   |
+| BUG-084 | Primitive Types      | `uint` and `int` are 32-bit (4 bytes) instead of 64-bit as documented.                                                                         | Fixed    | Fix documentation to match int-4byte, long 8bytes                                                                                                                                                                                                                                                                                        |
+| BUG-085 | Parser               | `sizeof(int[10])` fails parsing (interpreted as indexing expression).                                                                          | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-086 | Type Aliases         | Type alias substitution ignores precedence (e.g., `*Arr` where `Arr=int[10]` becomes array of pointers).                                       | Fixed    | Pointer-to-array indexing now loads the pointee array and uses correct GEP, preserving alias precedence for `*Arr` -> pointer-to-array.                                                                                                                                                                                                  |
+| BUG-087 | Equality             | Function pointer equality uses invalid LLVM IR (`icmp eq` on closure struct).                                                                  | Fixed    | Already works correctly - generates valid `icmp eq` instruction for direct pointer comparison.                                                                                                                                                                                                                                           |
+| BUG-088 | Methods              | Bound methods (e.g., `obj.method`) are not supported (parser error).                                                                           | Fixed    | in obj.method() this should work, in `frame obj.method()` this should not work since we have struct methods                                                                                                                                                                                                                              |
+| BUG-089 | Structs              | Recursive structs (infinite size) cause LLVM IR generation errors instead of semantic error.                                                   | Fixed    | Added detectStructCycle() method to TypeChecker.ts to detect cyclic struct field references before LLVM generation.                                                                                                                                                                                                                      |
+| BUG-090 | Enums                | Recursive enums cause stack buffer overflow in generated code (incorrect size calculation).                                                    | Fixed    | Added detectEnumCycle() method to TypeChecker.ts to detect cyclic enum variant references before LLVM generation.                                                                                                                                                                                                                        |
+| BUG-091 | Enums                | Enum constructor corrupts fields for small types (writes `i32` for `u8`, overwriting adjacent fields).                                         | Fixed    | Added type truncation when storing enum tuple variant arguments to handle small integer types (u8, i8, u16, i16).                                                                                                                                                                                                                        |
+| BUG-092 | Enums                | Enum constructor overflows buffer for struct fields (incorrect size calculation).                                                              | Fixed    | Added type checking and truncation in struct literal field assignments to handle small integer types.                                                                                                                                                                                                                                    |
+| BUG-093 | Primitive Types      | Method calls on aliased primitive types (e.g., `type MyInt = int; local x: MyInt; x.toString()`) failed to resolve.                            | Fixed    | Fixed by allowing wrapping of aliased primitives in CallChecker.                                                                                                                                                                                                                                                                         |
+| BUG-094 | Runtime              | Runtime type matching for `Any` type failed due to incorrect struct layout assumption in codegen.                                              | Fixed    | Fixed by updating ExpressionGenerator to access `type_id` at index 0.                                                                                                                                                                                                                                                                    |
+| BUG-095 | Tests                | `sizeof` tests expected incorrect padding (16 bytes for 2 ints instead of 8).                                                                  | Fixed    | Updated test expectations to match correct packed size.                                                                                                                                                                                                                                                                                  |
+| BUG-096 | Examples             | `htons` function in HTTP server example used invalid shift operands (i32 instead of u16).                                                      | Fixed    | Added explicit casts to shift operands.                                                                                                                                                                                                                                                                                                  |
+| BUG-093 | Structs              | Struct fields of type `void` cause LLVM IR generation errors.                                                                                  | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-094 | Generics             | Generic instantiation with `void` (e.g., `Box<void>`) causes LLVM IR generation errors.                                                        | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-095 | Generics             | Generic array of `void` (e.g., `Arr<void>`) causes LLVM IR generation errors.                                                                  | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-096 | Parser               | Parentheses in type declarations (e.g., `(*int)[10]`) are not supported.                                                                       | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-097 | Arrays               | Array of function types (e.g., `F[10]`) allocates single element instead of array.                                                             | Fixed    | Fixed by propagating array dimensions in TypeCheckerBase.resolveType for non-BasicType aliases.                                                                                                                                                                                                                                          |
+| BUG-098 | Parser               | Array of tuples (e.g., `(int, int)[10]`) is a syntax error.                                                                                    | Fixed    |                                                                                                                                                                                                                                                                                                                                          |
+| BUG-099 | Generics             | Generic function type aliases fail substitution (generates invalid LLVM IR with `%struct.T`).                                                  | Fixed    | Fixed by correctly substituting generic parameters in function type aliases in TypeCheckerBase.                                                                                                                                                                                                                                          |
+| BUG-100 | Generics             | Generic struct type aliases fail argument count check (e.g., `B<int>` where `B<T>=Box<T>` claims 2 args).                                      | Fixed    | Fixed by correctly populating typeAliasMap in CodeGenerator.                                                                                                                                                                                                                                                                             |
+| BUG-101 | Tuples               | Nested tuple destructuring generated invalid LLVM IR (used outer tuple type instead of inner).                                                 | Fixed    | Fixed by using correct nestedTupleType/nestedTupleVal parameters in extractvalue instruction in StatementGenerator.                                                                                                                                                                                                                      |
+| BUG-102 | Enums                | Qualified name resolution in type lookups fails for nested generic enums with namespaces.                                                      | Fixed    | Fixed by adding namespace-aware fallback in TypeGenerator.resolveType() to strip namespace prefix when direct lookup fails.                                                                                                                                                                                                              |
+| BUG-103 | Enums                | Enum-to-enum casting only copies discriminant tag, losing data payload.                                                                        | Fixed    | Fixed by enhancing emitCast() in UnaryExpressionGenerator to copy both tag and data fields using extractvalue/insertvalue for same-size data, memcpy for different sizes.                                                                                                                                                                |
+| BUG-104 | Pattern Matching     | Nested tuple patterns in match expressions are not supported (e.g., `((a, b), c) => ...`).                                                     | Fixed    | Fixed by adding recursive handling for nested PatternTuple in MatchExpressionGenerator.ts.                                                                                                                                                                                                                                               |
+| BUG-105 | Generics             | Infinite recursion in generic function calls (monomorphization) causes compiler hang/crash (timeout).                                          | Fixed    | Added generation batch limit (50) in CodeGenerator to detect and error on infinite recursion.                                                                                                                                                                                                                                            |
+| BUG-106 | Safety               | Escape analysis is missing; functions can return pointers to local stack variables (use-after-free).                                           | Fixed    | Added check in StatementChecker to error when returning the address of a local variable or parameter.                                                                                                                                                                                                                                    |
+| BUG-107 | Code Generation      | Code generator fails to emit function definitions (e.g. `main`) when using `extern` or `try-catch`, causing linker errors.                     | Fixed    | Fixed by clearing `definedFunctions` set in `CodeGenerator.ts` to prevent stated leakage between compilations.                                                                                                                                                                                                                           |
+| BUG-108 | Parser/Analysis      | Duplicate fields in `struct` definitions cause an internal compiler crash.                                                                     | Fixed    | TypeChecker.ts now explicitly checks for duplicate fields/methods and throws a proper CompilerError.                                                                                                                                                                                                                                     |
+| BUG-109 | Safety               | `const` variables can be modified by taking their address (`local ptr: *int = &const_var`).                                                    | Fixed    | ExpressionChecker.ts now throws a CompilerError when attempting to take the address of a constant variable.                                                                                                                                                                                                                              |
+| BUG-110 | Codegen              | String concatenation (`"a" + "b"`) generates invalid LLVM IR (`add i8* ...` or `add %String ...`).                                             | Fixed    | The backend generates integer/float instructions for non-numeric types when operator overloads are missing or not resolved.                                                                                                                                                                                                              |
+| BUG-111 | Inline Asm           | Variable names with underscores (e.g., `asm_res`) fail in inline assembly blocks.                                                              | Fixed    | Fixed regex in `AsmGenerator.ts` to support variable names containing underscores by using non-greedy match `(.+?)` instead of `([^_]+)`.                                                                                                                                                                                                |
+| BUG-112 | Codegen              | Nested tuple pattern matching doesn't bind variables in nested patterns.                                                                       | Fixed    | Fixed MatchExpressionGenerator.ts to recursively handle PatternTuple for nested tuple patterns.                                                                                                                                                                                                                                          |
+| BUG-113 | Standard Library     | arg_parser ParsedArgs.destroy() crashes when freeing FlagEntry strings.                                                                        | Fixed    | Root cause was BUG-114 (nullptr comparison bug). Removed unnecessary null checks from destroy code.                                                                                                                                                                                                                                      |
+| BUG-114 | Codegen              | Comparing pointer to vtable-struct with nullptr crashes at runtime.                                                                            | Fixed    | Pointer comparisons now always do pointer identity, not operator overloads. Use dereference for value equality: `*a == *b`.                                                                                                                                                                                                              |
+| BUG-115 | Inheritance          | Self-inheriting struct (`struct A : A`) causes compiler stack overflow instead of semantic error.                                              | Fixed    | TypeChecker now detects self-inheritance early before type resolution and throws a proper error.                                                                                                                                                                                                                                         |
+| BUG-116 | Inheritance          | Circular inheritance (`struct A : B`, `struct B : A`) causes compiler stack overflow instead of semantic error.                                | Fixed    | TypeChecker now detects circular inheritance chains before type resolution and throws a proper error with cycle path.                                                                                                                                                                                                                    |
+| BUG-117 | Generics             | Duplicate generic type parameters (e.g., `struct T<T, T>`) are silently accepted.                                                              | Fixed    | TypeChecker now validates that all generic type parameter names are unique for functions, structs, and enums.                                                                                                                                                                                                                            |
+| BUG-118 | Strings              | Unicode characters in string literals cause LLVM IR generation error (string length mismatch).                                                 | Fixed    | escapeString and getUtf8ByteLength now correctly handle multi-byte UTF-8 characters using TextEncoder.                                                                                                                                                                                                                                   |
+| BUG-119 | Type System          | `is` operator returns false for `*Derived` when checked against base type through `*Base` pointer.                                             | Fixed    | Runtime vtable comparison now used for `is` operator on struct pointers and values. Structs in inheritance hierarchies get vtables.                                                                                                                                                                                                      |
+| BUG-120 | Type System          | `as` operator returns non-null for invalid downcasts (e.g., `*Animal as *Cat` when object is Dog).                                             | Fixed    | Runtime vtable comparison now used for `as` operator. Returns nullptr if vtable doesn't match target type.                                                                                                                                                                                                                               |
+| BUG-121 | Codegen              | `sizeof<float>()` and `sizeof<f64>()` cause LLVM IR generation error (getelementptr on unsized type).                                          | Fixed    | TypeGenerator.resolveType now correctly maps `float`, `f32`, `f64`, `double` to proper LLVM types (`float` or `double`).                                                                                                                                                                                                                 |
+| BUG-122 | Enums                | Empty enum (`enum E {}`) is accepted but has no valid values or constructors.                                                                  | Fixed    | TypeChecker now validates that enums have at least one variant and throws a proper error for empty enums.                                                                                                                                                                                                                                |
+| BUG-123 | Specs                | Spec extending itself (`spec S : S`) is silently accepted.                                                                                     | Fixed    | TypeChecker now detects self-extension in specs and throws a proper error.                                                                                                                                                                                                                                                               |
+| BUG-124 | Parser               | Unary plus operator (`+5`) causes syntax error instead of being accepted or giving clear error message.                                        | Fixed    | Grammar now parses unary plus, and TypeChecker throws a clear error explaining it's a no-op and should be removed.                                                                                                                                                                                                                       |
+| BUG-125 | Type System          | Undefined types in variable declarations/struct fields are not caught at type-check time, causing LLVM errors.                                 | Fixed    | Added undefined type detection in StatementChecker.checkVariableDecl() to catch undefined types at declaration time.                                                                                                                                                                                                                     |
+| BUG-126 | Type System          | Type aliases can shadow builtin types (`type int = string;`), causing confusing behavior.                                                      | Fixed    | Added BUILTIN_TYPE_NAMES check in TypeChecker.checkTypeAlias() to prevent shadowing primitives.                                                                                                                                                                                                                                          |
+| BUG-127 | Pointers             | Pointer arithmetic on `*void` is accepted, but void has no size so offset calculation is undefined.                                            | Fixed    | Added void pointer check in ExpressionChecker.checkBinaryExpression() before pointer arithmetic.                                                                                                                                                                                                                                         |
+| BUG-128 | Linker               | Missing `main` function only detected at link time, not during type-checking.                                                                  | Fixed    | Added checkEntryPoint() method in TypeChecker that validates main function existence and signature.                                                                                                                                                                                                                                      |
+| BUG-129 | Specs                | Duplicate method signatures in specs (`spec S { frame f(); frame f(); }`) are silently accepted.                                               | Fixed    | Added duplicate method signature detection with Set-based tracking in TypeChecker.checkSpecBody().                                                                                                                                                                                                                                       |
+| BUG-130 | Analysis             | Variables used in string interpolation (`${var}`) are reported as "unused".                                                                    | Fixed    | Was already fixed - checkInterpolatedString calls checkExpression on each part which calls resolve() marking variables as used.                                                                                                                                                                                                          |
+| BUG-131 | Generics             | Generic enum types (Option<T>, Result<T,E>) cause LLVM error "Cannot allocate unsized type".                                                   | Fixed    | Was already fixed - generic enum types work correctly now.                                                                                                                                                                                                                                                                               |
+| BUG-132 | Control Flow         | Match expression exhaustiveness not recognized for return paths - requires explicit return after match.                                        | Fixed    | Added ExpressionStmt case in checkAllPathsReturn() to detect Match expressions where all arms have return statements.                                                                                                                                                                                                                    |
+| BUG-133 | Inline Assembly      | Variables used in inline assembly blocks are reported as unused by the linter.                                                                 | Fixed    | `StatementChecker.checkAsm()` now recognizes constrained input/output operands like `(a: "r")` and `(=out: "={eax}")`, and reports undefined constrained operands. Regression: `tests/BugFixes_Batch5.test.ts`.                                                                                                                          |
+| BUG-134 | Inline Assembly      | LLVM IR inline assembly generates incorrect type references for pointer parameters.                                                            | Fixed    | Raw LLVM `(ptr_param)` now resolves pointer locals to the pointer value; `(&ptr_param)` remains available when raw LLVM needs the variable's stack slot. Regression: `tests/V01BugRepros.test.ts`.                                                                                                                                       |
+| BUG-135 | IO Library           | `IO.printInt`, `IO.printFloat`, and `IO.printBool` add implicit newlines unlike typical print functions.                                       | Fixed    | Primitive `IO.print*` helpers now print without implicit newlines; explicit `IO.printIntLn`, `IO.printFloatLn`, and `IO.printBoolLn` helpers provide line output. Regression: `tests/V01BugRepros.test.ts`.                                                                                                                              |
+| BUG-136 | Codegen              | Method calls on array-element-derived pointers can crash when vtables are not initialized.                                                     | Fixed    | Vtables are initialized for stack arrays, `init` methods use direct dispatch on uninitialized memory, and `init` bodies inject vtable initialization. Regression coverage remains in integration examples.                                                                                                                               |
+| BUG-137 | Runtime/Vtable       | `mini_database_engine` crashes during INSERT/SELECT due to uninitialized vtables in heap-allocated struct arrays/clones.                       | Fixed    | Example now uses direct `.init()` calls on heap-array elements and clone destinations before virtual method use. Regression: `examples/mini_database_engine`.                                                                                                                                                                            |
+| BUG-138 | TypeChecker          | Invalid constant shift counts compile to target-dependent or undefined LLVM behavior.                                                          | Fixed    | Type checking now rejects negative constant shift counts and constant counts greater than or equal to the shifted integer width. Regression: `tests/V01BugRepros.test.ts`.                                                                                                                                                               |
+| BUG-139 | Codegen/Optimization | Trivial wrapper functions are not zero-cost after LLVM optimization because stack-frame instrumentation survives in callers.                   | Fixed    | Codegen omits stack-frame hooks for trivial leaf return wrappers while keeping hooks for `main` and call-bearing functions, allowing LLVM `-O2` to erase the wrapper. Regression: `tests/V01BugRepros.test.ts`.                                                                                                                          |
+| BUG-140 | Codegen              | Fixed array to raw pointer implicit decay is accepted by lowering/type checking but rejected by codegen.                                       | Fixed    | Local variable initialization now lowers `array-to-pointer` with an address-based first-element GEP, preserving the original array storage. Regression: `tests/BugFixes_Batch6.test.ts`.                                                                                                                                                 |
+| BUG-141 | Lowering             | `integer-compatible` implicit conversion classification is unreachable for different integer aliases.                                          | Fixed    | Scalar integer compatibility is now classified before same-name element matching, while pointer/array integer types remain unsupported. Regression: `tests/Lowering.test.ts`.                                                                                                                                                            |
+| BUG-142 | Strings/Codegen      | String interpolation evaluates side-effecting expressions twice when converting non-string values.                                             | Fixed    | Integer primitive intrinsic dispatch no longer eagerly generates receiver expressions for unrelated methods, and virtual receiver preparation spills rvalues without regenerating them. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                                                                      |
+| BUG-143 | Safety               | Escape analysis misses stack addresses hidden inside aggregate return values.                                                                  | Fixed    | Return checking now recursively rejects stack addresses hidden in struct, tuple, array, enum-struct, cast, group, and ternary return expressions. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                                                                                                            |
+| BUG-144 | Pointers             | Pointer subtraction across incompatible pointee types is accepted.                                                                             | Fixed    | Pointer subtraction now requires compatible pointer operands before lowering to an integer difference. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                                                                                                                                                       |
+| BUG-145 | Inheritance/VTable   | Method overrides with incompatible return types are accepted and can dispatch through the wrong signature.                                     | Fixed    | Struct body checking now validates inherited method overrides with matching non-`this` parameters and rejects incompatible return types before vtable dispatch can use mismatched signatures. Regression: `tests/LanguageExploration_2026_05_26.test.ts`.                                                                                |
+| BUG-148 | TypeChecker/Codegen  | Aggregate `+` expressions on structs or tuples compile to invalid LLVM `add` instructions.                                                     | Fixed    | Arithmetic validation now includes `+`, so aggregate addition without an overload is rejected before code generation. Regression: `tests/InternalErrorBoundary.test.ts`.                                                                                                                                                                 |
+| BUG-151 | Package Manager      | Package installs can replace regular files or symlinks at `bpl_modules/<package>`.                                                             | Fixed    | Package install targets are now preflighted before staging replacement; only absent paths or real directories are replaceable. Regression: `tests/PackageManager.test.ts`.                                                                                                                                                               |
+| BUG-152 | Package Manager      | Package uninstall treats symlinked package roots as installed packages.                                                                        | Fixed    | Uninstall now rejects symlinked package roots before reading manifests, unlinking binaries, or removing the package path. Regression: `tests/PackageManager.test.ts`.                                                                                                                                                                    |
+| BUG-153 | Package Manager      | Lock verification treats symlinked installed package roots as valid packages.                                                                  | Fixed    | `bpl install --locked` and lock verification now reject symlinked or non-directory package roots before loading manifests or hashing package contents. Regression: `tests/PackageManager.test.ts`.                                                                                                                                       |
+| BUG-154 | Package Manager      | Lock verification treats symlinked recorded package sources as reachable.                                                                      | Fixed    | Lock source reachability now requires a real regular file, so `bpl install --locked` reports symlinked recorded sources as unreachable instead of accepting sources that restore/install would reject. Regression: `tests/PackageManager.test.ts`.                                                                                       |
+| BUG-155 | Package Manager      | Lock verification accepts installed transitive dependencies that are missing from `bpl.lock`.                                                  | Fixed    | `verifyLockFile()` now reports `missing-transitive-lock-entry` when an installed package manifest depends on another installed package that is not recorded in the lockfile. Regression: `tests/PackageManager.test.ts`.                                                                                                                 |
+| BUG-156 | Package Manager      | Broken symlink `bpl.lock` paths are reported as missing lockfiles during locked verification.                                                  | Fixed    | `verifyLockFile()` now uses `lstat` to distinguish absent lockfiles from symlinked lockfile paths before loading the lockfile, so broken and valid-target symlinks are both rejected. Regression: `tests/PackageManager.test.ts`.                                                                                                        |
+| BUG-157 | Package Manager      | Plain project install ignores broken symlink `bpl.lock` paths when no dependencies need installing.                                            | Fixed    | `installProject()` now uses `lstat` to distinguish absent lockfiles from symlinked lockfile paths before restore or no-op install decisions. Regression: `tests/PackageManager.test.ts`.                                                                                                                                                 |
+| BUG-158 | Package Manager      | Local uninstall removes package files before rejecting a broken symlink `bpl.lock`.                                                            | Fixed    | `uninstall()` now preloads and validates an existing local lockfile before unlinking binaries or removing package directories. Regression: `tests/PackageManager.test.ts`.                                                                                                                                                               |
+| BUG-159 | Package Manager      | Dependency-tree generation ignores broken symlink `bpl.lock` paths and reports packages as unlocked.                                           | Fixed    | `getDependencyTree()` now uses `lstat` to detect existing local lockfile paths before loading them, so symlinked and broken symlink lockfiles are rejected consistently. Regression: `tests/PackageManager.test.ts`.                                                                                                                     |
+| BUG-160 | Package Manager      | Dependency-tree generation follows symlinked package roots in `bpl_modules`.                                                                   | Fixed    | Dependency-tree node construction now classifies package roots with `lstat` and reports symlinked or non-directory roots as problems without loading manifests through them. Regression: `tests/PackageManager.test.ts`.                                                                                                                 |
+| BUG-161 | Package Manager      | Package-cache clean leaves broken symlink provenance sidecars behind.                                                                          | Fixed    | `cleanPackageCache()` now uses `lstat` to remove provenance sidecars, including broken symlinks, before deleting cached archives. Regression: `tests/PackageManager.test.ts`.                                                                                                                                                            |
+| BUG-162 | Package Manager      | Broken symlink package `bin` entries are reported as missing files during pack.                                                                | Fixed    | `validatePackageBinFile()` now uses `lstat` before missing-file classification so broken symlink bin entries are rejected as unsupported symlinks. Regression: `tests/PackageManager.test.ts`.                                                                                                                                           |
+| BUG-163 | Module Resolver      | Broken symlink entry modules are reported as missing files.                                                                                    | Fixed    | `assertReadableModuleFile()` now uses `lstat` before missing-file classification, so broken entry symlinks get symbolic-link diagnostics while valid symlink entries still normalize to their real paths. Regression: `tests/ModuleResolver.test.ts`.                                                                                    |
+| BUG-164 | Module Resolver      | Broken symlink import candidates are skipped during extension fallback.                                                                        | Fixed    | `tryResolveWithExtensions()` now classifies candidates with `lstat`, rejects broken symlinks before lower-priority extension fallback, and still normalizes valid import symlinks to their real paths. Regression: `tests/ModuleResolver.test.ts`.                                                                                       |
+| BUG-217 | macOS Runtime Build  | Runtime support builds only for the shell architecture under Rosetta.                                                                          | Fixed    | macOS runtime builds now compile x86_64 and arm64 objects and combine them into a universal object before archiving. Linux keeps its native single-architecture build. Regression: `tests/RuntimeBuildScript.test.ts`.                                                                                                                   |
+| BUG-218 | macOS Tests          | Temporary paths compare `/var` aliases with canonical `/private/var` paths.                                                                    | Fixed    | Bun tests now canonicalize macOS temporary-directory environment variables before loading test files. Linux test environments are unchanged.                                                                                                                                                                                             |
+| BUG-219 | macOS Runtime Cache  | Cached module builds can mix Bun's arm64 host target with Rosetta's default x86_64 compiler target.                                            | Fixed    | Module compilation now resolves the same explicit host target used by runtime-object injection. Linux keeps its existing native target behavior.                                                                                                                                                                                         |
+| BUG-220 | Test Infrastructure  | Command shims require `node` to be available through `PATH` even when tests run with Bun.                                                      | Fixed    | Non-Windows command shims now use the active runtime executable in their shebang, remaining portable across Bun-based Linux and macOS test environments.                                                                                                                                                                                 |
+| BUG-221 | WebAssembly Tooling  | Bare wasm linker candidates can fail probing when the runtime does not resolve modified `PATH` entries for `spawnSync`.                        | Fixed    | Wasm linker probes now resolve executable candidates explicitly before spawning them, preserving bare-name and absolute-path behavior on Linux and macOS.                                                                                                                                                                                |
+| BUG-222 | Playground Runtime   | Playground native builds can mix runtime-object and final-link architectures under Rosetta.                                                    | Fixed    | Playground codegen, runtime-object caching, and final native links now share one explicit host target. Linux keeps its explicit native host target.                                                                                                                                                                                      |
+| BUG-223 | Release Smoke        | Release smoke inherits a polluted user npm cache and requires an optional wasm backend.                                                        | Fixed    | Packed npm smoke uses an isolated temporary npm cache and skips an unavailable wasm compiler target unless CI explicitly requires wasm.                                                                                                                                                                                                  |
+| BUG-224 | Cross-Platform Tests | macOS runs Linux/x86/GNU-tar-specific integration contracts as universal tests.                                                                | Fixed    | Platform-specific examples and GNU-tar security fixtures are capability-gated, while portable pointer and temporary-directory expectations remain active everywhere. Linux retains the full Linux/x86/GNU coverage.                                                                                                                      |
+| BUG-225 | Runtime Diagnostics  | Generated runtime diagnostics reference glibc's `stderr` global directly.                                                                      | Fixed    | Generated IR now calls a runtime-support stderr helper instead of depending on a host libc's private `stderr` ABI. Regression: `tests/CodeGenerator.test.ts`.                                                                                                                                                                            |
+| BUG-165 | Package Manager      | Broken symlink package manifests are reported as missing during uninstall.                                                                     | Fixed    | `uninstall()` now uses `lstat` before its missing-manifest branch, so broken symlink `bpl.json` paths are rejected by `loadManifest()` as manifest symlinks. Regression: `tests/PackageManager.test.ts`.                                                                                                                                 |
+| BUG-167 | Package Manager      | Exact cached `.tgz` archive names skip broken symlink archive validation.                                                                      | Fixed    | Exact global cache archive lookup now uses `lstat`, so broken symlink cache entries are passed to `ensurePackageArchiveFile()` and rejected as archive symlinks. Regression: `tests/PackageManager.test.ts`.                                                                                                                             |
+| BUG-168 | Package Manager      | Broken symlink `file:` dependency archives fall back to package-name lookup.                                                                   | Fixed    | Dependency source resolution now uses `lstat` for file/path archive specs, so broken symlink dependency archives are passed to archive validation and rejected as archive symlinks. Regression: `tests/PackageManager.test.ts`.                                                                                                          |
+| BUG-169 | Module Cache         | Broken symlink `.bpl-cache` directories are reported as generic non-writable cache directories.                                                | Fixed    | Cache object and manifest write preflights now classify parent directories with `lstat`, so symlinked cache directories produce symbolic-link diagnostics. Regression: `tests/ModuleCache.test.ts`.                                                                                                                                      |
+| BUG-171 | Package Manager      | Symlinked package cache archives can shadow real cache entries during package-name resolution.                                                 | Fixed    | `findGlobalPackageTarballs()` now filters candidates with `lstat`, so package-name and semver cache resolution only selects real archive files. Exact cached `.tgz` names still route to archive validation. Regression: `tests/PackageManager.test.ts`.                                                                                 |
+| BUG-172 | Package Resolver     | Symlinked preferred `.bpl` package entrypoint or subpath candidates can fall through to lower-priority `.x` files.                             | Fixed    | Package source candidate resolution now treats symlinked candidates as terminal package-resolution failures, so package imports do not silently resolve legacy `.x` fallbacks after a blocked `.bpl` candidate. Regression: `tests/PackageResolver.test.ts`.                                                                             |
+| BUG-174 | Package Resolver     | Symlinked preferred `index.bpl` package directory candidates can fall through to lower-priority `index.x` files.                               | Fixed    | Package directory index resolution now treats symlinked index candidates as terminal package-resolution failures, so package imports do not silently resolve `index.x` fallbacks after a blocked `index.bpl`. Regression: `tests/PackageResolver.test.ts`.                                                                               |
+| BUG-175 | Package Resolver     | Symlinked local package roots are skipped, allowing workspace or global packages with the same import name to load.                            | Fixed    | Package root candidate resolution now treats symlinked package roots as terminal metadata failures, so local package-root symlinks block same-name workspace/global fallback without following the link. Regression: `tests/PackageResolver.test.ts`.                                                                                    |
+| BUG-176 | Package Resolver     | Existing malformed local package roots can be skipped, allowing workspace or global packages with the same name to load.                       | Fixed    | Package root candidate resolution now treats existing non-directory package roots and directories missing `bpl.json` as terminal metadata failures, blocking same-name workspace/global fallback. Regression: `tests/PackageResolver.test.ts`.                                                                                           |
+| BUG-180 | Package Resolver     | Symlinked package search directories can be followed before child package candidates are classified.                                           | Fixed    | Package search directory resolution now rejects symlinked `bpl_modules`, workspace `packages`, and configured global package directories before probing package roots or falling back to lower-priority package sources. Regression: `tests/PackageResolver.test.ts`.                                                                    |
+| BUG-181 | Package Resolver     | Nested package source paths can follow symlinked parent directories inside a package root.                                                     | Fixed    | Package source candidate resolution now checks parent path segments with `lstat`, so nested entrypoints and subpaths reject symlinked parents before reading child files or trying lower-priority extension fallbacks. Regression: `tests/PackageResolver.test.ts`.                                                                      |
+| BUG-182 | Package Manager      | Package listing and doctor checks can follow package directory symlinks swapped in after manager construction.                                 | Fixed    | Package listing, package-cache listing, dependency-tree roots, and package doctor checks now revalidate package directories with `lstat` before scanning. Doctor reports `unsafe-package-directory` instead of following the symlink. Regression: `tests/PackageManager.test.ts`.                                                        |
+| BUG-183 | Package Manager      | Package-name install lookup can follow a symlinked global package cache root.                                                                  | Fixed    | Global package cache lookup now validates the cache root with `lstat` before package-name, version selector, or exact cached archive probes. Missing cache roots report ordinary package misses instead of raw filesystem errors. Regression: `tests/PackageManager.test.ts`.                                                            |
+| BUG-184 | Package Manager      | Direct archive installs can follow package install root symlinks swapped in after manager construction.                                        | Fixed    | Direct archive installs now revalidate the selected local or global package install root with `lstat` immediately before package/cache writes. Missing real roots are still recreated safely. Regression: `tests/PackageManager.test.ts`.                                                                                                |
+| BUG-185 | Package Manager      | Package uninstalls can follow package root symlinks swapped in after manager construction.                                                     | Fixed    | Local and global uninstalls now revalidate the selected package root with `lstat` before probing or removing package directories, so swapped roots cannot redirect removals outside the configured package root. Regression: `tests/PackageManager.test.ts`.                                                                             |
+| BUG-186 | Package Manager      | Package uninstalls can follow symlinked binary directories swapped in after install.                                                           | Fixed    | Uninstall now revalidates local `.bin` and global binary directories with `lstat` before unlinking package commands, rejecting symlinked bin-directory roots while still tolerating missing bin directories. Regression: `tests/PackageManager.test.ts`.                                                                                 |
+| BUG-187 | Package Manager      | Lock verification can follow a symlinked local package directory swapped in after manager construction.                                        | Fixed    | Lock verification now revalidates `bpl_modules` with `lstat` before scanning locked package entries, so `bpl install --locked` cannot verify external package contents through a swapped package root. Missing package roots still report ordinary missing-package issues. Regression: `tests/PackageManager.test.ts`.                   |
+| BUG-188 | Package Manager      | Package archive source paths can follow symlinked parent directories.                                                                          | Fixed    | Archive install validation now rejects symlinked parent directories before extraction, `file:` dependencies inherit the same guard, and lock verification treats recorded sources through symlinked parents as unreachable. Regression: `tests/PackageManager.test.ts`.                                                                  |
+| BUG-189 | Package Manager      | Package cache maintenance and global installs can follow symlinked parent directories of the global package cache.                             | Fixed    | Package-manager directory validation now rejects symlinked parent directories before reading, repairing, cleaning, creating, or writing package/cache roots, so cache archives and provenance sidecars cannot be redirected through a symlinked cache parent. Regression: `tests/PackageManager.test.ts`.                                |
+| BUG-190 | Module Cache         | Module cache operations can follow symlinked parent directories after project-root swaps.                                                      | Fixed    | Module cache construction, object writes, manifest writes, and cache cleaning now reject symlinked parent directories, while cached-object lookup and stats ignore object files reached through symlinked parents. Regression: `tests/ModuleCache.test.ts`.                                                                              |
+| BUG-191 | CLI Clean            | `bpl clean` can scan and remove artifacts through symlinked working-directory path components when the runtime preserves the symlink spelling. | Fixed    | Clean now rejects working directory paths containing symlink components before git probing, artifact scanning, or deletion. JSON mode returns a parseable `success: false` clean report. Regression: `tests/CLI.test.ts`.                                                                                                                |
+| BUG-192 | CLI Output           | Shared CLI output writes can follow symlinked ancestor directories even when the immediate parent is real.                                     | Fixed    | Shared output-path validation now rejects symlinked parent path components before atomic temp creation, chmod, rename, or cleanup, covering format, docs, bindgen, and compile outputs that use `writeFileAtomically`. Regression: `tests/CLIUtils.test.ts`.                                                                             |
+| BUG-193 | Linker               | Native linker executable outputs can be redirected through symlinked ancestor directories.                                                     | Fixed    | Linker output validation now rejects symlinked parent path components before selecting temporary outputs, revalidates temp output paths before final rename, and avoids best-effort cleanup through symlinked parents. Regression: `tests/Linker.test.ts`.                                                                               |
+| BUG-194 | Codegen              | Debug IR output can be redirected through symlinked ancestor directories.                                                                      | Fixed    | CodeGenerator debug IR emission now rejects symlinked parent path components before writing diagnostic `.ll` files, preserving final-path and immediate-parent symlink protections. Regression: `tests/CodeGenerator.test.ts`.                                                                                                           |
+| BUG-195 | Module Cache         | Cached module linked executable outputs can be redirected through symlinked ancestor directories.                                              | Fixed    | `ModuleCache.linkModules` now rejects symlinked parent path components before compiler-driver invocation and before final rename, while temporary cleanup continues to avoid paths through symlinked parents. Regression: `tests/ModuleCache.test.ts`.                                                                                   |
+| BUG-196 | Release              | Release manifest outputs can be redirected through symlinked ancestor directories.                                                             | Fixed    | Release manifest output validation now rejects symlinked parent path components before writing manifest JSON, preserving final-output and immediate-parent symlink diagnostics. Regression: `tests/ReleaseMetadata.test.ts`.                                                                                                             |
+| BUG-197 | Fuzzing              | Compiler fuzz crash artifacts can be redirected through symlinked crash-directory ancestors.                                                   | Fixed    | Fuzz crash artifact directory validation now rejects symlinked parent path components before creating or writing repro source, minimized source, or metadata artifacts. Regression: `tests/CompilerFuzzRunner.test.ts`.                                                                                                                  |
+| BUG-198 | Fuzzing              | Fuzz regression promotion can write promoted corpus files through symlinked corpus-directory ancestors.                                        | Fixed    | `fuzz:promote` now rejects symlinked corpus-directory parent path components before duplicate-name checks, directory creation, or promoted repro writes. Regression: `tests/CompilerFuzzRunner.test.ts`.                                                                                                                                 |
+| BUG-199 | Fuzzing              | Fuzz promotion metadata updates can follow symlinked metadata paths or symlinked metadata parents.                                             | Fixed    | `fuzz:promote` now rejects symlinked crash metadata paths and symlinked metadata parent path components before reading metadata or writing `promotedTo` updates. Regression: `tests/CompilerFuzzRunner.test.ts`.                                                                                                                         |
+| BUG-200 | Fuzzing              | Fuzz promotion can read promoted source content through symlinked source paths or symlinked source parents.                                    | Fixed    | `fuzz:promote` now rejects symlinked source paths and symlinked source parent path components before reading repro source content for corpus promotion. Regression: `tests/CompilerFuzzRunner.test.ts`.                                                                                                                                  |
+| BUG-201 | Fuzzing              | Fuzz artifact repro planning can follow symlinked metadata files or symlinked metadata parents.                                                | Fixed    | `fuzz:repro` metadata discovery now rejects symlinked metadata files and symlinked metadata parent path components before generating replay or promotion commands. Regression: `tests/FuzzArtifactRepro.test.ts`.                                                                                                                        |
+| BUG-202 | Documentation        | Documentation generation can read input files through symlinked parent directories.                                                            | Fixed    | Documentation input resolution now rejects symlinked parent path components before reading source files, while preserving final symlink, non-file, and missing-input diagnostics. Regression: `tests/DocumentationGenerator.test.ts`.                                                                                                    |
+| BUG-203 | Bindgen              | C bindgen can read header inputs through symlinked parent directories.                                                                         | Fixed    | Bindgen header validation now rejects symlinked parent path components before reading input headers, preserving final symlink, broken-symlink, directory, and output path protections. Regression: `tests/CLI.test.ts`.                                                                                                                  |
+| BUG-204 | Object Parser        | Object and LLVM IR symbol parsing can read inputs through symlinked parent directories.                                                        | Fixed    | ObjectFileParser input validation now rejects symlinked parent path components before parsing LLVM IR or binary object/archive inputs. Regression: `tests/ObjectFileParser.test.ts`.                                                                                                                                                     |
+| BUG-205 | Runtime Resources    | `BPL_HOME` and bundled runtime resource lookup can resolve through symlinked parent directories.                                               | Fixed    | PathResolver rejects BPL roots reached through symlinked parent components; BinaryRunner, CompilationRunner, and `bpl doctor` reject bundled runtime files reached through symlinked resource parents before linking or reporting success. Regressions: `tests/PathResolver.test.ts`, `tests/BinaryRunner.test.ts`, `tests/CLI.test.ts`. |
+| BUG-206 | CLI Scripts          | `bpl run-script` can read `bpl.json` through symlinked working-directory parent components.                                                    | Fixed    | Run-script manifest validation now rejects symlinked parent components before parsing `bpl.json`, listing scripts, or executing script commands. Regression: `tests/CLI.test.ts`.                                                                                                                                                        |
+| BUG-207 | Fuzzing              | `fuzz:replay --minimize --out` can write minimized repro files through symlinked output ancestors.                                             | Fixed    | Fuzz replay output validation now rejects final output symlinks, non-directory output parents, and symlinked output parent components before writing minimized repro files. Regression: `tests/CompilerFuzzRunner.test.ts`.                                                                                                              |
+| BUG-210 | Cross Platform       | macOS compiler-correctness CI rejects wasm output paths below the trusted `/var` system symlink used by `os.tmpdir()`.                         | Fixed    | Shared path-safety validation now allows trusted macOS root temp symlinks such as `/var -> /private/var` and `/tmp -> /private/tmp` while still rejecting user-controlled nested symlink ancestors. Regression: `tests/PathSafety.test.ts`.                                                                                              |
+| BUG-216 | Package Resolver     | Unsafe global versioned package roots can be ignored, allowing fallback to lower package versions.                                             | Fixed    | Versioned global package root candidates are now collected by name before `lstat` validation, so symlinks and non-directories block fallback consistently. Regression: `tests/PackageResolver.test.ts`.                                                                                                                                  |
 
 ## Details
 
@@ -4907,7 +4912,6 @@ Source revision: `23e88536`. See [the audit report](https://github.com/pr0h0/bpl
 
 **Resolution**: Unlink and free each node before invoking its callback. Compiler-generated defer callbacks copy captures to local storage and release their capture allocation before running user code. Remove the redundant normal-return free. Allocation tracking and O0/O3 execution cover normal exits, exception unwinding, throwing callbacks, earlier registered cleanup, and zero remaining allocations.
 
-
 ### BUG-320: Arena and stack allocation sizes wrap and overlap later allocations
 
 **Status**: Fixed
@@ -4953,7 +4957,6 @@ Source revision: `23e88536`. See [the audit report](https://github.com/pr0h0/bpl
 **Observed (2026-09-15)**: On Linux x86-64 with Clang 21, a separately compiled C function `int sum_pair(struct Pair p)` for `struct Pair { int x; int y; };` returns 7 when BPL passes `Pair { x: 7, y: 11 }`, instead of 18. Reproduced at O0 and O3. Matching field layout does not establish the platform's function-call ABI: the C function receives the two fields packed into an i64 while BPL declares and passes an LLVM aggregate.
 
 **Next step**: Introduce target-specific C ABI argument/result classification, including coercions and indirect passing, with bidirectional C/BPL fixtures. Until supported, reject aggregate-by-value extern signatures or document and enforce pointer-based wrappers. Aggregate returns and other target ABIs require separate tests; this reproduction proves the two-i32 argument case only.
-
 
 **Resolution**: Extern calls with by-value C-compatible structs or payload-free enums go through an internal wrapper that lowers them to the target C ABI (x86-64 System V with register exhaustion, Windows x64, AArch64 AAPCS and Apple arm64, i386 System V, WebAssembly). tests/CAbiLowering.test.ts compares the lowered declarations with clang on all seven target families; tests/ExternAbiSafety.test.ts runs a separately compiled C fixture at O0/O3 covering register-sized, SSE, mixed, sret, nested, array-field, bool-field, register-exhausted, enum, and function-pointer cases. Non-C-compatible aggregates, aggregate callbacks, and aggregates in variadic externs remain rejected with BPL_EXTERN_ABI_UNSUPPORTED.
 
@@ -5549,13 +5552,13 @@ frame leakElement() ret *int {
 
 **Observed (2026-09-17)**: Four search methods on `String` answered the same question differently for an empty search text:
 
-| Call | Result before | Convention |
-| --- | --- | --- |
-| `s.includes("")` | `false` | true |
-| `s.indexOf("")` | `0` | 0 |
-| `s.startsWith("")` | `true` | true |
-| `s.endsWith("")` | `true` | true |
-| `s.lastIndexOf("")` | `s.length` | length |
+| Call                | Result before | Convention |
+| ------------------- | ------------- | ---------- |
+| `s.includes("")`    | `false`       | true       |
+| `s.indexOf("")`     | `0`           | 0          |
+| `s.startsWith("")`  | `true`        | true       |
+| `s.endsWith("")`    | `true`        | true       |
+| `s.lastIndexOf("")` | `s.length`    | length     |
 
 `includes(x)` should agree with `indexOf(x) >= 0`, and for every other method in the same file an empty text is present. Only `includes` treated it as absent, which silently reverses code such as a filter that includes everything when its query is empty.
 
@@ -6020,15 +6023,15 @@ frame first(xs: int[]) ret *int {
 
 **Observed (2026-09-18)**: Five numeric operations produced wrong results for operands whose answers are perfectly representable, because an intermediate value was not. Each was confirmed at O0 and O3, exiting normally with incorrect output.
 
-| Call | Result | Expected |
-| --- | --- | --- |
-| `Stats.median` of two `2147483647` | `-1.0` | `2147483647.0` |
-| `Range.new(-2000000000, 2000000000, 2000000000).len()` | `0` | `2` |
-| `Range.betweenInclusive(2147483646, 2147483647).len()` | `0` | `2` |
-| `Rational.fromLong(4611686018427387904).compare(&half)` | `-1` | `1` |
-| `Rational.fromLong(4611686018427387904).round()` | `-4611686018427387904` | `4611686018427387904` |
-| `Complex.fromReal(2.0).pow(-2147483648)` | `1.0` | `0.0` |
-| `Complex.new(3e200, 4e200).abs()` | `inf` | `5e200` |
+| Call                                                    | Result                 | Expected              |
+| ------------------------------------------------------- | ---------------------- | --------------------- |
+| `Stats.median` of two `2147483647`                      | `-1.0`                 | `2147483647.0`        |
+| `Range.new(-2000000000, 2000000000, 2000000000).len()`  | `0`                    | `2`                   |
+| `Range.betweenInclusive(2147483646, 2147483647).len()`  | `0`                    | `2`                   |
+| `Rational.fromLong(4611686018427387904).compare(&half)` | `-1`                   | `1`                   |
+| `Rational.fromLong(4611686018427387904).round()`        | `-4611686018427387904` | `4611686018427387904` |
+| `Complex.fromReal(2.0).pow(-2147483648)`                | `1.0`                  | `0.0`                 |
+| `Complex.new(3e200, 4e200).abs()`                       | `inf`                  | `5e200`               |
 
 The causes differ but share a shape: the median added two `int` values before widening; `Range` computed spans, counts, and membership offsets in `int` although a span can exceed it, and `betweenInclusive` incremented an already maximal endpoint; `Rational.compare` cross-multiplied and `round` doubled the numerator; `Complex.pow` negated an `int` exponent, which leaves the minimum negative so the loop never ran; and `Complex.abs` squared both components at full magnitude.
 
@@ -6342,12 +6345,12 @@ The earlier repair for these functions widened their intermediates and left the 
 
 **Observed (2026-09-19)**: Every operation whose instruction depends on signedness took the unsigned form when its operands were typed as a type parameter. For `T = int`:
 
-| Expression | Result | Correct |
-| --- | --- | --- |
-| `lessThan<int>(-2, 1)` | `false` | true |
-| `greaterThan<int>(1, -2)` | `false` | true |
-| `divide<int>(-7, 2)` | `2147483644` | -3 |
-| `cast<long>` of `-5` | `4294967291` | -5 |
+| Expression                | Result       | Correct |
+| ------------------------- | ------------ | ------- |
+| `lessThan<int>(-2, 1)`    | `false`      | true    |
+| `greaterThan<int>(1, -2)` | `false`      | true    |
+| `divide<int>(-7, 2)`      | `2147483644` | -3      |
+| `cast<long>` of `-5`      | `4294967291` | -5      |
 
 The signedness of an operand was decided by looking up its type name in the table of signed primitives. A type parameter is named `T`, which is not in that table, so the answer was "unsigned" and comparison, division, remainder, shift, and widening all silently took the unsigned instruction. The same expressions outside a generic frame were correct, which is why this survived: the comparison tests all used concrete types.
 
@@ -7069,7 +7072,7 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 
 ## Fixed generic callable operator code generation (2026-10-16)
 
-- A valid Item<u8> with __call__(this:*Item<T>,x:T) passes checking but
+- A valid `Item<u8>` with `__call__(this:*Item<T>,x:T)` passes checking but
   emits an unresolved generic method name and an i32 argument instead of u8.
   Clang rejects the undefined function. Found while testing conversion fixes;
   fixed by routing callable operators through ordinary method lowering and
@@ -7306,7 +7309,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - This fixes the entry-verification portion of audit P5. Archive reproducibility,
   metadata inclusion and other packing gaps are separate outstanding work.
 
-
 ## Implicit method/operator addresses bypassed const bindings (audit C10)
 
 - A const struct could call or bind a pointer-receiver method and mutate its
@@ -7373,7 +7375,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   diagnostic. O0/O3 native and LLVM-verified regressions exercise addition and
   subtraction over a two-element struct array and check the resulting addresses.
 
-
 ## Failed loop analysis leaked scope and loop depth (audit C12)
 
 - A non-boolean loop condition left the initializer variable visible after the
@@ -7384,7 +7385,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   loop checker, preserving normal checks and nested-loop context. Regressions
   check the original error plus correct later undefined-symbol and control-flow
   diagnostics, and exact state restoration for each failure stage.
-
 
 ## Excessive syntax nesting escaped as an unlocated host exception (audit C13)
 
@@ -7481,7 +7481,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   This is a targeted lowering boundary check; it is not a full lifetime analysis
   of view aliases, explicit casts or aggregate-contained borrows.
 
-
 ## Failed block and catch checking left the checker in an inner scope
 
 - Fail-fast block checking exited before restoring its enclosing scope when a
@@ -7492,7 +7491,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Six regression cases failed before the fix; focused tests also cover normal
   catch binding visibility and collection of multiple diagnostics.
 
-
 ## Failed conditional checking retained branch scopes
 
 - Checking a then branch (including its type-guard narrowing scope) or a single
@@ -7500,7 +7498,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   diagnostic collection could consequently run in an unintended inner scope.
 - Restore the exact incoming scope with `finally` around each branch scope.
   Four fail-fast conditional regressions failed before this correction.
-
 
 ## Catch annotations skipped type validation
 
@@ -7511,6 +7508,7 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   caught value. Valid primitive, alias and generic catch types remain accepted.
 - Three regression cases failed before the fix; catch scope restoration still
   applies when annotation validation fails.
+
 ## Explicit casts bypassed the array-view return diagnostic
 
 - Explicit casts of a fixed array to a slice/pointer passed return checking,
@@ -7527,7 +7525,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   checked cast type and existing array-to-pointer spill lowering. Native O0/O3
   tests cover primitive spellings, aliases, literal/local arrays, byte views,
   safe immediate consumption, and existing caller-owned view passthroughs.
-
 
 ## Returned calls and match results bypassed explicit array-view checks
 
@@ -7546,7 +7543,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   consumers, copied aggregate
   results, caller-owned match results and temporary views consumed in-frame.
 
-
 ## Match block yield types lost block-local alias resolution
 
 - A match arm defining `type View=int[]` and yielding `cast<View>([1,2])`
@@ -7555,7 +7551,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   declaring scope is live; inspect cast results using their checked types.
 - Native O0/O3 controls consume such a match value within its frame. Returning
   that value directly instead reports BPL_RETURN_ARRAY_VIEW_ESCAPES.
-
 
 ## Projections and method receivers hid returned array-view casts
 
@@ -7573,7 +7568,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - General alias/provenance tracking and unsupported temporary-aggregate address
   generation remain outside this change.
 
-
 ## Unknown component types passed compound annotation validation
 
 - The shared known-type check returned immediately for tuples, function types
@@ -7585,7 +7579,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Eighteen regression cases failed before this correction; positive controls
   preserve known aliases, nested generic types and generic parameter annotations.
 
-
 ## Failed destructuring declarations caused cascading diagnostics
 
 - Recovery retained a simple typed variable after an invalid initializer, but
@@ -7596,7 +7589,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   mark bindings belonging to the failed declaration as used. Preserve unrelated
   existing bindings, skip unknown/missing target types and leave fail-fast mode
   unchanged. Four initial regressions failed before the correction.
-
 
 ## Value symbols were accepted as type annotations
 
@@ -7610,7 +7602,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Six source regressions failed before the fix across simple, nested, field
   and catch annotations. Positive controls preserve actual type declarations.
 
-
 ## Undeclared short type names bypassed annotation validation
 
 - The known-type helper accepted any unresolved single uppercase letter,
@@ -7623,7 +7614,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Fifteen regression cases failed before this fix; positive controls preserve
   declared generic parameters and short type declarations.
 
-
 ## Function and explicit lambda signatures skipped known-type validation
 
 - Function/method parameters and return types, plus explicit lambda signatures,
@@ -7635,7 +7625,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Eight regression cases failed before the correction, including nested callable
   types and undeclared short names. External ABI declarations are outside this
   ordinary-language checking change.
-
 
 ## Failed struct and enum checks exposed generic parameter scopes
 
@@ -7973,7 +7962,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   return to source-directory watches after restoration. Do not recursively scan
   unrelated ancestor trees. Treat file-valued path components as missing dirs.
 
-
 ## Missing-entry fallback rebuilt for unrelated ancestor source files
 
 - CodeRabbit identified that extension-only relevance forced a rebuild for an
@@ -8001,7 +7989,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   JSON string escaping, then escape backticks and interpolation starts. Keep
   expression parts unchanged and verify comment/no-comment idempotence.
 
-
 ## Symlinked project roots duplicated source watch identities
 
 - CodeRabbit identified that root sources used an unresolved absolute path while
@@ -8011,7 +7998,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   for missing files and canonicalizing their nearest existing parent. Canonical
   temporary fixtures also work when the platform temporary directory is a link.
 
-
 ## Initial dev compilation missed edits made before watch registration
 
 - CodeRabbit identified that the initial build/run completed before watching
@@ -8019,7 +8005,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   gate pauses the first native build; no subsequent rebuild occurs before fixing.
 - Register and refresh source watches before the first compilation so queued
   changes compare against the source baseline used for that build.
-
 
 ## Retargeting a project directory link left watches on the old project
 
@@ -8029,14 +8014,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Also watch parents of symlink path components, without recursively scanning
   those ancestors. Retain canonical source identities and refresh after retargets.
 
-
 ## Initial-build watcher regression used a non-executable Windows driver
 
 - CodeRabbit identified that the test's .cmd wrapper cannot be launched as the
   compiler driver with shell execution disabled on Windows.
 - Build the finite test driver as a standalone Bun executable on every platform,
   keeping shell-free execution and exercising the same launch boundary locally.
-
 
 ## A linked entry changed the project scan root to its external target
 
@@ -8045,7 +8028,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   regression misses a local sibling and includes an unrelated target sibling.
 - Canonicalize the supplied entry parent for scanning and the entry file itself
   for source identity. Continue observing link parents and resolved dependencies.
-
 
 ## Failed source watchers required another event to recover
 
@@ -8056,7 +8038,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   event. Coalesce recovery timers, retry creation failures, and cancel pending
   recovery when the session closes or a manual refresh restores every handle.
 
-
 ## Watch recovery missed changes made while monitoring was unavailable
 
 - Restoring a failed handle replaced the source baseline without reporting edits
@@ -8064,7 +8045,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   callback before the correction.
 - Compare the old and refreshed source snapshots during recovery and report a
   changed file, allowing dev mode to rebuild the current source immediately.
-
 
 ## Persistent watch registration failures flooded logs and rescanned every second
 
@@ -8075,7 +8055,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   until it recovers, reset the delay after successful recovery, and continue to
   cancel timers on close. Drop obsolete directory failure records during refresh.
 
-
 ## Unresolved package and standard-library imports did not recover in watch mode
 
 - CodeRabbit identified that missing bare packages and explicit std/ imports
@@ -8084,7 +8063,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Let the resolver report candidates from its actual failed search, including
   configured package/global/extra roots. Watch their nearest existing directories
   without scanning ancestors. Successful resolutions keep their existing behavior.
-
 
 ## Asynchronous watch-handle failures restarted the retry loop too early
 
@@ -8095,6 +8073,7 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Preserve backoff/error deduplication across newly created handles. Treat observed
   activity or a handle lasting at least 30 seconds as a fresh healthy episode.
   Ignore late errors from replaced handles and retain cancellation on close.
+
 ## Malformed string escapes consumed partial hexadecimal prefixes
 
 - Both quoted-string decoders used parseInt without checking every digit. Invalid
@@ -8103,7 +8082,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   fail before the fix.
 - Require exactly two/four hex digits before decoding. Malformed and incomplete
   escapes retain their literal spelling, matching the existing fallback contract.
-
 
 ## Character escape decoding discarded extra literal characters
 
@@ -8114,7 +8092,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   character before decoding. Existing supported escapes and legacy single unknown
   escapes retain their values; hexadecimal character escapes remain unsupported.
 
-
 ## Formatter removed enum implemented-spec lists
 
 - Enum formatting omitted EnumDecl.implements entirely. Both plain and commented
@@ -8122,7 +8099,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   formatter round-trip regressions fail before the fix.
 - Emit the existing type list after the enum name/generic parameters, preserving
   implemented contracts and their surrounding comments without new syntax.
-
 
 ## Multiline declaration headers introduced body spacing on repeated formatting
 
@@ -8133,7 +8109,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Use the source opening-brace line for that initial gap. Locate it with lexer
   tokens so braces in comments do not count, and reuse lazily collected tokens.
 
-
 ## Comment-free declaration headers lost source brace spacing
 
 - CodeRabbit identified that original source was retained only for programs with
@@ -8142,6 +8117,7 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Retain source provenance in the existing weak map for every parsed program and
   use it for declaration layout, including comment-free files. The source remains
   outside AST serialization/traversal and is released with its program.
+
 ## Spaced comparisons were parsed as generic applications (audit C2)
 
 - Postfix parsing consumed trivia before `<`, so comparison arguments such as
@@ -8154,7 +8130,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   both grammar and generated fast paths, and compare the optimized postfix
   scanner against the original Peggy production.
 
-
 ## Callable types retained spaced angle openers after adjacency tightening
 
 - CodeRabbit identified FunctionType and LambdaType still accepting trivia
@@ -8162,7 +8137,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   cases reproduce this for whitespace, newlines and comments.
 - Require the opening bracket to touch Func/Lambda as well; valid callable
   type forms and spaces inside their brackets remain supported.
-
 
 ## Diagnostics exposed internal boolean/string spellings (audit C18)
 
@@ -8173,7 +8147,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   qualifiers and dimensions. Keep canonical strings unchanged for signature
   identity and runtime type IDs.
 
-
 ## Missing generic arguments were reported as wrong value argument counts (C18)
 
 - Calling identity(1) when only identity<T>(value:T) exists reported a value
@@ -8182,7 +8155,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Track generic counts among candidates whose value arity matches, and report
   BPL_GENERIC_ARITY_MISMATCH when their explicit type-argument counts differ.
   Keep inference disabled and retain normal value/type mismatch diagnostics.
-
 
 ## Circular dependency diagnostics pointed at nonexistent line zero (audit C18)
 
@@ -8193,7 +8165,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   through graph sorting. Report the closing import location, with a 1:1 fallback
   only for synthetic graphs without source import metadata.
 
-
 ## Diagnostic string aliases hid explicit byte pointer types
 
 - CodeRabbit identified that the diagnostic printer rendered every explicit i8
@@ -8203,7 +8174,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   using string spelling for resolved i8 pointers. Preserve explicit pointers and
   guard metadata traversal against cycles; canonical identity remains untouched.
 
-
 ## Diagnostic type formatting exposed undefined for runtime-only types
 
 - CodeRabbit found that internal module types fall outside the parsed type union.
@@ -8211,14 +8181,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - A regression reproduces the fallback failure. Use unknown for unsupported
   kinds while preserving existing qualifier and array-dimension formatting.
 
-
 ## JSON build validation matrix exceeded the default test timeout
 
 - The full CI-safe run reproduced a 7.5-second timeout in a test that launches
   thirteen compiler processes sequentially under Bun's five-second default.
 - Give that existing integration matrix a bounded 30-second test budget; keep
   all expected JSON error codes and stdout/stderr assertions unchanged.
-
 
 ## Diagnostic types erased pointer-to-array grouping
 
@@ -8228,7 +8196,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Keep parentheses for pointer-to-array nodes and avoid collapsing their pointer
   into a string alias. Canonical type keys and runtime type IDs remain untouched.
 
-
 ## Raw char pointer diagnostics were renamed to string
 
 - CodeRabbit noted that the display helper changed explicit *char/**char nodes
@@ -8236,6 +8203,7 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   cases fail before the fix.
 - Restrict the string spelling to checked i8 types with string alias metadata;
   preserve raw char pointer spellings and checked pointer-to-array grouping.
+
 ## Dev execution blocked source watching and left programs running on shutdown
 
 - Watch mode ran programs synchronously before registering source watches. A
@@ -8247,7 +8215,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   close/SIGINT/SIGTERM, preserving run timeouts and compilation error recovery.
   Compilation itself still runs synchronously during each individual rebuild.
 
-
 ## Long dev run timeouts expired immediately through JavaScript timer limits
 
 - During asynchronous runner validation, a valid BPL_RUN_TIMEOUT_MS of 2147483648
@@ -8257,7 +8224,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   existing positive-safe-integer environment contract. Clear the active segment
   when the program finishes or the dev session stops.
 
-
 ## Repeated shutdown signals could interrupt dev child cleanup
 
 - CodeRabbit identified that signal handlers were removed before awaiting child
@@ -8266,14 +8232,12 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   runner-stop regression fails before the fix and checks handler retention,
   coalesced close requests and eventual listener cleanup without sending signals.
 
-
 ## Watch runner readiness could read an empty PID file
 
 - CodeRabbit identified a test race between file creation and writing the child
   PID. A deterministic delayed-write fixture reproduces it: Number("") became
   zero, invalidating the later process-exit assertion.
 - Wait for a positive safe integer PID before continuing with shutdown checks.
-
 
 ## Watch execution passed WebAssembly output to the native process runner
 
@@ -8283,7 +8247,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Keep WebAssembly builds out of native watch execution and warn once when run
   was requested. Watch compilation remains available; a WebAssembly runtime must
   execute the module separately. Native execution paths remain selected normally.
-
 
 ## CR-only source locations and newline characters in diagnostic snippets
 
@@ -8299,7 +8262,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Absolute-position, formatter round-trip, syntax-error and source-snippet
   regressions are in `tests/SourceLineEndings.test.ts`.
 
-
 ## CR-only documentation lost sections and parameter help
 
 - After source coordinates were corrected, documentation block comments attached
@@ -8308,7 +8270,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Split standalone CR as well. Direct section/parameter regressions and generated
   Markdown equivalence tests across all three newline forms cover the fix.
 
-
 ## CR-only comment spacing lost blank lines
 
 - CodeRabbit found that both blank-line checks beside comments required LF, so
@@ -8316,7 +8277,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Recognize logical LF/CRLF/CR separators before and after comments, preserve
   at most one blank line, and guard against treating a single CRLF as two breaks.
   Tests cover one, two and three separators, exact output and idempotence.
-
 
 ## Empty cached source displayed stale diagnostic snippets
 
@@ -8327,7 +8287,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   regression covers disk fallback before caching, authoritative empty content,
   and text, structured-object and JSON output.
 
-
 ## Lexer EOF positions ignored trailing source text
 
 - EOF was computed from the last token's start and lexeme length, so trailing
@@ -8336,7 +8295,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Return the final scanner coordinates from both GenericParser paths and use
   them for EOF, without rescanning or changing preceding tokens. Regressions
   cover LF/CRLF/CR, comment-only input, multiline literals and UTF-16 columns.
-
 
 ## Editor line endings disagreed with compiler coordinates
 
@@ -8356,7 +8314,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   selection, preserving actual explicit void type hovers and semantic tokens.
   Function/method regressions cover LF/CRLF/CR and explicit annotation controls.
 
-
 ## Declaration rename ranges covered whole declarations
 
 - Preparing a rename on `frame run() {}` selected the entire declaration instead
@@ -8368,7 +8325,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   use that same exact name range. Invalid names produce no declaration edit.
 - Twenty-seven failing-before cases cover LF/CRLF/CR, declaration families,
   modifiers and applying function/struct renames without changing their bodies.
-
 
 ## Rejecting cross-file rename also hid read-only imported references
 
@@ -8437,7 +8393,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Remaining reference matching still uses word regexes for global/alias/extern
   names; comment/literal and shadowing correctness require a separate fix.
 
-
 ## Global rename changed comments and literal payloads
 
 - Global/function/alias/extern reference discovery matched every word in source,
@@ -8446,7 +8401,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   separately using their parsed source ranges, preserving literal portions.
   Nine regressions failed before and pass after across LF/CRLF/CR, including
   type references inside interpolation. Binding/shadowing remains follow-up work.
-
 
 ## Rename accepted declaration keywords, comments and whitespace
 
@@ -8471,7 +8425,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Type-name/generic binding and workspace-wide import resolution remain separate
   limitations. Lambda-parameter rename itself is not implemented by this fix.
 
-
 ## CI workflow test still expected the old extension test script
 
 - After adding production compilation to the extension test pipeline, the
@@ -8488,11 +8441,9 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   the existing test typecheck/suite. This also covers it through test:ci's
   existing extension step. Keep the emitted target and package version unchanged.
 
-
 ## Integer array literals lost their destination type inside tuples
 
-- A direct `u8[2] = [1,2]` worked, but `local pair: (u8[2], int) =
-  ([1,2],3)` failed in declarations, assignment, return values, arguments,
+- A direct `u8[2] = [1,2]` worked, but `local pair: (u8[2], int) = ([1,2],3)` failed in declarations, assignment, return values, arguments,
   struct fields, aliases, nested tuples and grouped/ternary expressions.
 - Extend the existing transactional literal-array conversion planner through
   tuple containers. Preserve original scalar operator annotations; tuple
@@ -8532,7 +8483,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   storage and returned arrays evaluated once, and scalar/callback field
   conversions. Existing explicit array-to-view casts retain copy semantics.
 
-
 ## Primitive aliases disagreed across implicit conversion metadata
 
 - A raw declaration such as `int[]` and a checked expression such as `i32[2]`
@@ -8541,7 +8491,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Compare primitive canonical names without rewriting either annotation.
   Four failing-before alias cases pass; signedness and unrelated nominal type
   distinctions remain enforced.
-
 
 ## Aggregate slice conversion bypassed overloaded indexing and dereferencing
 
@@ -8554,7 +8503,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   existing storage. Native O0/O3 regressions check both operators, call counts
   and that modifying the returned view does not modify the source array.
 
-
 ## Large repeated condition formatting could not preserve comments
 
 - Formatting 600 repeated `if((true)){}` conditions with comments exceeded the
@@ -8566,7 +8514,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   distinct comment order, semantic preservation and idempotence. Mixed
   parenthesis additions/removals are covered too: a small net token count
   change does not imply a small alignment distance.
-
 
 ## Local rename included references from its own initializer
 
@@ -8583,7 +8530,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   18 failing-before cases ensure parameter rename includes references in the
   shadowing local initializer. Global and outer-local controls remain covered.
 
-
 ## Rename accepted recovered ASTs with omitted statements
 
 - Live parsing can return a non-null program with parser errors and omit a
@@ -8593,7 +8539,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   points. Nine failing-before cases cover recovered programs across LF/CRLF/CR,
   alongside the existing failed-parse cache controls. Completion still recovers.
 
-
 ## Imported references used stale declarations from disk
 
 - When an unsaved defining buffer removed an imported global, the disk index
@@ -8602,7 +8547,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Require a valid live AST and matching declaration before collecting module
   references. Nine failing-before regressions cover removed globals and
   recovered invalid defining buffers across LF/CRLF/CR.
-
 
 ## Parenthesis alignment could accept changed expression precedence
 
@@ -8615,7 +8559,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   program meaning; retain valid large normalization and comment placement.
 - Two failing-before cases and the full formatter corpus/native suite pass.
 
-
 ## Match block typechecking ignored later yields
 
 - A block yielding an integer array first could later yield void, an array of
@@ -8624,7 +8567,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Check compatibility of every recorded block yield before using the block's
   result type. Existing scalar widening and independent function/lambda return
   contexts must retain their behavior.
-
 
 ## Match results lost integer-array destination context
 
@@ -8636,7 +8578,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   any annotation changes. Preserve scalar annotations and overload priority.
 - Cover nested/grouped matches, mixed block/expression and diverging arms,
   tuples and slices; retain overflow, array-shape and storage restrictions.
-
 
 ## Returned aggregates hid implicit temporary array views
 
@@ -8650,7 +8591,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   unrelated temporary views. This is a local expression check, not general
   lifetime or alias tracking.
 
-
 ## Returned calls hid implicit array-to-view argument conversions
 
 - A call returning borrowed storage could receive a fixed-array argument through
@@ -8661,7 +8601,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   Eight checker regressions fail before the fix; retain fixed-array returns,
   existing caller-owned views and scalar consumers of temporary views.
 
-
 ## Match results silently narrowed later integer yields
 
 - Keeping the first match-block/arm type allowed a later 256 to truncate to u8
@@ -8671,7 +8610,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   rule. Choose a yielded type that can represent both; reject incompatible
   signedness/ranges instead of emitting an implicit truncation. Preserve
   scalar expression annotations and existing array-storage restrictions.
-
 
 ## Generic storage accepted incompatible payload representations
 
@@ -8686,7 +8624,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   inferred constructors, aliases, groups, tuple/match containers and existing
   caller-owned views; native aliases and by-value array payloads remain valid.
 
-
 ## Safe match-width inference rejected fitting unsigned literal arms
 
 - The database example's u64 hash match also returns literal 0/1. Strict integer
@@ -8697,7 +8634,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Native O0/O3 tests cover both arm orders, all block yields and tuples, with
   rejection controls that retain every prior runtime value.
 
-
 ## Native regression fixtures used the default five-second test deadline
 
 - macOS LLVM CI killed an ordinary arithmetic fixture while compiling/linking
@@ -8705,7 +8641,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Give each promoted native fixture the same bounded sixty-second test budget
   used by other compiler correctness tests. Individual compiler/runtime process
   timeouts remain in force; compiler semantics and generated programs are unchanged.
-
 
 ## Match unification rejected mixed stored arrays and fresh literals
 
@@ -8719,7 +8654,6 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
 - Tuple projections retain complete nested yield sets; stored tuple scalar
   fields may widen without changing their source annotations. Preserve integer
   ranges, scalar arithmetic, evaluation counts and returned-view diagnostics.
-
 
 ## Struct field reads required an address for temporary values
 
@@ -9256,7 +9190,6 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Seven checker cases reproduce the bypass. A fresh-value/pointer cleanup
   control remains valid. Negative copy cases are never executed.
 
-
 ## `as` conversions bypassed owning-copy checks
 
 - Existing owning storage converted with `value as Owner` was treated as a
@@ -9273,7 +9206,6 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   aliases, nested arrays and fields of constant aggregate bindings.
 - Six diagnostic regressions failed before correction. Mutable borrows,
   independent fixed-array copies and local literal views remain supported.
-
 
 ## String aliases bypassed integer-to-string conversion rejection
 
@@ -9317,7 +9249,6 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   conversion rules. Four diagnostic regressions failed before correction,
   while two pointer-alias controls passed; no converted pointer is dereferenced.
 
-
 ## Composite type-query targets were treated as named types
 
 - `match<(int,int)>(value)` and callback-type targets accessed a nonexistent
@@ -9329,7 +9260,6 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Regressions cover tuples, nested tuples, functions and lambdas in both syntaxes,
   plus normal native exact/mismatched comparisons.
 
-
 ## Regular type queries did not fully validate target types
 
 - `match<variable>(value)` and function-name targets passed checking, while
@@ -9339,7 +9269,6 @@ Status: fixed; cast sources are checked after cast validity and view rules.
   preserving existing unknown-plain-type and enum-path query diagnostics.
 - Seven checker regressions fail before correction; existing primitive, generic
   and composite query controls remain supported.
-
 
 ## Qualified type-query targets were confused with enum variants
 
@@ -9370,7 +9299,6 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Six native regression cases fail before correction. Each first verifies that
   the matching array shape is accepted, then rejects the different length.
 
-
 ## Query primitive normalization omitted floating aliases
 
 - Resolving query targets exposed a local primitive-name table that omitted
@@ -9379,7 +9307,6 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Use the shared primitive metadata for query identity rather than a partial
   table. Native regressions cover `float`, `f64`, `double` and `f32`; the first
   two fail before correction and the existing canonical forms pass.
-
 
 ## Query alias expansion discarded use-site modifiers
 
@@ -9420,13 +9347,11 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Six checker regressions fail before correction, with two existing named-type
   rejection controls and six valid fixed/slice target controls passing.
 
-
 ### Callable type queries ignore variadic signatures (2026-10-24)
 
 - Confirmed: `match<Func<int>(string)>(printf)` reports true for an extern variadic `printf` declaration, despite fixed and variadic signatures being distinct in checker equality. No foreign function is called.
 - Fix: compare the variadic flag alongside callable parameter and return types, matching existing checker identity rules.
 - Four native regressions reproduce direct and tuple-nested false positives with both query spellings. Fixed-signature controls remain covered.
-
 
 ## Enum type queries omit variant existence checks
 
@@ -9434,13 +9359,11 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Validate variant membership during both checker paths, using the existing `BPL_TYPE_QUERY_TYPE_NOT_FOUND` diagnostic.
 - Six checker regressions reproduce ordinary, generic, and module-qualified missing variants; six valid-variant controls pass before the correction.
 
-
 ## Enum variant queries assume the source is the queried enum
 
 - Confirmed ordinary `match<Color.Red>(value)` with an integer source fails compilation rather than returning false. The backend attempts to extract a variant tag without confirming source type identity. Invalid generated programs are not executed.
 - Check canonical scalar enum identity before selecting a tag. Unrelated types, arrays, and slices return false; aliases and generic enum values remain supported.
 - Twelve native cases fail compilation before correction, with a passing alias/generic control. No invalid generated program is executed.
-
 
 ## Enum variant queries silently ignore type modifiers
 
@@ -9448,19 +9371,16 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Reject unsupported modified variant targets using the existing query-target diagnostic; retain plain tag queries including generic enum values.
 - Twelve checker regressions fail before correction; four ordinary/generic plain-variant controls pass.
 
-
 ## Floating variance overflows before its representable result
 
 - Confirmed: population variance of +/-1e154 and sample variance of [1e154,-1e154,0] return infinity instead of1e308. Opposite finite +/-1e308 inputs return negative infinity for population variance.
 - Retain ordinary arithmetic paths, falling back to normalized finite deviations when intermediate arithmetic produces a nonfinite result. Rescale only after dividing by the population/sample divisor.
 - Three native regressions fail before correction; truly overflowing variance returns positive infinity, and nonfinite samples continue to propagate NaN.
 
-
 ## Floating standard deviation loses finite roots through variance
 
 - Confirmed on the variance-fixed source: population/sample standard deviation returns infinity for finite1e308 roots, and zero for finite1e-200 roots. Four native regressions fail before this correction.
 - For overflowing or zero intermediate variance, take the normalized square root before restoring scale. Retain ordinary paths and empty/singleton behavior.
-
 
 ## Floating variance loses representable subnormal results
 
@@ -9468,13 +9388,11 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Two native regressions fail before correction. Recompute zero results using normalized deviations, and recover representable subnormal variance during rescaling.
 - Standard-deviation fallbacks also cover subnormal variance to avoid taking a root of a heavily rounded intermediate; ordinary positive normal variance keeps the direct path.
 
-
 ## Floating variance loses accuracy around a large offset
 
 - Confirmed: [1e16,1e16+2] and its reverse return population variance2/1.2325951644078315 instead of1; sample variance returns4 instead of2. Rounding the absolute mean destroys the small spread.
 - Subtract a represented input before mean updates, sharing the centered calculation between population and sample methods. Keep the existing scaled extreme fallback.
 - Four native order/method regressions fail before correction.
-
 
 ## Scaled statistics lose close-value deviations while normalizing
 
@@ -9482,20 +9400,17 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Center represented differences before division when finite; retain bounded separately normalized subtraction for opposite extremes. Center mean updates in the scaled domain as well.
 - Four native large/tiny method regressions fail before correction, each checking both input orders.
 
-
 ## Floating covariance loses centered and scaled results
 
 - Confirmed: covariance of identical [1e16,1e16+2] arrays returns2 instead of1; covariance of identical +/-1e154 arrays overflows despite finite1e308 result.
 - Use centered, independently scaled population moments and restore the larger scale first. Three native regressions fail before correction.
 - Related correlation failures are addressed by the separate normalized-coefficient correction below.
 
-
 ## Correlation overflows and underflows intermediate units
 
 - Confirmed: identical +/-1e308 inputs produce NaN instead of1; covariance and the product of standard deviations both overflow. Tiny data also loses its dimensionless result through underflow.
 - Compute the coefficient directly from shared normalized moments and bound floating roundoff to [-1,1], preserving empty/constant and nonfinite behavior.
 - Five native regressions fail before correction on the covariance-fixed source, spanning huge, tiny, negative, partial, and subnormal inputs.
-
 
 ## Joint-moment cancellation is amplified by covariance rescaling
 
@@ -9509,20 +9424,17 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Detect lost origin/mean subtraction terms and use compensated raw normalized cross-products and mean-product correction. Only axes with origin loss switch to zero origin, preserving close-offset differences.
 - Four native sign/order regressions fail before correction and verify covariance plus its tiny correlation coefficient.
 
-
 ## Floating arithmetic mean amplifies cancellation error
 
 - Confirmed: `Stats.mean([1e308, 1, -1e308])` returns approximately `4.9896007738367995e291` instead of `1/3`. Its overflow fallback introduces a large running-mean rounding residual. The ordinary summation path also loses small terms between cancelling large values.
 - Replace the direct/running-mean paths with compensated accumulation, dividing terms by the final count when necessary. Only if those sums still overflow from rounding, use a bounded normalized fallback. Existing empty and nonfinite results are preserved.
 - Nine native regressions failed before correction, covering ordinary/extreme cancellation, signs and order, plus largest-finite constant accuracy. Controls include subnormals, a small term whose normalized value would underflow, and finite-limit overflow recovery.
 
-
 ## Standardized higher moments overflow on finite extreme samples
 
 - Confirmed native O3: with S=largest finite float, `Stats.skewness([S,-S,-S])` and `Stats.kurtosis([S,-S,-S,-S])` both return positive infinity. Population coefficients are finite: `1/sqrt(2)` and excess kurtosis `-2/3`. Raw sample-minus-mean subtraction overflows before division by finite standard deviation.
 - Five skewness and five kurtosis native cases fail before correction: extreme signs/order, subnormal spread and close values at a large offset. Ordinary/constant/empty/nonfinite controls pass before correction.
 - Skewness now uses a private standardized-moment helper with centered/scaled samples and compensated mean/moment accumulation. Kurtosis now separately uses the fourth-moment path and applies the excess correction only for nonconstant samples. Existing minimum-length and constant-axis zero results are preserved.
-
 
 ## Complex square root overflows a representable result
 
@@ -9540,7 +9452,6 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed native O3 at x=0.999999999999: `Math.acos` differs from the platform result by about 8.25e-12 relatively. Computing pi/2 minus asin cancels significant digits near +1.
 - Fixed with a direct factored-root `atan2` formula instead of subtracting angles. Three endpoint regressions fail on the asin-fixed parent and pass after correction; the full inverse-trig set covers valid values, domain failures, endpoints, signed zero and NaN.
 
-
 ## Integer absolute value returns a negative magnitude
 
 - Confirmed native O3: `Math.abs(-2147483648)` returns -2147483648. Its nonnegative magnitude cannot fit the existing `int` return type.
@@ -9551,13 +9462,11 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 - Confirmed native O3: `Math.log10(1000)` returns 2.9999999999999996 instead of 3; `Math.log2(2^1000)` returns 1000.0000000000001 instead of 1000. Dividing a rounded natural logarithm by a rounded base constant loses accuracy.
 - Base-10 logarithms now call the platform `log10` directly. Six exact-power regressions fail before correction and pass after, with ordinary/limit/domain controls preserved. Binary logarithms now separately call platform `log2`; both binary-power regressions also pass after correction. Domain, infinity, NaN, signed-zero input and subnormal controls pass for both functions.
 
-
 ## Native logarithm correction changes existing Wasm host requirements
 
 - Confirmed on the initial PR78 head: a hosted Math.log10/log2 program previously instantiated with only an `env.log` math provider, but the changed code requires unavailable `env.log10` and `env.log2`. The bundled freestanding runtime already lacks natural logarithms: the parent fails on `log`, while the initial head fails on the new symbols.
 - Fixed with Wasm lowering scoped to the private declarations in the configured standard-library Math module. Retain the prior natural-log provider and precision while native targets use base-specific calls. Ordinary user extern bindings are preserved.
 - Four hosted-application regressions fail before correction and pass at O0/O3 after; two user-extern controls also pass. The pre-existing bundled-runtime math limitation is now explicit in the guides.
-
 
 ## Complex exponential loses finite components to intermediate overflow
 
@@ -9600,7 +9509,6 @@ Status: fixed; cast sources are checked after cast validity and view rules.
 
 - Confirmed native O3: six samples of 1.7976931348623157e308 and one of 1.7976931348623155e308 produce infinity. The exact positive harmonic mean must lie between those finite input values.
 - Fixed by tracking the largest sample and constraining the final scaled product to the valid input interval. Existing scaled accumulation, nonfinite and input-order validation conventions are preserved. Three native cases and two hosted Wasm cases fail on the geometric-corrected parent; separate controls cover input order, infinities, identical values and mixed scales.
-
 
 ## QoL: stale completion options and language-hook lint warnings
 
@@ -9662,7 +9570,6 @@ and real Chromium draft/reset regressions cover these corrected behaviors.
 - Confirmed native O0/O3 on 9d4a538f: a `Lambda<int>()` bound from a valid `*Parent<int>` pointing to `Child<int>` returns the parent value 1 instead of the child override 2. Both binding in main and binding inside a free function produce 1, while ordinary direct calls are corrected by the preceding fix.
 - Fixed by binding the selected virtual-table entry after generic receiver preparation, retaining borrowed storage and derived value-receiver adapters. Seven native cases and two hosted Wasm cases cover generic/non-generic parents, aliases/null checks, arguments, receiver evaluation and the existing variadic rejection at O0/O3.
 
-
 ## Bash completion inserts paths with spaces as multiple arguments
 
 An interactive Bash reproduction confirmed that a single `src folder` COMPREPLY
@@ -9671,7 +9578,6 @@ now enables `-o filenames`, letting readline quote filename matches and retain
 directory slashes. The shipped and embedded scripts are regenerated together;
 registration coverage supplements path-candidate tests and interactive verification.
 
-
 ## Release smoke rejects the shipped formatter schema
 
 - Confirmed during 0.1.1 packaging validation: npm pack includes the advertised
@@ -9679,13 +9585,11 @@ registration coverage supplements path-candidate tests and interactive verificat
 - Added the formatter schema to required packaged files and the narrow allowlist;
   unrelated paths and local audit reports remain excluded.
 
-
 ## Release smoke expects obsolete Bash completion registration
 
 - The packed completion JSON check rejected the corrected `-o filenames`
   registration because it matched the former literal registration line.
 - Updated the assertion to require filename handling in the packed script.
-
 
 ## Project-mode build registration loses no-input JSON diagnostics
 

@@ -951,9 +951,9 @@ sets priorities. A change that alters user-visible behavior updates
 `bun install --frozen-lockfile` installs the pinned Prettier version. Use
 `bun run format` to format supported repository files and `bun run format:check`
 for a read-only style check. Dependencies and generated output are excluded by
-`.prettierignore`. Existing formatting drift may need a separate cleanup before
-using the repository-wide check as a required CI gate. Use `bpl format` for BPL
-source files. `bun run format:examples` formats only the `examples/` tree,
+`.prettierignore`. Use `bpl format` for BPL source files; `bun run
+format:bpl:check` checks `lib/`, `packages/` and `examples/`. CI runs both
+checks. `bun run format:examples` formats only the `examples/` tree,
 including `.bpl` and `.x` sources, and respects `.bplignore` and discovery exclusions.
 
 `bun run test:baseline` saves combined test output to `test-baseline.txt` and
