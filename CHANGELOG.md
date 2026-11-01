@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `std/url.bpl` adds URL percent-encoding (`Url.encodeComponent`,
+  `Url.decode`) and HTML form encoding (`Url.encodeForm`, `Url.decodeForm`);
+  `std` re-exports `Url`.
 - `std/sha384.bpl` adds SHA-384 digests (`Sha384`, also exported by `std`),
   built on `Sha512`.
 - `std/hmac.bpl` adds `HmacSha512` (also exported by `std`), HMAC over

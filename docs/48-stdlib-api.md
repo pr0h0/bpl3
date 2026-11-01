@@ -342,6 +342,23 @@ Negating or taking the absolute value of `LONG_MIN/1` also returns `0/0`.
 unsigned integer access in either byte order, and failure without partial writes
 or cursor movement. See the [binary data reference](61-stdlib-binary.md).
 
+### Url (`std/url.bpl`)
+
+URL percent-encoding (RFC 3986) and HTML form encoding. `encodeComponent`
+keeps only the unreserved characters `A`-`Z`, `a`-`z`, `0`-`9`, `-`, `_`, `.`
+and `~` and writes every other byte as uppercase `%XX`, as for a path segment
+or query value; `encodeForm` also turns a space into `+`, as in
+`application/x-www-form-urlencoded` data. `decode` turns `%XX` escapes (either
+case) back into bytes and `decodeForm` also turns `+` into a space. The
+decoders return `nullptr` for a `%` without two hex digits after it and for
+`%00`, which would cut the string short. Results are caller-owned
+(`free(cast<*void>(result))`), or `nullptr` if allocation fails.
+
+- `Url.encodeComponent(text: string) ret string`
+- `Url.encodeForm(text: string) ret string`
+- `Url.decode(text: string) ret string`
+- `Url.decodeForm(text: string) ret string`
+
 ### Base64 (`std/base64.bpl`)
 
 Base64 encoding and decoding.
