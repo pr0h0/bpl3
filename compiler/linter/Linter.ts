@@ -41,7 +41,11 @@ export class Linter {
     this.rules.push(new NamingConventionRule());
   }
 
-  public lint(program: AST.Program): CompilerError[] {
+  /**
+   * Lints a parsed program. With its `source` text, imports the module
+   * never uses are also reported (L002).
+   */
+  public lint(program: AST.Program, source?: string): CompilerError[] {
     this.errors = [];
     const context: LintContext = {
       report: (
@@ -58,6 +62,7 @@ export class Linter {
     };
 
     this.visit(program, context);
+    if (source !== undefined) reportUnusedImports(program, source, context);
     return this.errors;
   }
 
@@ -446,6 +451,73 @@ function toCase(name: string, pascal: boolean): string {
   return joined || name;
 }
 
+/**
+ * L002: an imported name that no identifier outside the import statements
+ * refers to. Matching tokens rather than resolved declarations counts every
+ * use — calls, type annotations, generic arguments, `Enum.Variant`, namespace
+ * members and `export` lists — at the cost of treating a same-named local as
+ * a use.
+ */
+function reportUnusedImports(
+  program: AST.Program,
+  source: string,
+  context: LintContext,
+): void {
+  const imports = program.statements.filter(
+    (statement): statement is AST.ImportStmt =>
+      statement.kind === "Import" && !(statement as AST.ImportStmt).isImplicit,
+  );
+  if (imports.length === 0) return;
+
+  let tokens;
+  try {
+    tokens = lexWithGrammar(source, program.location?.file ?? "lint.bpl");
+  } catch {
+    return;
+  }
+  const insideImport = (line: number, column: number) =>
+    imports.some(({ location: l }) => {
+      const afterStart =
+        line > l.startLine || (line === l.startLine && column >= l.startColumn);
+      const beforeEnd =
+        line < l.endLine || (line === l.endLine && column < l.endColumn);
+      return afterStart && beforeEnd;
+    });
+  const used = new Set<string>();
+  for (const token of tokens) {
+    if (insideImport(token.line, token.column)) continue;
+    if (token.type === TokenType.Identifier) {
+      used.add(token.lexeme);
+    } else if (token.type === TokenType.InterpolatedStringLiteral) {
+      // An interpolated string is one token: its `${...}` names count, and
+      // it builds a `String`, which therefore has to be imported.
+      used.add("String");
+      for (const [, expression] of token.lexeme.matchAll(/\$\{([^}]*)\}/g)) {
+        for (const [name] of expression!.matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)) {
+          used.add(name);
+        }
+      }
+    }
+  }
+
+  for (const statement of imports) {
+    let names = statement.items.map((item) => item.alias ?? item.name);
+    if (statement.namespace) names = [statement.namespace];
+    // `import * from` brings in names the module may not spell out.
+    else if (statement.importAll) names = [];
+    for (const name of names) {
+      if (used.has(name)) continue;
+      context.report(
+        `Import '${name}' from "${statement.source}" is never used`,
+        statement,
+        DiagnosticSeverity.Warning,
+        "L002",
+        `Remove '${name}' from the import.`,
+      );
+    }
+  }
+}
+
 class NamingConventionRule implements LintRule {
   code = "L001";
   name = "naming-convention";
@@ -467,7 +539,8 @@ class NamingConventionRule implements LintRule {
       // Skip main
       if (decl.name === "main" || languageHooks.has(decl.name)) return;
 
-      if (!/^[a-z][a-zA-Z0-9]*$/.test(decl.name)) {
+      // A leading underscore marks a private helper: `_siftDown`.
+      if (!/^_?[a-z][a-zA-Z0-9]*$/.test(decl.name)) {
         context.report(
           `Function '${decl.name}' should be camelCase.`,
           node,

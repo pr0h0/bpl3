@@ -138,8 +138,8 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
       to releases, with a one-line installer, so users need no Bun or checkout.
 - [ ] [4] Generate shell completions from the command definitions instead of
       maintaining Bash/Zsh scripts by hand.
-- [ ] [5] More linter rules beyond naming (unused imports, shadowing, suspicious
-      casts); make `_private` helpers in `lib/` pass the naming rule.
+- [ ] [5] More linter rules (shadowing, suspicious casts); naming (`L001`,
+      with `_private` helpers allowed) and unused imports (`L002`) exist.
 
 ### Language and library extensions
 
