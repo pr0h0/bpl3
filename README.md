@@ -518,6 +518,18 @@ bpl check src/*.bpl
 bpl check main.bpl --json
 ```
 
+#### `bpl test [paths...]`
+
+Run the test frames (`frame testName()` or `frame test_name()`) in every
+`*_test.bpl` file, each in its own process; a test fails when it throws (for
+example from `Assert.that`) or returns a nonzero `int`:
+
+```bash
+bpl test
+bpl test tests/ --filter Parser
+bpl test --json
+```
+
 #### `bpl new <name>`
 
 Create a new BPL project with standard structure:

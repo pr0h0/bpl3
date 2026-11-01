@@ -22,6 +22,7 @@ _bpl() {
         'check:Type check BPL files without generating code (fast)'
         'format:Format BPL files, directories, or stdin (-)'
         'lint:Lint BPL files, directories, or stdin (-)'
+        'test:Run test frames in *_test.bpl files (default\: the current directory)'
         'pack:Create a distributable package from a BPL project'
         'install:Install a BPL package'
         'lock:Re-resolve bpl.json dependencies and rewrite bpl.lock'
@@ -195,6 +196,15 @@ _bpl() {
                         '(-h --help)'{-h,--help}'[display help for command]' \
                         '*:argument:_files -g "*.{bpl,x}"'
                     ;;
+                test)
+                    _arguments \
+                        '(-f --filter)'{-f,--filter}'[run only tests whose name contains text]:value' \
+                        '(-v --verbose)'{-v,--verbose}'[show the output of passing tests too]' \
+                        '--json[output test results in JSON format]' \
+                        '--color[force colored output]' \
+                        '--no-color[disable colored output]' \
+                        '(-h --help)'{-h,--help}'[display help for command]'
+                    ;;
                 pack)
                     _arguments \
                         '(-o --output)'{-o,--output}'[output directory for the package]:value:_files' \
@@ -326,7 +336,7 @@ _bpl() {
                     ;;
                 help)
                     _arguments \
-                        '1:command:(run run-script rs dev build check format lint pack install lock list init uninstall remove package-cache completion docs new clean bindgen doctor help)'
+                        '1:command:(run run-script rs dev build check format lint test pack install lock list init uninstall remove package-cache completion docs new clean bindgen doctor help)'
                     ;;
                 *)
                     # `bpl a.bpl b.bpl`: more root source files.

@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl test [paths...]` runs the test frames (`testName`/`test_name`, no
+  parameters) of every `*_test.bpl` file, each in its own process, with
+  `--filter`, `--verbose` and a `--json` report (`check: "test"`). A test fails
+  when it throws, returns a nonzero `int`, crashes or exceeds 60 seconds.
 - `bpl -e '<code>'` and `bpl --stdin` compile and run the program like
   `bpl run` and exit with its status, instead of printing its LLVM IR;
   `--emit llvm` prints the IR as before, and `-o`, `--json` and the other
