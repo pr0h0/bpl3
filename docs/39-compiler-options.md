@@ -114,9 +114,12 @@ Cache stats: modules=11 hits=8 misses=3 compiled=3 reused=8 jobs=4 sizeKb=304.64
 Use this when tuning compile times or checking whether a dependency change
 invalidates more modules than expected.
 
-### `bpl check <files...>`
+### `bpl check [files...]`
 
-Type check files without generating code (fast). `--quiet` hides successful
+Type check files without generating code (fast). Without arguments inside a
+project (a directory with `bpl.json`), it checks the whole project, like
+`bpl check .`; dependencies in `bpl_modules`/`node_modules` are skipped.
+`--quiet` hides successful
 check output while keeping input errors and compiler diagnostics on stderr.
 With `--json`, results remain structured JSON on stdout.
 
@@ -131,6 +134,9 @@ bpl check src/*.bpl
 
 # JSON output
 bpl check main.bpl --json
+
+# Every source in the current project
+bpl check
 ```
 
 Warnings (unreachable code, a local shadowing an outer variable) are printed

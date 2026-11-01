@@ -22,7 +22,10 @@ export {
 export function registerCheckCommand(program: Command): void {
   program
     .command("check")
-    .argument("[files...]", "BPL files to type check")
+    .argument(
+      "[files...]",
+      "BPL files or directories to type check (default: the project, when bpl.json exists)",
+    )
     .description("Type check BPL files without generating code (fast)")
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
