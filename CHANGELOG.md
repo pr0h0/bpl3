@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `std/regex.bpl` supports counted repetition: `{m}`, `{m,}`, `{m,n}` and
+  `{,n}`.
 - An enum reached through a namespace import works everywhere a local one
   does: `ns.Shape.Circle { radius: 1 }` constructs a struct variant (it was a
   parse error), a nested pattern may name `ns.Shade.Dark(n)` (it reported an

@@ -5,12 +5,14 @@
 # Syntax: literal bytes; `.` (any byte except newline); `[abc]`, `[a-z]` and
 # negated `[^...]` classes; `\d \w \s` and their negations `\D \W \S`; `\`
 # escaping any other character (`\.`, `\*`, `\\`, also `\n \t \r`); grouping
-# with `( )`; alternation `|`; `*`, `+` and `?` (greedy); and the anchors `^`
-# (start of text) and `$` (end of text).
+# with `( )`; alternation `|`; `*`, `+` and `?` (greedy); counted repetition
+# `{m}`, `{m,}`, `{m,n}` and `{,n}` (up to 1000; a `{` without a count is a
+# literal brace); and the anchors `^` (start of text) and `$` (end of text).
 
 export [Regex];
 
 extern malloc(size: long) ret *void;
+extern realloc(ptr: *void, size: long) ret *void;
 extern free(ptr: *void) ret void;
 extern strlen(str: string) ret long;
 
@@ -37,6 +39,7 @@ struct Regex {
     # 32-byte bitmaps, one per class.
     classes: *u8,
     classCount: int,
+    classCapacity: int,
     start: int,
     # Parser position in `pattern`.
     pattern: string,
@@ -51,8 +54,9 @@ struct Regex {
         regex.args = cast<*int>(malloc(cast<long>(regex.capacity) * 4));
         regex.outs = cast<*int>(malloc(cast<long>(regex.capacity) * 4));
         regex.alternates = cast<*int>(malloc(cast<long>(regex.capacity) * 4));
-        # At most one class per pattern byte.
-        regex.classes = cast<*u8>(malloc((length + 1) * 32));
+        # Counted repetition can add more of both; they grow as needed.
+        regex.classCapacity = cast<int>(length + 1);
+        regex.classes = cast<*u8>(malloc(cast<long>(regex.classCapacity) * 32));
         regex.count = 0;
         regex.classCount = 0;
         regex.pattern = pattern;
@@ -91,6 +95,17 @@ struct Regex {
     }
 
     frame addState(this: *Regex, kind: int, argument: int) ret int {
+        if (this.count == this.capacity) {
+            this.capacity = this.capacity * 2;
+            local bytes: long = cast<long>(this.capacity) * 4;
+            this.kinds = cast<*int>(realloc(cast<*void>(this.kinds), bytes));
+            this.args = cast<*int>(realloc(cast<*void>(this.args), bytes));
+            this.outs = cast<*int>(realloc(cast<*void>(this.outs), bytes));
+            this.alternates = cast<*int>(realloc(cast<*void>(this.alternates), bytes));
+            if ((this.kinds == nullptr) || (this.args == nullptr) || (this.outs == nullptr) || (this.alternates == nullptr)) {
+                throw "Regex: out of memory";
+            }
+        }
         local index: int = this.count;
         *(this.kinds + index) = kind;
         *(this.args + index) = argument;
@@ -150,9 +165,16 @@ struct Regex {
     }
 
     frame parseRepetition(this: *Regex, end: *int) ret int {
+        local atomStart: int = this.position;
         local atomEnd: int = -1;
         local atom: int = this.parseAtom(&atomEnd);
         local c: char = this.pattern[this.position];
+        if (c == '{') {
+            local counted: int = this.parseCounted(atomStart, end);
+            if (counted >= 0) {
+                return counted;
+            }
+        }
         if ((c != '*') && (c != '+') && (c != '?')) {
             *end = atomEnd;
             return atom;
@@ -174,6 +196,85 @@ struct Regex {
             return split;
         }
         return atom;
+    }
+
+    # A decimal count at `position`, or -1 if there are no digits.
+    frame parseCount(this: *Regex) ret int {
+        local value: int = -1;
+        loop ((this.pattern[this.position] >= '0') && (this.pattern[this.position] <= '9')) {
+            if (value < 0) {
+                value = 0;
+            }
+            value = (value * 10) + (cast<int>(this.pattern[this.position]) - 48);
+            if (value > 1000) {
+                throw "Regex: repetition count above 1000";
+            }
+            this.position = this.position + 1;
+        }
+        return value;
+    }
+
+    # `{m}`, `{m,}`, `{m,n}` or `{,n}` after the atom that starts at `atomStart`
+    # (`position` is on the `{`): the atom is parsed again for each copy, m
+    # required ones followed by a starred one or n - m optional ones. Returns
+    # -1, leaving `position` on the `{`, when no count follows, so the brace
+    # is an ordinary character.
+    frame parseCounted(this: *Regex, atomStart: int, end: *int) ret int {
+        local brace: int = this.position;
+        this.position = this.position + 1;
+        local low: int = this.parseCount();
+        # `{,n}` means `{0,n}`.
+        if ((low < 0) && (this.pattern[this.position] == ',')) {
+            low = 0;
+        }
+        local high: int = low;
+        local unbounded: bool = false;
+        if (this.pattern[this.position] == ',') {
+            this.position = this.position + 1;
+            high = this.parseCount();
+            unbounded = high < 0;
+        }
+        if ((low < 0) || (this.pattern[this.position] != '}')) {
+            this.position = brace;
+            return -1;
+        }
+        if (!unbounded && (high < low)) {
+            throw "Regex: repetition range out of order";
+        }
+        local afterBrace: int = this.position + 1;
+
+        local first: int = this.addState(REGEX_EMPTY, 0);
+        local tail: int = first;
+        loop (local i: int = 0; i < low; i = i + 1) {
+            this.position = atomStart;
+            local copyEnd: int = -1;
+            local copy: int = this.parseAtom(&copyEnd);
+            *(this.outs + tail) = copy;
+            tail = copyEnd;
+        }
+        local optional: int = high - low;
+        if (unbounded) {
+            optional = 1;
+        }
+        loop (local i: int = 0; i < optional; i = i + 1) {
+            this.position = atomStart;
+            local copyEnd: int = -1;
+            local copy: int = this.parseAtom(&copyEnd);
+            local after: int = this.addState(REGEX_EMPTY, 0);
+            local split: int = this.addState(REGEX_SPLIT, 0);
+            *(this.outs + split) = copy;
+            *(this.alternates + split) = after;
+            *(this.outs + tail) = split;
+            if (unbounded) {
+                *(this.outs + copyEnd) = split;
+            } else {
+                *(this.outs + copyEnd) = after;
+            }
+            tail = after;
+        }
+        this.position = afterBrace;
+        *end = tail;
+        return first;
     }
 
     frame parseAtom(this: *Regex, end: *int) ret int {
@@ -324,6 +425,13 @@ struct Regex {
     }
 
     frame newClass(this: *Regex) ret int {
+        if (this.classCount == this.classCapacity) {
+            this.classCapacity = this.classCapacity * 2;
+            this.classes = cast<*u8>(realloc(cast<*void>(this.classes), cast<long>(this.classCapacity) * 32));
+            if (this.classes == nullptr) {
+                throw "Regex: out of memory";
+            }
+        }
         local index: int = this.classCount;
         loop (local i: int = 0; i < 32; i = i + 1) {
             *(this.classes + ((index * 32) + i)) = cast<u8>(0);
