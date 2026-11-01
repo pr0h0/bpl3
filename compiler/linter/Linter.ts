@@ -41,6 +41,7 @@ export class Linter {
     this.rules.push(new NamingConventionRule());
     this.rules.push(new ConstantConditionRule());
     this.rules.push(new SelfAssignmentRule());
+    this.rules.push(new DuplicateConditionRule());
   }
 
   /**
@@ -682,6 +683,83 @@ class SelfAssignmentRule implements LintRule {
       this.code,
       "Remove the assignment, or assign the value that was meant.",
     );
+  }
+}
+
+/**
+ * L007: an `else if` whose condition repeats an earlier condition of the same
+ * chain, so its branch can never run. Only conditions without calls, casts or
+ * increments are compared, so evaluating one cannot change another.
+ */
+class DuplicateConditionRule implements LintRule {
+  code = "L007";
+  name = "duplicate-condition";
+  // An `else if` is also visited on its own; it was checked with its chain.
+  private checked = new WeakSet<AST.IfStmt>();
+
+  check(node: AST.ASTNode, context: LintContext) {
+    if (node.kind !== "If") return;
+    let current: AST.IfStmt | undefined = node as AST.IfStmt;
+    if (this.checked.has(current)) return;
+    const seen = new Set<string>();
+    while (current) {
+      this.checked.add(current);
+      const key = conditionKey(current.condition);
+      if (key !== undefined) {
+        if (seen.has(key)) {
+          context.report(
+            "This condition repeats an earlier condition of the same if/else chain, so its branch never runs",
+            current.condition,
+            DiagnosticSeverity.Warning,
+            this.code,
+            "Change the condition, or merge the branches.",
+          );
+        }
+        seen.add(key);
+      }
+      const next: AST.Statement | undefined = current.elseBranch;
+      current = next?.kind === "If" ? (next as AST.IfStmt) : undefined;
+    }
+  }
+}
+
+/**
+ * A text key for a condition built only from names, literals, member and
+ * constant-index accesses, and unary or binary operators; undefined for
+ * anything else, such as a call, whose value may change between evaluations.
+ */
+function conditionKey(expression: AST.Expression): string | undefined {
+  switch (expression.kind) {
+    case "Group":
+      return conditionKey((expression as AST.GroupExpr).expression);
+    case "Literal": {
+      const literal = expression as AST.LiteralExpr;
+      return `${literal.type}:${literal.raw}`;
+    }
+    case "Identifier":
+    case "Member":
+    case "Index":
+      return storagePath(expression);
+    case "Unary": {
+      const unary = expression as AST.UnaryExpr;
+      if (!unary.isPrefix || !["!", "-", "~"].includes(unary.operator.lexeme)) {
+        return undefined;
+      }
+      const operand = conditionKey(unary.operand);
+      return operand === undefined
+        ? undefined
+        : `(${unary.operator.lexeme}${operand})`;
+    }
+    case "Binary": {
+      const binary = expression as AST.BinaryExpr;
+      const left = conditionKey(binary.left);
+      const right = conditionKey(binary.right);
+      return left === undefined || right === undefined
+        ? undefined
+        : `(${left} ${binary.operator.lexeme} ${right})`;
+    }
+    default:
+      return undefined;
   }
 }
 
