@@ -202,6 +202,9 @@ export [Base64];
 import [Url] from "std/url.bpl";
 export [Url];
 
+import [Base32] from "std/base32.bpl";
+export [Base32];
+
 import [Hex] from "std/hex.bpl";
 export [Hex];
 

@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `std/base32.bpl` adds RFC 4648 Base32 (`Base32`, also exported by `std`):
+  padded encoding, and decoding in either case with optional padding.
 - `bpl lint --disable <codes>` skips the listed rules (comma-separated,
   case-insensitive, repeatable); an unknown code fails with
   `BPL_LINT_UNKNOWN_RULE`.

@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 73 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 74 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -21,6 +21,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/args.bpl](../lib/args.bpl)
 - [std/array.bpl](../lib/array.bpl)
 - [std/assert.bpl](../lib/assert.bpl)
+- [std/base32.bpl](../lib/base32.bpl)
 - [std/base64.bpl](../lib/base64.bpl)
 - [std/bigint.bpl](../lib/bigint.bpl)
 - [std/binary.bpl](../lib/binary.bpl)
@@ -322,6 +323,30 @@ frame equalLong(actual: long, expected: long, message: string)
 frame equalInt(actual: int, expected: int, message: string)
 frame equalString(actual: string, expected: string, message: string)
 frame near(actual: double, expected: double, tolerance: double, message: string)
+```
+
+## std/base32.bpl
+
+[Source](../lib/base32.bpl)
+
+Exports:
+
+```bpl
+export [Base32];
+```
+
+### Base32
+
+```bpl
+struct Base32
+frame encode(data: *u8, length: long) ret string
+frame encodeString(text: string) ret string
+frame value(c: u8) ret int
+frame scan(input: string, output: *u8, write: bool) ret long
+frame decode(input: string, output: *u8) ret long
+frame decodeToString(input: string) ret string
+frame decodedLength(input: string) ret long
+frame isValid(input: string) ret bool
 ```
 
 ## std/base64.bpl
@@ -2989,6 +3014,7 @@ export [ProcessResult];
 export [BitSet];
 export [Base64];
 export [Url];
+export [Base32];
 export [Hex];
 export [ByteReader];
 export [ByteWriter];

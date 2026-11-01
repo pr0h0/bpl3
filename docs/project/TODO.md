@@ -99,7 +99,8 @@ all related enhancements or platform support are complete.
       (`lib/sha512.bpl`).
 - [x] Collections including arrays, maps, sets, linked lists, deques, queues,
       stacks, priority queues, and collection iteration specs.
-- [x] Base64 and Hex codecs in `lib/base64.bpl`/`lib/hex.bpl`, UTF-8 helpers,
+- [x] Base64, Base32 and Hex codecs in `lib/base64.bpl`, `lib/base32.bpl` and
+      `lib/hex.bpl`, UTF-8 helpers,
       and CSV parsing/writing in the bundled `bpl-csv` package.
 - [x] Environment access through `Env`; shell-free `run`/`runWith` (argv,
       separate stdout/stderr, stdin, process-group timeouts), quoted shell
