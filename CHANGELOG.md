@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Standard library: `std/regex.bpl` adds regular expressions (classes,
+  shorthands, groups, alternation, `* + ?`, anchors) compiled to an NFA that
+  matches without backtracking, exported from `std`.
 - A reserved word used as a parameter or variable name is reported at the word
   (`'from' is a reserved word and cannot be used as a name`) instead of as
   "Unexpected syntax" over the whole declaration (BUG-476).

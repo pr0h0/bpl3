@@ -211,6 +211,9 @@ export [Hash];
 import [Sha256] from "std/sha256.bpl";
 export [Sha256];
 
+import [Regex] from "std/regex.bpl";
+export [Regex];
+
 import [BigInt] from "std/bigint.bpl";
 export [BigInt];
 

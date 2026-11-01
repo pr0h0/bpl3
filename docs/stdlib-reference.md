@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 69 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 70 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -67,6 +67,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/range.bpl](../lib/range.bpl)
 - [std/rational.bpl](../lib/rational.bpl)
 - [std/reflection.bpl](../lib/reflection.bpl)
+- [std/regex.bpl](../lib/regex.bpl)
 - [std/result.bpl](../lib/result.bpl)
 - [std/scope_stack.bpl](../lib/scope_stack.bpl)
 - [std/set.bpl](../lib/set.bpl)
@@ -2506,6 +2507,54 @@ element_type: *TypeInfo
 vtable: *void
 ```
 
+## std/regex.bpl
+
+[Source](../lib/regex.bpl)
+
+Exports:
+
+```bpl
+export [Regex];
+```
+
+### Regex
+
+```bpl
+struct Regex
+kinds: *int
+args: *int
+outs: *int
+alternates: *int
+count: int
+capacity: int
+classes: *u8
+classCount: int
+start: int
+pattern: string
+position: int
+frame compile(pattern: string) ret Regex
+frame destroy(this: *Regex)
+frame addState(this: *Regex, kind: int, argument: int) ret int
+frame parseAlternation(this: *Regex, end: *int) ret int
+frame parseConcatenation(this: *Regex, end: *int) ret int
+frame parseRepetition(this: *Regex, end: *int) ret int
+frame parseAtom(this: *Regex, end: *int) ret int
+frame parseEscapedByte(this: *Regex) ret int
+frame parseShorthand(this: *Regex, c: char) ret int
+frame addShorthand(this: *Regex, index: int, kind: char)
+frame parseClass(this: *Regex) ret int
+frame newClass(this: *Regex) ret int
+frame fillClass(this: *Regex, index: int, low: int, high: int)
+frame clearByte(this: *Regex, index: int, b: int)
+frame invertClass(this: *Regex, index: int)
+frame classHas(this: *Regex, index: int, b: int) ret bool
+frame addToSet(this: *Regex, set: *int, size: *int, marks: *int, generation: int, state: int, at: long, length: long)
+frame longestMatchFrom(this: *Regex, text: string, length: long, begin: long) ret long
+frame matches(this: *Regex, text: string) ret bool
+frame find(this: *Regex, text: string, begin: long, matchStart: *long, matchEnd: *long) ret bool
+frame contains(this: *Regex, text: string) ret bool
+```
+
 ## std/result.bpl
 
 [Source](../lib/result.bpl)
@@ -2824,6 +2873,7 @@ export [ByteReader];
 export [ByteWriter];
 export [Hash];
 export [Sha256];
+export [Regex];
 export [BigInt];
 export [Hmac];
 export [Entropy];

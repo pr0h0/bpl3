@@ -430,6 +430,42 @@ frame main() ret int {
 }
 ```
 
+### Regex (`std/regex.bpl`)
+
+Regular expressions over bytes. A pattern is compiled to a Thompson NFA and
+matched by following every state at once, so matching never backtracks and
+takes linear time in the text for each start position. Syntax: literal bytes;
+`.` (any byte except newline); `[abc]`, `[a-z]`, negated `[^...]` (a `]` first
+in a class is literal); `\d \w \s` and their negations `\D \W \S`; `\`
+escaping any other character, plus `\n \t \r`; groups `( )`; alternation
+`|`; greedy `*`, `+` and `?`; and the anchors `^` and `$` for the start and end
+of the text. Captures, counted repetition (`{m,n}`) and backreferences are not
+supported. `find` returns the leftmost match, extended as far as it goes.
+
+- `Regex.compile(pattern: string) ret Regex` — throws a string describing a
+  syntax error
+- `regex.matches(text: string) ret bool` — the whole text matches
+- `regex.find(text: string, begin: long, matchStart: *long, matchEnd: *long)
+ret bool` — byte offsets of the match, end exclusive
+- `regex.contains(text: string) ret bool`
+- `regex.destroy()`
+
+```bpl
+import printf from "std/c.bpl";
+import [Regex] from "std/regex.bpl";
+
+frame main() ret int {
+    local digits: Regex = Regex.compile("\\d+");
+    local start: long = 0;
+    local end: long = 0;
+    if (digits.find("order 66 shipped", 0, &start, &end)) {
+        printf("%ld %ld\n", start, end);
+    }
+    digits.destroy();
+    return 0;
+}
+```
+
 ### Sha256 (`std/sha256.bpl`)
 
 SHA-256 digests (FIPS 180-4), implemented in BPL with no external library.
