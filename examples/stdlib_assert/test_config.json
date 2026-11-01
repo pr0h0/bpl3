@@ -1,10 +1,14 @@
 {
   "expectedOutput": [
-    "=== Assert Demo ===",
-    "assert ok",
-    "caught assert failure"
-  ],
-  "args": [],
-  "env": {},
-  "input": ""
+    "sum: expected 5, got 4",
+    "equalInt failed 1",
+    "name: expected \"BPL\", got \"bpl\"",
+    "equalString failed 1",
+    "value: expected \"x\", got \"(null)\"",
+    "equalString null failed 1",
+    "ratio: expected 1.5 within 0.1, got 1",
+    "near failed 1",
+    "unreachable",
+    "fail failed 1"
+  ]
 }

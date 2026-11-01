@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `std/assert.bpl` adds `isTrue`, `isFalse`, `fail`, `equalInt`, `equalLong`,
+  `equalString` and `near`; the comparison helpers print the expected and
+  actual values when they fail.
 - The language server resolves the types of names bound inside nested
   struct-variant field patterns (for hover and related features).
 - `bpl test --list` prints the tests it would run without building them, and

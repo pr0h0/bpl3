@@ -312,6 +312,13 @@ export [Assert];
 ```bpl
 struct Assert
 frame that(condition: bool, message: string)
+frame isTrue(condition: bool, message: string)
+frame isFalse(condition: bool, message: string)
+frame fail(message: string)
+frame equalLong(actual: long, expected: long, message: string)
+frame equalInt(actual: int, expected: int, message: string)
+frame equalString(actual: string, expected: string, message: string)
+frame near(actual: double, expected: double, tolerance: double, message: string)
 ```
 
 ## std/base64.bpl

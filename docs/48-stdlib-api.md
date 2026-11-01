@@ -404,6 +404,22 @@ Stable non-cryptographic hashing helpers.
 - `Hash.checksum32(input: string) ret uint`
 - `Hash.combine32(left: uint, right: uint) ret uint`
 
+### Assert (`std/assert.bpl`)
+
+Checks for tests run with `bpl test` and for runtime invariants. A failed
+check prints a message (with the expected and actual values for the
+comparison helpers) and throws `1`, which fails the test or, outside a `try`
+block, ends the program.
+
+- `Assert.that(condition: bool, message: string)`, `Assert.isTrue`,
+  `Assert.isFalse`
+- `Assert.fail(message: string)` — for code that should not be reached
+- `Assert.equalInt(actual: int, expected: int, message: string)`,
+  `Assert.equalLong` — print `message: expected 5, got 4`
+- `Assert.equalString(actual: string, expected: string, message: string)` —
+  compares bytes; `nullptr` equals only `nullptr`
+- `Assert.near(actual: double, expected: double, tolerance: double, message: string)`
+
 ### BigInt (`std/bigint.bpl`)
 
 Signed integers of any size, stored as base-10^9 limbs. Every operation returns
