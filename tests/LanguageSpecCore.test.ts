@@ -55,7 +55,7 @@ frame main() ret int { # trailing comment
       {
         name: "keyword-identifier",
         source: main('local loop: int = 1; printf("%d", loop);'),
-        message: "Unexpected syntax",
+        message: "'loop' is a reserved word and cannot be used as a name",
       },
       {
         name: "spaced-digits",
