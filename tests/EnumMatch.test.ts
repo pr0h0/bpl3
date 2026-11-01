@@ -214,7 +214,8 @@ describe("Enums and Pattern Matching", () => {
       }
     `;
     const { stdout, stderr, exitCode } = runBPL(source);
-    if (exitCode !== 0) console.error("TupleVariantNestedTuple Stderr:", stderr);
+    if (exitCode !== 0)
+      console.error("TupleVariantNestedTuple Stderr:", stderr);
     expect(exitCode).toBe(0);
     expect(stdout).toBe("tag=3 value=4294967296 count=7\n");
   });
@@ -281,7 +282,8 @@ describe("Enums and Pattern Matching", () => {
     `;
 
     const { stdout, stderr, exitCode } = runBPL(source);
-    if (exitCode !== 0) console.error("EnumUnitEqualityPadding Stderr:", stderr);
+    if (exitCode !== 0)
+      console.error("EnumUnitEqualityPadding Stderr:", stderr);
     expect(exitCode).toBe(0);
     expect(stdout).toBe("equal\n");
   });
@@ -339,7 +341,8 @@ describe("Enums and Pattern Matching", () => {
     `;
 
     const { stdout, stderr, exitCode } = runBPL(source);
-    if (exitCode !== 0) console.error("GenericEnumFloatEquality Stderr:", stderr);
+    if (exitCode !== 0)
+      console.error("GenericEnumFloatEquality Stderr:", stderr);
     expect(exitCode).toBe(0);
     expect(stdout).toBe("equal\n");
   });
@@ -366,7 +369,8 @@ describe("Enums and Pattern Matching", () => {
     `;
 
     const { stdout, stderr, exitCode } = runBPL(source);
-    if (exitCode !== 0) console.error("GenericEnumStructVariant Stderr:", stderr);
+    if (exitCode !== 0)
+      console.error("GenericEnumStructVariant Stderr:", stderr);
     expect(exitCode).toBe(0);
     expect(stdout).toBe("2.5\n");
   });

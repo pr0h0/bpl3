@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("Range rejects lengths that cannot fit its int result", () => {
-  expectCorrectnessSuite([{
-    name: "range-length-capacity",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "range-length-capacity",
+      validateLlvm: true,
+      source: `
       import [Range] from "std/range.bpl";
       extern strcmp(a: string, b: string) ret int;
       frame rejected(r: Range) ret bool {
@@ -28,6 +29,7 @@ test("Range rejects lengths that cannot fit its int result", () => {
         if (empty.len() != 0) { return 9; }
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

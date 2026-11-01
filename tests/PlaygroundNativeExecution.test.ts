@@ -16,10 +16,9 @@ describe("Playground native execution response shaping", () => {
     const result = await runPlaygroundNativeBinary(process.execPath, {
       args: [
         "-e",
-        [
-          'process.stdout.write("ok");',
-          'process.stderr.write("warn");',
-        ].join(""),
+        ['process.stdout.write("ok");', 'process.stderr.write("warn");'].join(
+          "",
+        ),
       ],
     });
 

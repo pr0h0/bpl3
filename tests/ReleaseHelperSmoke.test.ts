@@ -231,9 +231,7 @@ describe("Release helper smoke", () => {
   });
 
   test("prints packed ci:triage repo validation diagnostics", () => {
-    const tempRoot = mkdtempSync(
-      join(tmpdir(), "bpl-ci-triage-repo-smoke-"),
-    );
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-ci-triage-repo-smoke-"));
 
     try {
       const installDir = writePackedHelperInstallFixture(tempRoot, {
@@ -242,15 +240,7 @@ describe("Release helper smoke", () => {
       const packageDir = join(installDir, "node_modules", "bpl-v3");
       const result = spawnSync(
         "npm",
-        [
-          "run",
-          "--silent",
-          "ci:triage",
-          "--",
-          "--repo",
-          "bad",
-          "26695335269",
-        ],
+        ["run", "--silent", "ci:triage", "--", "--repo", "bad", "26695335269"],
         {
           cwd: packageDir,
           encoding: "utf8",
@@ -270,9 +260,7 @@ describe("Release helper smoke", () => {
   });
 
   test("prints packed ci:triage run locator diagnostics", () => {
-    const tempRoot = mkdtempSync(
-      join(tmpdir(), "bpl-ci-triage-run-smoke-"),
-    );
+    const tempRoot = mkdtempSync(join(tmpdir(), "bpl-ci-triage-run-smoke-"));
 
     try {
       const installDir = writePackedHelperInstallFixture(tempRoot, {

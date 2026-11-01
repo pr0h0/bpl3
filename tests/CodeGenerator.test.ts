@@ -135,7 +135,9 @@ describe("CodeGenerator", () => {
     // The classifier still delegates to the shared table rather than listing
     // type names itself. It now resolves a type parameter to the argument of
     // the instantiation first, so the name it classifies is a concrete one.
-    expect(typeGeneratorSource).toContain("return isSignedTypeName(basic.name)");
+    expect(typeGeneratorSource).toContain(
+      "return isSignedTypeName(basic.name)",
+    );
     const ir = compile(`
       type Signed=i8;
       frame widen<T>(value:T) ret long {return value as long;}
@@ -258,7 +260,9 @@ describe("CodeGenerator", () => {
     expect(source).toContain("private mangleTypeList");
     expect(getMangledNameSource).toContain("this.mangleTypeList");
     expect(mangleCallableSource).toContain("this.mangleTypeList");
-    expect(getMangledNameSource).not.toContain(".map((t) => this.mangleType(t))");
+    expect(getMangledNameSource).not.toContain(
+      ".map((t) => this.mangleType(t))",
+    );
     expect(mangleCallableSource).not.toContain(
       ".map((t) => this.mangleType(t))",
     );
@@ -267,16 +271,18 @@ describe("CodeGenerator", () => {
   });
 
   it("reuses simple struct field lists during repeated codegen lookups", () => {
-    const program = parseAndCheck([
-      "struct Point {",
-      "  x: int,",
-      "  y: int,",
-      "}",
-      "",
-      "frame main() ret int {",
-      "  return 0;",
-      "}",
-    ].join("\n"));
+    const program = parseAndCheck(
+      [
+        "struct Point {",
+        "  x: int,",
+        "  y: int,",
+        "}",
+        "",
+        "frame main() ret int {",
+        "  return 0;",
+        "}",
+      ].join("\n"),
+    );
     const point = program.statements.find(
       (stmt): stmt is AST.StructDecl =>
         stmt.kind === "StructDecl" && stmt.name === "Point",
@@ -300,10 +306,7 @@ describe("CodeGenerator", () => {
       "utf8",
     );
     const expressionSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/ExpressionGenerator.ts",
-      ),
+      join(process.cwd(), "compiler/backend/codegen/ExpressionGenerator.ts"),
       "utf8",
     );
 
@@ -341,10 +344,7 @@ describe("CodeGenerator", () => {
 
   it("caches repeated vtable entry name reconstruction", () => {
     const baseSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/BaseCodeGenerator.ts",
-      ),
+      join(process.cwd(), "compiler/backend/codegen/BaseCodeGenerator.ts"),
       "utf8",
     );
     const generatorSource = readTextFile(
@@ -352,10 +352,7 @@ describe("CodeGenerator", () => {
       "utf8",
     );
     const structEnumSource = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/StructEnumGenerator.ts",
-      ),
+      join(process.cwd(), "compiler/backend/codegen/StructEnumGenerator.ts"),
       "utf8",
     );
 
@@ -387,25 +384,23 @@ describe("CodeGenerator", () => {
     expect(layoutStart).toBeGreaterThan(generateStart);
 
     const preLayoutSource = source.slice(generateStart, layoutStart);
-    const statementPasses = preLayoutSource.match(
-      /for \(const stmt of program\.statements\)/g,
-    ) ?? [];
+    const statementPasses =
+      preLayoutSource.match(/for \(const stmt of program\.statements\)/g) ?? [];
 
     expect(statementPasses.length).toBe(1);
     expect(preLayoutSource).toContain("this.specMap.set");
     expect(preLayoutSource).toContain(
-      'this.emitDeclaration(`%struct.${spec.name} = type opaque`)',
+      "this.emitDeclaration(`%struct.${spec.name} = type opaque`)",
     );
     expect(preLayoutSource).not.toContain("Collect defined functions");
-    expect(preLayoutSource).not.toContain("Index Structs for inheritance lookup");
+    expect(preLayoutSource).not.toContain(
+      "Index Structs for inheritance lookup",
+    );
   });
 
   it("keeps function header generation off avoidable allocation paths", () => {
     const source = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/StatementGenerator.ts",
-      ),
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
     const start = source.indexOf("protected generateFunction");
@@ -432,20 +427,19 @@ describe("CodeGenerator", () => {
     expect(emptyMapShortcut).toBeGreaterThanOrEqual(0);
     expect(signatureSubstitution).toBeGreaterThan(emptyMapShortcut);
     expect(methodSource).not.toContain("decl.params\n          .map");
-    expect(methodSource).not.toContain(".join(\", \")");
+    expect(methodSource).not.toContain('.join(", ")');
     expect(initStart).toBeGreaterThanOrEqual(0);
     expect(initEnd).toBeGreaterThan(initStart);
     expect(initSource).toContain("parentStruct &&");
-    expect(initSource).toContain('this.getMethodBaseName(decl.name) === "init"');
+    expect(initSource).toContain(
+      'this.getMethodBaseName(decl.name) === "init"',
+    );
     expect(methodSource).not.toContain('decl.name.split("_")');
   });
 
   it("builds nonempty function parameter lists without separator branches", () => {
     const source = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/StatementGenerator.ts",
-      ),
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
     const methodStart = source.indexOf("private buildFunctionParameterList");
@@ -462,10 +456,7 @@ describe("CodeGenerator", () => {
 
   it("builds function linkage without temporary arrays", () => {
     const source = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/StatementGenerator.ts",
-      ),
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
     const start = source.indexOf("protected generateFunction");
@@ -482,22 +473,23 @@ describe("CodeGenerator", () => {
 
   it("swaps function-local codegen state instead of cloning it per function", () => {
     const source = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/StatementGenerator.ts",
-      ),
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
     const start = source.indexOf("protected generateFunction");
-    const end = source.indexOf("  protected generateArrayInitialization", start);
-
+    const end = source.indexOf(
+      "  protected generateArrayInitialization",
+      start,
+    );
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
 
     const methodSource = source.slice(start, end);
     expect(methodSource).toContain("const prevLocals = this.locals");
-    expect(methodSource).toContain("const prevLocalPointers = this.localPointers");
+    expect(methodSource).toContain(
+      "const prevLocalPointers = this.localPointers",
+    );
     expect(methodSource).toContain("const prevLocalTypes = this.localTypes");
     expect(methodSource).toContain("this.locals = new Set()");
     expect(methodSource).toContain("this.localPointers = new Map()");
@@ -529,10 +521,7 @@ describe("CodeGenerator", () => {
 
   it("keeps block scope snapshots lazy for declaration-free blocks", () => {
     const source = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/StatementGenerator.ts",
-      ),
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
     const start = source.indexOf("  protected generateBlock(");
@@ -553,22 +542,15 @@ describe("CodeGenerator", () => {
       "const declaredInBlock = new Set<string>();",
     );
 
-    const emptyDeferGuard = methodSource.indexOf(
-      "scope.deferred.length > 0",
-    );
-    const deferTerminatorCheck = methodSource.lastIndexOf(
-      "!this.isTerminator",
-    );
+    const emptyDeferGuard = methodSource.indexOf("scope.deferred.length > 0");
+    const deferTerminatorCheck = methodSource.lastIndexOf("!this.isTerminator");
     expect(emptyDeferGuard).toBeGreaterThanOrEqual(0);
     expect(deferTerminatorCheck).toBeGreaterThan(emptyDeferGuard);
   });
 
   it("keeps simple block declaration names off recursive collection", () => {
     const source = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/StatementGenerator.ts",
-      ),
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
     const start = source.indexOf("  protected generateBlock(");
@@ -632,10 +614,7 @@ describe("CodeGenerator", () => {
 
   it("classifies function implicit returns from the final emitted line", () => {
     const source = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/StatementGenerator.ts",
-      ),
+      join(process.cwd(), "compiler/backend/codegen/StatementGenerator.ts"),
       "utf8",
     );
     const start = source.indexOf("  protected generateFunction(");
@@ -647,9 +626,7 @@ describe("CodeGenerator", () => {
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
-    expect(methodSource).toContain(
-      "const isTerminator = this.isTerminator(",
-    );
+    expect(methodSource).toContain("const isTerminator = this.isTerminator(");
     expect(methodSource).toContain(
       'this.output[this.output.length - 1] || "",',
     );
@@ -757,7 +734,10 @@ describe("CodeGenerator", () => {
       "utf8",
     );
     const methodStart = source.indexOf("protected generateMember");
-    const methodEnd = source.indexOf("protected generateBoundMethod", methodStart);
+    const methodEnd = source.indexOf(
+      "protected generateBoundMethod",
+      methodStart,
+    );
     const methodSource = source.slice(methodStart, methodEnd);
     const localPointerLookup = methodSource.indexOf(
       "this.localPointers.get(identifier.name)",
@@ -792,10 +772,7 @@ describe("CodeGenerator", () => {
     expect(helperStart).toBeGreaterThanOrEqual(0);
     expect(helperEnd).toBeGreaterThan(helperStart);
 
-    const helperSource = statementGeneratorSource.slice(
-      helperStart,
-      helperEnd,
-    );
+    const helperSource = statementGeneratorSource.slice(helperStart, helperEnd);
     const defaultStart = statementGeneratorSource.indexOf(
       "protected generateDefaultValue",
     );
@@ -832,9 +809,9 @@ describe("CodeGenerator", () => {
     expect(defaultSource).toContain(
       "if (!this.structNeedsDefaultInitialization(structName))",
     );
-    expect(defaultSource.indexOf("structNeedsDefaultInitialization")).toBeLessThan(
-      defaultSource.indexOf("Array.from(layout.entries())"),
-    );
+    expect(
+      defaultSource.indexOf("structNeedsDefaultInitialization"),
+    ).toBeLessThan(defaultSource.indexOf("Array.from(layout.entries())"));
   });
 
   it("preserves required struct default initialization values", () => {
@@ -1164,18 +1141,13 @@ describe("CodeGenerator", () => {
 
   it("emits separator-free decimal integers before BigInt normalization", () => {
     const source = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/ExpressionGenerator.ts",
-      ),
+      join(process.cwd(), "compiler/backend/codegen/ExpressionGenerator.ts"),
       "utf8",
     );
     const start = source.indexOf("  protected generateLiteral(");
     const end = source.indexOf("  protected generateIdentifier(", start);
     const methodSource = source.slice(start, end);
-    const decimalFastPath = methodSource.indexOf(
-      'raw.indexOf("_") === -1',
-    );
+    const decimalFastPath = methodSource.indexOf('raw.indexOf("_") === -1');
     const bigintNormalization = methodSource.indexOf("BigInt(cleaned)");
 
     expect(start).toBeGreaterThanOrEqual(0);
@@ -1189,10 +1161,7 @@ describe("CodeGenerator", () => {
 
   it("emits nonzero canonical i32 raw literals before general number branches", () => {
     const source = readTextFile(
-      join(
-        process.cwd(),
-        "compiler/backend/codegen/ExpressionGenerator.ts",
-      ),
+      join(process.cwd(), "compiler/backend/codegen/ExpressionGenerator.ts"),
       "utf8",
     );
     const start = source.indexOf("  protected generateLiteral(");
@@ -1253,7 +1222,9 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("@exception_top = external thread_local global");
     expect(ir).not.toContain("@exception_value = external thread_local global");
     expect(ir).not.toContain("@exception_type = external thread_local global");
-    expect(ir).not.toContain("@__bpl_stack_depth = external thread_local global i32");
+    expect(ir).not.toContain(
+      "@__bpl_stack_depth = external thread_local global i32",
+    );
     expect(ir).not.toContain(
       "@__bpl_stack_limit = external thread_local global i8*",
     );
@@ -1264,7 +1235,9 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("declare i32 @strcmp(i8*, i8*)");
     expect(ir).not.toContain("%struct._IO_FILE = type opaque");
     expect(ir).not.toContain("@stderr = external global");
-    expect(ir).not.toContain("declare i32 @fprintf(%struct._IO_FILE*, i8*, ...)");
+    expect(ir).not.toContain(
+      "declare i32 @fprintf(%struct._IO_FILE*, i8*, ...)",
+    );
     expect(ir).not.toContain("declare i32 @setjmp(i8*) returns_twice");
     expect(ir).not.toContain("declare void @longjmp(i8*, i32) noreturn");
     expect(ir).not.toContain("%struct.Type = type");
@@ -1277,7 +1250,9 @@ describe("CodeGenerator", () => {
     expect(ir).not.toContain("%struct.Double = type");
     expect(ir).not.toContain("%struct.String = type");
     expect(ir).not.toMatch(/\n{3,}/);
-    expect(ir).toContain('source_filename = "unknown"\n\ndefine dso_local i32 @main');
+    expect(ir).toContain(
+      'source_filename = "unknown"\n\ndefine dso_local i32 @main',
+    );
   });
 
   it("keeps builtin-named struct declarations when generated IR references them", () => {
@@ -1591,9 +1566,9 @@ describe("CodeGenerator", () => {
       /define dso_local i32 @value_after_guard_call_Node_ptr[\s\S]*?\n}\n/,
     )?.[0];
     expect(valueAfterGuardCall).toBeDefined();
-    expect(
-      valueAfterGuardCall!.match(/@__bpl_check_null/g)?.length ?? 0,
-    ).toBe(0);
+    expect(valueAfterGuardCall!.match(/@__bpl_check_null/g)?.length ?? 0).toBe(
+      0,
+    );
   });
 
   it("does not retain global pointer null guard proofs across intervening calls", () => {
@@ -1754,7 +1729,10 @@ describe("CodeGenerator", () => {
       "utf8",
     );
     const unarySource = readTextFile(
-      join(process.cwd(), "compiler/backend/codegen/UnaryExpressionGenerator.ts"),
+      join(
+        process.cwd(),
+        "compiler/backend/codegen/UnaryExpressionGenerator.ts",
+      ),
       "utf8",
     );
     const functionStart = statementSource.indexOf(
@@ -1796,7 +1774,10 @@ describe("CodeGenerator", () => {
       "utf8",
     );
     const start = source.indexOf("protected generateFunction");
-    const end = source.indexOf("      // Special handling for main function", start);
+    const end = source.indexOf(
+      "      // Special handling for main function",
+      start,
+    );
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
@@ -1878,14 +1859,19 @@ describe("CodeGenerator", () => {
     const start = source.indexOf(
       "private isBoundedCallFreeStackHookElisionCandidate",
     );
-    const end = source.indexOf("\n  private hasDirectTailRecursiveReturn", start);
+    const end = source.indexOf(
+      "\n  private hasDirectTailRecursiveReturn",
+      start,
+    );
     const elisionSource = source.slice(start, end);
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
     expect(elisionSource).toContain("expressionBlocksStackHookElision");
     expect(elisionSource).not.toContain("expressionMayEmitCall");
-    expect(elisionSource).not.toContain("expressionMayEmitCheckedRuntimeFailure");
+    expect(elisionSource).not.toContain(
+      "expressionMayEmitCheckedRuntimeFailure",
+    );
     expect(elisionSource).toContain(
       "for (const field of (expr as AST.StructLiteralExpr).fields)",
     );
@@ -1942,7 +1928,9 @@ describe("CodeGenerator", () => {
     expect(ir).toContain("store i32 %argc, i32* @__bpl_argc_value");
     expect(ir).toContain("store i8** %argv, i8*** @__bpl_argv_value");
     expect(ir).toContain("call i32 @__bpl_argc()");
-    expect(ir).toMatch(/call i8\* @__bpl_argv_get\(i32 (?:0|zeroinitializer)\)/);
+    expect(ir).toMatch(
+      /call i8\* @__bpl_argv_get\(i32 (?:0|zeroinitializer)\)/,
+    );
   });
 
   it("tracks runtime arg helper usage before final pruning scans output", () => {
@@ -2026,10 +2014,7 @@ describe("CodeGenerator", () => {
     expect(collectorEnd).toBeGreaterThan(collectorStart);
     expect(matcherStart).toBeGreaterThan(collectorStart);
 
-    const finalPruningSource = source.slice(
-      finalPruningStart,
-      finalPruningEnd,
-    );
+    const finalPruningSource = source.slice(finalPruningStart, finalPruningEnd);
     const collectorSource = source.slice(collectorStart, collectorEnd);
     const matcherSource = source.slice(matcherStart, collectorEnd);
     expect(finalPruningSource).toContain(
@@ -2074,7 +2059,9 @@ describe("CodeGenerator", () => {
     expect(assemblySource).toContain(
       "this.appendResultSection(resultSections, header)",
     );
-    expect(assemblySource).not.toContain(".map((section) => section.trimEnd())");
+    expect(assemblySource).not.toContain(
+      ".map((section) => section.trimEnd())",
+    );
     expect(assemblySource).not.toContain(
       ".filter((section) => section.length > 0)",
     );
@@ -2093,7 +2080,9 @@ describe("CodeGenerator", () => {
 
     const methodSource = source.slice(start, end);
     expect(methodSource).toContain("line.length === 0");
-    expect(methodSource).toContain("for (let index = 0; index < lines.length; index++)");
+    expect(methodSource).toContain(
+      "for (let index = 0; index < lines.length; index++)",
+    );
     expect(methodSource).toContain("const line = lines[index]!");
     expect(methodSource).toContain('result += "\\n" + line');
     expect(methodSource).toContain("result = line");
@@ -2140,9 +2129,7 @@ describe("CodeGenerator", () => {
     expect(referenceSource).not.toContain(
       "for (let index = 0; index < llvmBody.length; index++)",
     );
-    expect(referenceSource).not.toContain(
-      "this.isLlvmReferenceNameCharacter",
-    );
+    expect(referenceSource).not.toContain("this.isLlvmReferenceNameCharacter");
     expect(referenceSource).not.toContain("RegExp");
   });
 

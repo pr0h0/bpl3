@@ -145,7 +145,9 @@ function collectVisitedNames(expression: AST.Expression): string[] {
     .map((error) => error.message);
 }
 
-function collectVisitedNamesInStatements(statements: AST.Statement[]): string[] {
+function collectVisitedNamesInStatements(
+  statements: AST.Statement[],
+): string[] {
   const rule: LintRule = {
     code: "TSTMT",
     name: "statement-child-visitor-test",
@@ -646,9 +648,9 @@ describe("linter type-safety guards", () => {
       location,
     });
 
-    expect(new Linter([rule]).lint(program).map((error) => error.message)).toEqual(
-      ["attribute:noreturn"],
-    );
+    expect(
+      new Linter([rule]).lint(program).map((error) => error.message),
+    ).toEqual(["attribute:noreturn"]);
   });
 
   test("visits nested type children", () => {

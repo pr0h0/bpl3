@@ -75,12 +75,9 @@ function writeStdShadowPackage(rootDir: string): void {
   );
   fs.writeFileSync(
     path.join(stdPackageDir, "missing.bpl"),
-    [
-      "frame shadow() ret int {",
-      "    return 42;",
-      "}",
-      "export shadow;",
-    ].join("\n"),
+    ["frame shadow() ret int {", "    return 42;", "}", "export shadow;"].join(
+      "\n",
+    ),
   );
 }
 
@@ -169,16 +166,19 @@ function expectHelpOutput(args: string[], snippets: string[]): string {
 
 describe("CLI Tests", () => {
   it("should keep root help output stable and stdout-only", () => {
-    expectHelpOutput(["--help"], [
-      "Usage: bpl [options] [command] [files...]",
-      "-V, --version",
-      "--json",
-      "run-script|rs",
-      "package-cache",
-      "completion [options] [shell]",
-      "bindgen [options] <header>",
-      "doctor [options] [scope]",
-    ]);
+    expectHelpOutput(
+      ["--help"],
+      [
+        "Usage: bpl [options] [command] [files...]",
+        "-V, --version",
+        "--json",
+        "run-script|rs",
+        "package-cache",
+        "completion [options] [shell]",
+        "bindgen [options] <header>",
+        "doctor [options] [scope]",
+      ],
+    );
   });
 
   it("should keep key subcommand help output stable and stdout-only", () => {
@@ -305,7 +305,9 @@ describe("CLI Tests", () => {
   });
 
   it("should reject conflicting root compile input sources", () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-input-conflict-"));
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-input-conflict-"),
+    );
     const sourceFile = path.join(tempDir, "main.bpl");
     fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }");
 
@@ -328,12 +330,7 @@ describe("CLI Tests", () => {
   });
 
   it("should report conflicting root compile input sources as json", () => {
-    const result = runCLI([
-      "--eval",
-      "frame main() {}",
-      "--stdin",
-      "--json",
-    ]);
+    const result = runCLI(["--eval", "frame main() {}", "--stdin", "--json"]);
     const report = parseJsonObjectStdout(result) as JsonObject;
 
     expect(result.status).toBe(1);
@@ -663,7 +660,7 @@ describe("CLI Tests", () => {
 
   it("should label stdin diagnostics as stdin", () => {
     const result = spawnSync("bun", [BPL_CLI, "--stdin"], {
-      input: ['frame main() {', '    local x: int = "bad";', "}"].join("\n"),
+      input: ["frame main() {", '    local x: int = "bad";', "}"].join("\n"),
       encoding: "utf-8",
       env: { ...process.env, NO_COLOR: "1" },
     });
@@ -730,9 +727,10 @@ describe("CLI Tests", () => {
 
     fs.writeFileSync(
       sourceFile,
-      ["# import fake from nowhere", "frame helper() ret int { return 0; }"].join(
-        "\n",
-      ),
+      [
+        "# import fake from nowhere",
+        "frame helper() ret int { return 0; }",
+      ].join("\n"),
     );
 
     try {
@@ -790,7 +788,9 @@ describe("CLI Tests", () => {
 
       const formatted = runCLI(["build", sourceFile, "--emit", "formatted"]);
       expect(formatted.status).toBe(0);
-      expect(formatted.stdout).toContain('import missing from "./missing.bpl";');
+      expect(formatted.stdout).toContain(
+        'import missing from "./missing.bpl";',
+      );
       expect(formatted.stdout).not.toContain("define i32 @main");
       expect(formatted.stderr).not.toContain("Failed to resolve import");
     } finally {
@@ -1147,12 +1147,9 @@ describe("CLI Tests", () => {
     );
     fs.writeFileSync(
       path.join(packageDir, "index.bpl"),
-      [
-        "frame value() ret int {",
-        "    return 1;",
-        "}",
-        "export value;",
-      ].join("\n"),
+      ["frame value() ret int {", "    return 1;", "}", "export value;"].join(
+        "\n",
+      ),
     );
     fs.writeFileSync(
       sourceFile,
@@ -1498,16 +1495,16 @@ describe("CLI Tests", () => {
       expect(result.status).toBe(0);
       expect(result.stdout).toContain("run-debug-ir");
       expect(fs.existsSync(debugIrFile)).toBe(true);
-      expect(fs.readFileSync(debugIrFile, "utf8")).toContain("define i32 @main(");
+      expect(fs.readFileSync(debugIrFile, "utf8")).toContain(
+        "define i32 @main(",
+      );
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
   it("should validate entry points before linking module builds", () => {
-    const tempDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), "bpl-module-entry-"),
-    );
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-module-entry-"));
     const sourceFile = path.join(tempDir, "main.bpl");
     const libFile = path.join(tempDir, "lib.bpl");
 
@@ -1592,7 +1589,9 @@ describe("CLI Tests", () => {
   });
 
   it("should reject compile output paths whose parent directory is missing", () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-output-parent-"));
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-output-parent-"),
+    );
     const sourceFile = path.join(tempDir, "main.bpl");
     const outputFile = path.join(tempDir, "missing", "app");
     fs.writeFileSync(sourceFile, "frame main() ret int { return 0; }\n");
@@ -1769,9 +1768,7 @@ describe("CLI Tests", () => {
   });
 
   it("should reject check directories and report empty format/lint discovery", () => {
-    const tempDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), "bpl-analysis-dir-"),
-    );
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-analysis-dir-"));
     const sourceDir = path.join(tempDir, "src");
     fs.mkdirSync(sourceDir);
 
@@ -1933,11 +1930,15 @@ describe("CLI Tests", () => {
     fs.writeFileSync(mainFile, "frame main() ret int { return 0; }\n");
 
     try {
-      const result = spawnSync("bun", [BPL_CLI, "docs", mainFile, "-o", tempDir], {
-        cwd: tempDir,
-        encoding: "utf-8",
-        env: { ...process.env, NO_COLOR: "1" },
-      });
+      const result = spawnSync(
+        "bun",
+        [BPL_CLI, "docs", mainFile, "-o", tempDir],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("Output path is a directory");
@@ -1953,11 +1954,7 @@ describe("CLI Tests", () => {
     const outputFile = path.join(tempDir, "docs.md");
     fs.writeFileSync(
       mainFile,
-      [
-        "frame main() ret int {",
-        "  return 0;",
-        "}",
-      ].join("\n"),
+      ["frame main() ret int {", "  return 0;", "}"].join("\n"),
     );
 
     try {
@@ -2434,11 +2431,15 @@ describe("CLI Tests", () => {
     fs.symlinkSync(realRoot, linkedRoot, "dir");
 
     try {
-      const clean = spawnSync("bun", ["--cwd", linkedProject, BPL_CLI, "clean"], {
-        cwd: tempDir,
-        encoding: "utf-8",
-        env: { ...process.env, NO_COLOR: "1" },
-      });
+      const clean = spawnSync(
+        "bun",
+        ["--cwd", linkedProject, BPL_CLI, "clean"],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
 
       expect(clean.status).toBe(1);
       expect(clean.stderr).toContain(
@@ -2923,15 +2924,11 @@ describe("CLI Tests", () => {
         errorCode: "BPL_RUN_SCRIPT_NOT_FOUND",
       });
 
-      const humanResult = spawnSync(
-        "bun",
-        [BPL_CLI, "run-script", "missing"],
-        {
-          cwd: tempDir,
-          encoding: "utf-8",
-          env: { ...process.env, NO_COLOR: "1" },
-        },
-      );
+      const humanResult = spawnSync("bun", [BPL_CLI, "run-script", "missing"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
 
       expect(humanResult.status).toBe(1);
       expect(humanResult.stderr).toContain(
@@ -2977,15 +2974,11 @@ describe("CLI Tests", () => {
           },
         }),
       );
-      const emptyCommand = spawnSync(
-        "bun",
-        [BPL_CLI, "run-script", "empty"],
-        {
-          cwd: tempDir,
-          encoding: "utf-8",
-          env: { ...process.env, NO_COLOR: "1" },
-        },
-      );
+      const emptyCommand = spawnSync("bun", [BPL_CLI, "run-script", "empty"], {
+        cwd: tempDir,
+        encoding: "utf-8",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
 
       expect(emptyCommand.status).toBe(1);
       expect(emptyCommand.stderr).toContain("must be a non-empty string");
@@ -3251,9 +3244,7 @@ describe("CLI Tests", () => {
   });
 
   it("should report import diagnostics as JSON", () => {
-    const tempDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), "bpl-import-json-"),
-    );
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-import-json-"));
     const unsafeStdFile = path.join(tempDir, "unsafe_std.bpl");
     const packageFile = path.join(tempDir, "package_import.bpl");
     const invalidNameFile = path.join(tempDir, "invalid_package_name.bpl");
@@ -3373,15 +3364,15 @@ describe("CLI Tests", () => {
       expect(report.totalFiles).toBe(4);
       expect(report.errorCount).toBe(4);
 
-      const reportsByFile = new Map(report.files.map((file) => [file.file, file]));
-      const unsafeStdDiagnostic = reportsByFile.get(
-        unsafeStdFile,
-      )?.diagnostics[0];
+      const reportsByFile = new Map(
+        report.files.map((file) => [file.file, file]),
+      );
+      const unsafeStdDiagnostic =
+        reportsByFile.get(unsafeStdFile)?.diagnostics[0];
       expect(unsafeStdDiagnostic).toMatchObject({
         severity: "error",
         message: "Unsafe standard library import: std/../outside-std-lib.bpl",
-        hint:
-          "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.",
+        hint: "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.",
         location: {
           file: unsafeStdFile,
           start: { line: 1, column: 1 },
@@ -3391,9 +3382,7 @@ describe("CLI Tests", () => {
         },
       });
 
-      const packageDiagnostic = reportsByFile.get(
-        packageFile,
-      )?.diagnostics[0];
+      const packageDiagnostic = reportsByFile.get(packageFile)?.diagnostics[0];
       expect(packageDiagnostic?.message).toContain("invalid bpl.json");
       expect(packageDiagnostic?.message).toContain(
         "manifest name 'different-name'",
@@ -3404,9 +3393,8 @@ describe("CLI Tests", () => {
         start: { line: 1, column: 1 },
       });
 
-      const invalidNameDiagnostic = reportsByFile.get(
-        invalidNameFile,
-      )?.diagnostics[0];
+      const invalidNameDiagnostic =
+        reportsByFile.get(invalidNameFile)?.diagnostics[0];
       expect(invalidNameDiagnostic?.message).toContain(
         "Package import names must use lowercase letters, digits, and hyphens only.",
       );
@@ -3418,9 +3406,8 @@ describe("CLI Tests", () => {
         start: { line: 1, column: 1 },
       });
 
-      const packageVersionDiagnostic = reportsByFile.get(
-        packageVersionFile,
-      )?.diagnostics[0];
+      const packageVersionDiagnostic =
+        reportsByFile.get(packageVersionFile)?.diagnostics[0];
       expect(packageVersionDiagnostic?.message).toContain(
         "manifest version must use X.Y.Z semantic version format",
       );
@@ -3451,13 +3438,13 @@ describe("CLI Tests", () => {
     expect(report.totalFiles).toBe(1);
     expect(report.errorCount).toBe(1);
     expect(report.files).toEqual([
-        {
-          file: missingFile,
-          success: false,
-          error: "File not found",
-          errorCode: "BPL_CHECK_INPUT_NOT_FOUND",
-        },
-      ]);
+      {
+        file: missingFile,
+        success: false,
+        error: "File not found",
+        errorCode: "BPL_CHECK_INPUT_NOT_FOUND",
+      },
+    ]);
   });
 
   it("should scaffold library projects with package-friendly defaults", () => {
@@ -3571,15 +3558,7 @@ describe("CLI Tests", () => {
     try {
       const success = spawnSync(
         "bun",
-        [
-          BPL_CLI,
-          "new",
-          "json-app",
-          "--template",
-          "app",
-          "--no-git",
-          "--json",
-        ],
+        [BPL_CLI, "new", "json-app", "--template", "app", "--no-git", "--json"],
         {
           cwd: tempDir,
           encoding: "utf-8",
@@ -3847,7 +3826,9 @@ describe("CLI Tests", () => {
   });
 
   it("should reject existing non-directory project paths before scaffolding", () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-new-collision-"));
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-new-collision-"),
+    );
     const fileName = "taken-file";
     const linkName = "taken-link";
     const filePath = path.join(tempDir, fileName);
@@ -3987,9 +3968,9 @@ describe("CLI Tests", () => {
       expect(result.stderr).toContain(hangingCompiler);
       expect(result.stderr).toContain("timed out");
       expect(result.stderr).not.toContain("ETIMEDOUT");
-      expect(fs.existsSync(path.join(tempDir, "timeout-cc-pack-1.0.0.tgz"))).toBe(
-        true,
-      );
+      expect(
+        fs.existsSync(path.join(tempDir, "timeout-cc-pack-1.0.0.tgz")),
+      ).toBe(true);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -4157,13 +4138,13 @@ describe("CLI Tests", () => {
       );
       expect(result.stdout).toContain("global const FILE_MODE: int = 0o755;");
       expect(result.stdout).toContain("global const BIG_COUNT: ulong = 42;");
-      expect(result.stdout).toContain("global const SCALE: f32 = cast<f32>(1.5);");
+      expect(result.stdout).toContain(
+        "global const SCALE: f32 = cast<f32>(1.5);",
+      );
       expect(result.stdout).toContain(
         "global const WRAPPED_ANSWER: uint = 42;",
       );
-      expect(result.stdout).toContain(
-        "global const CAST_LIMIT: ulong = 4096;",
-      );
+      expect(result.stdout).toContain("global const CAST_LIMIT: ulong = 4096;");
       expect(result.stdout).toContain(
         "global const NEGATIVE_LIMIT: long = -7;",
       );
@@ -4267,11 +4248,15 @@ describe("CLI Tests", () => {
     fs.writeFileSync(tempHeader, "int puts(const char *s);\n");
 
     try {
-      const success = spawnSync("bun", [BPL_CLI, "bindgen", "--json", tempHeader], {
-        cwd: tempDir,
-        encoding: "utf-8",
-        env: { ...process.env, NO_COLOR: "1" },
-      });
+      const success = spawnSync(
+        "bun",
+        [BPL_CLI, "bindgen", "--json", tempHeader],
+        {
+          cwd: tempDir,
+          encoding: "utf-8",
+          env: { ...process.env, NO_COLOR: "1" },
+        },
+      );
       const successReport = expectJsonStdoutReport<{
         check: "bindgen";
         success: boolean;
@@ -4289,7 +4274,9 @@ describe("CLI Tests", () => {
         outputPath: null,
       });
       expect(successReport.generatedBytes).toBeGreaterThan(0);
-      expect(successReport.bindings).toContain("extern puts(s: string) ret int;");
+      expect(successReport.bindings).toContain(
+        "extern puts(s: string) ret int;",
+      );
 
       const directoryInput = spawnSync(
         "bun",
@@ -4422,7 +4409,9 @@ describe("CLI Tests", () => {
   });
 
   it("should reject bindgen output paths that are directories", () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-bindgen-output-"));
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-bindgen-output-"),
+    );
     const tempHeader = path.join(tempDir, "input.h");
     fs.writeFileSync(tempHeader, "int puts(const char *s);\n");
 
@@ -4625,7 +4614,9 @@ describe("CLI Tests", () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("Timeouts:");
-    expect(result.stdout).toContain("WARN BPL_RUN_TIMEOUT_MS: none (invalid: 0)");
+    expect(result.stdout).toContain(
+      "WARN BPL_RUN_TIMEOUT_MS: none (invalid: 0)",
+    );
     expect(result.stdout).toContain(
       "hint: invalid value ignored; expected a positive integer; running without timeout",
     );
@@ -4838,10 +4829,7 @@ describe("CLI Tests", () => {
   });
 
   it("should honor BPL_CC in doctor diagnostics", () => {
-    const missingCompiler = path.join(
-      os.tmpdir(),
-      "definitely-missing-bpl-cc",
-    );
+    const missingCompiler = path.join(os.tmpdir(), "definitely-missing-bpl-cc");
     const result = spawnSync("bun", [BPL_CLI, "doctor", "--json"], {
       encoding: "utf-8",
       env: {
@@ -5005,10 +4993,14 @@ describe("CLI Tests", () => {
         NO_COLOR: "1",
       };
 
-      const result = spawnSync(process.execPath, [BPL_CLI, "doctor", "--json"], {
-        encoding: "utf-8",
-        env: doctorEnv,
-      });
+      const result = spawnSync(
+        process.execPath,
+        [BPL_CLI, "doctor", "--json"],
+        {
+          encoding: "utf-8",
+          env: doctorEnv,
+        },
+      );
 
       const report = expectDoctorJsonReport(result, {
         status: 0,
@@ -5030,9 +5022,7 @@ describe("CLI Tests", () => {
       expect(linkerCheck?.candidates).toEqual([missingWasmLd]);
       expect(linkerCheck?.hint).toContain("WASM_LD");
       expect(linkerCheck?.hint).toContain("BPL_REQUIRE_WASM_LD=1");
-      expect(linkerCheck?.hint).toContain(
-        "not a successful wasm execution",
-      );
+      expect(linkerCheck?.hint).toContain("not a successful wasm execution");
 
       const textResult = spawnSync(process.execPath, [BPL_CLI, "doctor"], {
         encoding: "utf-8",
@@ -5081,10 +5071,14 @@ describe("CLI Tests", () => {
         NO_COLOR: "1",
       };
 
-      const result = spawnSync(process.execPath, [BPL_CLI, "doctor", "--json"], {
-        encoding: "utf-8",
-        env: doctorEnv,
-      });
+      const result = spawnSync(
+        process.execPath,
+        [BPL_CLI, "doctor", "--json"],
+        {
+          encoding: "utf-8",
+          env: doctorEnv,
+        },
+      );
 
       const report = expectDoctorJsonReport(result, {
         status: 0,
@@ -5337,7 +5331,9 @@ describe("CLI Tests", () => {
       );
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain("Hosted WebAssembly runtime IR not found");
+      expect(result.stderr).toContain(
+        "Hosted WebAssembly runtime IR not found",
+      );
       expect(result.stderr).not.toContain("clang");
       expect(fs.existsSync(wasmFile)).toBe(false);
     } finally {
@@ -5368,9 +5364,12 @@ describe("CLI Tests", () => {
     const mainFile = path.join(tempDir, "main.bpl");
     fs.writeFileSync(
       moduleFile,
-      ["export answer;", "frame answer() ret int {", "    return 42;", "}"].join(
-        "\n",
-      ),
+      [
+        "export answer;",
+        "frame answer() ret int {",
+        "    return 42;",
+        "}",
+      ].join("\n"),
     );
     fs.writeFileSync(
       mainFile,
@@ -5412,9 +5411,12 @@ describe("CLI Tests", () => {
     const targetFile = path.join(tempDir, "target-app");
     fs.writeFileSync(
       moduleFile,
-      ["export answer;", "frame answer() ret int {", "    return 42;", "}"].join(
-        "\n",
-      ),
+      [
+        "export answer;",
+        "frame answer() ret int {",
+        "    return 42;",
+        "}",
+      ].join("\n"),
     );
     fs.writeFileSync(
       mainFile,
@@ -5458,9 +5460,12 @@ describe("CLI Tests", () => {
     const outputFile = path.join(parentFile, "app");
     fs.writeFileSync(
       moduleFile,
-      ["export answer;", "frame answer() ret int {", "    return 42;", "}"].join(
-        "\n",
-      ),
+      [
+        "export answer;",
+        "frame answer() ret int {",
+        "    return 42;",
+        "}",
+      ].join("\n"),
     );
     fs.writeFileSync(
       mainFile,
@@ -5504,9 +5509,12 @@ describe("CLI Tests", () => {
     const outputFile = path.join(linkedParentDir, "app");
     fs.writeFileSync(
       moduleFile,
-      ["export answer;", "frame answer() ret int {", "    return 42;", "}"].join(
-        "\n",
-      ),
+      [
+        "export answer;",
+        "frame answer() ret int {",
+        "    return 42;",
+        "}",
+      ].join("\n"),
     );
     fs.writeFileSync(
       mainFile,

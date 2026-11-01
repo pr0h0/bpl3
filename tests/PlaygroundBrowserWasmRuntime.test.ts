@@ -65,9 +65,8 @@ type BrowserWasmRuntime = {
   }>;
 };
 
-const browserWasmRuntime = require(
-  "../playground/frontend/browserWasmRuntime.js",
-) as BrowserWasmRuntime;
+const browserWasmRuntime =
+  require("../playground/frontend/browserWasmRuntime.js") as BrowserWasmRuntime;
 
 function makeBrowserGlobal(overrides: Record<string, unknown> = {}) {
   return {
@@ -87,9 +86,8 @@ function makeBrowserGlobal(overrides: Record<string, unknown> = {}) {
 
 describe("Playground browser wasm runtime", () => {
   test("detects browser-hosted wasm execution separately from browser compilation", () => {
-    const capabilities = browserWasmRuntime.detectBrowserWasmCapabilities(
-      makeBrowserGlobal(),
-    );
+    const capabilities =
+      browserWasmRuntime.detectBrowserWasmCapabilities(makeBrowserGlobal());
 
     expect(capabilities).toEqual({
       canRunHostedWasm: true,
@@ -198,8 +196,7 @@ describe("Playground browser wasm runtime", () => {
         errorMessage: "Failed to fetch",
         capabilitySummary:
           "Browser wasm runtime: available\nBrowser BPL compiler: unavailable",
-        fallbackError:
-          browserWasmRuntime.BROWSER_COMPILER_UNAVAILABLE_MESSAGE,
+        fallbackError: browserWasmRuntime.BROWSER_COMPILER_UNAVAILABLE_MESSAGE,
       }),
     ).toBe(
       [
@@ -343,8 +340,10 @@ describe("Playground browser wasm runtime", () => {
       error: "type error",
     });
 
-    const malformedSuccess =
-      await browserWasmRuntime.compileAndRunBplInBrowser("source", [], {
+    const malformedSuccess = await browserWasmRuntime.compileAndRunBplInBrowser(
+      "source",
+      [],
+      {
         globalObject: makeBrowserGlobal({
           BplBrowserCompiler: {
             async compileToHostedWasm() {
@@ -352,7 +351,8 @@ describe("Playground browser wasm runtime", () => {
             },
           },
         }),
-      });
+      },
+    );
 
     expect(malformedSuccess).toEqual({
       success: false,

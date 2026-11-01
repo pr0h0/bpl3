@@ -733,12 +733,12 @@ test("complex division holds across every magnitude regime", () => {
   ]);
 }, 60000);
 
-
 test("complex division preserves products of widely separated components", () => {
-  expectCorrectnessSuite([{
-    name: "complex-separated-products",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "complex-separated-products",
+      validateLlvm: true,
+      source: `
       import [Complex] from "std/complex.bpl";
       import printf from "std/c.bpl";
       extern atof(s: string) ret float;
@@ -759,6 +759,8 @@ test("complex division preserves products of widely separated components", () =>
         printf("%.1f %.1f\\n", z.real, z.imag);
         return 0;
       }`,
-    expectedStdout: "1.0e+200 -1.0e-200 1.0e-200 -1.0e+200\n1.0e+100 -1.0e-250\n-0.0 -0.0\n",
-  }]);
+      expectedStdout:
+        "1.0e+200 -1.0e-200 1.0e-200 -1.0e+200\n1.0e+100 -1.0e-250\n-0.0 -0.0\n",
+    },
+  ]);
 }, 60000);

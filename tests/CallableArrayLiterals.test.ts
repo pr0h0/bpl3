@@ -37,9 +37,7 @@ test("callback array literals reject inconsistent callback signatures", () => {
   `);
   expect(result.success).toBe(false);
   expect(
-    result.errors?.some(
-      (e) => e.code === "BPL_ARRAY_LITERAL_TYPE_MISMATCH",
-    ),
+    result.errors?.some((e) => e.code === "BPL_ARRAY_LITERAL_TYPE_MISMATCH"),
   ).toBe(true);
 });
 

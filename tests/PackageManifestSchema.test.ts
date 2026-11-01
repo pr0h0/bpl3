@@ -19,7 +19,10 @@ type JsonSchemaObject = {
 };
 
 const schema = JSON.parse(
-  readFileSync(join(import.meta.dir, "..", "schemas", "bpl-package.schema.json"), "utf8"),
+  readFileSync(
+    join(import.meta.dir, "..", "schemas", "bpl-package.schema.json"),
+    "utf8",
+  ),
 ) as JsonSchemaObject;
 
 function trackedPackageManifestPaths(): string[] {
@@ -342,9 +345,10 @@ describe("Package manifest JSON schema", () => {
         "src/../index.bpl",
         "../index.bpl",
       ]) {
-        expect(pattern.test(invalidPath), `${name} rejects ${invalidPath}`).toBe(
-          false,
-        );
+        expect(
+          pattern.test(invalidPath),
+          `${name} rejects ${invalidPath}`,
+        ).toBe(false);
       }
     }
   });

@@ -94,10 +94,9 @@ describe("Path safety helpers", () => {
     const realFile = path.join(tempDir, "Module.bpl");
     const directoryEntries = new Map<string, string[] | null>();
     const originalReaddirSync = fs.readdirSync;
-    const readdirSpy = spyOn(fs, "readdirSync").mockImplementation(
-      ((directoryPath: fs.PathLike) =>
-        originalReaddirSync(directoryPath)) as typeof fs.readdirSync,
-    );
+    const readdirSpy = spyOn(fs, "readdirSync").mockImplementation(((
+      directoryPath: fs.PathLike,
+    ) => originalReaddirSync(directoryPath)) as typeof fs.readdirSync);
 
     try {
       fs.writeFileSync(realFile, "export value;");

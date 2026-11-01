@@ -64,7 +64,9 @@ describe("Fuzz artifact repro helper", () => {
       const formatted = formatFuzzArtifactReproPlan(plan);
       expect(formatted).toContain("Fuzz artifact repro plan");
       expect(formatted).toContain("failure: mismatch at codegen");
-      expect(formatted).toContain("source: mismatch_seed-abcd_iter-7_differential.bpl");
+      expect(formatted).toContain(
+        "source: mismatch_seed-abcd_iter-7_differential.bpl",
+      );
       expect(formatted).toContain(
         "minimized: mismatch_seed-abcd_iter-7_differential.min.bpl",
       );
@@ -165,7 +167,9 @@ describe("Fuzz artifact repro helper", () => {
       for (const entry of plan.entries) {
         expect(entry.seedHex).toBeUndefined();
         expect(
-          entry.commands.some((command) => command.startsWith("bun run fuzz --")),
+          entry.commands.some((command) =>
+            command.startsWith("bun run fuzz --"),
+          ),
         ).toBe(false);
         expect(entry.commands).toContain(
           `bun run fuzz:replay -- --metadata ${entry.metadataPath}`,
@@ -227,7 +231,10 @@ describe("Fuzz artifact repro helper", () => {
     try {
       const realRoot = join(crashDir, "real-root");
       const linkedRoot = join(crashDir, "linked-root");
-      const metadataPath = join(linkedRoot, "crash_seed-link_iter-0_tokens.json");
+      const metadataPath = join(
+        linkedRoot,
+        "crash_seed-link_iter-0_tokens.json",
+      );
       mkdirSync(realRoot);
       writeFileSync(
         join(realRoot, "crash_seed-link_iter-0_tokens.json"),
@@ -344,7 +351,10 @@ describe("Fuzz artifact repro helper", () => {
   test("rejects missing CLI option values as usage errors", () => {
     const cases: Array<[string[], string]> = [
       [["--input", "--json"], "--input requires a value"],
-      [["--repo-root", "--json", "fuzz/crashes"], "--repo-root requires a value"],
+      [
+        ["--repo-root", "--json", "fuzz/crashes"],
+        "--repo-root requires a value",
+      ],
     ];
 
     for (const [args, expectedError] of cases) {
@@ -364,7 +374,10 @@ describe("Fuzz artifact repro helper", () => {
     const cases: Array<[string[], string]> = [
       [["--json=true", "fuzz/crashes"], "--json does not accept a value"],
       [["--input="], "--input requires a non-empty value"],
-      [["--repo-root=", "fuzz/crashes"], "--repo-root requires a non-empty value"],
+      [
+        ["--repo-root=", "fuzz/crashes"],
+        "--repo-root requires a non-empty value",
+      ],
       [
         ["--input", "fuzz/crashes", "other-artifacts"],
         "Pass artifact path either positionally or with --input, not both.",
