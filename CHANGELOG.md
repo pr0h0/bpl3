@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Lint rule `L006` reports a variable compared with itself (`n == n`,
+  `i < i`), whose result is fixed. It checks names declared with a primitive,
+  `string` or pointer type, and allows `x != x` on floating-point values, the
+  NaN test.
 - `Hash` (`std/hash.bpl`) adds `crc32`, `crc32Update` and `crc32String`
   (IEEE 802.3, as in zlib, gzip, ZIP and PNG), `adler32` (RFC 1950) and
   `fnv1a64`.
