@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `std/otp.bpl` adds HOTP (RFC 4226) and TOTP (RFC 6238) one-time passwords
+  (`Otp`), and `std/hmac.bpl` adds `HmacSha1`; `std` re-exports both.
+
 - `std/sha1.bpl` adds SHA-1 digests (`Sha1`, also exported by `std`) with the
   same interface as `Sha256`, for protocols that require SHA-1 such as the
   WebSocket handshake.

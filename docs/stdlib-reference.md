@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 76 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 77 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -59,6 +59,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/memory/stack_allocator.bpl](../lib/memory/stack_allocator.bpl)
 - [std/memory/syscalls.bpl](../lib/memory/syscalls.bpl)
 - [std/option.bpl](../lib/option.bpl)
+- [std/otp.bpl](../lib/otp.bpl)
 - [std/parse.bpl](../lib/parse.bpl)
 - [std/path.bpl](../lib/path.bpl)
 - [std/primitives.bpl](../lib/primitives.bpl)
@@ -1293,6 +1294,7 @@ Exports:
 ```bpl
 export [Hmac];
 export [HmacSha512];
+export [HmacSha1];
 ```
 
 ### Hmac
@@ -1320,6 +1322,18 @@ frame update(this: *HmacSha512, data: *u8, length: long)
 frame finish(this: *HmacSha512, mac: *u8)
 frame digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)
 frame hex(key: string, message: string) ret string
+```
+
+### HmacSha1
+
+```bpl
+struct HmacSha1
+inner: Sha1
+outerKey: u8[64]
+frame new(key: *u8, keyLength: long) ret HmacSha1
+frame update(this: *HmacSha1, data: *u8, length: long)
+frame finish(this: *HmacSha1, mac: *u8)
+frame digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)
 ```
 
 ## std/intrinsics.bpl
@@ -2078,6 +2092,25 @@ frame unwrapOr(this: Option<T>, defaultValue: T) ret T
 frame __eq__(this: *Option<T>, other: *Option<T>) ret bool
 frame __ne__(this: *Option<T>, other: *Option<T>) ret bool
 frame clone(this: *Option<T>) ret Option<T>
+```
+
+## std/otp.bpl
+
+[Source](../lib/otp.bpl)
+
+Exports:
+
+```bpl
+export [Otp];
+```
+
+### Otp
+
+```bpl
+struct Otp
+frame hotp(key: *u8, keyLength: long, counter: long, digits: int) ret int
+frame totpAt(key: *u8, keyLength: long, unixSeconds: long, stepSeconds: int, digits: int) ret int
+frame totp(key: *u8, keyLength: long) ret int
 ```
 
 ## std/parse.bpl
@@ -3104,6 +3137,8 @@ export [Regex];
 export [BigInt];
 export [Hmac];
 export [HmacSha512];
+export [HmacSha1];
+export [Otp];
 export [Entropy];
 export [UUID];
 export [Stats];
