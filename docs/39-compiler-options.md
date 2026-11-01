@@ -433,7 +433,10 @@ process, so one crashing test does not stop the others.
 
 - `-f, --filter <text>`: Run only tests whose name contains the text
 - `-v, --verbose`: Show the output of passing tests too
-- `--json`: Output a machine-readable test report
+- `--list`: Print each test (`file name`) without building or running it
+- `--fail-fast`: Stop after the first failing test or file that does not build
+- `--json`: Output a machine-readable test report (with `--list`, the test
+  names per file)
 
 **Example:**
 

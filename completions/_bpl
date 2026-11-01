@@ -201,6 +201,8 @@ _bpl() {
                     _arguments \
                         '(-f --filter)'{-f,--filter}'[run only tests whose name contains text]:value' \
                         '(-v --verbose)'{-v,--verbose}'[show the output of passing tests too]' \
+                        '--list[list the tests that would run, without building them]' \
+                        '--fail-fast[stop after the first failing test or file]' \
                         '--json[output test results in JSON format]' \
                         '--color[force colored output]' \
                         '--no-color[disable colored output]' \

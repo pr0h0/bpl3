@@ -138,7 +138,7 @@ _bpl_completion() {
             ;;
         test)
             if [[ "$cur" == -* ]]; then
-                COMPREPLY=( $(compgen -W "-f --filter -v --verbose --json --color --no-color -h --help" -- "${cur}") )
+                COMPREPLY=( $(compgen -W "-f --filter -v --verbose --list --fail-fast --json --color --no-color -h --help" -- "${cur}") )
                 return 0
             fi
             return 0

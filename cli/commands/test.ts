@@ -16,6 +16,8 @@ export interface TestOptions {
   json?: boolean;
   filter?: string;
   verbose?: boolean;
+  list?: boolean;
+  failFast?: boolean;
   color?: boolean;
 }
 
@@ -32,6 +34,8 @@ export function registerTestCommand(program: Command): void {
     )
     .option("-f, --filter <text>", "run only tests whose name contains text")
     .option("-v, --verbose", "show the output of passing tests too")
+    .option("--list", "list the tests that would run, without building them")
+    .option("--fail-fast", "stop after the first failing test or file")
     .option("--json", "output test results in JSON format")
     .option("--color", "force colored output")
     .option("--no-color", "disable colored output")
