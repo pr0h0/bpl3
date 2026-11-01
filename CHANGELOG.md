@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- AGENTS.md: PRs merge on passing CI with every review thread resolved;
+  CodeRabbit, whose app was removed, is no longer a required reviewer.
 - `bpl check` with no arguments inside a project (a directory with `bpl.json`)
   checks the whole project, like `bpl check .`, instead of failing with
   "No files specified."; outside a project the error is unchanged.
