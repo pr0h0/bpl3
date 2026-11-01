@@ -495,9 +495,10 @@ takes linear time in the text for each start position. Syntax: literal bytes;
 `.` (any byte except newline); `[abc]`, `[a-z]`, negated `[^...]` (a `]` first
 in a class is literal); `\d \w \s` and their negations `\D \W \S`; `\`
 escaping any other character, plus `\n \t \r`; groups `( )`; alternation
-`|`; greedy `*`, `+` and `?`; and the anchors `^` and `$` for the start and end
-of the text. Captures, counted repetition (`{m,n}`) and backreferences are not
-supported. `find` returns the leftmost match, extended as far as it goes.
+`|`; greedy `*`, `+` and `?`; counted repetition `{m}`, `{m,}`, `{m,n}` and
+`{,n}` (counts up to 1000; a `{` that does not start a count is a literal
+brace); and the anchors `^` and `$` for the start and end of the text.
+Captures and backreferences are not supported. `find` returns the leftmost match, extended as far as it goes.
 
 - `Regex.compile(pattern: string) ret Regex` — throws a string describing a
   syntax error

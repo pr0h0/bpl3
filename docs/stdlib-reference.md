@@ -2563,6 +2563,7 @@ count: int
 capacity: int
 classes: *u8
 classCount: int
+classCapacity: int
 start: int
 pattern: string
 position: int
@@ -2572,6 +2573,8 @@ frame addState(this: *Regex, kind: int, argument: int) ret int
 frame parseAlternation(this: *Regex, end: *int) ret int
 frame parseConcatenation(this: *Regex, end: *int) ret int
 frame parseRepetition(this: *Regex, end: *int) ret int
+frame parseCount(this: *Regex) ret int
+frame parseCounted(this: *Regex, atomStart: int, end: *int) ret int
 frame parseAtom(this: *Regex, end: *int) ret int
 frame parseEscapedByte(this: *Regex) ret int
 frame parseShorthand(this: *Regex, c: char) ret int

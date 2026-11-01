@@ -154,8 +154,7 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
       beyond the existing module import/export mechanism.
 - [ ] [7] Remote package registry/publishing and richer dependency resolution.
 - [ ] [7] Structured logging, broader portable networking and OS
-      APIs, cryptographic hashes beyond SHA-256 and HMAC-SHA256, regex features
-      beyond `std/regex.bpl` (captures, counted repetition),
+      APIs, cryptographic hashes beyond SHA-256 and HMAC-SHA256, regex captures,
       and compression/archiving.
 - [ ] [8] Async/await and native threading/synchronization. `lib/thread.bpl` and
       `lib/sync.bpl` explicitly export no implementation; FFI interop is separate.

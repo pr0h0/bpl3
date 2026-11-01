@@ -56,6 +56,30 @@ frame main() ret int {
     full("[a\\-z]+", "-az");
     full("\\D\\W\\S", "a!b");
 
+    # Counted repetition; a brace without a count is literal.
+    full("a{3}", "aaa");
+    full("a{3}", "aa");
+    full("a{2,}", "aa");
+    full("a{2,}", "aaaaa");
+    full("a{2,}", "a");
+    full("a{1,3}", "aaa");
+    full("a{1,3}", "aaaa");
+    full("a{0,2}", "");
+    full("(ab){2}", "abab");
+    full("(ab){2}", "ab");
+    full("[0-9]{3}-[0-9]{4}", "555-1234");
+    full("[0-9]{3}-[0-9]{4}", "55-1234");
+    full("\\d{2,3}x", "123x");
+    full("a{,2}", "aa");
+    full("a{x}", "a{x}");
+    full("a{", "a{");
+    full("x{0}y", "y");
+    full("(a|b){3}", "bab");
+    full("a{2}{", "aa{");
+
+    # Long counts grow the state and class tables.
+    full("a{100}", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    full("[ab]{50}", "ababababababababababababababababababababababababab");
     findAll("\\d+", "abc 123 de 45");
     findAll("b$", "abab");
     findAll("^ab", "xab");
@@ -73,5 +97,7 @@ frame main() ret int {
     rejects("[ab");
     rejects("[z-a]");
     rejects("a\\");
+    rejects("a{3,1}");
+    rejects("a{1001}");
     return 0;
 }
