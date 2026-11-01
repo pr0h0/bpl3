@@ -421,7 +421,7 @@ every item above is resolved; renaming members remains deliberately disabled.
 
 #### BUG-448: CI does not check formatting; repository drifted
 
-**Status**: Open (mostly fixed) · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `prettier --check .` flags 303 files; `bpl format --check` fails on 37/65 files in
 `lib/`, 6/39 in `packages/`, 23/612 in `examples/`. Run `--write` once in a
@@ -437,6 +437,12 @@ lists the seven intentionally unparsable bug reproductions. Still open: format
 `CHANGELOG.md` and this file once no PR is editing them, then add
 `bun run format:check` and a `bpl format --check lib packages examples` step
 to CI.
+
+**Fixed (2026-11-01)**: `CHANGELOG.md` and this file are formatted too, so
+`bun run format:check` passes for the whole repository. The `Type check and
+lint` job of `compiler-correctness.yml` now runs `bun run format:check`
+(Prettier) and `bun run format:bpl:check` (`bpl format --check` over `lib/`,
+`packages/` and `examples/`), so new drift fails CI.
 
 #### BUG-449: Toolchain versions and CI configuration are inconsistent
 

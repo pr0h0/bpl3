@@ -491,6 +491,9 @@ describe("GitHub Actions workflows", () => {
 
     expect(runs("static-checks")).toContain("bun run check");
     expect(runs("static-checks")).toContain("bun run lint");
+    // BUG-448: formatting drift fails CI.
+    expect(runs("static-checks")).toContain("bun run format:check");
+    expect(runs("static-checks")).toContain("bun run format:bpl:check");
     for (const job of Object.keys(jobs).filter((j) => j !== "static-checks")) {
       expect({ job, runs: runs(job) }).toEqual({
         job,

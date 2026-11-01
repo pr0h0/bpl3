@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- CI checks formatting (BUG-448): the type-check and lint job runs
+  `bun run format:check` (Prettier) and the new `bun run format:bpl:check`
+  (`bpl format --check lib packages examples`). `CHANGELOG.md` and
+  `docs/project/BUGS.md` are formatted, so both checks pass.
 - Unused imports are removed from `lib/` (13), `packages/` (27, seven archives
   repacked without version changes) and `examples/` (59), as reported by the
   lint rule for unused imports. The intentional-error examples in
