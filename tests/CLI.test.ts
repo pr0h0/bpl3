@@ -204,7 +204,7 @@ describe("CLI Tests", () => {
       {
         args: ["dev", "--help"],
         snippets: [
-          "Usage: bpl dev [options] <file> [args...]",
+          "Usage: bpl dev [options] [file] [args...]",
           "--debug-ir-path <file>",
         ],
       },

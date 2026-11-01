@@ -25,7 +25,8 @@ async function watchFixture(
     await run(root, (file, env) => {
       const child = spawn(
         process.execPath,
-        [path.join(project, "index.ts"), "dev", file],
+        // An empty file starts `bpl dev` without one (the bpl.json entry).
+        [path.join(project, "index.ts"), "dev", ...(file ? [file] : [])],
         {
           cwd: root,
           env: { ...process.env, BPL_HOME: project, NO_COLOR: "1", ...env },
@@ -99,6 +100,26 @@ test(
         fs.renameSync(temporary, file);
         await watcher.wait(`\n${marker}\n`);
       }
+    }),
+  30000,
+);
+
+test(
+  "dev without a file watches the bpl.json entry of the project",
+  () =>
+    watchFixture(async (root, start) => {
+      fs.writeFileSync(
+        path.join(root, "bpl.json"),
+        JSON.stringify({ name: "watched", version: "0.1.0", main: "app.bpl" }),
+      );
+      const file = path.join(root, "app.bpl");
+      fs.writeFileSync(file, printing("PROJECT_FIRST"));
+      const watcher = start("");
+      await watcher.wait("\nPROJECT_FIRST\n");
+      await watcher.wait("Watching for changes...");
+      watcher.clear();
+      fs.writeFileSync(file, printing("PROJECT_SECOND"));
+      await watcher.wait("\nPROJECT_SECOND\n");
     }),
   30000,
 );

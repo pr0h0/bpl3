@@ -52,9 +52,11 @@ that is removed when the command exits, so no artifacts appear next to the
 source. Options after the file are still parsed by `bpl`; separate program
 flags with `--`. The command exits with the program's exit code.
 
-### `bpl dev <file> [args...]`
+### `bpl dev [file] [args...]`
 
-Development mode with watch and auto-run.
+Development mode with watch and auto-run. Without a file it watches the
+`main`/`entry` of `./bpl.json` (like `bpl run`), and through it every module
+the project imports; `--project` asks for that explicitly.
 
 **Options:**
 

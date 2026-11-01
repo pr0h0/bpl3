@@ -86,7 +86,7 @@ _bpl_completion() {
             ;;
         dev)
             if [[ "$cur" == -* ]]; then
-                COMPREPLY=( $(compgen -W "-v --verbose -q --quiet --clear --no-run -O --debug --debug-ir-path --time --cache --cache-stats --no-prelude --color --no-color -h --help" -- "${cur}") )
+                COMPREPLY=( $(compgen -W "--project -v --verbose -q --quiet --clear --no-run -O --debug --debug-ir-path --time --cache --cache-stats --no-prelude --color --no-color -h --help" -- "${cur}") )
                 return 0
             fi
             while IFS= read -r match; do COMPREPLY+=("$match"); done < <(compgen -f -- "${cur}")
