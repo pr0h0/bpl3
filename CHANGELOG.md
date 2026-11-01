@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl dev` without a file watches and runs the `main`/`entry` of `./bpl.json`,
+  like `bpl run`; `--project` asks for it explicitly.
 - `bpl test [paths...]` runs the test frames (`testName`/`test_name`, no
   parameters) of every `*_test.bpl` file, each in its own process, with
   `--filter`, `--verbose` and a `--json` report (`check: "test"`). A test fails

@@ -8,6 +8,7 @@ import type { CompileOptions } from "../types";
 import { Logger } from "../../compiler/common/Logger";
 import { getExplicitParentCompileOptions } from "./compileOptions";
 import { validateCompileInputSources } from "../BuildInputValidation";
+import { resolveProjectEntry } from "../ProjectEntry";
 
 const log = new Logger("Dev");
 
@@ -20,6 +21,7 @@ const log = new Logger("Dev");
  *
  * Examples:
  *   bpl dev main.bpl
+ *   bpl dev                        # the main/entry of ./bpl.json
  *   bpl dev main.bpl arg1 arg2
  *   bpl dev main.bpl --clear
  *   bpl dev main.bpl --no-run      # Compile only, don't execute
@@ -29,9 +31,16 @@ const log = new Logger("Dev");
 export function registerDevCommand(program: Command): void {
   program
     .command("dev")
-    .argument("<file>", "BPL file to watch and run")
+    .argument(
+      "[file]",
+      "BPL file to watch and run (default: main/entry of ./bpl.json)",
+    )
     .argument("[args...]", "arguments to pass to the program")
     .description("Development mode: watch, compile, and run automatically")
+    .option(
+      "--project",
+      "use main/entry from ./bpl.json (implied when no file is given)",
+    )
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
     .option("--clear", "clear screen on each recompile")
@@ -47,7 +56,7 @@ export function registerDevCommand(program: Command): void {
     .option("--no-color", "disable colored output")
     .action(
       async (
-        file: string,
+        file: string | undefined,
         args: string[],
         _options: CompileOptions,
         command: Command,
@@ -68,9 +77,12 @@ export function registerDevCommand(program: Command): void {
               globalOpts.debug ||
               globalOpts.dwarf,
           };
-          validateCompileInputSources([file], compileOptions);
+          // Like `bpl run`, a file-less dev session watches the project's
+          // entry and, through it, every module it imports.
+          const entry = resolveProjectEntry(file, localOpts.project);
+          validateCompileInputSources([entry], compileOptions);
 
-          watchMode(file, compileOptions, args);
+          watchMode(entry, compileOptions, args);
         } catch (e) {
           log.error(`${e instanceof Error ? e.message : String(e)}`);
           process.exit(1);

@@ -110,6 +110,7 @@ _bpl() {
                     ;;
                 dev)
                     _arguments \
+                        '--project[use main/entry from ./bpl.json (implied when no file is given)]' \
                         '(-v --verbose)'{-v,--verbose}'[enable verbose output]' \
                         '(-q --quiet)'{-q,--quiet}'[suppress non-error output]' \
                         '--clear[clear screen on each recompile]' \
