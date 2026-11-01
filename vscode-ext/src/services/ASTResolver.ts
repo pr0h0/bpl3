@@ -901,6 +901,13 @@ export class ASTResolver {
           (candidate) => candidate.name === pattern.variantName,
         );
         if (!enumDecl || variant?.dataType?.kind !== "EnumVariantStruct") {
+          for (const field of pattern.fields) {
+            // A nested field pattern binds its own names.
+            const nested = field.pattern
+              ? this.resolvePatternBindingType(field.pattern, name, null, ast)
+              : null;
+            if (nested) return nested;
+          }
           const field = pattern.fields.find(
             (candidate) => candidate.binding === name,
           );
@@ -911,6 +918,21 @@ export class ASTResolver {
 
         const typeMap = this.buildEnumTypeMap(enumDecl, matchedType);
         for (const field of pattern.fields) {
+          if (field.pattern) {
+            const variantField = variant.dataType.fields.find(
+              (candidate) => candidate.name === field.fieldName,
+            );
+            const found = this.resolvePatternBindingType(
+              field.pattern,
+              name,
+              variantField
+                ? this.typeNodeToResolvedString(variantField.type, typeMap)
+                : null,
+              ast,
+            );
+            if (found) return found;
+            continue;
+          }
           if (field.binding !== name) continue;
 
           if (field.bindingDeclaration?.typeAnnotation) {
