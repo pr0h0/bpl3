@@ -414,6 +414,87 @@ struct BigInt {
         return quotient;
     }
 
+    frame abs(this: *BigInt) ret BigInt {
+        local copy: BigInt = this.clone();
+        if (copy.sign < 0) {
+            copy.sign = 1;
+        }
+        return copy;
+    }
+
+    # This value raised to `exponent` (>= 0) by repeated squaring; 0^0 is 1.
+    # Throws for a negative exponent.
+    frame pow(this: *BigInt, exponent: int) ret BigInt {
+        if (exponent < 0) {
+            throw "BigInt.pow: negative exponent";
+        }
+        local result: BigInt = BigInt.fromLong(1);
+        local base: BigInt = this.clone();
+        local remaining: int = exponent;
+        loop (remaining > 0) {
+            if ((remaining % 2) == 1) {
+                local next: BigInt = result.multiply(&base);
+                result.destroy();
+                result = next;
+            }
+            remaining = remaining / 2;
+            if (remaining > 0) {
+                local squared: BigInt = base.multiply(&base);
+                base.destroy();
+                base = squared;
+            }
+        }
+        base.destroy();
+        return result;
+    }
+
+    # The greatest common divisor of the magnitudes (Euclid); gcd(0, 0) is 0.
+    frame gcd(this: *BigInt, other: *BigInt) ret BigInt {
+        local a: BigInt = this.abs();
+        local b: BigInt = other.abs();
+        loop (b.sign != 0) {
+            local remainder: BigInt;
+            local quotient: BigInt = a.divide(&b, &remainder);
+            quotient.destroy();
+            a.destroy();
+            a = b;
+            b = remainder;
+        }
+        b.destroy();
+        return a;
+    }
+
+    # Whether the value fits in a long; if so it is stored in `out`.
+    frame toLong(this: *BigInt, out: *long) ret bool {
+        # |long| is at most 9223372036854775808: three limbs.
+        if (this.length > 3) {
+            return false;
+        }
+        local magnitude: ulong = 0;
+        local i: int = this.length - 1;
+        local limit: ulong = cast<ulong>(9223372036854775807);
+        loop (i >= 0) {
+            # Stop before the value outgrows even the negative limit.
+            if (magnitude > ((limit + cast<ulong>(1)) / BIGINT_BASE)) {
+                return false;
+            }
+            magnitude = (magnitude * BIGINT_BASE) + cast<ulong>(*(this.limbs + i));
+            i = i - 1;
+        }
+        if (this.sign < 0) {
+            if (magnitude > (limit + cast<ulong>(1))) {
+                return false;
+            }
+            *out = cast<long>(cast<ulong>(0) - magnitude);
+            return true;
+        }
+        if (magnitude > limit) {
+            return false;
+        }
+        *out = cast<long>(magnitude);
+        return true;
+    }
+
     # Decimal text of the value. Returns a newly allocated string the caller
     # must free, or nullptr if allocation fails.
     frame toString(this: *BigInt) ret string {

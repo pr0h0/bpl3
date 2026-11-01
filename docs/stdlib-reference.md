@@ -378,6 +378,10 @@ frame multiply(this: *BigInt, other: *BigInt) ret BigInt
 frame divideSmall(this: *BigInt, divisor: int, remainder: *int) ret BigInt
 frame multiplyMagnitudeSmall(value: *BigInt, factor: ulong) ret BigInt
 frame divide(this: *BigInt, divisor: *BigInt, remainder: *BigInt) ret BigInt
+frame abs(this: *BigInt) ret BigInt
+frame pow(this: *BigInt, exponent: int) ret BigInt
+frame gcd(this: *BigInt, other: *BigInt) ret BigInt
+frame toLong(this: *BigInt, out: *long) ret bool
 frame toString(this: *BigInt) ret string
 ```
 
