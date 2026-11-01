@@ -94,6 +94,7 @@ or historical results rather than guarantees about the current implementation.
 - [Cross-Compilation](37-cross-compilation.md) - Building for different platforms
 - [Code Formatting](38-code-formatting.md) - Consistent code style with `bpl format`
 - [Compiler Options](39-compiler-options.md) - Flags and configuration
+- [Testing](67-testing.md) - Writing and running tests with `bpl test`
 
 ### Best Practices
 
