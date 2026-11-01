@@ -34,7 +34,7 @@ test("the reserved-word list matches the grammar's KeywordReserved rule", () => 
     grammar.indexOf("KeywordReserved\n"),
     grammar.indexOf("\n\n", grammar.indexOf("KeywordReserved\n")),
   );
-  const words = [...rule.matchAll(/"([A-Za-z_]+)"/g)].map((m) => m[1]);
+  const words = [...rule.matchAll(/"([A-Za-z_]+)"/g)].map((m) => m[1]!);
   expect([...RESERVED_WORDS].sort()).toEqual(words.sort());
 });
 
