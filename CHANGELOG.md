@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl lint` reports constant conditions (`L004`): an `if` or ternary on `true`
+  or `false`, and a `loop (false)` whose body never runs.
 - `BigInt.divide(divisor, remainder)` divides by another `BigInt`
   (truncating toward zero, with an optional remainder).
 - Standard library: `std/hmac.bpl` (HMAC-SHA256, streaming and one-shot, with

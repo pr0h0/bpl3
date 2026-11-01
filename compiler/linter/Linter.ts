@@ -39,6 +39,7 @@ export class Linter {
 
   private registerRules() {
     this.rules.push(new NamingConventionRule());
+    this.rules.push(new ConstantConditionRule());
   }
 
   /**
@@ -578,6 +579,57 @@ function reportUnusedPrivateFunctions(
       "L003",
       `Remove '${frame.name}', or export it if other modules need it.`,
     );
+  }
+}
+
+/** The value of `true`/`false`, also inside parentheses, or undefined. */
+function booleanLiteral(
+  expression: AST.Expression | undefined,
+): boolean | undefined {
+  let current = expression;
+  while (current?.kind === "Group") {
+    current = (current as AST.GroupExpr).expression;
+  }
+  if (current?.kind !== "Literal") return undefined;
+  const literal = current as AST.LiteralExpr;
+  return literal.type === "bool" ? literal.value === true : undefined;
+}
+
+/**
+ * L004: an `if` or ternary whose condition is `true` or `false`, so one branch
+ * never runs, and a `loop (false)`, whose body never runs. Usually leftover
+ * debugging. `loop (true)` is an ordinary infinite loop and is not reported.
+ */
+class ConstantConditionRule implements LintRule {
+  code = "L004";
+  name = "constant-condition";
+
+  check(node: AST.ASTNode, context: LintContext) {
+    if (node.kind === "If" || node.kind === "Ternary") {
+      const value = booleanLiteral(
+        (node as AST.IfStmt | AST.TernaryExpr).condition,
+      );
+      if (value === undefined) return;
+      const construct = node.kind === "If" ? "if" : "ternary";
+      context.report(
+        `This ${construct} condition is always ${value}`,
+        node,
+        DiagnosticSeverity.Warning,
+        this.code,
+        value
+          ? "Keep the code of the true branch and remove the condition."
+          : "Remove the branch that never runs.",
+      );
+    } else if (node.kind === "Loop") {
+      if (booleanLiteral((node as AST.LoopStmt).condition) !== false) return;
+      context.report(
+        "This loop condition is always false, so the body never runs",
+        node,
+        DiagnosticSeverity.Warning,
+        this.code,
+        "Remove the loop, or fix its condition.",
+      );
+    }
   }
 }
 
