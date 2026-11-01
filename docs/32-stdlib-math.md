@@ -99,8 +99,8 @@ near +1.
 
 | Function                              | Description             |
 | ------------------------------------- | ----------------------- |
-| `Math.gcd(a: int, b: int) ret long`    | Greatest common divisor |
-| `Math.lcm(a: int, b: int) ret long`    | Least common multiple   |
+| `Math.gcd(a: int, b: int) ret long`   | Greatest common divisor |
+| `Math.lcm(a: int, b: int) ret long`   | Least common multiple   |
 | `Math.factorial(n: int) ret long`     | Factorial (n!)          |
 | `Math.fibonacci(n: int) ret long`     | Fibonacci number        |
 | `Math.isPowerOfTwo(x: int) ret bool`  | Check if power of two   |
@@ -134,7 +134,6 @@ frame main() {
 }
 ```
 
-
 ## Vector magnitudes
 
 `Vec2.length()` and `Vec3.length()` scale finite components before squaring to
@@ -145,7 +144,6 @@ gives NaN. This matches `Complex.abs()` classification.
 `normalize()` keeps zero vectors at zero. A vector containing NaN produces NaN
 components rather than silently becoming a zero vector.
 
-
 ## Integer sequence limits
 
 `factorial(n)` returns exact signed `long` results through n=20 and throws
@@ -154,7 +152,6 @@ exact results through n=92 and throws `"Math.fibonacci result exceeds long"`
 above that bound. Both reject oversized inputs before entering their loops.
 The existing nonpositive-input behavior is unchanged: factorial returns 1,
 and Fibonacci returns 0.
-
 
 `nextPowerOfTwo(x)` returns the smallest positive power of two at least x.
 Inputs at or below 1 return 1. Inputs above 1,073,741,824 throw

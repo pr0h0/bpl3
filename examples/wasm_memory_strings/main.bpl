@@ -30,7 +30,6 @@ frame main() ret int {
         free(cast<*void>(buffer));
         return 6;
     }
-
     free(cast<*void>(buffer));
     return 0;
 }

@@ -98,10 +98,8 @@ The `write` binding is a direct alias for a runtime adapter with signature
 native `size_t` and `ssize_t` are 32-bit. Native calls preserve partial-write
 results and `errno`; negative or unrepresentable counts fail before conversion.
 Hosted Wasm supports descriptors 1 and 2, validates the buffer against memory,
-and returns `-1` for unsupported descriptors, invalid ranges or counts above
-2147483647. Zero-length writes do not access the buffer. The existing explicit
+and returns `-1` for unsupported descriptors, invalid ranges or counts above 2147483647. Zero-length writes do not access the buffer. The existing explicit
 32-bit hosted `write` entry point remains available.
-
 
 ## Linking
 
@@ -306,16 +304,16 @@ raw element pointer and a separate length for variable-sized buffers.
 
 ### Type and ownership rules
 
-| BPL boundary type | C boundary type | Notes |
-| --- | --- | --- |
-| `int` / `uint` | `int32_t` / `uint32_t` | Use fixed widths in bindings |
-| `long` / `ulong` | `int64_t` / `uint64_t` | C `long` is not 64-bit on every target |
-| `f32` | `float` | 32-bit floating point |
-| `float` / `double` | `double` | 64-bit floating point |
-| `bool` | C `_Bool`, C++ `bool` | Use the declared boolean ABI |
-| `string` | NUL-terminated byte pointer | No ownership transfer is implied |
-| `*T` | Pointer to matching layout | Caller keeps storage alive |
-| `Func<R>(...)` | C function pointer | Scalar/pointer signatures only |
+| BPL boundary type  | C boundary type             | Notes                                  |
+| ------------------ | --------------------------- | -------------------------------------- |
+| `int` / `uint`     | `int32_t` / `uint32_t`      | Use fixed widths in bindings           |
+| `long` / `ulong`   | `int64_t` / `uint64_t`      | C `long` is not 64-bit on every target |
+| `f32`              | `float`                     | 32-bit floating point                  |
+| `float` / `double` | `double`                    | 64-bit floating point                  |
+| `bool`             | C `_Bool`, C++ `bool`       | Use the declared boolean ABI           |
+| `string`           | NUL-terminated byte pointer | No ownership transfer is implied       |
+| `*T`               | Pointer to matching layout  | Caller keeps storage alive             |
+| `Func<R>(...)`     | C function pointer          | Scalar/pointer signatures only         |
 
 Callback parameter and return types must match exactly after resolving aliases,
 including integer widths, nested callable signatures, and whether the function

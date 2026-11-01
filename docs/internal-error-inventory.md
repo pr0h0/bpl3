@@ -7,11 +7,11 @@ confirmed failures at the earliest semantic boundary.
 
 ## Campaign Evidence
 
-| Campaign | Valid | Expected errors | Crashes | Mismatches | Result |
-| --- | ---: | ---: | ---: | ---: | --- |
-| Original structured/mutated/token corpus, 3 seeds x 20,000 | 20,046 | 39,954 | 0 | 0 | No raw backend exception reproduced |
-| Expanded corpus before semantic fix, same seeds | 20,067 | 39,933 | 0 | 0 | Reproduced an accepted invalid top-level `Loop` at seed `0x0bad5eed`, iteration `7532` |
-| Expanded corpus after semantic fix, same seeds | 20,066 | 39,934 | 0 | 0 | The reproduced program moved from accepted codegen to an expected type-check error |
+| Campaign                                                   |  Valid | Expected errors | Crashes | Mismatches | Result                                                                                 |
+| ---------------------------------------------------------- | -----: | --------------: | ------: | ---------: | -------------------------------------------------------------------------------------- |
+| Original structured/mutated/token corpus, 3 seeds x 20,000 | 20,046 |          39,954 |       0 |          0 | No raw backend exception reproduced                                                    |
+| Expanded corpus before semantic fix, same seeds            | 20,067 |          39,933 |       0 |          0 | Reproduced an accepted invalid top-level `Loop` at seed `0x0bad5eed`, iteration `7532` |
+| Expanded corpus after semantic fix, same seeds             | 20,066 |          39,934 |       0 |          0 | The reproduced program moved from accepted codegen to an expected type-check error     |
 
 The expanded corpus adds valid source shapes for call-result member access,
 struct equality, and enum struct-variant construction. Mutating valid examples
@@ -20,17 +20,17 @@ reaching backend metadata invariants.
 
 ## Confirmed User-Reachable Failure
 
-| Boundary | Reproducer | Previous behavior | Resolution |
-| --- | --- | --- | --- |
+| Boundary                                    | Reproducer                                                                 | Previous behavior                                                                                   | Resolution                                                                                                                           |
+| ------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Unsupported top-level executable statements | `loop frame main() ret int { return 0; }`, `return 1;`, and `if (true) {}` | Type checking succeeded; `CodeGenerator.generateTopLevel` warned and silently omitted the statement | `TypeChecker.checkProgram` now reports a source diagnostic and excludes invalid top-level statements from hoisting and body checking |
 
 ## Targeted Backend Probes
 
-| Backend invariant | Probe | Result | Decision |
-| --- | --- | --- | --- |
-| Call-result member access requires a resolved struct type and layout | Valid `makeBox(...).value` source plus mutations | Valid source reaches codegen; no raw exception reproduced | Retain invariant checks and expanded fuzz coverage |
-| Struct equality requires a resolved struct declaration | Valid `left == right` on a struct plus mutations | Valid source reaches codegen; no missing-declaration exception reproduced | Retain invariant checks and expanded fuzz coverage |
-| Enum struct-variant construction requires `enumVariantInfo` | Valid `Event.Point { x: ..., y: ... }` source plus mutations | Valid source reaches codegen; no missing-info exception reproduced | Retain invariant checks and expanded fuzz coverage |
+| Backend invariant                                                    | Probe                                                        | Result                                                                    | Decision                                           |
+| -------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------- | -------------------------------------------------- |
+| Call-result member access requires a resolved struct type and layout | Valid `makeBox(...).value` source plus mutations             | Valid source reaches codegen; no raw exception reproduced                 | Retain invariant checks and expanded fuzz coverage |
+| Struct equality requires a resolved struct declaration               | Valid `left == right` on a struct plus mutations             | Valid source reaches codegen; no missing-declaration exception reproduced | Retain invariant checks and expanded fuzz coverage |
+| Enum struct-variant construction requires `enumVariantInfo`          | Valid `Event.Point { x: ..., y: ... }` source plus mutations | Valid source reaches codegen; no missing-info exception reproduced        | Retain invariant checks and expanded fuzz coverage |
 
 ## Guarded Or Invariant-Only Paths
 

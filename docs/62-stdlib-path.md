@@ -7,22 +7,22 @@ Strings own their storage: call `destroy` after use.
 
 ## Components and joining
 
-| Call | Result |
-| --- | --- |
-| `Path.join("", "file.txt")` | `file.txt` |
-| `Path.join("", "")` | `.` |
-| `Path.join("a///", "///b")` | `a/b` |
-| `Path.join("/a", "/b")` | `/a/b` |
-| `Path.join("a", "../b")` | `a/../b` |
-| `Path.basename("/a/b///")` | `b` |
-| `Path.basename("/")` | Empty String |
-| `Path.dirname("/a/b///")` | `/a` |
-| `Path.dirname("a")` | `.` |
-| `Path.dirname("///")` | `/` |
-| `Path.extname(".profile")` | Empty String |
-| `Path.extname(".profile.json")` | `.json` |
-| `Path.extname("archive.tar.gz/")` | `.gz` |
-| `Path.extname("name.")` | `.` |
+| Call                              | Result       |
+| --------------------------------- | ------------ |
+| `Path.join("", "file.txt")`       | `file.txt`   |
+| `Path.join("", "")`               | `.`          |
+| `Path.join("a///", "///b")`       | `a/b`        |
+| `Path.join("/a", "/b")`           | `/a/b`       |
+| `Path.join("a", "../b")`          | `a/../b`     |
+| `Path.basename("/a/b///")`        | `b`          |
+| `Path.basename("/")`              | Empty String |
+| `Path.dirname("/a/b///")`         | `/a`         |
+| `Path.dirname("a")`               | `.`          |
+| `Path.dirname("///")`             | `/`          |
+| `Path.extname(".profile")`        | Empty String |
+| `Path.extname(".profile.json")`   | `.json`      |
+| `Path.extname("archive.tar.gz/")` | `.gz`        |
+| `Path.extname("name.")`           | `.`          |
 
 `join` ignores empty arguments, uses `.` when both are empty, and joins two
 nonempty arguments at one slash boundary. It preserves separators inside each

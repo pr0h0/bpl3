@@ -47,6 +47,7 @@ examples/**
 !examples/*.json
 !examples/college_web/README.md
 !examples/college_web/.gitignore
+!examples/.bplignore
 !examples/college_web/public/**
 
 temp/**
