@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl lint` reports unused private functions (`L003`): top-level frames
+  named `_something` that are not exported and that nothing else in the module
+  names.
 - TODO.md lists the work merged recently as implemented (`bpl test`, lint
   rules and checker warnings, generated shell completions, CI format checks)
   and drops the finished items from the remaining work.

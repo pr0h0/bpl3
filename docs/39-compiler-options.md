@@ -393,6 +393,9 @@ Lint BPL source files for style and package-quality issues. Rules:
   generic arguments, `Enum.Variant`, namespace members, `export` lists and the
   `${...}` parts of interpolated strings count as uses, and an interpolated
   string counts as a use of `String`.
+- `L003` unused private function: a top-level frame named `_something` that is
+  not exported and that nothing else in the module names. A call from its own
+  body counts as a use.
 
 Warnings fail the run unless `--no-fail-on-warnings` is given.
 
