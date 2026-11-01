@@ -72,5 +72,34 @@ frame main() ret int {
         }
     }
     printf("below in range %d, below(1) %d\n", cast<int>(inRange), cast<int>(Entropy.below(1)));
+    # Hex tokens: two characters per byte, only hex digits, never repeated.
+    local first: string = Entropy.hexToken(16);
+    local second: string = Entropy.hexToken(16);
+    local hexOnly: bool = true;
+    local length: int = 0;
+    loop (first[length] != cast<char>(0)) {
+        local c: char = first[length];
+        if (!(((c >= '0') && (c <= '9')) || ((c >= 'a') && (c <= 'f')))) {
+            hexOnly = false;
+        }
+        length = length + 1;
+    }
+    local differ: bool = false;
+    loop (local i: int = 0; i < 32; i = i + 1) {
+        if (first[i] != second[i]) {
+            differ = true;
+        }
+    }
+    printf("token length %d hex %d differ %d\n", length, cast<int>(hexOnly), cast<int>(differ));
+    free(cast<*void>(first));
+    free(cast<*void>(second));
+    local rejected: bool = false;
+    try {
+        local never: string = Entropy.hexToken(0);
+        free(cast<*void>(never));
+    } catch {
+        rejected = true;
+    }
+    printf("rejects 0 bytes %d\n", cast<int>(rejected));
     return 0;
 }

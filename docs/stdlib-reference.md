@@ -982,6 +982,7 @@ export [Entropy];
 struct Entropy
 frame fill(buffer: *u8, length: long) ret bool
 frame bytes(buffer: *u8, length: long)
+frame hexToken(byteCount: int) ret string
 frame nextULong() ret ulong
 frame below(bound: ulong) ret ulong
 ```
