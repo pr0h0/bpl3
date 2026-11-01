@@ -1039,8 +1039,13 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
         if (INTEGER_TYPES.includes(resolvedType.name)) {
           isValid = true;
         } else {
+          // An enum imported through a namespace is not in scope by its
+          // own name, so its resolved declaration identifies it.
           const symbol = this.currentScope.resolve(resolvedType.name);
-          if (symbol && symbol.kind === "Enum") {
+          if (
+            resolvedType.resolvedDeclaration?.kind === "EnumDecl" ||
+            symbol?.kind === "Enum"
+          ) {
             isValid = true;
           }
         }

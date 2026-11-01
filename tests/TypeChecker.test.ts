@@ -1205,7 +1205,7 @@ describe("TypeChecker", () => {
     );
     const helperStart = source.indexOf("function canReuseResolvedBasicType");
     const helperEnd = source.indexOf(
-      "\nfunction resolveQualifiedTypeSymbol",
+      "\nexport function resolveQualifiedTypeSymbol",
       helperStart,
     );
     const helperSource = source.slice(helperStart, helperEnd);

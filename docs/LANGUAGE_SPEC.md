@@ -855,7 +855,10 @@ export { variable };
   with `BPL_IMPORT_EXPORT_NOT_FOUND`, and a module path that does not resolve is
   rejected with `BPL_MODULE_NOT_FOUND`.
 - **[R-MOD-5]** `import * as ns from "path";` binds a namespace. `ns.name`
-  accesses only exported symbols.
+  accesses only exported symbols. An exported enum is used through the
+  namespace in values, patterns and `switch` case labels:
+  `ns.Shape.Circle { radius: 1 }`, `ns.Shade.Dark(n) => ...`,
+  `case ns.Shade.Light:`.
 - **[R-MOD-6]** `import "path";` loads the module and binds all of its
   exported symbols.
 - **[R-MOD-7]** A relative path such as `"./utils.bpl"` resolves against the

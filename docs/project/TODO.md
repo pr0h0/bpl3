@@ -134,8 +134,10 @@ regression work is prioritized in [PLAN.md](PLAN.md).
       across package replacements; retain root/transitive version constraints.
 - [ ] [2] Expand required-linker wasm execution and host API/platform coverage.
 - [ ] [3] Improve binding generation for complex C headers and ABI layouts.
-- [ ] [4] Assess qualified-pattern support; tuple-variant payloads and
-      struct-variant fields already take nested patterns.
+- [x] [4] Assess qualified-pattern support: module-qualified enums
+      (`ns.Shape.Circle { ... }`) work in construction, nested patterns and
+      `switch` labels; tuple-variant payloads and struct-variant fields take
+      nested patterns.
 
 ### Developer experience
 
