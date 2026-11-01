@@ -588,6 +588,21 @@ fails. Messages are processed in 128-byte blocks with a 128-bit length.
 - `Sha512.hexBytes(data: *u8, length: long) ret string`
 - `Sha512.hex(text: string) ret string`
 
+### Sha384 (`std/sha384.bpl`)
+
+SHA-384 digests (FIPS 180-4): SHA-512 with its own initial state, cut to 48
+bytes. It is the usual hash for Subresource Integrity and HS384/ES384 tokens.
+The interface matches `Sha512`; `hexBytes` and `hex` return a caller-owned
+96-character string, or `nullptr` if allocation fails.
+
+- `Sha384.new() ret Sha384`
+- `context.init()`
+- `context.update(data: *u8, length: long)`
+- `context.finish(digest: *u8)` — writes 48 bytes
+- `Sha384.digest(data: *u8, length: long, digest: *u8)`
+- `Sha384.hexBytes(data: *u8, length: long) ret string`
+- `Sha384.hex(text: string) ret string`
+
 ### Hmac (`std/hmac.bpl`)
 
 HMAC-SHA256 message authentication codes (RFC 2104), built on `Sha256`. Keys
