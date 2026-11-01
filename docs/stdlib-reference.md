@@ -1210,6 +1210,11 @@ struct Hash
 frame fnv1a32(input: string) ret uint
 frame checksum32(input: string) ret uint
 frame combine32(left: uint, right: uint) ret uint
+frame fnv1a64(input: string) ret ulong
+frame crc32(data: *u8, length: long) ret uint
+frame crc32Update(crc: uint, data: *u8, length: long) ret uint
+frame crc32String(input: string) ret uint
+frame adler32(data: *u8, length: long) ret uint
 ```
 
 ## std/hex.bpl
