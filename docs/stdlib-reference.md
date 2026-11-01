@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 71 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 72 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -72,6 +72,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/scope_stack.bpl](../lib/scope_stack.bpl)
 - [std/set.bpl](../lib/set.bpl)
 - [std/sha256.bpl](../lib/sha256.bpl)
+- [std/sha384.bpl](../lib/sha384.bpl)
 - [std/sha512.bpl](../lib/sha512.bpl)
 - [std/stack.bpl](../lib/stack.bpl)
 - [std/stats.bpl](../lib/stats.bpl)
@@ -2741,6 +2742,30 @@ frame hexBytes(data: *u8, length: long) ret string
 frame hex(text: string) ret string
 ```
 
+## std/sha384.bpl
+
+[Source](../lib/sha384.bpl)
+
+Exports:
+
+```bpl
+export [Sha384];
+```
+
+### Sha384
+
+```bpl
+struct Sha384
+inner: Sha512
+frame new() ret Sha384
+frame init(this: *Sha384)
+frame update(this: *Sha384, data: *u8, length: long)
+frame finish(this: *Sha384, digest: *u8)
+frame digest(data: *u8, length: long, digest: *u8)
+frame hexBytes(data: *u8, length: long) ret string
+frame hex(text: string) ret string
+```
+
 ## std/sha512.bpl
 
 [Source](../lib/sha512.bpl)
@@ -2968,6 +2993,7 @@ export [ByteWriter];
 export [Hash];
 export [Sha256];
 export [Sha512];
+export [Sha384];
 export [Regex];
 export [BigInt];
 export [Hmac];

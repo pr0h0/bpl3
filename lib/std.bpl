@@ -215,6 +215,9 @@ export [Sha256];
 import [Sha512] from "std/sha512.bpl";
 export [Sha512];
 
+import [Sha384] from "std/sha384.bpl";
+export [Sha384];
+
 import [Regex] from "std/regex.bpl";
 export [Regex];
 

@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `std/sha384.bpl` adds SHA-384 digests (`Sha384`, also exported by `std`),
+  built on `Sha512`.
 - `std/hmac.bpl` adds `HmacSha512` (also exported by `std`), HMAC over
   SHA-512 with the same streaming and one-call interface as `Hmac`.
 - `Regex` adds `countMatches`, `replaceAll` and `replaceFirst`, which count or

@@ -95,7 +95,8 @@ all related enhancements or platform support are complete.
 - [x] Strings/builders, formatting, filesystem/path helpers, argument parsing,
       date/time/duration, JSON parsing/serialization, random/numeric helpers, and
       stable FNV-1a (32/64-bit), CRC-32 and Adler-32 hashing, SHA-256
-      (`lib/sha256.bpl`) and SHA-512 (`lib/sha512.bpl`).
+      (`lib/sha256.bpl`), SHA-384 (`lib/sha384.bpl`) and SHA-512
+      (`lib/sha512.bpl`).
 - [x] Collections including arrays, maps, sets, linked lists, deques, queues,
       stacks, priority queues, and collection iteration specs.
 - [x] Base64 and Hex codecs in `lib/base64.bpl`/`lib/hex.bpl`, UTF-8 helpers,
