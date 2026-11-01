@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `std/sha512.bpl` adds SHA-512 digests (`Sha512`, also exported by `std`)
+  with the same streaming and one-call interface as `Sha256`.
 - Lint rule `L007` reports an `else if` whose condition repeats an earlier
   condition of the same chain, so its branch never runs.
 

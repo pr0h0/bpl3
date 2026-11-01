@@ -554,6 +554,22 @@ frame main() ret int {
 }
 ```
 
+### Sha512 (`std/sha512.bpl`)
+
+SHA-512 digests (FIPS 180-4), with the same interface as `Sha256`: a streaming
+context from `Sha512.new()` with `init`, `update` and `finish`, and the
+one-call helpers. Digests are 64 bytes, and `hexBytes` and `hex` return a
+caller-owned 128-character lowercase string, or `nullptr` if allocation
+fails. Messages are processed in 128-byte blocks with a 128-bit length.
+
+- `Sha512.new() ret Sha512`
+- `context.init()`
+- `context.update(data: *u8, length: long)`
+- `context.finish(digest: *u8)` — writes 64 bytes
+- `Sha512.digest(data: *u8, length: long, digest: *u8)`
+- `Sha512.hexBytes(data: *u8, length: long) ret string`
+- `Sha512.hex(text: string) ret string`
+
 ### Hmac (`std/hmac.bpl`)
 
 HMAC-SHA256 message authentication codes (RFC 2104), built on `Sha256`. Keys
