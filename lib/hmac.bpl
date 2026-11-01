@@ -1,0 +1,111 @@
+# HMAC-SHA256 message authentication codes (RFC 2104, FIPS 198-1)
+
+import [Sha256] from "std/sha256.bpl";
+
+export [Hmac];
+
+extern malloc(size: long) ret *void;
+extern strlen(str: string) ret long;
+
+# Streaming HMAC-SHA256: create a keyed context with `Hmac.sha256(key, n)`,
+# call `update` any number of times, then `finish` to write the 32-byte MAC.
+# The static helpers `digest` and `hex` authenticate in one call, and `equal`
+# compares MACs in constant time.
+struct Hmac {
+    inner: Sha256,
+    outerKey: u8[64],
+
+    # A context keyed with `keyLength` bytes at `key`. Keys longer than the
+    # 64-byte SHA-256 block are hashed first, as RFC 2104 requires.
+    frame sha256(key: *u8, keyLength: long) ret Hmac {
+        local block: u8[64];
+        local i: int = 0;
+        loop (i < 64) {
+            block[i] = cast<u8>(0);
+            i = i + 1;
+        }
+        if (keyLength > 64) {
+            Sha256.digest(key, keyLength, &block[0]);
+        } else if ((key != nullptr) && (keyLength > 0)) {
+            local k: long = 0;
+            loop (k < keyLength) {
+                block[k] = *(key + k);
+                k = k + 1;
+            }
+        }
+        local mac: Hmac;
+        mac.inner = Sha256.new();
+        local innerKey: u8[64];
+        i = 0;
+        loop (i < 64) {
+            innerKey[i] = block[i] ^ cast<u8>(0x36);
+            mac.outerKey[i] = block[i] ^ cast<u8>(0x5c);
+            i = i + 1;
+        }
+        mac.inner.update(&innerKey[0], 64);
+        return mac;
+    }
+
+    # Add `length` bytes from `data` to the message.
+    frame update(this: *Hmac, data: *u8, length: long) {
+        this.inner.update(data, length);
+    }
+
+    # Write the 32-byte MAC to `mac`. The context cannot be reused afterwards.
+    frame finish(this: *Hmac, mac: *u8) {
+        local innerDigest: u8[32];
+        this.inner.finish(&innerDigest[0]);
+        local outer: Sha256 = Sha256.new();
+        outer.update(&this.outerKey[0], 64);
+        outer.update(&innerDigest[0], 32);
+        outer.finish(mac);
+    }
+
+    # Write the 32-byte HMAC-SHA256 of `length` bytes at `data` to `mac`.
+    frame digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8) {
+        local context: Hmac = Hmac.sha256(key, keyLength);
+        context.update(data, length);
+        context.finish(mac);
+    }
+
+    # Lowercase hex HMAC-SHA256 of the null-terminated `message` under the
+    # null-terminated `key`. Returns a newly allocated 64-character string
+    # (caller must free), or nullptr if allocation fails.
+    frame hex(key: string, message: string) ret string {
+        local raw: u8[32];
+        local keyLength: long = 0;
+        if (key != nullptr) {
+            keyLength = strlen(key);
+        }
+        local messageLength: long = 0;
+        if (message != nullptr) {
+            messageLength = strlen(message);
+        }
+        Hmac.digest(cast<*u8>(key), keyLength, cast<*u8>(message), messageLength, &raw[0]);
+        local output: *u8 = cast<*u8>(malloc(65));
+        if (output == nullptr) {
+            return cast<string>(nullptr);
+        }
+        local hexChars: *u8 = cast<*u8>("0123456789abcdef");
+        local i: int = 0;
+        loop (i < 32) {
+            *(output + (i * 2)) = *(hexChars + cast<int>(raw[i] >> cast<u8>(4)));
+            *(output + (i * 2) + 1) = *(hexChars + cast<int>(raw[i] & cast<u8>(0x0f)));
+            i = i + 1;
+        }
+        *(output + 64) = cast<u8>(0);
+        return cast<string>(output);
+    }
+
+    # Whether `length` bytes at `a` and `b` are equal. Every byte is compared,
+    # so the time taken does not reveal where two MACs first differ.
+    frame equal(a: *u8, b: *u8, length: long) ret bool {
+        local difference: u8 = cast<u8>(0);
+        local i: long = 0;
+        loop (i < length) {
+            difference = difference | (*(a + i) ^ *(b + i));
+            i = i + 1;
+        }
+        return difference == cast<u8>(0);
+    }
+}

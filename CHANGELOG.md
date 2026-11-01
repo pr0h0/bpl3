@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Standard library: `std/hmac.bpl` (HMAC-SHA256, streaming and one-shot, with
+  a constant-time `Hmac.equal`) and `std/entropy.bpl` (operating-system random
+  bytes, `nextULong` and unbiased `below`), both exported from `std`.
 - Prebuilt executables: the `Release binaries` workflow builds the standalone
   `bpl` for Linux x64/arm64 and macOS arm64/x64, smoke-tests the native ones
   with only the embedded standard library, and on a `v0.1.x` tag attaches them

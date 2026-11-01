@@ -214,6 +214,12 @@ export [Sha256];
 import [BigInt] from "std/bigint.bpl";
 export [BigInt];
 
+import [Hmac] from "std/hmac.bpl";
+export [Hmac];
+
+import [Entropy] from "std/entropy.bpl";
+export [Entropy];
+
 import [UUID] from "std/uuid.bpl";
 export [UUID];
 
