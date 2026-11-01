@@ -1,5 +1,6 @@
 import printf, free, malloc, memset from "std/c.bpl";
 import [Regex] from "std/regex.bpl";
+import [Array] from "std/array.bpl";
 
 frame full(pattern: string, text: string) {
     local regex: Regex = Regex.compile(pattern);
@@ -43,6 +44,20 @@ frame replaced(pattern: string, text: string, replacement: string) {
     printf("replace %s [%s] -> [%s] first [%s] count %ld\n", pattern, text, all, first, regex.countMatches(text));
     free(cast<*void>(all));
     free(cast<*void>(first));
+    regex.destroy();
+}
+
+frame splitShow(pattern: string, text: string) {
+    local regex: Regex = Regex.compile(pattern);
+    local pieces: Array<string> = regex.split(text);
+    printf("split %s [%s] ->", pattern, text);
+    loop (local i: int = 0; i < pieces.len(); i = i + 1) {
+        local piece: string = pieces.get(i);
+        printf(" [%s]", piece);
+        free(cast<*void>(piece));
+    }
+    printf("\n");
+    pieces.destroy();
     regex.destroy();
 }
 
@@ -133,5 +148,12 @@ frame main() ret int {
     free(cast<*void>(grown));
     free(cast<*void>(many));
     letter.destroy();
+
+    splitShow("x*", "axbc");
+    splitShow(",", "a,b,,c");
+    splitShow("\\s+", " one  two three ");
+    splitShow("z", "abc");
+    splitShow(",", "");
+    splitShow("", "ab");
     return 0;
 }

@@ -11,6 +11,8 @@
 
 export [Regex];
 
+import [Array] from "std/array.bpl";
+
 extern malloc(size: long) ret *void;
 extern realloc(ptr: *void, size: long) ret *void;
 extern free(ptr: *void) ret void;
@@ -620,6 +622,39 @@ struct Regex {
     # free), or nullptr if allocation fails.
     frame replaceFirst(this: *Regex, text: string, replacement: string) ret string {
         return this.replace(text, replacement, 1);
+    }
+
+    # The pieces of `text` between non-overlapping matches, including empty
+    # pieces before, between and after matches, as in Python's re.split. The
+    # caller frees each piece and destroys the array. Throws if allocation
+    # fails.
+    frame split(this: *Regex, text: string) ret Array<string> {
+        local length: long = strlen(text);
+        local pieces: Array<string> = Array<string>.new(4);
+        local previous: long = 0;
+        local at: long = 0;
+        local start: long = 0;
+        local end: long = 0;
+        loop ((at <= length) && this.find(text, at, &start, &end)) {
+            pieces.push(Regex.copyRange(text, previous, start));
+            previous = end;
+            at = Regex.nextSearch(start, end);
+        }
+        pieces.push(Regex.copyRange(text, previous, length));
+        return pieces;
+    }
+
+    # A new null-terminated copy of bytes `start` to `end` of `text`.
+    frame copyRange(text: string, start: long, end: long) ret string {
+        local output: *u8 = cast<*u8>(malloc((end - start) + 1));
+        if (output == nullptr) {
+            throw "Regex.split allocation failed";
+        }
+        loop (local i: long = start; i < end; i = i + 1) {
+            *(output + (i - start)) = cast<u8>(text[i]);
+        }
+        *(output + (end - start)) = cast<u8>(0);
+        return cast<string>(output);
     }
 
     # Replaces up to `limit` matches, or all of them when `limit` is negative.

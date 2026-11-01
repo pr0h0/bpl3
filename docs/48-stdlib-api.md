@@ -573,13 +573,17 @@ ret bool` — byte offsets of the match, end exclusive
 - `regex.countMatches(text: string) ret long` — non-overlapping matches
 - `regex.replaceAll(text: string, replacement: string) ret string`
 - `regex.replaceFirst(text: string, replacement: string) ret string`
+- `regex.split(text: string) ret Array<string>` — the pieces between matches
 - `regex.destroy()`
 
 `replaceAll` and `replaceFirst` copy `replacement` literally and return a
 caller-owned string, or `nullptr` if allocation fails. Matches do not overlap.
 After an empty match the search moves on one byte, and an empty match right
 after a non-empty one still counts, as in Perl and Python: replacing `a*`
-with `-` in `baaac` gives `-b--c-`.
+with `-` in `baaac` gives `-b--c-`. `split` uses the same matches and keeps empty pieces
+before, between and after them, as Python's `re.split` does: splitting
+`a,b,,c` on `,` gives `a`, `b`, an empty piece and `c`. The caller frees each
+piece and destroys the array.
 
 ```bpl
 import printf from "std/c.bpl";
