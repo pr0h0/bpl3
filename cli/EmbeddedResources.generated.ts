@@ -42,40 +42,41 @@ import lib39 from "../lib/memory/pool_allocator.bpl" with { type: "text" };
 import lib40 from "../lib/memory/stack_allocator.bpl" with { type: "text" };
 import lib41 from "../lib/memory/syscalls.bpl" with { type: "text" };
 import lib42 from "../lib/option.bpl" with { type: "text" };
-import lib43 from "../lib/path.bpl" with { type: "text" };
-import lib44 from "../lib/primitives.bpl" with { type: "text" };
-import lib45 from "../lib/priority_queue.bpl" with { type: "text" };
-import lib46 from "../lib/process.bpl" with { type: "text" };
-import lib47 from "../lib/queue.bpl" with { type: "text" };
-import lib48 from "../lib/rand.bpl" with { type: "text" };
-import lib49 from "../lib/range.bpl" with { type: "text" };
-import lib50 from "../lib/rational.bpl" with { type: "text" };
-import lib51 from "../lib/reflection.bpl" with { type: "text" };
-import lib52 from "../lib/regex.bpl" with { type: "text" };
-import lib53 from "../lib/result.bpl" with { type: "text" };
-import lib54 from "../lib/runtime_support.c" with { type: "text" };
-import lib55 from "../lib/runtime_wasm.ll" with { type: "text" };
-import lib56 from "../lib/runtime_wasm_host.ll" with { type: "text" };
-import lib57 from "../lib/scope_stack.bpl" with { type: "text" };
-import lib58 from "../lib/set.bpl" with { type: "text" };
-import lib59 from "../lib/sha256.bpl" with { type: "text" };
-import lib60 from "../lib/sha384.bpl" with { type: "text" };
-import lib61 from "../lib/sha512.bpl" with { type: "text" };
-import lib62 from "../lib/stack.bpl" with { type: "text" };
-import lib63 from "../lib/stats.bpl" with { type: "text" };
-import lib64 from "../lib/std.bpl" with { type: "text" };
-import lib65 from "../lib/string.bpl" with { type: "text" };
-import lib66 from "../lib/string_builder.bpl" with { type: "text" };
-import lib67 from "../lib/string_utils.bpl" with { type: "text" };
-import lib68 from "../lib/sync.bpl" with { type: "text" };
-import lib69 from "../lib/thread.bpl" with { type: "text" };
-import lib70 from "../lib/time.bpl" with { type: "text" };
-import lib71 from "../lib/type.bpl" with { type: "text" };
-import lib72 from "../lib/url.bpl" with { type: "text" };
-import lib73 from "../lib/utf8.bpl" with { type: "text" };
-import lib74 from "../lib/uuid.bpl" with { type: "text" };
-import lib75 from "../lib/vec2.bpl" with { type: "text" };
-import lib76 from "../lib/vec3.bpl" with { type: "text" };
+import lib43 from "../lib/parse.bpl" with { type: "text" };
+import lib44 from "../lib/path.bpl" with { type: "text" };
+import lib45 from "../lib/primitives.bpl" with { type: "text" };
+import lib46 from "../lib/priority_queue.bpl" with { type: "text" };
+import lib47 from "../lib/process.bpl" with { type: "text" };
+import lib48 from "../lib/queue.bpl" with { type: "text" };
+import lib49 from "../lib/rand.bpl" with { type: "text" };
+import lib50 from "../lib/range.bpl" with { type: "text" };
+import lib51 from "../lib/rational.bpl" with { type: "text" };
+import lib52 from "../lib/reflection.bpl" with { type: "text" };
+import lib53 from "../lib/regex.bpl" with { type: "text" };
+import lib54 from "../lib/result.bpl" with { type: "text" };
+import lib55 from "../lib/runtime_support.c" with { type: "text" };
+import lib56 from "../lib/runtime_wasm.ll" with { type: "text" };
+import lib57 from "../lib/runtime_wasm_host.ll" with { type: "text" };
+import lib58 from "../lib/scope_stack.bpl" with { type: "text" };
+import lib59 from "../lib/set.bpl" with { type: "text" };
+import lib60 from "../lib/sha256.bpl" with { type: "text" };
+import lib61 from "../lib/sha384.bpl" with { type: "text" };
+import lib62 from "../lib/sha512.bpl" with { type: "text" };
+import lib63 from "../lib/stack.bpl" with { type: "text" };
+import lib64 from "../lib/stats.bpl" with { type: "text" };
+import lib65 from "../lib/std.bpl" with { type: "text" };
+import lib66 from "../lib/string.bpl" with { type: "text" };
+import lib67 from "../lib/string_builder.bpl" with { type: "text" };
+import lib68 from "../lib/string_utils.bpl" with { type: "text" };
+import lib69 from "../lib/sync.bpl" with { type: "text" };
+import lib70 from "../lib/thread.bpl" with { type: "text" };
+import lib71 from "../lib/time.bpl" with { type: "text" };
+import lib72 from "../lib/type.bpl" with { type: "text" };
+import lib73 from "../lib/url.bpl" with { type: "text" };
+import lib74 from "../lib/utf8.bpl" with { type: "text" };
+import lib75 from "../lib/uuid.bpl" with { type: "text" };
+import lib76 from "../lib/vec2.bpl" with { type: "text" };
+import lib77 from "../lib/vec3.bpl" with { type: "text" };
 
 /** Standard library files by path relative to `lib/`. */
 export const EMBEDDED_LIB_FILES: ReadonlyArray<
@@ -124,38 +125,39 @@ export const EMBEDDED_LIB_FILES: ReadonlyArray<
   ["memory/stack_allocator.bpl", lib40],
   ["memory/syscalls.bpl", lib41],
   ["option.bpl", lib42],
-  ["path.bpl", lib43],
-  ["primitives.bpl", lib44],
-  ["priority_queue.bpl", lib45],
-  ["process.bpl", lib46],
-  ["queue.bpl", lib47],
-  ["rand.bpl", lib48],
-  ["range.bpl", lib49],
-  ["rational.bpl", lib50],
-  ["reflection.bpl", lib51],
-  ["regex.bpl", lib52],
-  ["result.bpl", lib53],
-  ["runtime_support.c", lib54],
-  ["runtime_wasm.ll", lib55],
-  ["runtime_wasm_host.ll", lib56],
-  ["scope_stack.bpl", lib57],
-  ["set.bpl", lib58],
-  ["sha256.bpl", lib59],
-  ["sha384.bpl", lib60],
-  ["sha512.bpl", lib61],
-  ["stack.bpl", lib62],
-  ["stats.bpl", lib63],
-  ["std.bpl", lib64],
-  ["string.bpl", lib65],
-  ["string_builder.bpl", lib66],
-  ["string_utils.bpl", lib67],
-  ["sync.bpl", lib68],
-  ["thread.bpl", lib69],
-  ["time.bpl", lib70],
-  ["type.bpl", lib71],
-  ["url.bpl", lib72],
-  ["utf8.bpl", lib73],
-  ["uuid.bpl", lib74],
-  ["vec2.bpl", lib75],
-  ["vec3.bpl", lib76],
+  ["parse.bpl", lib43],
+  ["path.bpl", lib44],
+  ["primitives.bpl", lib45],
+  ["priority_queue.bpl", lib46],
+  ["process.bpl", lib47],
+  ["queue.bpl", lib48],
+  ["rand.bpl", lib49],
+  ["range.bpl", lib50],
+  ["rational.bpl", lib51],
+  ["reflection.bpl", lib52],
+  ["regex.bpl", lib53],
+  ["result.bpl", lib54],
+  ["runtime_support.c", lib55],
+  ["runtime_wasm.ll", lib56],
+  ["runtime_wasm_host.ll", lib57],
+  ["scope_stack.bpl", lib58],
+  ["set.bpl", lib59],
+  ["sha256.bpl", lib60],
+  ["sha384.bpl", lib61],
+  ["sha512.bpl", lib62],
+  ["stack.bpl", lib63],
+  ["stats.bpl", lib64],
+  ["std.bpl", lib65],
+  ["string.bpl", lib66],
+  ["string_builder.bpl", lib67],
+  ["string_utils.bpl", lib68],
+  ["sync.bpl", lib69],
+  ["thread.bpl", lib70],
+  ["time.bpl", lib71],
+  ["type.bpl", lib72],
+  ["url.bpl", lib73],
+  ["utf8.bpl", lib74],
+  ["uuid.bpl", lib75],
+  ["vec2.bpl", lib76],
+  ["vec3.bpl", lib77],
 ];
