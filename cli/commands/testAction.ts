@@ -160,8 +160,41 @@ function runTest(executable: string, index: number, name: string): TestResult {
   };
 }
 
-/** Build and run the tests of one file. */
-export function runTestFile(file: string, filter?: string): TestFileResult {
+/** The tests of one file, without building it. */
+export function listTestFile(file: string, filter?: string): TestFileResult {
+  try {
+    const source = fs.readFileSync(file, "utf8");
+    const tests = findTestCases(new Parser(source, file).parse()).filter(
+      (test) => !filter || test.name.includes(filter),
+    );
+    return {
+      file,
+      tests: tests.map((test) => ({
+        name: test.name,
+        passed: false,
+        exitCode: null,
+        durationMs: 0,
+        output: "",
+      })),
+    };
+  } catch (error) {
+    return {
+      file,
+      tests: [],
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Build and run the tests of one file. With `failFast`, tests after the
+ * first failure are not run.
+ */
+export function runTestFile(
+  file: string,
+  filter?: string,
+  failFast = false,
+): TestFileResult {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-test-"));
   try {
     const source = fs.readFileSync(file, "utf8");
@@ -171,10 +204,13 @@ export function runTestFile(file: string, filter?: string): TestFileResult {
     );
     if (tests.length === 0) return { file, tests: [] };
     const executable = buildTestBinary(file, source, tests, directory);
-    return {
-      file,
-      tests: tests.map((test, index) => runTest(executable, index, test.name)),
-    };
+    const results: TestResult[] = [];
+    for (const [index, test] of tests.entries()) {
+      const result = runTest(executable, index, test.name);
+      results.push(result);
+      if (failFast && !result.passed) break;
+    }
+    return { file, tests: results };
   } catch (error) {
     return {
       file,
@@ -221,7 +257,46 @@ export async function runTestCommand(
     );
   }
 
-  const results = files.map((file) => runTestFile(file, options.filter));
+  if (options.list) {
+    const listed = files.map((file) => listTestFile(file, options.filter));
+    if (options.json) {
+      console.log(
+        JSON.stringify(
+          createJsonReport(CLI_JSON_CHECKS.test, true, {
+            totalFiles: listed.length,
+            totalTests: listed.reduce((n, r) => n + r.tests.length, 0),
+            files: listed.map((result) => ({
+              file: result.file,
+              tests: result.tests.map((test) => test.name),
+              ...(result.error ? { error: result.error } : {}),
+            })),
+          }),
+          null,
+          2,
+        ),
+      );
+    } else {
+      for (const result of listed) {
+        if (result.error) console.log(`ERROR ${result.file}`);
+        for (const test of result.tests) {
+          console.log(`${result.file} ${test.name}`);
+        }
+      }
+    }
+    return listed.some((result) => result.error) ? 1 : 0;
+  }
+
+  const results: TestFileResult[] = [];
+  for (const file of files) {
+    const result = runTestFile(file, options.filter, options.failFast);
+    results.push(result);
+    if (
+      options.failFast &&
+      (result.error || result.tests.some((test) => !test.passed))
+    ) {
+      break;
+    }
+  }
   const tests = results.flatMap((result) => result.tests);
   const passed = tests.filter((test) => test.passed).length;
   const failed = tests.length - passed;

@@ -134,6 +134,41 @@ frame testPointer() ret *int { return nullptr; }`,
     });
   }, 120000);
 
+  test("--list names the tests without building them", () => {
+    withProject(
+      {
+        "math_test.bpl": MATH_TEST,
+        "broken_test.bpl": 'frame testBroken() { local x: int = "no"; }\n',
+      },
+      (dir) => {
+        const result = bplTest(dir, ["--list"]);
+        // A type error does not matter: nothing is compiled.
+        expect(result.status).toBe(0);
+        expect(result.stdout.trim().split("\n").sort()).toEqual([
+          "broken_test.bpl testBroken",
+          "math_test.bpl testAdds",
+          "math_test.bpl testFailsAssertion",
+          "math_test.bpl test_returns_status",
+        ]);
+        const json = JSON.parse(
+          bplTest(dir, ["--list", "--json", "--filter", "Adds"]).stdout,
+        );
+        expect(json.totalTests).toBe(1);
+      },
+    );
+  }, 120000);
+
+  test("--fail-fast stops after the first failing test", () => {
+    withProject({ "math_test.bpl": MATH_TEST }, (dir) => {
+      const result = bplTest(dir, ["--fail-fast", "--json"]);
+      expect(result.status).toBe(1);
+      const report = JSON.parse(result.stdout);
+      expect(
+        report.files[0].tests.map((test: { name: string }) => test.name),
+      ).toEqual(["testAdds", "testFailsAssertion"]);
+    });
+  }, 120000);
+
   test("reports a file that does not compile", () => {
     withProject(
       { "broken_test.bpl": 'frame testBroken() { local x: int = "no"; }\n' },

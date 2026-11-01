@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl test --list` prints the tests it would run without building them, and
+  `bpl test --fail-fast` stops after the first failing test or file.
 - `bpl lint` reports self-assignments (`L005`), such as `x = x`. bpl-db's two
   `len = len`/`type_int = type_int` "unused variable" workarounds are removed
   (the archive is repacked; its version is unchanged).
