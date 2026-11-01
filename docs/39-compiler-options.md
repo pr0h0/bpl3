@@ -396,6 +396,9 @@ Lint BPL source files for style and package-quality issues. Rules:
 - `L003` unused private function: a top-level frame named `_something` that is
   not exported and that nothing else in the module names. A call from its own
   body counts as a use.
+- `L004` constant condition: an `if` or ternary whose condition is `true` or
+  `false`, or a `loop (false)` whose body never runs. `loop (true)` is an
+  ordinary infinite loop and is not reported.
 
 Warnings fail the run unless `--no-fail-on-warnings` is given.
 
