@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Standard library: `std/bigint.bpl` adds arbitrary-precision signed integers
+  (`BigInt`) with parsing, decimal output, addition, subtraction,
+  multiplication, division by an `int`, and comparison, exported from `std`.
 - `bpl lint` reports unused private functions (`L003`): top-level frames
   named `_something` that are not exported and that nothing else in the module
   names.

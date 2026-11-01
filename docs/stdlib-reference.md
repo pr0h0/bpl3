@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 66 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 67 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -22,6 +22,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/array.bpl](../lib/array.bpl)
 - [std/assert.bpl](../lib/assert.bpl)
 - [std/base64.bpl](../lib/base64.bpl)
+- [std/bigint.bpl](../lib/bigint.bpl)
 - [std/binary.bpl](../lib/binary.bpl)
 - [std/bitset.bpl](../lib/bitset.bpl)
 - [std/c.bpl](../lib/c.bpl)
@@ -334,6 +335,45 @@ frame decodeToString(input: string) ret string
 frame decodedLength(input: string) ret int
 frame encodedLength(inputLen: int) ret int
 frame isValid(input: string) ret bool
+```
+
+## std/bigint.bpl
+
+[Source](../lib/bigint.bpl)
+
+Exports:
+
+```bpl
+export [BigInt];
+```
+
+### BigInt
+
+```bpl
+struct BigInt
+sign: int
+length: int
+limbs: *uint
+frame withCapacity(capacity: int) ret BigInt
+frame fromLong(number: long) ret BigInt
+frame parse(text: string) ret BigInt
+frame normalize(this: *BigInt)
+frame destroy(this: *BigInt)
+frame clone(this: *BigInt) ret BigInt
+frame isZero(this: *BigInt) ret bool
+frame isNegative(this: *BigInt) ret bool
+frame compareMagnitude(a: *BigInt, b: *BigInt) ret int
+frame compare(this: *BigInt, other: *BigInt) ret int
+frame equals(this: *BigInt, other: *BigInt) ret bool
+frame addMagnitudes(a: *BigInt, b: *BigInt, sign: int) ret BigInt
+frame subtractMagnitudes(a: *BigInt, b: *BigInt, sign: int) ret BigInt
+frame addSigned(a: *BigInt, b: *BigInt, negateOther: bool) ret BigInt
+frame add(this: *BigInt, other: *BigInt) ret BigInt
+frame subtract(this: *BigInt, other: *BigInt) ret BigInt
+frame negate(this: *BigInt) ret BigInt
+frame multiply(this: *BigInt, other: *BigInt) ret BigInt
+frame divideSmall(this: *BigInt, divisor: int, remainder: *int) ret BigInt
+frame toString(this: *BigInt) ret string
 ```
 
 ## std/binary.bpl
@@ -2736,6 +2776,7 @@ export [ByteReader];
 export [ByteWriter];
 export [Hash];
 export [Sha256];
+export [BigInt];
 export [UUID];
 export [Stats];
 export [Complex];

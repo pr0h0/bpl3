@@ -393,6 +393,40 @@ Stable non-cryptographic hashing helpers.
 - `Hash.checksum32(input: string) ret uint`
 - `Hash.combine32(left: uint, right: uint) ret uint`
 
+### BigInt (`std/bigint.bpl`)
+
+Signed integers of any size, stored as base-10^9 limbs. Every operation returns
+a new `BigInt` the caller owns and must `destroy`; operands are never changed.
+Copying a `BigInt` with `=` shares its limbs, so destroy only one copy, or use
+`clone`. `toString` returns a caller-owned string (release it with
+`free(cast<*void>(text))`).
+
+- `BigInt.fromLong(number: long) ret BigInt`
+- `BigInt.parse(text: string) ret BigInt` — optional `+`/`-`, decimal digits;
+  throws otherwise
+- `value.add(other: *BigInt) ret BigInt`, `subtract`, `multiply`, `negate()`
+- `value.divideSmall(divisor: int, remainder: *int) ret BigInt` — truncates
+  toward zero; the remainder takes the dividend's sign; throws for 0
+- `value.compare(other: *BigInt) ret int` (-1, 0, 1), `equals`, `isZero()`,
+  `isNegative()`
+- `value.clone() ret BigInt`, `value.toString() ret string`, `value.destroy()`
+
+```bpl
+import printf, free from "std/c.bpl";
+import [BigInt] from "std/bigint.bpl";
+
+frame main() ret int {
+    local base: BigInt = BigInt.parse("123456789012345678901234567890");
+    local square: BigInt = base.multiply(&base);
+    local text: string = square.toString();
+    printf("%s\n", text);
+    free(cast<*void>(text));
+    square.destroy();
+    base.destroy();
+    return 0;
+}
+```
+
 ### Sha256 (`std/sha256.bpl`)
 
 SHA-256 digests (FIPS 180-4), implemented in BPL with no external library.
