@@ -5,8 +5,7 @@ export [Database];
 
 import [Value], [DataType], serialize_value, deserialize_value, clone_value, destroy_value, value_kind, data_kind from "./types.bpl";
 import [Array] from "std/array.bpl";
-import [String] from "std/string.bpl";
-import [Map], [Pair], [MapIterator], [MapNode] from "std/map.bpl";
+import [Map], [MapNode] from "std/map.bpl";
 import [Option] from "std/option.bpl";
 import [File] from "std/fs.bpl";
 import [StringUtils] from "std/string_utils.bpl";

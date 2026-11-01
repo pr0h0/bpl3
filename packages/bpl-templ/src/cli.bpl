@@ -2,7 +2,6 @@
 
 import [Args] from "std/args.bpl";
 import [FS] from "std/fs.bpl";
-import [File] from "std/fs.bpl";
 import [IOError] from "std/errors.bpl";
 import [Path] from "std/path.bpl";
 import [String] from "std/string.bpl";

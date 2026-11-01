@@ -3,7 +3,6 @@
 export [Result];
 
 import [ResultUnwrapError] from "std/errors.bpl";
-import [Equatable], [Cloneable] from "std/core_specs.bpl";
 
 enum Result<T, E> {
     Ok(T),

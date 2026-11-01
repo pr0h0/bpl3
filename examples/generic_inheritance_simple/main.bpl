@@ -1,4 +1,3 @@
-import [IO] from "std/io.bpl";
 import [printf] from "std/c.bpl";
 
 struct Container<T> {

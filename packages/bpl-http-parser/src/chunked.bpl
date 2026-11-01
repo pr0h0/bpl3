@@ -1,6 +1,4 @@
 import [HttpHeaders] from "./headers.bpl";
-import [Array] from "std/array.bpl";
-import [Option] from "std/option.bpl";
 extern malloc(size: long) ret *void;
 extern free(ptr: string);
 extern memcpy(dest: *void, src: *void, count: long) ret *void;

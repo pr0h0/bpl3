@@ -1,5 +1,4 @@
-import [App], [Router], [Request], [Response], [RouteHandler] from "bpl-express";
-import [Type] from "std/type.bpl";
+import [App], [Router], [Request], [Response] from "bpl-express";
 import home_handler, register_page, register_submit, login_page, login_submit, logout_handler, profile_handler, create_note_page, create_note_submit, edit_note_page, update_note_submit, delete_note_submit from "./handlers.bpl";
 import create_user, create_note from "./store.bpl";
 import [User] from "./models.bpl";

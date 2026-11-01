@@ -4,7 +4,6 @@ import [Database], [Table], [Row], [Column] from "./storage.bpl";
 import [Query], [Command], [Condition], [Operator] from "./query.bpl";
 import [Value], [DataType], value_kind, data_kind, clone_value, destroy_value from "./types.bpl";
 import [Array] from "std/array.bpl";
-import [String] from "std/string.bpl";
 
 extern printf(fmt: string, ...);
 extern strcmp(s1: string, s2: string) ret int;

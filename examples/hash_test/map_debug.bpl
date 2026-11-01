@@ -1,6 +1,5 @@
 import [Map] from "std/map.bpl";
 import [Hashable] from "std/core_specs.bpl";
-import [String] from "std/string.bpl";
 
 import [printf] from "std/c.bpl";
 

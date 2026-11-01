@@ -1,4 +1,3 @@
-import [Error] from "std/errors.bpl";
 import [printf] from "std/c.bpl";
 
 struct Point {

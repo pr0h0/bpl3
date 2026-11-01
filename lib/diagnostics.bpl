@@ -7,7 +7,6 @@ export [DiagnosticReporter];
 
 import [String] from "std/string.bpl";
 import [Array] from "std/array.bpl";
-import [CharUtils] from "std/char_utils.bpl";
 
 extern printf(fmt: string, ...) ret int;
 

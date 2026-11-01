@@ -1,6 +1,6 @@
 # String standard library
 
-import [Comparable], [Equatable], [Destructible], [Cloneable], [Hashable] from "std/core_specs.bpl";
+import [Comparable], [Destructible], [Cloneable], [Hashable] from "std/core_specs.bpl";
 import [Array] from "std/array.bpl";
 
 export [String];

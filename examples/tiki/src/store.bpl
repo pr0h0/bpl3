@@ -4,7 +4,6 @@ import [strcmp] from "std/c.bpl";
 import [strcpy] from "std/c.bpl";
 import [strlen] from "std/c.bpl";
 extern malloc(size: long) ret string;
-import [free] from "std/c.bpl";
 
 # Simple in-memory storage
 # global const MAX_USERS = 50;

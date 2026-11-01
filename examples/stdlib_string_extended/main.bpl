@@ -1,6 +1,6 @@
 # Extended String Library Test
 
-import [String], [Array] from "std/std.bpl";
+import [String] from "std/std.bpl";
 
 import [printf] from "std/c.bpl";
 

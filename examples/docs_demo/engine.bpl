@@ -1,4 +1,4 @@
-import [Entity], [EntityType] from "./entities.bpl";
+import [EntityType] from "./entities.bpl";
 import [Vec3] from "./math.bpl";
 
 export [GameEngine];

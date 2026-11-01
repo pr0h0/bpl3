@@ -1,8 +1,6 @@
-import [Request], [Response], [HttpMethod] from "bpl-express";
+import [Request], [Response] from "bpl-express";
 import [HttpParser], releaseStrings from "bpl-http-parser";
-import [Map], [MapNode] from "std/map.bpl";
-import [Array] from "std/array.bpl";
-import [StringBuilder] from "std/string_builder.bpl";
+import [Map] from "std/map.bpl";
 import [Option] from "std/option.bpl";
 extern strcmp(a: string, b: string) ret int;
 extern strlen(text: string) ret long;

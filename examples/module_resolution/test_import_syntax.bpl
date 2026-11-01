@@ -1,6 +1,6 @@
 # test_import_syntax.bpl - Test various valid import syntaxes
 # ✅ Valid: Import multiple functions and types
-import testFunc1, testFunc2, [TestType1], [TestType2] from "./test_syntax.bpl";
+import testFunc1, testFunc2, [TestType1] from "./test_syntax.bpl";
 import [printf] from "std/c.bpl";
 frame main() ret int {
     printf("Testing import syntax...\n");

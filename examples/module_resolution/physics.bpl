@@ -1,6 +1,6 @@
 # physics.bpl - Physics calculations
 # Depends on: geometry.bpl, math_utils.bpl
-import [Point], distanceSquared from "./geometry.bpl";
+import [Point] from "./geometry.bpl";
 import add, multiply from "./math_utils.bpl";
 export [Velocity];
 export [Body];

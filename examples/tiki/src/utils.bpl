@@ -1,4 +1,3 @@
-import [String] from "std/string.bpl";
 import [Array] from "std/array.bpl";
 # import [Vector] from "std/vec.bpl";
 # import [strcmp], [strstr], [strlen] from "libc";

@@ -5,7 +5,6 @@ export [ScopeStack];
 import [Array] from "std/array.bpl";
 import [Map] from "std/map.bpl";
 import [Option] from "std/option.bpl";
-import [String] from "std/string.bpl";
 
 struct ScopeStack<T> {
     scopes: Array<Map<string, T>>,
