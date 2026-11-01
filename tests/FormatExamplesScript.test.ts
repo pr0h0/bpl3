@@ -10,7 +10,7 @@ import { tmpdir } from "os";
 import { join, resolve } from "path";
 import { scripts } from "../package.json";
 
-test("format-examples formats nested BPL/X examples while preserving siblings and excluded sources", () => {
+test("format:examples formats nested BPL/X examples while preserving siblings and excluded sources", () => {
   const directory = mkdtempSync(join(tmpdir(), "bpl-format-examples-"));
   const source = "frame main()ret int{return 0;}";
   const included = ["examples/main.bpl", "examples/nested/deeper/module.x"];
@@ -28,7 +28,7 @@ test("format-examples formats nested BPL/X examples while preserving siblings an
     writeFileSync(
       join(directory, "package.json"),
       JSON.stringify({
-        scripts: { "format-examples": scripts["format-examples"] },
+        scripts: { "format:examples": scripts["format:examples"] },
       }),
     );
     writeFileSync(
@@ -40,7 +40,7 @@ test("format-examples formats nested BPL/X examples while preserving siblings an
       writeFileSync(join(directory, file), source);
     }
     writeFileSync(join(directory, "examples/.bplignore"), "skipped.bpl\n");
-    const result = Bun.spawnSync([process.execPath, "run", "format-examples"], {
+    const result = Bun.spawnSync([process.execPath, "run", "format:examples"], {
       cwd: directory,
       env: { ...process.env, NO_COLOR: "1" },
       timeout: 15000,

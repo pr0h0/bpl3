@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Package scripts (BUG-452): `format-examples` and `file-sizes` are renamed to
+  `format:examples` and `report:file-sizes`; the stdlib reference generator
+  moves from `tests/helpers/` to `scripts/generate_stdlib_reference.ts`; and
+  `test:baseline` runs `tools/test_baseline.ts`, which no longer needs Bash and,
+  without arguments, runs the test files in batches of
+  `BPL_BASELINE_BATCH_SIZE` (default 40) so a full baseline fits in less
+  memory. BUG-446 is marked fixed; its last items landed in #126 and #129.
 - AGENTS.md: PRs merge on passing CI with every review thread resolved;
   CodeRabbit, whose app was removed, is no longer a required reviewer.
 - `bpl check` with no arguments inside a project (a directory with `bpl.json`)

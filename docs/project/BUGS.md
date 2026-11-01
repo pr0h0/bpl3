@@ -364,7 +364,7 @@ lists a namespace import's names unqualified.
 
 #### BUG-446: Broken language-server features
 
-**Status**: Open (partly fixed) · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 - Find references returns nothing for methods/fields (`ASTRenameHandler.ts:375`)
   while the code lens counts them. *Fixed (2026-10-31):* `MemberReferences.ts`
@@ -396,7 +396,9 @@ the std quick import offers `Array` instead of the unexported `List`
 are removed; Run uses `<bplHome>/bpl` when that setting names an installation;
 the server's `maxNumberOfProblems` default is 100 like `package.json`; and
 `getDocumentSettings` is used by diagnostics. Still open: find references for
-methods/fields, and the signature-help matching items.
+methods/fields, and the signature-help matching items. Both were fixed
+afterwards (`MemberReferences.ts` in #126, the signature-help scan in #129), so
+every item above is resolved; renaming members remains deliberately disabled.
 `vscode-ext/src/test/serverProtocol.test.ts` drives the server over stdio.
 
 ### Infrastructure, tests and CI
@@ -500,7 +502,7 @@ the `bin` from `src/cli.bpl` at install time instead of committing it.
 
 #### BUG-452: Package script and documentation debt
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 - `file-sizes` relies on `**` without globstar and misses files; script names mix
   `file-sizes`/`format-examples` with colon-style names; `docs:stdlib` runs a
@@ -539,17 +541,20 @@ deriving one from the PID.
 `emitReferencedDeferredMethods` scans only new output since #119.
 `getCurrentLabel` stops at the nearest label, so a call walks back only through
 the current basic block; it did not appear in the compile profile and is left
-as is. Still open: script naming, `docs:stdlib` living under `tests/helpers`,
-`test:baseline` memory use, `QUICKSTART.md`/`test.sh` bypassing the runner
-check, and the duplicated playground Dockerfile stage. The source-matching
-tests are replaced by behavior tests: `CaptureAnalyzer.test.ts` type-checks
-`tests/fixtures/capture-analysis/every_construct.bpl` and checks that a lambda
-captures a variable read through each construct; `LinterTypeSafety.test.ts`
-lints `tests/fixtures/linter-traversal/every_node.bpl` and checks that rules
-see every node kind the parser produces; and `PlaygroundEngine.test.ts` runs
-the playground engine in-process to check per-request temp directories, the
-cached-binary path and prelude linking. The browser-side check of
-`playground/frontend/app.js` remains a source check.
+as is. Script names are colon-style (`format:examples`, `report:file-sizes`),
+`docs:stdlib` runs `scripts/generate_stdlib_reference.ts`, and
+`test:baseline` runs `tools/test_baseline.ts`, which without arguments runs the
+test files in batches of `BPL_BASELINE_BATCH_SIZE` (default 40), one `bun test`
+process each. `QUICKSTART.md` and `test.sh` go through `start.sh`, and the two
+Dockerfiles stay separate because they build different images. The
+source-matching tests are replaced by behavior tests: `CaptureAnalyzer.test.ts`
+type-checks `tests/fixtures/capture-analysis/every_construct.bpl` and checks
+that a lambda captures a variable read through each construct;
+`LinterTypeSafety.test.ts` lints `tests/fixtures/linter-traversal/every_node.bpl`
+and checks that rules see every node kind the parser produces; and
+`PlaygroundEngine.test.ts` runs the playground engine in-process to check
+per-request temp directories, the cached-binary path and prelude linking. The
+browser-side check of `playground/frontend/app.js` remains a source check.
 `TypeComparison` is removed (#131), and plain `bpl file.bpl` builds no longer
 compile all of `std` for `import ... from "std"` (#128).
 
