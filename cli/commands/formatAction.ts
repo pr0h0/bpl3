@@ -4,6 +4,7 @@
  */
 
 import * as fs from "fs";
+import { unifiedDiff } from "../FormatDiff";
 import * as path from "path";
 import { expandSourceInputs } from "../SourceInputs";
 import type { Command } from "commander";
@@ -56,6 +57,8 @@ export async function runFormatCommand(
 ): Promise<void> {
   const globalOpts = command.parent?.opts() || {};
   const outputJson = Boolean(options.json || globalOpts.json);
+  // --diff is a check that also shows what formatting would change.
+  if (options.diff) options = { ...options, check: true };
   stdinLabel = options.stdinFilepath || "<stdin>";
   if (outputJson) {
     setLogLevel(LogLevel.SILENT);
@@ -200,6 +203,11 @@ export async function runFormatCommand(
               });
             } else {
               log.error(`${displayName(filePath)} is not formatted`);
+              if (options.diff) {
+                process.stdout.write(
+                  unifiedDiff(displayName(filePath), content, formatted),
+                );
+              }
             }
           } else {
             formattedFiles++;

@@ -114,7 +114,7 @@ _bpl_completion() {
             ;;
         format)
             if [[ "$cur" == -* ]]; then
-                COMPREPLY=( $(compgen -W "--stdin-filepath -w --write --check --config --no-config --indent-width --use-tabs --no-use-tabs --line-ending -v --verbose --json -h --help" -- "${cur}") )
+                COMPREPLY=( $(compgen -W "--stdin-filepath -w --write --check --diff --config --no-config --indent-width --use-tabs --no-use-tabs --line-ending -v --verbose --json -h --help" -- "${cur}") )
                 return 0
             fi
             while IFS= read -r match; do

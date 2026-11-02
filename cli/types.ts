@@ -63,6 +63,8 @@ export interface FormatOptions {
   lineEnding?: string;
   write?: boolean;
   check?: boolean;
+  /** Check mode that also prints a unified diff for each unformatted file. */
+  diff?: boolean;
   verbose?: boolean;
   json?: boolean;
 }

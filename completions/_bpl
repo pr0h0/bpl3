@@ -177,6 +177,7 @@ _bpl() {
                         '--stdin-filepath[source path for stdin diagnostics and configuration]:value:_files' \
                         '(-w --write)'{-w,--write}'[write formatted output back to file]' \
                         '--check[check whether files are formatted without writing]' \
+                        '--diff[like --check, and print a unified diff of the changes formatting would make]' \
                         '--config[use an explicit formatter JSON configuration]:value:_files' \
                         '--no-config[use BPL defaults without project configuration]' \
                         '--indent-width[override indentation width (1 to 16)]:value' \

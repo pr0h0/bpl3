@@ -357,6 +357,8 @@ Format BPL source files.
 
 - `-w, --write`: Write formatted output back to files
 - `--check`: Verify formatting without rewriting files
+- `--diff`: Like `--check`, and print a unified diff of the changes for each
+  unformatted file
 - `--json`: Output a machine-readable format-check report with `--check`
 
 **Examples:**
