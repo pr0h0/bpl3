@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl lint --fix` removes unused imports (L002) in place.
 - `Option` adds `expect`, `unwrapOrElse`, `map` and `andThen`; `Result` adds
   `expect`, `map`, `mapErr` and `ok`.
 - `Path.stem(path)` and `Path.withExtension(path, extension)` return a file

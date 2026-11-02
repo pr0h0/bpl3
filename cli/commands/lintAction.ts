@@ -64,7 +64,7 @@ export async function runLintCommand(
       LINT_NO_INPUTS_CODE,
     );
   }
-  const { CompilerError, createLintEngine, LINT_RULE_CODES } =
+  const { CompilerError, createLintEngine, fixSource, LINT_RULE_CODES } =
     await import("./lintEngine");
   const { loadLinterConfig } =
     await import("../../compiler/linter/LinterConfig");
@@ -127,7 +127,22 @@ export async function runLintCommand(
         hasErrors = true;
         continue;
       }
-      const errors = lintSource(content, sourcePath, projectDisabled);
+      let linted = content;
+      // --fix rewrites files; standard input has nowhere to write back to.
+      if (
+        options.fix &&
+        file !== "-" &&
+        !disabled.includes("L002") &&
+        !projectDisabled.includes("L002")
+      ) {
+        const fixed = fixSource(content, sourcePath);
+        if (fixed !== undefined) {
+          fs.writeFileSync(file, fixed);
+          linted = fixed;
+          if (!options.json) log.info(`Removed unused imports: ${file}`);
+        }
+      }
+      const errors = lintSource(linted, sourcePath, projectDisabled);
       if (errors.length > 0) {
         const fails =
           options.failOnWarnings !== false ||
