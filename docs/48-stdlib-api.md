@@ -726,8 +726,8 @@ it such as HOTP and TOTP: 64-byte block, 20-byte MACs.
 ### Otp (`std/otp.bpl`)
 
 One-time passwords as shown by authenticator apps: HOTP (RFC 4226) and TOTP
-(RFC 6238) with HMAC-SHA1. The key is the raw shared secret; a Base32 secret
-from a QR code must be decoded to bytes first. Codes are returned as integers,
+(RFC 6238) with HMAC-SHA1. The key is the raw shared secret; decode the Base32
+secret from a QR code with `Base32.decode` first. Codes are returned as integers,
 so print them with leading zeros (`%06d`). Digit counts other than 6 to 9, a
 nonpositive time step and a negative time return `-1`.
 
