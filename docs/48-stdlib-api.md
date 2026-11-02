@@ -404,6 +404,24 @@ outside the alphabets.
 - `Base64.decodeUrl(input: string, output: *u8) ret int`
 - `Base64.decodeUrlToString(input: string) ret string`
 
+### Base32 (`std/base32.bpl`)
+
+Base32 (RFC 4648 section 6), as used for TOTP secrets and case-insensitive
+identifiers. Encoding uses `A`-`Z` and `2`-`7` and pads with `=` to a multiple
+of eight characters; the result is caller-owned (`free(cast<*void>(result))`)
+or `nullptr` if allocation fails. Decoding accepts upper or lower case, with
+or without the padding, and refuses any other character, padding before the
+end, or a length that cannot come from whole bytes (a final group of 1, 3 or
+6 characters). `decode`, `decodedLength` and `isValid` run the same scan, so
+they agree; invalid input gives `-1`, `false` or `nullptr`.
+
+- `Base32.encode(data: *u8, length: long) ret string`
+- `Base32.encodeString(text: string) ret string`
+- `Base32.decode(input: string, output: *u8) ret long` — bytes written, or `-1`
+- `Base32.decodeToString(input: string) ret string` — owned, or `nullptr`
+- `Base32.decodedLength(input: string) ret long` — exact, or `-1`
+- `Base32.isValid(input: string) ret bool`
+
 ### Hex (`std/hex.bpl`)
 
 Hexadecimal encoding and decoding.

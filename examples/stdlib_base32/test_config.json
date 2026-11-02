@@ -1,0 +1,18 @@
+{
+  "expectedOutput": [
+    "'' ->  -> ''",
+    "'f' -> MY====== -> 'f'",
+    "'fo' -> MZXQ==== -> 'fo'",
+    "'foo' -> MZXW6=== -> 'foo'",
+    "'foob' -> MZXW6YQ= -> 'foob'",
+    "'fooba' -> MZXW6YTB -> 'fooba'",
+    "'foobar' -> MZXW6YTBOI====== -> 'foobar'",
+    "secret: 48 65 6c 6c 6f 21 de ad be ef",
+    "MZXW6===: valid 1, length 3",
+    "MZXW6: valid 1, length 3",
+    "MZXW6=: valid 0, length -1",
+    "MZ=XW6==: valid 0, length -1",
+    "MZXW1===: valid 0, length -1",
+    "M: valid 0, length -1"
+  ]
+}
