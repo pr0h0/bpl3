@@ -2160,6 +2160,8 @@ frame dirname(path: string) ret String
 frame basename(path: string) ret String
 frame isAbsolute(path: string) ret bool
 frame extname(path: string) ret String
+frame stem(path: string) ret String
+frame withExtension(path: string, extension: string) ret String
 frame normalize(path: string) ret String
 frame resolve(base: string, target: string) ret String
 frame relative(src: string, dest: string) ret String
