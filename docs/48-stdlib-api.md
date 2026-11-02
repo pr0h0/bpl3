@@ -100,6 +100,9 @@ ownership, hooks, supported types, and known failures.
   the level unchanged, when the variable is unset or unrecognized.
 - `Log.setPrefix(true)` starts each line with `[DEBUG] `, `[INFO] `,
   `[WARN] ` or `[ERROR] `.
+- `Log.setTimestamps(true)` starts each line with the current UTC time in
+  ISO 8601 with milliseconds, such as `2026-11-01T12:34:56.789Z `, before any
+  level prefix.
 - `Log.useStderr(true)` writes to standard error instead of standard output.
 
 By default every level is written to standard output without a prefix. The

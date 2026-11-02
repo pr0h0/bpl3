@@ -1720,6 +1720,7 @@ frame write(level: LogLevel, msg: string)
 frame setLevel(level: LogLevel)
 frame enabled(level: LogLevel) ret bool
 frame setPrefix(enabled: bool)
+frame setTimestamps(enabled: bool)
 frame useStderr(enabled: bool)
 frame levelFromEnv() ret bool
 ```

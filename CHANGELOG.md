@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `Log.setTimestamps(true)` starts each log line with the current UTC time in
+  ISO 8601 with milliseconds (`2026-11-01T12:34:56.789Z `).
 - `std/parse.bpl` adds checked parsing (`Parse.int`, `long`, `radix`, `float`
   and `bool`), which reports bad input and overflow instead of returning 0;
   `std` re-exports `Parse`.
