@@ -3,6 +3,7 @@
 export [StringUtils];
 
 import [String] from "std/string.bpl";
+import [Array] from "std/array.bpl";
 extern strlen(s: string) ret long;
 extern malloc(size: long) ret string;
 extern printf(fmt: string, ...) ret int;
@@ -49,6 +50,49 @@ struct StringUtils {
             i = i + 1;
         }
         return -1;
+    }
+
+    # The strings in `parts` joined with `separator` between them, as a new
+    # string the caller frees. A null part or separator counts as empty; an
+    # empty array gives an empty string. Throws if allocation fails.
+    frame join(parts: *Array<string>, separator: string) ret string {
+        local separatorLength: long = 0;
+        if (separator != nullptr) {
+            separatorLength = strlen(separator);
+        }
+        local total: long = 0;
+        loop (local i: int = 0; i < parts.len(); i = i + 1) {
+            local part: string = parts.get(i);
+            if (part != nullptr) {
+                total = total + strlen(part);
+            }
+            if (i > 0) {
+                total = total + separatorLength;
+            }
+        }
+        local output: string = malloc(total + 1);
+        if (output == nullptr) {
+            throw "StringUtils.join allocation failed";
+        }
+        local used: long = 0;
+        loop (local i: int = 0; i < parts.len(); i = i + 1) {
+            if (i > 0) {
+                loop (local k: long = 0; k < separatorLength; k = k + 1) {
+                    output[used] = separator[k];
+                    used = used + 1;
+                }
+            }
+            local part: string = parts.get(i);
+            if (part != nullptr) {
+                local partLength: long = strlen(part);
+                loop (local k: long = 0; k < partLength; k = k + 1) {
+                    output[used] = part[k];
+                    used = used + 1;
+                }
+            }
+        }
+        output[used] = cast<char>(0);
+        return output;
     }
 
     frame trim(s: string) ret String {

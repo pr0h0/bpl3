@@ -3210,6 +3210,10 @@ frame appendChar(this: *StringBuilder, ch: char)
 frame appendInt(this: *StringBuilder, value: int)
 frame clear(this: *StringBuilder)
 frame len(this: *StringBuilder) ret int
+frame appendLong(this: *StringBuilder, value: long)
+frame appendFloat(this: *StringBuilder, value: float)
+frame appendFixed(this: *StringBuilder, value: float, decimals: int)
+frame appendBool(this: *StringBuilder, value: bool)
 frame toString(this: *StringBuilder) ret string
 frame __lshift__(this: *StringBuilder, str: string) ret *StringBuilder
 ```
@@ -3231,6 +3235,7 @@ struct StringUtils
 frame startsWith(s: string, prefix: string) ret bool
 frame endsWith(s: string, suffix: string) ret bool
 frame find(s: string, ch: char) ret int
+frame join(parts: *Array<string>, separator: string) ret string
 frame trim(s: string) ret String
 frame replaceChar(s: string, target: char, repl: char) ret String
 frame findString(haystack: string, needle: string, start: int) ret int
