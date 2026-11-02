@@ -210,6 +210,9 @@ exitCode: int
 frame new() ret *ParsedArgs
 frame setFlag(this: *ParsedArgs, key: String, value: String)
 frame getFlag(this: *ParsedArgs, name: string) ret Option<*String>
+frame flagInt(this: *ParsedArgs, name: string, output: *int) ret bool
+frame flagLong(this: *ParsedArgs, name: string, output: *long) ret bool
+frame flagFloat(this: *ParsedArgs, name: string, output: *float) ret bool
 frame hasFlag(this: *ParsedArgs, name: string) ret bool
 frame getArg(this: *ParsedArgs, index: int) ret Option<*String>
 frame destroy(this: *ParsedArgs)
