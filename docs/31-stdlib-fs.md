@@ -9,22 +9,30 @@ import [FS], [File] from "std/fs.bpl";
 
 ## Available filesystem helpers
 
-| Method                                              | Current behavior                                                               |
-| --------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `FS.exists(path: string) ret bool`                  | Checks native metadata without opening the file; follows symlinks              |
-| `FS.stat(path: string) ret FileInfo`                | Checked metadata for the resolved target; follows symlinks                     |
-| `FS.lstat(path: string) ret FileInfo`               | Checked metadata using native `lstat`; can inspect a symlink itself            |
-| `FS.writeFile(path: string, data: string) ret bool` | Opens with `"wb"`, writes NUL-terminated text, then closes                     |
-| `FS.readFile(path: string) ret String`              | Reads a stream into an owned String; native failures throw `IOError`           |
-| `FS.mkdir(path: string) ret bool`                   | Calls POSIX `mkdir(path, 511)`; false includes already-existing directories    |
-| `FS.mkdirp(path: string) ret bool`                  | Creates missing directories; checks errors and existing directory types        |
-| `FS.listDir(path: string) ret Array<String>`        | Owned entry names excluding `.` and `..`; empty array on failure               |
-| `FS.listDirChecked(path: string) ret Array<String>` | Same names; throws `IOError` on open, read, close, size, or allocation failure |
+| Method                                                   | Current behavior                                                                    |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `FS.exists(path: string) ret bool`                       | Checks native metadata without opening the file; follows symlinks                   |
+| `FS.stat(path: string) ret FileInfo`                     | Checked metadata for the resolved target; follows symlinks                          |
+| `FS.lstat(path: string) ret FileInfo`                    | Checked metadata using native `lstat`; can inspect a symlink itself                 |
+| `FS.writeFile(path: string, data: string) ret bool`      | Opens with `"wb"`, writes NUL-terminated text, then closes                          |
+| `FS.readFile(path: string) ret String`                   | Reads a stream into an owned String; native failures throw `IOError`                |
+| `FS.mkdir(path: string) ret bool`                        | Calls POSIX `mkdir(path, 511)`; false includes already-existing directories         |
+| `FS.mkdirp(path: string) ret bool`                       | Creates missing directories; checks errors and existing directory types             |
+| `FS.listDir(path: string) ret Array<String>`             | Owned entry names excluding `.` and `..`; empty array on failure                    |
+| `FS.listDirChecked(path: string) ret Array<String>`      | Same names; throws `IOError` on open, read, close, size, or allocation failure      |
+| `FS.appendFile(path: string, data: string) ret bool`     | Opens with `"ab"` (creating the file), appends the text, checks the write and close |
+| `FS.copyFile(fromPath: string, toPath: string) ret bool` | Copies the bytes, replacing `toPath`; false for the same file or any I/O failure    |
+| `FS.rename(fromPath: string, toPath: string) ret bool`   | C `rename`: moves within a file system, replacing an existing file                  |
+| `FS.remove(path: string) ret bool`                       | C `remove`: deletes a file or an empty directory                                    |
 
-There are no `FS.appendFile`, `deleteFile`, `copyFile`, `isDir`, or `fileSize`
-methods. For append, open a `File` with mode `"a"`. Inspect `FS.stat(path).isDir`
-and `.size` for directory classification and native file size. Deletion and
-copying require appropriate native APIs or additional application code.
+There are no `isDir` or `fileSize` methods: inspect `FS.stat(path).isDir` and
+`.size` for directory classification and native file size.
+
+`copyFile` refuses to copy a file onto itself, even through a different path,
+because opening the destination truncates it; it compares both paths with
+`realpath`. A failed copy can leave part of the data at `toPath`. `rename` fails
+across file systems; copy and remove instead. `remove` does not delete
+directories that still contain entries. Null paths make all four return false.
 
 `exists` checks metadata with POSIX `stat` without opening or reading the file.
 It recognizes directories and special files, including named pipes without a

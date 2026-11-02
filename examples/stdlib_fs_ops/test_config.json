@@ -1,0 +1,22 @@
+{
+  "expectedOutput": [
+    "write 1",
+    "append 1 1",
+    "a: [one two three]",
+    "append new 1",
+    "new: [fresh]",
+    "copy 1",
+    "b: [one two three]",
+    "copy onto itself 0",
+    "a after self copy: [one two three]",
+    "copy missing 0",
+    "rename 1",
+    "b after rename: missing",
+    "c: [one two three]",
+    "remove 1 1 1",
+    "remove missing 0",
+    "a after remove: missing",
+    "remove dir 1",
+    "dir exists 0"
+  ]
+}
