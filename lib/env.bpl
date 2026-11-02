@@ -10,6 +10,127 @@ extern free(ptr: *void) ret void;
 extern strlen(str: string) ret long;
 extern strcpy(dest: string, src: string) ret string;
 extern atoi(str: string) ret int;
+extern __bpl_read_file(path: string, data: *string, length: *int) ret int;
+
+import [Array] from "std/array.bpl";
+import [StringBuilder] from "std/string_builder.bpl";
+
+# Whether `c` may appear in a dotenv key (`first` for its first character).
+frame envKeyChar(c: char, first: bool) ret bool {
+    local code: int = cast<int>(cast<u8>(c));
+    local letter: bool = ((code >= 65) && (code <= 90)) || ((code >= 97) && (code <= 122)) || (code == 95);
+    if (first) {
+        return letter;
+    }
+    return letter || ((code >= 48) && (code <= 57)) || (code == 46);
+}
+
+frame envSpace(c: char) ret bool {
+    return (c == ' ') || (c == '\t');
+}
+
+# Copies bytes `start` to `end` of `text` into a new string.
+frame envCopy(text: string, start: int, end: int) ret string {
+    local output: string = cast<string>(malloc(cast<long>((end - start) + 1)));
+    if (output == nullptr) {
+        throw "Env.loadFile allocation failed";
+    }
+    loop (local i: int = start; i < end; i = i + 1) {
+        output[i - start] = text[i];
+    }
+    output[end - start] = cast<char>(0);
+    return output;
+}
+
+# Parses the dotenv line `text[start..end)` into `keys` and `values`.
+# Returns false for a malformed line; blank and comment lines add nothing.
+frame envParseLine(text: string, start: int, end: int, keys: *Array<string>, values: *Array<string>) ret bool {
+    local at: int = start;
+    loop ((at < end) && envSpace(text[at])) {
+        at = at + 1;
+    }
+    if ((at == end) || (text[at] == '#')) {
+        return true;
+    }
+    # An optional `export ` prefix, as in shell scripts.
+    if (((at + 7) <= end) && (text[at] == 'e') && (text[at + 1] == 'x') && (text[at + 2] == 'p') && (text[at + 3] == 'o') && (text[at + 4] == 'r') && (text[at + 5] == 't') && envSpace(text[at + 6])) {
+        at = at + 7;
+        loop ((at < end) && envSpace(text[at])) {
+            at = at + 1;
+        }
+    }
+    local keyStart: int = at;
+    if ((at == end) || !envKeyChar(text[at], true)) {
+        return false;
+    }
+    loop ((at < end) && envKeyChar(text[at], false)) {
+        at = at + 1;
+    }
+    local keyEnd: int = at;
+    loop ((at < end) && envSpace(text[at])) {
+        at = at + 1;
+    }
+    if ((at == end) || (text[at] != '=')) {
+        return false;
+    }
+    at = at + 1;
+    loop ((at < end) && envSpace(text[at])) {
+        at = at + 1;
+    }
+    local value: string = nullptr;
+    if ((at < end) && ((text[at] == '"') || (text[at] == 39))) {
+        local quote: char = text[at];
+        local builder: StringBuilder = StringBuilder.new(16);
+        at = at + 1;
+        local closed: bool = false;
+        loop (at < end) {
+            local c: char = text[at];
+            if (c == quote) {
+                closed = true;
+                at = at + 1;
+                break;
+            }
+            if ((quote == '"') && (c == '\\') && ((at + 1) < end)) {
+                local next: char = text[at + 1];
+                if (next == 'n') {
+                    builder.appendChar('\n');
+                } else if (next == 't') {
+                    builder.appendChar('\t');
+                } else {
+                    builder.appendChar(next);
+                }
+                at = at + 2;
+                continue;
+            }
+            builder.appendChar(c);
+            at = at + 1;
+        }
+        # After the closing quote only spaces and a comment may follow.
+        loop ((at < end) && envSpace(text[at])) {
+            at = at + 1;
+        }
+        if (!closed || ((at < end) && (text[at] != '#'))) {
+            builder.destroy();
+            return false;
+        }
+        local built: string = builder.toString();
+        value = envCopy(built, 0, cast<int>(strlen(built)));
+        builder.destroy();
+    } else {
+        # Unquoted: up to ` #` or the end of the line, without trailing spaces.
+        local valueEnd: int = at;
+        loop ((valueEnd < end) && !((text[valueEnd] == '#') && (valueEnd > at) && envSpace(text[valueEnd - 1]))) {
+            valueEnd = valueEnd + 1;
+        }
+        loop ((valueEnd > at) && envSpace(text[valueEnd - 1])) {
+            valueEnd = valueEnd - 1;
+        }
+        value = envCopy(text, at, valueEnd);
+    }
+    keys.push(envCopy(text, keyStart, keyEnd));
+    values.push(value);
+    return true;
+}
 
 struct EnvVar {
     name: string,
@@ -46,6 +167,62 @@ struct Env {
 
     # Set an environment variable only if it doesn't exist
     # Returns true on success (including if already set)
+    /#
+    Loads `KEY=value` lines from the dotenv file at `path` into the process
+    environment and returns how many variables were set. Blank lines and `#`
+    comments are skipped, `export ` before a key is allowed, and a value may
+    be unquoted (an inline ` #` starts a comment; surrounding spaces are
+    removed), single-quoted (taken literally) or double-quoted (`\n`, `\t`,
+    `\"` and `\\` escapes). Variables that are already set are kept unless
+    `overrideExisting` is true. Returns -1, setting nothing, when the file
+    cannot be read or a line is malformed.
+    #/
+    frame loadFile(path: string, overrideExisting: bool) ret int {
+        local text: string = nullptr;
+        local length: int = 0;
+        if ((path == nullptr) || (__bpl_read_file(path, &text, &length) != 0)) {
+            return -1;
+        }
+        local keys: Array<string> = Array<string>.new(8);
+        local values: Array<string> = Array<string>.new(8);
+        local valid: bool = true;
+        local lineStart: int = 0;
+        loop (local i: int = 0; i <= length; i = i + 1) {
+            if ((i == length) || (text[i] == '\n')) {
+                local lineEnd: int = i;
+                if ((lineEnd > lineStart) && (text[lineEnd - 1] == '\r')) {
+                    lineEnd = lineEnd - 1;
+                }
+                if (!envParseLine(text, lineStart, lineEnd, &keys, &values)) {
+                    valid = false;
+                    break;
+                }
+                lineStart = i + 1;
+            }
+        }
+        local count: int = 0;
+        loop (local k: int = 0; k < keys.len(); k = k + 1) {
+            if (valid) {
+                # setenv without overwrite succeeds without setting, so a
+                # variable that is already set is skipped and not counted.
+                if (overrideExisting || !Env.has(keys.get(k))) {
+                    if (Env.set(keys.get(k), values.get(k))) {
+                        count = count + 1;
+                    }
+                }
+            }
+            free(cast<*void>(keys.get(k)));
+            free(cast<*void>(values.get(k)));
+        }
+        keys.destroy();
+        values.destroy();
+        free(cast<*void>(text));
+        if (!valid) {
+            return -1;
+        }
+        return count;
+    }
+
     frame setIfAbsent(name: string, value: string) ret bool {
         if ((name == nullptr) || (value == nullptr)) {
             return false;

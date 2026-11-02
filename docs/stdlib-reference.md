@@ -1038,6 +1038,7 @@ struct Env
 frame get(name: string) ret string
 frame getOr(name: string, defaultValue: string) ret string
 frame set(name: string, value: string) ret bool
+frame loadFile(path: string, overrideExisting: bool) ret int
 frame setIfAbsent(name: string, value: string) ret bool
 frame unset(name: string) ret bool
 frame has(name: string) ret bool
