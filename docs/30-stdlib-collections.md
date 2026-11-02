@@ -98,6 +98,11 @@ if (s.has(10)) {
 s.destroy();
 ```
 
+`s.isEmpty()` reports whether the set has no elements, and
+`s.isSubsetOf(&other)` whether every element is also in `other` (the empty set
+is a subset of every set). `s.toArray()` returns a new array of the elements,
+in iteration order, that the caller destroys.
+
 ## Stack<T>
 
 A Last-In-First-Out (LIFO) data structure.

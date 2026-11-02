@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `Set` adds `isEmpty()`, `isSubsetOf(&other)` and `toArray()`.
 - `bpl lint` reads `disable` from the nearest `.bpllint.json` (schema
   `schemas/bpl-lint.schema.json`) and combines it with `--disable`.
 - `FS` adds `appendFile`, `copyFile` (which refuses to copy a file onto

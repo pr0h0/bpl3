@@ -2772,6 +2772,9 @@ frame has(this: *Set<T>, value: T) ret bool
 frame remove(this: *Set<T>, value: T) ret bool
 frame size(this: *Set<T>) ret int
 frame clear(this: *Set<T>)
+frame isEmpty(this: *Set<T>) ret bool
+frame isSubsetOf(this: *Set<T>, other: *Set<T>) ret bool
+frame toArray(this: *Set<T>) ret Array<T>
 frame union(this: *Set<T>, other: *Set<T>) ret Set<T>
 frame difference(this: *Set<T>, other: *Set<T>) ret Set<T>
 frame intersection(this: *Set<T>, other: *Set<T>) ret Set<T>
