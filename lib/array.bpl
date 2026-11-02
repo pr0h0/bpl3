@@ -277,6 +277,69 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
         return result;
     }
 
+    # Sorts the elements in place with `compare`, which returns a negative
+    # number, zero or a positive number when its first argument belongs
+    # before, with, or after its second. The sort is stable (equal elements
+    # keep their order) and takes O(n log n) comparisons with one temporary
+    # buffer. If `compare` throws, the buffer is released and the elements
+    # are left in an unspecified order.
+    frame sortBy(this: *Array<T>, compare: Lambda<int>(T, T)) {
+        local n: int = this.length;
+        if (n < 2) {
+            return;
+        }
+        local bytes: long = cast<long>(n) * sizeof<T>();
+        local scratch: *T = cast<*T>(malloc(bytes));
+        if (scratch == nullptr) {
+            throw "Array sort allocation failed";
+        }
+        defer free(cast<*void>(scratch));
+        # Bottom-up merge sort: merge runs of `width` into `scratch`, then
+        # copy them back.
+        local width: int = 1;
+        loop (width < n) {
+            local low: int = 0;
+            loop (low < n) {
+                local middle: int = low + width;
+                if (middle > n) {
+                    middle = n;
+                }
+                local high: int = middle + width;
+                if (high > n) {
+                    high = n;
+                }
+                local left: int = low;
+                local right: int = middle;
+                local out: int = low;
+                loop ((left < middle) && (right < high)) {
+                    # Take the right element only when it is strictly smaller,
+                    # which keeps equal elements in order.
+                    if (compare(this.data[right], this.data[left]) < 0) {
+                        scratch[out] = this.data[right];
+                        right = right + 1;
+                    } else {
+                        scratch[out] = this.data[left];
+                        left = left + 1;
+                    }
+                    out = out + 1;
+                }
+                loop (left < middle) {
+                    scratch[out] = this.data[left];
+                    left = left + 1;
+                    out = out + 1;
+                }
+                loop (right < high) {
+                    scratch[out] = this.data[right];
+                    right = right + 1;
+                    out = out + 1;
+                }
+                low = high;
+            }
+            memcpy(cast<*void>(this.data), cast<*void>(scratch), bytes);
+            width = width * 2;
+        }
+    }
+
     # Reduces the array to a single value using a reducer function
     frame reduce<U>(this: *Array<T>, initial: U, reducer: Lambda<U>(U, T, int)) ret U {
         local accumulator: U = initial;
