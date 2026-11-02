@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "descending: 9 8 5 5 3 1 0 -2 -7",
+    "words: apple banana fig pear",
+    "tasks: test(1) plan(1) write(2) review(2) ship(3)",
+    "1000 values match sortAsc: 1",
+    "comparator threw: no comparison",
+    "single: 4, empty sort ok"
+  ]
+}

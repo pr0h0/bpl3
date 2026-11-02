@@ -294,6 +294,7 @@ frame isEmpty(this: *Array<T>) ret bool
 frame removeAt(this: *Array<T>, index: int)
 frame map<U>(this: *Array<T>, transform: Lambda<U>(T, int)) ret Array<U>
 frame filter(this: *Array<T>, predicate: Lambda<bool>(T, int)) ret Array<T>
+frame sortBy(this: *Array<T>, compare: Lambda<int>(T, T))
 frame reduce<U>(this: *Array<T>, initial: U, reducer: Lambda<U>(U, T, int)) ret U
 frame forEach(this: *Array<T>, action: Lambda<void>(T, int))
 frame find(this: *Array<T>, predicate: Lambda<bool>(T)) ret Option<T>
