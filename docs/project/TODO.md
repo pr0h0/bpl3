@@ -151,6 +151,16 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
 - [ ] [5] More lint rules beyond naming, unused imports, unused private
       functions, constant conditions, self-assignment, self-comparison,
       duplicate conditions, empty branches and overwritten values.
+- [ ] [5] Rewrite the playground frontend from scratch: the scratch editor and
+      the tutorials (`playground/frontend/`, `playground/tutorials/`). It should
+      look and read like an ordinary learning platform, with plain headings and
+      restrained styling, not an AI-generated course. Drop most emojis from
+      the UI and lessons. Lesson text is Markdown, but `tutorial.js` renders it
+      with a small regex converter that handles no tables, so tables such as
+      the integer-types reference in lesson 02 show as raw `| Type | Bits |`
+      text. Use a real Markdown renderer or move lessons to structured
+      content. Review all 26 lessons against the current language and fix the
+      prose, text contrast and layout.
 
 ### Language and library extensions
 
