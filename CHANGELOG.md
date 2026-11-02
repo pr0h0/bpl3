@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `StringBuilder` adds `appendLong`, `appendFloat`, `appendFixed` and
+  `appendBool`, and `StringUtils.join` joins an array of strings.
 - A reserved word used as a struct field, lambda parameter or enum variant
   name is reported at the name (BUG-478).
 - A reserved word used as a struct field or lambda parameter name is reported

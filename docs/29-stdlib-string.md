@@ -167,6 +167,19 @@ Their direct allocations throw `"StringUtils.trim allocation failed"` or
 `"StringUtils.replaceChar allocation failed"` on failure; an empty trim result
 uses `String.new` and its allocation error.
 
+`StringUtils.join(&parts, separator)` joins an `Array<string>` with `separator`
+between the parts and returns a new C string the caller frees; a null part or
+separator counts as empty, and an empty array gives `""`.
+
+## StringBuilder appends
+
+Besides `append`, `appendChar`, `appendString` and `appendInt`, a
+`StringBuilder` formats other values in place: `appendLong(value)` in decimal,
+`appendFloat(value)` in its shortest `%g` form (`0.25`, `1e+20`, `inf`),
+`appendFixed(value, decimals)` with exactly `decimals` digits after the point
+(clamped to 0 to 17; halves round to even, as in C's `printf`), and
+`appendBool(value)` as `true` or `false`.
+
 ## Concatenation failures
 
 `+` and `<<` reject a combined length above 2,147,483,646 bytes with

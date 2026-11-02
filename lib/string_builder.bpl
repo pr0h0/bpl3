@@ -8,6 +8,7 @@ extern memcpy(dest: *void, src: *void, n: long) ret *void;
 extern strlen(s: string) ret long;
 extern strcpy(dst: string, src: string) ret string;
 extern strcat(dst: string, src: string) ret string;
+extern snprintf(dst: string, size: long, format: string, ...) ret int;
 
 import [String] from "std/string.bpl";
 
@@ -223,6 +224,45 @@ struct StringBuilder {
     /#
         Borrows the current buffer. Growth or destruction invalidates it.
     #/
+    # Appends a `long` in decimal.
+    frame appendLong(this: *StringBuilder, value: long) {
+        local digits: char[24];
+        snprintf(cast<string>(&digits[0]), 24, "%ld", value);
+        this.append(cast<string>(&digits[0]));
+    }
+
+    # Appends a floating-point value in its shortest `%g` form (`0.25`,
+    # `1e+20`, `inf`, `nan`).
+    frame appendFloat(this: *StringBuilder, value: float) {
+        local text: char[32];
+        snprintf(cast<string>(&text[0]), 32, "%g", value);
+        this.append(cast<string>(&text[0]));
+    }
+
+    # Appends a floating-point value with exactly `decimals` digits after the
+    # point (0 to 17), rounded; other counts are clamped to that range.
+    frame appendFixed(this: *StringBuilder, value: float, decimals: int) {
+        if (decimals < 0) {
+            decimals = 0;
+        }
+        if (decimals > 17) {
+            decimals = 17;
+        }
+        # The largest double has 309 integer digits.
+        local text: char[352];
+        snprintf(cast<string>(&text[0]), 352, "%.*f", decimals, value);
+        this.append(cast<string>(&text[0]));
+    }
+
+    # Appends `true` or `false`.
+    frame appendBool(this: *StringBuilder, value: bool) {
+        if (value) {
+            this.append("true");
+        } else {
+            this.append("false");
+        }
+    }
+
     frame toString(this: *StringBuilder) ret string {
         return this.buffer;
     }
