@@ -888,6 +888,24 @@ and points at it: `'from' is a reserved word and cannot be used as a name`.
 the parser by exact constant numbers, so the refinement is made where
 recovery errors become compiler errors.
 
+#### BUG-477: A reserved name in a struct's later method is still reported at the struct
+
+**Status**: Fixed · **Priority**: P3
+
+Found while adding `FS.copyFile(from, to)` (2026-11-02). The BUG-476 refinement
+only searched the text of the recovery error, and for a struct that span can
+end inside its first method. A reserved parameter name in a later method, such
+as `frame copy(from: string, to: string)` after another method, was therefore
+still reported as `Unexpected syntax: 'struct ...'` at the struct's first line.
+
+**Resolution**: when the recovery span opens a block, the reserved-name search
+continues to the `}` that closes it, skipping braces in strings, character
+literals and comments. A statement's span opens no block and is not extended,
+so a syntax error in one function is not replaced by a reserved name in the
+next declaration. `tests/ReservedNameDiagnostics.test.ts` covers a reserved
+name in a later method (with braces in a string and a comment before it) and
+the unextended statement error.
+
 ## Generated-program fuzzer findings (2026-10-29)
 
 Found by the oracle fuzzer (`fuzz/programGenerator.ts`, see
