@@ -1,6 +1,7 @@
 import printf from "std/c.bpl";
 import [Otp] from "std/otp.bpl";
 import [HmacSha1] from "std/hmac.bpl";
+import [Base32] from "std/base32.bpl";
 
 frame main() ret int {
     # RFC 4226 appendix D: secret "12345678901234567890", counters 0 to 9.
@@ -25,6 +26,11 @@ frame main() ret int {
     # The current code with the usual 6 digits and 30-second step.
     local now: int = Otp.totp(secret, 20);
     printf("current code in range: %d\n", cast<int>((now >= 0) && (now < 1000000)));
+
+    # An authenticator secret is shown as Base32; decode it to bytes first.
+    local qrKey: u8[32];
+    local qrKeyLength: long = Base32.decode("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", &qrKey[0]);
+    printf("base32 secret: %ld bytes, totp 59 %06d\n", qrKeyLength, Otp.totpAt(&qrKey[0], qrKeyLength, 59, 30, 6));
 
     # RFC 2202 test case 2 for HMAC-SHA1.
     local mac: u8[20];
