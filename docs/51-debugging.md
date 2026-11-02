@@ -23,7 +23,9 @@ Location: line 42, column 15
 The runtime detects:
 
 - **NULL pointer access** - with expression and location info
-- **Index out of bounds** - with index and array size
+- **Index out of bounds** - with index and array size; `Array` methods throw
+  `IndexOutOfBoundsError` with a message such as
+  `Index 5 out of bounds for length 1`
 - **Division by zero** - with function context
 - **Stack overflow** - when debug/depth-tracked builds exceed 10,000 BPL
   frames, or O3 native builds cross their generated stack-limit probe

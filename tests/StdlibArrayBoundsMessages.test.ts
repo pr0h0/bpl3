@@ -26,7 +26,7 @@ test("Array bounds errors include their message and preserve index metadata", ()
           local caught${i}_${j}: bool = false;
           try { ${operation.replace("INDEX", String(index))}; }
           catch (error: IndexOutOfBoundsError) {
-            caught${i}_${j} = error.message != nullptr && strcmp(error.message, "Index out of bounds") == 0 && error.index == ${index} && error.size == 2;
+            caught${i}_${j} = error.message != nullptr && strcmp(error.message, "Index ${index} out of bounds for length 2") == 0 && error.index == ${index} && error.size == 2;
           }
           if (!caught${i}_${j}) { return 1; }
         `,
