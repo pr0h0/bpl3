@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `bpl lint` reads `disable` from the nearest `.bpllint.json` (schema
+  `schemas/bpl-lint.schema.json`) and combines it with `--disable`.
 - `FS` adds `appendFile`, `copyFile` (which refuses to copy a file onto
   itself), `rename` and `remove`.
 - `JSON.pretty(text, indent)` re-indents JSON text and `JSON.minify(text)`

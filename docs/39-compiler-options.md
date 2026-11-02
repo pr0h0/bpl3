@@ -433,6 +433,22 @@ bpl lint --json src/*.bpl
 bpl lint --disable L001,L008 src/
 ```
 
+A project can disable rules for every run in a `.bpllint.json` file; `bpl lint`
+uses the nearest one in the linted file's directory or a parent directory, and
+`--disable` adds to it:
+
+```json
+{
+  "$schema": "./schemas/bpl-lint.schema.json",
+  "disable": ["L001", "L008"]
+}
+```
+
+`disable` is the only setting, and codes may use either case. An unknown
+setting or rule code, or invalid JSON, fails that file with
+`BPL_LINT_PROCESSING_ERROR` and a message naming the configuration file. The
+schema ships as `schemas/bpl-lint.schema.json`.
+
 ### `bpl test [paths...]`
 
 Run tests. Test files are the `*_test.bpl` sources under the given files and
