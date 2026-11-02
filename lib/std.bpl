@@ -236,9 +236,13 @@ export [Regex];
 import [BigInt] from "std/bigint.bpl";
 export [BigInt];
 
-import [Hmac], [HmacSha512] from "std/hmac.bpl";
+import [Hmac], [HmacSha512], [HmacSha1] from "std/hmac.bpl";
 export [Hmac];
 export [HmacSha512];
+export [HmacSha1];
+
+import [Otp] from "std/otp.bpl";
+export [Otp];
 
 import [Entropy] from "std/entropy.bpl";
 export [Entropy];
