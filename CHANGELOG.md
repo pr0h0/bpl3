@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `Duration.format()` writes a duration as text such as `450ms`, `1.5s` or
+  `1h2m3.456s`.
+
 - `std/sha1.bpl` adds SHA-1 digests (`Sha1`, also exported by `std`) with the
   same interface as `Sha256`, for protocols that require SHA-1 such as the
   WebSocket handshake.

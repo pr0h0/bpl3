@@ -66,6 +66,13 @@ local min: long = d1.toMinutes(); # Get minutes
 local hrs: long = d1.toHours();   # Get hours
 ```
 
+`d.format()` returns the duration as text in the style of Go's
+`time.Duration`: `0s`; milliseconds under a second (`450ms`); otherwise
+seconds with any fraction, trailing zeros removed (`1.5s`), preceded by
+minutes and hours once they are non-zero (`2m3s`, `1h0m0s`, `25h1m1.25s`);
+and a leading `-` when negative. The string is caller-owned
+(`free(cast<*void>(text))`), or `nullptr` if allocation fails.
+
 **Arithmetic:**
 
 ```bpl

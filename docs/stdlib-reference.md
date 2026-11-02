@@ -3276,6 +3276,7 @@ frame fromMs(ms: long) ret Duration
 frame fromSeconds(sec: long) ret Duration
 frame fromMinutes(min: long) ret Duration
 frame fromHours(hours: long) ret Duration
+frame format(this: *Duration) ret string
 frame toMs(this: *Duration) ret long
 frame toSeconds(this: *Duration) ret long
 frame toMinutes(this: *Duration) ret long
