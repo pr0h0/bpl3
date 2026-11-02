@@ -927,6 +927,23 @@ declaration a reserved word after `{` or `,` that is followed by `,`, `(`, `{`
 or `}` is reported as a variant name (`enum E { A, match }`, `return { x: int
 }`).
 
+#### BUG-479: A missing member on a primitive names the internal wrapper type
+
+**Status**: Fixed · **Priority**: P3
+
+Found while probing diagnostics (2026-11-02). Member access on a primitive
+looks up methods on a wrapper struct (`int` uses `Int`, `float` uses
+`Double`), and when the member did not exist the error named that wrapper:
+`Cannot access member 'len' on type 'Int'`. Other diagnostics show the same
+value's type as `i32`, so one variable appeared under two names, one of
+which the program never mentions.
+
+**Resolution**: the member-not-found error formats the type of the
+expression as written instead of the wrapper used for the lookup, giving
+`'i32'`, `'double'`, `'bool'` and `'i8'` like other diagnostics. Struct and
+pointer receivers were never mapped and read as before.
+`tests/MemberErrorTypeName.test.ts` covers four primitives and a struct.
+
 ## Generated-program fuzzer findings (2026-10-29)
 
 Found by the oracle fuzzer (`fuzz/programGenerator.ts`, see
