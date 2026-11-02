@@ -865,6 +865,18 @@ These APIs are not a portable Windows environment abstraction.
 - `Env.getInt(name: string, defaultValue: int) ret int` — optional sign followed by decimal digits; missing, empty, malformed, or out-of-range values return the default
 - `Env.getBool(name: string, defaultValue: bool) ret bool` — accepts exactly `1`/`0`, `true`/`false`, `yes`/`no`, or `on`/`off` (words ignore case); otherwise returns the default
 
+**Dotenv files:**
+
+- `Env.loadFile(path: string, overrideExisting: bool) ret int` — loads
+  `KEY=value` lines into the environment and returns how many variables were
+  set, or `-1` (setting nothing) when the file cannot be read or a line is
+  malformed. Blank lines and `#` comments are skipped and `export ` before a
+  key is allowed. Keys are letters, digits, `_` and `.`, not starting with a
+  digit. A value is unquoted (an inline ` #` starts a comment and surrounding
+  spaces are dropped), single-quoted (literal) or double-quoted (with `\n`,
+  `\t`, `\"` and `\\` escapes); values span one line. Variables already
+  set are kept unless `overrideExisting` is true.
+
 ---
 
 ## Date/Time
