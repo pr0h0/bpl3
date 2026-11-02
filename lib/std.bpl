@@ -205,6 +205,9 @@ export [Url];
 import [Base32] from "std/base32.bpl";
 export [Base32];
 
+import [Parse] from "std/parse.bpl";
+export [Parse];
+
 import [Hex] from "std/hex.bpl";
 export [Hex];
 

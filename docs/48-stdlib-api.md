@@ -359,6 +359,23 @@ decoders return `nullptr` for a `%` without two hex digits after it and for
 - `Url.decode(text: string) ret string`
 - `Url.decodeForm(text: string) ret string`
 
+### Parse (`std/parse.bpl`)
+
+Checked parsing of numbers and booleans, for arguments, environment variables
+and configuration where `atoi` would silently return 0. Each function parses
+the whole text, with no surrounding whitespace, and on success stores the
+value and returns `true`; empty or null text, a stray character or an
+out-of-range value returns `false` and leaves the destination unchanged.
+
+- `Parse.int(text: string, output: *int) ret bool` — decimal, optional sign
+- `Parse.long(text: string, output: *long) ret bool` — decimal, optional sign
+- `Parse.radix(text: string, base: int, output: *long) ret bool` — base 2 to
+  36, letters in either case; base 16, 8 and 2 also accept a `0x`, `0o` or
+  `0b` prefix after the sign
+- `Parse.float(text: string, output: *float) ret bool` — anything `strtod`
+  reads, including exponents, hexadecimal floats, `inf` and `nan`
+- `Parse.bool(text: string, output: *bool) ret bool` — `true` or `false`
+
 ### Base64 (`std/base64.bpl`)
 
 Base64 encoding and decoding.

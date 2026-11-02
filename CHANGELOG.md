@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `std/parse.bpl` adds checked parsing (`Parse.int`, `long`, `radix`, `float`
+  and `bool`), which reports bad input and overflow instead of returning 0;
+  `std` re-exports `Parse`.
 - `Date.tryParse` and `DateTime.tryParse` parse ISO 8601 dates and date-times
   (fractional seconds, `Z` and numeric offsets, which convert to UTC).
 - `std/base32.bpl` adds RFC 4648 Base32 (`Base32`, also exported by `std`):

@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 74 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 75 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -59,6 +59,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/memory/stack_allocator.bpl](../lib/memory/stack_allocator.bpl)
 - [std/memory/syscalls.bpl](../lib/memory/syscalls.bpl)
 - [std/option.bpl](../lib/option.bpl)
+- [std/parse.bpl](../lib/parse.bpl)
 - [std/path.bpl](../lib/path.bpl)
 - [std/primitives.bpl](../lib/primitives.bpl)
 - [std/priority_queue.bpl](../lib/priority_queue.bpl)
@@ -2061,6 +2062,29 @@ frame __ne__(this: *Option<T>, other: *Option<T>) ret bool
 frame clone(this: *Option<T>) ret Option<T>
 ```
 
+## std/parse.bpl
+
+[Source](../lib/parse.bpl)
+
+Exports:
+
+```bpl
+export [Parse];
+```
+
+### Parse
+
+```bpl
+struct Parse
+frame int(text: string, output: *int) ret bool
+frame long(text: string, output: *long) ret bool
+frame radix(text: string, base: int, output: *long) ret bool
+frame float(text: string, output: *float) ret bool
+frame bool(text: string, output: *bool) ret bool
+frame startsFloat(c: char) ret bool
+frame digitValue(c: char) ret int
+```
+
 ## std/path.bpl
 
 [Source](../lib/path.bpl)
@@ -3017,6 +3041,7 @@ export [BitSet];
 export [Base64];
 export [Url];
 export [Base32];
+export [Parse];
 export [Hex];
 export [ByteReader];
 export [ByteWriter];
