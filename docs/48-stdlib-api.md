@@ -847,6 +847,14 @@ a `T` separator but does not add a timezone suffix or normalize expanded years
 to an interchange standard. All formatting buffers accommodate every stored
 `int` value. `formatSep(0)` omits separators. Allocation failure throws a string.
 
+`Date.tryParse(text, &date)` reads exactly `YYYY-MM-DD`.
+`DateTime.tryParse(text, &dateTime)` reads `YYYY-MM-DD`, a `T`, `t` or space,
+`HH:MM:SS`, optional fractional seconds (ignored), and an optional `Z` or
+`+HH:MM`, `-HH:MM` or `+HHMM` offset; with an offset the result is converted
+to UTC, and without one the fields are kept as written. Both return false and
+leave the destination unchanged for other text or an impossible date or time
+(`2026-02-30`, `24:00:00`).
+
 `dayOfYear()`, `dayOfWeek()`, and `weekOfYear()` reject invalid dates with string
 exceptions. Weekdays use Sunday = 0 through Saturday = 6. ISO week numbers range
 from 1 to 53; an early-January or late-December date can belong to the adjacent
@@ -865,6 +873,7 @@ not change their inputs.
 - `Date.new(year: int, month: int, day: int) ret Date`
 - `Date.today() ret Date` - Current date (UTC)
 - `Date.fromTimestamp(timestamp: long) ret Date`
+- `Date.tryParse(text: string, output: *Date) ret bool` - Parse `YYYY-MM-DD`
 
 **Conversion:**
 
@@ -903,6 +912,8 @@ the same rules as Date. Operations return new values without mutating the input.
 - `DateTime.new(year, month, day, hour, minute, second: int) ret DateTime`
 - `DateTime.now() ret DateTime` - Current date/time (UTC)
 - `DateTime.fromTimestamp(timestamp: long) ret DateTime`
+- `DateTime.tryParse(text: string, output: *DateTime) ret bool` - Parse ISO 8601
+  date and time; offsets convert to UTC
 
 **Properties:**
 

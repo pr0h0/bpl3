@@ -816,6 +816,7 @@ frame addYears(this: *Date, years: int) ret Date
 frame diffDays(this: *Date, other: *Date) ret int
 frame diffDaysLong(this: *Date, other: *Date) ret long
 frame isValid(this: *Date) ret bool
+frame tryParse(text: string, output: *Date) ret bool
 frame format(this: *Date) ret string
 frame formatSep(this: *Date, sep: u8) ret string
 frame compare(this: *Date, other: *Date) ret int
@@ -854,6 +855,7 @@ frame addMonths(this: *DateTime, months: int) ret DateTime
 frame addYears(this: *DateTime, years: int) ret DateTime
 frame diffSeconds(this: *DateTime, other: *DateTime) ret long
 frame format(this: *DateTime) ret string
+frame tryParse(text: string, output: *DateTime) ret bool
 frame formatISO(this: *DateTime) ret string
 frame formatTime(this: *DateTime) ret string
 frame compare(this: *DateTime, other: *DateTime) ret int

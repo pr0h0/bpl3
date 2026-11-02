@@ -7,6 +7,29 @@ extern time(ptr: *long) ret long;
 extern gettimeofday(tv: *void, tz: *void) ret int;
 extern malloc(size: long) ret *void;
 extern snprintf(str: string, capacity: ulong, format: string, ...) ret int;
+extern strlen(str: string) ret long;
+
+# Reads exactly `count` ASCII digits of `text` starting at `at` into `value`.
+frame dateReadDigits(text: string, length: long, at: long, count: int, value: *int) ret bool {
+    if ((at + cast<long>(count)) > length) {
+        return false;
+    }
+    local result: int = 0;
+    loop (local i: int = 0; i < count; i = i + 1) {
+        local c: int = cast<int>(cast<u8>(text[at + cast<long>(i)]));
+        if ((c < 48) || (c > 57)) {
+            return false;
+        }
+        result = (result * 10) + (c - 48);
+    }
+    *value = result;
+    return true;
+}
+
+# Parses `YYYY-MM-DD` at the start of `text` into the three fields.
+frame dateReadYmd(text: string, length: long, year: *int, month: *int, day: *int) ret bool {
+    return dateReadDigits(text, length, 0, 4, year) && (length > 4) && (text[4] == '-') && dateReadDigits(text, length, 5, 2, month) && (length > 7) && (text[7] == '-') && dateReadDigits(text, length, 8, 2, day);
+}
 
 struct Timeval {
     tv_sec: long,
@@ -248,6 +271,28 @@ struct Date {
     }
 
     # Format date as string (YYYY-MM-DD)
+    # Parses an ISO 8601 calendar date, exactly `YYYY-MM-DD`. Returns false,
+    # leaving `output` unchanged, for any other text or an impossible date
+    # such as `2026-02-30`.
+    frame tryParse(text: string, output: *Date) ret bool {
+        if ((text == nullptr) || (output == nullptr)) {
+            return false;
+        }
+        local length: long = strlen(text);
+        local year: int = 0;
+        local month: int = 0;
+        local day: int = 0;
+        if ((length != 10) || !dateReadYmd(text, length, &year, &month, &day)) {
+            return false;
+        }
+        local date: Date = Date.new(year, month, day);
+        if (!date.isValid()) {
+            return false;
+        }
+        *output = date;
+        return true;
+    }
+
     frame format(this: *Date) ret string {
         # Three signed int fields (at most 11 bytes each), separators, and NUL.
         local buf: string = cast<string>(malloc(cast<long>(36)));
@@ -466,6 +511,87 @@ struct DateTime {
         }
         snprintf(buf, cast<ulong>(72), "%04d-%02d-%02d %02d:%02d:%02d", this.year, this.month, this.day, this.hour, this.minute, this.second);
         return buf;
+    }
+
+    /#
+    Parses an ISO 8601 date and time: `YYYY-MM-DD`, then `T`, `t` or a
+    space, then `HH:MM:SS`, optional fractional seconds (ignored), and an
+    optional `Z` or `+HH:MM`/`-HH:MM`/`+HHMM` offset. With an offset the
+    result is converted to UTC; without one the fields are kept as written.
+    Returns false, leaving `output` unchanged, for other text or an
+    impossible date or time.
+    #/
+    frame tryParse(text: string, output: *DateTime) ret bool {
+        if ((text == nullptr) || (output == nullptr)) {
+            return false;
+        }
+        local length: long = strlen(text);
+        local year: int = 0;
+        local month: int = 0;
+        local day: int = 0;
+        local hour: int = 0;
+        local minute: int = 0;
+        local second: int = 0;
+        if (!dateReadYmd(text, length, &year, &month, &day) || (length < 19)) {
+            return false;
+        }
+        local separator: char = text[10];
+        if ((separator != 'T') && (separator != 't') && (separator != ' ')) {
+            return false;
+        }
+        if (!dateReadDigits(text, length, 11, 2, &hour) || (text[13] != ':') || !dateReadDigits(text, length, 14, 2, &minute) || (text[16] != ':') || !dateReadDigits(text, length, 17, 2, &second)) {
+            return false;
+        }
+        local at: long = 19;
+        if ((at < length) && (text[at] == '.')) {
+            at = at + 1;
+            local fractionStart: long = at;
+            loop ((at < length) && (cast<int>(cast<u8>(text[at])) >= 48) && (cast<int>(cast<u8>(text[at])) <= 57)) {
+                at = at + 1;
+            }
+            if (at == fractionStart) {
+                return false;
+            }
+        }
+        local offsetSeconds: long = 0;
+        if (at < length) {
+            local zone: char = text[at];
+            if ((zone == 'Z') || (zone == 'z')) {
+                at = at + 1;
+            } else if ((zone == '+') || (zone == '-')) {
+                local offsetHours: int = 0;
+                local offsetMinutes: int = 0;
+                if (!dateReadDigits(text, length, at + 1, 2, &offsetHours)) {
+                    return false;
+                }
+                local minutesAt: long = at + 3;
+                if ((minutesAt < length) && (text[minutesAt] == ':')) {
+                    minutesAt = minutesAt + 1;
+                }
+                if (!dateReadDigits(text, length, minutesAt, 2, &offsetMinutes) || (offsetHours > 23) || (offsetMinutes > 59)) {
+                    return false;
+                }
+                offsetSeconds = cast<long>((offsetHours * 3600) + (offsetMinutes * 60));
+                if (zone == '-') {
+                    offsetSeconds = -offsetSeconds;
+                }
+                at = minutesAt + 2;
+            } else {
+                return false;
+            }
+        }
+        if (at != length) {
+            return false;
+        }
+        local parsed: DateTime = DateTime.new(year, month, day, hour, minute, second);
+        if (!parsed.isValid()) {
+            return false;
+        }
+        if (offsetSeconds != 0) {
+            parsed = DateTime.fromTimestamp(parsed.toTimestamp() - offsetSeconds);
+        }
+        *output = parsed;
+        return true;
     }
 
     # Format as ISO 8601 with T separator
