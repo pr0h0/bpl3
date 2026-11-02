@@ -27,6 +27,43 @@ enum Option<T> {
         };
     }
 
+    # The value, or a thrown `OptionUnwrapError` with `message` when there is
+    # none, so a failure says what was missing.
+    frame expect(this: Option<T>, message: string) ret T {
+        return match (this) {
+            Option.Some(val) => val,
+            Option.None => Option<T>.expectFailed(message),
+        };
+    }
+
+    frame expectFailed(message: string) ret T {
+        throw OptionUnwrapError { message: message };
+    }
+
+    # The value, or the result of `fallback` (called only when there is none).
+    frame unwrapOrElse(this: Option<T>, fallback: Lambda<T>()) ret T {
+        return match (this) {
+            Option.Some(val) => val,
+            Option.None => fallback(),
+        };
+    }
+
+    # `Some(transform(value))`, or `None`.
+    frame map<U>(this: Option<T>, transform: Lambda<U>(T)) ret Option<U> {
+        return match (this) {
+            Option.Some(val) => Option<U>.Some(transform(val)),
+            Option.None => Option<U>.None,
+        };
+    }
+
+    # `next(value)`, which may itself be `None`, or `None`.
+    frame andThen<U>(this: Option<T>, next: Lambda<Option<U>>(T)) ret Option<U> {
+        return match (this) {
+            Option.Some(val) => next(val),
+            Option.None => Option<U>.None,
+        };
+    }
+
     frame unwrapOr(this: Option<T>, defaultValue: T) ret T {
         return match (this) {
             Option.Some(val) => val,

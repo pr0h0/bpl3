@@ -491,6 +491,41 @@ Encoded input longer than 2,147,483,647 bytes is rejected before scanning:
 - `Hex.decodedLength(input: string) ret int` — exact, or `-1`
 - `Hex.isValid(input: string) ret bool`
 
+### Option (`std/option.bpl`) and Result (`std/result.bpl`)
+
+`Option<T>` is `Some(value)` or `None`; `Result<T, E>` is `Ok(value)` or
+`Err(error)`. Both are enums, so `match` reads them directly; the methods
+cover the common cases.
+
+- `opt.isSome()`, `opt.isNone()`, `opt.unwrap()` (throws `OptionUnwrapError`
+  "Called unwrap on None"), `opt.unwrapOr(default)`
+- `opt.expect(message)` — the value, or throws `OptionUnwrapError` with
+  `message`, so a failure says what was missing
+- `opt.unwrapOrElse(fallback)` — calls `fallback` only when there is no value
+- `opt.map<U>(transform)` — `Some(transform(value))` or `None`
+- `opt.andThen<U>(next)` — `next(value)`, itself an `Option<U>`, or `None`
+- `res.isOk()`, `res.isErr()`, `res.unwrap()` (throws the error),
+  `res.unwrapErr()`, `res.unwrapOr(default)`
+- `res.expect(message)` — the value, or throws `ResultUnwrapError` with
+  `message`
+- `res.map<U>(transform)` and `res.mapErr<F>(transform)` — transform the
+  success value or the error, keeping the other side
+- `res.ok()` — `Some(value)` for success, `None` for an error
+
+```bpl
+import printf from "std/c.bpl";
+import [Option] from "std/option.bpl";
+
+frame main() ret int {
+    local port: Option<int> = Option<int>.Some(8080);
+    local next: Option<int> = port.map<int>(|p: int| ret int {
+        return p + 1;
+    });
+    printf("%d\n", next.expect("port is not configured"));
+    return 0;
+}
+```
+
 ### Hash (`std/hash.bpl`)
 
 Stable non-cryptographic hashing helpers and checksums. `crc32` is the

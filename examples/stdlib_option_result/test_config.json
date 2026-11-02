@@ -1,15 +1,14 @@
 {
   "expectedOutput": [
-    "=== Option Demo ===",
-    "42",
-    "Caught Option unwrap error",
-    "7",
-    "=== Result Demo ===",
-    "10",
-    "Caught Result error: 5",
-    "99"
-  ],
-  "args": [],
-  "env": {},
-  "input": ""
+    "expect 20",
+    "expect failed: port is not configured",
+    "unwrapOrElse 20 -1",
+    "map 40 none 1",
+    "andThen 10 1",
+    "result expect 5",
+    "result expect failed: could not save",
+    "result map 6",
+    "mapErr 28",
+    "ok 5 1"
+  ]
 }

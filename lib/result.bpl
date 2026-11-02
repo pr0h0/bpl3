@@ -3,6 +3,7 @@
 export [Result];
 
 import [ResultUnwrapError] from "std/errors.bpl";
+import [Option] from "std/option.bpl";
 
 enum Result<T, E> {
     Ok(T),
@@ -22,6 +23,43 @@ enum Result<T, E> {
             Result.Err(err) => {
                 throw err;
             },
+        };
+    }
+
+    # The success value, or a thrown `ResultUnwrapError` with `message` for an
+    # error.
+    frame expect(this: Result<T, E>, message: string) ret T {
+        return match (this) {
+            Result.Ok(val) => val,
+            Result.Err(_) => Result<T, E>.expectFailed(message),
+        };
+    }
+
+    frame expectFailed(message: string) ret T {
+        throw ResultUnwrapError { message: message };
+    }
+
+    # `Ok(transform(value))`, or the same error.
+    frame map<U>(this: Result<T, E>, transform: Lambda<U>(T)) ret Result<U, E> {
+        return match (this) {
+            Result.Ok(val) => Result<U, E>.Ok(transform(val)),
+            Result.Err(err) => Result<U, E>.Err(err),
+        };
+    }
+
+    # The same success value, or `Err(transform(error))`.
+    frame mapErr<F>(this: Result<T, E>, transform: Lambda<F>(E)) ret Result<T, F> {
+        return match (this) {
+            Result.Ok(val) => Result<T, F>.Ok(val),
+            Result.Err(err) => Result<T, F>.Err(transform(err)),
+        };
+    }
+
+    # `Some(value)` for success, `None` for an error (which is dropped).
+    frame ok(this: Result<T, E>) ret Option<T> {
+        return match (this) {
+            Result.Ok(val) => Option<T>.Some(val),
+            Result.Err(_) => Option<T>.None,
         };
     }
 
