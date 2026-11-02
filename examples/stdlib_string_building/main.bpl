@@ -1,0 +1,51 @@
+import printf, free from "std/c.bpl";
+import [StringBuilder] from "std/string_builder.bpl";
+import [StringUtils] from "std/string_utils.bpl";
+import [Array] from "std/array.bpl";
+
+frame main() ret int {
+    local sb: StringBuilder = StringBuilder.new(4);
+    sb.append("long ");
+    sb.appendLong(-9223372036854775807 - 1);
+    sb.append(", float ");
+    sb.appendFloat(0.25);
+    sb.append(" ");
+    sb.appendFloat(100000000000000000000.0);
+    sb.append(", fixed ");
+    sb.appendFixed(3.14159, 2);
+    sb.append(" ");
+    sb.appendFixed(2.5, 0);
+    sb.append(" ");
+    sb.appendFixed(1.0, -3);
+    sb.append(", bool ");
+    sb.appendBool(true);
+    sb.append("/");
+    sb.appendBool(false);
+    printf("%s\n", sb.toString());
+    sb.destroy();
+
+    local parts: Array<string> = Array<string>.new(0);
+    parts.push("a");
+    parts.push("bc");
+    parts.push("");
+    parts.push("d");
+    local joined: string = StringUtils.join(&parts, ", ");
+    printf("join: [%s]\n", joined);
+    free(cast<*void>(joined));
+    local glued: string = StringUtils.join(&parts, nullptr);
+    printf("no separator: [%s]\n", glued);
+    free(cast<*void>(glued));
+    local empty: Array<string> = Array<string>.new(0);
+    local none: string = StringUtils.join(&empty, "-");
+    printf("empty: [%s]\n", none);
+    free(cast<*void>(none));
+    local one: Array<string> = Array<string>.new(0);
+    one.push("solo");
+    local single: string = StringUtils.join(&one, "-");
+    printf("single: [%s]\n", single);
+    free(cast<*void>(single));
+    parts.destroy();
+    empty.destroy();
+    one.destroy();
+    return 0;
+}

@@ -1,0 +1,9 @@
+{
+  "expectedOutput": [
+    "long -9223372036854775808, float 0.25 1e+20, fixed 3.14 2 1, bool true/false",
+    "join: [a, bc, , d]",
+    "no separator: [abcd]",
+    "empty: []",
+    "single: [solo]"
+  ]
+}
