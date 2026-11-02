@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BPL lint configuration",
+  "description": "Optional settings for .bpllint.json, found in the linted file's directory or a parent. bpl lint --disable adds to them.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "disable": {
+      "description": "Lint rule codes to skip, in either case.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[Ll]00[1-8]$"
+      },
+      "default": []
+    }
+  }
+}

@@ -9,11 +9,25 @@ import { LINT_RULE_CODES, Linter } from "../../compiler/linter/Linter";
 
 export { CompilerError, LINT_RULE_CODES };
 
-/** A lint function that leaves out the diagnostic codes in `disabledCodes`. */
+/**
+ * A lint function that leaves out the diagnostic codes in `disabledCodes`
+ * and in the per-file `alsoDisabled` (from a project configuration).
+ */
 export function createLintEngine(disabledCodes: readonly string[] = []) {
-  const linter = new Linter([], new Set(disabledCodes));
+  const linters = new Map<string, Linter>();
 
-  return (content: string, filePath: string): CompilerError[] => {
+  return (
+    content: string,
+    filePath: string,
+    alsoDisabled: readonly string[] = [],
+  ): CompilerError[] => {
+    const codes = [...new Set([...disabledCodes, ...alsoDisabled])].sort();
+    const key = codes.join(",");
+    let linter = linters.get(key);
+    if (!linter) {
+      linter = new Linter([], new Set(codes));
+      linters.set(key, linter);
+    }
     const parser = new Parser(content, filePath);
     return linter.lint(parser.parse(true), content);
   };

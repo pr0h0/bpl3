@@ -66,6 +66,8 @@ export async function runLintCommand(
   }
   const { CompilerError, createLintEngine, LINT_RULE_CODES } =
     await import("./lintEngine");
+  const { loadLinterConfig } =
+    await import("../../compiler/linter/LinterConfig");
   const disabled = parseDisabledRules(options.disable ?? []);
   const unknown = disabled.filter((code) => !LINT_RULE_CODES.includes(code));
   if (unknown.length > 0) {
@@ -105,10 +107,27 @@ export async function runLintCommand(
       }
 
       const content = file === "-" ? stdin! : fs.readFileSync(file, "utf-8");
-      const errors = lintSource(
-        content,
-        file === "-" ? options.stdinFilepath || "stdin.bpl" : file,
-      );
+      const sourcePath =
+        file === "-" ? options.stdinFilepath || "stdin.bpl" : file;
+      let projectDisabled: string[];
+      try {
+        projectDisabled = loadLinterConfig(sourcePath).config.disable;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (options.json) {
+          results.push({
+            file,
+            success: false,
+            error: message,
+            errorCode: LINT_PROCESSING_ERROR_CODE,
+          });
+        } else {
+          log.error(message);
+        }
+        hasErrors = true;
+        continue;
+      }
+      const errors = lintSource(content, sourcePath, projectDisabled);
       if (errors.length > 0) {
         const fails =
           options.failOnWarnings !== false ||
