@@ -2686,6 +2686,8 @@ frame nextSearch(start: long, end: long) ret long
 frame countMatches(this: *Regex, text: string) ret long
 frame replaceAll(this: *Regex, text: string, replacement: string) ret string
 frame replaceFirst(this: *Regex, text: string, replacement: string) ret string
+frame split(this: *Regex, text: string) ret Array<string>
+frame copyRange(text: string, start: long, end: long) ret string
 frame replace(this: *Regex, text: string, replacement: string, limit: long) ret string
 ```
 
