@@ -111,3 +111,37 @@ test("a reserved name in a later declaration does not replace an earlier error",
     ).message,
   ).toStartWith("Unexpected syntax");
 });
+
+test("a reserved struct field or lambda parameter name is reported at the name", () => {
+  expect(
+    firstError(
+      "struct Point {\n    type: int,\n}\n\nframe main() ret int {\n    return 0;\n}\n",
+    ),
+  ).toEqual({
+    message: "'type' is a reserved word and cannot be used as a name",
+    line: 2,
+    column: 5,
+  });
+  expect(
+    firstError(
+      "frame main() ret int {\n    local f: Lambda<int>(int) = |match: int| ret int {\n        return match;\n    };\n    return f(1);\n}\n",
+    ),
+  ).toEqual({
+    message: "'match' is a reserved word and cannot be used as a name",
+    line: 2,
+    column: 34,
+  });
+});
+
+test("comparisons, switch labels, strings and comments are not taken for names", () => {
+  for (const source of [
+    // `true == flag` is a comparison; the error is the missing type.
+    "frame check(flag: bool) ret bool {\n    if (true == flag) {\n        return true;\n    }\n    local x: = 1;\n    return false;\n}\n",
+    // A switch's `default:` after `{` is a label.
+    "frame pick(n: int) ret int {\n    switch (n) {\n        default:\n            return 0;\n    }\n    local x: = 1;\n}\n",
+    // Words in strings and comments are text.
+    'frame say() ret int {\n    # (from: here)\n    printf("(type: %d)", 1);\n    local x: = 1;\n    return 0;\n}\n',
+  ]) {
+    expect(firstError(source).message).toStartWith("Unexpected syntax");
+  }
+});
