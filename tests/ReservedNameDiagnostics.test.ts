@@ -83,3 +83,31 @@ test("other syntax errors keep the unexpected-syntax report", () => {
       .message,
   ).toStartWith("Unexpected syntax");
 });
+
+// The recovery span of a struct can end inside its first method, so a
+// reserved name in a later member was reported as unexpected syntax at the
+// struct.
+test("a reserved parameter name in a later method is reported at the name", () => {
+  expect(
+    firstError(
+      'struct Files {\n    frame first() ret string {\n        return "} not a brace";\n    }\n\n    # a } in a comment\n    frame copy(from: string, to: string) ret int {\n        return 0;\n    }\n}\n',
+    ),
+  ).toEqual({
+    message: "'from' is a reserved word and cannot be used as a name",
+    line: 7,
+    column: 16,
+  });
+});
+
+test("a reserved name in a later declaration does not replace an earlier error", () => {
+  expect(
+    firstError(
+      "frame broken() ret int {\n    local x: = 1;\n    return 0;\n}\n\nframe later(from: int) ret int {\n    return 0;\n}\n",
+    ),
+  ).toMatchObject({ line: 2, column: 5 });
+  expect(
+    firstError(
+      "frame broken() ret int {\n    local x: = 1;\n    return 0;\n}\n\nframe later(from: int) ret int {\n    return 0;\n}\n",
+    ).message,
+  ).toStartWith("Unexpected syntax");
+});
