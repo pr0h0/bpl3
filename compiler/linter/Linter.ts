@@ -493,22 +493,26 @@ function toCase(name: string, pascal: boolean): string {
  * members and `export` lists — at the cost of treating a same-named local as
  * a use.
  */
-function reportUnusedImports(
+/**
+ * Each explicit import statement with the imported names (or namespace) that
+ * the rest of `source` never mentions. `import * from` is never reported,
+ * since the module's names are not spelled out.
+ */
+export function findUnusedImports(
   program: AST.Program,
   source: string,
-  context: LintContext,
-): void {
+): { statement: AST.ImportStmt; names: string[] }[] {
   const imports = program.statements.filter(
     (statement): statement is AST.ImportStmt =>
       statement.kind === "Import" && !(statement as AST.ImportStmt).isImplicit,
   );
-  if (imports.length === 0) return;
+  if (imports.length === 0) return [];
 
   let tokens;
   try {
     tokens = lexWithGrammar(source, program.location?.file ?? "lint.bpl");
   } catch {
-    return;
+    return [];
   }
   const insideImport = (line: number, column: number) =>
     imports.some(({ location: l }) => {
@@ -535,13 +539,25 @@ function reportUnusedImports(
     }
   }
 
+  const result: { statement: AST.ImportStmt; names: string[] }[] = [];
   for (const statement of imports) {
     let names = statement.items.map((item) => item.alias ?? item.name);
     if (statement.namespace) names = [statement.namespace];
     // `import * from` brings in names the module may not spell out.
     else if (statement.importAll) names = [];
+    const unused = names.filter((name) => !used.has(name));
+    if (unused.length > 0) result.push({ statement, names: unused });
+  }
+  return result;
+}
+
+function reportUnusedImports(
+  program: AST.Program,
+  source: string,
+  context: LintContext,
+): void {
+  for (const { statement, names } of findUnusedImports(program, source)) {
     for (const name of names) {
-      if (used.has(name)) continue;
       context.report(
         `Import '${name}' from "${statement.source}" is never used`,
         statement,

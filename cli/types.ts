@@ -74,6 +74,8 @@ export interface LintOptions {
   stdinFilepath?: string;
   /** Lint codes to skip; each entry may hold several, comma-separated. */
   disable?: string[];
+  /** Remove unused imports (L002) in place before linting. */
+  fix?: boolean;
   failOnWarnings?: boolean;
   verbose?: boolean;
   json?: boolean;

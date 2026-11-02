@@ -126,7 +126,7 @@ _bpl_completion() {
             ;;
         lint)
             if [[ "$cur" == -* ]]; then
-                COMPREPLY=( $(compgen -W "--stdin-filepath -v --verbose --no-fail-on-warnings --json --disable -h --help" -- "${cur}") )
+                COMPREPLY=( $(compgen -W "--stdin-filepath -v --verbose --no-fail-on-warnings --json --fix --disable -h --help" -- "${cur}") )
                 return 0
             fi
             while IFS= read -r match; do

@@ -194,6 +194,7 @@ _bpl() {
                         '(-v --verbose)'{-v,--verbose}'[enable verbose output]' \
                         '--no-fail-on-warnings[report warnings without failing (errors still fail)]' \
                         '--json[output lint diagnostics in JSON format]' \
+                        '--fix[remove unused imports (L002) in place before linting]' \
                         '*--disable[skip lint rules, comma-separated (e.g. L003,L008; repeatable)]:value' \
                         '(-h --help)'{-h,--help}'[display help for command]' \
                         '*:argument:_files -g "*.{bpl,x}"'
