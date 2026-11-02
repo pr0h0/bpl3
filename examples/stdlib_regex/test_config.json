@@ -61,6 +61,12 @@
     "replace ^b [bob] -> [Bob] first [Bob] count 1",
     "replace b$ [bob] -> [boB] first [boB] count 1",
     "replace [aeiou] [education] -> [dctn] first [ducation] count 5",
-    "replace grows to 300"
+    "replace grows to 300",
+    "split x* [axbc] -> [] [a] [] [b] [c] []",
+    "split , [a,b,,c] -> [a] [b] [] [c]",
+    "split \\s+ [ one  two three ] -> [] [one] [two] [three] []",
+    "split z [abc] -> [abc]",
+    "split , [] -> []",
+    "split  [ab] -> [] [a] [b] []"
   ]
 }
