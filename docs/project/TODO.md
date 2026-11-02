@@ -150,7 +150,7 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
 
 - [ ] [5] More lint rules beyond naming, unused imports, unused private
       functions, constant conditions, self-assignment, self-comparison,
-      duplicate conditions and empty branches.
+      duplicate conditions, empty branches and overwritten values.
 
 ### Language and library extensions
 

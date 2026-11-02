@@ -413,6 +413,10 @@ Lint BPL source files for style and package-quality issues. Rules:
 - `L008` empty branch: an `if` or `else` whose block is empty, so the branch
   does nothing. A block holding only a comment is deliberate and is not
   reported.
+- `L009` overwritten value: a value stored in a variable (by an initializer or
+  `=`) and replaced by the very next statement before anything reads it, as in
+  `x = 2; x = 3;`. Only call-free first values are reported, and the second
+  store must not read the variable.
 
 Warnings fail the run unless `--no-fail-on-warnings` is given.
 
