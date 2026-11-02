@@ -13,6 +13,7 @@ import [Option] from "std/option.bpl";
 import [StringUtils] from "std/string_utils.bpl";
 import [Args] from "std/args.bpl";
 import [Destructible] from "std/core_specs.bpl";
+import [Parse] from "std/parse.bpl";
 
 extern strlen(s: string) ret long;
 extern printf(fmt: string, ...) ret int;
@@ -298,6 +299,35 @@ struct ParsedArgs: Destructible {
             i = i + 1;
         }
         return Option<*String>.None;
+    }
+
+    # The value of flag `name` (for example "--jobs") as a decimal `int`.
+    # Returns false, leaving `output` unchanged, when the flag was not given
+    # or its value is not a valid `int` (see `Parse.int`).
+    frame flagInt(this: *ParsedArgs, name: string, output: *int) ret bool {
+        local value: Option<*String> = this.getFlag(name);
+        if (value.isNone()) {
+            return false;
+        }
+        return Parse.int(value.unwrap().data, output);
+    }
+
+    # Like `flagInt`, for a decimal `long`.
+    frame flagLong(this: *ParsedArgs, name: string, output: *long) ret bool {
+        local value: Option<*String> = this.getFlag(name);
+        if (value.isNone()) {
+            return false;
+        }
+        return Parse.long(value.unwrap().data, output);
+    }
+
+    # Like `flagInt`, for a floating-point value (see `Parse.float`).
+    frame flagFloat(this: *ParsedArgs, name: string, output: *float) ret bool {
+        local value: Option<*String> = this.getFlag(name);
+        if (value.isNone()) {
+            return false;
+        }
+        return Parse.float(value.unwrap().data, output);
     }
 
     frame hasFlag(this: *ParsedArgs, name: string) ret bool {
