@@ -11,7 +11,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "pattern": "^[Ll]00[1-8]$"
+        "pattern": "^[Ll]00[1-9]$"
       },
       "default": []
     }

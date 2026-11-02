@@ -41,6 +41,7 @@ export const LINT_RULE_CODES: readonly string[] = [
   "L006",
   "L007",
   "L008",
+  "L009",
 ];
 
 export class Linter {
@@ -66,6 +67,7 @@ export class Linter {
     this.rules.push(new SelfComparisonRule());
     this.rules.push(new DuplicateConditionRule());
     this.rules.push(new EmptyBranchRule());
+    this.rules.push(new OverwrittenValueRule());
   }
 
   /**
@@ -964,6 +966,89 @@ function sourceText(
     start + location.startColumn - 1,
     end + location.endColumn - 1,
   );
+}
+
+/**
+ * L009: a value stored in a variable and overwritten by the next statement
+ * before anything reads it (`x = 2; x = 3;`, or an initializer replaced at
+ * once). Only adjacent statements in one block are compared, the first value
+ * must be free of calls (so dropping it changes nothing), and the second must
+ * not read the variable.
+ */
+class OverwrittenValueRule implements LintRule {
+  code = "L009";
+  name = "overwritten-value";
+
+  check(node: AST.ASTNode, context: LintContext) {
+    if (node.kind !== "Block") return;
+    const statements = (node as AST.BlockStmt).statements;
+    for (let i = 0; i + 1 < statements.length; i++) {
+      const stored = storedValue(statements[i]!);
+      if (!stored || conditionKey(stored.value) === undefined) continue;
+      const next = storedValue(statements[i + 1]!);
+      if (
+        !next ||
+        next.name !== stored.name ||
+        !next.isAssignment ||
+        mentionsName(next.value, stored.name)
+      ) {
+        continue;
+      }
+      context.report(
+        `The value stored in '${stored.name}' is overwritten before it is read`,
+        statements[i]!,
+        DiagnosticSeverity.Warning,
+        this.code,
+        "Remove the first store, or use the value before replacing it.",
+      );
+    }
+  }
+}
+
+/**
+ * The variable and value of `local name: T = value;` or `name = value;`, or
+ * undefined for any other statement.
+ */
+function storedValue(
+  statement: AST.Statement,
+): { name: string; value: AST.Expression; isAssignment: boolean } | undefined {
+  if (statement.kind === "VariableDecl") {
+    const decl = statement as AST.VariableDecl;
+    if (typeof decl.name !== "string" || !decl.initializer || decl.isGlobal) {
+      return undefined;
+    }
+    return { name: decl.name, value: decl.initializer, isAssignment: false };
+  }
+  if (statement.kind !== "ExpressionStmt") return undefined;
+  const expression = (statement as AST.ExpressionStmt).expression;
+  if (expression.kind !== "Assignment") return undefined;
+  const assignment = expression as AST.AssignmentExpr;
+  if (
+    assignment.operator.lexeme !== "=" ||
+    assignment.assignee.kind !== "Identifier"
+  ) {
+    return undefined;
+  }
+  return {
+    name: (assignment.assignee as AST.IdentifierExpr).name,
+    value: assignment.value,
+    isAssignment: true,
+  };
+}
+
+/** Whether `name` appears as an identifier anywhere inside `node`. */
+function mentionsName(node: unknown, name: string): boolean {
+  if (Array.isArray(node)) return node.some((item) => mentionsName(item, name));
+  if (!node || typeof node !== "object") return false;
+  const record = node as { kind?: unknown; name?: unknown };
+  if (record.kind === "Identifier" && record.name === name) return true;
+  for (const [key, value] of Object.entries(node)) {
+    if (key === "location") continue;
+    if (value && typeof value === "object" && mentionsName(value, name)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 class NamingConventionRule implements LintRule {

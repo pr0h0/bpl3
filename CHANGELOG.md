@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Lint rule `L009` reports a value overwritten by the next statement before
+  it is read.
 - `Env.loadFile(path, overrideExisting)` loads a dotenv (`.env`) file into
   the process environment.
 - `Duration.format()` writes a duration as text such as `450ms`, `1.5s` or
