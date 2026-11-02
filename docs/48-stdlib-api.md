@@ -715,6 +715,27 @@ frame main() ret int {
 - `HmacSha512.digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)`
 - `HmacSha512.hex(key: string, message: string) ret string`
 
+`HmacSha1` is the same construction over `Sha1`, for protocols that require
+it such as HOTP and TOTP: 64-byte block, 20-byte MACs.
+
+- `HmacSha1.new(key: *u8, keyLength: long) ret HmacSha1`
+- `context.update(data: *u8, length: long)`
+- `context.finish(mac: *u8)` — writes 20 bytes
+- `HmacSha1.digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)`
+
+### Otp (`std/otp.bpl`)
+
+One-time passwords as shown by authenticator apps: HOTP (RFC 4226) and TOTP
+(RFC 6238) with HMAC-SHA1. The key is the raw shared secret; decode the Base32
+secret from a QR code with `Base32.decode` first. Codes are returned as integers,
+so print them with leading zeros (`%06d`). Digit counts other than 6 to 9, a
+nonpositive time step and a negative time return `-1`.
+
+- `Otp.hotp(key: *u8, keyLength: long, counter: long, digits: int) ret int`
+- `Otp.totpAt(key: *u8, keyLength: long, unixSeconds: long, stepSeconds: int, digits: int) ret int`
+- `Otp.totp(key: *u8, keyLength: long) ret int` — the current 6-digit,
+  30-second code
+
 ### Entropy (`std/entropy.bpl`)
 
 Cryptographically secure random bytes from the operating system
