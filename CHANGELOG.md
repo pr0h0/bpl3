@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `Path.stem(path)` and `Path.withExtension(path, extension)` return a file
+  name without its extension and a path with the extension replaced.
 - `Rand.shuffle<T>` and `Rand.choice<T>` shuffle and pick from arrays of any
   element type.
 - `StringBuilder` adds `appendLong`, `appendFloat`, `appendFixed` and

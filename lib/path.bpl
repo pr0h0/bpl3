@@ -47,6 +47,22 @@ frame pathEnd(path: string, length: int) ret int {
     return end;
 }
 
+# The offset of the extension's `.` in the component `[start, end)`, or `end`
+# when it has none: a leading dot (`.bashrc`) and `..` are not extensions.
+frame pathExtensionStart(path: string, start: int, end: int) ret int {
+    if (((end - start) == 2) && (path[start] == cast<char>(46)) && (path[start + 1] == cast<char>(46))) {
+        return end;
+    }
+    local i: int = end - 1;
+    loop (i > start) {
+        if (path[i] == cast<char>(46)) {
+            return i;
+        }
+        i = i - 1;
+    }
+    return end;
+}
+
 frame pathComponentStart(path: string, end: int) ret int {
     local start: int = end;
     loop ((start > 0) && (path[start - 1] != cast<char>(47))) {
@@ -120,17 +136,42 @@ struct Path {
     frame extname(path: string) ret String {
         local end: int = pathEnd(path, pathLength(path));
         local start: int = pathComponentStart(path, end);
-        if (((end - start) == 2) && (path[start] == cast<char>(46)) && (path[start + 1] == cast<char>(46))) {
-            return copyPathRange("", 0, 0);
+        return copyPathRange(path, pathExtensionStart(path, start, end), end);
+    }
+
+    # The last component without its extension: `report` for
+    # `docs/report.md`, `.bashrc` for `.bashrc`.
+    frame stem(path: string) ret String {
+        local end: int = pathEnd(path, pathLength(path));
+        local start: int = pathComponentStart(path, end);
+        return copyPathRange(path, start, pathExtensionStart(path, start, end));
+    }
+
+    # `path` with the extension of its last component replaced by `extension`
+    # (which should include its `.`; an empty one removes the extension), and
+    # without trailing slashes. A path whose last component is empty, `.` or
+    # `..` is returned unchanged.
+    frame withExtension(path: string, extension: string) ret String {
+        local length: int = pathLength(path);
+        local end: int = pathEnd(path, length);
+        local start: int = pathComponentStart(path, end);
+        local component: int = end - start;
+        if ((component == 0) || ((component == 1) && (path[start] == cast<char>(46))) || ((component == 2) && (path[start] == cast<char>(46)) && (path[start + 1] == cast<char>(46)))) {
+            return copyPathRange(path, 0, length);
         }
-        local i: int = end - 1;
-        loop (i > start) {
-            if (path[i] == cast<char>(46)) {
-                return copyPathRange(path, i, end);
-            }
-            i = i - 1;
+        local keep: int = pathExtensionStart(path, start, end);
+        local extensionLength: int = 0;
+        if (extension != nullptr) {
+            extensionLength = pathLength(extension);
         }
-        return copyPathRange("", 0, 0);
+        local result: String = allocatePath(cast<long>(keep) + cast<long>(extensionLength));
+        loop (local i: int = 0; i < keep; i = i + 1) {
+            result.data[i] = path[i];
+        }
+        loop (local i: int = 0; i < extensionLength; i = i + 1) {
+            result.data[keep + i] = extension[i];
+        }
+        return result;
     }
 
     # Normalize in one owned buffer, without allocating component Strings.

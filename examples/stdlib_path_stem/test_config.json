@@ -1,0 +1,15 @@
+{
+  "expectedOutput": [
+    "[docs/report.md] stem [report] ext [.md] md [docs/report.md] bare [docs/report]",
+    "[archive.tar.gz] stem [archive.tar] ext [.gz] md [archive.tar.md] bare [archive.tar]",
+    "[.bashrc] stem [.bashrc] ext [] md [.bashrc.md] bare [.bashrc]",
+    "[dir/.env.local] stem [.env] ext [.local] md [dir/.env.md] bare [dir/.env]",
+    "[noext] stem [noext] ext [] md [noext.md] bare [noext]",
+    "[a/b/] stem [b] ext [] md [a/b.md] bare [a/b]",
+    "[/x/y.txt/] stem [y] ext [.txt] md [/x/y.md] bare [/x/y]",
+    "[..] stem [..] ext [] md [..] bare [..]",
+    "[file.] stem [file] ext [.] md [file.md] bare [file]",
+    "[a.b/c] stem [c] ext [] md [a.b/c.md] bare [a.b/c]",
+    "[] stem [] ext [] md [] bare []"
+  ]
+}
