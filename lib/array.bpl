@@ -191,6 +191,33 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
         return this.data[this.length];
     }
 
+    # Inserts `value` at `index` (0 to len(), inclusive), shifting later
+    # elements right.
+    frame insert(this: *Array<T>, index: int, value: T) {
+        if ((index < 0) || (index > this.length)) {
+            throw IndexOutOfBoundsError.new(index, this.length);
+        }
+        # push grows the storage; the shift then moves the gap to `index`.
+        this.push(value);
+        local i: int = this.length - 1;
+        loop (i > index) {
+            this.data[i] = this.data[i - 1];
+            i = i - 1;
+        }
+        this.data[index] = value;
+    }
+
+    # Removes every element, keeping the allocated capacity. Elements are not
+    # destroyed; release owned elements first.
+    frame clear(this: *Array<T>) {
+        this.length = 0;
+    }
+
+    # Whether the array has no elements.
+    frame isEmpty(this: *Array<T>) ret bool {
+        return this.length == 0;
+    }
+
     # Removes the element at index by shifting items left.
     frame removeAt(this: *Array<T>, index: int) {
         if ((index < 0) || (index >= this.length)) {

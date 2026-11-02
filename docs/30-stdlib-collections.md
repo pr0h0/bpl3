@@ -16,6 +16,12 @@ local val: int = arr.get(0);
 arr.destroy();
 ```
 
+`arr.insert(index, value)` inserts at any index from 0 to `len()` (inclusive),
+shifting later elements right, and throws `IndexOutOfBoundsError` otherwise.
+`arr.clear()` removes every element but keeps the allocated capacity; it does
+not destroy elements, so release owned elements first. `arr.isEmpty()`
+reports whether the array has no elements.
+
 `map` and `filter` release their result-array buffer if a callback throws and
 propagate the original exception. Elements are shallow values: callbacks remain
 responsible for any separately allocated resources they create.
@@ -56,6 +62,12 @@ if (m.has("age")) {
 }
 m.destroy();
 ```
+
+`m.getOr(key, fallback)` returns the stored value or `fallback` without an
+`Option`. `m.keys()` and `m.values()` return new arrays, in the map's
+iteration order, that the caller destroys; keys and values are copied
+shallowly, as stored, so the arrays must not outlive owned entries they
+refer to.
 
 `reserve` computes all new bucket destinations before relinking entries. If a
 custom hasher throws or temporary allocation fails, the existing entries and
