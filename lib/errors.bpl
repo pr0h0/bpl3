@@ -149,9 +149,18 @@ struct CastError: Error {
 struct IndexOutOfBoundsError: Error {
     index: int,
     size: int,
+    # The message names both numbers, such as "Index 5 out of bounds for
+    # length 1". It is allocated once per error and not freed, so an uncaught
+    # error can still print it; if allocation fails it is the fixed text
+    # "Index out of bounds".
     frame new(index: int, size: int) ret IndexOutOfBoundsError {
         local e: IndexOutOfBoundsError;
         e.message = "Index out of bounds";
+        local text: *i8 = cast<*i8>(malloc(64));
+        if (text != nullptr) {
+            snprintf(text, 64, "Index %d out of bounds for length %d", index, size);
+            e.message = cast<string>(text);
+        }
         e.code = 0;
         e.index = index;
         e.size = size;
