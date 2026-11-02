@@ -70,6 +70,19 @@ consumed as a missing value; use `--name=-filename` for a value beginning with
 an option prefix. Negative decimal numbers and a lone `-` are operands.
 `--` stops both option and subcommand recognition for the remaining tokens.
 
+`parsed.getFlag(name)` returns a flag's value as text. `flagInt`, `flagLong`
+and `flagFloat` read it as a number with `Parse` (std/parse.bpl): they store
+it and return `true`, or return `false` and leave the destination unchanged
+when the flag was not given or its value is not a valid number, so a default
+set beforehand stays in place without hiding a typing mistake:
+
+```bpl
+local jobs: int = 4;
+if (parsed.hasFlag("--jobs") && !parsed.flagInt("--jobs", &jobs)) {
+    printf("--jobs must be a number\n");
+}
+```
+
 ### JSON (`std/json.bpl`)
 
 JSON helpers are available directly through `std`:

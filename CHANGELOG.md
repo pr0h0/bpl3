@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `ParsedArgs.flagInt`, `flagLong` and `flagFloat` read a flag's value as a
+  checked number.
 - `Regex.split(text)` returns the pieces of `text` between matches, keeping
   empty pieces as Python's `re.split` does.
 - `Array.sortBy(compare)` sorts any element type in place with a comparator;
