@@ -1,0 +1,8 @@
+{
+  "expectedOutput": [
+    "same order as shuffleInt: 1",
+    "permutation: 1",
+    "choice: 1 1",
+    "empty choice: 0 kept"
+  ]
+}

@@ -1052,6 +1052,11 @@ Deterministic PCG32 generator with 64-bit state and a fixed stream (54).
 
 - `rng.shuffleInt(arr: *Array<int>)`
 - `rng.choiceInt(arr: *Array<int>) ret int`
+- `rng.shuffle<T>(arr: *Array<T>)` — shuffles any array in place; with the
+  same seed and length it gives the same order as `shuffleInt`
+- `rng.choice<T>(arr: *Array<T>, output: *T) ret bool` — stores a random
+  element and returns `true`, or returns `false` for an empty array (unlike
+  `choiceInt`, which returns 0)
 - `rng.fillBytes(buf: *u8, len: int)`
 - `rng.weightedChoice(weights: *Array<int>) ret int`
 
