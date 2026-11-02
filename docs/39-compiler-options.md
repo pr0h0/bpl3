@@ -421,6 +421,10 @@ Warnings fail the run unless `--no-fail-on-warnings` is given.
 - `--json`: Output lint diagnostics in JSON format
 - `-v, --verbose`: Verbose output
 - `--no-fail-on-warnings`: Report warnings without failing
+- `--fix`: Remove unused imports (L002) in place before linting: an import whose
+  names are all unused is deleted with its line, and one with some unused names
+  is rewritten without them. Other findings are only reported. Nothing is
+  changed when L002 is disabled, and standard input (`-`) is never rewritten.
 - `--disable <codes>`: Skip the listed rules, comma-separated and
   case-insensitive (`--disable L003,L008`); repeatable. An unknown code fails
   the run with `BPL_LINT_UNKNOWN_RULE` before any file is linted.
@@ -431,6 +435,7 @@ Warnings fail the run unless `--no-fail-on-warnings` is given.
 bpl lint src/*.bpl
 bpl lint --json src/*.bpl
 bpl lint --disable L001,L008 src/
+bpl lint --fix src/
 ```
 
 A project can disable rules for every run in a `.bpllint.json` file; `bpl lint`
