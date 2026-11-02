@@ -22,6 +22,18 @@ shifting later elements right, and throws `IndexOutOfBoundsError` otherwise.
 not destroy elements, so release owned elements first. `arr.isEmpty()`
 reports whether the array has no elements.
 
+`arr.sortBy(compare)` sorts in place with a `Lambda<int>(T, T)` that returns a
+negative number, zero or a positive number when its first argument belongs
+before, with or after its second. The sort is stable, so equal elements keep
+their order, and runs in O(n log n) with one temporary buffer, which is
+released if `compare` throws (the elements are then in an unspecified order):
+
+```bpl
+words.sortBy(|a: string, b: string| ret int {
+    return strcmp(a, b);
+});
+```
+
 `map` and `filter` release their result-array buffer if a callback throws and
 propagate the original exception. Elements are shallow values: callbacks remain
 responsible for any separately allocated resources they create.

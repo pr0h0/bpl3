@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `Array.sortBy(compare)` sorts any element type in place with a comparator;
+  the sort is stable.
 - `bpl format --diff` checks formatting and prints a unified diff of the
   changes for each unformatted file.
 
