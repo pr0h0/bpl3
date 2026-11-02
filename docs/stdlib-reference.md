@@ -2093,6 +2093,11 @@ frame isSome(this: Option<T>) ret bool
 frame isNone(this: Option<T>) ret bool
 frame panic() ret T
 frame unwrap(this: Option<T>) ret T
+frame expect(this: Option<T>, message: string) ret T
+frame expectFailed(message: string) ret T
+frame unwrapOrElse(this: Option<T>, fallback: Lambda<T>()) ret T
+frame map<U>(this: Option<T>, transform: Lambda<U>(T)) ret Option<U>
+frame andThen<U>(this: Option<T>, next: Lambda<Option<U>>(T)) ret Option<U>
 frame unwrapOr(this: Option<T>, defaultValue: T) ret T
 frame __eq__(this: *Option<T>, other: *Option<T>) ret bool
 frame __ne__(this: *Option<T>, other: *Option<T>) ret bool
@@ -2752,6 +2757,11 @@ Err(E)
 frame isOk(this: Result<T, E>) ret bool
 frame isErr(this: Result<T, E>) ret bool
 frame unwrap(this: Result<T, E>) ret T
+frame expect(this: Result<T, E>, message: string) ret T
+frame expectFailed(message: string) ret T
+frame map<U>(this: Result<T, E>, transform: Lambda<U>(T)) ret Result<U, E>
+frame mapErr<F>(this: Result<T, E>, transform: Lambda<F>(E)) ret Result<T, F>
+frame ok(this: Result<T, E>) ret Option<T>
 frame unwrapOr(this: Result<T, E>, defaultValue: T) ret T
 frame unwrapErr(this: Result<T, E>) ret E
 frame __eq__(this: *Result<T, E>, other: *Result<T, E>) ret bool
