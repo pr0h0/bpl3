@@ -108,6 +108,31 @@ struct Rand {
         return arr.get(idx);
     }
 
+    # Shuffles the elements of any array in place (Fisher-Yates). It draws
+    # the same numbers as `shuffleInt`, so a seeded generator gives the same
+    # order for the same length.
+    frame shuffle<T>(this: *Rand, arr: *Array<T>) {
+        local i: int = arr.len() - 1;
+        loop (i > 0) {
+            local j: int = this.range(0, i + 1);
+            local temp: T = arr.get(i);
+            arr.set(i, arr.get(j));
+            arr.set(j, temp);
+            i = i - 1;
+        }
+    }
+
+    # Stores a random element of `arr` in `output` and returns true, or
+    # returns false, leaving `output` unchanged, when the array is empty.
+    frame choice<T>(this: *Rand, arr: *Array<T>, output: *T) ret bool {
+        local n: int = arr.len();
+        if (n == 0) {
+            return false;
+        }
+        *output = arr.get(this.range(0, n));
+        return true;
+    }
+
     # Generate random bytes into a buffer
     frame fillBytes(this: *Rand, buf: *u8, len: int) {
         local i: int = 0;

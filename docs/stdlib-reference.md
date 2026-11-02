@@ -2492,6 +2492,8 @@ frame range(this: *Rand, min: float, max: float) ret float
 frame nextGaussian(this: *Rand) ret float
 frame shuffleInt(this: *Rand, arr: *Array<int>)
 frame choiceInt(this: *Rand, arr: *Array<int>) ret int
+frame shuffle<T>(this: *Rand, arr: *Array<T>)
+frame choice<T>(this: *Rand, arr: *Array<T>, output: *T) ret bool
 frame fillBytes(this: *Rand, buf: *u8, len: int)
 frame weightedChoice(this: *Rand, weights: *Array<int>) ret int
 ```

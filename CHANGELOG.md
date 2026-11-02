@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `Rand.shuffle<T>` and `Rand.choice<T>` shuffle and pick from arrays of any
+  element type.
 - `StringBuilder` adds `appendLong`, `appendFloat`, `appendFixed` and
   `appendBool`, and `StringUtils.join` joins an array of strings.
 - A reserved word used as a struct field, lambda parameter or enum variant
