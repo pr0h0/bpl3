@@ -1221,6 +1221,10 @@ frame writeBytes(path: string, data: *u8, length: int) ret bool
 frame readBytes(path: string) ret Array<u8>
 frame readFile(path: string) ret String
 frame mkdir(path: string) ret bool
+frame remove(path: string) ret bool
+frame rename(fromPath: string, toPath: string) ret bool
+frame appendFile(path: string, data: string) ret bool
+frame copyFile(fromPath: string, toPath: string) ret bool
 frame mkdirp(path: string) ret bool
 frame listDir(path: string) ret Array<String>
 frame listDirChecked(path: string) ret Array<String>
