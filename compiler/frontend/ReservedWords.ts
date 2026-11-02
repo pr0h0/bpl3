@@ -58,6 +58,9 @@ const RESERVED_NAME = new RegExp(
   `(?:[(,|]\\s*(?:const\\s+)?|\\{\\s*(?!(?:default|case)\\b)|\\b(?:local|global)\\s+(?:const\\s+)?)(${WORDS})(?=\\s*(?::|=(?!=)))`,
 );
 
+const ENUM_DECLARATION = /^\s*(?:export\s+)?enum\b/;
+const RESERVED_VARIANT = new RegExp(`[{,]\\s*(${WORDS})(?=\\s*[,({}])`);
+
 /**
  * `text` with the contents of string and character literals and comments
  * replaced by spaces, so their words are not mistaken for names. Offsets are
@@ -105,7 +108,12 @@ function maskLiteralsAndComments(text: string): string {
 export function findReservedName(
   text: string,
 ): { word: string; offset: number } | undefined {
-  const match = RESERVED_NAME.exec(maskLiteralsAndComments(text));
+  const masked = maskLiteralsAndComments(text);
+  // An enum body holds only variants, so there a word after `{` or `,` that
+  // is followed by `,`, `(`, `{` or `}` is a variant name, not a statement.
+  const match =
+    RESERVED_NAME.exec(masked) ??
+    (ENUM_DECLARATION.test(masked) ? RESERVED_VARIANT.exec(masked) : null);
   if (!match) return undefined;
   return {
     word: match[1]!,

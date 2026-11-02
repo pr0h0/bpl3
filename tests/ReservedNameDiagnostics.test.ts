@@ -145,3 +145,20 @@ test("comparisons, switch labels, strings and comments are not taken for names",
     expect(firstError(source).message).toStartWith("Unexpected syntax");
   }
 });
+
+test("a reserved enum variant name is reported at the name", () => {
+  expect(
+    firstError(
+      "enum Token {\n    Word(string),\n    match,\n}\n\nframe main() ret int {\n    return 0;\n}\n",
+    ),
+  ).toEqual({
+    message: "'match' is a reserved word and cannot be used as a name",
+    line: 3,
+    column: 5,
+  });
+  expect(
+    firstError(
+      "enum Shape {\n    Box(int),\n    return { x: int },\n}\n\nframe main() ret int {\n    return 0;\n}\n",
+    ).message,
+  ).toBe("'return' is a reserved word and cannot be used as a name");
+});

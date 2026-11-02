@@ -906,9 +906,9 @@ next declaration. `tests/ReservedNameDiagnostics.test.ts` covers a reserved
 name in a later method (with braces in a string and a comment before it) and
 the unextended statement error.
 
-#### BUG-478: Reserved struct field and lambda parameter names give an unlocated syntax error
+#### BUG-478: Reserved struct field, lambda parameter and enum variant names give an unlocated syntax error
 
-**Status**: Partly fixed · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 Found while probing diagnostics after BUG-477 (2026-11-02). The BUG-476
 reserved-name refinement recognized parameters after `(` or `,` and variables
@@ -922,9 +922,10 @@ or struct-literal field, but not a switch's `default:` or `case`) and after
 character literal contents and comments are blanked before matching, and a
 name must be followed by `:` or a single `=` rather than `==`, so a comparison
 such as `true == flag` or a word in a string is never reported as a name.
-**Still open**: a reserved enum variant name (`enum E { A, match }`) is still
-reported as unexpected syntax at the enum; telling a variant apart from a
-statement such as `{ if (` needs the grammar, whose generator is fragile.
+An enum body holds only variants, so when the recovery span is an `enum`
+declaration a reserved word after `{` or `,` that is followed by `,`, `(`, `{`
+or `}` is reported as a variant name (`enum E { A, match }`, `return { x: int
+}`).
 
 ## Generated-program fuzzer findings (2026-10-29)
 
