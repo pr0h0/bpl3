@@ -37,6 +37,7 @@ export function registerLintCommand(program: Command): void {
       "report warnings without failing (errors still fail)",
     )
     .option("--json", "output lint diagnostics in JSON format")
+    .option("--fix", "remove unused imports (L002) in place before linting")
     .option(
       "--disable <codes>",
       "skip lint rules, comma-separated (e.g. L003,L008; repeatable)",

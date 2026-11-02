@@ -6,6 +6,7 @@
 import { CompilerError } from "../../compiler/common/CompilerError";
 import { Parser } from "../../compiler/frontend/Parser";
 import { LINT_RULE_CODES, Linter } from "../../compiler/linter/Linter";
+import { fixUnusedImports } from "../../compiler/linter/LintFixes";
 
 export { CompilerError, LINT_RULE_CODES };
 
@@ -31,4 +32,12 @@ export function createLintEngine(disabledCodes: readonly string[] = []) {
     const parser = new Parser(content, filePath);
     return linter.lint(parser.parse(true), content);
   };
+}
+
+/** `content` with unused imports removed, or undefined if none are unused. */
+export function fixSource(
+  content: string,
+  filePath: string,
+): string | undefined {
+  return fixUnusedImports(new Parser(content, filePath).parse(true), content);
 }
