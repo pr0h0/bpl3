@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- A missing member on a primitive value is reported with the value's type
+  (`'i32'`, `'double'`) instead of the internal wrapper (`'Int'`,
+  `'Double'`) (BUG-479).
 - `IndexOutOfBoundsError` messages name the index and length
   (`Index 5 out of bounds for length 1`), so an uncaught error shows them.
 

@@ -1386,8 +1386,10 @@ export function checkMember(
     );
   }
 
+  // Name the type as written: a primitive was swapped for its wrapper struct
+  // (`int` for `Int`) only to look up methods.
   throw new CompilerError(
-    `Cannot access member '${expr.property}' on type '${this.formatDiagnosticType(effectiveObjectType)}'`,
+    `Cannot access member '${expr.property}' on type '${this.formatDiagnosticType(objectType)}'`,
     "Check the type definition for available members.",
     expr.location,
     MEMBER_NOT_FOUND_CODE,
