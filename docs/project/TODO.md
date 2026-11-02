@@ -94,7 +94,8 @@ all related enhancements or platform support are complete.
 - [x] `Option<T>`/`Result<T,E>` and typed runtime error structs.
 - [x] Strings/builders, formatting, filesystem/path helpers, argument parsing,
       date/time/duration, JSON parsing/serialization, random/numeric helpers, and
-      stable FNV-1a (32/64-bit), CRC-32 and Adler-32 hashing, SHA-256
+      stable FNV-1a (32/64-bit), CRC-32 and Adler-32 hashing, SHA-1
+      (`lib/sha1.bpl`, for protocols that require it), SHA-256
       (`lib/sha256.bpl`), SHA-384 (`lib/sha384.bpl`) and SHA-512
       (`lib/sha512.bpl`).
 - [x] Collections including arrays, maps, sets, linked lists, deques, queues,

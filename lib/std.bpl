@@ -218,6 +218,9 @@ export [ByteWriter];
 import [Hash] from "std/hash.bpl";
 export [Hash];
 
+import [Sha1] from "std/sha1.bpl";
+export [Sha1];
+
 import [Sha256] from "std/sha256.bpl";
 export [Sha256];
 
