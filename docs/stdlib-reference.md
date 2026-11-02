@@ -1616,6 +1616,12 @@ frame fromJson(json: string, dest: *Self) ret JsonParseResult
 
 ```bpl
 struct JSON
+frame pretty(text: string, indent: int) ret string
+frame minify(text: string) ret string
+frame reformat(text: string, indent: int) ret string
+frame layout(text: string, indent: int, output: string) ret long
+frame put(output: string, used: long, c: char) ret long
+frame newline(output: string, used: long, indent: int, depth: long) ret long
 frame stringify<T>(obj: *T) ret String
 frame serializeAny(sb: *StringBuilder, ptr: ulong, info: *TypeInfo)
 frame serializeEnum(sb: *StringBuilder, ptr: ulong, info: *TypeInfo)
