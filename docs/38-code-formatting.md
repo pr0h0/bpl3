@@ -7,12 +7,20 @@ bpl format src/main.bpl
 bpl format --write src/main.bpl
 bpl format --check src/main.bpl
 bpl format --check --json src/main.bpl
+bpl format --diff src/
 ```
 
 The default command prints formatted source. `--write` updates files atomically;
 `--check` reports files that need formatting without changing them and exits
 nonzero if any file differs or cannot be processed. JSON output is supported
 with `--check`. `--write` and `--check` cannot be combined.
+
+`--diff` is `--check` that also prints, on standard output, a unified diff of
+the changes formatting would make to each unformatted file (three lines of
+context, `--- file` and `+++ file (formatted)` headers, and `\ No newline at end
+of file` where a final newline is missing), so a CI log shows what to fix. It
+writes nothing, exits nonzero when any file differs, and cannot be combined with
+`--write`. With `--json` the report is unchanged and no diff is printed.
 
 ## Language style
 
