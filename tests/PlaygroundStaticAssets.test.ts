@@ -54,27 +54,39 @@ function extractServedFrontendAssets(serverSource: string): string[] {
 
 describe("Playground frontend static assets", () => {
   test("tutorial loading and execution use the page origin on custom ports and remote deployments", async () => {
-    const source = readFileSync(resolve(FRONTEND_DIR, "tutorial.js"), "utf8");
+    const scripts = ["bplSyntax.js", "markdown.js", "tutorial.js"].map((file) =>
+      readFileSync(resolve(FRONTEND_DIR, file), "utf8"),
+    );
     for (const page of [
       "http://localhost:3011/tutorial.html",
       "https://play.example/tutorial.html",
     ]) {
       const calls: URL[] = [];
-      const handlers = new Map<string, () => Promise<void>>();
+      const element = () => ({
+        style: {},
+        dataset: {},
+        innerHTML: "",
+        textContent: "",
+        addEventListener() {},
+        setAttribute() {},
+        querySelectorAll: () => [],
+      });
       const context = createContext({
-        window: { location: new URL(page), addEventListener() {} },
+        window: {
+          location: new URL(page),
+          addEventListener() {},
+          history: { pushState() {}, replaceState() {} },
+        },
         AbortController,
         URLSearchParams,
+        URL,
         console,
         require: { config() {} },
         document: {
+          title: "",
           addEventListener() {},
           querySelectorAll: () => [],
-          getElementById: (id: string) => ({
-            style: {},
-            addEventListener: (event: string, handler: () => Promise<void>) =>
-              handlers.set(`${id}:${event}`, handler),
-          }),
+          getElementById: element,
         },
         fetch: async (url: string) => {
           const resolved = new URL(url, page);
@@ -87,17 +99,21 @@ describe("Playground frontend static assets", () => {
           };
         },
       });
-      runInContext(source, context);
+      for (const script of scripts) runInContext(script, context);
       expect(
-        runInContext('getBPLLanguageDefinition().symbols.test("<=>")', context),
+        runInContext(
+          "BplSyntax.monarchLanguage().symbols.test('<=>')",
+          context,
+        ),
       ).toBe(true);
       await runInContext("loadTutorials()", context);
-      runInContext(
-        'modalEditor = { getValue: () => "frame main() ret int { return 0; }" }',
+      const result = await runInContext(
+        'compileLesson("frame main() ret int { return 0; }")',
         context,
       );
-      await handlers.get("modal-run-btn:click")!();
+      expect(result).toEqual({ success: true, output: "ok" });
       expect(calls.map((url) => url.href)).toEqual([
+        new URL("/tutorials", page).href,
         new URL("/tutorials", page).href,
         new URL("/compile", page).href,
       ]);
@@ -117,10 +133,11 @@ describe("Playground frontend static assets", () => {
 
     expect(htmlAssets).toEqual([
       "app.js",
+      "bplSyntax.js",
       "browserWasmRuntime.js",
       "draftStore.js",
+      "markdown.js",
       "style.css",
-      "tutorial.css",
       "tutorial.js",
       "wasmHostAdapter.js",
     ]);

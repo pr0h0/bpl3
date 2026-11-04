@@ -2190,7 +2190,7 @@ describe("Markdown documentation", () => {
       "`output` combines stdout and stderr",
       "`includeArtifacts: true`",
       "`execute: false`",
-      "The default Run Code request omits IR, AST, and token payloads",
+      "The default Run request omits IR, AST, and token payloads",
       "Debug tabs load artifacts lazily",
       "`Runtime error: <stderr-or-message>`",
       "`Execution timeout (5 seconds)`",

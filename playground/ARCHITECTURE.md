@@ -113,7 +113,7 @@ mode and inside the server in host mode. See [runner setup and limits](README.md
 │                                                   ↓              │
 │  Response ← Stats Update ← Logger ← Output + Metrics            │
 │       ↓                                                          │
-│  Frontend displays results + updates stats dashboard             │
+│  Frontend displays results and the run status line               │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 
@@ -121,11 +121,11 @@ mode and inside the server in host mode. See [runner setup and limits](README.md
 │                  MONITORING FLOW                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  Every 5 seconds:                                               │
-│    Frontend → GET /stats → Backend                              │
+│  Every 30 seconds:                                              │
+│    Frontend → GET /health → Backend                             │
 │         ↓                      ↓                                 │
-│    Display stats          Calculate metrics                     │
-│    Update UI              Return JSON                            │
+│    Show online/offline    Return status                         │
+│  On request: GET /stats returns aggregated metrics as JSON      │
 │                                                                  │
 │  Every 5 minutes:                                               │
 │    Backend → Logger → Console output                            │
@@ -164,7 +164,7 @@ Native execution responses are shaped before `/compile` returns JSON. The
 backend runs binaries through argv-vector process execution, pipes stdin
 directly, and converts stdout, stderr, nonzero exits, output-limit failures, and
 timeouts into the stable payload documented in `playground/README.md`. The
-default Run Code request omits IR, AST, and token payloads; Debug tabs load
+default Run request omits IR, AST, and token payloads; Debug tabs load
 artifacts lazily with `includeArtifacts: true` and `execute: false`, so
 inspection does not link or rerun the native binary. The
 contract is guarded by `tests/PlaygroundNativeExecution.test.ts` and
@@ -203,7 +203,7 @@ bun test tests/TutorialExamples.test.ts -t "argv-vector execution"
 ### Integration Points
 
 - **REST API**: JSON-based communication
-- **Polling**: 5-second stats updates
+- **Polling**: 30-second `/health` checks from the playground page
 - **WebSocket** (future): Real-time log streaming
 - **Health Checks**: Automated monitoring
 

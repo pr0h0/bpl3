@@ -1,55 +1,26 @@
 # BPL Playground
 
-An interactive web-based playground for learning and experimenting with BPL (Best Programming Language). Inspired by [gobyexample.com](https://gobyexample.com), this playground provides an educational environment with 70+ annotated examples and a comprehensive "Zero to Hero" tutorial series.
+A web playground and tutorial for BPL. It has two pages:
 
-## Features
+- **Playground** (`index.html`): a single-file editor with about 70 example
+  programs. Run compiles and runs the program on the server; Run as Wasm
+  compiles to WebAssembly and runs it in the browser. Output, LLVM IR, AST,
+  Tokens and Wasm tabs show the results, and standard input and arguments can
+  be set under the editor. Edits are kept in browser storage as a draft.
+- **Tutorial** (`tutorial.html`): 26 lessons, from a first program to FFI and
+  inline assembly. Each lesson has explanations, runnable examples that can be
+  edited in place, comparisons with other languages, an exercise with a hint
+  and solution, and a short quiz. Progress is stored in the browser.
 
-✨ **Interactive Code Editor**
+Both pages follow the system light or dark color scheme and work on narrow
+screens. The editor is Monaco, loaded from cdnjs; the rest of the frontend is
+plain HTML, CSS and JavaScript with no build step.
 
-- Monaco Editor with BPL syntax highlighting
-- Real-time code editing with proper indentation
-- Line numbers and code folding
-
-🎓 **Learn by Example**
-
-- 65+ curated examples covering all BPL features
-- Each example includes detailed descriptions and explanations
-- Progressive learning from "Hello World" to advanced topics
-
-📚 **Zero to Hero Tutorial Series** _(NEW!)_
-
-- 26 structured lessons from basics to advanced topics
-- Interactive code snippets with "Run" functionality
-- Multi-language comparisons (C, Python, Rust, JavaScript, Go)
-- Hands-on challenges with hints and solutions
-- Knowledge-check quizzes for retention
-- Progress tracking with local storage
-
-🔧 **Powerful Development Tools**
-
-- **Output Tab**: See program output and errors
-- **LLVM IR Tab**: View generated intermediate representation
-- **AST Tab**: Explore the Abstract Syntax Tree
-- **Tokens Tab**: Examine lexer tokens
-- **Wasm Tab**: Build hosted WebAssembly and execute it through the browser runtime adapter
-
-📥 **Input & Arguments**
-
-- Pass standard input (stdin) to programs
-- Provide command-line arguments
-- Test interactive programs
-
-🚀 **Fast Compilation**
-
-- Bun-powered backend for quick responses
-- Real-time compilation and execution
-- Detailed error messages with line numbers
-- Hosted wasm builds use `wasm-ld`/LLVM lld and the playground runs the module through browser `WebAssembly.instantiate`
-- The Wasm tab reports browser runtime capability separately from BPL
-  compilation. The default playground uses the backend `/wasm` endpoint for
-  compilation, then runs the module in the browser. If a future
-  `BplBrowserCompiler.compileToHostedWasm` bundle is loaded, the same UI can
-  compile and run without the backend.
+The Wasm tab reports browser runtime capability separately from BPL
+compilation. By default the backend `/wasm` endpoint compiles (with
+`wasm-ld`/LLVM lld) and the module runs in the browser through
+`WebAssembly.instantiate`. If a `BplBrowserCompiler.compileToHostedWasm` bundle
+is loaded, the same UI compiles and runs without the backend.
 
 ### Browser Compiler Hook
 
@@ -130,7 +101,8 @@ forwarding headers. Behind a reverse proxy, configure its exact IP in
 the client address (for Nginx: `proxy_set_header X-Forwarded-For $remote_addr;`).
 Forwarded chains are ignored. Configure this only for proxies you control.
 
-The Stop button cancels the active request in the editor and tutorial modal.
+The Stop button cancels the active playground request; pressing a running
+tutorial example's Stop button does the same.
 Disconnecting a client also cancels its job; the execution slot stays reserved
 until Docker cleanup completes. If cancellation arrives during container creation,
 creation is allowed to settle before removal to avoid an orphan race. Host mode
@@ -190,12 +162,16 @@ playground/
 │   ├── runtimeFiles.ts   # Native runtime object cache for faster playground links
 │   └── package.json
 ├── frontend/
-│   ├── index.html        # Main playground UI
-│   ├── tutorial.html     # Tutorial page UI
-│   ├── style.css         # Styling and dark theme
-│   ├── tutorial.css      # Tutorial-specific styles
-│   ├── app.js            # Frontend logic and Monaco setup
-│   └── tutorial.js       # Tutorial JavaScript functionality
+│   ├── index.html        # Playground page
+│   ├── tutorial.html     # Tutorial page
+│   ├── style.css         # Shared styles (light and dark color schemes)
+│   ├── app.js            # Playground editor, runs, tabs and drafts
+│   ├── tutorial.js       # Lesson outline, rendering, runnable examples, quizzes
+│   ├── markdown.js       # Markdown renderer for lesson text
+│   ├── bplSyntax.js      # Monaco language definition and static highlighter
+│   ├── draftStore.js     # Versioned local draft storage
+│   ├── wasmHostAdapter.js, browserWasmRuntime.js, wasmWorker.js
+│   │                     # Browser WebAssembly runtime
 ├── examples/
 │   ├── 01-hello-world.json
 │   ├── 02-variables.json
@@ -208,7 +184,7 @@ playground/
 
 ## Tutorial Topics
 
-The "Zero to Hero" tutorial covers:
+The tutorial covers:
 
 ### Beginner (Lessons 1-10)
 
@@ -279,7 +255,7 @@ Compiles and runs BPL code.
 }
 ```
 
-The default Run Code request omits IR, AST, and token payloads so small programs
+The default Run request omits IR, AST, and token payloads so small programs
 return quickly. Debug tabs load artifacts lazily by sending
 `includeArtifacts: true` with `execute: false`; that compiles and returns
 compiler internals without linking or rerunning the native binary.
@@ -333,13 +309,14 @@ bun test tests/TutorialExamples.test.ts -t "argv-vector execution"
 
 ## Usage Tips
 
-1. **Browse Examples**: Click examples in the sidebar to load them
-2. **Edit Code**: Modify code in the Monaco editor
-3. **Run Programs**: Click "Run Code" to compile and execute
-4. **View Internals**: Switch tabs to lazily load IR, AST, or tokens
-5. **Add Input**: Expand "Input & Arguments" to provide stdin/args
-6. **Start Tutorial**: Click "Start Tutorial: Zero to Hero" for structured learning
-7. **Track Progress**: Tutorial progress is saved in your browser
+1. **Load an example** from the list in the toolbar, or write your own code.
+2. **Run** with the Run button or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>;
+   <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> runs as Wasm and
+   <kbd>Ctrl</kbd>+<kbd>S</kbd> formats.
+3. **Inspect the compiler**: the LLVM IR, AST and Tokens tabs load when opened.
+4. **Provide input** under "Program input and arguments".
+5. **Learn step by step** on the Tutorial page; lesson examples have Run and
+   Edit buttons, and progress is saved in your browser.
 
 ## Development
 
@@ -353,7 +330,7 @@ bun run playground:host
 
 Examples are JSON files in `playground/examples/`. Each example has:
 
-- `order`: Display order in sidebar
+- `order`: Display order in the example list
 - `title`: Example name
 - `snippet`: Short description
 - `description`: Detailed explanation
@@ -432,12 +409,20 @@ Create a new JSON file in `tutorials/`:
 }
 ```
 
+Text fields (`content`, `instructions`, `explanation`, `hint`, `note`) are
+Markdown, rendered by `frontend/markdown.js`: headings, paragraphs, fenced code
+(untagged and `bpl` fences are highlighted), bullet and numbered lists, block
+quotes, tables with column alignment, rules, inline code, bold, italic and
+links. A single newline inside a paragraph is a line break. Raw HTML is shown
+as text. Objectives, quiz questions, options and line notes accept inline
+Markdown. `tests/PlaygroundMarkdown.test.ts` renders every lesson.
+
 ## Technology Stack
 
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript, Monaco Editor
 - **Backend**: Bun runtime, TypeScript
 - **Compiler**: BPL → LLVM IR → Native binary (via Clang)
-- **Styling**: Custom dark theme with CSS variables
+- **Styling**: One stylesheet with CSS variables for light and dark schemes
 
 ## Troubleshooting
 
