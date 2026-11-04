@@ -19,10 +19,10 @@
    Navigate to `http://localhost:3001`
 
 3. **Start learning:**
-   - Click any example in the sidebar
+   - Pick an example from the list in the toolbar
    - Read the description at the top
    - Study the annotated code
-   - Click "Run Code" to see it execute
+   - Click "Run" to see it execute
    - Explore the IR, AST, and Tokens tabs
 
 ## 🎓 Learning Path
@@ -143,13 +143,13 @@ kill -9 <PID>
 ```
 
 2. Restart server to load new example
-3. It will appear in the sidebar
+3. It will appear in the example list
 
 ### Customizing the UI
 
-- Edit `frontend/style.css` for appearance
-- Modify `frontend/app.js` for behavior
-- Update `frontend/index.html` for structure
+- Edit `frontend/style.css` for appearance (shared by both pages)
+- Modify `frontend/app.js` (playground) or `frontend/tutorial.js` (tutorial) for behavior
+- Update `frontend/index.html` or `frontend/tutorial.html` for structure
 - Changes take effect on browser refresh
 
 ### Backend API

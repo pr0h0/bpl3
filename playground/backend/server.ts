@@ -349,12 +349,21 @@ const server = Bun.serve({
       });
     }
 
-    if (url.pathname === "/tutorial.css") {
-      const css = readStaticTextFile(
-        path.join(__dirname, "../frontend/tutorial.css"),
+    if (url.pathname === "/bplSyntax.js") {
+      const js = readStaticTextFile(
+        path.join(__dirname, "../frontend/bplSyntax.js"),
       );
-      return new Response(css, {
-        headers: { ...headers, "Content-Type": "text/css" },
+      return new Response(js, {
+        headers: { ...headers, "Content-Type": "application/javascript" },
+      });
+    }
+
+    if (url.pathname === "/markdown.js") {
+      const js = readStaticTextFile(
+        path.join(__dirname, "../frontend/markdown.js"),
+      );
+      return new Response(js, {
+        headers: { ...headers, "Content-Type": "application/javascript" },
       });
     }
 

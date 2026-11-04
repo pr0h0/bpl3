@@ -1,11 +1,38 @@
-// Initialize Monaco Editor
+// BPL playground: a single-file editor that compiles and runs on the
+// playground backend, or as WebAssembly in the browser.
+
+const API_BASE =
+  window.location.protocol === "file:" ? "http://localhost:3001" : "";
+const COMPILE_ARTIFACT_TABS = new Set(["ir", "ast", "tokens"]);
+const MONACO_BASE =
+  "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs";
+
+const wasmHostAdapter = window.BplWasmHostAdapter;
+if (!wasmHostAdapter) {
+  throw new Error("BPL wasm host adapter script must load before app.js");
+}
+const browserWasmRuntime = window.BplBrowserWasmRuntime;
+if (!browserWasmRuntime) {
+  throw new Error("BPL browser wasm runtime script must load before app.js");
+}
+
 let editor;
+let allExamples = [];
 let currentExample = null;
+let latestCompileRequest = null;
+let compileArtifactsLoaded = false;
+let compileArtifactsPromise = null;
+
+const $ = (id) => document.getElementById(id);
+
+// ---------- Drafts ----------
+
 let draftReady = false;
 let draftChanged = false;
 let draftPersisted = false;
 let restoredDraft = false;
 let draftStorageWarning = false;
+
 /** Persist editor inputs while distinguishing edits from untouched examples. */
 function persistDraft(edited = true) {
   if (!draftReady || !editor) return;
@@ -14,8 +41,8 @@ function persistDraft(edited = true) {
     draftPersisted = globalThis.BplDraftStore.save(window.localStorage, {
       edited: draftChanged,
       code: editor.getValue(),
-      stdin: document.getElementById("stdin-input").value,
-      args: document.getElementById("args-input").value,
+      stdin: $("stdin-input").value,
+      args: $("args-input").value,
     });
   } catch {
     draftPersisted = false;
@@ -28,6 +55,7 @@ function persistDraft(edited = true) {
     );
   }
 }
+
 /** Restore a validated local draft without marking a clean example as edited. */
 function restoreDraft() {
   let draft;
@@ -38,49 +66,64 @@ function restoreDraft() {
   }
   if (!draft) return false;
   editor.setValue(draft.code);
-  document.getElementById("stdin-input").value = draft.stdin;
-  document.getElementById("args-input").value = draft.args;
+  $("stdin-input").value = draft.stdin;
+  $("args-input").value = draft.args;
   draftChanged = draft.edited !== false;
   draftPersisted = true;
   showToast("Restored your local draft", "info");
   return true;
 }
-let allExamples = []; // Store all examples for searching
-let latestCompileRequest = null;
-let compileArtifactsLoaded = false;
-let compileArtifactsPromise = null;
-const API_BASE =
-  window.location.protocol === "file:" ? "http://localhost:3001" : "";
-const COMPILE_ARTIFACT_TABS = new Set(["ir", "ast", "tokens"]);
-const wasmHostAdapter = window.BplWasmHostAdapter;
-if (!wasmHostAdapter) {
-  throw new Error("BPL wasm host adapter script must load before app.js");
-}
-const browserWasmRuntime = window.BplBrowserWasmRuntime;
-if (!browserWasmRuntime) {
-  throw new Error("BPL browser wasm runtime script must load before app.js");
-}
+
+// ---------- Operations (one request at a time, cancellable) ----------
+
 let activeOperation = null;
-function beginOperation() {
+
+function beginOperation(status = "Running") {
   if (activeOperation) return null;
   activeOperation = new AbortController();
-  document.getElementById("loading").style.display = "flex";
+  $("loading-status").textContent = status;
+  $("loading").style.display = "flex";
+  setButtonsDisabled(true);
   return activeOperation;
 }
+
 function finishOperation(operation) {
   if (activeOperation === operation) {
     activeOperation = null;
-    document.getElementById("loading").style.display = "none";
+    $("loading").style.display = "none";
+    setButtonsDisabled(false);
   }
 }
-function showCancelled(target = "output-content") {
-  document.getElementById(target).textContent = "Execution cancelled.";
-  document.getElementById("exec-status").textContent = "Cancelled";
+
+function setButtonsDisabled(disabled) {
+  for (const id of ["run-btn", "run-wasm-btn", "format-btn"]) {
+    $(id).disabled = disabled;
+  }
 }
-document
-  .getElementById("stop-btn")
-  .addEventListener("click", () => activeOperation?.abort());
+
+function showCancelled(target = "output-content") {
+  $(target).textContent = "Execution cancelled.";
+  setStatus("Cancelled", "");
+}
+
+$("stop-btn").addEventListener("click", () => activeOperation?.abort());
 window.addEventListener("pagehide", () => activeOperation?.abort());
+
+function setStatus(text, state, time = null, size = null) {
+  const status = $("exec-status");
+  status.textContent = text;
+  if (status.dataset) status.dataset.status = state;
+  if (time !== null) $("exec-time").textContent = time;
+  if (size !== null) $("output-size").textContent = size;
+}
+
+function parseArgs() {
+  const value = $("args-input").value;
+  return value ? value.split(/\s+/).filter((arg) => arg) : [];
+}
+
+// ---------- WebAssembly ----------
+
 const runHostedWasmInBrowser = (wasm, args) =>
   wasmHostAdapter.runHostedWasmInWorker(wasm, args, {
     signal: activeOperation?.signal,
@@ -92,224 +135,62 @@ const {
   formatBrowserWasmCapabilitySummary,
   formatHostedWasmRunReport,
 } = browserWasmRuntime;
-
 const compileAndRunBplInBrowser = (code, args) =>
   compileInBrowser(code, args, {
     hostAdapter: { runHostedWasmInBrowser },
   });
 
-require.config({
-  paths: {
-    vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs",
-  },
-});
+// ---------- Editor ----------
+
+require.config({ paths: { vs: MONACO_BASE } });
 
 require(["vs/editor/editor.main"], function () {
-  // Register BPL language
-  monaco.languages.register({ id: "bpl" });
-
-  // Define BPL syntax highlighting
-  monaco.languages.setMonarchTokensProvider("bpl", {
-    keywords: [
-      "frame",
-      "ret",
-      "local",
-      "global",
-      "struct",
-      "import",
-      "export",
-      "extern",
-      "if",
-      "else",
-      "while",
-      "for",
-      "return",
-      "break",
-      "continue",
-      "true",
-      "false",
-      "null",
-      "sizeof",
-      "typeof",
-      "switch",
-      "case",
-      "default",
-    ],
-    typeKeywords: [
-      "int",
-      "float",
-      "string",
-      "bool",
-      "void",
-      "byte",
-      "char",
-      "long",
-      "i1",
-      "i8",
-      "i16",
-      "i32",
-      "i64",
-      "float32",
-      "float64",
-      "u8",
-      "u16",
-      "u32",
-      "u64",
-      "Func",
-    ],
-    operators: [
-      "=",
-      ">",
-      "<",
-      "!",
-      "~",
-      "?",
-      ":",
-      "==",
-      "<=",
-      ">=",
-      "!=",
-      "&&",
-      "||",
-      "++",
-      "--",
-      "+",
-      "-",
-      "*",
-      "/",
-      "&",
-      "|",
-      "^",
-      "%",
-      "<<",
-      ">>",
-      ">>>",
-      "+=",
-      "-=",
-      "*=",
-      "/=",
-      "&=",
-      "|=",
-      "^=",
-      "%=",
-      "<<=",
-      ">>=",
-      ">>>=",
-    ],
-    symbols: /[=><!~?:&|+\-*\/\^%]+/,
-    escapes:
-      /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
-
-    tokenizer: {
-      root: [
-        [
-          /[a-z_$][\w$]*/,
-          {
-            cases: {
-              "@typeKeywords": "keyword.type",
-              "@keywords": "keyword",
-              "@default": "identifier",
-            },
-          },
-        ],
-        [/[A-Z][\w\$]*/, "type.identifier"],
-        { include: "@whitespace" },
-        [/[{}()\[\]]/, "@brackets"],
-        [/[<>](?!@symbols)/, "@brackets"],
-        [
-          /@symbols/,
-          {
-            cases: {
-              "@operators": "operator",
-              "@default": "",
-            },
-          },
-        ],
-        [/\d*\.\d+([eE][\-+]?\d+)?/, "number.float"],
-        [/0[xX][0-9a-fA-F]+/, "number.hex"],
-        [/\d+/, "number"],
-        [/[;,.]/, "delimiter"],
-        [/"([^"\\]|\\.)*$/, "string.invalid"],
-        [/"/, { token: "string.quote", bracket: "@open", next: "@string" }],
-      ],
-
-      comment: [
-        [/[^#]+/, "comment"],
-        [/#/, "comment", "@pop"],
-      ],
-
-      string: [
-        [/[^\\"]+/, "string"],
-        [/@escapes/, "string.escape"],
-        [/\\./, "string.escape.invalid"],
-        [/"/, { token: "string.quote", bracket: "@close", next: "@pop" }],
-      ],
-
-      whitespace: [
-        [/[ \t\r\n]+/, "white"],
-        [/#.*$/, "comment"],
-      ],
-    },
-  });
-
-  // Create editor instance
-  editor = monaco.editor.create(document.getElementById("editor"), {
-    value:
-      "# Welcome to BPL Playground!\n# Select an example from the sidebar to start learning.",
+  BplSyntax.registerMonaco(monaco);
+  editor = monaco.editor.create($("editor"), {
+    value: "",
     language: "bpl",
-    theme: "vs-dark",
+    theme: BplSyntax.monacoTheme(),
     minimap: { enabled: false },
     fontSize: 14,
-    lineNumbers: "on",
+    tabSize: 4,
+    insertSpaces: true,
     scrollBeyondLastLine: false,
     automaticLayout: true,
+    renderLineHighlight: "line",
   });
+  window
+    .matchMedia?.("(prefers-color-scheme: dark)")
+    .addEventListener?.("change", () =>
+      monaco.editor.setTheme(BplSyntax.monacoTheme()),
+    );
 
-  // Update editor info on content change
   editor.onDidChangeModelContent(() => {
     updateEditorInfo();
     persistDraft();
-    latestCompileRequest = null;
-    compileArtifactsLoaded = false;
-    compileArtifactsPromise = null;
-    setCompileArtifactPlaceholders(
-      "Run Code to load compiler debug output for the current source.",
+    invalidateCompileArtifacts(
+      "Run the program, then open this tab to see compiler output for the current source.",
     );
   });
-
-  // Add keyboard shortcuts
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-    document.getElementById("run-btn").click();
-  });
-
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () =>
+    $("run-btn").click(),
+  );
   editor.addCommand(
     monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter,
-    () => {
-      document.getElementById("run-wasm-btn").click();
-    },
+    () => $("run-wasm-btn").click(),
+  );
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () =>
+    $("format-btn").click(),
   );
 
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-    document.getElementById("format-btn").click();
-  });
-
-  // Setup split pane resizing
-  setupSplitPaneResize();
-
-  // Setup output panel toggle
-  setupOutputToggle();
-
-  // Setup additional UI features
   setupQuickActions();
-  setupSearch();
   setupCopyButtons();
-  setupFullscreen();
+  setupExampleSelect();
   updateEditorInfo();
 
   restoredDraft = restoreDraft();
   draftReady = true;
   for (const id of ["stdin-input", "args-input"]) {
-    document.getElementById(id).addEventListener("input", persistDraft);
+    $(id).addEventListener("input", persistDraft);
   }
   window.addEventListener("beforeunload", (event) => {
     if (draftChanged && !draftPersisted) {
@@ -317,415 +198,74 @@ require(["vs/editor/editor.main"], function () {
       event.returnValue = "";
     }
   });
-  // Load examples without replacing a restored draft.
+
   loadExamples();
-
-  // Start stats polling
-  pollServerStats();
-  setInterval(pollServerStats, 5000); // Update every 5 seconds
+  pollServerStatus();
+  setInterval(pollServerStatus, 30000);
 });
 
-// Split pane resizing
-function setupSplitPaneResize() {
-  const divider = document.getElementById("resize-divider");
-  const panelLeft = document.querySelector(".panel-left");
-  const panelRight = document.querySelector(".panel-right");
-  const contentPanels = document.querySelector(".content-panels");
-
-  let isResizing = false;
-
-  divider.addEventListener("mousedown", () => {
-    isResizing = true;
-    divider.classList.add("active");
-  });
-
-  document.addEventListener("mousemove", (e) => {
-    if (!isResizing) return;
-
-    const containerRect = contentPanels.getBoundingClientRect();
-    const newLeftWidth = e.clientX - containerRect.left;
-    const minWidth = 300; // Minimum width for each panel
-
-    // Don't allow resizing past minimums
-    if (
-      newLeftWidth < minWidth ||
-      containerRect.width - newLeftWidth < minWidth
-    ) {
-      return;
-    }
-
-    const totalWidth = containerRect.width;
-    const rightWidth = totalWidth - newLeftWidth - 4; // 4px for divider
-
-    panelLeft.style.flex = `0 0 ${newLeftWidth}px`;
-    panelRight.style.flex = `0 0 ${rightWidth}px`;
-
-    // Trigger editor layout recalculation
-    if (editor) {
-      setTimeout(() => editor.layout(), 0);
-    }
-  });
-
-  document.addEventListener("mouseup", () => {
-    if (isResizing) {
-      isResizing = false;
-      divider.classList.remove("active");
-    }
-  });
-
-  // Prevent text selection during resize
-  document.addEventListener("selectstart", (e) => {
-    if (isResizing) {
-      e.preventDefault();
-    }
-  });
+function updateEditorInfo() {
+  if (!editor) return;
+  const model = editor.getModel();
+  const lines = model.getLineCount();
+  $("editor-info").textContent =
+    `${lines} ${lines === 1 ? "line" : "lines"}, ${model.getValueLength()} characters`;
 }
 
-// Output panel toggle
-function setupOutputToggle() {
-  const toggleBtn = document.getElementById("toggle-output-btn");
-  const panelRight = document.querySelector(".panel-right");
-  let isCollapsed = false;
+// ---------- Tabs and compiler output ----------
 
-  toggleBtn.addEventListener("click", () => {
-    isCollapsed = !isCollapsed;
-
-    if (isCollapsed) {
-      panelRight.classList.add("collapsed");
-      toggleBtn.textContent = "⊖ Output";
-    } else {
-      panelRight.classList.remove("collapsed");
-      toggleBtn.textContent = "⊕ Output";
-    }
-
-    // Trigger editor layout recalculation
-    if (editor) {
-      setTimeout(() => editor.layout(), 0);
-    }
-  });
-}
-
-// Tab switching
-document.querySelectorAll(".tab-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    activateTab(btn.dataset.tab);
-  });
-});
-
-// Run code
-document.getElementById("run-btn").addEventListener("click", async () => {
-  const operation = beginOperation();
-  if (!operation) return;
-  // Auto-format before running if checkbox is checked
-  const autoFormat = document.getElementById("auto-format-checkbox")?.checked;
-  if (autoFormat) {
-    try {
-      await formatEditor(operation.signal);
-    } catch {
-      showCancelled();
-      finishOperation(operation);
-      return;
-    }
-  }
-
-  const code = editor.getValue();
-
-  if (!code.trim()) {
-    showToast("Editor is empty. Please write some code first!", "warning");
-    finishOperation(operation);
-    return;
-  }
-
-  const stdin = document.getElementById("stdin-input").value;
-  const argsInput = document.getElementById("args-input").value;
-  const args = argsInput ? argsInput.split(/\s+/).filter((a) => a) : [];
-
-  // Show loading
-  document.getElementById("loading").style.display = "flex";
-  document.getElementById("loading-status").textContent = "Lexical analysis...";
-
-  // Clear previous results
-  document.getElementById("output-content").textContent = "Compiling...";
-  latestCompileRequest = null;
-  compileArtifactsLoaded = false;
-  compileArtifactsPromise = null;
-  setCompileArtifactPlaceholders(
-    "Debug view will load when this tab is selected after Run Code finishes.",
-  );
-
-  // Reset execution info
-  document.getElementById("exec-time").textContent = "...";
-  document.getElementById("output-size").textContent = "...";
-  document.getElementById("exec-status").textContent = "Running";
-  document.getElementById("exec-status").style.color = "var(--warning)";
-
-  const startTime = Date.now();
-
-  // Switch to output tab
-  document
-    .querySelectorAll(".tab-btn")
-    .forEach((b) => b.classList.remove("active"));
-  document.querySelector('[data-tab="output"]').classList.add("active");
-  document
-    .querySelectorAll(".tab-pane")
-    .forEach((p) => p.classList.remove("active"));
-  document.getElementById("tab-output").classList.add("active");
-
-  try {
-    document.getElementById("loading-status").textContent =
-      "Compiling to LLVM IR...";
-
-    const response = await fetch(`${API_BASE}/compile`, {
-      method: "POST",
-      signal: operation.signal,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        code,
-        input: stdin,
-        args,
-        includeArtifacts: false,
-      }),
-    });
-
-    const result = await response.json();
-    operation.signal.throwIfAborted();
-    const duration = Date.now() - startTime;
-    latestCompileRequest = { code, input: stdin, args };
-    compileArtifactsLoaded = false;
-    compileArtifactsPromise = null;
-    setCompileArtifactPlaceholders(
-      result.success
-        ? "Select this tab to load compiler debug output for the last run."
-        : "Select this tab to retry compilation and load available debug output.",
-    );
-
-    // Update output
-    const outputEl = document.getElementById("output-content");
-    if (result.success) {
-      outputEl.textContent = result.output || "(no output)";
-      outputEl.className = "success";
-
-      // Update execution info
-      document.getElementById("exec-time").textContent = duration + "ms";
-      document.getElementById("output-size").textContent =
-        (result.output?.length || 0) + " bytes";
-      document.getElementById("exec-status").textContent = "Success";
-      document.getElementById("exec-status").style.color = "var(--success)";
-
-      showToast("Code executed successfully!", "success");
-    } else {
-      outputEl.textContent = result.error || "Unknown error";
-      outputEl.className = "error";
-      if (result.output) {
-        outputEl.textContent += "\n\nPartial output:\n" + result.output;
-      }
-
-      // Update execution info with error
-      document.getElementById("exec-time").textContent = duration + "ms";
-      document.getElementById("output-size").textContent = "N/A";
-      document.getElementById("exec-status").textContent = "Failed";
-      document.getElementById("exec-status").style.color = "var(--error)";
-
-      showToast("Compilation failed", "error");
-    }
-
-    // Show warnings
-    if (result.warnings && result.warnings.length > 0) {
-      outputEl.textContent += "\n\nWarnings:\n" + result.warnings.join("\n");
-    }
-
-    // Update server stats after compilation
-    setTimeout(pollServerStats, 500);
-  } catch (error) {
-    if (operation.signal.aborted) {
-      showCancelled();
-      return;
-    }
-    const outputEl = document.getElementById("output-content");
-    outputEl.textContent = `Failed to connect to server: ${error.message}\n\nMake sure the backend server is running:\ncd playground/backend && bun run dev`;
-    outputEl.className = "error";
-    showToast("Server connection failed", "error");
-  } finally {
-    finishOperation(operation);
-  }
-});
-
-document.getElementById("run-wasm-btn").addEventListener("click", async () => {
-  const operation = beginOperation();
-  if (!operation) return;
-  const code = editor.getValue();
-  if (!code.trim()) {
-    showToast("Editor is empty. Please write some code first!", "warning");
-    finishOperation(operation);
-    return;
-  }
-
-  const argsInput = document.getElementById("args-input").value;
-  const args = argsInput ? argsInput.split(/\s+/).filter((a) => a) : [];
-  const startTime = Date.now();
-  const browserCapabilities = detectBrowserWasmCapabilities();
-  const browserCapabilitySummary =
-    formatBrowserWasmCapabilitySummary(browserCapabilities);
-
-  document.getElementById("loading").style.display = "flex";
-  document.getElementById("loading-status").textContent =
-    "Compiling hosted WebAssembly...";
-  activateTab("wasm");
-
-  const wasmContent = document.getElementById("wasm-content");
-  wasmContent.textContent = [
-    browserCapabilitySummary,
-    "",
-    browserCapabilities.canCompileBplInBrowser
-      ? "Compiling BPL to hosted wasm in this browser..."
-      : "Compiling BPL to hosted wasm with the playground backend; execution stays in this browser.",
-  ].join("\n");
-  document.getElementById("exec-time").textContent = "...";
-  document.getElementById("output-size").textContent = "...";
-  document.getElementById("exec-status").textContent = "Wasm";
-  document.getElementById("exec-status").style.color = "var(--info)";
-
-  try {
-    if (browserCapabilities.canCompileBplInBrowser) {
-      const browserResult = await compileAndRunBplInBrowser(code, args);
-      const duration = Date.now() - startTime;
-
-      if (!browserResult.success || !browserResult.runResult) {
-        wasmContent.textContent = [
-          browserCapabilitySummary,
-          "",
-          browserResult.error || "Browser wasm run failed.",
-        ].join("\n");
-        wasmContent.className = "error";
-        document.getElementById("exec-status").textContent = "Wasm failed";
-        document.getElementById("exec-status").style.color = "var(--error)";
-        showToast("Browser WebAssembly run failed", "error");
-        return;
-      }
-
-      const runResult = browserResult.runResult;
-      wasmContent.className = runResult.trapped ? "error" : "success";
-      wasmContent.textContent = formatHostedWasmRunReport({
-        compileMode: "browser",
-        capabilitySummary: browserCapabilitySummary,
-        runResult,
-      });
-      document.getElementById("exec-time").textContent = duration + "ms";
-      document.getElementById("output-size").textContent = "browser bundle";
-      document.getElementById("exec-status").textContent = runResult.trapped
-        ? "Wasm trapped"
-        : "Wasm success";
-      document.getElementById("exec-status").style.color = runResult.trapped
-        ? "var(--error)"
-        : "var(--success)";
-      showToast("WebAssembly executed in browser", "success");
-      return;
-    }
-
-    const response = await fetch(`${API_BASE}/wasm`, {
-      method: "POST",
-      signal: operation.signal,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, args }),
-    });
-    const result = await response.json();
-    operation.signal.throwIfAborted();
-
-    if (!result.success) {
-      wasmContent.textContent = result.error || "WebAssembly build failed";
-      wasmContent.className = "error";
-      document.getElementById("exec-status").textContent = "Wasm failed";
-      document.getElementById("exec-status").style.color = "var(--error)";
-      showToast("WebAssembly build failed", "error");
-      return;
-    }
-
-    document.getElementById("loading-status").textContent =
-      "Instantiating in browser...";
-    const runResult = await runHostedWasmInBrowser(result.wasmBase64, args);
-    const duration = Date.now() - startTime;
-
-    wasmContent.className = runResult.trapped ? "error" : "success";
-    wasmContent.textContent = formatHostedWasmRunReport({
-      compileMode: "backend /wasm",
-      capabilitySummary: browserCapabilitySummary,
-      wasmBytes: result.wasmBytes,
-      imports: result.imports || [],
-      runResult,
-    });
-
-    if (result.ir) {
-      document.getElementById("ir-content").textContent = result.ir;
-    }
-    document.getElementById("exec-time").textContent = duration + "ms";
-    document.getElementById("output-size").textContent =
-      `${result.wasmBytes || 0} bytes`;
-    document.getElementById("exec-status").textContent = runResult.trapped
-      ? "Wasm trapped"
-      : "Wasm success";
-    document.getElementById("exec-status").style.color = runResult.trapped
-      ? "var(--error)"
-      : "var(--success)";
-    showToast("WebAssembly executed in browser", "success");
-  } catch (error) {
-    if (operation.signal.aborted) {
-      showCancelled("wasm-content");
-      return;
-    }
-    wasmContent.textContent = formatBrowserWasmFailureReport({
-      errorMessage: error.message,
-      capabilitySummary: browserCapabilitySummary,
-    });
-    wasmContent.className = "error";
-    document.getElementById("exec-status").textContent = "Wasm failed";
-    document.getElementById("exec-status").style.color = "var(--error)";
-    showToast("WebAssembly run failed", "error");
-  } finally {
-    finishOperation(operation);
-  }
+document.querySelectorAll(".tab").forEach((button) => {
+  button.addEventListener("click", () => activateTab(button.dataset.tab));
 });
 
 function activateTab(tab) {
-  document
-    .querySelectorAll(".tab-btn")
-    .forEach((button) => button.classList.remove("active"));
-  document.querySelector(`[data-tab="${tab}"]`)?.classList.add("active");
-  document
-    .querySelectorAll(".tab-pane")
-    .forEach((pane) => pane.classList.remove("active"));
-  document.getElementById(`tab-${tab}`)?.classList.add("active");
+  document.querySelectorAll(".tab").forEach((button) => {
+    button.setAttribute(
+      "aria-selected",
+      button.dataset.tab === tab ? "true" : "false",
+    );
+  });
+  document.querySelectorAll(".tab-panel").forEach((panel) => {
+    panel.hidden = panel.id !== `tab-${tab}`;
+  });
+  if (COMPILE_ARTIFACT_TABS.has(tab)) void loadCompileArtifacts();
+}
 
-  if (COMPILE_ARTIFACT_TABS.has(tab)) {
-    void loadCompileArtifacts();
-  }
+function currentTab() {
+  const selected = document.querySelector('.tab[aria-selected="true"]');
+  return selected?.dataset?.tab ?? "output";
 }
 
 function setCompileArtifactPlaceholders(message) {
-  document.getElementById("ir-content").textContent = message;
-  document.getElementById("ast-content").textContent = message;
-  document.getElementById("tokens-content").textContent = message;
+  for (const id of ["ir-content", "ast-content", "tokens-content"]) {
+    $(id).textContent = message;
+    $(id).className = "placeholder";
+  }
+}
+
+function invalidateCompileArtifacts(message) {
+  latestCompileRequest = null;
+  compileArtifactsLoaded = false;
+  compileArtifactsPromise = null;
+  setCompileArtifactPlaceholders(message);
 }
 
 async function loadCompileArtifacts() {
   if (!latestCompileRequest) {
-    setCompileArtifactPlaceholders("Run Code before loading compiler output.");
+    setCompileArtifactPlaceholders(
+      "Run the program, then open this tab to see compiler output.",
+    );
     return;
   }
-
-  if (compileArtifactsLoaded) {
-    return;
-  }
-
+  if (compileArtifactsLoaded) return;
   if (compileArtifactsPromise) {
     await compileArtifactsPromise;
     return;
   }
 
-  const operation = beginOperation();
+  const operation = beginOperation("Loading compiler output");
   if (!operation) return;
-  document.getElementById("loading-status").textContent =
-    "Loading compiler debug output...";
-  setCompileArtifactPlaceholders("Loading compiler debug output...");
+  setCompileArtifactPlaceholders("Loading compiler output...");
   compileArtifactsPromise = (async () => {
     try {
       const response = await fetch(`${API_BASE}/compile`, {
@@ -741,47 +281,236 @@ async function loadCompileArtifacts() {
       const result = await response.json();
       operation.signal.throwIfAborted();
 
+      for (const id of ["ir-content", "ast-content", "tokens-content"]) {
+        $(id).className = "";
+      }
       if (!result.success) {
-        const error = result.error || "Unable to load compiler debug output.";
-        document.getElementById("ir-content").textContent = error;
-        document.getElementById("ast-content").textContent = error;
-        document.getElementById("tokens-content").textContent =
-          result.tokens || error;
+        const error = result.error || "Compiler output is not available.";
+        $("ir-content").textContent = error;
+        $("ast-content").textContent = error;
+        $("tokens-content").textContent = result.tokens || error;
         return;
       }
-
-      document.getElementById("ir-content").textContent =
-        result.ir || "(no LLVM IR)";
-      document.getElementById("ast-content").textContent =
-        result.ast || "(no AST)";
-      document.getElementById("tokens-content").textContent =
-        result.tokens || "(no tokens)";
+      $("ir-content").textContent = result.ir || "(no LLVM IR)";
+      $("ast-content").textContent = result.ast || "(no AST)";
+      $("tokens-content").textContent = result.tokens || "(no tokens)";
       compileArtifactsLoaded = true;
     } catch (error) {
-      const message = operation.signal.aborted
-        ? "Execution cancelled."
-        : `Failed to load compiler debug output: ${error.message}`;
-      document.getElementById("ir-content").textContent = message;
-      document.getElementById("ast-content").textContent = message;
-      document.getElementById("tokens-content").textContent = message;
+      setCompileArtifactPlaceholders(
+        operation.signal.aborted
+          ? "Execution cancelled."
+          : `Could not load compiler output: ${error.message}`,
+      );
     } finally {
       compileArtifactsPromise = null;
       finishOperation(operation);
     }
   })();
-
   await compileArtifactsPromise;
 }
 
-// Format code
-async function formatEditor(signal) {
-  const code = editor.getValue();
+// ---------- Run ----------
 
-  if (!code.trim()) {
-    showToast("Editor is empty", "warning");
-    return;
+$("run-btn").addEventListener("click", async () => {
+  const operation = beginOperation("Running");
+  if (!operation) return;
+  try {
+    if ($("auto-format-checkbox")?.checked) {
+      try {
+        await formatEditor(operation.signal, { quiet: true });
+      } catch {
+        showCancelled();
+        return;
+      }
+    }
+
+    const code = editor.getValue();
+    if (!code.trim()) {
+      showToast("The editor is empty.", "warning");
+      return;
+    }
+
+    const stdin = $("stdin-input").value;
+    const args = parseArgs();
+    const output = $("output-content");
+    output.textContent = "Compiling...";
+    output.className = "placeholder";
+    activateTab("output");
+    invalidateCompileArtifacts(
+      "Open this tab after the run finishes to see compiler output.",
+    );
+    setStatus("Running", "running", "...", "...");
+    const startTime = Date.now();
+
+    try {
+      const response = await fetch(`${API_BASE}/compile`, {
+        method: "POST",
+        signal: operation.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          input: stdin,
+          args,
+          includeArtifacts: false,
+        }),
+      });
+      const result = await response.json();
+      operation.signal.throwIfAborted();
+      const duration = `${Date.now() - startTime} ms`;
+      latestCompileRequest = { code, input: stdin, args };
+      setCompileArtifactPlaceholders(
+        "Open this tab to load compiler output for the last run.",
+      );
+
+      if (result.success) {
+        output.textContent = result.output || "(no output)";
+        output.className = result.output ? "success" : "placeholder";
+        setStatus(
+          "Finished",
+          "success",
+          duration,
+          `${result.output?.length || 0} bytes`,
+        );
+      } else {
+        output.textContent = result.error || "Unknown error";
+        output.className = "error";
+        if (result.output) {
+          output.textContent +=
+            "\n\nOutput before the error:\n" + result.output;
+        }
+        setStatus("Failed", "error", duration, "-");
+      }
+      if (result.warnings && result.warnings.length > 0) {
+        output.textContent += "\n\nWarnings:\n" + result.warnings.join("\n");
+      }
+    } catch (error) {
+      if (operation.signal.aborted) {
+        showCancelled();
+        return;
+      }
+      output.textContent = `Could not reach the playground server: ${error.message}\n\nStart it from the repository root with: bun run playground`;
+      output.className = "error";
+      setStatus("Server unavailable", "error", "-", "-");
+    }
+  } finally {
+    finishOperation(operation);
   }
+});
 
+$("run-wasm-btn").addEventListener("click", async () => {
+  const operation = beginOperation("Compiling to WebAssembly");
+  if (!operation) return;
+  const wasmContent = $("wasm-content");
+  try {
+    const code = editor.getValue();
+    if (!code.trim()) {
+      showToast("The editor is empty.", "warning");
+      return;
+    }
+    const args = parseArgs();
+    const startTime = Date.now();
+    const capabilities = detectBrowserWasmCapabilities();
+    const capabilitySummary = formatBrowserWasmCapabilitySummary(capabilities);
+
+    activateTab("wasm");
+    wasmContent.className = "placeholder";
+    wasmContent.textContent = [
+      capabilitySummary,
+      "",
+      capabilities.canCompileBplInBrowser
+        ? "Compiling to WebAssembly in this browser..."
+        : "Compiling to WebAssembly on the server; the program runs in this browser.",
+    ].join("\n");
+    setStatus("Running as Wasm", "running", "...", "...");
+
+    try {
+      if (capabilities.canCompileBplInBrowser) {
+        const browserResult = await compileAndRunBplInBrowser(code, args);
+        const duration = `${Date.now() - startTime} ms`;
+        if (!browserResult.success || !browserResult.runResult) {
+          wasmContent.textContent = [
+            capabilitySummary,
+            "",
+            browserResult.error || "The WebAssembly run failed.",
+          ].join("\n");
+          wasmContent.className = "error";
+          setStatus("Wasm failed", "error", duration, "-");
+          return;
+        }
+        const runResult = browserResult.runResult;
+        wasmContent.className = runResult.trapped ? "error" : "success";
+        wasmContent.textContent = formatHostedWasmRunReport({
+          compileMode: "browser",
+          capabilitySummary,
+          runResult,
+        });
+        setStatus(
+          runResult.trapped ? "Wasm trapped" : "Finished",
+          runResult.trapped ? "error" : "success",
+          duration,
+          "-",
+        );
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/wasm`, {
+        method: "POST",
+        signal: operation.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, args }),
+      });
+      const result = await response.json();
+      operation.signal.throwIfAborted();
+      if (!result.success) {
+        wasmContent.textContent = result.error || "WebAssembly build failed.";
+        wasmContent.className = "error";
+        setStatus("Wasm build failed", "error", "-", "-");
+        return;
+      }
+
+      $("loading-status").textContent = "Running in this browser";
+      const runResult = await runHostedWasmInBrowser(result.wasmBase64, args);
+      const duration = `${Date.now() - startTime} ms`;
+      wasmContent.className = runResult.trapped ? "error" : "success";
+      wasmContent.textContent = formatHostedWasmRunReport({
+        compileMode: "backend /wasm",
+        capabilitySummary,
+        wasmBytes: result.wasmBytes,
+        imports: result.imports || [],
+        runResult,
+      });
+      if (result.ir) {
+        $("ir-content").textContent = result.ir;
+        $("ir-content").className = "";
+      }
+      setStatus(
+        runResult.trapped ? "Wasm trapped" : "Finished",
+        runResult.trapped ? "error" : "success",
+        duration,
+        `${result.wasmBytes || 0} bytes of Wasm`,
+      );
+    } catch (error) {
+      if (operation.signal.aborted) {
+        showCancelled("wasm-content");
+        return;
+      }
+      wasmContent.textContent = formatBrowserWasmFailureReport({
+        errorMessage: error.message,
+        capabilitySummary,
+      });
+      wasmContent.className = "error";
+      setStatus("Wasm failed", "error", "-", "-");
+    }
+  } finally {
+    finishOperation(operation);
+  }
+});
+
+// ---------- Format ----------
+
+async function formatEditor(signal, { quiet = false } = {}) {
+  const code = editor.getValue();
+  if (!code.trim()) return;
   try {
     const response = await fetch(`${API_BASE}/format`, {
       method: "POST",
@@ -789,26 +518,25 @@ async function formatEditor(signal) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code }),
     });
-
     const result = await response.json();
     signal?.throwIfAborted();
-
     if (result.success && result.code) {
-      editor.setValue(result.code);
-      showToast("Code formatted successfully!", "success");
-    } else {
+      if (result.code !== code) editor.setValue(result.code);
+      if (!quiet) showToast("Formatted", "success");
+    } else if (!quiet) {
       showToast(
-        "Formatting failed: " + (result.error || "Unknown error"),
+        `Could not format: ${result.error || "unknown error"}`,
         "error",
       );
     }
   } catch (error) {
     if (signal?.aborted) throw error;
-    showToast("Failed to connect to server", "error");
+    if (!quiet) showToast("Could not reach the playground server.", "error");
   }
 }
-document.getElementById("format-btn").addEventListener("click", async () => {
-  const operation = beginOperation();
+
+$("format-btn").addEventListener("click", async () => {
+  const operation = beginOperation("Formatting");
   if (!operation) return;
   try {
     await formatEditor(operation.signal);
@@ -819,302 +547,149 @@ document.getElementById("format-btn").addEventListener("click", async () => {
   }
 });
 
-// Load examples from backend
+// ---------- Examples ----------
+
 async function loadExamples() {
   try {
     const response = await fetch(`${API_BASE}/examples`);
-    const examples = await response.json();
-
-    const listEl = document.getElementById("examples-list");
-    listEl.innerHTML = "";
-
-    examples.forEach((example, index) => {
-      const item = document.createElement("div");
-      item.className = "example-item";
-      item.innerHTML = `
-                <div class="example-number">${example.order || index + 1}</div>
-                <div class="example-info">
-                    <div class="example-name">${example.title}</div>
-                    <div class="example-snippet">${example.snippet || ""}</div>
-                </div>
-            `;
-      item.addEventListener("click", () => loadExample(example, item));
-      listEl.appendChild(item);
+    allExamples = await response.json();
+    const select = $("example-select");
+    allExamples.forEach((example, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = `${example.order || index + 1}. ${example.title}`;
+      select.appendChild(option);
     });
-
-    // Load first example by default
-    if (examples.length > 0) {
-      if (!restoredDraft) loadExample(examples[0], listEl.firstChild);
-    }
+    if (!restoredDraft && allExamples.length > 0) loadExample(allExamples[0]);
   } catch (error) {
     console.error("Failed to load examples:", error);
-    document.getElementById("examples-list").innerHTML = `
-            <div style="padding: 1rem; color: var(--error);">
-                Failed to load examples. Make sure the backend server is running.
-            </div>
-        `;
+    showToast("Could not load the examples.", "error");
   }
 }
 
-function loadExample(example, itemEl) {
+function setupExampleSelect() {
+  const select = $("example-select");
+  select.addEventListener("change", () => {
+    const example = allExamples[Number(select.value)];
+    if (select.value === "" || !example) return;
+    if (!loadExample(example)) {
+      select.value = currentExample
+        ? String(allExamples.indexOf(currentExample))
+        : "";
+    }
+  });
+}
+
+/** Replace the editor with an example; returns false if the user declines. */
+function loadExample(example) {
   if (
     draftChanged &&
     !confirm(
-      "Replace your edited draft with this example? Copy any code you want to keep first.",
+      "Replace your edited code with this example? Copy anything you want to keep first.",
     )
   )
-    return;
+    return false;
   draftReady = false;
   currentExample = example;
+  const index = allExamples.indexOf(example);
+  $("example-select").value = index === -1 ? "" : String(index);
+  $("example-title").textContent = example.title;
+  $("example-description").textContent = example.description || "";
 
-  // Update active state
-  document
-    .querySelectorAll(".example-item")
-    .forEach((el) => el.classList.remove("active"));
-  if (itemEl) itemEl.classList.add("active");
-
-  // Update header
-  document.getElementById("example-title").textContent = example.title;
-  document.getElementById("example-description").textContent =
-    example.description;
-
-  // Update editor
   if (editor) {
-    editor.setValue(example.code.join("\n"));
-    showToast(`Loaded: ${example.title}`, "info");
+    editor.setValue(
+      Array.isArray(example.code) ? example.code.join("\n") : example.code,
+    );
   }
-
-  // Clear input/args
-  document.getElementById("stdin-input").value = example.input || "";
-  document.getElementById("args-input").value = example.args
-    ? example.args.join(" ")
-    : "";
-
+  $("stdin-input").value = example.input || "";
+  $("args-input").value = example.args ? example.args.join(" ") : "";
   draftReady = true;
   persistDraft(false);
 
-  // Clear output tabs
-  document.getElementById("output-content").textContent =
-    "Run the code to see output...";
-  latestCompileRequest = null;
-  compileArtifactsLoaded = false;
-  compileArtifactsPromise = null;
-  document.getElementById("ir-content").textContent =
-    "LLVM IR will appear here after compilation...";
-  document.getElementById("ast-content").textContent =
-    "Abstract Syntax Tree will appear here after parsing...";
-  document.getElementById("tokens-content").textContent =
-    "Lexer tokens will appear here after parsing...";
-  document.getElementById("wasm-content").textContent =
-    'Hosted WebAssembly output will appear here after "Run Wasm".';
-
-  // Reset execution info
-  document.getElementById("exec-time").textContent = "-";
-  document.getElementById("output-size").textContent = "-";
-  document.getElementById("exec-status").textContent = "Ready";
-  document.getElementById("exec-status").style.color = "var(--text-secondary)";
-
-  // Switch to output tab
-  document
-    .querySelectorAll(".tab-btn")
-    .forEach((b) => b.classList.remove("active"));
-  document.querySelector('[data-tab="output"]').classList.add("active");
-  document
-    .querySelectorAll(".tab-pane")
-    .forEach((p) => p.classList.remove("active"));
-  document.getElementById("tab-output").classList.add("active");
+  $("output-content").textContent = "Press Run to compile and run the program.";
+  $("output-content").className = "placeholder";
+  $("wasm-content").textContent =
+    "Press Run as Wasm to compile to WebAssembly and run it in this browser.";
+  $("wasm-content").className = "placeholder";
+  invalidateCompileArtifacts(
+    "Run the program, then open this tab to see compiler output.",
+  );
+  setStatus("Ready", "", "-", "-");
+  activateTab("output");
+  return true;
 }
 
-// Poll server stats
-async function pollServerStats() {
+// ---------- Server status ----------
+
+async function pollServerStatus() {
+  const status = $("server-status");
   try {
-    const response = await fetch(`${API_BASE}/stats`);
-    const stats = await response.json();
-
-    // Update status indicator
-    const statusEl = document.getElementById("server-status");
-    const statusDot = statusEl.querySelector(".status-dot");
-    statusEl.classList.remove("offline");
-    statusEl.innerHTML = '<span class="status-dot"></span>Online';
-
-    // Update compile count
-    document.getElementById("compile-count").textContent =
-      `${stats.successfulCompilations}/${stats.totalRequests}`;
-
-    // Update average time
-    document.getElementById("avg-time").textContent = stats.averageCompileTime
-      ? `${stats.averageCompileTime.toFixed(0)}ms`
-      : "0ms";
-  } catch (error) {
-    // Server is offline
-    const statusEl = document.getElementById("server-status");
-    statusEl.classList.add("offline");
-    statusEl.innerHTML = '<span class="status-dot"></span>Offline';
+    const response = await fetch(`${API_BASE}/health`);
+    if (!response.ok) throw new Error(String(response.status));
+    status.textContent = "Server online";
+    if (status.dataset) status.dataset.state = "online";
+  } catch {
+    status.textContent = "Server offline";
+    if (status.dataset) status.dataset.state = "offline";
   }
 }
 
-// Update editor info
-function updateEditorInfo() {
-  if (!editor) return;
-  const model = editor.getModel();
-  const lineCount = model.getLineCount();
-  const charCount = model.getValueLength();
-  document.getElementById("editor-info").textContent =
-    `Lines: ${lineCount} | Chars: ${charCount}`;
-}
+// ---------- Copy and clear ----------
 
-// Setup quick actions
 function setupQuickActions() {
-  // Clear editor
-  document.getElementById("clear-editor-btn").addEventListener("click", () => {
-    if (confirm("Clear the editor? This will remove all your code.")) {
-      draftReady = false;
-      editor.setValue("");
-      document.getElementById("stdin-input").value = "";
-      document.getElementById("args-input").value = "";
-      try {
-        draftPersisted = globalThis.BplDraftStore.clear(window.localStorage);
-      } catch {
-        draftPersisted = false;
-      }
-      draftChanged = !draftPersisted;
-      draftReady = true;
-      if (draftPersisted) showToast("Editor and saved draft cleared", "info");
-      else
-        showToast(
-          "Editor cleared, but the saved draft could not be removed and may return on reload.",
-          "warning",
-        );
-    }
-  });
-
-  // Copy code to clipboard
-  document
-    .getElementById("copy-code-btn")
-    .addEventListener("click", async () => {
-      const code = editor.getValue();
-      if (!code.trim()) {
-        showToast("Nothing to copy - editor is empty", "warning");
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(code);
-        showToast("Code copied to clipboard!", "success");
-      } catch (err) {
-        showToast("Failed to copy code", "error");
-      }
-    });
-}
-
-// Setup search functionality
-function setupSearch() {
-  const searchInput = document.getElementById("example-search");
-  const clearBtn = document.getElementById("clear-search-btn");
-
-  searchInput.addEventListener("input", (e) => {
-    const query = e.target.value.toLowerCase().trim();
-    clearBtn.style.display = query ? "block" : "none";
-    filterExamples(query);
-  });
-
-  clearBtn.addEventListener("click", () => {
-    searchInput.value = "";
-    clearBtn.style.display = "none";
-    filterExamples("");
-  });
-}
-
-function filterExamples(query) {
-  const items = document.querySelectorAll(".example-item");
-
-  items.forEach((item) => {
-    const title = item.querySelector(".example-name").textContent.toLowerCase();
-    const snippet = item
-      .querySelector(".example-snippet")
-      .textContent.toLowerCase();
-
-    if (!query || title.includes(query) || snippet.includes(query)) {
-      item.style.display = "flex";
-    } else {
-      item.style.display = "none";
-    }
-  });
-}
-
-// Setup copy buttons
-function setupCopyButtons() {
-  const copyBtn = document.getElementById("copy-output-btn");
-
-  copyBtn.addEventListener("click", async () => {
-    const activeTab = document.querySelector(".tab-btn.active").dataset.tab;
-    const contentEl = document.getElementById(`${activeTab}-content`);
-    const text = contentEl.textContent;
-
+  $("clear-editor-btn").addEventListener("click", () => {
+    if (!confirm("Clear the editor? Your code will be removed.")) return;
+    draftReady = false;
+    editor.setValue("");
+    $("stdin-input").value = "";
+    $("args-input").value = "";
     try {
-      await navigator.clipboard.writeText(text);
-      copyBtn.classList.add("copied");
-      copyBtn.innerHTML = '<i class="fas fa-check"></i>';
-      showToast("Content copied!", "success");
-
-      setTimeout(() => {
-        copyBtn.classList.remove("copied");
-        copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
-      }, 2000);
-    } catch (err) {
-      showToast("Failed to copy", "error");
+      draftPersisted = globalThis.BplDraftStore.clear(window.localStorage);
+    } catch {
+      draftPersisted = false;
     }
+    draftChanged = !draftPersisted;
+    draftReady = true;
+    if (draftPersisted) showToast("Editor and saved draft cleared", "info");
+    else
+      showToast(
+        "Editor cleared, but the saved draft could not be removed and may return on reload.",
+        "warning",
+      );
+  });
+
+  $("copy-code-btn").addEventListener("click", async () => {
+    const code = editor.getValue();
+    if (!code.trim()) {
+      showToast("The editor is empty.", "warning");
+      return;
+    }
+    await copyText(code, "Code copied");
   });
 }
 
-// Setup fullscreen toggle
-function setupFullscreen() {
-  const fullscreenBtn = document.getElementById("fullscreen-btn");
-  const container = document.querySelector(".container");
-
-  fullscreenBtn.addEventListener("click", () => {
-    container.classList.toggle("fullscreen");
-    const isFullscreen = container.classList.contains("fullscreen");
-    fullscreenBtn.innerHTML = isFullscreen
-      ? '<i class="fas fa-compress"></i>'
-      : '<i class="fas fa-expand"></i>';
-
-    // Trigger editor layout recalculation
-    setTimeout(() => editor.layout(), 100);
+function setupCopyButtons() {
+  $("copy-output-btn").addEventListener("click", async () => {
+    await copyText($(`${currentTab()}-content`).textContent, "Copied");
   });
 }
 
-// Toast notification system
+async function copyText(text, message) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(message, "success");
+  } catch {
+    showToast("Could not copy to the clipboard.", "error");
+  }
+}
+
+// ---------- Toasts ----------
+
 function showToast(message, type = "info", duration = 3000) {
-  const container = document.getElementById("toast-container");
-
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
-
-  const icons = {
-    success: "fa-check-circle",
-    error: "fa-exclamation-circle",
-    warning: "fa-exclamation-triangle",
-    info: "fa-info-circle",
-  };
-
-  toast.innerHTML = `
-    <i class="fas ${icons[type]} toast-icon"></i>
-    <div class="toast-content">
-      <div class="toast-message">${message}</div>
-    </div>
-    <button class="toast-close">&times;</button>
-  `;
-
-  container.appendChild(toast);
-
-  // Close button
-  toast.querySelector(".toast-close").addEventListener("click", () => {
-    toast.remove();
-  });
-
-  // Auto remove
-  setTimeout(() => {
-    toast.style.animation = "slideIn 0.3s ease reverse";
-    setTimeout(() => toast.remove(), 300);
-  }, duration);
+  toast.setAttribute("role", type === "error" ? "alert" : "status");
+  toast.textContent = message;
+  $("toast-container").appendChild(toast);
+  setTimeout(() => toast.remove(), duration);
 }

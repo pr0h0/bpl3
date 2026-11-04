@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- The playground frontend is rewritten. Both pages share one stylesheet that
+  follows the system light or dark scheme, drop Font Awesome and decorative
+  icons, and work on narrow screens. The playground page has a toolbar
+  (Run, Run as Wasm, Format, example list) beside the editor and output tabs.
+  The tutorial page has a course outline, a reading column, runnable examples
+  that can be edited in place, exercises with hint and solution, and quizzes.
+  Lesson text goes through a new Markdown renderer
+  (`playground/frontend/markdown.js`) with tables, nested lists and escaping,
+  so tables such as lesson 2's integer types no longer show as raw `|` text.
+  `bplSyntax.js` holds the shared Monaco language definition (R-LEX-3 keywords,
+  nested block comments, interpolated strings) and the static highlighter.
 - A missing member on a primitive value is reported with the value's type
   (`'i32'`, `'double'`) instead of the internal wrapper (`'Int'`,
   `'Double'`) (BUG-479).

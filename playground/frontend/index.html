@@ -3,317 +3,194 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BPL Playground - Learn BPL by Example</title>
+    <title>BPL Playground</title>
+    <meta
+      name="description"
+      content="Write, compile and run BPL programs in the browser."
+    />
     <link rel="stylesheet" href="style.css" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css"
-    />
-    <!-- Add Font Awesome for better icons -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
   </head>
 
-  <body>
-    <div class="container">
-      <!-- Sidebar with examples -->
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <h1><i class="fas fa-code"></i> BPL by Example</h1>
-          <p class="tagline">Learn BPL through interactive examples</p>
+  <body class="playground-page">
+    <header class="site-header">
+      <a class="site-title" href="index.html">BPL</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="index.html" aria-current="page">Playground</a>
+        <a href="tutorial.html">Tutorial</a>
+      </nav>
+      <span class="server-status" id="server-status">Checking server</span>
+    </header>
 
-          <!-- Tutorial Link -->
-          <a href="tutorial.html" class="tutorial-link">
-            <i class="fas fa-graduation-cap"></i>
-            <span>Start Tutorial: Zero to Hero</span>
-            <i class="fas fa-arrow-right"></i>
-          </a>
+    <div class="toolbar" role="toolbar" aria-label="Editor actions">
+      <div class="toolbar-group">
+        <button id="run-btn" class="btn btn-primary" type="button">Run</button>
+        <button
+          id="run-wasm-btn"
+          class="btn"
+          type="button"
+          title="Compile to WebAssembly and run it in this browser"
+        >
+          Run as Wasm
+        </button>
+        <button id="format-btn" class="btn" type="button">Format</button>
+        <label class="checkbox" title="Format the code before each run">
+          <input type="checkbox" id="auto-format-checkbox" checked />
+          Format on run
+        </label>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <div class="toolbar-group">
+        <label class="visually-hidden" for="example-select">Example</label>
+        <select id="example-select">
+          <option value="">Load an example</option>
+        </select>
+        <button id="copy-code-btn" class="btn" type="button">Copy</button>
+        <button id="clear-editor-btn" class="btn" type="button">Clear</button>
+      </div>
+    </div>
 
-          <!-- Server Stats -->
-          <div class="server-stats" id="server-stats">
-            <div class="stat-item">
-              <span class="stat-label"
-                ><i class="fas fa-circle-dot"></i> Status:</span
-              >
-              <span class="stat-value status-indicator" id="server-status">
-                <span class="status-dot"></span>Checking...
-              </span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label"
-                ><i class="fas fa-chart-line"></i> Compiled:</span
-              >
-              <span class="stat-value" id="compile-count">0</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label"
-                ><i class="fas fa-clock"></i> Avg Time:</span
-              >
-              <span class="stat-value" id="avg-time">0ms</span>
-            </div>
+    <div class="example-info" id="example-info">
+      <strong id="example-title">Scratch</strong>
+      <span id="example-description"
+        >Write a program, or load one of the examples.</span
+      >
+    </div>
+
+    <main class="workspace">
+      <section class="pane" aria-label="Source">
+        <div class="pane-header">
+          <span>main.bpl</span>
+          <span class="editor-info" id="editor-info"></span>
+        </div>
+        <div id="editor" class="editor"></div>
+        <details class="program-input">
+          <summary>Program input and arguments</summary>
+          <div class="program-input-fields">
+            <label for="stdin-input"
+              >Standard input
+              <textarea id="stdin-input" rows="3"></textarea>
+            </label>
+            <label for="args-input"
+              >Command-line arguments, separated by spaces
+              <input type="text" id="args-input" placeholder="arg1 arg2" />
+            </label>
           </div>
+        </details>
+      </section>
 
-          <!-- Quick actions -->
-          <div class="quick-actions">
+      <section class="pane" aria-label="Results">
+        <div class="pane-header tabs" role="tablist">
+          <button
+            class="tab"
+            role="tab"
+            data-tab="output"
+            aria-selected="true"
+            aria-controls="tab-output"
+            type="button"
+          >
+            Output
+          </button>
+          <button
+            class="tab"
+            role="tab"
+            data-tab="ir"
+            aria-selected="false"
+            aria-controls="tab-ir"
+            type="button"
+          >
+            LLVM IR
+          </button>
+          <button
+            class="tab"
+            role="tab"
+            data-tab="ast"
+            aria-selected="false"
+            aria-controls="tab-ast"
+            type="button"
+          >
+            AST
+          </button>
+          <button
+            class="tab"
+            role="tab"
+            data-tab="tokens"
+            aria-selected="false"
+            aria-controls="tab-tokens"
+            type="button"
+          >
+            Tokens
+          </button>
+          <button
+            class="tab"
+            role="tab"
+            data-tab="wasm"
+            aria-selected="false"
+            aria-controls="tab-wasm"
+            type="button"
+          >
+            Wasm
+          </button>
+          <span class="tab-actions">
             <button
-              class="quick-action-btn"
-              id="clear-editor-btn"
-              title="Clear editor"
+              id="copy-output-btn"
+              class="btn btn-small"
+              type="button"
+              title="Copy the contents of this tab"
             >
-              <i class="fas fa-eraser"></i> Clear
+              Copy
             </button>
-            <button
-              class="quick-action-btn"
-              id="copy-code-btn"
-              title="Copy code to clipboard"
-            >
-              <i class="fas fa-copy"></i> Copy Code
-            </button>
-          </div>
+          </span>
         </div>
 
-        <!-- Search examples -->
-        <div class="search-container">
-          <i class="fas fa-search search-icon"></i>
-          <input
-            type="text"
-            id="example-search"
-            placeholder="Search examples..."
-            class="search-input"
-          />
-          <button
-            id="clear-search-btn"
-            class="clear-search-btn"
-            style="display: none"
-          >
-            <i class="fas fa-times"></i>
+        <div id="loading" class="running-bar" style="display: none">
+          <span class="spinner" aria-hidden="true"></span>
+          <span id="loading-status" role="status">Running</span>
+          <button id="stop-btn" class="btn btn-small" type="button">
+            Stop
           </button>
         </div>
 
-        <div class="examples-list" id="examples-list">
-          <!-- Examples will be loaded here -->
-        </div>
-      </aside>
-
-      <!-- Main content area -->
-      <main class="main-content">
-        <!-- Header with title and description -->
-        <div class="content-header">
-          <div class="header-top">
-            <div class="title-section">
-              <h2 id="example-title">Welcome to BPL</h2>
-              <span
-                class="difficulty-badge"
-                id="difficulty-badge"
-                style="display: none"
-              ></span>
-            </div>
-            <div class="header-actions">
-              <button
-                id="toggle-output-btn"
-                class="btn btn-secondary btn-icon"
-                title="Toggle output panel"
-              >
-                <i class="fas fa-terminal"></i>
-                <span class="btn-text">Output</span>
-              </button>
-              <button
-                id="fullscreen-btn"
-                class="btn btn-secondary btn-icon"
-                title="Toggle fullscreen"
-              >
-                <i class="fas fa-expand"></i>
-              </button>
-            </div>
-          </div>
-          <p id="example-description">
-            Select an example from the sidebar to get started
-          </p>
+        <div class="run-status" id="execution-info">
+          <span>Status: <strong id="exec-status">Ready</strong></span>
+          <span>Time: <strong id="exec-time">-</strong></span>
+          <span>Output: <strong id="output-size">-</strong></span>
         </div>
 
-        <!-- Left and right panels -->
-        <div class="content-panels">
-          <!-- Left panel: Editor -->
-          <div class="panel panel-left">
-            <!-- Code editor -->
-            <div class="editor-container">
-              <div class="editor-header">
-                <span class="editor-label">
-                  <i class="fas fa-file-code"></i> Code Editor
-                  <span class="editor-info" id="editor-info"
-                    >Lines: 0 | Chars: 0</span
-                  >
-                </span>
-                <div class="editor-actions">
-                  <label
-                    class="checkbox-label"
-                    title="Automatically format code before running"
-                  >
-                    <input type="checkbox" id="auto-format-checkbox" checked />
-                    Auto-format
-                  </label>
-                  <button id="format-btn" class="btn btn-secondary">
-                    <i class="fas fa-align-left"></i> Format
-                  </button>
-                  <button id="run-btn" class="btn btn-primary">
-                    <i class="fas fa-play"></i> Run Code
-                  </button>
-                  <button
-                    id="run-wasm-btn"
-                    class="btn btn-secondary"
-                    title="Compile hosted WebAssembly and execute it in this browser"
-                  >
-                    <i class="fas fa-cube"></i> Run Wasm
-                  </button>
-                </div>
-              </div>
-              <div id="editor" class="editor"></div>
-            </div>
-
-            <!-- Input/Args section -->
-            <div class="input-section">
-              <details>
-                <summary>
-                  <i class="fas fa-terminal"></i> Input & Arguments (Optional)
-                  <span class="summary-hint">Click to expand</span>
-                </summary>
-                <div class="input-content">
-                  <div class="input-group">
-                    <label for="stdin-input">
-                      <i class="fas fa-keyboard"></i> Standard Input (stdin):
-                    </label>
-                    <textarea
-                      id="stdin-input"
-                      placeholder="Enter input data here..."
-                      rows="3"
-                    ></textarea>
-                  </div>
-                  <div class="input-group">
-                    <label for="args-input">
-                      <i class="fas fa-list"></i> Command-line Arguments:
-                    </label>
-                    <input
-                      type="text"
-                      id="args-input"
-                      placeholder="arg1 arg2 arg3"
-                    />
-                    <small
-                      ><i class="fas fa-info-circle"></i> Separate arguments
-                      with spaces</small
-                    >
-                  </div>
-                </div>
-              </details>
-            </div>
-          </div>
-
-          <!-- Resizable divider -->
-          <div class="resize-divider" id="resize-divider"></div>
-
-          <!-- Right panel: Output tabs -->
-          <div class="panel panel-right">
-            <div class="tabs-container">
-              <div class="tabs-header">
-                <button class="tab-btn active" data-tab="output">
-                  <i class="fas fa-terminal"></i> Output
-                </button>
-                <button class="tab-btn" data-tab="ir">
-                  <i class="fas fa-code"></i> LLVM IR
-                </button>
-                <button class="tab-btn" data-tab="ast">
-                  <i class="fas fa-sitemap"></i> AST
-                </button>
-                <button class="tab-btn" data-tab="tokens">
-                  <i class="fas fa-list-ul"></i> Tokens
-                </button>
-                <button class="tab-btn" data-tab="wasm">
-                  <i class="fas fa-cube"></i> Wasm
-                </button>
-                <button
-                  class="copy-output-btn"
-                  id="copy-output-btn"
-                  title="Copy current tab content"
-                >
-                  <i class="fas fa-copy"></i>
-                </button>
-              </div>
-              <div class="tabs-content">
-                <div id="tab-output" class="tab-pane active">
-                  <div class="execution-info" id="execution-info">
-                    <span
-                      ><i class="fas fa-stopwatch"></i> Execution time:
-                      <strong id="exec-time">-</strong></span
-                    >
-                    <span
-                      ><i class="fas fa-ruler"></i> Output size:
-                      <strong id="output-size">-</strong></span
-                    >
-                    <span
-                      ><i class="fas fa-check-circle"></i> Status:
-                      <strong id="exec-status">Ready</strong></span
-                    >
-                  </div>
-                  <pre
-                    id="output-content"
-                  ><i class="fas fa-info-circle"></i> Click "Run Code" to see the output...
-
-<strong>Keyboard Shortcuts:</strong>
-• Ctrl/Cmd + Enter - Run code
-• Ctrl/Cmd + S - Format code</pre>
-                </div>
-                <div id="tab-ir" class="tab-pane">
-                  <pre
-                    id="ir-content"
-                  ><i class="fas fa-code"></i> LLVM IR will appear here after compilation...
-
-The LLVM Intermediate Representation shows how your BPL code
-is translated into a low-level representation.</pre>
-                </div>
-                <div id="tab-ast" class="tab-pane">
-                  <pre
-                    id="ast-content"
-                  ><i class="fas fa-sitemap"></i> Abstract Syntax Tree will appear here after parsing...
-
-The AST shows the structure of your code as a tree of nodes,
-representing the syntax and semantics of your program.</pre>
-                </div>
-                <div id="tab-tokens" class="tab-pane">
-                  <pre
-                    id="tokens-content"
-                  ><i class="fas fa-list-ul"></i> Lexer tokens will appear here after parsing...
-
-Tokens are the basic building blocks identified by the lexer:
-keywords, identifiers, operators, literals, etc.</pre>
-                </div>
-                <div id="tab-wasm" class="tab-pane">
-                  <pre
-                    id="wasm-content"
-                  ><i class="fas fa-cube"></i> Hosted WebAssembly output will appear here after "Run Wasm".</pre>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div id="tab-output" class="tab-panel" role="tabpanel">
+          <pre id="output-content" class="placeholder">
+Press Run to compile and run the program.</pre>
         </div>
-      </main>
-    </div>
+        <div id="tab-ir" class="tab-panel" role="tabpanel" hidden>
+          <pre id="ir-content" class="placeholder">
+Run the program, then open this tab to see the generated LLVM IR.</pre>
+        </div>
+        <div id="tab-ast" class="tab-panel" role="tabpanel" hidden>
+          <pre id="ast-content" class="placeholder">
+Run the program, then open this tab to see the syntax tree.</pre>
+        </div>
+        <div id="tab-tokens" class="tab-panel" role="tabpanel" hidden>
+          <pre id="tokens-content" class="placeholder">
+Run the program, then open this tab to see the lexer tokens.</pre>
+        </div>
+        <div id="tab-wasm" class="tab-panel" role="tabpanel" hidden>
+          <pre id="wasm-content" class="placeholder">
+Press Run as Wasm to compile to WebAssembly and run it in this browser.</pre>
+        </div>
 
-    <!-- Loading indicator -->
-    <div id="loading" class="loading-overlay" style="display: none">
-      <div class="spinner"></div>
-      <p><i class="fas fa-code"></i> Compiling and running...</p>
-      <small id="loading-status">Preparing compilation...</small>
-      <button id="stop-btn" class="btn btn-secondary" type="button">
-        Stop
-      </button>
-    </div>
+        <p class="shortcuts pane-header">
+          <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> run</span>
+          <span
+            ><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> run as Wasm</span
+          >
+          <span><kbd>Ctrl</kbd>+<kbd>S</kbd> format</span>
+        </p>
+      </section>
+    </main>
 
-    <!-- Toast notifications -->
-    <div id="toast-container" class="toast-container"></div>
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
-    <!-- Monaco Editor -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+    <script src="bplSyntax.js"></script>
     <script src="wasmHostAdapter.js"></script>
     <script src="browserWasmRuntime.js"></script>
     <script src="draftStore.js"></script>
