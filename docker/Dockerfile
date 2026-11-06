@@ -3,7 +3,7 @@ FROM oven/bun:1.4.2 AS bun
 FROM docker:29.5.0-cli AS docker-cli
 
 FROM ubuntu:24.04 AS compiler
-ARG BPL_VERSION=0.1.1
+ARG BPL_VERSION=0.1.2
 ARG BPL_REVISION=local
 LABEL org.opencontainers.image.source="https://github.com/pr0h0/bpl3" \
       org.opencontainers.image.version="${BPL_VERSION}" \

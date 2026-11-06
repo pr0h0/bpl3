@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-06
+
+See [release notes](docs/releases/v0.1.2.md) for the release scope and validation.
+
 ### Changed
 
 - The playground frontend is rewritten. Both pages share one stylesheet that
